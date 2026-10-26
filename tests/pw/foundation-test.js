@@ -173,6 +173,36 @@ const dela = (page) => page.locator(".dela-host");
     await s.page.screenshot({ path: path.join(SHOTS, "notices.png") });
     await s.ctx.close();
 
+    // Releases: password, tested checkbox, push needs the password
+    await sql("delete from release_approvals; delete from releases; delete from release_password; select dela_release_record('v0.1.0', repeat('e', 40), 'api-0.2.0', array['0001_foundation_tables.sql'], 'Step 1 foundation')");
+    s = await open(browser, "DELA-Admin", 1, "");
+    await text(s.page);
+    await dela(s.page).getByRole("tab", { name: "Releases" }).click();
+    t = await text(s.page);
+    ok(t.includes("Set your release password") && t.includes("Nothing yet"), "Releases tab asks the owner to set a release password");
+    await dela(s.page).getByLabel("New release password", { exact: true }).fill("Lawfecta-Release-01");
+    await dela(s.page).getByLabel("Repeat new release password").fill("Lawfecta-Release-01");
+    await dela(s.page).getByRole("button", { name: "Save password" }).click();
+    await s.page.waitForTimeout(500);
+    ok((await text(s.page)).includes("Change your release password"), "release password saved");
+    ok(!(await text(s.page)).includes("Push to Live"), "no push button before the version is marked tested");
+    await dela(s.page).getByLabel("I tested v0.1.0 on Staging").check();
+    await s.page.waitForTimeout(500);
+    await dela(s.page).getByRole("button", { name: "Push to Live" }).click();
+    await dela(s.page).getByLabel("Release password", { exact: true }).fill("not-the-password");
+    await dela(s.page).getByRole("button", { name: "Confirm" }).click();
+    await s.page.waitForTimeout(500);
+    ok((await text(s.page)).includes("That release password is not right"), "wrong release password is refused");
+    await dela(s.page).getByRole("button", { name: "Push to Live" }).click();
+    await dela(s.page).getByLabel("Release password", { exact: true }).fill("Lawfecta-Release-01");
+    await dela(s.page).getByRole("button", { name: "Confirm" }).click();
+    await s.page.waitForTimeout(600);
+    ok((await text(s.page)).includes("GitHub is not connected for pushes yet"), "with GitHub not set up, nothing is pushed and the owner is told");
+    rows = await sql("select status from releases");
+    ok(rows[0].status === "tested", "the version stays tested on Staging");
+    await s.page.screenshot({ path: path.join(SHOTS, "admin-releases.png"), fullPage: true });
+    await s.ctx.close();
+
     // A member cannot open the admin area
     s = await open(browser, "DELA-Admin", 1100, "12");
     ok((await text(s.page)).includes("Lawfecta Team only"), "members cannot open the admin area");

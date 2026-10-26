@@ -13,6 +13,6 @@ $w = array('database' => 'bd_db', 'website_id' => 1);
 ob_start();
 include __DIR__ . '/../../widgets/' . $argv[1] . '.php';
 $html = ob_get_clean();
-$html = str_replace('PASTE_LIVE_API_ADDRESS', $argv[5], $html);
+$html = str_replace('PASTE_STAGING_API_ADDRESS', $argv[5], $html);
 $html = str_replace('PASTE_GITHUB_OWNER/lawfecta-dela', $argv[6], $html);
 echo $html;

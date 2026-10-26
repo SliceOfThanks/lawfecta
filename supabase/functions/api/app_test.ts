@@ -10,9 +10,19 @@ import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
 const SECRET = "test-shared-secret-0123456789abcdefghij";
 const WORKER = "test-worker-secret-0123456789abcdef0123";
 const sent: string[] = [];
+const CI = "ci-secret-0123456789abcdef0123456789abcdef";
+const dispatched: any[] = [];
+let githubStatus = 204;
 const deps: Deps = {
   rpc,
-  env: (k) => ({ BD_SHARED_SECRET: SECRET, DELA_ORIGINS: "https://lawfecta.com,https://www.lawfecta.com", STAGING_API_URL: "https://staging.example.invalid/functions/v1/api" } as Record<string, string>)[k] ?? "",
+  env: (k) => ({
+    BD_SHARED_SECRET: SECRET, DELA_ORIGINS: "https://lawfecta.com,https://www.lawfecta.com", STAGING_API_URL: "https://staging.example.invalid/functions/v1/api",
+    GITHUB_REPO: "SliceOfThanks/lawfecta-dela", GITHUB_DISPATCH_TOKEN: "gh-token", RELEASE_CI_SECRET: CI,
+  } as Record<string, string>)[k] ?? "",
+  fetch: (async (url: string, opts: RequestInit) => {
+    dispatched.push({ url, body: JSON.parse(String(opts.body)), auth: (opts.headers as Record<string, string>).authorization });
+    return new Response(null, { status: githubStatus });
+  }) as typeof fetch,
 };
 
 async function makePass(p: Record<string, unknown>, secret = SECRET) {
@@ -148,6 +158,38 @@ Deno.test("staging testers are handed to Staging by Live", async () => {
   assertEquals(r.body.api, "https://staging.example.invalid/functions/v1/api");
   assertEquals(r.body.session, undefined);
   await pool.query("update settings set value = '\"staging\"' where key = 'environment'");
+});
+
+Deno.test("release gate: password, push, GitHub claim and finish", async () => {
+  await pool.query("delete from release_approvals; delete from releases; delete from release_password");
+  const rel = (await pool.query("select dela_release_record('v0.9.0', repeat('d', 40), 'api-0.2.0', '{}', 'test') as id")).rows[0].id;
+  assertEquals((await call("POST", "/admin/releases/password", { session: ownerSession, body: { password: "Release-Pass-2026" } })).body.data.ok, true);
+  assertEquals((await call("POST", "/admin/releases/push", { session: ownerSession, body: { release_id: rel, password: "Release-Pass-2026" } })).body.data.reason, "not_tested");
+  await call("POST", "/admin/releases/tested", { session: ownerSession, body: { release_id: rel, tested: true } });
+  assertEquals((await call("POST", "/admin/releases/push", { session: ownerSession, body: { release_id: rel, password: "wrong-password-x" } })).body.data.reason, "wrong_password");
+
+  githubStatus = 500;
+  const down = await call("POST", "/admin/releases/push", { session: ownerSession, body: { release_id: rel, password: "Release-Pass-2026" } });
+  assertEquals(down.body.data.reason, "github_500");
+  assertEquals((await pool.query("select status from releases where id = $1", [rel])).rows[0].status, "tested", "GitHub down: version goes back to tested");
+
+  githubStatus = 204;
+  dispatched.length = 0;
+  const ok = await call("POST", "/admin/releases/push", { session: ownerSession, body: { release_id: rel, password: "Release-Pass-2026" } });
+  assertEquals(ok.body.data.ok, true);
+  assertEquals(JSON.stringify(ok.body).includes("nonce"), false, "the approval code never reaches the browser");
+  assertEquals(dispatched[0].url, "https://api.github.com/repos/SliceOfThanks/lawfecta-dela/actions/workflows/promote.yml/dispatches");
+  assertEquals(dispatched[0].auth, "Bearer gh-token");
+  const nonce = dispatched[0].body.inputs.nonce;
+
+  assertEquals((await call("POST", "/release/claim", { body: { release_id: rel, nonce } })).status, 401, "claim needs the CI secret");
+  const claim = await call("POST", "/release/claim", { headers: { "x-dela-ci": CI }, body: { release_id: rel, nonce } });
+  assertEquals(claim.body.commit, "d".repeat(40));
+  assertEquals((await call("POST", "/release/claim", { headers: { "x-dela-ci": CI }, body: { release_id: rel, nonce } })).body.reason, "approval_not_valid");
+  await call("POST", "/release/finish", { headers: { "x-dela-ci": CI }, body: { release_id: rel, ok: true, log: "done" } });
+  const list = (await call("GET", "/admin/releases", { session: ownerSession })).body.data;
+  assertEquals(list.live.version, "v0.9.0");
+  assertEquals(list.password_set, true);
 });
 
 Deno.test("bad requests", async () => {

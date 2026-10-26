@@ -3,12 +3,12 @@
 //
 // Sign in: the DELA-Auth widget in BD signs a one-use pass; POST /bootstrap swaps it for a DELA session token.
 // Every other member route sends that token in the x-dela-session header and is checked again on every call.
-import { newSessionToken, sessionHash } from "./lib/crypto.ts";
+import { newSessionToken, safeEqual, sessionHash } from "./lib/crypto.ts";
 import { buildNotice } from "./lib/email.ts";
 import { pickProvider } from "./lib/mail/index.ts";
 import { verifyPass } from "./lib/pass.ts";
 
-export const VERSION = "api-0.1.0";
+export const VERSION = "api-0.2.0";
 
 export type Deps = {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -159,6 +159,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/audit": (c, a) => rpc(c, "dela_admin_audit", { p_actor: a, p_before: int(c.url.searchParams.get("before")), p_limit: 100 }),
   "/admin/jobs": (c, a) => rpc(c, "dela_admin_jobs", { p_actor: a }),
   "/admin/holds": (c, a) => rpc(c, "dela_admin_holds", { p_actor: a }),
+  "/admin/releases": (c, a) => rpc(c, "dela_admin_releases", { p_actor: a }),
 };
 
 const ADMIN_POST: Record<string, AdminRoute> = {
@@ -179,7 +180,51 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   "/admin/holds": (c, a) => rpc(c, "dela_admin_hold", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id"), p_reason: need(str(c.body.reason, 500)), p_severity: str(c.body.severity, 10) || "medium" }),
   "/admin/holds/release": (c, a) => rpc(c, "dela_admin_hold_release", { p_actor: a, p_hold: need(str(c.body.id, 40)), p_evidence: need(str(c.body.evidence, 1000)) }),
   "/admin/test-notification": (c, a) => rpc(c, "dela_admin_test_notification", { p_actor: a, p_email: c.body.email === true }),
+  "/admin/releases/password": (c, a) => rpc(c, "dela_release_password_set", { p_actor: a, p_current: str(c.body.current, 200) || null, p_new: need(str(c.body.password, 200)) }),
+  "/admin/releases/tested": (c, a) => rpc(c, "dela_release_mark_tested", { p_actor: a, p_release: need(int(c.body.release_id)), p_tested: c.body.tested === true }),
+  "/admin/releases/push": (c, a) => startRelease(c, a, "push"),
+  "/admin/releases/rollback": (c, a) => startRelease(c, a, "rollback"),
 };
+
+// ---------- Release gate: only the owner, with the release password, starts a push from Staging to Live ----------
+
+async function startRelease(c: Ctx, actor: string, action: "push" | "rollback") {
+  const id = need(int(c.body.release_id));
+  const r = await rpc<Record<string, any>>(c, "dela_release_approve", { p_actor: actor, p_release: id, p_action: action, p_password: need(str(c.body.password, 200), "wrong_password") });
+  if (!r?.ok) return r;
+  const repo = c.deps.env("GITHUB_REPO");
+  const token = c.deps.env("GITHUB_DISPATCH_TOKEN");
+  let problem = "";
+  if (!repo || !token) problem = "github_not_set_up";
+  else {
+    try {
+      const res = await (c.deps.fetch ?? fetch)(`https://api.github.com/repos/${repo}/actions/workflows/promote.yml/dispatches`, {
+        method: "POST",
+        headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "content-type": "application/json", "user-agent": "lawfecta-dela" },
+        body: JSON.stringify({ ref: "main", inputs: { release_id: String(id), nonce: r.nonce, action } }),
+      });
+      if (res.status !== 204) problem = "github_" + res.status;
+    } catch (e) {
+      problem = "github_unreachable";
+      console.error("dispatch", String(e).slice(0, 200));
+    }
+  }
+  if (problem) {
+    await rpc(c, "dela_release_cancel_approval", { p_release: id, p_reason: problem });
+    return { ok: false, reason: problem };
+  }
+  return { ok: true, version: r.version, action };
+}
+
+// GitHub Actions confirms its approval here before it changes anything on Live, then reports how it went
+async function releaseCi(ctx: Ctx, step: "claim" | "finish") {
+  const want = ctx.deps.env("RELEASE_CI_SECRET");
+  const got = ctx.req.headers.get("x-dela-ci") ?? "";
+  if (want.length < 32 || !safeEqual(got, want)) throw new HttpError(401, "bad_ci");
+  const id = need(int(ctx.body.release_id));
+  if (step === "claim") return json(ctx, await rpc(ctx, "dela_release_claim", { p_release: id, p_nonce: need(str(ctx.body.nonce, 100)) }));
+  return json(ctx, await rpc(ctx, "dela_release_finish", { p_release: id, p_ok: ctx.body.ok === true, p_log: str(ctx.body.log, 4000) }));
+}
 
 // Only whole cents, whole basis points and whole-number limits get through
 function planDraft(b: Record<string, unknown>) {
@@ -215,6 +260,9 @@ async function worker(ctx: Ctx) {
   const secret = ctx.req.headers.get("x-dela-worker") ?? "";
   const ok = await rpc<boolean>(ctx, "dela_worker_ok", { p_secret: secret });
   if (!ok) throw new HttpError(401, "bad_worker");
+  if (await rpc<string>(ctx, "dela_setting_text", { p_key: "environment", p_default: "staging" }) === "staging") {
+    await rpc(ctx, "dela_release_expire", {});
+  }
   const jobs = await rpc<Array<Record<string, any>>>(ctx, "dela_job_lease", { p_limit: 25, p_lease_seconds: 120 }) ?? [];
   const done: Record<string, number> = {};
   for (const j of jobs) {
@@ -292,6 +340,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /notifications": return await notifications(ctx);
       case "POST /notifications/read": return await readNotification(ctx);
       case "POST /worker": return await worker(ctx);
+      case "POST /release/claim": return await releaseCi(ctx, "claim");
+      case "POST /release/finish": return await releaseCi(ctx, "finish");
     }
     const route = req.method === "GET" ? ADMIN_GET[path] : req.method === "POST" ? ADMIN_POST[path] : undefined;
     if (route) {

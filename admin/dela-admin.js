@@ -12,7 +12,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"], ["releases", "Releases"]];
   var current = "overview";
   var mainEl = null;
   var tabsEl = null;
@@ -62,7 +62,7 @@
     current = tab;
     drawTabs();
     loading();
-    ({ overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, team: team, holds: holds, audit: audit, jobs: jobs, releases: releases })[tab]();
   }
 
   // ---------- Overview ----------
@@ -428,6 +428,95 @@
         h("div", { class: "card scroll" }, h("h2", { text: "Problems" }), r.data.recent_problems.length ? h("table", null, h("tbody", null, r.data.recent_problems.map(function (j) {
           return h("tr", null, h("td", { text: j.kind }), h("td", { text: j.status }), h("td", { text: "Tries: " + j.attempts }), h("td", { class: "small", text: j.last_error }), h("td", { text: D.dateTime(j.updated_at) }));
         }))) : h("p", { class: "muted", text: "No problems." }))));
+    }).catch(fail);
+  }
+
+  // ---------- Releases (Staging to Live, owner only, with the release password) ----------
+
+  var releaseTimer = null;
+  var RELEASE_STATUS = { candidate: "Ready to test", tested: "Tested on Staging", approved: "Starting push", deploying: "Pushing to Live", live: "Live now", failed: "Push failed", replaced: "Was live before", rolled_back: "Rolled back" };
+  var RELEASE_ERR = {
+    wrong_password: "That release password is not right.", locked: "Too many wrong passwords. Pushing is locked for 30 minutes.",
+    no_password: "Set your release password first.", not_tested: "Mark this version as tested on Staging first.",
+    password_too_short: "Use at least 12 characters.", push_in_progress: "A push is already running. Wait for it to finish.",
+    github_not_set_up: "GitHub is not connected for pushes yet. Claude will finish this setup.", staging_only: "Pushes start from the Staging admin area.",
+    not_rollback_target: "You can only go back to a version that was live before.",
+  };
+  function relFail(e) {
+    var code = e && e.message ? e.message : String(e);
+    if (code.indexOf("github_") === 0 && !RELEASE_ERR[code]) { D.toast(app, "GitHub did not start the push (" + code + "). Nothing changed on Live.", true); return; }
+    D.toast(app, RELEASE_ERR[code] || D.errorText(code), true);
+  }
+
+  function askPassword(title, text, onGo) {
+    var pw = h("input", { type: "password", autocomplete: "off", "aria-label": "Release password", style: "width:100%" });
+    var box = h("div", { class: "drawer", role: "dialog", "aria-label": title },
+      h("h2", { text: title }), h("p", { text: text }),
+      h("label", { text: "Release password" }), pw,
+      h("div", { class: "row", style: "margin-top:14px" },
+        h("button", { onclick: function () { var v = pw.value; pw.value = ""; box.remove(); onGo(v); } }, "Confirm"),
+        h("button", { class: "ghost", onclick: function () { pw.value = ""; box.remove(); } }, "Cancel")));
+    app.appendChild(box);
+    pw.focus();
+  }
+
+  function releases() {
+    if (releaseTimer) { clearTimeout(releaseTimer); releaseTimer = null; }
+    api.get("/admin/releases").then(function (r) {
+      var d = r.data;
+      if (current !== "releases") return;
+      if (d.environment === "live") {
+        body(h("div", null, h("h1", { text: "Releases" }), h("div", { class: "card" }, h("p", { text: "This is the Live copy. New versions reach Live only when the owner pushes them from the Staging admin area with the release password." }),
+          d.live ? h("p", { class: "muted", text: "Live now: " + d.live.version }) : null)));
+        return;
+      }
+      var busy = d.releases.some(function (x) { return x.status === "approved" || x.status === "deploying"; });
+      var cards = d.releases.map(function (x) {
+        var tested = h("input", { type: "checkbox", checked: x.status === "tested", disabled: !isOwner || ["candidate", "tested", "failed"].indexOf(x.status) < 0, "aria-label": "I tested " + x.version + " on Staging" });
+        tested.addEventListener("change", function () {
+          api.post("/admin/releases/tested", { release_id: x.id, tested: tested.checked }).then(check).then(function () { ok(tested.checked ? "Marked as tested" : "Unmarked"); releases(); }).catch(relFail);
+        });
+        var actions = h("div", { class: "row", style: "margin-top:10px" });
+        if (isOwner && x.status === "tested") actions.appendChild(h("button", { disabled: busy, onclick: function () {
+          askPassword("Push " + x.version + " to Live", "Members on Live get this version right away. Enter your release password to confirm.", function (pw) {
+            api.post("/admin/releases/push", { release_id: x.id, password: pw }).then(check).then(function () { ok("Push started. This page updates as it runs."); releases(); }).catch(relFail);
+          });
+        } }, "Push to Live"));
+        if (isOwner && (x.status === "replaced" || x.status === "rolled_back")) actions.appendChild(h("button", { class: "ghost", disabled: busy, onclick: function () {
+          askPassword("Go back to " + x.version, "Live goes back to this earlier version. Data members added since then is kept. Enter your release password to confirm.", function (pw) {
+            api.post("/admin/releases/rollback", { release_id: x.id, password: pw }).then(check).then(function () { ok("Going back started."); releases(); }).catch(relFail);
+          });
+        } }, "Go back to this version"));
+        var badgeClass = x.status === "live" ? "C" : x.status === "failed" ? "G" : x.status === "tested" ? "R" : "O";
+        return h("div", { class: "card" },
+          h("div", { class: "row" }, h("h2", { class: "grow", text: x.version }), h("span", { class: "badge " + badgeClass, text: RELEASE_STATUS[x.status] || x.status })),
+          x.notes ? h("p", { text: x.notes }) : null,
+          h("p", { class: "muted small", text: "Code " + x.commit.slice(0, 7) + " | " + x.migrations.length + (x.migrations.length === 1 ? " database change" : " database changes") + " | added " + D.dateTime(x.created_at) + (x.live_at ? " | live " + D.dateTime(x.live_at) : "") + (x.approved_by ? " | pushed by " + x.approved_by : "") }),
+          ["candidate", "tested", "failed"].indexOf(x.status) >= 0 ? h("label", { class: "row", style: "font-weight:600" }, tested, "I tested this version on Staging and it is ready") : null,
+          actions,
+          x.deploy_log ? h("details", null, h("summary", { class: "small", text: "Push log" }), h("pre", { class: "small", style: "white-space:pre-wrap", text: x.deploy_log })) : null);
+      });
+      var pwCard = null;
+      if (isOwner) {
+        var cur = h("input", { type: "password", autocomplete: "off", "aria-label": "Current release password" });
+        var nw = h("input", { type: "password", autocomplete: "new-password", "aria-label": "New release password" });
+        var nw2 = h("input", { type: "password", autocomplete: "new-password", "aria-label": "Repeat new release password" });
+        pwCard = h("div", { class: "card" }, h("h2", { text: d.password_set ? "Change your release password" : "Set your release password" }),
+          h("p", { class: "muted small", text: "Only you push to Live, and every push asks for this password. Use at least 12 characters. Do not share it, and never paste it in chat. Five wrong tries lock pushing for 30 minutes." }),
+          d.password_set ? [h("label", { text: "Current password" }), cur] : null,
+          h("label", { text: "New password" }), nw, h("label", { text: "Repeat new password" }), nw2,
+          h("div", { style: "margin-top:10px" }, h("button", { onclick: function () {
+            if (nw.value !== nw2.value) { D.toast(app, "The two new passwords do not match.", true); return; }
+            api.post("/admin/releases/password", { current: cur.value, password: nw.value }).then(check).then(function () { cur.value = nw.value = nw2.value = ""; ok("Release password saved"); releases(); }).catch(relFail);
+          } }, "Save password")));
+      }
+      body(h("div", null, h("h1", { text: "Releases" }),
+        h("p", { class: "muted", text: "Every version is built and tested on Staging first. Only the owner pushes a tested version to Live, with the release password. If a push fails, Live stays on the version it had." }),
+        d.locked_until ? h("div", { class: "notice bad", text: "Pushing is locked until " + D.dateTime(d.locked_until) + " after too many wrong passwords." }) : null,
+        h("div", { class: "card" }, h("h2", { text: "On Live now" }), h("p", { text: d.live ? d.live.version + ", since " + D.dateTime(d.live.live_at) : "Nothing yet. Live gets its first version when you push one." })),
+        pwCard,
+        cards.length ? cards : h("p", { class: "muted", text: "No versions yet. Claude adds each version here when it is ready on Staging." })));
+      if (busy) releaseTimer = setTimeout(releases, 8000);
     }).catch(fail);
   }
 

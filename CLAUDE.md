@@ -33,6 +33,13 @@ One person can hold both sides; each side has its own plan and nothing mixes.
 ## BD widgets
 DELA-Auth (helper), DELA-App, DELA-Admin. Keep them tiny. BD widget rules: no backslashes, no regex functions, no example URLs with https://, no literal widget shortcodes in widget code, helper widgets start with <?php and end with ?>.
 
+## Staging first, and only Stacey pushes to Live
+- Build and deploy only to DELA Staging. Never apply migrations, deploy functions or change settings on DELA Live, even if a tool allows it.
+- When a version is ready on Staging, record it (select dela_release_record(version, commit, api_version, migrations, notes)) and give Stacey the ChatGPT test prompt.
+- Stacey marks it tested and pushes it from the Staging admin area (Releases tab) with her release password. GitHub Actions (.github/workflows/promote.yml, tools/promote.mjs) does the push only after Staging confirms her one-use approval.
+- Database migrations are additive and backward compatible, so a rollback only switches code and api back.
+- The current Lawfecta site stays unchanged. DELA is added next to it.
+
 ## Safety rules that never change
 - Confidential client data does not belong in DELA. Show the notice where people type or upload. Members are responsible for what they enter.
 - Money in integer cents. Financial and audit history is append-only; corrections are new records.

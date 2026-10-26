@@ -6,6 +6,15 @@ Last updated: 2026-10-26. Phase 1A, Step 0 (setup) and Step 1 (foundation) built
 The current Lawfecta site stays unchanged while DELA is built. Only additions: pages /dela and /dela-admin, widgets DELA-Auth, DELA-App, DELA-Admin.
 No BD plans are created until launch; test accounts get DELA plans with "Give a side" in the admin area. Existing widgets (Profile Builder, Profile Audit, services, promotions, pitches, Member Match) are not edited; DELA versions are built next to them.
 
+## Release gate (Stacey, 2026-10-26): staging first, only Stacey pushes to Live
+- Claude deploys to Staging only. Live changes only through Releases tab > Push to Live (owner + release password, version marked tested).
+- 0007_release_gate.sql: releases, release_password (bcrypt hash), release_approvals (one-use, 15 minutes, only a hash stored). Five wrong passwords lock for 30 minutes and email the owner.
+- api-0.2.0: /admin/releases, /admin/releases/password, /tested, /push, /rollback; /release/claim and /release/finish for GitHub (header x-dela-ci = RELEASE_CI_SECRET). Push dispatches .github/workflows/promote.yml (secrets GITHUB_REPO, GITHUB_DISPATCH_TOKEN on Staging).
+- tools/promote.mjs: claim, checkout commit, apply unapplied migrations to Live (tracked in dela_schema_migrations), deploy api, set code_version, health check, report. On failure after deploy it redeploys the previous commit and restores code_version.
+- GitHub setup needed: environment "live"; variables STAGING_API_URL, LIVE_PROJECT_REF; secrets RELEASE_CI_SECRET, SUPABASE_ACCESS_TOKEN (Stacey creates the token).
+- Widgets 1.1.0: data-api-staging used until data-api (Live) is filled in after the first push.
+- Honest limit: anyone with Supabase or GitHub admin access (including Claude's connectors) could bypass the button. The rule in CLAUDE.md, the audit log, and keeping SUPABASE_ACCESS_TOKEN only in GitHub secrets are the guards. Strongest option: put Live in a Supabase organization Claude's connector cannot see.
+
 ## Waiting on Stacey before deploy
 - GitHub: Stacey creates the empty public repo SliceOfThanks/lawfecta-dela (the GitHub connector cannot create repos: 403), then Claude attaches it with add_repo and pushes.
 - Supabase: the connector only sees "SliceOfThanks's Org". Stacey reconnects the Supabase connector and grants the "Lawfecta AI" organization, then Claude creates DELA Staging and DELA Live there.
@@ -33,10 +42,10 @@ Lawfecta palette from Stacey's mockups: navy #1d2030 to burgundy #8b2146 hero, h
 - Release: set code_version on Staging to the new commit, Stacey tests, then apply the same migrations to Live and set Live code_version to the same commit.
 
 ## Tests (all passing 2026-10-26)
-- tools/dbtest.sh: 69 database checks (supabase/tests/foundation_test.sql) on a throwaway local Postgres 16.
-- deno test -A supabase/functions/api/app_test.ts: 11 API tests (plus 2 widget pass tests) against the real database.
+- tools/dbtest.sh: 95 database checks (supabase/tests/foundation_test.sql, release_test.sql) on a throwaway local Postgres 16.
+- deno test -A supabase/functions/api/app_test.ts: 12 API tests (plus 2 widget pass tests); node --test tests/promote_test.mjs: 4 push script tests against the real database.
 - deno test -A tests/php/auth_test.ts: the real PHP widget's pass is accepted by the api.
-- tests/pw/foundation-test.js with tests/pw/server.ts running: 27 browser checks through the real widgets (rendered by PHP), api and database.
+- tests/pw/foundation-test.js with tests/pw/server.ts running: 33 browser checks through the real widgets (rendered by PHP), api and database.
 - Local Postgres: run as user pgrun from /home/pgrun/data on port 55432 (initdb refuses root). Deno: npm i deno.
 
 ## Setup steps after Stacey answers (Claude)
