@@ -219,6 +219,7 @@
     closeMenu();
     var main = h("div", { class: "wrap" });
     if (me.notice) main.appendChild(h("div", { class: "notice", role: "note", text: me.notice }));
+    if (me.pause && me.pause.all) main.appendChild(h("div", { class: "notice bad", role: "alert", text: "DELA is paused for members right now. You can still use it because you are on the Lawfecta Team." }));
     if (me.on_hold) main.appendChild(h("div", { class: "notice bad", role: "alert", text: "Some actions are paused on your account. Contact the Lawfecta Team." }));
     if (!me.side) main.appendChild(noSide());
     else if (tab === "home") main.appendChild(me.side === "attorney" ? attorneyHome() : freelancerHome());
@@ -258,6 +259,7 @@
   }
 
   if (boot.route === "here" && me) draw();
+  else if (boot.route === "paused") show(frame("DELA is paused for a moment", boot.message || "Please try again soon."));
   else if (boot.route === "denied") show(denied(boot.reason));
   else show(signedOut(false));
 })();

@@ -5,9 +5,9 @@ import assert from "node:assert/strict";
 import { promote } from "../tools/promote.mjs";
 
 const COMMIT = "a".repeat(40);
-const env = { OWNER_BD_MEMBER_ID: "42", STAGING_API_URL: "https://staging.test/functions/v1/api", RELEASE_CI_SECRET: "x".repeat(40), RELEASE_ID: "3", NONCE: "n".repeat(64), SUPABASE_ACCESS_TOKEN: "t", LIVE_PROJECT_REF: "liveref" };
+const env = { GITHUB_REPOSITORY: "SliceOfThanks/lawfecta-dela", GITHUB_TOKEN: "gt", OWNER_BD_MEMBER_ID: "42", STAGING_API_URL: "https://staging.test/functions/v1/api", RELEASE_CI_SECRET: "x".repeat(40), RELEASE_ID: "3", NONCE: "n".repeat(64), SUPABASE_ACCESS_TOKEN: "t", LIVE_PROJECT_REF: "liveref" };
 
-function fake({ claimOk = true, applied = [], health = { ok: true, environment: "live", version: "api-0.2.0" }, dbFailOn = null } = {}) {
+function fake({ testsOk = true, claimOk = true, applied = [], health = { ok: true, environment: "live", version: "api-0.2.0" }, dbFailOn = null } = {}) {
   const calls = { queries: [], finish: null, run: [] };
   const fetchFn = async (url, opts = {}) => {
     const body = opts.body ? JSON.parse(opts.body) : null;
@@ -25,6 +25,7 @@ function fake({ claimOk = true, applied = [], health = { ok: true, environment: 
       return res(200, []);
     }
     if (url.endsWith("/api/health")) return res(200, health);
+    if (url.includes("/check-runs")) return res(200, { check_runs: testsOk ? [{ name: "tests", conclusion: "success" }] : [{ name: "tests", conclusion: "failure" }] });
     throw new Error("unexpected " + url);
   };
   const run = (cmd, args) => { calls.run.push([cmd, ...args].join(" ")); return ""; };
@@ -51,6 +52,13 @@ test("applies only new migrations, deploys, switches code, reports live", async 
   assert.ok(f.calls.queries.some((q) => q.includes("key = 'code_version'") && q.includes(COMMIT)));
   assert.ok(f.calls.queries.some((q) => q.includes("bootstrap.owner_bd_member_id") && q.includes("'42'")), "first owner named on Live");
   assert.equal(f.calls.finish.ok, true);
+});
+
+test("a version without passing tests never touches Live", async () => {
+  const f = fake({ testsOk: false });
+  await assert.rejects(promote({ env, fetchFn: f.fetchFn, run: f.run }), /no passing automatic tests/);
+  assert.equal(f.calls.queries.length, 0, "no database change on Live");
+  assert.equal(f.calls.finish.ok, false);
 });
 
 test("a failing migration stops before deploy and reports failure", async () => {

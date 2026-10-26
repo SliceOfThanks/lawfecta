@@ -7,7 +7,7 @@ begin
   insert into people (bd_member_id, display_name) values (7001, 'Support person') returning id into sup;
   insert into staff_roles (person_id, role) values (sup, 'support');
 
-  rel1 := dela_release_record('v0.1.0', repeat('a', 40), 'api-0.1.0', array['0001_foundation_tables.sql'], 'First release');
+  rel1 := dela_release_record('v0.1.0', repeat('a', 40), 'api-0.1.0', array['0001_foundation_tables.sql'], 'First release with the foundation', 'https://github.com/SliceOfThanks/lawfecta-dela/actions/runs/1');
   perform dela_release_attach_report(rel1, 'PASS: all 16 steps');
   perform t_ok((select test_report from releases where id = rel1) = 'PASS: all 16 steps', 'test report saved with the version');
   r := dela_release_approve(owner_id, rel1, 'push', 'whatever-password');
@@ -46,7 +46,7 @@ begin
   perform t_ok(exists (select 1 from notifications where kind = 'release' and title like '%v0.1.0 is live%'), 'owner is told it is live');
 
   -- Second version, then roll back to the first
-  rel2 := dela_release_record('v0.2.0', repeat('b', 40), 'api-0.2.0', array['0001_foundation_tables.sql', '0007_release_gate.sql'], 'Second');
+  rel2 := dela_release_record('v0.2.0', repeat('b', 40), 'api-0.2.0', array['0001_foundation_tables.sql', '0007_release_gate.sql'], 'Second release adds the release gate', 'https://github.com/SliceOfThanks/lawfecta-dela/actions/runs/1');
   perform dela_release_mark_tested(owner_id, rel2, true);
   nonce := dela_release_approve(owner_id, rel2, 'push', 'Stacey-Release-2026')->>'nonce';
   perform dela_release_claim(rel2, nonce);
@@ -60,7 +60,7 @@ begin
   perform t_ok((select status from releases where id = rel1) = 'live' and (select status from releases where id = rel2) = 'replaced', 'earlier version is live again');
 
   -- Expired approval
-  rel2 := dela_release_record('v0.3.0', repeat('c', 40), '', '{}', '');
+  rel2 := dela_release_record('v0.3.0', repeat('c', 40), '', '{}', 'Third release for expiry tests', 'https://github.com/SliceOfThanks/lawfecta-dela/actions/runs/1');
   perform dela_release_mark_tested(owner_id, rel2, true);
   r := dela_release_approve(owner_id, rel2, 'push', 'Stacey-Release-2026');
   update release_approvals set expires_at = now() - interval '1 second' where release_id = rel2;

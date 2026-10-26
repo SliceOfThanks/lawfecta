@@ -35,7 +35,9 @@ DELA-Auth (helper), DELA-App, DELA-Admin. Keep them tiny. BD widget rules: no ba
 
 ## Staging first, and only Stacey pushes to Live
 - Build and deploy only to DELA Staging. Never apply migrations, deploy functions or change settings on DELA Live, even if a tool allows it.
-- When a version is ready on Staging, record it (select dela_release_record(version, commit, api_version, migrations, notes)) and give Stacey the ChatGPT test prompt.
+- When a version is ready on Staging and the GitHub "Tests" run passed, record it: select dela_release_record(version, commit, api_version, migrations, notes, tests_run_url, breaking_migrations). Notes are plain words for Stacey. Then give her the ChatGPT test prompt and save her report with dela_release_attach_report.
+- A migration that removes or renames something older versions use goes in the breaking list; it blocks going back past it. Prefer splitting it so nothing breaks.
+- Pin every outside library to an exact version. Follow docs/RUNBOOK.md for monitoring, backups, restore drills and secret changes.
 - Stacey marks it tested and pushes it from the Staging admin area (Releases tab) with her release password. GitHub Actions (.github/workflows/promote.yml, tools/promote.mjs) does the push only after Staging confirms her one-use approval.
 - Database migrations are additive and backward compatible, so a rollback only switches code and api back.
 - The current Lawfecta site stays unchanged. DELA is added next to it.

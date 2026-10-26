@@ -8,7 +8,7 @@ import { buildNotice } from "./lib/email.ts";
 import { pickProvider } from "./lib/mail/index.ts";
 import { verifyPass } from "./lib/pass.ts";
 
-export const VERSION = "api-0.2.0";
+export const VERSION = "api-0.3.0";
 
 export type Deps = {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -94,7 +94,9 @@ async function bootstrap(ctx: Ctx): Promise<Response> {
   const commit = await rpc<string | null>(ctx, "dela_setting_text", { p_key: "code_version", p_default: "main" });
   const raw = ctx.body.pass;
   if (!raw) return json(ctx, { route: "signed_out", commit });
-  const pass = await verifyPass(raw, ctx.deps.env("BD_SHARED_SECRET"), ctx.deps.now?.() ?? Date.now());
+  // While the BD secret is being changed, the new one (BD_SHARED_SECRET_NEXT) is accepted too, so nobody is locked out
+  const now = ctx.deps.now?.() ?? Date.now();
+  const pass = await verifyPass(raw, ctx.deps.env("BD_SHARED_SECRET"), now) ?? await verifyPass(raw, ctx.deps.env("BD_SHARED_SECRET_NEXT"), now);
   if (!pass) return json(ctx, { route: "signed_out", reason: "bad_pass", commit });
   const token = newSessionToken();
   const r = await rpc<Record<string, any>>(ctx, "dela_exchange", {
@@ -108,18 +110,31 @@ async function bootstrap(ctx: Ctx): Promise<Response> {
     return json(ctx, { route: "staging", api: ctx.deps.env("STAGING_API_URL") });
   }
   if (!r?.ok) return json(ctx, { route: "denied", reason: r?.reason ?? "denied", commit });
-  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: r.me, commit, version: VERSION });
+  const pause = await rpc<Record<string, any>>(ctx, "dela_pause_state", {});
+  if (pause?.pause?.all && !(r.me?.staff ?? []).length) return json(ctx, { route: "paused", message: pause.message, commit });
+  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, pause: pause?.pause }, commit, version: VERSION });
 }
 
 // ---------- Member routes ----------
 
-async function me(ctx: Ctx) {
+// Emergency pause: members get the pause message; the Lawfecta Team keeps working to fix things
+async function member(ctx: Ctx): Promise<Session> {
   const s = await session(ctx);
-  return json(ctx, { me: await rpc(ctx, "dela_me", { p_person: s.person_id, p_side: s.side }) });
+  if (!s.staff?.length) {
+    const p = await rpc<Record<string, any>>(ctx, "dela_pause_state", {});
+    if (p?.pause?.all) throw new HttpError(503, "paused");
+  }
+  return s;
+}
+
+async function me(ctx: Ctx) {
+  const s = await member(ctx);
+  const pause = await rpc<Record<string, any>>(ctx, "dela_pause_state", {});
+  return json(ctx, { me: { ...(await rpc<Record<string, unknown>>(ctx, "dela_me", { p_person: s.person_id, p_side: s.side })), pause: pause?.pause } });
 }
 
 async function setSide(ctx: Ctx) {
-  const s = await session(ctx);
+  const s = await member(ctx);
   const side = need(str(ctx.body.side, 20));
   const r = await rpc<Record<string, unknown>>(ctx, "dela_session_set_side", { p_session: s.session_id, p_side: side });
   return json(ctx, r, r?.ok ? 200 : 400);
@@ -132,12 +147,12 @@ async function signOut(ctx: Ctx) {
 }
 
 async function notifications(ctx: Ctx) {
-  const s = await session(ctx);
+  const s = await member(ctx);
   return json(ctx, { items: await rpc(ctx, "dela_notifications", { p_person: s.person_id, p_limit: 50 }) });
 }
 
 async function readNotification(ctx: Ctx) {
-  const s = await session(ctx);
+  const s = await member(ctx);
   if (ctx.body.all === true) return json(ctx, { ok: true, count: await rpc(ctx, "dela_notifications_read_all", { p_person: s.person_id }) });
   const id = need(str(ctx.body.id, 40));
   return json(ctx, { ok: !!(await rpc(ctx, "dela_notification_read", { p_person: s.person_id, p_id: id })) });
@@ -160,6 +175,9 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/jobs": (c, a) => rpc(c, "dela_admin_jobs", { p_actor: a }),
   "/admin/holds": (c, a) => rpc(c, "dela_admin_holds", { p_actor: a }),
   "/admin/releases": (c, a) => rpc(c, "dela_admin_releases", { p_actor: a }),
+  "/admin/settings/history": (c, a) => rpc(c, "dela_admin_setting_history", { p_actor: a, p_key: need((c.url.searchParams.get("key") ?? "").slice(0, 100)) }),
+  "/admin/plans/history": (c, a) => rpc(c, "dela_admin_plan_history", { p_actor: a, p_plan: need((c.url.searchParams.get("plan") ?? "").slice(0, 40)) }),
+  "/admin/pause": (c) => rpc(c, "dela_pause_state", {}),
 };
 
 const ADMIN_POST: Record<string, AdminRoute> = {
@@ -183,6 +201,10 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   "/admin/releases/password": (c, a) => rpc(c, "dela_release_password_set", { p_actor: a, p_current: str(c.body.current, 200) || null, p_new: need(str(c.body.password, 200)) }),
   "/admin/releases/tested": (c, a) => rpc(c, "dela_release_mark_tested", { p_actor: a, p_release: need(int(c.body.release_id)), p_tested: c.body.tested === true }),
   "/admin/releases/push": (c, a) => startRelease(c, a, "push"),
+  "/admin/settings/undo": (c, a) => rpc(c, "dela_admin_undo_setting", { p_actor: a, p_history: need(int(c.body.history_id)) }),
+  "/admin/plans/restore": (c, a) => rpc(c, "dela_admin_plan_restore", { p_actor: a, p_version: need(int(c.body.version_id)), p_password: need(str(c.body.password, 200), "wrong_password") }),
+  "/admin/pause": (c, a) => rpc(c, "dela_admin_set_pause", { p_actor: a, p_area: need(str(c.body.area, 20)), p_on: c.body.on === true, p_reason: str(c.body.reason, 500) }),
+  "/admin/staging/reset": (c, a) => c.body.confirm === "RESET" ? rpc(c, "dela_admin_reset_staging", { p_actor: a }) : Promise.resolve({ ok: false, reason: "confirm_needed" }),
   "/admin/releases/rollback": (c, a) => startRelease(c, a, "rollback"),
 };
 
@@ -190,7 +212,7 @@ const ADMIN_POST: Record<string, AdminRoute> = {
 
 async function startRelease(c: Ctx, actor: string, action: "push" | "rollback") {
   const id = need(int(c.body.release_id));
-  const r = await rpc<Record<string, any>>(c, "dela_release_approve", { p_actor: actor, p_release: id, p_action: action, p_password: need(str(c.body.password, 200), "wrong_password") });
+  const r = await rpc<Record<string, any>>(c, "dela_release_approve_checked", { p_actor: actor, p_release: id, p_action: action, p_password: need(str(c.body.password, 200), "wrong_password") });
   if (!r?.ok) return r;
   const repo = c.deps.env("GITHUB_REPO");
   const token = c.deps.env("GITHUB_DISPATCH_TOKEN");
@@ -260,6 +282,8 @@ async function worker(ctx: Ctx) {
   const secret = ctx.req.headers.get("x-dela-worker") ?? "";
   const ok = await rpc<boolean>(ctx, "dela_worker_ok", { p_secret: secret });
   if (!ok) throw new HttpError(401, "bad_worker");
+  await rpc(ctx, "dela_worker_beat", {});
+  await rpc(ctx, "dela_maybe_queue_daily", {});
   if (await rpc<string>(ctx, "dela_setting_text", { p_key: "environment", p_default: "staging" }) === "staging") {
     await rpc(ctx, "dela_release_expire", {});
   }
@@ -267,6 +291,11 @@ async function worker(ctx: Ctx) {
   const done: Record<string, number> = {};
   for (const j of jobs) {
     let result: { ok: boolean; error?: string; retry?: boolean };
+    if (j.kind === "send_email" && await rpc<boolean>(ctx, "dela_paused", { p_area: "email" })) {
+      await rpc(ctx, "dela_job_postpone", { p_job: j.id, p_seconds: 300 });
+      done.postponed = (done.postponed ?? 0) + 1;
+      continue;
+    }
     try {
       result = await runJob(ctx, j);
     } catch (e) {
@@ -286,6 +315,7 @@ async function worker(ctx: Ctx) {
 
 async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; error?: string; retry?: boolean }> {
   if (j.kind === "send_email") return await sendEmail(ctx, String(j.payload?.notification_id ?? ""));
+  if (j.kind === "daily_summary") { await rpc(ctx, "dela_daily_summary", {}); return { ok: true }; }
   return { ok: false, retry: false, error: "unknown_job_kind" };
 }
 
@@ -332,7 +362,12 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     const ctx: Ctx = { req, deps, body, url, ip };
     const key = `${req.method} ${path}`;
     switch (key) {
-      case "GET /health": return json(ctx, { ok: true, version: VERSION, environment: await rpc(ctx, "dela_setting_text", { p_key: "environment", p_default: "staging" }) });
+      case "GET /health": {
+        // Watched every 5 minutes by the uptime monitor. 503 when the database or the background worker is not working.
+        const hh = await rpc<Record<string, any>>(ctx, "dela_health", {});
+        const healthy = !!hh?.worker_ok;
+        return json(ctx, { ok: healthy, version: VERSION, environment: hh?.environment, code_version: hh?.code_version, worker_ok: hh?.worker_ok, paused: hh?.paused }, healthy ? 200 : 503);
+      }
       case "POST /bootstrap": return await bootstrap(ctx);
       case "GET /me": return await me(ctx);
       case "POST /me/side": return await setSide(ctx);

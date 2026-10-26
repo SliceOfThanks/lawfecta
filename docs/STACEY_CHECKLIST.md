@@ -26,6 +26,8 @@ Never paste a password, token or secret in chat. You type them only into BD, Sup
     - Variables: LIVE_PROJECT_REF (the dela-live project ID from its Supabase address), STAGING_API_URL (from Claude), OWNER_BD_MEMBER_ID (your BD member ID).
 15. GitHub > Settings > Developer settings > Fine-grained tokens: create a token for lawfecta-dela only, with Actions: Read and write. Put it in Supabase > DELA Staging > Secrets as GITHUB_DISPATCH_TOKEN. Also add RELEASE_CI_SECRET there (same value as step 14) and GITHUB_REPO = SliceOfThanks/lawfecta-dela.
 
+15b. Set up the uptime monitor for Staging and Live (docs/RUNBOOK.md, Monitoring). Before real payments start, turn on point-in-time recovery for dela-live.
+
 ## Part D. First push and after
 16. /dela-admin (Staging) > Releases: tick "I tested this version on Staging", click Push to Live, enter your release password.
 17. When it says Live now: in BD, put the dela-live address (https://<project id>.supabase.co/functions/v1/api) into the data-api field of DELA-App and DELA-Admin. Click Refresh Live Site.

@@ -1,6 +1,6 @@
 // Checks that a pass made by the real PHP widget is accepted by the api, and that a logged-out member gets none.
 // Run: deno test -A tests/php/auth_test.ts
-import { assert, assertEquals } from "jsr:@std/assert@1";
+import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { verifyPass } from "../../supabase/functions/api/lib/pass.ts";
 
 const SECRET = "abcDEF0123456789abcDEF0123456789xyz";

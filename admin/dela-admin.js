@@ -70,7 +70,7 @@
   function overview() {
     api.get("/admin/overview").then(function (r) {
       var d = r.data;
-      var stat = function (label, n, note) { return h("div", { class: "tile" }, h("div", { class: "muted small", text: label }), h("div", { class: "stat", text: String(n) }), note ? h("div", { class: "muted small", text: note }) : null); };
+      var stat = function (label, n, note) { return h("div", { class: "tile col" }, h("div", { class: "muted small", text: label }), h("div", { class: "stat", text: String(n) }), note ? h("div", { class: "muted small", text: note }) : null); };
       var dec = d.decisions || {};
       body(h("div", null,
         h("h1", { text: "Overview" }),
@@ -84,6 +84,7 @@
           stat("Plans not linked to BD", d.unmapped_plans, "Link them on the Plans tab"),
           stat("Switches on", d.switches_on),
           stat("Active holds", d.holds_active)),
+        emergencyCard(),
         h("div", { class: "card" }, h("h2", { text: "Check notices" }),
           h("p", { class: "muted small", text: "Sends a test notice to you. Email uses the service in the email.sender setting (log means it is recorded, not sent)." }),
           h("div", { class: "row" },
@@ -92,6 +93,29 @@
         h("div", { class: "card" }, h("h2", { text: "Recent activity" }),
           h("ul", { class: "list" }, d.recent.map(function (a) { return h("li", { class: "small" }, h("strong", { text: a.action.split("_").join(" ") }), " by " + a.actor + " ", h("span", { class: "muted", text: D.dateTime(a.at) })); })))));
     }).catch(fail);
+  }
+
+  // ---------- Emergency pause (no push needed; members see a short message, the team keeps working) ----------
+
+  var PAUSE_AREAS = [["all", "All of DELA"], ["ai", "AI help"], ["checkout", "New payments"], ["payouts", "Payouts"], ["renewals", "Monthly renewals"], ["external", "Outside connections"], ["email", "Emails"]];
+  function emergencyCard() {
+    var box = h("div", { class: "card" }, h("h2", { text: "Emergency pause" }), h("p", { class: "muted small", text: "Loading..." }));
+    api.get("/admin/pause").then(function (r) {
+      var p = r.data.pause || {};
+      D.clear(box);
+      box.appendChild(h("h2", { text: "Emergency pause" }));
+      box.appendChild(h("p", { class: "muted small", text: "Stops all of DELA or one part at once, without a push. Members see: \"" + r.data.message + "\" The Lawfecta Team keeps working. You get an email each time." }));
+      if (p.all) box.appendChild(h("div", { class: "notice bad", text: "DELA is paused for members right now." }));
+      box.appendChild(h("div", { class: "row" }, PAUSE_AREAS.map(function (a) {
+        var on = !!p[a[0]];
+        return h("button", { class: on ? "danger small" : "ghost small", disabled: !isOwner, onclick: function () {
+          var why = prompt((on ? "Turn back on: " : "Pause: ") + a[1] + ". Why? (saved in the log)");
+          if (why === null) return;
+          api.post("/admin/pause", { area: a[0], on: !on, reason: why }).then(check).then(function () { ok(a[1] + (on ? " running again" : " paused")); overview(); }).catch(fail);
+        } }, (on ? "Paused: " : "") + a[1]);
+      })));
+    }).catch(fail);
+    return box;
   }
 
   // ---------- Access list ----------
@@ -265,6 +289,24 @@
           api.post("/admin/plans/approve", { version_id: p.draft.id }).then(check).then(function () { ok("Approved"); plans(); }).catch(fail);
         } }, "Approve draft") : null,
         p.draft ? h("button", { class: "ghost", onclick: function () { api.post("/admin/plans/discard", { version_id: p.draft.id }).then(check).then(function () { ok("Draft thrown away"); plans(); }).catch(fail); } }, "Throw draft away") : null),
+      h("div", { class: "card", id: "plan-history" }, h("h2", { text: "Earlier versions" }), h("p", { class: "muted small", text: "Bring back an earlier version's prices and limits. It comes back as a new version, and needs your release password." }),
+        (function () {
+          var box = h("div", null, h("p", { class: "muted small", text: "Loading..." }));
+          api.get("/admin/plans/history?plan=" + encodeURIComponent(p.code)).then(function (r) {
+            D.clear(box);
+            var old = r.data.filter(function (v) { return v.status === "retired"; });
+            if (!old.length) { box.appendChild(h("p", { class: "muted small", text: "No earlier versions yet." })); return; }
+            box.appendChild(h("ul", { class: "list small" }, old.map(function (v) {
+              return h("li", { class: "row" }, h("span", { class: "grow", text: "Version " + v.version + ": " + D.money(v.monthly_cents) + " a month, fee " + D.pct(v.fee_bps) + (v.effective_from ? ", from " + D.date(v.effective_from) : "") }),
+                h("button", { class: "ghost small", onclick: function () {
+                  askPassword("Restore version " + v.version, "Everyone on " + p.name + " gets these prices and limits right away.", function (pw) {
+                    api.post("/admin/plans/restore", { version_id: v.id, password: pw }).then(check).then(function () { ok("Restored"); plans(); }).catch(relFail);
+                  });
+                } }, "Restore"));
+            })));
+          }).catch(fail);
+          return box;
+        })()),
       h("div", { class: "card" }, h("h2", { text: "Link to a BD plan" }),
         h("p", { class: "muted small", text: "Members on this BD plan get this DELA plan. Find the plan ID in BD admin under Membership Plans." }),
         h("div", { class: "row" }, bd, h("button", { class: "small", onclick: function () {
@@ -302,7 +344,7 @@
       h("td", null, h("strong", { text: s.label || s.key }), h("div", { class: "muted small", text: s.key + (s.source ? " | " + s.source : "") }), s.note ? h("div", { class: "muted small", text: s.note }) : null),
       h("td", { text: shown(s) }),
       h("td", null, h("span", { class: "badge " + s.status, text: D.STATUS[s.status] })),
-      h("td", null, ownerOnly(s.key === "environment" ? null : h("button", { class: "ghost small", onclick: function () { editSetting(s, tr); } }, "Change"))));
+      h("td", null, ownerOnly(["environment", "emergency.pause", "worker.last_run"].indexOf(s.key) >= 0 ? null : h("button", { class: "ghost small", onclick: function () { editSetting(s, tr); } }, "Change"))));
     return tr;
   }
 
@@ -343,10 +385,16 @@
     tr.appendChild(cell);
   }
 
+  // Each change can be undone; the undo is saved as a new change, so history is never lost
   function history(key, cell) {
-    api.get("/admin/decisions?key=" + encodeURIComponent(key)).then(function (r) {
+    api.get("/admin/settings/history?key=" + encodeURIComponent(key)).then(function (r) {
+      if (!r.data.length) { cell.appendChild(h("p", { class: "muted small", text: "No changes yet. This is the starting value." })); return; }
       cell.appendChild(h("ul", { class: "list small" }, r.data.map(function (d) {
-        return h("li", null, D.dateTime(d.recorded_at) + ": " + JSON.stringify(d.value) + " (" + D.STATUS[d.status] + ")" + (d.by ? " by " + d.by : "") + (d.note ? ". " + d.note : ""));
+        return h("li", { class: "row" }, h("span", { class: "grow", text: D.dateTime(d.changed_at) + ": " + JSON.stringify(d.old_value) + " to " + JSON.stringify(d.new_value) + (d.by ? " by " + d.by : "") + (d.reason ? ". " + d.reason : "") }),
+          ownerOnly(h("button", { class: "ghost small", onclick: function () {
+            if (!confirm("Put this setting back to " + JSON.stringify(d.old_value) + "?")) return;
+            api.post("/admin/settings/undo", { history_id: d.id }).then(check).then(function () { ok("Undone"); settings(); }).catch(fail);
+          } }, "Undo")));
       })));
     }).catch(fail);
   }
@@ -424,7 +472,7 @@
     api.get("/admin/jobs").then(function (r) {
       var c = r.data.counts || {};
       body(h("div", null, h("h1", { text: "Jobs" }), h("p", { class: "muted", text: "Background work such as emails and reminders. The worker runs every minute and retries problems with growing waits." }),
-        h("div", { class: "grid" }, Object.keys(c).map(function (k) { return h("div", { class: "tile" }, h("div", { class: "muted small", text: k }), h("div", { class: "stat", text: String(c[k]) })); })),
+        h("div", { class: "grid" }, Object.keys(c).map(function (k) { return h("div", { class: "tile col" }, h("div", { class: "muted small", text: k }), h("div", { class: "stat", text: String(c[k]) })); })),
         h("div", { class: "card scroll" }, h("h2", { text: "Problems" }), r.data.recent_problems.length ? h("table", null, h("tbody", null, r.data.recent_problems.map(function (j) {
           return h("tr", null, h("td", { text: j.kind }), h("td", { text: j.status }), h("td", { text: "Tries: " + j.attempts }), h("td", { class: "small", text: j.last_error }), h("td", { text: D.dateTime(j.updated_at) }));
         }))) : h("p", { class: "muted", text: "No problems." }))));
@@ -441,6 +489,8 @@
     password_too_short: "Use at least 12 characters.", push_in_progress: "A push is already running. Wait for it to finish.",
     github_not_set_up: "GitHub is not connected for pushes yet. Claude will finish this setup.", staging_only: "Pushes start from the Staging admin area.",
     not_rollback_target: "You can only go back to a version that was live before.",
+    not_compatible: "This version cannot run on today's database. A newer version made a change it does not understand. Ask Claude for a fixed version instead.",
+    confirm_needed: "Type RESET to confirm.",
   };
   function relFail(e) {
     var code = e && e.message ? e.message : String(e);
@@ -494,6 +544,13 @@
           h("p", { class: "muted small", text: "Code " + x.commit.slice(0, 7) + " | " + x.migrations.length + (x.migrations.length === 1 ? " database change" : " database changes") + " | added " + D.dateTime(x.created_at) + (x.live_at ? " | live " + D.dateTime(x.live_at) : "") + (x.approved_by ? " | pushed by " + x.approved_by : "") }),
           ["candidate", "tested", "failed"].indexOf(x.status) >= 0 ? h("label", { class: "row", style: "font-weight:600" }, tested, "I tested this version on Staging and it is ready") : null,
           actions,
+          x.compatible && !x.compatible.ok ? h("div", { class: "notice bad", text: "Going back to this version is blocked: a newer version changed the database in a way this version cannot work with." }) : null,
+          h("div", { class: "row small", style: "margin-top:8px" },
+            x.tests_url ? h("a", { href: x.tests_url, target: "_blank", rel: "noopener" }, "Automatic tests: passed") : null,
+            h("span", { class: "muted", text: "Widget code for this version:" }),
+            ["DELA-Auth.php", "DELA-App.php", "DELA-Admin.php"].map(function (f) {
+              return h("a", { href: "https://cdn.jsdelivr.net/gh/" + (root.getAttribute("data-code") || "") + "@" + x.commit + "/widgets/" + f, target: "_blank", rel: "noopener" }, f.replace(".php", ""));
+            })),
           x.test_report ? h("details", null, h("summary", { class: "small", text: "Test report" }), h("pre", { class: "small", style: "white-space:pre-wrap", text: x.test_report })) : null,
           x.deploy_log ? h("details", null, h("summary", { class: "small", text: "Push log" }), h("pre", { class: "small", style: "white-space:pre-wrap", text: x.deploy_log })) : null);
       });
@@ -516,7 +573,14 @@
         d.locked_until ? h("div", { class: "notice bad", text: "Pushing is locked until " + D.dateTime(d.locked_until) + " after too many wrong passwords." }) : null,
         h("div", { class: "card" }, h("h2", { text: "On Live now" }), h("p", { text: d.live ? d.live.version + ", since " + D.dateTime(d.live.live_at) : "Nothing yet. Live gets its first version when you push one." })),
         pwCard,
-        cards.length ? cards : h("p", { class: "muted", text: "No versions yet. Claude adds each version here when it is ready on Staging." })));
+        cards.length ? cards : h("p", { class: "muted", text: "No versions yet. Claude adds each version here when it is ready on Staging." }),
+        ownerOnly(h("div", { class: "card" }, h("h2", { text: "Reset Staging test data" }),
+          h("p", { class: "muted small", text: "Clears test activity on Staging: allowances used, notices, background jobs, holds and other people's sign ins. Keeps people, the team, the access list, settings, plans and versions. Live is never touched." }),
+          h("button", { class: "ghost", onclick: function () {
+            var t = prompt("Type RESET to clear Staging test activity.");
+            if (t !== "RESET") return;
+            api.post("/admin/staging/reset", { confirm: "RESET" }).then(check).then(function () { ok("Staging test activity cleared"); }).catch(relFail);
+          } }, "Reset Staging test data")))));
       if (busy) releaseTimer = setTimeout(releases, 8000);
     }).catch(fail);
   }

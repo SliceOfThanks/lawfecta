@@ -1,6 +1,6 @@
 // End-to-end API tests: the real handler against a real local database (tools/dbtest.sh builds it first).
 // Run: deno test -A supabase/functions/api/app_test.ts   (PGHOST, PGPORT, PGUSER as in tools/dbtest.sh)
-import { assert, assertEquals } from "jsr:@std/assert@1";
+import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { handle, type Deps } from "./app.ts";
 import { b64url, hmacHex } from "./lib/crypto.ts";
 import { verifyPass } from "./lib/pass.ts";
@@ -16,7 +16,7 @@ let githubStatus = 204;
 const deps: Deps = {
   rpc,
   env: (k) => ({
-    BD_SHARED_SECRET: SECRET, DELA_ORIGINS: "https://lawfecta.com,https://www.lawfecta.com", STAGING_API_URL: "https://staging.example.invalid/functions/v1/api",
+    BD_SHARED_SECRET: SECRET, BD_SHARED_SECRET_NEXT: "next-shared-secret-0123456789abcdefghij", DELA_ORIGINS: "https://lawfecta.com,https://www.lawfecta.com", STAGING_API_URL: "https://staging.example.invalid/functions/v1/api",
     GITHUB_REPO: "SliceOfThanks/lawfecta-dela", GITHUB_DISPATCH_TOKEN: "gh-token", RELEASE_CI_SECRET: CI,
   } as Record<string, string>)[k] ?? "",
   fetch: (async (url: string, opts: RequestInit) => {
@@ -162,7 +162,7 @@ Deno.test("staging testers are handed to Staging by Live", async () => {
 
 Deno.test("release gate: password, push, GitHub claim and finish", async () => {
   await pool.query("delete from release_approvals; delete from releases; delete from release_password");
-  const rel = (await pool.query("select dela_release_record('v0.9.0', repeat('d', 40), 'api-0.2.0', '{}', 'test') as id")).rows[0].id;
+  const rel = (await pool.query("select dela_release_record('v0.9.0', repeat('d', 40), 'api-0.2.0', '{}', 'Test release for the API tests', 'https://github.com/SliceOfThanks/lawfecta-dela/actions/runs/1') as id")).rows[0].id;
   assertEquals((await call("POST", "/admin/releases/password", { session: ownerSession, body: { password: "Release-Pass-2026" } })).body.data.ok, true);
   assertEquals((await call("POST", "/admin/releases/push", { session: ownerSession, body: { release_id: rel, password: "Release-Pass-2026" } })).body.data.reason, "not_tested");
   await call("POST", "/admin/releases/tested", { session: ownerSession, body: { release_id: rel, tested: true } });
@@ -190,6 +190,50 @@ Deno.test("release gate: password, push, GitHub claim and finish", async () => {
   const list = (await call("GET", "/admin/releases", { session: ownerSession })).body.data;
   assertEquals(list.live.version, "v0.9.0");
   assertEquals(list.password_set, true);
+});
+
+Deno.test("safety nets: new secret, health, pause, undo", async () => {
+  // A pass signed with the new secret works while the secret is being changed
+  await pool.query("insert into access_list (bd_member_id, channel) values (9300, 'access') on conflict do nothing");
+  const viaNext = await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9300 }, "next-shared-secret-0123456789abcdefghij") } });
+  assertEquals(viaNext.body.route, "here");
+  const memberSession = viaNext.body.session;
+
+  // Health: 503 until the worker has run, 200 after
+  await pool.query("update settings set value = '\"1970-01-01T00:00:00Z\"' where key = 'worker.last_run'");
+  assertEquals((await call("GET", "/health")).status, 503);
+  await call("POST", "/worker", { headers: { "x-dela-worker": WORKER } });
+  const h = await call("GET", "/health");
+  assertEquals(h.status, 200);
+  assertEquals(h.body.worker_ok, true);
+
+  // Pause everything: members see the pause, the owner keeps working
+  const ownerPass = await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9001, name: "Stacey" }) } });
+  const owner = ownerPass.body.session;
+  assertEquals((await call("POST", "/admin/pause", { session: owner, body: { area: "all", on: true, reason: "test" } })).body.data.ok, true);
+  assertEquals((await call("GET", "/me", { session: memberSession })).status, 503);
+  const paused = await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9300 }) } });
+  assertEquals(paused.body.route, "paused");
+  assert(paused.body.message.includes("paused"));
+  assertEquals((await call("GET", "/me", { session: owner })).status, 200, "owner still works");
+  await call("POST", "/admin/pause", { session: owner, body: { area: "all", on: false, reason: "done" } });
+  assertEquals((await call("GET", "/me", { session: memberSession })).status, 200);
+
+  // Email paused: the worker holds emails without using up their tries
+  await call("POST", "/admin/pause", { session: owner, body: { area: "email", on: true } });
+  await call("POST", "/admin/test-notification", { session: owner, body: { email: true } });
+  const w = await call("POST", "/worker", { headers: { "x-dela-worker": WORKER } });
+  assert(w.body.done.postponed >= 1, "email held while paused");
+  await call("POST", "/admin/pause", { session: owner, body: { area: "email", on: false } });
+
+  // Undo a setting through the admin area
+  await call("POST", "/admin/settings", { session: owner, body: { key: "gig.extension_days", value: 10, status: "C", reason: "try" } });
+  const hist = (await call("GET", "/admin/settings/history?key=gig.extension_days", { session: owner })).body.data;
+  assertEquals((await call("POST", "/admin/settings/undo", { session: owner, body: { history_id: hist[0].id } })).body.data.ok, true);
+  assertEquals((await pool.query("select value from settings where key = 'gig.extension_days'")).rows[0].value, 14);
+
+  // Reset Staging needs the typed confirmation
+  assertEquals((await call("POST", "/admin/staging/reset", { session: owner, body: {} })).body.data.reason, "confirm_needed");
 });
 
 Deno.test("bad requests", async () => {

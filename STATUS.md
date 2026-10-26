@@ -27,6 +27,16 @@ No BD plans are created until launch; test accounts get DELA plans with "Give a 
 First owner of Live: bootstrap.owner_bd_member_id, set by promote.mjs from GitHub variable OWNER_BD_MEMBER_ID; works only while no owner exists. Claude sets it on Staging the same way.
 Setup steps for Stacey: docs/STACEY_CHECKLIST.md (Parts A to D).
 
+## Safety nets (Stacey, 2026-10-26: build all recommendations), migration 0008, api-0.3.0
+- Going back checks compatibility (releases.contract_migrations; dela_release_compatible, dela_release_approve_checked).
+- Undo per setting change (dela_admin_undo_setting); restore an earlier plan version with the release password (dela_admin_plan_restore).
+- Emergency pause: settings emergency.pause {all, ai, checkout, payouts, renewals, external, email}; dela_paused(area) for later features; members get route paused / 503; email jobs are postponed while email is paused.
+- Releases need notes (20+ characters) and a passing GitHub Tests run URL; promote.mjs refuses commits without a successful "tests" check run.
+- Health: /health returns 503 when the worker has not run for 10 minutes (worker.last_run heartbeat). Daily summary at 8am Lawfecta time with quarterly restore-drill and yearly secret reminders.
+- BD_SHARED_SECRET_NEXT accepted during a secret change. supabase-js pinned 2.118.0; test tools pinned in package.json / package-lock.json.
+- Releases tab links each version's widget code; Reset Staging test data (dela_admin_reset_staging, type RESET).
+- .github/workflows/tests.yml runs every test on each push. docs/RUNBOOK.md for monitoring, backups, restore drills, secret changes, emergencies.
+
 ## Waiting on Stacey before deploy
 - GitHub: Stacey creates the empty public repo SliceOfThanks/lawfecta-dela (the GitHub connector cannot create repos: 403), then Claude attaches it with add_repo and pushes.
 - Supabase: the connector only sees "SliceOfThanks's Org". Stacey reconnects the Supabase connector and grants the "Lawfecta AI" organization, then Claude creates DELA Staging and DELA Live there.
@@ -54,10 +64,10 @@ Lawfecta palette from Stacey's mockups: navy #1d2030 to burgundy #8b2146 hero, h
 - Release: set code_version on Staging to the new commit, Stacey tests, then apply the same migrations to Live and set Live code_version to the same commit.
 
 ## Tests (all passing 2026-10-26)
-- tools/dbtest.sh: 95 database checks (supabase/tests/foundation_test.sql, release_test.sql) on a throwaway local Postgres 16.
-- deno test -A supabase/functions/api/app_test.ts: 12 API tests (plus 2 widget pass tests); node --test tests/promote_test.mjs: 4 push script tests against the real database.
+- tools/dbtest.sh: 136 database checks (foundation_test.sql, release_test.sql, safety_test.sql) on a throwaway local Postgres 16.
+- deno test -A supabase/functions/api/app_test.ts: 13 API tests (plus 2 widget pass tests); node --test tests/promote_test.mjs: 5 push script tests against the real database.
 - deno test -A tests/php/auth_test.ts: the real PHP widget's pass is accepted by the api.
-- tests/pw/foundation-test.js with tests/pw/server.ts running: 33 browser checks through the real widgets (rendered by PHP), api and database.
+- tests/pw/foundation-test.js with tests/pw/server.ts running: 37 browser checks through the real widgets (rendered by PHP), api and database.
 - Local Postgres: run as user pgrun from /home/pgrun/data on port 55432 (initdb refuses root). Deno: npm i deno.
 
 ## Setup steps for Claude (Staging only, never Live)

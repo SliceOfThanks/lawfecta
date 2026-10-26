@@ -174,7 +174,7 @@ const dela = (page) => page.locator(".dela-host");
     await s.ctx.close();
 
     // Releases: password, tested checkbox, push needs the password
-    await sql("delete from release_approvals; delete from releases; delete from release_password; select dela_release_record('v0.1.0', repeat('e', 40), 'api-0.2.0', array['0001_foundation_tables.sql'], 'Step 1 foundation')");
+    await sql("delete from release_approvals; delete from releases; delete from release_password; select dela_release_record('v0.1.0', repeat('e', 40), 'api-0.2.0', array['0001_foundation_tables.sql'], 'Step 1 foundation: sign in, plans, admin area', 'https://github.com/SliceOfThanks/lawfecta-dela/actions/runs/1')");
     s = await open(browser, "DELA-Admin", 1, "");
     await text(s.page);
     await dela(s.page).getByRole("tab", { name: "Releases" }).click();
@@ -201,6 +201,33 @@ const dela = (page) => page.locator(".dela-host");
     rows = await sql("select status from releases");
     ok(rows[0].status === "tested", "the version stays tested on Staging");
     await s.page.screenshot({ path: path.join(SHOTS, "admin-releases.png"), fullPage: true });
+    await s.ctx.close();
+
+    // Emergency pause: owner pauses everything, a member sees the pause message, then it is turned back on
+    s = await open(browser, "DELA-Admin", 1, "");
+    await text(s.page);
+    await dela(s.page).getByRole("button", { name: "All of DELA", exact: true }).click();
+    await s.page.waitForTimeout(600);
+    ok((await text(s.page)).includes("DELA is paused for members right now"), "owner pauses all of DELA from the Overview");
+    await s.page.screenshot({ path: path.join(SHOTS, "admin-emergency.png"), fullPage: false });
+    const m = await open(browser, "DELA-App", 1200, "20");
+    ok((await text(m.page)).includes("DELA is paused for a moment"), "members see the pause message");
+    await m.ctx.close();
+    await dela(s.page).getByRole("button", { name: "Paused: All of DELA" }).click();
+    await s.page.waitForTimeout(600);
+    ok(!(await text(s.page)).includes("DELA is paused for members right now"), "owner turns DELA back on");
+
+    // Undo a setting change from its history
+    await sql("select dela_admin_set_setting((select person_id from staff_roles where role = 'owner' limit 1), 'engagement.minimum_cents', '30000', 'O', 'try $300')");
+    await dela(s.page).getByRole("tab", { name: "Settings" }).click();
+    const r2 = dela(s.page).locator("tr", { hasText: "Smallest engagement allowed" });
+    await r2.getByRole("button", { name: "Change" }).click();
+    await dela(s.page).getByRole("button", { name: "History" }).click();
+    await s.page.waitForTimeout(500);
+    await dela(s.page).getByRole("button", { name: "Undo" }).first().click();
+    await s.page.waitForTimeout(500);
+    rows = await sql("select value from settings where key = 'engagement.minimum_cents'");
+    ok(rows[0].value === 20000, "undo puts the minimum back to the value before the last change");
     await s.ctx.close();
 
     // A member cannot open the admin area

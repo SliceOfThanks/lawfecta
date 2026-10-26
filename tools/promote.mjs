@@ -35,6 +35,15 @@ export async function promote({ env, fetchFn = fetch, run = (cmd, args) => execF
   let deployed = false;
   try {
     if (!/^[0-9a-f]{40}$/.test(claim.commit)) throw new Error("bad commit");
+    // Only a commit whose automatic tests passed may reach Live
+    if (env.GITHUB_REPOSITORY) {
+      const cr = await fetchFn(`https://api.github.com/repos/${env.GITHUB_REPOSITORY}/commits/${claim.commit}/check-runs?check_name=tests`, {
+        headers: { authorization: `Bearer ${env.GITHUB_TOKEN}`, accept: "application/vnd.github+json" },
+      });
+      const runs = (await cr.json().catch(() => ({}))).check_runs ?? [];
+      if (!runs.some((r) => r.conclusion === "success")) throw new Error("this version has no passing automatic tests");
+      say("automatic tests passed for this version");
+    }
     run("git", ["checkout", "--quiet", claim.commit]);
     say("checked out the approved commit");
 
@@ -95,5 +104,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const env = {};
   for (const k of ["STAGING_API_URL", "RELEASE_CI_SECRET", "RELEASE_ID", "NONCE", "SUPABASE_ACCESS_TOKEN", "LIVE_PROJECT_REF"]) env[k] = need(k);
   env.OWNER_BD_MEMBER_ID = process.env.OWNER_BD_MEMBER_ID || "";
+  env.GITHUB_REPOSITORY = need("GITHUB_REPOSITORY");
+  env.GITHUB_TOKEN = need("GITHUB_TOKEN");
   promote({ env }).then(() => process.exit(0), (e) => { console.error(String(e.message || e)); process.exit(1); });
 }
