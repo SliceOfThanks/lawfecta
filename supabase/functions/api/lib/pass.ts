@@ -1,10 +1,10 @@
 // Verifies the one-use sign in pass made by the DELA-Auth widget inside Brilliant Directories.
 // The widget checks BD's own server session, then signs: base64url(JSON payload) + "." + hex HMAC-SHA256 of the base64url part,
 // keyed with BD_SHARED_SECRET (the same value is typed into DELA-Auth and into Supabase secrets by Stacey).
-// Payload: { aud: "dela", uid, sub (BD plan ID), name, email, jti (random, one use), iat, exp (unix seconds) }
+// Payload: { aud: "dela", uid, sub (BD plan ID), name, email, jn (BD sign up time, ISO), jti (random, one use), iat, exp (unix seconds) }
 import { b64urlDecode, hmacHex, safeEqual } from "./crypto.ts";
 
-export type Pass = { aud: string; uid: number; sub: string; name: string; email: string; jti: string; iat: number; exp: number };
+export type Pass = { aud: string; uid: number; sub: string; name: string; email: string; jn: string; jti: string; iat: number; exp: number };
 
 const MAX_AHEAD_SECONDS = 15 * 60;
 
@@ -30,5 +30,6 @@ export async function verifyPass(token: unknown, secret: string, now = Date.now(
   p.sub = String(p.sub ?? "");
   p.name = String(p.name ?? "").slice(0, 200);
   p.email = String(p.email ?? "").slice(0, 320);
+  p.jn = typeof p.jn === "string" ? p.jn.slice(0, 40) : "";
   return p;
 }

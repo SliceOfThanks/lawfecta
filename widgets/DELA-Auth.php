@@ -3,7 +3,7 @@
   DELA-Auth (helper widget). Never place this widget on a page.
   DELA-App and DELA-Admin load it to prove who the logged-in member is.
   It checks BD's own login on the server, then signs a one-use pass that lasts 10 minutes,
-  with the member ID, BD plan ID, name and email. Supabase keeps the same secret as BD_SHARED_SECRET.
+  with the member ID, BD plan ID, name, email and sign up date. Supabase keeps the same secret as BD_SHARED_SECRET.
   Put your secret on the line below. Use letters and numbers only, at least 32 characters.
   Version 1.0.0
 */
@@ -41,6 +41,7 @@ if (!function_exists('dela_pass')) {
     $sub = '';
     $name = '';
     $email = '';
+    $jn = '';
     $dbn = dela_db_name($w);
     if ($dbn != '' && function_exists('mysql') && function_exists('mysql_fetch_assoc')) {
       $res = mysql($dbn, 'SELECT * FROM users_data WHERE user_id=' . $uid . ' LIMIT 1');
@@ -50,12 +51,16 @@ if (!function_exists('dela_pass')) {
           $sub = (string) (int) $row['subscription_id'];
           $name = trim($row['first_name'] . ' ' . $row['last_name']);
           if (isset($row['email'])) { $email = trim((string) $row['email']); }
+          if (isset($row['signup_date']) && $row['signup_date'] != '') {
+            $t = strtotime($row['signup_date']);
+            if ($t) { $jn = date('c', $t); }
+          }
         }
       }
     }
     $now = time();
     $payload = json_encode(array(
-      'aud' => 'dela', 'uid' => $uid, 'sub' => $sub, 'name' => $name, 'email' => $email,
+      'aud' => 'dela', 'uid' => $uid, 'sub' => $sub, 'name' => $name, 'email' => $email, 'jn' => $jn,
       'jti' => bin2hex(random_bytes(16)), 'iat' => $now, 'exp' => $now + 600
     ), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     $body = dela_b64url($payload);

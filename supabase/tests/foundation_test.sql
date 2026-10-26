@@ -129,14 +129,29 @@ begin
     perform t_ok(sqlerrm like 'append_only%', 'audit log is append-only');
   end;
 
-  -- Switches and trials
+  -- Switches and trials: 7 days of Pro from BD registration, new registrations only, once per member
   perform t_ok(not dela_switch_on('trials', fl_id), 'switches start off');
   perform dela_admin_set_switch(owner_id, 'trials', 'everyone');
-  perform dela_admin_access_grant(owner_id, 300, 'access', 'trial person');
-  r := dela_exchange(t_pass(300, '20', 'p-trial-1'));
-  perform t_ok((r->'me'->'trial'->>'active')::boolean, 'trial starts at first DELA sign in');
+  update settings set value = '"2026-01-01"' where key = 'trial.eligible_from';
+  perform dela_admin_access_grant(owner_id, 300, 'access', 'new member');
+  r := dela_exchange(t_pass(300, '20', 'p-trial-1') || jsonb_build_object('registered_at', now() - interval '2 days'));
+  perform t_ok((r->'me'->'trial'->>'active')::boolean, 'new registration gets a trial');
+  perform t_ok((select trial_ends_at::date from people where bd_member_id = 300) = (now() - interval '2 days' + interval '7 days')::date, 'trial runs 7 days from registration');
   select e into ent from jsonb_array_elements(r->'me'->'entitlements') e where e->>'key' = 'fl.proposals';
   perform t_ok((ent->>'limit')::int = 50, 'trial gives Pro limits');
+  perform dela_admin_access_grant(owner_id, 301, 'access', 'old member');
+  r := dela_exchange(t_pass(301, '20', 'p-trial-2') || jsonb_build_object('registered_at', '2025-05-01T00:00:00Z'));
+  perform t_ok(not (r->'me'->'trial'->>'active')::boolean, 'members who registered before the start date get no trial');
+  perform dela_admin_access_grant(owner_id, 302, 'access', 'expired trial');
+  r := dela_exchange(t_pass(302, '20', 'p-trial-3') || jsonb_build_object('registered_at', now() - interval '10 days'));
+  perform t_ok(not (r->'me'->'trial'->>'active')::boolean, 'a trial that ran out is not restarted by a late first visit');
+  update people set trial_started_at = null, trial_ends_at = null where bd_member_id = 302;
+  update people set trial_ends_at = now() - interval '1 day', trial_started_at = now() - interval '8 days' where bd_member_id = 300;
+  r := dela_exchange(t_pass(300, '20', 'p-trial-4') || jsonb_build_object('registered_at', now()));
+  perform t_ok(not (r->'me'->'trial'->>'active')::boolean, 'one trial per member');
+  perform t_ok((select registered_at < now() - interval '1 day' from people where bd_member_id = 300), 'registration date is kept from the first visit');
+  r := dela_exchange(t_pass(303, '20', 'p-trial-5') || jsonb_build_object('registered_at', 'not a date'));
+  perform t_ok(r->>'reason' = 'no_access', 'a bad date does not break sign in');
   perform dela_admin_set_switch(owner_id, 'trials', 'off');
   perform t_ok((select (e->>'limit')::int from jsonb_array_elements(dela_entitlements((select id from people where bd_member_id = 300), 'freelancer')) e where e->>'key' = 'fl.proposals') = 5, 'trials off means plan limits');
 

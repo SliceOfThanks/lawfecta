@@ -132,17 +132,20 @@ const dela = (page) => page.locator(".dela-host");
     // Attorney home
     s = await open(browser, "DELA-App", 1100, "12");
     t = await text(s.page);
-    ok(t.includes("Turn the work you need done") && t.includes("Verification") && t.includes("Attorney Pro"), "attorney sees Attorney DELA on their plan");
+    ok(t.includes("Plan. Delegate.") && t.includes("Verification") && t.includes("Attorney Pro"), "attorney sees Attorney DELA on their plan");
+    ok(t.includes("Delegate") && t.includes("Talent"), "attorney has the attorney tabs");
     ok(t.includes(" of 12 available") && !t.includes("Proposals sent per month"), "attorney sees attorney limits only, with the approved change");
     ok(t.includes("Do not enter confidential client information"), "the confidential information notice shows");
     ok(t.includes("Staging"), "staging badge shows");
     await s.page.screenshot({ path: path.join(SHOTS, "attorney-home.png"), fullPage: true });
+    await dela(s.page).getByRole("button", { name: "Talent" }).click();
+    ok((await text(s.page)).includes("trusted bench"), "attorney tabs open their sections");
     await s.ctx.close();
 
     // Freelancer home on a phone
     s = await open(browser, "DELA-App", 1200, "20", { viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     t = await text(s.page);
-    ok(t.includes("Match readiness") && t.includes("5 of 5 left this month"), "freelancer sees Freelancer DELA with 5 proposals a month");
+    ok(t.includes("Your match checklist") && t.includes("5 of 5 left this month") && t.includes("Earnings") && !t.includes("Talent"), "freelancer sees Freelancer DELA, its own tabs and 5 proposals a month");
     const wide = await s.page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
     ok(!wide, "no sideways scrolling on a phone");
     await s.page.screenshot({ path: path.join(SHOTS, "freelancer-home-phone.png"), fullPage: true });
@@ -161,7 +164,9 @@ const dela = (page) => page.locator(".dela-host");
     // Owner sees the notice and the admin link
     s = await open(browser, "DELA-App", 1, "");
     t = await text(s.page);
-    ok(t.includes("Almost there") && t.includes("Admin area"), "owner without a plan sees the setup message and the admin link");
+    ok(t.includes("Almost there"), "owner without a plan sees the setup message");
+    await dela(s.page).getByRole("button", { name: "Account menu" }).click();
+    ok((await text(s.page)).includes("Admin area"), "the account menu has the admin link for the Lawfecta Team");
     await dela(s.page).getByRole("button", { name: "Notices" }).click();
     await s.page.waitForTimeout(400);
     ok((await text(s.page)).includes("DELA test notice"), "the test notice arrives in Notices");

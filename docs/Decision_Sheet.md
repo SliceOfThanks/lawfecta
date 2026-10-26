@@ -1,6 +1,6 @@
 # DELA Decision Sheet
 
-Version DS-1.0-draft, updated 2026-10-26. Built from config/decisions.json.
+Version DS-1.1, updated 2026-10-26. Built from config/decisions.json.
 
 How to use this sheet: for each line, write Approve, or write the number you want instead. Every value can be changed later in the DELA admin area, and every change is saved with its history.
 
@@ -17,12 +17,12 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 
 | Plan | Attorney monthly | Freelancer monthly | Fee per side | Status | Your decision |
 |---|---|---|---|---|---|
-| Free | $0 | $0 | 5% | Suggested | |
-| Plus | $19 | $12 | 4% | Suggested | |
-| Pro | $49 | $29 | 3.5% | Suggested | |
-| Business (firm / agency) | $99 | $59 | 3% | Suggested | |
+| Free | $0 | $0 | 5% | Confirmed | |
+| Plus | $19 | $12 | 4% | Confirmed | |
+| Pro | $49 | $29 | 3.5% | Confirmed | |
+| Business (firm / agency) | $99 | $59 | 3% | Confirmed | |
 
-- Yearly prices: Yearly price is 10 times the monthly price (two months free). Status: Open. Your decision: ______
+- Yearly prices: Yearly price is 10 times the monthly price (two months free). Status: Confirmed. Your decision: ______
 
 ## 2. Plan limits
 
@@ -30,34 +30,40 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 
 | Limit | Free | Plus | Pro | Business | Status | Your decision |
 |---|---|---|---|---|---|---|
-| Open Flex Gigs at one time | 1 | 3 | 10 | No cap | Open | |
-| Saved playbooks | 5 | 25 | No cap | No cap | Open | |
-| Team seats included | 1 | 1 | 1 | 3 | Open | |
+| Open Flex Gigs at one time | 1 | 3 | 10 | No cap | Confirmed | |
+| Saved playbooks | No cap | No cap | No cap | No cap | Confirmed | |
+| Team seats included | 1 | 1 | 1 | 3 | Confirmed | |
+
+- Open Flex Gigs at one time: No numerical cap still keeps anti-spam and security safeguards.
+- Team seats included: Business includes three seats, owner included. Extra seats are $15 a month each.
 
 ### Freelancer side
 
 | Limit | Free | Plus | Pro | Business | Status | Your decision |
 |---|---|---|---|---|---|---|
 | Proposals sent per month (per month) | 5 | 20 | 50 | No cap | Confirmed | |
-| Published services at one time | 1 | 3 | 10 | No cap | Open | |
-| Running promotions at one time | 0 | 1 | 3 | No cap | Open | |
-| Approved pitches to attorneys per month (per month) | 3 | 10 | 25 | 100 | Open | |
-| Agency team seats included | 1 | 1 | 1 | 3 | Open | |
+| Published services at one time | 3 | 5 | 10 | No cap | Open | |
+| Running promotions at one time | 0 | 1 | 3 | No cap | Confirmed | |
+| Approved pitches to attorneys per month (per month) | 3 | 10 | 25 | 100 | Confirmed | |
+| Agency team seats included | 1 | 1 | 1 | 3 | Confirmed | |
 
 - Proposals sent per month: Business has no monthly cap but keeps spam and rate limits. Matches stay visible when the allowance runs out.
+- Published services at one time: Question 1: original 1/3/10 or revised 3/5/10. Revised shown (recommended).
+- Approved pitches to attorneys per month: Separate from the proposal allowance.
+- Agency team seats included: Business includes three seats, owner included. Extra seats are $15 a month each.
 
 ### Both sides (each side counts its own)
 
 | Limit | Free | Plus | Pro | Business | Status | Your decision |
 |---|---|---|---|---|---|---|
-| DELA AI help per month on Lawfecta's key (per month) | 25 | 100 | 300 | 1000 | Open | |
+| Weighted AI credits per month on Lawfecta's key (per month) | 25 | 100 | 300 | 1000 | Open | |
 | Playbook exports per month (per month) | 0 | 2 | 5 | 15 | Open | |
 | Connected calendars (Google or Outlook) | 1 | 2 | 5 | 10 | Open | |
-| Webhook endpoints | 0 | 1 | 3 | 10 | Open | |
+| Webhook endpoints | 1 | 2 | 5 | 10 | Confirmed | |
 | File storage | 250 | 1000 | 5000 | 20000 | Open | |
 | Bring your own AI key (OpenAI or Claude) | Yes | Yes | Yes | Yes | Confirmed | |
 
-- DELA AI help per month on Lawfecta's key: Runs on the member's own key do not count here, but still have safety limits.
+- Weighted AI credits per month on Lawfecta's key: Provisional until costs are validated. Credits are weighted by AI cost; they are not a number of playbooks or conversations. Calls on the member's own key do not use credits.
 - Playbook exports per month: Free members still earn the consultation export and the engagement playbook, and can buy single exports.
 
 ## 3. Engagement money
@@ -67,8 +73,8 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Minimum platform fee per side, per engagement. Charged once per engagement, not per milestone. | $10 | Confirmed | C-26 | |
 | When the attorney fee is charged | engagement start | Suggested | 1A section 20 | |
 | How the freelancer fee is spread. Spread across milestones in whole cents; leftover cents go on the last milestone. | proportional rounding on last | Suggested | 1A section 9 | |
-| Smallest engagement allowed | $250 | Open | O-02, reopened | |
-| Longest fixed-fee engagement | 90 days | Open | O-02, reopened | |
+| Smallest engagement allowed | $250 | Confirmed | Stacey, Decision Register v1.1 (2026-10-26) | |
+| Longest fixed-fee engagement | 90 days | Open | Decision Register v1.1, question 2 (90 days recommended) | |
 | Longest funded money can wait for acceptance before a Lawfecta Team review | 45 days | Needs a gate | O-02 and G-PAYMENT; suggestion by Claude, needs a payments lawyer | |
 | Hourly billing. Not part of launch. | No | Confirmed | C-12 | |
 | Payment provider | stripe connect | Confirmed | C-24 | |
@@ -78,9 +84,10 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 
 | Item | Suggested value | Status | Where it comes from | Your decision |
 |---|---|---|---|---|
-| Free trial length | 7 days | Suggested | 1A section 8 | |
-| Which plan the trial unlocks | pro | Open | Suggestion by Claude | |
-| When the trial starts. No card needed. Ends on its own. | first dela login | Open | O-01; suggestion by Claude | |
+| Free trial length | 7 days | Confirmed | Stacey, Decision Register v1.1 (2026-10-26) | |
+| Which plan the trial unlocks | pro | Confirmed | Stacey, Decision Register v1.1 (2026-10-26) | |
+| When the trial starts. New registrations only, one trial per member. When it ends, trial-only extras stop and the member keeps their data and active work. | registration | Confirmed | Stacey, Decision Register v1.1 (2026-10-26) | |
+| Trials go to members who register on or after. Members who registered before this date do not get a trial. | 2026-11-01 | Open | Decision Register v1.1 says new registrations only; the start date is a suggestion by Claude | |
 | Monthly allowances reset on | calendar month | Open | O-10; suggestion by Claude | |
 | Time zone for resets and deadlines | America/Los Angeles | Open | O-10; Claude guessed Pacific time. Please confirm Lawfecta's time zone. | |
 | Do proposals to an attorney's direct invitation use the allowance?. Free answers to invitations encourage fast replies. | No | Open | O-10; suggestion by Claude | |
@@ -88,7 +95,7 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Buying extra AI credits | No | Confirmed | C-28 | |
 | Buying extra proposals. Later only. | No | Confirmed | C-10 | |
 | Price of one standalone export | $9 | Open | C-28; price is a suggestion by Claude | |
-| Extra team seat on Business, per month | $15 | Open | O-01; suggestion by Claude | |
+| Extra team seat on Business, per month. Annual price for extra seats and whether seats add AI, storage or integration allowances are still open. | $15 | Confirmed | Stacey, Decision Register v1.1 (2026-10-26) | |
 
 ## 5. Flex Gigs and proposals
 
@@ -108,15 +115,15 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 |---|---|---|---|---|
 | Passing score for the DELA milestone check | 90 out of 100 | Confirmed | C-13 | |
 | Days the attorney has to review | 7 days | Confirmed | C-13 | |
-| When the review clock starts | submission marked complete and notice delivered | Open | O-04 | |
-| Cost to the freelancer for a human review | $0 | Open | O-04; suggestion by Claude | |
+| When the review clock starts | submission marked complete and notice delivered | Open | Decision Register v1.1, question 3 (A recommended) | |
+| Cost to the freelancer for a human review | $0 | Open | Decision Register v1.1, question 4 (B recommended: one free review per milestone) | |
 | Target days for a human review | 5 business days | Open | O-04 and O-11 | |
 | Automatic acceptance when the attorney stays silent. Built behind the admin_acceptance_timeout switch. | switch | Needs a gate | C-13 and G-CONTRACT | |
 | Renewal reminder, days before billing | 3 days | Confirmed | C-16 | |
 | Automatic retries after a failed renewal | 2 | Confirmed | C-17 | |
-| Days between renewal retries | 2, 3 | Open | C-17 says over several days; spacing is a suggestion by Claude | |
-| Days a failed renewal stays paused before it ends | 14 days | Open | 1A section 22; suggestion by Claude | |
-| How monthly money is released to the freelancer | monthly deliverable | Open | 1A section 22 open release decision | |
+| Days between renewal retries | 2, 5 | Open | Decision Register v1.1, question 5 (A recommended: day 2 and day 5) | |
+| Days a failed renewal stays paused before it ends | 14 days | Open | Decision Register v1.1, question 5 | |
+| How monthly money is released to the freelancer | parties choose monthly or split | Open | Decision Register v1.1, question 6 (C recommended) | |
 
 ## 7. Exports and playbooks
 

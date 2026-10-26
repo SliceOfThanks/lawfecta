@@ -2,11 +2,21 @@
 
 Last updated: 2026-10-26. Phase 1A, Step 0 (setup) and Step 1 (foundation) built and tested locally. Nothing deployed yet.
 
+## Rule from Stacey (2026-10-26)
+The current Lawfecta site stays unchanged while DELA is built. Only additions: pages /dela and /dela-admin, widgets DELA-Auth, DELA-App, DELA-Admin.
+No BD plans are created until launch; test accounts get DELA plans with "Give a side" in the admin area. Existing widgets (Profile Builder, Profile Audit, services, promotions, pitches, Member Match) are not edited; DELA versions are built next to them.
+
 ## Waiting on Stacey before deploy
-- Which GitHub account owns this repo (the connected account is SliceOfThanks) and which Supabase organization holds DELA Staging and DELA Live (the only org is "SliceOfThanks's Org", free plan, 1 project; two more projects need the Pro plan).
-- Lawfecta BD site address (settings site.url and the api DELA_ORIGINS secret), Lawfecta time zone (quota.timezone).
-- Decision Sheet answers (docs/Decision_Sheet.docx). Until then the starting values apply, marked Suggested or Open.
-- Step 1 brief questions (docs/briefs/step-1-foundation.md).
+- GitHub: Stacey creates the empty public repo SliceOfThanks/lawfecta-dela (the GitHub connector cannot create repos: 403), then Claude attaches it with add_repo and pushes.
+- Supabase: the connector only sees "SliceOfThanks's Org". Stacey reconnects the Supabase connector and grants the "Lawfecta AI" organization, then Claude creates DELA Staging and DELA Live there.
+- Lawfecta time zone (quota.timezone, Pacific placeholder). Site is lawfecta.com (site.url set).
+- Decision Register v1.1 questions 1 to 6 (services limit, max duration, review clock, human review, renewal retries, recurring release). Recommended answers are filled in as Open.
+
+## Decisions applied 2026-10-26 (Decision Register v1.1)
+Prices and 10x annual confirmed; trial 7 days Pro from BD registration, new registrations only (trial.eligible_from, placeholder 2026-11-01), one per member; Business 3 seats including owner, extra seat $15/month; limits for gigs, proposals, promotions, pitches, playbooks (unlimited), webhooks 1/2/5/10; AI credits 25/100/300/1000 provisional and weighted; $250 minimum confirmed.
+
+## Brand
+Lawfecta palette from Stacey's mockups: navy #1d2030 to burgundy #8b2146 hero, hot gradient to #d23b62, burgundy and blue (#0d83dd) pill buttons, pink #fbeef2 highlights, Inter. Logo mark in brand/lawfecta-mark-*.png (from Stacey's upload). Attorney tabs: Home, Delegate, Projects, Talent. Freelancer tabs: Home, Profile, Work, Earnings.
 
 ## Built in Step 1
 - Database (supabase/migrations 0001 to 0006): people, organizations, two sides per person (attorney, freelancer) with separate plans, Lawfecta Team roles, access list (channels access and staging_tester), one-use sign in passes, sessions, settings with history, switches, decision log (Program Guide record), plans with locked approved versions, features and limits, quota reservations, audit log (append-only), outbox events, jobs with leases and retries, notifications, holds. RLS on every table, no policies, functions callable only by service_role.
@@ -23,10 +33,10 @@ Last updated: 2026-10-26. Phase 1A, Step 0 (setup) and Step 1 (foundation) built
 - Release: set code_version on Staging to the new commit, Stacey tests, then apply the same migrations to Live and set Live code_version to the same commit.
 
 ## Tests (all passing 2026-10-26)
-- tools/dbtest.sh: 60 database checks (supabase/tests/foundation_test.sql) on a throwaway local Postgres 16.
-- deno test -A supabase/functions/api/app_test.ts: 11 API tests against the real database.
+- tools/dbtest.sh: 69 database checks (supabase/tests/foundation_test.sql) on a throwaway local Postgres 16.
+- deno test -A supabase/functions/api/app_test.ts: 11 API tests (plus 2 widget pass tests) against the real database.
 - deno test -A tests/php/auth_test.ts: the real PHP widget's pass is accepted by the api.
-- tests/pw/foundation-test.js with tests/pw/server.ts running: 24 browser checks through the real widgets (rendered by PHP), api and database.
+- tests/pw/foundation-test.js with tests/pw/server.ts running: 27 browser checks through the real widgets (rendered by PHP), api and database.
 - Local Postgres: run as user pgrun from /home/pgrun/data on port 55432 (initdb refuses root). Deno: npm i deno.
 
 ## Setup steps after Stacey answers (Claude)

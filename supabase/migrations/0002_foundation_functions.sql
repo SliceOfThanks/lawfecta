@@ -242,12 +242,12 @@ end $$;
 -- ---------- Sign in ----------
 
 -- Exchanges a verified one-use BD pass for a DELA session.
--- p: bd_member_id, bd_plan_id, name, email, jti, exp (unix seconds), token_hash, ip, ua, side (optional)
+-- p: bd_member_id, bd_plan_id, name, email, registered_at (BD sign up time), jti, exp (unix seconds), token_hash, ip, ua, side (optional)
 create or replace function dela_exchange(p jsonb) returns jsonb language plpgsql as $$
 declare
   v_bd bigint := (p->>'bd_member_id')::bigint;
   v_jti text := p->>'jti';
-  v_ok text; v_person people; v_plan plans; v_side text; v_session uuid; v_hours int; v_staff boolean;
+  v_ok text; v_person people; v_plan plans; v_side text; v_session uuid; v_hours int; v_staff boolean; v_reg timestamptz; v_days int;
 begin
   if v_bd is null or v_bd <= 0 or coalesce(v_jti, '') = '' or coalesce(p->>'token_hash', '') = '' then
     return jsonb_build_object('ok', false, 'reason', 'bad_pass');
@@ -257,11 +257,19 @@ begin
   on conflict (jti) do nothing returning jti into v_ok;
   if v_ok is null then return jsonb_build_object('ok', false, 'reason', 'pass_used'); end if;
 
-  insert into people (bd_member_id, display_name, email)
-  values (v_bd, left(coalesce(p->>'name', ''), 200), left(coalesce(p->>'email', ''), 320))
+  begin
+    v_reg := nullif(p->>'registered_at', '')::timestamptz;
+  exception when others then
+    v_reg := null;
+  end;
+  if v_reg > now() then v_reg := null; end if;
+
+  insert into people (bd_member_id, display_name, email, registered_at)
+  values (v_bd, left(coalesce(p->>'name', ''), 200), left(coalesce(p->>'email', ''), 320), v_reg)
   on conflict (bd_member_id) do update
     set display_name = case when excluded.display_name <> '' then excluded.display_name else people.display_name end,
         email = case when excluded.email <> '' then excluded.email else people.email end,
+        registered_at = coalesce(people.registered_at, excluded.registered_at),
         last_seen_at = now(), updated_at = now()
   returning * into v_person;
 
@@ -284,12 +292,19 @@ begin
     if v_plan.code is not null then perform dela_ensure_side(v_person.id, v_plan.side, v_plan.code, 'bd'); end if;
   end if;
 
+  -- One trial per member, for new registrations only. It runs from the BD sign up date, so a member who opens
+  -- DELA late gets what is left of it. When it ends, the member is back on their own plan with their data intact.
+  v_days := coalesce((dela_setting('trial.days') #>> '{}')::int, 7);
   if dela_switch_on('trials', v_person.id) and v_person.trial_started_at is null
-     and dela_setting_text('trial.starts', 'first_dela_login') = 'first_dela_login'
      and exists (select 1 from side_profiles where person_id = v_person.id) then
-    update people set trial_started_at = now(),
-      trial_ends_at = now() + make_interval(days => coalesce((dela_setting('trial.days') #>> '{}')::int, 7))
-    where id = v_person.id;
+    if dela_setting_text('trial.starts', 'registration') = 'registration' then
+      if v_person.registered_at is not null
+         and v_person.registered_at >= coalesce(nullif(dela_setting_text('trial.eligible_from', ''), '')::date, '1970-01-01'::date) then
+        update people set trial_started_at = registered_at, trial_ends_at = registered_at + make_interval(days => v_days) where id = v_person.id;
+      end if;
+    elsif dela_setting_text('trial.starts', '') = 'first_dela_login' then
+      update people set trial_started_at = now(), trial_ends_at = now() + make_interval(days => v_days) where id = v_person.id;
+    end if;
   end if;
 
   select side into v_side from side_profiles

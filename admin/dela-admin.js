@@ -37,11 +37,11 @@
   }
 
   function frame() {
-    var top = h("div", { class: "top" }, h("span", { class: "brand" }, "DELA", h("small", { text: "Admin area" })));
+    var top = h("div", { class: "top" }, h("span", { class: "brand" }, h("img", { src: D.asset(root, "brand/lawfecta-mark-96.png"), alt: "" }), h("b", { text: "LAWFECTA" }), h("span", { text: "DELA Admin" })));
     top.appendChild(h("span", { class: "badge " + (me.environment === "live" ? "C" : "stage"), text: me.environment === "live" ? "Live" : "Staging" }));
     top.appendChild(h("span", { class: "grow" }));
-    top.appendChild(h("span", { class: "muted small", text: me.person.name + " (" + me.staff.join(", ") + ")" }));
-    top.appendChild(h("a", { class: "btn small", href: "/dela", style: "padding:5px 10px;font-size:14px" }, "Member view"));
+    top.appendChild(h("span", { class: "small", style: "opacity:.85", text: me.person.name + " (" + me.staff.join(", ") + ")" }));
+    top.appendChild(h("a", { class: "btn small ghost", href: "/dela", style: "color:#fff;border-color:rgba(255,255,255,.45);background:transparent" }, "Member view"));
     tabsEl = h("div", { class: "tabs", role: "tablist" });
     mainEl = h("div", { class: "wrap" });
     D.clear(app);

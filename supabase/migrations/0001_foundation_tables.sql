@@ -13,6 +13,7 @@ create table people (
   email text not null default '',
   status text not null default 'active' check (status in ('active', 'restricted', 'closed')),
   auth_version int not null default 1,
+  registered_at timestamptz, -- BD sign up date, from the pass
   trial_started_at timestamptz,
   trial_ends_at timestamptz,
   first_seen_at timestamptz not null default now(),

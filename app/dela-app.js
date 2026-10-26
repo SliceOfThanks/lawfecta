@@ -1,5 +1,5 @@
-// DELA member app (Step 1: foundation). Attorney DELA and Freelancer DELA are separate homes;
-// a member with both sides switches between them. Later steps fill in the tiles marked "Coming soon".
+// DELA member app (Step 1: foundation). Attorney DELA and Freelancer DELA are separate homes with their own tabs;
+// a member with both sides switches between them. Later steps fill in the parts marked "Coming soon".
 (function () {
   var D = window.DELA;
   var root = document.getElementById("dela-app");
@@ -12,14 +12,25 @@
   var boot = api.boot || {};
   var me = boot.me || null;
   var drawer = null;
+  var menu = null;
+  var tab = "home";
+  var bar = null;
+
+  // Each side has its own tabs
+  var TABS = {
+    attorney: [["home", "Home", "⌂"], ["delegate", "Delegate", "✦"], ["projects", "Projects", "▣"], ["talent", "Talent", "◌"]],
+    freelancer: [["home", "Home", "⌂"], ["profile", "Profile", "☺"], ["work", "Work", "▣"], ["earnings", "Earnings", "$"]],
+  };
 
   function show(node) { D.clear(app); app.appendChild(node); }
+  function logo() { return h("img", { src: D.asset(root, "brand/lawfecta-mark-96.png"), alt: "" }); }
+  function brand() { return h("span", { class: "brand" }, logo(), h("b", { text: "LAWFECTA" }), h("span", { text: "DELA" })); }
 
   // ---------- Screens before sign in ----------
 
   function frame(title, body, actions) {
     return h("div", null,
-      h("div", { class: "top" }, h("span", { class: "brand" }, "DELA", h("small", { text: "by Lawfecta" }))),
+      h("div", { class: "top" }, brand()),
       h("div", { class: "wrap" }, h("div", { class: "card", style: "max-width:560px;margin:40px auto;text-align:center" },
         h("h1", { text: title }), h("p", { class: "muted", text: body }), actions || null)));
   }
@@ -41,8 +52,18 @@
     return (me.sides || []).filter(function (s) { return s.side === me.side; })[0] || null;
   }
 
+  function initials(name) {
+    var p = String(name || "").trim().split(" ").filter(Boolean);
+    return ((p[0] || "?").charAt(0) + (p.length > 1 ? p[p.length - 1].charAt(0) : "")).toUpperCase();
+  }
+
+  function greeting() {
+    var hr = new Date().getHours();
+    return hr < 12 ? "Good morning" : hr < 18 ? "Good afternoon" : "Good evening";
+  }
+
   function header() {
-    var bar = h("div", { class: "top" }, h("span", { class: "brand" }, "DELA", h("small", { text: "by Lawfecta" })));
+    bar = h("div", { class: "top" }, brand());
     if (boot.staging || me.environment !== "live") bar.appendChild(h("span", { class: "badge stage", title: "You are on the Staging copy. Test data only.", text: "Staging" }));
     bar.appendChild(h("span", { class: "grow" }));
     if ((me.sides || []).length > 1) {
@@ -55,9 +76,34 @@
     var bell = h("button", { class: "bell small", "aria-label": "Notices", onclick: openNotices }, "Notices");
     if (me.unread > 0) bell.appendChild(h("b", { text: String(me.unread) }));
     bar.appendChild(bell);
-    if ((me.staff || []).length) bar.appendChild(h("a", { class: "btn small", href: "/dela-admin", style: "padding:5px 10px;font-size:14px" }, "Admin area"));
-    bar.appendChild(h("button", { class: "ghost small", onclick: signOut }, "Sign out"));
+    bar.appendChild(h("button", { class: "avatar", "aria-label": "Account menu", "aria-haspopup": "true", onclick: toggleMenu, text: initials(me.person.name) }));
     return bar;
+  }
+
+  function closeMenu() { if (menu) { menu.remove(); menu = null; } }
+
+  // Any click outside the open menu closes it
+  app.addEventListener("click", function (e) {
+    if (menu && !menu.contains(e.target) && !(e.target.classList && e.target.classList.contains("avatar"))) closeMenu();
+  });
+  app.addEventListener("keydown", function (e) { if (e.key === "Escape") { closeMenu(); if (drawer) { drawer.remove(); drawer = null; } } });
+
+  function toggleMenu() {
+    if (menu) { closeMenu(); return; }
+    menu = h("div", { class: "menu", role: "menu" },
+      h("div", { class: "small muted", style: "padding:8px 12px", text: me.person.name }),
+      (me.staff || []).length ? h("a", { href: "/dela-admin", role: "menuitem" }, "Admin area") : null,
+      h("button", { role: "menuitem", onclick: signOut }, "Sign out of DELA"));
+    bar.appendChild(menu);
+  }
+
+  function nav() {
+    if (!me.side) return null;
+    var n = h("nav", { class: "nav", "aria-label": "DELA sections" });
+    TABS[me.side].forEach(function (t) {
+      n.appendChild(h("button", { "aria-current": t[0] === tab ? "page" : null, onclick: function () { tab = t[0]; draw(); } }, h("i", { "aria-hidden": "true", text: t[2] }), t[1]));
+    });
+    return n;
   }
 
   function planCard() {
@@ -67,17 +113,24 @@
     });
     return h("div", { class: "card" },
       h("div", { class: "row" }, h("h2", { text: "Your plan: " + (s ? s.plan_name : "") }), s && s.plan_source === "staff_grant" ? h("span", { class: "badge", text: "Set by the Lawfecta Team" }) : null),
-      me.trial && me.trial.active ? h("div", { class: "notice ok", text: "Your free trial gives you " + me.trial.tier.toUpperCase() + " limits until " + D.date(me.trial.ends_at) + "." }) : null,
+      me.trial && me.trial.active ? h("div", { class: "notice ok", text: "Your free trial gives you Pro features until " + D.date(me.trial.ends_at) + ". After that you keep everything you made, on your own plan." }) : null,
       h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "What you get" }), h("th", { text: "Right now" }))), h("tbody", null, rows))),
       h("p", { class: "muted small", style: "margin-top:10px", text: "Plans and billing are managed in your Lawfecta account." }));
   }
 
-  function tile(title, text) {
-    return h("div", { class: "tile" }, h("div", { class: "soon", text: "Coming soon" }), h("h3", { text: title }), h("p", { class: "muted small", text: text }));
+  function ent(key) { return (me.entitlements || []).filter(function (e) { return e.key === key; })[0]; }
+
+  function stat(icon, n, label) {
+    return h("div", { class: "stat-tile" }, h("span", { class: "chip", "aria-hidden": "true", text: icon }), h("div", null, h("div", { class: "stat", text: String(n) }), h("div", { class: "muted small", text: label })));
+  }
+
+  function soon(n, title, text) {
+    return h("div", { class: "work" }, h("span", { class: "chip", text: String(n) }), h("div", null, h("h3", { text: title }), h("div", { class: "muted small", text: text })), h("span", { class: "grow" }), h("span", { class: "soon", text: "Coming soon" }));
   }
 
   function attorneyHome() {
     var s = sideInfo();
+    var gigs = ent("att.gigs_active");
     var ver = {
       not_started: "Before you can hire, we confirm your license, your identity and your firm. You can plan work before you are verified.",
       pending: "We are checking your details. You can keep planning work while you wait.",
@@ -86,22 +139,30 @@
       expired: "Your verification needs to be renewed before your next hire.",
     }[s.verification_state] || "";
     return h("div", null,
-      h("h1", { text: "Welcome, " + D.firstName(me.person.name) + "." }),
-      h("p", { class: "muted", text: "Turn the work you need done into a clear plan, then hire a freelance paralegal to do it, all in one place." }),
-      h("div", { class: "card" }, h("div", { class: "row" }, h("h2", { text: "Verification" }), h("span", { class: "badge", text: s.verification_state.replace("_", " ") })), h("p", { text: ver })),
-      h("h2", { style: "margin-top:20px", text: "Your DELA" }),
-      h("div", { class: "grid" },
-        tile("Playbooks", "Describe a task. DELA asks what it needs and builds a clear, step by step plan you approve."),
-        tile("Flex Gigs", "Post approved work with a budget range. Compare proposals side by side."),
-        tile("Matches and your bench", "See available, qualified paralegals, including people you have worked with before."),
-        tile("Booking and messages", "Book calls inside Lawfecta and keep every conversation in one place."),
-        tile("Engagements and payments", "Sign a fixed-fee agreement, fund each milestone before work starts, review and approve."),
-        tile("Reviews", "Review the work when it is done, and invite great paralegals to your bench.")),
+      h("h1", { text: greeting() + ", " + D.firstName(me.person.name) }),
+      h("p", { class: "muted", text: "Make room for your highest-value work." }),
+      h("div", { class: "hero" },
+        h("div", { class: "eyebrow", text: "AI Delegation Center" }),
+        h("h2", null, "Plan. Delegate.", h("br"), "Get it done."),
+        h("p", { text: "DELA turns your to-do list into a clear plan and the right people to carry it out." }),
+        h("button", { class: "pill-white", disabled: true, title: "Opens in the next DELA update" }, "Start a new delegation (opening soon)")),
+      h("div", { class: "stats" },
+        stat("☰", 0, "Open tasks"),
+        stat("▣", 0, "Active projects"),
+        stat("!", 0, "Pending reviews"),
+        stat("✦", 0, "Draft playbooks")),
+      h("div", { class: "card" }, h("div", { class: "row" }, h("h2", { text: "Verification" }), h("span", { class: "badge", text: s.verification_state.split("_").join(" ") })), h("p", { text: ver })),
+      h("h2", { style: "margin-top:22px", text: "What DELA will do for you" }),
+      soon(1, "Playbooks", "Describe a task. DELA asks what it needs and builds a step by step plan you approve."),
+      soon(2, "Flex Gigs", gigs ? "Post approved work with a budget range. Your plan allows " + (gigs.unlimited ? "unlimited" : gigs.limit) + " open at once." : "Post approved work with a budget range."),
+      soon(3, "Talent and your bench", "See available, qualified paralegals, including people you have worked with before."),
+      soon(4, "Engagements and payments", "Sign a fixed-fee agreement and fund each milestone before work starts."),
       planCard());
   }
 
   function freelancerHome() {
     var s = sideInfo();
+    var props = ent("fl.proposals");
     var ready = {
       incomplete: "A few profile items are still needed before you can be matched with attorneys.",
       verification_pending: "We are checking your details.",
@@ -112,23 +173,40 @@
     }[s.readiness_state] || "";
     var items = ["Headline and summary", "Practice areas", "At least one clear service", "Relevant experience", "Software you use (or none)", "Work and jurisdiction preferences", "Current availability", "Marketplace and confidentiality agreements"];
     return h("div", null,
-      h("h1", { text: "Welcome, " + D.firstName(me.person.name) + "." }),
+      h("h1", { text: greeting() + ", " + D.firstName(me.person.name) }),
       h("p", { class: "muted", text: "Get match-ready, win work from attorneys and get paid for each milestone you deliver." }),
-      h("div", { class: "card" },
-        h("div", { class: "row" }, h("h2", { text: "Match readiness" }), h("span", { class: "badge", text: s.readiness_state.replace("_", " ") })),
+      h("div", { class: "hero navy" },
+        h("div", { class: "eyebrow", text: "Match readiness" }),
+        h("h2", { text: "Your profile, through an attorney's eyes" }),
         h("p", { text: ready }),
-        h("p", { class: "muted small", text: "Your checklist (opening soon):" }),
+        h("span", { class: "badge", style: "background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)", text: s.readiness_state.split("_").join(" ") })),
+      h("div", { class: "stats" },
+        stat("✉", props ? (props.unlimited ? "No cap" : props.remaining) : 0, "Proposals left this month"),
+        stat("★", 0, "Invitations"),
+        stat("▣", 0, "Active projects"),
+        stat("$", "$0", "Paid out")),
+      h("div", { class: "card" }, h("h2", { text: "Your match checklist" }), h("p", { class: "muted small", text: "Opening soon. These are the items attorneys need to see before DELA can match you." }),
         items.map(function (t) { return h("div", { class: "check" }, h("i", { "aria-hidden": "true" }), h("span", { text: t })); })),
-      h("h2", { style: "margin-top:20px", text: "Your DELA" }),
-      h("div", { class: "grid" },
-        tile("Profile Builder and Profile Audit", "Build a strong profile and see exactly what to improve."),
-        tile("Services and promotions", "Publish clear services. DELA suggests improvements; nothing goes live without your approval."),
-        tile("Matches and invitations", "See work that fits your skills and availability."),
-        tile("Proposals and pitches", "Send structured proposals with price, milestones and timeline."),
-        tile("Active work", "Deliver milestones, get DELA's check, and track each payout."),
-        tile("Reviews and benches", "Earn reviews and join attorneys' trusted benches.")),
+      h("h2", { style: "margin-top:22px", text: "What DELA will do for you" }),
+      soon(1, "Profile Builder and Profile Audit", "Build a strong profile and see exactly what to improve."),
+      soon(2, "Services, promotions and pitches", "Publish clear services. Nothing goes live without your approval."),
+      soon(3, "Matches and proposals", "See work that fits you and send proposals with price, milestones and timeline."),
+      soon(4, "Active work and payouts", "Deliver milestones, get DELA's check, and track each payout."),
       planCard());
   }
+
+  function sectionSoon(title, text) {
+    return h("div", null, h("h1", { text: title }), h("div", { class: "card" }, h("span", { class: "soon", text: "Coming soon" }), h("p", { style: "margin-top:6px", text: text })));
+  }
+
+  var SECTIONS = {
+    delegate: ["Delegate", "Start a delegation, answer DELA's questions, and approve a step by step playbook. This opens in the next DELA update."],
+    projects: ["Projects", "Your gigs, proposals, signed engagements and milestones will live here."],
+    talent: ["Talent", "Find available, qualified paralegals, and keep your trusted bench in one place."],
+    profile: ["Profile", "Profile Builder and Profile Audit, your services, promotions and pitches will live here."],
+    work: ["Work", "Matches, invitations, proposals and active projects will live here."],
+    earnings: ["Earnings", "Funded milestones, payouts and your bank transfer status will live here."],
+  };
 
   function noSide() {
     return h("div", { class: "card", style: "max-width:620px" },
@@ -137,22 +215,24 @@
       h("p", { class: "muted", text: "The Lawfecta Team will set this up. If you just changed plans, refresh this page in a minute." }));
   }
 
-  function home() {
+  function draw() {
+    closeMenu();
     var main = h("div", { class: "wrap" });
     if (me.notice) main.appendChild(h("div", { class: "notice", role: "note", text: me.notice }));
     if (me.on_hold) main.appendChild(h("div", { class: "notice bad", role: "alert", text: "Some actions are paused on your account. Contact the Lawfecta Team." }));
     if (!me.side) main.appendChild(noSide());
-    else main.appendChild(me.side === "attorney" ? attorneyHome() : freelancerHome());
-    show(h("div", null, header(), main));
+    else if (tab === "home") main.appendChild(me.side === "attorney" ? attorneyHome() : freelancerHome());
+    else main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1]));
+    show(h("div", null, header(), nav(), main));
   }
 
   function refresh() {
-    return api.get("/me").then(function (r) { me = r.me; home(); });
+    return api.get("/me").then(function (r) { me = r.me; draw(); });
   }
 
   function switchSide(side) {
     if (side === me.side) return;
-    api.post("/me/side", { side: side }).then(function (r) { me = r.me; home(); }).catch(function (e) { D.toast(app, D.errorText(e.message), true); });
+    api.post("/me/side", { side: side }).then(function (r) { me = r.me; tab = "home"; draw(); }).catch(function (e) { D.toast(app, D.errorText(e.message), true); });
   }
 
   function signOut() {
@@ -160,6 +240,7 @@
   }
 
   function openNotices() {
+    closeMenu();
     if (drawer) { drawer.remove(); drawer = null; return; }
     drawer = h("div", { class: "drawer", role: "dialog", "aria-label": "Notices" }, h("p", { class: "muted", text: "Loading..." }));
     app.appendChild(drawer);
@@ -170,13 +251,13 @@
         h("button", { class: "ghost small", "aria-label": "Close", onclick: function () { drawer.remove(); drawer = null; } }, "Close")));
       if (!r.items.length) drawer.appendChild(h("p", { class: "muted", text: "Nothing yet. Notices about your work will show up here." }));
       drawer.appendChild(h("ul", { class: "list" }, r.items.map(function (n) {
-        return h("li", null, h("strong", { text: n.title }), n.read ? null : h("span", { class: "badge", style: "margin-left:6px", text: "New" }),
+        return h("li", null, h("strong", { text: n.title }), n.read ? null : h("span", { class: "badge G", style: "margin-left:6px", text: "New" }),
           n.body ? h("p", { class: "small", text: n.body }) : null, h("div", { class: "muted small", text: D.dateTime(n.created_at) }));
       })));
     }).catch(function () { D.clear(drawer); drawer.appendChild(h("p", { text: "Notices could not load." })); });
   }
 
-  if (boot.route === "here" && me) home();
+  if (boot.route === "here" && me) draw();
   else if (boot.route === "denied") show(denied(boot.reason));
   else show(signedOut(false));
 })();

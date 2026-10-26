@@ -99,7 +99,7 @@ async function bootstrap(ctx: Ctx): Promise<Response> {
   const token = newSessionToken();
   const r = await rpc<Record<string, any>>(ctx, "dela_exchange", {
     p: {
-      bd_member_id: pass.uid, bd_plan_id: pass.sub, name: pass.name, email: pass.email, jti: pass.jti, exp: pass.exp,
+      bd_member_id: pass.uid, bd_plan_id: pass.sub, name: pass.name, email: pass.email, registered_at: pass.jn, jti: pass.jti, exp: pass.exp,
       token_hash: await sessionHash(token), ip: ctx.ip, ua: str(ctx.req.headers.get("user-agent"), 300), side: str(ctx.body.side, 20),
     },
   });

@@ -18,6 +18,7 @@ Deno.test("PHP pass is accepted by the api", async () => {
   assertEquals(p!.sub, "31");
   assertEquals(p!.name, "Test O'Brien");
   assertEquals(p!.email, "test@lawfecta.invalid");
+  assert(p!.jn.startsWith("2026-10-20T09:30:00"), "sign up date travels in the pass");
   assertEquals(r.why, "pass_ok");
   const r2 = await php(SECRET, true);
   assert(r2.pass !== r.pass, "every page load makes a new one-use pass");
