@@ -1,0 +1,49 @@
+# Runs every automatic test on each change. A version can only be offered on the Releases tab with a passing run,
+# and Push to Live refuses any commit whose "tests" run did not pass.
+name: Tests
+on:
+  push:
+  pull_request:
+permissions: { contents: read }
+jobs:
+  tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    services:
+      postgres:
+        image: postgres:16.6
+        env: { POSTGRES_PASSWORD: postgres }
+        ports: ["5432:5432"]
+        options: --health-cmd pg_isready --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      PGHOST: 127.0.0.1
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Install test tools (exact versions)
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q php-cli postgresql-client
+          npm ci
+          npx playwright install --with-deps chromium
+      - name: Decision Sheet and seed are in sync
+        run: python3 tools/decisions.py --check
+      - name: Database tests
+        run: tools/dbtest.sh
+      - name: API and widget tests
+        run: npx deno test -A supabase/functions/api/app_test.ts tests/php/auth_test.ts
+      - name: Push to Live script tests
+        run: node --test tests/promote_test.mjs
+      - name: Browser tests
+        run: |
+          tools/dbtest.sh
+          npx deno run -A tests/pw/server.ts &
+          for i in $(seq 1 30); do curl -s -o /dev/null http://127.0.0.1:8787/api/health && break; sleep 1; done
+          SHOTS=shots node tests/pw/foundation-test.js
+      - name: Screens from the browser tests
+        if: always()
+        uses: actions/upload-artifact@v4
+        with: { name: screens, path: shots, if-no-files-found: ignore }

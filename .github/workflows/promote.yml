@@ -1,0 +1,32 @@
+# Push to Live. Started only by the DELA Staging admin area after Stacey enters her release password.
+# The run asks Staging to confirm its one-use approval before it touches Live; without it, nothing happens.
+name: Push to Live
+on:
+  workflow_dispatch:
+    inputs:
+      release_id: { description: "Release number", required: true }
+      nonce: { description: "One-use approval from Staging", required: true }
+      action: { description: "push or rollback", required: true }
+concurrency: { group: push-to-live, cancel-in-progress: false }
+permissions: { contents: read, checks: read }
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    environment: live
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - name: Push the approved version to Live
+        run: node tools/promote.mjs
+        env:
+          RELEASE_ID: ${{ inputs.release_id }}
+          NONCE: ${{ inputs.nonce }}
+          STAGING_API_URL: ${{ vars.STAGING_API_URL }}
+          LIVE_PROJECT_REF: ${{ vars.LIVE_PROJECT_REF }}
+          OWNER_BD_MEMBER_ID: ${{ vars.OWNER_BD_MEMBER_ID }}
+          RELEASE_CI_SECRET: ${{ secrets.RELEASE_CI_SECRET }}
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}

@@ -1,0 +1,9 @@
+{
+  "name": "lawfecta-tests",
+  "private": true,
+  "description": "Test tools only. DELA itself has no build step.",
+  "devDependencies": {
+    "deno": "2.9.6",
+    "playwright": "1.63.0"
+  }
+}

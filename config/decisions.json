@@ -1,0 +1,874 @@
+{
+  "sheet_version": "DS-1.1",
+  "updated": "2026-10-26",
+  "status_legend": {
+    "C": "Confirmed. Decided by Stacey or confirmed in the plan documents.",
+    "R": "Suggested. The plan documents or Claude suggest it; Stacey has not approved it yet.",
+    "O": "Open. Nobody has decided. A suggestion is filled in so Stacey can approve or change it.",
+    "G": "Gate. Needs a lawyer, Stripe or a security check before it can be turned on with real people or real money."
+  },
+  "plans": {
+    "currency": "usd",
+    "tiers": [
+      "free",
+      "plus",
+      "pro",
+      "business"
+    ],
+    "tier_names": {
+      "free": "Free",
+      "plus": "Plus",
+      "pro": "Pro",
+      "business": "Business"
+    },
+    "attorney": {
+      "business_name": "Business (firm)",
+      "monthly_cents": {
+        "free": 0,
+        "plus": 1900,
+        "pro": 4900,
+        "business": 9900
+      },
+      "fee_bps": {
+        "free": 500,
+        "plus": 400,
+        "pro": 350,
+        "business": 300
+      },
+      "status": "C",
+      "source": "Stacey, Decision Register v1.1 (2026-10-26)"
+    },
+    "freelancer": {
+      "business_name": "Business (agency)",
+      "monthly_cents": {
+        "free": 0,
+        "plus": 1200,
+        "pro": 2900,
+        "business": 5900
+      },
+      "fee_bps": {
+        "free": 500,
+        "plus": 400,
+        "pro": 350,
+        "business": 300
+      },
+      "status": "C",
+      "source": "Stacey, Decision Register v1.1 (2026-10-26)"
+    },
+    "annual": {
+      "value": "ten_times_monthly",
+      "label": "Yearly price is 10 times the monthly price (two months free)",
+      "status": "C",
+      "source": "Stacey, Decision Register v1.1 (2026-10-26)"
+    }
+  },
+  "limits": [
+    {
+      "key": "fl.proposals",
+      "side": "freelancer",
+      "label": "Proposals sent per month",
+      "unit": "proposals",
+      "period": "month",
+      "values": {
+        "free": 5,
+        "plus": 20,
+        "pro": 50,
+        "business": null
+      },
+      "status": "C",
+      "source": "Stacey, Decision Register v1.1 (2026-10-26)",
+      "note": "Business has no monthly cap but keeps spam and rate limits. Matches stay visible when the allowance runs out."
+    },
+    {
+      "key": "fl.services_active",
+      "side": "freelancer",
+      "label": "Published services at one time",
+      "unit": "services",
+      "period": "none",
+      "values": {
+        "free": 3,
+        "plus": 5,
+        "pro": 10,
+        "business": null
+      },
+      "status": "O",
+      "source": "Decision Register v1.1, question 1",
+      "note": "Question 1: original 1/3/10 or revised 3/5/10. Revised shown (recommended)."
+    },
+    {
+      "key": "fl.promotions_active",
+      "side": "freelancer",
+      "label": "Running promotions at one time",
+      "unit": "promotions",
+      "period": "none",
+      "values": {
+        "free": 0,
+        "plus": 1,
+        "pro": 3,
+        "business": null
+      },
+      "status": "C",
+      "source": "Stacey, Decision Register v1.1 (2026-10-26)"
+    },
+    {
+      "key": "fl.pitches",
+      "side": "freelancer",
+      "label": "Approved pitches to attorneys per month",
+      "unit": "pitches",
+      "period": "month",
+      "values": {
+        "free": 3,
+        "plus": 10,
+        "pro": 25,
+        "business": 100
+      },
+      "status": "C",
+      "source": "Stacey, Decision Register v1.1 (2026-10-26)",
+      "note": "Separate from the proposal allowance."
+    },
+    {
+      "key": "att.gigs_active",
+      "side": "attorney",
+      "label": "Open Flex Gigs at one time",
+      "unit": "gigs",
+      "period": "none",
+      "values": {
+        "free": 1,
+        "plus": 3,
+        "pro": 10,
+        "business": null
+      },
+      "status": "C",
+      "source": "Stacey, Decision Register v1.1 (2026-10-26)",
+      "note": "No numerical cap still keeps anti-spam and security safeguards."
+    },
+    {
+      "key": "att.playbooks_saved",
+      "side": "attorney",
+      "label": "Saved playbooks",
+      "unit": "playbooks",
+      "period": "none",
+      "values": {
+        "free": null,
+        "plus": null,
+        "pro": null,
+        "business": null
+      },
+      "status": "C",
+      "source": "Stacey, Decision Register v1.1 (2026-10-26)"
+    },
+    {
+      "key": "att.team_seats",
+      "side": "attorney",
+      "label": "Team seats included",
+      "unit": "seats",
+      "period": "none",
+      "values": {
+        "free": 1,
+        "plus": 1,
+        "pro": 1,
+        "business": 3
+      },
+      "status": "C",
+      "source": "Stacey, Decision Register v1.1 (2026-10-26)",
+      "note": "Business includes three seats, owner included. Extra seats are $15 a month each."
+    },
+    {
+      "key": "fl.team_seats",
+      "side": "freelancer",
+      "label": "Agency team seats included",
+      "unit": "seats",
+      "period": "none",
+      "values": {
+        "free": 1,
+        "plus": 1,
+        "pro": 1,
+        "business": 3
+      },
+      "status": "C",
+      "source": "Stacey, Decision Register v1.1 (2026-10-26)",
+      "note": "Business includes three seats, owner included. Extra seats are $15 a month each."
+    },
+    {
+      "key": "ai.runs",
+      "side": "both",
+      "label": "Weighted AI credits per month on Lawfecta's key",
+      "unit": "runs",
+      "period": "month",
+      "values": {
+        "free": 25,
+        "plus": 100,
+        "pro": 300,
+        "business": 1000
+      },
+      "status": "O",
+      "source": "Stacey, Decision Register v1.1 (2026-10-26); provisional",
+      "note": "Provisional until costs are validated. Credits are weighted by AI cost; they are not a number of playbooks or conversations. Calls on the member's own key do not use credits."
+    },
+    {
+      "key": "exports",
+      "side": "both",
+      "label": "Playbook exports per month",
+      "unit": "exports",
+      "period": "month",
+      "values": {
+        "free": 0,
+        "plus": 2,
+        "pro": 5,
+        "business": 15
+      },
+      "status": "O",
+      "source": "C-28; numbers are a suggestion by Claude",
+      "note": "Free members still earn the consultation export and the engagement playbook, and can buy single exports."
+    },
+    {
+      "key": "calendar.connections",
+      "side": "both",
+      "label": "Connected calendars (Google or Outlook)",
+      "unit": "calendars",
+      "period": "none",
+      "values": {
+        "free": 1,
+        "plus": 2,
+        "pro": 5,
+        "business": 10
+      },
+      "status": "O",
+      "source": "Plan documents show 2/5/10 for paid plans. Claude suggests 1 on Free so free members avoid double bookings and stay on the platform."
+    },
+    {
+      "key": "webhooks.endpoints",
+      "side": "both",
+      "label": "Webhook endpoints",
+      "unit": "endpoints",
+      "period": "none",
+      "values": {
+        "free": 1,
+        "plus": 2,
+        "pro": 5,
+        "business": 10
+      },
+      "status": "C",
+      "source": "Stacey, Decision Register v1.1 (2026-10-26)"
+    },
+    {
+      "key": "storage.mb",
+      "side": "both",
+      "label": "File storage",
+      "unit": "MB",
+      "period": "none",
+      "values": {
+        "free": 250,
+        "plus": 1000,
+        "pro": 5000,
+        "business": 20000
+      },
+      "status": "O",
+      "source": "Suggestion by Claude"
+    },
+    {
+      "key": "byok",
+      "side": "both",
+      "label": "Bring your own AI key (OpenAI or Claude)",
+      "unit": "flag",
+      "period": "none",
+      "values": {
+        "free": true,
+        "plus": true,
+        "pro": true,
+        "business": true
+      },
+      "status": "C",
+      "source": "C-29 and Stacey 2026-10-25"
+    }
+  ],
+  "sections": [
+    {
+      "title": "Engagement money",
+      "items": [
+        {
+          "key": "fees.floor_cents_per_party",
+          "label": "Minimum platform fee per side, per engagement",
+          "value": 1000,
+          "unit": "cents",
+          "status": "C",
+          "source": "C-26",
+          "note": "Charged once per engagement, not per milestone."
+        },
+        {
+          "key": "fees.attorney_fee_timing",
+          "label": "When the attorney fee is charged",
+          "value": "engagement_start",
+          "status": "R",
+          "source": "1A section 20"
+        },
+        {
+          "key": "fees.freelancer_fee_allocation",
+          "label": "How the freelancer fee is spread",
+          "value": "proportional_rounding_on_last",
+          "status": "R",
+          "source": "1A section 9",
+          "note": "Spread across milestones in whole cents; leftover cents go on the last milestone."
+        },
+        {
+          "key": "engagement.minimum_cents",
+          "label": "Smallest engagement allowed",
+          "value": 25000,
+          "unit": "cents",
+          "status": "C",
+          "source": "Stacey, Decision Register v1.1 (2026-10-26)"
+        },
+        {
+          "key": "engagement.max_duration_days",
+          "label": "Longest fixed-fee engagement",
+          "value": 90,
+          "unit": "days",
+          "status": "O",
+          "source": "Decision Register v1.1, question 2 (90 days recommended)"
+        },
+        {
+          "key": "engagement.max_unreleased_days",
+          "label": "Longest funded money can wait for acceptance before a Lawfecta Team review",
+          "value": 45,
+          "unit": "days",
+          "status": "G",
+          "source": "O-02 and G-PAYMENT; suggestion by Claude, needs a payments lawyer"
+        },
+        {
+          "key": "engagement.hourly_billing",
+          "label": "Hourly billing",
+          "value": false,
+          "status": "C",
+          "source": "C-12",
+          "note": "Not part of launch."
+        },
+        {
+          "key": "payments.provider",
+          "label": "Payment provider",
+          "value": "stripe_connect",
+          "status": "C",
+          "source": "C-24"
+        },
+        {
+          "key": "payments.mode",
+          "label": "Stripe mode",
+          "value": "test",
+          "status": "G",
+          "source": "Stacey 2026-10-25",
+          "note": "Stays test until Stacey turns on the live_payments switch."
+        }
+      ]
+    },
+    {
+      "title": "Trials and allowances",
+      "items": [
+        {
+          "key": "trial.days",
+          "label": "Free trial length",
+          "value": 7,
+          "unit": "days",
+          "status": "C",
+          "source": "Stacey, Decision Register v1.1 (2026-10-26)"
+        },
+        {
+          "key": "trial.tier",
+          "label": "Which plan the trial unlocks",
+          "value": "pro",
+          "status": "C",
+          "source": "Stacey, Decision Register v1.1 (2026-10-26)"
+        },
+        {
+          "key": "trial.starts",
+          "label": "When the trial starts",
+          "value": "registration",
+          "status": "C",
+          "source": "Stacey, Decision Register v1.1 (2026-10-26)",
+          "note": "New registrations only, one trial per member. When it ends, trial-only extras stop and the member keeps their data and active work."
+        },
+        {
+          "key": "trial.eligible_from",
+          "label": "Trials go to members who register on or after",
+          "value": "2026-11-01",
+          "status": "O",
+          "source": "Decision Register v1.1 says new registrations only; the start date is a suggestion by Claude",
+          "note": "Members who registered before this date do not get a trial."
+        },
+        {
+          "key": "quota.period",
+          "label": "Monthly allowances reset on",
+          "value": "calendar_month",
+          "status": "O",
+          "source": "O-10; suggestion by Claude"
+        },
+        {
+          "key": "quota.timezone",
+          "label": "Time zone for resets and deadlines",
+          "value": "America/Los_Angeles",
+          "status": "O",
+          "source": "O-10; Claude guessed Pacific time. Please confirm Lawfecta's time zone."
+        },
+        {
+          "key": "quota.invited_proposals_count",
+          "label": "Do proposals to an attorney's direct invitation use the allowance?",
+          "value": false,
+          "status": "O",
+          "source": "O-10; suggestion by Claude",
+          "note": "Free answers to invitations encourage fast replies."
+        },
+        {
+          "key": "quota.withdrawn_restores",
+          "label": "When a withdrawn proposal gives the allowance back",
+          "value": "only_if_gig_canceled_or_materially_changed",
+          "status": "O",
+          "source": "O-10; suggestion by Claude"
+        },
+        {
+          "key": "ai.credit_purchases",
+          "label": "Buying extra AI credits",
+          "value": false,
+          "status": "C",
+          "source": "C-28"
+        },
+        {
+          "key": "quota.proposal_topups",
+          "label": "Buying extra proposals",
+          "value": false,
+          "status": "C",
+          "source": "C-10",
+          "note": "Later only."
+        },
+        {
+          "key": "exports.single_price_cents",
+          "label": "Price of one standalone export",
+          "value": 900,
+          "unit": "cents",
+          "status": "O",
+          "source": "C-28; price is a suggestion by Claude"
+        },
+        {
+          "key": "seats.extra_monthly_cents",
+          "label": "Extra team seat on Business, per month",
+          "value": 1500,
+          "unit": "cents",
+          "status": "C",
+          "source": "Stacey, Decision Register v1.1 (2026-10-26)",
+          "note": "Annual price for extra seats and whether seats add AI, storage or integration allowances are still open."
+        }
+      ]
+    },
+    {
+      "title": "Flex Gigs and proposals",
+      "items": [
+        {
+          "key": "gig.duration_days",
+          "label": "How long a gig stays open",
+          "value": 14,
+          "unit": "days",
+          "status": "C",
+          "source": "C-11"
+        },
+        {
+          "key": "gig.reminder_days",
+          "label": "Attorney reminders on days",
+          "value": [
+            10,
+            13
+          ],
+          "status": "C",
+          "source": "C-11"
+        },
+        {
+          "key": "gig.max_extensions",
+          "label": "Extensions allowed",
+          "value": 1,
+          "status": "C",
+          "source": "C-11"
+        },
+        {
+          "key": "gig.extension_days",
+          "label": "Length of the extension",
+          "value": 14,
+          "unit": "days",
+          "status": "C",
+          "source": "C-11"
+        },
+        {
+          "key": "gig.extended_reminder_days_before",
+          "label": "Reminders before an extended gig closes (days before)",
+          "value": [
+            4,
+            1
+          ],
+          "status": "R",
+          "source": "1A section 15"
+        },
+        {
+          "key": "gig.proposals_actionable_days",
+          "label": "Days proposals stay actionable after a gig closes",
+          "value": 7,
+          "unit": "days",
+          "status": "C",
+          "source": "C-11"
+        },
+        {
+          "key": "gig.multiple_hires_default",
+          "label": "Allow more than one hire per gig by default",
+          "value": false,
+          "status": "R",
+          "source": "C-11"
+        }
+      ]
+    },
+    {
+      "title": "Milestones, review and recurring work",
+      "items": [
+        {
+          "key": "milestone.pass_score",
+          "label": "Passing score for the DELA milestone check",
+          "value": 90,
+          "unit": "out of 100",
+          "status": "C",
+          "source": "C-13"
+        },
+        {
+          "key": "milestone.attorney_review_days",
+          "label": "Days the attorney has to review",
+          "value": 7,
+          "unit": "days",
+          "status": "C",
+          "source": "C-13"
+        },
+        {
+          "key": "milestone.clock_starts",
+          "label": "When the review clock starts",
+          "value": "submission_marked_complete_and_notice_delivered",
+          "status": "O",
+          "source": "Decision Register v1.1, question 3 (A recommended)"
+        },
+        {
+          "key": "milestone.human_review_fee_cents",
+          "label": "Cost to the freelancer for a human review",
+          "value": 0,
+          "unit": "cents",
+          "status": "O",
+          "source": "Decision Register v1.1, question 4 (B recommended: one free review per milestone)"
+        },
+        {
+          "key": "milestone.human_review_days",
+          "label": "Target days for a human review",
+          "value": 5,
+          "unit": "business days",
+          "status": "O",
+          "source": "O-04 and O-11"
+        },
+        {
+          "key": "milestone.admin_acceptance",
+          "label": "Automatic acceptance when the attorney stays silent",
+          "value": "switch",
+          "status": "G",
+          "source": "C-13 and G-CONTRACT",
+          "note": "Built behind the admin_acceptance_timeout switch."
+        },
+        {
+          "key": "recurring.renewal_reminder_days",
+          "label": "Renewal reminder, days before billing",
+          "value": 3,
+          "unit": "days",
+          "status": "C",
+          "source": "C-16"
+        },
+        {
+          "key": "recurring.failed_retries",
+          "label": "Automatic retries after a failed renewal",
+          "value": 2,
+          "status": "C",
+          "source": "C-17"
+        },
+        {
+          "key": "recurring.retry_spacing_days",
+          "label": "Days between renewal retries",
+          "value": [
+            2,
+            5
+          ],
+          "status": "O",
+          "source": "Decision Register v1.1, question 5 (A recommended: day 2 and day 5)"
+        },
+        {
+          "key": "recurring.pause_limit_days",
+          "label": "Days a failed renewal stays paused before it ends",
+          "value": 14,
+          "unit": "days",
+          "status": "O",
+          "source": "Decision Register v1.1, question 5"
+        },
+        {
+          "key": "recurring.release_unit",
+          "label": "How monthly money is released to the freelancer",
+          "value": "parties_choose_monthly_or_split",
+          "status": "O",
+          "source": "Decision Register v1.1, question 6 (C recommended)"
+        }
+      ]
+    },
+    {
+      "title": "Exports and playbooks",
+      "items": [
+        {
+          "key": "exports.consultation_grant",
+          "label": "Free consultation export after a verified attended meeting",
+          "value": 1,
+          "unit": "per attorney and freelancer pair",
+          "status": "O",
+          "source": "C-04 and O-08; the count is a suggestion by Claude"
+        },
+        {
+          "key": "exports.consultation_proof",
+          "label": "What proves a meeting happened",
+          "value": "vectera_attendance_or_both_confirm",
+          "status": "O",
+          "source": "O-08; suggestion by Claude"
+        },
+        {
+          "key": "exports.engagement_grant_after",
+          "label": "When a hire earns the engagement playbook",
+          "value": "first_milestone_accepted",
+          "status": "O",
+          "source": "C-04; suggestion by Claude to stop fake minimum-price hires"
+        },
+        {
+          "key": "playbook.public_share_links",
+          "label": "Anonymous public share links",
+          "value": false,
+          "status": "C",
+          "source": "C-30"
+        },
+        {
+          "key": "marketplace.commission_bps",
+          "label": "Playbook marketplace commission (Phase 1C)",
+          "value": 1500,
+          "unit": "basis points",
+          "status": "C",
+          "source": "C-31"
+        }
+      ]
+    },
+    {
+      "title": "Profiles, reviews and risk",
+      "items": [
+        {
+          "key": "profile.availability_reconfirm_days",
+          "label": "Freelancers reconfirm availability every",
+          "value": 14,
+          "unit": "days",
+          "status": "R",
+          "source": "1A section 7"
+        },
+        {
+          "key": "profile.activity_lookback_days",
+          "label": "Recent activity window",
+          "value": 30,
+          "unit": "days",
+          "status": "R",
+          "source": "1A section 7"
+        },
+        {
+          "key": "reviews.publish",
+          "label": "When reviews publish",
+          "value": "immediately",
+          "status": "C",
+          "source": "C-18"
+        },
+        {
+          "key": "reviews.edit_window_days",
+          "label": "Days a reviewer can edit a review",
+          "value": 14,
+          "unit": "days",
+          "status": "O",
+          "source": "1A section 24; suggestion by Claude"
+        },
+        {
+          "key": "risk.first_lost_chargeback",
+          "label": "After a first lost chargeback",
+          "value": "manual_reinstatement_review",
+          "status": "C",
+          "source": "C-19"
+        },
+        {
+          "key": "risk.second_chargeback",
+          "label": "After a second verified chargeback",
+          "value": "termination_review",
+          "status": "G",
+          "source": "C-20",
+          "note": "Counting rules need a lawyer."
+        },
+        {
+          "key": "risk.dispute_notice_days",
+          "label": "Dispute notice period",
+          "value": 14,
+          "unit": "calendar days",
+          "status": "C",
+          "source": "C-22"
+        },
+        {
+          "key": "protection.freelancer_payment",
+          "label": "Lawfecta-funded freelancer protection",
+          "value": false,
+          "status": "C",
+          "source": "C-21"
+        }
+      ]
+    },
+    {
+      "title": "Platform rules decided by Stacey",
+      "items": [
+        {
+          "key": "data.confidential_policy",
+          "label": "Confidential client information",
+          "value": "not_allowed_member_responsible",
+          "status": "C",
+          "source": "Stacey 2026-10-25",
+          "note": "Notice where people type or upload, plus a warning when text looks like client information."
+        },
+        {
+          "key": "booking.off_platform",
+          "label": "Booking outside Lawfecta",
+          "value": false,
+          "status": "C",
+          "source": "Stacey 2026-10-25"
+        },
+        {
+          "key": "booking.calendar_sync",
+          "label": "Native booking syncs with Google and Outlook",
+          "value": true,
+          "status": "C",
+          "source": "Stacey 2026-10-25",
+          "note": "Which plans get it is in the limits table (connected calendars)."
+        },
+        {
+          "key": "ai.default_provider",
+          "label": "AI used on Lawfecta's key",
+          "value": "openai",
+          "status": "C",
+          "source": "Stacey 2026-10-25"
+        },
+        {
+          "key": "ai.byok_providers",
+          "label": "Keys members can bring",
+          "value": [
+            "openai",
+            "anthropic"
+          ],
+          "status": "C",
+          "source": "Stacey 2026-10-25"
+        },
+        {
+          "key": "meetings.provider",
+          "label": "Online meetings",
+          "value": "vectera",
+          "status": "C",
+          "source": "Stacey 2026-10-25"
+        },
+        {
+          "key": "meetings.recording_consent",
+          "label": "Recording a meeting",
+          "value": "both_people_consent",
+          "status": "G",
+          "source": "Stacey 2026-10-25; some states require everyone's consent"
+        },
+        {
+          "key": "meetings.transcript_training",
+          "label": "Using transcripts to improve DELA",
+          "value": "separate_opt_in",
+          "status": "G",
+          "source": "C-02 and Stacey 2026-10-25"
+        },
+        {
+          "key": "safety.off_platform_flags",
+          "label": "Talk of taking work off the platform",
+          "value": "flag_for_lawfecta_team_review",
+          "status": "C",
+          "source": "Stacey 2026-10-25",
+          "note": "No automatic penalty."
+        },
+        {
+          "key": "email.provider",
+          "label": "Who sends DELA email",
+          "value": "bd_if_possible_else_brevo",
+          "status": "O",
+          "source": "Stacey 2026-10-25; Claude is checking whether BD can be triggered from Supabase"
+        },
+        {
+          "key": "access.mode",
+          "label": "Who can open DELA",
+          "value": "access_list",
+          "status": "C",
+          "source": "Stacey 2026-10-25",
+          "note": "Change to everyone when a phase launches."
+        }
+      ]
+    }
+  ],
+  "switches": [
+    {
+      "key": "live_payments",
+      "label": "Real money through Stripe (live keys)",
+      "gate": "G-PAYMENT and G-CONTRACT"
+    },
+    {
+      "key": "ai_generation",
+      "label": "DELA AI help",
+      "gate": "Step 2"
+    },
+    {
+      "key": "public_gigs",
+      "label": "Flex Gigs open to public applicants",
+      "gate": "Step 4"
+    },
+    {
+      "key": "calendar_sync",
+      "label": "Google and Outlook calendar sync",
+      "gate": "Step 5 and Google app review"
+    },
+    {
+      "key": "meeting_recording",
+      "label": "Meeting recording and transcripts",
+      "gate": "G-CONTRACT (consent wording)"
+    },
+    {
+      "key": "transcript_training_use",
+      "label": "Use transcripts to improve DELA",
+      "gate": "Separate opt-in and legal review"
+    },
+    {
+      "key": "consultation_export_grant",
+      "label": "Free consultation export after a verified meeting",
+      "gate": "O-08"
+    },
+    {
+      "key": "admin_acceptance_timeout",
+      "label": "Automatic milestone acceptance after 7 silent days",
+      "gate": "G-CONTRACT and G-REVIEW"
+    },
+    {
+      "key": "recurring_engagements",
+      "label": "Monthly recurring engagements",
+      "gate": "Step 6"
+    },
+    {
+      "key": "auto_repeat_hiring",
+      "label": "Limited automatic repeat hiring",
+      "gate": "O-05, all hard gates"
+    },
+    {
+      "key": "member_webhooks",
+      "label": "Member webhooks",
+      "gate": "Step 7"
+    },
+    {
+      "key": "trials",
+      "label": "Automatic free trials",
+      "gate": "G-COMMERCIAL"
+    }
+  ]
+}
