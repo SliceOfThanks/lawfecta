@@ -274,6 +274,14 @@ begin
   returning * into v_person;
 
   if v_person.status = 'closed' then return jsonb_build_object('ok', false, 'reason', 'closed'); end if;
+
+  -- First owner: on a copy with no owner yet, the member named in bootstrap.owner_bd_member_id becomes owner
+  -- at first sign in. This is how Stacey becomes owner of Live without anyone touching Live by hand.
+  if not exists (select 1 from staff_roles where role = 'owner' and revoked_at is null)
+     and coalesce((dela_setting('bootstrap.owner_bd_member_id') #>> '{}')::bigint, 0) = v_bd then
+    insert into staff_roles (person_id, role) values (v_person.id, 'owner');
+    perform dela_audit('system', v_person.id, 'first_owner_set', 'person', v_person.id::text, '{}', p->>'ip');
+  end if;
   v_staff := dela_is_staff(v_person.id);
 
   -- The Live copy sends test accounts to Staging and opens no session here

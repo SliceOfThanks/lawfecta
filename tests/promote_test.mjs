@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { promote } from "../tools/promote.mjs";
 
 const COMMIT = "a".repeat(40);
-const env = { STAGING_API_URL: "https://staging.test/functions/v1/api", RELEASE_CI_SECRET: "x".repeat(40), RELEASE_ID: "3", NONCE: "n".repeat(64), SUPABASE_ACCESS_TOKEN: "t", LIVE_PROJECT_REF: "liveref" };
+const env = { OWNER_BD_MEMBER_ID: "42", STAGING_API_URL: "https://staging.test/functions/v1/api", RELEASE_CI_SECRET: "x".repeat(40), RELEASE_ID: "3", NONCE: "n".repeat(64), SUPABASE_ACCESS_TOKEN: "t", LIVE_PROJECT_REF: "liveref" };
 
 function fake({ claimOk = true, applied = [], health = { ok: true, environment: "live", version: "api-0.2.0" }, dbFailOn = null } = {}) {
   const calls = { queries: [], finish: null, run: [] };
@@ -49,6 +49,7 @@ test("applies only new migrations, deploys, switches code, reports live", async 
   assert.ok(f.calls.run[0].startsWith("git checkout --quiet " + COMMIT), "exact approved commit");
   assert.ok(f.calls.run.some((c) => c.includes("functions deploy api --project-ref liveref --no-verify-jwt")));
   assert.ok(f.calls.queries.some((q) => q.includes("key = 'code_version'") && q.includes(COMMIT)));
+  assert.ok(f.calls.queries.some((q) => q.includes("bootstrap.owner_bd_member_id") && q.includes("'42'")), "first owner named on Live");
   assert.equal(f.calls.finish.ok, true);
 });
 

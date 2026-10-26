@@ -17,6 +17,7 @@ create table releases (
   approved_at timestamptz,
   live_at timestamptz,
   deploy_log text not null default '',
+  test_report text not null default '',  -- the ChatGPT test report Claude saves with each version (Stacey, 2026-10-26)
   created_at timestamptz not null default now()
 );
 
@@ -50,7 +51,7 @@ create or replace function dela_release_json(r releases) returns jsonb language 
   select jsonb_build_object('id', r.id, 'version', r.version, 'commit', r.commit_sha, 'api_version', r.api_version, 'migrations', to_jsonb(r.migrations),
     'notes', r.notes, 'status', r.status, 'tested_at', r.tested_at, 'approved_at', r.approved_at, 'live_at', r.live_at, 'created_at', r.created_at,
     'tested_by', (select display_name from people where id = r.tested_by), 'approved_by', (select display_name from people where id = r.approved_by),
-    'deploy_log', right(r.deploy_log, 2000))
+    'deploy_log', right(r.deploy_log, 2000), 'test_report', left(r.test_report, 20000))
 $$;
 
 -- Claude records each version that is ready on Staging (service role only, never from the browser)
@@ -61,6 +62,13 @@ begin
   returning id into v;
   perform dela_audit('system', null, 'release_recorded', 'release', v::text, jsonb_build_object('version', p_version, 'commit', p_commit));
   return v;
+end $$;
+
+-- Claude saves the ChatGPT test report with the version it covers (service role only)
+create or replace function dela_release_attach_report(p_release bigint, p_report text) returns void language plpgsql as $$
+begin
+  update releases set test_report = left(coalesce(p_report, ''), 100000) where id = p_release;
+  perform dela_audit('system', null, 'release_report_saved', 'release', p_release::text, '{}');
 end $$;
 
 create or replace function dela_admin_releases(p_actor uuid) returns jsonb language plpgsql stable as $$

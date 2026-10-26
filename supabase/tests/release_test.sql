@@ -8,6 +8,8 @@ begin
   insert into staff_roles (person_id, role) values (sup, 'support');
 
   rel1 := dela_release_record('v0.1.0', repeat('a', 40), 'api-0.1.0', array['0001_foundation_tables.sql'], 'First release');
+  perform dela_release_attach_report(rel1, 'PASS: all 16 steps');
+  perform t_ok((select test_report from releases where id = rel1) = 'PASS: all 16 steps', 'test report saved with the version');
   r := dela_release_approve(owner_id, rel1, 'push', 'whatever-password');
   perform t_ok(r->>'reason' = 'no_password', 'no push before a release password exists');
 

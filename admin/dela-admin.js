@@ -494,6 +494,7 @@
           h("p", { class: "muted small", text: "Code " + x.commit.slice(0, 7) + " | " + x.migrations.length + (x.migrations.length === 1 ? " database change" : " database changes") + " | added " + D.dateTime(x.created_at) + (x.live_at ? " | live " + D.dateTime(x.live_at) : "") + (x.approved_by ? " | pushed by " + x.approved_by : "") }),
           ["candidate", "tested", "failed"].indexOf(x.status) >= 0 ? h("label", { class: "row", style: "font-weight:600" }, tested, "I tested this version on Staging and it is ready") : null,
           actions,
+          x.test_report ? h("details", null, h("summary", { class: "small", text: "Test report" }), h("pre", { class: "small", style: "white-space:pre-wrap", text: x.test_report })) : null,
           x.deploy_log ? h("details", null, h("summary", { class: "small", text: "Push log" }), h("pre", { class: "small", style: "white-space:pre-wrap", text: x.deploy_log })) : null);
       });
       var pwCard = null;

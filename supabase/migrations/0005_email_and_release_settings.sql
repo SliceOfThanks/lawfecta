@@ -7,7 +7,8 @@ insert into settings (key, value, label, section, status, source, note) values
   ('email.from_address', '"dela@lawfecta.com"', 'Address emails come from', 'System', 'O', 'Setup', 'Must be a verified sender with the email service.'),
   ('site.url', '"https://lawfecta.com"', 'Lawfecta site address used in email links', 'System', 'O', 'Setup', 'Please confirm the Lawfecta BD site address.'),
   ('site.app_path', '"/dela"', 'BD page that holds the DELA app', 'System', 'O', 'Setup', ''),
-  ('site.admin_path', '"/dela-admin"', 'BD page that holds the DELA admin area', 'System', 'O', 'Setup', '')
+  ('site.admin_path', '"/dela-admin"', 'BD page that holds the DELA admin area', 'System', 'O', 'Setup', ''),
+  ('bootstrap.owner_bd_member_id', '0', 'BD member ID that becomes owner at first sign in, only while there is no owner', 'System', 'C', 'Setup', 'Set from GitHub at the first push to Live, and by Claude on Staging.')
 on conflict (key) do nothing;
 
 -- What the worker needs to send one email notification

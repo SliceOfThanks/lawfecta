@@ -22,7 +22,19 @@ begin
   perform t_ok(r->>'reason' = 'no_access', 'not on the access list means no access');
   select id into owner_id from people where bd_member_id = 1;
   perform t_ok(owner_id is not null, 'denied sign in still records the person');
-  insert into staff_roles (person_id, role) values (owner_id, 'owner');
+
+  -- First owner comes from the bootstrap setting, only while nobody is owner
+  update settings set value = '1' where key = 'bootstrap.owner_bd_member_id';
+  r := dela_exchange(t_pass(2, '', 'p-not-owner'));
+  perform t_ok(r->>'reason' = 'no_access', 'someone else does not become owner');
+  r := dela_exchange(t_pass(1, '', 'p-owner-0'));
+  perform t_ok((r->>'ok')::boolean and r->'me'->'staff' ? 'owner', 'the named member becomes owner at first sign in');
+  insert into people (bd_member_id) values (3) on conflict do nothing;
+  update settings set value = '3' where key = 'bootstrap.owner_bd_member_id';
+  perform dela_admin_access_grant(owner_id, 3, 'access', 'x');
+  r := dela_exchange(t_pass(3, '', 'p-owner-x'));
+  perform t_ok(not (r->'me'->'staff' ? 'owner'), 'once there is an owner, the setting grants nothing');
+  perform dela_admin_access_revoke(owner_id, (select id from access_list where bd_member_id = 3 and revoked_at is null));
 
   r := dela_exchange(t_pass(1, '', 'p-owner-1'));
   perform t_ok(r->>'reason' = 'pass_used', 'a pass works once');

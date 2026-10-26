@@ -53,6 +53,10 @@ export async function promote({ env, fetchFn = fetch, run = (cmd, args) => execF
     }
     // This copy is Live; it never offers the push button
     await mgmt(`update settings set value = '"live"' where key = 'environment' and value <> '"live"'`);
+    // First push only: name Stacey as the member who becomes owner at her first sign in (ignored once an owner exists)
+    if (/^[0-9]+$/.test(env.OWNER_BD_MEMBER_ID || "")) {
+      await mgmt(`update settings set value = '${env.OWNER_BD_MEMBER_ID}'::jsonb where key = 'bootstrap.owner_bd_member_id' and value = '0'::jsonb`);
+    }
 
     const prev = await mgmt("select value #>> '{}' as v from settings where key = 'code_version'");
     previous = prev[0] && /^[0-9a-f]{40}$/.test(prev[0].v) ? prev[0].v : null;
@@ -90,5 +94,6 @@ export async function promote({ env, fetchFn = fetch, run = (cmd, args) => execF
 if (import.meta.url === `file://${process.argv[1]}`) {
   const env = {};
   for (const k of ["STAGING_API_URL", "RELEASE_CI_SECRET", "RELEASE_ID", "NONCE", "SUPABASE_ACCESS_TOKEN", "LIVE_PROJECT_REF"]) env[k] = need(k);
+  env.OWNER_BD_MEMBER_ID = process.env.OWNER_BD_MEMBER_ID || "";
   promote({ env }).then(() => process.exit(0), (e) => { console.error(String(e.message || e)); process.exit(1); });
 }
