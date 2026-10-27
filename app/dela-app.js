@@ -184,7 +184,7 @@
         stat("✉", props ? (props.unlimited ? "No cap" : props.remaining) : 0, "Proposals left this month"),
         stat("★", 0, "Invitations"),
         stat("▣", 0, "Active projects"),
-        stat("$", "$0", "Paid out")),
+        stat("$", D.money(0), "Paid out")),
       h("div", { class: "card" }, h("h2", { text: "Your match checklist" }), h("p", { class: "muted small", text: "Opening soon. These are the items attorneys need to see before DELA can match you." }),
         items.map(function (t) { return h("div", { class: "check" }, h("i", { "aria-hidden": "true" }), h("span", { text: t })); })),
       h("h2", { style: "margin-top:22px", text: "What DELA will do for you" }),

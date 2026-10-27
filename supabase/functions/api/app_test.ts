@@ -84,6 +84,13 @@ Deno.test("cors only allows Lawfecta", async () => {
   assertEquals(r.body.environment, "staging");
 });
 
+Deno.test("cors falls back to the Lawfecta site when DELA_ORIGINS is not set", async () => {
+  const bare: Deps = { ...deps, env: (k) => (k === "DELA_ORIGINS" ? "" : deps.env(k)) };
+  const req = (origin: string) => handle(new Request("http://localhost/functions/v1/api/health", { headers: { origin } }), bare);
+  assertEquals((await req("https://www.lawfecta.com")).headers.get("access-control-allow-origin"), "https://www.lawfecta.com");
+  assertEquals((await req("https://evil.invalid")).headers.get("access-control-allow-origin"), "https://lawfecta.com");
+});
+
 let ownerSession = "";
 let attSession = "";
 

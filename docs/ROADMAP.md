@@ -7,6 +7,7 @@ Each step: feature brief and Stacey's answers, build on Staging, ChatGPT test, S
 | 0 | Setup and decisions (repo, Supabase, Decision Sheet, email and Vectera checks) | Mostly done; email service still to choose |
 | 1 | Foundation (BD sign in, access list, Staging and Live, roles, plans and limits, admin, audit, jobs, notices) | Built, on Staging |
 | 1b | Release Control dashboard (push, code, watch, go back, alerts) | Built, waiting on the 0010 database update |
+| 1c | Safety kit (internal): rule checker, fixed-stays-fixed, security scan, Dependabot, AI reviewers, monthly health report (brief docs/briefs/step-1c-safety-kit.md) | Built; GitHub settings waiting on Stacey |
 | 2 | AI and playbooks (attorney side): the playbook definition, the firm playbook library with limits by plan (Free 10, then more per paid plan), chat with a playbook, versions, activity log, team comments approved by the playbook administrator, exports to Word, PDF, Markdown, HTML and CSV for Notion, Waybook, Monday and others (brief docs/briefs/step-2-playbooks.md) | Brief written, questions open |
 | 2b | DELA in ChatGPT and Claude (MCP connector): sign in with Lawfecta, playbook tools first (added by Stacey 2026-10-27; brief docs/briefs/step-2b-mcp-connector.md) | Brief written, questions open |
 | 3 | Profiles and verification (both sides) | |

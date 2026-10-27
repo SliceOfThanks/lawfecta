@@ -22,6 +22,14 @@ jobs:
       PGPASSWORD: postgres
     steps:
       - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - name: Project rules (widgets, money in cents, no public access, no secrets, exact versions, plain writing)
+        run: |
+          python3 -m unittest tests/rules_test.py
+          RANGE=""
+          if [ "${{ github.event_name }}" = "pull_request" ]; then RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}";
+          elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ] && git cat-file -e "${{ github.event.before }}" 2>/dev/null; then RANGE="${{ github.event.before }}..${{ github.sha }}"; fi
+          if [ -n "$RANGE" ]; then python3 tools/rules_check.py --commits "$RANGE"; else python3 tools/rules_check.py; fi
       - uses: actions/setup-node@v4
         with: { node-version: 22 }
       - name: Install test tools (exact versions)
@@ -36,7 +44,7 @@ jobs:
       - name: API and widget tests
         run: npx deno test -A supabase/functions/api/app_test.ts tests/php/auth_test.ts
       - name: Push to Live script tests
-        run: node --test tests/promote_test.mjs
+        run: node --test tests/promote_test.mjs tests/ai_review_test.mjs
       - name: Browser tests
         run: |
           tools/dbtest.sh

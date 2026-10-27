@@ -48,3 +48,10 @@ DELA-Auth (helper), DELA-App, DELA-Admin. Keep them tiny. BD widget rules: no ba
 - Every consequential command is idempotent and re-checks permission at the moment it runs.
 - Open decisions ship as a switch or a setting that is off, never as a guess.
 - Secrets never go in chat, GitHub, widget code, browser code or logs. Stacey enters them in Supabase herself.
+
+## Safety kit (docs/briefs/step-1c-safety-kit.md)
+- tools/rules_check.py runs after every edit (.claude/settings.json) and in GitHub Tests. Fix what it reports. Never weaken a rule to pass; mark a deliberate exception with "rules-ok:" and the reason on that line.
+- Fixed stays fixed: every bug fix ships with a test that fails before the fix and passes after, in the same commit, with a message starting "Fix".
+- Once Stacey turns on auto-merge and the main ruleset: work on a branch, open a pull request, turn on auto-merge. It merges itself when Tests pass. Never push straight to main.
+- When a version is ready on Staging: start the "AI review" workflow (base = the commit of the version on Live, head = the new commit). Put its "Must fix" items in the release notes, and fix them or explain why not, before recording the version.
+- At the start of each month's first session, read the latest "DELA health report" issue and deal with "Fix first".

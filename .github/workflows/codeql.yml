@@ -1,0 +1,27 @@
+# GitHub's free security scan (safety kit). Looks for security mistakes in the JavaScript, TypeScript and workflow code
+# on every push, and once a week. Findings show under the repo's Security tab and in the monthly health report.
+name: Security scan
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "17 6 * * 1"
+permissions: { contents: read, security-events: write, actions: read }
+jobs:
+  codeql:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        language: [javascript-typescript, actions]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended
+      - uses: github/codeql-action/analyze@v3
+        with:
+          category: /language:${{ matrix.language }}

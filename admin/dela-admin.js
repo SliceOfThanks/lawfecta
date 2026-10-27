@@ -275,7 +275,7 @@
         h("label", { text: "Monthly price (dollars)" }), monthly,
         h("label", { text: "Yearly price (dollars)" }), annual,
         h("label", { text: "Platform fee this side pays (percent of the project price)" }), fee,
-        h("p", { class: "muted small", text: "The $10 minimum fee per side is a separate setting (fees.floor_cents_per_party)." }),
+        h("p", { class: "muted small", text: "The minimum fee per side is a separate setting (fees.floor_cents_per_party), on the Settings tab." }),
         h("label", { text: "Note" }), note),
       h("div", { class: "card scroll" }, h("h2", { text: "Limits" }), h("p", { class: "muted small", text: "Leave a limit empty for no cap. Untick to leave it out of the plan." }),
         h("table", null, h("thead", null, h("tr", null, h("th", { text: "Limit" }), h("th", { text: "Included" }), h("th", { text: "Amount" }))), h("tbody", null, rows))),

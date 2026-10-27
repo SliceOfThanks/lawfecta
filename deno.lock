@@ -135,6 +135,7 @@
   "workspace": {
     "packageJson": {
       "dependencies": [
+        "npm:@anthropic-ai/sdk@0.133.0",
         "npm:deno@2.9.6",
         "npm:playwright@1.63.0"
       ]

@@ -1,0 +1,36 @@
+# AI reviewers (safety kit). Security, payments and limits, data and privacy, and tests reviewers read the changes in a
+# version and open an issue with what they found. Claude starts this when a version is ready on Staging and copies the
+# findings into the release notes. It never changes code. Needs the ANTHROPIC_API_KEY secret; without it, it says so.
+name: AI review
+on:
+  workflow_dispatch:
+    inputs:
+      base: { description: "Commit the last version was built from", required: true }
+      head: { description: "Commit of the new version", required: true }
+      version: { description: "Version name, for the issue title", required: false }
+permissions: { contents: read, issues: write }
+concurrency: { group: ai-review, cancel-in-progress: false }
+jobs:
+  review:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci
+      - name: Review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          BASE: ${{ inputs.base }}
+          HEAD_SHA: ${{ inputs.head }}
+        run: node tools/ai_review.mjs --base "$BASE" --head "$HEAD_SHA" --out ai-review.md
+      - name: Open an issue with the findings
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ inputs.version }}
+          HEAD_SHA: ${{ inputs.head }}
+        run: |
+          cat ai-review.md >> "$GITHUB_STEP_SUMMARY"
+          gh issue create --title "AI review: ${VERSION:-${HEAD_SHA:0:7}}" --body-file ai-review.md

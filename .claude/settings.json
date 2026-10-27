@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "cd \"$CLAUDE_PROJECT_DIR\" && python3 tools/rules_check.py 1>&2 || exit 2",
+            "timeout": 60
+          }
+        ]
+      }
+    ]
+  }
+}

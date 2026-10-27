@@ -1,0 +1,12 @@
+# Weekly check for outside code with known security problems or new versions (safety kit).
+# Each update arrives as its own pull request and must pass every test before it is merged.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5
+  - package-ecosystem: github-actions
+    directory: /
+    schedule: { interval: weekly, day: monday }
+    open-pull-requests-limit: 5

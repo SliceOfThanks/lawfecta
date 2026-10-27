@@ -1,0 +1,31 @@
+# Monthly health report (safety kit). On the 1st of each month: the automatic checks, ranked, plus the AI reviewer's
+# "what will break first" when the ANTHROPIC_API_KEY secret is set. Opens an issue, so the owner gets an email from GitHub.
+name: Health report
+on:
+  schedule:
+    - cron: "41 14 1 * *"
+  workflow_dispatch:
+permissions: { contents: read, issues: write, security-events: read, actions: read }
+jobs:
+  report:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+      - run: npm ci
+      - name: Automatic checks
+        env: { GITHUB_TOKEN: "${{ github.token }}" }
+        run: python3 tools/health_report.py --out health-report.md
+      - name: What will break first (AI)
+        env: { ANTHROPIC_API_KEY: "${{ secrets.ANTHROPIC_API_KEY }}" }
+        run: |
+          node tools/ai_review.mjs --health health-report.md --out ai-health.md || echo "The AI part could not run this month. The automatic checks above are complete." > ai-health.md
+          { echo; cat ai-health.md; } >> health-report.md
+      - name: Open an issue with the report
+        env: { GH_TOKEN: "${{ github.token }}" }
+        run: |
+          cat health-report.md >> "$GITHUB_STEP_SUMMARY"
+          gh issue create --title "DELA health report $(date +%Y-%m)" --body-file health-report.md
