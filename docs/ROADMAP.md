@@ -8,6 +8,7 @@ Each step: feature brief and Stacey's answers, build on Staging, ChatGPT test, S
 | 1 | Foundation (BD sign in, access list, Staging and Live, roles, plans and limits, admin, audit, jobs, notices) | Built, on Staging |
 | 1b | Release Control dashboard (push, code, watch, go back, alerts) | Built, waiting on the 0010 database update |
 | 2 | AI and playbooks (attorney side) | Next |
+| 2b | DELA in ChatGPT and Claude (MCP connector): sign in with Lawfecta, playbook tools first (added by Stacey 2026-10-27; brief docs/briefs/step-2b-mcp-connector.md) | Brief written, questions open |
 | 3 | Profiles and verification (both sides) | |
 | 4 | Matching, Flex Gigs, proposals and tech catalog | |
 | 5 | Booking, calendars, meetings and chat | |
@@ -17,3 +18,5 @@ Each step: feature brief and Stacey's answers, build on Staging, ChatGPT test, S
 | 8 | Launch readiness (end-to-end on Live, security, restore test, live Stripe switch) | |
 
 Step 7b sits after payments because rewards are paid on money that has cleared. Sign-up tracking (part 1 of 7b) can be built earlier, with Step 3, if Stacey wants partners to start sharing links before launch.
+
+Step 2b builds the connection once (sign in, permissions, limits, audit). After that, every later step adds its own tools to it (profiles in 3, gigs and proposals in 4, booking in 5, and so on), tested in the same ChatGPT prompt as the rest of that step.
