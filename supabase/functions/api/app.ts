@@ -26,8 +26,12 @@ class HttpError extends Error {
 
 const MAX_BODY = 64 * 1024;
 
+// The Lawfecta site. DELA_ORIGINS can override this list (comma separated) without a code change.
+const DEFAULT_ORIGINS = ["https://lawfecta.com", "https://www.lawfecta.com"];
+
 function origins(deps: Deps): string[] {
-  return deps.env("DELA_ORIGINS").split(",").map((s) => s.trim()).filter(Boolean);
+  const list = deps.env("DELA_ORIGINS").split(",").map((s) => s.trim()).filter(Boolean);
+  return list.length ? list : DEFAULT_ORIGINS;
 }
 
 function cors(req: Request, deps: Deps): Record<string, string> {
