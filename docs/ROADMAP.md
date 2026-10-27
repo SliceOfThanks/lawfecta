@@ -14,9 +14,9 @@ Each step: feature brief and Stacey's answers, build on Staging, ChatGPT test, S
 | 5 | Booking, calendars, meetings and chat | |
 | 6 | Contracts and payments (Stripe test mode) | |
 | 7 | Reviews, benches and webhooks | |
-| 7b | Affiliates and referrals with Partnero (added by Stacey 2026-10-27; brief docs/briefs/step-7b-partnero-referrals.md) | Brief written, questions open |
+| 7b | Affiliates and referrals with Partnero (added by Stacey 2026-10-27; brief docs/briefs/step-7b-partnero-referrals.md). Part 1 now on the current site; Part 2 inside DELA | Brief updated, questions open |
 | 8 | Launch readiness (end-to-end on Live, security, restore test, live Stripe switch) | |
 
-Step 7b sits after payments because rewards are paid on money that has cleared. Sign-up tracking (part 1 of 7b) can be built earlier, with Step 3, if Stacey wants partners to start sharing links before launch.
+Step 7b Part 1 starts now (Stacey 2026-10-27): Partnero on the current BD site, keyed by BD member ID, with credit banked for DELA. Part 2 (DELA payments, credit ledger, Refer and earn cards) follows payments in Step 6, because rewards are paid on money that has cleared. Part 1b (Partnero webhook into a DELA credit ledger) can go on Staging any time after Stacey answers.
 
 Step 2b builds the connection once (sign in, permissions, limits, audit). After that, every later step adds its own tools to it (profiles in 3, gigs and proposals in 4, booking in 5, and so on), tested in the same ChatGPT prompt as the rest of that step.
