@@ -12,6 +12,13 @@ Last updated: 2026-10-27. Phase 1A, Step 0 (setup) and Step 1 (foundation) built
 - This sandbox cannot reach supabase.co over HTTPS (proxy 403). Check Staging through execute_sql (dela_health(), net._http_response).
 - Waiting on Stacey: BD_SHARED_SECRET in Staging secrets and DELA-Auth line 11; her BD member ID (bootstrap.owner_bd_member_id) and two test member IDs.
 
+## Release Control (0.2.0, built 2026-10-27; brief docs/briefs/step-1b-release-control.md)
+- Migration 0010, api-0.4.0, tools/promote.mjs watch and auto go-back, admin tab "Release Control" (first tab; the old Releases tab is folded into it).
+- Codes: dela_release_code_request then dela_release_approve_coded. Code rides in a send_code job and is wiped after sending. Needs email.sender other than log, or text (alerts.sms_to + BREVO_API_KEY). Otherwise password only, shown on the dashboard.
+- Watch: claim returns watch_minutes; promote.mjs reports /release/step, /release/watch, /release/watch-end; finish saves live.project_ref if empty.
+- Staging worker checks Live each minute (live.project_ref) through /health and /release/status (RELEASE_CI_SECRET needed on Live too). dela_live_status_save alerts after 3 bad checks.
+- tools/dbtest.sh now stops at the first failed SQL check (before, a failed SQL file did not fail the run).
+
 ## Rule from Stacey (2026-10-26)
 The current Lawfecta site stays unchanged while DELA is built. Only additions: pages /dela and /dela-admin, widgets DELA-Auth, DELA-App, DELA-Admin.
 No BD plans are created until launch; test accounts get DELA plans with "Give a side" in the admin area. Existing widgets (Profile Builder, Profile Audit, services, promotions, pitches, Member Match) are not edited; DELA versions are built next to them.

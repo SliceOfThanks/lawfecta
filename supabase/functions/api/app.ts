@@ -7,8 +7,9 @@ import { newSessionToken, safeEqual, sessionHash } from "./lib/crypto.ts";
 import { buildNotice } from "./lib/email.ts";
 import { pickProvider } from "./lib/mail/index.ts";
 import { verifyPass } from "./lib/pass.ts";
+import { sendSms } from "./lib/sms/brevo.ts";
 
-export const VERSION = "api-0.3.0";
+export const VERSION = "api-0.4.0";
 
 export type Deps = {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -182,6 +183,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/settings/history": (c, a) => rpc(c, "dela_admin_setting_history", { p_actor: a, p_key: need((c.url.searchParams.get("key") ?? "").slice(0, 100)) }),
   "/admin/plans/history": (c, a) => rpc(c, "dela_admin_plan_history", { p_actor: a, p_plan: need((c.url.searchParams.get("plan") ?? "").slice(0, 40)) }),
   "/admin/pause": (c) => rpc(c, "dela_pause_state", {}),
+  "/admin/control": (c, a) => control(c, a),
 };
 
 const ADMIN_POST: Record<string, AdminRoute> = {
@@ -210,13 +212,53 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   "/admin/pause": (c, a) => rpc(c, "dela_admin_set_pause", { p_actor: a, p_area: need(str(c.body.area, 20)), p_on: c.body.on === true, p_reason: str(c.body.reason, 500) }),
   "/admin/staging/reset": (c, a) => c.body.confirm === "RESET" ? rpc(c, "dela_admin_reset_staging", { p_actor: a }) : Promise.resolve({ ok: false, reason: "confirm_needed" }),
   "/admin/releases/rollback": (c, a) => startRelease(c, a, "rollback"),
+  "/admin/releases/code": (c, a) => rpc(c, "dela_release_code_request", {
+    p_actor: a, p_release: need(int(c.body.release_id)), p_action: need(str(c.body.action, 20)), p_password: need(str(c.body.password, 200), "wrong_password"), p_sms_ready: smsReady(c.deps),
+  }),
+  "/admin/control/setup": (c, a) => rpc(c, "dela_admin_setup_tick", { p_actor: a, p_item: need(str(c.body.item, 40)), p_done: c.body.done === true }),
 };
+
+const smsReady = (deps: Deps) => deps.env("BREVO_API_KEY").length > 0;
+
+// ---------- Release Control dashboard ----------
+
+async function control(c: Ctx, actor: string) {
+  const d = await rpc<Record<string, any>>(c, "dela_admin_control", { p_actor: actor });
+  const has = (k: string) => c.deps.env(k).length > 0;
+  // Which secrets exist (never their values)
+  d.secrets = { github_repo: has("GITHUB_REPO"), github_token: has("GITHUB_DISPATCH_TOKEN"), ci_secret: c.deps.env("RELEASE_CI_SECRET").length >= 32, brevo: has("BREVO_API_KEY") };
+  d.sms_ready = smsReady(c.deps);
+  if (c.url.searchParams.get("check") === "1" && d.environment === "staging") d.github = await githubCheck(c);
+  return d;
+}
+
+// Does GitHub accept the push token, and does the "live" environment exist? null means it could not be checked.
+async function githubCheck(c: Ctx) {
+  const repo = c.deps.env("GITHUB_REPO");
+  const token = c.deps.env("GITHUB_DISPATCH_TOKEN");
+  if (!repo || !token) return { token_ok: false, env_ok: null };
+  const get = async (path: string) => {
+    try {
+      const r = await (c.deps.fetch ?? fetch)(`https://api.github.com/repos/${repo}${path}`, {
+        headers: { authorization: `Bearer ${token}`, accept: "application/vnd.github+json", "user-agent": "lawfecta-dela" }, signal: AbortSignal.timeout(8000),
+      });
+      await r.body?.cancel();
+      return r.status;
+    } catch {
+      return 0;
+    }
+  };
+  const [wf, env] = await Promise.all([get("/actions/workflows/promote.yml"), get("/environments/live")]);
+  return { token_ok: wf === 200, env_ok: env === 200 ? true : env === 404 ? false : null };
+}
 
 // ---------- Release gate: only the owner, with the release password, starts a push from Staging to Live ----------
 
 async function startRelease(c: Ctx, actor: string, action: "push" | "rollback") {
   const id = need(int(c.body.release_id));
-  const r = await rpc<Record<string, any>>(c, "dela_release_approve_checked", { p_actor: actor, p_release: id, p_action: action, p_password: need(str(c.body.password, 200), "wrong_password") });
+  const r = await rpc<Record<string, any>>(c, "dela_release_approve_coded", {
+    p_actor: actor, p_release: id, p_action: action, p_password: need(str(c.body.password, 200), "wrong_password"), p_code: str(c.body.code, 12), p_sms_ready: smsReady(c.deps),
+  });
   if (!r?.ok) return r;
   const repo = c.deps.env("GITHUB_REPO");
   const token = c.deps.env("GITHUB_DISPATCH_TOKEN");
@@ -239,17 +281,22 @@ async function startRelease(c: Ctx, actor: string, action: "push" | "rollback") 
     await rpc(c, "dela_release_cancel_approval", { p_release: id, p_reason: problem });
     return { ok: false, reason: problem };
   }
-  return { ok: true, version: r.version, action };
+  return { ok: true, version: r.version, action, code_used: r.code_used, waiting_setup: r.waiting_setup };
 }
 
 // GitHub Actions confirms its approval here before it changes anything on Live, then reports how it went
-async function releaseCi(ctx: Ctx, step: "claim" | "finish") {
+async function releaseCi(ctx: Ctx, step: "claim" | "finish" | "step" | "watch" | "watch_end" | "status") {
   const want = ctx.deps.env("RELEASE_CI_SECRET");
   const got = ctx.req.headers.get("x-dela-ci") ?? "";
   if (want.length < 32 || !safeEqual(got, want)) throw new HttpError(401, "bad_ci");
+  // Staging asks Live for its health summary with the same secret
+  if (step === "status") return json(ctx, await rpc(ctx, "dela_env_summary", {}));
   const id = need(int(ctx.body.release_id));
   if (step === "claim") return json(ctx, await rpc(ctx, "dela_release_claim", { p_release: id, p_nonce: need(str(ctx.body.nonce, 100)) }));
-  return json(ctx, await rpc(ctx, "dela_release_finish", { p_release: id, p_ok: ctx.body.ok === true, p_log: str(ctx.body.log, 4000) }));
+  if (step === "step") return json(ctx, await rpc(ctx, "dela_release_step", { p_release: id, p_key: str(ctx.body.key, 40), p_text: str(ctx.body.text, 300), p_ok: ctx.body.ok !== false }));
+  if (step === "watch") return json(ctx, await rpc(ctx, "dela_release_watch_tick", { p_release: id, p_ok: ctx.body.ok === true }));
+  if (step === "watch_end") return json(ctx, await rpc(ctx, "dela_release_watch_end", { p_release: id, p_result: str(ctx.body.result, 30), p_log: str(ctx.body.log, 2000) }));
+  return json(ctx, await rpc(ctx, "dela_release_finish", { p_release: id, p_ok: ctx.body.ok === true, p_log: str(ctx.body.log, 4000), p_live_ref: str(ctx.body.live_ref, 40) }));
 }
 
 // Only whole cents, whole basis points and whole-number limits get through
@@ -290,6 +337,7 @@ async function worker(ctx: Ctx) {
   await rpc(ctx, "dela_maybe_queue_daily", {});
   if (await rpc<string>(ctx, "dela_setting_text", { p_key: "environment", p_default: "staging" }) === "staging") {
     await rpc(ctx, "dela_release_expire", {});
+    await checkLive(ctx);
   }
   const jobs = await rpc<Array<Record<string, any>>>(ctx, "dela_job_lease", { p_limit: 25, p_lease_seconds: 120 }) ?? [];
   const done: Record<string, number> = {};
@@ -317,10 +365,74 @@ async function worker(ctx: Ctx) {
   return json(ctx, { ok: true, leased: jobs.length, done });
 }
 
+// Staging looks at Live once a minute so the dashboard is current and the owner hears about problems
+async function checkLive(ctx: Ctx) {
+  const ref = await rpc<string>(ctx, "dela_setting_text", { p_key: "live.project_ref", p_default: "" });
+  if (!/^[a-z0-9]{20}$/.test(ref ?? "")) return;
+  const base = `https://${ref}.supabase.co/functions/v1/api`;
+  const f = ctx.deps.fetch ?? fetch;
+  let ok = false, answered = false, error = "";
+  let summary: Record<string, unknown> = {};
+  try {
+    const h = await f(base + "/health", { signal: AbortSignal.timeout(8000) });
+    const hb = await h.json().catch(() => ({}));
+    answered = true;
+    ok = h.status === 200 && hb.ok === true && hb.environment === "live";
+    if (!ok) error = "health " + h.status + (hb.environment && hb.environment !== "live" ? " (not marked live)" : "");
+    summary = { api_version: hb.version ?? "", code_version: hb.code_version ?? "", paused_all: hb.paused === true, worker_ok: hb.worker_ok === true };
+    const ci = ctx.deps.env("RELEASE_CI_SECRET");
+    if (h.status !== 404 && ci.length >= 32) {
+      const s = await f(base + "/release/status", { method: "POST", headers: { "content-type": "application/json", "x-dela-ci": ci }, body: "{}", signal: AbortSignal.timeout(8000) });
+      if (s.ok) {
+        const sb = await s.json().catch(() => null);
+        if (sb && typeof sb === "object") summary = { ...summary, problems_24h: sb.problems_24h, turned_away_24h: sb.turned_away_24h, paused: sb.paused, worker_last_run: sb.worker_last_run };
+      } else await s.body?.cancel();
+    }
+  } catch (e) {
+    error = "no answer: " + String(e).slice(0, 120);
+  }
+  await rpc(ctx, "dela_live_status_save", { p: { ok, answered, error, summary } });
+}
+
 async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; error?: string; retry?: boolean }> {
   if (j.kind === "send_email") return await sendEmail(ctx, String(j.payload?.notification_id ?? ""));
+  if (j.kind === "send_code") return await sendCode(ctx, j);
+  if (j.kind === "send_sms") return await sendText(ctx, String(j.payload?.to ?? ""), String(j.payload?.text ?? ""));
   if (j.kind === "daily_summary") { await rpc(ctx, "dela_daily_summary", {}); return { ok: true }; }
   return { ok: false, retry: false, error: "unknown_job_kind" };
+}
+
+async function sendText(ctx: Ctx, to: string, text: string) {
+  const sender = await rpc<string>(ctx, "dela_setting_text", { p_key: "alerts.sms_sender", p_default: "Lawfecta" });
+  const r = await sendSms({ sender, to, text }, ctx.deps.env("BREVO_API_KEY"), ctx.deps.fetch);
+  return r.ok ? { ok: true } : { ok: false, retry: r.retry, error: r.error };
+}
+
+// Sends a release code by email and, when set up, by text. The code is wiped from the job straight after, sent or not.
+async function sendCode(ctx: Ctx, j: Record<string, any>) {
+  const p = j.payload ?? {};
+  const code = String(p.code ?? "");
+  const t = code ? await rpc<Record<string, any> | null>(ctx, "dela_code_target", { p_code: Number(p.code_id) }) : null;
+  const errors: string[] = [];
+  let sent = 0;
+  if (t) {
+    const what = t.action === "push" ? "push " + t.version + " to Live" : "go back to " + t.version;
+    const line = `Your DELA code to ${what} is ${code}. It works once, for 10 minutes. If you did not ask for it, change your release password now.`;
+    if (p.email === true && t.to_email) {
+      const provider = pickProvider(t.sender);
+      const mail = buildNotice({ title: "Your DELA code: " + code, body: line, link: "/dela-admin", siteUrl: await rpc<string>(ctx, "dela_setting_text", { p_key: "site.url", p_default: "" }), appPath: "/dela-admin", environment: t.environment });
+      const r = await provider.send({ from: { name: t.from_name, email: t.from_address }, to: { email: t.to_email, name: t.to_name || undefined }, subject: mail.subject, html: mail.html, text: mail.text, tags: [t.environment, "release_code"] },
+        provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch);
+      if (r.ok) sent++; else errors.push(r.error);
+    }
+    if (p.sms === true && t.sms_to) {
+      const r = await sendSms({ sender: t.sms_sender, to: t.sms_to, text: line }, ctx.deps.env("BREVO_API_KEY"), ctx.deps.fetch);
+      if (r.ok) sent++; else errors.push(r.error);
+    }
+  }
+  await rpc(ctx, "dela_job_scrub", { p_job: j.id });
+  if (!t || sent > 0) return { ok: true };
+  return { ok: false, retry: false, error: errors.join("; ").slice(0, 300) || "code_not_sent" };
 }
 
 async function sendEmail(ctx: Ctx, id: string) {
@@ -381,6 +493,10 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /worker": return await worker(ctx);
       case "POST /release/claim": return await releaseCi(ctx, "claim");
       case "POST /release/finish": return await releaseCi(ctx, "finish");
+      case "POST /release/step": return await releaseCi(ctx, "step");
+      case "POST /release/watch": return await releaseCi(ctx, "watch");
+      case "POST /release/watch-end": return await releaseCi(ctx, "watch_end");
+      case "POST /release/status": return await releaseCi(ctx, "status");
     }
     const route = req.method === "GET" ? ADMIN_GET[path] : req.method === "POST" ? ADMIN_POST[path] : undefined;
     if (route) {

@@ -15,8 +15,11 @@ end $$;
 SQL
 for f in supabase/migrations/[0-9]*.sql; do
   case "$f" in *cron*) echo "skip $f (Supabase only)"; continue;; esac
-  psql -q -d $DB -v ON_ERROR_STOP=1 -f "$f" >/dev/null && echo "applied $f"
+  psql -q -d $DB -v ON_ERROR_STOP=1 -f "$f" >/dev/null
+  echo "applied $f"
 done
 for t in supabase/tests/*.sql; do
-  psql -q -d $DB -v ON_ERROR_STOP=1 -f "$t" && echo "passed $t"
+  # A failed check stops the script (and the GitHub run) here
+  psql -q -d $DB -v ON_ERROR_STOP=1 -f "$t"
+  echo "passed $t"
 done

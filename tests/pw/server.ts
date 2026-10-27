@@ -11,7 +11,19 @@ const PORT = Number(Deno.env.get("PORT") ?? 8787);
 const ORIGIN = `http://127.0.0.1:${PORT}`;
 const ROOT = new URL("../../", import.meta.url).pathname;
 
-const deps = { rpc, env: (k: string) => ({ BD_SHARED_SECRET: SECRET, DELA_ORIGINS: ORIGIN, STAGING_API_URL: ORIGIN + "/api" } as Record<string, string>)[k] ?? "" };
+export const CI = "browser-test-ci-secret-0123456789abcdefgh";
+// GitHub stand-in: the push button "starts" a run; the test reads the approval from /test/dispatch and plays GitHub's part
+let lastDispatch: unknown = null;
+const deps = {
+  rpc,
+  env: (k: string) => ({ BD_SHARED_SECRET: SECRET, DELA_ORIGINS: ORIGIN, STAGING_API_URL: ORIGIN + "/api", GITHUB_REPO: "SliceOfThanks/lawfecta", GITHUB_DISPATCH_TOKEN: "test-token", RELEASE_CI_SECRET: CI } as Record<string, string>)[k] ?? "",
+  fetch: (async (url: string, opts: RequestInit = {}) => {
+    const u = String(url);
+    if (u.endsWith("/dispatches")) { lastDispatch = JSON.parse(String(opts.body)); return new Response(null, { status: 204 }); }
+    if (u.startsWith("https://api.github.com/")) return new Response("{}", { status: u.endsWith("/environments/live") ? 404 : 200 });
+    return new Response("{}", { status: 404 });
+  }) as typeof fetch,
+};
 
 async function page(widget: string, uid: string, plan: string) {
   const out = await new Deno.Command("php", { args: [ROOT + "tests/php/render_widget.php", widget, uid, plan, SECRET, ORIGIN + "/api", "test/lawfecta-dela"] }).output();
@@ -31,6 +43,7 @@ Deno.serve({ port: PORT, hostname: "127.0.0.1" }, async (req) => {
     const r = await pool.query(sql);
     return Response.json({ rows: Array.isArray(r) ? r.at(-1).rows : r.rows });
   }
+  if (url.pathname === "/test/dispatch") return Response.json(lastDispatch);
   if (url.pathname.startsWith("/api")) return await handle(req, deps);
   return new Response("not found", { status: 404 });
 });

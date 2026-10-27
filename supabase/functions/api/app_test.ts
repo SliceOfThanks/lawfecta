@@ -12,16 +12,32 @@ const WORKER = "test-worker-secret-0123456789abcdef0123";
 const sent: string[] = [];
 const CI = "ci-secret-0123456789abcdef0123456789abcdef";
 const dispatched: any[] = [];
+const outbox: any[] = [];
 let githubStatus = 204;
+let liveHealth: { status: number; body: Record<string, unknown> } = { status: 200, body: { ok: true, environment: "live", version: "api-0.4.0", code_version: "f".repeat(40), worker_ok: true, paused: false } };
 const deps: Deps = {
   rpc,
   env: (k) => ({
     BD_SHARED_SECRET: SECRET, BD_SHARED_SECRET_NEXT: "next-shared-secret-0123456789abcdefghij", DELA_ORIGINS: "https://lawfecta.com,https://www.lawfecta.com", STAGING_API_URL: "https://staging.example.invalid/functions/v1/api",
-    GITHUB_REPO: "SliceOfThanks/lawfecta", GITHUB_DISPATCH_TOKEN: "gh-token", RELEASE_CI_SECRET: CI,
+    GITHUB_REPO: "SliceOfThanks/lawfecta", GITHUB_DISPATCH_TOKEN: "gh-token", RELEASE_CI_SECRET: CI, BREVO_API_KEY: "brevo-test-key",
   } as Record<string, string>)[k] ?? "",
-  fetch: (async (url: string, opts: RequestInit) => {
-    dispatched.push({ url, body: JSON.parse(String(opts.body)), auth: (opts.headers as Record<string, string>).authorization });
-    return new Response(null, { status: githubStatus });
+  // Stand-ins for GitHub, Brevo and the Live copy
+  fetch: (async (url: string, opts: RequestInit = {}) => {
+    const u = String(url);
+    const headers = (opts.headers ?? {}) as Record<string, string>;
+    const body = opts.body ? JSON.parse(String(opts.body)) : null;
+    if (u.endsWith("/dispatches")) {
+      dispatched.push({ url: u, body, auth: headers.authorization });
+      return new Response(null, { status: githubStatus });
+    }
+    if (u.startsWith("https://api.github.com/")) return new Response("{}", { status: u.endsWith("/environments/live") ? 404 : 200 });
+    if (u.startsWith("https://api.brevo.com/")) {
+      outbox.push({ url: u, body, key: headers["api-key"] });
+      return Response.json({ messageId: "m-" + outbox.length }, { status: 201 });
+    }
+    if (u.endsWith(".supabase.co/functions/v1/api/health")) return Response.json(liveHealth.body, { status: liveHealth.status });
+    if (u.endsWith(".supabase.co/functions/v1/api/release/status")) return Response.json({ problems_24h: 2, turned_away_24h: 0, paused: [] });
+    throw new Error("unexpected fetch " + u);
   }) as typeof fetch,
 };
 
@@ -166,6 +182,8 @@ Deno.test("release gate: password, push, GitHub claim and finish", async () => {
   assertEquals((await call("POST", "/admin/releases/password", { session: ownerSession, body: { password: "Release-Pass-2026" } })).body.data.ok, true);
   assertEquals((await call("POST", "/admin/releases/push", { session: ownerSession, body: { release_id: rel, password: "Release-Pass-2026" } })).body.data.reason, "not_tested");
   await call("POST", "/admin/releases/tested", { session: ownerSession, body: { release_id: rel, tested: true } });
+  assertEquals((await call("POST", "/admin/releases/push", { session: ownerSession, body: { release_id: rel, password: "Release-Pass-2026" } })).body.data.reason, "report_missing");
+  await pool.query("select dela_release_attach_report($1, 'PASS: API test report')", [rel]);
   assertEquals((await call("POST", "/admin/releases/push", { session: ownerSession, body: { release_id: rel, password: "wrong-password-x" } })).body.data.reason, "wrong_password");
 
   githubStatus = 500;
@@ -190,6 +208,82 @@ Deno.test("release gate: password, push, GitHub claim and finish", async () => {
   const list = (await call("GET", "/admin/releases", { session: ownerSession })).body.data;
   assertEquals(list.live.version, "v0.9.0");
   assertEquals(list.password_set, true);
+});
+
+Deno.test("release control: code by email and text, steps, watch, Live check", async () => {
+  await pool.query("update releases set watch_result = 'passed' where watch_result = ''; update release_password set failed_attempts = 0");
+  const rel = (await pool.query("select dela_release_record('v0.9.1', repeat('e', 40), 'api-0.4.0', '{}', 'Second test release for the API tests', 'https://github.com/SliceOfThanks/lawfecta/actions/runs/2') as id")).rows[0].id;
+  await call("POST", "/admin/releases/tested", { session: ownerSession, body: { release_id: rel, tested: true } });
+  const pw = "Release-Pass-2026";
+  assertEquals((await call("POST", "/admin/releases/code", { session: ownerSession, body: { release_id: rel, action: "push", password: pw } })).body.data.reason, "report_missing");
+  await pool.query("select dela_release_attach_report($1, 'PASS')", [rel]);
+  await pool.query(`update settings set value = '"brevo"' where key = 'email.sender'; update settings set value = '"+15555550123"' where key = 'alerts.sms_to'`);
+
+  const asked = await call("POST", "/admin/releases/code", { session: ownerSession, body: { release_id: rel, action: "push", password: pw } });
+  assertEquals(asked.body.data.code_needed, true);
+  assertEquals(asked.body.data.sms, "***0123");
+  assert(String(asked.body.data.email).includes("***@"));
+  assertEquals(JSON.stringify(asked.body).includes('"code"'), false, "the code never goes back to the browser");
+
+  outbox.length = 0;
+  await call("POST", "/worker", { headers: { "x-dela-worker": WORKER } });
+  const mail = outbox.find((o) => o.url.endsWith("/v3/smtp/email") && String(o.body.subject).includes("Your DELA code"));
+  const text = outbox.find((o) => o.url.endsWith("/v3/transactionalSMS/sms"));
+  const code = String(mail.body.subject).split(": ")[1];
+  assertEquals(code.length, 6);
+  assert(mail.body.subject.startsWith("[Staging]"));
+  assert(String(text.body.content).includes(code), "same code by text");
+  assertEquals(text.body.recipient, "15555550123");
+  assertEquals(text.key, "brevo-test-key");
+  const job = (await pool.query("select payload from jobs where kind = 'send_code' order by created_at desc limit 1")).rows[0];
+  assertEquals(job.payload.code, undefined, "the code is wiped from the job once sent");
+
+  assertEquals((await call("POST", "/admin/releases/push", { session: ownerSession, body: { release_id: rel, password: pw } })).body.data.reason, "wrong_code");
+  await pool.query("update release_password set failed_attempts = 0");
+  dispatched.length = 0;
+  const pushed = await call("POST", "/admin/releases/push", { session: ownerSession, body: { release_id: rel, password: pw, code } });
+  assertEquals(pushed.body.data.ok, true);
+  assertEquals(pushed.body.data.code_used, true);
+  assertEquals(dispatched.length, 1);
+  const nonce = dispatched[0].body.inputs.nonce;
+
+  const claim = await call("POST", "/release/claim", { headers: { "x-dela-ci": CI }, body: { release_id: rel, nonce } });
+  assertEquals(claim.body.watch_minutes, 15);
+  assertEquals((await call("POST", "/release/step", { body: { release_id: rel, key: "tests", text: "x" } })).status, 401, "steps need the CI secret");
+  assertEquals((await call("POST", "/release/step", { headers: { "x-dela-ci": CI }, body: { release_id: rel, key: "tests", text: "Automatic tests passed" } })).body.ok, true);
+  await call("POST", "/release/finish", { headers: { "x-dela-ci": CI }, body: { release_id: rel, ok: true, log: "done", live_ref: "abcdefghijklmnopqrst" } });
+
+  const d = (await call("GET", "/admin/control?check=1", { session: ownerSession })).body.data;
+  assertEquals(d.releases[0].version, "v0.9.1");
+  assertEquals(d.releases[0].steps[0].key, "tests");
+  assertEquals(d.releases[0].watching, true);
+  assertEquals(d.releases[0].previous_version, "v0.9.0");
+  assertEquals(d.live_ref, "abcdefghijklmnopqrst");
+  assertEquals(d.github, { token_ok: true, env_ok: false });
+  assertEquals(d.secrets, { github_repo: true, github_token: true, ci_secret: true, brevo: true });
+  assertEquals(JSON.stringify(d).includes("brevo-test-key"), false, "secret values are never sent");
+
+  assertEquals((await call("POST", "/release/watch", { headers: { "x-dela-ci": CI }, body: { release_id: rel, ok: true } })).body.continue, true);
+  assertEquals((await call("POST", "/release/watch-end", { headers: { "x-dela-ci": CI }, body: { release_id: rel, result: "passed", log: "healthy" } })).body.ok, true);
+
+  // Staging checks Live every minute
+  await call("POST", "/worker", { headers: { "x-dela-worker": WORKER } });
+  let live = (await pool.query("select value from settings where key = 'live.status'")).rows[0].value;
+  assertEquals(live.ok, true);
+  assertEquals(live.problems_24h, 2);
+  liveHealth = { status: 503, body: { ok: false, environment: "live" } };
+  for (let i = 0; i < 3; i++) await call("POST", "/worker", { headers: { "x-dela-worker": WORKER } });
+  live = (await pool.query("select value from settings where key = 'live.status'")).rows[0].value;
+  assertEquals(live.down, true);
+  assertEquals((await pool.query("select count(*)::int as n from notifications where title = 'Live is not healthy' and channel = 'email'")).rows[0].n, 1);
+
+  // This copy answers Staging's status question only with the secret
+  assertEquals((await call("POST", "/release/status", { body: {} })).status, 401);
+  assert("problems_24h" in (await call("POST", "/release/status", { headers: { "x-dela-ci": CI }, body: {} })).body);
+
+  assertEquals((await call("POST", "/admin/control/setup", { session: ownerSession, body: { item: "uptime", done: true } })).body.data.ok, true);
+  await pool.query(`update settings set value = '"log"' where key = 'email.sender'; update settings set value = '""' where key in ('alerts.sms_to', 'live.project_ref')`);
+  liveHealth = { status: 200, body: { ok: true, environment: "live" } };
 });
 
 Deno.test("safety nets: new secret, health, pause, undo", async () => {

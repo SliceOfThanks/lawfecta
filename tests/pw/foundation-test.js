@@ -58,7 +58,10 @@ const dela = (page) => page.locator(".dela-host");
     // Admin area
     s = await open(browser, "DELA-Admin", 1, "");
     let t = await text(s.page);
-    ok(t.includes("Overview") && t.includes("Plans not linked to BD"), "owner opens the admin area");
+    ok(t.includes("Release Control") && t.includes("Live setup") && t.includes("Version history"), "the admin area opens on Release Control");
+    await dela(s.page).getByRole("tab", { name: "Overview" }).click();
+    t = await text(s.page);
+    ok(t.includes("Overview") && t.includes("Plans not linked to BD"), "owner opens the Overview");
     await s.page.screenshot({ path: path.join(SHOTS, "admin-overview.png"), fullPage: true });
 
     // BD styles do not leak into DELA
@@ -173,39 +176,135 @@ const dela = (page) => page.locator(".dela-host");
     await s.page.screenshot({ path: path.join(SHOTS, "notices.png") });
     await s.ctx.close();
 
-    // Releases: password, tested checkbox, push needs the password
-    await sql("delete from release_approvals; delete from releases; delete from release_password; select dela_release_record('v0.1.0', repeat('e', 40), 'api-0.2.0', array['0001_foundation_tables.sql'], 'Step 1 foundation: sign in, plans, admin area', 'https://github.com/SliceOfThanks/lawfecta/actions/runs/1')");
+    // Release Control: password, report, tested, code, push, progress, watch, history, go back, activity, setup
+    const CI = "browser-test-ci-secret-0123456789abcdefgh";
+    const ci = (p, b) => fetch(BASE + "/api" + p, { method: "POST", headers: { "content-type": "application/json", "x-dela-ci": CI }, body: JSON.stringify(b) }).then((r) => r.json());
+    await sql("delete from release_codes; delete from release_approvals; update releases set previous_release_id = null; delete from releases; delete from release_password");
+    await sql("select dela_release_record('v0.1.0', repeat('e', 40), 'api-0.3.0', array['0001_foundation_tables.sql'], 'Step 1 foundation: sign in, plans, admin area', 'https://github.com/SliceOfThanks/lawfecta/actions/runs/1')");
+    await sql("update releases set status = 'live', live_at = now() - interval '1 day' where version = 'v0.1.0'");
+    await sql("select dela_release_record('v0.2.0', repeat('f', 40), 'api-0.4.0', array['0001_foundation_tables.sql', '0010_release_control.sql'], 'Release Control dashboard for pushes and going back', 'https://github.com/SliceOfThanks/lawfecta/actions/runs/2')");
     s = await open(browser, "DELA-Admin", 1, "");
-    await text(s.page);
-    await dela(s.page).getByRole("tab", { name: "Releases" }).click();
     t = await text(s.page);
-    ok(t.includes("Set your release password") && t.includes("Nothing yet"), "Releases tab asks the owner to set a release password");
+    ok(t.includes("Built on Staging") && t.includes("v0.2.0") && t.includes("Set your release password"), "Release Control shows the next version and asks for a release password");
+    ok(t.includes("Tick that you tested it") && t.includes("The ChatGPT test report is not saved yet"), "it says plainly why Push is not ready");
+    ok(t.includes("1 addition (0010_release_control.sql)") && t.includes("going back stays safe"), "database changes and going back are explained");
     await dela(s.page).getByLabel("New release password", { exact: true }).fill("Lawfecta-Release-01");
     await dela(s.page).getByLabel("Repeat new release password").fill("Lawfecta-Release-01");
     await dela(s.page).getByRole("button", { name: "Save password" }).click();
     await s.page.waitForTimeout(500);
     ok((await text(s.page)).includes("Change your release password"), "release password saved");
-    ok(!(await text(s.page)).includes("Push to Live"), "no push button before the version is marked tested");
-    await dela(s.page).getByLabel("I tested v0.1.0 on Staging").check();
+    await dela(s.page).getByLabel("I tested v0.2.0 on Staging").check();
     await s.page.waitForTimeout(500);
+    ok(await dela(s.page).getByRole("button", { name: "Push to Live" }).isDisabled(), "Push stays off until the ChatGPT report is saved");
+    await sql("select dela_release_attach_report((select id from releases where version = 'v0.2.0'), 'PASS: both sides, mistakes and misuse')");
+    await sql(`update settings set value = '"brevo"' where key = 'email.sender'`);
+    await dela(s.page).getByRole("tab", { name: "Release Control" }).click();
+    await s.page.waitForTimeout(500);
+    ok(!(await dela(s.page).getByRole("button", { name: "Push to Live" }).isDisabled()), "Push is ready once tested, with the report saved");
+    await s.page.screenshot({ path: path.join(SHOTS, "control-ready.png"), fullPage: true });
+
     await dela(s.page).getByRole("button", { name: "Push to Live" }).click();
     await dela(s.page).getByLabel("Release password", { exact: true }).fill("not-the-password");
-    await dela(s.page).getByRole("button", { name: "Confirm" }).click();
+    await dela(s.page).getByRole("button", { name: "Continue" }).click();
     await s.page.waitForTimeout(500);
-    ok((await text(s.page)).includes("That release password is not right"), "wrong release password is refused");
+    ok((await text(s.page)).includes("That release password is not right"), "wrong release password is refused before any code is sent");
     await dela(s.page).getByRole("button", { name: "Push to Live" }).click();
     await dela(s.page).getByLabel("Release password", { exact: true }).fill("Lawfecta-Release-01");
-    await dela(s.page).getByRole("button", { name: "Confirm" }).click();
+    await dela(s.page).getByRole("button", { name: "Continue" }).click();
+    await s.page.waitForTimeout(500);
+    t = await text(s.page);
+    ok(t.includes("We sent a 6 digit code to your email (m***@test.invalid)"), "a code is sent to the owner's email, shown masked");
+    await s.page.screenshot({ path: path.join(SHOTS, "control-code.png"), fullPage: false });
+    rows = await sql("select payload->>'code' as code from jobs where kind = 'send_code' order by created_at desc limit 1");
+    const theCode = rows[0].code;
+    await dela(s.page).getByLabel("6 digit code").fill(theCode === "000000" ? "000001" : "000000");
+    await dela(s.page).getByRole("button", { name: "Push v0.2.0 to Live" }).click();
+    await s.page.waitForTimeout(500);
+    ok((await text(s.page)).includes("That code is not right") && (await text(s.page)).includes("6 digit code"), "a wrong code is refused and the code box stays open");
+    await dela(s.page).getByLabel("6 digit code").fill(theCode);
+    await dela(s.page).getByRole("button", { name: "Push v0.2.0 to Live" }).click();
+    await s.page.waitForTimeout(700);
+    t = await text(s.page);
+    ok(t.includes("Push started") && t.includes("Waiting for GitHub to start"), "right code and password start the push");
+
+    // GitHub's part: claim the approval, report steps, finish
+    const disp = await (await fetch(BASE + "/test/dispatch")).json();
+    const relId = Number(disp.inputs.release_id);
+    const claim = await ci("/release/claim", { release_id: relId, nonce: disp.inputs.nonce });
+    ok(claim.ok && claim.watch_minutes === 15, "GitHub claims the approval and is told to watch for 15 minutes");
+    await ci("/release/step", { release_id: relId, key: "approval", text: "Your one-use approval checked: push v0.2.0" });
+    await ci("/release/step", { release_id: relId, key: "tests", text: "Automatic tests passed for this exact version" });
+    await dela(s.page).getByRole("tab", { name: "Release Control" }).click();
     await s.page.waitForTimeout(600);
-    ok((await text(s.page)).includes("GitHub is not connected for pushes yet"), "with GitHub not set up, nothing is pushed and the owner is told");
-    rows = await sql("select status from releases");
-    ok(rows[0].status === "tested", "the version stays tested on Staging");
-    await s.page.screenshot({ path: path.join(SHOTS, "admin-releases.png"), fullPage: true });
+    t = await text(s.page);
+    ok(t.includes("Pushing v0.2.0") && t.includes("Automatic tests passed for this exact version"), "progress shows each step as it happens");
+    await s.page.screenshot({ path: path.join(SHOTS, "control-pushing.png"), fullPage: true });
+    for (const k of ["database", "api", "switch", "health"]) await ci("/release/step", { release_id: relId, key: k, text: "Step " + k + " done" });
+    await ci("/release/finish", { release_id: relId, ok: true, log: "all steps done", live_ref: "abcdefghijklmnopqrst" });
+    await ci("/release/step", { release_id: relId, key: "watch", text: "Watching Live for 15 minutes" });
+    await dela(s.page).getByRole("tab", { name: "Release Control" }).click();
+    await s.page.waitForTimeout(600);
+    t = await text(s.page);
+    ok(t.includes("Live, being watched") && t.includes("Watching, 15 minutes left"), "after the push Live is shown as being watched");
+    ok(t.includes("Was live before") && t.includes("Safe to go back"), "the earlier version can be gone back to");
+
+    // Go back to v0.1.0 (email turned off: password alone, and the page says why)
+    await sql(`update settings set value = '"log"' where key = 'email.sender'`);
+    await dela(s.page).getByRole("tab", { name: "Release Control" }).click();
+    await s.page.waitForTimeout(500);
+    ok((await text(s.page)).includes("Push codes are on, but email and text are not set up yet"), "the page says when codes are waiting on email setup");
+    await dela(s.page).getByRole("button", { name: "Go back to this" }).click();
+    await dela(s.page).getByLabel("Release password", { exact: true }).fill("Lawfecta-Release-01");
+    await dela(s.page).getByRole("button", { name: "Continue" }).click();
+    await s.page.waitForTimeout(700);
+    ok((await text(s.page)).includes("Going back started"), "going back needs only two clicks and the password");
+    const disp2 = await (await fetch(BASE + "/test/dispatch")).json();
+    ok(disp2.inputs.action === "rollback", "GitHub is asked to go back");
+    const tick = await ci("/release/watch", { release_id: relId, ok: true });
+    ok(tick.continue === false, "the watch of v0.2.0 is told to stop for the go back");
+    await ci("/release/watch-end", { release_id: relId, result: "stopped", log: "stopped" });
+    const back = Number(disp2.inputs.release_id);
+    await ci("/release/claim", { release_id: back, nonce: disp2.inputs.nonce });
+    await ci("/release/finish", { release_id: back, ok: true, log: "back" });
+    await dela(s.page).getByRole("tab", { name: "Release Control" }).click();
+    await s.page.waitForTimeout(600);
+    rows = await sql("select version, status from releases order by id");
+    ok(rows[0].status === "live" && rows[1].status === "replaced", "v0.1.0 is live again and v0.2.0 is kept for later");
+    await dela(s.page).getByRole("button", { name: "Go backs" }).click();
+    await s.page.waitForTimeout(300);
+    t = await text(s.page);
+    ok(t.includes("Go back approved: v0.1.0") && !t.includes("Code sent for a push"), "activity filters to go backs");
+    await dela(s.page).getByRole("button", { name: "Security" }).click();
+    await s.page.waitForTimeout(300);
+    t = await text(s.page);
+    ok(t.includes("Wrong release password or code") && t.includes("Code sent for a push"), "security activity shows wrong tries and codes");
+
+    // Live setup
+    t = await text(s.page);
+    ok(t.includes("Live project ID entered") && t.includes("GitHub accepts the push token"), "Live setup lists what is done and what is left");
+    await s.page.screenshot({ path: path.join(SHOTS, "control-after.png"), fullPage: true });
+    await dela(s.page).getByLabel("Live project ID").fill("NOT-A-REF");
+    await dela(s.page).getByRole("button", { name: "Save", exact: true }).click();
+    await s.page.waitForTimeout(400);
+    ok((await text(s.page)).includes("20 small letters and numbers"), "a wrong Live project ID is refused");
+    rows = await sql("select value from settings where key = 'live.project_ref'");
+    ok(rows[0].value === "abcdefghijklmnopqrst", "the Live project ID from the first push is kept");
     await s.ctx.close();
+
+    // Release Control on a phone
+    s = await open(browser, "DELA-Admin", 1, "", { viewport: { width: 390, height: 844 } });
+    await text(s.page);
+    const sideways = await s.page.evaluate(() => document.documentElement.scrollWidth > window.innerWidth + 1);
+    ok(!sideways, "Release Control has no sideways scrolling on a phone");
+    await s.page.screenshot({ path: path.join(SHOTS, "control-phone.png"), fullPage: true });
+    await s.ctx.close();
+    await sql("update releases set watch_result = 'passed' where watch_result = ''");
 
     // Emergency pause: owner pauses everything, a member sees the pause message, then it is turned back on
     s = await open(browser, "DELA-Admin", 1, "");
     await text(s.page);
+    await dela(s.page).getByRole("tab", { name: "Overview" }).click();
+    await s.page.waitForTimeout(400);
     await dela(s.page).getByRole("button", { name: "All of DELA", exact: true }).click();
     await s.page.waitForTimeout(600);
     ok((await text(s.page)).includes("DELA is paused for members right now"), "owner pauses all of DELA from the Overview");

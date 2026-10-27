@@ -14,6 +14,14 @@ Plain steps for Stacey, and the rules Claude follows. Never paste a password, to
 
 Things no button can undo: money that moved, emails already sent. Those are fixed with new records (a refund, a correction notice).
 
+## Release Control (the first tab of the Staging admin area)
+- Staging and Live health, the next version's steps, version history with Go back, activity, and Live setup, in one place.
+- Push or go back: release password, then a 6 digit code by email and text (when set up). Five wrong passwords or codes lock pushing for 30 minutes and alert the owners.
+- A push needs the ChatGPT test report saved (setting release.require_report).
+- After a push, GitHub watches Live for release.watch_minutes (15). Three bad health checks in a row: Live goes back to the version it had, by itself, and the owners get an email and a text. A go back started by the owner stops the watch.
+- Staging checks Live every minute (setting live.project_ref). Three bad answers in a row, once Live has been healthy, alert the owners; a recovery alert follows.
+- Alerts: email to every owner; text to alerts.sms_to when alerts.sms is on and BREVO_API_KEY is set in Staging.
+
 ## Monitoring (set up once)
 - Create a free account at UptimeRobot (or a similar uptime service) with your email.
 - Add two HTTP monitors, every 5 minutes, alert after 2 failures:

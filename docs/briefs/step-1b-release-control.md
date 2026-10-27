@@ -1,7 +1,7 @@
 # Feature brief: Release Control dashboard
 
 Step: 1 (foundation, release gate)   Spec references: Program Guide release process; release decisions 1 to 8 (2026-10-26); safety nets (migration 0008)
-Status: draft, waiting on Stacey's answers
+Status: questions answered 2026-10-27, built (version 0.2.0)
 Preview: https://claude.ai/artifact/MY96SdFwrQx5WmmCQpFyBC (clickable, sample versions)
 
 ## Who
@@ -47,6 +47,12 @@ Stacey stays in control of what members get, sees problems early, and can undo i
 
 ## Settings and switches it uses
 release.watch_minutes (question 3), release.require_report (question 3), release.email_code (question 3). All start off until Stacey answers.
+
+## Stacey's answers (2026-10-27)
+1. First tab of the Staging admin area.
+2. Emailed 6 digit code: yes. ChatGPT report required: yes. 15 minute watch with going back by itself: yes. Pausing Live from this dashboard: no (pause stays in the Live admin area; the dashboard shows what is paused).
+3. Alerts by email and text message.
+Dependency: codes and texts need a working email service and the Brevo key. Until then the dashboard says so and pushes use the password alone.
 
 ## Questions to make it better
 1. Where should it live: first tab of the Staging admin area (recommended), or its own page?
