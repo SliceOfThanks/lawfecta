@@ -30,7 +30,7 @@ jobs:
           if [ "${{ github.event_name }}" = "pull_request" ]; then RANGE="${{ github.event.pull_request.base.sha }}..${{ github.event.pull_request.head.sha }}";
           elif [ -n "${{ github.event.before }}" ] && [ "${{ github.event.before }}" != "0000000000000000000000000000000000000000" ] && git cat-file -e "${{ github.event.before }}" 2>/dev/null; then RANGE="${{ github.event.before }}..${{ github.sha }}"; fi
           if [ -n "$RANGE" ]; then python3 tools/rules_check.py --commits "$RANGE"; else python3 tools/rules_check.py; fi
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v7
         with: { node-version: 22 }
       - name: Install test tools (exact versions)
         run: |
