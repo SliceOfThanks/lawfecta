@@ -13,6 +13,9 @@ $w = array('database' => 'bd_db', 'website_id' => 1);
 ob_start();
 include __DIR__ . '/../../widgets/' . $argv[1] . '.php';
 $html = ob_get_clean();
-$html = str_replace('PASTE_STAGING_API_ADDRESS', $argv[5], $html);
+// Point the widget at the test api, whatever Staging address is filled in
+$k = 'data-api-staging="';
+$i = strpos($html, $k);
+if ($i !== false) { $j = strpos($html, '"', $i + strlen($k)); $html = substr($html, 0, $i + strlen($k)) . $argv[5] . substr($html, $j); }
 
 echo $html;

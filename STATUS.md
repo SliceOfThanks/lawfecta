@@ -1,6 +1,16 @@
 # Build status (read this first in a new session)
 
-Last updated: 2026-10-26. Phase 1A, Step 0 (setup) and Step 1 (foundation) built and tested locally. Nothing deployed yet.
+Last updated: 2026-10-27. Phase 1A, Step 0 (setup) and Step 1 (foundation) built, tested, and deployed to DELA Staging. Live not created yet.
+
+## Staging (deployed 2026-10-27)
+- Project: Lawfecta AI organization, project ref ojshgsxgsypbywtqhkch (us-west-2). This project is DELA Staging.
+- API address: https://ojshgsxgsypbywtqhkch.supabase.co/functions/v1/api (filled into data-api-staging in DELA-App and DELA-Admin).
+- Migrations 0001 to 0008 were applied by Stacey in the SQL Editor as one file (the connector only recorded 0001). 0009 applied by the connector.
+- api function deployed (verify_jwt false). Worker cron returns 200 every minute; dela_health worker_ok true.
+- code_version is set with: update settings set value = to_jsonb('<commit>'::text), version = version + 1, updated_at = now() where key = 'code_version'.
+- Security advisors 2026-10-27: rls_enabled_no_policy is by design. function_search_path_mutable fixed by 0009. pg_net in public cannot be moved (not relocatable); harmless. rls_auto_enable() is Supabase's own, not DELA's.
+- This sandbox cannot reach supabase.co over HTTPS (proxy 403). Check Staging through execute_sql (dela_health(), net._http_response).
+- Waiting on Stacey: BD_SHARED_SECRET in Staging secrets and DELA-Auth line 11; her BD member ID (bootstrap.owner_bd_member_id) and two test member IDs.
 
 ## Rule from Stacey (2026-10-26)
 The current Lawfecta site stays unchanged while DELA is built. Only additions: pages /dela and /dela-admin, widgets DELA-Auth, DELA-App, DELA-Admin.
@@ -74,5 +84,5 @@ Lawfecta palette from Stacey's mockups: navy #1d2030 to burgundy #8b2146 hero, h
 1. Done: repo SliceOfThanks/lawfecta attached and pushed.
 2. Create project dela-staging in the Lawfecta AI organization. Create vault secret dela_project_url, then apply migrations 0001 to 0007 in order. Set bootstrap.owner_bd_member_id to Stacey's BD member ID.
 3. Deploy the api function (verify_jwt false). Set DELA_ORIGINS. Stacey sets BD_SHARED_SECRET, and later GITHUB_DISPATCH_TOKEN and RELEASE_CI_SECRET; GITHUB_REPO = SliceOfThanks/lawfecta.
-4. Set code_version to the pushed commit. Fill PASTE_STAGING_API_ADDRESS and PASTE_GITHUB_OWNER (SliceOfThanks) in DELA-App and DELA-Admin and send them to Stacey with DELA-Auth.
+4. Set code_version to the pushed commit. The Staging address is already filled in DELA-App and DELA-Admin; send them to Stacey with DELA-Auth.
 5. Record v0.1.0 with dela_release_record and send the ChatGPT test prompt. Save her report with dela_release_attach_report.

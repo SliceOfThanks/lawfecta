@@ -20,7 +20,7 @@ if (function_exists('dela_pass')) {
   $dela_why = dela_why(isset($w) ? $w : array(), $dela_pass);
 }
 ?>
-<div id="dela-app" data-mode="app" data-api="" data-api-staging="PASTE_STAGING_API_ADDRESS" data-code="SliceOfThanks/lawfecta" data-login-url="/login" data-pass="<?php echo htmlspecialchars($dela_pass, ENT_QUOTES); ?>" data-why="<?php echo htmlspecialchars($dela_why, ENT_QUOTES); ?>"><p style="text-align:center;padding:40px 16px;font-family:Arial,sans-serif;color:#1f2a37">Loading DELA...</p></div>
+<div id="dela-app" data-mode="app" data-api="" data-api-staging="https://ojshgsxgsypbywtqhkch.supabase.co/functions/v1/api" data-code="SliceOfThanks/lawfecta" data-login-url="/login" data-pass="<?php echo htmlspecialchars($dela_pass, ENT_QUOTES); ?>" data-why="<?php echo htmlspecialchars($dela_why, ENT_QUOTES); ?>"><p style="text-align:center;padding:40px 16px;font-family:Arial,sans-serif;color:#1f2a37">Loading DELA...</p></div>
 <script>
 (function () {
   var root = document.getElementById('dela-app');
