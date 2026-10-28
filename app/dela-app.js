@@ -258,7 +258,9 @@
     }).catch(function () { D.clear(drawer); drawer.appendChild(h("p", { text: "Notices could not load." })); });
   }
 
-  if (boot.route === "here" && me) draw();
+  var conflict = D.loginConflict(root);
+  if (conflict) show(frame("Two website logins in this browser", D.LOGIN_CONFLICT_TEXT.join(" ")));
+  else if (boot.route === "here" && me) draw();
   else if (boot.route === "paused") show(frame("DELA is paused for a moment", boot.message || "Please try again soon."));
   else if (boot.route === "denied") show(denied(boot.reason));
   else show(signedOut(false));

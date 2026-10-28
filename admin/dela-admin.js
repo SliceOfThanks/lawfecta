@@ -29,6 +29,15 @@
   function loading() { body(h("p", { class: "muted", text: "Loading..." })); }
   function ownerOnly(node) { return isOwner ? node : null; }
 
+  var conflict = D.loginConflict(root);
+  if (conflict) {
+    D.clear(app);
+    app.appendChild(h("div", { class: "wrap" }, h("div", { class: "card", style: "max-width:620px;margin:40px auto" },
+      h("h1", { text: "Two website logins in this browser" }),
+      h("p", { class: "notice", text: "Saved logins found for BD members " + conflict.join(" and ") + "." }),
+      D.LOGIN_CONFLICT_TEXT.map(function (t) { return h("p", { text: t }); }))));
+    return;
+  }
   if (boot.route !== "here" || !(me.staff || []).length) {
     D.clear(app);
     app.appendChild(h("div", { class: "wrap" }, h("div", { class: "card", style: "max-width:560px;margin:40px auto;text-align:center" },

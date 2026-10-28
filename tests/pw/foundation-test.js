@@ -361,6 +361,18 @@ const dela = (page) => page.locator(".dela-host");
     ok(rows[0].value === 20000, "undo puts the minimum back to the value before the last change");
     await s.ctx.close();
 
+    // Two saved website logins in one browser (an older test account and the owner): DELA signs nobody in and says how to fix it
+    s = await open(browser, "DELA-Admin", 1, "&cookie=" + encodeURIComponent("userid=688; PHPSESSID=x; userid=1"));
+    t = await text(s.page);
+    ok(t.includes("Two website logins in this browser") && t.includes("688 and 1") && !t.includes("Release Control"), "two saved logins: the admin area refuses and explains");
+    await s.ctx.close();
+    s = await open(browser, "DELA-App", 1100, "12&cookie=" + encodeURIComponent("userid=1100; userid=1200"));
+    ok((await text(s.page)).includes("Two website logins in this browser"), "two saved logins: the member app refuses and explains");
+    await s.ctx.close();
+    s = await open(browser, "DELA-Admin", 1, "&cookie=" + encodeURIComponent("userid=1; userid=1"));
+    ok((await text(s.page)).includes("Release Control"), "the same login saved twice still signs in");
+    await s.ctx.close();
+
     // A member cannot open the admin area
     s = await open(browser, "DELA-Admin", 1100, "12");
     t = await text(s.page);
