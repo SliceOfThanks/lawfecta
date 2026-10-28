@@ -263,9 +263,9 @@ begin
   return jsonb_build_object('ok', true);
 end $$;
 
--- Replaces 0007 (same call, one more optional value): remembers the version it replaced, starts the watch, alerts on failure
-drop function if exists dela_release_finish(bigint, boolean, text);
-create or replace function dela_release_finish(p_release bigint, p_ok boolean, p_log text, p_live_ref text default '') returns jsonb language plpgsql as $$
+-- Added next to 0007's version (nothing is dropped): remembers the version it replaced, starts the watch, alerts on failure.
+-- The api passes p_live_ref; the 3-value form from 0007 now hands over to this one (below).
+create or replace function dela_release_finish(p_release bigint, p_ok boolean, p_log text, p_live_ref text) returns jsonb language plpgsql as $$
 declare r releases; v_prev bigint; v_watch int := greatest(least(coalesce(dela_setting_text('release.watch_minutes', '15')::int, 15), 30), 0); o record;
 begin
   select * into r from releases where id = p_release and status = 'deploying' for update;
@@ -294,6 +294,10 @@ begin
   perform dela_audit('system', null, case when p_ok then 'release_live' else 'release_failed' end, 'release', r.id::text, jsonb_build_object('version', r.version, 'action', r.action));
   return jsonb_build_object('ok', true);
 end $$;
+
+create or replace function dela_release_finish(p_release bigint, p_ok boolean, p_log text) returns jsonb language sql as $$
+  select dela_release_finish(p_release, p_ok, p_log, '')
+$$;
 
 -- GitHub reports each health check while it watches. continue = false when the owner has started a go back.
 create or replace function dela_release_watch_tick(p_release bigint, p_ok boolean) returns jsonb language plpgsql as $$
