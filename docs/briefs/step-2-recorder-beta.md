@@ -1,7 +1,7 @@
 # Feature brief: Beta MVP, the Process Recorder and playbooks together
 
 Step: 2 (replaces the old order: Step 2 playbooks, recorder in Phase 1B)   Spec references: DELA Process Recorder Build Plan (2026-10-28), 02 Phase 1B section 1 to 3, 00 Program Guide section 2 (Launch / data, Extensions, AI / BYOK), C-28, Step 2 playbooks brief
-Status: draft, waiting on Stacey's answers. Recommended answers are filled in; Stacey says yes or changes them.
+Status: draft, waiting on Stacey's answers. Recommended answers are filled in; Stacey says yes or changes them. Import from Scribe added by Stacey 2026-10-28 so beta users have something to use before the recorder is ready.
 
 ## The idea in one paragraph
 The fastest way to put DELA in front of beta users is a feature an attorney can use alone, on day one, with no freelancer, no payment and no contract. The Process Recorder is that feature: record a task once, get a written SOP (a playbook) and a list of steps that could be handed off. So the beta MVP is the recorder and the playbook library built as one thing. Hiring, payments, booking and reviews follow after the beta tells us what attorneys actually record and want to hand off.
@@ -29,6 +29,37 @@ The build plan was written for a fresh project. DELA already has sign in, plans,
 - Freelancers: recorder access per fl_ plan (question 5), for their own methods.
 - Beta users: only accounts on the access list.
 - Lawfecta Team: Recorder tab in the admin area (settings, counts, errors). The Team never opens member recordings.
+
+## Beta v1a: Import from Scribe (ships first, before the recorder)
+Stacey 2026-10-28: the recorder takes a while, so members who already use Scribe (scribehow.com) can bring their existing guides into DELA first.
+
+A Scribe guide is already what the recorder's Stage 1 produces: a title and numbered steps, each with a line of text ("Click File") and a screenshot. So an import skips recording and Stage 1 and lands on the same review screen, then the same Build my SOP, playbook library and exports. Building the import first means the review screen, Stage 2, the library and downloads are built and tested by real beta users before the recorder arrives, and the recorder then plugs into them.
+
+How it works for the member:
+1. Record a Process page gets a third button: Import from Scribe (also Import a guide on the Delegate tab).
+2. Short how-to on the page: in Scribe, open the guide, click Share, then the Export tab, then Export next to HTML (or Markdown or PDF), and upload the file here. Several files at once are allowed.
+3. DELA reads the title, steps and screenshots and opens the review screen: step cards with their screenshots checked, "May show client info" flags from the AI, blur, remove, merge, add step, and a notes box per step to add the why (Scribe captures clicks, not reasons).
+4. Build my SOP turns it into a full playbook (purpose, when to use it, roles, checks, Keep, Delegate or Automate tags, hours saved, Post as Flex Gig). The AI asks follow-up questions for required parts a Scribe guide does not have, using the Step 2 playbook definition.
+5. The original export file is deleted once the playbook is built. Only the approved screenshots (blurs burned in) are kept, stored privately like recorder screenshots.
+
+What is known and not yet known about Scribe (checked 2026-10-28):
+- Scribe's own help pages say HTML export is on Pro and Enterprise plans only, and on Enterprise an admin must turn it on. PDF and Markdown export articles also exist. Free Scribe accounts can only share a link or embed.
+- No public Scribe API for reading guides was found. The import is built on export files, not an API connection. If Scribe offers an API later, it becomes a Connect Scribe button using the same import code.
+- Not yet confirmed: whether screenshots in an HTML or Markdown export are inside the file or are links to Scribe's servers. The importer handles both (links are downloaded once by the server, from Scribe's image addresses only). Confirmed from a real export Stacey sends (question 11).
+- Free Scribe users: they can open their guide's share page and use the browser's Print, Save as PDF, then upload the PDF. PDF import reads the text and page images in the browser.
+- Pasting a Scribe share link is not in v1a: it means reading Scribe's web pages, which can break without notice and may be against Scribe's terms (question 12).
+
+How the import could go wrong:
+- Wrong file, an export from another tool, or a damaged file: "This does not look like a Scribe export" with the how-to again. Nothing saved.
+- Very large exports: limit by file size and step count from settings, checked before upload and again on the server.
+- Screenshots with client details: same notice, AI flags and blur as the recorder. Imports are covered by question 1.
+- Image links that point anywhere other than Scribe's image servers: not downloaded (stops the server being used to fetch other sites).
+- Script or tracking code inside an HTML export: never run; only text and images are read, and text is cleaned before display.
+- Same guide imported twice: allowed, but DELA asks "You imported this guide on [date]. Import again?"
+- Playbook limit or AI credits used up: checked before the file is read, and again at Build my SOP.
+- Scribe's name: shown as plain text ("Import from Scribe"), no Scribe logo unless Scribe agrees.
+
+Settings for the import (added to config/decisions.json as proposed): import.scribe (switch, off until Stacey turns it on), import.max_mb (25), import.max_steps (150), import.credits_per_guide (2, lower than a recording since there is no transcript or video to read). Imports count toward att.playbooks_saved and ai.runs.
 
 ## What (beta v1, the first release beta users touch)
 1. Record a Process page (/dela, new tab Record a Process): process name, microphone picker with level meter, first-time consent checkbox saved to consents, Before you start tips, plan length shown, Start recording and Upload a recording.
@@ -90,6 +121,7 @@ All added to config/decisions.json as proposed (O) until Stacey approves:
 - Existing: ai.runs, storage.mb, att.playbooks_saved, exports, byok, email.sender, emergency.pause (ai, email).
 
 ## Questions to make it better
+Import from Scribe (11 to 13) ships first, so those answers are needed first.
 1. Client information. A recording of real work shows client details. Recommended for the beta: beta users record practice runs or non-client work (demo matters, internal admin tasks), the consent checkbox says so, the review screen and blur stay in. Before full launch, a separate security approval: Supabase Team plan, zero data retention requests to OpenAI and Anthropic, and a lawyer's review of the wording. Yes, or do you want real client recordings in the beta?
 2. Order of work. Recommended: the recorder and playbooks become Step 2 and ship together as the beta MVP, ahead of profiles, hiring and payments. This changes the Program Guide's order (capture after Phase 1A), and I record your answer in the decision log. Yes?
 3. No new server for the beta (browser picks screenshots, no OpenCV click detection, no MP4 conversion). Yes, or keep the Render worker from the start?
@@ -105,7 +137,14 @@ All added to config/decisions.json as proposed (O) until Stacey approves:
 9. Beta feedback. Userback is connected to this session. Recommended: add the Userback feedback button to the DELA app for beta users only, so I can read every report and screenshot and turn them into fixes. Yes?
 10. Beta users. How many, and who? Recommended: 5 to 10 attorneys and 3 to 5 freelancers you know, added to the access list, on Live after the first Staging test, so their work is not wiped by Staging resets.
 
+11. Real Scribe export. Please send one Scribe guide exported as HTML (and as Markdown and PDF if your Scribe plan allows), made from a test task with no client information. I build the importer against the real file. Do you have a Scribe Pro account, or should I build from PDF first?
+12. Free Scribe users. Recommended: support them through Save as PDF from the share page, and leave share links out of v1a. Yes?
+13. Other tools. Tango and Loom guides work almost the same way. Recommended: Scribe first, then Tango in beta v2 if beta users ask for it. Yes?
+
 ## Success looks like
+- A Scribe HTML export, a Markdown export and a saved PDF each import with every step and screenshot in order, and build a playbook.
+- A file from another tool, a damaged file and an oversized file are refused with a clear message and nothing saved.
+- Script inside an HTML export never runs; image links outside Scribe's servers are not fetched.
 - A 10 minute recording in Chrome on Windows that moves between Word and a website gives a review screen with steps, screenshots and transcript within 5 minutes, and a playbook after Build my SOP.
 - The same in Safari on a Mac and Firefox on Windows.
 - Choosing a window shows the Entire Screen message. A phone shows the unsupported message and Upload a recording.

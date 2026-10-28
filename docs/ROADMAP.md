@@ -8,7 +8,7 @@ Each step: feature brief and Stacey's answers, build on Staging, ChatGPT test, S
 | 1 | Foundation (BD sign in, access list, Staging and Live, roles, plans and limits, admin, audit, jobs, notices) | Built, on Staging |
 | 1b | Release Control dashboard (push, code, watch, go back, alerts) | Built, waiting on the 0010 database update |
 | 1c | Safety kit (internal): rule checker, fixed-stays-fixed, security scan, Dependabot, AI reviewers, monthly health report (brief docs/briefs/step-1c-safety-kit.md) | Built; GitHub settings waiting on Stacey |
-| 2 | Beta MVP: Process Recorder and playbooks together (brief docs/briefs/step-2-recorder-beta.md, proposed 2026-10-28). Record or upload a process, review, get a playbook, library, exports. Beta v1, then beta v2 (playbook chat, versions, comments, sharing, Click Tracker extension). Playbook details stay in docs/briefs/step-2-playbooks.md | Brief written, questions open |
+| 2 | Beta MVP: Process Recorder and playbooks together (brief docs/briefs/step-2-recorder-beta.md, proposed 2026-10-28). Beta v1a first: Import from Scribe into the review screen, playbook library and exports (Stacey 2026-10-28). Then beta v1: record or upload a process, review, get a playbook, library, exports. Beta v1, then beta v2 (playbook chat, versions, comments, sharing, Click Tracker extension). Playbook details stay in docs/briefs/step-2-playbooks.md | Brief written, questions open |
 | 2b | DELA in ChatGPT and Claude (MCP connector): sign in with Lawfecta, playbook tools first (added by Stacey 2026-10-27; brief docs/briefs/step-2b-mcp-connector.md) | Brief written, questions open |
 | 3 | Profiles and verification (both sides) | |
 | 4 | Matching, Flex Gigs, proposals and tech catalog | |
