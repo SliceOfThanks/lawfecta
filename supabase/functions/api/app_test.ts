@@ -325,6 +325,17 @@ Deno.test("BD email adapter explains what is missing", async () => {
   assertEquals((await bd.send(msg, "k", fetch, { siteUrl: "" })), { ok: false, retry: false, error: "bd_site_url_missing" });
   const refused = await bd.send(msg, "k", (async () => Response.json({ status: "error", message: "API key not valid" }, { status: 403 })) as typeof fetch, { siteUrl: "https://www.hirelegalhelp.com" });
   assertEquals(refused, { ok: false, retry: false, error: "bd 403 API key not valid" });
+  // A redirect (www to plain address) must be followed with a POST, not turned into a GET
+  const seen: string[] = [];
+  const hop = (async (url: string, init: RequestInit) => {
+    seen.push(String(init.method) + " " + url + " " + String(init.redirect));
+    if (url.startsWith("https://www.")) return new Response("", { status: 301, headers: { location: "https://hirelegalhelp.com/api/v2/email_outbox/create" } });
+    return Response.json({ status: "success", message: { email_id: 77 } });
+  }) as typeof fetch;
+  assertEquals(await bd.send(msg, "k", hop, { siteUrl: "https://www.hirelegalhelp.com" }), { ok: true, messageId: "bd-outbox-77" });
+  assertEquals(seen, ["POST https://www.hirelegalhelp.com/api/v2/email_outbox/create manual", "POST https://hirelegalhelp.com/api/v2/email_outbox/create manual"]);
+  const away = (async () => new Response("", { status: 302, headers: { location: "https://elsewhere.example/login" } })) as typeof fetch;
+  assertEquals(await bd.send(msg, "k", away, { siteUrl: "https://www.hirelegalhelp.com" }), { ok: false, retry: false, error: "bd 302 redirected to https://elsewhere.example/login" });
   const busy = await bd.send(msg, "k", (async () => new Response("", { status: 503 })) as typeof fetch, { siteUrl: "https://www.hirelegalhelp.com" });
   assertEquals(busy.ok === false && busy.retry, true);
 });
