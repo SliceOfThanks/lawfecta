@@ -11,7 +11,7 @@
   var boot = api.boot || {};
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
-  var TABS = [["control", "Release Control"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
+  var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
     ["switches", "Switches"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   var current = "control";
   var mainEl = null;
@@ -64,7 +64,86 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ control: function () { controlTab(true); }, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+  }
+
+  // ---------- Guide ----------
+  // A plain-words manual for someone who has never seen DELA's admin area. Text only, nothing loads from the server.
+  var GUIDE = [
+    ["g_start", "Start here: what this page is", [
+      "This is the DELA admin area. DELA is the part of Lawfecta where solo attorneys hand work to freelance paralegals. From here the Lawfecta Team decides who can use DELA, sets plans and prices, switches features on and off, and sends new versions to members.",
+      "There are two copies of DELA, called Staging and Live. The badge at the top of the page, next to DELA Admin, always says which copy you are looking at. Read the next two sections before you change anything.",
+      "Every tab has a ? next to its title and next to most numbers. Click it to see what that part means. Click it again to close it. Big sections fold: click Show to open one and Hide to close it. The page remembers which ones you opened, on this browser.",
+    ]],
+    ["g_copies", "Staging and Live: the two copies of DELA", [
+      "Live is the copy real members use. Staging is a separate practice copy that only the Lawfecta Team and a few test accounts use. Each copy has its own database, so nothing typed on Staging ever shows up for real members.",
+      "Every new version of DELA is built and tried on Staging first. If something is wrong, it breaks on Staging, where nobody real is affected. Only when it has passed the automatic tests and your own testing do you send it to Live.",
+      "Test accounts: accounts on the Staging test account list (Access list tab) are sent to Staging even when they open DELA on the normal website. That is how testers try new versions without touching Live.",
+      "Claude works only on Staging. Claude never changes Live. Only the owner (Stacey) can send a version to Live, with her release password.",
+    ]],
+    ["g_push", "How a new version gets to Live, step by step", [
+      "1. Built on Staging. Claude builds the change, saves the code on GitHub and switches Staging to it. The new version appears at the top of Release Control as Ready to test.",
+      "2. Automatic tests. GitHub runs every automatic test on that exact code. The step turns green only when all of them pass.",
+      "3. Your testing with ChatGPT. Claude gives you one test prompt. You paste it into ChatGPT and test Staging with it. Send the report ChatGPT writes back to Claude, and Claude saves it with the version.",
+      "4. You mark it tested. On Release Control, tick \"I tested this version on Staging and it is ready\".",
+      "5. Push to Live. Click Push to Live, enter your release password, then the 6 digit code that is sent to you. The button stays grey until steps 1 to 4 are done, and the list under it says what is missing.",
+      "6. Live and healthy. GitHub does the push and Release Control shows each part as it happens. Then Live is watched for 15 minutes. When the watch ends with no problems, the version shows as Live now.",
+    ]],
+    ["g_moves", "What moves to Live when you push, and what stays", [
+      "Moves to Live: the new screens and the new server code, plus any new database parts the version needs (new tables or columns). Database changes only add things. Nothing that members saved is removed or changed by a push.",
+      "Stays where it is: everything people did or entered. Staging's test accounts, test projects, test messages, access list and audit log stay on Staging. Live's members and their work stay on Live. A push never copies data from Staging to Live.",
+      "Settings, plans, prices and switches also belong to each copy. Changing a price on the Staging Plans tab changes it on Staging only. To change it for real members, open the admin area on Live (the badge says Live) and make the same change there.",
+      "A brand new setting that comes with a version arrives on Live with its starting value. If that value is still Open or Suggested, decide it on Live before you switch the feature on.",
+    ]],
+    ["g_back", "Going back to an earlier version", [
+      "If a version causes trouble after it reaches Live, you can go back. On Release Control, open History, find the earlier version marked Was live before, and click Go back to this. Enter your release password and the code. It takes a few minutes.",
+      "Going back changes the code only. Members keep everything they saved, because database changes only ever add. If a version had a change that cannot be undone, History says so and going back past it is blocked.",
+      "You do not always need to do this yourself. During the 15 minute watch after a push, if Live becomes unhealthy, DELA goes back to the previous version by itself and alerts you.",
+    ]],
+    ["g_wrong", "When something goes wrong", [
+      "Emergency pause: on the Live Overview tab you can pause all of DELA, or one part (for example payments or AI help), in one click with no push. Members see a short message. The Lawfecta Team keeps access. Turn it off the same way.",
+      "Alerts: you get an email (and a text, once texts are set up) when Live fails its health check 3 times in a row, when a push fails, when DELA goes back by itself, and after 5 wrong release passwords.",
+      "Problems, last 24 hours on Release Control should be 0. If it is not, open the Jobs tab to see what failed, then tell Claude what it says.",
+      "When in doubt: pause first, then tell Claude. A pause is safe and quick to undo.",
+    ]],
+    ["g_tabs", "Every tab, in plain words", [
+      "Release Control: where versions go from Staging to Live. Shows both copies, the next version and its steps, the Push to Live button, history, activity and one-time setup.",
+      "Guide: this page.",
+      "Overview: a quick picture of this copy. How many people use it, who was turned away, decisions still open, paused parts, the emergency pause, and a button to send yourself a test notice.",
+      "Access list: who may open DELA while it is not open to everyone. Add a member by their BD member ID. The second list holds test accounts that Live sends to Staging.",
+      "People: everyone who has opened DELA, with their side (attorney or freelancer) and plan. You can give someone a plan for testing or place a hold.",
+      "Plans: the eight plans, four for attorneys and four for freelancers, each with its price, fee and limits. Changes start as a draft and apply only when you approve them.",
+      "Settings: every business number DELA uses (fees, minimums, deadlines, limits), grouped by topic. Each change keeps the old value, records why, and can be undone.",
+      "Switches: features stay off until you switch them on. Choose Lawfecta Team only to try a feature yourself, then Access list, then Everyone.",
+      "Lawfecta Team: the people who run DELA and their roles (owner, reviewer, support, finance).",
+      "Holds: pause new actions for one person while you check something, then release the hold with a note.",
+      "Audit log: every sign in, refusal and change, with who did it and when. Nobody can edit or delete it.",
+      "Jobs: background work DELA does by itself every minute, such as sending emails and reminders. Shows anything that failed and why.",
+    ]],
+    ["g_who", "Who does what", [
+      "Claude: builds every change, tests it, puts it on Staging, writes the plain words for each version and the ChatGPT test prompt. Claude does not touch Live.",
+      "GitHub: stores the code, runs the automatic tests, and does the actual push to Live after you approve it.",
+      "You (owner): test with ChatGPT, mark versions tested, push to Live, go back if needed, and make the business decisions on Live (plans, prices, settings, switches, who gets access).",
+      "Brilliant Directories (BD): the website itself, member accounts and logins. DELA sits inside BD pages and never sees BD passwords.",
+      "Supabase: where DELA's data and server code live. Staging and Live are two separate Supabase projects.",
+    ]],
+    ["g_words", "Words you will see", [
+      "Version: a numbered release of DELA, such as 0.2.0. Commit: the 7 letter code GitHub gives to a saved piece of code, such as 5c6f529. Each version points to one commit.",
+      "Database change (migration): a new part added to the database, such as a new table. DELA only adds; it never removes what members saved.",
+      "Worker: DELA's background helper. It runs every minute to send emails, reminders and checks.",
+      "Release password: your private password for pushes and go backs. Only you know it. Keep it in your password manager and never paste it in a chat.",
+      "Code: the 6 digit number sent to you for each push, used once and only for a few minutes.",
+      "Watch: the 15 minutes after a push when Live is checked every minute and sent back by itself if it fails.",
+      "Confirmed, Suggested, Open: the status of a business number. Confirmed means you approved it, Suggested means Claude suggested it and waits for your yes, Open means not decided yet.",
+    ]],
+  ];
+
+  function guide() {
+    body(h("div", null, pageHead("Guide", "guide"),
+      h("p", { class: "muted", text: "How the DELA admin area works, for anyone new to it. Open a section to read it." }),
+      GUIDE.map(function (g, i) {
+        return section(g[0], g[1], null, i === 0, null, h("div", { style: "margin-top:8px" }, g[2].map(function (t) { return h("p", { text: t }); })));
+      })));
   }
 
   // ---------- Overview ----------
@@ -72,27 +151,30 @@
   function overview() {
     api.get("/admin/overview").then(function (r) {
       var d = r.data;
-      var stat = function (label, n, note) { return h("div", { class: "tile col" }, h("div", { class: "muted small", text: label }), h("div", { class: "stat", text: String(n) }), note ? h("div", { class: "muted small", text: note }) : null); };
+      var stat = function (label, n, note, key) {
+        var t = tipPair(key);
+        return h("div", { class: "tile col" }, h("div", { class: "muted small" }, label, t[0] ? " " : null, t[0]), h("div", { class: "stat", text: String(n) }), note ? h("div", { class: "muted small", text: note }) : null, t[1]);
+      };
       var dec = d.decisions || {};
       body(h("div", null,
-        h("h1", { text: "Overview" }),
+        pageHead("Overview", "ov"),
         h("p", { class: "muted", text: d.access_mode === "everyone" ? "DELA is open to every member with a linked plan." : "DELA is open only to people on the access list and the Lawfecta Team." }),
         h("div", { class: "grid" },
-          stat("People who opened DELA", d.people, d.signed_in_7d + " in the last 7 days"),
-          stat("On the access list", d.access_list),
-          stat("Staging test accounts", d.staging_testers),
-          stat("Turned away (7 days)", d.denied_7d, "Not on the access list"),
-          stat("Decisions to make", (dec.O || 0) + (dec.R || 0), (dec.O || 0) + " open, " + (dec.R || 0) + " suggested, " + (dec.G || 0) + " need a gate"),
-          stat("Plans not linked to BD", d.unmapped_plans, "Link them on the Plans tab"),
-          stat("Switches on", d.switches_on),
-          stat("Active holds", d.holds_active)),
+          stat("People who opened DELA", d.people, d.signed_in_7d + " in the last 7 days", "ov_people"),
+          stat("On the access list", d.access_list, null, "ov_access"),
+          stat("Staging test accounts", d.staging_testers, null, "ov_testers"),
+          stat("Turned away (7 days)", d.denied_7d, "Not on the access list", "ov_denied"),
+          stat("Decisions to make", (dec.O || 0) + (dec.R || 0), (dec.O || 0) + " open, " + (dec.R || 0) + " suggested, " + (dec.G || 0) + " need a gate", "ov_decisions"),
+          stat("Plans not linked to BD", d.unmapped_plans, "Link them on the Plans tab", "ov_unmapped"),
+          stat("Switches on", d.switches_on, null, "ov_switches"),
+          stat("Active holds", d.holds_active, null, "ov_holds")),
         emergencyCard(),
-        h("div", { class: "card" }, h("h2", { text: "Check notices" }),
+        h("div", { class: "card" }, titled("h2", "Check notices", "ov_notices"),
           h("p", { class: "muted small", text: "Sends a test notice to you. Email uses the service in the email.sender setting (log means it is recorded, not sent)." }),
           h("div", { class: "row" },
             h("button", { onclick: function () { api.post("/admin/test-notification", { email: false }).then(check).then(function () { ok("Test notice sent. Open the member view to see it."); }).catch(fail); } }, "Send an in-app notice"),
             h("button", { class: "ghost", onclick: function () { api.post("/admin/test-notification", { email: true }).then(check).then(function () { ok("Test email queued. The worker sends it within a minute."); }).catch(fail); } }, "Send a test email"))),
-        h("div", { class: "card" }, h("h2", { text: "Recent activity" }),
+        section("ov_recent", "Recent activity", "ov_recent", true, null,
           h("ul", { class: "list" }, d.recent.map(function (a) { return h("li", { class: "small" }, h("strong", { text: a.action.split("_").join(" ") }), " by " + a.actor + " ", h("span", { class: "muted", text: D.dateTime(a.at) })); })))));
     }).catch(fail);
   }
@@ -101,11 +183,11 @@
 
   var PAUSE_AREAS = [["all", "All of DELA"], ["ai", "AI help"], ["checkout", "New payments"], ["payouts", "Payouts"], ["renewals", "Monthly renewals"], ["external", "Outside connections"], ["email", "Emails"]];
   function emergencyCard() {
-    var box = h("div", { class: "card" }, h("h2", { text: "Emergency pause" }), h("p", { class: "muted small", text: "Loading..." }));
+    var box = h("div", { class: "card" }, titled("h2", "Emergency pause", "ov_pause"), h("p", { class: "muted small", text: "Loading..." }));
     api.get("/admin/pause").then(function (r) {
       var p = r.data.pause || {};
       D.clear(box);
-      box.appendChild(h("h2", { text: "Emergency pause" }));
+      titled("h2", "Emergency pause", "ov_pause").forEach(function (n) { if (n) box.appendChild(n); });
       box.appendChild(h("p", { class: "muted small", text: "Stops all of DELA or one part at once, without a push. Members see: \"" + r.data.message + "\" The Lawfecta Team keeps working. You get an email each time." }));
       if (p.all) box.appendChild(h("div", { class: "notice bad", text: "DELA is paused for members right now." }));
       box.appendChild(h("div", { class: "row" }, PAUSE_AREAS.map(function (a) {
@@ -141,14 +223,15 @@
       var noteIn = h("input", { placeholder: "Note (for example: test attorney)", "aria-label": "Note" });
       var chIn = h("select", { "aria-label": "List" }, h("option", { value: "access", text: "Access list (may open this copy of DELA)" }), h("option", { value: "staging_tester", text: "Staging test account (Live sends them to Staging)" }));
       body(h("div", null,
-        h("h1", { text: "Access list" }),
+        pageHead("Access list", "acc"),
         h("p", { class: "muted", text: "Find a member's ID in BD admin under Members. The Lawfecta Team can always open DELA." }),
-        ownerOnly(h("div", { class: "card" }, h("h2", { text: "Add someone" }), h("div", { class: "row" }, idIn, noteIn, chIn,
+        ownerOnly(h("div", { class: "card" }, titled("h2", "Add someone", "acc_add"), h("div", { class: "row", style: "margin-top:8px" }, idIn, noteIn, chIn,
           h("button", { onclick: function () {
             api.post("/admin/access/grant", { bd_member_id: idIn.value, channel: chIn.value, note: noteIn.value }).then(check).then(function (d) { ok(d.duplicate ? "Already on that list" : "Added"); access(); }).catch(fail);
           } }, "Add")))),
-        h("div", { class: "card" }, h("h2", { text: "May open DELA" }), list("access")),
-        h("div", { class: "card" }, h("h2", { text: "Staging test accounts" }), h("p", { class: "muted small", text: "These accounts load the Staging copy with test data and Stripe test mode. Add them on the Live admin area. On Staging, add them to the access list too." }), list("staging_tester"))));
+        section("acc_list", "May open DELA", "acc_list", true, h("span", { class: "badge", text: String(rows.filter(function (a) { return a.channel === "access"; }).length) }), list("access")),
+        section("acc_staging", "Staging test accounts", "acc_staging", true, h("span", { class: "badge", text: String(rows.filter(function (a) { return a.channel === "staging_tester"; }).length) }),
+          [h("p", { class: "muted small", style: "margin-top:8px", text: "These accounts load the Staging copy with test data and Stripe test mode. Add them on the Live admin area. On Staging, add them to the access list too." }), list("staging_tester")])));
     }).catch(fail);
   }
 
@@ -163,7 +246,7 @@
       var plansData = res[1].plans;
       var qIn = h("input", { placeholder: "Search name, email or BD member ID", value: q || "", "aria-label": "Search" });
       body(h("div", null,
-        h("h1", { text: "People" }),
+        pageHead("People", "people"),
         h("div", { class: "row" }, qIn, h("button", { onclick: function () { people(qIn.value); } }, "Search")),
         h("div", { class: "card scroll" }, h("table", null,
           h("thead", null, h("tr", null, h("th", { text: "Person" }), h("th", { text: "Sides and plans" }), h("th", { text: "Flags" }), h("th", { text: "Actions" }))),
@@ -205,7 +288,7 @@
     planList = null;
     loadPlans().then(function (d) {
       var feats = d.features;
-      var section = function (side) {
+      var sideCard = function (side) {
         var mine = d.plans.filter(function (p) { return p.side === side; });
         var fs = feats.filter(function (f) { return f.side === side || f.side === "both"; });
         var head = h("tr", null, h("th", { text: "" }), mine.map(function (p) { return h("th", null, h("div", { text: p.name.replace(D.SIDE[side] + " ", "") }), p.draft ? h("span", { class: "badge O", text: "Draft waiting" }) : null); }));
@@ -226,11 +309,11 @@
             }));
         }));
         rows.push(h("tr", null, h("th", { text: "" }), mine.map(function (p) { return h("td", null, ownerOnly(h("button", { class: "small", onclick: function () { editPlan(p, fs); } }, p.draft ? "Review draft" : "Edit"))); })));
-        return h("div", { class: "card" }, h("h2", { text: D.SIDE[side] + " plans" }), h("div", { class: "scroll" }, h("table", null, h("thead", null, head), h("tbody", null, rows))));
+        return section("plans_" + side, D.SIDE[side] + " plans", "plans_side", true, null, h("div", { class: "scroll", style: "margin-top:8px" }, h("table", null, h("thead", null, head), h("tbody", null, rows))));
       };
-      body(h("div", null, h("h1", { text: "Plans" }),
+      body(h("div", null, pageHead("Plans", "plans"),
         h("p", { class: "muted", text: "Attorneys and freelancers have separate plans. Each side pays its own fee. Edits are saved as a draft; approving the draft applies it to everyone on that plan right away, and the old version is kept on record." }),
-        section("attorney"), section("freelancer")));
+        sideCard("attorney"), sideCard("freelancer")));
     }).catch(fail);
   }
 
@@ -274,10 +357,10 @@
       h("div", { class: "card" },
         h("label", { text: "Monthly price (dollars)" }), monthly,
         h("label", { text: "Yearly price (dollars)" }), annual,
-        h("label", { text: "Platform fee this side pays (percent of the project price)" }), fee,
+        h("label", null, "Platform fee this side pays (percent of the project price) ", tipPair("plan_fee")[0]), fee,
         h("p", { class: "muted small", text: "The minimum fee per side is a separate setting (fees.floor_cents_per_party), on the Settings tab." }),
         h("label", { text: "Note" }), note),
-      h("div", { class: "card scroll" }, h("h2", { text: "Limits" }), h("p", { class: "muted small", text: "Leave a limit empty for no cap. Untick to leave it out of the plan." }),
+      h("div", { class: "card scroll" }, titled("h2", "Limits", "plan_limits"), h("p", { class: "muted small", text: "Leave a limit empty for no cap. Untick to leave it out of the plan." }),
         h("table", null, h("thead", null, h("tr", null, h("th", { text: "Limit" }), h("th", { text: "Included" }), h("th", { text: "Amount" }))), h("tbody", null, rows))),
       h("div", { class: "row" },
         h("button", { onclick: function () {
@@ -291,7 +374,7 @@
           api.post("/admin/plans/approve", { version_id: p.draft.id }).then(check).then(function () { ok("Approved"); plans(); }).catch(fail);
         } }, "Approve draft") : null,
         p.draft ? h("button", { class: "ghost", onclick: function () { api.post("/admin/plans/discard", { version_id: p.draft.id }).then(check).then(function () { ok("Draft thrown away"); plans(); }).catch(fail); } }, "Throw draft away") : null),
-      h("div", { class: "card", id: "plan-history" }, h("h2", { text: "Earlier versions" }), h("p", { class: "muted small", text: "Bring back an earlier version's prices and limits. It comes back as a new version, and needs your release password." }),
+      h("div", { class: "card", id: "plan-history" }, titled("h2", "Earlier versions", "plan_history"), h("p", { class: "muted small", text: "Bring back an earlier version's prices and limits. It comes back as a new version, and needs your release password." }),
         (function () {
           var box = h("div", null, h("p", { class: "muted small", text: "Loading..." }));
           api.get("/admin/plans/history?plan=" + encodeURIComponent(p.code)).then(function (r) {
@@ -309,7 +392,7 @@
           }).catch(fail);
           return box;
         })()),
-      h("div", { class: "card" }, h("h2", { text: "Link to a BD plan" }),
+      h("div", { class: "card" }, titled("h2", "Link to a BD plan", "plan_link"),
         h("p", { class: "muted small", text: "Members on this BD plan get this DELA plan. Find the plan ID in BD admin under Membership Plans." }),
         h("div", { class: "row" }, bd, h("button", { class: "small", onclick: function () {
           api.post("/admin/plans/map", { plan_code: p.code, bd_plan_id: bd.value.trim() === "" ? null : bd.value }).then(check).then(function () { ok("Linked"); }).catch(fail);
@@ -323,10 +406,12 @@
       var groups = {};
       r.data.forEach(function (s) { (groups[s.section || "Other"] = groups[s.section || "Other"] || []).push(s); });
       var order = Object.keys(groups).sort(function (a, b) { return (a === "System") - (b === "System") || a.localeCompare(b); });
-      body(h("div", null, h("h1", { text: "Settings and decisions" }),
+      body(h("div", null, pageHead("Settings and decisions", "settings"),
         h("p", { class: "muted", text: "Every business number DELA uses. Changing one saves the old value in its history and records your decision. Marking it Confirmed means you approved it." }),
-        order.map(function (g) {
-          return h("div", { class: "card scroll" }, h("h2", { text: g }), h("table", null, h("tbody", null, groups[g].map(settingRow))));
+        h("p", { class: "small" }, "What Confirmed, Suggested, Open and Needs a gate mean ", tipPair("settings_status")[0], tipPair("settings_status")[1]),
+        order.map(function (g, i) {
+          return section("set_" + g.toLowerCase().split(" ").join("_"), g, "settings_group", i === 0, h("span", { class: "badge", text: groups[g].length + " settings" }),
+            h("div", { class: "scroll", style: "margin-top:8px" }, h("table", null, h("tbody", null, groups[g].map(settingRow)))));
         })));
     }).catch(fail);
   }
@@ -406,7 +491,7 @@
   function switches() {
     api.get("/admin/switches").then(function (r) {
       var label = { off: "Off", staff: "Lawfecta Team only", list: "Access list", everyone: "Everyone" };
-      body(h("div", null, h("h1", { text: "Switches" }),
+      body(h("div", null, pageHead("Switches", "switches"),
         h("p", { class: "muted", text: "Features that are built stay off until you turn them on. Try a feature with Lawfecta Team only first, then the access list, then everyone." }),
         h("div", { class: "card scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "Switch" }), h("th", { text: "Before it goes on" }), h("th", { text: "State" }))),
           h("tbody", null, r.data.map(function (s) {
@@ -427,9 +512,9 @@
     api.get("/admin/staff").then(function (r) {
       var idIn = h("input", { type: "number", min: "1", placeholder: "BD member ID", "aria-label": "BD member ID" });
       var roleIn = h("select", { "aria-label": "Role" }, h("option", { value: "reviewer", text: "Reviewer (checks attorneys and milestones)" }), h("option", { value: "support", text: "Support (access list, holds, jobs)" }), h("option", { value: "finance", text: "Finance (payments and holds)" }), h("option", { value: "owner", text: "Owner (everything)" }));
-      body(h("div", null, h("h1", { text: "Lawfecta Team" }),
+      body(h("div", null, pageHead("Lawfecta Team", "team"),
         h("p", { class: "muted", text: "Team members can open DELA and this admin area. Only owners can change settings, plans and switches. A person must open DELA once before they can be added." }),
-        ownerOnly(h("div", { class: "card" }, h("h2", { text: "Add a team member" }), h("div", { class: "row" }, idIn, roleIn,
+        ownerOnly(h("div", { class: "card" }, titled("h2", "Add a team member", "team_add"), h("div", { class: "row", style: "margin-top:8px" }, idIn, roleIn,
           h("button", { onclick: function () { api.post("/admin/staff/grant", { bd_member_id: idIn.value, role: roleIn.value }).then(check).then(function () { ok("Added. They need to refresh DELA."); team(); }).catch(fail); } }, "Add")))),
         h("div", { class: "card scroll" }, h("table", null, h("tbody", null, r.data.map(function (s) {
           return h("tr", null, h("td", null, h("strong", { text: s.name }), h("div", { class: "muted small", text: "BD " + s.bd_member_id + " | " + s.email })), h("td", { text: s.role }), h("td", { text: D.date(s.granted_at) }),
@@ -445,7 +530,7 @@
 
   function holds() {
     api.get("/admin/holds").then(function (r) {
-      body(h("div", null, h("h1", { text: "Holds" }),
+      body(h("div", null, pageHead("Holds", "holds"),
         h("p", { class: "muted", text: "A hold pauses new actions for a person (new allowances, and later hiring and payments). Their records stay readable. Place one from the People tab." }),
         r.data.length ? h("div", { class: "card scroll" }, h("table", null, h("tbody", null, r.data.map(function (x) {
           return h("tr", null, h("td", null, h("strong", { text: x.name || x.scope_id }), h("div", { class: "muted small", text: "BD " + (x.bd_member_id || "") })), h("td", { text: x.reason }), h("td", { text: x.severity }), h("td", { text: D.dateTime(x.created_at) }),
@@ -461,7 +546,7 @@
   function audit(before, acc) {
     api.get("/admin/audit" + (before ? "?before=" + before : "")).then(function (r) {
       var rows = (acc || []).concat(r.data);
-      body(h("div", null, h("h1", { text: "Audit log" }), h("p", { class: "muted", text: "Every sign in, refusal and change. Entries can never be edited or deleted." }),
+      body(h("div", null, pageHead("Audit log", "audit"), h("p", { class: "muted", text: "Every sign in, refusal and change. Entries can never be edited or deleted." }),
         h("div", { class: "card scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "When" }), h("th", { text: "Who" }), h("th", { text: "What" }), h("th", { text: "Details" }))),
           h("tbody", null, rows.map(function (a) {
             return h("tr", null, h("td", { text: D.dateTime(a.at) }), h("td", { text: a.actor || a.actor_type }), h("td", { text: a.action.split("_").join(" ") }), h("td", { class: "small", text: (a.object_type ? a.object_type + " " + a.object_id + " " : "") + JSON.stringify(a.detail) }));
@@ -473,9 +558,12 @@
   function jobs() {
     api.get("/admin/jobs").then(function (r) {
       var c = r.data.counts || {};
-      body(h("div", null, h("h1", { text: "Jobs" }), h("p", { class: "muted", text: "Background work such as emails and reminders. The worker runs every minute and retries problems with growing waits." }),
-        h("div", { class: "grid" }, Object.keys(c).map(function (k) { return h("div", { class: "tile col" }, h("div", { class: "muted small", text: k }), h("div", { class: "stat", text: String(c[k]) })); })),
-        h("div", { class: "card scroll" }, h("h2", { text: "Problems" }), r.data.recent_problems.length ? h("table", null, h("tbody", null, r.data.recent_problems.map(function (j) {
+      body(h("div", null, pageHead("Jobs", "jobs"), h("p", { class: "muted", text: "Background work such as emails and reminders. The worker runs every minute and retries problems with growing waits." }),
+        h("div", { class: "grid" }, Object.keys(c).map(function (k) {
+          var t = tipPair("job_" + k);
+          return h("div", { class: "tile col" }, h("div", { class: "muted small" }, k, t[0] ? " " : null, t[0]), h("div", { class: "stat", text: String(c[k]) }), t[1]);
+        })),
+        h("div", { class: "card scroll" }, titled("h2", "Problems", "jobs_problems"), r.data.recent_problems.length ? h("table", null, h("tbody", null, r.data.recent_problems.map(function (j) {
           return h("tr", null, h("td", { text: j.kind }), h("td", { text: j.status }), h("td", { text: "Tries: " + j.attempts }), h("td", { class: "small", text: j.last_error }), h("td", { text: D.dateTime(j.updated_at) }));
         }))) : h("p", { class: "muted", text: "No problems." }))));
     }).catch(fail);
@@ -581,6 +669,7 @@
   }
   // Plain-language help behind every "?" on Release Control: what it is, and what it tells you
   var HELP = {
+    guide: "A plain-words manual: the two copies of DELA, how a version gets to Live, what a push moves, going back, and what every tab is for.",
     staging: "Staging is DELA's test copy. Only you and the test accounts use it. Every new version runs here first, so problems show up here before members ever see them.",
     staging_health: "Healthy means Staging's database answers and its background helper ran in the last 10 minutes. Worker stopped means scheduled work (emails, reminders, checking Live) is not running. Tell Claude.",
     version_running: "The version this copy is running right now. On Staging it should be the version you are testing. \"code\" plus 7 letters means a build that was not recorded as a version.",
@@ -603,7 +692,52 @@
     pause: "The emergency pause switches off all of DELA, or one part, on Live at once, with no push. You and the Lawfecta Team keep access. You turn it on in the Live admin area.",
     password: "Your release password is asked for every push and every go back. At least 12 characters, kept in your password manager, never pasted in chat. Five wrong tries lock pushing for 30 minutes and email you.",
     reset: "Clears test activity on Staging so you can test again from a clean start. People, plans, settings and versions stay. Live is never touched.",
+    ov: "A quick picture of this copy of DELA (Staging or Live, shown in the badge at the top): who is using it, what is waiting on a decision, and anything paused or on hold.",
+    ov_people: "Everyone who has opened DELA at least once on this copy, and how many of them came back in the last 7 days.",
+    ov_access: "Members you have let into DELA. Everyone else sees a 'not open yet' message. The Lawfecta Team can always get in.",
+    ov_testers: "Test accounts that the Live copy sends over to Staging, so testing never touches real data.",
+    ov_denied: "Members who tried to open DELA in the last 7 days but are not on the access list. A rising number can mean word is spreading before you open DELA.",
+    ov_decisions: "Business numbers still marked Open or Suggested in Settings. Open: no decision yet. Suggested: Claude's suggestion waiting for your yes. Needs a gate: only switch on after a check, such as a lawyer review.",
+    ov_unmapped: "DELA plans not yet linked to a BD membership plan. Until linked, members only get those plans if you give them one on the People tab. Linking happens at launch.",
+    ov_switches: "Features turned on for anyone (team only, access list, or everyone). Built features stay off until you switch them on.",
+    ov_holds: "People with an active hold: their new actions are paused while you check something. Their records stay readable.",
+    ov_notices: "Sends a test notice to you, to check that in-app notices and emails work. Email goes through the service named in the email.sender setting.",
+    ov_recent: "The latest sign ins, refusals and changes on this copy. The full list is on the Audit log tab.",
+    ov_pause: "Stops all of DELA, or one part, at once, with no push. Members see a short message. The Lawfecta Team keeps working. You get an email each time it is turned on or off.",
+    acc: "Who may open DELA on this copy. While DELA is in testing, only people on this list (and the Lawfecta Team) can get in. Removing someone signs them out at once.",
+    acc_add: "Add a member by their BD member ID (BD admin, Members). Choose the access list to let them in, or Staging test account so Live sends them to Staging.",
+    acc_list: "Members who may open this copy of DELA. Each line shows when they were added and why.",
+    acc_staging: "Accounts used for testing. On Live, being on this list sends them to Staging. On Staging, they also need to be on the access list above.",
+    people: "Everyone who has opened DELA, with their sides (attorney, freelancer) and plans. You can give a side and plan here for testing, or place a hold.",
+    plans: "The eight DELA plans, four per side. Attorneys and freelancers have separate prices, fees and limits. A change is saved as a draft and applies only when you approve it. Old versions are kept.",
+    plans_side: "Each column is a plan. Rows show the price, the platform fee this side pays, the BD plan it is linked to, how many members are on it, and every limit. 'No cap' means unlimited.",
+    plan_limits: "How much of each feature this plan includes. Empty means no cap. Untick to leave a feature out of the plan.",
+    plan_history: "Earlier approved versions of this plan. Restore brings one back as a new version (needs your release password), so nothing is lost.",
+    plan_link: "The BD membership plan ID that gives members this DELA plan. Find it in BD admin under Membership Plans. Left empty until launch.",
+    plan_fee: "The percent of each project price this side pays to Lawfecta. Each side pays its own fee. The minimum fee per side is a separate setting (fees.floor_cents_per_party).",
+    settings: "Every business number DELA uses, grouped by topic. Changing one keeps the old value in its history, records your decision, and can be undone. Click Change on a line to edit it or see its history.",
+    settings_status: "Confirmed: you approved it. Suggested: Claude's suggestion, waiting for your yes. Open: not decided yet; DELA uses a safe default. Needs a gate: only turn on after a check, such as a lawyer review.",
+    settings_group: "Click Show to see the settings in this group. Each line has its key, where the number came from, its value and its status.",
+    switches: "Built features stay off until you switch them on. Off: nobody. Lawfecta Team only: you test it first. Access list: testers and early members. Everyone: all members with a plan.",
+    team: "People who run DELA. Owner: everything, including pushes. Reviewer: checks attorneys and milestones. Support: access list, holds, jobs. Finance: payments and holds.",
+    team_add: "Add a team member by BD member ID and role. They must have opened DELA once first.",
+    holds: "A hold pauses new actions for one person (and later hiring and payments) while you check something. Release it with a note on what you checked.",
+    audit: "Every sign in, refusal and change, newest first, with who did it. Nobody can edit or delete these lines, so it is the record if anything is ever questioned.",
+    jobs: "Background work DELA does on its own, such as sending emails, reminders and the daily summary. It runs every minute and retries problems with longer waits.",
+    jobs_problems: "Jobs that are waiting to retry (delayed), failed for good (dead) or failed once. The last error says why. Dead jobs count in Problems, last 24 hours on Release Control.",
+    job_queued: "Waiting for the next minute's run.",
+    job_running: "Being done right now.",
+    job_succeeded: "Done.",
+    job_delayed: "Failed and will try again later, with a longer wait each time.",
+    job_dead: "Failed every try and stopped. Look at Problems below, or ask Claude.",
+    job_canceled: "Stopped on purpose, for example an email that could not be sent and should not be retried.",
   };
+
+  // A page title with its "?" (each admin tab)
+  function pageHead(title, key) {
+    var t = tipPair(key);
+    return [h("div", { class: "row", style: "margin:18px 0 4px" }, h("h1", { style: "margin:0" }, title, t[0] ? " " : null, t[0])), t[1]];
+  }
 
   // A "?" button and the help box it opens. The box stays open across the page's own refreshes.
   function tipPair(key) {

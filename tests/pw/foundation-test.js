@@ -30,6 +30,12 @@ async function open(browser, widget, uid, plan, opts) {
 }
 
 // Text inside the DELA shadow root
+// Opens a folded admin section by its id (sections remember their state only inside one browser)
+async function unfold(page, id) {
+  await dela(page).locator("#sec-" + id).evaluate((el) => { if (el.hidden) el.parentElement.querySelector("button[aria-controls]").click(); });
+  await page.waitForTimeout(200);
+}
+
 async function text(page) {
   await page.waitForFunction(() => { const h = document.querySelector(".dela-host"); return h && h.shadowRoot && h.shadowRoot.querySelector(".dela").textContent.length > 20; });
   await page.waitForTimeout(150);
@@ -82,6 +88,14 @@ const dela = (page) => page.locator(".dela-host");
     ok(t.includes("Test attorney") && t.includes("Test freelancer"), "owner adds people to the access list");
     await s.page.screenshot({ path: path.join(SHOTS, "admin-access.png"), fullPage: true });
 
+    // Guide: a plain manual, first section open, the rest fold open on Show
+    await dela(s.page).getByRole("tab", { name: "Guide" }).click();
+    t = await text(s.page);
+    ok(t.includes("Start here") && t.includes("There are two copies of DELA") && !t.includes("Moves to Live:"), "the Guide opens on Start here with other sections folded");
+    await unfold(s.page, "g_moves");
+    ok((await text(s.page)).includes("A push never copies data from Staging to Live"), "the Guide explains what a push moves to Live");
+    await s.page.screenshot({ path: path.join(SHOTS, "admin-guide.png"), fullPage: true });
+
     // Plans: link BD plans and change a price through a draft
     await dela(s.page).getByRole("tab", { name: "Plans" }).click();
     t = await text(s.page);
@@ -107,7 +121,10 @@ const dela = (page) => page.locator(".dela-host");
     // Settings: change the gig length and see its history
     await dela(s.page).getByRole("tab", { name: "Settings" }).click();
     t = await text(s.page);
-    ok(t.includes("Engagement money") && t.includes("Smallest engagement allowed"), "settings are grouped with plain labels");
+    ok(t.includes("Engagement money") && !t.includes("Smallest engagement allowed"), "settings groups start folded except the first");
+    await unfold(s.page, "set_engagement_money");
+    t = await text(s.page);
+    ok(t.includes("Smallest engagement allowed"), "settings are grouped with plain labels and open with Show");
     await s.page.screenshot({ path: path.join(SHOTS, "admin-settings.png"), fullPage: true });
     const row = dela(s.page).locator("tr", { hasText: "Smallest engagement allowed" });
     await row.getByRole("button", { name: "Change" }).click();
@@ -330,6 +347,7 @@ const dela = (page) => page.locator(".dela-host");
     // Undo a setting change from its history
     await sql("select dela_admin_set_setting((select person_id from staff_roles where role = 'owner' limit 1), 'engagement.minimum_cents', '30000', 'O', 'try $300')");
     await dela(s.page).getByRole("tab", { name: "Settings" }).click();
+    await unfold(s.page, "set_engagement_money");
     const r2 = dela(s.page).locator("tr", { hasText: "Smallest engagement allowed" });
     await r2.getByRole("button", { name: "Change" }).click();
     await dela(s.page).getByRole("button", { name: "History" }).click();
