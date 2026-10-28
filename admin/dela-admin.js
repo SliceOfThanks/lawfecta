@@ -484,7 +484,10 @@
   // ---------- Release Control (Staging to Live, owner only, with the release password and a code) ----------
 
   var controlTimer = null;
-  var ctl = { filter: "all", flow: null, data: null, more: false };
+  var ctl = { filter: "all", flow: null, data: null, more: false, tips: {}, open: loadOpen() };
+  // Which sections are open is remembered in this browser only (it is a convenience, never needed)
+  function loadOpen() { try { return JSON.parse(localStorage.getItem("dela.control.open") || "{}") || {}; } catch (e) { return {}; } }
+  function saveOpen() { try { localStorage.setItem("dela.control.open", JSON.stringify(ctl.open)); } catch (e) { /* private window */ } }
   var RELEASE_STATUS = { candidate: "Ready to test", tested: "Tested on Staging", approved: "Starting", deploying: "Running now", live: "Live now", failed: "Did not go live", replaced: "Was live before", rolled_back: "Was live before" };
   var RELEASE_ERR = {
     wrong_password: "That release password is not right.", locked: "Too many wrong tries. Pushing is locked for 30 minutes.",
@@ -576,15 +579,84 @@
     if (isNaN(m)) return "";
     return m <= 0 ? "Just now" : m === 1 ? "1 minute ago" : m < 120 ? m + " minutes ago" : D.dateTime(iso);
   }
-  function kv(label, value) { return h("div", null, h("span", { class: "muted small", text: label }), h("b", { text: String(value) })); }
+  // Plain-language help behind every "?" on Release Control: what it is, and what it tells you
+  var HELP = {
+    staging: "Staging is DELA's test copy. Only you and the test accounts use it. Every new version runs here first, so problems show up here before members ever see them.",
+    staging_health: "Healthy means Staging's database answers and its background helper ran in the last 10 minutes. Worker stopped means scheduled work (emails, reminders, checking Live) is not running. Tell Claude.",
+    version_running: "The version this copy is running right now. On Staging it should be the version you are testing. \"code\" plus 7 letters means a build that was not recorded as a version.",
+    worker: "DELA's background helper runs every minute. It sends emails and reminders, writes the daily summary and checks Live. More than 10 minutes ago means something is stuck.",
+    problems: "Emails that failed for good, plus background jobs that gave up after all their retries, in the last 24 hours. 0 is the goal. Any other number: open the Jobs tab to see what failed, or ask Claude.",
+    paused: "Parts of DELA switched off with the emergency pause, for example AI help or payouts. None is normal.",
+    live: "Live is the copy real members use. It changes only when you push a tested version from this page. Staging checks on Live every minute.",
+    live_health: "Healthy: Live answered normally. Not healthy: 3 checks in a row failed, and you were alerted. Waiting for your first push: Live exists but has no DELA code yet. Not set up yet: the Live project ID is not entered (see Live setup).",
+    live_checked: "When Staging last asked Live how it is doing. It asks every minute.",
+    next: "The newest version waiting to go Live, and how far it has come. A green tick is done. The pink step is the next thing to do.",
+    steps: "1 Built on Staging: Claude made it and put it here. 2 Automatic tests: GitHub ran every test and they passed. 3 ChatGPT report: your ChatGPT test results are saved with it. 4 You marked it tested: your yes. 5 Pushed: you entered your release password and code. 6 Live and healthy: Live runs it and passed its watch after the push.",
+    changes: "What members will notice in this version, in plain words, written by Claude.",
+    db: "Database changes that come with this version. DELA only adds to the database, so member data is kept and going back to an earlier version stays possible. If a version ever removes or renames something, it says so here, and going back past it is blocked.",
+    proof: "Evidence this version works: the automatic test run on GitHub (click to open it) and the ChatGPT test report from your testing.",
+    push: "Push to Live sends this version to members. The button works only when every item listed under it is done. You enter your release password, then the 6 digit code sent to you (once email is set up).",
+    progress: "Each step of the push, in order, as GitHub does it. If a step fails, Live stays on the version it had. After a push, Live is watched for 15 minutes and goes back by itself if it becomes unhealthy.",
+    history: "Every version, newest first. Ready to test and Tested on Staging: not on Live yet. Live now: what members use. Was live before: you can go back to it. Did not go live: the push stopped and Live kept its version. Safe to go back: DELA can return to it with no data lost.",
+    activity: "Everything important about releases, from the audit log, newest first. Nobody can edit or delete these. Dot colors: green pushes, blue go backs, red security (wrong passwords, codes), pink Live health, amber settings, burgundy pauses. Use the buttons to show one kind.",
+    setup: "One-time steps before your first push to Live. Most lines check themselves when you click Check again. A ? means it could not be checked from here, so tick it yourself when it is done.",
+    pause: "The emergency pause switches off all of DELA, or one part, on Live at once, with no push. You and the Lawfecta Team keep access. You turn it on in the Live admin area.",
+    password: "Your release password is asked for every push and every go back. At least 12 characters, kept in your password manager, never pasted in chat. Five wrong tries lock pushing for 30 minutes and email you.",
+    reset: "Clears test activity on Staging so you can test again from a clean start. People, plans, settings and versions stay. Live is never touched.",
+  };
+
+  // A "?" button and the help box it opens. The box stays open across the page's own refreshes.
+  function tipPair(key) {
+    if (!HELP[key]) return [null, null];
+    var box = h("div", { class: "helpbox", role: "note", hidden: !ctl.tips[key], text: HELP[key] });
+    var btn = h("button", { class: "tip", type: "button", "aria-label": "What does this mean?", "aria-expanded": String(!!ctl.tips[key]) }, "?");
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      var opening = box.hidden;
+      box.hidden = !opening;
+      btn.setAttribute("aria-expanded", String(opening));
+      if (opening) ctl.tips[key] = 1; else delete ctl.tips[key];
+    });
+    return [btn, box];
+  }
+
+  function kv(label, value, key) {
+    var t = tipPair(key);
+    return h("div", null, h("span", { class: "muted small" }, label, t[0] ? " " : null, t[0]), h("b", { text: String(value) }), t[1]);
+  }
+
+  // A heading with its "?" and anything else on the same line; the help box opens under the line
+  function titled(tag, title, key, extra, attrs) {
+    var t = tipPair(key);
+    return [h("div", { class: "row" }, h(tag, Object.assign({ class: "grow", style: "margin:0" }, attrs || {}), title, t[0] ? " " : null, t[0]), extra || null), t[1]];
+  }
+
+  // A card that folds open and closed with a Show / Hide button; the choice is remembered
+  function section(id, title, key, defaultOpen, badge, content) {
+    var open = ctl.open[id] === undefined ? defaultOpen : !!ctl.open[id];
+    var inner = h("div", { id: "sec-" + id, class: "secbody", hidden: !open }, content);
+    var toggle = h("button", { class: "ghost small", type: "button", "aria-expanded": String(open), "aria-controls": "sec-" + id }, open ? "Hide" : "Show");
+    toggle.addEventListener("click", function () {
+      var opening = inner.hidden;
+      inner.hidden = !opening;
+      toggle.setAttribute("aria-expanded", String(opening));
+      toggle.textContent = opening ? "Hide" : "Show";
+      ctl.open[id] = opening;
+      saveOpen();
+    });
+    var head = titled("h2", title, key, h("span", { class: "row", style: "gap:8px" }, badge || null, toggle));
+    return h("div", { class: "card", id: id }, head[0], head[1], inner);
+  }
 
   function envCards(d) {
     var s = d.here;
+    var sb = tipPair("staging_health");
     var staging = h("div", { class: "card env" },
-      h("div", { class: "row" }, h("h2", { class: "grow", text: "Staging" }), h("span", { class: "badge " + (s.worker_ok ? "C" : "bad"), text: s.worker_ok ? "Healthy" : "Worker stopped" })),
-      h("p", { class: "muted small", text: "Test accounts only. Every version is tried here first." }),
-      h("div", { class: "kv" }, kv("Version running", versionOf(d, s.code_version)), kv("Worker last ran", ago(s.worker_last_run)),
-        kv("Problems, last 24 hours", s.problems_24h), kv("Paused areas", (s.paused || []).length ? s.paused.join(", ") : "None")));
+      titled("h2", "Staging", "staging", h("span", { class: "row", style: "gap:6px" }, h("span", { class: "badge " + (s.worker_ok ? "C" : "bad"), text: s.worker_ok ? "Healthy" : "Worker stopped" }), sb[0])),
+      sb[1],
+      h("p", { class: "muted small", style: "margin-top:6px", text: "Test accounts only. Every version is tried here first." }),
+      h("div", { class: "kv" }, kv("Version running", versionOf(d, s.code_version), "version_running"), kv("Worker last ran", ago(s.worker_last_run), "worker"),
+        kv("Problems, last 24 hours", s.problems_24h, "problems"), kv("Paused areas", (s.paused || []).length ? s.paused.join(", ") : "None", "paused")));
     var L = d.live || {};
     var state, cls;
     if (!d.live_ref) { state = "Not set up yet"; cls = "O"; }
@@ -594,11 +666,13 @@
     else if (!L.ever_ok) { state = "Waiting for your first push"; cls = "O"; }
     else { state = "Checking again"; cls = "O"; }
     var paused = L.paused && L.paused.length ? L.paused.join(", ") : L.paused_all ? "all" : "None";
+    var lb = tipPair("live_health");
     var live = h("div", { class: "card env" },
-      h("div", { class: "row" }, h("h2", { class: "grow", text: "Live" }), h("span", { class: "badge " + cls, text: state })),
-      h("p", { class: "muted small", text: "Members on the access list. Changes only when you push." }),
-      h("div", { class: "kv" }, kv("Version running", L.code_version ? versionOf(d, L.code_version) : "None yet"), kv("Checked", L.checked_at ? ago(L.checked_at) : "Not yet"),
-        kv("Problems, last 24 hours", L.problems_24h === undefined ? "Not known yet" : L.problems_24h), kv("Paused areas", paused)),
+      titled("h2", "Live", "live", h("span", { class: "row", style: "gap:6px" }, h("span", { class: "badge " + cls, text: state }), lb[0])),
+      lb[1],
+      h("p", { class: "muted small", style: "margin-top:6px", text: "Members on the access list. Changes only when you push." }),
+      h("div", { class: "kv" }, kv("Version running", L.code_version ? versionOf(d, L.code_version) : "None yet", "version_running"), kv("Checked", L.checked_at ? ago(L.checked_at) : "Not yet", "live_checked"),
+        kv("Problems, last 24 hours", L.problems_24h === undefined ? "Not known yet" : L.problems_24h, "problems"), kv("Paused areas", paused, "paused")),
       L.error && !L.ok && L.ever_ok ? h("p", { class: "small", style: "color:var(--bad);margin-top:8px", text: "Last answer: " + L.error }) : null);
     return h("div", { class: "envs" }, staging, live);
   }
@@ -636,10 +710,11 @@
     ];
     var firstOpen = -1;
     defs.forEach(function (s, i) { if (firstOpen < 0 && !s[2]) firstOpen = i; });
-    return h("ol", { class: "steps", "aria-label": "Steps to Live" }, defs.map(function (s, i) {
+    var st = tipPair("steps");
+    return [h("div", { class: "row", style: "margin-top:12px" }, h("span", { class: "small", style: "font-weight:700" }, "Steps to Live ", st[0])), st[1], h("ol", { class: "steps", "aria-label": "Steps to Live" }, defs.map(function (s, i) {
       return h("li", { class: s[2] ? "done" : i === firstOpen ? "now" : "" }, h("i", { "aria-hidden": "true", text: s[2] ? "✓" : String(i + 1) }),
         h("div", { text: s[0] }), h("div", { class: "muted small", style: "font-weight:400", text: s[1] }));
-    }));
+    }))];
   }
 
   function progress(x) {
@@ -653,7 +728,7 @@
     var title = x.status === "approved" ? "Waiting for GitHub to start" : x.status === "deploying" ? (x.action === "rollback" ? "Going back to " : "Pushing ") + x.version : x.watching ? "Live runs " + x.version + ". Watching it now." :
       x.watch_result === "went_back" ? "Live went back to " + (x.previous_version || "the earlier version") + " by itself" : x.status === "failed" ? x.version + " did not go live. Live kept the version it had." : "Live runs " + x.version;
     return h("div", { class: "flow", "aria-live": "polite" },
-      h("h3", { text: title }),
+      titled("h3", title, "progress"),
       h("div", { class: "bar", role: "progressbar", "aria-valuemin": "0", "aria-valuemax": String(plan.length), "aria-valuenow": String(doneCount) }, h("span", { style: "width:" + Math.round(doneCount / plan.length * 100) + "%" })),
       h("ul", { class: "list small" }, plan.map(function (p, i) {
         var s = seen[p[0]];
@@ -713,7 +788,7 @@
 
   function nextCard(d) {
     var x = nextRelease(d);
-    if (!x) return h("div", { class: "card" }, h("h2", { text: "Next version" }), h("p", { class: "muted", text: "No new version is waiting. Claude adds each version here when it is ready on Staging." }));
+    if (!x) return h("div", { class: "card" }, titled("h2", "Next version", "next"), h("p", { class: "muted", style: "margin-top:8px", text: "No new version is waiting. Claude adds each version here when it is ready on Staging." }));
     var lv = liveRelease(d);
     var added = lv ? x.migrations.filter(function (m) { return lv.migrations.indexOf(m) < 0; }) : x.migrations;
     var blockers = pushBlockers(d, x);
@@ -723,15 +798,18 @@
     tested.addEventListener("change", function () {
       api.post("/admin/releases/tested", { release_id: x.id, tested: tested.checked }).then(check).then(function () { ok(tested.checked ? "Marked as tested" : "Unmarked"); controlTab(false); }).catch(relFail);
     });
+    var nt = tipPair("next");
+    var pt = tipPair("push");
     return h("div", { class: "card" },
-      h("div", { class: "row" }, h("div", { class: "grow" }, h("div", { class: "eyebrow", style: "color:var(--brand)", text: "Next version" }), h("h2", { style: "font-size:24px;margin:2px 0 0", text: x.version })),
+      h("div", { class: "row" }, h("div", { class: "grow" }, h("div", { class: "eyebrow", style: "color:var(--brand)" }, "Next version ", nt[0]), h("h2", { style: "font-size:24px;margin:2px 0 0", text: x.version })),
         h("span", { class: "badge " + (x.status === "live" ? "C" : x.status === "failed" ? "bad" : x.status === "tested" ? "G" : "O"), text: x.watching ? "Live, being watched" : RELEASE_STATUS[x.status] || x.status })),
+      nt[1],
       stepper(d, x),
       h("div", { class: "envs", style: "gap:10px" },
-        h("div", { class: "soft" }, h("h3", { text: "What changes for members" }), h("p", { class: "small", text: x.notes || "No notes." })),
-        h("div", { class: "soft" }, h("h3", { text: "Database changes" }), h("p", { class: "small", text: (added.length ? added.length + (added.length === 1 ? " addition" : " additions") + " (" + added.join(", ") + ")." : "Nothing new.") +
+        h("div", { class: "soft" }, titled("h3", "What changes for members", "changes"), h("p", { class: "small", text: x.notes || "No notes." })),
+        h("div", { class: "soft" }, titled("h3", "Database changes", "db"), h("p", { class: "small", text: (added.length ? added.length + (added.length === 1 ? " addition" : " additions") + " (" + added.join(", ") + ")." : "Nothing new.") +
           (x.contract_migrations && x.contract_migrations.length ? " It also removes or renames something, so going back past this version will be blocked." : " Nothing removed or renamed, so going back stays safe.") })),
-        h("div", { class: "soft" }, h("h3", { text: "Proof it works" }),
+        h("div", { class: "soft" }, titled("h3", "Proof it works", "proof"),
           h("p", { class: "small" }, x.tests_url ? h("a", { href: x.tests_url, target: "_blank", rel: "noopener" }, "Automatic tests: passed") : "Automatic tests: not yet", h("br"),
             x.test_report ? "ChatGPT test report: saved" : "ChatGPT test report: not saved yet"),
           x.test_report ? h("details", null, h("summary", { class: "small", text: "Read the test report" }), h("pre", { class: "small", style: "white-space:pre-wrap", text: x.test_report })) : null)),
@@ -739,16 +817,16 @@
       flowHere ? flowPanel(d, x, "push") : null,
       isOwner && !flowHere && ["candidate", "tested", "failed"].indexOf(x.status) >= 0 ? h("div", { style: "border-top:1px solid var(--line);margin-top:14px;padding-top:14px" },
         h("label", { class: "row", style: "font-weight:700;font-size:15px" }, tested, "I tested this version on Staging and it is ready"),
-        h("div", { class: "row", style: "margin-top:10px" }, h("button", { class: "big", disabled: blockers.length > 0, onclick: function () { ctl.flow = { id: x.id, action: "push", stage: "password" }; drawControl(); } }, "Push to Live")),
+        h("div", { class: "row", style: "margin-top:10px" }, h("button", { class: "big", disabled: blockers.length > 0, onclick: function () { ctl.flow = { id: x.id, action: "push", stage: "password" }; drawControl(); } }, "Push to Live"), pt[0]),
+        pt[1],
         blockers.length ? h("ul", { class: "small muted", style: "margin:8px 0 0;padding-left:18px" }, blockers.map(function (b) { return h("li", { text: b }); })) : null) : null);
   }
 
   function historyCard(d) {
     var busy = d.releases.some(function (y) { return y.status === "approved" || y.status === "deploying"; });
     var flow = ctl.flow && ctl.flow.action === "rollback" ? d.releases.filter(function (y) { return y.id === ctl.flow.id; })[0] : null;
-    return h("div", { class: "card", id: "history" },
-      h("h2", { text: "Version history" }),
-      h("p", { class: "muted small", text: "Every version, when it went Live, and a button to go back. Member data is always kept when you go back." }),
+    return section("history", "Version history", "history", true, h("span", { class: "badge", text: d.releases.length + (d.releases.length === 1 ? " version" : " versions") }), [
+      h("p", { class: "muted small", style: "margin-top:8px", text: "Every version, when it went Live, and a button to go back. Member data is always kept when you go back." }),
       flow ? flowPanel(d, flow, "rollback") : null,
       d.releases.length ? h("div", { class: "scroll" }, h("table", null,
         h("thead", null, h("tr", null, h("th", { text: "Version" }), h("th", { text: "Where it is" }), h("th", { text: "What changed" }), h("th", { text: "Going back" }), h("th", { text: "" }))),
@@ -764,7 +842,7 @@
             h("td", { class: "small" }, target ? h("span", { style: "font-weight:700;color:" + (compat.ok ? "var(--ok)" : "var(--bad)"), text: compat.ok ? "Safe to go back" : "Blocked: a newer version changed the database in a way this version cannot work with (" + (compat.blocking || []).join(", ") + ")" }) : h("span", { class: "muted", text: x.status === "live" ? "This is Live now" : "" })),
             h("td", null, isOwner && target && compat.ok ? h("button", { class: "ghost small", disabled: busy || !!ctl.flow, onclick: function () { ctl.flow = { id: x.id, action: "rollback", stage: "password" }; drawControl(); } }, "Go back to this") : null,
               x.deploy_log ? h("details", null, h("summary", { class: "small", text: "Log" }), h("pre", { class: "small", style: "white-space:pre-wrap;max-width:320px", text: x.deploy_log })) : null));
-        })))) : h("p", { class: "muted", text: "No versions yet." }));
+        })))) : h("p", { class: "muted", text: "No versions yet." })]);
   }
 
   function activityCard(d) {
@@ -776,8 +854,8 @@
       return { kind: kind, text: m ? m[1](a) : a.action.split("_").join(" "), at: a.at, actor: a.actor };
     });
     var shown = rows.filter(function (r) { return ctl.filter === "all" || r.kind === ctl.filter; });
-    return h("div", { class: "card" },
-      h("h2", { text: "Activity" }), h("p", { class: "muted small", text: "From the audit log. Nobody can edit or delete these." }),
+    return section("activity", "Activity", "activity", false, h("span", { class: "badge", text: rows.length ? "latest " + D.dateTime(rows[0].at) : "none yet" }), [
+      h("p", { class: "muted small", style: "margin-top:8px", text: "From the audit log. Nobody can edit or delete these." }),
       h("div", { class: "pills", role: "group", "aria-label": "Show" }, FILTERS.map(function (f) {
         return h("button", { class: "small", "aria-pressed": String(ctl.filter === f[0]), onclick: function () { ctl.filter = f[0]; drawControl(); } }, f[1]);
       })),
@@ -787,7 +865,7 @@
       })) : h("p", { class: "muted small", style: "margin-top:10px", text: "Nothing here yet." }),
       h("div", { class: "row", style: "margin-top:10px" },
         shown.length > 12 && !ctl.more ? h("button", { class: "ghost small", onclick: function () { ctl.more = true; drawControl(); } }, "Show more") : null,
-        h("button", { class: "ghost small", onclick: function () { go("audit"); } }, "Open the full audit log")));
+        h("button", { class: "ghost small", onclick: function () { go("audit"); } }, "Open the full audit log"))]);
   }
 
   function setupCard(d) {
@@ -808,9 +886,8 @@
       [!!d.setup.uptime, "Uptime monitor watching Staging and Live", "See the runbook, Monitoring.", "uptime"],
     ];
     var doneCount = items.filter(function (i) { return i[0] === true; }).length;
-    return h("div", { class: "card" },
-      h("div", { class: "row" }, h("h2", { class: "grow", text: "Live setup" }), h("span", { class: "badge " + (doneCount === items.length ? "C" : "O"), text: doneCount + " of " + items.length + " done" })),
-      h("p", { class: "muted small", text: "Most lines check themselves. Tick the others when you have done them." }),
+    return section("setup", "Live setup", "setup", doneCount < items.length, h("span", { class: "badge " + (doneCount === items.length ? "C" : "O"), text: doneCount + " of " + items.length + " done" }), [
+      h("p", { class: "muted small", style: "margin-top:8px", text: "Most lines check themselves. Tick the others when you have done them." }),
       h("ul", { class: "list" }, items.map(function (i) {
         var mark = i[0] === true ? "✓" : i[0] === null ? "?" : "";
         var extra = null;
@@ -825,7 +902,7 @@
         return h("li", { class: "row", style: "align-items:flex-start;flex-wrap:nowrap" }, h("span", { class: "tick" + (mark === "✓" ? " ok" : ""), text: mark }),
           h("div", { class: "grow" }, h("div", { style: "font-weight:700", text: i[1] }), i[0] === true ? null : h("div", { class: "muted small", text: i[2] }), extra));
       })),
-      h("button", { class: "ghost small", style: "margin-top:10px", onclick: function () { controlTab(true); } }, "Check again"));
+      h("button", { class: "ghost small", style: "margin-top:10px", onclick: function () { controlTab(true); } }, "Check again")]);
   }
 
   function noticesFor(d) {
@@ -845,24 +922,25 @@
     var cur = h("input", { type: "password", autocomplete: "off", "aria-label": "Current release password" });
     var nw = h("input", { type: "password", autocomplete: "new-password", "aria-label": "New release password" });
     var nw2 = h("input", { type: "password", autocomplete: "new-password", "aria-label": "Repeat new release password" });
-    return h("div", { class: "card" }, h("h2", { text: d.password_set ? "Change your release password" : "Set your release password" }),
-      h("p", { class: "muted small", text: "Only you push to Live, and every push asks for this password. Use at least 12 characters. Do not share it, and never paste it in chat. Five wrong tries lock pushing for 30 minutes." }),
+    return section("password", d.password_set ? "Change your release password" : "Set your release password", "password", !d.password_set,
+      h("span", { class: "badge " + (d.password_set ? "C" : "O"), text: d.password_set ? "Set" : "Not set" }), [
+      h("p", { class: "muted small", style: "margin-top:8px", text: "Only you push to Live, and every push asks for this password. Use at least 12 characters. Do not share it, and never paste it in chat. Five wrong tries lock pushing for 30 minutes." }),
       d.password_set ? [h("label", { text: "Current password" }), cur] : null,
       h("label", { text: "New password" }), nw, h("label", { text: "Repeat new password" }), nw2,
       h("div", { style: "margin-top:10px" }, h("button", { onclick: function () {
         if (nw.value !== nw2.value) { D.toast(app, "The two new passwords do not match.", true); return; }
         api.post("/admin/releases/password", { current: cur.value, password: nw.value }).then(check).then(function () { cur.value = nw.value = nw2.value = ""; ok("Release password saved"); controlTab(false); }).catch(relFail);
-      } }, "Save password")));
+      } }, "Save password"))]);
   }
 
   function resetCard() {
-    return ownerOnly(h("div", { class: "card" }, h("h2", { text: "Reset Staging test data" }),
-      h("p", { class: "muted small", text: "Clears test activity on Staging: allowances used, notices, background jobs, holds and other people's sign ins. Keeps people, the team, the access list, settings, plans and versions. Live is never touched." }),
+    return ownerOnly(section("reset", "Reset Staging test data", "reset", false, null, [
+      h("p", { class: "muted small", style: "margin-top:8px", text: "Clears test activity on Staging: allowances used, notices, background jobs, holds and other people's sign ins. Keeps people, the team, the access list, settings, plans and versions. Live is never touched." }),
       h("button", { class: "ghost", onclick: function () {
         var t = prompt("Type RESET to clear Staging test activity.");
         if (t !== "RESET") return;
         api.post("/admin/staging/reset", { confirm: "RESET" }).then(check).then(function () { ok("Staging test activity cleared"); }).catch(relFail);
-      } }, "Reset Staging test data")));
+      } }, "Reset Staging test data")]));
   }
 
   function drawControl() {
@@ -878,9 +956,10 @@
         activityCard(d)));
       return;
     }
-    var pauseNote = h("div", { class: "card" }, h("h2", { text: "Emergency pause on Live" }),
-      h("p", { class: "small", text: "Paused on Live now: " + ((d.live || {}).paused && d.live.paused.length ? d.live.paused.join(", ") : "nothing") + "." }),
-      h("p", { class: "muted small", text: "To pause Live, open the Live admin area, Overview tab, Emergency pause. It works at once, with no push." }));
+    var livePaused = (d.live || {}).paused && d.live.paused.length ? d.live.paused.join(", ") : "";
+    var pauseNote = section("pause", "Emergency pause on Live", "pause", !!livePaused, h("span", { class: "badge " + (livePaused ? "bad" : "C"), text: livePaused ? "Paused: " + livePaused : "Nothing paused" }), [
+      h("p", { class: "small", style: "margin-top:8px", text: "Paused on Live now: " + (livePaused || "nothing") + "." }),
+      h("p", { class: "muted small", text: "To pause Live, open the Live admin area, Overview tab, Emergency pause. It works at once, with no push." })]);
     body(h("div", null,
       h("h1", { text: "Release Control" }),
       h("p", { class: "muted", text: "Everything between Staging and Live in one place. Only you can push or go back, with your release password" + (d.settings.email_code ? " and a code sent to you." : ".") }),

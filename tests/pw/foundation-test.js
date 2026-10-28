@@ -188,6 +188,17 @@ const dela = (page) => page.locator(".dela-host");
     ok(t.includes("Built on Staging") && t.includes("v0.2.0") && t.includes("Set your release password"), "Release Control shows the next version and asks for a release password");
     ok(t.includes("Tick that you tested it") && t.includes("The ChatGPT test report is not saved yet"), "it says plainly why Push is not ready");
     ok(t.includes("1 addition (0010_release_control.sql)") && t.includes("going back stays safe"), "database changes and going back are explained");
+    // Help: every section and number has a "?" that explains it in plain words
+    ok(!t.includes("Emails that failed for good"), "help text stays closed until asked for");
+    await dela(s.page).locator(".kv > div", { hasText: "Problems, last 24 hours" }).first().getByRole("button", { name: "What does this mean?" }).click();
+    ok((await text(s.page)).includes("Emails that failed for good"), "the ? next to Problems explains what the number means");
+    await dela(s.page).locator(".kv > div", { hasText: "Problems, last 24 hours" }).first().getByRole("button", { name: "What does this mean?" }).click();
+    ok(!(await text(s.page)).includes("Emails that failed for good"), "clicking ? again closes the help");
+    ok((await dela(s.page).getByRole("button", { name: "What does this mean?" }).count()) >= 15, "help buttons on every section and number");
+    // Folding sections: Activity starts closed, opens with Show, and stays open after the page refreshes
+    ok(!t.includes("From the audit log"), "Activity starts folded");
+    await dela(s.page).locator("#activity").getByRole("button", { name: "Show" }).click();
+    ok((await text(s.page)).includes("From the audit log"), "Show opens a folded section");
     await dela(s.page).getByLabel("New release password", { exact: true }).fill("Lawfecta-Release-01");
     await dela(s.page).getByLabel("Repeat new release password").fill("Lawfecta-Release-01");
     await dela(s.page).getByRole("button", { name: "Save password" }).click();

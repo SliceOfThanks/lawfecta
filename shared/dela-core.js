@@ -194,6 +194,8 @@
     ".dot{width:12px;height:12px;border-radius:50%;flex:none;margin-top:6px;background:var(--muted)}.dot.k-push{background:var(--ok)}.dot.k-back{background:var(--blue)}.dot.k-security{background:var(--bad)}.dot.k-health{background:#d23b62}.dot.k-settings{background:var(--warn)}.dot.k-pause{background:var(--brand)}",
     ".pills{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.pills button{background:var(--card);color:var(--ink);border:1px solid var(--line)}.pills button[aria-pressed=true]{background:var(--navy);color:#fff;border-color:var(--navy)}",
     "button.big{padding:14px 28px;font-size:17px;font-weight:800}",
+    "button.tip{width:24px;height:24px;min-width:24px;padding:0;border-radius:50%;font-size:13px;font-weight:800;line-height:1;justify-content:center;background:var(--card);color:var(--blue);border:1.5px solid var(--blue);vertical-align:middle}button.tip[aria-expanded=true]{background:var(--blue);color:#fff}",
+    ".helpbox{background:var(--bluebg);border:1px solid #b9d9f4;border-radius:12px;padding:10px 12px;margin:8px 0;font-size:14px;font-weight:400;line-height:1.5;color:var(--ink);text-transform:none;letter-spacing:0}.helpbox[hidden],.secbody[hidden]{display:none}",
     "@media (max-width:600px){h1{font-size:24px}.wrap{padding:12px}.card{padding:16px}.hero{padding:20px}.hero h2{font-size:26px}.brand span{display:none}.top{flex-wrap:nowrap;gap:8px;padding:10px 12px}.brand b{font-size:16px;letter-spacing:.04em}.brand img{width:30px;height:30px}.top .badge{font-size:11px;padding:2px 8px}.bell{padding:6px 10px}}",
   ].join("");
 
