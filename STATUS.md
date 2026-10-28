@@ -16,7 +16,8 @@ Last updated: 2026-10-27. Phase 1A, Step 0 (setup) and Step 1 (foundation) built
 - DELA's BD site is www.hirelegalhelp.com (BD site 24325), reached by Stacey's local MCP "BD-lawfecta-dela". Not lawfecta.com. Stacey: use only BD-lawfecta-dela.
 - BD member IDs: Stacey 686 (stacey@lawfecta.com), test attorney 687, test freelancer 688. All on Bronze (plan 3, free, publicly searchable).
 - BD plans: 3 Bronze free; 7 Silver $17/mo or $170/yr; 8 Gold $35/mo or $350/yr; 4, 5, 6 inactive. Payment gateway not visible to the MCP.
-- BD cannot send email on request from outside, so DELA email uses Brevo (Stacey to confirm).
+- hirelegalhelp.com is DELA's permanent home through beta; DELA moves to lawfecta.com after beta (Stacey 2026-10-28). The api already accepts both sites; site.url is a setting. Public search showing 686 to 688 is fine (Stacey).
+- Email: the BD MCP has no send tool. Stacey wants BD's own email if possible. BD email check sent (docs/handoff/bd-email-check.md); decision waits on its report. Codes and alerts suggested on Brevo either way.
 - Widgets: DELA-Auth 17, DELA-App 18, DELA-Admin 19 (commit dc29d72). Pages: /dela 19, /dela-admin 20 (members only, no menu, noindex).
 - api default origins now include hirelegalhelp.com; migration 0011 sets site.url to https://www.hirelegalhelp.com.
 - Workflow: docs/WORKFLOW.md (build session here, BD session with the MCP on Stacey's computer).
