@@ -17,7 +17,7 @@ Last updated: 2026-10-27. Phase 1A, Step 0 (setup) and Step 1 (foundation) built
 - BD member IDs: Stacey 686 (stacey@lawfecta.com), test attorney 687, test freelancer 688. All on Bronze (plan 3, free, publicly searchable).
 - BD plans: 3 Bronze free; 7 Silver $17/mo or $170/yr; 8 Gold $35/mo or $350/yr; 4, 5, 6 inactive. Payment gateway not visible to the MCP.
 - hirelegalhelp.com is DELA's permanent home through beta; DELA moves to lawfecta.com after beta (Stacey 2026-10-28). The api already accepts both sites; site.url is a setting. Public search showing 686 to 688 is fine (Stacey).
-- Email: the BD MCP has no send tool. Stacey wants BD's own email if possible. BD email check sent (docs/handoff/bd-email-check.md); decision waits on its report. Codes and alerts suggested on Brevo either way.
+- Email: Stacey wants BD's own email. BD email report 2026-10-28: the MCP cannot send; BD's API has POST /api/v2/email_outbox/create (a queue BD's mail service sends from). Lead route failed (lead 113, no email). Built lib/mail/bd.ts on the outbox (header X-Api-Key, form fields to_email, from_email, from_name, subject, html, status pending). To test on Staging: Stacey adds BD_API_KEY in Supabase secrets, set email.sender = bd, Overview > Send a test email, check arrival time. Brevo stays the fallback; codes and alerts suggested on Brevo.
 - Widgets: DELA-Auth 17, DELA-App 18, DELA-Admin 19 (commit dc29d72). Pages: /dela 19, /dela-admin 20 (members only, no menu, noindex).
 - api default origins now include hirelegalhelp.com; migration 0011 sets site.url to https://www.hirelegalhelp.com.
 - Workflow: docs/WORKFLOW.md (build session here, BD session with the MCP on Stacey's computer).

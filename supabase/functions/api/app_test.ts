@@ -2,7 +2,7 @@
 // Run: deno test -A supabase/functions/api/app_test.ts   (PGHOST, PGPORT, PGUSER as in tools/dbtest.sh)
 import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { handle, type Deps } from "./app.ts";
-import { b64url, hmacHex } from "./lib/crypto.ts";
+import { b64url, hmacHex, sessionHash as sessionHashOf } from "./lib/crypto.ts";
 import { verifyPass } from "./lib/pass.ts";
 import { buildNotice, noticeLink } from "./lib/email.ts";
 import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
@@ -19,13 +19,13 @@ const deps: Deps = {
   rpc,
   env: (k) => ({
     BD_SHARED_SECRET: SECRET, BD_SHARED_SECRET_NEXT: "next-shared-secret-0123456789abcdefghij", DELA_ORIGINS: "https://lawfecta.com,https://www.lawfecta.com", STAGING_API_URL: "https://staging.example.invalid/functions/v1/api",
-    GITHUB_REPO: "SliceOfThanks/lawfecta", GITHUB_DISPATCH_TOKEN: "gh-token", RELEASE_CI_SECRET: CI, BREVO_API_KEY: "brevo-test-key",
+    GITHUB_REPO: "SliceOfThanks/lawfecta", GITHUB_DISPATCH_TOKEN: "gh-token", RELEASE_CI_SECRET: CI, BREVO_API_KEY: "brevo-test-key", BD_API_KEY: "bd-test-key",
   } as Record<string, string>)[k] ?? "",
   // Stand-ins for GitHub, Brevo and the Live copy
   fetch: (async (url: string, opts: RequestInit = {}) => {
     const u = String(url);
     const headers = (opts.headers ?? {}) as Record<string, string>;
-    const body = opts.body ? JSON.parse(String(opts.body)) : null;
+    const body = opts.body && String(opts.body).startsWith("{") ? JSON.parse(String(opts.body)) : null;
     if (u.endsWith("/dispatches")) {
       dispatched.push({ url: u, body, auth: headers.authorization });
       return new Response(null, { status: githubStatus });
@@ -34,6 +34,10 @@ const deps: Deps = {
     if (u.startsWith("https://api.brevo.com/")) {
       outbox.push({ url: u, body, key: headers["api-key"] });
       return Response.json({ messageId: "m-" + outbox.length }, { status: 201 });
+    }
+    if (u.endsWith("/api/v2/email_outbox/create")) {
+      outbox.push({ url: u, form: Object.fromEntries(new URLSearchParams(String(opts.body))), key: headers["X-Api-Key"] });
+      return Response.json({ status: "success", message: { email_id: 901 } });
     }
     if (u.endsWith(".supabase.co/functions/v1/api/health")) return Response.json(liveHealth.body, { status: liveHealth.status });
     if (u.endsWith(".supabase.co/functions/v1/api/release/status")) return Response.json({ problems_24h: 2, turned_away_24h: 0, paused: [] });
@@ -293,6 +297,36 @@ Deno.test("release control: code by email and text, steps, watch, Live check", a
   assertEquals((await call("POST", "/admin/control/setup", { session: ownerSession, body: { item: "uptime", done: true } })).body.data.ok, true);
   await pool.query(`update settings set value = '"log"' where key = 'email.sender'; update settings set value = '""' where key in ('alerts.sms_to', 'live.project_ref')`);
   liveHealth = { status: 200, body: { ok: true, environment: "live" } };
+});
+
+Deno.test("BD email: notices go through BD's email outbox on the DELA site", async () => {
+  const ownerPass = await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9001, name: "Stacey" }) } });
+  const owner = ownerPass.body.session;
+  await pool.query(`update settings set value = '"bd"' where key = 'email.sender'`);
+  outbox.length = 0;
+  // A fresh notice each run (the admin test button only sends one per second)
+  await pool.query(`select dela_notify(jsonb_build_object('person_id', dela_session_resolve($1)->>'person_id', 'kind', 'test', 'email', true,
+    'title', 'DELA test notice', 'body', 'BD outbox test', 'dedupe_key', 'bd-test:' || gen_random_uuid()))`, [await sessionHashOf(owner)]);
+  await call("POST", "/worker", { headers: { "x-dela-worker": WORKER } });
+  const sent = outbox.find((o) => o.url.endsWith("/api/v2/email_outbox/create"));
+  assertEquals(sent.url, "https://www.hirelegalhelp.com/api/v2/email_outbox/create");
+  assertEquals(sent.key, "bd-test-key");
+  assertEquals(sent.form.subject, "[Staging] DELA test notice");
+  assert(sent.form.html.includes("https://www.hirelegalhelp.com/dela"), "links point to the DELA site");
+  const n = (await pool.query("select status, provider, provider_ref from notifications where channel = 'email' and kind = 'test' order by created_at desc limit 1")).rows[0];
+  assertEquals([n.status, n.provider, n.provider_ref], ["sent", "bd", "bd-outbox-901"]);
+  await pool.query(`update settings set value = '"log"' where key = 'email.sender'`);
+});
+
+Deno.test("BD email adapter explains what is missing", async () => {
+  const { bd } = await import("./lib/mail/bd.ts");
+  const msg = { from: { name: "Lawfecta DELA", email: "dela@lawfecta.com" }, to: { email: "m@test.invalid" }, subject: "s", html: "<p>h</p>", text: "h" };
+  assertEquals((await bd.send(msg, "", fetch, { siteUrl: "https://www.hirelegalhelp.com" })), { ok: false, retry: false, error: "bd_api_key_missing" });
+  assertEquals((await bd.send(msg, "k", fetch, { siteUrl: "" })), { ok: false, retry: false, error: "bd_site_url_missing" });
+  const refused = await bd.send(msg, "k", (async () => Response.json({ status: "error", message: "API key not valid" }, { status: 403 })) as typeof fetch, { siteUrl: "https://www.hirelegalhelp.com" });
+  assertEquals(refused, { ok: false, retry: false, error: "bd 403 API key not valid" });
+  const busy = await bd.send(msg, "k", (async () => new Response("", { status: 503 })) as typeof fetch, { siteUrl: "https://www.hirelegalhelp.com" });
+  assertEquals(busy.ok === false && busy.retry, true);
 });
 
 Deno.test("safety nets: new secret, health, pause, undo", async () => {

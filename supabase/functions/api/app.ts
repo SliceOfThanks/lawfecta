@@ -421,9 +421,10 @@ async function sendCode(ctx: Ctx, j: Record<string, any>) {
     const line = `Your DELA code to ${what} is ${code}. It works once, for 10 minutes. If you did not ask for it, change your release password now.`;
     if (p.email === true && t.to_email) {
       const provider = pickProvider(t.sender);
-      const mail = buildNotice({ title: "Your DELA code: " + code, body: line, link: "/dela-admin", siteUrl: await rpc<string>(ctx, "dela_setting_text", { p_key: "site.url", p_default: "" }), appPath: "/dela-admin", environment: t.environment });
+      const siteUrl = await rpc<string>(ctx, "dela_setting_text", { p_key: "site.url", p_default: "" });
+      const mail = buildNotice({ title: "Your DELA code: " + code, body: line, link: "/dela-admin", siteUrl, appPath: "/dela-admin", environment: t.environment });
       const r = await provider.send({ from: { name: t.from_name, email: t.from_address }, to: { email: t.to_email, name: t.to_name || undefined }, subject: mail.subject, html: mail.html, text: mail.text, tags: [t.environment, "release_code"] },
-        provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch);
+        provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl });
       if (r.ok) sent++; else errors.push(r.error);
     }
     if (p.sms === true && t.sms_to) {
@@ -448,7 +449,7 @@ async function sendEmail(ctx: Ctx, id: string) {
   const r = await provider.send({
     from: { name: n.from_name, email: n.from_address }, to: { email: n.to_email, name: n.to_name || undefined },
     subject: mail.subject, html: mail.html, text: mail.text, tags: [n.environment, n.kind],
-  }, provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch);
+  }, provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl: n.site_url });
   if (r.ok) {
     await rpc(ctx, "dela_notification_mark", { p_notification: id, p_status: "sent", p_provider: provider.key, p_ref: r.messageId, p_error: "" });
     return { ok: true };

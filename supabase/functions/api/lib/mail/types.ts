@@ -19,9 +19,12 @@ export type SendResult =
   // retry: true only for temporary failures (rate limit, provider outage, network)
   | { ok: false; retry: boolean; error: string };
 
+// Where the email is sent from, for providers that live on the BD site
+export type SendOptions = { siteUrl?: string };
+
 export type EmailProvider = {
   key: string;
   name: string;
   secret: string; // Supabase secret that holds this provider's API key
-  send(msg: EmailMessage, apiKey: string, fetchFn?: typeof fetch): Promise<SendResult>;
+  send(msg: EmailMessage, apiKey: string, fetchFn?: typeof fetch, opts?: SendOptions): Promise<SendResult>;
 };
