@@ -325,6 +325,14 @@ Deno.test("BD email adapter explains what is missing", async () => {
   assertEquals((await bd.send(msg, "k", fetch, { siteUrl: "" })), { ok: false, retry: false, error: "bd_site_url_missing" });
   const refused = await bd.send(msg, "k", (async () => Response.json({ status: "error", message: "API key not valid" }, { status: 403 })) as typeof fetch, { siteUrl: "https://www.hirelegalhelp.com" });
   assertEquals(refused, { ok: false, retry: false, error: "bd 403 API key not valid" });
+  // BD skips outbox records without a send_date, so every email carries one in the site's format and time zone
+  const { bdSendDate } = await import("./lib/mail/bd.ts");
+  assertEquals(bdSendDate(Date.UTC(2026, 9, 28, 3, 28, 2)), "20261027202802");
+  assertEquals(bdSendDate(Date.UTC(2026, 0, 15, 12, 0, 0)), "20260115040000");
+  let form = new URLSearchParams();
+  const grab = (async (_u: string, init: RequestInit) => { form = new URLSearchParams(String(init.body)); return Response.json({ status: "success", message: { email_id: 5 } }); }) as typeof fetch;
+  await bd.send(msg, "k", grab, { siteUrl: "https://hirelegalhelp.com", now: Date.UTC(2026, 9, 28, 3, 28, 2) });
+  assertEquals([form.get("send_date"), form.get("status")], ["20261027202802", "pending"]);
   // A redirect (www to plain address) must be followed with a POST, not turned into a GET
   const seen: string[] = [];
   const hop = (async (url: string, init: RequestInit) => {

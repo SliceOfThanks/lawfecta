@@ -20,7 +20,7 @@ export type SendResult =
   | { ok: false; retry: boolean; error: string };
 
 // Where the email is sent from, for providers that live on the BD site
-export type SendOptions = { siteUrl?: string };
+export type SendOptions = { siteUrl?: string; now?: number; timeZone?: string };
 
 export type EmailProvider = {
   key: string;

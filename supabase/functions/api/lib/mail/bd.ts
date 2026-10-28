@@ -2,7 +2,18 @@
 // BD queues the email and its own mail service sends it, so members get it from the site they joined.
 // Needs BD_API_KEY (a Supabase secret Stacey adds from BD admin) and the site.url setting.
 // BD's docs do not say how fast the outbox sends; Staging tests measure it before members rely on it.
+// BD only sends outbox records that carry a send_date (BD outbox report, 2026-10-28: a record without one stayed
+// "Not Sent"). The date uses the site's format, YYYYMMDDHHmmss in the site's time zone.
 import type { EmailMessage, EmailProvider, SendOptions, SendResult } from "./types.ts";
+
+// The BD site's clock (hirelegalhelp.com runs on America/Los_Angeles)
+export const BD_TIME_ZONE = "America/Los_Angeles";
+
+export function bdSendDate(now: number, timeZone = BD_TIME_ZONE): string {
+  const parts = new Intl.DateTimeFormat("en-US", { timeZone, year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23" }).formatToParts(new Date(now));
+  const get = (t: string) => parts.find((p) => p.type === t)?.value ?? "00";
+  return get("year") + get("month") + get("day") + get("hour") + get("minute") + get("second");
+}
 
 export const bd: EmailProvider = {
   key: "bd",
@@ -19,6 +30,7 @@ export const bd: EmailProvider = {
       subject: msg.subject,
       html: msg.html,
       status: "pending",
+      send_date: bdSendDate(opts.now ?? Date.now(), opts.timeZone),
     });
     const post = (url: string) => fetchFn(url, {
       method: "POST",
