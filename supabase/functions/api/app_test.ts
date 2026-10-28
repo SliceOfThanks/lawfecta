@@ -309,10 +309,10 @@ Deno.test("BD email: notices go through BD's email outbox on the DELA site", asy
     'title', 'DELA test notice', 'body', 'BD outbox test', 'dedupe_key', 'bd-test:' || gen_random_uuid()))`, [await sessionHashOf(owner)]);
   await call("POST", "/worker", { headers: { "x-dela-worker": WORKER } });
   const sent = outbox.find((o) => o.url.endsWith("/api/v2/email_outbox/create"));
-  assertEquals(sent.url, "https://www.hirelegalhelp.com/api/v2/email_outbox/create");
+  assertEquals(sent.url, "https://hirelegalhelp.com/api/v2/email_outbox/create");
   assertEquals(sent.key, "bd-test-key");
   assertEquals(sent.form.subject, "[Staging] DELA test notice");
-  assert(sent.form.html.includes("https://www.hirelegalhelp.com/dela"), "links point to the DELA site");
+  assert(sent.form.html.includes("https://hirelegalhelp.com/dela"), "links point to the DELA site");
   const n = (await pool.query("select status, provider, provider_ref from notifications where channel = 'email' and kind = 'test' order by created_at desc limit 1")).rows[0];
   assertEquals([n.status, n.provider, n.provider_ref], ["sent", "bd", "bd-outbox-901"]);
   await pool.query(`update settings set value = '"log"' where key = 'email.sender'`);
