@@ -8,6 +8,7 @@ config/decisions.json holds every approved or proposed business number. Never ha
 Stacey. Not technical with GitHub. She installs code in Brilliant Directories and changes settings; she does not run tests.
 Live testing goes to ChatGPT through one ready-to-paste prompt per release.
 Writing style for anything she reads: plain, direct, no em dashes, no "it's not X, it's Y", no punchy negation strings.
+Every step Stacey must do is spelled out in full every time, even when it repeats an earlier step: the exact website or app, where to click, what to type or paste, and the file (sent again) or link. Never say "run the SQL" without saying where (Supabase, Lawfecta AI project, SQL Editor), and never assume she remembers an earlier message. Prefer doing a step yourself when a tool allows it.
 End every update to Stacey with three clear headings, in this order: "What you need to do next" (numbered steps, or "Nothing right now"), "Next steps in general" (where things stand), and "What I'll build next".
 
 ## Every build starts with a feature brief
