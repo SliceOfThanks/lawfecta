@@ -91,9 +91,12 @@ const dela = (page) => page.locator(".dela-host");
     // Guide: a plain manual, first section open, the rest fold open on Show
     await dela(s.page).getByRole("tab", { name: "Guide" }).click();
     t = await text(s.page);
-    ok(t.includes("Start here") && t.includes("There are two copies of DELA") && !t.includes("Moves to Live:"), "the Guide opens on Start here with other sections folded");
-    await unfold(s.page, "g_moves");
-    ok((await text(s.page)).includes("A push never copies data from Staging to Live"), "the Guide explains what a push moves to Live");
+    ok(t.includes("Start here") && t.includes("There are two copies of DELA") && !t.includes("Moves to Live") && t.includes("On this page"), "the Guide opens on Start here with other sections folded");
+    await dela(s.page).getByRole("button", { name: "What a push moves" }).click();
+    await s.page.waitForTimeout(300);
+    ok((await text(s.page)).includes("A push never copies data from Staging to Live"), "the Guide's contents link opens and shows what a push moves to Live");
+    await dela(s.page).getByRole("button", { name: "How a version gets to Live" }).click();
+    await s.page.waitForTimeout(300);
     await s.page.screenshot({ path: path.join(SHOTS, "admin-guide.png"), fullPage: true });
 
     // Plans: link BD plans and change a price through a draft

@@ -69,80 +69,134 @@
 
   // ---------- Guide ----------
   // A plain-words manual for someone who has never seen DELA's admin area. Text only, nothing loads from the server.
+  // Each section is a list of blocks: p (paragraph), note (highlighted tip), flow (path picture), steps (numbered),
+  // terms (name and meaning), two (side by side boxes).
   var GUIDE = [
-    ["g_start", "Start here: what this page is", [
-      "This is the DELA admin area. DELA is the part of Lawfecta where solo attorneys hand work to freelance paralegals. From here the Lawfecta Team decides who can use DELA, sets plans and prices, switches features on and off, and sends new versions to members.",
-      "There are two copies of DELA, called Staging and Live. The badge at the top of the page, next to DELA Admin, always says which copy you are looking at. Read the next two sections before you change anything.",
-      "Every tab has a ? next to its title and next to most numbers. Click it to see what that part means. Click it again to close it. Big sections fold: click Show to open one and Hide to close it. The page remembers which ones you opened, on this browser.",
+    ["g_start", "Start here", "What this admin area is and how to read it", [
+      { p: "DELA is the part of Lawfecta where solo attorneys hand work to freelance paralegals. This admin area is where the Lawfecta Team runs it: who can use DELA, plans and prices, which features are on, and sending new versions to members." },
+      { terms: [
+        ["Two copies", "There are two copies of DELA, Staging (practice) and Live (real members). The badge at the top, next to DELA Admin, always says which one you are in."],
+        ["The ? buttons", "Click a ? next to a title or number to see what it means. Click it again to close it."],
+        ["Show and Hide", "Long sections fold. Click Show to open one and Hide to close it. This browser remembers your choice."],
+      ] },
+      { note: "New here? Read Staging and Live, then How a version gets to Live, before you change anything." },
     ]],
-    ["g_copies", "Staging and Live: the two copies of DELA", [
-      "Live is the copy real members use. Staging is a separate practice copy that only the Lawfecta Team and a few test accounts use. Each copy has its own database, so nothing typed on Staging ever shows up for real members.",
-      "Every new version of DELA is built and tried on Staging first. If something is wrong, it breaks on Staging, where nobody real is affected. Only when it has passed the automatic tests and your own testing do you send it to Live.",
-      "Test accounts: accounts on the Staging test account list (Access list tab) are sent to Staging even when they open DELA on the normal website. That is how testers try new versions without touching Live.",
-      "Claude works only on Staging. Claude never changes Live. Only the owner (Stacey) can send a version to Live, with her release password.",
+    ["g_copies", "Staging and Live", "The two copies of DELA and why there are two", [
+      { two: [
+        ["Staging", "stage", ["The practice copy.", "Used by the Lawfecta Team and test accounts only.", "Every new version runs here first.", "Claude builds and changes things here."]],
+        ["Live", "live", ["The real copy.", "Used by real members.", "Changes only when you push a tested version.", "Claude never changes Live."]],
+      ] },
+      { p: "Each copy has its own database. Nothing typed on Staging ever shows up for real members. If a new version has a problem, it shows up on Staging, where nobody real is affected." },
+      { terms: [["Test accounts", "Accounts on the Staging test account list (Access list tab) are sent to Staging even when they open DELA on the normal website. That is how testers try new versions safely."]] },
     ]],
-    ["g_push", "How a new version gets to Live, step by step", [
-      "1. Built on Staging. Claude builds the change, saves the code on GitHub and switches Staging to it. The new version appears at the top of Release Control as Ready to test.",
-      "2. Automatic tests. GitHub runs every automatic test on that exact code. The step turns green only when all of them pass.",
-      "3. Your testing with ChatGPT. Claude gives you one test prompt. You paste it into ChatGPT and test Staging with it. Send the report ChatGPT writes back to Claude, and Claude saves it with the version.",
-      "4. You mark it tested. On Release Control, tick \"I tested this version on Staging and it is ready\".",
-      "5. Push to Live. Click Push to Live, enter your release password, then the 6 digit code that is sent to you. The button stays grey until steps 1 to 4 are done, and the list under it says what is missing.",
-      "6. Live and healthy. GitHub does the push and Release Control shows each part as it happens. Then Live is watched for 15 minutes. When the watch ends with no problems, the version shows as Live now.",
+    ["g_push", "How a version gets to Live", "The six steps, from Claude's build to members", [
+      { flow: ["Built on Staging", "Automatic tests", "Your ChatGPT test", "You mark it tested", "Push to Live", "15 minute watch"] },
+      { steps: [
+        ["Built on Staging", "Claude builds the change and switches Staging to it. It appears at the top of Release Control as Ready to test."],
+        ["Automatic tests", "GitHub runs every automatic test on that exact code. The step turns green only when all of them pass."],
+        ["Your ChatGPT test", "Claude gives you one test prompt. Paste it into ChatGPT and test Staging with it. Send ChatGPT's report to Claude, who saves it with the version."],
+        ["You mark it tested", "On Release Control, tick \"I tested this version on Staging and it is ready\"."],
+        ["Push to Live", "Click Push to Live, enter your release password, then the 6 digit code sent to you. The button stays grey until steps 1 to 4 are done, and says what is missing."],
+        ["15 minute watch", "Release Control shows each part of the push as it happens. Live is then checked every minute for 15 minutes. If all is well, the version shows as Live now."],
+      ] },
     ]],
-    ["g_moves", "What moves to Live when you push, and what stays", [
-      "Moves to Live: the new screens and the new server code, plus any new database parts the version needs (new tables or columns). Database changes only add things. Nothing that members saved is removed or changed by a push.",
-      "Stays where it is: everything people did or entered. Staging's test accounts, test projects, test messages, access list and audit log stay on Staging. Live's members and their work stay on Live. A push never copies data from Staging to Live.",
-      "Settings, plans, prices and switches also belong to each copy. Changing a price on the Staging Plans tab changes it on Staging only. To change it for real members, open the admin area on Live (the badge says Live) and make the same change there.",
-      "A brand new setting that comes with a version arrives on Live with its starting value. If that value is still Open or Suggested, decide it on Live before you switch the feature on.",
+    ["g_moves", "What a push moves", "What goes to Live and what stays where it is", [
+      { two: [
+        ["Moves to Live", "ok", ["New screens.", "New server code.", "New database parts the version needs, such as a new table. These only add; nothing members saved is removed or changed."]],
+        ["Stays on its own copy", "soft", ["Everything people did or entered: accounts, projects, messages, the audit log.", "Settings, plans, prices and switches.", "The access list and test accounts."]],
+      ] },
+      { note: "A push never copies data from Staging to Live. A price you change on Staging changes Staging only. To change it for real members, open the admin area on Live (the badge says Live) and make the same change there." },
+      { p: "A brand new setting that comes with a version arrives on Live with its starting value. If it is still Open or Suggested, decide it on Live before you switch that feature on." },
     ]],
-    ["g_back", "Going back to an earlier version", [
-      "If a version causes trouble after it reaches Live, you can go back. On Release Control, open History, find the earlier version marked Was live before, and click Go back to this. Enter your release password and the code. It takes a few minutes.",
-      "Going back changes the code only. Members keep everything they saved, because database changes only ever add. If a version had a change that cannot be undone, History says so and going back past it is blocked.",
-      "You do not always need to do this yourself. During the 15 minute watch after a push, if Live becomes unhealthy, DELA goes back to the previous version by itself and alerts you.",
+    ["g_back", "Going back", "Returning Live to an earlier version", [
+      { steps: [
+        ["Open History", "On Release Control, open the History section."],
+        ["Pick the version", "Find the earlier version marked Was live before and click Go back to this."],
+        ["Confirm", "Enter your release password and the code. It takes a few minutes."],
+      ] },
+      { p: "Going back changes the code only. Members keep everything they saved. If a version had a change that cannot be undone, History says so and going back past it is blocked." },
+      { note: "During the 15 minute watch after a push, if Live becomes unhealthy, DELA goes back to the previous version by itself and alerts you." },
     ]],
-    ["g_wrong", "When something goes wrong", [
-      "Emergency pause: on the Live Overview tab you can pause all of DELA, or one part (for example payments or AI help), in one click with no push. Members see a short message. The Lawfecta Team keeps access. Turn it off the same way.",
-      "Alerts: you get an email (and a text, once texts are set up) when Live fails its health check 3 times in a row, when a push fails, when DELA goes back by itself, and after 5 wrong release passwords.",
-      "Problems, last 24 hours on Release Control should be 0. If it is not, open the Jobs tab to see what failed, then tell Claude what it says.",
-      "When in doubt: pause first, then tell Claude. A pause is safe and quick to undo.",
+    ["g_wrong", "When something goes wrong", "Pause, alerts and where to look", [
+      { terms: [
+        ["Emergency pause", "On the Live Overview tab, pause all of DELA or one part (for example payments or AI help) in one click, with no push. Members see a short message. The Lawfecta Team keeps access. Turn it off the same way."],
+        ["Alerts", "You get an email (and a text, once texts are set up) when Live fails 3 health checks in a row, when a push fails, when DELA goes back by itself, and after 5 wrong release passwords."],
+        ["Problems count", "Problems, last 24 hours on Release Control should be 0. If not, open the Jobs tab to see what failed and tell Claude."],
+      ] },
+      { note: "When in doubt, pause first, then tell Claude. A pause is safe and quick to undo." },
     ]],
-    ["g_tabs", "Every tab, in plain words", [
-      "Release Control: where versions go from Staging to Live. Shows both copies, the next version and its steps, the Push to Live button, history, activity and one-time setup.",
-      "Guide: this page.",
-      "Overview: a quick picture of this copy. How many people use it, who was turned away, decisions still open, paused parts, the emergency pause, and a button to send yourself a test notice.",
-      "Access list: who may open DELA while it is not open to everyone. Add a member by their BD member ID. The second list holds test accounts that Live sends to Staging.",
-      "People: everyone who has opened DELA, with their side (attorney or freelancer) and plan. You can give someone a plan for testing or place a hold.",
-      "Plans: the eight plans, four for attorneys and four for freelancers, each with its price, fee and limits. Changes start as a draft and apply only when you approve them.",
-      "Settings: every business number DELA uses (fees, minimums, deadlines, limits), grouped by topic. Each change keeps the old value, records why, and can be undone.",
-      "Switches: features stay off until you switch them on. Choose Lawfecta Team only to try a feature yourself, then Access list, then Everyone.",
-      "Lawfecta Team: the people who run DELA and their roles (owner, reviewer, support, finance).",
-      "Holds: pause new actions for one person while you check something, then release the hold with a note.",
-      "Audit log: every sign in, refusal and change, with who did it and when. Nobody can edit or delete it.",
-      "Jobs: background work DELA does by itself every minute, such as sending emails and reminders. Shows anything that failed and why.",
+    ["g_tabs", "Every tab", "What each tab at the top is for", [
+      { terms: [
+        ["Release Control", "Where versions go from Staging to Live: both copies, the next version and its steps, Push to Live, history, activity and one-time setup."],
+        ["Guide", "This page."],
+        ["Overview", "A quick picture of this copy: people using it, who was turned away, open decisions, paused parts, the emergency pause and a test notice button."],
+        ["Access list", "Who may open DELA while it is not open to everyone, added by BD member ID. The second list holds test accounts that Live sends to Staging."],
+        ["People", "Everyone who has opened DELA, with their side (attorney or freelancer) and plan. Give someone a plan for testing, or place a hold."],
+        ["Plans", "The eight plans, four per side, with price, fee and limits. Changes start as a draft and apply only when you approve them."],
+        ["Settings", "Every business number (fees, minimums, deadlines, limits), grouped by topic. Each change keeps the old value, records why, and can be undone."],
+        ["Switches", "Features stay off until you switch them on: Lawfecta Team only first, then Access list, then Everyone."],
+        ["Lawfecta Team", "The people who run DELA and their roles: owner, reviewer, support, finance."],
+        ["Holds", "Pause new actions for one person while you check something, then release with a note."],
+        ["Audit log", "Every sign in, refusal and change, with who and when. Nobody can edit or delete it."],
+        ["Jobs", "Background work DELA does every minute, such as emails and reminders, and anything that failed and why."],
+      ] },
     ]],
-    ["g_who", "Who does what", [
-      "Claude: builds every change, tests it, puts it on Staging, writes the plain words for each version and the ChatGPT test prompt. Claude does not touch Live.",
-      "GitHub: stores the code, runs the automatic tests, and does the actual push to Live after you approve it.",
-      "You (owner): test with ChatGPT, mark versions tested, push to Live, go back if needed, and make the business decisions on Live (plans, prices, settings, switches, who gets access).",
-      "Brilliant Directories (BD): the website itself, member accounts and logins. DELA sits inside BD pages and never sees BD passwords.",
-      "Supabase: where DELA's data and server code live. Staging and Live are two separate Supabase projects.",
+    ["g_who", "Who does what", "Claude, GitHub, you, and the services behind DELA", [
+      { terms: [
+        ["Claude", "Builds and tests every change, puts it on Staging, writes the notes for each version and the ChatGPT test prompt. Never touches Live."],
+        ["GitHub", "Stores the code, runs the automatic tests, and does the push to Live after you approve it."],
+        ["You (owner)", "Test with ChatGPT, mark versions tested, push to Live, go back if needed, and make the business decisions on Live."],
+        ["Brilliant Directories", "The website, member accounts and logins. DELA sits inside BD pages and never sees BD passwords."],
+        ["Supabase", "Where DELA's data and server code live. Staging and Live are two separate Supabase projects."],
+      ] },
     ]],
-    ["g_words", "Words you will see", [
-      "Version: a numbered release of DELA, such as 0.2.0. Commit: the 7 letter code GitHub gives to a saved piece of code, such as 5c6f529. Each version points to one commit.",
-      "Database change (migration): a new part added to the database, such as a new table. DELA only adds; it never removes what members saved.",
-      "Worker: DELA's background helper. It runs every minute to send emails, reminders and checks.",
-      "Release password: your private password for pushes and go backs. Only you know it. Keep it in your password manager and never paste it in a chat.",
-      "Code: the 6 digit number sent to you for each push, used once and only for a few minutes.",
-      "Watch: the 15 minutes after a push when Live is checked every minute and sent back by itself if it fails.",
-      "Confirmed, Suggested, Open: the status of a business number. Confirmed means you approved it, Suggested means Claude suggested it and waits for your yes, Open means not decided yet.",
+    ["g_words", "Words you will see", "Short meanings for the terms on these pages", [
+      { terms: [
+        ["Version", "A numbered release of DELA, such as 0.2.0."],
+        ["Commit", "The 7 character code GitHub gives saved code, such as 5c6f529. Each version points to one commit."],
+        ["Database change", "A new part added to the database, such as a new table. DELA only adds; it never removes what members saved."],
+        ["Worker", "DELA's background helper. It runs every minute to send emails, reminders and checks."],
+        ["Release password", "Your private password for pushes and go backs. Keep it in your password manager. Never paste it in a chat."],
+        ["Code", "The 6 digit number sent to you for each push. It works once, for a few minutes."],
+        ["Watch", "The 15 minutes after a push when Live is checked every minute and sent back by itself if it fails."],
+        ["Confirmed", "A business number you approved."],
+        ["Suggested", "Claude's suggestion, waiting for your yes."],
+        ["Open", "Not decided yet. DELA uses a safe default."],
+      ] },
     ]],
   ];
 
+  function guideBlock(b) {
+    if (b.p) return h("p", { class: "gd-p", text: b.p });
+    if (b.note) return h("div", { class: "notice gd-note", text: b.note });
+    if (b.flow) return h("ol", { class: "gd-flow", "aria-label": "The path to Live" }, b.flow.map(function (t, i) {
+      return h("li", null, h("i", { "aria-hidden": "true", text: String(i + 1) }), h("span", { text: t }));
+    }));
+    if (b.steps) return h("ol", { class: "gd-steps" }, b.steps.map(function (s, i) {
+      return h("li", null, h("i", { "aria-hidden": "true", text: String(i + 1) }), h("div", null, h("b", { text: s[0] }), h("span", { text: s[1] })));
+    }));
+    if (b.terms) return h("dl", { class: "gd-terms" }, b.terms.map(function (t) {
+      return h("div", null, h("dt", { text: t[0] }), h("dd", { text: t[1] }));
+    }));
+    if (b.two) return h("div", { class: "gd-two" }, b.two.map(function (c) {
+      return h("div", { class: "gd-box " + c[1] }, h("h3", { text: c[0] }), h("ul", null, c[2].map(function (t) { return h("li", { text: t }); })));
+    }));
+    return null;
+  }
+
   function guide() {
+    var jump = function (id) {
+      var sec = mainEl.querySelector("#sec-" + id);
+      if (sec && sec.hidden) sec.parentElement.querySelector("button[aria-controls]").click();
+      mainEl.querySelector("#" + id).scrollIntoView({ behavior: "smooth", block: "start" });
+    };
     body(h("div", null, pageHead("Guide", "guide"),
-      h("p", { class: "muted", text: "How the DELA admin area works, for anyone new to it. Open a section to read it." }),
+      h("p", { class: "muted", text: "How the DELA admin area works, for anyone new to it. Pick a topic, or open a section below." }),
+      h("div", { class: "card" }, h("h2", { text: "On this page" }), h("ol", { class: "gd-toc" }, GUIDE.map(function (g) {
+        return h("li", null, h("button", { class: "linkish", type: "button", onclick: function () { jump(g[0]); } }, g[1]), h("span", { class: "muted small", text: g[2] }));
+      }))),
       GUIDE.map(function (g, i) {
-        return section(g[0], g[1], null, i === 0, null, h("div", { style: "margin-top:8px" }, g[2].map(function (t) { return h("p", { text: t }); })));
+        return section(g[0], g[1], null, i === 0, null, h("div", { class: "gd" }, h("p", { class: "muted small gd-sub", text: g[2] }), g[3].map(guideBlock)));
       })));
   }
 
