@@ -27,8 +27,9 @@ class HttpError extends Error {
 
 const MAX_BODY = 64 * 1024;
 
-// The Lawfecta site. DELA_ORIGINS can override this list (comma separated) without a code change.
-const DEFAULT_ORIGINS = ["https://lawfecta.com", "https://www.lawfecta.com"];
+// The BD site DELA runs on (hirelegalhelp.com, BD site 24325, Stacey 2026-10-28), then lawfecta.com.
+// DELA_ORIGINS can override this list (comma separated) without a code change.
+const DEFAULT_ORIGINS = ["https://www.hirelegalhelp.com", "https://hirelegalhelp.com", "https://lawfecta.com", "https://www.lawfecta.com"];
 
 function origins(deps: Deps): string[] {
   const list = deps.env("DELA_ORIGINS").split(",").map((s) => s.trim()).filter(Boolean);

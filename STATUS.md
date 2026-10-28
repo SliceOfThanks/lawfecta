@@ -12,6 +12,15 @@ Last updated: 2026-10-27. Phase 1A, Step 0 (setup) and Step 1 (foundation) built
 - This sandbox cannot reach supabase.co over HTTPS (proxy 403). Check Staging through execute_sql (dela_health(), net._http_response).
 - Waiting on Stacey: BD_SHARED_SECRET in Staging secrets and DELA-Auth line 11; her BD member ID (bootstrap.owner_bd_member_id) and two test member IDs.
 
+## BD site and install (BD report 2026-10-28)
+- DELA's BD site is www.hirelegalhelp.com (BD site 24325), reached by Stacey's local MCP "BD-lawfecta-dela". Not lawfecta.com. Stacey: use only BD-lawfecta-dela.
+- BD member IDs: Stacey 686 (stacey@lawfecta.com), test attorney 687, test freelancer 688. All on Bronze (plan 3, free, publicly searchable).
+- BD plans: 3 Bronze free; 7 Silver $17/mo or $170/yr; 8 Gold $35/mo or $350/yr; 4, 5, 6 inactive. Payment gateway not visible to the MCP.
+- BD cannot send email on request from outside, so DELA email uses Brevo (Stacey to confirm).
+- Widgets: DELA-Auth 17, DELA-App 18, DELA-Admin 19 (commit dc29d72). Pages: /dela 19, /dela-admin 20 (members only, no menu, noindex).
+- api default origins now include hirelegalhelp.com; migration 0011 sets site.url to https://www.hirelegalhelp.com.
+- Workflow: docs/WORKFLOW.md (build session here, BD session with the MCP on Stacey's computer).
+
 ## Release Control (0.2.0, built 2026-10-27; brief docs/briefs/step-1b-release-control.md)
 - Migration 0010, api-0.4.0, tools/promote.mjs watch and auto go-back, admin tab "Release Control" (first tab; the old Releases tab is folded into it).
 - Codes: dela_release_code_request then dela_release_approve_coded. Code rides in a send_code job and is wiped after sending. Needs email.sender other than log, or text (alerts.sms_to + BREVO_API_KEY). Otherwise password only, shown on the dashboard.
