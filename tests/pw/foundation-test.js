@@ -363,7 +363,9 @@ const dela = (page) => page.locator(".dela-host");
 
     // A member cannot open the admin area
     s = await open(browser, "DELA-Admin", 1100, "12");
-    ok((await text(s.page)).includes("Lawfecta Team only"), "members cannot open the admin area");
+    t = await text(s.page);
+    ok(t.includes("Lawfecta Team only"), "members cannot open the admin area");
+    ok(t.includes("You are signed in as") && t.includes("BD member 1100"), "the refusal says which account this browser is signed in with");
     await s.ctx.close();
 
     // Removing access takes effect on the next page load
