@@ -1,0 +1,53 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{width:1200px;background:#f4f5f7;font-family:Inter,Helvetica,Arial,sans-serif;color:#1c2230;padding:48px 56px}
+h1{font-size:46px;font-weight:800;letter-spacing:-.01em;color:#1d2030}
+.sub{font-size:22px;color:#5f6675;margin:8px 0 32px}
+.copies{display:grid;grid-template-columns:1fr 90px 1fr;align-items:center;margin-bottom:36px}
+.copy{border-radius:24px;padding:24px 28px;border:3px solid}
+.copy h2{font-size:30px;margin-bottom:6px}
+.copy p{font-size:20px;line-height:1.4}
+.stage{background:#eef6fd;border-color:#9ccaf0}.stage h2{color:#0d5fa3}
+.live{background:#e3f3ea;border-color:#9fd3b4}.live h2{color:#2f7a4f}
+.arrow{text-align:center;font-size:56px;color:#8b2146;font-weight:800}
+.steps{display:grid;gap:14px}
+.step{display:grid;grid-template-columns:76px 1fr 120px;align-items:center;background:#fff;border:1px solid #e6e7ec;border-radius:20px;padding:18px 22px;box-shadow:0 8px 24px rgba(139,33,70,.08)}
+.num{width:56px;height:56px;border-radius:50%;background:#8b2146;color:#fff;font-size:28px;font-weight:800;display:flex;align-items:center;justify-content:center}
+.step h3{font-size:25px;margin-bottom:4px}
+.step p{font-size:19px;line-height:1.4;color:#3b4252}
+.who{justify-self:end;font-size:16px;font-weight:700;padding:8px 14px;border-radius:999px;text-align:center}
+.claude{background:#efe9fb;color:#5b3aa6}.github{background:#eceef3;color:#1d2030}.you{background:#fbeef2;color:#8b2146}.auto{background:#e3f3ea;color:#2f7a4f}
+.safe{margin-top:30px;background:#1d2030;color:#fff;border-radius:24px;padding:26px 30px}
+.safe h2{font-size:28px;margin-bottom:14px}
+.safe ul{list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:14px 28px}
+.safe li{font-size:19px;line-height:1.4;padding-left:30px;position:relative}
+.safe li:before{content:"✓";position:absolute;left:0;top:0;color:#7fd3a0;font-weight:800}
+.safe b{color:#ffd9e4}
+.foot{margin-top:22px;font-size:17px;color:#5f6675;text-align:center}
+</style></head><body>
+<h1>How a change goes from Staging to Live</h1>
+<p class="sub">DELA has two copies. Every change is tried on the practice copy first.</p>
+<div class="copies">
+  <div class="copy stage"><h2>Staging</h2><p>The practice copy. Only the Lawfecta Team and test accounts use it. Mistakes here hurt nobody.</p></div>
+  <div class="arrow">→</div>
+  <div class="copy live"><h2>Live</h2><p>The real copy. Real members use it. It only changes when you push a tested version.</p></div>
+</div>
+<div class="steps">
+  <div class="step"><div class="num">1</div><div><h3>Claude builds the change</h3><p>The new version goes onto Staging. You see it on Release Control as "Ready to test".</p></div><div class="who claude">Claude</div></div>
+  <div class="step"><div class="num">2</div><div><h3>Automatic tests run</h3><p>GitHub checks everything by itself. Green means every test passed.</p></div><div class="who github">GitHub</div></div>
+  <div class="step"><div class="num">3</div><div><h3>You test it with ChatGPT</h3><p>Paste the test prompt Claude gives you into ChatGPT. Send ChatGPT's report back to Claude.</p></div><div class="who you">You</div></div>
+  <div class="step"><div class="num">4</div><div><h3>You say "it's ready"</h3><p>On Release Control, tick "I tested this version on Staging and it is ready".</p></div><div class="who you">You</div></div>
+  <div class="step"><div class="num">5</div><div><h3>You press Push to Live</h3><p>Enter your release password, then the 6 digit code sent to you. Only you can do this.</p></div><div class="who you">You</div></div>
+  <div class="step"><div class="num">6</div><div><h3>Live is watched for 15 minutes</h3><p>DELA checks Live every minute. If all is well, it shows "Live now". Done.</p></div><div class="who auto">Automatic</div></div>
+</div>
+<div class="safe">
+  <h2>If something goes wrong</h2>
+  <ul>
+    <li><b>It goes back by itself.</b> If Live has a problem during the watch, DELA returns to the last good version and tells you.</li>
+    <li><b>You can go back any time.</b> Release Control, History, "Go back to this", then your password and code.</li>
+    <li><b>Emergency pause.</b> One click stops all of DELA, or one part, for members. Click again to turn it back on.</li>
+    <li><b>Member data is safe.</b> A push moves new screens and code only. It never copies or deletes anyone's data.</li>
+  </ul>
+</div>
+<p class="foot">Lawfecta DELA · Release Control is the first tab in the DELA admin area (hirelegalhelp.com/dela-admin)</p>
+</body></html>
