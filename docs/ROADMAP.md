@@ -8,10 +8,11 @@ Each step: feature brief and Stacey's answers, build on Staging, ChatGPT test, S
 | 1 | Foundation (BD sign in, access list, Staging and Live, roles, plans and limits, admin, audit, jobs, notices) | Built, on Staging |
 | 1b | Release Control dashboard (push, code, watch, go back, alerts) | Built, waiting on the 0010 database update |
 | 1c | Safety kit (internal): rule checker, fixed-stays-fixed, security scan, Dependabot, AI reviewers, monthly health report (brief docs/briefs/step-1c-safety-kit.md) | Built; GitHub settings waiting on Stacey |
+| 2a | AI foundation for both sides: bring your own AI key (OpenAI or Claude, all plans), talk to the AI (microphone in every AI chat), and document uploads for attorneys (Files, "turn this into a playbook", templates kept with playbooks, storage by plan) (added to Phase 1 by Stacey 2026-10-29; brief docs/briefs/step-2a-ai-keys-voice-files.md). Built first, because Step 2 uses all three | Brief written, questions open |
 | 2 | AI and playbooks (attorney side): the playbook definition, the firm playbook library with limits by plan (Free 10, then more per paid plan), chat with a playbook, versions, activity log, team comments approved by the playbook administrator, exports to Word, PDF, Markdown, HTML and CSV for Notion, Waybook, Monday and others (brief docs/briefs/step-2-playbooks.md) | Brief written, questions open |
 | 2b | DELA in ChatGPT and Claude (MCP connector): sign in with Lawfecta, playbook tools first (added by Stacey 2026-10-27; brief docs/briefs/step-2b-mcp-connector.md) | Brief written, questions open |
-| 3 | Profiles and verification (both sides) | |
-| 4 | Matching, Flex Gigs, proposals and tech catalog | |
+| 3 | Profiles and verification (both sides), including freelancer profile documents on the Step 2a file system | |
+| 4 | Matching, Flex Gigs, proposals and tech catalog; files shared with a freelancer for a gig | |
 | 5 | Booking, calendars, meetings and chat | |
 | 6 | Contracts and payments (Stripe test mode) | |
 | 7 | Reviews, benches and webhooks | |
