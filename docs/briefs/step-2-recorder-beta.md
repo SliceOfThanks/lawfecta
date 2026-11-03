@@ -1,7 +1,7 @@
 # Feature brief: Beta MVP, the Process Recorder and playbooks together
 
 Step: 2 (replaces the old order: Step 2 playbooks, recorder in Phase 1B)   Spec references: DELA Process Recorder Build Plan (2026-10-28), 02 Phase 1B section 1 to 3, 00 Program Guide section 2 (Launch / data, Extensions, AI / BYOK), C-28, Step 2 playbooks brief
-Status: draft, waiting on Stacey's answers. Recommended answers are filled in; Stacey says yes or changes them. Import from Scribe added by Stacey 2026-10-28 so beta users have something to use before the recorder is ready.
+Status: built as beta v1a (Scribe import) and beta v1 (recorder) with the suggested answers (Stacey 2026-11-03: keep building, hold anything that needs me); see STATUS.md. Recommended answers are filled in; Stacey says yes or changes them. Import from Scribe added by Stacey 2026-10-28 so beta users have something to use before the recorder is ready.
 
 ## The idea in one paragraph
 The fastest way to put DELA in front of beta users is a feature an attorney can use alone, on day one, with no freelancer, no payment and no contract. The Process Recorder is that feature: record a task once, get a written SOP (a playbook) and a list of steps that could be handed off. So the beta MVP is the recorder and the playbook library built as one thing. Hiring, payments, booking and reviews follow after the beta tells us what attorneys actually record and want to hand off.

@@ -14,7 +14,17 @@
 4. A real Scribe export (HTML and Markdown) to confirm the importer and the screenshot addresses (setting import.image_hosts).
 5. OpenAI model names (ai.model.openai, ai.model.transcribe) and AI credit costs (ai.credits.*) are Open.
 6. From before: Brevo key (email), DELA-Auth sign in secret, Live setup checklist.
-7. ChatGPT tests: docs/tests/step-2a-chatgpt-prompt.md and docs/tests/step-2-chatgpt-prompt.md.
+7. Recorder brief question 1 (client information in recordings): built for practice runs and non-client work (consent wording says so, review screen and blur). Recorder plan numbers (recorder.max_minutes, video_days, credits) are Open settings. The recorder switch is on for the access list on the test site only.
+8. Recorder brief questions 7 to 10 (Chrome extension, where Recordings live, Userback, beta users) not built yet: the extension needs a Chrome Web Store account in Stacey's name.
+9. ChatGPT tests: docs/tests/step-2a-chatgpt-prompt.md, docs/tests/step-2-chatgpt-prompt.md, docs/tests/step-2-recorder-chatgpt-prompt.md.
+
+## Process Recorder beta (built 2026-11-03, on the test site; brief docs/briefs/step-2-recorder-beta.md)
+- Commit a0b4044, api-0.7.0 (api version 10, jsDelivr loader), migration 0016_recorder (applied from jsDelivr, SHA-256 checked). Switch recorder = list on the test site.
+- No separate video server. Browser: whole-screen check, microphone with level, consent saved (append-only), 10 second video pieces and 10 minute speech parts uploaded through signed addresses and kept in IndexedDB until uploaded (Finish upload), screenshots when the screen changes (max 200), controls plus a Document Picture-in-Picture window in Chrome and Edge, pause, 2 minute warning, auto stop, Stop sharing saves, Upload a recording (played silently at 2x to capture screenshots and speech).
+- Worker: recording_transcribe (timed lines; Claude-key members use Lawfecta's speech to text inside the recording's credits), recording_stage1 (draft steps, frames, extra screenshots, client information flags), then the same review screen as Scribe with the transcript (edit, Mark as private) and Build my playbook. Private lines and screenshots inside private moments never reach the AI. Credits reserved at Stop and save, settled when ready, given back on failure; Try again.
+- Video: download joins the pieces in the browser (.webm, checked with ffprobe: VP9 and Opus); delete keeps screenshots used in the playbook; daily retention with a warning 3 days before, logged. Storage counts recordings.
+- Not built: OpenCV click detection, MP4 conversion, the Chrome extension (beta v2), Firefox-specific tuning (works through the same browser APIs; test in Part A).
+- Tests: supabase/functions/api/recorder_test.ts (9), tests/pw/recorder-test.js (16, moving test picture as the screen). All suites: 7 database, 53 API, 15 script, 144 browser checks.
 
 ## Step 2 (built 2026-11-03, on the test site; briefs docs/briefs/step-2-playbooks.md and step-2-recorder-beta.md)
 - Commit f42e11a, api-0.6.0 (api version 9 on the test site, jsDelivr loader), migration 0015_playbooks (applied from jsDelivr, SHA-256 checked).
