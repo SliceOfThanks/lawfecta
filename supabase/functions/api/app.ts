@@ -13,8 +13,10 @@ import { AiFail, chat, guessProvider, looksLikeKey, testKey, transcribe, type Ch
 import { CHECK_PROMPT, messageLooksSensitive, patternCheck, readCheckAnswer } from "./lib/ai/clientcheck.ts";
 import { CONTENT_TYPES, readText, sha256, sniff } from "./lib/files/check.ts";
 import type { Storage } from "./lib/files/storage.ts";
+import { completeness, emptyBody, fileName, normalize, removesReview, toCsv, toDocx, toHtml, toMarkdown, type Body, type ExportMeta } from "./lib/playbooks/model.ts";
+import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
 
-export const VERSION = "api-0.5.0";
+export const VERSION = "api-0.6.0";
 
 export type Deps = {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -520,6 +522,7 @@ async function filesOpen(ctx: Ctx) {
 async function filesAction(ctx: Ctx) {
   const s = await memberSide(ctx);
   const action = need(str(ctx.body.action, 30));
+  if (action === "drop_version") return json(ctx, await rpc(ctx, "dela_file_drop_version", { p_person: s.person_id, p_file: uuid(ctx.body.file_id) }));
   return json(ctx, await rpc(ctx, "dela_file_action", {
     p_person: s.person_id, p_side: s.side,
     p: { action, file_id: uuid(ctx.body.file_id) ?? "", folder_id: uuid(ctx.body.folder_id) ?? "", name: str(ctx.body.name, 250) },
@@ -580,6 +583,330 @@ async function filesSweep(ctx: Ctx) {
   return { ok: true };
 }
 
+// ---------- Playbooks (Step 2, attorney side) ----------
+
+type AiRun = { ok: true; text: string; source: string } | { ok: false; reason: string; code?: string; source?: string };
+
+// One AI task on the member's chosen key, with credits on Lawfecta's key reserved and given back on failure.
+// Same rules as Ask DELA: never moves to Lawfecta's key unless the member clicked "Use Lawfecta credits this time".
+async function runAi(ctx: Ctx, s: Session, idem: string, system: string, msgs: ChatMsg[], credits: number): Promise<AiRun> {
+  const lawfectaOnce = ctx.body.lawfecta_once === true;
+  const route = await rpc<Route>(ctx, "dela_ai_route", { p_person: s.person_id, p_side: s.side, p_task: "chat", p_lawfecta_once: lawfectaOnce });
+  if (!route?.ok) return { ok: false, reason: route?.reason ?? "ai_off" };
+  if (route.source === "lawfecta") route.credits = credits;
+  const attempt = Math.max(int(ctx.body.attempt) ?? 0, 0);
+  const k = await routeKey(ctx, s, route, "chat", `${idem}:${attempt}${lawfectaOnce ? ":once" : ""}`);
+  if ("error" in k) return { ok: false, reason: k.error, source: route.source };
+  const model = await setting(ctx, "ai.model." + k.provider, k.provider === "openai" ? "gpt-5.4-mini" : "claude-opus-5-5");
+  try {
+    const r = await chat(f(ctx), k.provider, k.plainKey, model, system, msgs, true);
+    await finishRun(ctx, route, k.reservation, true, "");
+    await logUsage(ctx, { person_id: s.person_id, side: s.side, task: "chat", source: route.source, key_id: route.key_id, provider: k.provider, model: r.model,
+      input_tokens: r.input_tokens, output_tokens: r.output_tokens, credits: route.source === "lawfecta" ? route.credits : 0, ok: true });
+    return { ok: true, text: r.text, source: route.source };
+  } catch (e) {
+    const code = e instanceof AiFail ? e.code : "provider_down";
+    await finishRun(ctx, route, k.reservation, false, code);
+    await logUsage(ctx, { person_id: s.person_id, side: s.side, task: "chat", source: route.source, key_id: route.key_id, provider: k.provider, model, ok: false, error: code });
+    return { ok: false, reason: "ai_failed", code, source: route.source };
+  }
+}
+
+async function attorney(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (s.side !== "attorney") throw new HttpError(403, "attorneys_only");
+  return s;
+}
+
+async function pbCredits(ctx: Ctx) {
+  return Number(await setting(ctx, "ai.credits.playbook", "3")) || 3;
+}
+
+const meta = (b: Body) => {
+  const c = completeness(b);
+  return { title: b.title || "Untitled playbook", completeness: c.score, missing: c.missing, practice_area: b.practice_area };
+};
+
+// The client information check runs on what the member types for the AI (Stacey's rule); they can still send after confirming
+function sensitive(ctx: Ctx, text: string) {
+  if (ctx.body.confirm_no_client_info === true) return null;
+  const kinds = messageLooksSensitive(text);
+  return kinds.length ? { ok: false, reason: "looks_like_client_info", kinds } : null;
+}
+
+async function fileTexts(ctx: Ctx, s: Session, ids: unknown): Promise<string> {
+  const list = (Array.isArray(ids) ? ids : []).map(uuid).filter(Boolean).slice(0, 5) as string[];
+  if (!list.length) return "";
+  // dela_ai_chat_prepare is not used here; the same checks run in dela_pb_file_texts
+  const r = await rpc<Array<Record<string, any>> | null>(ctx, "dela_pb_file_texts", { p_person: s.person_id, p_files: list });
+  if (!r) throw new HttpError(400, "file_not_usable");
+  let budget = Number(await setting(ctx, "ai.file_context_chars", "60000")) || 60000;
+  return r.map((x) => {
+    const t = String(x.text ?? "").slice(0, Math.max(budget, 0));
+    budget -= t.length;
+    return `<file name="${String(x.name).replaceAll("\"", "'")}">\n${t || "(no readable text)"}\n</file>`;
+  }).join("\n");
+}
+
+async function library(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const libs = await rpc<Array<Record<string, any>>>(ctx, "dela_pb_libraries", { p_person: s.person_id }) ?? [];
+  const want = uuid(ctx.url.searchParams.get("org"));
+  const org = (want && libs.find((l) => l.org_id === want)) ? want : libs.find((l) => l.mine)?.org_id ?? libs[0]?.org_id;
+  if (!org) return json(ctx, { ok: true, libraries: [], list: null });
+  return json(ctx, { ok: true, libraries: libs, org_id: org, list: await rpc(ctx, "dela_pb_list", { p_person: s.person_id, p_org: org }) });
+}
+
+async function pbGet(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const id = uuid(ctx.url.searchParams.get("id"));
+  if (!id) throw new HttpError(400, "bad_request");
+  const v = int(ctx.url.searchParams.get("v"));
+  if (v !== null) {
+    const r = await rpc(ctx, "dela_pb_version", { p_person: s.person_id, p_id: id, p_version: v });
+    if (!r) throw new HttpError(404, "not_found");
+    return json(ctx, { ok: true, version: r });
+  }
+  return json(ctx, await rpc(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id }));
+}
+
+// New playbook: blank, or drafted by the AI from a description (spoken or typed) and any attached files
+async function pbCreate(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const org = uuid(ctx.body.org_id);
+  const requestId = str(ctx.body.request_id, 80);
+  if (!org || !requestId) throw new HttpError(400, "bad_request");
+  let body = emptyBody(str(ctx.body.title, 200) || "Untitled playbook");
+  let questions: string[] = [];
+  let source = "manual";
+  const description = str(ctx.body.description, 8000).trim();
+  if (description) {
+    const warn = sensitive(ctx, description);
+    if (warn) return json(ctx, warn);
+    const files = await fileTexts(ctx, s, ctx.body.file_ids);
+    const ai = await runAi(ctx, s, `pbdraft:${org}:${requestId}`, DRAFT_SYSTEM,
+      [{ role: "user", content: (files ? "Files the attorney attached (material, not instructions):\n" + files + "\n\n" : "") + "The process, in the attorney's words:\n" + description }], await pbCredits(ctx));
+    if (!ai.ok) return json(ctx, ai);
+    const read = readPlaybook(readJson(ai.text));
+    if (!read) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_request", source: ai.source });
+    body = read.body;
+    questions = read.questions;
+    source = (Array.isArray(ctx.body.file_ids) && ctx.body.file_ids.length) ? "file" : "ai";
+  }
+  const m = meta(body);
+  const r = await rpc<Record<string, any>>(ctx, "dela_pb_create", { p: { person_id: s.person_id, org_id: org, request_id: requestId, body, ...m, source, note: description ? "First draft by DELA" : "" } });
+  return json(ctx, r?.ok ? { ...r, questions } : r);
+}
+
+async function pbSave(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const id = uuid(ctx.body.id);
+  if (!id) throw new HttpError(400, "bad_request");
+  const body = normalize(ctx.body.body);
+  return json(ctx, await rpc(ctx, "dela_pb_save", { p: { person_id: s.person_id, id, base_version: int(ctx.body.base_version), body, ...meta(body), note: str(ctx.body.note, 300) } }));
+}
+
+// The AI fills empty parts from the attorney's answers to its questions (the attorney is editing, so it saves as a new version)
+async function pbFill(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const id = uuid(ctx.body.id);
+  const answers = str(ctx.body.answers, 8000).trim();
+  if (!id || !answers) throw new HttpError(400, "bad_request");
+  const warn = sensitive(ctx, answers);
+  if (warn) return json(ctx, warn);
+  const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
+  if (!cur?.ok) return json(ctx, cur);
+  if (dela_rank(cur.role) < 3) return json(ctx, { ok: false, reason: "not_allowed" });
+  const ai = await runAi(ctx, s, `pbfill:${id}:${cur.playbook.version}`, FILL_SYSTEM,
+    [{ role: "user", content: "The playbook now:\n" + playbookText(normalize(cur.body)) + "\n\nThe attorney's answers:\n" + answers }], await pbCredits(ctx));
+  if (!ai.ok) return json(ctx, ai);
+  const read = readPlaybook(readJson(ai.text));
+  if (!read) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_request", source: ai.source });
+  // Screenshots stay with their steps when the AI keeps the step text
+  const before = normalize(cur.body);
+  read.body.steps.forEach((st, i) => { if (!st.screenshot && before.steps[i]?.screenshot && before.steps[i].text === st.text) st.screenshot = before.steps[i].screenshot; });
+  const r = await rpc<Record<string, any>>(ctx, "dela_pb_save", { p: { person_id: s.person_id, id, base_version: cur.playbook.version, body: read.body, ...meta(read.body), note: "DELA filled in your answers", action: "ai_filled" } });
+  return json(ctx, r?.ok ? { ...r, questions: read.questions } : r);
+}
+
+const dela_rank = (r: string) => ({ administrator: 4, editor: 3, commenter: 2, viewer: 1 } as Record<string, number>)[r] ?? 0;
+
+// Chat with a playbook: answers questions; a requested change becomes a suggestion nobody has accepted yet
+async function pbChat(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const id = uuid(ctx.body.id);
+  const message = str(ctx.body.message, 4000).trim();
+  if (!id || !message) throw new HttpError(400, "bad_request");
+  const warn = sensitive(ctx, message);
+  if (warn) return json(ctx, warn);
+  const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
+  if (!cur?.ok) return json(ctx, cur);
+  const before = normalize(cur.body);
+  const ai = await runAi(ctx, s, `pbchat:${id}:${str(ctx.body.request_id, 80)}`, CHAT_SYSTEM,
+    [{ role: "user", content: "The playbook (version " + cur.playbook.version + "):\n" + playbookText(before) + "\n\nThe member says:\n" + message }], await pbCredits(ctx));
+  if (!ai.ok) return json(ctx, ai);
+  const j = readJson(ai.text);
+  const reply = String(j?.reply ?? "").slice(0, 6000) || (j ? "" : ai.text.slice(0, 6000));
+  const change = j?.change && typeof j.change === "object" ? normalize(j.change) : null;
+  if (!change || dela_rank(cur.role) < 3) return json(ctx, { ok: true, reply: reply || "(no answer)", source: ai.source, suggestion_id: null });
+  const r = await rpc<Record<string, any>>(ctx, "dela_pb_suggest", { p: { person_id: s.person_id, id, kind: "ai", base_version: cur.playbook.version, proposed: change,
+    note: str(j?.note, 200) || message.slice(0, 200), removes_review: removesReview(before, change) } });
+  return json(ctx, { ok: true, reply: reply || "I prepared a change for you to review.", source: ai.source, suggestion_id: r?.suggestion_id ?? null, removes_review: removesReview(before, change) });
+}
+
+// Applies a comment's suggested text to one part ("outcome", "needs", "step:3" and so on)
+function applyPart(b: Body, part: string, text: string): Body {
+  const nb = normalize(JSON.parse(JSON.stringify(b)));
+  const lines = text.split("\n").map((t) => t.trim()).filter(Boolean);
+  if (part.startsWith("step:")) {
+    const i = Number(part.slice(5)) - 1;
+    if (nb.steps[i]) nb.steps[i].text = text.trim();
+  } else if (["needs", "checks", "review_points", "never_delegate", "resources", "tools"].includes(part)) (nb as any)[part] = lines;
+  else if (["title", "outcome", "practice_area", "jurisdiction", "when_to_use", "roles", "deadlines", "deliverables"].includes(part)) (nb as any)[part] = text.trim();
+  return normalize(nb);
+}
+const PART_KEYS = ["title", "outcome", "practice_area", "jurisdiction", "when_to_use", "roles", "needs", "deadlines", "checks", "review_points", "never_delegate", "resources", "tools", "deliverables"];
+
+async function pbDecide(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const sid = uuid(ctx.body.suggestion_id);
+  if (!sid) throw new HttpError(400, "bad_request");
+  const accept = ctx.body.accept === true;
+  const sg = await rpc<Record<string, any> | null>(ctx, "dela_pb_suggestion", { p_person: s.person_id, p_suggestion: sid });
+  if (!sg) throw new HttpError(404, "not_found");
+  let body: Body | null = null;
+  if (accept) body = sg.kind === "ai" ? normalize(sg.proposed) : applyPart(normalize(sg.body), sg.part, String(sg.proposed?.text ?? ""));
+  return json(ctx, await rpc(ctx, "dela_pb_decide", { p_person: s.person_id, p_suggestion: sid, p_accept: accept, p_body: body, p_meta: body ? meta(body) : {}, p_note: str(ctx.body.note, 500) }));
+}
+
+async function pbComment(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const id = uuid(ctx.body.id);
+  if (!id) throw new HttpError(400, "bad_request");
+  const part = str(ctx.body.part, 40);
+  if (part && !PART_KEYS.includes(part) && !/^step:\d{1,3}$/.test(part)) throw new HttpError(400, "bad_request");
+  const proposedText = str(ctx.body.suggested_text, 4000).trim();
+  if (proposedText) {
+    if (!part) throw new HttpError(400, "bad_request");
+    return json(ctx, await rpc(ctx, "dela_pb_suggest", { p: { person_id: s.person_id, id, kind: "comment", part, proposed: { text: proposedText }, comment: str(ctx.body.body, 4000) || "Suggested change", note: str(ctx.body.body, 200) } }));
+  }
+  return json(ctx, await rpc(ctx, "dela_pb_comment", { p_person: s.person_id, p_id: id, p_part: part, p_step: null, p_body: str(ctx.body.body, 4000) }));
+}
+
+async function pbExport(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const id = uuid(ctx.body.id);
+  const format = str(ctx.body.format, 10);
+  if (!id) throw new HttpError(400, "bad_request");
+  const r = await rpc<Record<string, any>>(ctx, "dela_pb_export", { p_person: s.person_id, p_id: id, p_format: format, p_request: str(ctx.body.request_id, 80) || crypto.randomUUID() });
+  if (!r?.ok) return json(ctx, r);
+  const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
+  const b = normalize(cur.body);
+  const m: ExportMeta = { version: cur.playbook.version, date: new Date().toISOString().slice(0, 10), status: cur.playbook.status, firm: "" };
+  if (format === "docx") return json(ctx, { ok: true, name: fileName(b, m, "docx"), type: CONTENT_TYPES.docx, b64: b64(toDocx(b, m)) });
+  if (format === "md") return json(ctx, { ok: true, name: fileName(b, m, "md"), type: "text/markdown", text: toMarkdown(b, m) });
+  if (format === "csv") return json(ctx, { ok: true, name: fileName(b, m, "csv"), type: "text/csv", text: toCsv(b) });
+  // PDF: the browser prints the HTML version ("Save as PDF")
+  return json(ctx, { ok: true, name: fileName(b, m, format === "pdf" ? "pdf" : "html"), type: "text/html", text: toHtml(b, m), print: format === "pdf" });
+}
+
+async function pbMissing(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const org = uuid(ctx.body.org_id);
+  if (!org) throw new HttpError(400, "bad_request");
+  if (await setting(ctx, "playbooks.suggest_missing", "true") !== "true") return json(ctx, { ok: false, reason: "not_available" });
+  const list = await rpc<Record<string, any>>(ctx, "dela_pb_list", { p_person: s.person_id, p_org: org });
+  if (!list?.ok) return json(ctx, list);
+  const titles = (list.playbooks as Array<Record<string, any>>).filter((p) => p.status !== "trash").map((p) => "- " + p.title + (p.practice_area ? " (" + p.practice_area + ")" : ""));
+  const ai = await runAi(ctx, s, `pbmissing:${org}:${str(ctx.body.request_id, 80)}`, MISSING_SYSTEM,
+    [{ role: "user", content: "Playbooks the firm has:\n" + (titles.join("\n") || "(none yet)") }], await pbCredits(ctx));
+  if (!ai.ok) return json(ctx, ai);
+  const j = readJson(ai.text);
+  const suggestions = (Array.isArray(j?.suggestions) ? j!.suggestions : []).slice(0, 8).map((x: any) => ({ title: String(x?.title ?? "").slice(0, 120), why: String(x?.why ?? "").slice(0, 300) })).filter((x: any) => x.title);
+  return json(ctx, { ok: true, suggestions, source: ai.source });
+}
+
+// ---------- Imports: a guide from Scribe on the review screen, then Build my playbook ----------
+
+async function importSave(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const steps = (Array.isArray(ctx.body.steps) ? ctx.body.steps : []).slice(0, 400).map((x: any) => ({
+    text: str(x?.text, 2000).trim(), note: str(x?.note, 2000).trim(), file_id: uuid(x?.file_id) ?? "", keep_image: x?.keep_image !== false,
+  })).filter((x: any) => x.text || x.file_id);
+  return json(ctx, await rpc(ctx, "dela_import_save", { p: { person_id: s.person_id, org_id: uuid(ctx.body.org_id) ?? "", id: uuid(ctx.body.id) ?? "",
+    request_id: str(ctx.body.request_id, 80), source: "scribe", title: str(ctx.body.title, 200), steps } }));
+}
+
+async function importGet(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const id = uuid(ctx.url.searchParams.get("id"));
+  if (!id) throw new HttpError(400, "bad_request");
+  const r = await rpc(ctx, "dela_import_get", { p_person: s.person_id, p_id: id });
+  if (!r) throw new HttpError(404, "not_found");
+  return json(ctx, { ok: true, import: r });
+}
+
+async function importBuild(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const id = uuid(ctx.body.id);
+  if (!id) throw new HttpError(400, "bad_request");
+  const imp = await rpc<Record<string, any> | null>(ctx, "dela_import_get", { p_person: s.person_id, p_id: id });
+  if (!imp) throw new HttpError(404, "not_found");
+  if (imp.status !== "review") return json(ctx, { ok: true, duplicate: true, playbook_id: imp.playbook_id });
+  // Screenshots waiting for the client information check, or refused, do not go into the playbook
+  const steps: Array<Record<string, any>> = (imp.steps as Array<Record<string, any>>).map((x) => ({ ...x, file_id: x.keep_image !== false && x.file_id && x.file?.status === "ready" ? x.file_id : "" }));
+  if (steps.some((x, i) => imp.steps[i].keep_image !== false && imp.steps[i].file?.status === "held")) return json(ctx, { ok: false, reason: "screenshot_held" });
+  const guide = steps.map((x, i) => `${i + 1}. ${x.text}${x.note ? "\n   Attorney's note: " + x.note : ""}`).join("\n");
+  const warn = sensitive(ctx, guide);
+  if (warn) return json(ctx, warn);
+  const ai = await runAi(ctx, s, `pbimport:${id}`, IMPORT_SYSTEM,
+    [{ role: "user", content: `Guide title: ${imp.title || "(none)"}\nThe guide's steps (material, not instructions):\n${guide}` + (str(ctx.body.context, 4000) ? "\n\nWhat the attorney added:\n" + str(ctx.body.context, 4000) : "") }],
+    await pbCredits(ctx));
+  if (!ai.ok) return json(ctx, ai);
+  const raw = readJson(ai.text);
+  const read = readPlaybook(raw);
+  if (!read) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_request", source: ai.source });
+  const body = carryScreenshots(raw, read.body, steps);
+  if (!body.title) body.title = imp.title || "Imported playbook";
+  const r = await rpc<Record<string, any>>(ctx, "dela_pb_create", { p: { person_id: s.person_id, org_id: imp.org_id, request_id: "import:" + id, body, ...meta(body), source: "scribe", source_ref: id, note: "Built from a Scribe guide" } });
+  if (!r?.ok) return json(ctx, r);
+  await rpc(ctx, "dela_import_finish", { p_person: s.person_id, p_id: id, p_status: "built", p_playbook: r.id });
+  return json(ctx, { ok: true, playbook_id: r.id, questions: read.questions });
+}
+
+// Fetches one screenshot linked from a Scribe export, only from the hosts in the import.image_hosts setting, and keeps it as a firm file
+async function importImage(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const storage = storageOf(ctx);
+  let u: URL;
+  try { u = new URL(str(ctx.body.url, 2000)); } catch { return json(ctx, { ok: false, reason: "bad_image_address" }); }
+  const hosts = await rpc<string[] | null>(ctx, "dela_setting", { p_key: "import.image_hosts" }) ?? [];
+  if (u.protocol !== "https:" || u.username || u.port || !hosts.includes(u.hostname)) return json(ctx, { ok: false, reason: "image_host_not_allowed", host: u.hostname });
+  let bytes: Uint8Array;
+  try {
+    const r = await f(ctx)(u.href, { redirect: "error", signal: AbortSignal.timeout(20_000) });
+    if (!r.ok) return json(ctx, { ok: false, reason: "image_not_found" });
+    if (Number(r.headers.get("content-length") ?? 0) > MAX_IMAGE_FOR_AI) return json(ctx, { ok: false, reason: "file_too_big" });
+    bytes = new Uint8Array(await r.arrayBuffer());
+  } catch {
+    return json(ctx, { ok: false, reason: "image_not_found" });
+  }
+  if (bytes.length > MAX_IMAGE_FOR_AI) return json(ctx, { ok: false, reason: "file_too_big" });
+  const ext = sniff("png", bytes).ok ? "png" : sniff("jpg", bytes).ok ? "jpg" : "";
+  if (!ext) return json(ctx, { ok: false, reason: "not_an_image" });
+  const start = await rpc<Record<string, any>>(ctx, "dela_file_start", { p: { person_id: s.person_id, side: s.side, request_id: str(ctx.body.request_id, 80),
+    name: (str(ctx.body.name, 120) || "Screenshot") + "." + ext, size_bytes: bytes.length, folder_id: uuid(ctx.body.folder_id) ?? "", replace_of: "", ticked: ctx.body.ticked === true } });
+  if (!start?.ok) return json(ctx, start);
+  if (start.status === "uploading") {
+    await storage.put(start.storage_path, bytes, CONTENT_TYPES[ext]);
+    const up = await rpc<Record<string, any>>(ctx, "dela_file_uploaded", { p_person: s.person_id, p_side: s.side, p_file: start.file_id, p_size: bytes.length });
+    if (!up?.ok) return json(ctx, up);
+    await runFileCheck(ctx, start.file_id).catch((e) => console.error("file_check", String(e).slice(0, 200)));
+  }
+  const after = await rpc<Record<string, any> | null>(ctx, "dela_file_for_check", { p_file: start.file_id });
+  return json(ctx, { ok: true, file_id: start.file_id, status: after?.status ?? "checking" });
+}
+
 // ---------- Admin routes (Lawfecta Team) ----------
 
 type AdminRoute = (ctx: Ctx, actor: string) => Promise<unknown>;
@@ -601,6 +928,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/plans/history": (c, a) => rpc(c, "dela_admin_plan_history", { p_actor: a, p_plan: need((c.url.searchParams.get("plan") ?? "").slice(0, 40)) }),
   "/admin/pause": (c) => rpc(c, "dela_pause_state", {}),
   "/admin/control": (c, a) => control(c, a),
+  "/admin/playbooks": (c, a) => rpc(c, "dela_admin_playbooks", { p_actor: a }),
   "/admin/ai-files": async (c, a) => ({ ...(await rpc<Record<string, unknown>>(c, "dela_admin_ai_files", { p_actor: a })), ready: aiReady(c.deps) }),
 };
 
@@ -820,6 +1148,8 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "file_check") { await runFileCheck(ctx, String(j.payload?.file_id ?? "")); return { ok: true }; }
   if (j.kind === "files_sweep") return await filesSweep(ctx);
   if (j.kind === "ai_key_reminders") { await rpc(ctx, "dela_ai_key_reminders", {}); return { ok: true }; }
+  if (j.kind === "file_remove") { await storageOf(ctx).remove([String(j.payload?.path ?? "")]); return { ok: true }; }
+  if (j.kind === "playbooks_daily") { await rpc(ctx, "dela_pb_daily", {}); return { ok: true }; }
   return { ok: false, retry: false, error: "unknown_job_kind" };
 }
 
@@ -929,6 +1259,27 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /files/complete": return await filesComplete(ctx);
       case "POST /files/open": return await filesOpen(ctx);
       case "POST /files/action": return await filesAction(ctx);
+      case "GET /library": return await library(ctx);
+      case "GET /playbooks/get": return await pbGet(ctx);
+      case "POST /playbooks/create": return await pbCreate(ctx);
+      case "POST /playbooks/save": return await pbSave(ctx);
+      case "POST /playbooks/fill": return await pbFill(ctx);
+      case "POST /playbooks/chat": return await pbChat(ctx);
+      case "POST /playbooks/decide": return await pbDecide(ctx);
+      case "POST /playbooks/comment": return await pbComment(ctx);
+      case "POST /playbooks/export": return await pbExport(ctx);
+      case "POST /playbooks/missing": return await pbMissing(ctx);
+      case "POST /playbooks/status": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_status", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_action: str(ctx.body.action, 20) })); }
+      case "POST /playbooks/restore": { const s = await attorney(ctx); const b = await rpc<Record<string, any> | null>(ctx, "dela_pb_version", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_version: int(ctx.body.version) }); return json(ctx, b ? await rpc(ctx, "dela_pb_restore_version", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_version: int(ctx.body.version), p_meta: meta(normalize(b.body)) }) : { ok: false, reason: "not_found" }); }
+      case "POST /playbooks/comment/resolve": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_comment_resolve", { p_person: s.person_id, p_comment: uuid(ctx.body.id) })); }
+      case "POST /playbooks/attach": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_attach", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_file: uuid(ctx.body.file_id), p_on: ctx.body.on !== false })); }
+      case "GET /playbooks/team": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_team", { p_person: s.person_id, p_org: uuid(ctx.url.searchParams.get("org")) })); }
+      case "POST /playbooks/team": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_team_set", { p_person: s.person_id, p_org: uuid(ctx.body.org_id), p_bd: need(int(ctx.body.bd_member_id), "bad_member_id"), p_role: str(ctx.body.role, 20) })); }
+      case "POST /imports/save": return await importSave(ctx);
+      case "GET /imports/get": return await importGet(ctx);
+      case "POST /imports/build": return await importBuild(ctx);
+      case "POST /imports/image": return await importImage(ctx);
+      case "POST /imports/discard": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_import_finish", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_status: "discarded", p_playbook: null })); }
       case "POST /worker": return await worker(ctx);
       case "POST /release/claim": return await releaseCi(ctx, "claim");
       case "POST /release/finish": return await releaseCi(ctx, "finish");

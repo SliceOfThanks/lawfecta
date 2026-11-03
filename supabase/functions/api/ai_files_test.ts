@@ -79,6 +79,7 @@ const storage: Storage = {
     return b ? Promise.resolve(b) : Promise.reject(new Error("missing"));
   },
   remove: (paths) => { paths.forEach((p) => objects.delete(p)); return Promise.resolve(); },
+  put: (p, b) => { objects.set(p, b); return Promise.resolve(); },
 };
 
 const ENV: Record<string, string> = { BD_SHARED_SECRET: "x".repeat(40), DELA_ORIGINS: "https://lawfecta.com", AI_KEY_ENCRYPTION_SECRET: ENC, OPENAI_API_KEY: LAWFECTA_OPENAI };

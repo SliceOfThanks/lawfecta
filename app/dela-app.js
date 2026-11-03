@@ -21,6 +21,7 @@
     var sw = me.switches || {};
     if (me.side === "attorney") {
       var a = [["home", "Home", "⌂"], ["delegate", sw.ai_generation ? "Ask DELA" : "Delegate", "✦"]];
+      if (sw.playbook_library) a.push(["library", "Library", "▥"]);
       if (sw.file_uploads) a.push(["files", "Files", "▤"]);
       return a.concat([["projects", "Projects", "▣"], ["talent", "Talent", "◌"]]);
     }
@@ -160,7 +161,7 @@
         stat("☰", 0, "Open tasks"),
         stat("▣", 0, "Active projects"),
         stat("!", 0, "Pending reviews"),
-        stat("✦", 0, "Draft playbooks")),
+        stat("✦", me.playbooks_draft || 0, "Draft playbooks")),
       h("div", { class: "card" }, h("div", { class: "row" }, h("h2", { text: "Verification" }), h("span", { class: "badge", text: s.verification_state.split("_").join(" ") })), h("p", { text: ver })),
       h("h2", { style: "margin-top:22px", text: "What DELA will do for you" }),
       soon(1, "Playbooks", "Describe a task. DELA asks what it needs and builds a step by step plan you approve."),
@@ -820,6 +821,843 @@
   }
 
 
+  // ---------- Step 2: the playbook library ----------
+
+  var lib = { data: null, org: null, filter: "all", q: "", pb: null, view: "read", importId: null, building: false };
+  var libEl = null;
+  var PB_STATUS = { draft: "Draft", in_review: "In review", approved: "Approved", archived: "Archived", trash: "In the trash" };
+  var ROLE_WORDS = { administrator: "Administrator", editor: "Editor", commenter: "Commenter", viewer: "Viewer" };
+  var RANK = { administrator: 4, editor: 3, commenter: 2, viewer: 1 };
+  var PB_PARTS = [
+    ["outcome", "Title and outcome", "text"], ["area", "Practice area and jurisdiction", "area"], ["when_to_use", "When to use it", "text"], ["roles", "Roles", "text"],
+    ["needs", "What you need first", "list"], ["steps", "Steps", "steps"], ["deadlines", "Deadlines and timing", "text"], ["checks", "Quality checks", "list"],
+    ["review_points", "Attorney review and ethics points", "list"], ["never_delegate", "Never delegate", "list"], ["resources", "Templates and resources", "list"],
+    ["tools", "Tools", "list"], ["deliverables", "Deliverables", "text"],
+  ];
+  var TAG_WORDS = { keep: "Keep (attorney)", delegate: "Delegate", automate: "Automate" };
+  var ACTION_WORDS = { created: "Created", created_ai: "First draft by DELA", created_file: "Drafted by DELA from a file", created_scribe: "Built from a Scribe guide", edited: "Edited",
+    ai_filled: "DELA filled in answers", sent_for_review: "Sent for review", approved: "Approved", suggestion_made: "Suggested a change", suggestion_accepted: "Accepted a suggestion",
+    suggestion_rejected: "Rejected a suggestion", comment_added: "Commented", restored: "Restored an earlier version", exported: "Exported", archived: "Archived", unarchived: "Brought back from the archive",
+    deleted: "Moved to the trash", restored_from_trash: "Restored from the trash", file_attached: "Attached a file", file_removed: "Removed a file" };
+  function can(n) { return lib.pb ? (RANK[lib.pb.role] || 0) >= n : (lib.data && lib.data.list ? (RANK[lib.data.list.role] || 0) >= n : false); }
+  function failText(r) {
+    if (r.reason === "playbook_limit") return "Your library is full: " + r.count + " of " + r.limit + " playbooks. Archived playbooks count too. Delete one you no longer need, or upgrade your plan for more.";
+    if (r.reason === "changed") return "Someone saved a newer version while you were working. Your changes were not saved. Reload the playbook, then make your change again.";
+    if (r.reason === "not_complete") return "This playbook is not complete yet. Still missing: " + (r.missing || []).join(", ") + ".";
+    if (r.reason === "administrator_only") return "Only the library's administrator can do that.";
+    if (r.reason === "not_allowed") return "Your role in this library does not allow that.";
+    if (r.reason === "no_seat") return "Every seat on this plan is in use (" + r.seats + "). Editors need a seat. Add them as a commenter or viewer, or add seats on the Business plan.";
+    if (r.reason === "no_guest_place") return "This library already has " + r.guests + " commenters and viewers, the most allowed.";
+    if (r.reason === "screenshot_held") return "A screenshot is waiting for your client information check. Confirm it has no client information, or untick it, then build again.";
+    if (r.reason === "library_off") return "The playbook library is not open for your account yet.";
+    if (r.reason === "import_off") return "Import from Scribe is not open for your account yet.";
+    if (r.reason === "image_host_not_allowed") return "DELA only fetches screenshots from Scribe's own image addresses. This one was skipped: " + (r.host || "") + ".";
+    if (r.reason === "ai_failed" && r.source && r.source !== "lawfecta") return "Your own AI key did not work: " + (KEY_PROBLEM[r.code] || "the provider refused it.") + " Nothing ran on Lawfecta's AI. Open AI settings to fix it.";
+    if (r.reason === "ai_failed") return "DELA's AI could not finish: " + (KEY_PROBLEM[r.code] || "something went wrong.") + " No credits were used. Please try again.";
+    return D.errorText(r.reason || "server_error");
+  }
+  function pbFail(e) { D.toast(app, e && e.reason ? failText(e) : D.errorText(e && e.message ? e.message : String(e)), true); }
+  function okOr(r) { if (r && r.ok === false) throw r; return r; }
+
+  function libraryView() {
+    libEl = h("div", null, h("p", { class: "muted", text: "Loading..." }));
+    if (lib.importId) openImport(lib.importId);
+    else if (lib.pb && lib.pb.playbook) openPlaybook(lib.pb.playbook.id, lib.view);
+    else loadLibrary();
+    return libEl;
+  }
+
+  function loadLibrary() {
+    lib.pb = null;
+    lib.importId = null;
+    api.get("/library" + (lib.org ? "?org=" + lib.org : "")).then(function (r) { lib.data = r; lib.org = r.org_id; drawLibrary(); })
+      .catch(function (e) { D.clear(libEl); libEl.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+  }
+
+  function drawLibrary() {
+    D.clear(libEl);
+    var d = lib.data, L = d.list;
+    if (!L) { libEl.appendChild(h("p", { class: "muted", text: "No library yet." })); return; }
+    var head = h("div", { class: "row", style: "margin:18px 0 4px" }, h("h1", { class: "grow", style: "margin:0", text: "Playbook library" }));
+    if (d.libraries.length > 1) {
+      var pick = h("select", { "aria-label": "Library", onchange: function () { lib.org = pick.value; loadLibrary(); } }, d.libraries.map(function (l) {
+        return h("option", { value: l.org_id, selected: l.org_id === lib.org, text: (l.mine ? "My library" : l.name) + " (" + ROLE_WORDS[l.role] + ")" });
+      }));
+      head.appendChild(pick);
+    }
+    libEl.appendChild(head);
+    libEl.appendChild(h("p", { class: "muted", text: "Each playbook is one repeatable process, written so a trained person who has never done it can do it right, with the points where an attorney must review." }));
+    if (!L.on) { libEl.appendChild(h("div", { class: "notice", text: D.errorText("library_off") })); return; }
+    var pct = L.limit ? Math.min(100, Math.round(L.count * 100 / L.limit)) : 0;
+    libEl.appendChild(h("div", { class: "card" },
+      h("div", { class: "row" }, h("b", { class: "grow", text: L.limit === null ? L.count + " playbooks (no cap on your plan)" : L.count + " of " + L.limit + " playbooks" }), h("span", { class: "badge", text: "Your role: " + ROLE_WORDS[L.role] })),
+      L.limit !== null ? h("div", { class: "bar" }, h("span", { style: "width:" + pct + "%" + (pct >= 100 ? ";background:var(--bad)" : "") })) : null,
+      h("div", { class: "row", style: "margin-top:10px" },
+        can(3) ? h("button", { class: "blue", onclick: newPlaybook }, "New playbook") : null,
+        can(3) && L.scribe_on ? h("button", { class: "ghost", onclick: startScribe }, "Import from Scribe") : null,
+        can(3) ? h("button", { class: "ghost", onclick: suggestMissing }, "What am I missing?") : null,
+        L.role === "administrator" ? h("button", { class: "ghost", onclick: openTeam }, "Team") : null)));
+    if (L.imports.length) {
+      libEl.appendChild(h("div", { class: "card" }, h("h2", { text: "Imports waiting for review" }), h("ul", { class: "list" }, L.imports.map(function (i) {
+        return h("li", { class: "row" }, h("span", { class: "grow" }, h("b", { text: i.title || "Imported guide" }), h("span", { class: "small muted", text: " " + i.steps + " steps, " + D.date(i.created_at) })),
+          h("button", { class: "small blue", onclick: function () { openImport(i.id); } }, "Review"));
+      }))));
+    }
+    var q = h("input", { type: "search", placeholder: "Search", "aria-label": "Search playbooks", value: lib.q });
+    q.addEventListener("input", function () { lib.q = q.value; drawList(); });
+    var filters = [["all", "All"], ["draft", "Drafts"], ["in_review", "In review"], ["approved", "Approved"], ["due", "Due for review"], ["archived", "Archived"]];
+    if (L.role === "administrator") filters.push(["trash", "Trash"]);
+    libEl.appendChild(h("div", { class: "row" }, q, h("div", { class: "pills" }, filters.map(function (f) {
+      return h("button", { "aria-pressed": String(lib.filter === f[0]), onclick: function () { lib.filter = f[0]; drawLibrary(); } }, f[1]);
+    }))));
+    var listEl = h("div");
+    libEl.appendChild(listEl);
+    function drawList() {
+      D.clear(listEl);
+      var today = new Date().toISOString().slice(0, 10);
+      var rows = L.playbooks.filter(function (p) {
+        if (lib.filter === "trash") return p.status === "trash";
+        if (p.status === "trash") return false;
+        if (lib.filter === "due") return p.status === "approved" && p.next_review_at && p.next_review_at <= today;
+        if (lib.filter !== "all" && p.status !== lib.filter) return false;
+        if (lib.filter === "all" && p.status === "archived") return false;
+        return !lib.q || (p.title + " " + p.practice_area).toLowerCase().indexOf(lib.q.toLowerCase()) >= 0;
+      });
+      if (!rows.length) { listEl.appendChild(h("div", { class: "card" }, h("p", { class: "muted", style: "margin:0", text: L.playbooks.length ? "Nothing here." : "No playbooks yet. Click New playbook and describe a task, or import a guide you made in Scribe." }))); return; }
+      rows.forEach(function (p) {
+        listEl.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { openPlaybook(p.id, "read"); } },
+          h("span", { class: "chip", text: String(p.completeness) + "%" }),
+          h("div", { class: "grow" }, h("h3", { style: "margin:0", text: p.title }),
+            h("div", { class: "small muted", text: [p.practice_area, "version " + p.version, "updated " + D.date(p.updated_at), p.open_suggestions ? p.open_suggestions + " suggestion" + (p.open_suggestions > 1 ? "s" : "") + " waiting" : ""].filter(Boolean).join(" | ") })),
+          h("span", { class: "badge " + (p.status === "approved" ? "ready" : p.status === "in_review" ? "held" : ""), text: PB_STATUS[p.status] })));
+      });
+    }
+    drawList();
+  }
+
+  // New playbook: describe the task (type or talk), optionally attach files, and DELA drafts it
+  function newPlaybook() {
+    var box = h("div", { class: "card" });
+    var ta = h("textarea", { "aria-label": "Describe the task", style: "width:100%;min-height:120px", placeholder: "Describe the task the way you would explain it to a new paralegal: what starts it, the steps, who does each part, what done looks like." });
+    var title = h("input", { "aria-label": "Title", placeholder: "Title (optional)", style: "width:100%" });
+    var status = h("span", { class: "small muted", role: "status" });
+    var files = [];
+    var pickWrap = h("div");
+    var ai = chat.ai || {};
+    var micOk = ai.voice_on && navigator.mediaDevices && navigator.mediaDevices.getUserMedia && window.MediaRecorder;
+    var auto = h("input", { type: "checkbox" });
+    var mic = micOk ? h("button", { class: "mic small", type: "button", onclick: function () { toggleMic(mic, ta, status, auto); } }, "● Talk") : null;
+    var go = h("button", { class: "blue" }, "Draft it with DELA");
+    var blank = h("button", { class: "ghost" }, "Start blank");
+    var problem = h("div");
+    var req = newId(), attempt = 0;
+    function send(extra) {
+      extra = extra || {};
+      D.clear(problem);
+      go.disabled = true;
+      status.textContent = "DELA is drafting your playbook...";
+      api.post("/playbooks/create", { org_id: lib.org, request_id: req, title: title.value, description: ta.value, file_ids: files, attempt: attempt,
+        lawfecta_once: extra.lawfecta_once === true, confirm_no_client_info: extra.confirm === true }).then(function (r) {
+        go.disabled = false;
+        status.textContent = "";
+        if (!r.ok) {
+          if (r.reason === "looks_like_client_info") {
+            problem.appendChild(h("div", { class: "problem" }, h("p", { text: "This may include " + kindsText(r.kinds) + ". Use placeholders such as [Client Name] instead." }),
+              h("button", { class: "ghost small", onclick: function () { send({ confirm: true }); } }, "Send anyway, it has no client information")));
+          } else {
+            problem.appendChild(h("div", { class: "problem" }, h("p", { text: failText(r) }),
+              r.reason === "ai_failed" ? h("div", { class: "row" }, h("button", { class: "ghost small", onclick: function () { attempt++; send(); } }, "Try again"),
+                r.source !== "lawfecta" && ai.backup_credits !== false ? h("button", { class: "blue small", onclick: function () { attempt++; send({ lawfecta_once: true }); } }, "Use Lawfecta credits this time") : null) : null));
+          }
+          return;
+        }
+        lib.questions = r.questions || [];
+        openPlaybook(r.id, "read");
+      }).catch(function (e) { go.disabled = false; status.textContent = ""; pbFail(e); });
+    }
+    go.addEventListener("click", function () { if (!ta.value.trim()) { D.toast(app, "Describe the task first, or click Start blank.", true); return; } send(); });
+    blank.addEventListener("click", function () {
+      api.post("/playbooks/create", { org_id: lib.org, request_id: req, title: title.value || "Untitled playbook" }).then(okOr).then(function (r) { openPlaybook(r.id, "edit"); }).catch(pbFail);
+    });
+    var fileBtn = (me.switches || {}).file_uploads ? h("button", { class: "ghost small", type: "button", onclick: function () {
+      api.get("/files").then(function (r) {
+        D.clear(pickWrap);
+        var ready = (r.files || []).filter(function (f) { return f.status === "ready" && f.has_text; });
+        if (!ready.length) { pickWrap.appendChild(h("p", { class: "small muted", text: "No readable files yet. Upload a process document on the Files tab first." })); return; }
+        pickWrap.appendChild(h("div", { class: "pick" }, ready.map(function (f) {
+          var cb = h("input", { type: "checkbox" });
+          cb.addEventListener("change", function () { files = files.filter(function (x) { return x !== f.id; }); if (cb.checked) files.push(f.id); });
+          return h("label", null, cb, f.name);
+        })));
+      }).catch(err);
+    } }, "Use a file I uploaded") : null;
+    box.appendChild(h("h2", { text: "New playbook" }));
+    box.appendChild(notice());
+    box.appendChild(title);
+    box.appendChild(ta);
+    box.appendChild(h("div", { class: "row", style: "margin-top:8px" }, mic, fileBtn, h("span", { class: "grow" }), status));
+    box.appendChild(pickWrap);
+    box.appendChild(problem);
+    box.appendChild(h("div", { class: "row", style: "margin-top:8px" }, go, blank, h("button", { class: "ghost", onclick: drawLibrary }, "Cancel")));
+    D.clear(libEl);
+    libEl.appendChild(box);
+    ta.focus();
+  }
+
+  function suggestMissing() {
+    var out = h("div", { class: "card" }, h("p", { class: "muted", text: "DELA is looking at your library..." }));
+    libEl.insertBefore(out, libEl.children[3] || null);
+    api.post("/playbooks/missing", { org_id: lib.org, request_id: newId() }).then(function (r) {
+      D.clear(out);
+      if (!r.ok) { out.appendChild(h("p", { class: "problem", text: failText(r) })); return; }
+      out.appendChild(h("h2", { text: "Playbooks firms like yours often have" }));
+      out.appendChild(h("ul", { class: "list" }, r.suggestions.map(function (sg) {
+        return h("li", null, h("b", { text: sg.title }), h("div", { class: "small muted", text: sg.why }));
+      })));
+      out.appendChild(h("button", { class: "ghost small", onclick: function () { out.remove(); } }, "Close"));
+    }).catch(pbFail);
+  }
+
+  function openTeam() {
+    api.get("/playbooks/team?org=" + lib.org).then(function (t) {
+      if (drawer) drawer.remove();
+      var bd = h("input", { "aria-label": "BD member ID", inputmode: "numeric", placeholder: "BD member ID" });
+      var role = h("select", { "aria-label": "Role" }, ["editor", "commenter", "viewer", "administrator"].map(function (r) { return h("option", { value: r, text: ROLE_WORDS[r] }); }));
+      drawer = h("div", { class: "drawer", role: "dialog", "aria-label": "Library team" },
+        h("div", { class: "row" }, h("h2", { class: "grow", text: "Library team" }), h("button", { class: "ghost small", onclick: function () { drawer.remove(); drawer = null; } }, "Close")),
+        h("p", { class: "small muted", text: "Editors and administrators use a seat (" + t.seats + " on your plan, including you). Commenters and viewers do not, up to " + t.guests + "." }),
+        h("ul", { class: "list" }, h("li", null, h("b", { text: t.owner.name }), " Administrator (owner)"), t.members.map(function (m) {
+          return h("li", { class: "row" }, h("span", { class: "grow" }, h("b", { text: m.name }), " " + ROLE_WORDS[m.role]),
+            h("button", { class: "danger small", onclick: function () { teamSet(m.bd_member_id, "remove"); } }, "Remove"));
+        })),
+        h("h3", { style: "margin-top:14px", text: "Add someone" }),
+        h("p", { class: "small muted", text: "They need a Lawfecta account and must have opened DELA once. Find their BD member ID in their Lawfecta profile." }),
+        h("div", { class: "row" }, bd, role, h("button", { class: "blue small", onclick: function () { teamSet(bd.value, role.value); } }, "Add")));
+      app.appendChild(drawer);
+    }).catch(pbFail);
+    function teamSet(id, r) {
+      api.post("/playbooks/team", { org_id: lib.org, bd_member_id: id, role: r }).then(okOr).then(function () { D.toast(app, r === "remove" ? "Removed. They lost access straight away." : "Added"); openTeam(); }).catch(pbFail);
+    }
+  }
+
+  // ---------- One playbook ----------
+
+  function openPlaybook(id, view) {
+    lib.importId = null;
+    api.get("/playbooks/get?id=" + id).then(function (r) {
+      if (!r.ok) throw r;
+      lib.pb = r;
+      lib.view = view || lib.view || "read";
+      drawPlaybook();
+    }).catch(function (e) { pbFail(e); loadLibrary(); });
+  }
+
+  function body() { return lib.pb.body || {}; }
+
+  function drawPlaybook() {
+    var P = lib.pb.playbook, b = body();
+    D.clear(libEl);
+    libEl.appendChild(h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "ghost small", onclick: loadLibrary }, "← Library")));
+    libEl.appendChild(h("div", { class: "row", style: "margin:8px 0 4px" }, h("h1", { class: "grow", style: "margin:0", text: P.title }),
+      h("span", { class: "badge " + (P.status === "approved" ? "ready" : P.status === "in_review" ? "held" : ""), text: PB_STATUS[P.status] })));
+    libEl.appendChild(h("p", { class: "small muted", text: "Version " + P.version + (P.approved_version ? " | last approved: version " + P.approved_version : "") + " | administrator: " + P.administrator +
+      (P.next_review_at ? " | next review " + D.date(P.next_review_at) : "") + " | your role: " + ROLE_WORDS[lib.pb.role] }));
+    var pctBar = h("div", { class: "card" },
+      h("div", { class: "row" }, h("b", { class: "grow", text: "Complete: " + P.completeness + "%" }),
+        can(3) && P.status === "draft" ? h("button", { class: "ghost small", onclick: function () { status("submit", "Sent to the administrator for review"); } }, "Send for review") : null,
+        can(4) && (P.status === "draft" || P.status === "in_review") ? h("button", { class: "blue small", disabled: P.completeness < 100, title: P.completeness < 100 ? "Fill in every required part first" : "", onclick: function () { status("approve", "Approved"); } }, "Approve") : null),
+      h("div", { class: "bar" }, h("span", { style: "width:" + P.completeness + "%" + (P.completeness === 100 ? ";background:var(--ok)" : "") })),
+      P.missing.length ? h("p", { class: "small", style: "margin:6px 0 0", text: "Still missing: " + P.missing.join(", ") + "." }) : h("p", { class: "small", style: "margin:6px 0 0", text: "Every required part is filled." }));
+    libEl.appendChild(pctBar);
+    if (lib.questions && lib.questions.length && can(3)) libEl.appendChild(questionsCard());
+    var views = [["read", "Read"], ["edit", "Edit"], ["chat", "Chat"], ["suggestions", "Suggestions (" + lib.pb.suggestions.length + ")"], ["comments", "Comments (" + lib.pb.comments.filter(function (c) { return !c.resolved; }).length + ")"],
+      ["activity", "Activity"], ["versions", "Versions"], ["files", "Files (" + lib.pb.files.length + ")"], ["export", "Export"]];
+    if (!can(3)) views = views.filter(function (v) { return ["edit", "files", "export"].indexOf(v[0]) < 0 || v[0] === "files"; });
+    libEl.appendChild(h("div", { class: "tabs", role: "tablist", style: "border-radius:14px;margin:10px 0" }, views.map(function (v) {
+      return h("button", { role: "tab", "aria-selected": String(lib.view === v[0]), onclick: function () { lib.view = v[0]; drawPlaybook(); } }, v[1]);
+    })));
+    var area = h("div");
+    libEl.appendChild(area);
+    ({ read: readView, edit: editView, chat: pbChatView, suggestions: suggestionsView, comments: commentsView, activity: activityView, versions: versionsView, files: pbFilesView, export: exportView })[lib.view](area, b);
+    if (can(4)) {
+      libEl.appendChild(h("div", { class: "row", style: "margin-top:18px" },
+        P.status === "archived" ? h("button", { class: "ghost small", onclick: function () { status("unarchive", "Back in the library"); } }, "Bring back from the archive")
+          : P.status !== "trash" ? h("button", { class: "ghost small", onclick: function () { status("archive", "Archived"); } }, "Archive") : null,
+        P.status === "trash" ? h("button", { class: "ghost small", onclick: function () { status("restore", "Restored"); } }, "Restore from the trash")
+          : h("button", { class: "danger small", onclick: function () { if (confirm("Move this playbook to the trash? You can restore it for 30 days.")) status("trash", "Moved to the trash"); } }, "Delete")));
+    }
+  }
+
+  function status(action, done) {
+    api.post("/playbooks/status", { id: lib.pb.playbook.id, action: action }).then(okOr).then(function () { D.toast(app, done); openPlaybook(lib.pb.playbook.id); }).catch(pbFail);
+  }
+
+  function questionsCard() {
+    var ta = h("textarea", { "aria-label": "Your answers", style: "width:100%;min-height:90px", placeholder: "Answer any of the questions here, in your own words" });
+    var status = h("span", { class: "small muted", role: "status" });
+    var auto = h("input", { type: "checkbox" });
+    var ai = chat.ai || {};
+    var mic = ai.voice_on && navigator.mediaDevices && window.MediaRecorder ? h("button", { class: "mic small", type: "button", onclick: function () { toggleMic(mic, ta, status, auto); } }, "● Talk") : null;
+    var btn = h("button", { class: "blue small" }, "Fill these in");
+    var attempt = 0;
+    function send(extra) {
+      btn.disabled = true;
+      status.textContent = "DELA is updating the playbook...";
+      api.post("/playbooks/fill", { id: lib.pb.playbook.id, answers: ta.value, attempt: attempt, lawfecta_once: !!(extra && extra.once), confirm_no_client_info: !!(extra && extra.confirm) }).then(function (r) {
+        btn.disabled = false;
+        status.textContent = "";
+        if (!r.ok) {
+          if (r.reason === "looks_like_client_info" && confirm("This may include " + kindsText(r.kinds) + ". Send anyway? Only if it has no client information.")) { send({ confirm: true }); return; }
+          D.toast(app, failText(r), true);
+          return;
+        }
+        lib.questions = r.questions;
+        openPlaybook(lib.pb.playbook.id);
+      }).catch(function (e) { btn.disabled = false; status.textContent = ""; pbFail(e); });
+    }
+    btn.addEventListener("click", function () { if (ta.value.trim()) send(); });
+    return h("div", { class: "card", style: "border-color:var(--blue)" }, h("h2", { text: "DELA's questions" }),
+      h("ol", null, lib.questions.map(function (q) { return h("li", { text: q }); })), notice(), ta,
+      h("div", { class: "row", style: "margin-top:8px" }, mic, btn, h("button", { class: "ghost small", onclick: function () { lib.questions = []; drawPlaybook(); } }, "Not now"), status));
+  }
+
+  function partValue(b, key) {
+    if (key === "outcome") return [b.title, b.outcome].filter(Boolean).join("\n");
+    if (key === "area") return [b.practice_area, b.jurisdiction].filter(Boolean).join(", ");
+    return b[key];
+  }
+
+  function readView(area, b) {
+    PB_PARTS.forEach(function (p) {
+      var v = partValue(b, p[0]);
+      if (p[0] === "deadlines" && !b.has_deadlines && !b.deadlines) return;
+      if ((p[0] === "never_delegate" || p[0] === "resources" || p[0] === "tools") && !(v || []).length) return;
+      var card = h("div", { class: "card" }, h("div", { class: "row" }, h("h2", { class: "grow", text: p[1] }),
+        can(2) && p[0] !== "steps" && p[0] !== "area" ? h("button", { class: "ghost small", onclick: function () { commentBox(card, p[0] === "outcome" ? "outcome" : p[0], p[1], p[2] === "list" ? (v || []).join("\n") : (p[0] === "outcome" ? b.outcome : v)); } }, "Comment") : null));
+      if (p[2] === "steps") {
+        card.appendChild(h("ol", { class: "gd-steps", style: "list-style:none" }, (b.steps || []).map(function (st, i) {
+          var shot = st.screenshot ? h("button", { class: "ghost small", onclick: function () { openFile({ id: st.screenshot }, false); } }, "Screenshot") : null;
+          return h("li", null, h("i", { text: String(i + 1) }), h("div", { class: "grow" },
+            h("span", { text: st.text }),
+            h("div", { class: "small muted", text: [st.who && "Who: " + st.who, st.tool && "Tool: " + st.tool, st.minutes && "About " + st.minutes + " min", st.tag && TAG_WORDS[st.tag]].filter(Boolean).join(" | ") }),
+            st.decision ? h("div", { class: "small", text: "Decision: " + st.decision }) : null,
+            h("div", { class: "row" }, shot, can(2) ? h("button", { class: "ghost small", onclick: function () { commentBox(card, "step:" + (i + 1), "Step " + (i + 1), st.text); } }, "Comment") : null)));
+        })));
+        if (!(b.steps || []).length) card.appendChild(h("p", { class: "muted", text: "No steps yet." }));
+      } else if (p[2] === "list") {
+        card.appendChild((v || []).length ? h("ul", null, v.map(function (t) { return h("li", { text: t }); })) : h("p", { class: "muted", text: "Not filled in yet." }));
+      } else card.appendChild(h("p", { style: "white-space:pre-wrap", text: v || "Not filled in yet." }));
+      area.appendChild(card);
+    });
+  }
+
+  // A note, or a suggested change the administrator decides on
+  function commentBox(card, part, label, current) {
+    var note = h("textarea", { "aria-label": "Comment", style: "width:100%;min-height:60px", placeholder: "Your comment on " + label });
+    var sug = h("textarea", { "aria-label": "Suggested text", style: "width:100%;min-height:80px;display:none", value: current || "" });
+    var withSug = h("input", { type: "checkbox" });
+    withSug.addEventListener("change", function () { sug.style.display = withSug.checked ? "block" : "none"; });
+    var box = h("div", { class: "soft", style: "margin-top:10px" }, notice(), note, h("label", { style: "display:flex;gap:8px;align-items:center" }, withSug, "Suggest new text for this part"), sug,
+      h("div", { class: "row", style: "margin-top:6px" }, h("button", { class: "blue small", onclick: function () {
+        if (!note.value.trim() && !withSug.checked) return;
+        api.post("/playbooks/comment", { id: lib.pb.playbook.id, part: part, body: note.value, suggested_text: withSug.checked ? sug.value : "" }).then(okOr).then(function () {
+          D.toast(app, withSug.checked ? "Suggestion sent to the administrator" : "Comment added");
+          openPlaybook(lib.pb.playbook.id);
+        }).catch(pbFail);
+      } }, "Send"), h("button", { class: "ghost small", onclick: function () { box.remove(); } }, "Cancel")));
+    card.appendChild(box);
+    note.focus();
+  }
+
+  function editView(area, b) {
+    var f = {};
+    function field(key, label, kind, hint) {
+      var v = b[key];
+      var el = kind === "line" ? h("input", { style: "width:100%", value: v || "" }) : h("textarea", { style: "width:100%;min-height:" + (kind === "list" ? 90 : 70) + "px", value: kind === "list" ? (v || []).join("\n") : (v || "") });
+      f[key] = { el: el, kind: kind };
+      return h("div", null, h("label", { text: label }), hint ? h("div", { class: "small muted", text: hint }) : null, el);
+    }
+    var steps = (b.steps || []).map(function (st) { return JSON.parse(JSON.stringify(st)); });
+    var stepsEl = h("div");
+    function drawSteps() {
+      D.clear(stepsEl);
+      steps.forEach(function (st, i) {
+        var t = h("textarea", { "aria-label": "Step " + (i + 1), style: "width:100%;min-height:54px", value: st.text });
+        t.addEventListener("input", function () { st.text = t.value; });
+        function small(ph, key, w) { var e = h("input", { placeholder: ph, value: st[key] === null || st[key] === undefined ? "" : String(st[key]), style: "width:" + w }); e.addEventListener("input", function () { st[key] = key === "minutes" ? (parseInt(e.value, 10) || null) : e.value; }); return e; }
+        var tag = h("select", { "aria-label": "Delegation" }, [["", "Delegation?"], ["keep", "Keep (attorney)"], ["delegate", "Delegate"], ["automate", "Automate"]].map(function (o) { return h("option", { value: o[0], selected: st.tag === o[0], text: o[1] }); }));
+        tag.addEventListener("change", function () { st.tag = tag.value; });
+        stepsEl.appendChild(h("div", { class: "soft", style: "margin:8px 0" }, h("b", { text: "Step " + (i + 1) }), t,
+          h("div", { class: "row", style: "margin-top:6px" }, small("Who", "who", "140px"), small("Tool", "tool", "140px"), small("Minutes", "minutes", "90px"), tag),
+          h("div", { style: "margin-top:6px" }, small("Decision point (if X, go to step N)", "decision", "100%")),
+          h("div", { class: "row", style: "margin-top:6px" },
+            i > 0 ? h("button", { class: "ghost small", type: "button", onclick: function () { steps.splice(i - 1, 0, steps.splice(i, 1)[0]); drawSteps(); } }, "Move up") : null,
+            h("button", { class: "ghost small", type: "button", onclick: function () { steps.splice(i + 1, 0, { text: "", who: "", tool: "", minutes: null, decision: "", tag: "", screenshot: "" }); drawSteps(); } }, "Add a step below"),
+            h("button", { class: "danger small", type: "button", onclick: function () { steps.splice(i, 1); drawSteps(); } }, "Remove"))));
+      });
+      stepsEl.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { steps.push({ text: "", who: "", tool: "", minutes: null, decision: "", tag: "", screenshot: "" }); drawSteps(); } }, "+ Add a step"));
+    }
+    drawSteps();
+    var hasDl = h("input", { type: "checkbox", checked: b.has_deadlines });
+    var noteIn = h("input", { style: "width:100%", placeholder: "What you changed (shows in Versions)" });
+    area.appendChild(h("div", { class: "card" }, notice(),
+      field("title", "1. Title", "line"), field("outcome", "Outcome: what done produces", "text"),
+      h("div", { class: "row" }, h("div", { class: "grow" }, field("practice_area", "2. Practice area", "line")), h("div", { class: "grow" }, field("jurisdiction", "Jurisdiction (a state, federal, or any)", "line"))),
+      field("when_to_use", "3. When to use it", "text", "What starts it: a new client signs, a court notice arrives, the first of the month."),
+      field("roles", "4. Roles", "text", "Who owns it, who does each part, and which parts only an attorney may do. One per line."),
+      field("needs", "5. What you need first", "list", "One per line. Describe documents and access; never paste real client data."),
+      h("label", { text: "6. Steps (at least 3)" }), stepsEl,
+      h("label", { style: "display:flex;gap:8px;align-items:center" }, hasDl, "7. This process has deadlines"), field("deadlines", "Deadlines and timing", "text", "Court or rule deadlines and your own target times. Write Check this: in front of anything you are not sure of."),
+      field("checks", "8. Quality checks", "list", "How to tell each step and the whole job was done right. One per line."),
+      field("review_points", "9. Attorney review and ethics points", "list", "Where an attorney must review or sign. One per line."),
+      field("never_delegate", "What must never be delegated", "list"),
+      field("resources", "10. Templates and resources", "list", "Files can also be attached on the Files view."),
+      field("tools", "11. Tools", "list"), field("deliverables", "12. Deliverables", "text", "What is handed over at the end, and to whom."),
+      h("label", { text: "Note for this version" }), noteIn,
+      h("div", { class: "row", style: "margin-top:12px" }, h("button", { class: "blue", onclick: save }, "Save as a new version"), h("button", { class: "ghost", onclick: function () { lib.view = "read"; drawPlaybook(); } }, "Cancel"))));
+    function save() {
+      var nb = JSON.parse(JSON.stringify(b));
+      Object.keys(f).forEach(function (k) { nb[k] = f[k].kind === "list" ? f[k].el.value.split("\n").map(function (x) { return x.trim(); }).filter(Boolean) : f[k].el.value; });
+      nb.steps = steps.filter(function (st) { return (st.text || "").trim(); });
+      nb.has_deadlines = hasDl.checked;
+      api.post("/playbooks/save", { id: lib.pb.playbook.id, base_version: lib.pb.playbook.version, body: nb, note: noteIn.value }).then(okOr).then(function (r) {
+        D.toast(app, "Saved as version " + r.version);
+        lib.view = "read";
+        openPlaybook(lib.pb.playbook.id);
+      }).catch(pbFail);
+    }
+  }
+
+  var pbChatLog = {};
+  function pbChatView(area) {
+    var id = lib.pb.playbook.id;
+    var log = pbChatLog[id] = pbChatLog[id] || [];
+    var list = h("div", { class: "chat" });
+    function drawLog() {
+      D.clear(list);
+      if (!log.length) list.appendChild(h("div", { class: "card soft" }, h("p", { style: "margin:0", text: "Ask about this playbook (\"Who does step 4?\") or ask for a change (\"Add a conflict check before step 2\"). DELA proposes changes as suggestions; nothing changes until " + (can(4) ? "you or an editor accept it." : "an editor or the administrator accepts it.") })));
+      log.forEach(function (m) { list.appendChild(h("div", { class: "msg " + m.role, text: m.text })); });
+    }
+    drawLog();
+    var ta = h("textarea", { "aria-label": "Message about this playbook", style: "width:100%;min-height:70px" });
+    var status = h("span", { class: "small muted", role: "status" });
+    var auto = h("input", { type: "checkbox" });
+    var ai = chat.ai || {};
+    var mic = ai.voice_on && navigator.mediaDevices && window.MediaRecorder ? h("button", { class: "mic small", type: "button", onclick: function () { toggleMic(mic, ta, status, auto); } }, "● Talk") : null;
+    var btn = h("button", { class: "blue" }, "Send");
+    var req = null, attempt = 0;
+    function send(extra) {
+      extra = extra || {};
+      var text = ta.value.trim();
+      if (!text) return;
+      req = req || newId();
+      btn.disabled = true;
+      status.textContent = "DELA is thinking...";
+      api.post("/playbooks/chat", { id: id, message: text, request_id: req, attempt: attempt, lawfecta_once: extra.once === true, confirm_no_client_info: extra.confirm === true }).then(function (r) {
+        btn.disabled = false;
+        status.textContent = "";
+        if (!r.ok) {
+          if (r.reason === "looks_like_client_info" && confirm("This may include " + kindsText(r.kinds) + ". Send anyway? Only if it has no client information.")) { send({ confirm: true }); return; }
+          if (r.reason === "ai_failed" && r.source !== "lawfecta" && confirm(failText(r) + " Use Lawfecta credits this time?")) { attempt++; send({ once: true }); return; }
+          attempt++;
+          D.toast(app, failText(r), true);
+          return;
+        }
+        log.push({ role: "user", text: text });
+        log.push({ role: "assistant", text: r.reply + (r.suggestion_id ? "\n\nThis change is waiting on the Suggestions view." + (r.removes_review ? " It removes an attorney review point, so only the administrator can accept it." : "") : "") });
+        ta.value = "";
+        req = null;
+        attempt = 0;
+        if (r.suggestion_id) { openPlaybook(id, "chat"); return; }
+        drawLog();
+      }).catch(function (e) { btn.disabled = false; status.textContent = ""; pbFail(e); });
+    }
+    btn.addEventListener("click", function () { send(); });
+    area.appendChild(list);
+    area.appendChild(h("div", { class: "composer" }, notice(), ta, h("div", { class: "row", style: "margin-top:8px" }, mic, h("span", { class: "grow" }), status, btn)));
+  }
+
+  // What a suggestion would change, part by part
+  function diffList(before, after) {
+    var out = [];
+    PB_PARTS.forEach(function (p) {
+      var a = JSON.stringify(partValue(before, p[0]) || ""), z = JSON.stringify(partValue(after, p[0]) || "");
+      if (p[0] === "steps") {
+        var bs = (before.steps || []).map(function (s) { return s.text; }), as = (after.steps || []).map(function (s) { return s.text; });
+        as.forEach(function (t) { if (bs.indexOf(t) < 0) out.push(["Steps", "Adds or changes: " + t]); });
+        bs.forEach(function (t) { if (as.indexOf(t) < 0) out.push(["Steps", "Removes: " + t]); });
+      } else if (a !== z) out.push([p[1], "Becomes: " + (Array.isArray(partValue(after, p[0])) ? partValue(after, p[0]).join("; ") : partValue(after, p[0]) || "(empty)")]);
+    });
+    return out;
+  }
+
+  function suggestionsView(area, b) {
+    if (!lib.pb.suggestions.length) { area.appendChild(h("div", { class: "card" }, h("p", { class: "muted", style: "margin:0", text: "No suggestions waiting." }))); return; }
+    lib.pb.suggestions.forEach(function (sg) {
+      var changes = sg.kind === "ai" ? diffList(b, sg.proposed) : [[sg.part.indexOf("step:") === 0 ? "Step " + sg.part.slice(5) : (PB_PARTS.filter(function (p) { return p[0] === sg.part; })[0] || [0, sg.part])[1], "Becomes: " + (sg.proposed.text || "")]];
+      var mayDecide = sg.kind === "comment" || sg.removes_review ? can(4) : can(3);
+      var stale = sg.kind === "ai" && sg.base_version !== lib.pb.playbook.version;
+      area.appendChild(h("div", { class: "card" },
+        h("div", { class: "row" }, h("h3", { class: "grow", style: "margin:0", text: (sg.kind === "ai" ? "From DELA chat: " : "From " + sg.by + ": ") + (sg.note || "Suggested change") }), sg.removes_review ? h("span", { class: "badge bad", text: "Removes an attorney review point" }) : null),
+        h("div", { class: "small muted", text: D.dateTime(sg.at) + " | made from version " + sg.base_version }),
+        stale ? h("p", { class: "notice", text: "The playbook changed after this was suggested, so it cannot be applied as it is. Ask DELA again in Chat." }) : null,
+        changes.length ? h("ul", null, changes.map(function (c) { return h("li", null, h("b", { text: c[0] + ": " }), c[1]); })) : h("p", { class: "muted", text: "No visible change." }),
+        mayDecide ? h("div", { class: "row" },
+          h("button", { class: "blue small", disabled: stale, onclick: function () { decide(sg.id, true); } }, "Accept"),
+          h("button", { class: "ghost small", onclick: function () { var n = prompt("Why not? (optional, the author sees this)") || ""; decide(sg.id, false, n); } }, "Reject"))
+          : h("p", { class: "small muted", text: "Waiting for " + (sg.kind === "comment" || sg.removes_review ? "the administrator." : "an editor or the administrator.") })));
+    });
+    function decide(id, accept, note) {
+      api.post("/playbooks/decide", { suggestion_id: id, accept: accept, note: note || "" }).then(okOr).then(function () { D.toast(app, accept ? "Accepted. A new version was saved." : "Rejected"); openPlaybook(lib.pb.playbook.id, "suggestions"); }).catch(pbFail);
+    }
+  }
+
+  function commentsView(area) {
+    var cs = lib.pb.comments;
+    if (!cs.length) area.appendChild(h("div", { class: "card" }, h("p", { class: "muted", style: "margin:0", text: "No comments yet. Use Comment on any part in the Read view." })));
+    cs.forEach(function (c) {
+      area.appendChild(h("div", { class: "card", style: c.resolved ? "opacity:.65" : "" },
+        h("div", { class: "row" }, h("b", { class: "grow", text: c.by + (c.part ? " on " + (c.part.indexOf("step:") === 0 ? "step " + c.part.slice(5) : c.part.split("_").join(" ")) : "") }), h("span", { class: "small muted", text: D.dateTime(c.at) })),
+        h("p", { style: "white-space:pre-wrap", text: c.body }),
+        c.suggestion_id && !c.resolved ? h("p", { class: "small", text: "Has a suggested change waiting on the Suggestions view." }) : null,
+        !c.resolved && !c.suggestion_id && can(3) ? h("button", { class: "ghost small", onclick: function () { api.post("/playbooks/comment/resolve", { id: c.id }).then(okOr).then(function () { openPlaybook(lib.pb.playbook.id, "comments"); }).catch(pbFail); } }, "Mark done") : null,
+        c.resolved ? h("span", { class: "badge", text: "Done" }) : null));
+    });
+  }
+
+  function activityView(area) {
+    area.appendChild(h("div", { class: "card" }, h("p", { class: "small muted", text: "Every event on this playbook, newest first. Nobody can edit or delete these lines." }),
+      h("ul", { class: "list" }, lib.pb.activity.map(function (a) {
+        return h("li", null, h("b", { text: ACTION_WORDS[a.action] || a.action.split("_").join(" ") }), " by " + (a.by || "DELA") + (a.version ? ", version " + a.version : "") +
+          (a.detail && a.detail.format ? " (" + a.detail.format + ")" : ""), h("div", { class: "small muted", text: D.dateTime(a.at) }));
+      }))));
+  }
+
+  function versionsView(area) {
+    area.appendChild(h("div", { class: "card" }, h("ul", { class: "list" }, lib.pb.versions.map(function (v) {
+      return h("li", { class: "row" }, h("span", { class: "grow" }, h("b", { text: "Version " + v.version + (v.version === lib.pb.playbook.version ? " (current)" : "") + (v.approved ? " (approved)" : "") }),
+        h("div", { class: "small muted", text: D.dateTime(v.at) + " by " + v.by + (v.note ? ": " + v.note : "") })),
+        h("button", { class: "ghost small", onclick: function () { showVersion(v.version); } }, "View"),
+        can(3) && v.version !== lib.pb.playbook.version ? h("button", { class: "ghost small", onclick: function () {
+          if (!confirm("Restore version " + v.version + "? It is saved as a new version; nothing is lost.")) return;
+          api.post("/playbooks/restore", { id: lib.pb.playbook.id, version: v.version }).then(okOr).then(function (r) { D.toast(app, "Restored as version " + r.version); openPlaybook(lib.pb.playbook.id, "versions"); }).catch(pbFail);
+        } }, "Restore") : null);
+    }))));
+    function showVersion(n) {
+      api.get("/playbooks/get?id=" + lib.pb.playbook.id + "&v=" + n).then(function (r) {
+        if (drawer) drawer.remove();
+        var inner = h("div");
+        drawer = h("div", { class: "drawer", role: "dialog", "aria-label": "Version " + n, style: "width:min(640px,100%)" },
+          h("div", { class: "row" }, h("h2", { class: "grow", text: "Version " + n }), h("button", { class: "ghost small", onclick: function () { drawer.remove(); drawer = null; } }, "Close")), inner);
+        var saveCan = can;
+        can = function () { return false; };
+        readView(inner, r.version.body);
+        can = saveCan;
+        app.appendChild(drawer);
+      }).catch(pbFail);
+    }
+  }
+
+  function pbFilesView(area) {
+    var card = h("div", { class: "card" }, h("p", { class: "small muted", text: "Templates, forms and checklists kept with this playbook. They come from your firm's Files tab; new versions of a file follow automatically." }));
+    if (!lib.pb.files.length) card.appendChild(h("p", { class: "muted", text: "No files attached." }));
+    lib.pb.files.forEach(function (fl) {
+      card.appendChild(h("div", { class: "row", style: "margin:6px 0" }, h("span", { class: "grow", text: fl.name }), h("button", { class: "ghost small", onclick: function () { openFile(fl, fl.ext !== "pdf" && fl.ext !== "png" && fl.ext !== "jpg"); } }, "Open"),
+        can(3) ? h("button", { class: "ghost small", onclick: function () { attach(fl.id, false); } }, "Remove") : null));
+    });
+    if (can(3) && (me.switches || {}).file_uploads) {
+      var pick = h("select", { "aria-label": "Attach a file" }, h("option", { value: "", text: "Attach a file from Files" }));
+      api.get("/files").then(function (r) { (r.files || []).filter(function (f) { return f.status === "ready"; }).forEach(function (f) { pick.appendChild(h("option", { value: f.id, text: f.name })); }); }).catch(function () {});
+      pick.addEventListener("change", function () { if (pick.value) attach(pick.value, true); });
+      card.appendChild(pick);
+    }
+    area.appendChild(card);
+    function attach(fid, on) { api.post("/playbooks/attach", { id: lib.pb.playbook.id, file_id: fid, on: on }).then(okOr).then(function () { openPlaybook(lib.pb.playbook.id, "files"); }).catch(pbFail); }
+  }
+
+  function exportView(area) {
+    var formats = [["docx", "Word (.docx)", "For Word, Google Docs, Waybook, Monday Docs and Notion."], ["pdf", "PDF", "Opens a print view; choose Save as PDF."],
+      ["md", "Markdown (.md)", "For Notion, Confluence and ClickUp."], ["html", "Web page (.html)", "For Notion, Trainual and any knowledge base."], ["csv", "Step checklist (.csv)", "For Monday, Excel, Google Sheets or a Notion table."]];
+    area.appendChild(h("div", { class: "card" }, h("p", { class: "small muted", text: "Every file shows the version and date in its footer, so older copies are easy to spot." + (lib.pb.playbook.status !== "approved" ? " This version is not approved yet, and the footer says so." : "") }),
+      formats.map(function (fm) {
+        return h("div", { class: "row", style: "margin:8px 0" }, h("button", { class: "blue small", style: "min-width:170px", onclick: function () { doExport(fm[0]); } }, fm[1]), h("span", { class: "small muted", text: fm[2] }));
+      })));
+  }
+
+  function doExport(format) {
+    var w = format === "pdf" ? window.open("", "_blank") : null;
+    api.post("/playbooks/export", { id: lib.pb.playbook.id, format: format, request_id: newId() }).then(function (r) {
+      if (!r.ok) throw r;
+      if (r.print) {
+        if (!w) { D.toast(app, "Allow pop-ups for this site to print to PDF.", true); return; }
+        w.document.open();
+        w.document.write(r.text);
+        w.document.close();
+        w.focus();
+        setTimeout(function () { w.print(); }, 300);
+        return;
+      }
+      var blob = r.b64 ? new Blob([Uint8Array.from(atob(r.b64), function (ch) { return ch.charCodeAt(0); })], { type: r.type }) : new Blob([r.text], { type: r.type + ";charset=utf-8" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob);
+      a.download = r.name;
+      document.body.appendChild(a);
+      a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+      D.toast(app, "Downloaded " + r.name);
+    }).catch(function (e) { if (w) w.close(); pbFail(e); });
+  }
+
+  // ---------- Import from Scribe ----------
+
+  // Reads a Scribe export (HTML or Markdown) in the browser. Nothing in the file runs: DOMParser documents never run scripts.
+  function parseGuide(name, text) {
+    var steps = [], title = "";
+    if (/\.(md|markdown|txt)$/i.test(name)) {
+      text.split(/\r?\n/).forEach(function (line) {
+        var l = line.trim();
+        if (!l) return;
+        var img = l.match(/!\[[^\]]*\]\(([^)\s]+)/);
+        if (/^#\s+/.test(l) && !title) { title = l.replace(/^#\s+/, ""); return; }
+        if (img) {
+          var last = steps[steps.length - 1];
+          if (last && !last.image) last.image = img[1]; else steps.push({ text: "", image: img[1] });
+          var rest = l.replace(/!\[[^\]]*\]\([^)]*\)/g, "").trim();
+          if (rest && last && !last.text) last.text = rest;
+          return;
+        }
+        if (/^#{2,6}\s+/.test(l) && !steps.length && !title) { title = l.replace(/^#+\s+/, ""); return; }
+        steps.push({ text: l.replace(/^(\d+[.)]|[-*+])\s+/, "").replace(/[*_`]/g, ""), image: "" });
+      });
+    } else {
+      var doc = new DOMParser().parseFromString(text, "text/html");
+      title = ((doc.querySelector("h1") || {}).textContent || (doc.querySelector("title") || {}).textContent || "").trim();
+      var walker = doc.createTreeWalker(doc.body || doc.documentElement, NodeFilter.SHOW_ELEMENT);
+      var node;
+      while ((node = walker.nextNode())) {
+        var tag = node.tagName;
+        if (tag === "IMG") {
+          var src = node.getAttribute("src") || "";
+          if (!src) continue;
+          var lst = steps[steps.length - 1];
+          if (lst && !lst.image) lst.image = src; else steps.push({ text: (node.getAttribute("alt") || "").trim(), image: src });
+        } else if (["P", "LI", "H2", "H3", "H4", "SPAN", "DIV"].indexOf(tag) >= 0) {
+          // A text block with no text blocks inside it is one line of the guide
+          if (node.querySelector("p,li,h2,h3,h4,div,img")) continue;
+          var t = (node.textContent || "").replace(/\s+/g, " ").trim();
+          if (!t || t === title || t.length > 1500) continue;
+          if (steps.length && steps[steps.length - 1].text === t) continue;
+          steps.push({ text: t, image: "" });
+        }
+      }
+    }
+    steps = steps.filter(function (s) { return s.text || s.image; }).map(function (s) { s.text = s.text.replace(/^\d+[.)]\s*/, ""); return s; });
+    return { title: title.slice(0, 200), steps: steps };
+  }
+
+  function startScribe() {
+    var tick = h("input", { type: "checkbox", id: "dela-scribe-tick" });
+    var input = h("input", { type: "file", accept: ".html,.htm,.md,.markdown,.txt" });
+    var status = h("div", { class: "small", role: "status" });
+    var go = h("button", { class: "blue" }, "Read the guide");
+    go.addEventListener("click", function () {
+      var file = input.files[0];
+      if (!file) { D.toast(app, "Choose the exported Scribe file first.", true); return; }
+      if (!tick.checked) { D.toast(app, D.errorText("tick_needed"), true); return; }
+      if (file.size > 25 * 1048576) { D.toast(app, D.errorText("file_too_big"), true); return; }
+      var reader = new FileReader();
+      reader.onload = function () {
+        var g = parseGuide(file.name, String(reader.result || ""));
+        if (!g.steps.length) { status.textContent = "This does not look like a Scribe export: no steps were found. In Scribe, open the guide, click Share, then Export, then Export next to HTML or Markdown, and choose that file."; return; }
+        go.disabled = true;
+        importImages(g, status).then(function (steps) {
+          return api.post("/imports/save", { org_id: lib.org, request_id: newId(), title: g.title, steps: steps });
+        }).then(okOr).then(function (r) { openImport(r.id); }).catch(function (e) { go.disabled = false; pbFail(e); });
+      };
+      reader.readAsText(file);
+    });
+    D.clear(libEl);
+    libEl.appendChild(h("div", { class: "card" }, h("h2", { text: "Import a guide from Scribe" }),
+      h("ol", null, h("li", { text: "In Scribe, open the guide." }), h("li", { text: "Click Share, then the Export tab." }), h("li", { text: "Click Export next to HTML (or Markdown) and save the file." }), h("li", { text: "Choose that file below." })),
+      h("p", { class: "small muted", text: "DELA reads the steps and screenshots, then shows them on a review screen where you check screenshots for client information, blur parts, fix steps and add why each step matters. Then DELA builds the playbook. Free Scribe accounts: open the guide's share page, press Ctrl+P (Cmd+P on a Mac), choose Save as PDF, upload it on the Files tab, and ask DELA to turn it into a playbook." }),
+      notice(),
+      h("label", { style: "display:flex;gap:8px;align-items:flex-start;font-weight:600" }, tick, h("span", { text: "This guide and its screenshots have no confidential client information." })),
+      h("div", { class: "row" }, input, go, h("button", { class: "ghost", onclick: drawLibrary }, "Cancel")), status));
+  }
+
+  // Screenshots inside the file (data addresses) upload like any file; linked ones are fetched by DELA from Scribe's image addresses only
+  function importImages(g, status) {
+    var out = [];
+    var i = 0;
+    var total = g.steps.filter(function (s) { return s.image; }).length, done = 0;
+    function next() {
+      if (i >= g.steps.length) return Promise.resolve(out);
+      var st = g.steps[i++];
+      var row = { text: st.text, note: "", file_id: "", keep_image: true };
+      out.push(row);
+      if (!st.image) return next();
+      done++;
+      status.textContent = "Saving screenshot " + done + " of " + total + "...";
+      var name = "Scribe " + (g.title || "guide").slice(0, 60) + " step " + i;
+      var p;
+      if (st.image.indexOf("data:image/") === 0) p = uploadData(st.image, name);
+      else if (st.image.indexOf("https://") === 0) p = api.post("/imports/image", { url: st.image, request_id: newId(), name: name, ticked: true });
+      else p = Promise.resolve({ ok: false, reason: "image_not_found" });
+      return p.then(function (r) { if (r && r.ok) row.file_id = r.file_id; else if (r && r.reason) status.textContent = failText(r); })
+        .catch(function () {}).then(next);
+    }
+    return next();
+  }
+
+  function uploadData(dataUrl, name) {
+    var m = dataUrl.match(/^data:(image\/(png|jpeg|jpg));base64,(.*)$/);
+    if (!m) return Promise.resolve({ ok: false, reason: "not_an_image" });
+    var bytes = Uint8Array.from(atob(m[3]), function (ch) { return ch.charCodeAt(0); });
+    var ext = m[2] === "png" ? "png" : "jpg";
+    return uploadBlob(new Blob([bytes], { type: m[1] }), name + "." + ext, "");
+  }
+
+  function uploadBlob(blob, name, replaceOf) {
+    return api.post("/files/start", { name: name, size_bytes: blob.size, ticked: true, request_id: newId(), replace_of: replaceOf || "" }).then(function (r) {
+      if (!r.ok) return r;
+      if (r.duplicate) return { ok: true, file_id: r.file_id };
+      return fetch(r.upload_url, { method: "PUT", headers: { "content-type": r.content_type, "x-upsert": "false" }, body: blob }).then(function (up) {
+        if (!up.ok) return { ok: false, reason: "upload_failed" };
+        return api.post("/files/complete", { file_id: r.file_id }).then(function (c) { return c.ok === false ? c : { ok: true, file_id: r.file_id, status: c.status }; });
+      });
+    });
+  }
+
+  var imp = null;
+  function openImport(id) {
+    lib.importId = id;
+    lib.pb = null;
+    api.get("/imports/get?id=" + id).then(function (r) { imp = r.import; drawImport(); }).catch(function (e) { lib.importId = null; pbFail(e); loadLibrary(); });
+  }
+
+  function saveImport() {
+    return api.post("/imports/save", { org_id: imp.org_id, id: imp.id, title: imp.title, steps: imp.steps.map(function (s) { return { text: s.text, note: s.note, file_id: s.file_id, keep_image: s.keep_image !== false }; }) }).then(okOr);
+  }
+
+  // The review screen: nothing goes to the AI until Build my playbook
+  function drawImport() {
+    D.clear(libEl);
+    if (imp.status !== "review") { lib.importId = null; if (imp.playbook_id) openPlaybook(imp.playbook_id); else loadLibrary(); return; }
+    var titleIn = h("input", { style: "width:100%", value: imp.title, "aria-label": "Title" });
+    titleIn.addEventListener("change", function () { imp.title = titleIn.value; saveImport().catch(pbFail); });
+    libEl.appendChild(h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "ghost small", onclick: function () { lib.importId = null; loadLibrary(); } }, "← Library")));
+    libEl.appendChild(h("h1", { text: "Review your guide" }));
+    libEl.appendChild(h("p", { class: "muted", text: "Check every screenshot for client information, blur anything private, fix the steps, and add why each step matters. Nothing goes to the AI until you click Build my playbook." }));
+    libEl.appendChild(h("div", { class: "card" }, h("label", { text: "Title" }), titleIn));
+    imp.steps.forEach(function (st, i) {
+      var t = h("textarea", { style: "width:100%;min-height:54px", "aria-label": "Step " + (i + 1), value: st.text });
+      t.addEventListener("change", function () { st.text = t.value; saveImport().catch(pbFail); });
+      var note = h("textarea", { style: "width:100%;min-height:44px", placeholder: "Why this step matters, or what to watch for (optional)", value: st.note || "" });
+      note.addEventListener("change", function () { st.note = note.value; saveImport().catch(pbFail); });
+      var shot = null;
+      if (st.file_id) {
+        var keep = h("input", { type: "checkbox", checked: st.keep_image !== false });
+        keep.addEventListener("change", function () { st.keep_image = keep.checked; saveImport().catch(pbFail); });
+        var held = st.file && st.file.status === "held";
+        var img = h("img", { alt: "Screenshot for step " + (i + 1), style: "max-width:100%;max-height:260px;border:1px solid var(--line);border-radius:10px;display:block;margin:6px 0" });
+        api.post("/files/open", { file_id: st.file_id }).then(function (r) { if (r.ok) img.src = r.url; }).catch(function () {});
+        shot = h("div", null, img,
+          held ? h("span", { class: "badge bad", text: "May show client info" }) : null,
+          st.file && st.file.status === "refused" ? h("span", { class: "badge bad", text: "Screenshot not accepted" }) : null,
+          h("div", { class: "row" }, h("label", { style: "display:flex;gap:6px;align-items:center;margin:0" }, keep, "Use this screenshot"),
+            h("button", { class: "ghost small", onclick: function () { blurTool(st, img); } }, "Blur part of this image"),
+            held ? h("button", { class: "blue small", onclick: function () {
+              if (!confirm("Confirm this screenshot has no confidential client information.")) return;
+              api.post("/files/action", { action: "confirm", file_id: st.file_id }).then(okOr).then(function () { openImport(imp.id); }).catch(pbFail);
+            } }, "It has no client information") : null));
+      }
+      libEl.appendChild(h("div", { class: "card" }, h("div", { class: "row" }, h("h3", { class: "grow", style: "margin:0", text: "Step " + (i + 1) })),
+        t, shot, note,
+        h("div", { class: "row", style: "margin-top:6px" },
+          i > 0 ? h("button", { class: "ghost small", onclick: function () { var prev = imp.steps[i - 1]; prev.text = [prev.text, st.text].filter(Boolean).join(" "); if (!prev.file_id) prev.file_id = st.file_id; imp.steps.splice(i, 1); saveImport().then(drawImport).catch(pbFail); } }, "Merge with step above") : null,
+          h("button", { class: "ghost small", onclick: function () { imp.steps.splice(i + 1, 0, { text: "", note: "", file_id: "", keep_image: true }); saveImport().then(drawImport).catch(pbFail); } }, "Add a step here"),
+          h("button", { class: "danger small", onclick: function () { imp.steps.splice(i, 1); saveImport().then(drawImport).catch(pbFail); } }, "Remove step"))));
+    });
+    var ctx = h("textarea", { style: "width:100%;min-height:70px", placeholder: "Anything else DELA should know: who does this, what starts it, what done looks like, where an attorney must check." });
+    var btn = h("button", { class: "big" }, "Build my playbook");
+    var attempt = 0;
+    btn.addEventListener("click", function () {
+      if (!confirm("Check your screenshots for client information before DELA builds your playbook. Build it now?")) return;
+      build({});
+    });
+    function build(extra) {
+      btn.disabled = true;
+      btn.textContent = "Building...";
+      api.post("/imports/build", { id: imp.id, context: ctx.value, attempt: attempt, lawfecta_once: extra.once === true, confirm_no_client_info: extra.confirm === true }).then(function (r) {
+        btn.disabled = false;
+        btn.textContent = "Build my playbook";
+        if (!r.ok) {
+          if (r.reason === "looks_like_client_info" && confirm("The steps may include " + kindsText(r.kinds) + ". Build anyway? Only if there is no client information.")) { build({ confirm: true }); return; }
+          attempt++;
+          D.toast(app, failText(r), true);
+          return;
+        }
+        lib.questions = r.questions || [];
+        lib.importId = null;
+        openPlaybook(r.playbook_id, "read");
+      }).catch(function (e) { btn.disabled = false; btn.textContent = "Build my playbook"; pbFail(e); });
+    }
+    libEl.appendChild(h("div", { class: "card" }, notice(), h("label", { text: "Anything to add" }), ctx, h("div", { class: "row", style: "margin-top:10px" }, btn,
+      h("button", { class: "ghost", onclick: function () { if (confirm("Discard this import?")) api.post("/imports/discard", { id: imp.id }).then(function () { lib.importId = null; loadLibrary(); }).catch(pbFail); } }, "Discard"))));
+  }
+
+  // Drag a box over the screenshot; the blur is burned into a new version of the image, so it cannot be undone by anyone
+  function blurTool(st, img) {
+    if (!img.src) { D.toast(app, "The screenshot is still loading.", true); return; }
+    var pic = new Image();
+    pic.crossOrigin = "anonymous";
+    pic.onload = function () {
+      var c = document.createElement("canvas");
+      c.width = pic.naturalWidth; c.height = pic.naturalHeight;
+      c.style.cssText = "max-width:100%;cursor:crosshair;border-radius:10px;touch-action:none";
+      var g = c.getContext("2d");
+      g.drawImage(pic, 0, 0);
+      var start = null, boxes = 0;
+      function pos(e) { var r = c.getBoundingClientRect(); return { x: (e.clientX - r.left) * c.width / r.width, y: (e.clientY - r.top) * c.height / r.height }; }
+      c.addEventListener("pointerdown", function (e) { start = pos(e); });
+      c.addEventListener("pointerup", function (e) {
+        if (!start) return;
+        var end = pos(e), x = Math.min(start.x, end.x), y = Math.min(start.y, end.y), w = Math.abs(end.x - start.x), hh = Math.abs(end.y - start.y);
+        start = null;
+        if (w < 4 || hh < 4) return;
+        // Pixelate: shrink the box to a few pixels and draw it back large, then cover with a solid wash
+        var tiny = document.createElement("canvas"), k = 0.04;
+        tiny.width = Math.max(1, Math.round(w * k)); tiny.height = Math.max(1, Math.round(hh * k));
+        tiny.getContext("2d").drawImage(c, x, y, w, hh, 0, 0, tiny.width, tiny.height);
+        g.imageSmoothingEnabled = false;
+        g.drawImage(tiny, 0, 0, tiny.width, tiny.height, x, y, w, hh);
+        g.fillStyle = "rgba(120,120,120,0.55)";
+        g.fillRect(x, y, w, hh);
+        boxes++;
+      });
+      if (drawer) drawer.remove();
+      drawer = h("div", { class: "drawer", role: "dialog", "aria-label": "Blur part of this image", style: "width:min(900px,100%)" },
+        h("div", { class: "row" }, h("h2", { class: "grow", text: "Blur part of this image" }), h("button", { class: "ghost small", onclick: function () { drawer.remove(); drawer = null; } }, "Cancel")),
+        h("p", { class: "small muted", text: "Drag a box over anything private. Drag again for more boxes. Saving replaces the screenshot with the blurred one." }), c,
+        h("div", { class: "row", style: "margin-top:10px" }, h("button", { class: "blue", onclick: function () {
+          if (!boxes) { D.toast(app, "Drag a box over the part to blur first.", true); return; }
+          c.toBlob(function (blob) {
+            uploadBlob(blob, "Blurred screenshot.png", st.file_id).then(function (r) {
+              if (!r.ok) throw r;
+              var old = st.file_id;
+              st.file_id = r.file_id;
+              // The unblurred original is deleted for good
+              return saveImport().then(function () { return api.post("/files/action", { action: "drop_version", file_id: old }); });
+            }).then(function () { drawer.remove(); drawer = null; D.toast(app, "Blurred screenshot saved"); openImport(imp.id); }).catch(pbFail);
+          }, "image/png");
+        } }, "Save the blurred screenshot")));
+      app.appendChild(drawer);
+    };
+    pic.onerror = function () { D.toast(app, "The screenshot could not be opened for blurring. Untick it instead.", true); };
+    pic.src = img.src;
+  }
+
+
   function draw() {
     closeMenu();
     var main = h("div", { class: "wrap" });
@@ -831,6 +1669,7 @@
     else if (tab === "ai") main.appendChild(aiSettingsView());
     else if ((tab === "delegate" || tab === "ask") && (me.switches || {}).ai_generation) main.appendChild(chatView());
     else if (tab === "files" && me.side === "attorney" && (me.switches || {}).file_uploads) main.appendChild(filesView());
+    else if (tab === "library" && me.side === "attorney" && (me.switches || {}).playbook_library) main.appendChild(libraryView());
     else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1]));
     else { tab = "home"; main.appendChild(me.side === "attorney" ? attorneyHome() : freelancerHome()); }
     show(h("div", null, header(), nav(), main));

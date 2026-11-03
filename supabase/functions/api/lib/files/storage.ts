@@ -8,6 +8,8 @@ export type Storage = {
   size(path: string): Promise<number | null>;
   read(path: string): Promise<Uint8Array>;
   remove(paths: string[]): Promise<void>;
+  // Server-side upload (screenshots fetched while importing a guide)
+  put(path: string, bytes: Uint8Array, contentType: string): Promise<void>;
 };
 
 const BUCKET = "dela-files";
@@ -49,6 +51,13 @@ export function supabaseStorage(base: string, serviceKey: string, f: typeof fetc
       const r = await call("GET", `/object/authenticated/${BUCKET}/${encPath(path)}`);
       if (!r.ok) throw new Error("storage_read_" + r.status);
       return new Uint8Array(await r.arrayBuffer());
+    },
+    async put(path, bytes, contentType) {
+      const r = await f(root + `/object/${BUCKET}/${encPath(path)}`, {
+        method: "POST", headers: { ...auth, "content-type": contentType, "x-upsert": "false" }, body: bytes as Uint8Array<ArrayBuffer>, signal: AbortSignal.timeout(30_000),
+      });
+      await r.body?.cancel();
+      if (!r.ok) throw new Error("storage_put_" + r.status);
     },
     async remove(paths) {
       if (!paths.length) return;

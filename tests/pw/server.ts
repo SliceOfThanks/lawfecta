@@ -23,7 +23,29 @@ const storage: Storage = {
   size: (p) => Promise.resolve(objects.get(p)?.length ?? null),
   read: (p) => (objects.has(p) ? Promise.resolve(objects.get(p)!) : Promise.reject(new Error("missing"))),
   remove: (ps) => { ps.forEach((p) => objects.delete(p)); return Promise.resolve(); },
+  put: (p, b) => { objects.set(p, b); return Promise.resolve(); },
 };
+// Playbook answers for the browser test (Step 2)
+const FULL = {
+  title: "New client intake", outcome: "A signed engagement letter and an opened file", practice_area: "Family law", jurisdiction: "California",
+  when_to_use: "A new client signs", roles: "Attorney: engagement letter\nParalegal: opens the file", needs: ["Intake form"],
+  steps: [{ text: "Run the conflict check", who: "paralegal", tag: "delegate", minutes: 10 }, { text: "Approve the engagement letter", who: "attorney", tag: "keep" }, { text: "Open the file in Clio", who: "paralegal", tool: "Clio", tag: "delegate" }],
+  checks: ["Letter signed"], review_points: ["Attorney approves the engagement letter"], deliverables: "Opened file",
+};
+function playbookAnswer(system: string, user: string): unknown {
+  if (system.includes("write down one repeatable process")) return { playbook: { title: "New client intake", outcome: "An opened file", steps: [{ text: "Run the conflict check" }] }, questions: ["Who signs the engagement letter?", "Which state is this for?"] };
+  if (system.includes("improving a playbook draft")) return { playbook: FULL, questions: [] };
+  if (system.includes("answering questions about one of the firm's playbooks")) {
+    return user.includes("welcome") ? { reply: "I added a step to send the welcome email.", change: { ...FULL, steps: [...FULL.steps, { text: "Send the welcome email", tag: "automate" }] }, note: "Add a welcome email" }
+      : { reply: "The paralegal runs the conflict check.", change: null };
+  }
+  if (system.includes("recorded in another tool")) return { playbook: { ...FULL, title: "File a motion", steps: [{ text: "Save the motion as a PDF", from: [1] }, { text: "Upload it to the court website", from: [2] }, { text: "Upload the filed copy to Clio", from: [3] }] }, questions: [] };
+  if (system.includes("Suggest up to 8")) return { suggestions: [{ title: "Conflict check", why: "Every firm runs one before taking a matter." }] };
+  return null;
+}
+// A small PNG served as a Scribe screenshot
+const PNG = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAIAAADRv8uKAAAAK0lEQVR4nO3NMQ0AAAgDsAlDCYqRhQw4mvRvpvpExGKxWCwWi8VisVj8N16B+mj7BBLoxAAAAABJRU5ErkJggg=="), (c) => c.charCodeAt(0));
+
 // OpenAI and Claude stand-ins: a member key ending "bad" is refused; text naming "Jane Roe" counts as client information
 function fakeAi(u: string, opts: RequestInit): Response | null {
   const h = new Headers(opts.headers ?? {});
@@ -33,6 +55,9 @@ function fakeAi(u: string, opts: RequestInit): Response | null {
   if (u.startsWith("https://api.openai.com/v1/")) {
     if (u.endsWith("/models")) return Response.json({ data: [{ id: "gpt-5.4-mini" }, { id: "gpt-transcribe" }] });
     if (u.endsWith("/audio/transcriptions")) return Response.json({ text: "Make a checklist for filing a motion" });
+    const system = String(body?.messages?.[0]?.content ?? "");
+    const pb = playbookAnswer(system, JSON.stringify(body?.messages?.at(-1) ?? ""));
+    if (pb) return Response.json({ model: body.model, choices: [{ message: { content: JSON.stringify(pb) } }], usage: { prompt_tokens: 200, completion_tokens: 80 } });
     if (body?.response_format) return Response.json({ model: body.model, choices: [{ message: { content: JSON.stringify({ client_info: JSON.stringify(body.messages).includes("Jane Roe"), kinds: ["client_name"] }) } }], usage: { prompt_tokens: 9, completion_tokens: 3 } });
     const last = JSON.stringify(body?.messages?.at(-1) ?? "");
     return Response.json({ model: body?.model, choices: [{ message: { content: "Here is a checklist (OpenAI" + (key.includes("member") ? ", your key" : ", Lawfecta") + "):\n1. Draft the motion.\n2. File it." + (last.includes("<file") ? "\nI read your file." : "") } }], usage: { prompt_tokens: 100, completion_tokens: 30 } });
@@ -50,6 +75,7 @@ const deps = {
     AI_KEY_ENCRYPTION_SECRET: "browser-test-encryption-secret-0123456789", OPENAI_API_KEY: "sk-lawfecta-browser-test-key-0000000000" } as Record<string, string>)[k] ?? "", // rules-ok: made-up test keys
   fetch: (async (url: string | URL | Request, opts: RequestInit = {}) => {
     const u = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    if (u.startsWith("https://images.scribehow.com/")) return new Response(PNG, { headers: { "content-type": "image/png" } });
     const ai = fakeAi(u, url instanceof Request ? { headers: url.headers, body: opts.body } : opts);
     if (ai) return ai;
     if (u.endsWith("/dispatches")) { lastDispatch = JSON.parse(String(opts.body)); return new Response(null, { status: 204 }); }
