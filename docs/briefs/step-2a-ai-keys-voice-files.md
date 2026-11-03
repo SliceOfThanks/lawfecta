@@ -2,7 +2,7 @@
 
 Step: 2a (Phase 1, built before the playbook library in Step 2, which uses all three)
 Spec references: 1A section 10 (AI gateway, BYOK and cost controls), 1A "describe work or upload a permitted sanitized SOP", 1A malicious upload, Program Guide C (BYOK for all plans and both sides; confidential client data upload prohibited at first release), Decision Register byok, ai.byok_providers, ai.default_provider, ai.runs, storage.mb
-Status: draft, waiting on Stacey's answers. Added to Phase 1 by Stacey 2026-10-29: "Ensure BYOK and talk into the AI is in phase 1. Also attorneys should be able to upload docs."
+Status: approved to build with the suggested answers (Stacey 2026-11-03). Built and on Staging; see STATUS.md. Added to Phase 1 by Stacey 2026-10-29: "Ensure BYOK and talk into the AI is in phase 1. Also attorneys should be able to upload docs."
 
 ## The goal
 Every member can use DELA's AI on Lawfecta's key or on their own OpenAI or Claude key, can talk to the AI instead of typing, and attorneys can upload their own documents (existing process write-ups, templates, forms, checklists) for the AI to work from and for the team to keep with their playbooks.

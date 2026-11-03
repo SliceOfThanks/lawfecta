@@ -1,5 +1,16 @@
 # Build status (read this first in a new session)
 
+## Step 2a (built 2026-11-03, on Staging; brief docs/briefs/step-2a-ai-keys-voice-files.md, built with Stacey's "use the suggested answers")
+- Branch claude/step-2a-ai-keys-voice-files, commit 1b9b85e (code), api-0.5.0, migration 0014_ai_keys_voice_files.
+- What it is: members' own OpenAI or Claude key (sealed with AES-GCM by the api, bound to the row, only last 4 shown, firm key for Business owners), AI routing that never moves to Lawfecta's key unless the member clicks "Use Lawfecta credits this time", credits reserved and given back on failure, Ask DELA chat on both sides with history, Talk button (speech to text; Claude keys use Lawfecta's speech to text), attorney Files (type checked by contents, PDF/Word/text read for the AI, scripts and macros refused, client information check: patterns plus an AI check on Lawfecta's key, held files, versions, folders, trash 30 days, storage by plan, 5 minute links), admin tab "AI and files", daily file clean up and key failure reminder. Rules check: keys never in a log or a response.
+- Tests: supabase/tests/ai_files_test.sql, supabase/functions/api/ai_files_test.ts (14), tests/pw/ai-files-test.js (29 browser checks), rules_test. All suites pass locally, including the 70 older browser checks.
+- Staging, 2026-11-03: 0014 applied (fetched from jsDelivr at the commit, SHA-256 checked before running). api deployed as version 7: a small index.ts that imports app.ts and storage.ts from jsDelivr pinned to the full commit, so Staging runs exactly the tested files. code_version = 1b9b85e071ca67c5da43856211aad0952023b4fc. Health 200, api-0.5.0, worker ok. Bucket dela-files private, 25 MB. Switches ai_generation, byok, voice_input, file_uploads set to list (Team and access list) on Staging only.
+- Staging smoke test as test attorney 687: /ai, /files, /files/start (real signed upload address), /files/complete (not_uploaded), .exe refused; chat says ai_not_set_up and key add says encryption_not_set_up until the secrets below exist. Clean up of the smoke rows was waiting on Stacey's connector approval (one test chat, one unfinished upload that the daily sweep clears).
+- Waiting on Stacey: Supabase secrets AI_KEY_ENCRYPTION_SECRET (random, 48+ characters, never shown to anyone) and OPENAI_API_KEY (Lawfecta's own OpenAI key) on the Lawfecta AI project. Then the ChatGPT test: docs/tests/step-2a-chatgpt-prompt.md.
+- Open settings to confirm with Stacey: ai.model.openai (gpt-5.4-mini) and ai.model.transcribe (gpt-transcribe) are Open; DELA picks a model the key can use if these are not offered. ai.credits.* (1 chat, 2 with files, 1 talking) are Open.
+- Not done yet: release record (needs the GitHub Tests run on the commit and the AI review), push to Live (Stacey).
+- Next: Step 2 playbooks built together with Import from Scribe (order set by Stacey 2026-11-03), then the Process Recorder.
+
 Last updated: 2026-10-27. Phase 1A, Step 0 (setup) and Step 1 (foundation) built, tested, and deployed to DELA Staging. Live not created yet.
 
 ## Staging (deployed 2026-10-27)

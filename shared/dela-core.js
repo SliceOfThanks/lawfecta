@@ -161,6 +161,8 @@
       not_found: "That item is no longer here. Refresh the page.",
       not_available: "That file is not available right now.",
       storage_not_set_up: "File storage is still being set up. Please try again later.",
+      not_uploaded: "The upload did not reach DELA. Check your connection and upload the file again.",
+      upload_failed: "The upload did not finish. Check your connection and try again.",
       server_error: "Something went wrong. Please try again.",
     };
     return map[code] || "That did not work (" + code + ").";
