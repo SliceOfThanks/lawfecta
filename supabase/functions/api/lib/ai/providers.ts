@@ -198,3 +198,21 @@ export async function transcribe(f: typeof fetch, plainKey: string, model: strin
     return { text: String(j.text ?? "").trim(), model: m };
   });
 }
+
+// Speech to text with times (for recordings). whisper-1 returns timed segments; newer models return one block of text,
+// which is then timed as one line across the part.
+export async function transcribeLines(f: typeof fetch, plainKey: string, model: string, audio: Uint8Array, mime: string, partMs: number): Promise<{ lines: Array<{ start_ms: number; end_ms: number; text: string }>; model: string }> {
+  return await withModel(f, plainKey, model, pickTranscribeModel, async (m) => {
+    const form = new FormData();
+    form.append("file", new Blob([audio as Uint8Array<ArrayBuffer>], { type: mime || "audio/webm" }), "speech.webm");
+    form.append("model", m);
+    form.append("response_format", m === "whisper-1" ? "verbose_json" : "json");
+    const r = await openaiFetch(f, plainKey, "/audio/transcriptions", { method: "POST", body: form });
+    if (!r.ok) throw await openaiError(r);
+    const j = await r.json().catch(() => ({})) as { text?: string; segments?: Array<{ start?: number; end?: number; text?: string }> };
+    const lines = Array.isArray(j.segments) && j.segments.length
+      ? j.segments.map((x) => ({ start_ms: Math.round((x.start ?? 0) * 1000), end_ms: Math.round((x.end ?? 0) * 1000), text: String(x.text ?? "").trim() }))
+      : String(j.text ?? "").trim() ? [{ start_ms: 0, end_ms: partMs, text: String(j.text).trim() }] : [];
+    return { lines: lines.filter((l) => l.text), model: m };
+  });
+}

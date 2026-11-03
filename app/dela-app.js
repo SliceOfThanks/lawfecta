@@ -903,6 +903,7 @@
           h("button", { class: "small blue", onclick: function () { openImport(i.id); } }, "Review"));
       }))));
     }
+    if (can(3)) libEl.appendChild(recordingsCard());
     var q = h("input", { type: "search", placeholder: "Search", "aria-label": "Search playbooks", value: lib.q });
     q.addEventListener("input", function () { lib.q = q.value; drawList(); });
     var filters = [["all", "All"], ["draft", "Drafts"], ["in_review", "In review"], ["approved", "Approved"], ["due", "Due for review"], ["archived", "Archived"]];
@@ -1536,7 +1537,7 @@
   }
 
   function saveImport() {
-    return api.post("/imports/save", { org_id: imp.org_id, id: imp.id, title: imp.title, steps: imp.steps.map(function (s) { return { text: s.text, note: s.note, file_id: s.file_id, keep_image: s.keep_image !== false }; }) }).then(okOr);
+    return api.post("/imports/save", { org_id: imp.org_id, id: imp.id, title: imp.title, steps: imp.steps.map(function (s) { return { text: s.text, note: s.note, file_id: s.file_id, keep_image: s.keep_image !== false, extra: s.extra || [], at_ms: s.at_ms || 0 }; }) }).then(okOr);
   }
 
   // The review screen: nothing goes to the AI until Build my playbook
@@ -1546,7 +1547,7 @@
     var titleIn = h("input", { style: "width:100%", value: imp.title, "aria-label": "Title" });
     titleIn.addEventListener("change", function () { imp.title = titleIn.value; saveImport().catch(pbFail); });
     libEl.appendChild(h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "ghost small", onclick: function () { lib.importId = null; loadLibrary(); } }, "← Library")));
-    libEl.appendChild(h("h1", { text: "Review your guide" }));
+    libEl.appendChild(h("h1", { text: imp.source === "recorder" ? "Review your recording" : "Review your guide" }));
     libEl.appendChild(h("p", { class: "muted", text: "Check every screenshot for client information, blur anything private, fix the steps, and add why each step matters. Nothing goes to the AI until you click Build my playbook." }));
     libEl.appendChild(h("div", { class: "card" }, h("label", { text: "Title" }), titleIn));
     imp.steps.forEach(function (st, i) {
@@ -1571,13 +1572,14 @@
               api.post("/files/action", { action: "confirm", file_id: st.file_id }).then(okOr).then(function () { openImport(imp.id); }).catch(pbFail);
             } }, "It has no client information") : null));
       }
-      libEl.appendChild(h("div", { class: "card" }, h("div", { class: "row" }, h("h3", { class: "grow", style: "margin:0", text: "Step " + (i + 1) })),
-        t, shot, note,
+      libEl.appendChild(h("div", { class: "card" }, h("div", { class: "row" }, h("h3", { class: "grow", style: "margin:0", text: "Step " + (i + 1) }), st.at_ms ? h("span", { class: "small muted", text: "at " + mmssJs(st.at_ms) }) : null),
+        t, shot, imp.source === "recorder" ? extraShots(st) : null, note,
         h("div", { class: "row", style: "margin-top:6px" },
           i > 0 ? h("button", { class: "ghost small", onclick: function () { var prev = imp.steps[i - 1]; prev.text = [prev.text, st.text].filter(Boolean).join(" "); if (!prev.file_id) prev.file_id = st.file_id; imp.steps.splice(i, 1); saveImport().then(drawImport).catch(pbFail); } }, "Merge with step above") : null,
           h("button", { class: "ghost small", onclick: function () { imp.steps.splice(i + 1, 0, { text: "", note: "", file_id: "", keep_image: true }); saveImport().then(drawImport).catch(pbFail); } }, "Add a step here"),
           h("button", { class: "danger small", onclick: function () { imp.steps.splice(i, 1); saveImport().then(drawImport).catch(pbFail); } }, "Remove step"))));
     });
+    if (imp.source === "recorder") { var rp = h("div"); libEl.appendChild(rp); recorderPanel(rp); }
     var ctx = h("textarea", { style: "width:100%;min-height:70px", placeholder: "Anything else DELA should know: who does this, what starts it, what done looks like, where an attorney must check." });
     var btn = h("button", { class: "big" }, "Build my playbook");
     var attempt = 0;
@@ -1655,6 +1657,459 @@
     };
     pic.onerror = function () { D.toast(app, "The screenshot could not be opened for blurring. Untick it instead.", true); };
     pic.src = img.src;
+  }
+
+
+  // ---------- Process Recorder ----------
+
+  var recs = { data: null };
+  var REC_STATUS = { recording: "Recording", uploading: "Uploading", analyzing: "Analyzing", ready: "Ready for review", failed: "Could not analyze", discarded: "Discarded" };
+
+  // Pieces wait in the browser (IndexedDB) until they are safely uploaded, so a dropped connection or closed tab loses nothing
+  var idb = {
+    open: function () {
+      return new Promise(function (ok, no) {
+        if (!window.indexedDB) { no(new Error("no_idb")); return; }
+        var r = indexedDB.open("dela-recorder", 1);
+        r.onupgradeneeded = function () { r.result.createObjectStore("parts", { keyPath: "key" }); };
+        r.onsuccess = function () { ok(r.result); };
+        r.onerror = function () { no(r.error); };
+      });
+    },
+    run: function (mode, fn) {
+      return idb.open().then(function (db) {
+        return new Promise(function (ok, no) {
+          var t = db.transaction("parts", mode), st = t.objectStore("parts"), out = fn(st);
+          t.oncomplete = function () { ok(out && out.result !== undefined ? out.result : undefined); };
+          t.onerror = function () { no(t.error); };
+        });
+      });
+    },
+    put: function (rec) { return idb.run("readwrite", function (st) { st.put(rec); }).catch(function () {}); },
+    del: function (key) { return idb.run("readwrite", function (st) { st.delete(key); }).catch(function () {}); },
+    all: function () { return idb.run("readonly", function (st) { return st.getAll(); }).catch(function () { return []; }); },
+  };
+
+  function uploadPart(recId, kind, seq, startMs, blob) {
+    var key = recId + ":" + kind + ":" + seq;
+    return idb.put({ key: key, recId: recId, kind: kind, seq: seq, startMs: startMs, blob: blob, at: Date.now() }).then(function () {
+      return api.post("/recordings/part", { id: recId, kind: kind, seq: seq, start_ms: startMs, bytes: blob.size });
+    }).then(function (r) {
+      if (!r.ok) throw r;
+      if (r.uploaded) return r;
+      return fetch(r.upload_url, { method: "PUT", headers: { "content-type": "video/webm", "x-upsert": "true" }, body: blob }).then(function (up) {
+        if (!up.ok) throw new Error("upload_failed");
+        return api.post("/recordings/part-done", { id: recId, kind: kind, seq: seq });
+      });
+    }).then(function (r) { if (r && r.ok === false) throw r; return idb.del(key); });
+  }
+
+  function recordingsCard() {
+    var card = h("div", { class: "card" }, h("p", { class: "muted", text: "Loading recordings..." }));
+    Promise.all([api.get("/recordings"), idb.all()]).then(function (r) {
+      recs.data = r[0];
+      var waiting = r[1] || [];
+      D.clear(card);
+      var st = recs.data.settings;
+      card.appendChild(h("div", { class: "row" }, h("h2", { class: "grow", text: "Recordings" }),
+        st.on ? h("button", { class: "blue small", onclick: recordView }, "Record a process") : null));
+      card.appendChild(h("p", { class: "small muted", text: "Videos are kept " + st.video_days + " days on your plan, then deleted; the playbook you build stays. Storage used: " + mbText(recs.data.used_bytes) + " of " + mbText(recs.data.limit_bytes) + "." }));
+      if (waiting.length) {
+        card.appendChild(h("div", { class: "notice", role: "alert" }, h("p", { style: "margin:0 0 6px", text: "Your last recording didn't finish uploading." }),
+          h("button", { class: "blue small", onclick: function () { finishLeftovers(waiting); } }, "Finish upload")));
+      }
+      if (!recs.data.items.length) { card.appendChild(h("p", { class: "muted", text: st.on ? "No recordings yet." : "The Process Recorder is not open for your account yet." })); return; }
+      var today = new Date().toISOString().slice(0, 10);
+      card.appendChild(h("div", { class: "scroll" }, h("table", null,
+        h("thead", null, h("tr", null, ["Process name", "Date recorded", "Length", "Status", "Video deletes on", ""].map(function (x) { return h("th", { text: x }); }))),
+        h("tbody", null, recs.data.items.map(function (x) {
+          var days = x.video_delete_after ? Math.round((new Date(x.video_delete_after) - new Date(today)) / 86400000) : null;
+          var del = x.video_deleted_at ? "Video deleted on " + D.date(x.video_deleted_at) : x.video_delete_after ? D.date(x.video_delete_after) : "";
+          return h("tr", null, h("td", null, h("b", { text: x.title })), h("td", { text: D.date(x.created_at) }),
+            h("td", { text: x.duration_seconds ? Math.floor(x.duration_seconds / 60) + " min " + (x.duration_seconds % 60) + " s" : "" }),
+            h("td", null, h("span", { class: "badge " + (x.status === "ready" ? "ready" : x.status === "failed" ? "bad" : "held"), text: REC_STATUS[x.status] + (x.status === "failed" && x.error ? " (" + x.error.split("_").join(" ") + ")" : "") })),
+            h("td", null, del, days !== null && days <= 3 && !x.video_deleted_at ? h("span", { class: "badge held", style: "margin-left:6px", text: "Deletes in " + Math.max(days, 0) + " days" }) : null),
+            h("td", null, h("div", { class: "row" },
+              x.status === "ready" && x.import_id && !x.playbook_id ? h("button", { class: "blue small", onclick: function () { openImport(x.import_id); } }, "Review") : null,
+              x.playbook_id ? h("button", { class: "ghost small", onclick: function () { openPlaybook(x.playbook_id, "read"); } }, "Open playbook") : null,
+              x.status === "failed" ? h("button", { class: "blue small", onclick: function () { api.post("/recordings/retry", { id: x.id }).then(function (r) { if (r.ok === false) throw r; D.toast(app, "Analyzing again"); drawLibrary(); }).catch(pbFail); } }, "Try again") : null,
+              !x.video_deleted_at && x.video_bytes ? h("button", { class: "ghost small", onclick: function () { downloadVideo(x); } }, "Download video") : null,
+              !x.video_deleted_at ? h("button", { class: "danger small", onclick: function () {
+                if (!confirm("Delete this recording's video and screenshots now? A playbook built from it stays.")) return;
+                api.post("/recordings/delete-video", { id: x.id }).then(function (r) { if (r.ok === false) throw r; D.toast(app, "Video deleted"); drawLibrary(); }).catch(pbFail);
+              } }, "Delete video") : null)));
+        })))));
+      if (recs.data.items.some(function (x) { return x.status === "analyzing" || x.status === "uploading"; })) setTimeout(function () { if (tab === "library" && !lib.pb && !lib.importId && card.isConnected) drawLibrary(); }, 8000);
+    }).catch(function (e) { D.clear(card); card.appendChild(h("p", { class: "small muted", text: D.errorText(e.message) })); });
+    return card;
+  }
+
+  function finishLeftovers(parts) {
+    var byRec = {};
+    parts.forEach(function (p) { (byRec[p.recId] = byRec[p.recId] || []).push(p); });
+    var ids = Object.keys(byRec);
+    D.toast(app, "Finishing the upload...");
+    var chain = Promise.resolve();
+    ids.forEach(function (id) {
+      byRec[id].sort(function (a, b) { return a.seq - b.seq; }).forEach(function (p) { chain = chain.then(function () { return uploadPart(p.recId, p.kind, p.seq, p.startMs, p.blob); }); });
+      chain = chain.then(function () {
+        var item = (recs.data.items || []).filter(function (x) { return x.id === id; })[0];
+        var st = JSON.parse(localStorageGet("dela.rec." + id) || "{}");
+        return api.post("/recordings/finish", { id: id, duration_seconds: st.seconds || (item && item.duration_seconds) || 0, video_parts: st.video || 0, audio_parts: st.audio || 0 });
+      });
+    });
+    chain.then(function () { D.toast(app, "Upload finished"); drawLibrary(); }).catch(pbFail);
+  }
+  function localStorageGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function localStorageSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* private windows */ } }
+
+  // The video arrives in pieces; the browser joins them into one file to play or save
+  function downloadVideo(x) {
+    D.toast(app, "Preparing the video...");
+    api.post("/recordings/video", { id: x.id }).then(function (r) {
+      if (!r.ok) throw r;
+      return Promise.all(r.urls.map(function (u) { return fetch(u).then(function (res) { if (!res.ok) throw new Error("download_failed"); return res.blob(); }); })).then(function (blobs) {
+        var blob = new Blob(blobs, { type: (r.mime || "video/webm").split(";")[0] });
+        var a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = "DELA - " + r.title.replace(/[^A-Za-z0-9 ._-]+/g, " ").trim() + " - " + String(r.created_at).slice(0, 10) + ".webm";
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 2000);
+      });
+    }).catch(pbFail);
+  }
+
+  function browserName() {
+    var u = navigator.userAgent;
+    return /Edg\//.test(u) ? "Edge" : /OPR\//.test(u) ? "Opera" : /Firefox\//.test(u) ? "Firefox" : /Chrome\//.test(u) ? "Chrome" : /Safari\//.test(u) ? "Safari" : "Other";
+  }
+  function pickMime() {
+    var list = ["video/webm;codecs=vp9,opus", "video/webm;codecs=vp8,opus", "video/webm", "video/mp4"];
+    for (var i = 0; i < list.length; i++) if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(list[i])) return list[i];
+    return "";
+  }
+  function audioMime() {
+    var list = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
+    for (var i = 0; i < list.length; i++) if (window.MediaRecorder && MediaRecorder.isTypeSupported && MediaRecorder.isTypeSupported(list[i])) return list[i];
+    return "";
+  }
+
+  // 4.1 Record a Process page
+  function recordView() {
+    var st = recs.data ? recs.data.settings : null;
+    if (!st) { api.get("/recordings").then(function (r) { recs.data = r; recordView(); }).catch(pbFail); return; }
+    var can = navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && window.MediaRecorder && !/Mobi|Android|iPad|iPhone/.test(navigator.userAgent);
+    var name = h("input", { "aria-label": "Process name", style: "width:100%", placeholder: "Example: File a motion and upload it to Clio" });
+    var micSel = h("select", { "aria-label": "Microphone" }, h("option", { value: "", text: "Default microphone" }));
+    var meter = h("div", { class: "bar", "aria-label": "Microphone level" }, h("span", { style: "width:0%" }));
+    var consent = h("input", { type: "checkbox", id: "dela-rec-consent" });
+    var start = h("button", { class: "blue big", disabled: !st.consented }, "Start recording");
+    consent.addEventListener("change", function () { start.disabled = !consent.checked; });
+    var status = h("div", { role: "status" });
+    var probe = null;
+    if (can && navigator.mediaDevices.enumerateDevices) {
+      navigator.mediaDevices.getUserMedia({ audio: true }).then(function (s) {
+        probe = s;
+        levelMeter(s, meter.firstChild);
+        return navigator.mediaDevices.enumerateDevices();
+      }).then(function (ds) {
+        ds.filter(function (d) { return d.kind === "audioinput"; }).forEach(function (d, i) { micSel.appendChild(h("option", { value: d.deviceId, text: d.label || "Microphone " + (i + 1) })); });
+      }).catch(function () { status.textContent = "DELA could not use a microphone. Allow the microphone for this site (the icon left of the web address), then reload. You can still record without talking, but the steps will be less clear."; });
+    }
+    var upload = h("input", { type: "file", accept: "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov", style: "display:none" });
+    upload.addEventListener("change", function () { if (upload.files[0]) uploadRecording(upload.files[0], name.value, st, status); });
+    start.addEventListener("click", function () {
+      if (!name.value.trim()) { D.toast(app, "Give the process a name first.", true); name.focus(); return; }
+      if (probe) probe.getTracks().forEach(function (t) { t.stop(); });
+      beginRecording(name.value.trim(), micSel.value, st, status, !st.consented && consent.checked);
+    });
+    D.clear(libEl);
+    libEl.appendChild(h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "ghost small", onclick: function () { if (probe) probe.getTracks().forEach(function (t) { t.stop(); }); drawLibrary(); } }, "← Library")));
+    libEl.appendChild(h("div", { class: "hero navy" }, h("span", { class: "badge", style: "background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)", text: "DELA RECORDER" }),
+      h("h2", { text: "Record a process" }), h("p", { text: "Do the task the way you always do and talk through each step. DELA turns it into a playbook you can hand off." })));
+    var card = h("div", { class: "card" }, h("label", { text: "Process name" }), name);
+    if (can) {
+      card.appendChild(h("label", { text: "Microphone" }));
+      card.appendChild(micSel);
+      card.appendChild(meter);
+      if (!st.consented) card.appendChild(h("label", { style: "display:flex;gap:8px;align-items:flex-start;font-weight:600;margin-top:12px" }, consent, h("span", { text: st.consent_text })));
+      card.appendChild(h("div", { class: "notice", style: "border-color:#e8c97a;background:#fff3d6;color:#5a3d00" }, h("b", { text: "💡 Before you start" }),
+        h("ul", { style: "margin:6px 0 0" }, h("li", { text: "Close email and chat windows you don't need." }), h("li", { text: "Keep the whole process on one screen." }), h("li", { text: "Say out loud what you are doing and why." }), h("li", { text: "For the beta, record a practice run or non-client work. Confidential client information does not belong in DELA." }))));
+      card.appendChild(h("p", { class: "small", text: "Your plan allows recordings up to " + st.max_minutes + " minutes." }));
+      card.appendChild(h("div", { class: "row" }, start, h("button", { class: "ghost", onclick: function () { upload.click(); } }, "Upload a recording"), upload));
+    } else {
+      card.appendChild(h("p", { class: "notice", text: "Screen recording isn't available in this browser. Open DELA in Chrome, Edge, Firefox or Safari on a computer, or upload a recording you made elsewhere." }));
+      card.appendChild(h("div", { class: "row" }, h("button", { class: "blue", onclick: function () { upload.click(); } }, "Upload a recording"), upload));
+    }
+    card.appendChild(status);
+    libEl.appendChild(card);
+  }
+
+  function levelMeter(stream, bar) {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext, c = new AC(), an = c.createAnalyser();
+      an.fftSize = 512;
+      c.createMediaStreamSource(stream).connect(an);
+      var data = new Uint8Array(an.fftSize);
+      (function loop() {
+        if (!bar.isConnected || stream.getAudioTracks().every(function (t) { return t.readyState === "ended"; })) { try { c.close(); } catch (e) { /* closing is best effort */ } return; }
+        an.getByteTimeDomainData(data);
+        var sum = 0;
+        for (var i = 0; i < data.length; i++) { var v = (data[i] - 128) / 128; sum += v * v; }
+        bar.style.width = Math.min(100, Math.round(Math.sqrt(sum / data.length) * 300)) + "%";
+        requestAnimationFrame(loop);
+      })();
+    } catch (e) { /* the meter is a help only */ }
+  }
+
+  function screenHelp() {
+    return /Mac/.test(navigator.platform || navigator.userAgent)
+      ? "Your Mac blocked screen recording. Open System Settings. Go to Privacy & Security, then Screen & System Audio Recording. Turn on your browser. Quit and reopen the browser."
+      : "Screen sharing was blocked or cancelled. Click Start recording again and choose Entire Screen.";
+  }
+
+  // 4.2 While recording
+  function beginRecording(title, micId, st, status, consent) {
+    var startedReq = newId();
+    var display = null, mic = null;
+    navigator.mediaDevices.getDisplayMedia({ video: { displaySurface: "monitor", cursor: "always", frameRate: { ideal: 5, max: 15 }, width: { max: 2560 } }, audio: false,
+      monitorTypeSurfaces: "include", surfaceSwitching: "exclude", selfBrowserSurface: "exclude" }).then(function (d) {
+      display = d;
+      var surface = d.getVideoTracks()[0].getSettings().displaySurface;
+      if (surface && surface !== "monitor") {
+        d.getTracks().forEach(function (t) { t.stop(); });
+        throw { reason: "not_whole_screen" };
+      }
+      return navigator.mediaDevices.getUserMedia({ audio: { deviceId: micId || undefined, echoCancellation: true, noiseSuppression: true } }).catch(function () { return null; });
+    }).then(function (m) {
+      mic = m;
+      return api.post("/recordings/start", { title: title, request_id: startedReq, browser: browserName(), mime: pickMime(), consent: consent });
+    }).then(function (r) {
+      if (!r.ok) throw r;
+      runRecorder(r.id, title, display, mic, r.settings);
+    }).catch(function (e) {
+      if (display) display.getTracks().forEach(function (t) { t.stop(); });
+      if (mic) mic.getTracks().forEach(function (t) { t.stop(); });
+      status.className = "problem";
+      status.textContent = e && e.reason === "not_whole_screen" ? "DELA needs your entire screen so it can follow you between programs. Click Start recording again and choose Entire Screen."
+        : e && e.name === "NotAllowedError" ? screenHelp() : e && e.reason ? failText(e) : "Recording could not start. Please try again.";
+    });
+  }
+
+  function runRecorder(recId, title, display, mic, st) {
+    var started = Date.now(), pausedFor = 0, pausedAt = 0, seq = 0, aseq = 0, frames = 0, stopped = false, pending = [];
+    var tracks = display.getVideoTracks().concat(mic ? mic.getAudioTracks() : []);
+    var mime = pickMime();
+    var mr = new MediaRecorder(new MediaStream(tracks), mime ? { mimeType: mime, videoBitsPerSecond: st.video_kbps * 1000 } : { videoBitsPerSecond: st.video_kbps * 1000 });
+    var elapsed = function () { return Date.now() - started - pausedFor - (pausedAt ? Date.now() - pausedAt : 0); };
+    mr.ondataavailable = function (e) {
+      if (!e.data || !e.data.size) return;
+      var n = seq++;
+      pending.push(uploadPart(recId, "video", n, n * st.chunk_seconds * 1000, e.data).catch(function () { /* stays in the browser for Finish upload */ }));
+    };
+    mr.start(st.chunk_seconds * 1000);
+    // Speech is recorded separately in parts of a few minutes, each a complete file for speech to text
+    var am = null, amStart = 0;
+    function startAudio() {
+      if (!mic || stopped) return;
+      amStart = elapsed();
+      am = new MediaRecorder(mic, audioMime() ? { mimeType: audioMime() } : undefined);
+      var chunks = [], myStart = amStart;
+      am.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
+      am.onstop = function () {
+        if (!chunks.length) return;
+        var n = aseq++;
+        pending.push(uploadPart(recId, "audio", n, myStart, new Blob(chunks, { type: (am && am.mimeType) || "audio/webm" })).catch(function () {}));
+      };
+      am.start(1000);
+    }
+    startAudio();
+    var audioTimer = setInterval(function () { if (am && am.state === "recording") { am.stop(); startAudio(); } }, st.audio_part_minutes * 60000);
+    // Screenshots when the screen changes
+    var vid = document.createElement("video");
+    vid.muted = true;
+    vid.srcObject = new MediaStream(display.getVideoTracks());
+    vid.play().catch(function () {});
+    var small = document.createElement("canvas"); small.width = 64; small.height = 36;
+    var sg = small.getContext("2d", { willReadFrequently: true }), last = null, lastShot = -1e9;
+    var frameTimer = setInterval(function () {
+      if (stopped || pausedAt || !vid.videoWidth || frames >= st.max_frames) return;
+      sg.drawImage(vid, 0, 0, 64, 36);
+      var px = sg.getImageData(0, 0, 64, 36).data, diff = 0;
+      if (last) { for (var i = 0; i < px.length; i += 4) diff += Math.abs(px[i] - last[i]) + Math.abs(px[i + 1] - last[i + 1]) + Math.abs(px[i + 2] - last[i + 2]); diff /= (px.length / 4) * 3; }
+      var at = elapsed();
+      if (last === null || diff > 6 || at - lastShot > 30000) {
+        last = px;
+        lastShot = at;
+        frames++;
+        var w = Math.min(1280, vid.videoWidth), hh = Math.round(vid.videoHeight * w / vid.videoWidth), big = document.createElement("canvas");
+        big.width = w; big.height = hh;
+        big.getContext("2d").drawImage(vid, 0, 0, w, hh);
+        big.toBlob(function (b) {
+          if (!b) return;
+          pending.push(api.post("/files/start", { name: "Recording " + title.slice(0, 60) + " " + Math.round(at / 1000) + "s.jpg", size_bytes: b.size, ticked: true, request_id: newId() }).then(function (r) {
+            if (!r.ok || r.duplicate) return;
+            return fetch(r.upload_url, { method: "PUT", headers: { "content-type": "image/jpeg", "x-upsert": "false" }, body: b }).then(function () {
+              return api.post("/recordings/frame", { id: recId, file_id: r.file_id, at_ms: at, reason: last === px ? "change" : "time" });
+            }).then(function () { return api.post("/files/complete", { file_id: r.file_id }); });
+          }).catch(function () {}));
+        }, "image/jpeg", 0.8);
+      }
+    }, st.frame_seconds * 1000);
+
+    // Controls on the page, and in a small always-on-top window where the browser allows it (Chrome and Edge)
+    var timerEls = [], pauseBtns = [], warned = false, pip = null;
+    function controls(doc) {
+      var t = doc.createElement("b"); t.textContent = "0:00"; timerEls.push(t);
+      var dot = doc.createElement("span"); dot.textContent = "● Recording"; dot.style.cssText = "color:#d23b62;font-weight:800";
+      var pb = doc.createElement("button"); pb.textContent = "Pause"; pauseBtns.push(pb);
+      pb.onclick = togglePause;
+      var sb = doc.createElement("button"); sb.textContent = "Stop and save"; sb.onclick = finish;
+      [pb, sb].forEach(function (b) { b.style.cssText = "font:inherit;font-weight:700;border-radius:999px;border:1.5px solid #8b2146;background:#8b2146;color:#fff;padding:8px 16px;cursor:pointer"; });
+      pb.style.background = "#fff"; pb.style.color = "#8b2146";
+      var wrap = doc.createElement("div"); wrap.style.cssText = "display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-family:Inter,Arial,sans-serif;padding:8px";
+      [dot, t, pb, sb].forEach(function (x) { wrap.appendChild(x); });
+      return wrap;
+    }
+    var bar = h("div", { class: "card", style: "position:sticky;top:64px;z-index:4;border:2px solid #d23b62" });
+    bar.appendChild(controls(document));
+    var warnEl = h("p", { class: "notice", style: "display:none", text: "2 minutes left. DELA stops and saves at " + st.max_minutes + " minutes." });
+    D.clear(libEl);
+    libEl.appendChild(h("h1", { text: "Recording: " + title }));
+    libEl.appendChild(bar);
+    libEl.appendChild(warnEl);
+    libEl.appendChild(h("p", { class: "muted", text: "Do the task now in any program. You can leave this tab. " + (window.documentPictureInPicture ? "A small control window stays on top of your other programs." : "Use your browser's Stop sharing bar, or come back here, to stop.") }));
+    if (window.documentPictureInPicture) {
+      window.documentPictureInPicture.requestWindow({ width: 360, height: 70 }).then(function (w) { pip = w; w.document.body.style.margin = "0"; w.document.body.appendChild(controls(w.document)); }).catch(function () {});
+    }
+    function togglePause() {
+      if (pausedAt) { pausedFor += Date.now() - pausedAt; pausedAt = 0; mr.resume(); if (am && am.state === "paused") am.resume(); }
+      else { pausedAt = Date.now(); mr.pause(); if (am && am.state === "recording") am.pause(); }
+      pauseBtns.forEach(function (b) { b.textContent = pausedAt ? "Resume" : "Pause"; });
+    }
+    var clock = setInterval(function () {
+      var s = Math.floor(elapsed() / 1000);
+      timerEls.forEach(function (t) { t.textContent = Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0") + (pausedAt ? " (paused)" : ""); });
+      if (!warned && s >= st.max_minutes * 60 - 120) { warned = true; warnEl.style.display = "block"; }
+      if (s >= st.max_minutes * 60) finish();
+    }, 500);
+    // The browser's own Stop sharing button counts as Stop and save
+    display.getVideoTracks()[0].addEventListener("ended", finish);
+    localStorageSet("dela.rec." + recId, JSON.stringify({ title: title }));
+
+    function finish() {
+      if (stopped) return;
+      stopped = true;
+      clearInterval(clock); clearInterval(frameTimer); clearInterval(audioTimer);
+      var seconds = Math.round(elapsed() / 1000);
+      var done = new Promise(function (ok) { mr.onstop = ok; });
+      var adone = am && am.state !== "inactive" ? new Promise(function (ok) { var prev = am.onstop; am.onstop = function () { prev.call(am); ok(); }; }) : Promise.resolve();
+      if (mr.state !== "inactive") mr.stop();
+      if (am && am.state !== "inactive") am.stop();
+      display.getTracks().forEach(function (t) { t.stop(); });
+      if (mic) mic.getTracks().forEach(function (t) { t.stop(); });
+      if (pip) try { pip.close(); } catch (e) { /* already closed */ }
+      processingCard(recId, "uploading");
+      Promise.all([done, adone]).then(function () {
+        return new Promise(function (ok) { setTimeout(ok, 300); });
+      }).then(function () {
+        localStorageSet("dela.rec." + recId, JSON.stringify({ title: title, seconds: seconds, video: seq, audio: aseq }));
+        return Promise.all(pending);
+      }).then(function () {
+        return api.post("/recordings/finish", { id: recId, duration_seconds: seconds, video_parts: seq, audio_parts: aseq });
+      }).then(function (r) {
+        if (r.ok) { processingCard(recId, "analyzing"); return; }
+        if (r.reason === "parts_missing") { processingCard(recId, "missing"); return; }
+        processingCard(recId, "problem", failText(r));
+      }).catch(function (e) { processingCard(recId, "problem", e && e.reason ? failText(e) : "The upload did not finish. Open Library and click Finish upload."); });
+    }
+  }
+
+  // 4.3 Processing
+  function processingCard(recId, state, msg) {
+    var pills = [["uploading", "Uploading", "held"], ["analyzing", "Analyzing", ""], ["ready", "Ready for review", "ready"]];
+    D.clear(libEl);
+    libEl.appendChild(h("h1", { text: "Saving your recording" }));
+    libEl.appendChild(h("div", { class: "card" },
+      h("div", { class: "row" }, pills.map(function (p) { return h("span", { class: "badge " + (state === p[0] ? p[2] || "C" : ""), style: state === p[0] ? "" : "opacity:.5", text: p[1] }); })),
+      state === "problem" || state === "missing" ? h("p", { class: "problem", text: msg || "Some pieces did not upload. Open Library and click Finish upload." }) : null,
+      h("p", { style: "margin-top:10px", text: "You can leave this page. We'll email you when your recording is ready to review." }),
+      h("button", { class: "ghost", onclick: drawLibrary }, "Back to the library")));
+  }
+
+  // Upload a recording made elsewhere (Loom, the computer's own recorder): played once in the background, silently,
+  // to take screenshots and the speech, then it goes through the same steps
+  function uploadRecording(file, title, st, status) {
+    if (!/\.(mp4|webm|mov)$/i.test(file.name)) { D.toast(app, "Upload an MP4, MOV or WebM file.", true); return; }
+    var v = document.createElement("video");
+    v.preload = "auto";
+    v.src = URL.createObjectURL(file);
+    v.onerror = function () { status.textContent = "This browser cannot open that video. Try an MP4 or WebM file, or open DELA in Chrome."; };
+    v.onloadedmetadata = function () {
+      if (v.duration > st.max_minutes * 60 + 5) { status.textContent = "That recording is longer than your plan's " + st.max_minutes + " minutes."; return; }
+      if (!v.captureStream && !v.mozCaptureStream) { status.textContent = "Uploading a recording needs Chrome, Edge or Firefox on a computer."; return; }
+      api.post("/recordings/start", { title: title || file.name.replace(/\.[^.]+$/, ""), request_id: newId(), browser: browserName(), mime: file.type, source: "upload", consent: true }).then(function (r) {
+        if (!r.ok) throw r;
+        status.textContent = "Reading your recording. This takes about half its length. Keep this tab open.";
+        // The sound goes to DELA, not to your speakers
+        var AC = window.AudioContext || window.webkitAudioContext, ac = new AC(), src = ac.createMediaElementSource(v), dest = ac.createMediaStreamDestination();
+        src.connect(dest);
+        v.playbackRate = 2;
+        var cap = v.captureStream ? v.captureStream() : v.mozCaptureStream();
+        var vt = cap.getVideoTracks();
+        var fake = { getVideoTracks: function () { return vt; }, getTracks: function () { return vt; } };
+        var micLike = dest.stream;
+        v.play().then(function () {
+          var s2 = Object.assign({}, r.settings, { max_minutes: Math.ceil(v.duration / 60 / 2) + 1 });
+          runRecorder(r.id, title || file.name, { getVideoTracks: function () { return vt.length ? vt : []; }, getTracks: function () { return vt.concat(micLike.getTracks()); } }, micLike, s2);
+          v.onended = function () { vt.forEach(function (t) { t.stop(); t.dispatchEvent(new Event("ended")); }); };
+        });
+        void fake;
+      }).catch(pbFail);
+    };
+  }
+
+  // On the review screen of a recording: the transcript (edit, mark private, jump) and more screenshots to choose from
+  function recorderPanel(container) {
+    api.get("/recordings/for-import?id=" + imp.id).then(function (r) {
+      var rec = r.recording;
+      if (!rec) return;
+      var lines = rec.transcript;
+      var card = h("div", { class: "card" }, h("h2", { text: "What you said" }),
+        h("p", { class: "small muted", text: "Fix names or terms. Lines marked private, and screenshots taken while you said them, never go to the AI." }));
+      lines.forEach(function (l) {
+        var t = h("input", { style: "width:100%", value: l.text, "aria-label": "Transcript at " + mmssJs(l.start_ms) });
+        var pv = h("input", { type: "checkbox", checked: l.private });
+        function save() { l.text = t.value; l.private = pv.checked; api.post("/recordings/transcript", { id: rec.id, lines: [{ seq: l.seq, text: l.text, private: l.private }] }).catch(pbFail); }
+        t.addEventListener("change", save);
+        pv.addEventListener("change", save);
+        card.appendChild(h("div", { class: "row", style: "margin:4px 0;flex-wrap:nowrap" }, h("span", { class: "small muted", style: "min-width:44px", text: mmssJs(l.start_ms) }), t,
+          h("label", { class: "small", style: "display:flex;gap:4px;align-items:center;margin:0;white-space:nowrap" }, pv, "Mark as private")));
+      });
+      if (!lines.length) card.appendChild(h("p", { class: "muted", text: "No speech was found in this recording." }));
+      container.appendChild(card);
+    }).catch(function () {});
+  }
+  function mmssJs(ms) { var s = Math.floor(ms / 1000); return Math.floor(s / 60) + ":" + String(s % 60).padStart(2, "0"); }
+
+  // "You may want to add these": more screenshots near a step, unchecked until chosen
+  function extraShots(st, holder) {
+    if (!st.extra || !st.extra.length) return null;
+    var row = h("div", { class: "row" });
+    st.extra.forEach(function (fid) {
+      var img = h("img", { alt: "Another screenshot", style: "width:120px;border:1px solid var(--line);border-radius:8px;cursor:pointer" });
+      api.post("/files/open", { file_id: fid }).then(function (r) { if (r.ok) img.src = r.url; }).catch(function () {});
+      img.addEventListener("click", function () {
+        if (!confirm("Use this screenshot for this step instead?")) return;
+        st.extra = st.extra.filter(function (x) { return x !== fid; }).concat(st.file_id ? [st.file_id] : []);
+        st.file_id = fid;
+        st.keep_image = true;
+        saveImport().then(drawImport).catch(pbFail);
+      });
+      row.appendChild(img);
+    });
+    return h("div", null, h("div", { class: "small", style: "margin-top:6px;font-weight:700", text: "You may want to add these (click one to use it)" }), row);
   }
 
 

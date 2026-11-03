@@ -38,7 +38,7 @@ Never remove attorney review points or never-delegate items unless the member cl
 If the request is off topic, give a short redirect back to the playbook and set "change" to null.
 Answer with one JSON object: {"reply": "your answer or what you changed", "change": <whole playbook JSON or null>, "note": "a short label for the change, or empty"}`;
 
-export const IMPORT_SYSTEM = `You are DELA, turning a step by step guide that was recorded in another tool (such as Scribe) into a full playbook.
+export const IMPORT_SYSTEM = `You are DELA, turning a step by step guide that was recorded in another tool (such as Scribe) or with DELA's Process Recorder into a full playbook.
 The guide gives clicks and screens; the attorney's notes give the reasons. A screenshot list does not establish the business rule, so ask about what is missing.
 ${SHAPE}
 ${RULES}

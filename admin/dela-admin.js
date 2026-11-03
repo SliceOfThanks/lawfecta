@@ -686,8 +686,25 @@
         h("div", { class: "card" }, titled("h2", "Files not accepted", "ai_refused"),
           table(["When", "BD member", "File", "Reason"], d.refused.map(function (x) {
             return h("tr", null, h("td", { text: D.dateTime(x.at) }), h("td", { text: String(x.bd_member_id) }), h("td", { text: x.name }), h("td", { text: REFUSED[x.reason] || x.reason }));
-          }), "None."))));
+          }), "None.")), libraryCounts()));
     }).catch(fail);
+  }
+  // Playbooks and the Process Recorder: counts only, never content
+  function libraryCounts() {
+    var box = h("div", null, h("p", { class: "muted", text: "Loading playbook and recorder counts..." }));
+    Promise.all([api.get("/admin/playbooks"), api.get("/admin/recorder")]).then(function (r) {
+      var pb = r[0].data, rec = r[1].data;
+      D.clear(box);
+      box.appendChild(h("div", { class: "card" }, titled("h2", "Playbooks by plan", "ai_playbooks"),
+        pb.by_plan.length ? h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, ["Plan", "Libraries", "Playbooks", "Approved", "Drafts", "From Scribe", "Drafted by DELA"].map(function (x) { return h("th", { text: x }); }))),
+          h("tbody", null, pb.by_plan.map(function (x) { return h("tr", null, [x.plan || "", x.libraries, x.playbooks, x.approved, x.drafts, x.from_scribe, x.from_ai].map(function (v) { return h("td", { text: String(v) }); })); })))) : h("p", { class: "muted", text: "No playbooks yet." }),
+        h("p", { class: "small muted", text: "Suggestions waiting for a decision: " + pb.suggestions_open + ". Imports in the last 30 days: " + pb.imports + ". Libraries at their limit: " + pb.at_limit.length + "." })));
+      box.appendChild(h("div", { class: "card" }, titled("h2", "Process Recorder", "ai_recorder"),
+        rec.by_month.length ? h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, ["Month", "Started", "Finished", "Ready", "Failed", "Abandoned", "Built into playbooks", "Average minutes", "Uploaded files"].map(function (x) { return h("th", { text: x }); }))),
+          h("tbody", null, rec.by_month.map(function (x) { return h("tr", null, [x.month, x.started, x.finished, x.ready, x.failed, x.abandoned, x.built, x.avg_minutes === null ? "" : x.avg_minutes, x.uploads].map(function (v) { return h("td", { text: String(v) }); })); })))) : h("p", { class: "muted", text: "No recordings yet." }),
+        h("p", { class: "small muted", text: "Recordings by browser: " + (Object.keys(rec.by_browser).map(function (k) { return k + " " + rec.by_browser[k]; }).join(", ") || "none") + ". Video storage in use: " + mb(rec.storage_bytes) + ". Videos deleted: " + rec.videos_deleted + "." })));
+    }).catch(function () { D.clear(box); });
+    return box;
   }
   var REFUSED = { wrong_type: "Not really the type its name says", active_content: "Has scripts, macros or hidden files", damaged: "Could not be opened", storage_full: "Over the storage allowance", file_too_big: "Over the file size limit" };
 
@@ -851,6 +868,8 @@
     ai_errors: "The last 50 AI calls that failed and why, in the provider's words: bad key, no credit, provider down, rate limited.",
     ai_storage: "File storage used by each attorney's firm against their plan's allowance. Files in the trash count until the trash empties.",
     ai_held: "Files that looked like they hold client information. They stay with the member, who confirms there is none or removes the file. The AI does not use them until then.",
+    ai_playbooks: "How many playbooks each plan's libraries hold, how many are approved, and where they came from. Counts only; the Lawfecta Team never reads members' playbooks here.",
+    ai_recorder: "Recordings by month: started, finished uploading, ready for review, failed analysis, abandoned (never finished after a day), and built into a playbook. Use this to judge whether a desktop helper is worth building later.",
     ai_refused: "Files DELA did not keep, with the reason. These are deleted from storage straight away.",
     jobs: "Background work DELA does on its own, such as sending emails, reminders and the daily summary. It runs every minute and retries problems with longer waits.",
     jobs_problems: "Jobs that are waiting to retry (delayed), failed for good (dead) or failed once. The last error says why. Dead jobs count in Problems, last 24 hours on Release Control.",
