@@ -12,7 +12,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   var current = "control";
   var mainEl = null;
   var tabsEl = null;
@@ -75,7 +75,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // ---------- Guide ----------
@@ -634,6 +634,63 @@
     }).catch(fail);
   }
 
+  // ---------- AI and files (Step 2a): use, keys and storage. Never a key, never what a file says. ----------
+
+  function mb(bytes) {
+    if (bytes === null || bytes === undefined) return "No cap";
+    if (bytes < 1048576) return (bytes ? Math.max(1, Math.round(bytes / 1024)) : 0) + " KB";
+    var v = bytes / 1048576;
+    return v >= 1000 ? (v / 1024).toFixed(1) + " GB" : (v < 10 ? v.toFixed(1) : Math.round(v)) + " MB";
+  }
+  var SOURCE = { lawfecta: "Lawfecta's key", own_key: "Member's own key", firm_key: "Firm key" };
+  var TASK = { chat: "Chat", file: "Chat with files", voice: "Talking (speech to text)", key_test: "Key test", client_check: "Client information check" };
+
+  function aiFiles() {
+    api.get("/admin/ai-files").then(function (r) {
+      var d = r.data;
+      var ready = d.ready || {};
+      var missing = [];
+      if (!ready.lawfecta_openai) missing.push("Lawfecta's OpenAI key (OPENAI_API_KEY) is not in Supabase secrets, so Lawfecta's AI, talking and the AI part of the file check are off.");
+      if (!ready.encryption) missing.push("AI_KEY_ENCRYPTION_SECRET is not in Supabase secrets, so members cannot add their own key.");
+      if (!ready.storage) missing.push("File storage is not connected.");
+      function table(heads, rows, empty) {
+        if (!rows.length) return h("p", { class: "muted", text: empty });
+        return h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, heads.map(function (x) { return h("th", { text: x }); }))), h("tbody", null, rows)));
+      }
+      body(h("div", null, pageHead("AI and files", "aifiles"),
+        missing.length ? h("div", { class: "notice bad" }, missing.map(function (t) { return h("p", { style: "margin:4px 0", text: t }); })) : h("div", { class: "notice ok", text: "Lawfecta's AI key, the key lock secret and file storage are all in place." }),
+        h("div", { class: "card" }, titled("h2", "AI use this month", "ai_usage"),
+          table(["Side", "Plan", "Where it ran", "What", "Calls", "Failed", "Credits", "Tokens in / out"], d.usage.map(function (u) {
+            return h("tr", null, h("td", { text: D.SIDE[u.side] || u.side }), h("td", { text: u.plan || "" }), h("td", { text: SOURCE[u.source] || u.source }), h("td", { text: TASK[u.task] || u.task }),
+              h("td", { text: String(u.calls) }), h("td", { text: String(u.failed) }), h("td", { text: String(u.credits) }), h("td", { text: u.input_tokens + " / " + u.output_tokens }));
+          }), "No AI use yet this month.")),
+        h("div", { class: "card" }, titled("h2", "Members' own keys", "ai_keys"),
+          table(["BD member", "Name", "Side", "Key", "Status", "Added"], d.keys.map(function (k) {
+            return h("tr", null, h("td", { text: String(k.bd_member_id) }), h("td", { text: k.name }), h("td", { text: k.scope === "org" ? "Firm key" : (D.SIDE[k.side] || k.side) }),
+              h("td", { text: k.provider === "openai" ? "OpenAI" : "Claude" }),
+              h("td", null, h("span", { class: "badge " + (k.status === "failed" ? "bad" : "C"), text: k.status === "failed" ? "Not working since " + D.date(k.failed_since) + " (" + (k.error || "").split("_").join(" ") + ")" : "Working" })),
+              h("td", { text: D.date(k.added_at) }));
+          }), "No member has added a key.")),
+        h("div", { class: "card" }, titled("h2", "Recent AI problems", "ai_errors"),
+          table(["When", "BD member", "What", "Where", "Reason"], d.errors.map(function (e) {
+            return h("tr", null, h("td", { text: D.dateTime(e.at) }), h("td", { text: String(e.bd_member_id) }), h("td", { text: TASK[e.task] || e.task }), h("td", { text: (SOURCE[e.source] || e.source) + (e.provider ? " (" + (e.provider === "openai" ? "OpenAI" : "Claude") + ")" : "") }), h("td", { text: (e.error || "").split("_").join(" ") }));
+          }), "No problems.")),
+        h("div", { class: "card" }, titled("h2", "Storage by member", "ai_storage"),
+          table(["Firm", "BD member", "Files", "Used", "Allowed"], d.storage.map(function (x) {
+            return h("tr", null, h("td", { text: x.org }), h("td", { text: String(x.bd_member_id) }), h("td", { text: String(x.files) }), h("td", { text: mb(x.used_bytes) }), h("td", { text: mb(x.limit_bytes) }));
+          }), "No files yet.")),
+        h("div", { class: "card" }, titled("h2", "Files held for a client information check", "ai_held"),
+          table(["When", "BD member", "File", "Why"], d.held.map(function (x) {
+            return h("tr", null, h("td", { text: D.dateTime(x.at) }), h("td", { text: String(x.bd_member_id) }), h("td", { text: x.name }), h("td", { text: (x.reasons || []).join(", ").split("_").join(" ") }));
+          }), "No files are held.")),
+        h("div", { class: "card" }, titled("h2", "Files not accepted", "ai_refused"),
+          table(["When", "BD member", "File", "Reason"], d.refused.map(function (x) {
+            return h("tr", null, h("td", { text: D.dateTime(x.at) }), h("td", { text: String(x.bd_member_id) }), h("td", { text: x.name }), h("td", { text: REFUSED[x.reason] || x.reason }));
+          }), "None."))));
+    }).catch(fail);
+  }
+  var REFUSED = { wrong_type: "Not really the type its name says", active_content: "Has scripts, macros or hidden files", damaged: "Could not be opened", storage_full: "Over the storage allowance", file_too_big: "Over the file size limit" };
+
   // ---------- Release Control (Staging to Live, owner only, with the release password and a code) ----------
 
   var controlTimer = null;
@@ -788,6 +845,13 @@
     team_add: "Add a team member by BD member ID and role. They must have opened DELA once first.",
     holds: "A hold pauses new actions for one person (and later hiring and payments) while you check something. Release it with a note on what you checked.",
     audit: "Every sign in, refusal and change, newest first, with who did it. Nobody can edit or delete these lines, so it is the record if anything is ever questioned.",
+    aifiles: "How members use DELA's AI and files. You see counts, key status and file names, never a member's key and never what a file says.",
+    ai_usage: "Every AI call this month by side and plan. Lawfecta's key uses members' included credits; a member's own key or a firm key costs Lawfecta nothing. Tokens are the provider's measure of how much text was read and written.",
+    ai_keys: "Members who added their own OpenAI or Claude key. Only the provider and whether it works are shown. Not working means the provider refused the key or it ran out of credit; the member is reminded after a few days.",
+    ai_errors: "The last 50 AI calls that failed and why, in the provider's words: bad key, no credit, provider down, rate limited.",
+    ai_storage: "File storage used by each attorney's firm against their plan's allowance. Files in the trash count until the trash empties.",
+    ai_held: "Files that looked like they hold client information. They stay with the member, who confirms there is none or removes the file. The AI does not use them until then.",
+    ai_refused: "Files DELA did not keep, with the reason. These are deleted from storage straight away.",
     jobs: "Background work DELA does on its own, such as sending emails, reminders and the daily summary. It runs every minute and retries problems with longer waits.",
     jobs_problems: "Jobs that are waiting to retry (delayed), failed for good (dead) or failed once. The last error says why. Dead jobs count in Problems, last 24 hours on Release Control.",
     job_queued: "Waiting for the next minute's run.",

@@ -82,6 +82,18 @@
       boot: boot,
       get: function (p) { return req("GET", p); },
       post: function (p, b) { return req("POST", p, b || {}); },
+      // Sends a recording or other raw body (talking to the AI)
+      raw: function (p, blob, type) {
+        var opts = { method: "POST", headers: { "content-type": type } , body: blob };
+        if (token) opts.headers["x-dela-session"] = token;
+        return fetch(base + p, opts).then(function (r) {
+          return r.json().catch(function () { return {}; }).then(function (j) {
+            if (r.status === 401 && onSignedOut) onSignedOut();
+            if (!r.ok && !j.reason) { var e = new Error(j.error || "error_" + r.status); e.status = r.status; throw e; }
+            return j;
+          });
+        });
+      },
       signOut: function () { var t = token; token = ""; return t ? fetch(base + "/sign-out", { method: "POST", headers: { "x-dela-session": t } }).catch(function () {}) : Promise.resolve(); },
     };
   };
@@ -117,6 +129,38 @@
       not_a_draft: "That plan version is not a draft.",
       bad_plan: "That plan does not fit this side.",
       signed_out: "Your sign in ended. Refresh the page.",
+      // AI and files (Step 2a)
+      ai_off: "DELA's AI is not open for your account yet.",
+      voice_off: "Talking to the AI is not open for your account yet. You can type instead.",
+      paused: "This part of DELA is paused for a moment. Please try again soon.",
+      on_hold: "Some actions are paused on your account. Contact the Lawfecta Team.",
+      ai_not_set_up: "DELA's AI is still being set up. Please try again later.",
+      no_credits_left: "You have used this month's included AI credits. Add your own AI key in AI settings, or upgrade your plan.",
+      no_key: "You chose to use your own key, but no key is saved. Add one in AI settings, or switch back to Lawfecta's AI.",
+      no_backup_credits: "Lawfecta credits cannot be used as a backup right now.",
+      key_unreadable: "DELA could not read your saved key. Please add it again in AI settings.",
+      encryption_not_set_up: "Adding your own key is not ready yet. Please try again later.",
+      byok_off: "Adding your own key opens soon.",
+      not_firm_owner: "Only the firm owner on a Business plan can add a key for the whole firm.",
+      not_a_key: "That does not look like an AI key. Copy the whole key from your provider and paste it again.",
+      bad_provider: "Choose OpenAI or Claude.",
+      file_not_usable: "One of those files cannot go to the AI yet. Files waiting for your client information check, or still being checked, cannot be used.",
+      too_many_files: "Attach up to 5 files at a time.",
+      tick_needed: "Tick the box to confirm the file has no confidential client information.",
+      type_not_allowed: "That file type is not accepted. Use PDF, Word (.docx), text, Markdown, PNG or JPG.",
+      file_too_big: "That file is too big.",
+      empty_file: "That file is empty.",
+      storage_full: "Your file storage is full. Delete files you no longer need, empty the trash by waiting for it to clear, or upgrade your plan.",
+      too_big_after_upload: "That file turned out bigger than allowed, so it was not kept.",
+      uploads_off: "File uploads are not open for your account yet.",
+      attorneys_only: "File uploads are for attorneys for now.",
+      bad_folder: "That folder no longer exists.",
+      folder_not_empty: "Move or delete the files in this folder first.",
+      name_taken: "A folder with that name already exists.",
+      bad_name: "Please enter a name.",
+      not_found: "That item is no longer here. Refresh the page.",
+      not_available: "That file is not available right now.",
+      storage_not_set_up: "File storage is still being set up. Please try again later.",
       server_error: "Something went wrong. Please try again.",
     };
     return map[code] || "That did not work (" + code + ").";
@@ -209,6 +253,19 @@
     ".gd-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;margin:12px 0}.gd-box{border-radius:14px;padding:14px 16px;border:1px solid var(--line);background:var(--soft)}" +
     ".gd-box.ok{background:var(--okbg);border-color:var(--okline)}.gd-box.live{background:var(--okbg);border-color:var(--okline)}.gd-box.stage{background:var(--bluebg);border-color:#b9d9f4}" +
     ".gd-box ul{margin:6px 0 0;padding-left:18px;display:grid;gap:6px;line-height:1.5}",
+    // AI chat and files (Step 2a)
+    ".chat{display:flex;flex-direction:column;gap:10px;margin:12px 0}.msg{max-width:min(720px,92%);padding:12px 14px;border-radius:18px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}" +
+    ".msg.user{align-self:flex-end;background:var(--pink);color:var(--ink);border-bottom-right-radius:6px}.msg.assistant{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-bottom-left-radius:6px}" +
+    ".msg .src{display:block;margin-top:6px;font-size:12px;color:var(--muted);white-space:normal}" +
+    ".composer{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:12px;box-shadow:var(--shadow)}@media (min-width:900px){.composer{position:sticky;bottom:12px}}" +
+    ".composer textarea{width:100%;min-height:84px;resize:vertical;display:block}" +
+    "button.mic{background:var(--card);color:var(--brand);border-color:var(--brand)}button.mic.on{background:var(--bad);border-color:var(--bad);color:#fff}" +
+    ".chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.chips span{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;display:inline-flex;gap:6px;align-items:center}" +
+    ".chips button{padding:0 6px;border:0;background:transparent;color:var(--muted);font-size:15px}" +
+    ".problem{border:1px solid #f3b8b3;background:#fdeceb;color:var(--ink);border-radius:14px;padding:12px 14px;margin:10px 0}" +
+    "@media (prefers-color-scheme:dark){.problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b}.notice.ok{background:#17301f}}" +
+    ".pick{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:6px 10px;margin:8px 0}.pick label{font-weight:400;display:flex;gap:8px;align-items:center}" +
+    ".badge.held{background:#fff3d6;color:#7a5200;border-color:#e8c97a}.badge.ready{background:#e3f3ea;color:#21613d;border-color:#b6dcc5}",
     "@media (max-width:600px){h1{font-size:24px}.wrap{padding:12px}.card{padding:16px}.hero{padding:20px}.hero h2{font-size:26px}.brand span{display:none}.top{flex-wrap:nowrap;gap:8px;padding:10px 12px}.brand b{font-size:16px;letter-spacing:.04em}.brand img{width:30px;height:30px}.top .badge{font-size:11px;padding:2px 8px}.bell{padding:6px 10px}.gd-terms>div{grid-template-columns:1fr;gap:2px}}",
   ].join("");
 

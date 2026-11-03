@@ -33,6 +33,7 @@ SECRETS = [
     ("a private key", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
     ("a signed token (JWT)", re.compile(r"\beyJ[A-Za-z0-9_-]{30,}\.eyJ[A-Za-z0-9_-]{30,}\.[A-Za-z0-9_-]{20,}")),
 ]
+KEY_WORDS = re.compile(r"plainKey|ciphertext|AI_KEY_ENCRYPTION_SECRET|OPENAI_API_KEY|ANTHROPIC_API_KEY")
 EM_DASH = "—"
 SKIP_DIRS = {".git", "node_modules", "shots", "docs/specs"}
 TEXT_EXT = {".php", ".js", ".mjs", ".ts", ".sql", ".md", ".json", ".yml", ".yaml", ".py", ".sh", ".html", ".css", ".toml", ".txt"}
@@ -116,6 +117,17 @@ def check(files):
                     continue
                 if DOLLARS.search(line):
                     add(f, n, "no-hard-coded-price", "Dollar amounts come from settings (D.money with a setting), never typed into the code.")
+
+        # Members' AI keys and DELA's own AI secrets never reach a log or a response (Step 2a)
+        if f.startswith("supabase/functions/") and f.endswith(".ts") and not is_test(f):
+            for n, line in enumerate(lines, 1):
+                if "rules-ok:" in line:
+                    continue
+                if re.search(r"console\.[a-z]+\(", line) and KEY_WORDS.search(line):
+                    add(f, n, "no-key-in-logs", "AI keys and the secrets that protect them are never written to a log.")
+                m = re.search(r"\bjson\(\s*(ctx|c|\{)", line)
+                if m and re.search(r"plainKey|ciphertext", line[m.start():]):
+                    add(f, n, "no-key-in-response", "AI keys (plain or sealed) are never sent back in a response.")
 
         # Secrets never go in GitHub
         for n, line in enumerate(lines, 1):

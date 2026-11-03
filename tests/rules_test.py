@@ -45,6 +45,12 @@ class RulesTest(unittest.TestCase):
         ok = "create table pay (id int, price_cents bigint);\nalter table pay enable row level security;\nrevoke all on pay from anon;\n"
         self.assertEqual(self.rules({"supabase/migrations/0099_x.sql": ok}), [])
 
+    def test_ai_keys_stay_out_of_logs_and_responses(self):
+        bad = "console.error('call failed', plainKey);\nreturn json(ctx, { ok: true, ciphertext: k.ciphertext });\nconsole.log(env('OPENAI_API_KEY'));\n"
+        self.assertEqual(self.rules({"supabase/functions/api/x.ts": bad}), ["no-key-in-logs", "no-key-in-response"])
+        ok = "console.error('ai_chat', code);\nconst plainKey = await openKey(secret, id, sealed);\nreturn json(ctx, { ok: true, last4: k.last4 });\n"
+        self.assertEqual(self.rules({"supabase/functions/api/x.ts": ok}), [])
+
     def test_prices_come_from_settings(self):
         self.assertEqual(self.rules({"app/x.js": "h('p', {text: 'Only $19 a month'})"}), ["no-hard-coded-price"])
         self.assertEqual(self.rules({"app/x.js": "h('p', {text: D.money(plan.monthly_cents)})"}), [])

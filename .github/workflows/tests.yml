@@ -42,7 +42,7 @@ jobs:
       - name: Database tests
         run: tools/dbtest.sh
       - name: API and widget tests
-        run: npx deno test -A supabase/functions/api/app_test.ts tests/php/auth_test.ts
+        run: npx deno test -A supabase/functions/api/app_test.ts supabase/functions/api/ai_files_test.ts tests/php/auth_test.ts
       - name: Push to Live script tests
         run: node --test tests/promote_test.mjs tests/ai_review_test.mjs
       - name: Browser tests
@@ -51,6 +51,7 @@ jobs:
           npx deno run -A tests/pw/server.ts &
           for i in $(seq 1 30); do curl -s -o /dev/null http://127.0.0.1:8787/api/health && break; sleep 1; done
           SHOTS=shots node tests/pw/foundation-test.js
+          SHOTS=shots node tests/pw/ai-files-test.js
       - name: Screens from the browser tests
         if: always()
         uses: actions/upload-artifact@v4
