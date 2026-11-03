@@ -25,7 +25,7 @@ One person can hold both sides; each side has its own plan and nothing mixes.
 - Brilliant Directories (Lawfecta site): member accounts, logins, BD plans, admin. DELA never stores BD passwords.
 - Two Supabase projects: DELA Staging and DELA Live. All app data and secure work. Tables have RLS with no public policies; reach them only through the Edge Function `api` with the service role.
 - Code in this repo, served by jsDelivr, pinned to commit IDs (releases.json; git tags cannot be pushed).
-- Test accounts on the staging_testers list load the Staging copy; everyone else loads Live. Live shows nothing to anyone outside the access list until Stacey opens it.
+- Two BD sites, one per copy (Stacey 2026-11-03). hirelegalhelp.com is the test site: its widgets talk only to DELA Staging, and every new version goes there first. lawfecta.com is the main site: its widgets talk only to DELA Live and are installed there when DELA launches. In everything Stacey reads, Staging is called "the test site (hirelegalhelp.com)" and Live is "Live (lawfecta.com)". Testers test on hirelegalhelp.com; the staging_testers list is not needed. Live shows nothing to anyone outside the access list until Stacey opens it.
 - Money: Stripe Connect through a provider adapter. Stripe stays in test mode until Stacey turns on the live_payments switch.
 - AI: Lawfecta's OpenAI key by default; members may bring their own OpenAI or Anthropic key (BYOK). Never silently fall back to Lawfecta's key.
 - Email: BD internal email if BD can be triggered from Supabase, otherwise Brevo. All email goes through the mail adapter.
@@ -35,7 +35,7 @@ One person can hold both sides; each side has its own plan and nothing mixes.
 DELA-Auth (helper), DELA-App, DELA-Admin. Keep them tiny. BD widget rules: no backslashes, no regex functions, no example URLs with https://, no literal widget shortcodes in widget code, helper widgets start with <?php and end with ?>.
 
 ## Staging first, and only Stacey pushes to Live
-- Build and deploy only to DELA Staging. Never apply migrations, deploy functions or change settings on DELA Live, even if a tool allows it.
+- Build and deploy only to DELA Staging (the test site, hirelegalhelp.com). Never apply migrations, deploy functions or change settings on DELA Live, even if a tool allows it.
 - When a version is ready on Staging and the GitHub "Tests" run passed, record it: select dela_release_record(version, commit, api_version, migrations, notes, tests_run_url, breaking_migrations). Notes are plain words for Stacey. Then give her the ChatGPT test prompt and save her report with dela_release_attach_report.
 - A migration that removes or renames something older versions use goes in the breaking list; it blocks going back past it. Prefer splitting it so nothing breaks.
 - Pin every outside library to an exact version. Follow docs/RUNBOOK.md for monitoring, backups, restore drills and secret changes.

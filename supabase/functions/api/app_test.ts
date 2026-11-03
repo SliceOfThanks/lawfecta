@@ -244,7 +244,7 @@ Deno.test("release control: code by email and text, steps, watch, Live check", a
   const text = outbox.find((o) => o.url.endsWith("/v3/transactionalSMS/sms"));
   const code = String(mail.body.subject).split(": ")[1];
   assertEquals(code.length, 6);
-  assert(mail.body.subject.startsWith("[Staging]"));
+  assert(mail.body.subject.startsWith("[Test site]"));
   assert(String(text.body.content).includes(code), "same code by text");
   assertEquals(text.body.recipient, "15555550123");
   assertEquals(text.key, "brevo-test-key");
@@ -311,7 +311,7 @@ Deno.test("BD email: notices go through BD's email outbox on the DELA site", asy
   const sent = outbox.find((o) => o.url.endsWith("/api/v2/email_outbox/create"));
   assertEquals(sent.url, "https://hirelegalhelp.com/api/v2/email_outbox/create");
   assertEquals(sent.key, "bd-test-key");
-  assertEquals(sent.form.subject, "[Staging] DELA test notice");
+  assertEquals(sent.form.subject, "[Test site] DELA test notice");
   assert(sent.form.html.includes("https://hirelegalhelp.com/dela"), "links point to the DELA site");
   const n = (await pool.query("select status, provider, provider_ref from notifications where channel = 'email' and kind = 'test' order by created_at desc limit 1")).rows[0];
   assertEquals([n.status, n.provider, n.provider_ref], ["sent", "bd", "bd-outbox-901"]);
@@ -408,7 +408,7 @@ Deno.test("notice emails stay on the Lawfecta site", () => {
   assertEquals(noticeLink({ ...base, link: "//evil.invalid" }), "https://lawfecta.com/dela");
   assertEquals(noticeLink({ ...base, link: "/dela?x=1" }), "https://lawfecta.com/dela?x=1");
   const m = buildNotice({ ...base, link: "" });
-  assert(m.subject.startsWith("[Staging]"));
+  assert(m.subject.startsWith("[Test site]"));
   assert(m.html.includes("Hi &lt;b&gt;"));
 });
 

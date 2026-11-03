@@ -71,7 +71,7 @@
 
   function header() {
     bar = h("div", { class: "top" }, brand());
-    if (boot.staging || me.environment !== "live") bar.appendChild(h("span", { class: "badge stage", title: "You are on the Staging copy. Test data only.", text: "Staging" }));
+    if (boot.staging || me.environment !== "live") bar.appendChild(h("span", { class: "badge stage", title: "You are on the test site (hirelegalhelp.com). Test data only.", text: "Test site" }));
     bar.appendChild(h("span", { class: "grow" }));
     if ((me.sides || []).length > 1) {
       var seg = h("div", { class: "seg", role: "group", "aria-label": "Switch side" });

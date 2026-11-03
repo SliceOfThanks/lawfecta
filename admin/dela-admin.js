@@ -49,7 +49,7 @@
 
   function frame() {
     var top = h("div", { class: "top" }, h("span", { class: "brand" }, h("img", { src: D.asset(root, "brand/lawfecta-mark-96.png"), alt: "" }), h("b", { text: "LAWFECTA" }), h("span", { text: "DELA Admin" })));
-    top.appendChild(h("span", { class: "badge " + (me.environment === "live" ? "C" : "stage"), text: me.environment === "live" ? "Live" : "Staging" }));
+    top.appendChild(h("span", { class: "badge " + (me.environment === "live" ? "C" : "stage"), title: me.environment === "live" ? "Live: lawfecta.com, real members" : "Test site: hirelegalhelp.com, test data only", text: me.environment === "live" ? "Live" : "Test site" }));
     top.appendChild(h("span", { class: "grow" }));
     top.appendChild(h("span", { class: "small", style: "opacity:.85", text: me.person.name + " (" + me.staff.join(", ") + ")" }));
     top.appendChild(h("a", { class: "btn small ghost", href: "/dela", style: "color:#fff;border-color:rgba(255,255,255,.45);background:transparent" }, "Member view"));
@@ -86,27 +86,27 @@
     ["g_start", "Start here", "What this admin area is and how to read it", [
       { p: "DELA is the part of Lawfecta where solo attorneys hand work to freelance paralegals. This admin area is where the Lawfecta Team runs it: who can use DELA, plans and prices, which features are on, and sending new versions to members." },
       { terms: [
-        ["Two copies", "There are two copies of DELA, Staging (practice) and Live (real members). The badge at the top, next to DELA Admin, always says which one you are in."],
+        ["Two copies", "There are two copies of DELA. The test site is hirelegalhelp.com, where every new version goes first so you can try it. Live is lawfecta.com, for real members, and gets a version only when you push it. The badge at the top, next to DELA Admin, always says which one you are in."],
         ["The ? buttons", "Click a ? next to a title or number to see what it means. Click it again to close it."],
         ["Show and Hide", "Long sections fold. Click Show to open one and Hide to close it. This browser remembers your choice."],
       ] },
-      { note: "New here? Read Staging and Live, then How a version gets to Live, before you change anything." },
+      { note: "New here? Read Test site and Live, then How a version gets to Live, before you change anything." },
     ]],
-    ["g_copies", "Staging and Live", "The two copies of DELA and why there are two", [
+    ["g_copies", "Test site and Live", "hirelegalhelp.com for testing, lawfecta.com for members", [
       { two: [
-        ["Staging", "stage", ["The practice copy.", "Used by the Lawfecta Team and test accounts only.", "Every new version runs here first.", "Claude builds and changes things here."]],
-        ["Live", "live", ["The real copy.", "Used by real members.", "Changes only when you push a tested version.", "Claude never changes Live."]],
+        ["Test site: hirelegalhelp.com", "stage", ["Where you try every new version.", "Used by the Lawfecta Team and the people on its access list.", "Every new version runs here first, as soon as Claude finishes it.", "Claude builds and changes things here."]],
+        ["Live: lawfecta.com", "live", ["The real copy, on the main Lawfecta site.", "Used by real members.", "Changes only when you push a tested version.", "Claude never changes Live."]],
       ] },
-      { p: "Each copy has its own database. Nothing typed on Staging ever shows up for real members. If a new version has a problem, it shows up on Staging, where nobody real is affected." },
-      { terms: [["Test accounts", "Accounts on the Staging test account list (Access list tab) are sent to Staging even when they open DELA on the normal website. That is how testers try new versions safely."]] },
+      { p: "Each copy has its own database. Nothing typed on the test site ever shows up for real members. If a new version has a problem, it shows up on the test site, where nobody real is affected." },
+      { terms: [["Testers", "Testers use hirelegalhelp.com. Add them to the access list in the test site's admin area. Nobody needs to be sent between sites."]] },
     ]],
     ["g_push", "How a version gets to Live", "The six steps, from Claude's build to members", [
-      { flow: ["Built on Staging", "Automatic tests", "Your ChatGPT test", "You mark it tested", "Push to Live", "15 minute watch"] },
+      { flow: ["Built on the test site", "Automatic tests", "Your ChatGPT test", "You mark it tested", "Push to Live", "15 minute watch"] },
       { steps: [
-        ["Built on Staging", "Claude builds the change and switches Staging to it. It appears at the top of Release Control as Ready to test."],
+        ["Built on the test site", "Claude builds the change and switches the test site to it. It appears at the top of Release Control as Ready to test."],
         ["Automatic tests", "GitHub runs every automatic test on that exact code. The step turns green only when all of them pass."],
-        ["Your ChatGPT test", "Claude gives you one test prompt. Paste it into ChatGPT and test Staging with it. Send ChatGPT's report to Claude, who saves it with the version."],
-        ["You mark it tested", "On Release Control, tick \"I tested this version on Staging and it is ready\"."],
+        ["Your ChatGPT test", "Claude gives you one test prompt. Paste it into ChatGPT and test hirelegalhelp.com with it. Send ChatGPT's report to Claude, who saves it with the version."],
+        ["You mark it tested", "On Release Control, tick \"I tested this version on the test site and it is ready\"."],
         ["Push to Live", "Click Push to Live, enter your release password, then the 6 digit code sent to you. The button stays grey until steps 1 to 4 are done, and says what is missing."],
         ["15 minute watch", "Release Control shows each part of the push as it happens. Live is then checked every minute for 15 minutes. If all is well, the version shows as Live now."],
       ] },
@@ -116,7 +116,7 @@
         ["Moves to Live", "ok", ["New screens.", "New server code.", "New database parts the version needs, such as a new table. These only add; nothing members saved is removed or changed."]],
         ["Stays on its own copy", "soft", ["Everything people did or entered: accounts, projects, messages, the audit log.", "Settings, plans, prices and switches.", "The access list and test accounts."]],
       ] },
-      { note: "A push never copies data from Staging to Live. A price you change on Staging changes Staging only. To change it for real members, open the admin area on Live (the badge says Live) and make the same change there." },
+      { note: "A push never copies data from the test site to Live. A price you change on the test site changes the test site only. To change it for real members, open the admin area on Live (the badge says Live) and make the same change there." },
       { p: "A brand new setting that comes with a version arrives on Live with its starting value. If it is still Open or Suggested, decide it on Live before you switch that feature on." },
     ]],
     ["g_back", "Going back", "Returning Live to an earlier version", [
@@ -138,10 +138,10 @@
     ]],
     ["g_tabs", "Every tab", "What each tab at the top is for", [
       { terms: [
-        ["Release Control", "Where versions go from Staging to Live: both copies, the next version and its steps, Push to Live, history, activity and one-time setup."],
+        ["Release Control", "Where versions go from the test site to Live: both copies, the next version and its steps, Push to Live, history, activity and one-time setup."],
         ["Guide", "This page."],
         ["Overview", "A quick picture of this copy: people using it, who was turned away, open decisions, paused parts, the emergency pause and a test notice button."],
-        ["Access list", "Who may open DELA while it is not open to everyone, added by BD member ID. The second list holds test accounts that Live sends to Staging."],
+        ["Access list", "Who may open DELA while it is not open to everyone, added by BD member ID. The second list holds test accounts that Live sends to the test site."],
         ["People", "Everyone who has opened DELA, with their side (attorney or freelancer) and plan. Give someone a plan for testing, or place a hold."],
         ["Plans", "The eight plans, four per side, with price, fee and limits. Changes start as a draft and apply only when you approve them."],
         ["Settings", "Every business number (fees, minimums, deadlines, limits), grouped by topic. Each change keeps the old value, records why, and can be undone."],
@@ -154,11 +154,11 @@
     ]],
     ["g_who", "Who does what", "Claude, GitHub, you, and the services behind DELA", [
       { terms: [
-        ["Claude", "Builds and tests every change, puts it on Staging, writes the notes for each version and the ChatGPT test prompt. Never touches Live."],
+        ["Claude", "Builds and tests every change, puts it on the test site, writes the notes for each version and the ChatGPT test prompt. Never touches Live."],
         ["GitHub", "Stores the code, runs the automatic tests, and does the push to Live after you approve it."],
         ["You (owner)", "Test with ChatGPT, mark versions tested, push to Live, go back if needed, and make the business decisions on Live."],
         ["Brilliant Directories", "The website, member accounts and logins. DELA sits inside BD pages and never sees BD passwords."],
-        ["Supabase", "Where DELA's data and server code live. Staging and Live are two separate Supabase projects."],
+        ["Supabase", "Where DELA's data and server code live. The test site and Live are two separate Supabase projects."],
       ] },
     ]],
     ["g_words", "Words you will see", "Short meanings for the terms on these pages", [
@@ -227,7 +227,7 @@
         h("div", { class: "grid" },
           stat("People who opened DELA", d.people, d.signed_in_7d + " in the last 7 days", "ov_people"),
           stat("On the access list", d.access_list, null, "ov_access"),
-          stat("Staging test accounts", d.staging_testers, null, "ov_testers"),
+          stat("Test site accounts", d.staging_testers, null, "ov_testers"),
           stat("Turned away (7 days)", d.denied_7d, "Not on the access list", "ov_denied"),
           stat("Decisions to make", (dec.O || 0) + (dec.R || 0), (dec.O || 0) + " open, " + (dec.R || 0) + " suggested, " + (dec.G || 0) + " need a gate", "ov_decisions"),
           stat("Plans not linked to BD", d.unmapped_plans, "Link them on the Plans tab", "ov_unmapped"),
@@ -286,7 +286,7 @@
       };
       var idIn = h("input", { type: "number", min: "1", placeholder: "BD member ID", "aria-label": "BD member ID" });
       var noteIn = h("input", { placeholder: "Note (for example: test attorney)", "aria-label": "Note" });
-      var chIn = h("select", { "aria-label": "List" }, h("option", { value: "access", text: "Access list (may open this copy of DELA)" }), h("option", { value: "staging_tester", text: "Staging test account (Live sends them to Staging)" }));
+      var chIn = h("select", { "aria-label": "List" }, h("option", { value: "access", text: "Access list (may open this copy of DELA)" }), h("option", { value: "staging_tester", text: "Test site account (Live sends them to the test site)" }));
       body(h("div", null,
         pageHead("Access list", "acc"),
         h("p", { class: "muted", text: "Find a member's ID in BD admin under Members. The Lawfecta Team can always open DELA." }),
@@ -295,8 +295,8 @@
             api.post("/admin/access/grant", { bd_member_id: idIn.value, channel: chIn.value, note: noteIn.value }).then(check).then(function (d) { ok(d.duplicate ? "Already on that list" : "Added"); access(); }).catch(fail);
           } }, "Add")))),
         section("acc_list", "May open DELA", "acc_list", true, h("span", { class: "badge", text: String(rows.filter(function (a) { return a.channel === "access"; }).length) }), list("access")),
-        section("acc_staging", "Staging test accounts", "acc_staging", true, h("span", { class: "badge", text: String(rows.filter(function (a) { return a.channel === "staging_tester"; }).length) }),
-          [h("p", { class: "muted small", style: "margin-top:8px", text: "These accounts load the Staging copy with test data and Stripe test mode. Add them on the Live admin area. On Staging, add them to the access list too." }), list("staging_tester")])));
+        section("acc_staging", "Test site accounts", "acc_staging", true, h("span", { class: "badge", text: String(rows.filter(function (a) { return a.channel === "staging_tester"; }).length) }),
+          [h("p", { class: "muted small", style: "margin-top:8px", text: "These accounts load the test site copy with test data and Stripe test mode. Add them on the Live admin area. On the test site, add them to the access list too." }), list("staging_tester")])));
     }).catch(fail);
   }
 
@@ -317,7 +317,7 @@
           h("thead", null, h("tr", null, h("th", { text: "Person" }), h("th", { text: "Sides and plans" }), h("th", { text: "Flags" }), h("th", { text: "Actions" }))),
           h("tbody", null, rows.map(function (p) {
             var sides = p.sides.length ? p.sides.map(function (s) { return h("div", { text: D.SIDE[s.side] + ": " + s.plan_code + (s.plan_source === "staff_grant" ? " (set by team)" : "") }); }) : h("span", { class: "muted", text: "No side yet" });
-            var flags = [p.staff.length ? "Team: " + p.staff.join(", ") : "", p.access ? "Access list" : "", p.staging_tester ? "Staging tester" : "", p.status !== "active" ? p.status : ""].filter(Boolean).join(" | ");
+            var flags = [p.staff.length ? "Team: " + p.staff.join(", ") : "", p.access ? "Access list" : "", p.staging_tester ? "Test site tester" : "", p.status !== "active" ? p.status : ""].filter(Boolean).join(" | ");
             return h("tr", null,
               h("td", null, h("strong", { text: p.name || "(no name)" }), h("div", { class: "muted small", text: "BD " + p.bd_member_id + (p.email ? " | " + p.email : "") }), h("div", { class: "muted small", text: "Last seen " + D.dateTime(p.last_seen_at) })),
               h("td", null, sides), h("td", { class: "small", text: flags }),
@@ -691,19 +691,19 @@
   }
   var REFUSED = { wrong_type: "Not really the type its name says", active_content: "Has scripts, macros or hidden files", damaged: "Could not be opened", storage_full: "Over the storage allowance", file_too_big: "Over the file size limit" };
 
-  // ---------- Release Control (Staging to Live, owner only, with the release password and a code) ----------
+  // ---------- Release Control (test site to Live, owner only, with the release password and a code) ----------
 
   var controlTimer = null;
   var ctl = { filter: "all", flow: null, data: null, more: false, tips: {}, open: loadOpen() };
   // Which sections are open is remembered in this browser only (it is a convenience, never needed)
   function loadOpen() { try { return JSON.parse(localStorage.getItem("dela.control.open") || "{}") || {}; } catch (e) { return {}; } }
   function saveOpen() { try { localStorage.setItem("dela.control.open", JSON.stringify(ctl.open)); } catch (e) { /* private window */ } }
-  var RELEASE_STATUS = { candidate: "Ready to test", tested: "Tested on Staging", approved: "Starting", deploying: "Running now", live: "Live now", failed: "Did not go live", replaced: "Was live before", rolled_back: "Was live before" };
+  var RELEASE_STATUS = { candidate: "Ready to test", tested: "Tested on the test site", approved: "Starting", deploying: "Running now", live: "Live now", failed: "Did not go live", replaced: "Was live before", rolled_back: "Was live before" };
   var RELEASE_ERR = {
     wrong_password: "That release password is not right.", locked: "Too many wrong tries. Pushing is locked for 30 minutes.",
-    no_password: "Set your release password first.", not_tested: "Mark this version as tested on Staging first.",
+    no_password: "Set your release password first.", not_tested: "Mark this version as tested on the test site first.",
     password_too_short: "Use at least 12 characters.", push_in_progress: "A push is already running. Wait for it to finish.",
-    github_not_set_up: "GitHub is not connected for pushes yet. See Live setup on this page.", staging_only: "Pushes start from the Staging admin area.",
+    github_not_set_up: "GitHub is not connected for pushes yet. See Live setup on this page.", staging_only: "Pushes start from the test site admin area.",
     not_rollback_target: "You can only go back to a version that was live before.",
     not_compatible: "This version cannot run on today's database. A newer version made a change it does not understand. Ask Claude for a fixed version instead.",
     confirm_needed: "Type RESET to confirm.", report_missing: "Save the ChatGPT test report for this version first. Send it to Claude.",
@@ -735,7 +735,7 @@
     rollback: [["approval", "Your approval checked"], ["tests", "Automatic tests checked"], ["database", "Database checked"], ["api", "Server code switched back"], ["switch", "Screens switched back"], ["health", "Health check on Live"]],
   };
   var ACTIVITY = {
-    release_recorded: ["push", function (a) { return "Version " + (a.detail.version || "") + " added on Staging"; }],
+    release_recorded: ["push", function (a) { return "Version " + (a.detail.version || "") + " added on the test site"; }],
     release_report_saved: ["push", function () { return "ChatGPT test report saved"; }],
     release_marked_tested: ["push", function (a) { return "Marked " + (a.detail.version || "") + " as tested"; }],
     release_unmarked_tested: ["push", function (a) { return "Unmarked " + (a.detail.version || "") + " as tested"; }],
@@ -760,7 +760,7 @@
     switch_changed: ["settings", function (a) { return "Switch changed: " + a.object_id; }],
     plan_approved: ["settings", function (a) { return "Plan version approved: " + a.object_id; }],
     plan_restored: ["settings", function (a) { return "Plan restored: " + a.object_id; }],
-    staging_reset: ["settings", function () { return "Staging test data reset"; }],
+    staging_reset: ["settings", function () { return "Test site data reset"; }],
   };
   var FILTERS = [["all", "All"], ["push", "Pushes"], ["back", "Go backs"], ["security", "Security"], ["health", "Health"], ["settings", "Settings"], ["pause", "Pauses"]];
 
@@ -792,32 +792,32 @@
   // Plain-language help behind every "?" on Release Control: what it is, and what it tells you
   var HELP = {
     guide: "A plain-words manual: the two copies of DELA, how a version gets to Live, what a push moves, going back, and what every tab is for.",
-    staging: "Staging is DELA's test copy. Only you and the test accounts use it. Every new version runs here first, so problems show up here before members ever see them.",
-    staging_health: "Healthy means Staging's database answers and its background helper ran in the last 10 minutes. Worker stopped means scheduled work (emails, reminders, checking Live) is not running. Tell Claude.",
-    version_running: "The version this copy is running right now. On Staging it should be the version you are testing. \"code\" plus 7 letters means a build that was not recorded as a version.",
+    staging: "The test site, hirelegalhelp.com, is DELA's test copy. Only you and the people on its access list use it. Every new version runs here first, so problems show up here before members ever see them.",
+    staging_health: "Healthy means the test site's database answers and its background helper ran in the last 10 minutes. Worker stopped means scheduled work (emails, reminders, checking Live) is not running. Tell Claude.",
+    version_running: "The version this copy is running right now. On the test site it should be the version you are testing. \"code\" plus 7 letters means a build that was not recorded as a version.",
     worker: "DELA's background helper runs every minute. It sends emails and reminders, writes the daily summary and checks Live. More than 10 minutes ago means something is stuck.",
     problems: "Emails that failed for good, plus background jobs that gave up after all their retries, in the last 24 hours. 0 is the goal. Any other number: open the Jobs tab to see what failed, or ask Claude.",
     paused: "Parts of DELA switched off with the emergency pause, for example AI help or payouts. None is normal.",
-    live: "Live is the copy real members use. It changes only when you push a tested version from this page. Staging checks on Live every minute.",
+    live: "Live is the copy real members use, on lawfecta.com. It changes only when you push a tested version from this page. The test site checks on Live every minute.",
     live_health: "Healthy: Live answered normally. Not healthy: 3 checks in a row failed, and you were alerted. Waiting for your first push: Live exists but has no DELA code yet. Not set up yet: the Live project ID is not entered (see Live setup).",
-    live_checked: "When Staging last asked Live how it is doing. It asks every minute.",
+    live_checked: "When the test site last asked Live how it is doing. It asks every minute.",
     next: "The newest version waiting to go Live, and how far it has come. A green tick is done. The pink step is the next thing to do.",
-    steps: "1 Built on Staging: Claude made it and put it here. 2 Automatic tests: GitHub ran every test and they passed. 3 ChatGPT report: your ChatGPT test results are saved with it. 4 You marked it tested: your yes. 5 Pushed: you entered your release password and code. 6 Live and healthy: Live runs it and passed its watch after the push.",
+    steps: "1 Built on the test site: Claude made it and put it here. 2 Automatic tests: GitHub ran every test and they passed. 3 ChatGPT report: your ChatGPT test results are saved with it. 4 You marked it tested: your yes. 5 Pushed: you entered your release password and code. 6 Live and healthy: Live runs it and passed its watch after the push.",
     changes: "What members will notice in this version, in plain words, written by Claude.",
     db: "Database changes that come with this version. DELA only adds to the database, so member data is kept and going back to an earlier version stays possible. If a version ever removes or renames something, it says so here, and going back past it is blocked.",
     proof: "Evidence this version works: the automatic test run on GitHub (click to open it) and the ChatGPT test report from your testing.",
     push: "Push to Live sends this version to members. The button works only when every item listed under it is done. You enter your release password, then the 6 digit code sent to you (once email is set up).",
     progress: "Each step of the push, in order, as GitHub does it. If a step fails, Live stays on the version it had. After a push, Live is watched for 15 minutes and goes back by itself if it becomes unhealthy.",
-    history: "Every version, newest first. Ready to test and Tested on Staging: not on Live yet. Live now: what members use. Was live before: you can go back to it. Did not go live: the push stopped and Live kept its version. Safe to go back: DELA can return to it with no data lost.",
+    history: "Every version, newest first. Ready to test and Tested on the test site: not on Live yet. Live now: what members use. Was live before: you can go back to it. Did not go live: the push stopped and Live kept its version. Safe to go back: DELA can return to it with no data lost.",
     activity: "Everything important about releases, from the audit log, newest first. Nobody can edit or delete these. Dot colors: green pushes, blue go backs, red security (wrong passwords, codes), pink Live health, amber settings, burgundy pauses. Use the buttons to show one kind.",
     setup: "One-time steps before your first push to Live. Most lines check themselves when you click Check again. A ? means it could not be checked from here, so tick it yourself when it is done.",
     pause: "The emergency pause switches off all of DELA, or one part, on Live at once, with no push. You and the Lawfecta Team keep access. You turn it on in the Live admin area.",
     password: "Your release password is asked for every push and every go back. At least 12 characters, kept in your password manager, never pasted in chat. Five wrong tries lock pushing for 30 minutes and email you.",
-    reset: "Clears test activity on Staging so you can test again from a clean start. People, plans, settings and versions stay. Live is never touched.",
-    ov: "A quick picture of this copy of DELA (Staging or Live, shown in the badge at the top): who is using it, what is waiting on a decision, and anything paused or on hold.",
+    reset: "Clears test activity on the test site so you can test again from a clean start. People, plans, settings and versions stay. Live is never touched.",
+    ov: "A quick picture of this copy of DELA (the test site or Live, shown in the badge at the top): who is using it, what is waiting on a decision, and anything paused or on hold.",
     ov_people: "Everyone who has opened DELA at least once on this copy, and how many of them came back in the last 7 days.",
     ov_access: "Members you have let into DELA. Everyone else sees a 'not open yet' message. The Lawfecta Team can always get in.",
-    ov_testers: "Test accounts that the Live copy sends over to Staging, so testing never touches real data.",
+    ov_testers: "Test accounts that the Live copy sends over to the test site, so testing never touches real data.",
     ov_denied: "Members who tried to open DELA in the last 7 days but are not on the access list. A rising number can mean word is spreading before you open DELA.",
     ov_decisions: "Business numbers still marked Open or Suggested in Settings. Open: no decision yet. Suggested: Claude's suggestion waiting for your yes. Needs a gate: only switch on after a check, such as a lawyer review.",
     ov_unmapped: "DELA plans not yet linked to a BD membership plan. Until linked, members only get those plans if you give them one on the People tab. Linking happens at launch.",
@@ -827,9 +827,9 @@
     ov_recent: "The latest sign ins, refusals and changes on this copy. The full list is on the Audit log tab.",
     ov_pause: "Stops all of DELA, or one part, at once, with no push. Members see a short message. The Lawfecta Team keeps working. You get an email each time it is turned on or off.",
     acc: "Who may open DELA on this copy. While DELA is in testing, only people on this list (and the Lawfecta Team) can get in. Removing someone signs them out at once.",
-    acc_add: "Add a member by their BD member ID (BD admin, Members). Choose the access list to let them in, or Staging test account so Live sends them to Staging.",
+    acc_add: "Add a member by their BD member ID (BD admin, Members). Choose the access list to let them in, or test site account so Live sends them to the test site (not needed while testing happens on hirelegalhelp.com).",
     acc_list: "Members who may open this copy of DELA. Each line shows when they were added and why.",
-    acc_staging: "Accounts used for testing. On Live, being on this list sends them to Staging. On Staging, they also need to be on the access list above.",
+    acc_staging: "Accounts used for testing. On Live, being on this list sends them to the test site. On the test site, they also need to be on the access list above.",
     people: "Everyone who has opened DELA, with their sides (attorney, freelancer) and plans. You can give a side and plan here for testing, or place a hold.",
     plans: "The eight DELA plans, four per side. Attorneys and freelancers have separate prices, fees and limits. A change is saved as a draft and applies only when you approve it. Old versions are kept.",
     plans_side: "Each column is a plan. Rows show the price, the platform fee this side pays, the BD plan it is linked to, how many members are on it, and every limit. 'No cap' means unlimited.",
@@ -915,9 +915,9 @@
     var s = d.here;
     var sb = tipPair("staging_health");
     var staging = h("div", { class: "card env" },
-      titled("h2", "Staging", "staging", h("span", { class: "row", style: "gap:6px" }, h("span", { class: "badge " + (s.worker_ok ? "C" : "bad"), text: s.worker_ok ? "Healthy" : "Worker stopped" }), sb[0])),
+      titled("h2", "Test site: hirelegalhelp.com", "staging", h("span", { class: "row", style: "gap:6px" }, h("span", { class: "badge " + (s.worker_ok ? "C" : "bad"), text: s.worker_ok ? "Healthy" : "Worker stopped" }), sb[0])),
       sb[1],
-      h("p", { class: "muted small", style: "margin-top:6px", text: "Test accounts only. Every version is tried here first." }),
+      h("p", { class: "muted small", style: "margin-top:6px", text: "You and your testers. Every new version goes here first." }),
       h("div", { class: "kv" }, kv("Version running", versionOf(d, s.code_version), "version_running"), kv("Worker last ran", ago(s.worker_last_run), "worker"),
         kv("Problems, last 24 hours", s.problems_24h, "problems"), kv("Paused areas", (s.paused || []).length ? s.paused.join(", ") : "None", "paused")));
     var L = d.live || {};
@@ -931,7 +931,7 @@
     var paused = L.paused && L.paused.length ? L.paused.join(", ") : L.paused_all ? "all" : "None";
     var lb = tipPair("live_health");
     var live = h("div", { class: "card env" },
-      titled("h2", "Live", "live", h("span", { class: "row", style: "gap:6px" }, h("span", { class: "badge " + cls, text: state }), lb[0])),
+      titled("h2", "Live: lawfecta.com", "live", h("span", { class: "row", style: "gap:6px" }, h("span", { class: "badge " + cls, text: state }), lb[0])),
       lb[1],
       h("p", { class: "muted small", style: "margin-top:6px", text: "Members on the access list. Changes only when you push." }),
       h("div", { class: "kv" }, kv("Version running", L.code_version ? versionOf(d, L.code_version) : "None yet", "version_running"), kv("Checked", L.checked_at ? ago(L.checked_at) : "Not yet", "live_checked"),
@@ -951,7 +951,7 @@
     var running = d.releases.some(function (y) { return y.status === "approved" || y.status === "deploying"; });
     if (!d.password_set) why.push("Set your release password (below).");
     if (d.locked_until) why.push("Locked until " + D.dateTime(d.locked_until) + " after too many wrong tries.");
-    if (x.status !== "tested") why.push("Tick that you tested it on Staging.");
+    if (x.status !== "tested") why.push("Tick that you tested it on the test site.");
     if (d.settings.require_report && !x.test_report) why.push("The ChatGPT test report is not saved yet. Send it to Claude.");
     if (running) why.push("Another push is running.");
     if (d.releases.some(function (y) { return y.watching; })) why.push("Live is still being watched after the last push.");
@@ -964,7 +964,7 @@
     var pushed = ["approved", "deploying", "live"].indexOf(x.status) >= 0;
     var left = x.watching ? Math.max(0, Math.ceil((new Date(x.watch_until).getTime() - Date.now()) / 60000)) : 0;
     var defs = [
-      ["Built on Staging", D.date(x.created_at), true],
+      ["Built on the test site", D.date(x.created_at), true],
       ["Automatic tests passed", x.tests_url ? "Passed" : "Not yet", !!x.tests_url],
       ["ChatGPT report saved", x.test_report ? "Saved" : d.settings.require_report ? "Needed before a push" : "Optional", !!x.test_report],
       ["You marked it tested", tested ? D.date(x.tested_at) || "Done" : "Waiting on you", tested],
@@ -1051,13 +1051,13 @@
 
   function nextCard(d) {
     var x = nextRelease(d);
-    if (!x) return h("div", { class: "card" }, titled("h2", "Next version", "next"), h("p", { class: "muted", style: "margin-top:8px", text: "No new version is waiting. Claude adds each version here when it is ready on Staging." }));
+    if (!x) return h("div", { class: "card" }, titled("h2", "Next version", "next"), h("p", { class: "muted", style: "margin-top:8px", text: "No new version is waiting. Claude adds each version here when it is ready on the test site." }));
     var lv = liveRelease(d);
     var added = lv ? x.migrations.filter(function (m) { return lv.migrations.indexOf(m) < 0; }) : x.migrations;
     var blockers = pushBlockers(d, x);
     var flowHere = ctl.flow && ctl.flow.id === x.id && ctl.flow.action === "push";
     var showProgress = ["approved", "deploying"].indexOf(x.status) >= 0 || x.watching || (x.steps && x.steps.length && (x.status === "failed" || x.status === "live"));
-    var tested = h("input", { type: "checkbox", checked: ["tested", "approved", "deploying", "live"].indexOf(x.status) >= 0, disabled: !isOwner || ["candidate", "tested", "failed"].indexOf(x.status) < 0, "aria-label": "I tested " + x.version + " on Staging" });
+    var tested = h("input", { type: "checkbox", checked: ["tested", "approved", "deploying", "live"].indexOf(x.status) >= 0, disabled: !isOwner || ["candidate", "tested", "failed"].indexOf(x.status) < 0, "aria-label": "I tested " + x.version + " on the test site" });
     tested.addEventListener("change", function () {
       api.post("/admin/releases/tested", { release_id: x.id, tested: tested.checked }).then(check).then(function () { ok(tested.checked ? "Marked as tested" : "Unmarked"); controlTab(false); }).catch(relFail);
     });
@@ -1079,7 +1079,7 @@
       showProgress ? progress(x) : null,
       flowHere ? flowPanel(d, x, "push") : null,
       isOwner && !flowHere && ["candidate", "tested", "failed"].indexOf(x.status) >= 0 ? h("div", { style: "border-top:1px solid var(--line);margin-top:14px;padding-top:14px" },
-        h("label", { class: "row", style: "font-weight:700;font-size:15px" }, tested, "I tested this version on Staging and it is ready"),
+        h("label", { class: "row", style: "font-weight:700;font-size:15px" }, tested, "I tested this version on the test site and it is ready"),
         h("div", { class: "row", style: "margin-top:10px" }, h("button", { class: "big", disabled: blockers.length > 0, onclick: function () { ctl.flow = { id: x.id, action: "push", stage: "password" }; drawControl(); } }, "Push to Live"), pt[0]),
         pt[1],
         blockers.length ? h("ul", { class: "small muted", style: "margin:8px 0 0;padding-left:18px" }, blockers.map(function (b) { return h("li", { text: b }); })) : null) : null);
@@ -1139,14 +1139,14 @@
     var refIn = h("input", { value: d.live_ref, placeholder: "20 letters and numbers", "aria-label": "Live project ID", style: "width:240px" });
     var items = [
       [d.password_set, "Release password set", "Set it in the card below."],
-      [d.secrets.github_repo && d.secrets.github_token && d.secrets.ci_secret, "Staging can start pushes", "In Supabase, Staging project, Edge Function secrets: GITHUB_REPO, GITHUB_DISPATCH_TOKEN and RELEASE_CI_SECRET (checklist step 15)."],
+      [d.secrets.github_repo && d.secrets.github_token && d.secrets.ci_secret, "The test site can start pushes", "In Supabase, the Lawfecta AI project (the test site), Edge Function secrets: GITHUB_REPO, GITHUB_DISPATCH_TOKEN and RELEASE_CI_SECRET (checklist step 15)."],
       [gh.token_ok === undefined ? null : gh.token_ok, "GitHub accepts the push token", gh.token_ok === undefined ? "Click Check again to test it." : "The token needs Actions: Read and write, for the lawfecta repo only."],
       [gh.env_ok === true ? true : d.setup.github_env ? true : gh.env_ok === false ? false : null, "GitHub environment named live, with its secrets and variables", "Checklist step 14.", "github_env"],
       [!!d.live_ref, "Live project ID entered", "The 20 letters and numbers in the dela-live Supabase address.", null, refIn],
-      [L.ok === true, "Live answers Staging's health check", "Turns green after your first push. Live also needs the RELEASE_CI_SECRET secret (same value) so Staging can read its problem count."],
+      [L.ok === true, "Live answers the test site's health check", "Turns green after your first push. Live also needs the RELEASE_CI_SECRET secret (same value) so the test site can read its problem count."],
       [emailOk, "Email for codes and alerts", "Today emails are only recorded (email.sender is log). Codes start once email is set up."],
-      [smsOk, "Text alerts", "Put your phone number in Settings (alerts.sms_to), and the Brevo key in Staging secrets as BREVO_API_KEY."],
-      [!!d.setup.uptime, "Uptime monitor watching Staging and Live", "See the runbook, Monitoring.", "uptime"],
+      [smsOk, "Text alerts", "Put your phone number in Settings (alerts.sms_to), and the Brevo key in the test site secrets as BREVO_API_KEY."],
+      [!!d.setup.uptime, "Uptime monitor watching the test site and Live", "See the runbook, Monitoring.", "uptime"],
     ];
     var doneCount = items.filter(function (i) { return i[0] === true; }).length;
     return section("setup", "Live setup", "setup", doneCount < items.length, h("span", { class: "badge " + (doneCount === items.length ? "C" : "O"), text: doneCount + " of " + items.length + " done" }), [
@@ -1160,7 +1160,7 @@
         }
         if (i[4] && isOwner) extra = h("div", { class: "row", style: "margin-top:6px" }, i[4], h("button", { class: "small", onclick: function () {
           var v = refIn.value.trim().toLowerCase();
-          api.post("/admin/settings", { key: "live.project_ref", value: v, status: "C", reason: "Entered on Release Control" }).then(check).then(function () { ok("Saved. Staging checks Live within a minute."); controlTab(false); }).catch(relFail);
+          api.post("/admin/settings", { key: "live.project_ref", value: v, status: "C", reason: "Entered on Release Control" }).then(check).then(function () { ok("Saved. The test site checks Live within a minute."); controlTab(false); }).catch(relFail);
         } }, "Save"));
         return h("li", { class: "row", style: "align-items:flex-start;flex-wrap:nowrap" }, h("span", { class: "tick" + (mark === "✓" ? " ok" : ""), text: mark }),
           h("div", { class: "grow" }, h("div", { style: "font-weight:700", text: i[1] }), i[0] === true ? null : h("div", { class: "muted small", text: i[2] }), extra));
@@ -1176,7 +1176,7 @@
     if (d.settings.email_code && d.settings.email_sender === "log" && !(d.settings.sms && d.settings.sms_to && d.sms_ready))
       out.push(h("div", { class: "notice", text: "Push codes are on, but email and text are not set up yet. Until they are, pushes use your release password alone. See Live setup." }));
     if (d.settings.sms && (!d.settings.sms_to || !d.sms_ready))
-      out.push(h("div", { class: "notice", text: "Text alerts are on, but " + (!d.settings.sms_to ? "your phone number is not saved yet" : "the Brevo key is not in Staging secrets yet") + ". Alerts go by email until then." }));
+      out.push(h("div", { class: "notice", text: "Text alerts are on, but " + (!d.settings.sms_to ? "your phone number is not saved yet" : "the Brevo key is not in the test site secrets yet") + ". Alerts go by email until then." }));
     return out;
   }
 
@@ -1197,13 +1197,13 @@
   }
 
   function resetCard() {
-    return ownerOnly(section("reset", "Reset Staging test data", "reset", false, null, [
-      h("p", { class: "muted small", style: "margin-top:8px", text: "Clears test activity on Staging: allowances used, notices, background jobs, holds and other people's sign ins. Keeps people, the team, the access list, settings, plans and versions. Live is never touched." }),
+    return ownerOnly(section("reset", "Reset test site data", "reset", false, null, [
+      h("p", { class: "muted small", style: "margin-top:8px", text: "Clears test activity on the test site: allowances used, notices, background jobs, holds and other people's sign ins. Keeps people, the team, the access list, settings, plans and versions. Live is never touched." }),
       h("button", { class: "ghost", onclick: function () {
-        var t = prompt("Type RESET to clear Staging test activity.");
+        var t = prompt("Type RESET to clear test activity on the test site.");
         if (t !== "RESET") return;
-        api.post("/admin/staging/reset", { confirm: "RESET" }).then(check).then(function () { ok("Staging test activity cleared"); }).catch(relFail);
-      } }, "Reset Staging test data")]));
+        api.post("/admin/staging/reset", { confirm: "RESET" }).then(check).then(function () { ok("Test site activity cleared"); }).catch(relFail);
+      } }, "Reset test site data")]));
   }
 
   function drawControl() {
@@ -1213,7 +1213,7 @@
       var s = d.here;
       var lv = liveRelease(d);
       body(h("div", null, h("h1", { text: "Release Control" }),
-        h("div", { class: "card" }, h("p", { text: "This is the Live copy. New versions reach Live only when the owner pushes them from the Staging admin area, with the release password and code." }),
+        h("div", { class: "card" }, h("p", { text: "This is the Live copy. New versions reach Live only when the owner pushes them from the test site admin area, with the release password and code." }),
           h("div", { class: "kv" }, kv("Code running", short(s.code_version) || "None"), kv("Worker last ran", ago(s.worker_last_run)), kv("Problems, last 24 hours", s.problems_24h), kv("Paused areas", s.paused.length ? s.paused.join(", ") : "None")),
           lv ? h("p", { class: "muted small", style: "margin-top:10px", text: "Live now: " + lv.version }) : null),
         activityCard(d)));
@@ -1225,7 +1225,7 @@
       h("p", { class: "muted small", text: "To pause Live, open the Live admin area, Overview tab, Emergency pause. It works at once, with no push." })]);
     body(h("div", null,
       h("h1", { text: "Release Control" }),
-      h("p", { class: "muted", text: "Everything between Staging and Live in one place. Only you can push or go back, with your release password" + (d.settings.email_code ? " and a code sent to you." : ".") }),
+      h("p", { class: "muted", text: "Everything between the test site and Live in one place. Only you can push or go back, with your release password" + (d.settings.email_code ? " and a code sent to you." : ".") }),
       noticesFor(d),
       envCards(d),
       nextCard(d),

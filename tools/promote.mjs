@@ -88,6 +88,10 @@ export async function promote({ env, fetchFn = fetch, run = (cmd, args) => execF
     await step("database", added.length ? `Database: ${added.length} addition${added.length === 1 ? "" : "s"} made on Live` : "Database: nothing new to add");
     // This copy is Live; it never offers the push button
     await mgmt(`update settings set value = '"live"' where key = 'environment' and value <> '"live"'`);
+    // Live serves the main Lawfecta site (lawfecta.com); hirelegalhelp.com is the test site (Stacey 2026-11-03).
+    // Migrations 0011 and 0012 point site.url at the test site, so Live swaps it for its own site once. An address set by hand on Live stays.
+    const liveSite = /^https:\/\/[a-z0-9.-]+$/.test(env.LIVE_SITE_URL || "") ? env.LIVE_SITE_URL : "https://lawfecta.com";
+    await mgmt(`update settings set value = '"${liveSite}"'::jsonb, note = 'Live serves the main Lawfecta site.', updated_at = now() where key = 'site.url' and value in ('"https://hirelegalhelp.com"'::jsonb, '"https://www.hirelegalhelp.com"'::jsonb, '"https://lawfecta.com"'::jsonb)`);
     // First push only: name Stacey as the member who becomes owner at her first sign in (ignored once an owner exists)
     if (/^[0-9]+$/.test(env.OWNER_BD_MEMBER_ID || "")) {
       await mgmt(`update settings set value = '${env.OWNER_BD_MEMBER_ID}'::jsonb where key = 'bootstrap.owner_bd_member_id' and value = '0'::jsonb`);
@@ -168,6 +172,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
   const env = {};
   for (const k of ["STAGING_API_URL", "RELEASE_CI_SECRET", "RELEASE_ID", "NONCE", "SUPABASE_ACCESS_TOKEN", "LIVE_PROJECT_REF"]) env[k] = need(k);
   env.OWNER_BD_MEMBER_ID = process.env.OWNER_BD_MEMBER_ID || "";
+  env.LIVE_SITE_URL = process.env.LIVE_SITE_URL || "";
   env.GITHUB_REPOSITORY = need("GITHUB_REPOSITORY");
   env.GITHUB_TOKEN = need("GITHUB_TOKEN");
   promote({ env }).then((r) => process.exit(r.ok ? 0 : 1), (e) => { console.error(String(e.message || e)); process.exit(1); });

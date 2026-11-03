@@ -36,6 +36,19 @@ function fake({ testsOk = true, claimOk = true, applied = [], health = { ok: tru
   return { calls, fetchFn, run };
 }
 
+test("Live points its email links at the main Lawfecta site, not the test site", async () => {
+  const f = fake();
+  await promote({ env, fetchFn: f.fetchFn, run: f.run, ...quick });
+  const q = f.calls.queries.find((x) => x.includes("key = 'site.url'"));
+  assert.ok(q && q.includes('"https://lawfecta.com"') && q.includes("hirelegalhelp.com"), "site.url moves from hirelegalhelp.com to lawfecta.com");
+  const f2 = fake();
+  await promote({ env: { ...env, LIVE_SITE_URL: "https://www.lawfecta.com" }, fetchFn: f2.fetchFn, run: f2.run, ...quick });
+  assert.ok(f2.calls.queries.some((x) => x.includes('"https://www.lawfecta.com"') && x.includes("site.url")), "the address can come from a GitHub variable");
+  const f3 = fake();
+  await promote({ env: { ...env, LIVE_SITE_URL: "javascript:alert(1)" }, fetchFn: f3.fetchFn, run: f3.run, ...quick });
+  assert.ok(f3.calls.queries.some((x) => x.includes('"https://lawfecta.com"') && x.includes("site.url")), "a bad address falls back to lawfecta.com");
+});
+
 test("refused approval changes nothing on Live", async () => {
   const f = fake({ claimOk: false });
   await assert.rejects(promote({ env, fetchFn: f.fetchFn, run: f.run }), /refused the approval/);

@@ -27,6 +27,7 @@ jobs:
           STAGING_API_URL: ${{ vars.STAGING_API_URL }}
           LIVE_PROJECT_REF: ${{ vars.LIVE_PROJECT_REF }}
           OWNER_BD_MEMBER_ID: ${{ vars.OWNER_BD_MEMBER_ID }}
+          LIVE_SITE_URL: ${{ vars.LIVE_SITE_URL }}
           RELEASE_CI_SECRET: ${{ secrets.RELEASE_CI_SECRET }}
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           GITHUB_TOKEN: ${{ github.token }}
