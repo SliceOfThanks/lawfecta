@@ -1,7 +1,7 @@
 # Feature brief: AI and playbooks (attorney side), with the firm playbook library
 
 Step: 2   Spec references: Phase 1A playbooks, AI gateway, exports (C-28), Decision Register att.playbooks_saved and exports
-Status: draft, waiting on Stacey's answers. Library limits, exports, chat, activity log and comments added by Stacey 2026-10-27.
+Status: built with the suggested answers (Stacey 2026-11-03, "keep building, hold anything that needs me"); open answers are settings. See STATUS.md, Held for Stacey. Library limits, exports, chat, activity log and comments added by Stacey 2026-10-27.
 Built on Step 2a (docs/briefs/step-2a-ai-keys-voice-files.md): the AI runs on Lawfecta's key or the member's own key, members can talk instead of type, and attorneys can upload an existing process document and turn it into a playbook.
 
 ## The goal

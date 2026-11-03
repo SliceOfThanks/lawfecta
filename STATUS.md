@@ -7,6 +7,22 @@
 - On the test site since 2026-11-03: commit de2bc4a (api version 8, same jsDelivr loader), health 200, worker ok.
 - Wording: the admin area and member badge say "Test site: hirelegalhelp.com" and "Live: lawfecta.com"; emails from the test site start with [Test site].
 
+## Held for Stacey (nothing below blocks building; each ships as a setting or switch)
+1. Supabase secrets on the Lawfecta AI project: AI_KEY_ENCRYPTION_SECRET and OPENAI_API_KEY (Step 2a). Until then AI answers "still being set up" and own keys cannot be added.
+2. Playbook limits per plan (Step 2 question 1). Today att.playbooks_saved is no cap. Suggested: Free 10, Plus 40, Pro 90, Business 140; set them in the admin area, Plans tab, as a new plan version. The code enforces whatever the plan says.
+3. Step 2 questions 2 to 8 are built with the suggested answers, as Open settings in the Playbooks group: one firm library and limit; no freelancer library in Phase 1; own library exports do not use the export allowance; up to 3 commenters or viewers without a seat; archived playbooks count; reviews every 12 months; DELA suggests missing playbooks.
+4. A real Scribe export (HTML and Markdown) to confirm the importer and the screenshot addresses (setting import.image_hosts).
+5. OpenAI model names (ai.model.openai, ai.model.transcribe) and AI credit costs (ai.credits.*) are Open.
+6. From before: Brevo key (email), DELA-Auth sign in secret, Live setup checklist.
+7. ChatGPT tests: docs/tests/step-2a-chatgpt-prompt.md and docs/tests/step-2-chatgpt-prompt.md.
+
+## Step 2 (built 2026-11-03, on the test site; briefs docs/briefs/step-2-playbooks.md and step-2-recorder-beta.md)
+- Commit f42e11a, api-0.6.0 (api version 9 on the test site, jsDelivr loader), migration 0015_playbooks (applied from jsDelivr, SHA-256 checked).
+- Library per firm with roles, playbook definition (13 parts) and completeness, AI draft from a description or files, DELA's questions, chat suggestions, comments with suggested text, versions and restore, append-only activity, approval and review dates, archive and trash, exports (Word with footer, PDF by print, Markdown, HTML, CSV), team with seats and guests, missing playbook suggestions, Import from Scribe (HTML or Markdown read in the browser, screenshots in the file uploaded, linked ones fetched only from import.image_hosts), review screen with blur burned in (unblurred original deleted), Build my playbook.
+- Switches playbook_library and scribe_import set to list on the test site.
+- Tests: supabase/tests/playbooks_test.sql, supabase/functions/api/playbooks_test.ts (11), tests/pw/playbooks-test.js (29). All suites pass: 7 database, 44 API, 15 script, 128 browser checks. Word export opened in LibreOffice and python-docx.
+- Smoke test on the test site as attorney 687: /library answers, an image from an unknown host is refused.
+
 ## Step 2a (built 2026-11-03, on Staging; brief docs/briefs/step-2a-ai-keys-voice-files.md, built with Stacey's "use the suggested answers")
 - Branch claude/step-2a-ai-keys-voice-files, commit 1b9b85e (code), api-0.5.0, migration 0014_ai_keys_voice_files.
 - What it is: members' own OpenAI or Claude key (sealed with AES-GCM by the api, bound to the row, only last 4 shown, firm key for Business owners), AI routing that never moves to Lawfecta's key unless the member clicks "Use Lawfecta credits this time", credits reserved and given back on failure, Ask DELA chat on both sides with history, Talk button (speech to text; Claude keys use Lawfecta's speech to text), attorney Files (type checked by contents, PDF/Word/text read for the AI, scripts and macros refused, client information check: patterns plus an AI check on Lawfecta's key, held files, versions, folders, trash 30 days, storage by plan, 5 minute links), admin tab "AI and files", daily file clean up and key failure reminder. Rules check: keys never in a log or a response.
