@@ -4,6 +4,7 @@
 - hirelegalhelp.com is the test site. Its widgets (as installed now: data-api empty, data-api-staging = the Lawfecta AI project) talk only to DELA Staging. Every new version goes there first for Stacey to test.
 - lawfecta.com is the main site and gets DELA Live. At launch: install DELA-Auth, DELA-App and DELA-Admin on lawfecta.com with data-api = the Live api address and data-api-staging left empty, and a DELA-Auth secret that matches Live's BD_SHARED_SECRET. Until then lawfecta.com stays unchanged.
 - Push to Live (Release Control) sends a tested version to lawfecta.com's copy. tools/promote.mjs moves Live's site.url from hirelegalhelp.com to lawfecta.com (or GitHub variable LIVE_SITE_URL) so Live's emails link to the main site.
+- On the test site since 2026-11-03: commit de2bc4a (api version 8, same jsDelivr loader), health 200, worker ok.
 - Wording: the admin area and member badge say "Test site: hirelegalhelp.com" and "Live: lawfecta.com"; emails from the test site start with [Test site].
 
 ## Step 2a (built 2026-11-03, on Staging; brief docs/briefs/step-2a-ai-keys-voice-files.md, built with Stacey's "use the suggested answers")
