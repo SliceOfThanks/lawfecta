@@ -2,6 +2,7 @@
 
 Step: 2   Spec references: Phase 1A playbooks, AI gateway, exports (C-28), Decision Register att.playbooks_saved and exports
 Status: draft, waiting on Stacey's answers. Library limits, exports, chat, activity log and comments added by Stacey 2026-10-27.
+Built on Step 2a (docs/briefs/step-2a-ai-keys-voice-files.md): the AI runs on Lawfecta's key or the member's own key, members can talk instead of type, and attorneys can upload an existing process document and turn it into a playbook.
 
 ## The goal
 The playbook library is where an attorney and their team keep how the firm works, one process at a time, so the firm can be run from it: anyone on the team can open a playbook and do the work the same way every time, and the attorney stays in control of what the firm's way is.

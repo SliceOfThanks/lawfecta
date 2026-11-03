@@ -29,10 +29,21 @@
   function loading() { body(h("p", { class: "muted", text: "Loading..." })); }
   function ownerOnly(node) { return isOwner ? node : null; }
 
+  var conflict = D.loginConflict(root);
+  if (conflict) {
+    D.clear(app);
+    app.appendChild(h("div", { class: "wrap" }, h("div", { class: "card", style: "max-width:620px;margin:40px auto" },
+      h("h1", { text: "Two website logins in this browser" }),
+      h("p", { class: "notice", text: "Saved logins found for BD members " + conflict.join(" and ") + "." }),
+      D.LOGIN_CONFLICT_TEXT.map(function (t) { return h("p", { text: t }); }))));
+    return;
+  }
   if (boot.route !== "here" || !(me.staff || []).length) {
     D.clear(app);
     app.appendChild(h("div", { class: "wrap" }, h("div", { class: "card", style: "max-width:560px;margin:40px auto;text-align:center" },
-      h("h1", { text: "Lawfecta Team only" }), h("p", { class: "muted", text: "This page is for the Lawfecta Team. Log in with a Lawfecta Team account." }))));
+      h("h1", { text: "Lawfecta Team only" }), h("p", { class: "muted", text: "This page is for the Lawfecta Team. Log in with a Lawfecta Team account." }),
+      // Test accounts share look-alike addresses, so say plainly which account this browser is signed in with
+      me.person ? h("p", { class: "notice", style: "text-align:left", text: "You are signed in as " + (me.person.name || "a member") + (me.person.email ? " (" + me.person.email + ")" : "") + ", BD member " + me.person.bd_member_id + ". To use the admin area, log out of the website and log in with your Lawfecta Team account." }) : null)));
     return;
   }
 

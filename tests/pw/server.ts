@@ -25,8 +25,8 @@ const deps = {
   }) as typeof fetch,
 };
 
-async function page(widget: string, uid: string, plan: string) {
-  const out = await new Deno.Command("php", { args: [ROOT + "tests/php/render_widget.php", widget, uid, plan, SECRET, ORIGIN + "/api", "test/lawfecta-dela"] }).output();
+async function page(widget: string, uid: string, plan: string, cookie = "") {
+  const out = await new Deno.Command("php", { args: [ROOT + "tests/php/render_widget.php", widget, uid, plan, SECRET, ORIGIN + "/api", "test/lawfecta-dela", cookie] }).output();
   const html = new TextDecoder().decode(out.stdout);
   return `<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Lawfecta</title>
 <style>body{margin:0;font-family:Times New Roman;font-size:10px;color:red} button{background:lime!important} h1{font-size:60px} table{border:5px solid red}</style></head>
@@ -36,7 +36,7 @@ async function page(widget: string, uid: string, plan: string) {
 Deno.serve({ port: PORT, hostname: "127.0.0.1" }, async (req) => {
   const url = new URL(req.url);
   if (url.pathname.startsWith("/page/")) {
-    return new Response(await page(url.pathname.slice(6), url.searchParams.get("uid") ?? "0", url.searchParams.get("plan") ?? ""), { headers: { "content-type": "text/html" } });
+    return new Response(await page(url.pathname.slice(6), url.searchParams.get("uid") ?? "0", url.searchParams.get("plan") ?? "", url.searchParams.get("cookie") ?? ""), { headers: { "content-type": "text/html" } });
   }
   if (url.pathname === "/test/sql" && req.method === "POST") {
     const { sql } = await req.json();

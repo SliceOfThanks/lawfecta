@@ -1,5 +1,5 @@
 <?php
-/* DELA-App: the DELA member app. Place this widget on the /dela page. Version 1.1.0
+/* DELA-App: the DELA member app. Place this widget on the /dela page. Version 1.2.0
    data-api-staging is the DELA Staging api address. data-api stays empty until the first push to Live;
    then it holds the Live api address, and Live sends test accounts on the staging list to Staging by itself.
    data-code is the GitHub home of the DELA code. */
@@ -18,6 +18,21 @@ if (function_exists('widget')) {
 if (function_exists('dela_pass')) {
   $dela_pass = dela_pass(isset($w) ? $w : array());
   $dela_why = dela_why(isset($w) ? $w : array(), $dela_pass);
+}
+// A browser can hold two saved website logins (for example an older test account and the owner).
+// PHP reads the first userid cookie, which may be the older one, so DELA refuses to guess and says how to fix it.
+$dela_ids = array();
+$dela_raw = isset($_SERVER['HTTP_COOKIE']) ? (string) $_SERVER['HTTP_COOKIE'] : '';
+foreach (explode(';', $dela_raw) as $dela_part) {
+  $dela_kv = explode('=', trim($dela_part), 2);
+  if (count($dela_kv) == 2 && trim($dela_kv[0]) == 'userid') {
+    $dela_n = (int) urldecode(trim($dela_kv[1]));
+    if ($dela_n > 0 && !in_array($dela_n, $dela_ids)) { $dela_ids[] = $dela_n; }
+  }
+}
+if (count($dela_ids) > 1) {
+  $dela_pass = '';
+  $dela_why = $dela_why . ',cookie_conflict,uids_' . implode('_', $dela_ids);
 }
 ?>
 <div id="dela-app" data-mode="app" data-api="" data-api-staging="https://ojshgsxgsypbywtqhkch.supabase.co/functions/v1/api" data-code="SliceOfThanks/lawfecta" data-login-url="/login" data-pass="<?php echo htmlspecialchars($dela_pass, ENT_QUOTES); ?>" data-why="<?php echo htmlspecialchars($dela_why, ENT_QUOTES); ?>"><p style="text-align:center;padding:40px 16px;font-family:Arial,sans-serif;color:#1f2a37">Loading DELA...</p></div>

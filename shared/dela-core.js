@@ -222,5 +222,18 @@
   }
 
   // Files that ship with this code version (logo and so on)
+  // The widget found website logins for two different members saved in this browser (see DELA-App.php).
+  // Returns the member IDs it saw, or null when there is no conflict.
+  D.loginConflict = function (root) {
+    var parts = String(root.getAttribute("data-why") || "").split(",");
+    if (parts.indexOf("cookie_conflict") < 0) return null;
+    var ids = parts.filter(function (p) { return p.indexOf("uids_") === 0; })[0];
+    return ids ? ids.slice(5).split("_") : [];
+  };
+  D.LOGIN_CONFLICT_TEXT = [
+    "This browser has more than one website login saved, so DELA cannot tell which account is yours and does not sign anyone in.",
+    "To fix it: 1. Log out of the website. 2. Clear this website's cookies: in Chrome, click the icon left of the web address, then Cookies and site data, then Manage on-device site data, and delete every hirelegalhelp.com entry. In Safari or Firefox, open Settings, then Privacy, and remove the data for hirelegalhelp.com. 3. Log in again with your own account and reload this page.",
+    "Tip: test accounts are easiest in a private window, so your own login stays separate.",
+  ];
   D.asset = function (root, rel) { return (root.getAttribute("data-base") || "") + "/" + rel; };
 })();
