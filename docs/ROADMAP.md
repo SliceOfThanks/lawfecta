@@ -1,21 +1,23 @@
 # DELA Phase 1 roadmap
 
-Each step: feature brief and Stacey's answers, build on Staging, ChatGPT test, Stacey pushes to Live, sign-off, next step.
+Each step: feature brief and Stacey's answers, build on the test site (hirelegalhelp.com), ChatGPT test, next step. The full plan, with what needs testing and what is waiting on Stacey, is docs/PLAN.md.
+Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
 | Step | What | Status |
 |---|---|---|
-| 0 | Setup and decisions (repo, Supabase, Decision Sheet, email and Vectera checks) | Mostly done; email service still to choose |
+| 0 | Setup and decisions (repo, Supabase, Decision Sheet, email and Vectera checks) | Done. Email through Brevo (working 2026-11-04); Vectera checked for meetings (docs/research/vectera-meetings-evaluation.md) |
 | 1 | Foundation (BD sign in, access list, Staging and Live, roles, plans and limits, admin, audit, jobs, notices) | Built, on Staging |
-| 1b | Release Control dashboard (push, code, watch, go back, alerts) | Built, waiting on the 0010 database update |
+| 1b | Release Control dashboard (push, code, watch, go back, alerts) | Built, on the test site; the real push waits for Live |
 | 1c | Safety kit (internal): rule checker, fixed-stays-fixed, security scan, Dependabot, AI reviewers, monthly health report (brief docs/briefs/step-1c-safety-kit.md) | Built; GitHub settings waiting on Stacey |
-| 2a | AI foundation for both sides: bring your own AI key (OpenAI or Claude, all plans), talk to the AI (microphone in every AI chat), and document uploads for attorneys (Files, "turn this into a playbook", templates kept with playbooks, storage by plan) (added to Phase 1 by Stacey 2026-10-29; brief docs/briefs/step-2a-ai-keys-voice-files.md). Built first, because Step 2 uses all three | Built, on Staging (2026-11-03); waiting on two Supabase secrets and the ChatGPT test |
-| 2 | AI and playbooks (attorney side): the playbook definition, the firm playbook library with limits by plan (Free 10, then more per paid plan), chat with a playbook, versions, activity log, team comments approved by the playbook administrator, exports to Word, PDF, Markdown, HTML and CSV for Notion, Waybook, Monday and others (brief docs/briefs/step-2-playbooks.md) | Built, on the test site (2026-11-03) with Import from Scribe; waiting on the ChatGPT test |
+| 2a | AI foundation for both sides: bring your own AI key (OpenAI or Claude, all plans), talk to the AI (microphone in every AI chat), and document uploads for attorneys (Files, "turn this into a playbook", templates kept with playbooks, storage by plan) (added to Phase 1 by Stacey 2026-10-29; brief docs/briefs/step-2a-ai-keys-voice-files.md). Built first, because Step 2 uses all three | Built, on the test site; secrets added by Stacey; waiting on the ChatGPT test |
+| 2 | AI and playbooks (attorney side): the playbook definition, the firm playbook library with limits by plan (Free 10, then more per paid plan), chat with a playbook, versions, activity log, team comments approved by the playbook administrator, exports to Word, PDF, Markdown, HTML and CSV for Notion, Waybook, Monday and others (brief docs/briefs/step-2-playbooks.md) | Built, on the test site with Import from Scribe; waiting on the ChatGPT test |
 | 2r | Import from Scribe, then the Process Recorder (brief docs/briefs/step-2-recorder-beta.md). Order set by Stacey 2026-11-03: 2a, then Step 2 built together with Import from Scribe (it lands on the playbook review screen), then the recorder, which reuses the 2a file storage and AI keys. Beta users start after Step 2 | Import from Scribe and the Process Recorder beta built, on the test site (2026-11-03). Chrome extension later |
-| 2b | DELA in ChatGPT and Claude (MCP connector): sign in with Lawfecta, playbook tools first (added by Stacey 2026-10-27; brief docs/briefs/step-2b-mcp-connector.md) | Built 2026-11-04 with the suggested answers; on the test site |
-| 3 | Profiles and verification (both sides), including freelancer profile documents on the Step 2a file system (brief docs/briefs/step-3-profiles-verification.md) | Built 2026-11-04 with Stacey's answers; on the test site |
-| 4 | Matching, Flex Gigs, proposals and tech catalog; files shared with a freelancer for a gig | |
-| 5 | Booking, calendars, meetings and chat | |
+| 2b | DELA in ChatGPT and Claude (MCP connector): sign in with Lawfecta, playbook tools first (added by Stacey 2026-10-27; brief docs/briefs/step-2b-mcp-connector.md) | Built 2026-11-04 with the suggested answers; on the test site; waiting on Stacey's test in her Claude and ChatGPT |
+| 3 | Profiles and verification (both sides), including freelancer profile documents on the Step 2a file system (brief docs/briefs/step-3-profiles-verification.md) | Built 2026-11-04 with Stacey's answers, plus tech tools and the AI reading the member's own profile; on the test site; ChatGPT test in progress |
+| 4 | Matching, Flex Gigs, proposals and tech catalog; files shared with a freelancer for a gig | Next: brief to write |
+| 5 | Booking, calendars, meetings (Vectera, Stacey 2026-11-04) and chat inside DELA with off-platform payment checks | |
 | 6 | Contracts and payments (Stripe test mode) | |
+| Beta | Live set up in the Lawfecta Live organization, first push, widgets on lawfecta.com, beta members in small groups (after Steps 4 to 6 pass) | |
 | 7 | Reviews, benches and webhooks | |
 | 7b | Affiliates and referrals with Partnero (added by Stacey 2026-10-27; brief docs/briefs/step-7b-partnero-referrals.md). Part 1 now on the current site; Part 2 inside DELA | Brief updated, questions open |
 | 8 | Launch readiness (end-to-end on Live, security, restore test, live Stripe switch) | |
