@@ -138,6 +138,8 @@ async function waitFor(page, words, ms) {
     await label(p, "Service 1 price from").fill("150");
     await label(p, "Service 1 price to").fill("400");
     await label(p, "Experience").fill("Eight years at two family law firms.");
+    await click(p, "MyCase");
+    await label(p, "Other tech tools").fill("Casemark");
     await label(p, "Time zone").selectOption("Central");
     await label(p, "Hours a week you can take on").fill("20");
     await dela(p).getByLabel("LinkedIn profile address", { exact: true }).nth(1).fill("linkedin.com/in/fran-freelancer");
@@ -152,6 +154,7 @@ async function waitFor(page, words, ms) {
     t = await waitFor(p, "Waiting for a check");
     const saved = (await sql("select body from member_profiles mp join people pe on pe.id = mp.person_id where pe.bd_member_id = 2501 and side = 'freelancer'"))[0].body;
     ok(saved.services[0].price_from_cents === 15000 && saved.services[0].price_to_cents === 40000, "prices are saved in cents");
+    ok(saved.software.includes("Clio") && saved.software.includes("MyCase") && saved.software.includes("Casemark"), "tech tools are saved from the choices and the other box");
 
     await dela(p).getByLabel("LinkedIn profile address", { exact: true }).first().fill("https://www.linkedin.com/in/fran-freelancer");
     await click(p, "Ask for the check");

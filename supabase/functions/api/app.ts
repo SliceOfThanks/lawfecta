@@ -9,7 +9,7 @@ import { pickProvider } from "./lib/mail/index.ts";
 import { verifyPass } from "./lib/pass.ts";
 import { sendSms } from "./lib/sms/brevo.ts";
 import { bdCategories, bdFields, bdMember, bdUpdate, shapeOf } from "./lib/bd/members.ts";
-import { fromBd, LABELS, normalize as normalizeProfile, PRACTICE_AREAS, PROFILE_SYSTEM, profileText, readiness, TIMEZONES, toBd, type BdMap, type Side } from "./lib/profiles/model.ts";
+import { aiContext, fromBd, LABELS, normalize as normalizeProfile, PRACTICE_AREAS, PROFILE_SYSTEM, profileText, readiness, TECH_TOOLS, TIMEZONES, toBd, type BdMap, type Side } from "./lib/profiles/model.ts";
 import { encryptionReady, openKey, sealKey } from "./lib/ai/keycrypt.ts";
 import { AiFail, chat, guessProvider, looksLikeKey, testKey, transcribe, transcribeLines, type ChatImage, type ChatMsg, type Provider } from "./lib/ai/providers.ts";
 import { plainText } from "./lib/ai/text.ts";
@@ -314,6 +314,16 @@ async function aiChatArchive(ctx: Ctx) {
   return json(ctx, await rpc(ctx, "dela_ai_chat_archive", { p_person: s.person_id, p_side: s.side, p_chat: id }));
 }
 
+// The member's own profile on this side, for DELA's AI (Stacey 2026-11-04). Never blocks an answer.
+async function memberContext(ctx: Ctx, s: Session): Promise<string> {
+  if (s.side !== "attorney" && s.side !== "freelancer") return "";
+  try {
+    return aiContext(s.side, await rpc<unknown>(ctx, "dela_profile_ai_context", { p_person: s.person_id, p_side: s.side }));
+  } catch {
+    return "";
+  }
+}
+
 function systemPrompt(side: string): string {
   return [
     "You are DELA, the AI Delegation Center inside Lawfecta, a members-only service for " + (side === "attorney" ? "solo attorneys and small law firms" : "freelance paralegals and legal support professionals") + ".",
@@ -416,7 +426,7 @@ async function aiSend(ctx: Ctx) {
   const model = await setting(ctx, "ai.model." + k.provider, k.provider === "openai" ? "gpt-5.4-mini" : "claude-opus-5-5");
 
   try {
-    const r = await chat(f(ctx), k.provider, k.plainKey, model, systemPrompt(s.side), msgs);
+    const r = await chat(f(ctx), k.provider, k.plainKey, model, systemPrompt(s.side) + await memberContext(ctx, s), msgs);
     r.text = plainText(r.text);
     await finishRun(ctx, route, k.reservation, true, "");
     await logUsage(ctx, { person_id: s.person_id, side: s.side, task, source: route.source, key_id: route.key_id, provider: k.provider, model: r.model,
@@ -619,7 +629,7 @@ async function runAi(ctx: Ctx, s: Session, idem: string, system: string, msgs: C
   if ("error" in k) return { ok: false, reason: k.error, source: route.source };
   const model = await setting(ctx, "ai.model." + k.provider, k.provider === "openai" ? "gpt-5.4-mini" : "claude-opus-5-5");
   try {
-    const r = await chat(f(ctx), k.provider, k.plainKey, model, system, msgs, true);
+    const r = await chat(f(ctx), k.provider, k.plainKey, model, system + await memberContext(ctx, s), msgs, true);
     await finishRun(ctx, route, k.reservation, true, "");
     await logUsage(ctx, { person_id: s.person_id, side: s.side, task: "chat", source: route.source, key_id: route.key_id, provider: k.provider, model: r.model,
       input_tokens: r.input_tokens, output_tokens: r.output_tokens, credits: route.source === "lawfecta" ? route.credits : 0, ok: true });
@@ -1131,7 +1141,7 @@ async function profileGet(ctx: Ctx) {
   const s = await memberSide(ctx);
   const r = await rpc<Record<string, any>>(ctx, "dela_profile_get", { p_person: s.person_id, p_side: s.side });
   if (!r?.ok) return json(ctx, r);
-  return json(ctx, { ...r, body: normalizeProfile(r.body), state: labelState(r.state), labels: LABELS, practice_areas: PRACTICE_AREAS, timezones: TIMEZONES });
+  return json(ctx, { ...r, body: normalizeProfile(r.body), state: labelState(r.state), labels: LABELS, practice_areas: PRACTICE_AREAS, tech_tools: TECH_TOOLS, timezones: TIMEZONES });
 }
 
 // What the member's Lawfecta listing holds now, to offer (never copied without the member choosing it)

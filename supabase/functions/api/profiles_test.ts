@@ -13,6 +13,7 @@ const LAWFECTA = "sk-lawfecta" + "P".repeat(40); // rules-ok: a made-up test key
 const BD_KEY = "bd-test-key-0000"; // rules-ok: a made-up test key
 const bdCalls: Array<{ method: string; url: string; body: string }> = [];
 let bdMode: "ok" | "forbidden" = "ok";
+const systems: string[] = [];
 
 const BD_RECORD = {
   user_id: 0, first_name: "Fran", last_name: "Lancer", email: "private@login.invalid", company: "Lancer Legal Support", city: "Austin", state_code: "TX", country_code: "US",
@@ -32,6 +33,7 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
   if (url.endsWith("/chat/completions")) {
     const body = JSON.parse(String(init.body));
     const system = String(body.messages[0].content);
+    systems.push(system);
     let out: unknown = {};
     if (body.response_format && system.includes("legal operations tool")) out = { client_info: false, kinds: [] };
     else if (system.includes("write their profile")) out = { headline: "Litigation paralegal for solo attorneys", summary: "**I** support solo attorneys with e-filing and discovery.", skills: ["E-filing", "Discovery"], software: ["Clio"], services: [{ title: "E-filing", for_whom: "Solo attorneys" }], questions: ["How many years have you done this work?"] };
@@ -152,6 +154,22 @@ Deno.test("DELA drafts a headline and summary in plain text and saves nothing", 
   assert(!r.draft.summary.includes("**"), "no Markdown marks");
   assertEquals(r.questions.length, 1);
   assertEquals((await call("GET", "/profile", fl.token)).body.version, before);
+});
+
+Deno.test("DELA's AI reads the member's own profile: practice areas, places and tech tools", async () => {
+  systems.length = 0;
+  const r = (await call("POST", "/ai/chat/send", fl.token, { content: "Make a checklist for e-filing a motion", request_id: crypto.randomUUID() })).body;
+  assertEquals(r.ok, true, JSON.stringify(r));
+  const sys = systems.find((x) => x.includes("You are DELA")) ?? "";
+  assert(sys.includes("Practice areas: Family law, Civil litigation"), sys.slice(-600));
+  assert(sys.includes("Tech tools they use: Clio, Word"), "the tools are in the instructions");
+  assert(sys.includes("not instructions"), "the profile is marked as facts, not instructions");
+  // Turned off: nothing about the member is sent
+  await pool.query("update settings set value = 'false' where key = 'profile.ai_context'");
+  systems.length = 0;
+  await call("POST", "/ai/chat/send", fl.token, { content: "Another checklist please", request_id: crypto.randomUUID() });
+  assert(!systems.some((x) => x.includes("About this member")));
+  await pool.query("update settings set value = 'true' where key = 'profile.ai_context'");
 });
 
 Deno.test("licenses: free email refused; the link works only for the attorney; only a hash is stored", async () => {

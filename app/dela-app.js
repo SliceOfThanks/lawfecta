@@ -583,6 +583,11 @@
     aiEl.appendChild(h("div", { class: "card" }, h("h2", { text: "Talking to the AI" }),
       h("p", { text: ai.voice_on ? "Press Talk in any AI chat, say what you need, and press Stop. Your words appear in the box so you can fix them before you press Send. Recordings are turned into text and not kept." : "Talking to the AI opens soon." }),
       ai.voice_on ? h("p", { class: "small muted", text: "Each recording can be up to " + ai.voice_max_seconds + " seconds. Claude keys cannot turn speech into text, so members on a Claude key use Lawfecta's speech to text, which uses included credits. OpenAI keys handle it themselves." }) : null));
+    if ((me.switches || {}).profiles) {
+      aiEl.appendChild(h("div", { class: "card" }, h("h2", { text: "What DELA knows about you" }),
+        h("p", { text: "DELA's AI reads your own " + D.SIDE[me.side] + " profile (headline, practice areas, where you practice, your tech tools and services) to tailor its answers, for example by naming your own tools in playbook steps. It never reads other members' profiles." }),
+        h("button", { class: "ghost small", onclick: function () { tab = "profile"; draw(); } }, "Open your profile")));
+    }
     aiEl.appendChild(connectionsCard());
   }
 
@@ -877,8 +882,8 @@
     card.appendChild(textIn("education", "Education", { area: true, rows: 3, required: need("education") }));
     var none = h("input", { type: "checkbox", checked: !!b.software_none });
     none.addEventListener("change", function () { prof.body.software_none = none.checked; prof.dirty = true; });
-    card.appendChild(textIn("software", "Software you use", { list: true, required: need("software"), placeholder: "Clio, MyCase, Microsoft Word", hint: "Separate them with commas." }));
-    card.appendChild(h("label", { style: "font-weight:400;display:flex;gap:8px" }, none, h("span", { text: "I do not use specific legal software" })));
+    card.appendChild(toolsPicker(r.tech_tools || [], need("software")));
+    card.appendChild(h("label", { style: "font-weight:400;display:flex;gap:8px" }, none, h("span", { text: "I do not use specific legal tech tools" })));
     if (side === "freelancer") {
       card.appendChild(textIn("skills", "Task skills", { list: true, placeholder: "E-filing, discovery requests, client intake", hint: "Separate them with commas." }));
       card.appendChild(servicesEditor(need("services")));
@@ -922,6 +927,30 @@
     card.appendChild(h("div", { class: "row", style: "margin-top:12px" }, save));
     card.appendChild(msg);
     return card;
+  }
+
+  // Tech tools: common ones as choices, others typed. DELA's AI reads these to name the member's own tools in its answers.
+  function toolsPicker(known, required) {
+    var box = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" });
+    known.forEach(function (t) {
+      var on = prof.body.software.indexOf(t) >= 0;
+      var chip = h("button", { class: on ? "blue small" : "ghost small", "aria-pressed": String(on) }, t);
+      chip.addEventListener("click", function () {
+        var i = prof.body.software.indexOf(t);
+        if (i >= 0) prof.body.software.splice(i, 1); else if (prof.body.software.length < 30) prof.body.software.push(t);
+        prof.dirty = true;
+        chip.className = i >= 0 ? "ghost small" : "blue small"; chip.setAttribute("aria-pressed", String(i < 0));
+      });
+      box.appendChild(chip);
+    });
+    var other = h("input", { type: "text", style: "width:100%", "aria-label": "Other tech tools", placeholder: "Other tools, separated by commas" });
+    other.value = prof.body.software.filter(function (t) { return known.indexOf(t) < 0; }).join(", ");
+    other.addEventListener("input", function () {
+      var picked = prof.body.software.filter(function (t) { return known.indexOf(t) >= 0; });
+      prof.body.software = picked.concat(other.value.split(",").map(function (x) { return x.trim(); }).filter(Boolean));
+      prof.dirty = true;
+    });
+    return h("div", null, field("Tech tools you use" + (required ? "" : " (optional)"), box, "DELA's AI uses these to tailor its answers, for example by naming your own tools in playbook steps."), other);
   }
 
   function servicesEditor(required) {

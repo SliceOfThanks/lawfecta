@@ -17,7 +17,7 @@
 - DELA drafts a headline, summary and services from the member's notes (plain text, nothing saved until Save). Connector tool get_my_profile on both sides.
 - Admin: Verification tab (licenses, LinkedIn checks, profiles by state). Daily job profiles_daily.
 - Tests: supabase/tests/profiles_test.sql, supabase/functions/api/profiles_test.ts (13), tests/pw/profiles-test.js (27). All suites: 8 database files, 83 API, 15 script, 197 browser checks.
-- To confirm with Stacey: question 8 (verify.countries is US only for now), the video booking link, and turning on the BD key permission for categories if she wants practice areas on the listing.
+- Stacey 2026-11-04: US only (verify.countries confirmed). Practice areas and tech tools are choices on the profile, and DELA's AI reads the member's own profile on that side (setting profile.ai_context, migration 0019) in Ask DELA and every playbook AI task. Waiting on Stacey: the BD key permission for categories (list_professions), then practice areas go to the listing; the video booking link.
 
 ## Step 2b: DELA in ChatGPT and Claude (built 2026-11-04; brief docs/briefs/step-2b-mcp-connector.md)
 - api-0.8.0, migration 0017_mcp_connector. Connector address on the test site: https://ojshgsxgsypbywtqhkch.supabase.co/functions/v1/api/mcp
