@@ -6,7 +6,7 @@ Connector address (copy exactly): https://ojshgsxgsypbywtqhkch.supabase.co/funct
 
 You can also copy it from DELA: https://www.hirelegalhelp.com/dela?tab=ai (card "Use DELA in ChatGPT and Claude", button Copy).
 
-Log in to www.hirelegalhelp.com as the test attorney first, in the same browser.
+Log in to www.hirelegalhelp.com as the test attorney first (stacey+dela-attorney@lawfecta.com), in the same browser.
 
 ## Part 1. Claude (claude.ai)
 1. Open https://claude.ai/settings/connectors

@@ -3,8 +3,8 @@
 Claude already tested on the test site: the profile page loads, "Fill from my Lawfecta listing" reads only the name and the fields DELA uses, saving works, and the listing update. This test covers the screens, both sides and misuse.
 
 Before you paste this:
-1. Fill in ATTORNEY_LOGIN, FREELANCER_LOGIN and OWNER_LOGIN.
-2. Have a work email you can open that is NOT Gmail, Yahoo, Outlook or similar (for example your lawfecta.com email). ChatGPT will type it as WORK_EMAIL; you click the link in that email when ChatGPT asks.
+1. The logins are filled in. Passwords are not kept on GitHub: use the ready-to-paste copy Claude sent you in chat, or replace TEST_PASSWORD with the test password.
+2. The work email for the license check is hello@lawwurk.com. Have that inbox open: you click the link in that email when ChatGPT asks.
 3. Have ready a short resume as a PDF with no client information, and any program file renamed to end in .pdf.
 
 Paste everything below the line into ChatGPT in agent mode.
@@ -13,14 +13,14 @@ Paste everything below the line into ChatGPT in agent mode.
 
 You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com. Report every step as PASS or FAIL with what you saw, and take a screenshot of anything wrong or confusing. Never type real client information. Use only made-up details.
 
-Logins: test attorney ATTORNEY_LOGIN; test freelancer FREELANCER_LOGIN; owner OWNER_LOGIN. Work email for the license check: WORK_EMAIL.
+Logins: test attorney stacey+dela-attorney@lawfecta.com (password TEST_PASSWORD); test freelancer stacey+dela-freelancer@lawfecta.com (password TEST_PASSWORD); owner stacey@lawfecta.com (password TEST_PASSWORD). Work email for the license check: hello@lawwurk.com.
 
 A. Attorney profile (test attorney)
 1. Open www.hirelegalhelp.com/dela. On Home, the Verification card has "Set up your profile and verification". Click it. Expect the page "Profile and verification" with "Not complete" and a checklist.
 2. Click "Fill from my Lawfecta listing". Expect a message and your name filled in. Nothing else private appears.
 3. Fill Firm name, City, State (TX), click "Family law", and type TX in "Where you are licensed or practice". Click Save. Expect "Profile saved" and "Waiting for a check".
 4. Under "Add a license": choose TX, bar number 24000001, keep the name, choose the email option, type a Gmail address, click "Add the license". Expect a message that Gmail and Yahoo do not count.
-5. Type WORK_EMAIL instead and add it. Expect "We emailed WORK_EMAIL". Ask me to open that email and click the button while logged in as the test attorney. Expect "Email confirmed".
+5. Type hello@lawwurk.com instead and add it. Expect "We emailed hello@lawwurk.com". Ask me to open that email and click the button while logged in as the test attorney. Expect "Email confirmed".
 6. Click "Ask for a video call instead" on the license. Expect "Video call requested".
 7. Open Projects. Expect a note that posting work and hiring need a verified license.
 

@@ -4,7 +4,7 @@ Claude already tested on the test site, with the real AI: Ask DELA answers, the 
 This test covers what needs a real browser session. It replaces the three longer prompts.
 
 Before you paste this:
-1. Fill in ATTORNEY_LOGIN, FREELANCER_LOGIN and OWNER_LOGIN.
+1. The logins are filled in. Passwords are not kept on GitHub: use the ready-to-paste copy Claude sent you in chat, or replace TEST_PASSWORD with the test password.
 2. Fill in YOUR_OPENAI_KEY with your own OpenAI key (only on your own computer; remove it afterwards).
 3. Have ready: a short process write-up as a Word file or PDF (no client information), and any program file renamed to end in .pdf.
 
@@ -14,7 +14,7 @@ Paste everything below the line into ChatGPT in agent mode.
 
 You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com. Report every step as PASS or FAIL with what you saw, and take a screenshot of anything wrong or confusing. Never type real client information.
 
-Logins: test attorney ATTORNEY_LOGIN; test freelancer FREELANCER_LOGIN; owner OWNER_LOGIN. Own key for step C: YOUR_OPENAI_KEY.
+Logins: test attorney stacey+dela-attorney@lawfecta.com (password TEST_PASSWORD); test freelancer stacey+dela-freelancer@lawfecta.com (password TEST_PASSWORD); owner stacey@lawfecta.com (password TEST_PASSWORD). Own key for step C: YOUR_OPENAI_KEY.
 
 A. Screens (test attorney)
 1. Open www.hirelegalhelp.com/dela. Expect a "Test site" badge and tabs Home, Ask DELA, Library, Files, Projects, Talent. Narrow the window to phone width: the tabs move to the bottom and nothing runs off the side.

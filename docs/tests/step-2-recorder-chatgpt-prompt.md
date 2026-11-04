@@ -3,7 +3,7 @@
 Before you paste this:
 1. The two Supabase secrets from Step 2a must be in place (AI_KEY_ENCRYPTION_SECRET and OPENAI_API_KEY).
 2. ChatGPT's agent cannot share a real screen. Do Part A yourself on a Windows or Mac computer in Chrome or Edge, then give ChatGPT Parts B to D. Record a practice task with no client information (for example: write a short letter in Word, save it as a PDF, upload it to a test website or a Google Drive folder).
-3. Fill in ATTORNEY_LOGIN and OWNER_LOGIN.
+3. The logins are filled in. Passwords are not kept on GitHub: use the ready-to-paste copy Claude sent you in chat, or replace TEST_PASSWORD with the test password.
 
 ## Part A (you, about 10 minutes)
 1. Log in to www.hirelegalhelp.com as the test attorney. Open DELA, then Library. In Recordings, click Record a process.
@@ -21,7 +21,7 @@ Paste everything below the line into ChatGPT in agent mode.
 
 You are testing the Process Recorder in DELA on the Lawfecta test site (www.hirelegalhelp.com). The attorney already made one recording. Report every step as PASS or FAIL with what you saw. Never type real client information.
 
-Logins: test attorney ATTORNEY_LOGIN; owner OWNER_LOGIN.
+Logins: test attorney stacey+dela-attorney@lawfecta.com (password TEST_PASSWORD); owner stacey@lawfecta.com (password TEST_PASSWORD).
 
 Part B: Recordings list
 1. Log in as the test attorney. Open www.hirelegalhelp.com/dela, Library. Expect a Recordings card with the plan's video keeping time, storage used, and a table: Process name, Date recorded, Length, Status, Video deletes on.

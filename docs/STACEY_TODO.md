@@ -25,8 +25,8 @@ With either way: if ChatGPT's agent is still stopped at the login, click "Take o
 
 ## 2. Run the ChatGPT tests, in this order
 For each test:
-1. Open the test file.
-2. Fill in the parts in capitals.
+1. Use the ready-to-paste copy Claude sent you in chat (logins and passwords filled in). The GitHub copy has everything except the passwords.
+2. Fill in any part still in capitals (for example YOUR_OPENAI_KEY).
 3. Paste everything below the line into ChatGPT in agent mode.
 4. Send Claude the report in this chat.
 Claude fixes anything that fails, then tells you which part to run again.
@@ -34,8 +34,8 @@ Claude fixes anything that fails, then tells you which part to run again.
 ### 2a. Step 3: profiles and verification
 - Test: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-3-chatgpt-prompt.md
 - Have ready:
-  - the three logins: test attorney, test freelancer, owner
-  - a work email you can open that is not Gmail, Yahoo or Outlook (for example your lawfecta.com email)
+  - the logins are filled in: test attorney stacey+dela-attorney@lawfecta.com, test freelancer stacey+dela-freelancer@lawfecta.com, owner stacey@lawfecta.com (passwords only in the copies Claude sends you in chat, never on GitHub)
+  - the work email for the license check is hello@lawwurk.com: have that inbox open
   - a short resume as a PDF with no client information
   - any program file renamed to end in .pdf
 - During the test, ChatGPT asks you to open that work email and click the button in it while logged in as the test attorney.
