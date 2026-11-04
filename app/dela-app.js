@@ -578,6 +578,7 @@
     aiEl.appendChild(h("div", { class: "card" }, h("h2", { text: "Talking to the AI" }),
       h("p", { text: ai.voice_on ? "Press Talk in any AI chat, say what you need, and press Stop. Your words appear in the box so you can fix them before you press Send. Recordings are turned into text and not kept." : "Talking to the AI opens soon." }),
       ai.voice_on ? h("p", { class: "small muted", text: "Each recording can be up to " + ai.voice_max_seconds + " seconds. Claude keys cannot turn speech into text, so members on a Claude key use Lawfecta's speech to text, which uses included credits. OpenAI keys handle it themselves." }) : null));
+    aiEl.appendChild(connectionsCard());
   }
 
   function keyCard(ai, scope, k, title, sub) {
@@ -635,6 +636,82 @@
       h("label", { text: "Use it for" }), use,
       h("p", { class: "small muted", text: "DELA tests the key, then stores it locked so nobody, including the Lawfecta Team, can read it. Only the last 4 characters are shown." }),
       h("div", { class: "row" }, save), msg);
+  }
+
+  // ---------- DELA in ChatGPT and Claude (connector) ----------
+
+  var CONNECT_CAN = {
+    attorney: ["See your name, side, plan and AI credits left", "List and read the playbooks in your library", "Save new playbook drafts and suggest changes (you accept changes here, on the DELA website)", "Have DELA's AI draft a playbook, using your AI credits or your own key", "Export a playbook as text, a web page or a checklist"],
+    freelancer: ["See your name, side, plan and AI credits left"],
+  };
+  var CONNECT_CANNOT = "It cannot pay, hire, sign, send messages, delete anything or see your passwords or AI keys.";
+  var CONNECT_ERR = { request_expired: "This connection request ran out or was already answered. Start again from ChatGPT or Claude.", connector_off: "DELA in ChatGPT and Claude is not open for your account yet.", not_in_plan: "Your plan does not include the ChatGPT and Claude connector.", on_hold: "Some actions are paused on your account. Contact the Lawfecta Team." };
+
+  // The page ChatGPT or Claude sends a member to when they connect DELA (/dela?tab=connect&req=...)
+  function connectView() {
+    var box = h("div", { class: "card", style: "max-width:620px;margin:0 auto" }, h("p", { class: "muted", text: "Loading..." }));
+    var req = "";
+    try { req = new URLSearchParams(location.search).get("req") || ""; } catch (e) { req = ""; }
+    if (!req) { D.clear(box); box.appendChild(h("h1", { text: "Connect DELA to ChatGPT or Claude" })); box.appendChild(h("p", { text: "Open ChatGPT or Claude and add DELA there. It brings you back to this page to approve. The steps are in AI settings." })); box.appendChild(h("button", { onclick: function () { tab = "ai"; draw(); } }, "Open AI settings")); return box; }
+    api.get("/oauth/request?req=" + encodeURIComponent(req)).then(function (r) {
+      D.clear(box);
+      if (!r.ok) { box.appendChild(h("h1", { text: "Connect DELA" })); box.appendChild(h("p", { class: "notice bad", text: CONNECT_ERR[r.reason] || D.errorText(r.reason) })); return; }
+      box.appendChild(h("h1", { text: r.client_name + " wants to connect to DELA" }));
+      box.appendChild(h("p", { text: "It will use your " + D.SIDE[r.side] + " side" + ((me.sides || []).length > 1 ? ". To connect your other side instead, switch sides at the top of this page first." : ".") }));
+      box.appendChild(h("p", { class: "small muted", text: "After you choose, you go back to " + r.redirect_host + "." }));
+      box.appendChild(h("h2", { text: "What " + r.client_name + " can do" }));
+      box.appendChild(h("ul", null, (CONNECT_CAN[r.side] || []).map(function (t) { return h("li", { text: t }); })));
+      box.appendChild(h("p", { class: "small", text: CONNECT_CANNOT }));
+      box.appendChild(h("p", { class: "notice", role: "note", text: "Confidential client information does not belong in DELA, and that includes what you type in ChatGPT or Claude for DELA. Use placeholders such as [Client Name]. You are responsible for what you enter." }));
+      if (!r.on || !r.plan_ok) { box.appendChild(h("p", { class: "notice bad", text: CONNECT_ERR[!r.on ? "connector_off" : "not_in_plan"] })); }
+      var msg = h("p", { role: "status", class: "small" });
+      function decide(yes) {
+        btns.forEach(function (b) { b.disabled = true; });
+        msg.textContent = yes ? "Connecting..." : "Saying no...";
+        api.post("/oauth/decide", { req: req, approve: yes }).then(function (x) {
+          if (!x.ok) { msg.textContent = CONNECT_ERR[x.reason] || D.errorText(x.reason); return; }
+          msg.textContent = yes ? "Connected. Taking you back to " + r.client_name + "..." : "Not connected. Taking you back...";
+          location.href = x.redirect;
+        }).catch(function (e) { btns.forEach(function (b) { b.disabled = false; }); msg.textContent = D.errorText(e.message); });
+      }
+      var btns = [h("button", { class: "blue", disabled: !r.on || !r.plan_ok, onclick: function () { decide(true); } }, "Approve"), h("button", { class: "ghost", onclick: function () { decide(false); } }, "Deny")];
+      box.appendChild(h("div", { class: "row" }, btns));
+      box.appendChild(msg);
+    }).catch(function (e) { D.clear(box); box.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+    return box;
+  }
+
+  // In AI settings: the address to paste into ChatGPT or Claude, the steps, and the apps connected now
+  function connectionsCard() {
+    var card = h("div", { class: "card" }, h("h2", { text: "Use DELA in ChatGPT and Claude" }), h("p", { class: "muted small", text: "Loading..." }));
+    api.get("/connections").then(function (r) {
+      D.clear(card);
+      card.appendChild(h("h2", { text: "Use DELA in ChatGPT and Claude" }));
+      if (!r.on && !r.connections.length) { card.appendChild(h("p", { text: "Opens soon. You will be able to read and draft your DELA playbooks from ChatGPT or Claude." })); return; }
+      card.appendChild(h("p", { text: me.side === "attorney" ? "Read your playbooks, save drafts and suggest changes from ChatGPT or Claude. Changes wait for you here before they count." : "Connect ChatGPT or Claude to your DELA freelancer side. More freelancer tools come in a later update." }));
+      var addr = h("input", { type: "text", readonly: true, value: r.url, "aria-label": "DELA connector address", style: "width:100%" });
+      card.appendChild(h("label", { text: "DELA connector address" }));
+      card.appendChild(h("div", { class: "row" }, addr, h("button", { class: "ghost small", onclick: function () {
+        addr.select();
+        var done = function () { D.toast(app, "Address copied"); };
+        if (navigator.clipboard) navigator.clipboard.writeText(r.url).then(done, function () { document.execCommand("copy"); done(); }); else { document.execCommand("copy"); done(); }
+      } }, "Copy")));
+      card.appendChild(h("h3", { text: "In Claude" }));
+      card.appendChild(h("ol", null, ["Open claude.ai, then Settings, then Connectors.", "Click Add custom connector. Name it Lawfecta DELA and paste the address above. Click Add.", "Click Connect next to Lawfecta DELA. This page opens: click Approve."].map(function (t) { return h("li", { text: t }); })));
+      card.appendChild(h("h3", { text: "In ChatGPT" }));
+      card.appendChild(h("ol", null, ["Open chatgpt.com, then Settings, then Apps and Connectors. If you do not see a Create button, turn on Developer mode under Advanced settings.", "Click Create. Name it Lawfecta DELA, paste the address above, choose OAuth for sign in, and click Create.", "ChatGPT opens this page: click Approve."].map(function (t) { return h("li", { text: t }); })));
+      card.appendChild(h("p", { class: "small muted", text: "Menu names in ChatGPT and Claude change from time to time. Look for Connectors or Apps. Some ChatGPT and Claude plans do not allow custom connectors." }));
+      card.appendChild(h("h3", { text: "Connected now" }));
+      if (!r.connections.length) card.appendChild(h("p", { class: "muted small", text: "Nothing connected yet." }));
+      else card.appendChild(h("ul", { class: "list" }, r.connections.map(function (c) {
+        return h("li", { class: "row" }, h("span", { class: "grow" }, h("b", { text: c.client_name }), h("span", { class: "small muted", text: " " + D.SIDE[c.side] + " side, connected " + D.date(c.created_at) + ", last used " + D.date(c.last_used_at) })),
+          h("button", { class: "danger small", onclick: function () {
+            if (!confirm("Disconnect " + c.client_name + "? It stops working with DELA right away. You can connect it again later.")) return;
+            api.post("/connections/disconnect", { id: c.id }).then(function (x) { if (x.ok === false) throw new Error(x.reason); D.toast(app, "Disconnected"); card.replaceWith(connectionsCard()); }).catch(err);
+          } }, "Disconnect"));
+      })));
+    }).catch(function () { D.clear(card); });
+    return card;
   }
 
   // ---------- Files ----------
@@ -2130,6 +2207,7 @@
       if (tab === "record") { tab = "library"; lib.startRecord = true; }
       main.appendChild(libraryView());
     }
+    else if (tab === "connect") main.appendChild(connectView());
     else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1]));
     else { tab = "home"; main.appendChild(me.side === "attorney" ? attorneyHome() : freelancerHome()); }
     show(h("div", null, header(), nav(), main));

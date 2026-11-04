@@ -7,6 +7,15 @@
 - On the test site since 2026-11-03: commit de2bc4a (api version 8, same jsDelivr loader), health 200, worker ok.
 - Wording: the admin area and member badge say "Test site: hirelegalhelp.com" and "Live: lawfecta.com"; emails from the test site start with [Test site].
 
+## Step 2b: DELA in ChatGPT and Claude (built 2026-11-04; brief docs/briefs/step-2b-mcp-connector.md)
+- api-0.8.0, migration 0017_mcp_connector. Connector address on the test site: https://ojshgsxgsypbywtqhkch.supabase.co/functions/v1/api/mcp
+- Open MCP over HTTP (JSON-RPC, protocol 2025-11-25, also 2025-06-18 and 2025-03-26) with OAuth 2.1: protected resource metadata, auth server metadata (also at .well-known/openid-configuration, which is the address MCP clients can reach under a Supabase path), dynamic client registration (https or localhost redirects only), PKCE S256 only, one-use codes (a reused code stops the connection it made), refresh tokens replaced on each use, all tokens stored only as hashes.
+- Sign in: ChatGPT or Claude sends the member to /dela?tab=connect&req=... on the BD site; the page shows the app, the side, what it can and cannot do and the client information notice; Approve or Deny goes back to the app.
+- Tools: everyone lawfecta_whoami; attorneys list_playbooks, get_playbook, save_playbook_draft, draft_playbook_with_dela (uses credits), suggest_playbook_change (waits on the Suggestions view), export_playbook. Client information is refused. Every call re-checks the token, access, switch mcp_connector, plan list mcp.plans, holds, the pause area "connector" and mcp.calls_per_minute; calls are logged append-only without what was asked.
+- Members: AI settings, "Use DELA in ChatGPT and Claude" (address with Copy, steps, connected apps with Disconnect). Team: AI and files tab, "ChatGPT and Claude connections" with Stop; emergency pause button.
+- Tests: supabase/functions/api/mcp_test.ts (15), mcp_sdk_test.ts (the official MCP client library signs in and calls tools), tests/pw/connector-test.js (25). All suites: 70 API, 170 browser checks.
+- Held for Stacey: adding the connector in her own ChatGPT and Claude accounts (custom connectors may need a paid ChatGPT or Claude plan and Developer mode in ChatGPT). mcp.plans and mcp.write_actions are Open.
+
 ## 2026-11-04 on the test site
 - Stacey added AI_KEY_ENCRYPTION_SECRET, OPENAI_API_KEY and BREVO_API_KEY (api versions 11 to 13 are those secret changes). Commit a3119718 deployed (api version 14): AI answers cleaned to plain text (Fix commit with test).
 - Claude tested on the real test site as attorney 687: chat on Lawfecta's AI (model gpt-5.4-mini-2026-03-17), client information warning, playbook draft, fill to 100%, approve, chat suggestion accepted as version 3, CSV and Word export, unknown image host refused. Credits charged as set.

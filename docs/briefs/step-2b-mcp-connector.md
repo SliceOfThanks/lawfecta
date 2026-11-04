@@ -1,7 +1,7 @@
 # Feature brief: DELA in ChatGPT and Claude (MCP connector)
 
 Step: 2b (right after AI and playbooks), then grows with every later step   Spec references: added by Stacey 2026-10-27; AI gateway (Step 2), plans and limits (Step 1)
-Status: draft, waiting on Stacey's answers
+Status: built 2026-11-04 with the suggested answers (Stacey: keep building, hold anything that needs me). Answers used: 1 playbooks first; 2 all plans for now (setting mcp.plans, Open); 3 yes, DELA's own AI uses credits; 4 read and draft only, changes are accepted on the website (mcp.write_actions off); 5 link first, directories later; 6 "Lawfecta DELA" (setting mcp.name).
 
 ## Who
 - Attorneys and freelancers who already use ChatGPT or Claude and want to work with DELA from there.

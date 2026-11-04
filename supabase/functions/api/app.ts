@@ -3,7 +3,7 @@
 //
 // Sign in: the DELA-Auth widget in BD signs a one-use pass; POST /bootstrap swaps it for a DELA session token.
 // Every other member route sends that token in the x-dela-session header and is checked again on every call.
-import { newSessionToken, safeEqual, sessionHash } from "./lib/crypto.ts";
+import { b64url, newSessionToken, safeEqual, sessionHash, sha256Hex } from "./lib/crypto.ts";
 import { buildNotice } from "./lib/email.ts";
 import { pickProvider } from "./lib/mail/index.ts";
 import { verifyPass } from "./lib/pass.ts";
@@ -17,7 +17,7 @@ import type { Storage } from "./lib/files/storage.ts";
 import { completeness, emptyBody, fileName, normalize, removesReview, toCsv, toDocx, toHtml, toMarkdown, type Body, type ExportMeta } from "./lib/playbooks/model.ts";
 import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
 
-export const VERSION = "api-0.7.0";
+export const VERSION = "api-0.8.0";
 
 export type Deps = {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -40,12 +40,28 @@ const MAX_BODY = 64 * 1024;
 // DELA_ORIGINS can override this list (comma separated) without a code change.
 const DEFAULT_ORIGINS = ["https://www.hirelegalhelp.com", "https://hirelegalhelp.com", "https://lawfecta.com", "https://www.lawfecta.com"];
 
+// Supabase passes the full path (/functions/v1/api/...) or just /api/...; keep what follows "/api"
+function apiPath(url: URL): string {
+  const at = url.pathname.indexOf("/api");
+  return (at >= 0 ? url.pathname.slice(at + 4) : url.pathname).replace(/\/+$/, "") || "/";
+}
+
 function origins(deps: Deps): string[] {
   const list = deps.env("DELA_ORIGINS").split(",").map((s) => s.trim()).filter(Boolean);
   return list.length ? list : DEFAULT_ORIGINS;
 }
 
 function cors(req: Request, deps: Deps): Record<string, string> {
+  // ChatGPT and Claude call the connector and sign-in addresses from their own servers and pages; these carry no DELA session
+  if (isOpenPath(apiPath(new URL(req.url)))) {
+    return {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "GET, POST, DELETE, OPTIONS",
+      "Access-Control-Allow-Headers": "authorization, content-type, mcp-protocol-version, mcp-session-id, x-dela-session",
+      "Access-Control-Expose-Headers": "WWW-Authenticate, Mcp-Session-Id",
+      "Access-Control-Max-Age": "600",
+    };
+  }
   const list = origins(deps);
   const o = req.headers.get("origin") ?? "";
   return {
@@ -1092,6 +1108,262 @@ async function recDaily(ctx: Ctx) {
   return { ok: true };
 }
 
+// ---------- DELA in ChatGPT and Claude (MCP connector, Step 2b) ----------
+// The open Model Context Protocol over plain HTTP (JSON-RPC), with OAuth 2.1 sign in (PKCE, dynamic client registration).
+// Members sign in with their Lawfecta login on the DELA page; DELA never sees a password. Tokens are stored only as hashes.
+
+const MCP_VERSIONS = ["2025-11-25", "2025-06-18", "2025-03-26"];
+const OPEN_PATHS = ["/mcp", "/oauth/", "/.well-known/"];
+const isOpenPath = (p: string) => OPEN_PATHS.some((x) => p === x || p.startsWith(x));
+
+function publicBase(deps: Deps): string {
+  return (deps.env("PUBLIC_API_URL") || (deps.env("SUPABASE_URL").replace(/\/+$/, "") + "/functions/v1/api")).replace(/\/+$/, "");
+}
+const mcpHash = (t: string) => sha256Hex("dela-mcp:" + t);
+const newMcpToken = (prefix: string) => prefix + newSessionToken().slice(3);
+
+async function pkceOk(verifier: string, challenge: string) {
+  if (!/^[A-Za-z0-9._~-]{43,128}$/.test(verifier)) return false;
+  const d = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(verifier)));
+  return b64url(d) === challenge;
+}
+
+function oauthError(ctx: Ctx, error: string, status = 400, description = "") {
+  return json(ctx, { error, ...(description ? { error_description: description } : {}) }, status);
+}
+
+function oauthMeta(ctx: Ctx) {
+  const base = publicBase(ctx.deps);
+  return json(ctx, {
+    issuer: base, authorization_endpoint: base + "/oauth/authorize", token_endpoint: base + "/oauth/token", registration_endpoint: base + "/oauth/register",
+    response_types_supported: ["code"], grant_types_supported: ["authorization_code", "refresh_token"], code_challenge_methods_supported: ["S256"],
+    token_endpoint_auth_methods_supported: ["none"], scopes_supported: ["dela"],
+    // On Supabase the function lives under a path, so MCP clients find this through the OpenID address, which they check
+    // for these three fields. DELA issues no ID tokens; the key list is empty.
+    jwks_uri: base + "/.well-known/jwks.json", subject_types_supported: ["public"], id_token_signing_alg_values_supported: ["RS256"],
+  });
+}
+
+async function oauthRegister(ctx: Ctx) {
+  const uris = (Array.isArray(ctx.body.redirect_uris) ? ctx.body.redirect_uris : []).map((u) => str(u, 500)).filter(Boolean);
+  const id = "dc_" + newSessionToken().slice(3, 35);
+  const r = await rpc<Record<string, any>>(ctx, "dela_mcp_register", { p_id: id, p_name: str(ctx.body.client_name, 80), p_redirects: uris });
+  if (!r?.ok) return oauthError(ctx, "invalid_redirect_uri", 400, "Redirect addresses must be https, or localhost for desktop apps.");
+  return json(ctx, { client_id: id, client_id_issued_at: Math.floor(Date.now() / 1000), client_name: str(ctx.body.client_name, 80), redirect_uris: uris,
+    token_endpoint_auth_method: "none", grant_types: ["authorization_code", "refresh_token"], response_types: ["code"] }, 201);
+}
+
+// Starts sign in: remembers the request, then sends the browser to the DELA page on the Lawfecta site to sign in and approve
+async function oauthAuthorize(ctx: Ctx) {
+  const q = ctx.url.searchParams;
+  const client = q.get("client_id") ?? "", redirect = q.get("redirect_uri") ?? "";
+  if (q.get("response_type") !== "code" || q.get("code_challenge_method") !== "S256") return oauthError(ctx, "invalid_request", 400, "Only the code flow with S256 PKCE is supported.");
+  const id = newSessionToken().slice(3, 40);
+  const r = await rpc<Record<string, any>>(ctx, "dela_mcp_auth_start", { p_id: id, p_client: client, p_redirect: redirect, p_challenge: q.get("code_challenge") ?? "", p_state: q.get("state") ?? "" });
+  if (!r?.ok) return oauthError(ctx, r?.reason ?? "invalid_request");
+  const site = (await setting(ctx, "site.url", "")).replace(/\/+$/, "");
+  const path = await setting(ctx, "site.app_path", "/dela");
+  return new Response(null, { status: 302, headers: { ...cors(ctx.req, ctx.deps), location: `${site}${path}?tab=connect&req=${encodeURIComponent(id)}`, "cache-control": "no-store" } });
+}
+
+async function oauthRequest(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  return json(ctx, await rpc(ctx, "dela_mcp_auth_get", { p_person: s.person_id, p_side: s.side, p_req: str(ctx.url.searchParams.get("req"), 60) }));
+}
+
+async function oauthDecide(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const approve = ctx.body.approve === true;
+  const code = newMcpToken("dk_");
+  const r = await rpc<Record<string, any>>(ctx, "dela_mcp_decide", { p_person: s.person_id, p_side: s.side, p_req: str(ctx.body.req, 60), p_approve: approve, p_code_hash: await mcpHash(code) });
+  if (!r?.ok) return json(ctx, r);
+  const back = new URL(r.redirect_uri);
+  if (r.approved) back.searchParams.set("code", code); else back.searchParams.set("error", "access_denied");
+  if (r.state) back.searchParams.set("state", r.state);
+  back.searchParams.set("iss", publicBase(ctx.deps));
+  return json(ctx, { ok: true, redirect: back.toString() });
+}
+
+async function oauthToken(ctx: Ctx) {
+  const b = ctx.body;
+  const client = str(b.client_id, 80);
+  const access = newMcpToken("dm_"), refresh = newMcpToken("dr_");
+  if (b.grant_type === "authorization_code") {
+    const codeHash = await mcpHash(str(b.code, 200));
+    const t = await rpc<Record<string, any>>(ctx, "dela_mcp_code_take", { p_code_hash: codeHash, p_client: client, p_redirect: str(b.redirect_uri, 500) });
+    if (!t?.ok || !(await pkceOk(str(b.code_verifier, 200), t.challenge))) return oauthError(ctx, "invalid_grant");
+    const c = await rpc<Record<string, any>>(ctx, "dela_mcp_connect", { p_person: t.person_id, p_side: t.side, p_client: client, p_access_hash: await mcpHash(access), p_refresh_hash: await mcpHash(refresh), p_code_hash: codeHash });
+    return json(ctx, { access_token: access, token_type: "Bearer", expires_in: c.expires_in, refresh_token: refresh, scope: "dela" });
+  }
+  if (b.grant_type === "refresh_token") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_mcp_refresh", { p_old_hash: await mcpHash(str(b.refresh_token, 200)), p_client: client, p_access_hash: await mcpHash(access), p_refresh_hash: await mcpHash(refresh) });
+    if (!r?.ok) return oauthError(ctx, "invalid_grant");
+    return json(ctx, { access_token: access, token_type: "Bearer", expires_in: r.expires_in, refresh_token: refresh, scope: "dela" });
+  }
+  return oauthError(ctx, "unsupported_grant_type");
+}
+
+function mcpUnauthorized(ctx: Ctx, error = "invalid_token") {
+  const base = publicBase(ctx.deps);
+  return new Response(JSON.stringify({ error }), { status: 401, headers: { ...cors(ctx.req, ctx.deps), "content-type": "application/json",
+    "www-authenticate": `Bearer resource_metadata="${base}/.well-known/oauth-protected-resource", error="${error}"` } });
+}
+
+type McpWho = { connection_id: string; person_id: string; side: "attorney" | "freelancer"; bd_member_id: number; name: string; on_hold: boolean; write_actions: boolean };
+
+const NOTICE_TOOLS = "Confidential client information does not belong in DELA: use placeholders such as [Client Name].";
+const PB_FIELDS = {
+  title: { type: "string" }, outcome: { type: "string", description: "What done produces" }, practice_area: { type: "string" }, jurisdiction: { type: "string" },
+  when_to_use: { type: "string", description: "What starts the process" }, roles: { type: "string", description: "Who does what; which parts only an attorney may do" },
+  needs: { type: "array", items: { type: "string" }, description: "What you need first" },
+  steps: { type: "array", items: { type: "object", properties: { text: { type: "string" }, who: { type: "string" }, tool: { type: "string" }, minutes: { type: "number" }, decision: { type: "string" }, tag: { type: "string", enum: ["keep", "delegate", "automate"] } }, required: ["text"] } },
+  has_deadlines: { type: "boolean" }, deadlines: { type: "string" }, checks: { type: "array", items: { type: "string" } },
+  review_points: { type: "array", items: { type: "string" }, description: "Where an attorney must review or sign" }, never_delegate: { type: "array", items: { type: "string" } },
+  resources: { type: "array", items: { type: "string" } }, tools: { type: "array", items: { type: "string" } }, deliverables: { type: "string" },
+};
+
+function mcpTools(side: string) {
+  const who = { name: "lawfecta_whoami", title: "Who am I in DELA", description: "Shows the Lawfecta member and DELA side this connection uses, their plan and AI credits left.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } };
+  if (side !== "attorney") return [who];
+  return [who,
+    { name: "list_playbooks", title: "List my playbooks", description: "Lists playbooks in the member's DELA playbook library, with status and how complete each is.",
+      inputSchema: { type: "object", properties: { status: { type: "string", enum: ["draft", "in_review", "approved", "archived"] }, search: { type: "string" } } }, annotations: { readOnlyHint: true } },
+    { name: "get_playbook", title: "Read a playbook", description: "Reads one playbook: every part and step, its version, status and what is missing.",
+      inputSchema: { type: "object", properties: { playbook_id: { type: "string" } }, required: ["playbook_id"] }, annotations: { readOnlyHint: true } },
+    { name: "save_playbook_draft", title: "Save a new playbook draft", description: "Saves a new draft playbook in the member's DELA library from content you wrote. It stays a draft until the attorney approves it on the website. " + NOTICE_TOOLS,
+      inputSchema: { type: "object", properties: PB_FIELDS, required: ["title", "steps"] }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
+    { name: "draft_playbook_with_dela", title: "Have DELA draft a playbook", description: "DELA's own AI drafts a new playbook from a task description and returns its follow-up questions. Uses the member's DELA AI credits (or their own key). " + NOTICE_TOOLS,
+      inputSchema: { type: "object", properties: { description: { type: "string" } }, required: ["description"] }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
+    { name: "suggest_playbook_change", title: "Suggest a change to a playbook", description: "Proposes a new version of an existing playbook. Nothing changes until an editor or the administrator accepts it on the DELA website. Send the whole playbook with your changes. " + NOTICE_TOOLS,
+      inputSchema: { type: "object", properties: { playbook_id: { type: "string" }, note: { type: "string", description: "A short label for the change" }, ...PB_FIELDS }, required: ["playbook_id", "note", "title", "steps"] }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
+    { name: "export_playbook", title: "Export a playbook", description: "Returns a playbook as Markdown, a web page (HTML) or a step checklist (CSV) with its version and date.",
+      inputSchema: { type: "object", properties: { playbook_id: { type: "string" }, format: { type: "string", enum: ["markdown", "html", "csv"] } }, required: ["playbook_id"] }, annotations: { readOnlyHint: true } },
+  ];
+}
+
+class ToolError extends Error {}
+
+async function mcpCall(ctx: Ctx, w: McpWho, name: string, a: Record<string, any>): Promise<{ text: string; data?: unknown }> {
+  const s: Session = { session_id: "mcp", person_id: w.person_id, side: w.side, staff: [], bd_member_id: w.bd_member_id };
+  const org = await rpc<string | null>(ctx, "dela_side_org", { p_person: w.person_id, p_side: w.side });
+  const fail = (r: Record<string, any> | null | undefined): never => { throw new ToolError(r?.reason ? "DELA said: " + String(r.reason).split("_").join(" ") + "." : "That did not work."); };
+  if (name === "lawfecta_whoami") {
+    const ai = await rpc<Record<string, any>>(ctx, "dela_ai_state", { p_person: w.person_id, p_side: w.side });
+    const c = ai?.credits;
+    const data = { name: w.name, bd_member_id: w.bd_member_id, side: w.side, ai: ai?.mode === "own_key" ? "member's own key" : "Lawfecta's AI", credits_left: c ? (c.unlimited ? "no cap" : c.remaining) : null };
+    return { text: `${w.name} (Lawfecta member ${w.bd_member_id}), ${w.side} side. AI: ${data.ai}; credits left this month: ${data.credits_left ?? "n/a"}.` + (w.side === "freelancer" ? " Freelancer tools (profile and work) come in a later DELA update." : ""), data };
+  }
+  if (w.side !== "attorney") throw new ToolError("This tool is for the attorney side.");
+  if (w.on_hold && name !== "list_playbooks" && name !== "get_playbook") throw new ToolError("Some actions are paused on this account. Contact the Lawfecta Team.");
+  if (name === "list_playbooks") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_pb_list", { p_person: w.person_id, p_org: org });
+    if (!r?.ok) fail(r);
+    const q = str(a.search, 100).toLowerCase();
+    const rows = (r.playbooks as Array<Record<string, any>>).filter((p) => p.status !== "trash" && (!a.status || p.status === a.status) && (!q || String(p.title).toLowerCase().includes(q)));
+    return { text: rows.length ? rows.map((p) => `- ${p.title} (id ${p.id}): ${p.status}, ${p.completeness}% complete, version ${p.version}`).join("\n") + `\n${r.count} playbooks` + (r.limit === null ? " (no cap)." : ` of ${r.limit}.`) : "No playbooks yet.",
+      data: rows.map((p) => ({ id: p.id, title: p.title, status: p.status, completeness: p.completeness, version: p.version })) };
+  }
+  if (name === "get_playbook") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: w.person_id, p_id: uuid(a.playbook_id) });
+    if (!r?.ok) fail(r);
+    const b = normalize(r.body);
+    return { text: toMarkdown(b, { version: r.playbook.version, date: new Date().toISOString().slice(0, 10), status: r.playbook.status, firm: "" }) +
+      `\nStatus: ${r.playbook.status}. Complete: ${r.playbook.completeness}%.` + (r.playbook.missing.length ? " Missing: " + r.playbook.missing.join(", ") + "." : ""),
+      data: { id: r.playbook.id, version: r.playbook.version, status: r.playbook.status, completeness: r.playbook.completeness, missing: r.playbook.missing, playbook: b } };
+  }
+  if (name === "save_playbook_draft") {
+    const b = normalize(a);
+    const kinds = messageLooksSensitive(JSON.stringify(b));
+    if (kinds.length) throw new ToolError("This may include client information (" + kinds.join(", ").split("_").join(" ") + "). Replace it with placeholders such as [Client Name], then try again.");
+    if (!b.title || !b.steps.length) throw new ToolError("A playbook needs a title and at least one step.");
+    const idem = "mcp:" + (await sha256Hex(w.connection_id + JSON.stringify(b))).slice(0, 40);
+    const r = await rpc<Record<string, any>>(ctx, "dela_pb_create", { p: { person_id: w.person_id, org_id: org, request_id: idem, body: b, ...meta(b), source: "manual", source_ref: "connector", note: "Saved from " + "an AI app" } });
+    if (!r?.ok) fail(r);
+    const c = completeness(b);
+    return { text: `Saved "${b.title}" as a draft in DELA (id ${r.id}). It is ${c.score}% complete` + (c.missing.length ? "; still missing: " + c.missing.join(", ") : "") + ". The attorney approves it on the DELA website.", data: { id: r.id, completeness: c.score, missing: c.missing, duplicate: !!r.duplicate } };
+  }
+  if (name === "draft_playbook_with_dela") {
+    const d = str(a.description, 8000).trim();
+    if (!d) throw new ToolError("Describe the task first.");
+    const kinds = messageLooksSensitive(d);
+    if (kinds.length) throw new ToolError("This may include client information (" + kinds.join(", ").split("_").join(" ") + "). Replace it with placeholders such as [Client Name], then try again.");
+    const idem = (await sha256Hex(w.connection_id + d)).slice(0, 40);
+    const ai = await runAi({ ...ctx, body: {} }, s, `mcpdraft:${idem}`, DRAFT_SYSTEM, [{ role: "user", content: "The process, in the attorney's words:\n" + d }], await pbCredits(ctx));
+    if (!ai.ok) throw new ToolError(ai.reason === "ai_failed" ? "DELA's AI could not finish (" + String(ai.code).split("_").join(" ") + ")." : D_TEXT[ai.reason] ?? "DELA said: " + ai.reason.split("_").join(" ") + ".");
+    const read = readPlaybook(readJson(ai.text));
+    if (!read) throw new ToolError("DELA's AI did not return a playbook. Please try again.");
+    const r = await rpc<Record<string, any>>(ctx, "dela_pb_create", { p: { person_id: w.person_id, org_id: org, request_id: "mcp:" + idem, body: read.body, ...meta(read.body), source: "ai", source_ref: "connector", note: "First draft by DELA" } });
+    if (!r?.ok) fail(r);
+    return { text: `DELA drafted "${read.body.title}" (id ${r.id}). Its questions:\n` + (read.questions.map((x, i) => `${i + 1}. ${x}`).join("\n") || "(none)") + "\nAnswer them, then use suggest_playbook_change, or finish it on the DELA website.", data: { id: r.id, questions: read.questions } };
+  }
+  if (name === "suggest_playbook_change") {
+    const id = uuid(a.playbook_id);
+    const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: w.person_id, p_id: id });
+    if (!cur?.ok) fail(cur);
+    const b = normalize(a);
+    const kinds = messageLooksSensitive(JSON.stringify(b));
+    if (kinds.length) throw new ToolError("This may include client information (" + kinds.join(", ").split("_").join(" ") + "). Replace it with placeholders, then try again.");
+    const before = normalize(cur.body);
+    // Screenshots stay with their steps
+    b.steps.forEach((st, i) => { if (!st.screenshot && before.steps[i]?.text === st.text) st.screenshot = before.steps[i].screenshot; });
+    const r = await rpc<Record<string, any>>(ctx, "dela_pb_suggest", { p: { person_id: w.person_id, id, kind: "ai", base_version: cur.playbook.version, proposed: b, note: str(a.note, 200) || "Change from an AI app", removes_review: removesReview(before, b) } });
+    if (!r?.ok) fail(r);
+    return { text: "The change is waiting on the playbook's Suggestions view in DELA. Nothing changes until an editor or the administrator accepts it." + (removesReview(before, b) ? " It removes an attorney review point, so only the administrator can accept it." : ""), data: { suggestion_id: r.suggestion_id } };
+  }
+  if (name === "export_playbook") {
+    const fmt = a.format === "csv" ? "csv" : a.format === "html" ? "html" : "md";
+    const r = await rpc<Record<string, any>>(ctx, "dela_pb_export", { p_person: w.person_id, p_id: uuid(a.playbook_id), p_format: fmt, p_request: crypto.randomUUID() });
+    if (!r?.ok) fail(r);
+    const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: w.person_id, p_id: uuid(a.playbook_id) });
+    const b = normalize(cur.body), m: ExportMeta = { version: cur.playbook.version, date: new Date().toISOString().slice(0, 10), status: cur.playbook.status, firm: "" };
+    return { text: fmt === "csv" ? toCsv(b) : fmt === "html" ? toHtml(b, m) : toMarkdown(b, m) };
+  }
+  throw new ToolError("Unknown tool.");
+}
+const D_TEXT: Record<string, string> = {
+  ai_off: "DELA's AI is not open for this account yet.", no_key: "The member chose their own AI key but none is saved. Add one in DELA, AI settings.",
+  no_credits_left: "This month's DELA AI credits are used up. Add your own AI key in DELA, or upgrade.", ai_not_set_up: "DELA's AI is still being set up.", paused: "DELA's AI is paused right now.",
+};
+
+async function mcpEndpoint(ctx: Ctx) {
+  const auth = ctx.req.headers.get("authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) return mcpUnauthorized(ctx);
+  const w = await rpc<Record<string, any>>(ctx, "dela_mcp_resolve", { p_access_hash: await mcpHash(auth.slice(7).trim()) });
+  if (!w?.ok) {
+    if (w?.reason === "invalid_token") return mcpUnauthorized(ctx);
+    const words: Record<string, string> = { paused: "DELA's connector is paused for a moment.", connector_off: "DELA in ChatGPT and Claude is not open for this account yet.", not_in_plan: "This plan does not include the ChatGPT and Claude connector.", rate_limited: "Too many requests. Wait a minute and try again.", no_side: "This DELA side is no longer on the account." };
+    return json(ctx, { jsonrpc: "2.0", id: (ctx.body as any)?.id ?? null, error: { code: -32001, message: words[w?.reason] ?? "DELA refused this request." } }, w?.reason === "rate_limited" ? 429 : 403);
+  }
+  const who = w as unknown as McpWho;
+  const msg = ctx.body as Record<string, any>;
+  if (Array.isArray(msg) || msg.jsonrpc !== "2.0" || typeof msg.method !== "string") return json(ctx, { jsonrpc: "2.0", id: null, error: { code: -32600, message: "Invalid request" } }, 400);
+  if (msg.id === undefined) return new Response(null, { status: 202, headers: cors(ctx.req, ctx.deps) });
+  const reply = (result: unknown) => json(ctx, { jsonrpc: "2.0", id: msg.id, result });
+  if (msg.method === "initialize") {
+    const want = String(msg.params?.protocolVersion ?? "");
+    return reply({ protocolVersion: MCP_VERSIONS.includes(want) ? want : MCP_VERSIONS[0], capabilities: { tools: { listChanged: false } },
+      serverInfo: { name: "lawfecta-dela", title: await setting(ctx, "mcp.name", "Lawfecta DELA"), version: VERSION },
+      instructions: "DELA is Lawfecta's AI Delegation Center for legal operations. Attorneys keep their firm's processes as playbooks here. " + NOTICE_TOOLS + " Money, hiring and signing stay on the DELA website." });
+  }
+  if (msg.method === "ping") return reply({});
+  if (msg.method === "tools/list") return reply({ tools: mcpTools(who.side) });
+  if (msg.method === "tools/call") {
+    const name = str(msg.params?.name, 60);
+    if (!mcpTools(who.side).some((t) => t.name === name)) return json(ctx, { jsonrpc: "2.0", id: msg.id, error: { code: -32602, message: "Unknown tool: " + name } });
+    try {
+      const out = await mcpCall(ctx, who, name, (msg.params?.arguments ?? {}) as Record<string, any>);
+      await rpc(ctx, "dela_mcp_log", { p_conn: who.connection_id, p_tool: name, p_ok: true, p_error: "" });
+      return reply({ content: [{ type: "text", text: out.text }], ...(out.data !== undefined ? { structuredContent: { result: out.data } } : {}), isError: false });
+    } catch (e) {
+      const text = e instanceof ToolError ? e.message : "Something went wrong in DELA. Please try again.";
+      if (!(e instanceof ToolError)) console.error("mcp_tool", name, String(e).slice(0, 200));
+      await rpc(ctx, "dela_mcp_log", { p_conn: who.connection_id, p_tool: name, p_ok: false, p_error: e instanceof ToolError ? "refused" : "error" });
+      return reply({ content: [{ type: "text", text }], isError: true });
+    }
+  }
+  return json(ctx, { jsonrpc: "2.0", id: msg.id, error: { code: -32601, message: "Method not found" } });
+}
+
 // ---------- Admin routes (Lawfecta Team) ----------
 
 type AdminRoute = (ctx: Ctx, actor: string) => Promise<unknown>;
@@ -1115,10 +1387,12 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/control": (c, a) => control(c, a),
   "/admin/recorder": (c, a) => rpc(c, "dela_admin_recorder", { p_actor: a }),
   "/admin/playbooks": (c, a) => rpc(c, "dela_admin_playbooks", { p_actor: a }),
+  "/admin/mcp": (c, a) => rpc(c, "dela_admin_mcp", { p_actor: a }),
   "/admin/ai-files": async (c, a) => ({ ...(await rpc<Record<string, unknown>>(c, "dela_admin_ai_files", { p_actor: a })), ready: aiReady(c.deps) }),
 };
 
 const ADMIN_POST: Record<string, AdminRoute> = {
+  "/admin/mcp/disconnect": (c, a) => rpc(c, "dela_mcp_disconnect", { p_person: a, p_conn: need(uuid(c.body.id)), p_by_staff: true }),
   "/admin/settings": (c, a) => rpc(c, "dela_admin_set_setting", {
     p_actor: a, p_key: need(str(c.body.key, 100)), p_value: need(c.body.value as unknown), p_status: need(str(c.body.status, 1)), p_reason: str(c.body.reason, 500),
   }),
@@ -1402,9 +1676,7 @@ async function sendEmail(ctx: Ctx, id: string) {
 export async function handle(req: Request, deps: Deps): Promise<Response> {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(req, deps) });
   const url = new URL(req.url);
-  // Supabase passes the full path (/functions/v1/api/...) or just /api/...; keep what follows "/api"
-  const at = url.pathname.indexOf("/api");
-  const path = (at >= 0 ? url.pathname.slice(at + 4) : url.pathname).replace(/\/+$/, "") || "/";
+  const path = apiPath(url);
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim().slice(0, 80);
   try {
     let body: Record<string, unknown> = {};
@@ -1413,7 +1685,12 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       const text = await req.text();
       if (text.length > MAX_BODY) throw new HttpError(413, "too_large");
       if (text) {
-        try { body = JSON.parse(text); } catch { throw new HttpError(400, "bad_json"); }
+        if (path === "/oauth/token" && !text.trimStart().startsWith("{")) {
+          // OAuth clients send the token request as a form
+          body = Object.fromEntries(new URLSearchParams(text));
+        } else {
+          try { body = JSON.parse(text); } catch { throw new HttpError(400, "bad_json"); }
+        }
         if (!body || typeof body !== "object" || Array.isArray(body)) throw new HttpError(400, "bad_json");
       }
     }
@@ -1481,6 +1758,24 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /imports/build": return await importBuild(ctx);
       case "POST /imports/image": return await importImage(ctx);
       case "POST /imports/discard": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_import_finish", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_status: "discarded", p_playbook: null })); }
+      case "GET /.well-known/oauth-protected-resource":
+      case "GET /.well-known/oauth-protected-resource/mcp": {
+        const base = publicBase(deps);
+        return json(ctx, { resource: base + "/mcp", authorization_servers: [base], scopes_supported: ["dela"], bearer_methods_supported: ["header"], resource_name: "Lawfecta DELA" });
+      }
+      case "GET /.well-known/oauth-authorization-server":
+      case "GET /.well-known/openid-configuration": return oauthMeta(ctx);
+      case "GET /.well-known/jwks.json": return json(ctx, { keys: [] });
+      case "POST /oauth/register": return await oauthRegister(ctx);
+      case "GET /oauth/authorize": return await oauthAuthorize(ctx);
+      case "GET /oauth/request": return await oauthRequest(ctx);
+      case "POST /oauth/decide": return await oauthDecide(ctx);
+      case "POST /oauth/token": return await oauthToken(ctx);
+      case "POST /mcp": return await mcpEndpoint(ctx);
+      case "GET /mcp":
+      case "DELETE /mcp": return new Response(null, { status: 405, headers: { ...cors(req, deps), allow: "POST" } });
+      case "GET /connections": { const s = await member(ctx); return json(ctx, { ok: true, connections: await rpc(ctx, "dela_mcp_connections", { p_person: s.person_id }), url: publicBase(deps) + "/mcp", on: await rpc(ctx, "dela_switch_on", { p_key: "mcp_connector", p_person: s.person_id }) }); }
+      case "POST /connections/disconnect": { const s = await member(ctx); return json(ctx, await rpc(ctx, "dela_mcp_disconnect", { p_person: s.person_id, p_conn: uuid(ctx.body.id), p_by_staff: false })); }
       case "POST /worker": return await worker(ctx);
       case "POST /release/claim": return await releaseCi(ctx, "claim");
       case "POST /release/finish": return await releaseCi(ctx, "finish");

@@ -246,7 +246,7 @@
 
   // ---------- Emergency pause (no push needed; members see a short message, the team keeps working) ----------
 
-  var PAUSE_AREAS = [["all", "All of DELA"], ["ai", "AI help"], ["checkout", "New payments"], ["payouts", "Payouts"], ["renewals", "Monthly renewals"], ["external", "Outside connections"], ["email", "Emails"]];
+  var PAUSE_AREAS = [["all", "All of DELA"], ["ai", "AI help"], ["checkout", "New payments"], ["payouts", "Payouts"], ["renewals", "Monthly renewals"], ["external", "Outside connections"], ["email", "Emails"], ["connector", "ChatGPT and Claude connector"]];
   function emergencyCard() {
     var box = h("div", { class: "card" }, titled("h2", "Emergency pause", "ov_pause"), h("p", { class: "muted small", text: "Loading..." }));
     api.get("/admin/pause").then(function (r) {
@@ -703,8 +703,32 @@
         rec.by_month.length ? h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, ["Month", "Started", "Finished", "Ready", "Failed", "Abandoned", "Built into playbooks", "Average minutes", "Uploaded files"].map(function (x) { return h("th", { text: x }); }))),
           h("tbody", null, rec.by_month.map(function (x) { return h("tr", null, [x.month, x.started, x.finished, x.ready, x.failed, x.abandoned, x.built, x.avg_minutes === null ? "" : x.avg_minutes, x.uploads].map(function (v) { return h("td", { text: String(v) }); })); })))) : h("p", { class: "muted", text: "No recordings yet." }),
         h("p", { class: "small muted", text: "Recordings by browser: " + (Object.keys(rec.by_browser).map(function (k) { return k + " " + rec.by_browser[k]; }).join(", ") || "none") + ". Video storage in use: " + mb(rec.storage_bytes) + ". Videos deleted: " + rec.videos_deleted + "." })));
+      box.appendChild(connectorCard());
     }).catch(function () { D.clear(box); });
     return box;
+  }
+
+  // DELA in ChatGPT and Claude: who is connected, which tools they use, and a Stop button. Never shows tokens or what was asked.
+  function connectorCard() {
+    var card = h("div", { class: "card" }, titled("h2", "ChatGPT and Claude connections", "ai_connector"), h("p", { class: "muted small", text: "Loading..." }));
+    api.get("/admin/mcp").then(function (r) {
+      var d = r.data;
+      D.clear(card);
+      titled("h2", "ChatGPT and Claude connections", "ai_connector").forEach(function (n) { if (n) card.appendChild(n); });
+      if (!d.connections.length) card.appendChild(h("p", { class: "muted", text: "Nobody has connected ChatGPT or Claude yet." }));
+      else card.appendChild(h("div", { class: "scroll" }, h("table", null,
+        h("thead", null, h("tr", null, ["Member", "Side", "App", "Connected", "Last used", "Calls (30 days)", "Failed", ""].map(function (x) { return h("th", { text: x }); }))),
+        h("tbody", null, d.connections.map(function (c) {
+          return h("tr", null, h("td", { text: c.name + " (" + c.bd_member_id + ")" }), h("td", { text: D.SIDE[c.side] || c.side }), h("td", { text: c.client_name }),
+            h("td", { text: D.date(c.created_at) }), h("td", { text: D.date(c.last_used_at) }), h("td", { text: String(c.calls_30d) }), h("td", { text: String(c.errors_30d) }),
+            h("td", null, h("button", { class: "danger small", onclick: function () {
+              if (!confirm("Stop this connection? " + c.name + " will need to connect " + c.client_name + " again.")) return;
+              api.post("/admin/mcp/disconnect", { id: c.id }).then(function () { ok("Connection stopped"); card.replaceWith(connectorCard()); }).catch(fail);
+            } }, "Stop")));
+        })))));
+      card.appendChild(h("p", { class: "small muted", text: "Tools used in the last 30 days: " + (d.tools.map(function (t) { return t.tool.split("_").join(" ") + " " + t.calls + (t.failed ? " (" + t.failed + " refused or failed)" : ""); }).join(", ") || "none") + "." }));
+    }).catch(function () { D.clear(card); card.appendChild(h("p", { class: "muted small", text: "Connections could not load." })); });
+    return card;
   }
   var REFUSED = { wrong_type: "Not really the type its name says", active_content: "Has scripts, macros or hidden files", damaged: "Could not be opened", storage_full: "Over the storage allowance", file_too_big: "Over the file size limit" };
 
@@ -869,6 +893,7 @@
     ai_storage: "File storage used by each attorney's firm against their plan's allowance. Files in the trash count until the trash empties.",
     ai_held: "Files that looked like they hold client information. They stay with the member, who confirms there is none or removes the file. The AI does not use them until then.",
     ai_playbooks: "How many playbooks each plan's libraries hold, how many are approved, and where they came from. Counts only; the Lawfecta Team never reads members' playbooks here.",
+    ai_connector: "Members who connected DELA to ChatGPT or Claude. The connector reads playbooks, saves drafts and suggests changes; changes are accepted on the DELA website. Stop ends one connection at once. To stop all of them, use the emergency pause (ChatGPT and Claude connector) or the mcp_connector switch.",
     ai_recorder: "Recordings by month: started, finished uploading, ready for review, failed analysis, abandoned (never finished after a day), and built into a playbook. Use this to judge whether a desktop helper is worth building later.",
     ai_refused: "Files DELA did not keep, with the reason. These are deleted from storage straight away.",
     jobs: "Background work DELA does on its own, such as sending emails, reminders and the daily summary. It runs every minute and retries problems with longer waits.",
