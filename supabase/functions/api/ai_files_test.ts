@@ -8,6 +8,7 @@ import { sessionHash } from "./lib/crypto.ts";
 import { openKey } from "./lib/ai/keycrypt.ts";
 import { pickChatModel, pickTranscribeModel } from "./lib/ai/providers.ts";
 import { messageLooksSensitive } from "./lib/ai/clientcheck.ts";
+import { plainText } from "./lib/ai/text.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
 
@@ -56,7 +57,7 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
         const seen = JSON.stringify(body.messages);
         return Response.json({ model: body.model, choices: [{ message: { content: JSON.stringify({ client_info: seen.includes("Jane Roe"), kinds: seen.includes("Jane Roe") ? ["client_name"] : [] }) } }], usage: { prompt_tokens: 50, completion_tokens: 5 } });
       }
-      return Response.json({ model: body.model, choices: [{ message: { content: "OpenAI answer " + calls.length } }], usage: { prompt_tokens: 120, completion_tokens: 40 } });
+      return Response.json({ model: body.model, choices: [{ message: { content: "**OpenAI answer** " + calls.length } }], usage: { prompt_tokens: 120, completion_tokens: 40 } });
     }
   }
   if (url.startsWith("https://api.anthropic.com/v1/")) {
@@ -162,6 +163,7 @@ Deno.test("own OpenAI key: tested, sealed, used, never shown", async () => {
   const before = await creditsUsed(ann);
   const r = await call("POST", "/ai/chat/send", { session: ann, body: { content: "Draft a checklist for opening a new matter", request_id: "ann-1" } });
   assertEquals([r.body.ok, r.body.reply.source], [true, "own_key"]);
+  assert(!r.body.reply.content.includes("**"), "the answer arrives without Markdown symbols");
   assertEquals(lastCall("/chat/completions")!.key, OA_GOOD, "the member's own key was used");
   assertEquals((await creditsUsed(ann)).u, before.u, "no credits on the member's own key");
   const usage = (await call("GET", "/ai", { session: ann })).body.usage;
@@ -188,6 +190,11 @@ Deno.test("own key fails: plain reason, never Lawfecta's key unless the member c
   assertEquals((await call("GET", "/ai", { session: ann })).body.own_key.status, "active", "a passing test clears the failure");
   assertEquals((await call("POST", "/ai/key/remove", { session: ann, body: {} })).body.ok, true);
   assertEquals((await call("GET", "/ai", { session: ann })).body.mode, "lawfecta");
+});
+
+Deno.test("AI answers show as plain text, without Markdown symbols", () => {
+  assertEquals(plainText("1. **Define the goal**  \n## Next\n* item\nUse `Clio` here"), "1. Define the goal  \nNext\n- item\nUse Clio here");
+  assertEquals(plainText("Cost is 2 * 3"), "Cost is 2 * 3", "a lone star stays");
 });
 
 Deno.test("client information check on what is sent", async () => {
