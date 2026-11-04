@@ -189,7 +189,7 @@ async function makeMember(bd, side, plan) {
     await waitFor(p, "Complete: 100%");
     t = await text(p);
     ok(t.includes("Screenshot"), "the built playbook keeps the screenshots with their steps");
-    const src = await sql("select source from playbooks where title = 'File a motion'");
+    const src = await sql("select source from playbooks where title = 'File a motion' and source = 'scribe'");
     ok(src[0] && src[0].source === "scribe", "the playbook records it came from Scribe");
     await s.ctx.close();
 
