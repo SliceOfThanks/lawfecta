@@ -192,7 +192,7 @@ Deno.test("initialize, tools/list and notifications", async () => {
   assertEquals(unknownVersion.body.result.protocolVersion, "2025-11-25");
   assertEquals((await mcp(access, "notifications/initialized", undefined, true)).status, 202);
   const names = (await mcp(access, "tools/list")).body.result.tools.map((t: any) => t.name);
-  assertEquals(names, ["lawfecta_whoami", "list_playbooks", "get_playbook", "save_playbook_draft", "draft_playbook_with_dela", "suggest_playbook_change", "export_playbook"]);
+  assertEquals(names, ["lawfecta_whoami", "get_my_profile", "list_playbooks", "get_playbook", "save_playbook_draft", "draft_playbook_with_dela", "suggest_playbook_change", "export_playbook"]);
   assertEquals((await mcp(access, "resources/list")).body.error.code, -32601);
 });
 
@@ -295,7 +295,7 @@ Deno.test("freelancer: only whoami; attorney tools are not there", async () => {
   assertEquals(s.shown.side, "freelancer");
   const t = s.token.access_token;
   const names = (await mcp(t, "tools/list")).body.result.tools.map((x: any) => x.name);
-  assertEquals(names, ["lawfecta_whoami"]);
+  assertEquals(names, ["lawfecta_whoami", "get_my_profile"]);
   assertEquals((await mcp(t, "tools/call", { name: "list_playbooks", arguments: {} })).body.error.code, -32602);
   assert((await tool(t, "lawfecta_whoami")).content[0].text.includes("freelancer side"));
 });

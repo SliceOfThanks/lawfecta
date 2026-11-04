@@ -7,6 +7,18 @@
 - On the test site since 2026-11-03: commit de2bc4a (api version 8, same jsDelivr loader), health 200, worker ok.
 - Wording: the admin area and member badge say "Test site: hirelegalhelp.com" and "Live: lawfecta.com"; emails from the test site start with [Test site].
 
+## Step 3: profiles and verification (built 2026-11-04; brief docs/briefs/step-3-profiles-verification.md, answered by Stacey)
+- Migration 0018_profiles, lib/profiles/model.ts, lib/bd/members.ts. Switches: profiles, attorney_verification, freelancer_verification, profile_documents, bd_profile_sync.
+- Profile on each side (separate), with the required parts from settings and a plain missing list. side_profiles.readiness_state and verification_state are kept in step.
+- The Lawfecta listing (BD) is the public profile: "Fill from my Lawfecta listing" reads only the mapped fields (setting bd.profile_map, from the hirelegalhelp.com field check); after Save, the listing is updated (only fields with a value; photo read only) when bd_profile_sync is on and the box is ticked. One side updates the listing for people with both sides. BD categories wait on a BD key permission (list_professions answered 403).
+- Attorneys: license (state, bar number, name on record). Identity: an email on the bar record or at the firm's own domain (free email services refused, setting verify.free_email_domains), confirmed by a one-use link to that address (only its hash stored), or a 10 minute video call (verify.video_booking_url, empty for now). The same number on another account is flagged and needs a note. The team records the method, a lookup note and the next yearly check; re-check due goes to the queue, 30 grace days then expired. Unverified attorneys keep every planning tool; dela_attorney_eligibility(person) is what Step 4 checks before posting or hiring (paid work also needs billing address, signatory and notice email).
+- Firm details and firm staff: a verified owner names team members as firm staff; they edit the firm's details.
+- Freelancers: services (prices in cents), skills, software or none, time zone, hours, capacity, agreement; LinkedIn check by the team (name matches and the verified badge; no ID or passport); availability every 14 days with a reminder 2 days before; profile documents (Files checks, private until shown).
+- DELA drafts a headline, summary and services from the member's notes (plain text, nothing saved until Save). Connector tool get_my_profile on both sides.
+- Admin: Verification tab (licenses, LinkedIn checks, profiles by state). Daily job profiles_daily.
+- Tests: supabase/tests/profiles_test.sql, supabase/functions/api/profiles_test.ts (13), tests/pw/profiles-test.js (27). All suites: 8 database files, 83 API, 15 script, 197 browser checks.
+- To confirm with Stacey: question 8 (verify.countries is US only for now), the video booking link, and turning on the BD key permission for categories if she wants practice areas on the listing.
+
 ## Step 2b: DELA in ChatGPT and Claude (built 2026-11-04; brief docs/briefs/step-2b-mcp-connector.md)
 - api-0.8.0, migration 0017_mcp_connector. Connector address on the test site: https://ojshgsxgsypbywtqhkch.supabase.co/functions/v1/api/mcp
 - Open MCP over HTTP (JSON-RPC, protocol 2025-11-25, also 2025-06-18 and 2025-03-26) with OAuth 2.1: protected resource metadata, auth server metadata (also at .well-known/openid-configuration, which is the address MCP clients can reach under a Supabase path), dynamic client registration (https or localhost redirects only), PKCE S256 only, one-use codes (a reused code stops the connection it made), refresh tokens replaced on each use, all tokens stored only as hashes.

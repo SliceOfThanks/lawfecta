@@ -1,7 +1,7 @@
 # Feature brief: Profiles and verification (both sides)
 
 Step: 3   Spec references: 1A sections 7 (registration, verification and match readiness), 1A tables "Credentials / eligibility" and "Unverified attorney account", C-61 (enhanced attorney verification before paid work), Decision Sheet section 8 (availability every 14 days, activity window 30 days)
-Status: questions answered by Stacey 2026-11-04, approved to build
+Status: questions answered by Stacey 2026-11-04; built 2026-11-04 and on the test site
 
 ## Stacey's answers (2026-11-04)
 1. Yes: the Lawfecta Team checks each license by hand on the state bar's own lookup.

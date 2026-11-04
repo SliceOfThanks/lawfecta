@@ -8,7 +8,8 @@ import { buildNotice } from "./lib/email.ts";
 import { pickProvider } from "./lib/mail/index.ts";
 import { verifyPass } from "./lib/pass.ts";
 import { sendSms } from "./lib/sms/brevo.ts";
-import { bdCategories, bdFields, bdMember, shapeOf } from "./lib/bd/members.ts";
+import { bdCategories, bdFields, bdMember, bdUpdate, shapeOf } from "./lib/bd/members.ts";
+import { fromBd, LABELS, normalize as normalizeProfile, PRACTICE_AREAS, PROFILE_SYSTEM, profileText, readiness, TIMEZONES, toBd, type BdMap, type Side } from "./lib/profiles/model.ts";
 import { encryptionReady, openKey, sealKey } from "./lib/ai/keycrypt.ts";
 import { AiFail, chat, guessProvider, looksLikeKey, testKey, transcribe, transcribeLines, type ChatImage, type ChatMsg, type Provider } from "./lib/ai/providers.ts";
 import { plainText } from "./lib/ai/text.ts";
@@ -1109,6 +1110,116 @@ async function recDaily(ctx: Ctx) {
   return { ok: true };
 }
 
+// ---------- Profiles and verification (Step 3, both sides) ----------
+// The Lawfecta directory listing (BD) is the public profile. DELA fills from it when the member asks, and writes back
+// after a save when the member keeps "Also update my Lawfecta listing" ticked (switch bd_profile_sync).
+
+const verifyHash = (t: string) => sha256Hex("dela-verify:" + t);
+
+async function requiredFor(ctx: Ctx, side: Side): Promise<string[]> {
+  const r = await rpc<unknown>(ctx, "dela_setting", { p_key: "profile.required." + side });
+  return Array.isArray(r) ? r.map(String) : [];
+}
+
+function labelState(st: Record<string, any> | null) {
+  if (!st) return st;
+  const miss = Array.isArray(st.missing) ? st.missing.map(String) : [];
+  return { ...st, missing_labels: miss.map((k: string) => k === "everything" ? "Your profile" : LABELS[k] ?? k.split("_").join(" ")) };
+}
+
+async function profileGet(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_profile_get", { p_person: s.person_id, p_side: s.side });
+  if (!r?.ok) return json(ctx, r);
+  return json(ctx, { ...r, body: normalizeProfile(r.body), state: labelState(r.state), labels: LABELS, practice_areas: PRACTICE_AREAS, timezones: TIMEZONES });
+}
+
+// What the member's Lawfecta listing holds now, to offer (never copied without the member choosing it)
+async function profileFromDirectory(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "profiles", p_person: s.person_id })) return json(ctx, { ok: false, reason: "profiles_off" });
+  const map = await rpc<BdMap>(ctx, "dela_setting", { p_key: "bd.profile_map" }) ?? {};
+  const site = await setting(ctx, "site.url", "");
+  const m = await bdMember(f(ctx), site, ctx.deps.env("BD_API_KEY"), s.bd_member_id);
+  if (!m.ok) {
+    console.error("bd_read", m.error.slice(0, 120));
+    return json(ctx, { ok: false, reason: m.status === 403 ? "directory_not_allowed" : m.status === 404 ? "directory_not_found" : "directory_unreachable" });
+  }
+  return json(ctx, { ok: true, fields: fromBd(m.data, map, site) });
+}
+
+async function profileSave(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const body = normalizeProfile(ctx.body.body);
+  const warn = sensitive(ctx, [body.headline, body.summary, body.experience, ...body.services.map((x) => x.title + " " + x.for_whom)].join("\n"));
+  if (warn) return json(ctx, warn);
+  const rd = readiness(body, await requiredFor(ctx, s.side));
+  const r = await rpc<Record<string, any>>(ctx, "dela_profile_save", { p_person: s.person_id, p: { side: s.side, body, missing: rd.missing, score: rd.score,
+    version: int(ctx.body.version) ?? 0, directory: ctx.body.directory !== false } });
+  if (!r?.ok) return json(ctx, r);
+  return json(ctx, { ...r, state: labelState(r.state), missing_labels: rd.labels, score: rd.score });
+}
+
+// DELA drafts a headline, summary and services from the member's notes; nothing is saved until they save the form
+async function profileDraft(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const notes = str(ctx.body.notes, 6000).trim();
+  if (notes.length < 20) return json(ctx, { ok: false, reason: "tell_us_more" });
+  const warn = sensitive(ctx, notes);
+  if (warn) return json(ctx, warn);
+  const cur = normalizeProfile(ctx.body.body);
+  const idem = "profiledraft:" + (await sha256Hex(s.person_id + s.side + notes)).slice(0, 40);
+  const ai = await runAi(ctx, s, idem, PROFILE_SYSTEM, [{ role: "user", content: `Side: ${s.side}\nWhat the profile says now:\n${profileText(s.side, cur) || "(empty)"}\n\nThe member's notes:\n${notes}` }],
+    Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
+  if (!ai.ok) return json(ctx, ai);
+  const out = readJson(ai.text) as Record<string, any> | null;
+  if (!out || typeof out !== "object") return json(ctx, { ok: false, reason: "ai_failed", code: "bad_answer" });
+  const d = normalizeProfile({ headline: out.headline, summary: plainText(String(out.summary ?? "")), skills: out.skills, software: out.software, services: s.side === "freelancer" ? out.services : [] });
+  return json(ctx, { ok: true, source: ai.source, draft: { headline: d.headline, summary: d.summary, skills: d.skills, software: d.software, services: d.services },
+    questions: (Array.isArray(out.questions) ? out.questions : []).map((q: unknown) => str(q, 200)).filter(Boolean).slice(0, 4) });
+}
+
+async function licenseAdd(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const token = newSessionToken().slice(3);
+  const method = ctx.body.method === "video" ? "video" : "email";
+  const r = await rpc<Record<string, any>>(ctx, "dela_license_add", { p_person: s.person_id, p: {
+    request_id: str(ctx.body.request_id, 80), country: str(ctx.body.country, 2) || "US", region: str(ctx.body.region, 10), bar_number: str(ctx.body.bar_number, 60),
+    name_on_record: str(ctx.body.name_on_record, 200), method, contact_email: str(ctx.body.contact_email, 200), token, token_hash: await verifyHash(token) } });
+  return json(ctx, r?.state ? { ...r, state: labelState(r.state) } : r);
+}
+
+async function licenseEmail(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const token = newSessionToken().slice(3);
+  return json(ctx, await rpc(ctx, "dela_license_email", { p_person: s.person_id, p_license: uuid(ctx.body.id), p_token: token, p_token_hash: await verifyHash(token) }));
+}
+
+async function profileDocStart(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
+  const storage = storageOf(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_profile_doc_start", { p_person: s.person_id, p: {
+    request_id: str(ctx.body.request_id, 80), name: str(ctx.body.name, 250), size_bytes: int(ctx.body.size_bytes), ticked: ctx.body.ticked === true } });
+  if (!r?.ok) return json(ctx, r);
+  if (r.status !== "uploading") return json(ctx, { ok: true, duplicate: true, file_id: r.file_id, status: r.status });
+  const ext = String(r.storage_path).split(".").pop() ?? "";
+  return json(ctx, { ok: true, file_id: r.file_id, upload_url: await storage.signUpload(r.storage_path), content_type: CONTENT_TYPES[ext] ?? "application/octet-stream" });
+}
+
+// Worker: write the saved profile to the member's Lawfecta listing
+async function bdProfilePush(ctx: Ctx, p: Record<string, any>) {
+  const person = String(p.person_id ?? ""), side = String(p.side ?? ""), version = Number(p.version);
+  const x = await rpc<Record<string, any> | null>(ctx, "dela_profile_for_bd", { p_person: person, p_side: side, p_version: version });
+  if (!x?.ok || !x.on) return { ok: true };
+  const fields = toBd(normalizeProfile(x.body), (x.map ?? {}) as BdMap);
+  if (!Object.keys(fields).length) { await rpc(ctx, "dela_profile_bd_result", { p_person: person, p_side: side, p_version: version, p_ok: true, p_error: "" }); return { ok: true }; }
+  const r = await bdUpdate(f(ctx), await setting(ctx, "site.url", ""), ctx.deps.env("BD_API_KEY"), Number(x.bd_member_id), fields);
+  if (!r.ok && (r.status >= 500 || r.status === 429 || r.status === 0)) return { ok: false, retry: true, error: r.error };
+  await rpc(ctx, "dela_profile_bd_result", { p_person: person, p_side: side, p_version: version, p_ok: r.ok, p_error: r.ok ? "" : r.status === 403 ? "not_allowed" : r.error });
+  return { ok: true };
+}
+
 // ---------- DELA in ChatGPT and Claude (MCP connector, Step 2b) ----------
 // The open Model Context Protocol over plain HTTP (JSON-RPC), with OAuth 2.1 sign in (PKCE, dynamic client registration).
 // Members sign in with their Lawfecta login on the DELA page; DELA never sees a password. Tokens are stored only as hashes.
@@ -1225,8 +1336,10 @@ const PB_FIELDS = {
 
 function mcpTools(side: string) {
   const who = { name: "lawfecta_whoami", title: "Who am I in DELA", description: "Shows the Lawfecta member and DELA side this connection uses, their plan and AI credits left.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } };
-  if (side !== "attorney") return [who];
-  return [who,
+  const prof = { name: "get_my_profile", title: "My DELA profile", description: "Shows the member's DELA profile on this side, where it stands (" + (side === "attorney" ? "license verification" : "match-ready, availability and the LinkedIn check") + ") and exactly what is missing.",
+    inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } };
+  if (side !== "attorney") return [who, prof];
+  return [who, prof,
     { name: "list_playbooks", title: "List my playbooks", description: "Lists playbooks in the member's DELA playbook library, with status and how complete each is.",
       inputSchema: { type: "object", properties: { status: { type: "string", enum: ["draft", "in_review", "approved", "archived"] }, search: { type: "string" } } }, annotations: { readOnlyHint: true } },
     { name: "get_playbook", title: "Read a playbook", description: "Reads one playbook: every part and step, its version, status and what is missing.",
@@ -1253,6 +1366,20 @@ async function mcpCall(ctx: Ctx, w: McpWho, name: string, a: Record<string, any>
     const c = ai?.credits;
     const data = { name: w.name, bd_member_id: w.bd_member_id, side: w.side, ai: ai?.mode === "own_key" ? "member's own key" : "Lawfecta's AI", credits_left: c ? (c.unlimited ? "no cap" : c.remaining) : null };
     return { text: `${w.name} (Lawfecta member ${w.bd_member_id}), ${w.side} side. AI: ${data.ai}; credits left this month: ${data.credits_left ?? "n/a"}.` + (w.side === "freelancer" ? " Freelancer tools (profile and work) come in a later DELA update." : ""), data };
+  }
+  if (name === "get_my_profile") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_profile_summary", { p_person: w.person_id, p_side: w.side });
+    const st = labelState(r?.state ?? null) as Record<string, any> | null;
+    const b = normalizeProfile(r?.body);
+    const words: Record<string, string> = { match_ready: w.side === "attorney" ? "verified and ready" : "match-ready", incomplete: "not complete yet", verification_pending: "waiting for verification",
+      availability_stale: "availability out of date", unavailable: "marked unavailable", restricted: "paused on this account" };
+    const ver = w.side === "attorney" ? (r?.licenses ?? []).map((l: any) => `${l.region} license: ${String(l.status).split("_").join(" ")}`).join("; ") || "no license added yet"
+      : "LinkedIn check: " + (r?.linkedin ? String(r.linkedin).split("_").join(" ") : "not started");
+    return { text: (profileText(w.side, b) || "The profile is empty.") + `
+
+Where it stands: ${words[st?.readiness] ?? st?.readiness ?? "unknown"}. ${ver}.` +
+      (st?.missing_labels?.length ? "\nStill missing: " + st.missing_labels.join(", ") + "." : "") + "\nThe member edits the profile and verification on the DELA website, Profile.",
+      data: { readiness: st?.readiness, verification: st?.verification, missing: st?.missing_labels ?? [], profile: b } };
   }
   if (w.side !== "attorney") throw new ToolError("This tool is for the attorney side.");
   if (w.on_hold && name !== "list_playbooks" && name !== "get_playbook") throw new ToolError("Some actions are paused on this account. Contact the Lawfecta Team.");
@@ -1389,6 +1516,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/recorder": (c, a) => rpc(c, "dela_admin_recorder", { p_actor: a }),
   "/admin/playbooks": (c, a) => rpc(c, "dela_admin_playbooks", { p_actor: a }),
   "/admin/mcp": (c, a) => rpc(c, "dela_admin_mcp", { p_actor: a }),
+  "/admin/verify": (c, a) => rpc(c, "dela_admin_verify", { p_actor: a }),
   // What the BD site holds for listings: field names and kinds for one member (no values), the site's field list and categories
   "/admin/bd/inventory": async (c) => {
     const site = await setting(c, "site.url", ""), key = c.deps.env("BD_API_KEY"), ff = f(c);
@@ -1405,6 +1533,10 @@ const ADMIN_GET: Record<string, AdminRoute> = {
 };
 
 const ADMIN_POST: Record<string, AdminRoute> = {
+  "/admin/verify/license": (c, a) => rpc(c, "dela_admin_license_decide", { p_actor: a, p_license: need(uuid(c.body.id)), p_decision: str(c.body.decision, 20), p_identity: str(c.body.identity, 20),
+    p_reason: str(c.body.reason, 500), p_note: str(c.body.note, 500), p_override: str(c.body.override, 500) }),
+  "/admin/verify/linkedin": (c, a) => rpc(c, "dela_admin_linkedin_decide", { p_actor: a, p_check: need(uuid(c.body.id)), p_decision: str(c.body.decision, 20),
+    p_name_matches: c.body.name_matches === true, p_badge: c.body.badge_seen === true, p_reason: str(c.body.reason, 500) }),
   "/admin/mcp/disconnect": (c, a) => rpc(c, "dela_mcp_disconnect", { p_person: a, p_conn: need(uuid(c.body.id)), p_by_staff: true }),
   "/admin/settings": (c, a) => rpc(c, "dela_admin_set_setting", {
     p_actor: a, p_key: need(str(c.body.key, 100)), p_value: need(c.body.value as unknown), p_status: need(str(c.body.status, 1)), p_reason: str(c.body.reason, 500),
@@ -1626,6 +1758,8 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "recording_stage1") return await recStage1(ctx, j);
   if (j.kind === "recordings_daily") return await recDaily(ctx);
   if (j.kind === "playbooks_daily") { await rpc(ctx, "dela_pb_daily", {}); return { ok: true }; }
+  if (j.kind === "profiles_daily") { await rpc(ctx, "dela_profiles_daily", {}); return { ok: true }; }
+  if (j.kind === "bd_profile_push") return await bdProfilePush(ctx, j.payload ?? {});
   return { ok: false, retry: false, error: "unknown_job_kind" };
 }
 
@@ -1789,6 +1923,23 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "DELETE /mcp": return new Response(null, { status: 405, headers: { ...cors(req, deps), allow: "POST" } });
       case "GET /connections": { const s = await member(ctx); return json(ctx, { ok: true, connections: await rpc(ctx, "dela_mcp_connections", { p_person: s.person_id }), url: publicBase(deps) + "/mcp", on: await rpc(ctx, "dela_switch_on", { p_key: "mcp_connector", p_person: s.person_id }) }); }
       case "POST /connections/disconnect": { const s = await member(ctx); return json(ctx, await rpc(ctx, "dela_mcp_disconnect", { p_person: s.person_id, p_conn: uuid(ctx.body.id), p_by_staff: false })); }
+      case "GET /profile": return await profileGet(ctx);
+      case "GET /profile/from-directory": return await profileFromDirectory(ctx);
+      case "POST /profile/save": return await profileSave(ctx);
+      case "POST /profile/draft": return await profileDraft(ctx);
+      case "POST /profile/availability": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); const r = await rpc<Record<string, any>>(ctx, "dela_profile_availability", { p_person: s.person_id, p_state: str(ctx.body.state, 20) }); return json(ctx, r?.state ? { ...r, state: labelState(r.state) } : r); }
+      case "POST /profile/docs/start": return await profileDocStart(ctx);
+      case "POST /profile/docs/action": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_profile_doc_action", { p_person: s.person_id, p_file: uuid(ctx.body.id), p_action: str(ctx.body.action, 20) })); }
+      case "POST /firm/save": { const s = await attorney(ctx); const b = ctx.body.body && typeof ctx.body.body === "object" ? ctx.body.body as Record<string, unknown> : {};
+        const clean: Record<string, string> = {};
+        for (const k of ["legal_name", "website", "billing_address", "signatory_name", "signatory_title", "service_email", "phone"]) clean[k] = str(b[k], k === "billing_address" ? 400 : 200).trim();
+        return json(ctx, await rpc(ctx, "dela_firm_save", { p_person: s.person_id, p_org: uuid(ctx.body.org_id), p_body: clean })); }
+      case "POST /firm/staff": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_firm_staff_set", { p_person: s.person_id, p_bd: need(int(ctx.body.bd_member_id), "bad_member_id"), p_on: ctx.body.on !== false })); }
+      case "POST /licenses/add": return await licenseAdd(ctx);
+      case "POST /licenses/email": return await licenseEmail(ctx);
+      case "POST /licenses/confirm": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_license_email_confirm", { p_person: s.person_id, p_token_hash: await verifyHash(str(ctx.body.token, 200)) })); }
+      case "POST /licenses/action": { const s = await attorney(ctx); const r = await rpc<Record<string, any>>(ctx, "dela_license_action", { p_person: s.person_id, p_license: uuid(ctx.body.id), p_action: str(ctx.body.action, 20) }); return json(ctx, r?.state ? { ...r, state: labelState(r.state) } : r); }
+      case "POST /linkedin/submit": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); const r = await rpc<Record<string, any>>(ctx, "dela_linkedin_submit", { p_person: s.person_id, p_url: str(ctx.body.url, 300) }); return json(ctx, r?.state ? { ...r, state: labelState(r.state) } : r); }
       case "POST /worker": return await worker(ctx);
       case "POST /release/claim": return await releaseCi(ctx, "claim");
       case "POST /release/finish": return await releaseCi(ctx, "finish");

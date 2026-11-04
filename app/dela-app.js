@@ -100,6 +100,7 @@
     if (menu) { closeMenu(); return; }
     menu = h("div", { class: "menu", role: "menu" },
       h("div", { class: "small muted", style: "padding:8px 12px", text: me.person.name }),
+      me.side && (me.switches || {}).profiles ? h("button", { role: "menuitem", onclick: function () { tab = "profile"; draw(); } }, me.side === "attorney" ? "Profile and verification" : "Profile") : null,
       me.side ? h("button", { role: "menuitem", onclick: function () { tab = "ai"; draw(); } }, "AI settings") : null,
       (me.staff || []).length ? h("a", { href: "/dela-admin", role: "menuitem" }, "Admin area") : null,
       h("button", { role: "menuitem", onclick: signOut }, "Sign out of DELA"));
@@ -162,7 +163,8 @@
         stat("▣", 0, "Active projects"),
         stat("!", 0, "Pending reviews"),
         stat("✦", me.playbooks_draft || 0, "Draft playbooks")),
-      h("div", { class: "card" }, h("div", { class: "row" }, h("h2", { text: "Verification" }), h("span", { class: "badge", text: s.verification_state.split("_").join(" ") })), h("p", { text: ver })),
+      h("div", { class: "card" }, h("div", { class: "row" }, h("h2", { text: "Verification" }), h("span", { class: "badge", text: s.verification_state.split("_").join(" ") })), h("p", { text: ver }),
+        (me.switches || {}).profiles ? h("button", { class: "blue small", onclick: function () { tab = "profile"; draw(); } }, s.verification_state === "verified" ? "Open your profile" : "Set up your profile and verification") : null),
       h("h2", { style: "margin-top:22px", text: "What DELA will do for you" }),
       soon(1, "Playbooks", "Describe a task. DELA asks what it needs and builds a step by step plan you approve."),
       soon(2, "Flex Gigs", gigs ? "Post approved work with a budget range. Your plan allows " + (gigs.unlimited ? "unlimited" : gigs.limit) + " open at once." : "Post approved work with a budget range."),
@@ -196,8 +198,11 @@
         stat("★", 0, "Invitations"),
         stat("▣", 0, "Active projects"),
         stat("$", D.money(0), "Paid out")),
-      h("div", { class: "card" }, h("h2", { text: "Your match checklist" }), h("p", { class: "muted small", text: "Opening soon. These are the items attorneys need to see before DELA can match you." }),
-        items.map(function (t) { return h("div", { class: "check" }, h("i", { "aria-hidden": "true" }), h("span", { text: t })); })),
+      (me.switches || {}).profiles
+        ? h("div", { class: "card" }, h("h2", { text: "Your match checklist" }), h("p", { class: "muted small", text: ready || "Open your profile to see exactly what is missing." }),
+            h("button", { class: "blue small", onclick: function () { tab = "profile"; draw(); } }, s.readiness_state === "match_ready" ? "Open your profile" : "Finish your profile"))
+        : h("div", { class: "card" }, h("h2", { text: "Your match checklist" }), h("p", { class: "muted small", text: "Opening soon. These are the items attorneys need to see before DELA can match you." }),
+            items.map(function (t) { return h("div", { class: "check" }, h("i", { "aria-hidden": "true" }), h("span", { text: t })); })),
       h("h2", { style: "margin-top:22px", text: "What DELA will do for you" }),
       soon(1, "Profile Builder and Profile Audit", "Build a strong profile and see exactly what to improve."),
       soon(2, "Services, promotions and pitches", "Publish clear services. Nothing goes live without your approval."),
@@ -638,11 +643,438 @@
       h("div", { class: "row" }, save), msg);
   }
 
+  // ---------- Step 3: Profile and verification (both sides) ----------
+
+  var prof = { data: null, body: null, dirty: false };
+  var profEl = null;
+  var READY_WORDS = {
+    attorney: { incomplete: "A few profile items are still needed.", verification_pending: "Your profile is complete. Your license check is next.", match_ready: "You are verified. When hiring opens in DELA, you can post work and hire.", restricted: "Some actions are paused on your account. Contact the Lawfecta Team." },
+    freelancer: { incomplete: "A few profile items are still needed before attorneys can be matched with you.", verification_pending: "Your profile is complete. Your LinkedIn check is next.", availability_stale: "Confirm your availability so attorneys know you can take work.", unavailable: "You are marked as not taking new work.", match_ready: "You are match-ready. Attorneys can find and invite you.", restricted: "Matching is paused on your account. Contact the Lawfecta Team." },
+  };
+  var STATE_BADGE = { incomplete: "Not complete", verification_pending: "Waiting for a check", match_ready: "Ready", availability_stale: "Availability out of date", unavailable: "Not taking work", restricted: "Paused" };
+  var LIC_WORDS = { pending: "Waiting for the Lawfecta Team", needs_more: "We need a little more", verified: "Verified", not_verified: "Not verified", expired: "Check out of date" };
+
+  function profileView() {
+    profEl = h("div", null, h("p", { class: "muted", text: "Loading..." }));
+    var confirmTok = "";
+    try { confirmTok = new URLSearchParams(location.search).get("confirm") || ""; } catch (e) { confirmTok = ""; }
+    var start = Promise.resolve();
+    if (confirmTok && me.side === "attorney") {
+      start = api.post("/licenses/confirm", { token: confirmTok }).then(function (r) {
+        D.toast(app, r.ok ? "Email confirmed. The Lawfecta Team will finish the check." : D.errorText(r.reason), !r.ok);
+        try { var u = new URL(location.href); u.searchParams.delete("confirm"); history.replaceState(null, "", u.toString()); } catch (e) { /* older browsers keep the address */ }
+      }).catch(function (e) { D.toast(app, D.errorText(e.message), true); });
+    }
+    start.then(loadProfile);
+    return profEl;
+  }
+
+  function loadProfile() {
+    return api.get("/profile").then(function (r) {
+      if (!r.ok) { D.clear(profEl); profEl.appendChild(h("p", { class: "notice", text: D.errorText(r.reason) })); return; }
+      prof.data = r; prof.body = JSON.parse(JSON.stringify(r.body)); prof.dirty = false;
+      drawProfile();
+    }).catch(function (e) { D.clear(profEl); profEl.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+  }
+
+  function field(label, input, hint) {
+    return h("div", { style: "margin:8px 0" }, h("label", { text: label }), input, hint ? h("div", { class: "small muted", text: hint }) : null);
+  }
+  function textIn(key, label, opts) {
+    opts = opts || {};
+    var v = prof.body[key];
+    var el = opts.area ? h("textarea", { rows: opts.rows || 4, style: "width:100%", "aria-label": label }) : h("input", { type: opts.type || "text", style: "width:100%", "aria-label": label, placeholder: opts.placeholder || "" });
+    el.value = Array.isArray(v) ? v.join(", ") : v === null || v === undefined ? "" : String(v);
+    el.addEventListener("input", function () {
+      var t = el.value;
+      prof.body[key] = opts.list ? t.split(",").map(function (x) { return x.trim(); }).filter(Boolean) : opts.type === "number" ? (t === "" ? null : Number(t)) : t;
+      prof.dirty = true;
+    });
+    return field(label + (opts.required ? "" : " (optional)"), el, opts.hint);
+  }
+
+  function drawProfile() {
+    var r = prof.data, side = me.side, st = r.state || {};
+    D.clear(profEl);
+    profEl.appendChild(h("h1", { text: side === "attorney" ? "Profile and verification" : "Profile" }));
+    profEl.appendChild(h("p", { class: "muted", text: "This is your " + D.SIDE[side] + " profile. Your Lawfecta directory listing is your public profile; DELA keeps them in step when you choose." }));
+    profEl.appendChild(statusCard(st));
+    if (side === "freelancer") profEl.appendChild(availabilityCard(st));
+    profEl.appendChild(side === "attorney" ? licenseCard() : linkedinCard());
+    profEl.appendChild(formCard());
+    if (side === "freelancer" && r.settings.documents_on) profEl.appendChild(docsCard());
+    if (side === "attorney") {
+      profEl.appendChild(firmCard());
+      ((r.firm || {}).staff_of || []).forEach(function (o) { profEl.appendChild(firmCard(o)); });
+    }
+  }
+
+  function statusCard(st) {
+    var req = prof.data.required || [], miss = st.missing || [];
+    var card = h("div", { class: "card" },
+      h("div", { class: "row" }, h("h2", { class: "grow", text: "Where your profile stands" }), h("span", { class: "badge " + (st.readiness === "match_ready" ? "ready" : "held"), text: STATE_BADGE[st.readiness] || st.readiness })),
+      h("p", { text: (READY_WORDS[me.side] || {})[st.readiness] || "" }));
+    card.appendChild(h("div", null, req.map(function (k) {
+      var done = miss.indexOf(k) < 0 && miss.indexOf("everything") < 0;
+      return h("div", { class: "check" + (done ? " done" : "") }, h("i", { "aria-hidden": "true", text: done ? "✓" : "" }), h("span", { text: (prof.data.labels || {})[k] || k }));
+    })));
+    if (me.side === "attorney") card.appendChild(h("p", { class: "small muted", style: "margin-top:8px", text: "You can use Ask DELA, playbooks, files and the recorder before you are verified. Posting work and hiring need a verified license." }));
+    return card;
+  }
+
+  function availabilityCard(st) {
+    var labels = { available: "Available for new work", limited: "Some hours only", unavailable: "Not taking new work" };
+    var card = h("div", { class: "card" }, h("h2", { text: "Your availability" }));
+    card.appendChild(h("p", { text: st.availability_confirmed_at
+      ? "You said: " + labels[st.availability] + ", on " + D.date(st.availability_confirmed_at) + "." + (st.availability !== "unavailable" ? " Confirm again by " + D.date(st.availability_due_at) + " to stay in matches." : "")
+      : "Tell attorneys whether you can take work. Confirm it every " + st.availability_days + " days to stay in matches." }));
+    card.appendChild(h("div", { class: "row" }, ["available", "limited", "unavailable"].map(function (v) {
+      return h("button", { class: st.availability === v && st.availability_confirmed_at ? "blue small" : "ghost small", onclick: function () {
+        api.post("/profile/availability", { state: v }).then(function (x) { if (x.ok === false) throw new Error(x.reason); D.toast(app, "Availability saved"); loadProfile(); }).catch(err);
+      } }, labels[v]);
+    })));
+    return card;
+  }
+
+  function licenseCard() {
+    var r = prof.data, set = r.settings;
+    var card = h("div", { class: "card" }, h("h2", { text: "License verification" }));
+    if (!set.verification_on) { card.appendChild(h("p", { text: "License checks open soon. Your profile is saved meanwhile." })); return card; }
+    card.appendChild(h("p", { class: "small muted", text: "The Lawfecta Team checks your license on the state bar's own website, usually within " + set.target_days + " business days. To show the license is yours, confirm an email that is on your bar record or at your firm's own domain, or have a " + set.video_minutes + " minute video call with us. We never ask for ID documents." }));
+    (r.licenses || []).forEach(function (l) {
+      var row = h("div", { class: "card", style: "margin:8px 0;padding:12px" },
+        h("div", { class: "row" }, h("b", { class: "grow", text: l.region + " license " + l.bar_number }), h("span", { class: "badge " + (l.counts ? "ready" : l.status === "needs_more" || l.status === "not_verified" ? "bad" : "held"), text: LIC_WORDS[l.status] || l.status })),
+        h("div", { class: "small muted", text: "Name on the record: " + l.name_on_record + (l.next_check_at && l.status === "verified" ? ". Next yearly check: " + D.date(l.next_check_at) : "") }));
+      if (l.reason) row.appendChild(h("p", { class: "notice", text: l.reason }));
+      if (l.status === "pending" || l.status === "needs_more") {
+        if (l.method === "email") {
+          row.appendChild(h("p", { class: "small", text: l.email_confirmed ? "Email " + l.contact_email + " confirmed." : "We emailed " + l.contact_email + ". Click the link in it while signed in to Lawfecta." }));
+        }
+        if (l.video_requested_at) row.appendChild(h("p", { class: "small", text: set.video_booking_url ? "Book your " + set.video_minutes + " minute video call:" : "The Lawfecta Team will email you to set up a " + set.video_minutes + " minute video call." },
+          set.video_booking_url ? h("a", { href: set.video_booking_url, target: "_blank", rel: "noopener", text: " choose a time" }) : null));
+        var acts = h("div", { class: "row" });
+        if (l.method === "email" && !l.email_confirmed) acts.appendChild(h("button", { class: "ghost small", onclick: function () { api.post("/licenses/email", { id: l.id }).then(function (x) { D.toast(app, x.ok ? "Email sent again" : D.errorText(x.reason), !x.ok); }).catch(err); } }, "Send the email again"));
+        if (!l.video_requested_at) acts.appendChild(h("button", { class: "ghost small", onclick: function () { api.post("/licenses/action", { id: l.id, action: "video" }).then(function (x) { if (x.ok === false) throw new Error(x.reason); D.toast(app, "Video call requested"); loadProfile(); }).catch(err); } }, "Ask for a video call instead"));
+        acts.appendChild(h("button", { class: "danger small", onclick: function () { if (!confirm("Withdraw this license?")) return; api.post("/licenses/action", { id: l.id, action: "withdraw" }).then(function () { loadProfile(); }).catch(err); } }, "Withdraw"));
+        row.appendChild(acts);
+      }
+      card.appendChild(row);
+    });
+    card.appendChild(licenseForm(set));
+    return card;
+  }
+
+  function licenseForm(set) {
+    var id = newId();
+    var countries = set.countries || ["US"];
+    var country = h("select", { "aria-label": "Country" }, countries.map(function (c) { return h("option", { value: c, text: c === "US" ? "United States" : c }); }));
+    var region = h("select", { "aria-label": "State that issued the license" }, [h("option", { value: "", text: "Choose the state" })].concat((set.regions || []).map(function (c) { return h("option", { value: c, text: c }); })));
+    var num = h("input", { type: "text", "aria-label": "Bar number", style: "width:100%" });
+    var name = h("input", { type: "text", "aria-label": "Name on the bar record", style: "width:100%" });
+    name.value = (prof.body.first_name + " " + prof.body.last_name).trim();
+    var email = h("input", { type: "email", "aria-label": "Email for the check", style: "width:100%", placeholder: "you@yourfirm.com" });
+    var mEmail = h("input", { type: "radio", name: "dela-lic-method", value: "email", checked: true });
+    var mVideo = h("input", { type: "radio", name: "dela-lic-method", value: "video" });
+    var emailBox = field("Email for the check", email, "The email on your state bar record, or an email at your firm's own domain. Gmail, Yahoo and other free email services do not count.");
+    mEmail.addEventListener("change", function () { emailBox.style.display = ""; });
+    mVideo.addEventListener("change", function () { emailBox.style.display = "none"; });
+    var msg = h("p", { role: "status", class: "small" });
+    var add = h("button", { class: "blue" }, "Add the license");
+    add.addEventListener("click", function () {
+      add.disabled = true; msg.textContent = "Saving...";
+      api.post("/licenses/add", { request_id: id, country: country.value, region: region.value, bar_number: num.value, name_on_record: name.value, method: mVideo.checked ? "video" : "email", contact_email: email.value }).then(function (x) {
+        add.disabled = false;
+        if (!x.ok) { msg.textContent = D.errorText(x.reason); if (["free_email", "bad_email", "bad_region", "bad_bar_number", "name_needed"].indexOf(x.reason) >= 0) id = newId(); return; }
+        D.toast(app, mVideo.checked ? "License added. We will set up the video call." : "License added. Check your email for the link.");
+        loadProfile();
+      }).catch(function (e) { add.disabled = false; msg.textContent = D.errorText(e.message); });
+    });
+    return h("details", { open: !(prof.data.licenses || []).length },
+      h("summary", { style: "cursor:pointer;font-weight:700;margin:8px 0", text: "Add a license" }),
+      countries.length > 1 ? field("Country", country) : h("p", { class: "small muted", text: "For now we check US licenses. Attorneys elsewhere can keep their profile and use DELA's planning tools." }),
+      field("State that issued the license", region), field("Bar number", num), field("Name exactly as on the state bar record", name),
+      h("div", { style: "margin:10px 0" }, h("label", { text: "How to show the license is yours" }),
+        h("label", { style: "font-weight:400;display:flex;gap:8px;margin:6px 0" }, mEmail, h("span", { text: "Confirm an email (on my bar record or at my firm's domain)" })),
+        h("label", { style: "font-weight:400;display:flex;gap:8px;margin:6px 0" }, mVideo, h("span", { text: "A " + set.video_minutes + " minute video call with the Lawfecta Team" }))),
+      emailBox, h("div", { class: "row" }, add), msg);
+  }
+
+  function linkedinCard() {
+    var r = prof.data, set = r.settings, li = r.linkedin;
+    var card = h("div", { class: "card" }, h("h2", { text: "LinkedIn check" }));
+    if (!set.verification_on) { card.appendChild(h("p", { text: "LinkedIn checks open soon." })); return card; }
+    card.appendChild(h("p", { class: "small muted", text: "The Lawfecta Team checks that the name on your LinkedIn profile matches your DELA profile, and that LinkedIn shows its verified badge. We never ask for ID documents or a passport." }));
+    if (li) {
+      card.appendChild(h("div", { class: "row" }, h("span", { class: "grow small", text: li.url }), h("span", { class: "badge " + (li.status === "verified" ? "ready" : li.status === "pending" ? "held" : "bad"), text: LIC_WORDS[li.status] || li.status })));
+      if (li.reason) card.appendChild(h("p", { class: "notice", text: li.reason }));
+    }
+    var url = h("input", { type: "url", "aria-label": "LinkedIn profile address", style: "width:100%", placeholder: "linkedin.com/in/your-name" });
+    url.value = li ? li.url : prof.body.linkedin || "";
+    var go = h("button", { class: li && li.status === "verified" ? "ghost small" : "blue small" }, li ? "Send for a new check" : "Ask for the check");
+    go.addEventListener("click", function () {
+      var u = url.value.trim();
+      if (u && !/^https?:/i.test(u)) u = "https://" + u;
+      api.post("/linkedin/submit", { url: u }).then(function (x) { if (x.ok === false) throw new Error(x.reason); D.toast(app, x.duplicate ? "Already sent" : "Sent to the Lawfecta Team"); prof.body.linkedin = u; loadProfile(); }).catch(err);
+    });
+    card.appendChild(field("LinkedIn profile address", url));
+    card.appendChild(h("div", { class: "row" }, go));
+    return card;
+  }
+
+  function formCard() {
+    var r = prof.data, b = prof.body, side = me.side, req = r.required || [];
+    var need = function (k) { return req.indexOf(k) >= 0; };
+    var card = h("div", { class: "card" }, h("h2", { text: "Your profile" }));
+    card.appendChild(h("p", { class: "notice", role: "note", text: "Profiles are seen by other members. Do not include confidential client information, client names or case details." }));
+    var fill = h("button", { class: "ghost small" }, "Fill from my Lawfecta listing");
+    fill.addEventListener("click", function () {
+      fill.disabled = true;
+      api.get("/profile/from-directory").then(function (x) {
+        fill.disabled = false;
+        if (!x.ok) { D.toast(app, D.errorText(x.reason), true); return; }
+        var n = 0;
+        Object.keys(x.fields).forEach(function (k) {
+          var v = x.fields[k], cur = prof.body[k];
+          var empty = cur === null || cur === undefined || cur === "" || (Array.isArray(cur) && !cur.length);
+          if (empty || k === "photo_url") { prof.body[k] = v; n++; }
+        });
+        prof.dirty = true;
+        drawProfile();
+        D.toast(app, n ? "Filled " + n + " items from your listing. Check them, then Save." : "Your listing had nothing new to add.");
+      }).catch(function (e) { fill.disabled = false; err(e); });
+    });
+    card.appendChild(h("div", { class: "row" }, fill, h("span", { class: "small muted", text: "Fills only empty boxes. Nothing is saved until you click Save." })));
+    if (b.photo_url) card.appendChild(h("div", { class: "row", style: "margin:8px 0" }, h("img", { src: b.photo_url, alt: "Your listing photo", style: "width:64px;height:64px;border-radius:50%;object-fit:cover" }), h("span", { class: "small muted", text: "Your photo comes from your Lawfecta listing. Change it there." })));
+    card.appendChild(h("h3", { text: "About you" }));
+    card.appendChild(textIn("first_name", "First name", { required: need("first_name") }));
+    card.appendChild(textIn("last_name", "Last name", { required: need("last_name") }));
+    card.appendChild(textIn("headline", "Headline", { required: need("headline"), placeholder: side === "attorney" ? "Family law attorney in Austin" : "Litigation paralegal, e-filing and discovery" }));
+    card.appendChild(textIn("firm_name", side === "attorney" ? "Firm name" : "Company or agency", { required: need("firm_name") }));
+    if (side === "attorney") card.appendChild(textIn("firm_role", "Your role at the firm", { placeholder: "Owner, partner, associate" }));
+    card.appendChild(textIn("city", "City", { required: need("city") }));
+    card.appendChild(textIn("state", "State", { required: need("state"), placeholder: "TX" }));
+    card.appendChild(textIn("phone", "Business phone", { required: need("phone") }));
+    card.appendChild(textIn("website", "Website", { required: need("website") }));
+    if (side === "attorney") card.appendChild(textIn("linkedin", "LinkedIn profile address", {}));
+    card.appendChild(textIn("booking_link", "Booking link", { hint: "A page where people book time with you, if you have one." }));
+    card.appendChild(h("h3", { text: side === "attorney" ? "Your practice" : "What you support" }));
+    var areas = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" });
+    (r.practice_areas || []).forEach(function (a) {
+      var on = b.practice_areas.indexOf(a) >= 0;
+      var chip = h("button", { class: on ? "blue small" : "ghost small", "aria-pressed": String(on) }, a);
+      chip.addEventListener("click", function () {
+        var i = prof.body.practice_areas.indexOf(a);
+        if (i >= 0) prof.body.practice_areas.splice(i, 1); else if (prof.body.practice_areas.length < 15) prof.body.practice_areas.push(a);
+        prof.dirty = true;
+        chip.className = i >= 0 ? "ghost small" : "blue small"; chip.setAttribute("aria-pressed", String(i < 0));
+      });
+      areas.appendChild(chip);
+    });
+    card.appendChild(field("Practice areas" + (need("practice_areas") ? "" : " (optional)"), areas));
+    if (side === "attorney") card.appendChild(textIn("jurisdictions", "Where you are licensed or practice", { list: true, required: need("jurisdictions"), placeholder: "TX, Western District of Texas", hint: "Separate them with commas." }));
+    card.appendChild(textIn("summary", "Summary", { area: true, rows: 5, required: need("summary") }));
+    card.appendChild(textIn("experience", "Experience", { area: true, required: need("experience") }));
+    card.appendChild(textIn("education", "Education", { area: true, rows: 3, required: need("education") }));
+    var none = h("input", { type: "checkbox", checked: !!b.software_none });
+    none.addEventListener("change", function () { prof.body.software_none = none.checked; prof.dirty = true; });
+    card.appendChild(textIn("software", "Software you use", { list: true, required: need("software"), placeholder: "Clio, MyCase, Microsoft Word", hint: "Separate them with commas." }));
+    card.appendChild(h("label", { style: "font-weight:400;display:flex;gap:8px" }, none, h("span", { text: "I do not use specific legal software" })));
+    if (side === "freelancer") {
+      card.appendChild(textIn("skills", "Task skills", { list: true, placeholder: "E-filing, discovery requests, client intake", hint: "Separate them with commas." }));
+      card.appendChild(servicesEditor(need("services")));
+      card.appendChild(h("h3", { text: "How you work" }));
+      var tz = h("select", { "aria-label": "Time zone" }, [h("option", { value: "", text: "Choose" })].concat((r.timezones || []).map(function (z) { return h("option", { value: z, text: z, selected: b.timezone === z }); })));
+      tz.addEventListener("change", function () { prof.body.timezone = tz.value; prof.dirty = true; });
+      card.appendChild(field("Time zone", tz));
+      card.appendChild(textIn("hours", "Usual hours", { placeholder: "Weekdays 9 to 5 Central" }));
+      card.appendChild(textIn("capacity_hours_week", "Hours a week you can take on", { type: "number", required: need("capacity") }));
+      card.appendChild(textIn("states_excluded", "States you will not work for", { list: true, hint: "Leave empty if none. Separate them with commas." }));
+      if (need("linkedin")) card.appendChild(textIn("linkedin", "LinkedIn profile address", { required: true, placeholder: "linkedin.com/in/your-name" }));
+      var ack = h("input", { type: "checkbox", checked: !!b.acknowledged });
+      ack.addEventListener("change", function () { prof.body.acknowledged = ack.checked; prof.dirty = true; });
+      card.appendChild(h("label", { style: "font-weight:400;display:flex;gap:8px;margin-top:10px" }, ack, h("span", { text: "I agree to keep attorneys' work confidential, to work only on funded milestones through Lawfecta, and not to take Lawfecta clients off the platform." })));
+    }
+    card.appendChild(draftHelper());
+    var dir = h("input", { type: "checkbox", checked: r.directory !== false });
+    var msg = h("p", { role: "status", class: "small" });
+    if (r.sync_on) {
+      card.appendChild(h("label", { style: "font-weight:400;display:flex;gap:8px;margin-top:12px" }, dir, h("span", { text: "Also update my Lawfecta directory listing" + ((me.sides || []).length > 1 ? " from this side (your listing is one page for both sides)" : "") })));
+      var bdw = { waiting: "Your listing is being updated.", done: "Your listing was updated " + D.dateTime(r.bd_synced_at) + ".", failed: "Your listing could not be updated: " + (r.bd_error === "not_allowed" ? "DELA is not allowed to change listings yet." : r.bd_error) + " Your DELA profile is saved." }[r.bd_state];
+      if (bdw) card.appendChild(h("p", { class: "small muted", text: bdw }));
+      card.appendChild(h("p", { class: "small muted", text: "Clearing a box here does not clear it on your listing." }));
+    }
+    var save = h("button", { class: "blue" }, "Save");
+    function doSave(confirmed) {
+      save.disabled = true; msg.textContent = "Saving...";
+      api.post("/profile/save", { body: prof.body, version: r.version, directory: dir.checked, confirm_no_client_info: confirmed === true }).then(function (x) {
+        save.disabled = false;
+        if (x.reason === "looks_like_client_info") {
+          msg.textContent = "";
+          if (confirm("This may include client information (" + (x.kinds || []).join(", ").split("_").join(" ") + "). Take it out and click Save, or click OK if it is not client information.")) doSave(true);
+          return;
+        }
+        if (!x.ok) { msg.textContent = D.errorText(x.reason); return; }
+        D.toast(app, "Profile saved");
+        loadProfile();
+      }).catch(function (e) { save.disabled = false; msg.textContent = D.errorText(e.message); });
+    }
+    save.addEventListener("click", function () { doSave(false); });
+    card.appendChild(h("div", { class: "row", style: "margin-top:12px" }, save));
+    card.appendChild(msg);
+    return card;
+  }
+
+  function servicesEditor(required) {
+    var box = h("div", null, h("h3", { text: "Services" + (required ? "" : " (optional)") }), h("p", { class: "small muted", text: "What you do, for whom, and your usual price. Prices are a guide; each job is agreed in its proposal." }));
+    var listEl = h("div");
+    function drawList() {
+      D.clear(listEl);
+      prof.body.services.forEach(function (sv, i) {
+        var t = h("input", { type: "text", "aria-label": "Service " + (i + 1) + " name", style: "width:100%", placeholder: "Draft discovery responses" });
+        t.value = sv.title;
+        t.addEventListener("input", function () { sv.title = t.value; prof.dirty = true; });
+        var w = h("input", { type: "text", "aria-label": "Service " + (i + 1) + " for whom", style: "width:100%", placeholder: "Solo family law attorneys" });
+        w.value = sv.for_whom;
+        w.addEventListener("input", function () { sv.for_whom = w.value; prof.dirty = true; });
+        var pf = h("input", { type: "number", min: "0", "aria-label": "Service " + (i + 1) + " price from", style: "width:110px" });
+        var pt = h("input", { type: "number", min: "0", "aria-label": "Service " + (i + 1) + " price to", style: "width:110px" });
+        pf.value = sv.price_from_cents === null ? "" : String(sv.price_from_cents / 100);
+        pt.value = sv.price_to_cents === null ? "" : String(sv.price_to_cents / 100);
+        function money(el, k) { el.addEventListener("input", function () { sv[k] = el.value === "" ? null : Math.round(Number(el.value) * 100); prof.dirty = true; }); }
+        money(pf, "price_from_cents"); money(pt, "price_to_cents");
+        var unit = h("select", { "aria-label": "Service " + (i + 1) + " price unit" }, h("option", { value: "fixed", text: "per job", selected: sv.unit !== "hour" }), h("option", { value: "hour", text: "per hour", selected: sv.unit === "hour" }));
+        unit.addEventListener("change", function () { sv.unit = unit.value; prof.dirty = true; });
+        listEl.appendChild(h("div", { class: "card", style: "margin:6px 0;padding:10px" }, field("Service", t), field("For whom", w),
+          h("div", { class: "row" }, h("span", { text: "From $" }), pf, h("span", { text: "to $" }), pt, unit,
+            h("button", { class: "danger small", onclick: function () { prof.body.services.splice(i, 1); prof.dirty = true; drawList(); } }, "Remove"))));
+      });
+    }
+    drawList();
+    box.appendChild(listEl);
+    box.appendChild(h("button", { class: "ghost small", onclick: function () { if (prof.body.services.length >= 12) return; prof.body.services.push({ title: "", for_whom: "", price_from_cents: null, price_to_cents: null, unit: "fixed" }); prof.dirty = true; drawList(); } }, "Add a service"));
+    return box;
+  }
+
+  function draftHelper() {
+    var notes = h("textarea", { rows: 4, style: "width:100%", "aria-label": "Tell DELA about your work", placeholder: "A few sentences: what you do, for whom, for how long, the tools you use." });
+    var msg = h("div", { role: "status", class: "small" });
+    var go = h("button", { class: "ghost small" }, "Draft with DELA");
+    function run(confirmed) {
+      go.disabled = true; msg.textContent = "DELA is writing...";
+      api.post("/profile/draft", { notes: notes.value, body: prof.body, confirm_no_client_info: confirmed === true }).then(function (x) {
+        go.disabled = false;
+        if (x.reason === "looks_like_client_info") { msg.textContent = ""; if (confirm("This may include client information. Click OK if it is not.")) run(true); return; }
+        if (!x.ok) { msg.textContent = failText(x); return; }
+        var d = x.draft;
+        if (d.headline) prof.body.headline = d.headline;
+        if (d.summary) prof.body.summary = d.summary;
+        if (d.skills && d.skills.length && me.side === "freelancer") prof.body.skills = d.skills;
+        if (d.software && d.software.length && !prof.body.software.length) prof.body.software = d.software;
+        if (d.services && d.services.length && me.side === "freelancer" && !prof.body.services.length) prof.body.services = d.services;
+        prof.dirty = true;
+        drawProfile();
+        D.toast(app, "DELA filled in a draft. Check it, then Save.");
+        if (x.questions && x.questions.length) setTimeout(function () { D.toast(app, "DELA asks: " + x.questions.join(" ")); }, 600);
+      }).catch(function (e) { go.disabled = false; msg.textContent = D.errorText(e.message); });
+    }
+    go.addEventListener("click", function () { run(false); });
+    return h("details", { style: "margin-top:12px" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "Let DELA draft your headline and summary" }),
+      h("p", { class: "small muted", text: "DELA uses only what you write here and in the form. It does not invent qualifications. Uses AI credits like Ask DELA." }), notes, h("div", { class: "row" }, go), msg);
+  }
+
+  function docsCard() {
+    var r = prof.data, set = r.settings;
+    var card = h("div", { class: "card" }, h("h2", { text: "Profile documents" }),
+      h("p", { class: "small muted", text: "A resume, certificates or work samples with no client information. PDF, Word, PNG or JPG, up to " + set.doc_max_mb + " MB each, " + set.docs_max + " at most. Each one stays private until you choose to show it to attorneys." }));
+    var tick = h("input", { type: "checkbox", id: "dela-doc-tick" });
+    var input = h("input", { type: "file", accept: ".pdf,.docx,.png,.jpg,.jpeg", style: "display:none" });
+    var msg = h("p", { role: "status", class: "small" });
+    var up = h("button", { class: "ghost small" }, "Upload a document");
+    up.addEventListener("click", function () { if (!tick.checked) { msg.textContent = D.errorText("tick_needed"); return; } input.click(); });
+    input.addEventListener("change", function () {
+      var file = input.files[0];
+      if (!file) return;
+      msg.textContent = "Uploading " + file.name + "...";
+      api.post("/profile/docs/start", { name: file.name, size_bytes: file.size, ticked: tick.checked, request_id: newId() }).then(function (x) {
+        if (!x.ok) throw new Error(x.reason);
+        if (x.duplicate) return { ok: true, status: x.status };
+        return fetch(x.upload_url, { method: "PUT", headers: { "content-type": x.content_type, "x-upsert": "false" }, body: file }).then(function (res) {
+          if (!res.ok) throw new Error("upload_failed");
+          msg.textContent = "Checking " + file.name + "...";
+          return api.post("/files/complete", { file_id: x.file_id });
+        });
+      }).then(function (c) {
+        if (c.ok === false) throw new Error(c.reason);
+        msg.textContent = c.status === "ready" ? "Ready." : c.status === "held" ? "Held for your check: see below." : c.status === "refused" ? "Not accepted." : "Checking.";
+        input.value = "";
+        loadProfile();
+      }).catch(function (e) { msg.textContent = D.errorText(e.message); input.value = ""; });
+    });
+    card.appendChild(h("label", { style: "font-weight:400;display:flex;gap:8px" }, tick, h("span", { text: "This document has no confidential client information." })));
+    card.appendChild(h("div", { class: "row" }, up, input));
+    card.appendChild(msg);
+    var DOC = { uploading: "Uploading", checking: "Checking", ready: "Ready", held: "Held: please check", refused: "Not accepted" };
+    (r.documents || []).forEach(function (d) {
+      var row = h("div", { class: "row", style: "border-top:1px solid var(--line);padding:8px 0" },
+        h("span", { class: "grow" }, h("b", { text: d.name }), h("span", { class: "small muted", text: " " + (DOC[d.status] || d.status) + (d.status === "ready" ? (d.shown ? ", shown to attorneys" : ", private") : "") })));
+      if (d.status === "ready" || d.status === "held") row.appendChild(h("button", { class: "ghost small", onclick: function () { api.post("/files/open", { file_id: d.id }).then(function (x) { if (x.ok) window.open(x.url, "_blank", "noopener"); else D.toast(app, D.errorText(x.reason), true); }).catch(err); } }, "Open"));
+      if (d.status === "ready") row.appendChild(h("button", { class: "ghost small", onclick: function () { docAct(d.id, d.shown ? "hide" : "show"); } }, d.shown ? "Make private" : "Show to attorneys"));
+      if (d.status === "held") row.appendChild(h("button", { class: "ghost small", onclick: function () { if (confirm("Confirm this document has no confidential client information?")) docAct(d.id, "confirm"); } }, "It has no client information"));
+      if (d.status !== "uploading" && d.status !== "checking") row.appendChild(h("button", { class: "danger small", onclick: function () { if (confirm("Remove \"" + d.name + "\"?")) docAct(d.id, "remove"); } }, "Remove"));
+      card.appendChild(row);
+      if (d.status === "held" && d.check_reasons && d.check_reasons.length) card.appendChild(h("p", { class: "small notice", text: "DELA thinks it may include client information (" + d.check_reasons.join(", ").split("_").join(" ") + ")." }));
+    });
+    return card;
+  }
+  function docAct(id, action) {
+    api.post("/profile/docs/action", { id: id, action: action }).then(function (x) { if (x.ok === false) throw new Error(x.reason); loadProfile(); }).catch(err);
+  }
+
+  function firmCard(other) {
+    var fm = other ? { body: other.body, may_edit: true, role: "manager" } : prof.data.firm || {}, b = fm.body || {}, el = other ? {} : fm.eligibility || {};
+    var card = h("div", { class: "card" }, h("h2", { text: other ? "Firm details for " + other.name + " (you are firm staff)" : "Firm details" }),
+      h("p", { class: "small muted", text: "Needed before your first paid engagement: the billing address, who may sign for the firm, and an email for formal notices." }));
+    var miss = el.missing_for_paid_work || [];
+    var MISS = { billing_address: "Billing address", signatory: "Who may sign for the firm", service_email: "Email for formal notices" };
+    if (miss.length) card.appendChild(h("p", { class: "small", text: "Still needed for paid work: " + miss.map(function (k) { return MISS[k] || k; }).join(", ") + "." }));
+    var inputs = {};
+    [["legal_name", "Firm's legal name"], ["website", "Firm website"], ["billing_address", "Billing address"], ["signatory_name", "Who may sign for the firm"], ["signatory_title", "Their title"], ["service_email", "Email for formal notices"], ["phone", "Firm phone"]].forEach(function (x) {
+      var el2 = x[0] === "billing_address" ? h("textarea", { rows: 3, style: "width:100%", "aria-label": x[1] }) : h("input", { type: x[0] === "service_email" ? "email" : "text", style: "width:100%", "aria-label": x[1] });
+      el2.value = b[x[0]] || "";
+      el2.disabled = !fm.may_edit;
+      inputs[x[0]] = el2;
+      card.appendChild(field(x[1], el2));
+    });
+    if (fm.may_edit) {
+      var msg = h("p", { role: "status", class: "small" });
+      card.appendChild(h("div", { class: "row" }, h("button", { class: "blue small", onclick: function () {
+        var body = {};
+        Object.keys(inputs).forEach(function (k) { body[k] = inputs[k].value; });
+        api.post("/firm/save", { body: body, org_id: other ? other.org_id : "" }).then(function (x) { if (x.ok === false) throw new Error(x.reason); D.toast(app, "Firm details saved"); loadProfile(); }).catch(function (e) { msg.textContent = D.errorText(e.message); });
+      } }, "Save firm details")));
+      card.appendChild(msg);
+    } else {
+      card.appendChild(h("p", { class: "small muted", text: "The firm owner or firm staff can change these." }));
+    }
+    if (fm.role === "owner" && (fm.staff || []).length) {
+      card.appendChild(h("h3", { text: "Firm staff" }));
+      card.appendChild(h("p", { class: "small muted", text: "Firm staff can set up the firm's details for you. You can name firm staff once your license is verified. Add people to your team first in Library, Team." }));
+      fm.staff.forEach(function (p) {
+        var on = p.role === "manager";
+        card.appendChild(h("div", { class: "row" }, h("span", { class: "grow", text: p.name + " (" + p.bd_member_id + ")" + (on ? ": firm staff" : "") }),
+          h("button", { class: on ? "danger small" : "ghost small", onclick: function () {
+            api.post("/firm/staff", { bd_member_id: p.bd_member_id, on: !on }).then(function (x) { if (x.ok === false) throw new Error(x.reason); D.toast(app, on ? "No longer firm staff" : "Named firm staff"); loadProfile(); }).catch(err);
+          } }, on ? "Remove as firm staff" : "Make firm staff")));
+      });
+    }
+    return card;
+  }
+
   // ---------- DELA in ChatGPT and Claude (connector) ----------
 
   var CONNECT_CAN = {
-    attorney: ["See your name, side, plan and AI credits left", "List and read the playbooks in your library", "Save new playbook drafts and suggest changes (you accept changes here, on the DELA website)", "Have DELA's AI draft a playbook, using your AI credits or your own key", "Export a playbook as text, a web page or a checklist"],
-    freelancer: ["See your name, side, plan and AI credits left"],
+    attorney: ["See your name, side, plan and AI credits left", "Read your profile and where your verification stands", "List and read the playbooks in your library", "Save new playbook drafts and suggest changes (you accept changes here, on the DELA website)", "Have DELA's AI draft a playbook, using your AI credits or your own key", "Export a playbook as text, a web page or a checklist"],
+    freelancer: ["See your name, side, plan and AI credits left", "Read your profile and what is missing to be match-ready"],
   };
   var CONNECT_CANNOT = "It cannot pay, hire, sign, send messages, delete anything or see your passwords or AI keys.";
   var CONNECT_ERR = { request_expired: "This connection request ran out or was already answered. Start again from ChatGPT or Claude.", connector_off: "DELA in ChatGPT and Claude is not open for your account yet.", not_in_plan: "Your plan does not include the ChatGPT and Claude connector.", on_hold: "Some actions are paused on your account. Contact the Lawfecta Team." };
@@ -2208,7 +2640,8 @@
       main.appendChild(libraryView());
     }
     else if (tab === "connect") main.appendChild(connectView());
-    else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1]));
+    else if (tab === "profile" && (me.switches || {}).profiles) main.appendChild(profileView());
+    else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1] + (me.side === "attorney" && (tab === "projects" || tab === "talent") && (sideInfo() || {}).verification_state !== "verified" ? " Posting work and hiring need a verified license: open Profile and verification from your account menu." : "")));
     else { tab = "home"; main.appendChild(me.side === "attorney" ? attorneyHome() : freelancerHome()); }
     show(h("div", null, header(), nav(), main));
   }

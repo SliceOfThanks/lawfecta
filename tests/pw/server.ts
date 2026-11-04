@@ -15,6 +15,7 @@ const ROOT = new URL("../../", import.meta.url).pathname;
 export const CI = "browser-test-ci-secret-0123456789abcdefgh";
 // GitHub stand-in: the push button "starts" a run; the test reads the approval from /test/dispatch and plays GitHub's part
 let lastDispatch: unknown = null;
+let lastBdUpdate = "";
 // File storage stand-in (Step 2a): uploads and links go to this server
 const objects = new Map<string, Uint8Array>();
 const storage: Storage = {
@@ -41,6 +42,7 @@ function playbookAnswer(system: string, user: string): unknown {
   }
   if (system.includes("recorded in another tool")) return { playbook: { ...FULL, title: "File a motion", steps: [{ text: "Save the motion as a PDF", from: [1] }, { text: "Upload it to the court website", from: [2] }, { text: "Upload the filed copy to Clio", from: [3] }] }, questions: [] };
   if (system.includes("recorded their whole screen")) return { steps: [{ text: "Open the motion in Word and save it as a PDF", program: "Word", at_ms: 500, frames: [1], extra: [2] }, { text: "Upload the PDF to the court website", program: "Court site", at_ms: 2500, frames: [2] }], flagged: [] };
+  if (system.includes("write their profile")) return { headline: "Litigation paralegal for solo attorneys", summary: "I support solo attorneys with e-filing and discovery in Texas courts.", skills: ["E-filing", "Discovery"], software: ["Clio"], services: [{ title: "E-filing", for_whom: "Solo attorneys" }], questions: ["How many years have you done this?"] };
   if (system.includes("Suggest up to 8")) return { suggestions: [{ title: "Conflict check", why: "Every firm runs one before taking a matter." }] };
   return null;
 }
@@ -73,9 +75,12 @@ const deps = {
   rpc,
   storage,
   env: (k: string) => ({ BD_SHARED_SECRET: SECRET, DELA_ORIGINS: ORIGIN, STAGING_API_URL: ORIGIN + "/api", GITHUB_REPO: "SliceOfThanks/lawfecta", GITHUB_DISPATCH_TOKEN: "test-token", RELEASE_CI_SECRET: CI,
-    PUBLIC_API_URL: ORIGIN + "/api", AI_KEY_ENCRYPTION_SECRET: "browser-test-encryption-secret-0123456789", OPENAI_API_KEY: "sk-lawfecta-browser-test-key-0000000000" } as Record<string, string>)[k] ?? "", // rules-ok: made-up test keys
+    PUBLIC_API_URL: ORIGIN + "/api", BD_API_KEY: "bd-browser-test-key", AI_KEY_ENCRYPTION_SECRET: "browser-test-encryption-secret-0123456789", OPENAI_API_KEY: "sk-lawfecta-browser-test-key-0000000000" } as Record<string, string>)[k] ?? "", // rules-ok: made-up test keys
   fetch: (async (url: string | URL | Request, opts: RequestInit = {}) => {
     const u = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
+    // The Lawfecta listing (BD API): reads give a sample listing, updates are recorded for the test
+    if (u.includes("/api/v2/user/get/")) return Response.json({ status: "success", message: [{ user_id: Number(u.split("/").pop()), first_name: "Lia", last_name: "Listing", company: "Listing Law", city: "Dallas", state_code: "TX", website: "listinglaw.com", about_me: "From the directory.", image_main_file: "/pictures/lia.jpg", card_info: "4111111111111111" }] });
+    if (u.endsWith("/api/v2/user/update")) { lastBdUpdate = String(opts.body ?? ""); return Response.json({ status: "success", message: {} }); }
     if (u.startsWith("https://images.scribehow.com/")) return new Response(PNG, { headers: { "content-type": "image/png" } });
     const ai = fakeAi(u, url instanceof Request ? { headers: url.headers, body: opts.body } : opts);
     if (ai) return ai;
@@ -104,6 +109,7 @@ Deno.serve({ port: PORT, hostname: "127.0.0.1" }, async (req) => {
     return Response.json({ rows: Array.isArray(r) ? r.at(-1).rows : r.rows });
   }
   if (url.pathname === "/test/dispatch") return Response.json(lastDispatch);
+  if (url.pathname === "/test/bd-update") return Response.json({ body: lastBdUpdate });
   if (url.pathname.startsWith("/test/storage/up/") && req.method === "PUT") {
     objects.set(url.pathname.slice(17), new Uint8Array(await req.arrayBuffer()));
     return Response.json({ Key: "ok" });

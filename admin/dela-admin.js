@@ -12,7 +12,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["aifiles", "AI and files"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   var current = "control";
   var mainEl = null;
   var tabsEl = null;
@@ -75,7 +75,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // ---------- Guide ----------
@@ -645,6 +645,69 @@
   var SOURCE = { lawfecta: "Lawfecta's key", own_key: "Member's own key", firm_key: "Firm key" };
   var TASK = { chat: "Chat", file: "Chat with files", voice: "Talking (speech to text)", key_test: "Key test", client_check: "Client information check" };
 
+  // ---------- Verification (Step 3): licenses and LinkedIn checks ----------
+  var LIC_ID = { bar_email: "The email matches the state bar record", firm_domain: "The email is at the firm's own domain", video: "We had the video call" };
+  var READY = { incomplete: "Not complete", verification_pending: "Waiting for a check", match_ready: "Ready", availability_stale: "Availability out of date", unavailable: "Not taking work", restricted: "Paused", not_applicable: "Not used" };
+  function verifyTab() {
+    api.get("/admin/verify").then(function (r) {
+      var d = r.data;
+      var lic = h("div", { class: "card" }, titled("h2", "Attorney licenses (" + d.licenses.length + ")", "verify"));
+      if (!d.licenses.length) lic.appendChild(h("p", { class: "muted", text: "Nothing is waiting." }));
+      d.licenses.forEach(function (l) {
+        var box = h("div", { class: "card", style: "margin:8px 0" },
+          h("div", { class: "row" }, h("b", { class: "grow", text: l.name + " (" + l.bd_member_id + "): " + l.region + " bar number " + l.bar_number }),
+            h("span", { class: "badge " + (l.recheck_due ? "held" : l.status === "needs_more" ? "bad" : "C"), text: l.recheck_due ? "Yearly re-check due" : l.status === "needs_more" ? "Asked for more" : "New" })),
+          h("div", { class: "small", text: "Name on the record (as typed): " + l.name_on_record + ". Firm: " + (l.firm_name || "not given") + (l.firm_website ? ", " + l.firm_website : "") + "." }),
+          h("div", { class: "small", text: l.method === "email" ? "Email: " + l.contact_email + (l.email_confirmed_at ? " (confirmed " + D.dateTime(l.email_confirmed_at) + ")" : " (not confirmed yet)") : "Asked for the video call " + D.dateTime(l.video_requested_at) + "." }),
+          l.video_requested_at && l.method === "email" ? h("div", { class: "small", text: "Also asked for the video call " + D.dateTime(l.video_requested_at) + "." }) : null,
+          l.duplicate ? h("p", { class: "notice bad", text: "The same license number is on another account (member " + l.duplicate_bd_member_id + "). Find out which is real before verifying. Verifying needs a note." }) : null,
+          h("details", null, h("summary", { class: "small", style: "cursor:pointer", text: "History" }), h("ul", { class: "small" }, l.history.map(function (e) { return h("li", { text: D.dateTime(e.at) + ": " + e.action.split("_").join(" ") + " (" + e.actor_type + ")" }); }))));
+        var ident = h("select", { "aria-label": "How the attorney showed it is theirs" }, [h("option", { value: "", text: "How they showed it is theirs" })].concat(Object.keys(LIC_ID).map(function (k) { return h("option", { value: k, text: LIC_ID[k] }); })));
+        var note = h("input", { type: "text", placeholder: "Lookup note (what you checked, where)", "aria-label": "Lookup note", style: "width:100%" });
+        var reason = h("input", { type: "text", placeholder: "Reason the attorney will see (for More needed or Not verified)", "aria-label": "Reason", style: "width:100%" });
+        var over = l.duplicate ? h("input", { type: "text", placeholder: "Why this account is the real one", "aria-label": "Duplicate note", style: "width:100%" }) : null;
+        function decide(dec) {
+          api.post("/admin/verify/license", { id: l.id, decision: dec, identity: ident.value, note: note.value, reason: reason.value, override: over ? over.value : "" }).then(function (x) {
+            if (!x.data.ok) throw new Error(x.data.reason);
+            ok(dec === "verified" ? "Verified" : dec === "recheck_ok" ? "Re-check recorded" : "Saved and the attorney was told"); verifyTab();
+          }).catch(fail);
+        }
+        box.appendChild(h("div", { style: "margin-top:8px" }, l.recheck_due ? null : ident, note, reason, over,
+          h("div", { class: "row", style: "margin-top:6px" },
+            l.recheck_due ? h("button", { class: "blue small", onclick: function () { decide("recheck_ok"); } }, "Still active: re-check done")
+              : h("button", { class: "blue small", onclick: function () { decide("verified"); } }, "Verify"),
+            h("button", { class: "ghost small", onclick: function () { decide("needs_more"); } }, "More needed"),
+            h("button", { class: "danger small", onclick: function () { if (confirm("Mark this license as not verified?")) decide("not_verified"); } }, "Not verified"))));
+        lic.appendChild(box);
+      });
+      var li = h("div", { class: "card" }, h("h2", { text: "Freelancer LinkedIn checks (" + d.linkedin.length + ")" }));
+      if (!d.linkedin.length) li.appendChild(h("p", { class: "muted", text: "Nothing is waiting." }));
+      d.linkedin.forEach(function (c) {
+        var nm = h("input", { type: "checkbox" }), badge = h("input", { type: "checkbox" });
+        var reason = h("input", { type: "text", placeholder: "Reason the freelancer will see", "aria-label": "Reason", style: "width:100%" });
+        function decide(dec) {
+          api.post("/admin/verify/linkedin", { id: c.id, decision: dec, name_matches: nm.checked, badge_seen: badge.checked, reason: reason.value }).then(function (x) {
+            if (!x.data.ok) throw new Error(x.data.reason); ok("Saved and the freelancer was told"); verifyTab();
+          }).catch(fail);
+        }
+        li.appendChild(h("div", { class: "card", style: "margin:8px 0" },
+          h("b", { text: c.name + " (" + c.bd_member_id + ")" }), h("div", { class: "small", text: "Name on the DELA profile: " + (c.profile_name || "not filled in") }),
+          h("div", { class: "small" }, h("a", { href: c.url, target: "_blank", rel: "noopener noreferrer", text: c.url })),
+          h("label", { style: "font-weight:400;display:flex;gap:8px" }, nm, h("span", { text: "The name on LinkedIn matches" })),
+          h("label", { style: "font-weight:400;display:flex;gap:8px" }, badge, h("span", { text: "LinkedIn shows its verified badge" })),
+          reason, h("div", { class: "row", style: "margin-top:6px" },
+            h("button", { class: "blue small", onclick: function () { decide("verified"); } }, "Checked"),
+            h("button", { class: "ghost small", onclick: function () { decide("needs_more"); } }, "More needed"),
+            h("button", { class: "danger small", onclick: function () { decide("not_verified"); } }, "Not verified"))));
+      });
+      var ready = h("div", { class: "card" }, h("h2", { text: "Profiles by state" }), d.readiness.length ? h("div", { class: "scroll" }, h("table", null,
+        h("thead", null, h("tr", null, ["Side", "Where it stands", "Members"].map(function (x) { return h("th", { text: x }); }))),
+        h("tbody", null, d.readiness.map(function (x) { return h("tr", null, h("td", { text: D.SIDE[x.side] || x.side }), h("td", { text: READY[x.state] || x.state }), h("td", { text: String(x.count) })); })))) : h("p", { class: "muted", text: "No profiles yet." }),
+        h("p", { class: "small muted", text: "Target time to answer a request: " + d.target_days + " business days." }));
+      body(h("div", null, pageHead("Verification", "verify"), lic, li, ready));
+    }).catch(fail);
+  }
+
   function aiFiles() {
     api.get("/admin/ai-files").then(function (r) {
       var d = r.data;
@@ -886,6 +949,7 @@
     team_add: "Add a team member by BD member ID and role. They must have opened DELA once first.",
     holds: "A hold pauses new actions for one person (and later hiring and payments) while you check something. Release it with a note on what you checked.",
     audit: "Every sign in, refusal and change, newest first, with who did it. Nobody can edit or delete these lines, so it is the record if anything is ever questioned.",
+    verify: "Attorney licenses and freelancer LinkedIn profiles waiting for a check. For a license: open the state bar's own lookup, check the number, the name and that the license is active, then record how the attorney showed it is theirs: an email that matches the bar record, an email at the firm's own domain (never Gmail, Yahoo and similar), or the 10 minute video call. For LinkedIn: the name matches the DELA profile and LinkedIn shows its verified badge. Never ask for ID documents.",
     aifiles: "How members use DELA's AI and files. You see counts, key status and file names, never a member's key and never what a file says.",
     ai_usage: "Every AI call this month by side and plan. Lawfecta's key uses members' included credits; a member's own key or a firm key costs Lawfecta nothing. Tokens are the provider's measure of how much text was read and written.",
     ai_keys: "Members who added their own OpenAI or Claude key. Only the provider and whether it works are shown. Not working means the provider refused the key or it ran out of credit; the member is reminded after a few days.",
