@@ -9,6 +9,7 @@ Stacey. Not technical with GitHub. She installs code in Brilliant Directories an
 Live testing goes to ChatGPT through one ready-to-paste prompt per release.
 Writing style for anything she reads: plain, direct, no em dashes, no "it's not X, it's Y", no punchy negation strings.
 Every step Stacey must do is spelled out in full every time, even when it repeats an earlier step: the exact website or app, where to click, what to type or paste, and the file (sent again) or link. Never say "run the SQL" without saying where (Supabase, Lawfecta AI project, SQL Editor), and never assume she remembers an earlier message. Prefer doing a step yourself when a tool allows it.
+Always give a direct, clickable link for every step: the exact page (for example https://www.hirelegalhelp.com/dela?tab=record), and for every file Stacey needs, send it again in that message and also link it on GitHub (https://github.com/SliceOfThanks/lawfecta/blob/<branch>/<path>). Never point her to a file or page without its link. Paste short prompts straight into the message as well.
 End every update to Stacey with three clear headings, in this order: "What you need to do next" (numbered steps, or "Nothing right now"), "Next steps in general" (where things stand), and "What I'll build next".
 
 ## Every build starts with a feature brief

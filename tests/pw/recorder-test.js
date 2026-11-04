@@ -32,7 +32,9 @@ const FAKE_SCREEN = () => {
 };
 
 async function open(browser, uid, opts) {
-  const ctx = await browser.newContext(Object.assign({ viewport: { width: 1200, height: 900 }, acceptDownloads: true, permissions: ["microphone"] }, opts || {}));
+  const o = Object.assign({}, opts || {});
+  delete o.startTab;
+  const ctx = await browser.newContext(Object.assign({ viewport: { width: 1200, height: 900 }, acceptDownloads: true, permissions: ["microphone"] }, o));
   const page = await ctx.newPage();
   page.on("pageerror", (e) => { throw new Error("page error: " + e.message); });
   page.on("dialog", (d) => d.accept());
@@ -42,7 +44,7 @@ async function open(browser, uid, opts) {
     route.fulfill({ path: path.join(ROOT, u.pathname.split("@")[1].split("/").slice(1).join("/")), contentType: "application/javascript" });
   });
   await page.route("https://fonts.googleapis.com/**", (r) => r.abort());
-  await page.goto(`${BASE}/page/DELA-App?uid=${uid}&plan=`);
+  await page.goto(`${BASE}/page/DELA-App?uid=${uid}&plan=` + (opts && opts.startTab ? "&tab=" + opts.startTab : ""));
   await text(page);
   return { ctx, page };
 }
@@ -133,6 +135,12 @@ async function waitFor(page, words, ms) {
     await click(p, "Delete video");
     t = await waitFor(p, "Video deleted on");
     ok(t.includes("Open playbook"), "deleting the video keeps the playbook");
+    await s.ctx.close();
+
+    // A direct link opens the recorder page
+    s = await open(browser, 2300, { viewport: { width: 1200, height: 900 }, permissions: ["microphone"], startTab: "record" });
+    t = await waitFor(s.page, "Record a process");
+    ok(t.includes("Your plan allows recordings up to"), "the direct link /dela?tab=record opens the Record a Process page");
     await s.ctx.close();
 
     // Phones see the upload option instead

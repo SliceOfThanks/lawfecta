@@ -934,6 +934,7 @@
       });
     }
     drawList();
+    if (lib.startRecord) { lib.startRecord = false; recordView(); }
   }
 
   // New playbook: describe the task (type or talk), optionally attach files, and DELA drafts it
@@ -2124,7 +2125,11 @@
     else if (tab === "ai") main.appendChild(aiSettingsView());
     else if ((tab === "delegate" || tab === "ask") && (me.switches || {}).ai_generation) main.appendChild(chatView());
     else if (tab === "files" && me.side === "attorney" && (me.switches || {}).file_uploads) main.appendChild(filesView());
-    else if (tab === "library" && me.side === "attorney" && (me.switches || {}).playbook_library) main.appendChild(libraryView());
+    else if ((tab === "library" || tab === "record") && me.side === "attorney" && (me.switches || {}).playbook_library) {
+      // A direct link to the recorder (/dela?tab=record) opens the Record a Process page
+      if (tab === "record") { tab = "library"; lib.startRecord = true; }
+      main.appendChild(libraryView());
+    }
     else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1]));
     else { tab = "home"; main.appendChild(me.side === "attorney" ? attorneyHome() : freelancerHome()); }
     show(h("div", null, header(), nav(), main));
