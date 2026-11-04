@@ -8,6 +8,7 @@ import { buildNotice } from "./lib/email.ts";
 import { pickProvider } from "./lib/mail/index.ts";
 import { verifyPass } from "./lib/pass.ts";
 import { sendSms } from "./lib/sms/brevo.ts";
+import { bdCategories, bdFields, bdMember, shapeOf } from "./lib/bd/members.ts";
 import { encryptionReady, openKey, sealKey } from "./lib/ai/keycrypt.ts";
 import { AiFail, chat, guessProvider, looksLikeKey, testKey, transcribe, transcribeLines, type ChatImage, type ChatMsg, type Provider } from "./lib/ai/providers.ts";
 import { plainText } from "./lib/ai/text.ts";
@@ -1388,6 +1389,18 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/recorder": (c, a) => rpc(c, "dela_admin_recorder", { p_actor: a }),
   "/admin/playbooks": (c, a) => rpc(c, "dela_admin_playbooks", { p_actor: a }),
   "/admin/mcp": (c, a) => rpc(c, "dela_admin_mcp", { p_actor: a }),
+  // What the BD site holds for listings: field names and kinds for one member (no values), the site's field list and categories
+  "/admin/bd/inventory": async (c) => {
+    const site = await setting(c, "site.url", ""), key = c.deps.env("BD_API_KEY"), ff = f(c);
+    const bd = int(c.url.searchParams.get("bd_member_id"));
+    const [m, fl, cat] = await Promise.all([bd ? bdMember(ff, site, key, bd) : Promise.resolve(null), bdFields(ff, site, key), bdCategories(ff, site, key)]);
+    const trim = (x: unknown) => JSON.stringify(x ?? null).slice(0, 20000);
+    return {
+      member: m ? (m.ok ? { ok: true, fields: shapeOf(m.data) } : m) : null,
+      fields: fl.ok ? { ok: true, data: trim(fl.data) } : fl,
+      categories: cat.ok ? { ok: true, data: trim(cat.data) } : cat,
+    };
+  },
   "/admin/ai-files": async (c, a) => ({ ...(await rpc<Record<string, unknown>>(c, "dela_admin_ai_files", { p_actor: a })), ready: aiReady(c.deps) }),
 };
 

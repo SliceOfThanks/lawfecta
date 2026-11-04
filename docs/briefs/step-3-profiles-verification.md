@@ -1,7 +1,18 @@
 # Feature brief: Profiles and verification (both sides)
 
 Step: 3   Spec references: 1A sections 7 (registration, verification and match readiness), 1A tables "Credentials / eligibility" and "Unverified attorney account", C-61 (enhanced attorney verification before paid work), Decision Sheet section 8 (availability every 14 days, activity window 30 days)
-Status: draft, waiting on Stacey's answers (each question has a suggested answer)
+Status: questions answered by Stacey 2026-11-04, approved to build
+
+## Stacey's answers (2026-11-04)
+1. Yes: the Lawfecta Team checks each license by hand on the state bar's own lookup.
+2. The confirming email must either match the email on the state bar record, or be at the law firm's own domain. Free email (Gmail, Yahoo and the like) never counts. Otherwise a 10 minute confirming video call.
+3. No ID documents.
+4. Freelancers: check their LinkedIn verification. Do not check or collect ID or passports.
+5. Yes: firm staff can set up the firm profile once a verified attorney grants the role.
+6. Yes: reuse name, firm or company, city and state, practice areas or services, website and photo from the Lawfecta profile.
+7. Yes: availability every 14 days, reminder 2 days before.
+8. "Yes". Built as: attorneys outside the US can sign up and keep their profile; the countries the Lawfecta Team verifies are a setting (verify.countries), starting with the US. To confirm with Stacey.
+9. Every member in the Lawfecta directory is a DELA profile, so all show. Built as: the BD directory listing is the public profile. DELA fills from it, and after the member approves, sends changes back to the listing (switch bd_profile_sync). There is no second public profile.
 
 ## Who
 - Attorneys on every plan (att_free to att_business), and firm owners whose staff act for the firm.
