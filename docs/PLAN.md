@@ -33,6 +33,26 @@ Everything below is on the test site, for the access list only. Live (lawfecta.c
 - Tested: Claude's tests pass with stand-ins for OpenAI and Claude, and Lawfecta's own key works on the real test site. A real member key is not tested yet. That is part C of the short screens test, with your own OpenAI key: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2-short-chatgpt-prompt.md
 - Setting to confirm: BYOK is on every plan today (your Step 2a answer).
 
+### Import from Scribe, built in Step 2
+- Separate from the Process Recorder. Both end on the same review screen and the same "Build my playbook" button.
+- How a member brings a Scribe guide:
+  1. In Scribe, they export the guide as HTML or Markdown. Scribe's paid plans appear to be needed for these exports; this is still to confirm.
+  2. In DELA they open Library: https://www.hirelegalhelp.com/dela?tab=library
+  3. They click "Import from Scribe", tick the no-client-information box, and choose the file.
+- What DELA takes from the file:
+  - DELA reads the file in the browser, and nothing in it runs. It takes the title, each step and each screenshot.
+  - Screenshots inside the file go to DELA's private storage. Screenshots linked from Scribe's own addresses are fetched by DELA's server. Any other address is skipped.
+- What the member checks: on the review screen they fix wording, add notes on why, blur parts of screenshots (the blur is permanent), and untick screenshots.
+- What the AI does: it reads the steps, the notes and the member's own profile, but not the pictures. It writes the full playbook, merges small clicks into real steps, keeps each screenshot with its step, and asks up to 5 questions about what Scribe cannot show.
+- Where it ends up: the playbook joins the firm library, marked "Built from a Scribe guide".
+- How we get Scribe's data: only from the member's export file. Scribe has no public API for reading guides (its only API is an Enterprise search API).
+- Not yet tested with a real Scribe export.
+- Proposed add-on "2s" (brief: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-2s-scribe-import-plus.md):
+  - Word and PDF exports
+  - several guides at once
+  - a Scribe share link, if Scribe allows it
+  - an optional setting that lets the AI see the screenshots
+
 Tests today: 8 database test files, 84 API tests, 15 script tests and 198 browser checks. GitHub Tests: https://github.com/SliceOfThanks/lawfecta/actions
 
 ## 2. What needs testing, in this order
