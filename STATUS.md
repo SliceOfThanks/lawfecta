@@ -14,6 +14,8 @@
 - Tools: everyone lawfecta_whoami; attorneys list_playbooks, get_playbook, save_playbook_draft, draft_playbook_with_dela (uses credits), suggest_playbook_change (waits on the Suggestions view), export_playbook. Client information is refused. Every call re-checks the token, access, switch mcp_connector, plan list mcp.plans, holds, the pause area "connector" and mcp.calls_per_minute; calls are logged append-only without what was asked.
 - Members: AI settings, "Use DELA in ChatGPT and Claude" (address with Copy, steps, connected apps with Disconnect). Team: AI and files tab, "ChatGPT and Claude connections" with Stop; emergency pause button.
 - Tests: supabase/functions/api/mcp_test.ts (15), mcp_sdk_test.ts (the official MCP client library signs in and calls tools), tests/pw/connector-test.js (25). All suites: 70 API, 170 browser checks.
+- On the test site 2026-11-04: commit 28d6d60, api version 16, migration 0017 applied from jsDelivr (SHA-256 checked), switch mcp_connector = list. Smoke test as attorney 687 through the real addresses: discovery, registration, authorize sends the browser to https://hirelegalhelp.com/dela?tab=connect, approve, token with PKCE, initialize, tools/list, list_playbooks, lawfecta_whoami. The smoke connection and session were closed afterwards.
+- Test for Stacey: docs/tests/step-2b-connector-test.md.
 - Held for Stacey: adding the connector in her own ChatGPT and Claude accounts (custom connectors may need a paid ChatGPT or Claude plan and Developer mode in ChatGPT). mcp.plans and mcp.write_actions are Open.
 
 ## 2026-11-04 on the test site
