@@ -7,6 +7,12 @@
 - On the test site since 2026-11-03: commit de2bc4a (api version 8, same jsDelivr loader), health 200, worker ok.
 - Wording: the admin area and member badge say "Test site: hirelegalhelp.com" and "Live: lawfecta.com"; emails from the test site start with [Test site].
 
+## 2026-11-04 on the test site
+- Stacey added AI_KEY_ENCRYPTION_SECRET, OPENAI_API_KEY and BREVO_API_KEY (api versions 11 to 13 are those secret changes). Commit a3119718 deployed (api version 14): AI answers cleaned to plain text (Fix commit with test).
+- Claude tested on the real test site as attorney 687: chat on Lawfecta's AI (model gpt-5.4-mini-2026-03-17), client information warning, playbook draft, fill to 100%, approve, chat suggestion accepted as version 3, CSV and Word export, unknown image host refused. Credits charged as set.
+- Brevo refused the key (401 unauthorized). email.sender is back to log until the key is fixed (likely an SMTP key instead of an API key, or Brevo's IP blocking).
+- Short ChatGPT test for what needs a browser: docs/tests/step-2-short-chatgpt-prompt.md.
+
 ## Held for Stacey (nothing below blocks building; each ships as a setting or switch)
 1. Supabase secrets on the Lawfecta AI project: AI_KEY_ENCRYPTION_SECRET and OPENAI_API_KEY (Step 2a). Until then AI answers "still being set up" and own keys cannot be added.
 2. Playbook limits per plan (Step 2 question 1). Today att.playbooks_saved is no cap. Suggested: Free 10, Plus 40, Pro 90, Business 140; set them in the admin area, Plans tab, as a new plan version. The code enforces whatever the plan says.
