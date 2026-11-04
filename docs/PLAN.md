@@ -16,11 +16,22 @@ Everything below is on the test site, for the access list only. Live (lawfecta.c
 | 1 | Foundation: BD sign in, access list, roles, plans and limits, admin, audit, notices | Done | Passing | Done |
 | 1b | Release Control: push to Live, codes, watch, go back | Done | Passing | Done; the real push waits for Live |
 | 1c | Safety kit: rule checker, AI review, monthly health report | Done | Passing | GitHub settings still to turn on |
-| 2a | Own AI keys, talking to the AI, Files | Done | Passing, real AI checked | Not run yet |
+| 2a | Bring your own AI key (BYOK: OpenAI or Claude), talking to the AI, Files | Done | Passing, real AI checked | Not run yet |
 | 2 | Playbook library, versions, comments, exports, Import from Scribe | Done | Passing, real AI checked | Not run yet |
 | 2r | Process Recorder beta | Done (no Chrome extension) | Passing | Not run yet |
 | 2b | DELA in ChatGPT and Claude (connector) | Done | Passing, checked on the real site | Not run yet (needs your accounts) |
 | 3 | Profiles and verification, tech tools, the AI reads the member's own profile | Done | Passing, BD listing read and write checked | In progress, blocked at the BD login |
+
+### Bring your own AI key (BYOK), built in Step 2a
+- Members on every plan, on both sides, can add their own OpenAI or Claude key in AI settings: https://www.hirelegalhelp.com/dela?tab=ai
+- A firm owner on the Business plan can add one key for the whole firm. A person's own key is used first.
+- DELA tests the key before saving it, then stores it locked. Nobody, including the Lawfecta Team, can read it. Only the last 4 characters show.
+- The member's key runs Ask DELA, playbooks, Import from Scribe, the Process Recorder, DELA in ChatGPT and Claude, and profile drafts.
+- DELA never moves to Lawfecta's AI on its own. If the member's key fails, DELA says why, and the member can click "Use Lawfecta credits this time".
+- Claude keys cannot turn speech into text, so talking and the recorder use Lawfecta's speech to text, from the member's included credits.
+- The admin area shows each key's status, never the key. Members get a reminder when their key stops working.
+- Tested: Claude's tests pass with stand-ins for OpenAI and Claude, and Lawfecta's own key works on the real test site. A real member key is not tested yet. That is part C of the short screens test, with your own OpenAI key: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2-short-chatgpt-prompt.md
+- Setting to confirm: BYOK is on every plan today (your Step 2a answer).
 
 Tests today: 8 database test files, 84 API tests, 15 script tests and 198 browser checks. GitHub Tests: https://github.com/SliceOfThanks/lawfecta/actions
 
