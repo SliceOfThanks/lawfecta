@@ -10,7 +10,7 @@
 ## 2026-11-04 on the test site
 - Stacey added AI_KEY_ENCRYPTION_SECRET, OPENAI_API_KEY and BREVO_API_KEY (api versions 11 to 13 are those secret changes). Commit a3119718 deployed (api version 14): AI answers cleaned to plain text (Fix commit with test).
 - Claude tested on the real test site as attorney 687: chat on Lawfecta's AI (model gpt-5.4-mini-2026-03-17), client information warning, playbook draft, fill to 100%, approve, chat suggestion accepted as version 3, CSV and Word export, unknown image host refused. Credits charged as set.
-- Brevo refused the key (401 unauthorized). email.sender is back to log until the key is fixed (likely an SMTP key instead of an API key, or Brevo's IP blocking).
+- Brevo key replaced by Stacey; email.sender = brevo. Test email to Stacey sent 2026-11-04 04:37 UTC (Brevo accepted it).
 - Short ChatGPT test for what needs a browser: docs/tests/step-2-short-chatgpt-prompt.md.
 
 ## Held for Stacey (nothing below blocks building; each ships as a setting or switch)
