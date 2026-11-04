@@ -102,7 +102,13 @@ async function waitFor(page, words, ms) {
     await click(p, "Stop and save");
     t = await waitFor(p, "We'll email you when your recording is ready", 15000);
     await waitFor(p, "Back to the library");
-    const r = (await sql("select id, status, duration_seconds from recordings where title = 'File a motion'"))[0];
+    // The card shows at once; the last pieces and the hand-over finish in the background
+    let r;
+    for (let i = 0; i < 60; i++) {
+      r = (await sql("select id, status, duration_seconds from recordings where title = 'File a motion'"))[0];
+      if (r && r.status === "analyzing") break;
+      await p.waitForTimeout(250);
+    }
     ok(r && (r.status === "analyzing" || r.status === "uploading"), "Stop and save hands the recording over for analysis");
     const parts = await sql(`select kind, count(*)::int n from recording_parts where recording_id = '${r.id}' and uploaded_at is not null group by kind`);
     ok(parts.some((x) => x.kind === "video" && x.n >= 3) && parts.some((x) => x.kind === "audio" && x.n >= 1), "video pieces and the speech part uploaded");
