@@ -996,6 +996,11 @@
       "gate": "Step 7d tested"
     },
     {
+      "key": "agency_bench",
+      "label": "Agency bench: bench agreements with a fee split (agencies on Freelancer Business)",
+      "gate": "Step 7d part 2 tested"
+    },
+    {
       "key": "agency_subcontracting",
       "label": "Agencies hand parts of attorney engagements to subcontractors (disclosed in the agreement)",
       "gate": "Step 7d tested"

@@ -2899,6 +2899,11 @@
     already_on_team: "That person is already on your team.", owner_stays: "The owner stays on the team.", bad_role: "Choose Manager or Member.",
     business_details_needed: "Enter the business name and the two-letter state where it is registered (for example TX).", invite_expired: "This invitation has expired. Ask the agency to send a new one.",
     keep_one_person: "Keep at least one person on the job. Add someone else first.", agreement_closed: "This engagement is closed.",
+    bad_split: "The agency's share must be between 5% and 50% of the fee.", sign_needed: "Type your full name and tick the box to sign.",
+    bench_plus_needed: "Plus plan or higher required to join a bench. Upgrade your Lawfecta membership to Freelancer Plus, then sign.",
+    bench_plus_needed_them: "They need Freelancer Plus or higher before they can join your bench. Their invitation stays open.",
+    bench_invite_expired: "This bench invitation has expired. Ask the agency to send a new one.", waiting_for_other_side: "You already signed this version. It is waiting for the other side.",
+    nothing_to_sign: "There is nothing waiting for your signature.", agency_bench_off: "The agency bench is not open for your account yet.",
     share_expired: "Access to this file has ended. Ask the attorney to share it again if you still need it.",
     blocked_data: "This file appears to contain sensitive data like a Social Security or card number. Please share it using a secure link instead.",
   };
@@ -3430,7 +3435,115 @@
       });
       el.appendChild(jc);
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
-    return el;
+    // The bench loads on its own, below (the agency part above redraws itself)
+    var benchBox = h("div");
+    agencyBench(benchBox);
+    return h("div", null, el, benchBox);
+  }
+
+  // ---------- The agency bench (Step 7d part 2a): a bench agreement with a signed fee split ----------
+  function pct(bps) { var n = bps / 100; return (n % 1 === 0 ? String(n) : n.toFixed(1)) + "%"; }
+  function splitText(bps, forFreelancer) {
+    return forFreelancer ? pct(bps) + " to the agency / " + pct(10000 - bps) + " to you" : pct(bps) + " to the agency / " + pct(10000 - bps) + " to the freelancer";
+  }
+  // The typed name and tick that sign a bench agreement step
+  function signRow(label) {
+    var name = h("input", { "aria-label": "Your full name, to sign", placeholder: "Your full name", maxlength: "120" });
+    var tick = h("input", { type: "checkbox", "aria-label": label });
+    return { name: name, tick: tick, el: h("div", { class: "row", style: "flex-wrap:wrap;gap:8px;margin-top:6px" }, name,
+      h("label", { class: "small", style: "font-weight:400;display:flex;gap:6px;align-items:center" }, tick, h("span", { text: label }))),
+      body: function () { return { typed_name: name.value.trim(), agree: tick.checked }; } };
+  }
+  var BENCH_STATUS = { invited: "Invited", active: "On the bench", declined: "Declined", left: "Left", removed: "Removed", expired: "Expired" };
+  function agencyBench(box) {
+    api.get("/agency/bench").then(function (v) {
+      D.clear(box);
+      if (!v.ok || !v.on) return;
+      var lim = v.limits || { min_bps: 500, max_bps: 5000 };
+      var terms = function () { return h("details", null, h("summary", { text: "Read the bench agreement" }), h("p", { class: "small", style: "white-space:pre-wrap", text: v.terms })); };
+      // Benches you are invited to or on
+      (v.my_benches || []).forEach(function (b) {
+        var c = h("div", { class: "card bench-card" }, h("h2", { text: b.status === "invited" ? "Bench invitation from " + b.agency : "On " + b.agency + "'s bench" }));
+        if (b.split) c.appendChild(h("p", null, h("b", { text: "Your split: " }), splitText(b.split.agency_bps, true) + ". The agency pays the platform fee from its share, so you receive your full share and pay no fee."));
+        var w = b.waiting;
+        if (w) c.appendChild(h("p", null, h("b", { text: w.freelancer_signed ? "You proposed: " : (b.status === "invited" ? "Proposed split: " : "New split proposed: ") }), splitText(w.agency_bps, true) +
+          (w.freelancer_signed ? ". Waiting for the agency to sign." : b.split ? ". Your current split stays until you sign. It applies only to work assigned after both sign." : ". The agency pays the platform fee from its share.")));
+        if (b.note) c.appendChild(h("p", { class: "small muted", text: "Note from " + b.invited_by + ": " + b.note }));
+        if (b.status === "invited") c.appendChild(h("p", { class: "small muted", text: "Open until " + D.date(b.expires_at) + "." }));
+        if (!v.plan_ok) c.appendChild(h("p", { class: "notice", text: "Plus plan or higher required to join a bench. Upgrade your Lawfecta membership to " + (v.min_plan || "Freelancer Plus") + ", then come back to sign." }));
+        c.appendChild(terms());
+        var sr = signRow("I have read the bench agreement and I sign it electronically.");
+        var acts = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" });
+        if (w && !w.freelancer_signed && v.plan_ok) acts.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
+          api.post("/agency/bench/answer", Object.assign({ id: b.id, action: "sign" }, sr.body())).then(gigOk).then(function (x) { draw(); D.toast(app, x.joined ? "Signed. You joined " + b.agency + "'s bench." : "Signed. The new split applies to new work."); }).catch(gigFail);
+        } }, b.status === "invited" ? "Sign and join" : "Sign the new split"));
+        if (v.plan_ok) {
+          var other = h("input", { type: "number", min: String(lim.min_bps / 100), max: String(lim.max_bps / 100), step: "0.5", "aria-label": "Agency share you propose (%)", style: "width:90px" });
+          acts.appendChild(h("span", { class: "small", text: "Or propose the agency's share (%):" }));
+          acts.appendChild(other);
+          acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+            api.post("/agency/bench/answer", Object.assign({ id: b.id, action: "counter", agency_percent: Number(other.value) }, sr.body())).then(gigOk).then(function () { draw(); D.toast(app, "Proposed and signed. Waiting for the agency."); }).catch(gigFail);
+          } }, "Propose this split"));
+        }
+        if (b.status === "invited") acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+          api.post("/agency/bench/answer", { id: b.id, action: "decline" }).then(gigOk).then(function () { draw(); D.toast(app, "Declined"); }).catch(gigFail);
+        } }, "Decline"));
+        if (b.status === "active") acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+          if (!confirm("Leave " + b.agency + "'s bench? New assignments stop. Work already assigned keeps its split and pays out.")) return;
+          api.post("/agency/bench/end", { id: b.id }).then(gigOk).then(function () { draw(); D.toast(app, "You left the bench"); }).catch(gigFail);
+        } }, "Leave the bench"));
+        if (v.plan_ok) c.appendChild(sr.el);
+        c.appendChild(acts);
+        box.appendChild(c);
+      });
+      // The agency's own bench (owner and managers)
+      if (!v.agency_bench) return;
+      var c = h("div", { class: "card", id: "agency-bench" }, h("h2", { text: "Bench" }),
+        h("p", { class: "small muted", text: "Outside freelancers you hire for your work. They never use a seat. Before someone joins, you both sign a bench agreement that sets the split of the fee. " +
+          "The agency's share is " + pct(lim.min_bps) + " to " + pct(lim.max_bps) + ", and the agency pays the " + pct(v.fee_bps) + " freelancer platform fee from its share. Only Freelancer Plus or higher can join. The attorney never sees the split." }));
+      if (!v.agency_bench.length) c.appendChild(h("p", { class: "muted", text: "Nobody on your bench yet." }));
+      var sr = signRow("I have read the bench agreement and I sign it for the agency.");
+      v.agency_bench.forEach(function (b) {
+        var acts = h("div", { class: "row", style: "flex-wrap:wrap" });
+        var w = b.waiting, open = b.status === "invited" || b.status === "active";
+        if (open && w && !w.agency_signed) acts.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
+          api.post("/agency/bench/agency", Object.assign({ id: b.id, action: "sign" }, sr.body())).then(gigOk).then(function (x) { draw(); D.toast(app, x.joined ? "Signed. " + b.name + " joined your bench." : "Signed. The new split applies to new work."); }).catch(gigFail);
+        } }, "Sign their split"));
+        if (b.status === "active") {
+          var nw = h("input", { type: "number", min: String(lim.min_bps / 100), max: String(lim.max_bps / 100), step: "0.5", "aria-label": "New agency share for " + b.name + " (%)", style: "width:90px" });
+          acts.appendChild(nw);
+          acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+            api.post("/agency/bench/agency", Object.assign({ id: b.id, action: "change", agency_percent: Number(nw.value) }, sr.body())).then(gigOk).then(function () { draw(); D.toast(app, "Proposed and signed. Waiting for " + b.name + "."); }).catch(gigFail);
+          } }, "Propose a new default split"));
+        }
+        if (open) acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+          if (!confirm(b.status === "invited" ? "Cancel the bench invitation to " + b.name + "?" : "Remove " + b.name + " from your bench? New assignments stop. Work already assigned keeps its split and pays out.")) return;
+          api.post("/agency/bench/end", { id: b.id }).then(gigOk).then(function () { draw(); D.toast(app, b.status === "invited" ? "Invitation canceled" : b.name + " removed from your bench"); }).catch(gigFail);
+        } }, b.status === "invited" ? "Cancel invitation" : "Remove"));
+        var facts = [BENCH_STATUS[b.status] || b.status];
+        if (b.split) facts.push("split " + splitText(b.split.agency_bps, false));
+        if (w) facts.push((w.agency_signed ? "waiting for them to sign " : "they proposed ") + splitText(w.agency_bps, false));
+        if (b.inactive) facts.push("Inactive: Free plan");
+        if (b.status === "invited" && !b.plan_ok) facts.push("Plus plan or higher required to join a bench");
+        if (b.status === "invited") facts.push("open until " + D.date(b.expires_at));
+        c.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;border-top:1px solid var(--line);padding:6px 0" },
+          h("span", { class: "grow" }, h("b", { text: b.name }), h("span", { class: "small muted", text: " | " + facts.join(" | ") })), acts));
+      });
+      // Invite someone
+      var em = h("input", { type: "email", "aria-label": "Bench freelancer's email on Lawfecta", placeholder: "Their email on Lawfecta" });
+      var share = h("input", { type: "number", min: String(lim.min_bps / 100), max: String(lim.max_bps / 100), step: "0.5", value: "30", "aria-label": "Agency share (%)", style: "width:90px" });
+      var note = h("input", { "aria-label": "Note to them (optional)", placeholder: "Note to them (optional)", maxlength: "600" });
+      c.appendChild(h("h3", { text: "Invite to the bench" }));
+      c.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, em, field("Agency share (%)", share), note));
+      c.appendChild(terms());
+      c.appendChild(sr.el);
+      c.appendChild(h("div", { class: "row", style: "margin-top:6px" }, h("button", { class: "blue small", type: "button", onclick: function () {
+        api.post("/agency/bench/invite", Object.assign({ email: em.value.trim(), agency_percent: Number(share.value), note: note.value, request_id: newId() }, sr.body())).then(gigOk).then(function (x) {
+          draw(); D.toast(app, x.duplicate ? "Already invited or on your bench" : x.plan_ok ? "Bench invitation sent" : "Bench invitation sent. They need Freelancer Plus or higher to join.");
+        }).catch(gigFail);
+      } }, "Invite to the bench")));
+      box.appendChild(c);
+    }).catch(function () { D.clear(box); });
   }
 
   // ---------- Attorney: Talent ----------

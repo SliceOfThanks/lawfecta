@@ -1,6 +1,6 @@
 # DELA Decision Sheet
 
-Version DS-1.1, updated 2026-10-26. Built from config/decisions.json.
+Version DS-1.1, updated 2026-11-05. Built from config/decisions.json.
 
 How to use this sheet: for each line, write Approve, or write the number you want instead. Every value can be changed later in the DELA admin area, and every change is saved with its history.
 
@@ -13,7 +13,7 @@ What the status means:
 
 ## 1. Plans and prices
 
-Attorneys and freelancers have separate plans. Every transaction has a 5% fee from the client side and a 5% fee from the freelancer side, on every plan (Stacey 2026-11-05). No plan lowers the fees.
+Attorneys and freelancers have separate plans. Each side pays its own fee, based on its own plan.
 
 | Plan | Attorney monthly | Freelancer monthly | Fee per side | Status | Your decision |
 |---|---|---|---|---|---|
@@ -70,7 +70,7 @@ Attorneys and freelancers have separate plans. Every transaction has a 5% fee fr
 
 | Item | Suggested value | Status | Where it comes from | Your decision |
 |---|---|---|---|---|
-| Minimum platform fee per side, per engagement. Charged once per engagement, not per milestone. | $10 | Confirmed | C-26 | |
+| Minimum platform fee per side, per engagement. Charged once per engagement, not per milestone. Stacey 2026-11-05: kept. The fee is always 5% of the total from each side, with $10 as the floor; at the $250 minimum engagement, 5% is $12.50. | $10 | Confirmed | C-26 | |
 | When the attorney fee is charged | engagement start | Suggested | 1A section 20 | |
 | How the freelancer fee is spread. Spread across milestones in whole cents; leftover cents go on the last milestone. | proportional rounding on last | Suggested | 1A section 9 | |
 | Smallest engagement allowed | $250 | Confirmed | Stacey, Decision Register v1.1 (2026-10-26) | |
@@ -79,6 +79,8 @@ Attorneys and freelancers have separate plans. Every transaction has a 5% fee fr
 | Hourly billing. Not part of launch. | No | Confirmed | C-12 | |
 | Payment provider | stripe connect | Confirmed | C-24 | |
 | Stripe mode. Stays test until Stacey turns on the live_payments switch. | test | Needs a gate | Stacey 2026-10-25 | |
+| Client-side fee on every transaction. No plan lowers it. | 5% | Confirmed | Stacey 2026-11-05 | |
+| Freelancer-side fee on every transaction. No plan lowers it. | 5% | Confirmed | Stacey 2026-11-05 | |
 
 ## 4. Trials and allowances
 
@@ -164,7 +166,22 @@ Attorneys and freelancers have separate plans. Every transaction has a 5% fee fr
 | Who sends DELA email | bd if possible else brevo | Open | Stacey 2026-10-25; Claude is checking whether BD can be triggered from Supabase | |
 | Who can open DELA. Change to everyone when a phase launches. | access list | Confirmed | Stacey 2026-10-25 | |
 
-## 10. On and off switches
+## 10. Agencies
+
+| Item | Suggested value | Status | Where it comes from | Your decision |
+|---|---|---|---|---|
+| Lowest freelancer plan that can join an agency's bench. Free freelancers see Plus plan or higher required to join a bench. | fl plus | Confirmed | Stacey 2026-11-05 (agencies brief, step 7d) | |
+| Days a bench invitation stays open (time to upgrade and accept) | 30 days | Confirmed | Stacey 2026-11-05 (agencies brief, step 7d) | |
+| The Lawfecta Team checks the agency's business name and state once before its first gig goes live | Yes | Confirmed | Stacey 2026-11-05 (agencies brief, step 7d) | |
+| Agencies may use subcontractors when the agreement discloses it. Replaces the Phase 1A roles table rule against auto-approved subcontracting. | Agencies may use subcontractors when the agreement discloses it. No approval for each person is needed. The attorney can opt out per engagement and always sees who is working on it. | Confirmed | Stacey 2026-11-05 (agencies brief, step 7d) | |
+| An agency's monthly proposals allowance | shared across the whole agency | Confirmed | Stacey 2026-11-05 (agencies brief, step 7d) | |
+| Extra seats beyond the plan. In-app purchase stays behind the agency_extra_seats switch (off). | The Lawfecta Team raises one agency's seat limit by hand; BD bills extra seats until DELA can | Confirmed | Stacey 2026-11-05 (agencies brief, step 7d) | |
+| Fees on an agency's own gig | The agency pays the 5% client-side fee. If the hired freelancer is on its bench, the agency also pays the 5% freelancer-side fee and the bench member pays none; a freelancer not on its bench pays the usual 5%. | Confirmed | Stacey 2026-11-05 (fee answers) | |
+| Fees on a split milestone (attorney work assigned to a bench member). Example: $1,000 at 30/70: the agency gets $300 minus $50 = $250, the bench member $700. | The attorney pays the usual 5% client fee. The agency pays the whole 5% freelancer-side fee from its share. The bench member gets their full share. | Confirmed | Stacey 2026-11-05 (fee answers) | |
+| Smallest agency share of a bench member's work. Never below the freelancer-side fee. | 5% | Confirmed | Stacey 2026-11-05 (fee answers) | |
+| Largest agency share of a bench member's work | 50% | Confirmed | Stacey 2026-11-05 (fee answers) | |
+
+## 11. On and off switches
 
 Every switch starts Off. In the admin area each one can be set to Off, Lawfecta Team only, Access list, or Everyone.
 
@@ -182,3 +199,8 @@ Every switch starts Off. In the admin area each one can be set to Off, Lawfecta 
 | Limited automatic repeat hiring | O-05, all hard gates |
 | Member webhooks | Step 7 |
 | Automatic free trials | G-COMMERCIAL |
+| Agency team: seats, invites, roles and agency proposals | Step 7d tested |
+| Agencies post their own gigs, keep a bench and use Talent | Step 7d tested |
+| Agency bench: bench agreements with a fee split (agencies on Freelancer Business) | Step 7d part 2 tested |
+| Agencies hand parts of attorney engagements to subcontractors (disclosed in the agreement) | Step 7d tested |
+| In-app purchase of extra agency seats | DELA bills seats itself |

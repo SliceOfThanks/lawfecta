@@ -934,6 +934,21 @@
       });
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     function done(msg) { return function (x) { var p = x.data || x; if (p && p.ok === false) { fail({ message: p.reason }); return; } ok(msg); agenciesTab(); }; }
+    // Every agency bench and its split (members see only their own; the attorney never sees a split)
+    var bc = h("div", { class: "card" }, h("h2", { text: "Agency benches and splits" }), h("p", { class: "muted", text: "Loading..." }));
+    if (el.parentNode) el.parentNode.appendChild(bc);
+    api.get("/admin/agencies/bench").then(function (r) {
+      var d = r.data || r, pc = function (b) { var n = b / 100; return (n % 1 === 0 ? String(n) : n.toFixed(1)) + "%"; };
+      D.clear(bc);
+      bc.appendChild(h("h2", { text: "Agency benches and splits" }));
+      bc.appendChild(h("p", { class: "small muted", text: "The split is private between the agency and the freelancer. The agency pays the freelancer platform fee from its share." }));
+      if (!(d.bench || []).length) { bc.appendChild(h("p", { class: "muted", text: "No benches yet." })); return; }
+      (d.bench || []).forEach(function (b) {
+        bc.appendChild(h("div", { class: "small", style: "border-top:1px solid var(--line);padding:6px 0", text: b.agency + " | " + b.name + " (" + (b.email || "") + ") | " + b.status +
+          (b.split ? " | split " + pc(b.split.agency_bps) + " agency / " + pc(10000 - b.split.agency_bps) + " freelancer (version " + b.split.version + ")" : " | not signed by both yet") +
+          (b.waiting ? " | proposed " + pc(b.waiting.agency_bps) + " agency, waiting for " + (b.waiting.agency_signed ? "the freelancer" : "the agency") : "") + (b.inactive ? " | Inactive: Free plan" : "") }));
+      });
+    }).catch(function (e) { D.clear(bc); bc.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
   function securityTab() {
     var el = h("div");

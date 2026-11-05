@@ -2000,6 +2000,12 @@ async function proposalSave(ctx: Ctx) {
   return json(ctx, await rpc(ctx, "dela_proposal_save", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p: proposalBody(ctx) }));
 }
 
+// A bench agreement step: the split as a whole number of basis points (the screen sends a percent), the typed name and the tick
+function benchBody(ctx: Ctx, extra: Record<string, unknown>) {
+  const pct = Number(ctx.body.agency_percent);
+  return { ...extra, agency_bps: Number.isFinite(pct) ? Math.round(pct * 100) : null, typed_name: str(ctx.body.typed_name, 120), agree: ctx.body.agree === true };
+}
+
 async function proposalSend(ctx: Ctx) {
   const s = await memberSide(ctx);
   if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
@@ -3406,6 +3412,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/confidential": (c, a) => rpc(c, "dela_admin_confidential", { p_actor: a }),
   "/admin/security": (c, a) => rpc(c, "dela_admin_security", { p_actor: a }),
   "/admin/agencies": (c, a) => rpc(c, "dela_admin_agencies", { p_actor: a }),
+  "/admin/agencies/bench": (c, a) => rpc(c, "dela_admin_agency_bench", { p_actor: a }),
   "/admin/confidential/review": (c, a) => rpc(c, "dela_conf_reviewer", { p_actor: a, p_agreement: need(uuid(c.url.searchParams.get("agreement"))), p_file: null }),
   "/admin/payments": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_payments", { p_actor: a })), stripe_ready: !!(await stripeKey(c)), mode: c.deps.env("STRIPE_SECRET_KEY").includes("_live_") ? "live" : "test" }),
   "/admin/meetings": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_meetings", { p_actor: a })), provider_ready: !!c.deps.env("VECTERA_API_KEY") }),
@@ -3877,6 +3884,12 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /agency/invite/cancel": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_invite_cancel", { p_person: s.person_id, p_invite: need(uuid(ctx.body.id)) })); }
       case "POST /agency/invite/answer": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_invite_answer", { p_person: s.person_id, p_invite: need(uuid(ctx.body.id)), p_accept: ctx.body.accept === true })); }
       case "POST /agency/member": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_member_set", { p_person: s.person_id, p_member: need(uuid(ctx.body.person_id)), p_action: str(ctx.body.action, 10), p_role: str(ctx.body.role, 10) || null })); }
+      // The agency bench (Step 7d part 2a): bench agreements with a signed fee split
+      case "GET /agency/bench": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_bench_list", { p_person: s.person_id })); }
+      case "POST /agency/bench/invite": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_bench_invite", { p_person: s.person_id, p: benchBody(ctx, { email: str(ctx.body.email, 200), note: str(ctx.body.note, 600), request_id: str(ctx.body.request_id, 80) }) })); }
+      case "POST /agency/bench/answer": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_bench_answer", { p_person: s.person_id, p_bench: need(uuid(ctx.body.id)), p: benchBody(ctx, { action: str(ctx.body.action, 10) }) })); }
+      case "POST /agency/bench/agency": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_bench_agency", { p_person: s.person_id, p_bench: need(uuid(ctx.body.id)), p: benchBody(ctx, { action: str(ctx.body.action, 10) }) })); }
+      case "POST /agency/bench/end": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_bench_end", { p_person: s.person_id, p_bench: need(uuid(ctx.body.id)) })); }
       case "POST /agency/leave": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_leave", { p_person: s.person_id, p_org: need(uuid(ctx.body.org_id)) })); }
       case "GET /freelancers/card": return await freelancerCard(ctx);
       case "GET /engagements/people": return await engagementPeople(ctx);

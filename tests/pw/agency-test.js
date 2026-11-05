@@ -45,15 +45,17 @@ async function makeFreelancer(bd, plan, first, last) {
     insert into member_profiles (person_id, side, body, missing, score, availability_confirmed_at) select id, 'freelancer', '{"first_name":"${first}","last_name":"${last}","practice_areas":["Family law"],"headline":"${first} headline","firm_name":"${bd === 3800 ? "Roe Support Group" : ""}"}', '{}', 100, now() from people where bd_member_id = ${bd} on conflict do nothing;
     select dela_profile_refresh((select id from people where bd_member_id = ${bd}), 'freelancer'); select 1`);
 }
-const OWNER = 3800, MGR = 3801, ATT = 3802;
+const OWNER = 3800, MGR = 3801, ATT = 3802, PIA = 3803, FRED = 3804;
 
 (async () => {
   const browser = await chromium.launch();
   let s;
   try {
-    await sql("update feature_switches set state = 'everyone' where key in ('agency_team', 'flex_gigs', 'engagements', 'reviews', 'profiles', 'gig_chat'); update settings set value = 'false' where key = 'verify.freelancer_linkedin'; select 1");
+    await sql("update feature_switches set state = 'everyone' where key in ('agency_team', 'agency_bench', 'flex_gigs', 'engagements', 'reviews', 'profiles', 'gig_chat'); update settings set value = 'false' where key = 'verify.freelancer_linkedin'; select 1");
     await makeFreelancer(OWNER, "fl_business", "Olive", "Owner");
     await makeFreelancer(MGR, "fl_plus", "Max", "Manager");
+    await makeFreelancer(PIA, "fl_plus", "Pia", "Plus");
+    await makeFreelancer(FRED, "fl_free", "Fred", "Free");
     await sql(`insert into people (bd_member_id, display_name, email) values (${ATT}, 'Ann Attorney', '${ATT}@test.invalid') on conflict (bd_member_id) do nothing;
       select dela_ensure_side((select id from people where bd_member_id = ${ATT}), 'attorney', 'att_pro', 'staff_grant');
       insert into access_list (bd_member_id, channel) select ${ATT}, 'access' where not exists (select 1 from access_list where bd_member_id = ${ATT} and channel = 'access' and revoked_at is null);
@@ -140,6 +142,57 @@ const OWNER = 3800, MGR = 3801, ATT = 3802;
     ok(wide === 0, "phone width: the Agency tab fits (" + wide + ")");
     await s.ctx.close();
 
+    // ---------- The bench: the agency invites with a split and signs; the freelancer proposes another; the agency signs ----------
+    s = await open(browser, OWNER, `&tab=agency`);
+    t = await waitFor(s.page, "Invite to the bench");
+    ok(t.includes("Nobody on your bench yet.") && t.includes("The attorney never sees the split."), "the Bench card");
+    await label(s.page, "Bench freelancer's email on Lawfecta").fill(`${PIA}@test.invalid`);
+    await label(s.page, "Agency share (%)").fill("60");
+    await label(s.page, "Your full name, to sign").last().fill("Olive Owner");
+    await label(s.page, "I have read the bench agreement and I sign it for the agency.").check();
+    await click(s.page, "Invite to the bench");
+    await waitFor(s.page, "The agency's share must be between 5% and 50% of the fee.");
+    await label(s.page, "Agency share (%)").fill("30");
+    await click(s.page, "Invite to the bench");
+    t = await waitFor(s.page, "waiting for them to sign 30% to the agency / 70% to the freelancer");
+    ok(t.includes("Pia Plus") && t.includes("Invited"), "the invitation is on the bench list");
+    await label(s.page, "Bench freelancer's email on Lawfecta").fill(`${FRED}@test.invalid`);
+    await label(s.page, "Your full name, to sign").last().fill("Olive Owner");
+    await label(s.page, "I have read the bench agreement and I sign it for the agency.").check();
+    await click(s.page, "Invite to the bench");
+    t = await waitFor(s.page, "Fred Free");
+    ok(t.includes("Plus plan or higher required to join a bench"), "a Free freelancer's line says Plus is needed");
+    await s.ctx.close();
+    s = await open(browser, FRED, `&tab=agency`);
+    t = await waitFor(s.page, "Bench invitation from Roe Support Group");
+    ok(t.includes("Plus plan or higher required to join a bench") && await dela(s.page).getByRole("button", { name: "Sign and join", exact: true }).count() === 0, "Fred must upgrade before signing");
+    await s.ctx.close();
+    s = await open(browser, PIA, `&tab=agency`);
+    t = await waitFor(s.page, "Bench invitation from Roe Support Group");
+    ok(t.includes("Proposed split: 30% to the agency / 70% to you"), "Pia sees the proposed split");
+    await dela(s.page).getByText("Read the bench agreement").first().click();
+    t = await text(s.page);
+    ok(t.includes("No poaching") && t.includes("Confidentiality"), "the bench agreement's terms");
+    await label(s.page, "Agency share you propose (%)").fill("20");
+    await label(s.page, "Your full name, to sign").fill("Pia Plus");
+    await label(s.page, "I have read the bench agreement and I sign it electronically.").check();
+    await click(s.page, "Propose this split");
+    t = await waitFor(s.page, "You proposed: 20% to the agency / 80% to you");
+    ok(t.includes("Waiting for the agency to sign."), "Pia's split waits for the agency");
+    await s.ctx.close();
+    s = await open(browser, OWNER, `&tab=agency`);
+    t = await waitFor(s.page, "they proposed 20% to the agency / 80% to the freelancer");
+    await label(s.page, "Your full name, to sign").last().fill("Olive Owner");
+    await label(s.page, "I have read the bench agreement and I sign it for the agency.").check();
+    await click(s.page, "Sign their split");
+    t = await waitFor(s.page, "On the bench | split 20% to the agency / 80% to the freelancer");
+    ok((await sql(`select count(*)::int n from agency_bench_signatures s join agency_bench b on b.id = s.bench_id join people p on p.id = b.freelancer_person where p.bd_member_id = ${PIA} and s.version = 2`))[0].n === 2, "both signed version 2");
+    await s.ctx.close();
+    s = await open(browser, PIA, `&tab=agency`);
+    t = await waitFor(s.page, "On Roe Support Group's bench");
+    ok(t.includes("Your split: 20% to the agency / 80% to you") && t.includes("pay no fee"), "Pia is on the bench with her split");
+    await s.ctx.close();
+
     // ---------- The Lawfecta Team: the business check and a seat limit ----------
     await sql("insert into staff_roles (person_id, role) select id, 'owner' from people where bd_member_id = 1 and not exists (select 1 from staff_roles s where s.person_id = people.id)");
     s = await open(browser, 1, "");
@@ -157,6 +210,9 @@ const OWNER = 3800, MGR = 3801, ATT = 3802;
     await click(s.page, "Save seat limit");
     await waitFor(s.page, "Seat limit set to 5");
     ok((await sql(`select seat_limit_override n from organizations where kind = 'agency' limit 1`))[0].n === 5, "the team raised this agency's seats by hand");
+    t = await waitFor(s.page, "Agency benches and splits");
+    t = await waitFor(s.page, "split 20% agency / 80% freelancer (version 2)");
+    ok(t.includes("Pia Plus"), "the team sees every split");
     await s.ctx.close();
     console.log(passed + " browser checks passed");
   } catch (e) {
