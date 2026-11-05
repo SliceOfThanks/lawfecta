@@ -284,7 +284,7 @@ begin
   v_ack := v_role <> 'freelancer' or exists (select 1 from conf_acks where agreement_id = p_agreement and person_id = p_person);
   select * into v_disp from disputes where agreement_id = p_agreement and status in ('notice', 'team_review') order by created_at desc limit 1;
   if not v_fresh or not v_ack then
-    return jsonb_build_object('ok', true, 'role', v_role, 'state', acc->'state', 'login_needed', not v_fresh, 'ack_needed', not v_ack);
+    return jsonb_build_object('ok', true, 'role', v_role, 'state', acc->'state', 'login_needed', not v_fresh, 'ack_needed', not v_ack, 'login_hours', dela_int_setting('confidential.login_hours', 12));
   end if;
   return jsonb_build_object('ok', true, 'role', v_role, 'state', acc->'state', 'login_needed', false, 'ack_needed', false,
     'limits', jsonb_build_object('max_mb', dela_int_setting('confidential.max_mb', 25), 'engagement_max_mb', dela_int_setting('confidential.engagement_max_mb', 500), 'types', dela_setting('confidential.allowed_types'),

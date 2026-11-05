@@ -178,7 +178,7 @@ async function sign(page, name, version) {
     p = s.page;
     t = await waitFor(p, "Attorney: Please add the case caption.");
     ok(t.includes("rounds of changes used: 1 of 2"), "freelancer: the attorney's note and the rounds used");
-    await label(p, "These files have no confidential client information").check();
+    await label(p, "These files contain no medical records, ID documents, account numbers, logins or biometric data").check();
     await label(p, "Deliverable files").setInputFiles({ name: "petition-draft.txt", mimeType: "text/plain", buffer: Buffer.from("Petition draft for [Client Name]. Caption added.") });
     await waitFor(p, "petition-draft.txt: ready", 10000);
     ok(true, "freelancer: a deliverable file uploads and passes the file check");

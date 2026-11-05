@@ -249,7 +249,8 @@ end $$;
 -- The chat list says when each unsaved chat will be deleted
 create or replace function dela_ai_chats(p_person uuid, p_side text) returns jsonb language sql stable as $$
   select coalesce(jsonb_agg(jsonb_build_object('id', id, 'title', title, 'updated_at', updated_at, 'saved', saved_at is not null,
-    'delete_at', case when saved_at is null then updated_at + make_interval(days => dela_int_setting('drafts.auto_delete_days', 90)) end) order by updated_at desc), '[]')
+    'delete_at', case when saved_at is null then updated_at + make_interval(days => dela_int_setting('drafts.auto_delete_days', 90)) end,
+    'due_soon', saved_at is null and updated_at + make_interval(days => dela_int_setting('drafts.auto_delete_days', 90) - dela_int_setting('drafts.warn_days', 7)) <= now()) order by updated_at desc), '[]')
   from (select * from ai_chats where person_id = p_person and side = p_side and archived_at is null order by updated_at desc limit 50) c
 $$;
 
@@ -303,7 +304,8 @@ create or replace function dela_pb_delete_at(pb playbooks) returns timestamptz l
     then pb.updated_at + make_interval(days => dela_int_setting('drafts.auto_delete_days', 90)) end
 $$;
 create or replace function dela_pb_drafts_due(p_person uuid) returns jsonb language sql stable as $$
-  select coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'title', p.title, 'delete_at', dela_pb_delete_at(p)) order by p.updated_at), '[]')
+  select coalesce(jsonb_agg(jsonb_build_object('id', p.id, 'title', p.title, 'delete_at', dela_pb_delete_at(p),
+    'due_soon', dela_pb_delete_at(p) <= now() + make_interval(days => dela_int_setting('drafts.warn_days', 7))) order by p.updated_at), '[]')
   from playbooks p where dela_firm_role(p_person, p.org_id) <> '' and dela_pb_delete_at(p) is not null
 $$;
 
@@ -389,6 +391,31 @@ begin
     perform dela_audit('system', null, 'retention_deleted', 'retention', (now() at time zone dela_tz())::date::text, jsonb_build_object('chats', v_chats, 'drafts', v_drafts, 'deliverables', v_files));
   end if;
   return jsonb_build_object('paths', v_paths, 'chats', v_chats, 'drafts', v_drafts, 'deliverables', v_files);
+end $$;
+
+-- The engagement view shows each deliverable's delete date and whether it was saved to the library
+do $$
+declare v_src text; v_new text;
+begin
+  select pg_get_functiondef('dela_agreement_view(uuid,text,uuid)'::regprocedure) into v_src;
+  if position('dela_deliverable_delete_at' in v_src) > 0 then return; end if;
+  v_new := replace(v_src,
+    $a$'files', (select coalesce(jsonb_agg(jsonb_build_object('file_id', f.id, 'name', f.name)), '[]') from files f where f.id = any(s.files))$a$,
+    $b$'files', (select coalesce(jsonb_agg(jsonb_build_object('file_id', f.id, 'name', f.name, 'gone', f.status = 'deleted', 'saved', f.saved_at is not null, 'delete_at', dela_deliverable_delete_at(f))), '[]') from files f where f.id = any(s.files))$b$);
+  if v_new = v_src then raise exception 'dela_agreement_view changed; update 0038'; end if;
+  execute v_new;
+end $$;
+
+-- The Files tab marks files saved from a job (Ask DELA never reads them)
+do $$
+declare v_src text; v_new text;
+begin
+  select pg_get_functiondef('dela_files_list(uuid,text)'::regprocedure) into v_src;
+  if position('from_job' in v_src) > 0 then return; end if;
+  v_new := replace(v_src, $a$'uploaded_by', p.display_name, 'created_at', f.created_at, 'trashed_at', f.trashed_at)$a$,
+    $b$'uploaded_by', p.display_name, 'created_at', f.created_at, 'trashed_at', f.trashed_at, 'from_job', f.from_job)$b$);
+  if v_new = v_src then raise exception 'dela_files_list changed; update 0038'; end if;
+  execute v_new;
 end $$;
 
 -- ---------- 7. "Delete forever" in Trash ----------

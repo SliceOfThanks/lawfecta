@@ -12,7 +12,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["reviews", "Reviews and bench"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["reviews", "Reviews and bench"], ["team", "Lawfecta Team"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   var current = "control";
   var mainEl = null;
   var tabsEl = null;
@@ -75,7 +75,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, reviews: reviewsTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, reviews: reviewsTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // ---------- Guide ----------
@@ -246,7 +246,7 @@
 
   // ---------- Emergency pause (no push needed; members see a short message, the team keeps working) ----------
 
-  var PAUSE_AREAS = [["all", "All of DELA"], ["ai", "AI help"], ["checkout", "New payments"], ["payouts", "Payouts"], ["renewals", "Monthly renewals"], ["external", "Outside connections"], ["email", "Emails"], ["connector", "ChatGPT and Claude connector"]];
+  var PAUSE_AREAS = [["all", "All of DELA"], ["ai", "AI help"], ["checkout", "New payments"], ["payouts", "Payouts"], ["renewals", "Monthly renewals"], ["external", "Outside connections"], ["email", "Emails"], ["connector", "ChatGPT and Claude connector"], ["confidential", "Confidential materials"]];
   function emergencyCard() {
     var box = h("div", { class: "card" }, titled("h2", "Emergency pause", "ov_pause"), h("p", { class: "muted small", text: "Loading..." }));
     api.get("/admin/pause").then(function (r) {
@@ -894,6 +894,70 @@
   }
 
   // ---------- Tech catalog (Step 4): upload a CSV, preview what changes, confirm; pause one tool; history ----------
+  // ---------- Security: questions from the /security page, Confidential materials counts, dispute reviews ----------
+  function securityTab() {
+    var el = h("div");
+    var msgs = h("div", { class: "card" }, h("h2", { text: "Security questions from the website" }), h("p", { class: "muted", text: "Loading..." }));
+    var conf = h("div", { class: "card" }, h("h2", { text: "Confidential materials" }), h("p", { class: "muted", text: "Loading..." }));
+    el.appendChild(msgs); el.appendChild(conf);
+    body(el);
+    api.get("/admin/security").then(function (r) {
+      var d = r.data || r;
+      D.clear(msgs);
+      msgs.appendChild(h("h2", { text: "Security questions from the website (" + (d.open || 0) + " open)" }));
+      msgs.appendChild(h("p", { class: "small muted", text: "Sent from the contact form on the /security page. Each one is also emailed to the team. Reply from your own email." }));
+      if (!(d.messages || []).length) msgs.appendChild(h("p", { class: "muted", text: "None yet." }));
+      (d.messages || []).forEach(function (m) {
+        msgs.appendChild(h("div", { style: "border-top:1px solid var(--line);padding:8px 0" },
+          h("div", { class: "row" }, h("b", { class: "grow", text: (m.name || "No name") + " (" + m.email + ")" + (m.topic ? ": " + m.topic : "") }), h("span", { class: "small muted", text: D.dateTime(m.at) })),
+          h("p", { style: "white-space:pre-wrap;margin:4px 0", text: m.message }),
+          m.handled ? h("span", { class: "badge ready", text: "Handled" }) : h("button", { class: "ghost small", type: "button", onclick: function () {
+            api.post("/admin/security/handled", { id: m.id }).then(function () { ok("Marked as handled"); securityTab(); }).catch(fail);
+          } }, "Mark as handled")));
+      });
+    }).catch(function (e) { D.clear(msgs); msgs.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+    api.get("/admin/confidential").then(function (r) {
+      var d = r.data || r;
+      D.clear(conf);
+      conf.appendChild(h("h2", { text: "Confidential materials" }));
+      conf.appendChild(h("p", { class: "small muted", text: "Counts only. The team never sees file names, messages or links here. Switch: " + (d.switch || "off") + (d.paused ? ". Paused by the emergency stop." : ".") + " Virus scanner: " + (d.scanner === "none" ? "none (test site only)" : d.scanner) + "." }));
+      var kv = [["Engagements with files", d.engagements], ["Files", d.files], ["Messages", d.messages], ["Storage used (MB)", Math.round((d.bytes || 0) / 104857.6) / 10],
+        ["Files not virus scanned", d.not_scanned], ["Uploads refused, last 30 days", d.refused_30d], ["Files due for deletion in 7 days", d.deletions_due_7d], ["Files deleted, last 30 days", d.deleted_30d],
+        ["Secure links open", d.links_open], ["Links expired, last 30 days", d.links_expired_30d], ["Jobs marked sensitive", d.sensitive_jobs]];
+      conf.appendChild(h("div", { class: "kv" }, kv.map(function (x) { return h("div", null, x[0], h("b", { text: String(x[1] || 0) })); })));
+      conf.appendChild(h("h3", { text: "Disputes asking to open the materials" }));
+      conf.appendChild(h("p", { class: "small muted", text: "A reviewer may open the materials only when both people agreed in DELA. Every open is logged and shown to both people." }));
+      if (!(d.reviews || []).length) conf.appendChild(h("p", { class: "muted", text: "None open." }));
+      (d.reviews || []).forEach(function (rv) {
+        var area = h("div");
+        conf.appendChild(h("div", { class: "row" }, h("span", { class: "grow", text: "Dispute on engagement " + String(rv.agreement_id).slice(0, 8) + ": " + rv.agreed + " of 2 agreed" }),
+          rv.agreed >= 2 ? h("button", { class: "ghost small", type: "button", onclick: function () { reviewerView(area, rv.agreement_id); } }, "Open the materials") : null));
+        conf.appendChild(area);
+      });
+    }).catch(function (e) { D.clear(conf); conf.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+  }
+  function reviewerView(area, agreementId) {
+    D.clear(area);
+    api.get("/admin/confidential/review?agreement=" + agreementId).then(function (r) {
+      var d = r.data || r;
+      if (!d.ok) { area.appendChild(h("p", { class: "notice", text: d.reason === "both_must_agree" ? "Both people must agree first." : D.errorText(d.reason) })); return; }
+      area.appendChild(h("p", { class: "small notice", text: "Logged: both people see that a Lawfecta reviewer opened these materials." }));
+      d.files.forEach(function (f) {
+        area.appendChild(h("div", { class: "row" }, h("span", { class: "grow", text: f.name + " (" + f.by + ", " + D.date(f.at) + ")" }), h("button", { class: "ghost small", type: "button", onclick: function () {
+          api.post("/admin/confidential/open", { agreement_id: agreementId, file_id: f.id }).then(function (x) {
+            var p = x.data || x;
+            if (!p.ok) { fail({ message: p.reason }); return; }
+            if (p.kind === "download") { window.open(p.url, "_blank", "noopener"); return; }
+            var blob = new Blob([Uint8Array.from(atob(p.b64), function (c) { return c.charCodeAt(0); })], { type: p.kind === "pdf" ? "application/pdf" : "image/" + (p.ext === "png" ? "png" : "jpeg") });
+            window.open(URL.createObjectURL(blob), "_blank", "noopener");
+          }).catch(fail);
+        } }, "Open")));
+      });
+      if (d.messages.length) area.appendChild(h("h3", { text: "Messages" }));
+      d.messages.forEach(function (m) { area.appendChild(h("p", { class: "small", style: "white-space:pre-wrap", text: m.by + ", " + D.dateTime(m.at) + ": " + m.body })); });
+    }).catch(fail);
+  }
+
   function catalogTab() {
     api.get("/admin/catalog").then(function (r) {
       var d = r.data;

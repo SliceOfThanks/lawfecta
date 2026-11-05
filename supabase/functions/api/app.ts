@@ -2331,7 +2331,7 @@ async function confDownloadAll(ctx: Ctx) {
   const secs = Math.max(Number(r.minutes) || 5, 1) * 60;
   const files = [];
   for (const f of r.files as Array<{ path: string; name: string }>) files.push({ name: f.name, url: await storage.signDownload(f.path, secs, f.name) });
-  return json(ctx, { ok: true, files, view_only_skipped: r.view_only_skipped });
+  return json(ctx, { ok: true, files, view_only_skipped: r.view_only_skipped, minutes: Math.max(Number(r.minutes) || 5, 1) });
 }
 // A secure link: https only, no login details inside it, never fetched or opened by DELA
 export function checkLink(raw: string): { ok: true; url: string; host: string } | { ok: false; reason: string } {
