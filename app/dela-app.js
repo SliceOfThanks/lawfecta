@@ -677,7 +677,10 @@
   function loadProfile() {
     return api.get("/profile").then(function (r) {
       if (!r.ok) { D.clear(profEl); profEl.appendChild(h("p", { class: "notice", text: D.errorText(r.reason) })); return; }
-      prof.data = r; prof.body = JSON.parse(JSON.stringify(r.body)); prof.dirty = false;
+      // Buttons such as the LinkedIn check, availability or a license reload the page's data; changes typed
+      // into the form and not saved yet stay as they are (Stacey's Step 3 test, 2026-11-05)
+      prof.data = r;
+      if (!prof.dirty || !prof.body) { prof.body = JSON.parse(JSON.stringify(r.body)); prof.dirty = false; }
       drawProfile();
     }).catch(function (e) { D.clear(profEl); profEl.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
@@ -841,11 +844,13 @@
         Object.keys(x.fields).forEach(function (k) {
           var v = x.fields[k], cur = prof.body[k];
           var empty = cur === null || cur === undefined || cur === "" || (Array.isArray(cur) && !cur.length);
-          if (empty || k === "photo_url") { prof.body[k] = v; n++; }
+          // The photo always follows the listing; it counts only when it changed
+          if (k === "photo_url") { if (cur !== v) { prof.body[k] = v; n++; } }
+          else if (empty) { prof.body[k] = v; n++; }
         });
         prof.dirty = true;
         drawProfile();
-        D.toast(app, n ? "Filled " + n + " items from your listing. Check them, then Save." : "Your listing had nothing new to add.");
+        D.toast(app, n ? "Filled " + n + (n === 1 ? " item" : " items") + " from your listing. Check " + (n === 1 ? "it" : "them") + ", then Save." : "Your listing had nothing new to add.");
       }).catch(function (e) { fill.disabled = false; err(e); });
     });
     card.appendChild(h("div", { class: "row" }, fill, h("span", { class: "small muted", text: "Fills only empty boxes. Nothing is saved until you click Save." })));
@@ -920,6 +925,7 @@
         }
         if (!x.ok) { msg.textContent = D.errorText(x.reason); return; }
         D.toast(app, "Profile saved");
+        prof.dirty = false;
         loadProfile();
       }).catch(function (e) { save.disabled = false; msg.textContent = D.errorText(e.message); });
     }
@@ -1007,7 +1013,7 @@
       }).catch(function (e) { go.disabled = false; msg.textContent = D.errorText(e.message); });
     }
     go.addEventListener("click", function () { run(false); });
-    return h("details", { style: "margin-top:12px" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "Let DELA draft your headline and summary" }),
+    return h("details", { style: "margin-top:12px" }, h("summary", { style: "cursor:pointer;font-weight:700", text: me.side === "freelancer" ? "Let DELA draft your headline, summary and services" : "Let DELA draft your headline and summary" }),
       h("p", { class: "small muted", text: "DELA uses only what you write here and in the form. It does not invent qualifications. Uses AI credits like Ask DELA." }), notes, h("div", { class: "row" }, go), msg);
   }
 

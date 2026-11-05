@@ -71,6 +71,11 @@ async function waitFor(page, words, ms) {
     await waitFor(p, "Filled");
     ok(await label(p, "First name").inputValue() === "Lia" && await label(p, "Firm name").inputValue() === "Listing Law", "the form fills from the Lawfecta listing");
     ok(!(await text(p)).includes("4111"), "nothing else from the listing reaches the page");
+    // Filling again after clearing one box fills just that one, in plain words (Stacey's Step 3 test, 2026-11-05)
+    await label(p, "City").fill("");
+    await click(p, "Fill from my Lawfecta listing");
+    await waitFor(p, "Filled 1 item from your listing.");
+    ok(await label(p, "City").inputValue() === "Dallas", "filling again says \"Filled 1 item\" and fills only the empty box");
     await click(p, "Family law");
     await label(p, "Where you are licensed or practice").fill("TX");
     await click(p, "Save");
@@ -126,7 +131,7 @@ async function waitFor(page, words, ms) {
     await click(p, "Profile");
     t = await waitFor(p, "Your availability");
     ok(t.includes("LinkedIn check") && t.includes("At least one service") && t.includes("Profile documents"), "the freelancer page has availability, the LinkedIn check, the checklist and documents");
-    await dela(p).getByText("Let DELA draft your headline and summary").click();
+    await dela(p).getByText("Let DELA draft your headline, summary and services").click();
     await label(p, "Tell DELA about your work").fill("Eight years of litigation support for solo attorneys in Texas, mostly e-filing and discovery, in Clio.");
     await click(p, "Draft with DELA");
     await waitFor(p, "DELA filled in a draft");
@@ -156,10 +161,13 @@ async function waitFor(page, words, ms) {
     ok(saved.services[0].price_from_cents === 15000 && saved.services[0].price_to_cents === 40000, "prices are saved in cents");
     ok(saved.software.includes("Clio") && saved.software.includes("MyCase") && saved.software.includes("Casemark"), "tech tools are saved from the choices and the other box");
 
+    // A change not saved yet survives the LinkedIn button (Stacey's Step 3 test, 2026-11-05)
+    await label(p, "Usual hours").fill("Not saved yet");
     await dela(p).getByLabel("LinkedIn profile address", { exact: true }).first().fill("https://www.linkedin.com/in/fran-freelancer");
     await click(p, "Ask for the check");
     await waitFor(p, "Waiting for the Lawfecta Team");
     ok(true, "the freelancer asks for the LinkedIn check");
+    ok(await label(p, "Usual hours").inputValue() === "Not saved yet", "asking for the LinkedIn check keeps changes that are not saved yet");
 
     // A document: the tick box first, then upload, check and show to attorneys
     const pdf = path.join(SHOTS, "resume.pdf");

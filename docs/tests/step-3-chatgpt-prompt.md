@@ -35,7 +35,7 @@ C. Attorney again
 
 D. Freelancer (test freelancer)
 1. Open www.hirelegalhelp.com/dela and click the Profile tab. Expect availability, LinkedIn check, the checklist and Profile documents.
-2. Open "Let DELA draft your headline and summary", type a few made-up sentences about your work, click "Draft with DELA". Expect a headline and summary filled in, and nothing saved yet.
+2. Open "Let DELA draft your headline, summary and services", type a few made-up sentences about your work, click "Draft with DELA". Expect a headline and summary filled in, and nothing saved yet.
 3. Fill first and last name, a practice area, a service with a price from and to, experience, software, time zone, hours a week, a LinkedIn address, tick the agreement. Click Save. Expect "Waiting for a check".
 4. Type in the summary "client SSN 123-45-6789" (made up) and Save. Expect DELA to ask about client information first. Cancel, remove it, and save again.
 5. LinkedIn check: paste a LinkedIn profile address and click "Ask for the check". Expect "Waiting for the Lawfecta Team". Try "example.com" instead: expect a plain refusal.
