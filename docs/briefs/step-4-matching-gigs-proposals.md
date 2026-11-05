@@ -1,7 +1,21 @@
 # Feature brief: Matching, Flex Gigs, proposals and the tech catalog
 
 Step: 4   Spec references: 1A sections 13 (technology catalog), 15 (Matching, Flex Gigs and expiration), 16 (Proposals, Q&A and quotas); Decision Sheet sections 4 and 5 (C-10, C-11, O-10)
-Status: draft, waiting on Stacey's answers (each question has a suggested answer)
+Status: questions answered by Stacey 2026-11-05; approved to build
+
+## Stacey's answers (2026-11-05)
+1. A proposal in answer to an attorney's invitation does not use the allowance.
+2. A withdrawn proposal never gives the allowance back.
+3. Allowances reset on the 1st of each month, Pacific time.
+4. One hire per gig. Later: hire several freelancers for one gig, with DELA helping the attorney split the work between them and building milestones for each freelancer. Built now as a switch that stays off (multiple_hires), with the data ready for it.
+5. Gigs are open to any match-ready freelancer (public gigs), as well as matches and invitations.
+6. Ranking as suggested, plus the Lawfecta membership plan: among freelancers who already fit the gig, a higher BD plan ranks higher, following how the plans are set up in Brilliant Directories. A poor fit is never lifted above a good fit.
+7. Freelancers see everything about the gig before using a proposal except milestones. Milestones come after hiring: DELA sets them, and the freelancer sees them then. Invited freelancers see the full playbook.
+8. Minimum gig budget: $250.
+9. Questions on a gig are answered publicly only (for every applicant).
+10. The tech catalog comes from a CSV the Lawfecta Team uploads; a new upload replaces the whole list. The columns are in docs/templates/tech-catalog-template.csv. DELA's AI recommends tools only from this list.
+11. Every conversation is tied to a gig. Attorneys browse match-ready freelancers in Talent and invite them to a gig (DELA offers to create the gig from a playbook in the same step). DELA's AI reviews every message, question, invitation and proposal for plans to work or pay outside Lawfecta (against the terms), and learns about each member to help them. Members see what DELA has learned about them and can remove any of it.
+12. Yes: files are shared read only, for that gig only, with downloads logged; access ends when the gig closes without a hire.
 
 ## Already decided (Decision Sheet, confirmed)
 - Open Flex Gigs at one time: Free 1, Plus 3, Pro 10, Business no cap (spam and security limits still apply).
