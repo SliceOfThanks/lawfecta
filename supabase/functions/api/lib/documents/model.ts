@@ -50,6 +50,7 @@ export type DocBody = {
   start_point: string; end_point: string; kpis: Kpi[];
   situations: string[]; principles: string[]; preferred: string; fallbacks: string[]; hard_limits: string[]; escalation: Escalation[]; scripts: string[]; examples: string[];
   rules_must: string[]; rules_must_not: string[]; exceptions: string; exceptions_role: string;
+  skipped: string[]; // the process questions the attorney skipped (shown as quality panel flags, never exported)
 };
 
 // The sections of each type, in order (labels as members and exports show them)
@@ -120,7 +121,7 @@ export function normalizeDoc(raw: unknown): DocBody {
     situations: list(b.situations), principles: list(b.principles), preferred: s(b.preferred, 2000), fallbacks: list(b.fallbacks), hard_limits: list(b.hard_limits),
     escalation: (Array.isArray(b.escalation) ? b.escalation : []).slice(0, 20).map((e: any) => ({ issue: s(e?.issue, 300), decider_role: s(e?.decider_role, 60), how_fast: s(e?.how_fast, 120) })).filter((e: Escalation) => e.issue),
     scripts: list(b.scripts, 30, 2000), examples: list(b.examples, 20, 1500), rules_must: list(b.rules_must), rules_must_not: list(b.rules_must_not),
-    exceptions: s(b.exceptions, 1500), exceptions_role: s(b.exceptions_role, 60),
+    exceptions: s(b.exceptions, 1500), exceptions_role: s(b.exceptions_role, 60), skipped: list(b.skipped, 10, 80),
   };
 }
 
@@ -181,6 +182,22 @@ export function scrubCredentials(text: string): { text: string; removed: boolean
   for (const [re, w] of CREDENTIALS) out = out.replace(re, () => { removed = true; return w; });
   return { text: out, removed };
 }
+// Client data in pasted or uploaded material is replaced with fictional placeholders before drafting (with a notice)
+const CLIENT_DATA: Array<[string, RegExp, string]> = [
+  ["social security numbers", /\b\d{3}-\d{2}-\d{4}\b/g, "[SSN removed]"],
+  ["dates of birth", /\b(dob|d\.o\.b\.|date of birth|born on)\b[:\s]*\(?\s*(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}|[a-z]+ \d{1,2},? \d{4})/gi, "[date of birth removed]"],
+  ["case numbers", /\b(case|cause|docket|index|matter)\s*(no\.?|number|#)\s*[:#]?\s*[a-z0-9]*\d[a-z0-9:-]{3,}/gi, "[Case Number]"],
+  ["case numbers", /\b\d{1,2}:\d{2}-[a-z]{2,4}-\d{3,6}\b/gi, "[Case Number]"],
+  ["client names", /\b((?:my |our |the )?client(?:'s)?(?: is| named|:|,)?\s+)(?!name\b)[A-Z][a-z]+ [A-Z][a-z]+/g, "$1[Client Name]"],
+  ["case captions", /\b[A-Z][a-z]+ v\.? [A-Z][a-z]+\b/g, "[Party A] v. [Party B]"],
+];
+export function scrubClientData(text: string): { text: string; kinds: string[] } {
+  let out = text;
+  const kinds: string[] = [];
+  for (const [k, re, w] of CLIENT_DATA) out = out.replace(re, (...m) => { if (!kinds.includes(k)) kinds.push(k); return w.replace("$1", String(m[1] ?? "")); });
+  return { text: out, kinds };
+}
+
 // Every text field of a document, so the scrub and the checks see all of it
 export function eachText(b: DocBody, fn: (t: string) => string): DocBody {
   const m = (t: string) => fn(t);
@@ -280,7 +297,8 @@ export function checkDoc(b: DocBody, c: CheckContext): { items: CheckItem[]; blo
   need("Owner role (header)", !!b.owner_role);
   add("sections", "Every required section is filled in", missing.length > 0, "Missing: " + missing.join(", ") + ".", "ai");
   // Questions the attorney skipped
-  add("skipped", "The process questions are answered", c.skipped.length > 0, "You skipped: " + c.skipped.join(", ") + ". DELA left these parts general; add them for a better document.", "");
+  const skipped = [...new Set([...c.skipped, ...b.skipped])];
+  add("skipped", "The process questions are answered", skipped.length > 0, "You skipped: " + skipped.join(", ") + ". DELA left these parts general; add them for a better document.", "");
   const text = docText(b);
   const vague = vagueWords(text);
   add("vague", "No vague words without a value", vague.length > 0, "Found: " + vague.map((w) => "\"" + w + "\"").join(", ") + ". Say exactly what and when.", "ai");
@@ -368,6 +386,17 @@ function setA(st: DocStep, role: string) {
 // Next review: 3 months for trust, conflicts and deadline documents, 12 for the rest
 export const HIGH_RISK = /\b(trust|iolta|retainer deposit|conflict|deadline|calendar|statute of limitations|docket)\b/i;
 export const looksHighRisk = (b: DocBody) => HIGH_RISK.test([b.title, b.purpose, b.scope, b.trigger].join(" "));
+
+export function guessLifecycle(text: string): string {
+  const t = text.toLowerCase();
+  if (/intake|inquir|lead|conflict|consult/.test(t)) return "INT";
+  if (/engagement|onboard|welcome|retain(er)? agreement/.test(t)) return "ENG";
+  if (/trust|invoice|bill|collect|fee|payment|retainer|reconcil/.test(t)) return "BIL";
+  if (/clos|retention|archiv|disengage/.test(t)) return "CLS";
+  if (/draft|document|filing|file with|e-?fil|pleading|contract|motion/.test(t)) return "DOC";
+  if (/matter|calendar|deadline|docket|case manag/.test(t)) return "MAT";
+  return "ADM";
+}
 
 // ---------- The starter library (7 lifecycle groups) ----------
 export type Starter = { id: string; lifecycle: string; type: DocType; title: string; trigger: string; done: string; high_risk?: boolean; kpi?: string };

@@ -63,7 +63,7 @@ begin
   perform t_ok(dela_pb_status(ed, pb, 'approve')->>'reason' = 'administrator_only', 'only the administrator approves');
   perform dela_pb_status(ed, pb, 'submit');
   perform t_ok((select status from playbooks where id = pb) = 'in_review', 'sent for review');
-  perform t_ok(exists (select 1 from notifications where person_id = own and title = 'A playbook is ready for your review'), 'the administrator is told');
+  perform t_ok(exists (select 1 from notifications where person_id = own and title = 'A document is ready for your review'), 'the administrator is told');
   perform t_ok((dela_pb_status(own, pb, 'approve')->>'ok')::boolean, 'the administrator approves a complete playbook');
   perform t_ok((select approved_version from playbooks where id = pb) = 2 and (select next_review_at from playbooks where id = pb) > current_date + 300, 'approved version and review date are kept');
   r := dela_pb_save(jsonb_build_object('person_id', ed, 'id', pb, 'base_version', 2, 'body', full_body, 'completeness', 100, 'missing', '[]'::jsonb, 'note', 'Small fix'));
