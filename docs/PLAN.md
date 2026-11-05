@@ -185,6 +185,56 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
 - More actions from ChatGPT and Claude.
 - Automatic meeting transcripts, if Vectera allows them later.
 
+### Phase 2: connect the tools members already use (Stacey 2026-11-05)
+Attorneys and freelancers connect the tools they already use, so that:
+- playbooks can read contacts, matters and other records, and import data, to support the attorney's work
+- the attorney can give a freelancer the contacts they need for one engagement
+
+How it fits the specs:
+- Phase 1B (docs/specs/02) already plans read-only connections first: Google and Outlook calendars, selected files, and Clio Manage selected records.
+- Phase 2 (docs/specs/04) adds actions that write back to those tools, each approved by the member.
+- Stacey's direction: plan all of this as one connected Phase 2 track, starting read-only.
+
+First tools to consider:
+- Practice management: Clio, MyCase, PracticePanther, Smokeball, Filevine.
+- Calendars and contacts: Google and Microsoft 365.
+- Storage: Google Drive, Dropbox, OneDrive, Box.
+- E-signature and intake forms.
+
+The final order follows what members actually use, from the firm profile's "systems" answers and the tech catalog.
+
+How it works:
+1. **Connect.** A member clicks "Connect" on a tool in a new Integrations card.
+   - Sign-in goes through the tool's own secure login (OAuth), asking for the fewest permissions and read-only first.
+   - DELA never sees or stores the member's password for that tool.
+   - The connection is locked to that firm. The member can disconnect at any time, and disconnecting deletes the stored access at once.
+2. **Playbooks read live data.** A playbook step that names a tool (for example "open the matter in Clio") can show the matching record, contact or task when the attorney runs it.
+3. **Import.**
+   - The attorney picks what to import: contacts, a matter's details, or a document from storage.
+   - Nothing is imported in bulk without a choice.
+   - Imported records show where they came from and when.
+4. **Contacts for a freelancer.**
+   - The attorney picks the contacts a freelancer needs for one engagement.
+   - They go into that engagement's Confidential materials, never to the whole matter or the attorney's address book.
+   - The freelancer's access ends with the engagement, under the same expiry and deletion rules as other shared files.
+5. **Writing back (later in Phase 2).**
+   - DELA proposes an action, for example "create this task in Clio".
+   - The attorney approves it, and DELA keeps a record that can be undone where the tool allows.
+   - Delete actions are never requested.
+
+Rules this must follow (checked again in its brief):
+- Client contact details (names, phone numbers, emails, addresses) count as normal data under the security rules, but they belong only inside an engagement's Confidential materials when shared with a freelancer.
+- Sensitive data (SSNs, IDs, account numbers, medical) is never imported. Fields that hold it are not requested from the tool.
+- **AI access:** by default, imported client records are never sent to the AI. The attorney can choose to let DELA read a specific record for a specific task, and never anything inside Confidential materials. This is an open question for the brief.
+- Each connection follows the security brief (step-6d): logging, the admin "pause this connection" switch and the emergency stop.
+- The firm can export or delete everything imported.
+
+Prepared in Phase 1 so Phase 2 plugs in cleanly:
+- Tools named in playbooks and firm profiles are tied to tech catalog IDs, so a connected tool can be matched to the steps that use it.
+- The connector for ChatGPT and Claude and the outgoing webhooks already use the same permission checks the integrations will use.
+
+A brief with questions comes before the build, when Phase 2 starts.
+
 ## 5. Where to find things
 - Build status, detail by step: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/STATUS.md
 - Roadmap: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/ROADMAP.md
