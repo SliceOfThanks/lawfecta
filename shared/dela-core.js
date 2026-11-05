@@ -108,7 +108,36 @@
     shadow.appendChild(D.h("style", { text: D.CSS }));
     var app = D.h("div", { class: "dela", "data-theme": "auto" });
     shadow.appendChild(app);
+    D.belowSiteHeader(host, app);
     return { shadow: shadow, app: app };
+  };
+
+  // The Lawfecta site has its own fixed header. DELA's sticky top bar sits just below it, so the header never covers it.
+  D.belowSiteHeader = function (host, app) {
+    if (typeof window === "undefined" || !document.elementsFromPoint) return;
+    var last = -1, busy = false;
+    function measure() {
+      busy = false;
+      var bottom = 0, seen = [];
+      [8, window.innerWidth / 2, window.innerWidth - 8].forEach(function (x) {
+        (document.elementsFromPoint(x, 1) || []).forEach(function (el) {
+          for (var n = el; n && n !== document.body && n !== document.documentElement; n = n.parentElement) {
+            if (n === host || host.contains(n) || seen.indexOf(n) >= 0) continue;
+            seen.push(n);
+            var pos = getComputedStyle(n).position;
+            if (pos !== "fixed" && pos !== "sticky") continue;
+            var r = n.getBoundingClientRect();
+            if (r.top <= 1 && r.bottom > bottom && r.bottom < window.innerHeight / 2) bottom = r.bottom;
+          }
+        });
+      });
+      bottom = Math.round(bottom);
+      if (bottom !== last) { last = bottom; app.style.setProperty("--dela-top", bottom + "px"); }
+    }
+    function soon() { if (!busy) { busy = true; (window.requestAnimationFrame || setTimeout)(measure); } }
+    window.addEventListener("scroll", soon, { passive: true });
+    window.addEventListener("resize", soon);
+    setTimeout(measure, 0);
   };
 
   D.toast = function (app, text, bad) {
@@ -218,7 +247,7 @@
     "font-family:Inter,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:var(--ink);background:var(--bg);min-height:60vh;padding:0 0 88px;box-sizing:border-box;-webkit-font-smoothing:antialiased}",
     "@media (prefers-color-scheme:dark){.dela{--bg:#11131b;--card:#1a1d28;--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c;--brand:#c2416f;--pink:#2a1622;--pink-ink:#f19ab8;--soft:#222634;--shadow:none;--okbg:#17301f;--okline:#2b5a3b;--bluebg:#132233}}",
     ".dela *{box-sizing:border-box}",
-    ".top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;background:linear-gradient(120deg,#1d1426,#3a1430);color:#fff;position:sticky;top:0;z-index:5}",
+    ".top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;background:linear-gradient(120deg,#1d1426,#3a1430);color:#fff;position:sticky;top:var(--dela-top,0px);z-index:5}",
     ".brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}.brand img{width:34px;height:34px;border-radius:50%}",
     ".brand b{font-family:Georgia,'Times New Roman',serif;font-weight:500;font-size:20px;letter-spacing:.06em}.brand span{font-size:12px;font-weight:700;letter-spacing:.12em;opacity:.8;text-transform:uppercase}",
     ".grow{flex:1}",

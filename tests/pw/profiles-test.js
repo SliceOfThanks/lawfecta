@@ -258,6 +258,13 @@ async function waitFor(page, words, ms) {
       s = await open(browser, 2501, "", vp);
       p = s.page;
       await p.addStyleTag({ content: "body{padding-top:90px} body > header{position:fixed;top:0;left:0;right:0;height:90px;z-index:99999}" });
+      // Scrolled down, DELA's top bar stays below the site's header, so Notices and the initials stay visible
+      // (Stacey 2026-11-05: "My Account" covered the top bar)
+      await p.mouse.wheel(0, 900);
+      await p.waitForTimeout(400);
+      const nb = await dela(p).getByRole("button", { name: "Notices", exact: true }).boundingBox();
+      const seen = await p.evaluate(([cx, cy]) => { const el = document.elementFromPoint(cx, cy); return !!el && el.classList.contains("dela-host"); }, [nb.x + nb.width / 2, nb.y + nb.height / 2]);
+      ok(seen && nb.y >= 90, "scrolled down, the top bar sits below the site's header at " + vp.width + "px");
       await dela(p).getByRole("button", { name: "Notices", exact: true }).click();
       const x = dela(p).getByRole("button", { name: "Close notices" });
       await x.waitFor({ timeout: 5000 });
