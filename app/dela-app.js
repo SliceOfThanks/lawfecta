@@ -2909,7 +2909,7 @@
       });
       el.appendChild(h("div", { class: "card" }, h("h2", { text: "Post a new gig" }),
         h("p", { class: "small muted", text: "DELA writes a public version of the document for freelancers. You check it, set the budget (at least " + D.money(r.min_budget_cents) + ") and the deadline, then post. Open gigs on your plan: " + (al.unlimited ? "no cap" : (al.used || 0) + " of " + al.limit + " in use") + "." }),
-        field("Playbook", pick), notes, h("div", { class: "row" }, field("Budget from ($)", bmin), field("Budget to ($)", bmax)), h("div", { class: "row" }, go)));
+        field("Document", pick), notes, h("div", { class: "row" }, field("Budget from ($)", bmin), field("Budget to ($)", bmax)), h("div", { class: "row" }, go)));
       // My gigs
       var list = h("div", { class: "card" }, h("h2", { text: "Your gigs" }));
       if (!r.gigs.length) list.appendChild(h("p", { class: "muted", text: "No gigs yet." }));

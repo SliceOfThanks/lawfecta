@@ -173,6 +173,7 @@ async function makeMember(bd, side, plan) {
     await click(p, "Projects");
     await p.waitForTimeout(1200);
     const opts = await dela(p).getByLabel("Approved SOP or Workflow").locator("option").allInnerTexts();
+    ok(!(await text(p)).includes("Playbook\n"), "the Projects page calls the picker \"Document\", not \"Playbook\"");
     ok(opts.some((o) => o.includes("Run a conflict check")) && !opts.some((o) => o.includes("Client trust account rules")), "the gig picker lists SOPs and Workflows only (" + opts.join(" | ") + ")");
 
     // ---------- A notice link opens the document itself (dela?tab=library&pb=ID) ----------
