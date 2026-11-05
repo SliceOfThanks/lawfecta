@@ -1,7 +1,7 @@
 # Feature brief: Ask about a freelancer, and chat live
 
 Step: 4c   Spec references: Step 4 (matching, Talent), Step 5 (chat, conduct checks), Step 3 (profiles)
-Status: evaluation and plan only. Not approved to build. Waiting on Stacey's answers.
+Status: moved to the end of Phase 1 (Stacey 2026-11-05). Evaluate after the MVP launch, then decide whether to build.
 
 ## The idea (Stacey, 2026-11-05)
 On each freelancer's profile, an attorney can:

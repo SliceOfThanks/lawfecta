@@ -165,6 +165,20 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
 - A full test on Live, a security review, a backup restore drill and the uptime monitor.
 - Point-in-time recovery turned on, and live payments turned on by you.
 
+### Before the beta (proposed, waiting on Stacey's answers): guided setup and "Automate or delegate"
+- DELA reviews a playbook and recommends specific steps (never the whole playbook) to automate with a tool from the tech catalog, or to delegate to a freelancer.
+- The delegate path runs on one screen: the SOP for that task, its metrics and KPIs, then posting the gig.
+- A one-screen "Get set up" sequence for attorneys: profile, teach DELA about the firm, first playbook, automate or delegate, first gig.
+- Brief: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-4d-guided-setup-delegate-automate.md
+
+### End of Phase 1, after the MVP launch (Stacey 2026-11-05)
+- **Onboarding widget** for attorneys and freelancers when they sign up. Each step can be skipped; the goal is to get people active.
+  - Attorneys: profile, first playbook, first gig (reuses the "Get set up" sequence).
+  - Freelancers: every part of DELA, to finish the profile, become match-ready, gain visibility and teach DELA how they work.
+  - Brief: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-4d-guided-setup-delegate-automate.md (part A)
+- **Evaluate live chat and the "Ask DELA about a freelancer" assistant** on freelancer profiles, then decide whether to build them.
+  - Brief: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-4c-freelancer-profile-chat.md
+
 ### Later (Phases 1B and 1C)
 - Recorder Chrome extension.
 - Playbook marketplace (15% commission, in the Decision Sheet).
