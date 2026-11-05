@@ -276,4 +276,15 @@ Deno.test("names become roles, other firms see nothing, the connector shows the 
   assertEquals((await call("POST", "/documents/fix", other.token, { id: wf, check_id: "one_a" })).body.reason, "not_found");
 });
 
+Deno.test("the owner role is always one of the document's roles, so the page, the index and Word agree (ChatGPT test 2026-11-05)", async () => {
+  draftAnswer = { document: { ...sopAnswer().document, owner_role: "Supervising attorney", roles: ["Attorney", "Paralegal"] } };
+  const r = (await call("POST", "/documents/draft", att.token, { org_id: org, type: "sop", request_id: "owner1", answers: { name: "Owner check" } })).body;
+  assertEquals(r.ok, true, JSON.stringify(r));
+  const g = (await call("GET", "/playbooks/get?id=" + r.id, att.token)).body;
+  assertEquals(g.body.owner_role, "Supervising attorney");
+  assert(g.body.roles.includes("Supervising attorney"), "the owner role is added to the roles: " + g.body.roles.join(", "));
+  assertEquals(g.body.role_kinds["Supervising attorney"], "attorney");
+  assertEquals((await one("select owner_role from playbooks where id = $1", [r.id])).owner_role, "Supervising attorney");
+});
+
 Deno.test("teardown", async () => { await pool.end(); });

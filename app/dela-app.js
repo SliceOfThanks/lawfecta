@@ -4650,7 +4650,9 @@
     (lib.docNotices || []).forEach(function (n) { libEl.appendChild(h("p", { class: "notice ok", text: n })); });
     lib.docNotices = [];
     // Header fields, always visible
-    var owner = h("select", { "aria-label": "Owner (role)", disabled: !edit }, (d.roles || []).map(function (r) { return h("option", { value: r, text: r, selected: d.owner_role === r }); }));
+    var ownerOpts = (d.roles || []).slice();
+    if (d.owner_role && ownerOpts.indexOf(d.owner_role) < 0) ownerOpts.unshift(d.owner_role);
+    var owner = h("select", { "aria-label": "Owner (role)", disabled: !edit }, ownerOpts.map(function (r) { return h("option", { value: r, text: r, selected: d.owner_role === r }); }));
     owner.addEventListener("change", function () { d.owner_role = owner.value; });
     var risk = h("input", { type: "checkbox", checked: !!d.high_risk, disabled: !edit, "aria-label": "High risk (trust, conflicts or deadlines)" });
     risk.addEventListener("change", function () { d.high_risk = risk.checked; });

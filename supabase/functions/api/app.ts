@@ -1145,6 +1145,8 @@ async function docPrepare(ctx: Ctx, firm: DocFirm, raw: unknown, before: DocBody
   for (const r of firm.roles) if (body.roles.includes(r.name)) body.role_kinds[r.name] = r.kind;
   if (!body.lifecycle) body.lifecycle = guessLifecycle([body.title, body.purpose, body.trigger].join(" "));
   if (!body.owner_role) body.owner_role = attorneyRoles(body)[0] || body.roles[0] || "Attorney";
+  // The owner role is one of the document's roles, so the page, the index and Word all show the same owner
+  if (!body.roles.includes(body.owner_role)) { body.roles.push(body.owner_role); body.role_kinds[body.owner_role] = firm.roles.find((r) => r.name === body.owner_role)?.kind ?? guessKind(body.owner_role); }
   const check = checkDoc(body, { ...await docCtx(ctx, firm), images: facts });
   const passed = check.items.filter((i) => i.status === "pass").length;
   const meta = { title: body.title || "Untitled document", completeness: Math.round((passed / Math.max(check.items.length, 1)) * 100), missing: check.items.filter((i) => i.status === "blocking").map((i) => i.label), practice_area: body.practice_area };
