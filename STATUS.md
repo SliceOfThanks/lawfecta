@@ -2,7 +2,7 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
-## Agencies part 2a and 2b (step 7d), 2026-11-05: built and tested here, not on the test site yet
+## Agencies part 2a and 2b (step 7d), 2026-11-05: on the test site
 - 2a, the agency bench (migration 0042, switch agency_bench, off):
   - The agency invites a freelancer by email with a default split and signs it. The agency's share is 5% to 50%, never below the freelancer fee.
   - The freelancer signs, proposes another split (signed), or declines. They join when both have signed.
@@ -18,6 +18,9 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
   - The attorney sees the bench member as a subcontractor in "Who's working on this", with an information-only notice, and never the split. Bench members never open the attorney's area.
 - Admin "Agencies" tab: every bench with its split, and every assignment.
 - Tests: agency_bench_test.ts (8), agency_split_test.ts (7), agency-test.js (28 browser checks).
+- On the test site since 2026-11-05: commit 992e5a4 for the database (0042, 0043, 0044 applied, fingerprints checked), function version 40 and code_version 277cabc, switch agency_bench on for the access list. The made-up job "Test job: Agency proposal" has its agreement marked signed with two $300 milestones (no payment rows).
+- Fixed from the agency ChatGPT test (25 PASS, 3 FAIL): the proposal role is read from the box when sent; admin messages read plainly; giving a plan keeps the People search. The attorney's notice names the job once (0044).
+- Next test: docs/tests/step-7d-bench-chatgpt-prompt.md.
 - Still to come in part 2: the agency's own gigs (Library, posting, Talent, the agency as client). Handing work files between the agency and a bench member comes with part 3.
 
 ## Agencies part 1 (step 7d), 2026-11-05
