@@ -1,7 +1,7 @@
 # Feature brief: Agencies (team, hiring and bench for freelancers on the Business plan)
 
 Step: 7d   Spec references: Decision Register C-25 (separate Business offerings for firms and agencies), Phase 1A roles table ("Agency owner / team: explicitly assigned agency or engagement resources; never owner access to all client records or auto-approved subcontracting"), threat T02 (agency members never reach unrelated firm work), plans in config/decisions.json (fl_business: $59 a month, 3% fee, 3 seats with the owner, extra seats $15 a month)
-Status: evaluation and plan. Not approved to build. Waiting on Stacey's answers.
+Status: answered by Stacey 2026-11-05 (see "Stacey's answers" at the end; they replace the suggestions where they differ). Approved to build, all three parts before the beta.
 
 ## Stacey's goal (2026-11-05)
 In the MVP, a freelancer who works solo can upgrade to the agency plan (Freelancer Business) and grow:
@@ -145,3 +145,45 @@ New switches, all off until tested:
 - A team member who leaves loses access at once.
 - A fourth seat is refused.
 - Downgrading stops new gigs but keeps current jobs running.
+
+## Stacey's answers (2026-11-05)
+1. **Team and bench: build both.**
+   - Team: people inside the agency, who use seats.
+   - Bench: outside freelancers hired gig by gig, who never use a seat.
+   - Only Plus or higher can join a bench (setting agency.bench_min_plan = fl_plus).
+   - In Talent, a Free freelancer's card shows "Plus plan or higher required to join a bench".
+   - An email invite to a Free freelancer says they must upgrade to accept, with an "Upgrade to Plus" button. It stays open 30 days.
+   - A bench member who drops to Free shows "Inactive: Free plan". They cannot be invited to new gigs, current jobs run to the end, and upgrading makes them active again.
+2. **Subcontracting needs no attorney approval.**
+   - The proposal and the agreement say: "This agency may use vetted subcontractors from Lawfecta to complete this work." The attorney agrees once, by signing.
+   - The optional "No subcontractors on this engagement" in the agreement is off by default.
+   - The engagement page lists "Who's working on this". The attorney gets an information-only notice when a subcontractor is added.
+   - Every subcontractor is a verified Lawfecta freelancer, and accepts a confidentiality and no-poaching term before seeing anything.
+   - The agency decides what to share and is responsible for its subcontractors. The supervising attorney stays Accountable (A).
+   - The Decision Register is updated (done: config/decisions.json "Agencies", and the Phase 1A roles table).
+3. **The agency's own work.**
+   - Agencies post gigs for their own work and for parts of attorney engagements, with no attorney approval.
+   - A gig posted from an engagement is linked to it, and its subcontractor appears on the attorney's list.
+   - "No subcontractors on this engagement" blocks linked gigs.
+   - The conduct check flags agency gigs that copy an engagement's text but are not linked to it.
+4. **Who may post.** The owner's verification, plus the business name and state of registration, checked once by the Lawfecta Team in the admin area before the first gig goes live.
+5. **Fees.** The agency pays the client-side fee at its plan's rate (3% on Business), and the hired freelancer pays their usual fee. Both are settings.
+6. **Proposals.**
+   - The required "Who will do this work" field lists the agency's active team members, and the agency picks at least one.
+   - The attorney sees each person (name, photo, role on the job, link to their profile with experience, verification, skills and reviews), next to the agency's name, badge and reviews.
+   - A change of team member after the hire sends an information-only notice and updates the list.
+7. **Seats.** 3 seats at launch. The Lawfecta Team can raise one agency's seat limit by hand in the admin area, and BD bills extra seats. The agency_extra_seats switch stays off.
+8. **Library.** Business agencies get SOPs and Workflows under the same standard. Every agency gig comes from an approved document.
+9. **Allowance.** The proposals allowance is shared across the agency.
+10. **Downgrade.** Team members and subcontractors finish their jobs. No new gigs, invites, team changes or seats. Everything stays readable.
+11. **Reviews.** Each review goes to the agency and to every team member picked on the proposal. The agency profile shows all reviews, and each person shows only their own.
+12. **Order, all before the beta:**
+    1. Team and agency proposals.
+    2. The bench with the Plus minimum, Talent and the agency's own gigs.
+    3. Subcontracting.
+
+## Build notes (Claude)
+- **Team members and Confidential materials.** Team members picked on the proposal (and later assigned) act for the agency, the hired party. So they open the engagement's Confidential materials with the freelancer's rights: their own 12-hour code and their own promise. Subcontractors never see the attorney's area. They get their own engagement with the agency, and the agency chooses what to put there.
+- **Who sends proposals.** The owner and managers send as the agency. A team member can still freelance on their own account, under their own plan.
+- **Accepting a team invite** needs an existing Lawfecta freelancer account. A team member can be picked on a proposal only once their own verification is done.
+- **Suggested for the lawyer's review:** the disclosure sentence and the subcontractor's confidentiality and no-poaching term, alongside the confidentiality clause already on that list. Some states expect a lawyer to tell the client when outside help is used.

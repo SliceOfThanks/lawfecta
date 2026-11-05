@@ -1,6 +1,6 @@
 {
   "sheet_version": "DS-1.1",
-  "updated": "2026-10-26",
+  "updated": "2026-11-05",
   "status_legend": {
     "C": "Confirmed. Decided by Stacey or confirmed in the plan documents.",
     "R": "Suggested. The plan documents or Claude suggest it; Stacey has not approved it yet.",
@@ -807,6 +807,76 @@
           "note": "Change to everyone when a phase launches."
         }
       ]
+    },
+    {
+      "title": "Agencies",
+      "items": [
+        {
+          "key": "agency.bench_min_plan",
+          "label": "Lowest freelancer plan that can join an agency's bench",
+          "value": "fl_plus",
+          "unit": "plan",
+          "status": "C",
+          "source": "Stacey 2026-11-05 (agencies brief, step 7d)",
+          "note": "Free freelancers see Plus plan or higher required to join a bench."
+        },
+        {
+          "key": "agency.bench_invite_days",
+          "label": "Days a bench invitation stays open (time to upgrade and accept)",
+          "value": 30,
+          "unit": "days",
+          "status": "C",
+          "source": "Stacey 2026-11-05 (agencies brief, step 7d)",
+          "note": ""
+        },
+        {
+          "key": "agency.client_fee_bps",
+          "label": "Client-side fee an agency pays on its own gigs, by agency plan",
+          "value": {
+            "fl_business": 300
+          },
+          "unit": "basis points",
+          "status": "C",
+          "source": "Stacey 2026-11-05 (agencies brief, step 7d)",
+          "note": "The hired freelancer pays their usual freelancer fee."
+        },
+        {
+          "key": "agency.post_requires_business_check",
+          "label": "The Lawfecta Team checks the agency's business name and state once before its first gig goes live",
+          "value": true,
+          "unit": "",
+          "status": "C",
+          "source": "Stacey 2026-11-05 (agencies brief, step 7d)",
+          "note": ""
+        },
+        {
+          "key": "agency.subcontracting",
+          "label": "Agencies may use subcontractors when the agreement discloses it",
+          "value": "Agencies may use subcontractors when the agreement discloses it. No approval for each person is needed. The attorney can opt out per engagement and always sees who is working on it.",
+          "unit": "",
+          "status": "C",
+          "source": "Stacey 2026-11-05 (agencies brief, step 7d)",
+          "note": "Replaces the Phase 1A roles table rule against auto-approved subcontracting."
+        },
+        {
+          "key": "agency.proposals_allowance",
+          "label": "An agency's monthly proposals allowance",
+          "value": "shared across the whole agency",
+          "unit": "",
+          "status": "C",
+          "source": "Stacey 2026-11-05 (agencies brief, step 7d)",
+          "note": ""
+        },
+        {
+          "key": "agency.extra_seats",
+          "label": "Extra seats beyond the plan",
+          "value": "The Lawfecta Team raises one agency's seat limit by hand; BD bills extra seats until DELA can",
+          "unit": "",
+          "status": "C",
+          "source": "Stacey 2026-11-05 (agencies brief, step 7d)",
+          "note": "In-app purchase stays behind the agency_extra_seats switch (off)."
+        }
+      ]
     }
   ],
   "switches": [
@@ -869,6 +939,26 @@
       "key": "trials",
       "label": "Automatic free trials",
       "gate": "G-COMMERCIAL"
+    },
+    {
+      "key": "agency_team",
+      "label": "Agency team: seats, invites, roles and agency proposals",
+      "gate": "Step 7d tested"
+    },
+    {
+      "key": "agency_hiring",
+      "label": "Agencies post their own gigs, keep a bench and use Talent",
+      "gate": "Step 7d tested"
+    },
+    {
+      "key": "agency_subcontracting",
+      "label": "Agencies hand parts of attorney engagements to subcontractors (disclosed in the agreement)",
+      "gate": "Step 7d tested"
+    },
+    {
+      "key": "agency_extra_seats",
+      "label": "In-app purchase of extra agency seats",
+      "gate": "DELA bills seats itself"
     }
   ]
 }
