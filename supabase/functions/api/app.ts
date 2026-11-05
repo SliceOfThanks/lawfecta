@@ -2009,9 +2009,53 @@ async function proposalSend(ctx: Ctx) {
   const warn = sensitive(ctx, text);
   if (warn) return json(ctx, warn);
   const c = await conductCheck(ctx, s, text);
-  const r = await rpc<Record<string, any>>(ctx, "dela_proposal_send", { p_person: s.person_id, p_gig: gig, p, p_held: c.held });
+  // An agency proposal (Step 7d) names who will do the work; the database checks the agency's rules
+  const team = Array.isArray(ctx.body.team) ? ctx.body.team.slice(0, 10).map((x: any) => ({ person_id: uuid(x?.person_id) ?? "", role: str(x?.role, 80) })).filter((x: any) => x.person_id) : [];
+  const agencyOrg = uuid(ctx.body.agency_org) ?? "";
+  const r = await rpc<Record<string, any>>(ctx, "dela_proposal_send_agency", { p_person: s.person_id, p_gig: gig, p: { ...p, agency_org: agencyOrg, team }, p_held: c.held });
   if (r?.ok && !r.duplicate) await afterConduct(ctx, s, c, "proposal", r.id, gig, text);
   return json(ctx, r?.ok && r.status === "held" ? { ...r, note: heldNote } : r);
+}
+
+// ---------- Agencies (Step 7d): the team, agency proposals, who works on an engagement ----------
+async function freelancerOnly(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
+  return s;
+}
+// Private photo paths become short-lived links
+async function withPhotos<T extends Record<string, any>>(ctx: Ctx, list: T[]): Promise<T[]> {
+  const storage = ctx.deps.storage;
+  for (const x of list) {
+    const pf = String(x.photo_file ?? "");
+    (x as any).photo_url = pf && storage && pf.startsWith("profiles/") ? await storage.signDownload(pf, 3600).catch(() => "") : "";
+    delete (x as any).photo_file;
+  }
+  return list;
+}
+async function gigProposalsWithAgencies(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const gig = need(uuid(ctx.url.searchParams.get("id")));
+  const r = await rpc<Record<string, any>>(ctx, "dela_gig_proposals", { p_person: s.person_id, p_gig: gig });
+  if (!r?.ok) return json(ctx, r);
+  const ag = await rpc<Record<string, any>>(ctx, "dela_proposals_agency", { p_person: s.person_id, p_gig: gig }) ?? {};
+  for (const p of r.proposals ?? []) {
+    const a = ag[p.id];
+    if (a) p.agency = { ...a.agency, team: await withPhotos(ctx, a.team ?? []) };
+  }
+  return json(ctx, r);
+}
+async function freelancerCard(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_freelancer_card", { p_viewer: s.person_id, p_person: need(uuid(ctx.url.searchParams.get("person"))) });
+  if (r?.ok) await withPhotos(ctx, [r]);
+  return json(ctx, r);
+}
+async function engagementPeople(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_engagement_people", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.url.searchParams.get("agreement"))) });
+  if (r?.ok) await withPhotos(ctx, r.people ?? []);
+  return json(ctx, r);
 }
 
 // DELA drafts the qualifications from the freelancer's own profile; it never invents any
@@ -3361,6 +3405,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/documents": (c, a) => rpc(c, "dela_admin_documents", { p_actor: a }),
   "/admin/confidential": (c, a) => rpc(c, "dela_admin_confidential", { p_actor: a }),
   "/admin/security": (c, a) => rpc(c, "dela_admin_security", { p_actor: a }),
+  "/admin/agencies": (c, a) => rpc(c, "dela_admin_agencies", { p_actor: a }),
   "/admin/confidential/review": (c, a) => rpc(c, "dela_conf_reviewer", { p_actor: a, p_agreement: need(uuid(c.url.searchParams.get("agreement"))), p_file: null }),
   "/admin/payments": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_payments", { p_actor: a })), stripe_ready: !!(await stripeKey(c)), mode: c.deps.env("STRIPE_SECRET_KEY").includes("_live_") ? "live" : "test" }),
   "/admin/meetings": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_meetings", { p_actor: a })), provider_ready: !!c.deps.env("VECTERA_API_KEY") }),
@@ -3435,6 +3480,8 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   "/admin/settings/undo": (c, a) => rpc(c, "dela_admin_undo_setting", { p_actor: a, p_history: need(int(c.body.history_id)) }),
   "/admin/plans/restore": (c, a) => rpc(c, "dela_admin_plan_restore", { p_actor: a, p_version: need(int(c.body.version_id)), p_password: need(str(c.body.password, 200), "wrong_password") }),
   "/admin/security/handled": (c, a) => rpc(c, "dela_admin_security_handled", { p_actor: a, p_id: need(uuid(c.body.id)) }),
+  "/admin/agencies/check": (c, a) => rpc(c, "dela_admin_agency_check", { p_actor: a, p_org: need(uuid(c.body.org_id)), p_ok: c.body.ok === true, p_note: str(c.body.note, 300) }),
+  "/admin/agencies/seats": (c, a) => rpc(c, "dela_admin_agency_seats", { p_actor: a, p_org: need(uuid(c.body.org_id)), p_limit: c.body.limit === null ? null : int(c.body.limit) }),
   "/admin/confidential/open": async (c, a) => { const r = await rpc<Record<string, any>>(c, "dela_conf_reviewer", { p_actor: a, p_agreement: need(uuid(c.body.agreement_id)), p_file: need(uuid(c.body.file_id)) }); return r?.ok ? await confFilePayload(c, r, "open") : r; },
   "/admin/pause": (c, a) => rpc(c, "dela_admin_set_pause", { p_actor: a, p_area: need(str(c.body.area, 20)), p_on: c.body.on === true, p_reason: str(c.body.reason, 500) }),
   "/admin/staging/reset": (c, a) => c.body.confirm === "RESET" ? rpc(c, "dela_admin_reset_staging", { p_actor: a }) : Promise.resolve({ ok: false, reason: "confirm_needed" }),
@@ -3811,7 +3858,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /gigs/close": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_close", { p_person: s.person_id, p_gig: need(uuid(ctx.body.id)), p_cancel: ctx.body.cancel === true })); }
       case "GET /gigs/matches": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_matches", { p_person: s.person_id, p_gig: need(uuid(ctx.url.searchParams.get("id"))), p_refresh: ctx.url.searchParams.get("refresh") === "1" })); }
       case "POST /gigs/invite": return await gigInvite(ctx);
-      case "GET /gigs/proposals": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_proposals", { p_person: s.person_id, p_gig: need(uuid(ctx.url.searchParams.get("id"))) })); }
+      case "GET /gigs/proposals": return await gigProposalsWithAgencies(ctx);
       case "POST /gigs/files": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_file_share", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_file: need(uuid(ctx.body.file_id)), p_share: ctx.body.share !== false, p_days: int(ctx.body.expiry_days) })); }
       case "POST /gigs/files/extend": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_file_extend", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_file: need(uuid(ctx.body.file_id)) })); }
       case "POST /gigs/sensitive": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_sensitive", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_on: ctx.body.on === true })); }
@@ -3823,6 +3870,17 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /gigs/decline": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_gig_invite_decline", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)) })); }
       case "POST /proposals/save": return await proposalSave(ctx);
       case "POST /proposals/send": return await proposalSend(ctx);
+      case "GET /proposals/options": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_proposal_options", { p_person: s.person_id, p_gig: need(uuid(ctx.url.searchParams.get("gig"))) })); }
+      case "GET /agency": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_view", { p_person: s.person_id })); }
+      case "POST /agency/business": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_business_save", { p_person: s.person_id, p_name: str(ctx.body.name, 160), p_state: str(ctx.body.state, 10) })); }
+      case "POST /agency/invite": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_invite", { p_person: s.person_id, p_email: str(ctx.body.email, 200), p_role: str(ctx.body.role, 10) })); }
+      case "POST /agency/invite/cancel": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_invite_cancel", { p_person: s.person_id, p_invite: need(uuid(ctx.body.id)) })); }
+      case "POST /agency/invite/answer": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_invite_answer", { p_person: s.person_id, p_invite: need(uuid(ctx.body.id)), p_accept: ctx.body.accept === true })); }
+      case "POST /agency/member": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_member_set", { p_person: s.person_id, p_member: need(uuid(ctx.body.person_id)), p_action: str(ctx.body.action, 10), p_role: str(ctx.body.role, 10) || null })); }
+      case "POST /agency/leave": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_leave", { p_person: s.person_id, p_org: need(uuid(ctx.body.org_id)) })); }
+      case "GET /freelancers/card": return await freelancerCard(ctx);
+      case "GET /engagements/people": return await engagementPeople(ctx);
+      case "POST /engagements/team": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_engagement_team_set", { p_person: s.person_id, p_agreement: need(uuid(ctx.body.agreement_id)), p_member: need(uuid(ctx.body.person_id)), p_on: ctx.body.on !== false, p_role: str(ctx.body.role, 80) })); }
       case "POST /proposals/help": return await proposalHelp(ctx);
       case "POST /proposals/withdraw": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_proposal_withdraw", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)) })); }
       case "POST /proposals/reconfirm": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_proposal_reconfirm", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)) })); }
