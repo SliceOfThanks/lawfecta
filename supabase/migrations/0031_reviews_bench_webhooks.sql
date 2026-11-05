@@ -758,6 +758,7 @@ begin
   select * into them from reviews where agreement_id = a.id and direction <> v_dir and status = 'published';
   v_until := a.completed_at + make_interval(days => dela_int_setting('reviews.window_days', 60));
   return jsonb_build_object('ok', true, 'on', dela_switch_on('reviews', p_person), 'direction', v_dir, 'questions', to_jsonb(dela_review_questions(v_dir)),
+    'freelancer_person', case when v_role = 'attorney' then a.freelancer_person end,
     'can_write', a.status = 'completed' and r.id is null and now() <= v_until, 'write_until', v_until, 'completed', a.status = 'completed',
     'mine', case when r.id is not null then jsonb_build_object('id', r.id, 'ratings', r.ratings, 'would_again', r.would_again, 'body', r.body, 'status', r.status, 'edited', r.edited_at is not null, 'created_at', r.created_at,
       'can_edit', r.status <> 'removed' and now() <= r.created_at + make_interval(days => dela_int_setting('reviews.edit_window_days', 14)), 'response', case when r.response_status = 'published' then r.response end,

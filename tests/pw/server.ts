@@ -81,6 +81,7 @@ function playbookAnswer(system: string, user: string): unknown {
   if (system.includes("public version of a Flex Gig")) return { title: "Client intake for a family law firm (Texas)", task: "Run the conflict check and open the file from our intake form.", outcome: "An opened file, ready for the attorney",
     steps: ["Run the conflict check", "Open the file in Clio", "Send for attorney review"], tools: ["Clio"], timing: "About 2 hours", state: "TX", practice_area: "Family law", skills: ["Client intake"] };
   if (system.includes("You review messages members send")) return /venmo|call me/i.test(user) ? { off_platform: true, kinds: ["payment_outside"], insights: [] } : { off_platform: false, kinds: [], insights: ["Prefers fixed-price work"] };
+  if (system.includes("You check one review")) return /hurt you/i.test(user) ? { hold: true, kinds: ["threat"] } : { hold: false, kinds: [] };
   if (system.includes("checking one milestone")) {
     const ids = [...user.matchAll(/- ([a-z][0-9]+)/g)].map((m) => m[1]);
     const missing = user.includes("NOT DONE YET");
@@ -117,9 +118,13 @@ function fakeAi(u: string, opts: RequestInit): Response | null {
   }
   return null;
 }
+// Webhook receiver stand-in (Step 7): hooks.example.com is a public address that records what it gets
+const webhookHits: Array<{ type: string; body: string; signature: string }> = [];
+const DNS: Record<string, string[]> = { "hooks.example.com": ["93.184.216.34"], "inside.example.com": ["10.0.0.7"] };
 const deps = {
   rpc,
   storage,
+  resolve: (host: string) => Promise.resolve(DNS[host] ?? []),
   env: (k: string) => ({ BD_SHARED_SECRET: SECRET, DELA_ORIGINS: ORIGIN, STAGING_API_URL: ORIGIN + "/api", GITHUB_REPO: "SliceOfThanks/lawfecta", GITHUB_DISPATCH_TOKEN: "test-token", RELEASE_CI_SECRET: CI,
     PUBLIC_API_URL: ORIGIN + "/api", BD_API_KEY: "bd-browser-test-key", AI_KEY_ENCRYPTION_SECRET: "browser-test-encryption-secret-0123456789", OPENAI_API_KEY: "sk-lawfecta-browser-test-key-0000000000",
     STRIPE_SECRET_KEY: "sk_test_browser_0000000000", STRIPE_WEBHOOK_SECRET: WHSEC } as Record<string, string>)[k] ?? "", // rules-ok: made-up test keys
@@ -129,6 +134,11 @@ const deps = {
     if (u.includes("/api/v2/user/get/")) return Response.json({ status: "success", message: [{ user_id: Number(u.split("/").pop()), first_name: "Lia", last_name: "Listing", company: "Listing Law", city: "Dallas", state_code: "TX", website: "listinglaw.com", about_me: "From the directory.", image_main_file: "/pictures/lia.jpg", card_info: "4111111111111111" }] });
     if (u.endsWith("/api/v2/user/update")) { lastBdUpdate = String(opts.body ?? ""); return Response.json({ status: "success", message: {} }); }
     if (u.startsWith("https://images.scribehow.com/")) return new Response(PNG, { headers: { "content-type": "image/png" } });
+    if (u.startsWith("https://hooks.example.com/")) {
+      const hd = new Headers((url instanceof Request ? url.headers : opts.headers) ?? {});
+      webhookHits.push({ type: hd.get("dela-event-type") ?? "", body: String(opts.body ?? ""), signature: hd.get("dela-signature") ?? "" });
+      return new Response("ok", { status: 200 });
+    }
     const st = fakeStripe(u, url instanceof Request ? { method: url.method, body: opts.body } : opts);
     if (st) return st;
     const ai = fakeAi(u, url instanceof Request ? { headers: url.headers, body: opts.body } : opts);
@@ -167,6 +177,7 @@ Deno.serve({ port: PORT, hostname: "127.0.0.1" }, async (req) => {
     return new Response(`<!doctype html><title>Stripe test checkout</title><h1>Test payment of ${ses.amount} cents: ${r.status === 200 ? "paid" : "failed"}</h1>`, { headers: { "content-type": "text/html" } });
   }
   if (url.pathname === "/test/stripe/onboard") return new Response(`<!doctype html><title>Stripe test onboarding</title><h1>Payout setup done for ${url.searchParams.get("acct")}</h1>`, { headers: { "content-type": "text/html" } });
+  if (url.pathname === "/test/webhooks") return Response.json(webhookHits);
   if (url.pathname === "/test/stripe/decline-next") { declineNext = true; return Response.json({ ok: true }); }
   if (url.pathname === "/test/bd-update") return Response.json({ body: lastBdUpdate });
   if (url.pathname.startsWith("/test/storage/up/") && req.method === "PUT") {

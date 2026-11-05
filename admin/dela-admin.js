@@ -12,7 +12,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["reviews", "Reviews and bench"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   var current = "control";
   var mainEl = null;
   var tabsEl = null;
@@ -75,7 +75,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, reviews: reviewsTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // ---------- Guide ----------
@@ -710,6 +710,74 @@
     }).catch(fail);
   }
 
+  // ---------- Reviews and bench (Step 7): held reviews, reports, appeals, past-client reviews, paused webhooks ----------
+  function reviewsTab() {
+    api.get("/admin/reviews").then(function (r) {
+      var d = r.data, c = d.counts || {}, sw = d.switches || {};
+      function decide(kind, id, action, note, done) {
+        api.post("/admin/reviews/decide", { kind: kind, id: id, action: action, note: note }).then(function (y) {
+          if (!y.data.ok) throw new Error(y.data.reason === "say_why" ? "Write the reason first. Both members may see it." : y.data.reason); ok(done); reviewsTab();
+        }).catch(fail);
+      }
+      function noteBox(label) { return h("textarea", { rows: 2, style: "width:100%", "aria-label": label || "Reason (kept with the decision)" }); }
+      function list(title, items, empty, row) {
+        var x = h("div", { class: "card" }, h("h2", { text: title + " (" + items.length + ")" }));
+        if (!items.length) x.appendChild(h("p", { class: "muted", text: empty }));
+        items.forEach(function (i) { x.appendChild(row(i)); });
+        return x;
+      }
+      var top = h("div", { class: "card" }, titled("h2", "Reviews, the bench and webhooks", "reviews"),
+        h("p", { class: "small muted", text: ["reviews", "past_client_reviews", "bench", "bench_suggestions", "member_webhooks"].map(function (k) { return k + ": " + (sw[k] || "off"); }).join(" | ") }),
+        h("div", { class: "kv" },
+          h("div", null, "Published reviews", h("b", { text: String(c.published || 0) })), h("div", null, "Held for a check", h("b", { text: String(c.held || 0) })),
+          h("div", null, "Removed", h("b", { text: String(c.removed || 0) })), h("div", null, "Past-client reviews", h("b", { text: String(c.past_published || 0) })),
+          h("div", null, "Past-client requests (30 days)", h("b", { text: String(c.past_requests_30d || 0) })), h("div", null, "Bench members", h("b", { text: String(c.bench_active || 0) })),
+          h("div", null, "Active webhook endpoints", h("b", { text: String(c.webhook_endpoints || 0) })), h("div", null, "Paused after failures", h("b", { text: String(c.webhooks_paused || 0) }))),
+        h("p", { class: "small", text: "The policy: a negative opinion stays up. Hold or remove only client information, threats, hate or harassment, impersonation, contact details or payment outside Lawfecta. Every decision needs a reason and is kept." }));
+      var held = list("Reviews held for a check", d.held || [], "Nothing is waiting.", function (x) {
+        var n = noteBox();
+        return h("div", { class: "card", style: "margin:8px 0" }, h("b", { text: x.author + " about " + x.subject + (x.direction === "of_freelancer" ? " (attorney about freelancer)" : " (freelancer about attorney)") }),
+          h("p", { class: "small", text: "DELA found: " + (x.kinds || []).join(", ") }), h("p", { style: "white-space:pre-wrap", text: x.body }), n,
+          h("div", { class: "row" }, h("button", { class: "blue small", type: "button", onclick: function () { decide("held", x.id, "publish", n.value, "Published"); } }, "Publish"),
+            h("button", { class: "ghost small", type: "button", onclick: function () { decide("held", x.id, "remove", n.value, "Not published; the writer was told"); } }, "Do not publish")));
+      });
+      var heldResp = list("Responses held for a check", d.held_responses || [], "Nothing is waiting.", function (x) {
+        var n = noteBox();
+        return h("div", { class: "card", style: "margin:8px 0" }, h("b", { text: "Response by " + x.subject }), h("p", { style: "white-space:pre-wrap", text: x.response }), n,
+          h("div", { class: "row" }, h("button", { class: "blue small", type: "button", onclick: function () { decide("response", x.id, "publish", n.value, "Published"); } }, "Publish"),
+            h("button", { class: "ghost small", type: "button", onclick: function () { decide("response", x.id, "remove", n.value, "Not published"); } }, "Do not publish")));
+      });
+      var heldPast = list("Past-client reviews held for a check", d.held_past || [], "Nothing is waiting.", function (x) {
+        var n = noteBox();
+        return h("div", { class: "card", style: "margin:8px 0" }, h("b", { text: x.by + " (" + x.state + " bar " + x.bar_number + ") about " + x.freelancer }), h("p", { class: "small", text: "DELA found: " + (x.kinds || []).join(", ") }),
+          h("p", { style: "white-space:pre-wrap", text: x.body }), n,
+          h("div", { class: "row" }, h("button", { class: "blue small", type: "button", onclick: function () { decide("past", x.id, "publish", n.value, "Published"); } }, "Publish"),
+            h("button", { class: "ghost small", type: "button", onclick: function () { decide("past", x.id, "remove", n.value, "Not published"); } }, "Do not publish")));
+      });
+      var reports = list("Reported reviews", d.reports || [], "No open reports.", function (x) {
+        var n = noteBox();
+        return h("div", { class: "card", style: "margin:8px 0" }, h("b", { text: "Reported by " + x.by + (x.by_author ? " (the writer)" : " (the person reviewed)") }),
+          h("p", { class: "small", text: "Reason: " + x.reason }), h("p", { style: "white-space:pre-wrap", text: x.body }), n,
+          h("div", { class: "row" }, h("button", { class: "blue small", type: "button", onclick: function () { decide("report", x.id, "keep", n.value, "Kept up; both were told"); } }, "Keep it up"),
+            h("button", { class: "ghost small", type: "button", onclick: function () { if (!confirm("Remove this review? Only for the policy reasons, never for being negative.")) return; decide("report", x.id, "remove", n.value, "Removed; both were told"); } }, "Remove")));
+      });
+      var appeals = list("Appeals", d.appeals || [], "No open appeals.", function (x) {
+        var n = noteBox();
+        return h("div", { class: "card", style: "margin:8px 0" }, h("b", { text: "Appeal by " + x.author }), h("p", { class: "small", text: "Removed because: " + (x.reason_removed || "") }),
+          h("p", { class: "small", text: "Appeal: " + x.appeal }), h("p", { style: "white-space:pre-wrap", text: x.body }), n,
+          h("div", { class: "row" }, h("button", { class: "blue small", type: "button", onclick: function () { decide("appeal", x.id, "reverse", n.value, "Published again"); } }, "Reverse: publish it"),
+            h("button", { class: "ghost small", type: "button", onclick: function () { decide("appeal", x.id, "uphold", n.value, "The decision stays"); } }, "Uphold the decision")));
+      });
+      var past = list("Recent past-client reviews (spot check the bar numbers)", d.past_checks || [], "None yet.", function (x) {
+        return h("p", { class: "small", text: D.dateTime(x.created_at) + ": " + x.by + ", " + x.state + " bar " + x.bar_number + ", about " + x.freelancer });
+      });
+      var wh = list("Webhook endpoints paused after failures", d.webhooks_paused || [], "None.", function (x) {
+        return h("p", { class: "small", text: x.person + " (" + x.side + "): " + x.host + ", " + x.failures + " failures, last problem " + (x.last_error || "unknown").split("_").join(" ") + ". The member was emailed and can resume it." });
+      });
+      body(h("div", null, pageHead("Reviews and bench", "reviews"), top, held, heldResp, heldPast, reports, appeals, past, wh));
+    }).catch(fail);
+  }
+
   // ---------- Payments (Step 6): money held and paid, human reviews, disputes, chargebacks ----------
   var AGW = { signing: "Waiting for signatures", signed: "Signed", active: "Active", completed: "Complete", canceled: "Canceled", paused: "Paused", draft: "Draft" };
   function payTab() {
@@ -1197,6 +1265,7 @@
     audit: "Every sign in, refusal and change, newest first, with who did it. Nobody can edit or delete these lines, so it is the record if anything is ever questioned.",
     verify: "Attorney licenses and freelancer LinkedIn profiles waiting for a check. For a license: open the state bar's own lookup, check the number, the name and that the license is active, then record how the attorney showed it is theirs: an email that matches the bar record, an email at the firm's own domain (never Gmail, Yahoo and similar), or the 10 minute video call. For LinkedIn: the name matches the DELA profile and LinkedIn shows its verified badge. Never ask for ID documents.",
     meet: "Meetings and messages between attorneys and freelancers on gigs. Upcoming meetings with their meeting room status, reports and blocks from members, and members with repeated late cancels or no-shows. The Lawfecta Team never joins meetings. Held messages wait in the Gigs tab.",
+    reviews: "Reviews after completed engagements, reviews from past clients outside Lawfecta, benches and member webhooks. Decide held reviews and responses, reported reviews and appeals under the policy: a negative opinion stays up; only client information, threats, hate or harassment, impersonation, contact details or payment outside Lawfecta are held or removed. Every decision needs a reason, which the members see and which is kept. Spot check past-client bar numbers on the state bar website. See webhook endpoints that paused after repeated failures.",
     pay: "Money on DELA engagements, through Stripe (test mode until the live_payments switch is on). Totals from the ledger, milestones waiting for a human review (pass sends it to the attorney; needs more work sends it back), disputes after their notice period (split the held money between the freelancer and the attorney), open chargebacks, failed payments, payouts waiting for the freelancer's Stripe setup, reviews past their 7 days and money held a long time.",
     gigs: "Flex Gigs on DELA. Open gigs with their proposals and matches, proposals sent this month by plan, and messages DELA held because they may plan work, contact or payment outside Lawfecta (against the terms). Deliver a held message if it is fine, or keep it from being delivered (the member is told). Pause a gig to stop new proposals while you check it.",
     catalog: "The Lawfecta tech catalog. Upload one CSV with every tool (the columns are in docs/templates/tech-catalog-guide.md on GitHub). A new upload replaces the whole list: DELA shows what will be added, changed and removed, and nothing changes until you click Confirm. Every earlier version is kept. DELA's AI recommends only active tools from this list. Pause a tool to stop recommending it until the next upload.",

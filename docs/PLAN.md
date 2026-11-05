@@ -24,6 +24,7 @@ Everything below is on the test site, for the access list only. Live (lawfecta.c
 | 4 | Tech catalog, Flex Gigs, matching, proposals, Talent, Work, off-platform checks, what DELA learned | Done | Passing (api and browser, both sides and misuse) | Not run yet: docs/tests/step-4-chatgpt-prompt.md |
 | 5 | Messages, booking and meetings (Vectera rooms wait for Vectera's API access) | Done | Passing (api and browser, both sides and misuse) | Not run yet: docs/tests/step-5-chatgpt-prompt.md |
 | 6 | Agreements, e-signature, milestone payments (Stripe test mode), DELA's milestone check, payouts, refunds, disputes, chargebacks | Done | Passing (api and browser with a Stripe stand-in, both sides and misuse) | Waiting for the Stripe setup (docs/STRIPE_SETUP.md), then docs/tests/step-6-chatgpt-prompt.md |
+| 7 | Reviews after completed work and from past clients, the trusted talent bench (personal and firm) with bench conversations and suggestions, member webhooks | Done | Passing (api and browser, both sides and misuse) | Not run yet: docs/tests/step-7-chatgpt-prompt.md (after the Step 6 test) |
 
 ### Bring your own AI key (BYOK), built in Step 2a
 - Members on every plan, on both sides, can add their own OpenAI or Claude key in AI settings: https://www.hirelegalhelp.com/dela?tab=ai
@@ -67,7 +68,9 @@ Tests today: 8 database test files, 84 API tests, 15 script tests and 198 browse
 6. Step 4 test (gigs, matching, proposals): https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-4-chatgpt-prompt.md
 7. Step 5 test (messages, booking, meetings), after Step 4: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-5-chatgpt-prompt.md
 8. Step 6 test (agreements, payments, delivery, payouts), after the Stripe setup and Step 4: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-6-chatgpt-prompt.md
-9. For each report you send: Claude fixes what failed (a Fix commit with a test), puts it on the test site again, and gives you the part to run again.
+9. Step 7 test (reviews, bench, webhooks), after Step 6: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-7-chatgpt-prompt.md
+10. The owner group of the polish recheck (ChatGPT ran out before it on 2026-11-05).
+11. For each report you send: Claude fixes what failed (a Fix commit with a test), puts it on the test site again, and gives you the part to run again.
 
 After a step's report passes, Claude records that version for Release Control, runs the AI review and attaches your report. No version after 0.2.0 is recorded yet.
 
@@ -136,7 +139,8 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
 - Reviews after completed work, kept separate from reviews by past clients.
 - A personal or firm bench of trusted freelancers.
 - Webhooks so members can connect DELA to their own tools.
-- Brief with 18 questions and suggested answers, waiting for your answers: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-7-reviews-bench-webhooks.md
+- Built 2026-11-05 with your 18 answers as suggested: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-7-reviews-bench-webhooks.md
+- Next: Step 7c, monthly recurring engagements and limited automatic repeat hiring (its own brief, after your Step 6 test passes).
 
 ### Step 7b: Affiliates and referrals (Partnero)
 - Part 1 runs on the current BD site.
