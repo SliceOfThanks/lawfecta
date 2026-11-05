@@ -12,7 +12,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   var current = "control";
   var mainEl = null;
   var tabsEl = null;
@@ -75,7 +75,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // ---------- Guide ----------
@@ -710,6 +710,77 @@
     }).catch(fail);
   }
 
+  // ---------- Payments (Step 6): money held and paid, human reviews, disputes, chargebacks ----------
+  var AGW = { signing: "Waiting for signatures", signed: "Signed", active: "Active", completed: "Complete", canceled: "Canceled", paused: "Paused", draft: "Draft" };
+  function payTab() {
+    api.get("/admin/payments").then(function (r) {
+      var d = r.data, t = d.totals || {}, sw = d.switches || {};
+      var top = h("div", { class: "card" }, titled("h2", "Money on DELA", "pay"),
+        h("p", { class: d.stripe_ready ? "small muted" : "notice", text: d.stripe_ready ? "Stripe is connected in " + (d.mode === "live" ? "LIVE mode (real money)" : "test mode (no real money)") + ". Live payments switch: " + (d.live_payments || "off") + "." : "Stripe is not connected yet. Attorneys see \"Payments are not set up\". It needs the STRIPE_SECRET_KEY (test key) and STRIPE_WEBHOOK_SECRET secrets in Supabase." }),
+        h("p", { class: "small muted", text: ["engagements", "milestone_funding", "milestone_check", "engagement_export"].map(function (k) { return k + ": " + (sw[k] || "off"); }).join(" | ") }),
+        h("div", { class: "kv" },
+          h("div", null, "Charged", h("b", { text: D.money(t.charged || 0) })), h("div", null, "Held now", h("b", { text: D.money(t.held_now || 0) })),
+          h("div", null, "Paid out", h("b", { text: D.money(t.paid_out || 0) })), h("div", null, "Refunded", h("b", { text: D.money(t.refunded || 0) })),
+          h("div", null, "Attorney fees", h("b", { text: D.money(t.attorney_fees || 0) })), h("div", null, "Freelancer fees", h("b", { text: D.money(t.freelancer_fees || 0) }))));
+      function list(title, items, empty, row) {
+        var c = h("div", { class: "card" }, h("h2", { text: title + " (" + items.length + ")" }));
+        if (!items.length) c.appendChild(h("p", { class: "muted", text: empty }));
+        items.forEach(function (x) { c.appendChild(row(x)); });
+        return c;
+      }
+      var human = list("Milestones waiting for a human review", d.human_reviews || [], "Nothing is waiting.", function (x) {
+        var note = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Your note to the freelancer" });
+        return h("div", { class: "card", style: "margin:8px 0" }, h("b", { text: x.gig_title + ", milestone " + x.seq + ": " + x.milestone }),
+          h("p", { class: "small", text: "DELA's score: " + (x.score === null || x.score === undefined ? "none (DELA could not check it)" : x.score + " of 100") }),
+          h("p", { class: "small", style: "white-space:pre-wrap", text: x.statement }),
+          (x.findings || []).length ? h("ul", null, x.findings.map(function (f) { return h("li", { class: "small", text: (f.met === "yes" ? "Met" : f.met === "no" ? "Missing" : "Could not tell") + (f.required ? " (required)" : "") + ": " + f.text }); })) : null,
+          note, h("div", { class: "row" },
+            h("button", { class: "blue small", type: "button", onclick: function () { api.post("/admin/submissions/decide", { id: x.id, pass: true, note: note.value }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason); ok("Sent to the attorney for review"); payTab(); }).catch(fail); } }, "Passes: send to the attorney"),
+            h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/admin/submissions/decide", { id: x.id, pass: false, note: note.value }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason); ok("Sent back to the freelancer"); payTab(); }).catch(fail); } }, "Needs more work")));
+      });
+      var disputes = list("Disputes", d.disputes || [], "No open disputes.", function (x) {
+        var rel = h("input", { type: "number", min: "0", step: "0.01", "aria-label": "To the freelancer ($)" }), ref = h("input", { type: "number", min: "0", step: "0.01", "aria-label": "Back to the attorney ($)" });
+        var note = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Decision and reasons (both members see this)" });
+        var cents = function (v) { return Math.round(Number(v || 0) * 100); };
+        return h("div", { class: "card", style: "margin:8px 0" }, h("b", { text: x.gig_title + (x.milestone ? ", " + x.milestone + " (" + D.money(x.milestone_amount_cents) + ")" : "") }),
+          h("p", { class: "small", text: "Opened by " + x.opened_by + ": " + x.reason }),
+          h("p", { class: "small muted", text: x.status === "notice" ? "Notice period: the members talk it through until " + D.dateTime(x.notice_ends_at) + ". You can decide after that." : "Ready for your decision." }),
+          h("div", { class: "row" }, h("label", null, "To the freelancer ($)", rel), h("label", null, "Back to the attorney ($)", ref)), note,
+          h("button", { class: "blue small", type: "button", onclick: function () {
+            if (!confirm("Decide this dispute? The money moves through Stripe straight away.")) return;
+            api.post("/admin/disputes/resolve", { id: x.id, release_cents: cents(rel.value), refund_cents: cents(ref.value), note: note.value }).then(function (y) {
+              if (!y.data.ok) throw new Error(y.data.reason === "split_must_equal" ? "The two amounts must add up to " + D.money(y.data.amount_cents) : y.data.reason === "notice_not_over" ? "The notice period is not over yet" : y.data.reason); ok("Decided. Both members were told."); payTab();
+            }).catch(fail);
+          } }, "Decide"));
+      });
+      var cbs = list("Chargebacks (open)", d.chargebacks || [], "None open.", function (x) {
+        return h("p", { class: "small", text: D.dateTime(x.created_at) + ": " + D.money(x.amount_cents) + " (" + (x.reason || "no reason given") + "). The engagement is paused. Answer it in Stripe's dashboard before Stripe's deadline." });
+      });
+      var waiting = list("Payments waiting or failed (30 days)", d.waiting_payment || [], "None.", function (x) {
+        return h("p", { class: "small", text: D.dateTime(x.created_at) + ", " + x.gig_title + ": " + D.money(x.amount_cents) + ", " + x.status + (x.failure ? " (" + x.failure + ")" : "") });
+      });
+      var held = list("Payouts held or failed", d.payouts_held || [], "None.", function (x) {
+        return h("p", { class: "small", text: x.freelancer + ": " + D.money(x.amount_cents) + " (" + (x.reason === "payout_account" ? "waiting for the freelancer's payout setup" : x.reason || "failed") + ")" });
+      });
+      var late = list("Reviews past their 7 days", d.overdue_reviews || [], "None.", function (x) {
+        return h("p", { class: "small", text: x.gig_title + ", milestone " + x.seq + ": " + x.attorney + " was due " + D.dateTime(x.due) + ". Contact the attorney. Silence never pays out on its own." });
+      });
+      var long = list("Money held a long time", d.long_held || [], "None.", function (x) {
+        return h("p", { class: "small", text: x.gig_title + ", milestone " + x.seq + ": " + D.money(x.amount_cents) + " paid " + D.date(x.funded_at) });
+      });
+      var eng = h("div", { class: "card" }, h("h2", { text: "Engagements (last 60 days)" }));
+      if (!(d.engagements || []).length) eng.appendChild(h("p", { class: "muted", text: "None yet." }));
+      else eng.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack" }, h("thead", null, h("tr", null, ["Gig", "Attorney", "Freelancer", "Total", "Status", "Updated"].map(function (x) { return h("th", { text: x }); }))),
+        h("tbody", null, d.engagements.map(function (e) {
+          return h("tr", null, h("td", { "data-label": "Gig", text: e.gig_title }), h("td", { "data-label": "Attorney", text: e.attorney }), h("td", { "data-label": "Freelancer", text: e.freelancer }),
+            h("td", { "data-label": "Total", text: D.money(e.total_cents) }), h("td", { "data-label": "Status", text: AGW[e.status] || e.status }), h("td", { "data-label": "Updated", text: D.dateTime(e.updated_at) }));
+        })))));
+      var led = h("details", { class: "card" }, h("summary", { text: "The ledger (latest 50 entries, never edited)" }),
+        h("ul", null, (d.ledger || []).map(function (l) { return h("li", { class: "small", text: D.dateTime(l.created_at) + " | " + l.gig_title + " | " + l.kind.split("_").join(" ") + " " + D.money(l.amount_cents) + (l.note ? " | " + l.note : "") }); })));
+      body(h("div", null, pageHead("Payments", "pay"), top, human, disputes, cbs, waiting, held, late, long, eng, led));
+    }).catch(fail);
+  }
+
   // ---------- Gigs (Step 4): open gigs, proposals by plan, held messages ----------
   var GIG_WORDS = { draft: "Draft", open: "Open", paused: "Paused", closed: "Closed", filled: "Filled", canceled: "Canceled" };
   var KIND_WORDS = { contact_details: "contact details", payment_outside: "payment outside Lawfecta", off_platform: "working outside Lawfecta" };
@@ -1126,6 +1197,7 @@
     audit: "Every sign in, refusal and change, newest first, with who did it. Nobody can edit or delete these lines, so it is the record if anything is ever questioned.",
     verify: "Attorney licenses and freelancer LinkedIn profiles waiting for a check. For a license: open the state bar's own lookup, check the number, the name and that the license is active, then record how the attorney showed it is theirs: an email that matches the bar record, an email at the firm's own domain (never Gmail, Yahoo and similar), or the 10 minute video call. For LinkedIn: the name matches the DELA profile and LinkedIn shows its verified badge. Never ask for ID documents.",
     meet: "Meetings and messages between attorneys and freelancers on gigs. Upcoming meetings with their meeting room status, reports and blocks from members, and members with repeated late cancels or no-shows. The Lawfecta Team never joins meetings. Held messages wait in the Gigs tab.",
+    pay: "Money on DELA engagements, through Stripe (test mode until the live_payments switch is on). Totals from the ledger, milestones waiting for a human review (pass sends it to the attorney; needs more work sends it back), disputes after their notice period (split the held money between the freelancer and the attorney), open chargebacks, failed payments, payouts waiting for the freelancer's Stripe setup, reviews past their 7 days and money held a long time.",
     gigs: "Flex Gigs on DELA. Open gigs with their proposals and matches, proposals sent this month by plan, and messages DELA held because they may plan work, contact or payment outside Lawfecta (against the terms). Deliver a held message if it is fine, or keep it from being delivered (the member is told). Pause a gig to stop new proposals while you check it.",
     catalog: "The Lawfecta tech catalog. Upload one CSV with every tool (the columns are in docs/templates/tech-catalog-guide.md on GitHub). A new upload replaces the whole list: DELA shows what will be added, changed and removed, and nothing changes until you click Confirm. Every earlier version is kept. DELA's AI recommends only active tools from this list. Pause a tool to stop recommending it until the next upload.",
     aifiles: "How members use DELA's AI and files. You see counts, key status and file names, never a member's key and never what a file says.",

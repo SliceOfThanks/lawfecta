@@ -5,6 +5,7 @@
 // deno run -A tests/pw/server.ts   (port 8787)
 import { handle } from "../../supabase/functions/api/app.ts";
 import { pool, rpc } from "../lib/pg_rpc.ts";
+import { stripeSignatureHeader } from "../../supabase/functions/api/lib/payments/stripe.ts";
 import type { Storage } from "../../supabase/functions/api/lib/files/storage.ts";
 
 const SECRET = "abcDEF0123456789abcDEF0123456789xyz";
@@ -26,6 +27,37 @@ const storage: Storage = {
   remove: (ps) => { ps.forEach((p) => objects.delete(p)); return Promise.resolve(); },
   put: (p, b) => { objects.set(p, b); return Promise.resolve(); },
 };
+// Stripe stand-in (Step 6): Checkout pages and payout setup are pages on this server; "paying" sends Stripe's signed event to the api
+const WHSEC = "whsec_browser_test"; // rules-ok: a made-up test secret
+const sessions = new Map<string, { pid: string; amount: number }>();
+let stripeN = 0;
+export let declineNext = false;
+function fakeStripe(u: string, opts: RequestInit): Response | null {
+  if (!u.startsWith("https://api.stripe.com/v1/")) return null;
+  const path = new URL(u).pathname.slice(3), method = String(opts.method ?? "GET");
+  const b = new URLSearchParams(String(opts.body ?? ""));
+  if (method === "POST" && path === "/checkout/sessions") {
+    const id = "cs_test_" + (++stripeN);
+    sessions.set(id, { pid: b.get("client_reference_id") ?? "", amount: Number(b.get("line_items[0][price_data][unit_amount]")) });
+    return Response.json({ id, url: ORIGIN + "/test/stripe/checkout/" + id });
+  }
+  if (method === "POST" && path === "/payment_intents") {
+    if (declineNext) { declineNext = false; return Response.json({ error: { message: "Your card was declined.", code: "card_declined" } }, { status: 402 }); }
+    return Response.json({ id: "pi_test_" + (++stripeN), status: "succeeded", amount: Number(b.get("amount")) });
+  }
+  if (method === "POST" && path === "/accounts") return Response.json({ id: "acct_test_" + (++stripeN) });
+  if (method === "POST" && path === "/account_links") return Response.json({ url: ORIGIN + "/test/stripe/onboard?acct=" + b.get("account") + "&back=" + encodeURIComponent(b.get("return_url") ?? "") });
+  if (method === "GET" && path.startsWith("/accounts/")) return Response.json({ id: path.slice(10), payouts_enabled: true, charges_enabled: true, requirements: { currently_due: [], past_due: [] } });
+  if (method === "POST" && path === "/transfers") return Response.json({ id: "tr_test_" + (++stripeN) });
+  if (method === "POST" && path === "/refunds") return Response.json({ id: "re_test_" + (++stripeN) });
+  if (method === "GET" && path.startsWith("/payment_intents/")) return Response.json({ id: path.slice(17), status: "succeeded", amount: 0 });
+  return Response.json({ error: { message: "no such route" } }, { status: 404 });
+}
+async function stripeEvent(type: string, object: Record<string, unknown>) {
+  const payload = JSON.stringify({ id: "evt_" + crypto.randomUUID(), type, livemode: false, data: { object } });
+  return await handle(new Request(ORIGIN + "/api/stripe/webhook", { method: "POST", headers: { "stripe-signature": await stripeSignatureHeader(payload, WHSEC) }, body: payload }), deps);
+}
+
 // Playbook answers for the browser test (Step 2)
 const FULL = {
   title: "New client intake", outcome: "A signed engagement letter and an opened file", practice_area: "Family law", jurisdiction: "California",
@@ -49,6 +81,11 @@ function playbookAnswer(system: string, user: string): unknown {
   if (system.includes("public version of a Flex Gig")) return { title: "Client intake for a family law firm (Texas)", task: "Run the conflict check and open the file from our intake form.", outcome: "An opened file, ready for the attorney",
     steps: ["Run the conflict check", "Open the file in Clio", "Send for attorney review"], tools: ["Clio"], timing: "About 2 hours", state: "TX", practice_area: "Family law", skills: ["Client intake"] };
   if (system.includes("You review messages members send")) return /venmo|call me/i.test(user) ? { off_platform: true, kinds: ["payment_outside"], insights: [] } : { off_platform: false, kinds: [], insights: ["Prefers fixed-price work"] };
+  if (system.includes("checking one milestone")) {
+    const ids = [...user.matchAll(/- ([a-z][0-9]+)/g)].map((m) => m[1]);
+    const missing = user.includes("NOT DONE YET");
+    return { findings: ids.map((id) => ({ id, met: missing && id === "c1" ? "no" : "yes", evidence: missing && id === "c1" ? "" : "The statement says so", note: missing && id === "c1" ? "The draft is not attached" : "" })) };
+  }
   if (system.includes("suggesting next steps after a meeting")) return { steps: [{ who: "freelancer", text: "Send a proposal" }] };
   if (system.includes("qualifications part of a proposal")) return { qualifications: "Six years of family law intake, mostly in Clio.", included: "Conflict check; file opened in Clio", questions: [] };
   return null;
@@ -84,13 +121,16 @@ const deps = {
   rpc,
   storage,
   env: (k: string) => ({ BD_SHARED_SECRET: SECRET, DELA_ORIGINS: ORIGIN, STAGING_API_URL: ORIGIN + "/api", GITHUB_REPO: "SliceOfThanks/lawfecta", GITHUB_DISPATCH_TOKEN: "test-token", RELEASE_CI_SECRET: CI,
-    PUBLIC_API_URL: ORIGIN + "/api", BD_API_KEY: "bd-browser-test-key", AI_KEY_ENCRYPTION_SECRET: "browser-test-encryption-secret-0123456789", OPENAI_API_KEY: "sk-lawfecta-browser-test-key-0000000000" } as Record<string, string>)[k] ?? "", // rules-ok: made-up test keys
+    PUBLIC_API_URL: ORIGIN + "/api", BD_API_KEY: "bd-browser-test-key", AI_KEY_ENCRYPTION_SECRET: "browser-test-encryption-secret-0123456789", OPENAI_API_KEY: "sk-lawfecta-browser-test-key-0000000000",
+    STRIPE_SECRET_KEY: "sk_test_browser_0000000000", STRIPE_WEBHOOK_SECRET: WHSEC } as Record<string, string>)[k] ?? "", // rules-ok: made-up test keys
   fetch: (async (url: string | URL | Request, opts: RequestInit = {}) => {
     const u = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
     // The Lawfecta listing (BD API): reads give a sample listing, updates are recorded for the test
     if (u.includes("/api/v2/user/get/")) return Response.json({ status: "success", message: [{ user_id: Number(u.split("/").pop()), first_name: "Lia", last_name: "Listing", company: "Listing Law", city: "Dallas", state_code: "TX", website: "listinglaw.com", about_me: "From the directory.", image_main_file: "/pictures/lia.jpg", card_info: "4111111111111111" }] });
     if (u.endsWith("/api/v2/user/update")) { lastBdUpdate = String(opts.body ?? ""); return Response.json({ status: "success", message: {} }); }
     if (u.startsWith("https://images.scribehow.com/")) return new Response(PNG, { headers: { "content-type": "image/png" } });
+    const st = fakeStripe(u, url instanceof Request ? { method: url.method, body: opts.body } : opts);
+    if (st) return st;
     const ai = fakeAi(u, url instanceof Request ? { headers: url.headers, body: opts.body } : opts);
     if (ai) return ai;
     if (u.endsWith("/dispatches")) { lastDispatch = JSON.parse(String(opts.body)); return new Response(null, { status: 204 }); }
@@ -118,6 +158,16 @@ Deno.serve({ port: PORT, hostname: "127.0.0.1" }, async (req) => {
     return Response.json({ rows: Array.isArray(r) ? r.at(-1).rows : r.rows });
   }
   if (url.pathname === "/test/dispatch") return Response.json(lastDispatch);
+  if (url.pathname.startsWith("/test/stripe/checkout/")) {
+    const ses = sessions.get(url.pathname.split("/").pop() ?? "");
+    if (!ses) return new Response("no such checkout", { status: 404 });
+    const pi = "pi_test_" + (++stripeN);
+    await stripeEvent("checkout.session.completed", { id: "cs", client_reference_id: ses.pid, payment_intent: pi, payment_status: "paid", metadata: { payment_id: ses.pid } });
+    const r = await stripeEvent("payment_intent.succeeded", { id: pi, amount: ses.amount, customer: "cus_browser", payment_method: "pm_browser", metadata: { payment_id: ses.pid } });
+    return new Response(`<!doctype html><title>Stripe test checkout</title><h1>Test payment of ${ses.amount} cents: ${r.status === 200 ? "paid" : "failed"}</h1>`, { headers: { "content-type": "text/html" } });
+  }
+  if (url.pathname === "/test/stripe/onboard") return new Response(`<!doctype html><title>Stripe test onboarding</title><h1>Payout setup done for ${url.searchParams.get("acct")}</h1>`, { headers: { "content-type": "text/html" } });
+  if (url.pathname === "/test/stripe/decline-next") { declineNext = true; return Response.json({ ok: true }); }
   if (url.pathname === "/test/bd-update") return Response.json({ body: lastBdUpdate });
   if (url.pathname.startsWith("/test/storage/up/") && req.method === "PUT") {
     objects.set(url.pathname.slice(17), new Uint8Array(await req.arrayBuffer()));

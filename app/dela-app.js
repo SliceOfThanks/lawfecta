@@ -2910,6 +2910,7 @@
           h("span", { class: "grow" }), h("span", { class: "badge " + (g.status === "open" ? "ready" : g.status === "paused" ? "held" : "C"), text: GIG_STATUS[g.status] })));
       });
       el.appendChild(list);
+      if ((me.switches || {}).engagements) engagementsList(el, "Engagements");
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     return el;
   }
@@ -2924,12 +2925,14 @@
       el.appendChild(h("p", { class: "muted", text: budgetText(g) + " | " + closesText(g) + (r.counts ? " | " + r.counts.proposals + " proposals, " + r.counts.invited + " invited" : "") }));
       if (g.paused_by_team) el.appendChild(h("p", { class: "notice bad", text: "The Lawfecta Team paused this gig while they check it. Freelancers cannot send proposals until it opens again." }));
       var views = [["details", "Details"], ["matches", "Matches"], ["questions", "Questions" + (r.counts && r.counts.questions_open ? " (" + r.counts.questions_open + ")" : "")], ["proposals", "Proposals" + (r.counts ? " (" + r.counts.proposals + ")" : "")], ["files", "Files (" + r.files.length + ")"]];
+      if ((me.switches || {}).engagements && (g.status === "filled" || gigs.view === "agreement")) views.push(["agreement", "Agreement and work"]);
+      if (gigs.view === "agreement" && !(me.switches || {}).engagements) gigs.view = "details";
       el.appendChild(h("div", { class: "pills", role: "tablist", "aria-label": "Gig views" }, views.map(function (v) {
         return h("button", { role: "tab", "aria-selected": String(gigs.view === v[0]), "aria-pressed": String(gigs.view === v[0]), onclick: function () { gigs.view = v[0]; draw(); } }, v[1]);
       })));
       var body = h("div");
       el.appendChild(body);
-      ({ details: gigDetails, matches: gigMatches, questions: gigQuestions, proposals: gigProposals, files: gigFiles })[gigs.view](body, r);
+      ({ details: gigDetails, matches: gigMatches, questions: gigQuestions, proposals: gigProposals, files: gigFiles, agreement: function (x) { engagementPanel(x, g.id); } })[gigs.view](body, r);
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
 
@@ -3174,6 +3177,7 @@
       if (r.open_gigs.length) section("Open gigs", r.open_gigs, "");
       section("Drafts", r.drafts, "No saved drafts.");
       section("Sent proposals", r.sent, "Nothing sent yet.");
+      if ((me.switches || {}).engagements) engagementsList(el, "Your engagements");
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     return el;
   }
@@ -3188,6 +3192,7 @@
       if (g.firm) el.appendChild(h("p", { class: "muted", text: "Posted by " + g.firm + "." }));
       if (r.invitation && r.invitation.status === "sent") el.appendChild(h("div", { class: "notice ok" }, h("p", { style: "margin:0 0 6px", text: "You are invited to send a proposal. An invited proposal does not use your monthly allowance." + (r.invitation.message ? " The attorney wrote: " + r.invitation.message : "") }),
         h("button", { class: "ghost small", type: "button", onclick: function () { if (!confirm("Decline this invitation?")) return; api.post("/gigs/decline", { gig_id: g.id }).then(gigOk).then(function () { gigs.id = null; draw(); D.toast(app, "Declined"); }).catch(gigFail); } }, "Decline")));
+      if (mine && mine.status === "selected" && (me.switches || {}).engagements) { var engBox = h("div", { id: "engagement" }); el.appendChild(engBox); engagementPanel(engBox, g.id); }
       el.appendChild(h("div", { class: "card" }, publicBlock(g)));
       if ((r.access === "invited" || r.access === "applicant" || r.access === "hired") && ((me.switches || {}).gig_chat || (me.switches || {}).meetings)) {
         el.appendChild(h("div", { class: "row" },
@@ -3605,6 +3610,416 @@
   }
 
 
+  // ---------- Step 6: the agreement, signing, paying, delivery, review, payouts, disputes ----------
+  var eng = { gig: null, editing: false, paid: false };
+  try { if (new URLSearchParams(location.search).get("paid") === "1") eng.paid = true; if (new URLSearchParams(location.search).get("view") === "agreement") gigs.view = "agreement"; } catch (e) { /* no deep link */ }
+  var AG_STATUS = { draft: "Draft", sent: "Draft", signing: "Waiting for signatures", signed: "Signed: waiting for the first payment", active: "Active", completed: "Complete", canceled: "Canceled", disputed: "In dispute", paused: "Paused by the Lawfecta Team" };
+  var MS_STATUS = { pending: "Not paid yet", awaiting_funding: "Waiting for payment", funded: "Paid: ready to start", in_progress: "In progress", submitted: "Submitted", changes_requested: "Changes requested",
+    accepted: "Accepted", refunded: "Refunded", canceled: "Canceled", disputed: "In dispute" };
+  var SUB_STATUS = { checking: "DELA is checking it", failed: "Did not pass DELA's check", human_review: "With a Lawfecta reviewer", with_attorney: "With the attorney for review", accepted: "Accepted", changes_requested: "Changes requested" };
+  var ENG_ERR = {
+    engagements_off: "Agreements are not open for your account yet.", not_current_version: "There is a newer version of the agreement. Reload it and read the new version before signing.",
+    sign_needs_name_and_consent: "Type your full name and tick the box to sign.", sign_time_over: "The time to sign this agreement is over.",
+    firm_details_missing: "Before you sign, add your firm's signatory, billing address and notice email in Profile, under \"Firm details\".",
+    milestone_count: "Use between 1 and the most milestones allowed.", milestone_too_small: "Each milestone needs a title and at least the smallest amount.",
+    total_too_small: "The total is below the smallest engagement.", too_long: "A due date is further out than DELA allows.", paid_milestone_fixed: "A milestone that is already paid cannot change its amount.",
+    agreement_closed: "This agreement is closed.", payments_not_set_up: "Payments are not set up on this site yet. The Lawfecta Team is adding Stripe.", funding_off: "Milestone payments are not open for your account yet.",
+    not_signed: "Both of you sign first.", previous_not_accepted: "The previous milestone needs to be accepted first.", nothing_to_pay: "Nothing is due right now.",
+    in_dispute: "A dispute is open on this engagement, so this waits until it is settled.", payment_failed: "The payment did not go through.", on_hold: "Some actions are paused on your account. Contact the Lawfecta Team.",
+    not_funded: "This milestone is not paid yet. Work starts when the attorney's payment is confirmed.", statement_needed: "Write a completion statement: what you did and anything still open.",
+    already_submitted: "This milestone is already submitted.", not_now: "That is not possible right now.", file_not_usable: "One of the files is not ready yet. Wait for its check to finish.",
+    say_what_to_change: "Say what needs to change.", revisions_used_up: "The included rounds of changes are used up. Propose a change order on the agreement instead.",
+    say_why: "Please say why.", under_review_open_dispute: "A milestone is under review, so it cannot be canceled. Either of you can open a dispute instead.",
+    keep_on_lawfecta: "Keep the work and the payment on Lawfecta. Remove the contact details or the plan to pay outside it.", export_not_available: "The export opens after the first accepted milestone.",
+    freelancers_only: "Only the freelancer can do that.", changed_elsewhere: "The other person changed the agreement while you were working. Reload it, then make your change again.",
+  };
+  function engErr(r) {
+    if (!r) return "That did not work.";
+    if (r.reason === "milestone_too_small" && r.min_cents) return "Each milestone needs a title and at least " + D.money(r.min_cents) + ".";
+    if (r.reason === "total_too_small" && r.min_cents) return "The total must be at least " + D.money(r.min_cents) + ".";
+    if (r.reason === "milestone_count" && r.max) return "Use between 1 and " + r.max + " milestones.";
+    if (r.reason === "too_long" && r.max_days) return "Every due date must be within " + r.max_days + " days.";
+    if (r.reason === "revisions_used_up" && r.included) return "The " + r.included + " included rounds of changes are used up. Propose a change order on the agreement instead.";
+    if (r.reason === "payment_failed" && r.detail) return "The payment did not go through: " + r.detail;
+    if (r.reason === "looks_like_client_info") return failText(r);
+    return ENG_ERR[r.reason] || gigErr(r);
+  }
+  function engOk(r) { if (!r || r.ok === false) throw r || {}; return r; }
+  function engFail(e) { D.toast(app, e && e.reason ? engErr(e) : D.errorText(e && e.message ? e.message : String(e)), true); }
+  function engReload(msg) { draw(); if (msg) setTimeout(function () { D.toast(app, msg); }, 300); }
+
+  // The engagement for one gig, on the attorney's gig page and the freelancer's Work page
+  function engagementPanel(host, gigId) {
+    host.appendChild(h("p", { class: "muted", text: "Loading the agreement..." }));
+    api.get("/agreements/get?gig=" + gigId).then(function (r) {
+      D.clear(host);
+      if (!r.ok) { host.appendChild(h("p", { class: "notice", text: r.reason === "not_found" ? "There is no agreement for this gig yet. It starts when the attorney chooses a proposal." : engErr(r) })); return; }
+      drawEngagement(host, r);
+    }).catch(function (e) { D.clear(host); host.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+  }
+
+  function drawEngagement(host, r) {
+    var a = r.agreement, cur = r.current || {}, b = cur.body || {}, att = r.role === "attorney";
+    var mySigned = (r.signatures || []).some(function (s) { return s.version === a.version && s.role === r.role; });
+    var theirSigned = (r.signatures || []).some(function (s) { return s.version === a.version && s.role !== r.role; });
+    host.appendChild(h("div", { class: "row" }, h("h2", { class: "grow", text: "Agreement, version " + a.version }), h("span", { class: "badge " + (a.status === "active" || a.status === "completed" ? "ready" : a.status === "canceled" || a.status === "paused" ? "bad" : "held"), text: AG_STATUS[a.status] || a.status })));
+    if (eng.paid && att) { eng.paid = false; host.appendChild(h("p", { class: "notice ok", text: "Thank you. Stripe is confirming the payment. This page shows it as paid within a minute (a bank payment can take about 4 business days)." })); }
+    if (a.status === "signing" && a.sign_by) host.appendChild(h("p", { class: "small muted", text: "Both of you sign by " + D.dateTime(a.sign_by) + ". If it is not signed by then, it closes." }));
+    if (a.status === "paused") host.appendChild(h("p", { class: "notice bad", text: "A payment on this engagement is under review with the bank, so it is paused. You can still read everything and send messages. The Lawfecta Team will be in touch." }));
+    if (a.status === "canceled") host.appendChild(h("p", { class: "notice", text: "This engagement was canceled" + (a.cancel_reason ? ": " + (a.cancel_reason === "not_signed_in_time" ? "it was not signed in time" : a.cancel_reason) : "") + "." }));
+    host.appendChild(nextStep(r, mySigned, theirSigned));
+    host.appendChild(agreementCard(r, b));
+    if (a.status === "signing" || a.status === "signed" || a.status === "active") host.appendChild(changesCard(r, b));
+    if ((r.milestones || []).length) host.appendChild(milestonesCard(r));
+    if (att && (r.payments || []).length) host.appendChild(paymentsCard(r));
+    if (!att && r.payout_account !== undefined) host.appendChild(payoutCard(r.payout_account, true));
+    host.appendChild(disputeCard(r));
+    if (r.export) host.appendChild(h("div", { class: "card" }, h("h2", { text: "Engagement playbook" }), h("p", { class: "small muted", text: "A Word copy of the playbook for this engagement, now that a milestone is accepted." }),
+      h("button", { class: "ghost small", type: "button", onclick: function () {
+        api.get("/engagements/export?id=" + a.id).then(engOk).then(function (x) { saveB64(x.name, x.type, x.b64); }).catch(engFail);
+      } }, "Download the playbook (Word)")));
+  }
+
+  // One clear next step for this person
+  function nextStep(r, mySigned, theirSigned) {
+    var a = r.agreement, att = r.role === "attorney", box = h("div", { class: "card" }, h("h2", { text: "What happens next" }));
+    if (a.status === "signing" || a.status === "draft") {
+      if (mySigned && !theirSigned) box.appendChild(h("p", { text: "You signed version " + a.version + ". Waiting for the " + (att ? "freelancer" : "attorney") + " to sign." }));
+      else box.appendChild(signForm(r, theirSigned));
+    } else if ((a.status === "signed" || a.status === "active") && att) {
+      var due = (r.milestones || []).filter(function (m) { return m.status === "pending" || m.status === "awaiting_funding"; })[0];
+      var open = (r.milestones || []).some(function (m) { return ["funded", "in_progress", "submitted", "changes_requested", "disputed"].indexOf(m.status) >= 0; });
+      var waiting = (r.payments || []).filter(function (p) { return p.status === "processing"; })[0];
+      if (waiting) box.appendChild(h("p", { text: "Your payment of " + D.money(waiting.amount_cents) + " is being confirmed by the bank. Work starts when it is confirmed." }));
+      else if (due && !open) {
+        var first = !a.started_at;
+        box.appendChild(h("p", { text: "Pay milestone " + due.seq + " (" + D.money(due.amount_cents) + ")" + (first ? " and the platform fee (" + D.money(a.attorney_fee_cents) + ")" : "") + ". Lawfecta holds it until you accept the milestone." }));
+        if (!r.stripe_ready) box.appendChild(h("p", { class: "notice", text: ENG_ERR.payments_not_set_up }));
+        else {
+          var pay = h("button", { class: "blue", type: "button" }, a.saved_payment ? "Pay milestone " + due.seq + " with your saved payment method" : "Pay milestone " + due.seq);
+          pay.addEventListener("click", function () {
+            pay.disabled = true; pay.textContent = "Starting the payment...";
+            api.post("/engagements/pay", { id: a.id }).then(engOk).then(function (x) {
+              if (x.url) { if (x.failed_first) D.toast(app, "Your saved payment method did not go through. Opening Stripe to pay another way."); location.href = x.url; return; }
+              engReload(x.status === "succeeded" ? "Paid. The freelancer can start." : "The payment is being confirmed.");
+            }).catch(function (e) { pay.disabled = false; pay.textContent = "Pay milestone " + due.seq; engFail(e); });
+          });
+          box.appendChild(h("div", { class: "row" }, pay));
+          if (a.saved_payment) box.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+            api.post("/engagements/pay", { id: a.id, use_checkout: true }).then(engOk).then(function (x) { if (x.url) location.href = x.url; else engReload(); }).catch(engFail);
+          } }, "Pay another way"));
+          box.appendChild(h("p", { class: "small muted", text: "You pay on Stripe's secure page. DELA never sees your card or bank details. Stripe is in test mode on the test site: use Stripe's test card 4000 0000 0000 0077 (any future date, any 3 digits)." }));
+        }
+      } else if (open) box.appendChild(h("p", { text: "The freelancer is working on the paid milestone. You review each one when it is submitted." }));
+      else box.appendChild(h("p", { text: "Nothing is due from you right now." }));
+    } else if (a.status === "signed" || a.status === "active") {
+      var ready = (r.milestones || []).filter(function (m) { return m.status === "funded" || m.status === "in_progress" || m.status === "changes_requested"; })[0];
+      box.appendChild(h("p", { text: ready ? "Milestone " + ready.seq + " is paid and held by Lawfecta. Do the work, then submit it below." : "Waiting for the attorney to pay the next milestone. Do not start unpaid work." }));
+      if (!r.payout_account || r.payout_account.status !== "ready") box.appendChild(h("p", { class: "small", text: "Set up payouts on the Earnings tab so accepted milestones reach your bank." }));
+    } else if (a.status === "completed") box.appendChild(h("p", { text: "Every milestone is accepted. This engagement is complete." }));
+    else box.appendChild(h("p", { class: "muted", text: "Nothing to do here." }));
+    return box;
+  }
+
+  function signForm(r, theirSigned) {
+    var a = r.agreement;
+    var name = h("input", { "aria-label": "Type your full name to sign", style: "width:100%", autocomplete: "name" });
+    var ok = h("input", { type: "checkbox", "aria-label": "I agree to sign electronically" });
+    var go = h("button", { class: "blue", type: "button" }, "Sign version " + a.version);
+    go.addEventListener("click", function () {
+      if (!name.value.trim() || !ok.checked) { D.toast(app, ENG_ERR.sign_needs_name_and_consent, true); return; }
+      go.disabled = true;
+      api.post("/agreements/sign", { id: a.id, version: a.version, typed_name: name.value, consent: true }).then(engOk).then(function (x) {
+        engReload(x.both_signed ? "Signed by both of you." + (r.role === "attorney" ? " Pay the first milestone to start." : " The attorney pays the first milestone next.") : "Signed. Waiting for the other signature.");
+      }).catch(function (e) { go.disabled = false; engFail(e); });
+    });
+    return h("div", null,
+      h("p", { text: (theirSigned ? "The other person signed version " + a.version + ". " : "") + "Read the agreement below. If it is right, sign it here. If not, propose changes." }),
+      field("Your full name", name, "Your typed name is your signature. DELA records it with the time, this version and its fingerprint."),
+      h("label", { style: "display:flex;gap:8px;font-weight:400;margin:8px 0" }, ok, h("span", { text: "I have read version " + a.version + " of this agreement and I sign it electronically." })),
+      h("div", { class: "row" }, go));
+  }
+
+  function agreementCard(r, b) {
+    var p = b.parties || {}, s = b.scope || {}, fe = b.fees || {};
+    var c = h("div", { class: "card" }, h("h2", { text: "The agreement" }));
+    c.appendChild(h("div", { class: "kv" },
+      h("div", null, "Client (firm)", h("b", { text: (p.client || {}).firm || "-" })),
+      h("div", null, "Signs for the firm", h("b", { text: (p.client || {}).signatory || "Not set yet" })),
+      h("div", null, "Freelancer", h("b", { text: (p.freelancer || {}).name || "-" })),
+      h("div", null, "Price", h("b", { text: D.money(fe.total_cents) }))));
+    if (s.task) c.appendChild(h("p", null, h("b", { text: "The work: " }), s.task));
+    if (s.included) c.appendChild(h("p", null, h("b", { text: "Included: " }), s.included));
+    if (s.excluded) c.appendChild(h("p", null, h("b", { text: "Not included: " }), s.excluded));
+    if (s.schedule) c.appendChild(h("p", null, h("b", { text: "Schedule: " }), s.schedule));
+    var t = h("table", { class: "stack", style: "width:100%" }, h("thead", null, h("tr", null, h("th", { text: "#" }), h("th", { text: "Milestone" }), h("th", { text: "Amount" }), h("th", { text: "Due" }), h("th", { text: "Deliverables" }))),
+      h("tbody", null, (b.milestones || []).map(function (m) {
+        return h("tr", null, h("td", { "data-label": "#", text: String(m.seq) }), h("td", { "data-label": "Milestone", text: m.title }), h("td", { "data-label": "Amount", text: D.money(m.amount_cents) }),
+          h("td", { "data-label": "Due", text: m.due_date ? D.date(m.due_date) : "-" }), h("td", { "data-label": "Deliverables", text: m.deliverables || "" }));
+      })));
+    c.appendChild(h("h3", { text: "Milestones" }));
+    c.appendChild(t);
+    c.appendChild(h("h3", { text: "Fees" }));
+    c.appendChild(h("ul", null, (r.fee_lines || []).map(function (l) { return h("li", { text: l }); })));
+    var rub = h("details", null, h("summary", { text: "How DELA checks each milestone (the rubric)" }),
+      h("p", { class: "small muted", text: "Agreed at signing. A score of " + ((b.limits || {}).pass_score || 90) + " or more with every required item met passes, then the attorney reviews it. DELA's check is not a legal review." }));
+    (b.rubric || []).forEach(function (x) {
+      rub.appendChild(h("p", { style: "margin:8px 0 2px;font-weight:700", text: "Milestone " + x.milestone_seq }));
+      rub.appendChild(h("ul", null, (x.criteria || []).map(function (k) { return h("li", { text: k.text + " (" + k.weight + (k.required ? ", required" : "") + ")" }); })));
+    });
+    c.appendChild(rub);
+    c.appendChild(h("details", null, h("summary", { text: "The terms" }), h("pre", { style: "white-space:pre-wrap;font:inherit", text: b.terms || "" })));
+    var hist = h("details", null, h("summary", { text: "Versions and signatures" }));
+    (r.versions || []).forEach(function (v) {
+      var sig = (r.signatures || []).filter(function (s) { return s.version === v.version; }).map(function (s) { return (s.role === "attorney" ? "Attorney" : "Freelancer") + ": " + s.typed_name + ", " + D.dateTime(s.signed_at); });
+      hist.appendChild(h("p", { class: "small", text: "Version " + v.version + " (" + (v.by_me ? "you" : v.version === 1 ? "DELA" : "the other person") + ", " + D.dateTime(v.created_at) + ")" + (v.note ? ": " + v.note : "") + ". Fingerprint " + String(v.hash).slice(0, 12) + (sig.length ? ". Signed by " + sig.join("; ") : ". Not signed") }));
+    });
+    c.appendChild(hist);
+    return c;
+  }
+
+  // Propose changes: a new version both sign (after signing, a change order)
+  function changesCard(r, b) {
+    var a = r.agreement, c = h("div", { class: "card" });
+    var signed = a.status === "signed" || a.status === "active";
+    c.appendChild(h("h2", { text: signed ? "Change order" : "Propose changes" }));
+    c.appendChild(h("p", { class: "small muted", text: signed ? "Change the price, scope or milestones with a new version you both sign. Paid milestones keep their amounts. Work goes on under the signed version until then." : "Change the milestones or the scope. The other person reviews your version and signs it, or proposes another." }));
+    if (!eng.editing) { c.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { eng.editing = true; draw(); } }, signed ? "Propose a change order" : "Propose changes")); return c; }
+    var rows = h("div");
+    function row(m) {
+      var t = h("input", { "aria-label": "Milestone title", value: m.title || "", style: "width:100%" }), amt = h("input", { type: "number", min: "0", step: "1", "aria-label": "Amount ($)", value: m.amount_cents ? String(m.amount_cents / 100) : "" });
+      var due = h("input", { type: "date", "aria-label": "Due date", value: m.due_date || "" }), del = h("input", { "aria-label": "Deliverables", value: m.deliverables || "", style: "width:100%" });
+      var el = h("div", { class: "card", style: "padding:10px" }, field("Title", t), h("div", { class: "row" }, field("Amount ($)", amt), field("Due date", due)), field("Deliverables", del),
+        h("button", { class: "ghost small", type: "button", onclick: function () { el.remove(); } }, "Remove this milestone"));
+      el.read = function () { return { title: t.value, amount: amt.value, due_date: due.value, deliverables: del.value }; };
+      rows.appendChild(el);
+    }
+    (b.milestones || []).forEach(row);
+    var s = b.scope || {};
+    var inc = h("textarea", { rows: 3, style: "width:100%", "aria-label": "Included" }), exc = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Not included" }), sch = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Schedule" });
+    inc.value = s.included || ""; exc.value = s.excluded || ""; sch.value = s.schedule || "";
+    var note = h("input", { "aria-label": "Note to the other person", style: "width:100%", placeholder: "What you changed and why" });
+    var send = h("button", { class: "blue", type: "button" }, "Send the new version");
+    send.addEventListener("click", function () {
+      var list = [].slice.call(rows.children).map(function (x) { return x.read(); });
+      send.disabled = true;
+      api.post("/agreements/propose", { id: a.id, base: a.version, milestones: list, included: inc.value, excluded: exc.value, schedule: sch.value, note: note.value }).then(engOk).then(function (x) {
+        eng.editing = false; engReload("Version " + x.version + " sent. Both of you sign it next.");
+      }).catch(function (e) { send.disabled = false; engFail(e); });
+    });
+    c.appendChild(h("h3", { text: "Milestones" }));
+    c.appendChild(rows);
+    c.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { row({}); } }, "Add a milestone"));
+    c.appendChild(field("Included", inc));
+    c.appendChild(field("Not included", exc));
+    c.appendChild(field("Schedule", sch));
+    c.appendChild(field("Note", note));
+    c.appendChild(h("div", { class: "row" }, send, h("button", { class: "ghost", type: "button", onclick: function () { eng.editing = false; draw(); } }, "Cancel")));
+    return c;
+  }
+
+  function milestonesCard(r) {
+    var c = h("div", { class: "card" }, h("h2", { text: "Milestones" }));
+    r.milestones.forEach(function (m) {
+      var box = h("div", { class: "card", style: "padding:12px" },
+        h("div", { class: "row" }, h("h3", { class: "grow", style: "margin:0", text: m.seq + ". " + m.title }), h("span", { class: "badge " + (m.status === "accepted" ? "ready" : m.status === "disputed" ? "bad" : "held"), text: MS_STATUS[m.status] || m.status })),
+        h("p", { class: "small muted", text: D.money(m.amount_cents) + (r.role === "freelancer" ? " (you receive " + D.money(m.payout_cents) + " after the platform fee)" : "") + (m.due_date ? " | due " + D.date(m.due_date) : "") + (m.revisions_used ? " | rounds of changes used: " + m.revisions_used + " of " + r.limits.revisions : "") }));
+      if (m.deliverables) box.appendChild(h("p", { class: "small", text: "Deliverables: " + m.deliverables }));
+      if (m.payout) box.appendChild(h("p", { class: "small", text: "Payout: " + D.money(m.payout.amount_cents) + ", " + (m.payout.status === "sent" ? "sent to your bank" : m.payout.status === "held" ? (m.payout.held_reason === "payout_account" ? "waiting for your payout setup (Earnings tab)" : "held") : m.payout.status === "failed" ? "did not go through. The Lawfecta Team is checking it" : "on its way") }));
+      var last = (m.submissions || [])[m.submissions.length - 1];
+      if (last) box.appendChild(submissionBlock(r, m, last));
+      if (r.role === "freelancer") {
+        if (m.status === "funded") box.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
+          api.post("/milestones/start", { id: m.id }).then(engOk).then(function () { engReload("Started. Submit it here when it is done."); }).catch(engFail);
+        } }, "Start this milestone"));
+        if (m.status === "in_progress" || m.status === "changes_requested") box.appendChild(submitForm(m));
+      }
+      c.appendChild(box);
+    });
+    return c;
+  }
+
+  function submissionBlock(r, m, s) {
+    var b = h("div", { style: "border-top:1px solid var(--line);margin-top:8px;padding-top:8px" },
+      h("p", { class: "small" }, h("b", { text: "Submission " + s.n + ": " }), SUB_STATUS[s.status] || s.status, s.score !== null && s.score !== undefined ? " | DELA's score " + s.score + " of 100" : ""),
+      h("p", { class: "small", style: "white-space:pre-wrap", text: s.statement }));
+    (s.files || []).forEach(function (f) {
+      b.appendChild(h("div", { class: "row" }, h("span", { class: "grow small", text: f.name }), h("button", { class: "ghost small", type: "button", onclick: function () {
+        api.get("/deliverables/file?submission=" + s.id + "&file=" + f.file_id).then(engOk).then(function (x) { window.open(x.url, "_blank", "noopener"); }).catch(engFail);
+      } }, "Open")));
+    });
+    if ((s.findings || []).length) {
+      var d = h("details", { open: s.status === "failed" }, h("summary", { text: "DELA's check, point by point" }));
+      d.appendChild(h("ul", null, s.findings.map(function (f) {
+        return h("li", { class: "small" }, h("b", { text: (f.met === "yes" ? "Met" : f.met === "no" ? "Missing" : "Could not tell") + (f.required ? " (required)" : "") + ": " }), f.text + (f.evidence ? ". Evidence: " + f.evidence : "") + (f.note ? ". " + f.note : ""));
+      })));
+      d.appendChild(h("p", { class: "small muted", text: "DELA checks the submission against the agreed rubric. It does not decide whether legal work is correct; the attorney does." }));
+      b.appendChild(d);
+    }
+    if (s.human_note) b.appendChild(h("p", { class: "small", text: "Lawfecta reviewer: " + s.human_note }));
+    if (s.decision_note) b.appendChild(h("p", { class: "small", text: "Attorney: " + s.decision_note }));
+    if (r.role === "freelancer" && s.status === "failed") b.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+      if (!confirm("Ask a Lawfecta reviewer to look at it instead of DELA? The target is 5 business days.")) return;
+      api.post("/milestones/human", { id: s.id }).then(engOk).then(function () { engReload("Sent to a Lawfecta reviewer."); }).catch(engFail);
+    } }, "Ask for a human review"));
+    if (r.role === "attorney" && s.status === "with_attorney") {
+      var note = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Note to the freelancer", placeholder: "What should change (needed to ask for changes), or a thank you" });
+      b.appendChild(h("p", { class: "small", text: "Review it by " + D.dateTime(s.review_due_at) + ". Accepting releases the payment to the freelancer" + (r.milestones.some(function (x) { return x.seq > m.seq && (x.status === "pending" || x.status === "awaiting_funding"); }) ? " and charges the next milestone with your saved payment method." : ".") }));
+      b.appendChild(note);
+      var acc = h("button", { class: "blue small", type: "button" }, "Accept and release payment");
+      acc.addEventListener("click", function () {
+        if (!confirm("Accept milestone " + m.seq + " and release " + D.money(m.amount_cents) + " to the freelancer?")) return;
+        acc.disabled = true;
+        api.post("/milestones/decide", { submission_id: s.id, accept: true, note: note.value }).then(engOk).then(function (x) {
+          var np = x.next_payment;
+          if (np && np.url) { D.toast(app, "Accepted. Your saved payment method did not go through for the next milestone. Opening Stripe."); location.href = np.url; return; }
+          engReload("Accepted. The payment is released" + (np && np.status === "succeeded" ? " and the next milestone is paid." : "."));
+        }).catch(function (e) { acc.disabled = false; engFail(e); });
+      });
+      b.appendChild(h("div", { class: "row" }, acc, h("button", { class: "ghost small", type: "button", onclick: function () {
+        api.post("/milestones/decide", { submission_id: s.id, accept: false, note: note.value }).then(engOk).then(function (x) { engReload("Changes requested. Rounds left: " + x.revisions_left + "."); }).catch(engFail);
+      } }, "Ask for changes")));
+    }
+    return b;
+  }
+
+  function submitForm(m) {
+    var files = [], list = h("div", { class: "small" });
+    var st = h("textarea", { rows: 4, style: "width:100%", "aria-label": "Completion statement", placeholder: "What you did, where it is, and anything still open" });
+    var pick = h("input", { type: "file", multiple: true, "aria-label": "Deliverable files" });
+    var tick = h("input", { type: "checkbox", "aria-label": "These files have no confidential client information" });
+    var req = newId();
+    pick.addEventListener("change", function () {
+      if (!tick.checked) { D.toast(app, "Tick the box first: the files have no confidential client information.", true); pick.value = ""; return; }
+      [].slice.call(pick.files).forEach(function (file) {
+        var line = h("div", { text: file.name + ": uploading" });
+        list.appendChild(line);
+        api.post("/milestones/upload/start", { name: file.name, size_bytes: file.size, ticked: true, request_id: newId() }).then(engOk).then(function (r) {
+          return fetch(r.upload_url, { method: "PUT", headers: { "content-type": r.content_type, "x-upsert": "false" }, body: file }).then(function (up) {
+            if (!up.ok) throw new Error("upload_failed");
+            return api.post("/files/complete", { file_id: r.file_id });
+          });
+        }).then(function (c) {
+          if (c.ok === false) throw c;
+          if (c.status === "ready") { files.push(c.file_id); line.textContent = file.name + ": ready"; }
+          else line.textContent = file.name + ": " + (c.status === "held" ? "held for a check. Remove client information and upload it again." : "not accepted");
+        }).catch(function (e) { line.textContent = file.name + ": " + (e && e.reason ? engErr(e) : "the upload did not finish"); });
+      });
+      pick.value = "";
+    });
+    var go = h("button", { class: "blue small", type: "button" }, "Submit for DELA's check");
+    go.addEventListener("click", function () {
+      go.disabled = true; go.textContent = "DELA is checking it...";
+      api.post("/milestones/submit", { milestone_id: m.id, statement: st.value, files: files, request_id: req }).then(engOk).then(function (x) {
+        engReload(x.status === "with_attorney" ? "It passed DELA's check and is with the attorney." : x.status === "failed" ? "It did not pass DELA's check yet. See each point below." : "Sent to a Lawfecta reviewer, because DELA could not check it.");
+      }).catch(function (e) { go.disabled = false; go.textContent = "Submit for DELA's check"; engFail(e); });
+    });
+    return h("div", { style: "border-top:1px solid var(--line);margin-top:8px;padding-top:8px" }, h("h3", { text: "Submit this milestone" }),
+      field("Completion statement", st, "Say what you did and anything still open. The attorney and DELA read this."),
+      h("label", { style: "display:flex;gap:8px;font-weight:400;margin:6px 0" }, tick, h("span", { text: "These files have no confidential client information (use placeholders)." })),
+      field("Files (optional)", pick), list, h("div", { class: "row" }, go));
+  }
+
+  function paymentsCard(r) {
+    var PAY = { requires_payment: "Waiting for you", processing: "Being confirmed", succeeded: "Paid", failed: "Did not go through", canceled: "Canceled" };
+    return h("div", { class: "card" }, h("h2", { text: "Your payments" }), h("ul", null, r.payments.map(function (p) {
+      return h("li", { class: "small", text: D.date(p.created_at) + ": " + D.money(p.amount_cents) + (p.fee_cents ? " (includes the platform fee " + D.money(p.fee_cents) + ")" : "") + ", " + (PAY[p.status] || p.status) + (p.failure ? " (" + p.failure + ")" : "") });
+    })));
+  }
+
+  function disputeCard(r) {
+    var a = r.agreement, c = h("div", { class: "card" }, h("h2", { text: "Problems, disputes and canceling" }));
+    var open = (r.disputes || []).filter(function (d) { return d.status === "notice" || d.status === "team_review"; })[0];
+    (r.disputes || []).forEach(function (d) {
+      c.appendChild(h("p", { class: "small", text: (d.status === "notice" ? "Open dispute: talk it through in Messages until " + D.dateTime(d.notice_ends_at) + ", then the Lawfecta Team reviews it." : d.status === "team_review" ? "The Lawfecta Team is reviewing the dispute." : d.status === "resolved" ? "Decided: " + d.resolution_note + " (" + D.money(d.release_cents) + " to the freelancer, " + D.money(d.refund_cents) + " back to the attorney)" : "Withdrawn.") + " Reason given: " + d.reason }));
+      if (d.mine && (d.status === "notice" || d.status === "team_review")) c.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+        if (!confirm("Withdraw the dispute? The engagement goes on.")) return;
+        api.post("/disputes/withdraw", { id: d.id }).then(engOk).then(function () { engReload("Withdrawn."); }).catch(engFail);
+      } }, "Withdraw the dispute"));
+    });
+    if (a.status === "completed" || a.status === "canceled") return c;
+    c.appendChild(h("p", { class: "small muted", text: "Talk it through in Messages first. A dispute holds the money in question for " + ((r.current && r.current.body && r.current.body.limits && r.current.body.limits.dispute_days) || 14) + " days while you try to settle it, then the Lawfecta Team decides. Lawfecta is not a court or an arbitrator." }));
+    if (!open && (a.status === "active" || a.status === "signed" || a.status === "paused")) {
+      var ms = h("select", { "aria-label": "Which milestone" }, (r.milestones || []).filter(function (m) { return ["funded", "in_progress", "submitted", "changes_requested"].indexOf(m.status) >= 0; }).map(function (m) { return h("option", { value: m.id, text: m.seq + ". " + m.title }); }));
+      var why = h("textarea", { rows: 2, style: "width:100%", "aria-label": "What is the problem" });
+      c.appendChild(h("details", null, h("summary", { text: "Open a dispute" }), field("Milestone", ms), field("What is the problem", why),
+        h("button", { class: "ghost small", type: "button", onclick: function () {
+          api.post("/disputes/open", { id: a.id, milestone_id: ms.value || null, reason: why.value }).then(engOk).then(function () { engReload("The dispute is open. Both of you were told."); }).catch(engFail);
+        } }, "Open the dispute")));
+    }
+    var reason = h("input", { "aria-label": "Why cancel", style: "width:100%" });
+    c.appendChild(h("details", null, h("summary", { text: "Cancel the engagement" }),
+      h("p", { class: "small", text: "Before work starts on the first milestone, the attorney is refunded in full, platform fee included. After that, a paid milestone not yet submitted is refunded, accepted milestones stay paid, and the attorney's platform fee is kept. A milestone under review cannot be canceled; open a dispute instead." }),
+      field("Why", reason), h("button", { class: "ghost small", type: "button", onclick: function () {
+        if (!confirm("Cancel this engagement? This cannot be undone.")) return;
+        api.post("/engagements/cancel", { id: a.id, reason: reason.value }).then(engOk).then(function (x) { engReload("Canceled." + (x.refunds ? " " + x.refunds + " paid milestone" + (x.refunds === 1 ? " is" : "s are") + " refunded to the attorney." : "")); }).catch(engFail);
+      } }, "Cancel the engagement")));
+    return c;
+  }
+
+  // Freelancer payouts through Stripe's own setup page
+  function payoutCard(acct, short) {
+    var st = (acct && acct.status) || "none";
+    var c = h("div", { class: "card" }, h("h2", { text: "Payouts to your bank" }));
+    var WORDS = { none: "Not set up yet. Accepted milestones wait until you set up payouts.", pending: "Stripe needs a few more details before it can pay you.", restricted: "Stripe has paused payouts until it gets more details.", ready: "Ready. Accepted milestones are paid to your bank through Stripe." };
+    c.appendChild(h("p", null, h("span", { class: "badge " + (st === "ready" ? "ready" : "held"), text: st === "ready" ? "Ready" : st === "none" ? "Not set up" : "Needs details" }), " ", WORDS[st] || ""));
+    if (acct && (acct.requirements || []).length) c.appendChild(h("p", { class: "small muted", text: "Stripe still needs: " + acct.requirements.map(function (x) { return String(x).split(".").pop().split("_").join(" "); }).join(", ") }));
+    if (st !== "ready") c.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
+      api.post("/payouts/setup", {}).then(engOk).then(function (x) { location.href = x.url; }).catch(engFail);
+    } }, st === "none" ? "Set up payouts with Stripe" : "Finish payout setup"));
+    c.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+      api.get("/payouts/refresh").then(engOk).then(function () { engReload("Payout status updated."); }).catch(engFail);
+    } }, "Check my payout status"));
+    if (!short) c.appendChild(h("p", { class: "small muted", text: "You enter your bank details on Stripe's secure page. DELA never sees them." }));
+    return c;
+  }
+
+  // The list of engagements on Projects (attorney), Work and Earnings (freelancer)
+  function engagementsList(host, title) {
+    api.get("/engagements").then(function (r) {
+      if (!r.ok || !r.on || !(r.engagements || []).length) return;
+      var c = h("div", { class: "card" }, h("h2", { text: title + " (" + r.engagements.length + ")" }));
+      r.engagements.forEach(function (e) {
+        c.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { gigs.id = e.gig_id; gigs.view = "agreement"; tab = me.side === "attorney" ? "projects" : "work"; draw(); } },
+          h("div", null, h("h3", { text: e.gig_title }), h("div", { class: "small muted", text: (me.side === "attorney" ? "Freelancer: " : "Client: ") + (e.other_name || "") + " | " + D.money(e.total_cents) + " | milestones accepted " + e.accepted + " of " + e.milestones + (me.side === "freelancer" && e.earned_cents ? " | paid to you " + D.money(e.earned_cents) : "") })),
+          h("span", { class: "grow" }), e.needs_me === "sign" ? h("span", { class: "badge held", text: "Needs your signature" }) : h("span", { class: "badge " + (e.status === "active" || e.status === "completed" ? "ready" : "C"), text: AG_STATUS[e.status] || e.status })));
+      });
+      host.insertBefore(c, host.children[2] || null);
+    }).catch(function () {});
+  }
+
+  function saveB64(name, type, b64) {
+    var blob = new Blob([Uint8Array.from(atob(b64), function (ch) { return ch.charCodeAt(0); })], { type: type });
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click();
+    setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 1000);
+    D.toast(app, "Downloaded " + name);
+  }
+
+  function earningsView() {
+    var el = h("div", null, h("h1", { text: "Earnings" }), h("p", { class: "muted", text: "Loading..." }));
+    api.get("/engagements").then(function (r) {
+      D.clear(el);
+      el.appendChild(h("h1", { text: "Earnings" }));
+      if (!r.ok || !r.on) { el.appendChild(h("p", { class: "notice", text: ENG_ERR.engagements_off })); return; }
+      var list = r.engagements || [];
+      var paid = list.reduce(function (a, e) { return a + (e.earned_cents || 0); }, 0);
+      el.appendChild(h("div", { class: "kv" }, h("div", null, "Paid to you", h("b", { text: D.money(paid) })), h("div", null, "Engagements", h("b", { text: String(list.length) }))));
+      el.appendChild(payoutCard(r.payout_account, false));
+      var c = h("div", { class: "card" }, h("h2", { text: "Your engagements" }));
+      if (!list.length) c.appendChild(h("p", { class: "muted", text: "No engagements yet. When an attorney chooses your proposal, the agreement and its milestones show here." }));
+      list.forEach(function (e) {
+        c.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { gigs.id = e.gig_id; gigs.view = "agreement"; tab = "work"; draw(); } },
+          h("div", null, h("h3", { text: e.gig_title }), h("div", { class: "small muted", text: "Client: " + (e.other_name || "") + " | " + D.money(e.total_cents) + " | accepted " + e.accepted + " of " + e.milestones + " | paid to you " + D.money(e.earned_cents) })),
+          h("span", { class: "grow" }), h("span", { class: "badge " + (e.status === "active" || e.status === "completed" ? "ready" : "C"), text: e.needs_me === "sign" ? "Needs your signature" : AG_STATUS[e.status] || e.status })));
+      });
+      el.appendChild(c);
+      try { var q = new URLSearchParams(location.search).get("payout"); if (q === "done") api.get("/payouts/refresh").then(function (x) { if (x.ok && x.account && x.account.status !== ((r.payout_account || {}).status)) draw(); }).catch(function () {}); } catch (e) { /* no deep link */ }
+    }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+    return el;
+  }
+
   function draw() {
     closeMenu();
     var main = h("div", { class: "wrap" });
@@ -3630,6 +4045,7 @@
     else if (tab === "projects" && me.side === "attorney" && (me.switches || {}).flex_gigs) main.appendChild(projectsView());
     else if (tab === "talent" && me.side === "attorney" && (me.switches || {}).talent_search) main.appendChild(talentView());
     else if (tab === "work" && me.side === "freelancer" && (me.switches || {}).flex_gigs) main.appendChild(workView());
+    else if (tab === "earnings" && me.side === "freelancer" && (me.switches || {}).engagements) main.appendChild(earningsView());
     else if (tab === "inbox" && me.side && (me.switches || {}).gig_chat) main.appendChild(inboxView());
     else if (tab === "meetings" && me.side && (me.switches || {}).meetings) main.appendChild(meetingsView());
     else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1] + (me.side === "attorney" && (tab === "projects" || tab === "talent") && (sideInfo() || {}).verification_state !== "verified" ? " Posting work and hiring need a verified license: open Profile and verification from your account menu." : "")));

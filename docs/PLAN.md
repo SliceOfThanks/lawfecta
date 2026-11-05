@@ -23,6 +23,7 @@ Everything below is on the test site, for the access list only. Live (lawfecta.c
 | 3 | Profiles and verification, tech tools, the AI reads the member's own profile | Done | Passing, BD listing read and write checked | Passed (2026-11-05), with 8 fixes from your testing |
 | 4 | Tech catalog, Flex Gigs, matching, proposals, Talent, Work, off-platform checks, what DELA learned | Done | Passing (api and browser, both sides and misuse) | Not run yet: docs/tests/step-4-chatgpt-prompt.md |
 | 5 | Messages, booking and meetings (Vectera rooms wait for Vectera's API access) | Done | Passing (api and browser, both sides and misuse) | Not run yet: docs/tests/step-5-chatgpt-prompt.md |
+| 6 | Agreements, e-signature, milestone payments (Stripe test mode), DELA's milestone check, payouts, refunds, disputes, chargebacks | Done | Passing (api and browser with a Stripe stand-in, both sides and misuse) | Waiting for the Stripe setup (docs/STRIPE_SETUP.md), then docs/tests/step-6-chatgpt-prompt.md |
 
 ### Bring your own AI key (BYOK), built in Step 2a
 - Members on every plan, on both sides, can add their own OpenAI or Claude key in AI settings: https://www.hirelegalhelp.com/dela?tab=ai
@@ -63,7 +64,10 @@ Tests today: 8 database test files, 84 API tests, 15 script tests and 198 browse
 3. Short screens test (Ask DELA, Files, library, exports, own key): https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2-short-chatgpt-prompt.md
 4. Connector test in your own Claude and ChatGPT: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2b-connector-test.md
 5. Recorder check on a real computer (Chrome, then Edge and Firefox): https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2-recorder-chatgpt-prompt.md
-6. For each report you send: Claude fixes what failed (a Fix commit with a test), puts it on the test site again, and gives you the part to run again.
+6. Step 4 test (gigs, matching, proposals): https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-4-chatgpt-prompt.md
+7. Step 5 test (messages, booking, meetings), after Step 4: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-5-chatgpt-prompt.md
+8. Step 6 test (agreements, payments, delivery, payouts), after the Stripe setup and Step 4: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-6-chatgpt-prompt.md
+9. For each report you send: Claude fixes what failed (a Fix commit with a test), puts it on the test site again, and gives you the part to run again.
 
 After a step's report passes, Claude records that version for Release Control, runs the AI review and attaches your report. No version after 0.2.0 is recorded yet.
 
@@ -92,7 +96,8 @@ Things only you can provide
 - A real Scribe export (HTML and Markdown) to confirm the Scribe importer.
 - Vectera: answers to the 11 questions (https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/research/vectera-meetings-evaluation.md), API access, and the custom domain (for example meet.lawfecta.com).
 - A Chrome Web Store developer account in your name, if we build the recorder extension.
-- Stripe account (test mode) and Connect setup, before Step 6.
+- Stripe account in test mode, Connect, and the two secrets in Supabase: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/STRIPE_SETUP.md
+- A lawyer's review of the agreement terms template and the chargeback rule, before live payments.
 
 ## 4. What we build next
 
@@ -125,6 +130,7 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
 - A fixed-fee agreement naming the firm and who signs for it (firm details from Step 3), signed electronically.
 - Each milestone is funded before work starts. Freelancer payouts and Lawfecta fees come from settings. All money is kept in cents, and records are never edited or deleted.
 - Payments stay in Stripe test mode until you turn on live payments. Disputes, refunds and chargebacks follow the Decision Sheet.
+- Built 2026-11-05 with your 18 answers as suggested. Waiting for the Stripe setup, then your ChatGPT test.
 
 ### Step 7: Reviews, benches and webhooks
 - Reviews after completed work, kept separate from reviews by past clients.
