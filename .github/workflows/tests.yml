@@ -42,7 +42,7 @@ jobs:
       - name: Database tests
         run: tools/dbtest.sh
       - name: API and widget tests
-        run: npx deno test -A supabase/functions/api/app_test.ts supabase/functions/api/ai_files_test.ts supabase/functions/api/playbooks_test.ts supabase/functions/api/recorder_test.ts supabase/functions/api/mcp_test.ts supabase/functions/api/mcp_sdk_test.ts supabase/functions/api/profiles_test.ts supabase/functions/api/catalog_test.ts supabase/functions/api/gigs_test.ts supabase/functions/api/meetings_test.ts supabase/functions/api/engagements_test.ts tests/php/auth_test.ts
+        run: npx deno test -A supabase/functions/api/app_test.ts supabase/functions/api/ai_files_test.ts supabase/functions/api/playbooks_test.ts supabase/functions/api/recorder_test.ts supabase/functions/api/mcp_test.ts supabase/functions/api/mcp_sdk_test.ts supabase/functions/api/profiles_test.ts supabase/functions/api/catalog_test.ts supabase/functions/api/gigs_test.ts supabase/functions/api/meetings_test.ts supabase/functions/api/engagements_test.ts supabase/functions/api/reviews_test.ts tests/php/auth_test.ts
       - name: Push to Live script tests
         run: node --test tests/promote_test.mjs tests/ai_review_test.mjs
       - name: Browser tests

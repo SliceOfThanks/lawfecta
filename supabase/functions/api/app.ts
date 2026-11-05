@@ -22,6 +22,8 @@ import { CONTENT_TYPES, readText, sha256, sniff } from "./lib/files/check.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { completeness, emptyBody, fileName, normalize, removesReview, toCsv, toDocx, toHtml, toMarkdown, dayIn, type Body, type ExportMeta } from "./lib/playbooks/model.ts";
 import { keyAllowed, stripe, checkoutParams, verifyStripeSignature, accountStatus } from "./lib/payments/stripe.ts";
+import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/webhooks/deliver.ts";
+import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
 import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
 
@@ -33,6 +35,7 @@ export type Deps = {
   fetch?: typeof fetch;
   now?: () => number;
   storage?: Storage;
+  resolve?: Resolver;
 };
 
 type Session = { session_id: string; person_id: string; side: string | null; staff: string[]; bd_member_id: number };
@@ -1879,6 +1882,163 @@ async function engagementsDaily(ctx: Ctx) {
   return { ok: true };
 }
 
+// ---------- Step 7: reviews, reviews from past clients, the bench, member webhooks ----------
+
+// The narrow safety check before a review or response publishes: client information is sent back to the writer to remove;
+// contact details or payment outside Lawfecta, threats, hate, harassment and impersonation are held for the team.
+// A negative opinion is never held. If the AI check is down, the review publishes on the rule checks alone.
+async function reviewSafety(ctx: Ctx, person: string, side: string, text: string): Promise<{ stop?: Record<string, unknown>; held: boolean; kinds: string[] }> {
+  const warn = sensitive(ctx, text);
+  if (warn) return { stop: warn, held: false, kinds: [] };
+  const kinds = conductRules(withoutLawfectaLinks(text, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com")));
+  const key = lawfectaKey(ctx, "openai");
+  if (key && text.trim().length >= 10) {
+    const model = await setting(ctx, "ai.model.openai", "gpt-5.4-mini");
+    try {
+      const r = await chat(f(ctx), "openai", key, model, SAFETY_SYSTEM, [{ role: "user", content: text.slice(0, 4000) }], true);
+      const a = readSafety(r.text);
+      if (a.hold) for (const k of a.kinds) if (!kinds.includes(k)) kinds.push(k);
+      await logUsage(ctx, { person_id: person, side, task: "review_check", source: "lawfecta", provider: "openai", model: r.model, input_tokens: r.input_tokens, output_tokens: r.output_tokens, ok: true });
+    } catch (e) {
+      await logUsage(ctx, { person_id: person, side, task: "review_check", source: "lawfecta", provider: "openai", model, ok: false, error: e instanceof AiFail ? e.code : "provider_down" });
+    }
+  }
+  return { held: kinds.length > 0, kinds };
+}
+
+async function reviewSave(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const body = str(ctx.body.body, 3000).trim();
+  const chk = await reviewSafety(ctx, s.person_id, s.side, body);
+  if (chk.stop) return json(ctx, chk.stop);
+  return json(ctx, await rpc(ctx, "dela_review_save", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)),
+    p: { ratings: ctx.body.ratings ?? {}, would_again: ctx.body.would_again, body, request_id: str(ctx.body.request_id, 80), held: chk.held, held_kinds: chk.kinds } }));
+}
+
+async function reviewRespond(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const body = str(ctx.body.body, 2000).trim();
+  const chk = await reviewSafety(ctx, s.person_id, s.side, body);
+  if (chk.stop) return json(ctx, chk.stop);
+  return json(ctx, await rpc(ctx, "dela_review_respond", { p_person: s.person_id, p_side: s.side, p_review: need(uuid(ctx.body.review_id)), p_body: body, p_held: chk.held }));
+}
+
+async function reviewsOf(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  let person = uuid(ctx.url.searchParams.get("person"));
+  let side = ctx.url.searchParams.get("side") === "attorney" ? "attorney" : "freelancer";
+  const gig = uuid(ctx.url.searchParams.get("gig"));
+  // A freelancer reads the reviews of the attorney who posted a gig they can see
+  if (gig) {
+    const g = await rpc<Record<string, any>>(ctx, "dela_gig_get", { p_person: s.person_id, p_side: s.side, p_gig: gig });
+    if (!g?.ok) return json(ctx, { ok: false, reason: "not_found" });
+    person = await rpc<string | null>(ctx, "dela_gig_owner", { p_gig: gig });
+    side = "attorney";
+  }
+  return json(ctx, await rpc(ctx, "dela_reviews_of", { p_viewer: s.person_id, p_subject: need(person), p_side: side }));
+}
+
+async function pastReviewRequest(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
+  const token = newSessionToken().slice(3);
+  return json(ctx, await rpc(ctx, "dela_past_review_request", { p_person: s.person_id, p: { name: str(ctx.body.name, 120), email: str(ctx.body.email, 200), token, token_hash: await verifyHash("past:" + token) } }));
+}
+
+// The public past-client pages: no Lawfecta login, only the link's one-use token
+async function pastReviewPublic(ctx: Ctx, action: "get" | "submit" | "optout") {
+  const t = str(action === "get" ? ctx.url.searchParams.get("t") : ctx.body.t, 200);
+  if (!t) return json(ctx, { ok: false, reason: "link_not_valid" });
+  const hash = await verifyHash("past:" + t);
+  if (action === "get") return json(ctx, await rpc(ctx, "dela_past_review_get", { p_token_hash: hash }));
+  if (action === "optout") return json(ctx, await rpc(ctx, "dela_past_review_optout", { p_token_hash: hash }));
+  const head = await rpc<Record<string, any>>(ctx, "dela_past_review_get", { p_token_hash: hash });
+  if (head?.reason === "already_reviewed") return json(ctx, { ok: true, duplicate: true });
+  if (!head?.ok) return json(ctx, head);
+  const body = str(ctx.body.body, 3000).trim();
+  const warn = sensitive(ctx, body);
+  if (warn) return json(ctx, warn);
+  const kinds = conductRules(body);
+  const key = lawfectaKey(ctx, "openai");
+  if (key) {
+    try {
+      const r = await chat(f(ctx), "openai", key, await setting(ctx, "ai.model.openai", "gpt-5.4-mini"), SAFETY_SYSTEM, [{ role: "user", content: body.slice(0, 4000) }], true);
+      const a = readSafety(r.text);
+      if (a.hold) for (const k of a.kinds) if (!kinds.includes(k)) kinds.push(k);
+    } catch { /* the rule checks still apply */ }
+  }
+  return json(ctx, await rpc(ctx, "dela_past_review_submit", { p_token_hash: hash, p: { name: str(ctx.body.name, 120), state: str(ctx.body.state, 20), bar_number: str(ctx.body.bar_number, 30),
+    ratings: ctx.body.ratings ?? {}, would_again: ctx.body.would_again, body, confirm: ctx.body.confirm === true, held: kinds.length > 0, held_kinds: kinds } }));
+}
+
+async function benchInvite(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const note = str(ctx.body.note, 600).trim();
+  if (note) {
+    const w = sensitive(ctx, note);
+    if (w) return json(ctx, w);
+    if (conductRules(withoutLawfectaLinks(note, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com"))).length) return json(ctx, { ok: false, reason: "keep_on_lawfecta" });
+  }
+  return json(ctx, await rpc(ctx, "dela_bench_invite", { p_person: s.person_id, p: { freelancer: uuid(ctx.body.freelancer), kind: ctx.body.kind === "firm" ? "firm" : "personal", note, request_id: str(ctx.body.request_id, 80) } }));
+}
+
+// ---------- Webhooks ----------
+const resolverOf = (ctx: Ctx) => ctx.deps.resolve ?? denoResolve;
+const WH_REASONS: Record<string, string> = { https_only: "https_only", bad_url: "bad_url", port_not_allowed: "port_not_allowed", private_address: "private_address", address_not_found: "address_not_found" };
+
+async function webhookAdd(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const secretKey = ctx.deps.env("AI_KEY_ENCRYPTION_SECRET");
+  if (!encryptionReady(secretKey)) return json(ctx, { ok: false, reason: "not_set_up" });
+  const chk = await checkUrl(str(ctx.body.url, 600), resolverOf(ctx));
+  if (!chk.ok) return json(ctx, { ok: false, reason: WH_REASONS[chk.reason] ?? "bad_url" });
+  const secret = newSecret();
+  const rowKey = "webhook:" + s.person_id;
+  const r = await rpc<Record<string, any>>(ctx, "dela_webhook_add", { p_person: s.person_id, p_side: s.side,
+    p: { url: chk.url.href, events: Array.isArray(ctx.body.events) ? ctx.body.events.slice(0, 40) : [], sealed: await sealKey(secretKey, rowKey, secret), last4: secret.slice(-4), request_id: str(ctx.body.request_id, 80) } });
+  // The signing secret is shown once, now, and never again
+  return json(ctx, r?.ok && !r.duplicate ? { ...r, secret } : r);
+}
+
+async function webhookChange(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const action = str(ctx.body.action, 20);
+  const p: Record<string, unknown> = { action, events: Array.isArray(ctx.body.events) ? ctx.body.events.slice(0, 40) : [] };
+  let secret = "";
+  if (action === "rotate") {
+    const secretKey = ctx.deps.env("AI_KEY_ENCRYPTION_SECRET");
+    if (!encryptionReady(secretKey)) return json(ctx, { ok: false, reason: "not_set_up" });
+    secret = newSecret();
+    p.sealed = await sealKey(secretKey, "webhook:" + s.person_id, secret);
+    p.last4 = secret.slice(-4);
+  }
+  const r = await rpc<Record<string, any>>(ctx, "dela_webhook_change", { p_person: s.person_id, p_side: s.side, p_id: need(uuid(ctx.body.id)), p });
+  return json(ctx, r?.ok && secret ? { ...r, secret } : r);
+}
+
+// Send one notice now (the worker's job, and the "Send a test" button)
+async function webhookSend(ctx: Ctx, delivery: string): Promise<{ ok: boolean } & Record<string, unknown>> {
+  const d = await rpc<Record<string, any>>(ctx, "dela_webhook_for_delivery", { p_delivery: delivery });
+  if (!d?.ok) return { ok: true, skipped: d?.reason ?? "not_pending" };
+  const secretKey = ctx.deps.env("AI_KEY_ENCRYPTION_SECRET");
+  const rowKey = "webhook:" + String(d.person_id);
+  const secrets: string[] = [];
+  try { secrets.push(await openKey(secretKey, rowKey, String(d.secret))); if (d.prev_secret) secrets.push(await openKey(secretKey, rowKey, String(d.prev_secret))); } catch {
+    await rpc(ctx, "dela_webhook_result", { p_delivery: delivery, p_ok: false, p_code: null, p_error: "secret_unreadable" });
+    return { ok: true, sent: false, error: "secret_unreadable" };
+  }
+  const res = await deliver(f(ctx), String(d.url), d.event, secrets, Number(await setting(ctx, "webhooks.timeout_seconds", "5")) || 5, resolverOf(ctx));
+  const out = await rpc<Record<string, any>>(ctx, "dela_webhook_result", { p_delivery: delivery, p_ok: res.ok, p_code: res.code, p_error: res.error });
+  return { ok: true, sent: res.ok, code: res.code, error: res.error, status: out?.status };
+}
+
+async function webhookTest(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_webhook_test", { p_person: s.person_id, p_side: s.side, p_id: need(uuid(ctx.body.id)) });
+  if (!r?.ok || !r.delivery_id) return json(ctx, r?.ok ? { ok: false, reason: "not_sent" } : r);
+  return json(ctx, await webhookSend(ctx, String(r.delivery_id)));
+}
+
 // ---------- DELA in ChatGPT and Claude (MCP connector, Step 2b) ----------
 // The open Model Context Protocol over plain HTTP (JSON-RPC), with OAuth 2.1 sign in (PKCE, dynamic client registration).
 // Members sign in with their Lawfecta login on the DELA page; DELA never sees a password. Tokens are stored only as hashes.
@@ -2010,6 +2170,8 @@ function mcpTools(side: string) {
       inputSchema: { type: "object", properties: { thread_id: { type: "string" }, body: { type: "string" } }, required: ["thread_id", "body"] }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
     { name: "list_my_meetings", title: "My meetings", description: "Lists the member's meetings on gigs: time (UTC), length, status and whether attendance is confirmed.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
     // Step 6, both sides: engagements to read; signing, paying, submitting and accepting stay on the website
+    { name: "list_my_reviews", title: "My reviews", description: "Shows the reviews other members wrote about this member on this side (from completed Lawfecta engagements), with the averages once there are enough. Writing a review happens on the DELA website.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+    { name: "list_my_bench", title: "My bench", description: "Attorneys: the freelancers on their trusted bench (and the firm bench), with availability and reviews. Freelancers: the benches they are on and open invitations. Inviting and accepting happen on the DELA website.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
     { name: "list_my_engagements", title: "My engagements", description: "Lists the member's engagements (signed or waiting for signatures): the other person, the price, how many milestones are accepted and whether their signature is needed.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
     { name: "get_engagement", title: "Read an engagement", description: "Reads one engagement: the current agreement version, its milestones with amounts, due dates and status, the last submission and DELA's check, and any dispute. Signing, paying, submitting and accepting happen on the DELA website.",
       inputSchema: { type: "object", properties: { engagement_id: { type: "string" } }, required: ["engagement_id"] }, annotations: { readOnlyHint: true } },
@@ -2074,6 +2236,19 @@ async function mcpCall(ctx: Ctx, w: McpWho, name: string, a: Record<string, any>
     const r = await rpc<Record<string, any>>(ctx, "dela_meetings", { p_person: w.person_id, p_side: w.side, p_gig: null, p_meeting: null });
     const ms = (r?.meetings ?? []) as Array<Record<string, any>>;
     return { text: ms.length ? ms.map((m) => `- ${m.gig_title} with ${m.other_name}: ${String(m.start_at).slice(0, 16).replace("T", " ")} UTC, ${m.length_min} minutes, ${m.status}${m.attendance === "verified" ? ", attended" : ""}`).join("\n") : "No meetings yet.", data: ms };
+  }
+  if (name === "list_my_reviews") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_reviews_of", { p_viewer: w.person_id, p_subject: w.person_id, p_side: w.side });
+    if (!r?.on) return { text: "Reviews are not open for this account yet." };
+    const list = (r.reviews ?? []) as Array<Record<string, any>>;
+    const avg = r.averages ? Object.entries(r.averages).map(([k, v]) => `${k.split("_").join(" ")} ${v}`).join(", ") : `averages show after ${r.min_for_average} reviews`;
+    return { text: `${r.count} review${r.count === 1 ? "" : "s"} (${avg}).` + (list.length ? "\n" + list.map((x) => `- ${x.month}, ${x.by}: ${x.would_again ? "would work together again" : "would not work together again"}. ${String(x.body).slice(0, 300)}`).join("\n") : ""), data: r };
+  }
+  if (name === "list_my_bench") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_bench", { p_person: w.person_id, p_side: w.side });
+    if (!r?.on) return { text: "The bench is not open for this account yet." };
+    const items = (r.items ?? []) as Array<Record<string, any>>;
+    return { text: items.length ? items.map((b) => w.side === "attorney" ? `- ${b.name} (${b.kind} bench, ${b.status})${b.available ? ", available" : ", not available now"}${b.reviews?.count ? ", " + b.reviews.count + " reviews" : ""}` : `- ${b.attorney} (${b.status})`).join("\n") : "Nobody on the bench yet.", data: items };
   }
   if (name === "list_my_engagements") {
     const r = await rpc<Record<string, any>>(ctx, "dela_engagements", { p_person: w.person_id, p_side: w.side });
@@ -2292,6 +2467,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/mcp": (c, a) => rpc(c, "dela_admin_mcp", { p_actor: a }),
   "/admin/catalog": (c, a) => rpc(c, "dela_admin_catalog", { p_actor: a }),
   "/admin/gigs": (c, a) => rpc(c, "dela_admin_gigs", { p_actor: a }),
+  "/admin/reviews": (c, a) => rpc(c, "dela_admin_reviews", { p_actor: a }),
   "/admin/payments": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_payments", { p_actor: a })), stripe_ready: !!(await stripeKey(c)), mode: c.deps.env("STRIPE_SECRET_KEY").includes("_live_") ? "live" : "test" }),
   "/admin/meetings": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_meetings", { p_actor: a })), provider_ready: !!c.deps.env("VECTERA_API_KEY") }),
   "/admin/verify": async (c, a) => {
@@ -2336,6 +2512,7 @@ const ADMIN_POST: Record<string, AdminRoute> = {
     const r = await rpc<Record<string, any>>(c, "dela_admin_submission_decide", { p_actor: a, p_submission: need(uuid(c.body.id)), p_pass: c.body.pass === true, p_note: str(c.body.note, 1000) });
     return r;
   },
+  "/admin/reviews/decide": (c, a) => rpc(c, "dela_admin_review_decide", { p_actor: a, p: { kind: str(c.body.kind, 20), id: need(uuid(c.body.id)), action: str(c.body.action, 20), note: str(c.body.note, 1000) } }),
   "/admin/gigs/pause": (c, a) => rpc(c, "dela_admin_gig_pause", { p_actor: a, p_gig: need(uuid(c.body.id)), p_pause: c.body.pause === true, p_reason: str(c.body.reason, 300) }),
   "/admin/conduct/decide": (c, a) => rpc(c, "dela_admin_conduct_decide", { p_actor: a, p_flag: need(uuid(c.body.id)), p_clear: c.body.clear === true, p_note: str(c.body.note, 500) }),
   "/admin/catalog/confirm": (c, a) => rpc(c, "dela_catalog_confirm", { p_actor: a, p_version: need(uuid(c.body.version_id)) }),
@@ -2567,6 +2744,10 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "gig_tick") { await rpc(ctx, "dela_gig_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "engagement_tick") { await rpc(ctx, "dela_engagement_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "engagements_daily") return await engagementsDaily(ctx);
+  if (j.kind === "webhook_send") return await webhookSend(ctx, String(j.payload?.delivery_id ?? ""));
+  if (j.kind === "review_tick") { await rpc(ctx, "dela_review_tick", { p: j.payload ?? {} }); return { ok: true }; }
+  if (j.kind === "bench_tick") { await rpc(ctx, "dela_bench_tick", { p: j.payload ?? {} }); return { ok: true }; }
+  if (j.kind === "bench_daily") { await rpc(ctx, "dela_bench_daily", {}); return { ok: true }; }
   if (j.kind === "meeting_tick") {
     if (j.payload?.kind === "room") return await meetingRoom(ctx, String(j.payload.meeting_id));
     await rpc(ctx, "dela_meeting_tick", { p: j.payload ?? {} });
@@ -2733,6 +2914,29 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /proposals/reconfirm": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_proposal_reconfirm", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)) })); }
       case "POST /proposals/ask-reconfirm": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_proposal_ask_reconfirm", { p_person: s.person_id, p_prop: need(uuid(ctx.body.id)) })); }
       case "POST /proposals/select": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_proposal_select", { p_person: s.person_id, p_prop: need(uuid(ctx.body.id)) })); }
+      case "GET /reviews/state": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_review_state", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.url.searchParams.get("agreement"))) })); }
+      case "POST /reviews/save": return await reviewSave(ctx);
+      case "POST /reviews/respond": return await reviewRespond(ctx);
+      case "POST /reviews/report": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_review_report", { p_person: s.person_id, p_side: s.side, p_review: need(uuid(ctx.body.review_id)), p_reason: str(ctx.body.reason, 2000) })); }
+      case "POST /reviews/appeal": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_review_appeal", { p_person: s.person_id, p_review: need(uuid(ctx.body.review_id)), p_text: str(ctx.body.text, 2000) })); }
+      case "GET /reviews/of": return await reviewsOf(ctx);
+      case "GET /reviews/past": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); return json(ctx, await rpc(ctx, "dela_past_requests", { p_person: s.person_id })); }
+      case "POST /reviews/past/request": return await pastReviewRequest(ctx);
+      case "GET /public/past-review": return await pastReviewPublic(ctx, "get");
+      case "POST /public/past-review": return await pastReviewPublic(ctx, "submit");
+      case "POST /public/past-review/optout": return await pastReviewPublic(ctx, "optout");
+      case "GET /bench": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_bench", { p_person: s.person_id, p_side: s.side })); }
+      case "POST /bench/invite": return await benchInvite(ctx);
+      case "POST /bench/answer": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); return json(ctx, await rpc(ctx, "dela_bench_answer", { p_person: s.person_id, p_bench: need(uuid(ctx.body.id)), p_accept: ctx.body.accept === true })); }
+      case "POST /bench/end": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_bench_end", { p_person: s.person_id, p_side: s.side, p_bench: need(uuid(ctx.body.id)) })); }
+      case "POST /bench/suggestion": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_bench_suggestion_act", { p_person: s.person_id, p_suggestion: need(uuid(ctx.body.id)), p_action: str(ctx.body.action, 20) })); }
+      case "POST /bench/digest": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_bench_digest_set", { p_person: s.person_id, p_on: ctx.body.on === true })); }
+      case "GET /gigs/bench": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_bench", { p_person: s.person_id, p_gig: need(uuid(ctx.url.searchParams.get("id"))) })); }
+      case "GET /webhooks": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_webhooks", { p_person: s.person_id, p_side: s.side })); }
+      case "POST /webhooks/add": return await webhookAdd(ctx);
+      case "POST /webhooks/change": return await webhookChange(ctx);
+      case "POST /webhooks/test": return await webhookTest(ctx);
+      case "POST /webhooks/resend": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_webhook_resend", { p_person: s.person_id, p_side: s.side, p_delivery: need(uuid(ctx.body.delivery_id)) })); }
       case "GET /work": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); return json(ctx, await rpc(ctx, "dela_work", { p_person: s.person_id })); }
       case "GET /talent": return await talent(ctx);
       case "GET /availability": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_avail_get", { p_person: s.person_id })); }

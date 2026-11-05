@@ -1,7 +1,10 @@
 # Feature brief: Reviews, the trusted talent bench, and member webhooks
 
 Step: 7   Spec references: 1A sections 7 (past-attorney reviews), 18 (Trusted Talent Bench and bench channels), 24 (reviews and closeout), 26 (V1 webhooks); tests T09 (project closed, bench open), T15 (webhook to a private address), T18 (negative review published); Decision Sheet: reviews.publish (C, immediately), reviews.edit_window_days (O, 14), webhooks.endpoints (C, Free 1, Plus 2, Pro 5, Business 10 on each side), switches member_webhooks (Step 7), recurring_engagements and auto_repeat_hiring (stay off)
-Status: draft, questions for Stacey. The build starts after she answers.
+Status: questions answered by Stacey 2026-11-05 (all as suggested); approved to build.
+
+## Stacey's answers (2026-11-05)
+All 18 questions as suggested.
 
 ## Who
 - **Attorneys** who completed an engagement in Step 6. They review the freelancer, invite them to a bench, and set up webhooks.
