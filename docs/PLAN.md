@@ -165,14 +165,17 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
 - A full test on Live, a security review, a backup restore drill and the uptime monitor.
 - Point-in-time recovery turned on, and live payments turned on by you.
 
-### Agencies (step 7d), brief waiting on Stacey's answers
-- Stacey 2026-11-05: in the MVP, a solo freelancer who upgrades to Freelancer Business (agency) can post gigs, get proposals, keep a bench and add team members.
-- Today the plan exists, but agencies work like solo freelancers: no team screens, no posting, no bench.
-- Brief with 12 questions and suggested answers: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-7d-agencies.md
-- Suggested order:
-  1. Team and agency proposals.
-  2. The agency bench, Talent and the agency's own gigs.
-  3. Subcontracting an attorney's work, with that attorney's approval each time.
+### Agencies (step 7d), Stacey answered 2026-11-05; part 1 built
+- Brief and answers: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-7d-agencies.md
+- Part 1, built and tested here (not yet on the test site; it goes there after the security re-test report):
+  - A Freelancer Business member's own organization becomes their agency, with an "Agency" tab: business name and state, team, 3 seats (owner included), roles (owner, manager, member), invitations, and the agency's jobs.
+  - Agency proposals: "Send as" the agency and "Who will do this work (required)", with each person's role. They share the agency's proposal allowance.
+  - The attorney sees the agency, the people and their roles on the proposal, and "Who's working on this" after the hire. Changes to the team send the attorney an information-only notice.
+  - Only the owner and managers sign, change, cancel or dispute. Team members do the work and open the job's files.
+  - Reviews go to the agency and to each person named.
+  - Admin area, "Agencies" tab: the one-time business check and a hand-raised seat limit for one agency.
+- Part 2, next: the bench agreement with the fee split (both sign, Plus minimum), Talent and the Library for agencies, the agency's own gigs, split payouts, refunds by share, payout holds.
+- Part 3: subcontracting disclosure, "No subcontractors on this engagement", linked gigs.
 
 ### Security and sensitive data (step 6d), built 2026-11-05
 - Built and on the test site, with Confidential materials (step 6c). Next: Stacey's ChatGPT test (docs/tests/step-6d-security-chatgpt-prompt.md), the /security page install (docs/STACEY_SECURITY_PAGE.md) and the OpenAI settings (docs/RUNBOOK.md).

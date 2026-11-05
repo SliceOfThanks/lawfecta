@@ -2,6 +2,12 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Agencies part 1 (step 7d), 2026-11-05
+- Built with Stacey's answers (docs/briefs/step-7d-agencies.md): migrations 0040 (team, seats, invitations, agency proposals, "Who's working on this", reviews to the team, admin check and seats) and 0041 (5% fees on both sides from settings; already on the test site).
+- Screens: the freelancer "Agency" tab (switch agency_team), "Send as" and "Who will do this work" on proposals, the agency on the attorney's proposal list and profile window, "Who's working on this" on the engagement, and the admin "Agencies" tab.
+- Tests: agency_test.ts (8 api tests), tests/pw/agency-test.js (14 browser checks).
+- Not on the test site yet: 0040, the function and code_version wait until Stacey's security re-test report is in, so nothing changes during her run. Then agency_team goes on for the access list.
+
 ## Security and sensitive data (step 6d) and Confidential materials (step 6c), 2026-11-05
 - Built with Stacey's answers to docs/briefs/step-6d-security-sensitive-data.md and her Confidential materials decisions. On the test site: commit d74af66 (function version 37), migrations 0036 to 0039, Confidential materials switch on for the access list.
 - What it does:

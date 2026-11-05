@@ -12,7 +12,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["reviews", "Reviews and bench"], ["team", "Lawfecta Team"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["reviews", "Reviews and bench"], ["agencies", "Agencies"], ["team", "Lawfecta Team"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   var current = "control";
   var mainEl = null;
   var tabsEl = null;
@@ -79,7 +79,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, reviews: reviewsTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, reviews: reviewsTab, agencies: agenciesTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // ---------- Guide ----------
@@ -899,6 +899,42 @@
 
   // ---------- Tech catalog (Step 4): upload a CSV, preview what changes, confirm; pause one tool; history ----------
   // ---------- Security: questions from the /security page, Confidential materials counts, dispute reviews ----------
+  // Agencies (Step 7d): the one-time business name and state check, and a hand-raised seat limit for one agency
+  function agenciesTab() {
+    var el = h("div", { class: "card" }, h("h2", { text: "Agencies" }), h("p", { class: "muted", text: "Loading..." }));
+    body(el);
+    api.get("/admin/agencies").then(function (r) {
+      var d = r.data || r;
+      D.clear(el);
+      el.appendChild(h("h2", { text: "Agencies" }));
+      var sw = d.switches || {};
+      el.appendChild(h("p", { class: "small muted", text: "A Business freelancer becomes an agency. Check each agency's business name and state once. Switches: " +
+        Object.keys(sw).sort().map(function (k) { return k + " " + sw[k]; }).join(", ") + "." }));
+      if (!(d.agencies || []).length) { el.appendChild(h("p", { class: "muted", text: "No agencies yet." })); return; }
+      (d.agencies || []).forEach(function (g) {
+        var note = h("input", { "aria-label": "Note for " + g.name, placeholder: "Note (shown to the owner if the details need a change)", maxlength: "300", style: "min-width:260px" });
+        var seats = h("input", { type: "number", min: "1", max: "500", "aria-label": "Seat limit for " + g.name, style: "width:90px", value: g.seats && g.seats.override ? String(g.seats.limit) : "" });
+        var st = g.seats || {};
+        el.appendChild(h("div", { style: "border-top:1px solid var(--line);padding:10px 0" },
+          h("div", { class: "row" }, h("b", { class: "grow", text: g.name }), h("span", { class: "badge " + (g.checked ? "ready" : "C"), text: g.checked ? "Checked " + D.date(g.checked_at) : "Not checked yet" })),
+          h("p", { class: "small", style: "margin:4px 0", text: "Business name: " + (g.business_name || "not given") + " | State: " + (g.business_state || "not given") + " | Owner: " + g.owner + " (" + (g.owner_email || "") + ")" +
+            " | " + (g.active ? "Active" : "Not active (owner is not on Business)") + " | Seats: " + (st.used || 0) + " of " + (st.limit || 0) + " | Engagements: " + (g.engagements || 0) }),
+          g.note ? h("p", { class: "small muted", text: "Last note: " + g.note }) : null,
+          h("div", { class: "row", style: "flex-wrap:wrap" }, note,
+            h("button", { class: "blue small", type: "button", onclick: function () { api.post("/admin/agencies/check", { org_id: g.org_id, ok: true, note: note.value }).then(done("Checked. The owner was told.")).catch(fail); } }, "Business details are right"),
+            h("button", { class: "ghost small", type: "button", onclick: function () {
+              if (!note.value.trim()) { fail({ message: "Write a note saying what to change." }); return; }
+              api.post("/admin/agencies/check", { org_id: g.org_id, ok: false, note: note.value }).then(done("Sent. The owner was asked to change the details.")).catch(fail);
+            } }, "Ask for a change")),
+          h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, h("span", { class: "small", text: "Seat limit for this agency (empty for the plan's limit):" }), seats,
+            h("button", { class: "ghost small", type: "button", onclick: function () {
+              var v = seats.value.trim();
+              api.post("/admin/agencies/seats", { org_id: g.org_id, limit: v === "" ? null : Number(v) }).then(done(v === "" ? "Back to the plan's seat limit" : "Seat limit set to " + v)).catch(fail);
+            } }, "Save seat limit"))));
+      });
+    }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+    function done(msg) { return function (x) { var p = x.data || x; if (p && p.ok === false) { fail({ message: p.reason }); return; } ok(msg); agenciesTab(); }; }
+  }
   function securityTab() {
     var el = h("div");
     var msgs = h("div", { class: "card" }, h("h2", { text: "Security questions from the website" }), h("p", { class: "muted", text: "Loading..." }));

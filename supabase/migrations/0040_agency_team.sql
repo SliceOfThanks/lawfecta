@@ -78,6 +78,11 @@ create table if not exists review_subjects (
 alter table review_subjects enable row level security;
 
 -- ---------- The agency itself ----------
+-- A freelancer's name as members know it: their profile name, or their Lawfecta name
+create or replace function dela_freelancer_name(p_person uuid) returns text language sql stable as $$
+  select coalesce((select nullif(trim(coalesce(mp.body->>'first_name', '') || ' ' || coalesce(mp.body->>'last_name', '')), '') from member_profiles mp where mp.person_id = p_person and mp.side = 'freelancer'),
+    (select display_name from people where id = p_person), '')
+$$;
 create or replace function dela_agency_owner(p_org uuid) returns uuid language sql stable as $$
   select owner_person_id from organizations where id = p_org and kind = 'agency'
 $$;
@@ -124,7 +129,7 @@ begin
   v_role := case when o.id is null then '' else dela_agency_role(p_person, o.id) end;
   return jsonb_build_object('ok', true, 'on', true, 'tier', v_tier,
     'invitations', (select coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'agency', coalesce(nullif(ao.business_name, ''), ao.name), 'role', i.member_role,
-        'from', pe.display_name, 'expires_at', i.expires_at) order by i.created_at desc), '[]')
+        'from', dela_freelancer_name(pe.id), 'expires_at', i.expires_at) order by i.created_at desc), '[]')
       from agency_invites i join organizations ao on ao.id = i.org_id join people pe on pe.id = i.invited_by
       where i.person_id = p_person and i.status = 'sent' and i.expires_at > now()),
     'memberships', (select coalesce(jsonb_agg(jsonb_build_object('org_id', ao.id, 'agency', coalesce(nullif(ao.business_name, ''), ao.name), 'role', m.member_role, 'active', dela_agency_active(ao.id))), '[]')
@@ -133,16 +138,16 @@ begin
       'business_state', o.business_state, 'business_checked', o.business_checked_at is not null, 'business_check_note', o.business_check_note,
       'active', dela_agency_active(o.id), 'role', v_role, 'seats', dela_agency_seats(o.id),
       'allowance', dela_proposal_allowance(o.owner_person_id),
-      'team', (select coalesce(jsonb_agg(jsonb_build_object('person_id', pe.id, 'name', pe.display_name, 'email', case when v_role in ('owner', 'manager') then pe.email end,
+      'team', (select coalesce(jsonb_agg(jsonb_build_object('person_id', pe.id, 'name', dela_freelancer_name(pe.id), 'email', case when v_role in ('owner', 'manager') then pe.email end,
           'role', case when pe.id = o.owner_person_id then 'owner' else m.member_role end, 'since', m.effective_from,
           'verified', coalesce((select sp.readiness_state from side_profiles sp where sp.person_id = pe.id and sp.side = 'freelancer'), '') in ('match_ready', 'availability_stale', 'unavailable'),
           'jobs', (select count(*) from engagement_team t join agreements a on a.id = t.agreement_id where t.person_id = pe.id and t.removed_at is null and a.agency_org = o.id and a.status in ('draft', 'signing', 'signed', 'active')))
-          order by case when pe.id = o.owner_person_id then 0 when m.member_role = 'manager' then 1 else 2 end, pe.display_name), '[]')
+          order by case when pe.id = o.owner_person_id then 0 when m.member_role = 'manager' then 1 else 2 end, dela_freelancer_name(pe.id)), '[]')
         from org_members m join people pe on pe.id = m.person_id where m.org_id = o.id and m.status = 'active'),
-      'pending', case when v_role in ('owner', 'manager') then (select coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'name', pe.display_name, 'email', pe.email, 'role', i.member_role, 'expires_at', i.expires_at) order by i.created_at desc), '[]')
+      'pending', case when v_role in ('owner', 'manager') then (select coalesce(jsonb_agg(jsonb_build_object('id', i.id, 'name', dela_freelancer_name(pe.id), 'email', pe.email, 'role', i.member_role, 'expires_at', i.expires_at) order by i.created_at desc), '[]')
         from agency_invites i join people pe on pe.id = i.person_id where i.org_id = o.id and i.status = 'sent' and i.expires_at > now()) end,
       'jobs', (select coalesce(jsonb_agg(jsonb_build_object('agreement_id', a.id, 'gig_id', a.gig_id, 'title', g.title, 'status', a.status,
-          'people', (select coalesce(jsonb_agg(px.display_name order by px.display_name), '[]') from engagement_team t join people px on px.id = t.person_id where t.agreement_id = a.id and t.removed_at is null and t.kind = 'team'))
+          'people', (select coalesce(jsonb_agg(dela_freelancer_name(px.id) order by 1), '[]') from engagement_team t join people px on px.id = t.person_id where t.agreement_id = a.id and t.removed_at is null and t.kind = 'team'))
           order by a.created_at desc), '[]')
         from agreements a join gigs g on g.id = a.gig_id where a.agency_org = o.id and (v_role in ('owner', 'manager') or exists (select 1 from engagement_team t where t.agreement_id = a.id and t.person_id = p_person and t.removed_at is null)))) end);
 end $$;
@@ -224,7 +229,7 @@ begin
   on conflict (org_id, person_id) do update set member_role = excluded.member_role, status = 'active', effective_from = now(), effective_to = null;
   update agency_invites set status = 'accepted', decided_at = now() where id = i.id;
   perform dela_notify(jsonb_build_object('person_id', i.invited_by, 'side', 'freelancer', 'kind', 'agency',
-    'title', (select display_name from people where id = p_person) || ' joined your agency', 'body', 'They can now be named on proposals.', 'link', '/dela?tab=agency', 'dedupe_key', 'agencyjoin:' || i.id));
+    'title', dela_freelancer_name(p_person) || ' joined your agency', 'body', 'They can now be named on proposals.', 'link', '/dela?tab=agency', 'dedupe_key', 'agencyjoin:' || i.id));
   perform dela_audit('member', p_person, 'agency_joined', 'organization', i.org_id::text, jsonb_build_object('role', i.member_role));
   return jsonb_build_object('ok', true, 'status', 'accepted');
 end $$;
@@ -268,7 +273,7 @@ end $$;
 
 -- The agency's team members who can be named on a proposal: active, with their own verification done
 create or replace function dela_agency_pickable(p_org uuid) returns jsonb language sql stable as $$
-  select coalesce(jsonb_agg(jsonb_build_object('person_id', pe.id, 'name', pe.display_name, 'role', case when pe.id = o.owner_person_id then 'owner' else m.member_role end) order by pe.display_name), '[]')
+  select coalesce(jsonb_agg(jsonb_build_object('person_id', pe.id, 'name', dela_freelancer_name(pe.id), 'role', case when pe.id = o.owner_person_id then 'owner' else m.member_role end) order by dela_freelancer_name(pe.id)), '[]')
   from organizations o join org_members m on m.org_id = o.id and m.status = 'active' join people pe on pe.id = m.person_id
   where o.id = p_org and coalesce((select sp.readiness_state from side_profiles sp where sp.person_id = pe.id and sp.side = 'freelancer'), '') in ('match_ready', 'availability_stale', 'unavailable')
 $$;
@@ -419,7 +424,7 @@ begin
   end if;
   return jsonb_build_object('ok', true, 'agency', case when a.agency_org is not null then (select jsonb_build_object('org_id', o.id, 'name', coalesce(nullif(o.business_name, ''), o.name)) from organizations o where o.id = a.agency_org) end,
     'can_change', p_side = 'freelancer' and a.agency_org is not null and dela_agency_role(p_person, a.agency_org) in ('owner', 'manager') and a.status in ('draft', 'signing', 'signed', 'active'),
-    'people', (select coalesce(jsonb_agg(jsonb_build_object('person_id', pe.id, 'name', pe.display_name, 'kind', t.kind, 'role', t.role_text, 'since', t.added_at,
+    'people', (select coalesce(jsonb_agg(jsonb_build_object('person_id', pe.id, 'name', dela_freelancer_name(pe.id), 'kind', t.kind, 'role', t.role_text, 'since', t.added_at,
         'photo_file', mp.body->>'photo_file') order by t.kind, t.added_at), '[]')
       from engagement_team t join people pe on pe.id = t.person_id left join member_profiles mp on mp.person_id = pe.id and mp.side = 'freelancer' where t.agreement_id = a.id and t.removed_at is null),
     'options', case when p_side = 'freelancer' and a.agency_org is not null and dela_agency_role(p_person, a.agency_org) in ('owner', 'manager') then dela_agency_pickable(a.agency_org) end);
@@ -443,7 +448,7 @@ begin
     update engagement_team set removed_at = now(), removed_by = p_person where agreement_id = a.id and person_id = p_member and removed_at is null;
     if not found then return jsonb_build_object('ok', true, 'duplicate', true); end if;
   end if;
-  select display_name into v_name from people where id = p_member;
+  v_name := dela_freelancer_name(p_member);
   select title into v_title from gigs where id = a.gig_id;
   perform dela_notify(jsonb_build_object('person_id', a.attorney_person, 'side', 'attorney', 'kind', 'engagement',
     'title', 'A change in who is working on ' || coalesce(v_title, 'your engagement'),
@@ -489,7 +494,7 @@ begin
   perform dela_require_staff(p_actor, array['support', 'reviewer']);
   return jsonb_build_object('ok', true, 'switches', (select jsonb_object_agg(key, state) from feature_switches where key like 'agency%'),
     'agencies', (select coalesce(jsonb_agg(jsonb_build_object('org_id', o.id, 'name', coalesce(nullif(o.business_name, ''), o.name), 'business_name', o.business_name, 'business_state', o.business_state,
-        'checked', o.business_checked_at is not null, 'checked_at', o.business_checked_at, 'note', o.business_check_note, 'owner', pe.display_name, 'owner_email', pe.email,
+        'checked', o.business_checked_at is not null, 'checked_at', o.business_checked_at, 'note', o.business_check_note, 'owner', dela_freelancer_name(pe.id), 'owner_email', pe.email,
         'active', dela_agency_active(o.id), 'seats', dela_agency_seats(o.id),
         'engagements', (select count(*) from agreements a where a.agency_org = o.id)) order by o.business_checked_at nulls first, o.created_at desc), '[]')
       from organizations o join people pe on pe.id = o.owner_person_id where o.kind = 'agency'));
