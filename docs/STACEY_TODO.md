@@ -32,6 +32,7 @@ For each test:
 Claude fixes anything that fails, then tells you which part to run again.
 
 ### 2a. Step 3: profiles and verification
+- Status 2026-11-05: ChatGPT ran out of credits partway. Most of it passed, and Claude fixed the two problems it found. Finish the rest by hand (about 10 minutes): https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-3-finish-by-hand.md
 - Test: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-3-chatgpt-prompt.md
 - Have ready:
   - the logins are filled in: test attorney stacey+dela-attorney@lawfecta.com, test freelancer stacey+dela-freelancer@lawfecta.com, owner stacey@lawfecta.com (passwords only in the copies Claude sends you in chat, never on GitHub)

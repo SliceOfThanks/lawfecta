@@ -9,6 +9,12 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - On the test site since 2026-11-03: commit de2bc4a (api version 8, same jsDelivr loader), health 200, worker ok.
 - Wording: the admin area and member badge say "Test site: hirelegalhelp.com" and "Live: lawfecta.com"; emails from the test site start with [Test site].
 
+## Step 3 test, 2026-11-05 (ChatGPT, partly; credits ran out)
+- Passed: A1 to A4, A6, A7, D1 to D7, F1, F2, and the team's LinkedIn check (freelancer 688 match-ready). All alert and member emails were sent through Brevo.
+- Fixed (commit a2fcd5c, api version 20): the page wiped unsaved form changes when a button reloaded it; "Filled 1 items"; the draft label now names services. Each fix has a browser check.
+- Left, by hand: docs/tests/step-3-finish-by-hand.md (A5 email link, B1 to B3 team verify, C1 and C2). The license email to hello@lawwurk.com was sent at 23:32 UTC on 2026-11-04 and has not been clicked yet.
+- BD login: reCAPTCHA is still blocking ChatGPT's agent ("The security check was not completed successfully"). Stacey is fixing it on the test site.
+
 ## Step 3: profiles and verification (built 2026-11-04; brief docs/briefs/step-3-profiles-verification.md, answered by Stacey)
 - Migration 0018_profiles, lib/profiles/model.ts, lib/bd/members.ts. Switches: profiles, attorney_verification, freelancer_verification, profile_documents, bd_profile_sync.
 - Profile on each side (separate), with the required parts from settings and a plain missing list. side_profiles.readiness_state and verification_state are kept in step.
