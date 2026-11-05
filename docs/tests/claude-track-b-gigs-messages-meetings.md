@@ -16,9 +16,9 @@ Before you paste this (about 5 minutes):
 3. Open a new Chrome tab at https://www.hirelegalhelp.com/login and log in as the test attorney (stacey+dela-attorney@lawfecta.com, password in the ready-to-paste copy Claude sent you in chat).
 4. Click the Claude icon at the top right of Chrome (in the toolbar, or under the puzzle-piece icon) to open the Claude side panel. If Claude asks to allow www.hirelegalhelp.com, allow it.
 5. Paste everything below the line into the Claude side panel and send it.
-6. During the test Claude asks you to do three kinds of things. Do them in the same Chrome tab, then type in the side panel: done, continue.
+6. While the test runs, do not open hirelegalhelp.com in any other Chrome tab or window. A page load there switches the login for every tab, and the test's actions go out as the wrong person. A separate Chrome profile for Claude tests avoids this.
+7. During the test Claude asks you to do two kinds of things. Do them in the same Chrome tab, then type in the side panel: done, continue.
    - Log in as another account. Claude cannot pass the login check (reCAPTCHA).
-   - Click a button that opens a small browser pop-up with "OK" and "Cancel". Claude cannot touch those pop-ups: if it clicks one, it freezes. Click the button yourself, then click "OK".
    - Choose a file from your computer.
 
 Paste everything below the line into the Claude side panel.
@@ -38,7 +38,7 @@ HOW TO WORK (read this first; it saves time and credits)
 3. Every button, box and link is named in quotes, exactly as the screen writes it, with where it is. First scroll to the card heading the step names, then look for the item.
 4. If you cannot see it after scrolling to that heading, read the page text once to find it. If it is still not there, take one screenshot, write FAIL for that step with what you saw, and go on to the next step. Never try more than this one other way.
 5. When a step says DELA is writing or checking, wait up to 60 seconds without clicking anything else.
-6. NEVER click a button marked (POP-UP) in a step. It opens a browser "OK / Cancel" pop-up that freezes you. Instead, write in the side panel: "Please click [button name] and then OK", and wait until I write done.
+6. A button marked (POP-UP) opens a browser "OK / Cancel" pop-up, which your browser cancels by itself. Before clicking it, run this in the page so it answers OK on its own: window.confirm = () => true; window.prompt = () => "Test". Then click the button.
 7. When a step says "Ask me to log in as ...", write that in the side panel and wait until I write done. The login page has a check you cannot pass.
 8. What every DELA page looks like:
    - A dark bar across the very top: the Lawfecta logo and a small yellow "Test site" label on the left; on the right, an "Inbox" button, a "Notices" button and a round button with the person's initials.
@@ -139,8 +139,8 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
 
 5. Do: click the blue "Book a meeting" in the row of buttons near the top of the conversation.
    Expect: "Book a meeting" with a "Length" choice and open times grouped by day, in my time zone. No times on next Wednesday (the day off), none on Sunday, none in the next 12 hours.
-   Do (POP-UP): ask me to click one of the times and then OK.
-   Expect, after I write done: "Your meetings" with the meeting marked "Booked", and a note that the meeting room link appears once Lawfecta's meeting service is connected.
+   Do (POP-UP): click one of the times.
+   Expect: "Your meetings" with the meeting marked "Booked", and a note that the meeting room link appears once Lawfecta's meeting service is connected.
 
 6. Do: on that meeting, click the outlined "Add to my calendar (.ics)".
    Expect: a calendar file downloads. Report its name.
@@ -149,8 +149,8 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
    Expect: the conversation listed.
 
 8. Go to: https://www.hirelegalhelp.com/dela?tab=projects, click your gig, then the view tab "Proposals (1)".
-   Do (POP-UP): ask me to click "Choose" at the right end of the freelancer's row and then OK.
-   Expect, after I write done: the gig's status label "Filled".
+   Do (POP-UP): click "Choose" at the right end of the freelancer's row.
+   Expect: the gig's status label "Filled".
 
 9. Go to: https://www.hirelegalhelp.com/dela?tab=delegate (the "✦ Ask DELA" tab).
    Do: in the message box at the bottom, type Which practice management software should a solo family law firm use? and send it.
@@ -177,8 +177,8 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
 
 3. Do: click the tab "Tech catalog".
    Expect: "Tools in the catalog now" with the tools listed.
-   Do (POP-UP): ask me to click "Pause" on the first tool, type Test pause in the pop-up, and click OK.
-   Expect, after I write done: that tool shows "Paused".
+   Do (POP-UP): click "Pause" on the first tool.
+   Expect: that tool shows "Paused".
    Do: click "Resume" on the same tool.
    Expect: it is active again.
 
@@ -204,8 +204,8 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
    Do: tick "I agree to this meeting being recorded or noted. Nothing is recorded unless both of you agree."
    Expect: "Saved".
    Do: click the outlined "Change the time". Choose another day.
-   Do (POP-UP): ask me to click one of the new times and then OK.
-   Expect, after I write done: "Moved. One update went to both of you."
+   Do (POP-UP): click one of the new times.
+   Expect: "Moved. One update went to both of you."
 
 6. Sign out.
 

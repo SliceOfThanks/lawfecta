@@ -9,6 +9,8 @@ Rules for writing test steps:
 - No phone-width checks in agent tests. Claude's browser tests cover the phone.
 - No step that asks the agent to "find" or "check" something without saying where it is.
 - Tests that can run at the same time get separate items to work on (named in the prompt), so the two agents never change the same thing.
+- Claude in Chrome uses Stacey's own Chrome and its logins. During a Claude test, nothing else in that Chrome may use hirelegalhelp.com: a page load in another tab switches the login for every tab (track B, 2026-11-05: a question went out as the owner and was lost). Best: a separate Chrome profile only for Claude tests.
+- Claude in Chrome quietly cancels browser OK/Cancel pop-ups. Claude tests tell Claude to make the page answer OK by itself before a (POP-UP) step: it runs window.confirm = () => true and window.prompt = () => "Test" in the page. ChatGPT's browser handles these pop-ups itself.
 
 ---
 
