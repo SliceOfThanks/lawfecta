@@ -96,6 +96,11 @@ Deno.test("the storage bucket accepts the recorder's video and audio pieces (Sta
   for (const t of ["video/webm", "audio/webm", "video/mp4", "audio/mp4"]) assert(bucket.includes("'" + t + "'"), t + " is allowed in the dela-files bucket");
 });
 
+Deno.test("the recorder consent says to keep client information out (Stacey's recorder check 2026-11-05)", async () => {
+  const v = (await pool.query("select value #>> '{}' v from settings where key = 'recorder.consent_text'")).rows[0].v as string;
+  assert(v.includes("no client information") && !v.includes("including any client information"), v);
+});
+
 Deno.test("setup", async () => {
   await pool.query(`create or replace function dela_worker_ok(p_secret text) returns boolean language sql as $$ select p_secret = '${WORKER}' $$`);
   await pool.query("update feature_switches set state = 'off' where key = 'recorder'");

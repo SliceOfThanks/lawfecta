@@ -150,6 +150,17 @@ async function waitFor(page, words, ms) {
     await click(p, "Delete video");
     t = await waitFor(p, "Video deleted on");
     ok(t.includes("Open playbook"), "deleting the video keeps the playbook");
+
+    // A recording left at Uploading from another browser says so and can be removed (Stacey's recorder check 2026-11-05)
+    await sql(`insert into recordings (org_id, person_id, title, status, max_minutes, request_id, created_at)
+      select org_id, person_id, 'Left behind', 'uploading', 20, 'left-behind', now() - interval '1 hour' from recordings where title = 'File a motion'`);
+    await click(p, "Home");
+    await click(p, "Library");
+    t = await waitFor(p, "Left behind");
+    await waitFor(p, "Upload did not finish");
+    await dela(p).locator("tr", { hasText: "Left behind" }).getByRole("button", { name: "Remove" }).click();
+    await waitFor(p, "Recording removed");
+    ok((await sql("select status from recordings where title = 'Left behind'"))[0].status === "discarded", "a recording stuck at Uploading says so and can be removed");
     await s.ctx.close();
 
     // A direct link opens the recorder page

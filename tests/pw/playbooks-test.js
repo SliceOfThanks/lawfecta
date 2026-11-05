@@ -217,6 +217,25 @@ async function makeMember(bd, side, plan) {
     ok((await dela(s.page).getByRole("button", { name: "Approve", exact: true }).count()) === 0 && t.includes("Send for review"), "an editor can send for review but not approve");
     await s.ctx.close();
 
+    // Upload a file right on the New playbook page and draft from it alone (Stacey 2026-11-05)
+    s = await open(browser, 2200);
+    await click(s.page, "Library");
+    await waitFor(s.page, "Playbook library");
+    await click(s.page, "New playbook");
+    await click(s.page, "Upload a new file");
+    await dela(s.page).getByLabel("Choose a file").setInputFiles({ name: "Billing steps.txt", mimeType: "text/plain", buffer: Buffer.from("Step 1. Pull the time entries.\nStep 2. Review the draft invoices.\nStep 3. Send the invoices.") });
+    await click(s.page, "Upload");
+    t = await waitFor(s.page, "Tick the box");
+    ok(t.includes("Tick the box to confirm"), "uploading here needs the no client information tick");
+    await dela(s.page).getByLabel("This file has no confidential client information").check();
+    await click(s.page, "Upload");
+    t = await waitFor(s.page, "is ready. DELA will draft from it", 15000);
+    ok(t.includes("Billing steps.txt is ready"), "the file uploads from the New playbook page");
+    await click(s.page, "Draft it with DELA");
+    t = await waitFor(s.page, "DELA's questions", 15000);
+    ok(t.includes("DELA's questions"), "DELA drafts from the uploaded file with no description");
+    await s.ctx.close();
+
     // Phone
     s = await open(browser, 2200, { width: 390, height: 844 });
     await click(s.page, "Library");

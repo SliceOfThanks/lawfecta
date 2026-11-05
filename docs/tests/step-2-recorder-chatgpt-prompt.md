@@ -10,7 +10,9 @@ Before you start:
    3. Hand control back and type: I'm logged in, continue.
 
 ## Part A (you, about 10 minutes, logged in as the test attorney)
-1. Log in at https://www.hirelegalhelp.com/login as stacey+dela-attorney@lawfecta.com. Then open https://www.hirelegalhelp.com/dela?tab=record. The "Record a process" page opens.
+1. Log in at https://www.hirelegalhelp.com/login as stacey+dela-attorney@lawfecta.com (password TEST_PASSWORD).
+   - First, clear the old stuck recording: open https://www.hirelegalhelp.com/dela?tab=library. In the "Recordings" card, the second card from the top, the row "Sample Process" says "Upload did not finish". Click "Remove" on that row and confirm.
+   - Then open https://www.hirelegalhelp.com/dela?tab=record. The "Record a process" page opens.
 2. Fill in the page:
    1. Type a name in "Process name" at the top.
    2. Pick your microphone, and check that the level bar under it moves when you talk.
@@ -26,12 +28,15 @@ Before you start:
    3. Mark one line of "What you said" as private.
    4. Blur one screenshot: click "Blur part of this image" under it, drag over a part, and save.
    5. Click "Build my playbook" at the bottom.
-8. Write down:
+8. Keep a copy of the video: back on https://www.hirelegalhelp.com/dela?tab=library, in the "Recordings" card, click "Download video" on your recording's row. Expect a .webm file named "DELA - <process name> - <date>.webm" that plays. Keep it for the next step.
+9. Upload a recording made elsewhere: in the "Recordings" card, click "Record a process", then "Upload a recording" near the bottom of that page, and choose the .webm file from step 8. Expect it to be read (about half its length) and then to appear in the "Recordings" card.
+10. On your phone, log in at https://www.hirelegalhelp.com/login as the test attorney and open https://www.hirelegalhelp.com/dela?tab=record. Expect "Screen recording isn't available in this browser" and an "Upload a recording" button. (A narrowed computer window still records, so this check needs a real phone.)
+11. Write down:
    - how long the recording was
    - how long the analysis took
    - how many steps DELA found
    - whether any step was wrong or missing
-9. Sign out: click the initials in the top right, then "Sign out".
+12. Sign out: click the initials in the top right, then "Sign out".
 
 ## Part B (ChatGPT)
 Paste everything below the line into ChatGPT in agent mode.
@@ -53,18 +58,15 @@ The login page has a reCAPTCHA you cannot complete. Each time you reach https://
 2. On the finished recording's row, expect "Ready for review" or an "Open playbook" button. Click "Open playbook".
    - Expect a playbook with steps and screenshots.
    - Click the "Activity" view in the row of views at the top of the playbook. It says the playbook was built from a recording.
-3. Back in the Library's "Recordings" card, on the same row, click "Download video". Expect a .webm file named "DELA - <process name> - <date>.webm" that plays.
-4. On the same row, click "Delete video" and confirm. Expect "Video deleted on <date>", and the playbook is still there.
-5. In the "Recordings" card, click "Record a process". Leave "Process name" empty and click "Start recording". Expect a request for a name.
-6. Narrow the window to phone width and reload the page. Open "Record a process" again. Expect "Screen recording isn't available in this browser" and an "Upload a recording" button. Widen the window again.
-7. Click "Upload a recording" and choose a short MP4 or WebM screen recording made elsewhere, for example with Loom. Expect it to be read (it takes about half its length) and then to appear in the "Recordings" card.
-8. Sign out (the initials in the top right, then "Sign out").
+3. On the same row, click "Delete video" and confirm. Expect "Video deleted on <date>", and the playbook is still there.
+4. In the "Recordings" card, click "Record a process". Leave "Process name" empty and click "Start recording". Expect a request for a name.
+5. Sign out (the initials in the top right, then "Sign out").
 
 2. Owner (ask me to log in as the owner)
 1. Open www.hirelegalhelp.com/dela-admin and click "AI and files" in the row of tabs. Scroll to the "Process Recorder" card. Expect:
    - a table by month: started, finished, ready, failed, abandoned, built
    - recordings by browser
-2. Click "Settings" in the row of tabs and find the group "Process Recorder". Expect the plan lengths, video days, credits per recording, and the consent wording.
+2. Click "Settings" in the row of tabs and find the group "Process Recorder". Expect the plan lengths, video days and credits per recording shown per plan (for example "Attorney Free: 20 minutes"), and the consent wording, which says to record only practice runs or work with no client information.
 3. Sign out.
 
 Final report:

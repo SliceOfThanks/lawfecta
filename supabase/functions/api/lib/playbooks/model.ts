@@ -153,28 +153,83 @@ export function toCsv(b: Body): string {
 // ---------- Word (.docx) ----------
 
 const x = (t: string) => esc(t).replaceAll("'", "&apos;");
-const para = (t: string, style = "") => `<w:p>${style ? `<w:pPr><w:pStyle w:val="${style}"/></w:pPr>` : ""}${t.split("\n").map((line, i) => `<w:r>${i ? "<w:br/>" : ""}<w:t xml:space="preserve">${x(line)}</w:t></w:r>`).join("")}</w:p>`;
+
+// Built for reading and printing (Stacey 2026-11-05: "it could be formatted better"):
+// a summary box, the steps as a table, real bullets, the attorney review points in a shaded box, and page numbers.
+const BRAND = "8B2146", INK = "1C2230", GREY = "5F6675", LINE = "D9DBE1", SOFT = "F6EEF2", HEAD = "F1E4EA";
+type RunOpt = { b?: boolean; i?: boolean; color?: string; sz?: number };
+const run = (t: string, o: RunOpt = {}) => {
+  const pr = `${o.b ? "<w:b/>" : ""}${o.i ? "<w:i/>" : ""}${o.color ? `<w:color w:val="${o.color}"/>` : ""}${o.sz ? `<w:sz w:val="${o.sz}"/>` : ""}`;
+  return t.split("\n").map((line, i) => `<w:r>${pr ? `<w:rPr>${pr}</w:rPr>` : ""}${i ? "<w:br/>" : ""}<w:t xml:space="preserve">${x(line)}</w:t></w:r>`).join("");
+};
+const p = (runs: string, style = "", extra = "") => `<w:p>${style || extra ? `<w:pPr>${style ? `<w:pStyle w:val="${style}"/>` : ""}${extra}</w:pPr>` : ""}${runs}</w:p>`;
+const empty = () => p(run("Not filled in yet", { i: true, color: GREY }));
+const bullet = (t: string, mark = "•") => p(run(mark + "\t") + run(t), "ListBullet");
+const border = (c = LINE) => `<w:top w:val="single" w:sz="4" w:color="${c}"/><w:left w:val="single" w:sz="4" w:color="${c}"/><w:bottom w:val="single" w:sz="4" w:color="${c}"/><w:right w:val="single" w:sz="4" w:color="${c}"/><w:insideH w:val="single" w:sz="4" w:color="${c}"/><w:insideV w:val="single" w:sz="4" w:color="${c}"/>`;
+const cell = (w: number, body: string, fill = "") => `<w:tc><w:tcPr><w:tcW w:w="${w}" w:type="dxa"/>${fill ? `<w:shd w:val="clear" w:color="auto" w:fill="${fill}"/>` : ""}</w:tcPr>${body}</w:tc>`;
+const table = (widths: number[], rows: string[], opts: { header?: boolean; borderColor?: string } = {}) =>
+  `<w:tbl><w:tblPr><w:tblW w:w="${widths.reduce((a, c) => a + c, 0)}" w:type="dxa"/><w:tblBorders>${border(opts.borderColor)}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="80" w:type="dxa"/><w:left w:w="110" w:type="dxa"/><w:bottom w:w="80" w:type="dxa"/><w:right w:w="110" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${widths.map((w) => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid>${rows.join("")}</w:tbl>` + p("", "", `<w:spacing w:after="60"/>`);
+const row = (cells: string, header = false) => `<w:tr>${header ? `<w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>` : `<w:trPr><w:cantSplit/></w:trPr>`}${cells}</w:tr>`;
+const TAG_SHORT: Record<string, string> = { keep: "Attorney", delegate: "Delegate", automate: "Automate" };
+
+function docxBody(b: Body, m: ExportMeta): string {
+  const out: string[] = [];
+  out.push(p(run(b.title || "Playbook"), "Title"));
+  out.push(p(run([m.firm, `Version ${m.version}`, m.status === "approved" ? "Approved" : "Not yet approved", `Exported ${m.date}`].filter(Boolean).join("  |  "), { color: GREY }), "Subtitle"));
+  // Summary box
+  const sum: Array<[string, string]> = [["Outcome", b.outcome], ["Practice area and jurisdiction", [b.practice_area, b.jurisdiction].filter(Boolean).join(", ")], ["When to use it", b.when_to_use], ["Deliverables", b.deliverables]];
+  out.push(table([2600, 6760], sum.map(([k, v]) => row(cell(2600, p(run(k, { b: true, color: BRAND }), "TableText"), SOFT) + cell(6760, v ? p(run(v), "TableText") : p(run("Not filled in yet", { i: true, color: GREY }), "TableText"))))));
+  const h1 = (t: string) => out.push(p(run(t), "Heading1"));
+  h1("Roles");
+  const roles = (b.roles || "").split("\n").map((l) => l.trim()).filter(Boolean);
+  if (!roles.length) out.push(empty());
+  roles.forEach((l) => {
+    const k = l.indexOf(":");
+    out.push(k > 0 && k < 40 ? p(run(l.slice(0, k + 1), { b: true }) + run(l.slice(k + 1))) : p(run(l)));
+  });
+  h1("What you need first");
+  if (!b.needs.length) out.push(empty());
+  b.needs.forEach((t) => out.push(bullet(t)));
+  h1("Steps");
+  if (!b.steps.length) out.push(empty());
+  else {
+    const W = [500, 4760, 1300, 1300, 800, 1100];
+    const hd = ["#", "What to do", "Who", "Tool", "Time", "Type"].map((t, i) => cell(W[i], p(run(t, { b: true, color: "FFFFFF" }), "TableText"), BRAND)).join("");
+    const rows = [row(hd, true)];
+    b.steps.forEach((st, i) => {
+      const what = p(run(st.text), "TableText") + (st.decision ? p(run("If: ", { b: true, color: BRAND }) + run(st.decision, { i: true }), "TableText") : "");
+      const keep = st.tag === "keep";
+      rows.push(row(cell(W[0], p(run(String(i + 1), { b: true }), "TableText")) + cell(W[1], what) + cell(W[2], p(run(st.who), "TableText")) + cell(W[3], p(run(st.tool), "TableText")) +
+        cell(W[4], p(run(st.minutes ? st.minutes + " min" : ""), "TableText")) + cell(W[5], p(run(st.tag ? TAG_SHORT[st.tag] : "", keep ? { b: true, color: BRAND } : {}), "TableText"), keep ? SOFT : "")));
+    });
+    out.push(table(W, rows));
+  }
+  if (b.has_deadlines || b.deadlines) { h1("Deadlines and timing"); out.push(b.deadlines ? p(run(b.deadlines)) : empty()); }
+  h1("Quality checks");
+  if (!b.checks.length) out.push(empty());
+  b.checks.forEach((t) => out.push(bullet(t, "☐")));
+  h1("Attorney review and ethics points");
+  const review = [...b.review_points.map((t) => bullet(t)), ...(b.never_delegate.length ? [p(run("Never delegate", { b: true, color: BRAND }), "TableText"), ...b.never_delegate.map((t) => bullet(t))] : [])];
+  out.push(review.length ? table([9360], [row(cell(9360, review.join(""), SOFT))], { borderColor: "E3C6D3" }) : empty());
+  if (b.resources.length) { h1("Templates and resources"); b.resources.forEach((t) => out.push(bullet(t))); }
+  if (b.tools.length) { h1("Tools"); b.tools.forEach((t) => out.push(bullet(t))); }
+  return out.join("");
+}
 
 export function toDocx(b: Body, m: ExportMeta): Uint8Array {
-  const parts: string[] = [para(b.title || "Playbook", "Title")];
-  for (const sec of sections(b)) {
-    parts.push(para(sec.title, "Heading1"));
-    if (sec.text !== undefined) parts.push(para(sec.text || "Not filled in yet"));
-    if (sec.items) {
-      if (!sec.items.length) parts.push(para("Not filled in yet"));
-      sec.items.forEach((t, i) => parts.push(para((sec.numbered ? `${i + 1}. ` : "• ") + t, "ListParagraph")));
-    }
-  }
   const ns = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
-  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${ns}><w:body>${parts.join("")}<w:sectPr><w:footerReference w:type="default" r:id="rIdFooter"/><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440" w:header="720" w:footer="720" w:gutter="0"/></w:sectPr></w:body></w:document>`;
-  const footer = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr ${ns}>${para(footerText(m), "Footer")}</w:ftr>`;
+  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${ns}><w:body>${docxBody(b, m)}<w:sectPr><w:footerReference w:type="default" r:id="rIdFooter"/><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1300" w:right="1440" w:bottom="1300" w:left="1440" w:header="720" w:footer="600" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  const fld = (code: string) => `<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> ${code} </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>`;
+  const footer = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr ${ns}><w:p><w:pPr><w:pStyle w:val="Footer"/><w:tabs><w:tab w:val="right" w:pos="9360"/></w:tabs></w:pPr>${run(footerText(m))}<w:r><w:tab/></w:r>${run("Page ")}${fld("PAGE")}${run(" of ")}${fld("NUMPAGES")}</w:p></w:ftr>`;
   const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
-<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri"/><w:sz w:val="22"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="120"/></w:pPr></w:pPrDefault></w:docDefaults>
+<w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:cs="Calibri"/><w:color w:val="${INK}"/><w:sz w:val="22"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after="100" w:line="276" w:lineRule="auto"/></w:pPr></w:pPrDefault></w:docDefaults>
 <w:style w:type="paragraph" w:default="1" w:styleId="Normal"><w:name w:val="Normal"/></w:style>
-<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:rPr><w:b/><w:color w:val="8B2146"/><w:sz w:val="40"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:pPr><w:keepNext/><w:spacing w:before="280" w:after="80"/><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:sz w:val="28"/></w:rPr></w:style>
-<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:pPr><w:ind w:left="360"/></w:pPr></w:style>
-<w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:rPr><w:color w:val="5F6675"/><w:sz w:val="16"/></w:rPr></w:style></w:styles>`;
+<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:pPr><w:spacing w:after="40"/></w:pPr><w:rPr><w:b/><w:color w:val="${BRAND}"/><w:sz w:val="44"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:pPr><w:spacing w:after="240"/></w:pPr><w:rPr><w:color w:val="${GREY}"/><w:sz w:val="20"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/><w:pPr><w:keepNext/><w:spacing w:before="300" w:after="120"/><w:pBdr><w:bottom w:val="single" w:sz="6" w:space="3" w:color="${HEAD}"/></w:pBdr><w:outlineLvl w:val="0"/></w:pPr><w:rPr><w:b/><w:color w:val="${BRAND}"/><w:sz w:val="28"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="ListBullet"><w:name w:val="List Bullet"/><w:pPr><w:tabs><w:tab w:val="left" w:pos="360"/></w:tabs><w:spacing w:after="60"/><w:ind w:left="360" w:hanging="360"/></w:pPr></w:style>
+<w:style w:type="paragraph" w:styleId="TableText"><w:name w:val="Table Text"/><w:pPr><w:spacing w:after="40" w:line="252" w:lineRule="auto"/></w:pPr><w:rPr><w:sz w:val="20"/></w:rPr></w:style>
+<w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:rPr><w:color w:val="${GREY}"/><w:sz w:val="16"/></w:rPr></w:style></w:styles>`;
   return zipSync({
     "[Content_Types].xml": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>`),
     "_rels/.rels": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`),

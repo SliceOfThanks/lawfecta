@@ -481,8 +481,22 @@
     }).catch(fail);
   }
 
+  // Settings that hold one value per plan (for example {"att_free":20,"att_plus":30}) or a small map
+  // (Stacey's recorder check 2026-11-05: they showed as "[object Object] minutes")
+  var TIERS = { free: "Free", plus: "Plus", pro: "Pro", business: "Business" };
+  function keyName(k) {
+    var parts = String(k).split("_");
+    if (parts.length === 2 && TIERS[parts[1]] && (parts[0] === "att" || parts[0] === "fl")) return (parts[0] === "att" ? "Attorney " : "Freelancer ") + TIERS[parts[1]];
+    return String(k).split("_").join(" ");
+  }
+  function isMap(v) { return v !== null && typeof v === "object" && !Array.isArray(v); }
+  function flatMap(v) { return Object.keys(v).every(function (k) { return v[k] === null || typeof v[k] !== "object"; }); }
   function shown(s) {
     var v = s.value;
+    if (isMap(v)) {
+      if (!flatMap(v)) return JSON.stringify(v);
+      return Object.keys(v).map(function (k) { return keyName(k) + ": " + (v[k] === null ? "no cap" : String(v[k]) + (s.unit ? " " + s.unit : "")); }).join("; ");
+    }
     if (typeof v === "boolean") return v ? "Yes" : "No";
     if (s.unit === "cents" && typeof v === "number") return D.money(v);
     if (s.unit === "basis points" && typeof v === "number") return D.pct(v);
@@ -506,12 +520,28 @@
     if (typeof v === "boolean") input = h("select", null, h("option", { value: "true", text: "Yes" }), h("option", { value: "false", text: "No" }));
     else if (typeof v === "number") input = h("input", { type: "number", step: s.unit === "cents" ? "0.01" : "1", value: s.unit === "cents" ? String(v / 100) : String(v) });
     else if (Array.isArray(v)) input = h("input", { value: v.join(", ") });
+    else if (isMap(v) && flatMap(v)) {
+      input = h("div", { class: "kv" }, Object.keys(v).map(function (k) {
+        return h("label", null, keyName(k), h("input", { "data-key": k, type: typeof v[k] === "number" ? "number" : "text", value: v[k] === null ? "" : String(v[k]), "aria-label": keyName(k) }));
+      }));
+    }
+    else if (isMap(v)) input = h("textarea", { style: "width:100%;min-height:120px", text: JSON.stringify(v, null, 2) });
     else input = h("input", { value: String(v), style: "width:100%" });
     if (typeof v === "boolean") input.value = String(v);
     var status = h("select", null, ["C", "R", "O", "G"].map(function (k) { return h("option", { value: k, text: D.STATUS[k] }); }));
     status.value = "C";
     var reason = h("input", { placeholder: "Why (saved with the decision)", style: "width:100%" });
     function parse() {
+      if (isMap(v) && flatMap(v)) {
+        var o = {};
+        Object.keys(v).forEach(function (k) {
+          var el = input.querySelector("[data-key='" + k + "']"), t = el.value.trim();
+          if (typeof v[k] === "number" || v[k] === null) { if (t === "") { o[k] = null; return; } var n = Number(t); if (!isFinite(n)) throw new Error("wrong_type"); o[k] = n; }
+          else o[k] = t;
+        });
+        return o;
+      }
+      if (isMap(v)) { try { return JSON.parse(input.value); } catch (e) { throw new Error("wrong_type"); } }
       var x = input.value;
       if (typeof v === "boolean") return x === "true";
       if (typeof v === "number") { var n = Number(x); if (!isFinite(n) || String(x).trim() === "") throw new Error("wrong_type"); return s.unit === "cents" ? Math.round(n * 100) : n; }

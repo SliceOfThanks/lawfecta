@@ -1564,7 +1564,7 @@
       api.get("/files").then(function (r) {
         D.clear(pickWrap);
         var ready = (r.files || []).filter(function (f) { return f.status === "ready" && f.has_text; });
-        if (!ready.length) { pickWrap.appendChild(h("p", { class: "small muted", text: "No readable files yet. Upload a process document on the Files tab first." })); return; }
+        if (!ready.length) { pickWrap.appendChild(h("p", { class: "small muted", text: "No readable files yet. Click \"Upload a new file\" to add one here." })); return; }
         pickWrap.appendChild(h("div", { class: "pick" }, ready.map(function (f) {
           var cb = h("input", { type: "checkbox" });
           cb.addEventListener("change", function () { files = files.filter(function (x) { return x !== f.id; }); if (cb.checked) files.push(f.id); });
@@ -1572,12 +1572,41 @@
         })));
       }).catch(err);
     } }, "Use a file I uploaded") : null;
+    // Upload a process document right here, without going to the Files tab first (Stacey 2026-11-05)
+    var upWrap = h("div");
+    var upBtn = (me.switches || {}).file_uploads ? h("button", { class: "ghost small", type: "button", onclick: function () {
+      D.clear(upWrap);
+      var tick = h("input", { type: "checkbox", "aria-label": "This file has no confidential client information" });
+      var input = h("input", { type: "file", accept: ".pdf,.docx,.txt,.md", "aria-label": "Choose a file" });
+      var say = h("p", { class: "small", role: "status" });
+      var go2 = h("button", { class: "blue small", type: "button", onclick: function () {
+        if (!input.files.length) { say.textContent = "Choose a file first."; return; }
+        if (!tick.checked) { say.className = "small bad"; say.textContent = "Tick the box to confirm the file has no confidential client information."; return; }
+        var f = input.files[0];
+        go2.disabled = true; say.className = "small"; say.textContent = "Uploading " + f.name + "...";
+        uploadBlob(f, f.name, "").then(function (r) {
+          go2.disabled = false;
+          if (!r.ok) { say.className = "small bad"; say.textContent = r.reason === "upload_failed" ? "The upload did not finish. Check your connection and try again." : D.errorText(r.reason); return; }
+          if (r.status === "ready") {
+            if (files.indexOf(r.file_id) < 0) files.push(r.file_id);
+            D.clear(upWrap);
+            upWrap.appendChild(h("p", { class: "small ok", text: "✓ " + f.name + " is ready. DELA will draft from it." }));
+          } else if (r.status === "held") { say.className = "small bad"; say.textContent = "DELA is holding this file because it may include client information. Check it on the Files tab."; }
+          else if (r.status === "refused") { say.className = "small bad"; say.textContent = "This file was not accepted. Use a Word file, PDF or text file."; }
+          else { say.textContent = "DELA is still checking the file. Try again in a moment."; }
+        }).catch(function (e) { go2.disabled = false; say.className = "small bad"; say.textContent = D.errorText(e.message); });
+      } }, "Upload");
+      upWrap.appendChild(h("div", { class: "pick" }, input,
+        h("label", { style: "display:flex;gap:8px;align-items:flex-start" }, tick, h("span", { text: "This file has no confidential client information (no client names, case numbers, dates of birth or similar)." })),
+        h("div", { class: "row" }, go2), say));
+    } }, "Upload a new file") : null;
     box.appendChild(h("h2", { text: "New playbook" }));
     box.appendChild(notice());
     box.appendChild(title);
     box.appendChild(ta);
-    box.appendChild(h("div", { class: "row", style: "margin-top:8px" }, mic, fileBtn, h("span", { class: "grow" }), status));
+    box.appendChild(h("div", { class: "row", style: "margin-top:8px" }, mic, fileBtn, upBtn, h("span", { class: "grow" }), status));
     box.appendChild(pickWrap);
+    box.appendChild(upWrap);
     box.appendChild(problem);
     box.appendChild(h("div", { class: "row", style: "margin-top:8px" }, go, blank, h("button", { class: "ghost", onclick: drawLibrary }, "Cancel")));
     D.clear(libEl);
@@ -2304,6 +2333,10 @@
       }
       if (!recs.data.items.length) { card.appendChild(h("p", { class: "muted", text: st.on ? "No recordings yet." : "The Process Recorder is not open for your account yet." })); return; }
       var today = D.today();
+      // A recording still "uploading" after 15 minutes, with no pieces waiting in this browser, will not finish by itself:
+      // say so and offer to remove it (Stacey's recorder check 2026-11-05: it stayed at Uploading with no way out)
+      var oldUpload = Date.now() - 15 * 60000;
+      var stuck = function (x) { return x.status === "uploading" && new Date(x.created_at).getTime() < oldUpload && !waiting.some(function (w) { return w.recId === x.id; }); };
       card.appendChild(h("div", { class: "scroll" }, h("table", null,
         h("thead", null, h("tr", null, ["Process name", "Date recorded", "Length", "Status", "Video deletes on", ""].map(function (x) { return h("th", { text: x }); }))),
         h("tbody", null, recs.data.items.map(function (x) {
@@ -2311,11 +2344,16 @@
           var del = x.video_deleted_at ? "Video deleted on " + D.date(x.video_deleted_at) : x.video_delete_after ? D.date(x.video_delete_after) : "";
           return h("tr", null, h("td", null, h("b", { text: x.title })), h("td", { text: D.date(x.created_at) }),
             h("td", { text: x.duration_seconds ? Math.floor(x.duration_seconds / 60) + " min " + (x.duration_seconds % 60) + " s" : "" }),
-            h("td", null, h("span", { class: "badge " + (x.status === "ready" ? "ready" : x.status === "failed" ? "bad" : "held"), text: REC_STATUS[x.status] + (x.status === "failed" && x.error ? " (" + x.error.split("_").join(" ") + ")" : "") })),
+            h("td", null, stuck(x) ? h("span", { class: "badge bad", title: "The rest of this recording is not in this browser, so it cannot finish. Remove it and record again.", text: "Upload did not finish" })
+              : h("span", { class: "badge " + (x.status === "ready" ? "ready" : x.status === "failed" ? "bad" : "held"), text: REC_STATUS[x.status] + (x.status === "failed" && x.error ? " (" + x.error.split("_").join(" ") + ")" : "") })),
             h("td", null, del, days !== null && days <= 3 && !x.video_deleted_at ? h("span", { class: "badge held", style: "margin-left:6px", text: "Deletes in " + Math.max(days, 0) + " days" }) : null),
             h("td", null, h("div", { class: "row" },
               x.status === "ready" && x.import_id && !x.playbook_id ? h("button", { class: "blue small", onclick: function () { openImport(x.import_id); } }, "Review") : null,
               x.playbook_id ? h("button", { class: "ghost small", onclick: function () { openPlaybook(x.playbook_id, "read"); } }, "Open playbook") : null,
+              stuck(x) ? h("button", { class: "ghost small", onclick: function () {
+                if (!confirm("Remove this recording? It did not finish uploading, so there is nothing to build from it. Record the process again.")) return;
+                api.post("/recordings/discard", { id: x.id }).then(function (r) { if (r.ok === false) throw r; D.toast(app, "Recording removed"); drawLibrary(); }).catch(pbFail);
+              } }, "Remove") : null,
               x.status === "failed" ? h("button", { class: "blue small", onclick: function () { api.post("/recordings/retry", { id: x.id }).then(function (r) { if (r.ok === false) throw r; D.toast(app, "Analyzing again"); drawLibrary(); }).catch(pbFail); } }, "Try again") : null,
               !x.video_deleted_at && x.video_bytes ? h("button", { class: "ghost small", onclick: function () { downloadVideo(x); } }, "Download video") : null,
               !x.video_deleted_at ? h("button", { class: "danger small", onclick: function () {

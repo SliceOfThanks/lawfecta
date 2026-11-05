@@ -138,6 +138,19 @@ const dela = (page) => page.locator(".dela-host");
     rows = await sql("select value from settings where key = 'engagement.minimum_cents'");
     ok(rows[0].value === 20000, "dollars typed in the admin area are saved as cents");
 
+    // A setting with one value per plan shows each plan and saves each box (Stacey's recorder check 2026-11-05: "[object Object] minutes")
+    await unfold(s.page, "set_process_recorder");
+    t = await text(s.page);
+    ok(!t.includes("[object Object]") && t.includes("Attorney Free: 20 minutes") && t.includes("Attorney Business: 60 minutes"), "per-plan settings read plainly");
+    const rrow = dela(s.page).locator("tr", { hasText: "Longest recording per plan" });
+    await rrow.getByRole("button", { name: "Change" }).click();
+    await dela(s.page).getByLabel("Attorney Free", { exact: true }).fill("25");
+    await dela(s.page).getByPlaceholder("Why (saved with the decision)").fill("Test");
+    await dela(s.page).getByRole("button", { name: "Save", exact: true }).click();
+    await s.page.waitForTimeout(400);
+    rows = await sql("select value from settings where key = 'recorder.max_minutes'");
+    ok(rows[0].value.att_free === 25 && rows[0].value.att_business === 60, "each plan's box saves its own number");
+
     // Switches
     await dela(s.page).getByRole("tab", { name: "Switches" }).click();
     await dela(s.page).getByLabel("DELA AI help").selectOption("staff");

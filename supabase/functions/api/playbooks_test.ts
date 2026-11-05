@@ -212,6 +212,10 @@ Deno.test("exports: Word, Markdown, CSV, HTML and PDF, with version and date", a
   const doc = strFromU8(files["word/document.xml"]);
   assert(doc.includes("New client intake") && doc.includes("Run the conflict check"), "the Word file holds the playbook");
   assert(strFromU8(files["word/footer1.xml"]).includes("Exported"), "the footer has the version and date");
+  // Laid out for reading (Stacey 2026-11-05): a summary box, the steps as a table with who and tool, page numbers
+  assert(doc.includes("<w:tbl>") && doc.includes("<w:tblHeader/>"), "the steps are a table whose header repeats on each page");
+  assert(doc.includes(">Who<") && doc.includes(">Tool<") && doc.includes(">paralegal<"), "each step shows who does it");
+  assert(strFromU8(files["word/footer1.xml"]).includes("NUMPAGES"), "the footer has page numbers");
   const md = await call("POST", "/playbooks/export", owner.token, { id: pb, format: "md" });
   assert(md.body.text.startsWith("# New client intake") && md.body.text.includes("1. Run the conflict check"));
   const csv = await call("POST", "/playbooks/export", owner.token, { id: pb, format: "csv" });
