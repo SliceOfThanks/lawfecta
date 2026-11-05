@@ -42,6 +42,11 @@ async function text(page) {
   return page.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText);
 }
 const dela = (page) => page.locator(".dela-host");
+async function click(page, name) { await dela(page).getByRole("button", { name, exact: true }).first().click(); }
+async function waitFor(page, words, ms) {
+  const end = Date.now() + (ms || 10000);
+  for (;;) { const t = await text(page); if (t.includes(words)) return t; if (Date.now() > end) throw new Error("FAILED: never saw " + words); await page.waitForTimeout(150); }
+}
 
 (async () => {
   const browser = await chromium.launch();
@@ -150,6 +155,20 @@ const dela = (page) => page.locator(".dela-host");
     await s.page.waitForTimeout(400);
     rows = await sql("select value from settings where key = 'recorder.max_minutes'");
     ok(rows[0].value.att_free === 25 && rows[0].value.att_business === 60, "each plan's box saves its own number");
+
+    // Tech catalog (Step 4): upload Stacey's CSV, preview, confirm, pause one tool
+    await dela(s.page).getByRole("tab", { name: "Tech catalog" }).click();
+    await waitFor(s.page, "Upload a new catalog");
+    await dela(s.page).getByLabel("Tech catalog CSV").setInputFiles(path.join(__dirname, "..", "..", "data", "tech-catalog", "catalog-2026-11-05.csv"));
+    await click(s.page, "Check the file");
+    t = await waitFor(s.page, "This is the first catalog");
+    ok(t.includes("33 tools will be added") && (await sql("select count(*)::int n from tech_catalog_versions where state = 'active'"))[0].n === 0, "the upload is previewed and nothing changes before Confirm");
+    await click(s.page, "Confirm and replace the catalog");
+    t = await waitFor(s.page, "Tools in the catalog now (33)");
+    ok(t.includes("Clio Manage") && t.includes("In use"), "after Confirm the catalog lists every tool and the version is in use");
+    await dela(s.page).locator("tr", { hasText: "Clio Manage" }).getByRole("button", { name: "Pause" }).click();
+    await waitFor(s.page, "Clio Manage is paused");
+    ok((await sql("select count(*)::int n from tech_catalog_events where tool_id = 'clio-manage' and action = 'paused'"))[0].n === 1, "a tool can be paused from the admin area");
 
     // Switches
     await dela(s.page).getByRole("tab", { name: "Switches" }).click();

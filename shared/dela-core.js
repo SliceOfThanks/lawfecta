@@ -199,6 +199,8 @@
       storage_not_set_up: "File storage is still being set up. Please try again later.",
       not_uploaded: "The upload did not reach DELA. Check your connection and upload the file again.",
       upload_failed: "The upload did not finish. Check your connection and try again.",
+      catalog_empty: "The file has no tools in it.",
+      catalog_too_many: "The file has more tools than one upload allows.",
       photo_too_big: "That photo is too large. Use one under 3 MB.",
       not_an_image: "That file is not a PNG or JPG photo.",
       server_error: "Something went wrong. Please try again.",

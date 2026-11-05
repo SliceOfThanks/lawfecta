@@ -12,7 +12,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   var current = "control";
   var mainEl = null;
   var tabsEl = null;
@@ -75,7 +75,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // ---------- Guide ----------
@@ -678,6 +678,73 @@
   // ---------- Verification (Step 3): licenses and LinkedIn checks ----------
   var LIC_ID = { bar_email: "The email matches the state bar record", firm_domain: "The email is at the firm's own domain", video: "We had the video call" };
   var READY = { incomplete: "Not complete", verification_pending: "Waiting for a check", match_ready: "Ready", availability_stale: "Availability out of date", unavailable: "Not taking work", restricted: "Paused", not_applicable: "Not used" };
+  // ---------- Tech catalog (Step 4): upload a CSV, preview what changes, confirm; pause one tool; history ----------
+  function catalogTab() {
+    api.get("/admin/catalog").then(function (r) {
+      var d = r.data;
+      var preview = h("div");
+      var file = h("input", { type: "file", accept: ".csv,text/csv", "aria-label": "Tech catalog CSV" });
+      var check = h("button", { class: "blue small", type: "button" }, "Check the file");
+      check.addEventListener("click", function () {
+        if (!file.files.length) { fail(new Error("Choose the CSV file first.")); return; }
+        var f = file.files[0];
+        check.disabled = true;
+        f.text().then(function (text) {
+          return api.post("/admin/catalog/preview", { file_name: f.name, text: text });
+        }).then(function (x) {
+          check.disabled = false;
+          D.clear(preview);
+          var p = x.data;
+          if (p.reason === "catalog_problems") {
+            preview.appendChild(h("div", { class: "notice bad" }, h("p", { style: "margin:0 0 6px", text: "Nothing was changed. Fix these in the spreadsheet, export it as CSV again, and check it again." }),
+              h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, ["Row", "Column", "What to fix"].map(function (t) { return h("th", { text: t }); }))),
+                h("tbody", null, p.problems.map(function (q) { return h("tr", null, h("td", { text: String(q.row) }), h("td", { text: q.column }), h("td", { text: q.problem })); }))))));
+            return;
+          }
+          if (!p.ok) throw new Error(p.reason);
+          var lines = [h("p", { style: "margin:0 0 6px", text: p.first_upload ? "This is the first catalog: " + p.rows + " tools will be added." : p.rows + " tools in the file: " + p.added + " new, " + p.changed + " changed, " + p.removed + " removed." })];
+          if (p.added_names.length && !p.first_upload) lines.push(h("p", { class: "small", text: "New: " + p.added_names.join(", ") }));
+          if (p.changed_tools.length) lines.push(h("p", { class: "small", text: "Changed: " + p.changed_tools.map(function (c) { return c.name + " (" + c.fields.join(", ") + ")"; }).join("; ") }));
+          if (p.removed_names.length) lines.push(h("p", { class: "small", text: "Removed (DELA stops recommending them): " + p.removed_names.join(", ") }));
+          var confirmBtn = h("button", { class: "blue small", type: "button" }, "Confirm and replace the catalog");
+          confirmBtn.addEventListener("click", function () {
+            confirmBtn.disabled = true;
+            api.post("/admin/catalog/confirm", { version_id: p.version_id }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason); ok("The catalog is replaced"); catalogTab(); }).catch(function (e) { confirmBtn.disabled = false; fail(e); });
+          });
+          preview.appendChild(h("div", { class: "notice" }, lines, h("div", { class: "row" }, confirmBtn, h("button", { class: "ghost small", type: "button", onclick: function () { D.clear(preview); } }, "Cancel"))));
+        }).catch(function (e) { check.disabled = false; fail(e); });
+      });
+      var up = h("div", { class: "card" }, titled("h2", "Upload a new catalog", "catalog"),
+        h("p", { class: "small muted", text: "One CSV with every tool. Save it from Google Sheets (File, Download, Comma separated values) or Excel (Save as, CSV UTF-8). Nothing changes until you confirm." }),
+        h("div", { class: "row" }, file, check), preview);
+      var on = { off: "Off", staff: "On for the Lawfecta Team", list: "On for the access list", everyone: "On for everyone" }[d.on_for] || d.on_for;
+      var listCard = h("div", { class: "card" }, h("h2", { text: "Tools in the catalog now (" + d.tools.length + ")" }),
+        h("p", { class: "small muted", text: "DELA recommends these to members: " + on + " (switch tech_catalog). Paused tools stay listed but are never recommended. A partner label never moves a tool up." }));
+      if (!d.tools.length) listCard.appendChild(h("p", { class: "muted", text: "No catalog yet. Upload the first one above." }));
+      else listCard.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack" },
+        h("thead", null, h("tr", null, ["Tool", "Category", "Status", "Partner", "Last checked", ""].map(function (t) { return h("th", { text: t }); }))),
+        h("tbody", null, d.tools.map(function (t) {
+          var paused = t.status === "paused";
+          return h("tr", null, h("td", { "data-label": "Tool" }, h("b", { text: t.name }), h("div", { class: "small muted", text: t.tool_id })), h("td", { "data-label": "Category", text: t.category }),
+            h("td", { "data-label": "Status" }, h("span", { class: "badge " + (paused ? "held" : "ready"), text: paused ? "Paused" : "Active" })),
+            h("td", { "data-label": "Partner", text: t.partner ? "Yes" : "No" }), h("td", { "data-label": "Last checked", text: t.last_reviewed || "" }),
+            h("td", null, h("button", { class: "ghost small", type: "button", onclick: function () {
+              var why = paused ? "" : prompt("Why pause " + t.name + "? (saved in the audit log)");
+              if (!paused && why === null) return;
+              api.post("/admin/catalog/pause", { tool_id: t.tool_id, pause: !paused, reason: why || "" }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason); ok(paused ? t.name + " is active again" : t.name + " is paused"); catalogTab(); }).catch(fail);
+            } }, paused ? "Resume" : "Pause")));
+        })))));
+      var hist = h("div", { class: "card" }, h("h2", { text: "Earlier versions" }),
+        d.versions.length ? h("div", { class: "scroll" }, h("table", { class: "stack" }, h("thead", null, h("tr", null, ["Uploaded", "By", "File", "Tools", "Changes", "State"].map(function (t) { return h("th", { text: t }); }))),
+          h("tbody", null, d.versions.map(function (v) {
+            return h("tr", null, h("td", { "data-label": "Uploaded", text: D.dateTime(v.created_at) }), h("td", { "data-label": "By", text: v.uploaded_by }), h("td", { "data-label": "File", text: v.file_name }),
+              h("td", { "data-label": "Tools", text: String(v.rows) }), h("td", { "data-label": "Changes", text: v.added + " new, " + v.changed + " changed, " + v.removed + " removed" }),
+              h("td", { "data-label": "State" }, h("span", { class: "badge " + (v.state === "active" ? "ready" : "C"), text: { active: "In use", replaced: "Replaced", preview: "Not confirmed" }[v.state] || v.state })));
+          })))) : h("p", { class: "muted", text: "No uploads yet." }));
+      body(h("div", null, pageHead("Tech catalog", "catalog"), up, listCard, hist));
+    }).catch(fail);
+  }
+
   function verifyTab() {
     api.get("/admin/verify").then(function (r) {
       var d = r.data;
@@ -982,6 +1049,7 @@
     holds: "A hold pauses new actions for one person (and later hiring and payments) while you check something. Release it with a note on what you checked.",
     audit: "Every sign in, refusal and change, newest first, with who did it. Nobody can edit or delete these lines, so it is the record if anything is ever questioned.",
     verify: "Attorney licenses and freelancer LinkedIn profiles waiting for a check. For a license: open the state bar's own lookup, check the number, the name and that the license is active, then record how the attorney showed it is theirs: an email that matches the bar record, an email at the firm's own domain (never Gmail, Yahoo and similar), or the 10 minute video call. For LinkedIn: the name matches the DELA profile and LinkedIn shows its verified badge. Never ask for ID documents.",
+    catalog: "The Lawfecta tech catalog. Upload one CSV with every tool (the columns are in docs/templates/tech-catalog-guide.md on GitHub). A new upload replaces the whole list: DELA shows what will be added, changed and removed, and nothing changes until you click Confirm. Every earlier version is kept. DELA's AI recommends only active tools from this list. Pause a tool to stop recommending it until the next upload.",
     aifiles: "How members use DELA's AI and files. You see counts, key status and file names, never a member's key and never what a file says.",
     ai_usage: "Every AI call this month by side and plan. Lawfecta's key uses members' included credits; a member's own key or a firm key costs Lawfecta nothing. Tokens are the provider's measure of how much text was read and written.",
     ai_keys: "Members who added their own OpenAI or Claude key. Only the provider and whether it works are shown. Not working means the provider refused the key or it ran out of credit; the member is reminded after a few days.",

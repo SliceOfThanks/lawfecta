@@ -10,6 +10,7 @@ import { brevoDelivery } from "./lib/mail/brevo.ts";
 import { verifyPass } from "./lib/pass.ts";
 import { sendSms } from "./lib/sms/brevo.ts";
 import { bdCategories, bdFields, bdMember, bdUpdate, shapeOf } from "./lib/bd/members.ts";
+import { asksAboutTools, CATALOG_RULES, catalogText, rankForMember, readCatalog, type Tool } from "./lib/catalog/csv.ts";
 import { aiContext, fromBd, LABELS, normalize as normalizeProfile, PRACTICE_AREAS, PROFILE_SYSTEM, profileText, readiness, FIELD_GUIDE, FIELD_SYSTEM, TECH_GROUPS, TECH_TOOLS, TIMEZONES, toBd, type BdMap, type Side } from "./lib/profiles/model.ts";
 import { encryptionReady, openKey, sealKey } from "./lib/ai/keycrypt.ts";
 import { AiFail, chat, guessProvider, looksLikeKey, testKey, transcribe, transcribeLines, type ChatImage, type ChatMsg, type Provider } from "./lib/ai/providers.ts";
@@ -330,6 +331,22 @@ async function memberContext(ctx: Ctx, s: Session): Promise<string> {
   }
 }
 
+// The Lawfecta tech catalog, added when the member's message asks about software (Step 4: DELA recommends only from this list)
+async function catalogContext(ctx: Ctx, s: Session, text: string): Promise<string> {
+  try {
+    if (!asksAboutTools(text)) return "";
+    if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "tech_catalog", p_person: s.person_id })) return "";
+    const tools = (await rpc<Tool[]>(ctx, "dela_catalog_active", {})) ?? [];
+    if (!tools.length) return "";
+    const prof = (s.side === "attorney" || s.side === "freelancer") ? await rpc<Record<string, any> | null>(ctx, "dela_profile_ai_context", { p_person: s.person_id, p_side: s.side }) : null;
+    const max = Number(await setting(ctx, "catalog.ai_max_tools", "60")) || 60;
+    const ranked = rankForMember(tools, { practice_areas: prof?.practice_areas ?? [], software: prof?.software ?? [] });
+    return "\n\n" + CATALOG_RULES + "\n\nThe Lawfecta tech catalog (best fits for this member first):\n" + catalogText(ranked, max);
+  } catch {
+    return "";
+  }
+}
+
 function systemPrompt(side: string): string {
   return [
     "You are DELA, the AI Delegation Center inside Lawfecta, a members-only service for " + (side === "attorney" ? "solo attorneys and small law firms" : "freelance paralegals and legal support professionals") + ".",
@@ -432,7 +449,7 @@ async function aiSend(ctx: Ctx) {
   const model = await setting(ctx, "ai.model." + k.provider, k.provider === "openai" ? "gpt-5.4-mini" : "claude-opus-5-5");
 
   try {
-    const r = await chat(f(ctx), k.provider, k.plainKey, model, systemPrompt(s.side) + await memberContext(ctx, s), msgs);
+    const r = await chat(f(ctx), k.provider, k.plainKey, model, systemPrompt(s.side) + await memberContext(ctx, s) + await catalogContext(ctx, s, content), msgs);
     r.text = plainText(r.text);
     await finishRun(ctx, route, k.reservation, true, "");
     await logUsage(ctx, { person_id: s.person_id, side: s.side, task, source: route.source, key_id: route.key_id, provider: k.provider, model: r.model,
@@ -635,7 +652,7 @@ async function runAi(ctx: Ctx, s: Session, idem: string, system: string, msgs: C
   if ("error" in k) return { ok: false, reason: k.error, source: route.source };
   const model = await setting(ctx, "ai.model." + k.provider, k.provider === "openai" ? "gpt-5.4-mini" : "claude-opus-5-5");
   try {
-    const r = await chat(f(ctx), k.provider, k.plainKey, model, system + await memberContext(ctx, s), msgs, true);
+    const r = await chat(f(ctx), k.provider, k.plainKey, model, system + await memberContext(ctx, s) + await catalogContext(ctx, s, String(msgs.at(-1)?.content ?? "")), msgs, true);
     await finishRun(ctx, route, k.reservation, true, "");
     await logUsage(ctx, { person_id: s.person_id, side: s.side, task: "chat", source: route.source, key_id: route.key_id, provider: k.provider, model: r.model,
       input_tokens: r.input_tokens, output_tokens: r.output_tokens, credits: route.source === "lawfecta" ? route.credits : 0, ok: true });
@@ -1583,6 +1600,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/recorder": (c, a) => rpc(c, "dela_admin_recorder", { p_actor: a }),
   "/admin/playbooks": (c, a) => rpc(c, "dela_admin_playbooks", { p_actor: a }),
   "/admin/mcp": (c, a) => rpc(c, "dela_admin_mcp", { p_actor: a }),
+  "/admin/catalog": (c, a) => rpc(c, "dela_admin_catalog", { p_actor: a }),
   "/admin/verify": async (c, a) => {
     const d = await rpc<Record<string, any>>(c, "dela_admin_verify", { p_actor: a });
     for (const l of (d?.licenses ?? []) as Array<Record<string, any>>) if (l.method === "email" && !l.email_confirmed_at) l.email_delivery = await rpc(c, "dela_license_delivery", { p_license: l.id });
@@ -1608,6 +1626,15 @@ const ADMIN_POST: Record<string, AdminRoute> = {
     p_reason: str(c.body.reason, 500), p_note: str(c.body.note, 500), p_override: str(c.body.override, 500) }),
   "/admin/verify/linkedin": (c, a) => rpc(c, "dela_admin_linkedin_decide", { p_actor: a, p_check: need(uuid(c.body.id)), p_decision: str(c.body.decision, 20),
     p_name_matches: c.body.name_matches === true, p_badge: c.body.badge_seen === true, p_reason: str(c.body.reason, 500) }),
+  // Tech catalog: check the CSV, preview what changes, then confirm (a new upload replaces the whole list)
+  "/admin/catalog/preview": async (c, a) => {
+    const text = typeof c.body.text === "string" ? c.body.text : "";
+    const read = readCatalog(text, Number(await setting(c, "catalog.max_rows", "500")) || 500);
+    if (!read.ok) return { ok: false, reason: "catalog_problems", problems: read.problems };
+    return await rpc(c, "dela_catalog_preview", { p_actor: a, p_file: str(c.body.file_name, 200), p_sha: await sha256Hex(text), p_rows: read.tools });
+  },
+  "/admin/catalog/confirm": (c, a) => rpc(c, "dela_catalog_confirm", { p_actor: a, p_version: need(uuid(c.body.version_id)) }),
+  "/admin/catalog/pause": (c, a) => rpc(c, "dela_catalog_pause", { p_actor: a, p_tool: need(str(c.body.tool_id, 80)), p_pause: c.body.pause === true, p_reason: str(c.body.reason, 300) }),
   "/admin/mcp/disconnect": (c, a) => rpc(c, "dela_mcp_disconnect", { p_person: a, p_conn: need(uuid(c.body.id)), p_by_staff: true }),
   "/admin/settings": (c, a) => rpc(c, "dela_admin_set_setting", {
     p_actor: a, p_key: need(str(c.body.key, 100)), p_value: need(c.body.value as unknown), p_status: need(str(c.body.status, 1)), p_reason: str(c.body.reason, 500),
@@ -1927,7 +1954,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     // Speech and profile photos arrive as the file itself, not JSON; their handlers read them with their own size limits
     if (req.method === "POST" && path !== "/ai/transcribe" && path !== "/profile/photo") {
       const text = await req.text();
-      if (text.length > MAX_BODY) throw new HttpError(413, "too_large");
+      // A tech catalog upload is the whole CSV, so it may be larger than other requests
+      if (text.length > (path === "/admin/catalog/preview" ? 1024 * 1024 : MAX_BODY)) throw new HttpError(413, "too_large");
       if (text) {
         if (path === "/oauth/token" && !text.trimStart().startsWith("{")) {
           // OAuth clients send the token request as a form
