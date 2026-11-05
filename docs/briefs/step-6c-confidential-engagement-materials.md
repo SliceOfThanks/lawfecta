@@ -1,7 +1,7 @@
 # Feature brief: Confidential engagement materials (client information for the hired freelancer)
 
 Step: 6c (an add-on to agreements and payments)   Spec references: Program Guide C (line 46: "Confidential client-data upload is prohibited at initial release until a separate security/legal approval"), the "Important conflict" note (line 52: either keep engagements to nonconfidential work or "activate a separately approved confidential-data boundary"; a Terms of Service warning is not the technical boundary), O-07 (permitted data, the confidential-data gate, retention, subprocessors and BYOK); 1A sections 19 and 21 (explicit grants, "new sensitive sharing needs explicit authorization"), 1A section 30 (safety and security), G-CONTRACT
-Status: draft, waiting for Stacey's answers
+Status: answered (Stacey's final decisions 2026-11-05); building
 
 ## Stacey's direction (2026-11-05)
 - Keep the Library as it is: DELA finds personal and client information in documents and images, and the attorney must blur it or remove it from SOPs, Workflows, Playbooks and Policies.
@@ -13,6 +13,29 @@ Status: draft, waiting for Stacey's answers
 - Messages: a message that looks like client information is held unless the sender confirms it has none.
 - In practice, an attorney cannot send client information to a hired freelancer today without wrongly confirming it has none.
 - The project rules (CLAUDE.md) say "Confidential client data does not belong in DELA". The Program Guide says this may change only with a separate security and legal approval. This brief is that change, kept to one walled-off place.
+
+## Stacey's final decisions (2026-11-05)
+All 15 suggested answers, with these additions:
+- Notifications say only "New item in Confidential materials" with a link, never file names or message text.
+- Bank account numbers are blocked too: DELA blocks full Social Security numbers, card numbers and bank account numbers by pattern in uploads and messages, and asks for the last 4 digits only.
+- The upload screen requires the checkbox "This file contains no medical records."
+- Items here are left out of search, the Library, exports and AI context.
+- Deletion 30 days after the engagement ends, including from backups. An open dispute pauses deletion until it is decided.
+- In a dispute, if either person declines the reviewer's access, the reviewer decides from the nonconfidential record and what each person chooses to share.
+- Every upload is virus scanned before it appears. Files are encrypted at rest and served through links that expire after 5 minutes.
+- PDFs and images open in the browser with the viewer's name and the date as a watermark.
+
+Build notes (where a decision needs one more step):
+- **The 12-hour login check.** DELA cannot see when someone last typed their Lawfecta password: Brilliant Directories does not send it, and each page load starts a fresh DELA session. So "log in again" is done by DELA emailing a 6-digit code to the member's Lawfecta email. Entering it counts as a fresh login for 12 hours.
+- **Virus scanning** needs a scanning service. DELA has a scanner adapter (the CONF_SCAN_URL and CONF_SCAN_TOKEN secrets).
+  - On the test site, with no scanner set up, files are marked "Not virus scanned (test site)".
+  - Anywhere else, uploads are refused until a scanner is set up.
+  - Stacey chooses the service (question for her).
+- **Backups.**
+  - Files are deleted from storage at 30 days. Supabase database backups do not hold stored files.
+  - Confidential messages are deleted from the database at 30 days. Supabase's backups cannot be edited one record at a time, so the messages also leave the backups when those backups expire (7 days on the Pro plan, or the point-in-time window if that is turned on).
+  - The privacy policy needs to say this.
+- **Images** cannot be read for Social Security, card or bank numbers by pattern (no text inside the file). They rely on the uploader's checkboxes. PDFs, Word, Excel and text files are read and checked.
 
 ## Who
 - Attorneys and the firm members the attorney adds to an engagement. Owners and managers by default; others only if added.

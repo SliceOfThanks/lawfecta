@@ -6,6 +6,7 @@ import { extractText, getDocumentProxy } from "npm:unpdf@1.4.0";
 export const CONTENT_TYPES: Record<string, string> = {
   pdf: "application/pdf",
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   txt: "text/plain",
   md: "text/markdown",
   png: "image/png",
@@ -50,6 +51,19 @@ export function sniff(ext: string, b: Uint8Array): Sniff {
       if (names.some((n) => n.toLowerCase().endsWith("vbaproject.bin") || n.toLowerCase().startsWith("word/embeddings/"))) return { ok: false, reason: "active_content" };
       return { ok: true, mime: CONTENT_TYPES.docx };
     }
+    case "xlsx": {
+      if (!starts(b, [0x50, 0x4b, 0x03, 0x04])) return { ok: false, reason: "wrong_type" };
+      const names: string[] = [];
+      try {
+        unzipSync(b, { filter: (f) => { names.push(f.name); return false; } });
+      } catch {
+        return { ok: false, reason: "damaged" };
+      }
+      if (!names.includes("xl/workbook.xml") || !names.includes("[Content_Types].xml")) return { ok: false, reason: "wrong_type" };
+      // Macros, embedded objects and links to outside data are refused
+      if (names.some((n) => n.toLowerCase().endsWith("vbaproject.bin") || n.toLowerCase().startsWith("xl/embeddings/") || n.toLowerCase().startsWith("xl/externallinks/"))) return { ok: false, reason: "active_content" };
+      return { ok: true, mime: CONTENT_TYPES.xlsx };
+    }
     case "png":
       return starts(b, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]) ? { ok: true, mime: CONTENT_TYPES.png } : { ok: false, reason: "wrong_type" };
     case "jpg":
@@ -81,6 +95,18 @@ function docxText(b: Uint8Array): string {
     .trim();
 }
 
+// Excel: the shared text, inline text and the values of every sheet
+function xlsxText(b: Uint8Array): string {
+  const files = unzipSync(b, { filter: (f) => f.name === "xl/sharedStrings.xml" || /^xl\/worksheets\/sheet\d+\.xml$/.test(f.name) });
+  const dec = new TextDecoder();
+  const out: string[] = [];
+  for (const [, data] of Object.entries(files)) {
+    const xml = dec.decode(data);
+    for (const m of xml.matchAll(/<(?:t|v)(?:\s[^>]*)?>([^<]*)<\/(?:t|v)>/g)) out.push(m[1]);
+  }
+  return out.join("\n").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, "\"").replace(/&apos;/g, "'").replace(/&amp;/g, "&");
+}
+
 async function pdfText(b: Uint8Array): Promise<string> {
   const doc = await getDocumentProxy(new Uint8Array(b));
   if (doc.numPages > MAX_PDF_PAGES) return "";
@@ -93,6 +119,7 @@ export async function readText(ext: string, b: Uint8Array): Promise<string> {
   let t = "";
   if (ext === "txt" || ext === "md") t = new TextDecoder().decode(b);
   else if (ext === "docx") t = docxText(b);
+  else if (ext === "xlsx") t = xlsxText(b);
   else if (ext === "pdf") t = await pdfText(b);
   return t.slice(0, MAX_TEXT);
 }

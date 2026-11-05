@@ -25,6 +25,7 @@ import { keyAllowed, stripe, checkoutParams, verifyStripeSignature, accountStatu
 import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/webhooks/deliver.ts";
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
+import { blockedKinds, blockedMessage } from "./lib/confidential/rules.ts";
 import { attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
 import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
@@ -2136,6 +2137,153 @@ async function messageFile(ctx: Ctx) {
   return json(ctx, { ok: true, name: r.name, url: await storageOf(ctx).signDownload(r.path, 300, r.name) });
 }
 
+// ---------- Confidential materials (docs/briefs/step-6c-confidential-engagement-materials.md) ----------
+// One walled-off area per engagement for client files and confidential messages. Never read by the AI, never in search,
+// the Library or exports. Every action re-checks access in the database at the moment it runs, and every open is logged.
+
+const CONF_ACK = "I will keep these materials confidential, use them only for this engagement, and delete any copies when it ends.";
+
+async function confView(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  return json(ctx, await rpc(ctx, "dela_conf_view", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.url.searchParams.get("agreement"))) }));
+}
+
+// The login check: a 6-digit code by email, good for the confidential.login_hours setting once entered
+const confCodeHash = (person: string, code: string) => sha256Hex("dela-conf-code:" + person + ":" + code);
+async function confCodeSend(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const n = new Uint32Array(1);
+  crypto.getRandomValues(n);
+  const code = String(100000 + (n[0] % 900000));
+  const r = await rpc<Record<string, any>>(ctx, "dela_conf_stepup_start", { p_person: s.person_id, p_side: s.side, p_code_hash: await confCodeHash(s.person_id, code), p_code: code });
+  if (!r?.ok) return json(ctx, r);
+  if (r.notification_id) { try { await sendEmail(ctx, String(r.notification_id)); } catch (e) { console.error("conf_code_email", String(e).slice(0, 120)); } }
+  const at = String(r.email ?? "");
+  const masked = at.includes("@") ? at[0] + "***" + at.slice(at.indexOf("@")) : "your email";
+  return json(ctx, { ok: true, sent_to: masked });
+}
+async function confCodeConfirm(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const code = str(ctx.body.code, 12).replace(/\D/g, "");
+  if (code.length !== 6) return json(ctx, { ok: false, reason: "wrong_code" });
+  return json(ctx, await rpc(ctx, "dela_conf_stepup_confirm", { p_person: s.person_id, p_code_hash: await confCodeHash(s.person_id, code) }));
+}
+
+// The virus scan (Stacey: every upload). The test site may run without a scanner and marks files "Not virus scanned";
+// anywhere else an upload is refused until a scanner is set up (confidential.scan_provider "http": CONF_SCAN_URL and CONF_SCAN_TOKEN).
+async function confScan(ctx: Ctx, bytes: Uint8Array, name: string): Promise<{ ok: boolean; state: "clean" | "not_scanned"; reason?: string }> {
+  const provider = await setting(ctx, "confidential.scan_provider", "none");
+  if (provider === "http") {
+    const url = ctx.deps.env("CONF_SCAN_URL"), token = ctx.deps.env("CONF_SCAN_TOKEN");
+    if (!url) return { ok: false, state: "not_scanned", reason: "virus_scan_not_set_up" };
+    try {
+      const r = await f(ctx)(url, { method: "POST", headers: { "content-type": "application/octet-stream", ...(token ? { authorization: "Bearer " + token } : {}), "x-file-name": encodeURIComponent(name) }, body: bytes as Uint8Array<ArrayBuffer> });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) return { ok: false, state: "not_scanned", reason: "virus_scan_failed" };
+      return j.clean === true ? { ok: true, state: "clean" } : { ok: false, state: "not_scanned", reason: "virus_found" };
+    } catch {
+      return { ok: false, state: "not_scanned", reason: "virus_scan_failed" };
+    }
+  }
+  const env = await rpc<string>(ctx, "dela_setting_text", { p_key: "environment", p_default: "staging" });
+  return env === "staging" ? { ok: true, state: "not_scanned" } : { ok: false, state: "not_scanned", reason: "virus_scan_not_set_up" };
+}
+
+async function confUploadStart(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_conf_file_start", { p: { person_id: s.person_id, side: s.side, agreement_id: uuid(ctx.body.agreement_id) ?? "", name: str(ctx.body.name, 250),
+    size_bytes: int(ctx.body.size_bytes), request_id: str(ctx.body.request_id, 80), no_medical: ctx.body.no_medical === true } });
+  if (!r?.ok) return json(ctx, r);
+  if (r.duplicate) return json(ctx, { ok: true, duplicate: true, file_id: r.file_id, status: r.status });
+  const ext = String(r.storage_path).split(".").pop() ?? "";
+  return json(ctx, { ok: true, file_id: r.file_id, upload_url: await storageOf(ctx).signUpload(r.storage_path), content_type: CONTENT_TYPES[ext] ?? "application/octet-stream" });
+}
+
+// The upload arrived: the real size, the type read from the contents, the virus scan, then the pattern check
+// (Social Security, card and bank numbers, passwords). Nothing goes to the AI and no text is kept.
+async function confUploadComplete(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const storage = storageOf(ctx);
+  const id = need(uuid(ctx.body.file_id)), ag = need(uuid(ctx.body.agreement_id));
+  const fc = await rpc<Record<string, any> | null>(ctx, "dela_file_for_check", { p_file: id });
+  if (!fc || fc.person_id !== s.person_id) throw new HttpError(404, "not_found");
+  const size = fc.status === "uploading" ? await storage.size(fc.storage_path) : Number(fc.size_bytes);
+  const up = await rpc<Record<string, any>>(ctx, "dela_conf_file_uploaded", { p_person: s.person_id, p_file: id, p_size: size });
+  if (!up?.ok) { if (up?.reason === "too_big_after_upload") await storage.remove([fc.storage_path]).catch(() => {}); return json(ctx, up?.reason === "too_big_after_upload" ? { ok: false, reason: "file_too_big" } : up); }
+  if (up.duplicate && up.status !== "checking") return json(ctx, { ok: up.status === "ready", duplicate: true, status: up.status });
+  const refuse = async (reason: string, extra: Record<string, unknown> = {}) => {
+    await rpc(ctx, "dela_conf_file_checked", { p_file: id, p: { ok: false, reason, agreement_id: ag, ...extra } });
+    await storage.remove([fc.storage_path]).catch(() => {});
+    return json(ctx, { ok: false, reason, ...extra });
+  };
+  const bytes = await storage.read(fc.storage_path);
+  const sn = sniff(fc.ext, bytes);
+  if (!sn.ok) return await refuse(sn.reason);
+  const scan = await confScan(ctx, bytes, String(fc.name));
+  if (!scan.ok) return await refuse(scan.reason ?? "virus_scan_failed");
+  let text = "";
+  try { text = await readText(fc.ext, bytes); } catch { text = ""; }
+  const kinds = blockedKinds(String(fc.name) + "\n" + text);
+  if (kinds.length) return await refuse("blocked_data", { kinds, message: blockedMessage(kinds) });
+  return json(ctx, await rpc(ctx, "dela_conf_file_checked", { p_file: id, p: { ok: true, mime: sn.mime, sha256: await sha256(bytes), scan: scan.state, agreement_id: ag } }));
+}
+
+async function confMessage(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const body = str(ctx.body.body, 8000);
+  const kinds = blockedKinds(body);
+  if (kinds.length) return json(ctx, { ok: false, reason: "blocked_data", kinds, message: blockedMessage(kinds) });
+  return json(ctx, await rpc(ctx, "dela_conf_message", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)), p_body: body, p_request: str(ctx.body.request_id, 80) }));
+}
+
+// PDFs get the viewer's name and the date stamped on every page; images are watermarked in the browser
+async function watermarkPdf(bytes: Uint8Array, text: string): Promise<Uint8Array | null> {
+  try {
+    const { PDFDocument, StandardFonts, rgb, degrees } = await import("npm:pdf-lib@1.17.1");
+    const doc = await PDFDocument.load(bytes, { ignoreEncryption: false });
+    const font = await doc.embedFont(StandardFonts.Helvetica);
+    for (const page of doc.getPages()) {
+      const { width, height } = page.getSize();
+      const size = Math.max(14, Math.min(width, height) / 22);
+      for (let i = 0; i < 3; i++) page.drawText(text, { x: width * 0.08, y: height * (0.25 + i * 0.25), size, font, color: rgb(0.55, 0.1, 0.25), opacity: 0.18, rotate: degrees(28) });
+      page.drawText(text, { x: 24, y: 14, size: 8, font, color: rgb(0.4, 0.4, 0.4), opacity: 0.8 });
+    }
+    return new Uint8Array(await doc.save());
+  } catch {
+    return null;
+  }
+}
+async function confOpen(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const action = str(ctx.body.action, 10) === "download" ? "download" : "open";
+  const r = await rpc<Record<string, any>>(ctx, "dela_conf_file_open", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)), p_file: need(uuid(ctx.body.file_id)), p_action: action });
+  if (!r?.ok) return json(ctx, r);
+  return json(ctx, await confFilePayload(ctx, r, action));
+}
+async function confFilePayload(ctx: Ctx, r: Record<string, any>, action: string): Promise<Record<string, unknown>> {
+  const mark = String(r.viewer ?? "") + " | " + (await today(ctx)) + " | Confidential, Lawfecta";
+  if (r.ext === "pdf" || r.ext === "png" || r.ext === "jpg") {
+    const bytes = await storageOf(ctx).read(r.path);
+    if (r.ext === "pdf") {
+      const marked = await watermarkPdf(bytes, mark);
+      if (!marked) return { ok: false, reason: "pdf_protected" };
+      return { ok: true, kind: "pdf", name: r.name, watermark: mark, view_only: !!r.view_only, b64: b64(marked) };
+    }
+    return { ok: true, kind: "image", name: r.name, ext: r.ext, watermark: mark, view_only: !!r.view_only, b64: b64(bytes) };
+  }
+  return { ok: true, kind: "download", name: r.name, url: await storageOf(ctx).signDownload(r.path, Math.max(Number(r.minutes) || 5, 1) * 60, String(r.name)) };
+}
+
+// Daily: remove the files of engagements past their retention, then mark them deleted
+async function confDaily(ctx: Ctx) {
+  const due = await rpc<Array<{ agreement_id: string; paths: string[] }>>(ctx, "dela_conf_daily", {}) ?? [];
+  for (const d of due) {
+    if (d.paths.length && ctx.deps.storage) await ctx.deps.storage.remove(d.paths);
+    await rpc(ctx, "dela_conf_deleted", { p_agreement: d.agreement_id });
+  }
+  return { ok: true, deleted: due.length };
+}
+
 // ---------- Step 6: agreements, signing, milestone funding, delivery, payouts, refunds, disputes ----------
 // Money moves only through the payments adapter (Stripe), in test mode until the live_payments switch is on.
 
@@ -2315,6 +2463,16 @@ async function milestoneSubmit(ctx: Ctx) {
   const r = await rpc<Record<string, any>>(ctx, "dela_submission_create", { p_person: s.person_id, p_milestone: need(uuid(ctx.body.milestone_id)),
     p: { statement, checklist: Array.isArray(ctx.body.checklist) ? ctx.body.checklist.slice(0, 20) : [], files: Array.isArray(ctx.body.files) ? ctx.body.files.map(uuid).filter(Boolean).slice(0, 10) : [], request_id: str(ctx.body.request_id, 80) } });
   if (!r?.ok || r.duplicate) return json(ctx, r);
+  const confIds = Array.isArray(ctx.body.conf_files) ? ctx.body.conf_files.map(uuid).filter(Boolean).slice(0, 20) : [];
+  const files = Array.isArray(ctx.body.files) ? ctx.body.files.filter(Boolean) : [];
+  if (confIds.length) {
+    const at = await rpc<Record<string, any>>(ctx, "dela_conf_attach_submission", { p_person: s.person_id, p_submission: r.id, p_files: confIds });
+    // Only confidential deliverables: the AI never reads them, so the work goes straight to the attorney's review
+    if (at?.count && !files.length) {
+      await rpc(ctx, "dela_submission_checked", { p_submission: r.id, p_status: "with_attorney", p_score: null, p_findings: [], p_model: "" });
+      return json(ctx, { ...r, status: "with_attorney", confidential_only: true });
+    }
+  }
   return json(ctx, { ...r, ...(await runMilestoneCheck(ctx, r.id)) });
 }
 
@@ -3074,6 +3232,8 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/gigs": (c, a) => rpc(c, "dela_admin_gigs", { p_actor: a }),
   "/admin/reviews": (c, a) => rpc(c, "dela_admin_reviews", { p_actor: a }),
   "/admin/documents": (c, a) => rpc(c, "dela_admin_documents", { p_actor: a }),
+  "/admin/confidential": (c, a) => rpc(c, "dela_admin_confidential", { p_actor: a }),
+  "/admin/confidential/review": (c, a) => rpc(c, "dela_conf_reviewer", { p_actor: a, p_agreement: need(uuid(c.url.searchParams.get("agreement"))), p_file: null }),
   "/admin/payments": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_payments", { p_actor: a })), stripe_ready: !!(await stripeKey(c)), mode: c.deps.env("STRIPE_SECRET_KEY").includes("_live_") ? "live" : "test" }),
   "/admin/meetings": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_meetings", { p_actor: a })), provider_ready: !!c.deps.env("VECTERA_API_KEY") }),
   "/admin/verify": async (c, a) => {
@@ -3146,6 +3306,7 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   "/admin/releases/push": (c, a) => startRelease(c, a, "push"),
   "/admin/settings/undo": (c, a) => rpc(c, "dela_admin_undo_setting", { p_actor: a, p_history: need(int(c.body.history_id)) }),
   "/admin/plans/restore": (c, a) => rpc(c, "dela_admin_plan_restore", { p_actor: a, p_version: need(int(c.body.version_id)), p_password: need(str(c.body.password, 200), "wrong_password") }),
+  "/admin/confidential/open": async (c, a) => { const r = await rpc<Record<string, any>>(c, "dela_conf_reviewer", { p_actor: a, p_agreement: need(uuid(c.body.agreement_id)), p_file: need(uuid(c.body.file_id)) }); return r?.ok ? await confFilePayload(c, r, "open") : r; },
   "/admin/pause": (c, a) => rpc(c, "dela_admin_set_pause", { p_actor: a, p_area: need(str(c.body.area, 20)), p_on: c.body.on === true, p_reason: str(c.body.reason, 500) }),
   "/admin/staging/reset": (c, a) => c.body.confirm === "RESET" ? rpc(c, "dela_admin_reset_staging", { p_actor: a }) : Promise.resolve({ ok: false, reason: "confirm_needed" }),
   "/admin/releases/rollback": (c, a) => startRelease(c, a, "rollback"),
@@ -3358,6 +3519,7 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "gig_tick") { await rpc(ctx, "dela_gig_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "engagement_tick") { await rpc(ctx, "dela_engagement_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "engagements_daily") return await engagementsDaily(ctx);
+  if (j.kind === "confidential_daily") return await confDaily(ctx);
   if (j.kind === "doc_convert") return await docConvert(ctx, String(j.payload?.playbook_id ?? ""));
   if (j.kind === "webhook_send") return await webhookSend(ctx, String(j.payload?.delivery_id ?? ""));
   if (j.kind === "review_tick") { await rpc(ctx, "dela_review_tick", { p: j.payload ?? {} }); return { ok: true }; }
@@ -3609,6 +3771,17 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /documents/type": return await docChangeType(ctx);
       case "POST /documents/conversion-seen": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_doc_conversion_seen", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)) })); }
       case "POST /gigs/reference": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_reference", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_doc: need(uuid(ctx.body.doc)), p_on: ctx.body.on !== false })); }
+      case "GET /confidential": return await confView(ctx);
+      case "POST /confidential/code": return await confCodeSend(ctx);
+      case "POST /confidential/code/confirm": return await confCodeConfirm(ctx);
+      case "POST /confidential/ack": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_conf_ack", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)), p_wording: CONF_ACK })); }
+      case "POST /confidential/upload/start": return await confUploadStart(ctx);
+      case "POST /confidential/upload/complete": return await confUploadComplete(ctx);
+      case "POST /confidential/message": return await confMessage(ctx);
+      case "POST /confidential/open": return await confOpen(ctx);
+      case "POST /confidential/view-only": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_conf_view_only", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)), p_file: need(uuid(ctx.body.file_id)), p_on: ctx.body.on === true })); }
+      case "POST /confidential/member": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_conf_member", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)), p_member: need(uuid(ctx.body.person_id)), p_on: ctx.body.on !== false })); }
+      case "POST /confidential/review-consent": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_conf_review_consent", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)), p_agree: ctx.body.agree === true })); }
       case "POST /engagements/checkpoint": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_checkpoint_act", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)), p_step: need(int(ctx.body.step_no)), p_note: str(ctx.body.note, 1000) })); }
       case "GET /playbooks/get": return await pbGet(ctx);
       case "POST /playbooks/create": return await pbCreate(ctx);
