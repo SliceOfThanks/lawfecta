@@ -73,7 +73,7 @@ The steps are grouped by login. To sign out at the end of a group, click the ini
 13. Sign out. Expect the Lawfecta login page.
 
 3. Owner (ask me to log in as the owner)
-1. Open www.hirelegalhelp.com/dela-admin and click "AI and files" in the row of tabs near the top. Expect, from top to bottom:
+1. Open www.hirelegalhelp.com/dela-admin and click "AI and files" in the row of tabs near the top. Expect these cards, from top to bottom (other cards, such as "Recent AI problems" and "Storage by member", sit between them):
    - "AI use this month"
    - "Members' own keys": none, after group 2 step 11
    - "Files not accepted": the renamed program

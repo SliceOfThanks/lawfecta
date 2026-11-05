@@ -640,7 +640,7 @@
     if (bytes === null || bytes === undefined) return "No cap";
     if (bytes < 1048576) return (bytes ? Math.max(1, Math.round(bytes / 1024)) : 0) + " KB";
     var v = bytes / 1048576;
-    return v >= 1000 ? (v / 1024).toFixed(1) + " GB" : (v < 10 ? v.toFixed(1) : Math.round(v)) + " MB";
+    return v >= 1000 ? String(Math.round(v / 100) / 10) + " GB" : (v < 10 ? v.toFixed(1) : Math.round(v)) + " MB";
   }
   var SOURCE = { lawfecta: "Lawfecta's key", own_key: "Member's own key", firm_key: "Firm key" };
   var TASK = { chat: "Chat", file: "Chat with files", voice: "Talking (speech to text)", key_test: "Key test", client_check: "Client information check" };

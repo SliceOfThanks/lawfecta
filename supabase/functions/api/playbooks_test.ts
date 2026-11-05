@@ -5,7 +5,7 @@ import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { unzipSync, strFromU8 } from "npm:fflate@0.8.2";
 import { handle, type Deps } from "./app.ts";
 import { sessionHash } from "./lib/crypto.ts";
-import { completeness, normalize, removesReview, toCsv } from "./lib/playbooks/model.ts";
+import { completeness, dayIn, normalize, removesReview, toCsv } from "./lib/playbooks/model.ts";
 import { readJson } from "./lib/playbooks/ai.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
@@ -170,6 +170,39 @@ Deno.test("comments with a suggested change, decided by the administrator", asyn
   assertEquals(got.body.body.outcome, "A signed engagement letter, the retainer paid, and an opened file");
   const actions = got.body.activity.map((a: any) => a.action);
   for (const a of ["created_ai", "ai_filled", "approved", "suggestion_made", "suggestion_accepted", "suggestion_rejected"]) assert(actions.includes(a), "activity log has " + a);
+});
+
+Deno.test("a file alone is enough for DELA to draft a playbook (Stacey's test 2026-11-05)", async () => {
+  const f = (await pool.query(`insert into files (org_id, group_id, version, is_current, name, ext, size_bytes, storage_path, status, check_state, text_chars, uploaded_by, side, request_id, no_client_info_ticked_at)
+    values ($1, gen_random_uuid(), 1, true, 'intake-process.docx', 'docx', 100, 'test/' || gen_random_uuid(), 'ready', 'clear', 40, $2, 'attorney', 'f-only', now()) returning id`, [org, owner.id])).rows[0].id;
+  await pool.query("insert into file_texts (file_id, body) values ($1, 'Step 1: run the conflict check. Step 2: send the letter.')", [f]);
+  const r = await call("POST", "/playbooks/create", owner.token, { org_id: org, request_id: "c-file-only", description: "", file_ids: [f] });
+  assertEquals(r.body.ok, true);
+  assertEquals(r.body.questions.length, 2, "DELA drafted it and asks its questions");
+  const prompt = String(sent.at(-1).messages.at(-1).content);
+  assert(prompt.includes("run the conflict check") && prompt.includes("no description"), "the AI got the file");
+  const got = await call("GET", "/playbooks/get?id=" + r.body.id, owner.token);
+  assertEquals(got.body.playbook.source, "file");
+});
+
+Deno.test("Home counts the draft playbooks (Stacey's test 2026-11-05: Home showed 0)", async () => {
+  const drafts = (await pool.query("select count(*)::int n from playbooks where org_id = $1 and status in ('draft', 'in_review')", [org])).rows[0].n;
+  assert(drafts > 0);
+  assertEquals((await call("GET", "/me", owner.token)).body.me.playbooks_draft, drafts);
+  assertEquals((await call("GET", "/me", outsider.token)).body.me.playbooks_draft, 0, "another firm's drafts are not counted");
+});
+
+Deno.test("the AI takes a process's practice area and state from the process, not the profile", async () => {
+  const { aiContext } = await import("./lib/profiles/model.ts");
+  const c = aiContext("attorney", { practice_areas: ["Family law"], state: "TX" });
+  assert(c.includes("never from this profile"));
+});
+
+Deno.test("export dates use Lawfecta's time zone, not UTC (Stacey's test 2026-11-05)", () => {
+  const evening = new Date("2026-11-05T02:52:00Z"); // 6:52 PM on Nov 4 in California
+  assertEquals(dayIn("America/Los_Angeles", evening), "2026-11-04");
+  assertEquals(dayIn("UTC", evening), "2026-11-05");
+  assertEquals(dayIn("Not/AZone", evening), "2026-11-05", "a bad setting falls back to UTC instead of failing");
 });
 
 Deno.test("exports: Word, Markdown, CSV, HTML and PDF, with version and date", async () => {

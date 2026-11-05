@@ -183,7 +183,10 @@
       h("div", { class: "card" }, h("div", { class: "row" }, h("h2", { text: "Verification" }), h("span", { class: "badge", text: s.verification_state.split("_").join(" ") })), h("p", { text: ver }),
         (me.switches || {}).profiles ? h("button", { class: "blue small", onclick: function () { tab = "profile"; draw(); } }, s.verification_state === "verified" ? "Open your profile" : "Set up your profile and verification") : null),
       h("h2", { style: "margin-top:22px", text: "What DELA will do for you" }),
-      soon(1, "Playbooks", "Describe a task. DELA asks what it needs and builds a step by step plan you approve."),
+      (me.switches || {}).playbook_library
+        ? h("div", { class: "work" }, h("span", { class: "chip", text: "1" }), h("div", null, h("h3", { text: "Playbooks" }), h("div", { class: "muted small", text: "Describe a task. DELA asks what it needs and builds a step by step plan you approve." })), h("span", { class: "grow" }),
+          h("button", { class: "ghost small", onclick: function () { tab = "library"; draw(); } }, "Open the Library"))
+        : soon(1, "Playbooks", "Describe a task. DELA asks what it needs and builds a step by step plan you approve."),
       soon(2, "Flex Gigs", gigs ? "Post approved work with a budget range. Your plan allows " + (gigs.unlimited ? "unlimited" : gigs.limit) + " open at once." : "Post approved work with a budget range."),
       soon(3, "Talent and your bench", "See available, qualified paralegals, including people you have worked with before."),
       soon(4, "Engagements and payments", "Sign a fixed-fee agreement and fund each milestone before work starts."),
@@ -273,7 +276,7 @@
     if (bytes === null || bytes === undefined) return "no cap";
     if (bytes < 1048576) return Math.max(1, Math.round(bytes / 1024)) + " KB";
     var v = bytes / 1048576;
-    return v >= 1000 ? (v / 1024).toFixed(1) + " GB" : (v < 10 ? v.toFixed(1) : String(Math.round(v))) + " MB";
+    return v >= 1000 ? String(Math.round(v / 100) / 10) + " GB" : (v < 10 ? v.toFixed(1) : String(Math.round(v))) + " MB";
   }
   // The full notice is at the top of every page; next to where people type or upload, a short reminder
   function notice() { return h("p", { class: "small muted", style: "margin:0 0 8px", role: "note", text: "No confidential client information. Use placeholders such as [Client Name] or [Case Number]. You are responsible for what you enter." }); }
@@ -1479,7 +1482,7 @@
     libEl.appendChild(listEl);
     function drawList() {
       D.clear(listEl);
-      var today = new Date().toISOString().slice(0, 10);
+      var today = D.today();
       var rows = L.playbooks.filter(function (p) {
         if (lib.filter === "trash") return p.status === "trash";
         if (p.status === "trash") return false;
@@ -1541,7 +1544,7 @@
         openPlaybook(r.id, "read");
       }).catch(function (e) { go.disabled = false; status.textContent = ""; pbFail(e); });
     }
-    go.addEventListener("click", function () { if (!ta.value.trim()) { D.toast(app, "Describe the task first, or click Start blank.", true); return; } send(); });
+    go.addEventListener("click", function () { if (!ta.value.trim() && !files.length) { D.toast(app, "Describe the task or choose a file first, or click Start blank.", true); return; } send(); });
     blank.addEventListener("click", function () {
       api.post("/playbooks/create", { org_id: lib.org, request_id: req, title: title.value || "Untitled playbook" }).then(okOr).then(function (r) { openPlaybook(r.id, "edit"); }).catch(pbFail);
     });
@@ -1633,7 +1636,7 @@
         can(3) && P.status === "draft" ? h("button", { class: "ghost small", onclick: function () { status("submit", "Sent to the administrator for review"); } }, "Send for review") : null,
         can(4) && (P.status === "draft" || P.status === "in_review") ? h("button", { class: "blue small", disabled: P.completeness < 100, title: P.completeness < 100 ? "Fill in every required part first" : "", onclick: function () { status("approve", "Approved"); } }, "Approve") : null),
       h("div", { class: "bar" }, h("span", { style: "width:" + P.completeness + "%" + (P.completeness === 100 ? ";background:var(--ok)" : "") })),
-      P.missing.length ? h("p", { class: "small", style: "margin:6px 0 0", text: "Still missing: " + P.missing.join(", ") + "." }) : h("p", { class: "small", style: "margin:6px 0 0", text: "Every required part is filled." }));
+      P.missing.length ? h("p", { class: "small", style: "margin:6px 0 0", text: "Still missing: " + P.missing.join(", ") + "." }) : h("p", { class: "small", style: "margin:6px 0 0", text: "Every required part is filled." + ((lib.questions || []).length ? " DELA still has " + lib.questions.length + (lib.questions.length === 1 ? " question" : " questions") + " for you below: check its guesses before you approve." : "") }));
     libEl.appendChild(pctBar);
     if (lib.questions && lib.questions.length && can(3)) libEl.appendChild(questionsCard());
     var views = [["read", "Read"], ["edit", "Edit"], ["chat", "Chat"], ["suggestions", "Suggestions (" + lib.pb.suggestions.length + ")"], ["comments", "Comments (" + lib.pb.comments.filter(function (c) { return !c.resolved; }).length + ")"],
@@ -2284,7 +2287,7 @@
           h("button", { class: "blue small", onclick: function () { finishLeftovers(waiting); } }, "Finish upload")));
       }
       if (!recs.data.items.length) { card.appendChild(h("p", { class: "muted", text: st.on ? "No recordings yet." : "The Process Recorder is not open for your account yet." })); return; }
-      var today = new Date().toISOString().slice(0, 10);
+      var today = D.today();
       card.appendChild(h("div", { class: "scroll" }, h("table", null,
         h("thead", null, h("tr", null, ["Process name", "Date recorded", "Length", "Status", "Video deletes on", ""].map(function (x) { return h("th", { text: x }); }))),
         h("tbody", null, recs.data.items.map(function (x) {

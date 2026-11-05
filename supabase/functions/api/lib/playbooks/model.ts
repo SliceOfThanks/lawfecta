@@ -189,3 +189,15 @@ export function fileName(b: Body, m: ExportMeta, ext: string): string {
   const t = (b.title || "Playbook").replace(/[^A-Za-z0-9 ._-]+/g, " ").replace(/\s+/g, " ").trim().slice(0, 80) || "Playbook";
   return `DELA - ${t} - v${m.version} - ${m.date}.${ext}`;
 }
+
+// Today's date (YYYY-MM-DD) in Lawfecta's time zone (setting quota.timezone), not in UTC,
+// so an export made in the evening in California is dated that day (Stacey's test 2026-11-05)
+export function dayIn(timeZone: string, now = new Date()): string {
+  try {
+    const parts = new Intl.DateTimeFormat("en-CA", { timeZone, year: "numeric", month: "2-digit", day: "2-digit" }).formatToParts(now);
+    const get = (k: string) => parts.find((x) => x.type === k)?.value ?? "";
+    return `${get("year")}-${get("month")}-${get("day")}`;
+  } catch {
+    return now.toISOString().slice(0, 10);
+  }
+}

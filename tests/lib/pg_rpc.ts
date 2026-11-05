@@ -20,7 +20,9 @@ export async function rpc(fn: string, args: Record<string, unknown>) {
   const vals = keys.map((k) => {
     const v = args[k];
     if (v === null || v === undefined) return null;
-    return jsonbArgs!.has(fn + "." + k) || typeof v === "object" ? JSON.stringify(v) : v;
+    if (jsonbArgs!.has(fn + "." + k)) return JSON.stringify(v);
+    if (Array.isArray(v)) return v; // uuid[] and text[] go as Postgres arrays, as supabase-js sends them
+    return typeof v === "object" ? JSON.stringify(v) : v;
   });
   const call = `${fn}(${keys.map((k, i) => `${k} => $${i + 1}`).join(", ")})`;
   if (setof.has(fn)) return (await pool.query(`select to_jsonb(t) as r from ${call} t`, vals)).rows.map((r: any) => r.r);

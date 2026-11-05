@@ -41,6 +41,11 @@
     var d = s.length === 10 && s.charAt(4) === "-" && s.charAt(7) === "-" ? new Date(Number(s.slice(0, 4)), Number(s.slice(5, 7)) - 1, Number(s.slice(8, 10))) : new Date(iso);
     return isNaN(d) ? "" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
+  // Today's date as YYYY-MM-DD on the member's own clock (not UTC)
+  D.today = function () {
+    var d = new Date();
+    return d.getFullYear() + "-" + String(d.getMonth() + 1).padStart(2, "0") + "-" + String(d.getDate()).padStart(2, "0");
+  };
   D.dateTime = function (iso) {
     if (!iso) return "";
     var d = new Date(iso);
