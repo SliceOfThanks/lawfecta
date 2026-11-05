@@ -1,7 +1,10 @@
 # Feature brief: Agreements, e-signature, milestone funding, delivery and payouts
 
 Step: 6   Spec references: 1A sections 19 (contracts), 20 (sequential milestone funding and payment states), 21 (milestone submission and seven-day acceptance), 23 (chargebacks); Decision Sheet: payments.provider (C, Stripe Connect), payments.mode (G, test), fees.floor_cents_per_party (C, $10), fees.attorney_fee_timing (R, at engagement start), fees.freelancer_fee_allocation (R, proportional, rounding on the last), plan fees (5%, 4%, 3.5%, 3% by plan), engagement.minimum_cents (C, $250), engagement.max_duration_days (O, 90), engagement.max_unreleased_days (G, 45), engagement.hourly_billing (C, off), milestone.pass_score (C, 90), milestone.attorney_review_days (C, 7), milestone.human_review_fee_cents (O, $0), milestone.human_review_days (O, 5), milestone.admin_acceptance (G, a switch), risk.dispute_notice_days (C, 14), risk.first_lost_chargeback (C), risk.second_chargeback (G), protection.freelancer_payment (C, none), exports.engagement_grant_after (O)
-Status: draft, waiting for Stacey's answers. Real money stays off (live_payments switch) until Stacey turns it on after the G items are reviewed.
+Status: questions answered by Stacey 2026-11-05 (all as suggested); approved to build. Real money stays off (live_payments switch) until Stacey turns it on after the G items are reviewed.
+
+## Stacey's answers (2026-11-05)
+All 18 questions as suggested.
 
 ## Who
 - Attorneys who chose a proposal in Step 4, and the firm's signatory (from Firm details in Step 3).

@@ -21,9 +21,11 @@ import { CHECK_PROMPT, messageLooksSensitive, patternCheck, readCheckAnswer } fr
 import { CONTENT_TYPES, readText, sha256, sniff } from "./lib/files/check.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { completeness, emptyBody, fileName, normalize, removesReview, toCsv, toDocx, toHtml, toMarkdown, dayIn, type Body, type ExportMeta } from "./lib/playbooks/model.ts";
+import { keyAllowed, stripe, checkoutParams, verifyStripeSignature, accountStatus } from "./lib/payments/stripe.ts";
+import { buildBody, feeLines, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
 import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
 
-export const VERSION = "api-0.8.0";
+export const VERSION = "api-0.9.0";
 
 export type Deps = {
   rpc: (fn: string, args: Record<string, unknown>) => Promise<unknown>;
@@ -1587,6 +1589,296 @@ async function messageFile(ctx: Ctx) {
   return json(ctx, { ok: true, name: r.name, url: await storageOf(ctx).signDownload(r.path, 300, r.name) });
 }
 
+// ---------- Step 6: agreements, signing, milestone funding, delivery, payouts, refunds, disputes ----------
+// Money moves only through the payments adapter (Stripe), in test mode until the live_payments switch is on.
+
+async function stripeKey(ctx: Ctx): Promise<string> {
+  const key = ctx.deps.env("STRIPE_SECRET_KEY");
+  const live = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "live_payments", p_person: null }).catch(() => false);
+  return keyAllowed(key, !!live) ? key : "";
+}
+const siteBase = async (ctx: Ctx) => (await setting(ctx, "site.url", "")).replace(/\/+$/, "");
+
+async function agreementGet(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  let id = uuid(ctx.url.searchParams.get("id"));
+  const gig = uuid(ctx.url.searchParams.get("gig"));
+  if (!id && gig) id = await rpc<string | null>(ctx, "dela_agreement_for_gig", { p_person: s.person_id, p_side: s.side, p_gig: gig });
+  if (!id) return json(ctx, { ok: false, reason: "not_found" });
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "engagements", p_person: s.person_id })) return json(ctx, { ok: false, reason: "engagements_off" });
+  // Version 1: DELA fills in the facts the first time either person opens it
+  const facts = await rpc<Record<string, any>>(ctx, "dela_agreement_facts", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+  if (!facts?.ok) return json(ctx, facts);
+  if (facts.version === 0) await rpc(ctx, "dela_agreement_version_add", { p_person: s.person_id, p_side: s.side, p_agreement: id, p_body: buildBody(facts), p_note: "First draft by DELA", p_base: 0 });
+  const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+  if (v?.ok && v.current?.body) v.fee_lines = feeLines(v.current.body);
+  return json(ctx, { ...v, stripe_ready: !!(await stripeKey(ctx)) });
+}
+
+// A proposed change: milestones (titles, amounts in dollars, due dates, deliverables) and scope. A new version both must sign.
+async function agreementPropose(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const id = need(uuid(ctx.body.id));
+  const facts = await rpc<Record<string, any>>(ctx, "dela_agreement_facts", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+  if (!facts?.ok) return json(ctx, facts);
+  const raw = Array.isArray(ctx.body.milestones) ? ctx.body.milestones.slice(0, 12) : [];
+  const ms = raw.map((m: any, i: number) => ({ seq: i + 1, title: str(m?.title, 120), amount_cents: toCents(m?.amount) ?? 0, due_date: str(m?.due_date, 10), deliverables: str(m?.deliverables, 600) }));
+  const scope = { included: str(ctx.body.included, 4000), excluded: str(ctx.body.excluded, 4000), schedule: str(ctx.body.schedule, 2000) };
+  const text = [scope.included, scope.excluded, scope.schedule, ...ms.map((m: any) => m.title + " " + m.deliverables), str(ctx.body.note, 300)].join("\n");
+  const warn = sensitive(ctx, text);
+  if (warn) return json(ctx, warn);
+  if (conductRules(withoutLawfectaLinks(text, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com"))).length) return json(ctx, { ok: false, reason: "keep_on_lawfecta" });
+  return json(ctx, await rpc(ctx, "dela_agreement_version_add", { p_person: s.person_id, p_side: s.side, p_agreement: id, p_body: buildBody(facts, ms, scope), p_note: str(ctx.body.note, 300), p_base: int(ctx.body.base) }));
+}
+
+async function agreementSign(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  return json(ctx, await rpc(ctx, "dela_agreement_sign", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.id)),
+    p: { version: int(ctx.body.version), typed_name: str(ctx.body.typed_name, 200), consent: ctx.body.consent === true, ip: ctx.ip, user_agent: str(ctx.req.headers.get("user-agent"), 300) } }));
+}
+
+// Pay the next milestone: with a saved payment method, charged straight away (off session); otherwise on Stripe's Checkout page
+async function engagementPay(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const id = need(uuid(ctx.body.id));
+  const key = await stripeKey(ctx);
+  if (!key) return json(ctx, { ok: false, reason: "payments_not_set_up" });
+  const n = await rpc<Record<string, any>>(ctx, "dela_payment_next", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+  if (!n?.ok) return json(ctx, n);
+  if (n.status === "succeeded") return json(ctx, { ok: true, duplicate: true, status: "succeeded" });
+  if (n.status === "processing") return json(ctx, { ok: true, status: "processing" });
+  return json(ctx, await chargeOrCheckout(ctx, key, n, ctx.body.use_checkout === true));
+}
+
+async function chargeOrCheckout(ctx: Ctx, key: string, n: Record<string, any>, forceCheckout: boolean) {
+  const name = `Lawfecta: ${n.gig_title}, milestone ${n.milestone.seq}` + (n.fee_cents ? " and the platform fee" : "");
+  if (n.customer && n.payment_method && !forceCheckout) {
+    const r = await stripe(f(ctx), key, "POST", "/payment_intents", { amount: n.amount_cents, currency: await setting(ctx, "payments.currency", "usd"), customer: n.customer, payment_method: n.payment_method,
+      off_session: "true", confirm: "true", description: name, metadata: { payment_id: n.payment_id }, transfer_group: "agreement_" + n.agreement_id }, n.idem_key);
+    if (r.ok) {
+      await rpc(ctx, "dela_payment_ref", { p_payment: n.payment_id, p_ref: r.data.id, p_url: "", p_status: r.data.status === "processing" ? "processing" : "" });
+      if (r.data.status === "succeeded") await rpc(ctx, "dela_payment_result", { p_payment: n.payment_id, p_status: "succeeded", p_ref: r.data.id, p_customer: n.customer, p_method: n.payment_method, p_failure: "" });
+      return { ok: true, status: r.data.status === "succeeded" ? "succeeded" : "processing" };
+    }
+    // The bank wants the attorney to confirm, or the card failed: a Checkout link to pay again
+    await rpc(ctx, "dela_payment_result", { p_payment: n.payment_id, p_status: "failed", p_ref: "", p_customer: "", p_method: "", p_failure: r.error });
+    const again = await rpc<Record<string, any>>(ctx, "dela_payment_next", { p_person: n.attorney_person, p_side: "attorney", p_agreement: n.agreement_id });
+    if (again?.ok) return { ...(await checkout(ctx, key, again, name)), failed_first: r.error };
+    return { ok: false, reason: "payment_failed", detail: r.error };
+  }
+  return await checkout(ctx, key, n, name);
+}
+
+async function checkout(ctx: Ctx, key: string, n: Record<string, any>, name: string) {
+  if (n.checkout_url) return { ok: true, status: "requires_payment", url: n.checkout_url };
+  const base = await siteBase(ctx);
+  const back = `${base}/dela?tab=projects&gig=${encodeURIComponent(String(n.gig_id ?? ""))}&view=agreement`;
+  const methods = (await rpc<string[]>(ctx, "dela_setting", { p_key: "payments.methods" })) ?? ["card"];
+  const r = await stripe(f(ctx), key, "POST", "/checkout/sessions", checkoutParams({ amount: n.amount_cents, name, paymentId: n.payment_id, customer: n.customer, successUrl: back + "&paid=1", cancelUrl: back,
+    methods: Array.isArray(methods) ? methods : ["card"], currency: await setting(ctx, "payments.currency", "usd") }), "co:" + n.idem_key);
+  if (!r.ok) return { ok: false, reason: "payment_failed", detail: r.error };
+  await rpc(ctx, "dela_payment_ref", { p_payment: n.payment_id, p_ref: "", p_url: r.data.url, p_status: "" });
+  return { ok: true, status: "requires_payment", url: r.data.url };
+}
+
+// Freelancer payouts: Stripe Express onboarding (Stripe's own form); DELA never sees bank details
+async function payoutSetup(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
+  const key = await stripeKey(ctx);
+  if (!key) return json(ctx, { ok: false, reason: "payments_not_set_up" });
+  let acct = await rpc<Record<string, any>>(ctx, "dela_payout_account", { p_person: s.person_id });
+  if (!acct?.account_ref) {
+    const r = await stripe(f(ctx), key, "POST", "/accounts", { type: "express", country: "US", capabilities: { transfers: { requested: "true" } }, business_type: "individual", metadata: { person_id: s.person_id } }, "acct:" + s.person_id);
+    if (!r.ok) return json(ctx, { ok: false, reason: "payment_failed", detail: r.error });
+    await rpc(ctx, "dela_payout_account_set", { p_person: s.person_id, p_ref: r.data.id, p_status: "pending", p_req: [] });
+    acct = { account_ref: r.data.id };
+  }
+  const base = await siteBase(ctx);
+  const link = await stripe(f(ctx), key, "POST", "/account_links", { account: acct.account_ref, type: "account_onboarding", refresh_url: base + "/dela?tab=earnings&payout=again", return_url: base + "/dela?tab=earnings&payout=done" });
+  if (!link.ok) return json(ctx, { ok: false, reason: "payment_failed", detail: link.error });
+  return json(ctx, { ok: true, url: link.data.url });
+}
+
+async function payoutRefresh(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const key = await stripeKey(ctx);
+  const acct = await rpc<Record<string, any>>(ctx, "dela_payout_account", { p_person: s.person_id });
+  if (key && acct?.account_ref) {
+    const r = await stripe(f(ctx), key, "GET", "/accounts/" + encodeURIComponent(acct.account_ref));
+    if (r.ok) { const st = accountStatus(r.data); await rpc(ctx, "dela_payout_account_set", { p_person: s.person_id, p_ref: acct.account_ref, p_status: st.status, p_req: st.requirements }); }
+  }
+  await sendPayouts(ctx);
+  return json(ctx, { ok: true, account: await rpc(ctx, "dela_payout_account", { p_person: s.person_id }), stripe_ready: !!key });
+}
+
+// Payouts and refunds the database has queued, sent with idempotency keys (so a rerun never pays twice)
+async function sendPayouts(ctx: Ctx) {
+  const key = await stripeKey(ctx);
+  if (!key) return;
+  for (const po of (await rpc<Array<Record<string, any>>>(ctx, "dela_payouts_due", {})) ?? []) {
+    const r = await stripe(f(ctx), key, "POST", "/transfers", { amount: po.amount_cents, currency: await setting(ctx, "payments.currency", "usd"), destination: po.account_ref, transfer_group: "agreement_" + po.agreement_id, metadata: { payout_id: po.id } }, po.idem_key);
+    await rpc(ctx, "dela_payout_result", { p_payout: po.id, p_status: r.ok ? "sent" : "failed", p_ref: r.ok ? r.data.id : "", p_reason: r.ok ? "" : r.error });
+  }
+}
+async function sendRefunds(ctx: Ctx) {
+  const key = await stripeKey(ctx);
+  if (!key) return;
+  for (const rf of (await rpc<Array<Record<string, any>>>(ctx, "dela_refunds_due", {})) ?? []) {
+    if (!String(rf.payment_ref).startsWith("pi_")) continue;
+    const r = await stripe(f(ctx), key, "POST", "/refunds", { payment_intent: rf.payment_ref, amount: rf.amount_cents, metadata: { refund_id: rf.id } }, rf.idem_key);
+    await rpc(ctx, "dela_refund_result", { p_refund: rf.id, p_status: r.ok ? "succeeded" : "failed", p_ref: r.ok ? r.data.id : "" });
+  }
+}
+
+// After acceptance: the payout goes, and the next milestone is charged with the saved payment method
+async function afterAccept(ctx: Ctx, agreement: string, attorneyPerson: string) {
+  await sendPayouts(ctx);
+  const key = await stripeKey(ctx);
+  if (!key) return null;
+  const n = await rpc<Record<string, any>>(ctx, "dela_payment_next", { p_person: attorneyPerson, p_side: "attorney", p_agreement: agreement });
+  if (!n?.ok || n.status === "succeeded" || n.status === "processing") return null;
+  return await chargeOrCheckout(ctx, key, n, false);
+}
+
+async function milestoneUploadStart(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
+  const r = await rpc<Record<string, any>>(ctx, "dela_file_start_any", { p: { person_id: s.person_id, side: s.side, request_id: str(ctx.body.request_id, 80), name: str(ctx.body.name, 250), size_bytes: int(ctx.body.size_bytes), ticked: ctx.body.ticked === true }, p_purpose: "deliverable" });
+  if (!r?.ok) return json(ctx, r);
+  if (r.status !== "uploading") return json(ctx, { ok: true, duplicate: true, file_id: r.file_id, status: r.status });
+  const ext = String(r.storage_path).split(".").pop() ?? "";
+  return json(ctx, { ok: true, file_id: r.file_id, upload_url: await storageOf(ctx).signUpload(r.storage_path), content_type: CONTENT_TYPES[ext] ?? "application/octet-stream" });
+}
+
+// Submit: locked once sent; DELA checks it against the agreed rubric (Lawfecta's key, never the member's credits)
+async function milestoneSubmit(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
+  const statement = str(ctx.body.statement, 6000);
+  const warn = sensitive(ctx, statement);
+  if (warn) return json(ctx, warn);
+  const r = await rpc<Record<string, any>>(ctx, "dela_submission_create", { p_person: s.person_id, p_milestone: need(uuid(ctx.body.milestone_id)),
+    p: { statement, checklist: Array.isArray(ctx.body.checklist) ? ctx.body.checklist.slice(0, 20) : [], files: Array.isArray(ctx.body.files) ? ctx.body.files.map(uuid).filter(Boolean).slice(0, 10) : [], request_id: str(ctx.body.request_id, 80) } });
+  if (!r?.ok || r.duplicate) return json(ctx, r);
+  return json(ctx, { ...r, ...(await runMilestoneCheck(ctx, r.id)) });
+}
+
+async function runMilestoneCheck(ctx: Ctx, submission: string): Promise<Record<string, unknown>> {
+  const sub = await rpc<Record<string, any>>(ctx, "dela_submission_for_check", { p_submission: submission });
+  if (!sub) return { status: "human_review" };
+  if (!sub.check_on) { await rpc(ctx, "dela_submission_checked", { p_submission: submission, p_status: "with_attorney", p_score: null, p_findings: [], p_model: "" }); return { status: "with_attorney" }; }
+  const key = lawfectaKey(ctx, "openai");
+  const model = await setting(ctx, "ai.model.openai", "gpt-5.4-mini");
+  const rubric = (sub.rubric ?? []) as Criterion[];
+  if (!key || !rubric.length) { await rpc(ctx, "dela_submission_checked", { p_submission: submission, p_status: "human_review", p_score: null, p_findings: [], p_model: "" }); return { status: "human_review" }; }
+  try {
+    const r = await chat(f(ctx), "openai", key, model, CHECK_SYSTEM, [{ role: "user", content: checkPrompt(sub) }], true);
+    await logUsage(ctx, { person_id: sub.person_id, side: "freelancer", task: "milestone_check", source: "lawfecta", provider: "openai", model: r.model, input_tokens: r.input_tokens, output_tokens: r.output_tokens, ok: true });
+    const scored = scoreFindings(rubric, readJson(r.text), Number(sub.pass_score) || 90);
+    const status = scored.passed ? "with_attorney" : "failed";
+    await rpc(ctx, "dela_submission_checked", { p_submission: submission, p_status: status, p_score: scored.score, p_findings: scored.findings, p_model: r.model });
+    return { status, score: scored.score, findings: scored.findings };
+  } catch (e) {
+    await logUsage(ctx, { person_id: sub.person_id, side: "freelancer", task: "milestone_check", source: "lawfecta", provider: "openai", model, ok: false, error: e instanceof AiFail ? e.code : "provider_down" });
+    // DELA could not check it: a person does, and it is never counted as passing
+    await rpc(ctx, "dela_submission_checked", { p_submission: submission, p_status: "human_review", p_score: null, p_findings: [], p_model: "" });
+    return { status: "human_review" };
+  }
+}
+
+async function milestoneDecide(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const note = str(ctx.body.note, 2000);
+  if (note) { const w = sensitive(ctx, note); if (w) return json(ctx, w); }
+  const r = await rpc<Record<string, any>>(ctx, "dela_milestone_decide", { p_person: s.person_id, p_submission: need(uuid(ctx.body.submission_id)), p_accept: ctx.body.accept === true, p_note: note });
+  if (r?.ok && ctx.body.accept === true && !r.duplicate) {
+    const next = r.agreement_id ? await afterAccept(ctx, r.agreement_id, s.person_id) : null;
+    return json(ctx, { ...r, next_payment: next });
+  }
+  return json(ctx, r);
+}
+
+async function engagementCancel(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_engagement_cancel", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.id)), p_reason: str(ctx.body.reason, 500) });
+  if (r?.ok) await sendRefunds(ctx);
+  return json(ctx, r);
+}
+
+async function deliverableFile(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_deliverable_get", { p_person: s.person_id, p_side: s.side, p_submission: need(uuid(ctx.url.searchParams.get("submission"))), p_file: need(uuid(ctx.url.searchParams.get("file"))) });
+  if (!r?.ok) return json(ctx, r);
+  return json(ctx, { ok: true, name: r.name, url: await storageOf(ctx).signDownload(r.path, 300, r.name) });
+}
+
+async function engagementExport(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const id = need(uuid(ctx.url.searchParams.get("id")));
+  const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+  if (!v?.ok || !v.export) return json(ctx, { ok: false, reason: "export_not_available" });
+  const pb = await rpc<Record<string, any>>(ctx, "dela_gig_get", { p_person: s.person_id, p_side: s.side, p_gig: v.agreement.gig_id });
+  if (!pb?.playbook) return json(ctx, { ok: false, reason: "export_not_available" });
+  const b = normalize(pb.playbook);
+  const m: ExportMeta = { version: 1, date: await today(ctx), status: "approved", firm: "" };
+  return json(ctx, { ok: true, name: fileName(b, m, "docx"), type: CONTENT_TYPES.docx, b64: b64(toDocx(b, m)) });
+}
+
+// Stripe's events: the signature is checked, each event is handled once, and the database decides what it means
+async function stripeWebhook(ctx: Ctx) {
+  const payload = await ctx.req.text();
+  if (payload.length > 512 * 1024) throw new HttpError(413, "too_large");
+  if (!await verifyStripeSignature(payload, ctx.req.headers.get("stripe-signature") ?? "", ctx.deps.env("STRIPE_WEBHOOK_SECRET"))) return json(ctx, { ok: false, reason: "bad_signature" }, 400);
+  let ev: Record<string, any>;
+  try { ev = JSON.parse(payload); } catch { throw new HttpError(400, "bad_json"); }
+  const live = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "live_payments", p_person: null }).catch(() => false);
+  if (ev.livemode === true && !live) return json(ctx, { ok: false, reason: "live_payments_off" }, 400);
+  if (await rpc<boolean>(ctx, "dela_provider_event_seen", { p_id: String(ev.id), p_type: String(ev.type) })) return json(ctx, { ok: true, duplicate: true });
+  const o = ev.data?.object ?? {};
+  const pid = o.metadata?.payment_id ?? o.client_reference_id;
+  switch (ev.type) {
+    case "checkout.session.completed":
+      if (pid && o.payment_intent) await rpc(ctx, "dela_payment_ref", { p_payment: pid, p_ref: String(o.payment_intent), p_url: "", p_status: o.payment_status === "paid" ? "" : "processing" });
+      break;
+    case "payment_intent.succeeded":
+    case "payment_intent.processing":
+    case "payment_intent.payment_failed":
+      if (pid) await rpc(ctx, "dela_payment_result", { p_payment: pid, p_status: ev.type.endsWith("succeeded") ? "succeeded" : ev.type.endsWith("processing") ? "processing" : "failed",
+        p_ref: String(o.id ?? ""), p_customer: String(o.customer ?? ""), p_method: String(o.payment_method ?? ""), p_failure: String(o.last_payment_error?.message ?? "") });
+      break;
+    case "account.updated": {
+      const who = await rpc<string | null>(ctx, "dela_payout_account_by_ref", { p_ref: String(o.id ?? "") });
+      if (who) { const st = accountStatus(o); await rpc(ctx, "dela_payout_account_set", { p_person: who, p_ref: o.id, p_status: st.status, p_req: st.requirements }); await sendPayouts(ctx); }
+      break;
+    }
+    case "charge.dispute.created":
+    case "charge.dispute.closed":
+      await rpc(ctx, "dela_chargeback_event", { p_ref: String(o.id ?? ""), p_payment_ref: String(o.payment_intent ?? ""), p_status: ev.type.endsWith("created") ? "open" : (o.status === "won" ? "won" : o.status === "lost" ? "lost" : "withdrawn"),
+        p_amount: int(o.amount) ?? 0, p_reason: String(o.reason ?? "") });
+      break;
+  }
+  return json(ctx, { ok: true });
+}
+
+// Every day: the database closes unsigned agreements and flags long-held money; the api sends queued payouts and refunds and
+// matches each recent payment with Stripe's own record
+async function engagementsDaily(ctx: Ctx) {
+  await rpc(ctx, "dela_engagements_daily", {});
+  await sendPayouts(ctx);
+  await sendRefunds(ctx);
+  const key = await stripeKey(ctx);
+  if (key) {
+    for (const p of (await rpc<Array<Record<string, any>>>(ctx, "dela_payments_to_match", {})) ?? []) {
+      const r = await stripe(f(ctx), key, "GET", "/payment_intents/" + encodeURIComponent(p.provider_ref));
+      if (!r.ok) continue;
+      if (r.data.status === "succeeded" && p.status !== "succeeded") await rpc(ctx, "dela_payment_result", { p_payment: p.id, p_status: "succeeded", p_ref: r.data.id, p_customer: String(r.data.customer ?? ""), p_method: String(r.data.payment_method ?? ""), p_failure: "" });
+      if (Number(r.data.amount) !== Number(p.amount_cents)) await rpc(ctx, "dela_alert", { p_kind: "payments", p_title: "A payment does not match Stripe", p_body: "A payment's amount differs from Stripe's record. Check the admin Payments tab.", p_key: "match:" + p.id });
+    }
+  }
+  return { ok: true };
+}
+
 // ---------- DELA in ChatGPT and Claude (MCP connector, Step 2b) ----------
 // The open Model Context Protocol over plain HTTP (JSON-RPC), with OAuth 2.1 sign in (PKCE, dynamic client registration).
 // Members sign in with their Lawfecta login on the DELA page; DELA never sees a password. Tokens are stored only as hashes.
@@ -1978,6 +2270,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/mcp": (c, a) => rpc(c, "dela_admin_mcp", { p_actor: a }),
   "/admin/catalog": (c, a) => rpc(c, "dela_admin_catalog", { p_actor: a }),
   "/admin/gigs": (c, a) => rpc(c, "dela_admin_gigs", { p_actor: a }),
+  "/admin/payments": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_payments", { p_actor: a })), stripe_ready: !!(await stripeKey(c)), mode: c.deps.env("STRIPE_SECRET_KEY").includes("_live_") ? "live" : "test" }),
   "/admin/meetings": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_meetings", { p_actor: a })), provider_ready: !!c.deps.env("VECTERA_API_KEY") }),
   "/admin/verify": async (c, a) => {
     const d = await rpc<Record<string, any>>(c, "dela_admin_verify", { p_actor: a });
@@ -2012,6 +2305,15 @@ const ADMIN_POST: Record<string, AdminRoute> = {
     return await rpc(c, "dela_catalog_preview", { p_actor: a, p_file: str(c.body.file_name, 200), p_sha: await sha256Hex(text), p_rows: read.tools });
   },
   "/admin/reports/close": (c, a) => rpc(c, "dela_admin_report_close", { p_actor: a, p_report: need(uuid(c.body.id)) }),
+  "/admin/disputes/resolve": async (c, a) => {
+    const r = await rpc<Record<string, any>>(c, "dela_admin_dispute_resolve", { p_actor: a, p_dispute: need(uuid(c.body.id)), p_release: int(c.body.release_cents) ?? 0, p_refund: int(c.body.refund_cents) ?? 0, p_note: str(c.body.note, 1000) });
+    if (r?.ok) { await sendPayouts(c); await sendRefunds(c); }
+    return r;
+  },
+  "/admin/submissions/decide": async (c, a) => {
+    const r = await rpc<Record<string, any>>(c, "dela_admin_submission_decide", { p_actor: a, p_submission: need(uuid(c.body.id)), p_pass: c.body.pass === true, p_note: str(c.body.note, 1000) });
+    return r;
+  },
   "/admin/gigs/pause": (c, a) => rpc(c, "dela_admin_gig_pause", { p_actor: a, p_gig: need(uuid(c.body.id)), p_pause: c.body.pause === true, p_reason: str(c.body.reason, 300) }),
   "/admin/conduct/decide": (c, a) => rpc(c, "dela_admin_conduct_decide", { p_actor: a, p_flag: need(uuid(c.body.id)), p_clear: c.body.clear === true, p_note: str(c.body.note, 500) }),
   "/admin/catalog/confirm": (c, a) => rpc(c, "dela_catalog_confirm", { p_actor: a, p_version: need(uuid(c.body.version_id)) }),
@@ -2241,6 +2543,8 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "profiles_daily") { await rpc(ctx, "dela_profiles_daily", {}); return { ok: true }; }
   if (j.kind === "bd_profile_push") return await bdProfilePush(ctx, j.payload ?? {});
   if (j.kind === "gig_tick") { await rpc(ctx, "dela_gig_tick", { p: j.payload ?? {} }); return { ok: true }; }
+  if (j.kind === "engagement_tick") { await rpc(ctx, "dela_engagement_tick", { p: j.payload ?? {} }); return { ok: true }; }
+  if (j.kind === "engagements_daily") return await engagementsDaily(ctx);
   if (j.kind === "meeting_tick") {
     if (j.payload?.kind === "room") return await meetingRoom(ctx, String(j.payload.meeting_id));
     await rpc(ctx, "dela_meeting_tick", { p: j.payload ?? {} });
@@ -2339,7 +2643,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
   try {
     let body: Record<string, unknown> = {};
     // Speech and profile photos arrive as the file itself, not JSON; their handlers read them with their own size limits
-    if (req.method === "POST" && path !== "/ai/transcribe" && path !== "/profile/photo") {
+    if (req.method === "POST" && path !== "/ai/transcribe" && path !== "/profile/photo" && path !== "/stripe/webhook") {
       const text = await req.text();
       // A tech catalog upload is the whole CSV, so it may be larger than other requests
       if (text.length > (path === "/admin/catalog/preview" ? 1024 * 1024 : MAX_BODY)) throw new HttpError(413, "too_large");
@@ -2411,6 +2715,25 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /talent": return await talent(ctx);
       case "GET /availability": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_avail_get", { p_person: s.person_id })); }
       case "POST /availability": return await availSave(ctx);
+      case "GET /engagements": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_engagements", { p_person: s.person_id, p_side: s.side })); }
+      case "GET /agreements/get": return await agreementGet(ctx);
+      case "POST /agreements/propose": return await agreementPropose(ctx);
+      case "POST /agreements/sign": return await agreementSign(ctx);
+      case "POST /engagements/pay": return await engagementPay(ctx);
+      case "POST /engagements/cancel": return await engagementCancel(ctx);
+      case "GET /engagements/export": return await engagementExport(ctx);
+      case "POST /payouts/setup": return await payoutSetup(ctx);
+      case "GET /payouts/refresh": case "POST /payouts/refresh": return await payoutRefresh(ctx);
+      case "POST /milestones/start": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_milestone_start", { p_person: s.person_id, p_milestone: need(uuid(ctx.body.id)) })); }
+      case "POST /milestones/upload/start": return await milestoneUploadStart(ctx);
+      case "POST /milestones/submit": return await milestoneSubmit(ctx);
+      case "POST /milestones/human": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_submission_human", { p_person: s.person_id, p_submission: need(uuid(ctx.body.id)) })); }
+      case "POST /milestones/decide": return await milestoneDecide(ctx);
+      case "POST /disputes/open": { const s = await memberSide(ctx); const r0 = str(ctx.body.reason, 2000); const w = sensitive(ctx, r0); if (w) return json(ctx, w);
+        return json(ctx, await rpc(ctx, "dela_dispute_open", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.id)), p_milestone: uuid(ctx.body.milestone_id), p_reason: r0 })); }
+      case "POST /disputes/withdraw": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_dispute_withdraw", { p_person: s.person_id, p_dispute: need(uuid(ctx.body.id)) })); }
+      case "GET /deliverables/file": return await deliverableFile(ctx);
+      case "POST /stripe/webhook": return await stripeWebhook(ctx);
       case "GET /meetings": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_meetings", { p_person: s.person_id, p_side: s.side, p_gig: uuid(ctx.url.searchParams.get("gig")), p_meeting: uuid(ctx.url.searchParams.get("id")) })); }
       case "GET /meetings/slots": return await meetingSlots(ctx);
       case "POST /meetings/hold": return await meetingHold(ctx);
