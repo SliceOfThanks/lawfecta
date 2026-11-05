@@ -39,13 +39,26 @@ export function supabaseStorage(base: string, serviceKey: string, f: typeof fetc
       if (!j.signedURL) throw new Error("storage_sign_empty");
       return root + j.signedURL + (downloadName ? "&download=" + encodeURIComponent(downloadName) : "");
     },
+    // Text files come back compressed, and a compressed answer carries no content-length. So DELA asks for the
+    // uncompressed answer, then reads the object's own record, and as a last step counts the bytes.
     async size(path) {
-      const r = await call("HEAD", `/object/authenticated/${BUCKET}/${encPath(path)}`);
+      const at = `/object/authenticated/${BUCKET}/${encPath(path)}`;
+      const r = await f(root + at, { method: "HEAD", headers: { ...auth, "accept-encoding": "identity" }, signal: AbortSignal.timeout(30_000) });
       await r.body?.cancel();
       if (r.status === 404 || r.status === 400) return null;
       if (!r.ok) throw new Error("storage_head_" + r.status);
       const n = Number(r.headers.get("content-length"));
-      return Number.isFinite(n) && n > 0 ? n : null;
+      if (Number.isFinite(n) && n > 0) return n;
+      const info = await call("GET", `/object/info/authenticated/${BUCKET}/${encPath(path)}`);
+      if (info.ok) {
+        const j = await info.json().catch(() => ({})) as { size?: number; metadata?: { size?: number } };
+        const m = Number(j.size ?? j.metadata?.size);
+        if (Number.isFinite(m) && m > 0) return m;
+      } else await info.body?.cancel();
+      const g = await f(root + at, { method: "GET", headers: { ...auth, "accept-encoding": "identity" }, signal: AbortSignal.timeout(30_000) });
+      if (!g.ok) { await g.body?.cancel(); return null; }
+      const len = (await g.arrayBuffer()).byteLength;
+      return len > 0 ? len : null;
     },
     async read(path) {
       const r = await call("GET", `/object/authenticated/${BUCKET}/${encPath(path)}`);
