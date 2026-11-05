@@ -1,7 +1,7 @@
 # Feature brief: Images in documents
 
 Step: 2e (an add-on to the document standard, docs/briefs/step-2d-document-standard.md)   Spec references: Stacey's "6. IMAGES" request (2026-11-05), safety rule "Confidential client data does not belong in DELA"
-Status: draft, waiting for Stacey's answers
+Status: answered (Stacey 2026-11-05: "Yes", read as all 13 suggested answers); building
 
 ## Who
 - Attorneys and firm staff with editor rights in a firm library (every attorney plan). They add, edit and remove images.
@@ -72,7 +72,10 @@ Where images are allowed:
 - The existing file storage allowance per plan, the client information check and the gig watermark.
 
 ## Questions to make it better
-Each question has a suggested answer. Reply "all as suggested", or give the number and your answer.
+Stacey answered "Yes" on 2026-11-05, read as every suggested answer below. She can change any of them.
+
+Built notes:
+- Question 11 (gigs): images open to an invited freelancer while the gig is open, and to the hired freelancer until the engagement is completed or canceled. That is stricter than gig files, which stay open to the hired freelancer after completion, because the brief asked for images to be hidden after the engagement ends.
 
 1. **Older images.** Today a step can hold one screenshot from a Scribe or recorder import. Should those become images in the new system, with up to 3 per step from now on?
    Suggested: yes. They keep their step and get the caption question below.

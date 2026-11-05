@@ -212,7 +212,7 @@ Deno.test("gigs: SOPs and Workflows only; a workflow hands over only the freelan
   const g = (await call("POST", "/gigs/draft", att.token, { playbook_id: wf, request_id: "g1", budget_min: 300, budget_max: 600, use_ai: false })).body;
   assertEquals(g.ok, true, JSON.stringify(g));
   const pub = (await call("GET", "/gigs/get?id=" + g.id, att.token)).body;
-  assertEquals(pub.gig_part, { steps: 3, of: 4, checkpoints: 1 }, "the attorney sees how much of the workflow the gig hands over");
+  assertEquals(pub.gig_part, { steps: 3, of: 4, checkpoints: 1, images: 0 }, "the attorney sees how much of the workflow the gig hands over");
   // References: Playbooks and Policies only
   assertEquals((await call("POST", "/gigs/reference", att.token, { gig_id: g.id, doc: sop })).body.reason, "reference_policies_and_playbooks");
   assertEquals((await call("POST", "/gigs/reference", att.token, { gig_id: g.id, doc: pbook })).body.ok, true);

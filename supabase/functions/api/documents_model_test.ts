@@ -2,7 +2,7 @@
 //   deno test -A supabase/functions/api/documents_model_test.ts
 import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { unzipSync, strFromU8 } from "npm:fflate@0.8.2";
-import { bodyWords, changeSummary, checkDoc, classifyLegacy, codeFix, docToCsv, docToDocx, docToMarkdown, fromLegacy, gigPart, namesToRoles, normalizeDoc, scrubCredentials, vagueWords, type DocBody } from "./lib/documents/model.ts";
+import { bodyWords, carryImages, changeSummary, checkDoc, imageSize, withoutImages, classifyLegacy, codeFix, docToCsv, docToDocx, docToMarkdown, fromLegacy, gigPart, namesToRoles, normalizeDoc, scrubCredentials, vagueWords, type DocBody } from "./lib/documents/model.ts";
 import { normalize } from "./lib/playbooks/model.ts";
 import { readDocAnswer } from "./lib/documents/ai.ts";
 
@@ -135,4 +135,40 @@ Deno.test("reading the AI's answer", () => {
   const a = readDocAnswer({ document: { type: "sop", title: "X" }, suggested_type: { type: "playbook", reason: "It needs judgment." }, questions: ["Which system?"], notices: ["Removed a client name"] });
   assertEquals([a.body?.title, a.suggested?.type, a.questions.length, a.notices.length], ["X", "playbook", 1, 1]);
   assertEquals(readDocAnswer(null).body, null);
+});
+
+Deno.test("images: where they may go, the checks, carried past the AI, sizes, and Word at full width", () => {
+  const A = "11111111-1111-4111-8111-111111111111", B = "22222222-2222-4222-8222-222222222222";
+  const raw = { type: "sop", title: "Open a matter", roles, steps: [st("Create the matter in Clio.", { Paralegal: "R,A" }, { images: [{ id: A, caption: "The New matter button" }, { id: "not-an-id", caption: "x" }] }), st("Add the team.", { Paralegal: "R,A" })],
+    section_images: { before_you_start: [{ id: B, caption: "" }], chart: [{ id: A, caption: "x" }] } };
+  const b = normalizeDoc(raw);
+  assertEquals([b.steps[0].images.length, b.section_images.before_you_start.length, "chart" in b.section_images], [1, 1, false], "bad ids and other types' sections are dropped");
+  assertEquals(normalizeDoc({ ...raw, type: "policy" }).section_images, {}, "Policies hold no images");
+  assertEquals(normalizeDoc({ ...raw, type: "policy" }).steps.every((x) => !x.images.length), true);
+  const noFacts = checkDoc(b, CTX);
+  const it = (r: ReturnType<typeof checkDoc>, id: string) => r.items.find((i) => i.id === id)!;
+  assertEquals([it(noFacts, "image_checks").status, it(noFacts, "image_checks").images], ["blocking", [A, B]]);
+  assertEquals(it(noFacts, "image_captions").detail, "Before you start image is missing a caption.");
+  const facts = { [A]: { confirmed: true }, [B]: { confirmed: true } } as any;
+  assertEquals(it(checkDoc(b, { ...CTX, images: facts }), "image_checks").status, "pass");
+  assertEquals(bodyWords(b), bodyWords({ ...b, steps: b.steps.map((x) => ({ ...x, images: [] })), section_images: {} }), "captions are not words");
+  assertEquals(checkDoc(normalizeDoc({ ...raw, steps: [st("x", { P: "R,A" }, { images: [1, 2, 3, 4].map((i) => ({ id: `${i}${i}${i}${i}${i}${i}${i}${i}-1111-4111-8111-111111111111`, caption: "c" })) })] }), { ...CTX, imagesPerSlot: 3 }).items.find((i) => i.id === "image_count")!.status, "attention");
+  // The AI never sees images; they come back on the step with the same text, and nothing is lost when the text changes
+  const ai = normalizeDoc({ ...withoutImages(b), steps: [st("Create the matter in Clio.", { Paralegal: "R,A" }), st("Add the whole team to the matter.", { Paralegal: "R,A" })] });
+  assertEquals(withoutImages(b).steps[0].images, []);
+  const back = carryImages(b, ai);
+  assertEquals([back.steps[0].images[0].id, back.section_images.before_you_start[0].id], [A, B]);
+  assertEquals(carryImages(b, normalizeDoc({ ...ai, steps: [st("Something else entirely.", { Paralegal: "R,A" })] })).steps[0].images[0].id, A);
+  assertEquals(carryImages(b, normalizeDoc({ ...ai, type: "playbook" })).steps.every((x) => !x.images.length), true, "a Playbook has no step images");
+  const png = Uint8Array.from(atob("iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAIAAADRv8uKAAAAK0lEQVR4nO3NMQ0AAAgDsAlDCYqRhQw4mvRvpvpExGKxWCwWi8VisVj8N16B+mj7BBLoxAAAAABJRU5ErkJggg=="), (c) => c.charCodeAt(0));
+  assertEquals(imageSize(png), { w: 40, h: 30 });
+  assertEquals(imageSize(Uint8Array.from([0xff, 0xd8, 0xff, 0xc0, 0, 17, 8, 0, 30, 0, 40, 3, 0, 0, 0, 0, 0, 0])), { w: 40, h: 30 });
+  assertEquals(gigPart(b).images, 2);
+  const z = unzipSync(docToDocx(b, META, new Map([[A, { bytes: png, ext: "png", w: 40, h: 30 }]])));
+  const xml = strFromU8(z["word/document.xml"]);
+  assert(z["word/media/image1.png"] && xml.includes('cx="5943600" cy="4457700"') && xml.includes("The New matter button"), "full width, kept in proportion, caption below");
+  assert(xml.includes("[Image: no caption]"), "an image not loaded shows as its caption");
+  assert(strFromU8(z["[Content_Types].xml"]).includes('Extension="png"'));
+  assert(docToMarkdown(b, META).includes("[Image: The New matter button]"));
+  assertEquals(changeSummary(b, { ...b, steps: b.steps.map((x) => ({ ...x, images: [] })) }).includes("Images"), true);
 });

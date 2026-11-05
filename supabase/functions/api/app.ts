@@ -25,7 +25,7 @@ import { keyAllowed, stripe, checkoutParams, verifyStripeSignature, accountStatu
 import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/webhooks/deliver.ts";
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
-import { attorneyRoles, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
+import { attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
 import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
 
@@ -592,14 +592,14 @@ async function filesAction(ctx: Ctx) {
 }
 
 // Type check by contents, text for the AI, and the client information check (patterns, then the AI on Lawfecta's key)
-async function runFileCheck(ctx: Ctx, id: string) {
+async function runFileCheck(ctx: Ctx, id: string, recordFn = "dela_file_checked") {
   const fc = await rpc<Record<string, any> | null>(ctx, "dela_file_for_check", { p_file: id });
   if (!fc || fc.status !== "checking") return;
   const storage = storageOf(ctx);
   const bytes = await storage.read(fc.storage_path);
   const sn = sniff(fc.ext, bytes);
   if (!sn.ok) {
-    await rpc(ctx, "dela_file_checked", { p_file: id, p: { ok: false, reason: sn.reason } });
+    await rpc(ctx, recordFn, { p_file: id, p: { ok: false, reason: sn.reason } });
     await storage.remove([fc.storage_path]).catch(() => {});
     return;
   }
@@ -630,7 +630,7 @@ async function runFileCheck(ctx: Ctx, id: string) {
   }
   // Without the AI check, two different weaker signs are enough to hold the file
   if (!aiRan && hits.weak.length >= 2) for (const k of hits.weak) reasons.add(k);
-  await rpc(ctx, "dela_file_checked", {
+  await rpc(ctx, recordFn, {
     p_file: id, p: { ok: true, mime: sn.mime, sha256: await sha256(bytes), text, flagged: reasons.size > 0, reasons: [...reasons] },
   });
 }
@@ -732,8 +732,15 @@ async function pbGet(ctx: Ctx) {
   const r = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
   if (r?.ok && isDoc(r.body)) {
     const firm = await docFirm(ctx, s);
-    r.check = checkDoc(normalizeDoc(r.body), await docCtx(ctx, firm));
+    const org = r.playbook.org_id;
+    const body = await docUpgradeImages(ctx, normalizeDoc(r.body), org);
+    const cc = await docCtx(ctx, firm, body, org);
+    r.body = body;
+    r.check = checkDoc(body, cc);
     r.firm_roles = firm.roles;
+    r.images = imageView(cc.images ?? {});
+    r.images_due = imageIds(body).length ? await rpc(ctx, "dela_doc_images_due", { p_playbook: id, p_ids: imageIds(body) }) : { due: false, ids: [] };
+    r.image_settings = await imageSettings(ctx, s);
   }
   return json(ctx, r);
 }
@@ -793,12 +800,12 @@ async function pbFill(ctx: Ctx) {
   if (dela_rank(cur.role) < 3) return json(ctx, { ok: false, reason: "not_allowed" });
   if (isDoc(cur.body)) {
     const before = normalizeDoc(cur.body);
-    const fx = await runAi(ctx, s, `docfill:${id}:${cur.playbook.version}`, FIX_SYSTEM, [{ role: "user", content: "The document:\n" + JSON.stringify(before) + "\n\nAdd the attorney's answers to the right sections:\n" + answers }], await pbCredits(ctx));
+    const fx = await runAi(ctx, s, `docfill:${id}:${cur.playbook.version}`, FIX_SYSTEM, [{ role: "user", content: "The document:\n" + JSON.stringify(withoutImages(before)) + "\n\nAdd the attorney's answers to the right sections:\n" + answers }], await pbCredits(ctx));
     if (!fx.ok) return json(ctx, fx);
     const rd = readDocAnswer(readJson(fx.text));
     if (!rd.body || rd.body.type !== before.type) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_request", source: fx.source });
     const firm = await docFirm(ctx, s);
-    const next = codeFix(codeFix({ ...rd.body, skipped: [], high_risk: before.high_risk }, "judgment", firm.people), "attorney_a", firm.people);
+    const next = carryImages(before, codeFix(codeFix({ ...rd.body, skipped: [], high_risk: before.high_risk }, "judgment", firm.people), "attorney_a", firm.people));
     return json(ctx, await docSave(ctx, s, id, cur.playbook.version, next, before, "DELA filled in your answers", "ai_filled", firm));
   }
   const ai = await runAi(ctx, s, `pbfill:${id}:${cur.playbook.version}`, FILL_SYSTEM,
@@ -827,11 +834,11 @@ async function pbChat(ctx: Ctx) {
   if (!cur?.ok) return json(ctx, cur);
   if (isDoc(cur.body)) {
     const db = normalizeDoc(cur.body);
-    const ai2 = await runAi(ctx, s, `docchat:${id}:${str(ctx.body.request_id, 80)}`, DOC_CHAT_SYSTEM, [{ role: "user", content: "The document (version " + cur.playbook.version + "):\n" + JSON.stringify(db) + "\n\nThe member says:\n" + message }], await pbCredits(ctx));
+    const ai2 = await runAi(ctx, s, `docchat:${id}:${str(ctx.body.request_id, 80)}`, DOC_CHAT_SYSTEM, [{ role: "user", content: "The document (version " + cur.playbook.version + "):\n" + JSON.stringify(withoutImages(db)) + "\n\nThe member says:\n" + message }], await pbCredits(ctx));
     if (!ai2.ok) return json(ctx, ai2);
     const j2 = readJson(ai2.text);
     const reply2 = plainText(String(j2?.reply ?? "").slice(0, 6000) || (j2 ? "" : ai2.text.slice(0, 6000)));
-    const ch = j2?.change && typeof j2.change === "object" ? normalizeDoc({ ...(j2.change as object), type: db.type }) : null;
+    const ch = j2?.change && typeof j2.change === "object" ? carryImages(db, normalizeDoc({ ...(j2.change as object), type: db.type })) : null;
     if (!ch || dela_rank(cur.role) < 3) return json(ctx, { ok: true, reply: reply2 || "(no answer)", source: ai2.source, suggestion_id: null });
     const rr = docRemovesReview(db, ch);
     const r2 = await rpc<Record<string, any>>(ctx, "dela_pb_suggest", { p: { person_id: s.person_id, id, kind: "ai", base_version: cur.playbook.version, proposed: ch, note: str(j2?.note, 200) || message.slice(0, 200), removes_review: rr } });
@@ -891,7 +898,7 @@ async function pbDecide(ctx: Ctx) {
     const firm = await docFirm(ctx, s);
     const base = isDoc(sg.body) ? normalizeDoc(sg.body) : null;
     const nb = sg.kind === "ai" ? normalizeDoc(sg.proposed) : applyDocPart(base!, sg.part, String(sg.proposed?.text ?? ""));
-    const prep = await docPrepare(ctx, firm, nb, base);
+    const prep = await docPrepare(ctx, firm, nb, base, sg.playbook_id ? await rpc<string | null>(ctx, "dela_pb_org", { p_id: sg.playbook_id }) : null);
     const r = await rpc<Record<string, any>>(ctx, "dela_pb_decide", { p_person: s.person_id, p_suggestion: sid, p_accept: true, p_body: prep.body, p_meta: prep.meta, p_note: str(ctx.body.note, 500) });
     if (r?.ok && sg.playbook_id) await rpc(ctx, "dela_doc_apply", { p_id: sg.playbook_id, p: { ...prep.doc, person_id: s.person_id, what_changed: "Accepted a suggestion. " + prep.doc.what_changed } });
     return json(ctx, { ...r, check: prep.check });
@@ -924,11 +931,12 @@ async function pbExport(ctx: Ctx) {
   if (pre?.ok && isDoc(pre.body)) {
     // Checked before the export allowance is used
     const firm = await docFirm(ctx, s);
-    const chk = checkDoc(normalizeDoc(pre.body), await docCtx(ctx, firm));
+    const pbody = await docUpgradeImages(ctx, normalizeDoc(pre.body), pre.playbook.org_id);
+    const chk = checkDoc(pbody, await docCtx(ctx, firm, pbody, pre.playbook.org_id));
     if (chk.blocking > 0) return json(ctx, { ok: false, reason: "checks_failing", items: chk.items.filter((i) => i.status === "blocking") });
     const r0 = await rpc<Record<string, any>>(ctx, "dela_pb_export", { p_person: s.person_id, p_id: id, p_format: format, p_request: str(ctx.body.request_id, 80) || crypto.randomUUID() });
     if (!r0?.ok) return json(ctx, r0);
-    return json(ctx, await docExportFile(ctx, s, pre, normalizeDoc(pre.body), format));
+    return json(ctx, await docExportFile(ctx, s, pre, pbody, format));
   }
   const r = await rpc<Record<string, any>>(ctx, "dela_pb_export", { p_person: s.person_id, p_id: id, p_format: format, p_request: str(ctx.body.request_id, 80) || crypto.randomUUID() });
   if (!r?.ok) return json(ctx, r);
@@ -981,15 +989,154 @@ async function docFirm(ctx: Ctx, s: Session): Promise<DocFirm> {
   };
 }
 
-async function docCtx(ctx: Ctx, firm: DocFirm): Promise<CheckContext> {
+async function docCtx(ctx: Ctx, firm: DocFirm, body?: DocBody | null, org?: string | null): Promise<CheckContext> {
   const n = async (k: string, d: number) => Number(await setting(ctx, k, String(d))) || d;
-  return { systems: firm.systems, maxWords: await n("documents.max_words", 900), maxConsulted: await n("documents.max_consulted", 2), kpiMin: await n("documents.kpi_min", 3), kpiMax: await n("documents.kpi_max", 5), skipped: [], people: firm.people };
+  return { systems: firm.systems, maxWords: await n("documents.max_words", 900), maxConsulted: await n("documents.max_consulted", 2), kpiMin: await n("documents.kpi_min", 3), kpiMax: await n("documents.kpi_max", 5), skipped: [], people: firm.people,
+    images: body && org ? await docImageFacts(ctx, body, org) : {}, imagesPerSlot: await n("documents.images.per_step", 3) };
+}
+
+// ---------- Images in documents (docs/briefs/step-2e-document-images.md) ----------
+// Facts about the images a document uses; only the firm's own images count
+async function docImageFacts(ctx: Ctx, body: DocBody, org: string): Promise<ImageFacts> {
+  const ids = imageIds(body);
+  if (!ids.length) return {};
+  return (await rpc<ImageFacts>(ctx, "dela_doc_images_facts", { p_ids: ids, p_org: org })) ?? {};
+}
+// What members may see about an image (never the storage path)
+const imageView = (f: ImageFacts) => Object.fromEntries(Object.entries(f).map(([k, v]) => [k, { confirmed: v.confirmed, held: v.held, source: v.source, created_at: v.created_at, current_at: v.current_at }]));
+// Older screenshots (one per step, from a Scribe or recorder import) become image records the first time a document is read or saved
+async function docUpgradeImages(ctx: Ctx, body: DocBody, org: string | null | undefined): Promise<DocBody> {
+  if (!org || !stepsTakeImages(body.type) || !body.steps.some((st) => st.screenshot && !st.images.length)) return body;
+  for (const st of body.steps) {
+    if (!st.screenshot || st.images.length) continue;
+    const r = await rpc<Record<string, any>>(ctx, "dela_doc_image_legacy", { p_file: st.screenshot, p_org: org }).catch(() => null);
+    if (r?.ok && r.id) { st.images = [{ id: String(r.id), caption: "" }]; st.screenshot = ""; }
+  }
+  return body;
+}
+async function imageSettings(ctx: Ctx, s: Session) {
+  const n = async (k: string, d: number) => Number(await setting(ctx, k, String(d))) || d;
+  return { on: !!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "document_images", p_person: s.person_id }), max_mb: await n("documents.images.max_mb", 5), per_step: await n("documents.images.per_step", 3),
+    caption_max: await n("documents.images.caption_max", 120), max_width_px: await n("documents.images.max_width_px", 2400) };
+}
+// The image bytes for Word, PDF and web page exports (confirmed images of the firm only, up to the export size setting)
+async function docExportImages(ctx: Ctx, body: DocBody, facts: ImageFacts): Promise<ExportImages> {
+  const out: ExportImages = new Map();
+  if (!ctx.deps.storage) return out;
+  const cap = (Number(await setting(ctx, "documents.images.export_max_mb", "40")) || 40) * 1048576;
+  let total = 0;
+  for (const id of imageIds(body)) {
+    const f = facts[id];
+    if (!f?.confirmed || !f.path) continue;
+    try {
+      const bytes = await ctx.deps.storage.read(f.path);
+      if (total + bytes.length > cap) break;
+      total += bytes.length;
+      const sz = imageSize(bytes);
+      if (sz) out.set(id, { bytes, ext: f.ext, w: sz.w, h: sz.h });
+    } catch { /* a missing image shows as its caption */ }
+  }
+  return out;
+}
+// An image was confirmed or held after the documents using it were saved: their checks are worked out again
+async function docRecheckImage(ctx: Ctx, imageId: string) {
+  const docs = await rpc<string[]>(ctx, "dela_doc_image_documents", { p_image: imageId }) ?? [];
+  for (const id of docs) await docRecheck(ctx, id);
+}
+async function docRecheck(ctx: Ctx, id: string) {
+  const d = await rpc<Record<string, any> | null>(ctx, "dela_doc_for_recheck", { p_id: id });
+  if (!d) return;
+  const firm = await docFirm(ctx, { person_id: String(d.owner), side: "attorney" } as Session);
+  for (const [v, raw] of [[d.current_version, d.current], [d.approved_version, d.approved]] as Array<[number | null, unknown]>) {
+    if (v === null || !isDoc(raw)) continue;
+    const body = normalizeDoc(raw);
+    const c = checkDoc(body, await docCtx(ctx, firm, body, d.org_id));
+    await rpc(ctx, "dela_doc_recheck", { p_id: id, p_version: v, p_blocking: c.blocking, p_attention: c.attention });
+  }
+}
+
+async function docImageStart(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_doc_image_start", { p: { person_id: s.person_id, playbook_id: uuid(ctx.body.playbook_id) ?? "", name: str(ctx.body.name, 250),
+    size_bytes: int(ctx.body.size_bytes), request_id: str(ctx.body.request_id, 80), ticked: ctx.body.ticked === true } });
+  if (!r?.ok) return json(ctx, r);
+  if (r.duplicate) return json(ctx, { ok: true, duplicate: true, file_id: r.file_id, status: r.status });
+  const ext = String(r.storage_path).split(".").pop() ?? "";
+  return json(ctx, { ok: true, file_id: r.file_id, upload_url: await storageOf(ctx).signUpload(r.storage_path), content_type: CONTENT_TYPES[ext] ?? "application/octet-stream" });
+}
+
+// The upload arrived: real size, the type check and DELA's client information check, then the image record with its caption
+async function docImageComplete(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const storage = storageOf(ctx);
+  const id = need(uuid(ctx.body.file_id));
+  const fc = await rpc<Record<string, any> | null>(ctx, "dela_file_for_check", { p_file: id });
+  if (!fc || fc.person_id !== s.person_id) throw new HttpError(404, "not_found");
+  const size = fc.status === "uploading" ? await storage.size(fc.storage_path) : Number(fc.size_bytes);
+  const up = await rpc<Record<string, any>>(ctx, "dela_doc_image_uploaded", { p_person: s.person_id, p_file: id, p_size: size });
+  if (!up?.ok) {
+    if (up?.reason === "too_big_after_upload") await storage.remove([fc.storage_path]).catch(() => {});
+    return json(ctx, up?.reason === "too_big_after_upload" ? { ok: false, reason: "image_too_big" } : up);
+  }
+  try { await runFileCheck(ctx, id, "dela_doc_image_checked"); } catch (e) { console.error("doc_image_check", String(e).slice(0, 200)); }
+  let w = int(ctx.body.width) ?? 0, h = int(ctx.body.height) ?? 0;
+  try { const sz = imageSize((await storage.read(fc.storage_path)).subarray(0, 65536)); if (sz) { w = sz.w; h = sz.h; } } catch { /* sizes from the browser */ }
+  const r = await rpc<Record<string, any>>(ctx, "dela_doc_image_save", { p: { person_id: s.person_id, playbook_id: uuid(ctx.body.playbook_id) ?? "", file_id: id, caption: str(ctx.body.caption, 400),
+    confirmed: ctx.body.confirmed === true, flags_found: int(ctx.body.flags_found) ?? 0, flags_blurred: int(ctx.body.flags_blurred) ?? 0, width: w, height: h } });
+  return json(ctx, r);
+}
+
+async function docImageOpen(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_doc_image_open", { p_person: s.person_id, p_side: s.side, p_image: need(uuid(ctx.url.searchParams.get("id"))), p_gig: uuid(ctx.url.searchParams.get("gig")) });
+  if (!r?.ok) return json(ctx, r);
+  return json(ctx, { ok: true, url: await storageOf(ctx).signDownload(r.path, Math.max(Number(r.minutes) || 5, 1) * 60), minutes: r.minutes });
+}
+
+async function docImageConfirm(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const id = need(uuid(ctx.body.image_id));
+  if (ctx.body.confirmed !== true) return json(ctx, { ok: false, reason: "confirm_needed" });
+  const r = await rpc<Record<string, any>>(ctx, "dela_doc_image_confirm", { p_person: s.person_id, p_image: id });
+  if (r?.ok) await docRecheckImage(ctx, id);
+  return json(ctx, r);
+}
+
+// Submit and approve: the checks are worked out again at that moment, and a due review needs every image marked still current
+async function docStatusGate(ctx: Ctx, s: Session, id: string, action: string): Promise<Record<string, unknown> | null> {
+  if (action !== "submit" && action !== "approve") return null;
+  const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
+  if (!cur?.ok || !isDoc(cur.body)) return null;
+  const org = cur.playbook.org_id;
+  const body = await docUpgradeImages(ctx, normalizeDoc(cur.body), org);
+  const firm = await docFirm(ctx, s);
+  const c = checkDoc(body, await docCtx(ctx, firm, body, org));
+  await rpc(ctx, "dela_doc_recheck", { p_id: id, p_version: cur.playbook.version, p_blocking: c.blocking, p_attention: c.attention });
+  if (c.blocking > 0) return { ok: false, reason: "checks_failing", items: c.items.filter((i) => i.status === "blocking") };
+  if (action === "approve") {
+    const due = await rpc<Record<string, any>>(ctx, "dela_doc_images_due", { p_playbook: id, p_ids: imageIds(body) });
+    if (due?.due && (due.ids ?? []).length) return { ok: false, reason: "images_review_needed", ids: due.ids };
+  }
+  return null;
 }
 
 // Everything a save needs: the cleaned body, the check result, and the facts for the database
-async function docPrepare(ctx: Ctx, firm: DocFirm, raw: unknown, before: DocBody | null): Promise<{ body: DocBody; check: ReturnType<typeof checkDoc>; meta: Record<string, unknown>; doc: Record<string, unknown>; notices: string[] }> {
+async function docPrepare(ctx: Ctx, firm: DocFirm, raw: unknown, before: DocBody | null, org?: string | null): Promise<{ body: DocBody; check: ReturnType<typeof checkDoc>; meta: Record<string, unknown>; doc: Record<string, unknown>; notices: string[] }> {
   let body = normalizeDoc(raw);
   const notices: string[] = [];
+  // Images: older screenshots become image records, the per-step limit applies, and only this firm's images stay
+  let facts: ImageFacts = {};
+  if (org) {
+    body = await docUpgradeImages(ctx, body, org);
+    const per = Number(await setting(ctx, "documents.images.per_step", "3")) || 3;
+    let trimmed = false, dropped = false;
+    facts = await docImageFacts(ctx, body, org);
+    const keep = (list: Array<{ id: string; caption: string }>) => { const k = list.filter((im) => facts[im.id]); if (k.length !== list.length) dropped = true; if (k.length > per) trimmed = true; return k.slice(0, per); };
+    for (const st of body.steps) st.images = keep(st.images);
+    for (const k of Object.keys(body.section_images)) body.section_images[k] = keep(body.section_images[k]);
+    if (trimmed) notices.push("Each step can have " + per + " images. DELA kept the first " + per + ".");
+    if (dropped) notices.push("DELA took off an image that is not in this firm's library.");
+  }
   // Hard rules applied on every save: no credentials, roles not names, and the firm's role kinds
   const cred = scrubCredentials(docText(body));
   if (cred.removed) { body = eachText(body, (t) => scrubCredentials(t).text); notices.push("DELA removed passwords, logins or account numbers. They belong in a password manager."); }
@@ -998,7 +1145,7 @@ async function docPrepare(ctx: Ctx, firm: DocFirm, raw: unknown, before: DocBody
   for (const r of firm.roles) if (body.roles.includes(r.name)) body.role_kinds[r.name] = r.kind;
   if (!body.lifecycle) body.lifecycle = guessLifecycle([body.title, body.purpose, body.trigger].join(" "));
   if (!body.owner_role) body.owner_role = attorneyRoles(body)[0] || body.roles[0] || "Attorney";
-  const check = checkDoc(body, await docCtx(ctx, firm));
+  const check = checkDoc(body, { ...await docCtx(ctx, firm), images: facts });
   const passed = check.items.filter((i) => i.status === "pass").length;
   const meta = { title: body.title || "Untitled document", completeness: Math.round((passed / Math.max(check.items.length, 1)) * 100), missing: check.items.filter((i) => i.status === "blocking").map((i) => i.label), practice_area: body.practice_area };
   const doc = { doc_type: body.type, lifecycle: body.lifecycle, high_risk: body.high_risk || looksHighRisk(body), owner_role: body.owner_role, blocking: check.blocking, attention: check.attention, what_changed: changeSummary(before, body) };
@@ -1007,14 +1154,14 @@ async function docPrepare(ctx: Ctx, firm: DocFirm, raw: unknown, before: DocBody
 
 async function docSave(ctx: Ctx, s: Session, id: string, baseVersion: number, raw: unknown, before: DocBody | null, note: string, action = "edited", firm?: DocFirm) {
   const fm = firm ?? await docFirm(ctx, s);
-  const prep = await docPrepare(ctx, fm, raw, before);
+  const prep = await docPrepare(ctx, fm, raw, before, await rpc<string | null>(ctx, "dela_pb_org", { p_id: id }));
   const r = await rpc<Record<string, any>>(ctx, "dela_pb_save", { p: { person_id: s.person_id, id, base_version: baseVersion, body: prep.body, ...prep.meta, note, action } });
   if (r?.ok) await rpc(ctx, "dela_doc_apply", { p_id: id, p: { ...prep.doc, person_id: s.person_id, what_changed: (note ? note + ". " : "") + prep.doc.what_changed } });
   return { ...r, check: prep.check, notices: prep.notices };
 }
 
 async function docCreate(ctx: Ctx, s: Session, org: string, requestId: string, raw: unknown, source: string, note: string, firm: DocFirm, sourceRef = ""): Promise<Record<string, any>> {
-  const prep = await docPrepare(ctx, firm, raw, null);
+  const prep = await docPrepare(ctx, firm, raw, null, org);
   const r = await rpc<Record<string, any>>(ctx, "dela_pb_create", { p: { person_id: s.person_id, org_id: org, request_id: requestId, body: prep.body, ...prep.meta, source, source_ref: sourceRef, note } });
   if (r?.ok && !r.duplicate) await rpc(ctx, "dela_doc_apply", { p_id: r.id, p: { ...prep.doc, person_id: s.person_id, what_changed: note || "First version" } });
   return { ...r, check: prep.check, notices: prep.notices, body: prep.body };
@@ -1112,30 +1259,42 @@ async function docFix(ctx: Ctx) {
   if (!body) return json(ctx, cur?.ok ? { ok: false, reason: "not_a_document" } : cur);
   if (dela_rank(cur!.role) < 3) return json(ctx, { ok: false, reason: "not_allowed" });
   const firm = await docFirm(ctx, s);
-  const res = checkDoc(body, await docCtx(ctx, firm));
+  const res = checkDoc(body, await docCtx(ctx, firm, body, cur!.playbook.org_id));
   const item = res.items.find((i) => i.id === check);
   if (!item || item.status === "pass") return json(ctx, { ok: true, duplicate: true, check: res });
   if (item.fix === "split") return await docSplit(ctx, s, cur!, body, firm);
   let next: DocBody;
   if (item.fix === "code") next = codeFix(body, item.id, firm.people);
   else if (item.fix === "ai") {
-    const ai = await runAi(ctx, s, `docfix:${id}:${cur!.playbook.version}:${check}`, FIX_SYSTEM, [{ role: "user", content: "The document:\n" + JSON.stringify(body) + "\n\nThe check it fails:\n- " + item.label + ": " + item.detail }], Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
+    const ai = await runAi(ctx, s, `docfix:${id}:${cur!.playbook.version}:${check}`, FIX_SYSTEM, [{ role: "user", content: "The document:\n" + JSON.stringify(withoutImages(body)) + "\n\nThe check it fails:\n- " + item.label + ": " + item.detail }], Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
     if (!ai.ok) return json(ctx, ai);
     const read = readDocAnswer(readJson(ai.text));
     if (!read.body || read.body.type !== body.type) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_request", source: ai.source });
     // The AI never removes an attorney flag or moves an attorney's A
-    next = codeFix(codeFix({ ...read.body, skipped: body.skipped, high_risk: body.high_risk }, "judgment", firm.people), "attorney_a", firm.people);
+    next = carryImages(body, codeFix(codeFix({ ...read.body, skipped: body.skipped, high_risk: body.high_risk }, "judgment", firm.people), "attorney_a", firm.people));
     next.steps.forEach((st, i) => { if (!st.screenshot && body.steps[i]?.screenshot) st.screenshot = body.steps[i].screenshot; });
-  } else return json(ctx, { ok: false, reason: "fix_by_hand" });
+  } else if (item.fix === "image") return json(ctx, { ok: false, reason: "fix_in_image_window", images: item.images ?? [] });
+  else return json(ctx, { ok: false, reason: "fix_by_hand" });
   return json(ctx, await docSave(ctx, s, id, cur!.playbook.version, next, body, "Fixed: " + item.label, "ai_change", firm));
 }
 
 async function docSplit(ctx: Ctx, s: Session, cur: Record<string, any>, body: DocBody, firm: DocFirm) {
-  const ai = await runAi(ctx, s, `docsplit:${cur.playbook.id}:${cur.playbook.version}`, SPLIT_SYSTEM, [{ role: "user", content: "The SOP:\n" + JSON.stringify(body) }], await pbCredits(ctx));
+  const ai = await runAi(ctx, s, `docsplit:${cur.playbook.id}:${cur.playbook.version}`, SPLIT_SYSTEM, [{ role: "user", content: "The SOP:\n" + JSON.stringify(withoutImages(body)) }], await pbCredits(ctx));
   if (!ai.ok) return json(ctx, ai);
   const j = readJson(ai.text);
   const parts = (Array.isArray(j?.documents) ? j!.documents : []).map((d: unknown) => normalizeDoc({ ...(d as object), type: "sop", lifecycle: body.lifecycle, role_kinds: body.role_kinds })).filter((d: DocBody) => d.title && d.steps.length).slice(0, 4);
   if (parts.length < 2) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_request", source: ai.source });
+  // Each image stays with its step, in whichever SOP that step lands; Before you start images go to the first
+  const usedImg = new Set<string>();
+  parts.forEach((pt: DocBody, pi: number) => {
+    for (const st of pt.steps) {
+      const from = body.steps.find((x) => x.text === st.text && x.images.length && !x.images.some((im) => usedImg.has(im.id)));
+      if (from) { st.images = from.images; from.images.forEach((im) => usedImg.add(im.id)); }
+    }
+    pt.section_images = { before_you_start: pi === 0 ? body.section_images.before_you_start ?? [] : [] };
+  });
+  const leftover = body.steps.flatMap((x) => x.images.filter((im) => !usedImg.has(im.id)));
+  if (leftover.length && parts[0].steps.length) parts[0].steps[parts[0].steps.length - 1].images.push(...leftover);
   const created: Array<{ id: string; title: string }> = [];
   for (let i = 1; i < parts.length; i++) {
     const r = await docCreate(ctx, s, cur.playbook.org_id, `split:${cur.playbook.id}:${cur.playbook.version}:${i}`, { ...parts[i], high_risk: body.high_risk }, "ai", "Split from " + (cur.playbook.doc_id || body.title), firm);
@@ -1159,9 +1318,9 @@ async function docChangeType(ctx: Ctx) {
   if (body.type === type) return json(ctx, { ok: true, duplicate: true });
   const firm = await docFirm(ctx, s);
   let next: DocBody = normalizeDoc({ ...body, type });
-  const ai = await runAi(ctx, s, `doctype:${id}:${cur!.playbook.version}:${type}`, convertSystem(type), [{ role: "user", content: "The document now (as " + TYPE_INFO[body.type].label + "):\n" + JSON.stringify(body) }], await pbCredits(ctx));
+  const ai = await runAi(ctx, s, `doctype:${id}:${cur!.playbook.version}:${type}`, convertSystem(type), [{ role: "user", content: "The document now (as " + TYPE_INFO[body.type].label + "):\n" + JSON.stringify(withoutImages(body)) }], await pbCredits(ctx));
   if (ai.ok) { const read = readDocAnswer(readJson(ai.text)); if (read.body) next = { ...read.body, type, lifecycle: body.lifecycle || read.body.lifecycle }; }
-  next = codeFix(codeFix(next, "judgment", firm.people), "attorney_a", firm.people);
+  next = carryImages(body, normalizeDoc(codeFix(codeFix(next, "judgment", firm.people), "attorney_a", firm.people)));
   return json(ctx, await docSave(ctx, s, id, cur!.playbook.version, next, body, "Type changed to " + TYPE_INFO[type].label, "ai_change", firm));
 }
 
@@ -1169,7 +1328,8 @@ async function docChangeType(ctx: Ctx) {
 async function docCheck(ctx: Ctx) {
   const s = await attorney(ctx);
   const firm = await docFirm(ctx, s);
-  const prep = await docPrepare(ctx, firm, ctx.body.body, null);
+  const pid = uuid(ctx.body.id);
+  const prep = await docPrepare(ctx, firm, ctx.body.body, null, pid ? await rpc<string | null>(ctx, "dela_pb_org", { p_id: pid }) : null);
   return json(ctx, { ok: true, check: prep.check, notices: prep.notices });
 }
 
@@ -1183,13 +1343,17 @@ function docMetaFor(cur: Record<string, any>, date: string): DocMeta {
 // The export block (Stacey decision 4): every format refused while a step lacks its one A or a judgment step lacks the flag
 async function docExportFile(ctx: Ctx, s: Session, cur: Record<string, any>, body: DocBody, format: string): Promise<Record<string, unknown>> {
   const firm = await docFirm(ctx, s);
-  const check = checkDoc(body, await docCtx(ctx, firm));
+  const org = cur.playbook.org_id;
+  body = await docUpgradeImages(ctx, body, org);
+  const cc = await docCtx(ctx, firm, body, org);
+  const check = checkDoc(body, cc);
   if (check.blocking > 0) return { ok: false, reason: "checks_failing", items: check.items.filter((i) => i.status === "blocking") };
   const m = docMetaFor(cur, await today(ctx));
-  if (format === "docx") return { ok: true, name: docFileName(body, m, "docx"), type: CONTENT_TYPES.docx, b64: b64(docToDocx(body, m)) };
+  const imgs = format === "docx" || format === "pdf" || format === "html" ? await docExportImages(ctx, body, cc.images ?? {}) : undefined;
+  if (format === "docx") return { ok: true, name: docFileName(body, m, "docx"), type: CONTENT_TYPES.docx, b64: b64(docToDocx(body, m, imgs)) };
   if (format === "md") return { ok: true, name: docFileName(body, m, "md"), type: "text/markdown", text: docToMarkdown(body, m) };
   if (format === "csv") return { ok: true, name: docFileName(body, m, "csv"), type: "text/csv", text: docToCsv(body) };
-  return { ok: true, name: docFileName(body, m, format === "pdf" ? "pdf" : "html"), type: "text/html", text: docToHtml(body, m), print: format === "pdf" };
+  return { ok: true, name: docFileName(body, m, format === "pdf" ? "pdf" : "html"), type: "text/html", text: docToHtml(body, m, imgs), print: format === "pdf" };
 }
 
 // Older playbooks (Step 2 format) become documents: the guide's type check, then the content moved to the type's sections.
@@ -1221,7 +1385,7 @@ async function docConvert(ctx: Ctx, id: string) {
   const firm = await docFirm(ctx, { person_id: owner, side: "attorney" } as Session);
   for (const r of firm.roles) if (body.roles.includes(r.name)) body.role_kinds[r.name] = r.kind;
   body = codeFix(codeFix(body, "judgment", firm.people), "attorney_a", firm.people);
-  const prep = await docPrepare(ctx, firm, body, null);
+  const prep = await docPrepare(ctx, firm, body, null, String(src.org_id));
   await rpc(ctx, "dela_doc_convert_done", { p_id: id, p: { body: prep.body, ...prep.doc, reason } });
   return { ok: true };
 }
@@ -1715,9 +1879,14 @@ async function gigDraft(ctx: Ctx) {
   const raw = approved?.body ?? cur.body;
   let body = normalize(raw);
   if (isDoc(raw)) {
-    const db = normalizeDoc(raw);
+    const db = await docUpgradeImages(ctx, normalizeDoc(raw), cur.playbook.org_id);
     const part = gigPart(db);
     if (!part.ok) return json(ctx, { ok: false, reason: part.reason });
+    const gc = checkDoc(db, await docCtx(ctx, await docFirm(ctx, s), db, cur.playbook.org_id));
+    if (gc.blocking > 0) {
+      if (cur.playbook.approved_version) await rpc(ctx, "dela_doc_recheck", { p_id: pbId, p_version: cur.playbook.approved_version, p_blocking: gc.blocking, p_attention: gc.attention });
+      return json(ctx, { ok: false, reason: "checks_failing", items: gc.items.filter((i) => i.status === "blocking") });
+    }
     body = gigLegacy(db, part);
   }
   let pub = publicFromPlaybook(body), source = "playbook";
@@ -1756,9 +1925,9 @@ async function gigGet(ctx: Ctx) {
     const db = normalizeDoc(r.playbook);
     const part = gigPart(db);
     if (s.side === "freelancer") r.playbook = { schema: 2, gig_view: true, type: db.type, title: db.title, purpose: part.purpose, before_you_start: part.before_you_start,
-      steps: part.steps.map((st) => ({ text: st.text, role: st.role, system: st.system, menu_path: st.menu_path, minutes: st.minutes, attorney_decides: st.attorney_decides, stage: st.stage, handoff: st.handoff, target_time: st.target_time })),
-      timing: part.timing, quality_check: part.quality_check, done_when: part.done_when };
-    else r.gig_part = { steps: part.steps.length, of: db.steps.length, checkpoints: part.checkpoints.length };
+      steps: part.steps.map((st) => ({ text: st.text, role: st.role, system: st.system, menu_path: st.menu_path, minutes: st.minutes, attorney_decides: st.attorney_decides, stage: st.stage, handoff: st.handoff, target_time: st.target_time, images: st.images })),
+      before_images: part.before_images, timing: part.timing, quality_check: part.quality_check, done_when: part.done_when };
+    else r.gig_part = { steps: part.steps.length, of: db.steps.length, checkpoints: part.checkpoints.length, images: part.images };
   }
   if (r?.ok) r.references = await rpc(ctx, "dela_gig_references", { p_person: s.person_id, p_side: s.side, p_gig: id }).catch(() => []);
   return json(ctx, r);
@@ -2204,7 +2373,14 @@ async function engagementExport(ctx: Ctx) {
   if (isDoc(pb.playbook)) {
     const db = normalizeDoc(pb.playbook);
     const dm: DocMeta = { version: 1, date: await today(ctx), status: "approved", firm: "", doc_id: "", last_reviewed: "", next_review: "", changes: [] };
-    return json(ctx, { ok: true, name: docFileName(db, dm, "docx"), type: CONTENT_TYPES.docx, b64: b64(docToDocx(db, dm)) });
+    // Images under the same rule as the gig: a freelancer's copy has them only while the engagement is open
+    const imgs: ExportImages = new Map();
+    for (const iid of imageIds(db)) {
+      const o = await rpc<Record<string, any>>(ctx, "dela_doc_image_open", { p_person: s.person_id, p_side: s.side, p_image: iid, p_gig: v.agreement.gig_id }).catch(() => null);
+      if (!o?.ok || !ctx.deps.storage) continue;
+      try { const bytes = await ctx.deps.storage.read(o.path); const sz = imageSize(bytes); if (sz) imgs.set(iid, { bytes, ext: o.ext, w: sz.w, h: sz.h }); } catch { /* shown as its caption */ }
+    }
+    return json(ctx, { ok: true, name: docFileName(db, dm, "docx"), type: CONTENT_TYPES.docx, b64: b64(docToDocx(db, dm, imgs)) });
   }
   const b = normalize(pb.playbook);
   const m: ExportMeta = { version: 1, date: await today(ctx), status: "approved", firm: "" };
@@ -2730,7 +2906,7 @@ Where it stands: ${words[st?.readiness] ?? st?.readiness ?? "unknown"}. ${ver}.`
     if (!r?.ok) fail(r);
     if (isDoc(r.body)) {
       const db = normalizeDoc(r.body);
-      const chk = checkDoc(db, await docCtx(ctx, await docFirm(ctx, s)));
+      const chk = checkDoc(db, await docCtx(ctx, await docFirm(ctx, s), db, r.playbook.org_id));
       const open = chk.items.filter((i) => i.status !== "pass");
       return { text: docToMarkdown(db, docMetaFor(r, await today(ctx))) + `\nStatus: ${r.playbook.status}.` + (open.length ? " Needs attention: " + open.map((i) => i.label + (i.status === "blocking" ? " (blocks export and approval)" : "")).join("; ") + "." : " Every check passes."),
         data: { id: r.playbook.id, doc_id: r.playbook.doc_id, type: db.type, version: r.playbook.version, status: r.playbook.status, checks: chk.items, document: db } };
@@ -2787,7 +2963,7 @@ Where it stands: ${words[st?.readiness] ?? st?.readiness ?? "unknown"}. ${ver}.`
     if (kinds.length) throw new ToolError("This may include client information (" + kinds.join(", ").split("_").join(" ") + "). Replace it with placeholders, then try again.");
     if (isDoc(cur.body)) {
       const dbb = normalizeDoc(cur.body);
-      const nd = a.document && typeof a.document === "object" ? normalizeDoc({ ...a.document, type: dbb.type }) : normalizeDoc({ ...dbb, ...fromLegacy(b, dbb.type), type: dbb.type, lifecycle: dbb.lifecycle, owner_role: dbb.owner_role });
+      const nd = carryImages(dbb, a.document && typeof a.document === "object" ? normalizeDoc({ ...a.document, type: dbb.type }) : normalizeDoc({ ...dbb, ...fromLegacy(b, dbb.type), type: dbb.type, lifecycle: dbb.lifecycle, owner_role: dbb.owner_role }));
       const rr = docRemovesReview(dbb, nd);
       const r2 = await rpc<Record<string, any>>(ctx, "dela_pb_suggest", { p: { person_id: w.person_id, id, kind: "ai", base_version: cur.playbook.version, proposed: nd, note: str(a.note, 200) || "Change from an AI app", removes_review: rr } });
       if (!r2?.ok) fail(r2);
@@ -3157,6 +3333,14 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "send_sms") return await sendText(ctx, String(j.payload?.to ?? ""), String(j.payload?.text ?? ""));
   if (j.kind === "daily_summary") { await rpc(ctx, "dela_daily_summary", {}); return { ok: true }; }
   if (j.kind === "file_check") { await runFileCheck(ctx, String(j.payload?.file_id ?? "")); return { ok: true }; }
+  if (j.kind === "doc_image_check") {
+    const fid = String(j.payload?.file_id ?? "");
+    const before = await rpc<Record<string, any> | null>(ctx, "dela_file_for_check", { p_file: fid });
+    await runFileCheck(ctx, fid, "dela_doc_image_checked");
+    const img = before?.status === "checking" ? await rpc<Record<string, any> | null>(ctx, "dela_doc_image_by_file", { p_file: fid }) : null;
+    if (img?.id) await docRecheckImage(ctx, String(img.id));
+    return { ok: true };
+  }
   if (j.kind === "files_sweep") return await filesSweep(ctx);
   if (j.kind === "ai_key_reminders") { await rpc(ctx, "dela_ai_key_reminders", {}); return { ok: true }; }
   if (j.kind === "file_remove") { await storageOf(ctx).remove([String(j.payload?.path ?? "")]); return { ok: true }; }
@@ -3431,10 +3615,18 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /playbooks/comment": return await pbComment(ctx);
       case "POST /playbooks/export": return await pbExport(ctx);
       case "POST /playbooks/missing": return await pbMissing(ctx);
-      case "POST /playbooks/status": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_status", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_action: str(ctx.body.action, 20) })); }
+      case "POST /playbooks/status": { const s = await attorney(ctx); const pid = uuid(ctx.body.id), act = str(ctx.body.action, 20);
+        const gate = pid ? await docStatusGate(ctx, s, pid, act) : null;
+        if (gate) return json(ctx, gate);
+        return json(ctx, await rpc(ctx, "dela_pb_status", { p_person: s.person_id, p_id: pid, p_action: act })); }
+      case "POST /documents/images/start": return await docImageStart(ctx);
+      case "POST /documents/images/complete": return await docImageComplete(ctx);
+      case "POST /documents/images/confirm": return await docImageConfirm(ctx);
+      case "POST /documents/images/current": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_doc_image_current", { p_person: s.person_id, p_playbook: need(uuid(ctx.body.playbook_id)), p_image: need(uuid(ctx.body.image_id)) })); }
+      case "GET /documents/image": return await docImageOpen(ctx);
       case "POST /playbooks/restore": { const s = await attorney(ctx); const b = await rpc<Record<string, any> | null>(ctx, "dela_pb_version", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_version: int(ctx.body.version) });
         if (!b) return json(ctx, { ok: false, reason: "not_found" });
-        if (isDoc(b.body)) { const firm = await docFirm(ctx, s); const prep = await docPrepare(ctx, firm, b.body, null);
+        if (isDoc(b.body)) { const firm = await docFirm(ctx, s); const prep = await docPrepare(ctx, firm, b.body, null, await rpc<string | null>(ctx, "dela_pb_org", { p_id: uuid(ctx.body.id) }));
           const rr = await rpc<Record<string, any>>(ctx, "dela_pb_restore_version", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_version: int(ctx.body.version), p_meta: prep.meta });
           if (rr?.ok) await rpc(ctx, "dela_doc_apply", { p_id: uuid(ctx.body.id), p: { ...prep.doc, person_id: s.person_id, what_changed: "Restored version " + int(ctx.body.version) } });
           return json(ctx, rr); }

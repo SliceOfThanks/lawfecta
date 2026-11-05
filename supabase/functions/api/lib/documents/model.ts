@@ -5,6 +5,8 @@
 import { strToU8, zipSync } from "npm:fflate@0.8.2";
 import type { Body as LegacyBody } from "../playbooks/model.ts";
 import { patternCheck } from "../ai/clientcheck.ts";
+import { IMAGE_SECTIONS, type ExportImages, type ImageFacts, type ImageRef, placedImages, readRefs, stepsTakeImages } from "./images.ts";
+export * from "./images.ts";
 
 export type DocType = "policy" | "workflow" | "sop" | "playbook";
 export const DOC_TYPES: DocType[] = ["policy", "workflow", "sop", "playbook"];
@@ -36,7 +38,7 @@ export type Raci = Record<string, string>; // role -> "R", "A", "R,A", "C", "I" 
 export type Rule = { name: string; link: string; verify_by: string };
 export type DocStep = {
   text: string; role: string; raci: Raci; attorney_decides: boolean; not_judgment: boolean; system: string; menu_path: string; minutes: number | null;
-  rule: Rule | null; stage: string; handoff: string; target_time: string; linked_sop: string; screenshot: string;
+  rule: Rule | null; stage: string; handoff: string; target_time: string; linked_sop: string; screenshot: string; images: ImageRef[];
 };
 export type Decision = { if: string; then: string; attorney_decides: boolean; escalate_to: string };
 export type Kpi = { name: string; measures: string; kind: "leading" | "lagging" | ""; source: string; owner_role: string; baseline: string; target: string; rhythm: string };
@@ -50,6 +52,7 @@ export type DocBody = {
   start_point: string; end_point: string; kpis: Kpi[];
   situations: string[]; principles: string[]; preferred: string; fallbacks: string[]; hard_limits: string[]; escalation: Escalation[]; scripts: string[]; examples: string[];
   rules_must: string[]; rules_must_not: string[]; exceptions: string; exceptions_role: string;
+  section_images: Record<string, ImageRef[]>; // images on sections other than steps (IMAGE_SECTIONS); never on a Policy
   skipped: string[]; // the process questions the attorney skipped (shown as quality panel flags, never exported)
 };
 
@@ -105,6 +108,7 @@ export function normalizeDoc(raw: unknown): DocBody {
       system: s(o.system ?? o.tool, 120), menu_path: s(o.menu_path, 300), minutes: Number.isFinite(m) && m > 0 ? Math.min(Math.round(m), 10000) : null,
       rule: rule(o.rule), stage: s(o.stage, 120), handoff: s(o.handoff, 600), target_time: s(o.target_time, 120), linked_sop: s(o.linked_sop, 120),
       screenshot: /^[0-9a-f-]{36}$/.test(String(o.screenshot ?? "")) ? String(o.screenshot) : "",
+      images: stepsTakeImages(type) ? readRefs(o.images, (t) => s(t, 200)) : [],
     };
   }).filter((x: DocStep) => x.text);
   return {
@@ -122,6 +126,7 @@ export function normalizeDoc(raw: unknown): DocBody {
     escalation: (Array.isArray(b.escalation) ? b.escalation : []).slice(0, 20).map((e: any) => ({ issue: s(e?.issue, 300), decider_role: s(e?.decider_role, 60), how_fast: s(e?.how_fast, 120) })).filter((e: Escalation) => e.issue),
     scripts: list(b.scripts, 30, 2000), examples: list(b.examples, 20, 1500), rules_must: list(b.rules_must), rules_must_not: list(b.rules_must_not),
     exceptions: s(b.exceptions, 1500), exceptions_role: s(b.exceptions_role, 60), skipped: list(b.skipped, 10, 80),
+    section_images: Object.fromEntries(IMAGE_SECTIONS[type].map((x) => [x.key, readRefs(b.section_images?.[x.key], (t) => s(t, 200))])),
   };
 }
 
@@ -142,7 +147,7 @@ export function fromLegacy(v1: LegacyBody, type: DocType = "sop"): DocBody {
     const raci: Raci = {};
     if (st.who) raci[st.who] = st.tag === "keep" ? "R,A" : "R";
     return { text: st.text, role: st.who, raci, attorney_decides: st.tag === "keep", not_judgment: false, system: st.tool, menu_path: "", minutes: st.minutes, rule: null,
-      stage: "", handoff: "", target_time: "", linked_sop: "", screenshot: st.screenshot };
+      stage: "", handoff: "", target_time: "", linked_sop: "", screenshot: st.screenshot, images: [] };
   });
   const decisions: Decision[] = [
     ...v1.steps.filter((st) => st.decision).map((st) => ({ if: st.decision, then: "", attorney_decides: false, escalate_to: "" })),
@@ -204,12 +209,13 @@ export function eachText(b: DocBody, fn: (t: string) => string): DocBody {
   const ml = (l: string[]) => l.map(m);
   return normalizeDoc({
     ...b, title: m(b.title), purpose: m(b.purpose), scope: m(b.scope), trigger: m(b.trigger), before_you_start: ml(b.before_you_start),
-    steps: b.steps.map((st) => ({ ...st, text: m(st.text), menu_path: m(st.menu_path), handoff: m(st.handoff) })),
+    steps: b.steps.map((st) => ({ ...st, text: m(st.text), menu_path: m(st.menu_path), handoff: m(st.handoff), images: st.images.map((im) => ({ ...im, caption: m(im.caption) })) })),
     decisions: b.decisions.map((d) => ({ ...d, if: m(d.if), then: m(d.then) })), timing: m(b.timing), quality_check: ml(b.quality_check), done_when: m(b.done_when), saved_in: m(b.saved_in),
     related_links: b.related_links.map((l) => ({ ...l, label: m(l.label) })), start_point: m(b.start_point), end_point: m(b.end_point),
     kpis: b.kpis.map((k) => ({ ...k, name: m(k.name), measures: m(k.measures), source: m(k.source) })),
     situations: ml(b.situations), principles: ml(b.principles), preferred: m(b.preferred), fallbacks: ml(b.fallbacks), hard_limits: ml(b.hard_limits),
     escalation: b.escalation.map((e) => ({ ...e, issue: m(e.issue) })), scripts: ml(b.scripts), examples: ml(b.examples), rules_must: ml(b.rules_must), rules_must_not: ml(b.rules_must_not), exceptions: m(b.exceptions),
+    section_images: Object.fromEntries(Object.entries(b.section_images ?? {}).map(([k, v]) => [k, v.map((im) => ({ ...im, caption: m(im.caption) }))])),
   });
 }
 export function docText(b: DocBody, opts: { header?: boolean } = {}): string {
@@ -269,8 +275,9 @@ const NOT_VERB = /^(the|a|an|this|that|these|our|your|their|it|if|when|after|bef
 export const RULE_WORDS = /\b(rule|rules of|statute|code §|§|frcp|local rule|court rule|filing deadline|deadline to file|days (after|before|from) (service|filing|entry|judgment)|statute of limitations|limitations period)\b/i;
 const MENU_PLACEHOLDER = "[Add the menu path in your system]";
 
-export type CheckItem = { id: string; label: string; status: "pass" | "attention" | "blocking"; detail: string; fix: "code" | "ai" | "split" | "" ; steps?: number[] };
-export type CheckContext = { systems: string[]; maxWords: number; maxConsulted: number; kpiMin: number; kpiMax: number; skipped: string[]; people?: Array<{ name: string; role: string }> };
+export type CheckItem = { id: string; label: string; status: "pass" | "attention" | "blocking"; detail: string; fix: "code" | "ai" | "split" | "image" | ""; steps?: number[]; images?: string[] };
+export type CheckContext = { systems: string[]; maxWords: number; maxConsulted: number; kpiMin: number; kpiMax: number; skipped: string[]; people?: Array<{ name: string; role: string }>;
+  images?: ImageFacts; imagesPerSlot?: number };
 
 // The self-check (Sections 2, 3 and 5 of the guide, and the build prompt). Blocking items stop every export, approval and gig.
 export function checkDoc(b: DocBody, c: CheckContext): { items: CheckItem[]; blocking: number; attention: number; words: number } {
@@ -351,6 +358,22 @@ export function checkDoc(b: DocBody, c: CheckContext): { items: CheckItem[]; blo
     add("kpis", c.kpiMin + " to " + c.kpiMax + " complete KPIs from systems you use", n < c.kpiMin || n > c.kpiMax || incomplete.length > 0 || unknown.length > 0,
       [n < c.kpiMin || n > c.kpiMax ? "This workflow has " + n + " KPIs." : "", incomplete.length ? "Fill in every field for: " + incomplete.join(", ") + "." : "",
         unknown.length ? "These come from a system you did not list: " + unknown.join(", ") + ". Use a system you use, or say which field to start logging." : ""].filter(Boolean).join(" "), "ai");
+  }
+  // Images (docs/briefs/step-2e-document-images.md): a caption on each, and a confirmed client-data check (blocking)
+  const placed = placedImages(b);
+  if (placed.length) {
+    const noCap = placed.filter((x) => !x.caption.trim());
+    add("image_captions", "Every image has a caption", noCap.length > 0, noCap.map((x) => x.where + " image is missing a caption.").join(" "), "image");
+    if (noCap.length) items[items.length - 1].images = noCap.map((x) => x.id);
+    const unchecked = placed.filter((x) => !c.images?.[x.id]?.confirmed);
+    add("image_checks", "Every image has a confirmed client-data check", unchecked.length > 0,
+      unchecked.map((x) => x.where + " image has no client-data check" + (c.images?.[x.id]?.held ? " (DELA's check thinks it may show client information)" : "") + ".").join(" "), "image", "blocking");
+    if (unchecked.length) items[items.length - 1].images = unchecked.map((x) => x.id);
+    const per = c.imagesPerSlot ?? 3;
+    const slots = new Map<string, number>();
+    for (const x of placed) slots.set(x.where, (slots.get(x.where) ?? 0) + 1);
+    const over = [...slots].filter(([, n]) => n > per).map(([w]) => w);
+    add("image_count", "No more than " + per + " images on a step", over.length > 0, over.join(", ") + " " + (over.length === 1 ? "has" : "have") + " more than " + per + " images. Split the step to add more.", "");
   }
   const words = bodyWords(b);
   if (b.type === "sop") add("length", "SOP is " + c.maxWords + " words or less", words > c.maxWords, "This SOP has " + words + " words of body text. Split it into linked SOPs.", "split");
@@ -440,14 +463,15 @@ export const KPI_EXAMPLES: Record<string, string[]> = {
 // ---------- What a gig hands the freelancer ----------
 // An SOP: every step. A Workflow: only the steps where a freelancer role is R. Purpose, Before you start, Steps, Timing,
 // Quality check and Done when; nothing else. Policies and Playbooks never become gigs.
-export function gigPart(b: DocBody): { ok: boolean; reason?: string; purpose: string; before_you_start: string[]; steps: DocStep[]; timing: string; quality_check: string[]; done_when: string; checkpoints: number[] } {
-  const empty = { purpose: "", before_you_start: [], steps: [], timing: "", quality_check: [], done_when: "", checkpoints: [] };
+export function gigPart(b: DocBody): { ok: boolean; reason?: string; purpose: string; before_you_start: string[]; before_images: ImageRef[]; steps: DocStep[]; timing: string; quality_check: string[]; done_when: string; checkpoints: number[]; images: number } {
+  const empty = { purpose: "", before_you_start: [], before_images: [], steps: [], timing: "", quality_check: [], done_when: "", checkpoints: [], images: 0 };
   if (b.type !== "sop" && b.type !== "workflow") return { ok: false, reason: "type_not_for_gigs", ...empty };
   const fl = freelancerRoles(b);
   const steps = b.type === "sop" ? b.steps : b.steps.filter((st) => fl.some((r) => (st.raci[r] ?? "").split(",").includes("R")));
   if (!steps.length) return { ok: false, reason: "no_freelancer_steps", ...empty };
-  return { ok: true, purpose: b.purpose, before_you_start: b.before_you_start, steps, timing: b.timing, quality_check: b.quality_check, done_when: b.done_when,
-    checkpoints: steps.map((st, i) => (st.attorney_decides ? i + 1 : 0)).filter(Boolean) };
+  const before_images = b.type === "sop" ? b.section_images.before_you_start ?? [] : [];
+  return { ok: true, purpose: b.purpose, before_you_start: b.before_you_start, before_images, steps, timing: b.timing, quality_check: b.quality_check, done_when: b.done_when,
+    checkpoints: steps.map((st, i) => (st.attorney_decides ? i + 1 : 0)).filter(Boolean), images: new Set([...before_images, ...steps.flatMap((st) => st.images)].map((x) => x.id)).size };
 }
 
 // ---------- Exports ----------
@@ -455,7 +479,7 @@ export type Change = { at: string; what: string; by: string; approved_by: string
 export type DocMeta = { version: number; date: string; status: string; firm: string; doc_id: string; last_reviewed: string; next_review: string; changes: Change[] };
 const approved = (m: DocMeta) => m.status === "approved";
 const DRAFT_BANNER = "Draft, not approved";
-type Block = { title: string; paras?: string[]; items?: string[]; numbered?: boolean; table?: { head: string[]; rows: string[][] } };
+type Block = { title: string; paras?: string[]; items?: string[]; numbered?: boolean; table?: { head: string[]; rows: string[][] }; images?: ImageRef[]; itemImages?: ImageRef[][] };
 
 function raciTable(b: DocBody): Block | null {
   if (!usesRaci(b.type) || !b.steps.length || !b.roles.length) return null;
@@ -475,7 +499,7 @@ export function blocks(b: DocBody, m: DocMeta): Block[] {
   const links = b.related_links.map((l) => l.label + (l.url ? " (" + l.url + ")" : ""));
   if (b.type === "sop") {
     out.push({ title: "Purpose", paras: [b.purpose] }, { title: "Scope", paras: [b.scope] }, { title: "Trigger", paras: [b.trigger] }, { title: "Roles", items: b.roles });
-    out.push({ title: "Before you start", items: b.before_you_start }, { title: "Steps", items: b.steps.map((st) => stepLine(st, b)), numbered: true });
+    out.push({ title: "Before you start", items: b.before_you_start, images: b.section_images.before_you_start ?? [] }, { title: "Steps", items: b.steps.map((st) => stepLine(st, b)), numbered: true, itemImages: b.steps.map((st) => st.images) });
     const r = raciTable(b); if (r) out.push(r);
     out.push({ title: "Decision points and escalation", items: decisions });
     out.push({ title: "Timing", paras: [b.timing + (b.timing_rule ? " Rule: " + [b.timing_rule.name, b.timing_rule.link].filter(Boolean).join(" ") + (b.timing_rule.verify_by ? " (verify by " + b.timing_rule.verify_by + ")" : "") : "")] });
@@ -484,7 +508,10 @@ export function blocks(b: DocBody, m: DocMeta): Block[] {
   } else if (b.type === "workflow") {
     out.push({ title: "Name and process owner", paras: [b.title + (b.process_owner_role ? ". Process owner: " + b.process_owner_role + "." : "")] });
     out.push({ title: "Start and end points", items: ["Starts when: " + (b.start_point || "Not set"), "Finished when: " + (b.end_point || "Not set")] });
+    if ((b.section_images.chart ?? []).length) out.push({ title: "Swimlane chart", images: b.section_images.chart });
     out.push({ title: "Stages", table: { head: ["#", "Stage", "Lane (role)", "What happens"], rows: b.steps.map((st, i) => [String(i + 1), st.stage || "Stage " + (i + 1), st.role, st.text + (st.attorney_decides ? " ATTORNEY DECIDES." : "")]) } });
+    const withImg = b.steps.map((st, i) => ({ st, i })).filter((x) => x.st.images.length);
+    if (withImg.length) out.push({ title: "Stage images", items: withImg.map((x) => "Stage " + (x.i + 1) + ": " + (x.st.stage || x.st.text.slice(0, 60))), itemImages: withImg.map((x) => x.st.images) });
     const r = raciTable(b); if (r) out.push(r);
     out.push({ title: "Handoffs", items: b.steps.filter((x) => x.handoff).map((x) => (x.stage || x.text.slice(0, 40)) + ": " + x.handoff) });
     out.push({ title: "Decision points", items: decisions });
@@ -495,7 +522,7 @@ export function blocks(b: DocBody, m: DocMeta): Block[] {
     out.push({ title: "Situations covered", items: b.situations }, { title: "Guiding principles", items: b.principles }, { title: "Preferred approach", paras: [b.preferred] });
     out.push({ title: "Acceptable fallbacks", items: b.fallbacks }, { title: "Hard limits", items: b.hard_limits });
     out.push({ title: "Escalation", table: { head: ["Issue", "Who decides", "How fast"], rows: b.escalation.map((e) => [e.issue, e.decider_role, e.how_fast]) } });
-    out.push({ title: "Scripts and templates", items: b.scripts }, { title: "Examples", items: b.examples });
+    out.push({ title: "Scripts and templates", items: b.scripts, images: b.section_images.scripts ?? [] }, { title: "Examples", items: b.examples, images: b.section_images.examples ?? [] });
   } else {
     out.push({ title: "Purpose", paras: [b.purpose] }, { title: "Scope", paras: [b.scope] });
     out.push({ title: "The rules", items: [...b.rules_must.map((t) => "Must: " + t), ...b.rules_must_not.map((t) => "Must not: " + t)] });
@@ -514,7 +541,8 @@ export function docToMarkdown(b: DocBody, m: DocMeta): string {
   for (const bl of blocks(b, m)) {
     md.push(`**${bl.title}**`, "");
     if (bl.paras) md.push(...(bl.paras.some(Boolean) ? bl.paras.filter(Boolean) : ["_" + NOT_SET + "_"]), "");
-    if (bl.items) md.push(...(bl.items.length ? bl.items.map((t, i) => (bl.numbered ? `${i + 1}. ` : "- ") + t.replaceAll("\n", "\n   ")) : ["_" + NOT_SET + "_"]), "");
+    if (bl.items) md.push(...(bl.items.length ? bl.items.map((t, i) => (bl.numbered ? `${i + 1}. ` : "- ") + t.replaceAll("\n", "\n   ") + (bl.itemImages?.[i] ?? []).map((im) => "\n   [Image: " + (im.caption || "no caption") + "]").join("")) : ["_" + NOT_SET + "_"]), "");
+    if (bl.images?.length) md.push(...bl.images.map((im) => "[Image: " + (im.caption || "no caption") + "]"), "");
     if (bl.table) {
       const cellMd = (t: string) => t.replaceAll("|", "/").replaceAll("\n", " ");
       if (bl.table.head.some(Boolean)) md.push("| " + bl.table.head.map(cellMd).join(" | ") + " |", "|" + bl.table.head.map(() => " --- |").join(""));
@@ -527,16 +555,26 @@ export function docToMarkdown(b: DocBody, m: DocMeta): string {
 }
 
 const esc = (t: string) => t.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
-export function docToHtml(b: DocBody, m: DocMeta): string {
+const MIME: Record<string, string> = { png: "image/png", jpg: "image/jpeg" };
+function htmlImage(im: ImageRef, imgs?: ExportImages): string {
+  const x = imgs?.get(im.id);
+  const cap = esc(im.caption || "");
+  if (!x) return `<p class="cap">[Image: ${cap || "no caption"}]</p>`;
+  let bin = "";
+  for (let i = 0; i < x.bytes.length; i += 0x8000) bin += String.fromCharCode(...x.bytes.subarray(i, i + 0x8000));
+  return `<figure><img src="data:${MIME[x.ext] ?? "image/png"};base64,${btoa(bin)}" alt="${cap}"><figcaption>${cap}</figcaption></figure>`;
+}
+export function docToHtml(b: DocBody, m: DocMeta, imgs?: ExportImages): string {
   const body = blocks(b, m).map((bl) => {
     let inner = "";
     if (bl.paras) inner = bl.paras.some(Boolean) ? bl.paras.filter(Boolean).map((t) => `<p>${esc(t)}</p>`).join("") : `<p><em>${NOT_SET}</em></p>`;
-    if (bl.items) inner = bl.items.length ? `<${bl.numbered ? "ol" : "ul"}>${bl.items.map((t) => `<li>${esc(t).replaceAll("\n", "<br>")}</li>`).join("")}</${bl.numbered ? "ol" : "ul"}>` : `<p><em>${NOT_SET}</em></p>`;
+    if (bl.items) inner = bl.items.length ? `<${bl.numbered ? "ol" : "ul"}>${bl.items.map((t, i) => `<li>${esc(t).replaceAll("\n", "<br>")}${(bl.itemImages?.[i] ?? []).map((im) => htmlImage(im, imgs)).join("")}</li>`).join("")}</${bl.numbered ? "ol" : "ul"}>` : `<p><em>${NOT_SET}</em></p>`;
     if (bl.table) inner = `<table>${bl.table.head.some(Boolean) ? `<tr>${bl.table.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>` : ""}${bl.table.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</table>`;
+    if (bl.images?.length) inner += bl.images.map((im) => htmlImage(im, imgs)).join("");
     return `<p class="h"><strong>${esc(bl.title)}</strong></p>\n${inner}`;
   }).join("\n");
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(b.title || "Document")}</title>
-<style>body{font-family:Arial,Helvetica,sans-serif;max-width:820px;margin:32px auto;padding:0 16px;color:#1c2230;line-height:1.55}h1{color:#8b2146}.h{font-size:18px;color:#8b2146;border-bottom:1px solid #e6e7ec;padding-bottom:4px;margin:26px 0 8px}table{border-collapse:collapse;width:100%;font-size:14px}td,th{border:1px solid #d9dbe1;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f1e4ea}.banner{background:#fff3d6;border:1px solid #e8c97a;padding:8px 12px;border-radius:8px;font-weight:700}footer{margin-top:40px;font-size:12px;color:#5f6675;border-top:1px solid #e6e7ec;padding-top:8px}</style></head>
+<style>body{font-family:Arial,Helvetica,sans-serif;max-width:820px;margin:32px auto;padding:0 16px;color:#1c2230;line-height:1.55}h1{color:#8b2146}.h{font-size:18px;color:#8b2146;border-bottom:1px solid #e6e7ec;padding-bottom:4px;margin:26px 0 8px}table{border-collapse:collapse;width:100%;font-size:14px}td,th{border:1px solid #d9dbe1;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f1e4ea}.banner{background:#fff3d6;border:1px solid #e8c97a;padding:8px 12px;border-radius:8px;font-weight:700}figure{margin:10px 0}figure img{max-width:100%;height:auto;border:1px solid #d9dbe1}figcaption,.cap{font-style:italic;color:#5f6675;font-size:14px}footer{margin-top:40px;font-size:12px;color:#5f6675;border-top:1px solid #e6e7ec;padding-top:8px}</style></head>
 <body><h1>${esc(b.title || "Document")}</h1>${approved(m) ? "" : `<p class="banner">${DRAFT_BANNER}</p>`}
 ${body}
 <footer>${esc(footerText(m))}</footer></body></html>`;
@@ -564,7 +602,27 @@ const tcell = (w: number, body: string, fill = "") => `<w:tc><w:tcPr><w:tcW w:w=
 const tbl = (widths: number[], rows: string[], c = LINE) => `<w:tbl><w:tblPr><w:tblW w:w="${widths.reduce((a, z) => a + z, 0)}" w:type="dxa"/><w:tblBorders>${bordr(c)}</w:tblBorders><w:tblLayout w:type="fixed"/><w:tblCellMar><w:top w:w="70" w:type="dxa"/><w:left w:w="100" w:type="dxa"/><w:bottom w:w="70" w:type="dxa"/><w:right w:w="100" w:type="dxa"/></w:tblCellMar></w:tblPr><w:tblGrid>${widths.map((w) => `<w:gridCol w:w="${w}"/>`).join("")}</w:tblGrid>${rows.join("")}</w:tbl>` + para("", "", `<w:spacing w:after="60"/>`);
 const trow = (cells: string, header = false) => `<w:tr>${header ? `<w:trPr><w:tblHeader/><w:cantSplit/></w:trPr>` : `<w:trPr><w:cantSplit/></w:trPr>`}${cells}</w:tr>`;
 
-function docxBody(b: DocBody, m: DocMeta): string {
+// Images at full page width (6.5 inches), the caption in grey italics below; at most 8 inches tall
+type Media = { name: string; rid: string; bytes: Uint8Array; ext: string };
+const EMU_W = 5943600, EMU_HMAX = 7315200;
+function docxImage(im: ImageRef, imgs: ExportImages | undefined, media: Media[]): string {
+  const x = imgs?.get(im.id);
+  const cap = para(run(im.caption || "No caption", { i: true, color: GREY, sz: 19 }));
+  if (!x || !x.w || !x.h) return para(run("[Image: " + (im.caption || "no caption") + "]", { i: true, color: GREY }));
+  const n = media.length + 1;
+  const ext = x.ext === "jpg" ? "jpeg" : "png";
+  const name = "image" + n + "." + ext, rid = "rIdImg" + n;
+  media.push({ name, rid, bytes: x.bytes, ext });
+  let cx = EMU_W, cy = Math.round(EMU_W * x.h / x.w);
+  if (cy > EMU_HMAX) { cx = Math.round(cx * EMU_HMAX / cy); cy = EMU_HMAX; }
+  const d = xs(im.caption || "Image");
+  return `<w:p><w:pPr><w:keepNext/><w:spacing w:before="80" w:after="20"/></w:pPr><w:r><w:drawing><wp:inline distT="0" distB="0" distL="0" distR="0"><wp:extent cx="${cx}" cy="${cy}"/><wp:docPr id="${n}" name="Image ${n}" descr="${d}"/>` +
+    `<wp:cNvGraphicFramePr><a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/></wp:cNvGraphicFramePr><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">` +
+    `<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture"><pic:nvPicPr><pic:cNvPr id="${n}" name="${name}" descr="${d}"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed="${rid}"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>` +
+    `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>` + cap;
+}
+
+function docxBody(b: DocBody, m: DocMeta, imgs?: ExportImages, media: Media[] = []): string {
   const out: string[] = [];
   out.push(para(run(b.title || "Document"), "Title"));
   out.push(para(run([TYPE_INFO[b.type].label, m.doc_id, m.firm, `Version ${m.version}`, approved(m) ? "Approved" : "", `Exported ${m.date}`].filter(Boolean).join("  |  "), { color: GREY }), "Subtitle"));
@@ -578,6 +636,7 @@ function docxBody(b: DocBody, m: DocMeta): string {
         const att = t.includes("ATTORNEY DECIDES");
         const line = para(run((bl.numbered ? (i + 1) + "." : "•") + "\t") + run(t.replace(" ATTORNEY DECIDES.", "")) + (att ? run("  Attorney decides", { b: true, color: BRAND }) : ""), "ListBullet");
         out.push(att ? tbl([9360], [trow(tcell(9360, line, SOFT))], "E3C6D3") : line);
+        for (const im of bl.itemImages?.[i] ?? []) out.push(docxImage(im, imgs, media));
       });
     }
     if (bl.table) {
@@ -591,13 +650,16 @@ function docxBody(b: DocBody, m: DocMeta): string {
       for (const r of bl.table.rows) rows.push(trow(r.map((c, i) => tcell(W[i], para(run(c, i === 0 && bl.title === "Header" ? { b: true, color: BRAND } : c.includes("A") && bl.title === "RACI" && i > 0 ? { b: true } : {}), "TableText"), i === 0 && bl.title === "Header" ? SOFT : "")).join("")));
       out.push(tbl(W, rows));
     }
+    for (const im of bl.images ?? []) out.push(docxImage(im, imgs, media));
   }
   return out.join("");
 }
 
-export function docToDocx(b: DocBody, m: DocMeta): Uint8Array {
+export function docToDocx(b: DocBody, m: DocMeta, imgs?: ExportImages): Uint8Array {
   const ns = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
-  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${ns}><w:body>${docxBody(b, m)}<w:sectPr><w:footerReference w:type="default" r:id="rIdFooter"/><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1300" w:right="1440" w:bottom="1300" w:left="1440" w:header="720" w:footer="600" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  const media: Media[] = [];
+  const bodyXml = docxBody(b, m, imgs, media);
+  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${ns} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><w:body>${bodyXml}<w:sectPr><w:footerReference w:type="default" r:id="rIdFooter"/><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1300" w:right="1440" w:bottom="1300" w:left="1440" w:header="720" w:footer="600" w:gutter="0"/></w:sectPr></w:body></w:document>`;
   const fld = (code: string) => `<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> ${code} </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>`;
   const footer = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr ${ns}><w:p><w:pPr><w:pStyle w:val="Footer"/><w:tabs><w:tab w:val="right" w:pos="9360"/></w:tabs></w:pPr>${run(footerText(m))}<w:r><w:tab/></w:r>${run("Page ")}${fld("PAGE")}${run(" of ")}${fld("NUMPAGES")}</w:p></w:ftr>`;
   const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
@@ -610,9 +672,10 @@ export function docToDocx(b: DocBody, m: DocMeta): Uint8Array {
 <w:style w:type="paragraph" w:styleId="TableText"><w:name w:val="Table Text"/><w:pPr><w:spacing w:after="30" w:line="252" w:lineRule="auto"/></w:pPr><w:rPr><w:sz w:val="19"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:rPr><w:color w:val="${GREY}"/><w:sz w:val="16"/></w:rPr></w:style></w:styles>`;
   return zipSync({
-    "[Content_Types].xml": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>`),
+    "[Content_Types].xml": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>`),
     "_rels/.rels": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`),
-    "word/_rels/document.xml.rels": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/></Relationships>`),
+    "word/_rels/document.xml.rels": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>${media.map((x) => `<Relationship Id="${x.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${x.name}"/>`).join("")}</Relationships>`),
+    ...Object.fromEntries(media.map((x) => ["word/media/" + x.name, x.bytes])),
     "word/document.xml": strToU8(doc),
     "word/styles.xml": strToU8(styles),
     "word/footer1.xml": strToU8(footer),
@@ -652,5 +715,6 @@ export function changeSummary(before: DocBody | null, after: DocBody): string {
     if (x !== null && JSON.stringify(x) !== JSON.stringify(y)) changed.push(sec.label);
   }
   if (JSON.stringify(before.steps.map((x) => x.raci)) !== JSON.stringify(after.steps.map((x) => x.raci)) && !changed.includes("Steps")) changed.push("RACI");
+  if (JSON.stringify(placedImages(before)) !== JSON.stringify(placedImages(after))) changed.push("Images");
   return changed.length ? "Changed: " + changed.slice(0, 6).join(", ") : "No change to the content";
 }
