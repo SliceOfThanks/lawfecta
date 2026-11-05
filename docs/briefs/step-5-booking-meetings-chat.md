@@ -1,7 +1,10 @@
 # Feature brief: Booking, meetings and chat
 
 Step: 5   Spec references: 1A sections 17 (native booking and meeting verification) and 18 (messaging); Decision Sheet: booking.off_platform (C, false), booking.calendar_sync (C), calendar.connections (O), meetings.provider (C, Vectera), meetings.recording_consent (G, both people), meetings.transcript_training (G, separate opt-in), safety.off_platform_flags (C), exports.consultation_grant and exports.consultation_proof (O-08); Stacey's Step 4 answer 11 (every conversation is tied to a gig; DELA reviews messages for off-platform plans and learns about each member)
-Status: draft, waiting for Stacey's answers. Also waiting for Vectera's answers to the 11 questions (docs/research/vectera-meetings-evaluation.md)
+Status: questions answered by Stacey 2026-11-05 (all as suggested); approved to build. The Vectera rooms wait for Vectera's answers and API access (docs/research/vectera-meetings-evaluation.md).
+
+## Stacey's answers (2026-11-05)
+All 18 questions as suggested.
 
 ## Who
 - Attorneys on every plan, and firm staff with a role that allows it.

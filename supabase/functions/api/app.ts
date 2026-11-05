@@ -10,6 +10,7 @@ import { brevoDelivery } from "./lib/mail/brevo.ts";
 import { verifyPass } from "./lib/pass.ts";
 import { sendSms } from "./lib/sms/brevo.ts";
 import { bdCategories, bdFields, bdMember, bdUpdate, shapeOf } from "./lib/bd/members.ts";
+import { meetingIcs, NEXT_STEPS_SYSTEM, readSteps, THREAD_SYSTEM, threadPrompt, vecteraRoom, withoutLawfectaLinks } from "./lib/meetings/meet.ts";
 import { conductRules, GIG_SYSTEM, gigPrompt, normalizeMilestones, normalizePublic, PROPOSAL_SYSTEM, publicFromPlaybook, readReview, REVIEW_SYSTEM, toCents } from "./lib/gigs/model.ts";
 import { asksAboutTools, CATALOG_RULES, catalogText, rankForMember, readCatalog, type Tool } from "./lib/catalog/csv.ts";
 import { aiContext, fromBd, LABELS, normalize as normalizeProfile, PRACTICE_AREAS, PROFILE_SYSTEM, profileText, readiness, FIELD_GUIDE, FIELD_SYSTEM, TECH_GROUPS, TECH_TOOLS, TIMEZONES, toBd, type BdMap, type Side } from "./lib/profiles/model.ts";
@@ -1482,6 +1483,110 @@ async function talent(ctx: Ctx) {
   return json(ctx, await rpc(ctx, "dela_talent_search", { p_person: s.person_id, p: { practice_area: str(q.get("practice_area"), 80), skill: str(q.get("skill"), 80), tool: str(q.get("tool"), 80), state: str(q.get("state"), 2) } }));
 }
 
+// ---------- Step 5: availability, booking, meetings, follow-ups, messages ----------
+
+async function availSave(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  return json(ctx, await rpc(ctx, "dela_avail_save", { p_person: s.person_id, p: { timezone: str(ctx.body.timezone, 60), lengths: Array.isArray(ctx.body.lengths) ? ctx.body.lengths : [],
+    hours: ctx.body.hours && typeof ctx.body.hours === "object" ? ctx.body.hours : {}, days_off: Array.isArray(ctx.body.days_off) ? ctx.body.days_off.slice(0, 120) : [] } }));
+}
+
+async function meetingSlots(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const q = ctx.url.searchParams;
+  return json(ctx, await rpc(ctx, "dela_meeting_slots", { p_person: s.person_id, p_side: s.side, p_gig: need(uuid(q.get("gig"))), p_freelancer: uuid(q.get("freelancer")),
+    p_length: int(q.get("length")) ?? (Number(await setting(ctx, "meeting.default_length", "30")) || 30), p_except: uuid(q.get("except")) }));
+}
+
+async function meetingHold(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const p = { gig_id: need(uuid(ctx.body.gig_id)), freelancer: uuid(ctx.body.freelancer), start_at: str(ctx.body.start_at, 40), length: int(ctx.body.length), request_id: str(ctx.body.request_id, 80) };
+  const resched = uuid(ctx.body.reschedule_of);
+  if (resched) return json(ctx, await rpc(ctx, "dela_meeting_reschedule_hold", { p_person: s.person_id, p_side: s.side, p_meeting: resched, p }));
+  return json(ctx, await rpc(ctx, "dela_meeting_hold", { p_person: s.person_id, p_side: s.side, p }));
+}
+
+// The meeting room is made by the provider adapter (Vectera); until its key is set the meeting waits for the provider
+async function meetingRoom(ctx: Ctx, id: string) {
+  const m = await rpc<Record<string, any>>(ctx, "dela_meeting_for_job", { p_meeting: id });
+  if (!m || m.status !== "confirmed" || m.room_status === "ready") return { ok: true };
+  const room = await vecteraRoom(f(ctx), await setting(ctx, "meeting.vectera_api_base", "https://api.vectera.com"), ctx.deps.env("VECTERA_API_KEY"), "Lawfecta: " + m.gig_title, m.start_at);
+  await rpc(ctx, "dela_meeting_room", { p_meeting: id, p_status: room.status, p_ref: room.ref ?? null, p_att: room.attorney_url ?? null, p_free: room.freelancer_url ?? null });
+  if (room.status === "failed") return { ok: false, retry: true, error: room.error };
+  return { ok: true };
+}
+
+async function meetingIcsFile(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_meetings", { p_person: s.person_id, p_side: s.side, p_gig: null, p_meeting: need(uuid(ctx.url.searchParams.get("id"))) });
+  const m = (r?.meetings ?? [])[0];
+  if (!m) return json(ctx, { ok: false, reason: "not_found" });
+  const site = (await setting(ctx, "site.url", "")).replace(/\/+$/, "");
+  return json(ctx, { ok: true, name: "Lawfecta meeting " + String(m.start_at).slice(0, 10) + ".ics", text: meetingIcs(m, site + "/dela?tab=meetings&meeting=" + m.id) });
+}
+
+async function meetingFollowup(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const id = need(uuid(ctx.body.id));
+  const summary = str(ctx.body.summary, 4000);
+  if (summary) { const w = sensitive(ctx, summary); if (w) return json(ctx, w); }
+  const r = await rpc<Record<string, any>>(ctx, "dela_meeting_followup", { p_person: s.person_id, p_side: s.side, p_meeting: id, p_met: ctx.body.met === true, p_summary: summary });
+  // When both summaries are in, DELA suggests next steps (suggestions only, on the member's own AI)
+  if (r?.ok && r.both_in && Array.isArray(r.summaries) && r.summaries.some((x: any) => x.summary) && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "ai_generation", p_person: s.person_id })) {
+    const text = `Gig: ${r.gig_title}\n` + (r.summaries as Array<Record<string, any>>).map((x) => `${x.who} (${x.met ? "met" : "says they did not meet"}): ${x.summary || "(no summary)"}`).join("\n");
+    const ai = await runAi(ctx, s, "nextsteps:" + id, NEXT_STEPS_SYSTEM, [{ role: "user", content: text }], Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
+    if (ai.ok) { const steps = readSteps(ai.text); await rpc(ctx, "dela_meeting_next_steps", { p_meeting: id, p_steps: steps }); return json(ctx, { ...r, next_steps: steps }); }
+  }
+  return json(ctx, r);
+}
+
+// A message: client information check, then the off-platform check. Clear cases (DELA's rules) are held for the team;
+// when only DELA's AI is unsure, the message goes with a reminder of the terms to the sender, and the team can see it.
+async function messageSend(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const thread = need(uuid(ctx.body.thread_id));
+  const body = str(ctx.body.body, 8000).trim();
+  if (!body) throw new HttpError(400, "bad_request");
+  const warn = sensitive(ctx, body);
+  if (warn) return json(ctx, warn);
+  const checked = withoutLawfectaLinks(body, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com"));
+  const rules = conductRules(checked);
+  const c = await conductCheck(ctx, s, checked);
+  const held = rules.length > 0;
+  const warned = !held && c.held;
+  const r = await rpc<Record<string, any>>(ctx, "dela_message_send", { p_person: s.person_id, p_side: s.side, p_thread: thread,
+    p: { body, attachments: Array.isArray(ctx.body.attachments) ? ctx.body.attachments.map(uuid).filter(Boolean).slice(0, 5) : [], request_id: str(ctx.body.request_id, 80), held, warned } });
+  if (r?.ok && !r.duplicate) {
+    const gig = (await rpc<Record<string, any>>(ctx, "dela_thread_text", { p_person: s.person_id, p_side: s.side, p_thread: thread }))?.gig_id ?? null;
+    await afterConduct(ctx, s, { ...c, held: held || warned, kinds: held ? rules : c.kinds }, "message", r.id, gig, body);
+  }
+  if (r?.ok && held) return json(ctx, { ...r, note: heldNote });
+  if (r?.ok && warned) return json(ctx, { ...r, warned: true, note: "Sent. A reminder: Lawfecta's terms keep all work, contact and payment on Lawfecta. The Lawfecta Team may look at this message." });
+  return json(ctx, r);
+}
+
+async function threadAssist(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const mode = str(ctx.body.mode, 20);
+  if (!THREAD_SYSTEM[mode]) throw new HttpError(400, "bad_request");
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "chat_assistant", p_person: s.person_id })) return json(ctx, { ok: false, reason: "assistant_off" });
+  const t = await rpc<Record<string, any>>(ctx, "dela_thread_text", { p_person: s.person_id, p_side: s.side, p_thread: need(uuid(ctx.body.thread_id)) });
+  if (!t?.ok) return json(ctx, t);
+  const lines = (t.lines ?? []) as Array<{ who: string; text: string }>;
+  if (!lines.length) return json(ctx, { ok: false, reason: "nothing_to_summarize" });
+  const ai = await runAi(ctx, s, `thread:${mode}:` + (await sha256Hex(JSON.stringify(lines))).slice(0, 40), THREAD_SYSTEM[mode], [{ role: "user", content: threadPrompt(t.gig_title, t.role, lines) }],
+    Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
+  if (!ai.ok) return json(ctx, ai);
+  return json(ctx, { ok: true, source: ai.source, mode, text: plainText(ai.text).slice(0, 4000) });
+}
+
+async function messageFile(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_message_file_get", { p_person: s.person_id, p_side: s.side, p_thread: need(uuid(ctx.url.searchParams.get("thread"))), p_file: need(uuid(ctx.url.searchParams.get("file"))) });
+  if (!r?.ok) return json(ctx, r);
+  return json(ctx, { ok: true, name: r.name, url: await storageOf(ctx).signDownload(r.path, 300, r.name) });
+}
+
 // ---------- DELA in ChatGPT and Claude (MCP connector, Step 2b) ----------
 // The open Model Context Protocol over plain HTTP (JSON-RPC), with OAuth 2.1 sign in (PKCE, dynamic client registration).
 // Members sign in with their Lawfecta login on the DELA page; DELA never sees a password. Tokens are stored only as hashes.
@@ -1605,7 +1710,15 @@ function mcpTools(side: string) {
   const draftProp = { name: "save_proposal_draft", title: "Save a proposal draft", description: "Saves a proposal draft for one gig (price in dollars, what is included and excluded, schedule, qualifications). It is not sent: the freelancer sends it on the DELA website, where it counts against the monthly allowance unless invited. Never invent qualifications. " + NOTICE_TOOLS,
     inputSchema: { type: "object", properties: { gig_id: { type: "string" }, price_dollars: { type: "number" }, included: { type: "string" }, excluded: { type: "string" }, schedule: { type: "string" }, qualifications: { type: "string" }, message: { type: "string" } }, required: ["gig_id"] },
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } };
-  if (side !== "attorney") return [who, prof, mine, draftProp];
+  // Step 5, both sides: threads and meetings (reading, and reply drafts; sending and booking stay on the website)
+  const talk = [
+    { name: "list_my_threads", title: "My gig message threads", description: "Lists the member's message threads on gigs, with who each is with and how many messages are unread.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+    { name: "read_thread", title: "Read a message thread", description: "Reads the messages in one of the member's gig threads, oldest first.", inputSchema: { type: "object", properties: { thread_id: { type: "string" } }, required: ["thread_id"] }, annotations: { readOnlyHint: true } },
+    { name: "save_reply_draft", title: "Save a reply draft", description: "Saves a reply draft in one thread. It is not sent: the member checks and sends it on the DELA website. Keep everything on Lawfecta. " + NOTICE_TOOLS,
+      inputSchema: { type: "object", properties: { thread_id: { type: "string" }, body: { type: "string" } }, required: ["thread_id", "body"] }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
+    { name: "list_my_meetings", title: "My meetings", description: "Lists the member's meetings on gigs: time (UTC), length, status and whether attendance is confirmed.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+  ];
+  if (side !== "attorney") return [who, prof, mine, draftProp, ...talk];
   const gigTools = [
     { name: "list_my_gigs", title: "List my Flex Gigs", description: "Lists the attorney's Flex Gigs with status, budget, when each closes and how many proposals each has.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
     { name: "draft_gig_from_playbook", title: "Draft a Flex Gig from a playbook", description: "DELA writes the public version of a Flex Gig from one approved playbook and saves it as a draft. Nothing is posted: the attorney reviews the public version, budget and deadline and posts it on the DELA website. Uses DELA AI credits (or the member's own key).",
@@ -1614,7 +1727,7 @@ function mcpTools(side: string) {
     { name: "list_gig_proposals", title: "See proposals for a gig", description: "Shows the proposals for one of the attorney's gigs side by side: price against the budget (outside the range is labeled), what is included and excluded, schedule and qualifications. Choosing one happens on the DELA website.",
       inputSchema: { type: "object", properties: { gig_id: { type: "string" } }, required: ["gig_id"] }, annotations: { readOnlyHint: true } },
   ];
-  return [who, prof, ...gigTools,
+  return [who, prof, ...gigTools, ...talk,
     { name: "list_playbooks", title: "List my playbooks", description: "Lists playbooks in the member's DELA playbook library, with status and how complete each is.",
       inputSchema: { type: "object", properties: { status: { type: "string", enum: ["draft", "in_review", "approved", "archived"] }, search: { type: "string" } } }, annotations: { readOnlyHint: true } },
     { name: "get_playbook", title: "Read a playbook", description: "Reads one playbook: every part and step, its version, status and what is missing.",
@@ -1641,6 +1754,30 @@ async function mcpCall(ctx: Ctx, w: McpWho, name: string, a: Record<string, any>
     const c = ai?.credits;
     const data = { name: w.name, bd_member_id: w.bd_member_id, side: w.side, ai: ai?.mode === "own_key" ? "member's own key" : "Lawfecta's AI", credits_left: c ? (c.unlimited ? "no cap" : c.remaining) : null };
     return { text: `${w.name} (Lawfecta member ${w.bd_member_id}), ${w.side} side. AI: ${data.ai}; credits left this month: ${data.credits_left ?? "n/a"}.` + (w.side === "freelancer" ? " Freelancer tools (profile and work) come in a later DELA update." : ""), data };
+  }
+  if (name === "list_my_threads") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_threads", { p_person: w.person_id, p_side: w.side });
+    const ts = (r?.threads ?? []) as Array<Record<string, any>>;
+    return { text: ts.length ? ts.map((t) => `- ${t.gig_title} with ${t.other_name} (thread ${t.id})${t.unread ? `: ${t.unread} unread` : ""}`).join("\n") : "No message threads yet.", data: ts };
+  }
+  if (name === "read_thread") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_thread_text", { p_person: w.person_id, p_side: w.side, p_thread: uuid(a.thread_id) });
+    if (!r?.ok) fail(r);
+    const ls = (r.lines ?? []) as Array<Record<string, any>>;
+    return { text: `Thread about "${r.gig_title}":\n` + (ls.length ? ls.map((l) => `${l.who}: ${l.text}`).join("\n") : "(no messages yet)"), data: ls };
+  }
+  if (name === "save_reply_draft") {
+    const body = str(a.body, 8000);
+    if (messageLooksSensitive(body).length) throw new ToolError("This looks like it includes client information. DELA does not accept client names, case numbers or similar details.");
+    if (conductRules(withoutLawfectaLinks(body, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com"))).length) throw new ToolError("Keep everything on Lawfecta: the draft cannot include personal contact details or payment outside Lawfecta.");
+    const r = await rpc<Record<string, any>>(ctx, "dela_thread_draft", { p_person: w.person_id, p_side: w.side, p_thread: uuid(a.thread_id), p_body: body });
+    if (!r?.ok) fail(r);
+    return { text: "Saved the reply as a draft in the thread. It is not sent: open DELA, Inbox, to check it and send it." };
+  }
+  if (name === "list_my_meetings") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_meetings", { p_person: w.person_id, p_side: w.side, p_gig: null, p_meeting: null });
+    const ms = (r?.meetings ?? []) as Array<Record<string, any>>;
+    return { text: ms.length ? ms.map((m) => `- ${m.gig_title} with ${m.other_name}: ${String(m.start_at).slice(0, 16).replace("T", " ")} UTC, ${m.length_min} minutes, ${m.status}${m.attendance === "verified" ? ", attended" : ""}`).join("\n") : "No meetings yet.", data: ms };
   }
   if (name === "list_my_gigs") {
     const r = await rpc<Record<string, any>>(ctx, "dela_gigs_mine", { p_person: w.person_id });
@@ -1841,6 +1978,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/mcp": (c, a) => rpc(c, "dela_admin_mcp", { p_actor: a }),
   "/admin/catalog": (c, a) => rpc(c, "dela_admin_catalog", { p_actor: a }),
   "/admin/gigs": (c, a) => rpc(c, "dela_admin_gigs", { p_actor: a }),
+  "/admin/meetings": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_meetings", { p_actor: a })), provider_ready: !!c.deps.env("VECTERA_API_KEY") }),
   "/admin/verify": async (c, a) => {
     const d = await rpc<Record<string, any>>(c, "dela_admin_verify", { p_actor: a });
     for (const l of (d?.licenses ?? []) as Array<Record<string, any>>) if (l.method === "email" && !l.email_confirmed_at) l.email_delivery = await rpc(c, "dela_license_delivery", { p_license: l.id });
@@ -1873,6 +2011,7 @@ const ADMIN_POST: Record<string, AdminRoute> = {
     if (!read.ok) return { ok: false, reason: "catalog_problems", problems: read.problems };
     return await rpc(c, "dela_catalog_preview", { p_actor: a, p_file: str(c.body.file_name, 200), p_sha: await sha256Hex(text), p_rows: read.tools });
   },
+  "/admin/reports/close": (c, a) => rpc(c, "dela_admin_report_close", { p_actor: a, p_report: need(uuid(c.body.id)) }),
   "/admin/gigs/pause": (c, a) => rpc(c, "dela_admin_gig_pause", { p_actor: a, p_gig: need(uuid(c.body.id)), p_pause: c.body.pause === true, p_reason: str(c.body.reason, 300) }),
   "/admin/conduct/decide": (c, a) => rpc(c, "dela_admin_conduct_decide", { p_actor: a, p_flag: need(uuid(c.body.id)), p_clear: c.body.clear === true, p_note: str(c.body.note, 500) }),
   "/admin/catalog/confirm": (c, a) => rpc(c, "dela_catalog_confirm", { p_actor: a, p_version: need(uuid(c.body.version_id)) }),
@@ -2102,6 +2241,11 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "profiles_daily") { await rpc(ctx, "dela_profiles_daily", {}); return { ok: true }; }
   if (j.kind === "bd_profile_push") return await bdProfilePush(ctx, j.payload ?? {});
   if (j.kind === "gig_tick") { await rpc(ctx, "dela_gig_tick", { p: j.payload ?? {} }); return { ok: true }; }
+  if (j.kind === "meeting_tick") {
+    if (j.payload?.kind === "room") return await meetingRoom(ctx, String(j.payload.meeting_id));
+    await rpc(ctx, "dela_meeting_tick", { p: j.payload ?? {} });
+    return { ok: true };
+  }
   return { ok: false, retry: false, error: "unknown_job_kind" };
 }
 
@@ -2265,6 +2409,31 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /proposals/select": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_proposal_select", { p_person: s.person_id, p_prop: need(uuid(ctx.body.id)) })); }
       case "GET /work": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); return json(ctx, await rpc(ctx, "dela_work", { p_person: s.person_id })); }
       case "GET /talent": return await talent(ctx);
+      case "GET /availability": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_avail_get", { p_person: s.person_id })); }
+      case "POST /availability": return await availSave(ctx);
+      case "GET /meetings": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_meetings", { p_person: s.person_id, p_side: s.side, p_gig: uuid(ctx.url.searchParams.get("gig")), p_meeting: uuid(ctx.url.searchParams.get("id")) })); }
+      case "GET /meetings/slots": return await meetingSlots(ctx);
+      case "POST /meetings/hold": return await meetingHold(ctx);
+      case "POST /meetings/confirm": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_meeting_confirm", { p_person: s.person_id, p_meeting: need(uuid(ctx.body.id)) })); }
+      case "POST /meetings/cancel": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_meeting_cancel", { p_person: s.person_id, p_side: s.side, p_meeting: need(uuid(ctx.body.id)), p_reason: str(ctx.body.reason, 500) })); }
+      case "POST /meetings/consent": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_meeting_consent", { p_person: s.person_id, p_side: s.side, p_meeting: need(uuid(ctx.body.id)), p_consent: ctx.body.consent === true })); }
+      case "POST /meetings/followup": return await meetingFollowup(ctx);
+      case "GET /meetings/ics": return await meetingIcsFile(ctx);
+      case "GET /threads": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_threads", { p_person: s.person_id, p_side: s.side })); }
+      case "POST /threads/open": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_open", { p_person: s.person_id, p_side: s.side, p_gig: need(uuid(ctx.body.gig_id)), p_freelancer: uuid(ctx.body.freelancer) })); }
+      case "GET /threads/get": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_get", { p_person: s.person_id, p_side: s.side, p_thread: need(uuid(ctx.url.searchParams.get("id"))) })); }
+      case "POST /threads/send": return await messageSend(ctx);
+      case "POST /threads/edit": { const s = await memberSide(ctx); const b = str(ctx.body.body, 8000).trim(); if (!b) throw new HttpError(400, "bad_request"); const w = sensitive(ctx, b); if (w) return json(ctx, w);
+        if (conductRules(withoutLawfectaLinks(b, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com"))).length) return json(ctx, { ok: false, reason: "edit_needs_check" });
+        return json(ctx, await rpc(ctx, "dela_message_edit", { p_person: s.person_id, p_msg: need(uuid(ctx.body.id)), p_body: b })); }
+      case "POST /threads/remove": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_message_remove", { p_person: s.person_id, p_msg: need(uuid(ctx.body.id)) })); }
+      case "POST /threads/draft": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_draft", { p_person: s.person_id, p_side: s.side, p_thread: need(uuid(ctx.body.thread_id)), p_body: str(ctx.body.body, 8000) })); }
+      case "POST /threads/report": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_report", { p_person: s.person_id, p_side: s.side, p_thread: need(uuid(ctx.body.thread_id)), p_msg: uuid(ctx.body.message_id), p_reason: str(ctx.body.reason, 1000) })); }
+      case "POST /threads/block": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_block", { p_person: s.person_id, p_side: s.side, p_thread: need(uuid(ctx.body.thread_id)), p_block: ctx.body.block !== false })); }
+      case "POST /threads/assist": return await threadAssist(ctx);
+      case "GET /threads/file": return await messageFile(ctx);
+      case "GET /prefs": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_prefs", { p_person: s.person_id })); }
+      case "POST /prefs": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_prefs_save", { p_person: s.person_id, p: { read_receipts: ctx.body.read_receipts !== false } })); }
       case "GET /insights": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_insights", { p_person: s.person_id, p_side: s.side })); }
       case "POST /insights/remove": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_insight_remove", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)) })); }
       case "GET /playbooks/get": return await pbGet(ctx);
