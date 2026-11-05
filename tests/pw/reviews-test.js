@@ -123,7 +123,7 @@ async function rate(page, labels, n) { for (const l of labels) await label(page,
     await click(p, "Post the response");
     await waitFor(p, "Response: Thank you, it was a pleasure.");
     ok(true, "attorney: posts one public response");
-    await rate(p, ["Quality of the work", "Met the deadlines", "Communication", "Followed the playbook"], 2);
+    await rate(p, ["Quality of the work", "Met the deadlines", "Communication", "Followed the document"], 2);
     await label(p, "Would you hire them again?").selectOption("no");
     await label(p, "Your review").fill("The packet came in two days late and needed a lot of fixing.");
     await click(p, "Publish my review");
@@ -177,7 +177,7 @@ async function rate(page, labels, n) { for (const l of labels) await label(page,
     ok(t.includes("Rina Reviews asked you for a short, honest review") && t.includes("There is no reward"), "past client: the public page opens with no login");
     await label(p, "State of your license (two letters)").fill("TX");
     await label(p, "Bar number").fill("x");
-    await rate(p, ["Quality of the work", "Met the deadlines", "Communication", "Followed the playbook"], 5);
+    await rate(p, ["Quality of the work", "Met the deadlines", "Communication", "Followed the document"], 5);
     await label(p, "Would you hire them again?").selectOption("yes");
     await label(p, "Your review").fill("Reliable and careful over two years of work.");
     await label(p, "I confirm").check();

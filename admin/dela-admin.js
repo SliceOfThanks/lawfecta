@@ -1063,21 +1063,43 @@
         h("div", { class: "card" }, titled("h2", "Files not accepted", "ai_refused"),
           table(["When", "BD member", "File", "Reason"], d.refused.map(function (x) {
             return h("tr", null, h("td", { text: D.dateTime(x.at) }), h("td", { text: String(x.bd_member_id) }), h("td", { text: x.name }), h("td", { text: REFUSED[x.reason] || x.reason }));
-          }), "None.")), libraryCounts()));
+          }), "None.")), libraryCounts(), documentsCard()));
     }).catch(fail);
+  }
+
+  // The document standard: how many of each type, the conversion of older playbooks, and what is blocked
+  function documentsCard() {
+    var c = h("div", { class: "card" }, h("h2", { text: "Documents (Policy, Workflow, SOP, Playbook)" }), h("p", { class: "muted", text: "Loading..." }));
+    var TYPES = { sop: "SOP", workflow: "Workflow", playbook: "Playbook", policy: "Policy" };
+    api.get("/admin/documents").then(function (r) {
+      var d = r.data || r;
+      D.clear(c);
+      c.appendChild(h("h2", { text: "Documents (Policy, Workflow, SOP, Playbook)" }));
+      var sw = d.switches || {};
+      c.appendChild(h("p", { class: "small muted", text: "Document standard switch: " + (sw.document_standard || "off") + ". Conversion switch: " + (sw.document_conversion || "off") + "." }));
+      var bt = d.by_type || {};
+      c.appendChild(h("div", { class: "kv" }, Object.keys(TYPES).map(function (k) { return h("div", null, TYPES[k], h("b", { text: String(bt[k] || 0) })); })
+        .concat([h("div", null, "Older playbooks waiting to convert", h("b", { text: String(d.waiting || 0) })), h("div", null, "Converted", h("b", { text: String(d.converted || 0) })),
+          h("div", null, "Converted, not yet checked by the owner", h("b", { text: String(d.not_checked_by_owner || 0) })), h("div", null, "Blocked (missing A or attorney flag)", h("b", { text: String(d.blocked || 0) }))])));
+      var rows = d.recent || [];
+      c.appendChild(rows.length ? h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, ["When", "Firm", "ID", "Title", "Type", "Why"].map(function (x) { return h("th", { text: x }); }))),
+        h("tbody", null, rows.map(function (x) { return h("tr", null, h("td", { text: D.dateTime(x.at) }), h("td", { text: x.firm || "" }), h("td", { text: x.doc_id || "" }), h("td", { text: x.title }), h("td", { text: TYPES[x.doc_type] || "" }), h("td", { text: x.note || "" })); }))))
+        : h("p", { class: "muted", text: "No conversions yet." }));
+    }).catch(function () { D.clear(c); c.appendChild(h("p", { class: "muted", text: "Documents are not available yet." })); });
+    return c;
   }
   // Playbooks and the Process Recorder: counts only, never content
   function libraryCounts() {
-    var box = h("div", null, h("p", { class: "muted", text: "Loading playbook and recorder counts..." }));
+    var box = h("div", null, h("p", { class: "muted", text: "Loading document and recorder counts..." }));
     Promise.all([api.get("/admin/playbooks"), api.get("/admin/recorder")]).then(function (r) {
       var pb = r[0].data, rec = r[1].data;
       D.clear(box);
-      box.appendChild(h("div", { class: "card" }, titled("h2", "Playbooks by plan", "ai_playbooks"),
+      box.appendChild(h("div", { class: "card" }, titled("h2", "Documents by plan", "ai_playbooks"),
         pb.by_plan.length ? h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, ["Plan", "Libraries", "Playbooks", "Approved", "Drafts", "From Scribe", "Drafted by DELA"].map(function (x) { return h("th", { text: x }); }))),
-          h("tbody", null, pb.by_plan.map(function (x) { return h("tr", null, [x.plan || "", x.libraries, x.playbooks, x.approved, x.drafts, x.from_scribe, x.from_ai].map(function (v) { return h("td", { text: String(v) }); })); })))) : h("p", { class: "muted", text: "No playbooks yet." }),
+          h("tbody", null, pb.by_plan.map(function (x) { return h("tr", null, [x.plan || "", x.libraries, x.playbooks, x.approved, x.drafts, x.from_scribe, x.from_ai].map(function (v) { return h("td", { text: String(v) }); })); })))) : h("p", { class: "muted", text: "No documents yet." }),
         h("p", { class: "small muted", text: "Suggestions waiting for a decision: " + pb.suggestions_open + ". Imports in the last 30 days: " + pb.imports + ". Libraries at their limit: " + pb.at_limit.length + "." })));
       box.appendChild(h("div", { class: "card" }, titled("h2", "Process Recorder", "ai_recorder"),
-        rec.by_month.length ? h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, ["Month", "Started", "Finished", "Ready", "Failed", "Abandoned", "Built into playbooks", "Average minutes", "Uploaded files"].map(function (x) { return h("th", { text: x }); }))),
+        rec.by_month.length ? h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, ["Month", "Started", "Finished", "Ready", "Failed", "Abandoned", "Built into documents", "Average minutes", "Uploaded files"].map(function (x) { return h("th", { text: x }); }))),
           h("tbody", null, rec.by_month.map(function (x) { return h("tr", null, [x.month, x.started, x.finished, x.ready, x.failed, x.abandoned, x.built, x.avg_minutes === null ? "" : x.avg_minutes, x.uploads].map(function (v) { return h("td", { text: String(v) }); })); })))) : h("p", { class: "muted", text: "No recordings yet." }),
         h("p", { class: "small muted", text: "Recordings by browser: " + (Object.keys(rec.by_browser).map(function (k) { return k + " " + rec.by_browser[k]; }).join(", ") || "none") + ". Video storage in use: " + mb(rec.storage_bytes) + ". Videos deleted: " + rec.videos_deleted + "." })));
       box.appendChild(connectorCard());
@@ -1275,9 +1297,9 @@
     ai_errors: "The last 50 AI calls that failed and why, in the provider's words: bad key, no credit, provider down, rate limited.",
     ai_storage: "File storage used by each attorney's firm against their plan's allowance. Files in the trash count until the trash empties.",
     ai_held: "Files that looked like they hold client information. They stay with the member, who confirms there is none or removes the file. The AI does not use them until then.",
-    ai_playbooks: "How many playbooks each plan's libraries hold, how many are approved, and where they came from. Counts only; the Lawfecta Team never reads members' playbooks here.",
-    ai_connector: "Members who connected DELA to ChatGPT or Claude. The connector reads playbooks, saves drafts and suggests changes; changes are accepted on the DELA website. Stop ends one connection at once. To stop all of them, use the emergency pause (ChatGPT and Claude connector) or the mcp_connector switch.",
-    ai_recorder: "Recordings by month: started, finished uploading, ready for review, failed analysis, abandoned (never finished after a day), and built into a playbook. Use this to judge whether a desktop helper is worth building later.",
+    ai_playbooks: "How many documents each plan's libraries hold, how many are approved, and where they came from. Counts only; the Lawfecta Team never reads members' documents here.",
+    ai_connector: "Members who connected DELA to ChatGPT or Claude. The connector reads documents, saves drafts and suggests changes; changes are accepted on the DELA website. Stop ends one connection at once. To stop all of them, use the emergency pause (ChatGPT and Claude connector) or the mcp_connector switch.",
+    ai_recorder: "Recordings by month: started, finished uploading, ready for review, failed analysis, abandoned (never finished after a day), and built into a document. Use this to judge whether a desktop helper is worth building later.",
     ai_refused: "Files DELA did not keep, with the reason. These are deleted from storage straight away.",
     jobs: "Background work DELA does on its own, such as sending emails, reminders and the daily summary. It runs every minute and retries problems with longer waits.",
     jobs_problems: "Jobs that are waiting to retry (delayed), failed for good (dead) or failed once. The last error says why. Dead jobs count in Problems, last 24 hours on Release Control.",

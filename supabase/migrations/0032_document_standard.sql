@@ -554,6 +554,23 @@ begin
   end if;
 end $$;
 
+-- The Projects tab lists only SOPs and Workflows (and older playbooks), since only they can become a gig
+create or replace function dela_gigs_mine(p_person uuid) returns jsonb language plpgsql as $$
+declare due record;
+begin
+  for due in select id from gigs where status in ('open', 'paused') and closes_at <= now() and dela_firm_role(p_person, org_id) in ('owner', 'manager') loop perform dela_gig_close_if_due(due.id); end loop;
+  return jsonb_build_object('ok', true, 'eligibility', dela_attorney_eligibility(p_person),
+    'allowance', (select e from jsonb_array_elements(dela_entitlements(p_person, 'attorney')) e where e->>'key' = 'att.gigs_active'),
+    'min_budget_cents', dela_int_setting('gig.min_budget_cents', 25000),
+    'gigs', (select coalesce(jsonb_agg(jsonb_build_object('id', g.id, 'title', g.title, 'status', g.status, 'budget_min_cents', g.budget_min_cents, 'budget_max_cents', g.budget_max_cents,
+        'deadline', g.deadline, 'closes_at', g.closes_at, 'closed_at', g.closed_at, 'paused_by_team', g.paused_by_team,
+        'proposals', (select count(*) from proposals p where p.gig_id = g.id and p.status in ('sent', 'selected', 'not_selected')),
+        'questions_open', (select count(*) from gig_questions q where q.gig_id = g.id and q.status = 'open')) order by g.created_at desc), '[]')
+      from gigs g where dela_firm_role(p_person, g.org_id) in ('owner', 'manager') and g.status <> 'canceled'),
+    'playbooks', (select coalesce(jsonb_agg(jsonb_build_object('id', pb.id, 'title', pb.title, 'practice_area', pb.practice_area, 'doc_type', pb.doc_type, 'doc_id', pb.doc_id) order by pb.title), '[]')
+      from playbooks pb where pb.status = 'approved' and coalesce(pb.doc_type, '') not in ('policy', 'playbook') and dela_firm_role(p_person, pb.org_id) in ('owner', 'manager')));
+end $$;
+
 do $$
 declare f record;
 begin

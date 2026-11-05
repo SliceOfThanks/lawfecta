@@ -136,20 +136,20 @@ async function waitFor(page, words, ms) {
     ok(vals[0].includes("save it as a PDF"), "Stage 1's draft steps are on the review screen");
     ok(t.includes("You may want to add these"), "extra screenshots are offered");
     await p.screenshot({ path: path.join(SHOTS, "rec-review.png"), fullPage: true });
-    await click(p, "Build my playbook");
+    await click(p, "Build my document");
     await waitFor(p, "Complete:", 15000);
     ok((await sql("select count(*)::int n from playbooks where source = 'recorder'"))[0].n === 1, "Build my playbook makes a playbook from the recording");
 
     // Download and delete the video
     await click(p, "← Library");
-    await waitFor(p, "Open playbook");
+    await waitFor(p, "Open document");
     const [dl] = await Promise.all([p.waitForEvent("download"), click(p, "Download video")]);
     const file = path.join(SHOTS, "recording.webm");
     await dl.saveAs(file);
     ok(dl.suggestedFilename().startsWith("DELA - File a motion") && fs.statSync(file).size > 1000, "the video downloads as one file");
     await click(p, "Delete video");
     t = await waitFor(p, "Video deleted on");
-    ok(t.includes("Open playbook"), "deleting the video keeps the playbook");
+    ok(t.includes("Open document"), "deleting the video keeps the playbook");
 
     // A recording left at Uploading from another browser says so and can be removed (Stacey's recorder check 2026-11-05)
     await sql(`insert into recordings (org_id, person_id, title, status, max_minutes, request_id, created_at)

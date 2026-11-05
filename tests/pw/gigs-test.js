@@ -76,7 +76,7 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     let p = s.page;
     let t = await waitFor(p, "Post a new gig");
     ok(/Open gigs on your plan: 0 of \d+ in use/.test(t), "Projects shows the open-gig allowance (the foundation test may have changed the plan's number)");
-    await label(p, "Approved playbook").selectOption({ label: "New client intake" });
+    await label(p, "Approved SOP or Workflow").selectOption({ label: "New client intake" });
     await label(p, "Budget from ($)").fill("300");
     await label(p, "Budget to ($)").fill("600");
     await click(p, "Draft the gig with DELA");
@@ -101,7 +101,7 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     t = await waitFor(p, "Invitations (1)");
     ok(t.includes("proposals left this month"), "the allowance counter shows on Work");
     await dela(p).locator(".work", { hasText: "Client intake for a family law firm" }).first().click();
-    t = await waitFor(p, "The full playbook");
+    t = await waitFor(p, "The work handed to you");
     ok(t.includes("Shared with") && t.includes("Run the conflict check"), "an invited freelancer reads the full playbook, watermarked");
     ok(!t.includes("Final") && t.includes("Milestones are set after hiring"), "no milestones before hiring");
     await label(p, "Your question").fill("Which intake form do you use?");
@@ -129,7 +129,7 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     ok(t.includes("Why it fits: Family law"), "matches say why they fit");
     await dela(p).locator(".work", { hasText: "Client intake for a family law firm" }).first().click();
     t = await waitFor(p, "Your proposal");
-    ok(!t.includes("The full playbook"), "a matched freelancer sees only the public version");
+    ok(!t.includes("The work handed to you"), "a matched freelancer sees only the public version");
     ok(t.includes("Which intake form do you use?") === false, "an unanswered question is not shown to other applicants yet");
     await label(p, "Your total price ($)").fill("700");
     await label(p, "What your price includes").fill("Conflict check only");
@@ -171,7 +171,7 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     s = await open(browser, "DELA-App", 2600, "&tab=talent");
     p = s.page;
     t = await waitFor(p, "Fran 2601");
-    ok(t.includes("Create a gig from a playbook") && !t.includes("@test.invalid"), "Talent lists match-ready freelancers, with no contact details");
+    ok(t.includes("Create a gig from an SOP or Workflow") && !t.includes("@test.invalid"), "Talent lists match-ready freelancers, with no contact details");
     await s.ctx.close();
 
     // ---------- Freelancer 1: chosen; insights ----------

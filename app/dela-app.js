@@ -168,7 +168,7 @@
   // The draft count is read fresh each time Home opens, so a playbook drafted a minute ago counts
   // (Stacey's test 2026-11-05: Home showed 0 while the Library had drafts)
   function draftTile() {
-    var tile = stat("✦", me.playbooks_draft || 0, "Draft playbooks");
+    var tile = stat("✦", me.playbooks_draft || 0, "Draft documents");
     if ((me.switches || {}).playbook_library) {
       api.get("/me").then(function (r) {
         if (r && r.me && typeof r.me.playbooks_draft === "number") { me.playbooks_draft = r.me.playbooks_draft; var n = tile.querySelector(".stat"); if (n) n.textContent = String(r.me.playbooks_draft); }
@@ -261,7 +261,7 @@
   }
 
   var SECTIONS = {
-    delegate: ["Delegate", "Start a delegation, answer DELA's questions, and approve a step by step playbook. This opens in the next DELA update."],
+    delegate: ["Delegate", "Start a delegation, answer DELA's questions, and approve a step by step document. This opens in the next DELA update."],
     projects: ["Projects", "Your gigs, proposals, signed engagements and milestones will live here."],
     talent: ["Talent", "Find available, qualified paralegals, and keep your trusted bench in one place."],
     profile: ["Profile", "Profile Builder and Profile Audit, your services, promotions and pitches will live here."],
@@ -354,7 +354,7 @@
       h("button", { class: "ghost small", onclick: function () { tab = "ai"; draw(); } }, "AI settings"));
     chatEl.appendChild(head);
     chatEl.appendChild(h("p", { class: "muted", text: me.side === "attorney"
-      ? "Describe a task you want to hand off, ask for a checklist, or attach a process document and ask DELA to turn it into a playbook. " + creditsLine()
+      ? "Describe a task you want to hand off, ask for a checklist, or attach a process write-up and ask DELA to turn it into an SOP. " + creditsLine()
       : "Plan your work, draft a checklist or tidy a process. " + creditsLine() }));
     if (chat.list.length) {
       var sel = h("select", { "aria-label": "Earlier chats", onchange: function () { if (sel.value) openChat(sel.value); } },
@@ -630,7 +630,7 @@
       ai.voice_on ? h("p", { class: "small muted", text: "Each recording can be up to " + ai.voice_max_seconds + " seconds. Claude keys cannot turn speech into text, so members on a Claude key use Lawfecta's speech to text, which uses included credits. OpenAI keys handle it themselves." }) : null));
     if ((me.switches || {}).profiles) {
       aiEl.appendChild(h("div", { class: "card" }, h("h2", { text: "What DELA knows about you" }),
-        h("p", { text: "DELA's AI reads your own " + D.SIDE[me.side] + " profile (headline, practice areas, where you practice, your tech tools and services) to tailor its answers, for example by naming your own tools in playbook steps. It never reads other members' profiles." }),
+        h("p", { text: "DELA's AI reads your own " + D.SIDE[me.side] + " profile (headline, practice areas, where you practice, your tech tools and services) to tailor its answers, for example by naming your own tools in document steps. It never reads other members' profiles." }),
         h("button", { class: "ghost small", onclick: function () { tab = "profile"; draw(); } }, "Open your profile")));
     }
     if ((me.switches || {}).member_insights) aiEl.appendChild(insightsCard());
@@ -646,7 +646,7 @@
       card.appendChild(h("div", { class: "kv" },
         h("div", null, "Provider", h("b", { text: providerName(k.provider) })),
         h("div", null, "Key", h("b", { text: "ending " + k.last4 })),
-        h("div", null, "Used for", h("b", { text: k.use_for === "chat" ? "Chat and playbooks only" : "All AI tasks" })),
+        h("div", null, "Used for", h("b", { text: k.use_for === "chat" ? "Chat and documents only" : "All AI tasks" })),
         h("div", null, "Status", h("b", { text: k.status === "failed" ? "Not working" : "Working" }))));
       if (k.status === "failed") card.appendChild(h("p", { class: "notice bad", text: "This key has not worked since " + D.date(k.failed_since) + ": " + (KEY_PROBLEM[k.last_error] || "the provider refused it.") + " Test it again after fixing it with your provider, or replace it." }));
       card.appendChild(h("div", { class: "row", style: "margin-top:10px" },
@@ -668,7 +668,7 @@
     var id = newId();
     var prov = h("select", { "aria-label": "Provider" }, h("option", { value: "openai", text: "OpenAI" }), h("option", { value: "anthropic", text: "Claude (Anthropic)" }));
     var key = h("input", { type: "password", autocomplete: "off", spellcheck: "false", placeholder: "Paste your key", style: "width:100%" });
-    var use = h("select", { "aria-label": "Use the key for" }, h("option", { value: "all", text: "All AI tasks" }), h("option", { value: "chat", text: "Chat and playbooks only" }));
+    var use = h("select", { "aria-label": "Use the key for" }, h("option", { value: "all", text: "All AI tasks" }), h("option", { value: "chat", text: "Chat and documents only" }));
     var help = h("p", { class: "small muted" });
     function where() { help.textContent = prov.value === "openai" ? "Get a key at platform.openai.com, under API keys. Your OpenAI account needs billing set up." : "Get a key at console.anthropic.com, under API Keys. Your Anthropic account needs credit."; }
     prov.addEventListener("change", where);
@@ -795,6 +795,7 @@
     if (side === "freelancer" && r.settings.documents_on) profEl.appendChild(docsCard());
     if (side === "attorney") {
       profEl.appendChild(firmCard());
+      if ((me.switches || {}).document_standard) { var dfBox = h("div"); profEl.appendChild(dfBox); docFirm().then(function (f) { firmProfileForm(dfBox, f, function () { draw(); }); }).catch(function () {}); }
       ((r.firm || {}).staff_of || []).forEach(function (o) { profEl.appendChild(firmCard(o)); });
     }
     profileReviewsCard(profEl);
@@ -809,7 +810,7 @@
       var done = miss.indexOf(k) < 0 && miss.indexOf("everything") < 0;
       return h("div", { class: "check" + (done ? " done" : "") }, h("i", { "aria-hidden": "true", text: done ? "✓" : "" }), h("span", { text: (prof.data.labels || {})[k] || k }));
     })));
-    if (me.side === "attorney" && st.verification !== "verified") card.appendChild(h("p", { class: "small muted", style: "margin-top:8px", text: "You can use Ask DELA, playbooks, files and the recorder before you are verified. Posting work and hiring need a verified license." }));
+    if (me.side === "attorney" && st.verification !== "verified") card.appendChild(h("p", { class: "small muted", style: "margin-top:8px", text: "You can use Ask DELA, documents, files and the recorder before you are verified. Posting work and hiring need a verified license." }));
     return card;
   }
 
@@ -1068,8 +1069,8 @@
       prof.body.software = picked.concat(other.value.split(",").map(function (x) { return x.trim(); }).filter(Boolean));
       prof.dirty = true;
     });
-    return h("div", null, field("Tech tools you use" + (required ? "" : " (optional)"), box, "Open a group to choose the tools you use. DELA's AI uses them to tailor its answers, for example by naming your own tools in playbook steps.",
-      "Choose every tool you use day to day. Attorneys can search for freelancers by tool, and DELA names your tools in playbook steps."), other);
+    return h("div", null, field("Tech tools you use" + (required ? "" : " (optional)"), box, "Open a group to choose the tools you use. DELA's AI uses them to tailor its answers, for example by naming your own tools in document steps.",
+      "Choose every tool you use day to day. Attorneys can search for freelancers by tool, and DELA names your tools in document steps."), other);
   }
 
   function servicesEditor(required) {
@@ -1221,7 +1222,7 @@
   // ---------- DELA in ChatGPT and Claude (connector) ----------
 
   var CONNECT_CAN = {
-    attorney: ["See your name, side, plan and AI credits left", "Read your profile and where your verification stands", "List and read the playbooks in your library", "Save new playbook drafts and suggest changes (you accept changes here, on the DELA website)", "Have DELA's AI draft a playbook, using your AI credits or your own key", "Export a playbook as text, a web page or a checklist"],
+    attorney: ["See your name, side, plan and AI credits left", "Read your profile and where your verification stands", "List and read the documents in your library", "Save new document drafts and suggest changes (you accept changes here, on the DELA website)", "Have DELA's AI draft a document, using your AI credits or your own key", "Export a document as text, a web page or a checklist"],
     freelancer: ["See your name, side, plan and AI credits left", "Read your profile and what is missing to be match-ready"],
   };
   var CONNECT_CANNOT = "It cannot pay, hire, sign, send messages, delete anything or see your passwords or AI keys.";
@@ -1267,8 +1268,8 @@
     api.get("/connections").then(function (r) {
       D.clear(card);
       card.appendChild(h("h2", { text: "Use DELA in ChatGPT and Claude" }));
-      if (!r.on && !r.connections.length) { card.appendChild(h("p", { text: "Opens soon. You will be able to read and draft your DELA playbooks from ChatGPT or Claude." })); return; }
-      card.appendChild(h("p", { text: me.side === "attorney" ? "Read your playbooks, save drafts and suggest changes from ChatGPT or Claude. Changes wait for you here before they count." : "Connect ChatGPT or Claude to your DELA freelancer side. More freelancer tools come in a later update." }));
+      if (!r.on && !r.connections.length) { card.appendChild(h("p", { text: "Opens soon. You will be able to read and draft your DELA documents from ChatGPT or Claude." })); return; }
+      card.appendChild(h("p", { text: me.side === "attorney" ? "Read your documents, save drafts and suggest changes from ChatGPT or Claude. Changes wait for you here before they count." : "Connect ChatGPT or Claude to your DELA freelancer side. More freelancer tools come in a later update." }));
       var addr = h("input", { type: "text", readonly: true, value: r.url, "aria-label": "DELA connector address", style: "width:100%" });
       card.appendChild(h("label", { text: "DELA connector address" }));
       card.appendChild(h("div", { class: "row" }, addr, h("button", { class: "ghost small", onclick: function () {
@@ -1498,15 +1499,16 @@
     deleted: "Moved to the trash", restored_from_trash: "Restored from the trash", file_attached: "Attached a file", file_removed: "Removed a file" };
   function can(n) { return lib.pb ? (RANK[lib.pb.role] || 0) >= n : (lib.data && lib.data.list ? (RANK[lib.data.list.role] || 0) >= n : false); }
   function failText(r) {
-    if (r.reason === "playbook_limit") return "Your library is full: " + r.count + " of " + r.limit + " playbooks. Archived playbooks count too. Delete one you no longer need, or upgrade your plan for more.";
-    if (r.reason === "changed") return "Someone saved a newer version while you were working. Your changes were not saved. Reload the playbook, then make your change again.";
-    if (r.reason === "not_complete") return "This playbook is not complete yet. Still missing: " + (r.missing || []).join(", ") + ".";
+    if (DOC_ERR[r.reason]) return DOC_ERR[r.reason];
+    if (r.reason === "playbook_limit") return "Your library is full: " + r.count + " of " + r.limit + " documents. Archived documents count too. Delete one you no longer need, or upgrade your plan for more.";
+    if (r.reason === "changed") return "Someone saved a newer version while you were working. Your changes were not saved. Reload the document, then make your change again.";
+    if (r.reason === "not_complete") return "This document is not complete yet. Still missing: " + (r.missing || []).join(", ") + ".";
     if (r.reason === "administrator_only") return "Only the library's administrator can do that.";
     if (r.reason === "not_allowed") return "Your role in this library does not allow that.";
     if (r.reason === "no_seat") return "Every seat on this plan is in use (" + r.seats + "). Editors need a seat. Add them as a commenter or viewer, or add seats on the Business plan.";
     if (r.reason === "no_guest_place") return "This library already has " + r.guests + " commenters and viewers, the most allowed.";
     if (r.reason === "screenshot_held") return "A screenshot is waiting for your client information check. Confirm it has no client information, or untick it, then build again.";
-    if (r.reason === "library_off") return "The playbook library is not open for your account yet.";
+    if (r.reason === "library_off") return "The document library is not open for your account yet.";
     if (r.reason === "import_off") return "Import from Scribe is not open for your account yet.";
     if (r.reason === "image_host_not_allowed") return "DELA only fetches screenshots from Scribe's own image addresses. This one was skipped: " + (r.host || "") + ".";
     if (r.reason === "ai_failed" && r.source && r.source !== "lawfecta") return "Your own AI key did not work: " + (KEY_PROBLEM[r.code] || "the provider refused it.") + " Nothing ran on Lawfecta's AI. Open AI settings to fix it.";
@@ -1535,7 +1537,7 @@
     D.clear(libEl);
     var d = lib.data, L = d.list;
     if (!L) { libEl.appendChild(h("p", { class: "muted", text: "No library yet." })); return; }
-    var head = h("div", { class: "row", style: "margin:18px 0 4px" }, h("h1", { class: "grow", style: "margin:0", text: "Playbook library" }));
+    var head = h("div", { class: "row", style: "margin:18px 0 4px" }, h("h1", { class: "grow", style: "margin:0", text: "Document library" }));
     if (d.libraries.length > 1) {
       var pick = h("select", { "aria-label": "Library", onchange: function () { lib.org = pick.value; loadLibrary(); } }, d.libraries.map(function (l) {
         return h("option", { value: l.org_id, selected: l.org_id === lib.org, text: (l.mine ? "My library" : l.name) + " (" + ROLE_WORDS[l.role] + ")" });
@@ -1543,14 +1545,14 @@
       head.appendChild(pick);
     }
     libEl.appendChild(head);
-    libEl.appendChild(h("p", { class: "muted", text: "Each playbook is one repeatable process, written so a trained person who has never done it can do it right, with the points where an attorney must review." }));
+    libEl.appendChild(h("p", { class: "muted", text: "Each document is one repeatable process, written so a trained person who has never done it can do it right, with the points where an attorney must review." }));
     if (!L.on) { libEl.appendChild(h("div", { class: "notice", text: D.errorText("library_off") })); return; }
     var pct = L.limit ? Math.min(100, Math.round(L.count * 100 / L.limit)) : 0;
     libEl.appendChild(h("div", { class: "card" },
-      h("div", { class: "row" }, h("b", { class: "grow", text: L.limit === null ? L.count + " playbooks (no cap on your plan)" : L.count + " of " + L.limit + " playbooks" }), h("span", { class: "badge", text: "Your role: " + ROLE_WORDS[L.role] })),
+      h("div", { class: "row" }, h("b", { class: "grow", text: L.limit === null ? L.count + " documents (no cap on your plan)" : L.count + " of " + L.limit + " documents" }), h("span", { class: "badge", text: "Your role: " + ROLE_WORDS[L.role] })),
       L.limit !== null ? h("div", { class: "bar" }, h("span", { style: "width:" + pct + "%" + (pct >= 100 ? ";background:var(--bad)" : "") })) : null,
       h("div", { class: "row", style: "margin-top:10px" },
-        can(3) ? h("button", { class: "blue", onclick: newPlaybook }, "New playbook") : null,
+        can(3) ? h("button", { class: "blue", onclick: L.standard ? function () { DOC.flow = null; newDocument(); } : newPlaybook }, "New document") : null,
         can(3) && L.scribe_on ? h("button", { class: "ghost", onclick: startScribe }, "Import from Scribe") : null,
         can(3) ? h("button", { class: "ghost", onclick: suggestMissing }, "What am I missing?") : null,
         L.role === "administrator" ? h("button", { class: "ghost", onclick: openTeam }, "Team") : null)));
@@ -1561,7 +1563,7 @@
       }))));
     }
     if (can(3)) libEl.appendChild(recordingsCard());
-    var q = h("input", { type: "search", placeholder: "Search", "aria-label": "Search playbooks", value: lib.q });
+    var q = h("input", { type: "search", placeholder: "Search", "aria-label": "Search documents", value: lib.q });
     q.addEventListener("input", function () { lib.q = q.value; drawList(); });
     var filters = [["all", "All"], ["draft", "Drafts"], ["in_review", "In review"], ["approved", "Approved"], ["due", "Due for review"], ["archived", "Archived"]];
     if (L.role === "administrator") filters.push(["trash", "Trash"]);
@@ -1579,9 +1581,10 @@
         if (lib.filter === "due") return p.status === "approved" && p.next_review_at && p.next_review_at <= today;
         if (lib.filter !== "all" && p.status !== lib.filter) return false;
         if (lib.filter === "all" && p.status === "archived") return false;
-        return !lib.q || (p.title + " " + p.practice_area).toLowerCase().indexOf(lib.q.toLowerCase()) >= 0;
+        return !lib.q || (p.title + " " + (p.practice_area || "") + " " + (p.doc_id || "")).toLowerCase().indexOf(lib.q.toLowerCase()) >= 0;
       });
-      if (!rows.length) { listEl.appendChild(h("div", { class: "card" }, h("p", { class: "muted", style: "margin:0", text: L.playbooks.length ? "Nothing here." : "No playbooks yet. Click New playbook and describe a task, or import a guide you made in Scribe." }))); return; }
+      if (!rows.length) { listEl.appendChild(h("div", { class: "card" }, h("p", { class: "muted", style: "margin:0", text: L.playbooks.length ? "Nothing here." : "No documents yet. Click New document and describe a task, or import a guide you made in Scribe." }))); return; }
+      if (L.standard) { if (DOC.starters) docIndex(listEl, rows); else docStarters().then(function () { drawList(); }).catch(function () { DOC.starters = { lifecycle: [] }; drawList(); }); return; }
       rows.forEach(function (p) {
         listEl.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { openPlaybook(p.id, "read"); } },
           h("span", { class: "chip", text: String(p.completeness) + "%" }),
@@ -1614,7 +1617,7 @@
       extra = extra || {};
       D.clear(problem);
       go.disabled = true;
-      status.textContent = "DELA is drafting your playbook...";
+      status.textContent = "DELA is drafting your document...";
       api.post("/playbooks/create", { org_id: lib.org, request_id: req, title: title.value, description: ta.value, file_ids: files, attempt: attempt,
         lawfecta_once: extra.lawfecta_once === true, confirm_no_client_info: extra.confirm === true }).then(function (r) {
         go.disabled = false;
@@ -1636,7 +1639,7 @@
     }
     go.addEventListener("click", function () { if (!ta.value.trim() && !files.length) { D.toast(app, "Describe the task or choose a file first, or click Start blank.", true); return; } send(); });
     blank.addEventListener("click", function () {
-      api.post("/playbooks/create", { org_id: lib.org, request_id: req, title: title.value || "Untitled playbook" }).then(okOr).then(function (r) { openPlaybook(r.id, "edit"); }).catch(pbFail);
+      api.post("/playbooks/create", { org_id: lib.org, request_id: req, title: title.value || "Untitled document" }).then(okOr).then(function (r) { openPlaybook(r.id, "edit"); }).catch(pbFail);
     });
     var fileBtn = (me.switches || {}).file_uploads ? h("button", { class: "ghost small", type: "button", onclick: function () {
       api.get("/files").then(function (r) {
@@ -1678,7 +1681,7 @@
         h("label", { style: "display:flex;gap:8px;align-items:flex-start" }, tick, h("span", { text: "This file has no confidential client information (no client names, case numbers, dates of birth or similar)." })),
         h("div", { class: "row" }, go2), say));
     } }, "Upload a new file") : null;
-    box.appendChild(h("h2", { text: "New playbook" }));
+    box.appendChild(h("h2", { text: "New document" }));
     box.appendChild(notice());
     box.appendChild(title);
     box.appendChild(ta);
@@ -1698,7 +1701,7 @@
     api.post("/playbooks/missing", { org_id: lib.org, request_id: newId() }).then(function (r) {
       D.clear(out);
       if (!r.ok) { out.appendChild(h("p", { class: "problem", text: failText(r) })); return; }
-      out.appendChild(h("h2", { text: "Playbooks firms like yours often have" }));
+      out.appendChild(h("h2", { text: "Documents firms like yours often have" }));
       out.appendChild(h("ul", { class: "list" }, r.suggestions.map(function (sg) {
         return h("li", null, h("b", { text: sg.title }), h("div", { class: "small muted", text: sg.why }));
       })));
@@ -1743,6 +1746,7 @@
   function body() { return lib.pb.body || {}; }
 
   function drawPlaybook() {
+    if (lib.pb.body && lib.pb.body.schema === 2) return drawDocument();
     var P = lib.pb.playbook, b = body();
     D.clear(libEl);
     libEl.appendChild(h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "ghost small", onclick: loadLibrary }, "← Library")));
@@ -1773,7 +1777,7 @@
         P.status === "archived" ? h("button", { class: "ghost small", onclick: function () { status("unarchive", "Back in the library"); } }, "Bring back from the archive")
           : P.status !== "trash" ? h("button", { class: "ghost small", onclick: function () { status("archive", "Archived"); } }, "Archive") : null,
         P.status === "trash" ? h("button", { class: "ghost small", onclick: function () { status("restore", "Restored"); } }, "Restore from the trash")
-          : h("button", { class: "danger small", onclick: function () { if (confirm("Move this playbook to the trash? You can restore it for 30 days.")) status("trash", "Moved to the trash"); } }, "Delete")));
+          : h("button", { class: "danger small", onclick: function () { if (confirm("Move this document to the trash? You can restore it for 30 days.")) status("trash", "Moved to the trash"); } }, "Delete")));
     }
   }
 
@@ -1791,7 +1795,7 @@
     var attempt = 0;
     function send(extra) {
       btn.disabled = true;
-      status.textContent = "DELA is updating the playbook...";
+      status.textContent = "DELA is updating the document...";
       api.post("/playbooks/fill", { id: lib.pb.playbook.id, answers: ta.value, attempt: attempt, lawfecta_once: !!(extra && extra.once), confirm_no_client_info: !!(extra && extra.confirm) }).then(function (r) {
         btn.disabled = false;
         status.textContent = "";
@@ -1924,11 +1928,11 @@
     var list = h("div", { class: "chat" });
     function drawLog() {
       D.clear(list);
-      if (!log.length) list.appendChild(h("div", { class: "card soft" }, h("p", { style: "margin:0", text: "Ask about this playbook (\"Who does step 4?\") or ask for a change (\"Add a conflict check before step 2\"). DELA proposes changes as suggestions; nothing changes until " + (can(4) ? "you or an editor accept it." : "an editor or the administrator accepts it.") })));
+      if (!log.length) list.appendChild(h("div", { class: "card soft" }, h("p", { style: "margin:0", text: "Ask about this document (\"Who does step 4?\") or ask for a change (\"Add a conflict check before step 2\"). DELA proposes changes as suggestions; nothing changes until " + (can(4) ? "you or an editor accept it." : "an editor or the administrator accepts it.") })));
       log.forEach(function (m) { list.appendChild(h("div", { class: "msg " + m.role, text: m.text })); });
     }
     drawLog();
-    var ta = h("textarea", { "aria-label": "Message about this playbook", style: "width:100%;min-height:70px" });
+    var ta = h("textarea", { "aria-label": "Message about this document", style: "width:100%;min-height:70px" });
     var status = h("span", { class: "small muted", role: "status" });
     var auto = h("input", { type: "checkbox" });
     var ai = chat.ai || {};
@@ -1989,7 +1993,7 @@
       area.appendChild(h("div", { class: "card" },
         h("div", { class: "row" }, h("h3", { class: "grow", style: "margin:0", text: (sg.kind === "ai" ? "From DELA chat: " : "From " + sg.by + ": ") + (sg.note || "Suggested change") }), sg.removes_review ? h("span", { class: "badge bad", text: "Removes an attorney review point" }) : null),
         h("div", { class: "small muted", text: D.dateTime(sg.at) + " | made from version " + sg.base_version }),
-        stale ? h("p", { class: "notice", text: "The playbook changed after this was suggested, so it cannot be applied as it is. Ask DELA again in Chat." }) : null,
+        stale ? h("p", { class: "notice", text: "The document changed after this was suggested, so it cannot be applied as it is. Ask DELA again in Chat." }) : null,
         changes.length ? h("ul", null, changes.map(function (c) { return h("li", null, h("b", { text: c[0] + ": " }), c[1]); })) : h("p", { class: "muted", text: "No visible change." }),
         mayDecide ? h("div", { class: "row" },
           h("button", { class: "blue small", disabled: stale, onclick: function () { decide(sg.id, true); } }, "Accept"),
@@ -2015,7 +2019,7 @@
   }
 
   function activityView(area) {
-    area.appendChild(h("div", { class: "card" }, h("p", { class: "small muted", text: "Every event on this playbook, newest first. Nobody can edit or delete these lines." }),
+    area.appendChild(h("div", { class: "card" }, h("p", { class: "small muted", text: "Every event on this document, newest first. Nobody can edit or delete these lines." }),
       h("ul", { class: "list" }, lib.pb.activity.map(function (a) {
         return h("li", null, h("b", { text: ACTION_WORDS[a.action] || a.action.split("_").join(" ") }), " by " + (a.by || "DELA") + (a.version ? ", version " + a.version : "") +
           (a.detail && a.detail.format ? " (" + a.detail.format + ")" : ""), h("div", { class: "small muted", text: D.dateTime(a.at) }));
@@ -2048,7 +2052,7 @@
   }
 
   function pbFilesView(area) {
-    var card = h("div", { class: "card" }, h("p", { class: "small muted", text: "Templates, forms and checklists kept with this playbook. They come from your firm's Files tab; new versions of a file follow automatically." }));
+    var card = h("div", { class: "card" }, h("p", { class: "small muted", text: "Templates, forms and checklists kept with this document. They come from your firm's Files tab; new versions of a file follow automatically." }));
     if (!lib.pb.files.length) card.appendChild(h("p", { class: "muted", text: "No files attached." }));
     lib.pb.files.forEach(function (fl) {
       card.appendChild(h("div", { class: "row", style: "margin:6px 0" }, h("span", { class: "grow", text: fl.name }), h("button", { class: "ghost small", onclick: function () { openFile(fl, fl.ext !== "pdf" && fl.ext !== "png" && fl.ext !== "jpg"); } }, "Open"),
@@ -2168,7 +2172,7 @@
     D.clear(libEl);
     libEl.appendChild(h("div", { class: "card" }, h("h2", { text: "Import a guide from Scribe" }),
       h("ol", null, h("li", { text: "In Scribe, open the guide." }), h("li", { text: "Click Share, then the Export tab." }), h("li", { text: "Click Export next to HTML (or Markdown) and save the file." }), h("li", { text: "Choose that file below." })),
-      h("p", { class: "small muted", text: "DELA reads the steps and screenshots, then shows them on a review screen where you check screenshots for client information, blur parts, fix steps and add why each step matters. Then DELA builds the playbook. Free Scribe accounts: open the guide's share page, press Ctrl+P (Cmd+P on a Mac), choose Save as PDF, upload it on the Files tab, and ask DELA to turn it into a playbook." }),
+      h("p", { class: "small muted", text: "DELA reads the steps and screenshots, then shows them on a review screen where you check screenshots for client information, blur parts, fix steps and add why each step matters. Then DELA builds the document. Free Scribe accounts: open the guide's share page, press Ctrl+P (Cmd+P on a Mac), choose Save as PDF, upload it on the Files tab, and ask DELA to turn it into a document." }),
       notice(),
       h("label", { style: "display:flex;gap:8px;align-items:flex-start;font-weight:600" }, tick, h("span", { text: "This guide and its screenshots have no confidential client information." })),
       h("div", { class: "row" }, input, go, h("button", { class: "ghost", onclick: drawLibrary }, "Cancel")), status));
@@ -2236,7 +2240,7 @@
     titleIn.addEventListener("change", function () { imp.title = titleIn.value; saveImport().catch(pbFail); });
     libEl.appendChild(h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "ghost small", onclick: function () { lib.importId = null; loadLibrary(); } }, "← Library")));
     libEl.appendChild(h("h1", { text: imp.source === "recorder" ? "Review your recording" : "Review your guide" }));
-    libEl.appendChild(h("p", { class: "muted", text: "Check every screenshot for client information, blur anything private, fix the steps, and add why each step matters. Nothing goes to the AI until you click Build my playbook." }));
+    libEl.appendChild(h("p", { class: "muted", text: "Check every screenshot for client information, blur anything private, fix the steps, and add why each step matters. Nothing goes to the AI until you click Build my document." }));
     libEl.appendChild(h("div", { class: "card" }, h("label", { text: "Title" }), titleIn));
     imp.steps.forEach(function (st, i) {
       var t = h("textarea", { style: "width:100%;min-height:54px", "aria-label": "Step " + (i + 1), value: st.text });
@@ -2269,10 +2273,10 @@
     });
     if (imp.source === "recorder") { var rp = h("div"); libEl.appendChild(rp); recorderPanel(rp); }
     var ctx = h("textarea", { style: "width:100%;min-height:70px", placeholder: "Anything else DELA should know: who does this, what starts it, what done looks like, where an attorney must check." });
-    var btn = h("button", { class: "big" }, "Build my playbook");
+    var btn = h("button", { class: "big" }, "Build my document");
     var attempt = 0;
     btn.addEventListener("click", function () {
-      if (!confirm("Check your screenshots for client information before DELA builds your playbook. Build it now?")) return;
+      if (!confirm("Check your screenshots for client information before DELA builds your document. Build it now?")) return;
       build({});
     });
     function build(extra) {
@@ -2280,7 +2284,7 @@
       btn.textContent = "Building...";
       api.post("/imports/build", { id: imp.id, context: ctx.value, attempt: attempt, lawfecta_once: extra.once === true, confirm_no_client_info: extra.confirm === true }).then(function (r) {
         btn.disabled = false;
-        btn.textContent = "Build my playbook";
+        btn.textContent = "Build my document";
         if (!r.ok) {
           if (r.reason === "looks_like_client_info" && confirm("The steps may include " + kindsText(r.kinds) + ". Build anyway? Only if there is no client information.")) { build({ confirm: true }); return; }
           attempt++;
@@ -2290,7 +2294,7 @@
         lib.questions = r.questions || [];
         lib.importId = null;
         openPlaybook(r.playbook_id, "read");
-      }).catch(function (e) { btn.disabled = false; btn.textContent = "Build my playbook"; pbFail(e); });
+      }).catch(function (e) { btn.disabled = false; btn.textContent = "Build my document"; pbFail(e); });
     }
     libEl.appendChild(h("div", { class: "card" }, notice(), h("label", { text: "Anything to add" }), ctx, h("div", { class: "row", style: "margin-top:10px" }, btn,
       h("button", { class: "ghost", onclick: function () { if (confirm("Discard this import?")) api.post("/imports/discard", { id: imp.id }).then(function () { lib.importId = null; loadLibrary(); }).catch(pbFail); } }, "Discard"))));
@@ -2405,7 +2409,7 @@
       var st = recs.data.settings;
       card.appendChild(h("div", { class: "row" }, h("h2", { class: "grow", text: "Recordings" }),
         st.on ? h("button", { class: "blue small", onclick: recordView }, "Record a process") : null));
-      card.appendChild(h("p", { class: "small muted", text: "Videos are kept " + st.video_days + " days on your plan, then deleted; the playbook you build stays. Storage used: " + mbText(recs.data.used_bytes) + " of " + mbText(recs.data.limit_bytes) + "." }));
+      card.appendChild(h("p", { class: "small muted", text: "Videos are kept " + st.video_days + " days on your plan, then deleted; the document you build stays. Storage used: " + mbText(recs.data.used_bytes) + " of " + mbText(recs.data.limit_bytes) + "." }));
       if (waiting.length) {
         card.appendChild(h("div", { class: "notice", role: "alert" }, h("p", { style: "margin:0 0 6px", text: "Your last recording didn't finish uploading." }),
           h("button", { class: "blue small", onclick: function () { finishLeftovers(waiting); } }, "Finish upload")));
@@ -2429,7 +2433,7 @@
             h("td", { "data-label": "Video deletes on" }, del, days !== null && days <= 3 && !x.video_deleted_at ? h("span", { class: "badge held", style: "margin-left:6px", text: "Deletes in " + Math.max(days, 0) + " days" }) : null),
             h("td", null, h("div", { class: "row" },
               x.status === "ready" && x.import_id && !x.playbook_id ? h("button", { class: "blue small", onclick: function () { openImport(x.import_id); } }, "Review") : null,
-              x.playbook_id ? h("button", { class: "ghost small", onclick: function () { openPlaybook(x.playbook_id, "read"); } }, "Open playbook") : null,
+              x.playbook_id ? h("button", { class: "ghost small", onclick: function () { openPlaybook(x.playbook_id, "read"); } }, "Open document") : null,
               stuck(x) ? h("button", { class: "ghost small", onclick: function () {
                 if (!confirm("Remove this recording? It did not finish uploading, so there is nothing to build from it. Record the process again.")) return;
                 api.post("/recordings/discard", { id: x.id }).then(function (r) { if (r.ok === false) throw r; D.toast(app, "Recording removed"); drawLibrary(); }).catch(pbFail);
@@ -2437,7 +2441,7 @@
               x.status === "failed" ? h("button", { class: "blue small", onclick: function () { api.post("/recordings/retry", { id: x.id }).then(function (r) { if (r.ok === false) throw r; D.toast(app, "Analyzing again"); drawLibrary(); }).catch(pbFail); } }, "Try again") : null,
               !x.video_deleted_at && x.video_bytes ? h("button", { class: "ghost small", onclick: function () { downloadVideo(x); } }, "Download video") : null,
               !x.video_deleted_at ? h("button", { class: "danger small", onclick: function () {
-                if (!confirm("Delete this recording's video and screenshots now? A playbook built from it stays.")) return;
+                if (!confirm("Delete this recording's video and screenshots now? A document built from it stays.")) return;
                 api.post("/recordings/delete-video", { id: x.id }).then(function (r) { if (r.ok === false) throw r; D.toast(app, "Video deleted"); drawLibrary(); }).catch(pbFail);
               } }, "Delete video") : null)));
         })))));
@@ -2533,7 +2537,7 @@
     D.clear(libEl);
     libEl.appendChild(h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "ghost small", onclick: function () { if (probe) probe.getTracks().forEach(function (t) { t.stop(); }); drawLibrary(); } }, "← Library")));
     libEl.appendChild(h("div", { class: "hero navy" }, h("span", { class: "badge", style: "background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)", text: "DELA RECORDER" }),
-      h("h2", { text: "Record a process" }), h("p", { text: "Do the task the way you always do and talk through each step. DELA turns it into a playbook you can hand off." })));
+      h("h2", { text: "Record a process" }), h("p", { text: "Do the task the way you always do and talk through each step. DELA turns it into a document you can hand off." })));
     var card = h("div", { class: "card" }, h("label", { text: "Process name" }), name);
     if (can) {
       card.appendChild(h("label", { text: "Microphone" }));
@@ -2825,7 +2829,7 @@
   var GIG_STATUS = { draft: "Draft", open: "Open", paused: "Paused by the Lawfecta Team", closed: "Closed", filled: "Filled", canceled: "Canceled" };
   var PROP_STATUS = { draft: "Draft", sent: "Sent", held: "Being checked", withdrawn: "Withdrawn", selected: "Chosen", not_selected: "Not chosen", closed: "Closed" };
   var GIG_ERR = {
-    gigs_off: "Flex Gigs are not open for your account yet.", playbook_not_approved: "Only an approved playbook can become a gig. Approve it in the Library first.",
+    gigs_off: "Flex Gigs are not open for your account yet.", playbook_not_approved: "Only an approved SOP or Workflow can become a gig. Approve it in the Library first.",
     not_verified: "Posting work and hiring need a verified license. Open Profile and verification from your account menu.",
     gig_needs_task: "Describe the task in the public version first.", deadline_past: "The deadline is in the past. Choose a later date.",
     gig_closed: "This gig is closed.", gig_not_open: "This gig is not open for that now.", no_more_extensions: "This gig was already extended once.",
@@ -2884,8 +2888,8 @@
       if (!e.can_post) el.appendChild(h("p", { class: "notice", text: "Posting work and hiring need a verified license. You can still draft gigs. Open Profile and verification from your account menu." }));
       if (gigs.pendingInvite) el.appendChild(h("p", { class: "notice", text: "Post a gig, then invite " + gigs.pendingInvite.name + " from its Matches view or from Talent." }));
       // New gig
-      var pick = h("select", { "aria-label": "Approved playbook" }, [h("option", { value: "", text: r.playbooks.length ? "Choose an approved playbook" : "No approved playbooks yet" })].concat(r.playbooks.map(function (p) {
-        return h("option", { value: p.id, text: p.title, selected: gigs.newFrom === p.id });
+      var pick = h("select", { "aria-label": "Approved SOP or Workflow" }, [h("option", { value: "", text: r.playbooks.length ? "Choose an approved SOP or Workflow" : "No approved SOPs or Workflows yet" })].concat(r.playbooks.map(function (p) {
+        return h("option", { value: p.id, text: (p.doc_id ? p.doc_id + " " : "") + p.title, selected: gigs.newFrom === p.id });
       })));
       var notes = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Anything freelancers should know (optional)", placeholder: "Anything freelancers should know (optional). No client information." });
       var bmin = h("input", { type: "number", min: "0", step: "1", "aria-label": "Budget from ($)", placeholder: String((r.min_budget_cents || 0) / 100) });
@@ -2893,14 +2897,14 @@
       var go = h("button", { class: "blue", type: "button" }, "Draft the gig with DELA");
       var req = newId();
       go.addEventListener("click", function () {
-        if (!pick.value) { D.toast(app, "Choose an approved playbook first.", true); return; }
+        if (!pick.value) { D.toast(app, "Choose an approved SOP or Workflow first.", true); return; }
         go.disabled = true; go.textContent = "DELA is writing the public version...";
         api.post("/gigs/draft", { playbook_id: pick.value, request_id: req, notes: notes.value, budget_min: bmin.value, budget_max: bmax.value }).then(gigOk).then(function (x) {
           gigs.newFrom = null; gigLink(x.id, "projects");
         }).catch(function (x) { go.disabled = false; go.textContent = "Draft the gig with DELA"; gigFail(x); });
       });
       el.appendChild(h("div", { class: "card" }, h("h2", { text: "Post a new gig" }),
-        h("p", { class: "small muted", text: "DELA writes a public version of the playbook for freelancers. You check it, set the budget (at least " + D.money(r.min_budget_cents) + ") and the deadline, then post. Open gigs on your plan: " + (al.unlimited ? "no cap" : (al.used || 0) + " of " + al.limit + " in use") + "." }),
+        h("p", { class: "small muted", text: "DELA writes a public version of the document for freelancers. You check it, set the budget (at least " + D.money(r.min_budget_cents) + ") and the deadline, then post. Open gigs on your plan: " + (al.unlimited ? "no cap" : (al.used || 0) + " of " + al.limit + " in use") + "." }),
         field("Playbook", pick), notes, h("div", { class: "row" }, field("Budget from ($)", bmin), field("Budget to ($)", bmax)), h("div", { class: "row" }, go)));
       // My gigs
       var list = h("div", { class: "card" }, h("h2", { text: "Your gigs" }));
@@ -2966,7 +2970,7 @@
       }).then(function (x) { if (then) return then(); draw(); D.toast(app, x.big_change ? "Saved. This was a big change, so applicants are asked to confirm their proposals." : "Saved"); }).catch(function (e) { if (e && e.reason !== "canceled") gigFail(e); });
     }
     body.appendChild(h("div", { class: "card" }, h("h2", { text: "Public version" }),
-      h("p", { class: "small muted", text: "Matched freelancers read this before they spend a proposal. Invited and hired freelancers also see the full playbook, with their name as a watermark. No client information." + (g.status === "open" ? " Changing the budget or the work tells applicants; a big change asks them to confirm their proposals." : "") }),
+      h("p", { class: "small muted", text: "Matched freelancers read this before they spend a proposal. Invited and hired freelancers also see their part of the document (an SOP, or a workflow's steps for the freelancer role), with their name as a watermark. No client information." + (g.status === "open" ? " Changing the budget or the work tells applicants; a big change asks them to confirm their proposals." : "") }),
       field("Title", f.title), field("The task", f.task, "Two or three sentences: what the freelancer will do."), field("What done looks like", f.outcome), field("Steps, one per line", f.steps),
       field("Tools", f.tools, "Separated by commas. DELA matches freelancers who use them."), field("Skills", f.skills, "Separated by commas."),
       h("div", { class: "row" }, field("Practice area", f.area), field("State", f.state), field("Usual time", f.timing))));
@@ -2987,10 +2991,14 @@
       api.post("/gigs/close", { id: g.id, cancel: g.status === "draft" }).then(gigOk).then(function () { gigs.id = g.status === "draft" ? null : g.id; draw(); D.toast(app, "Closed"); }).catch(gigFail);
     } }, g.status === "draft" ? "Delete draft" : "Close the gig"));
     body.appendChild(acts);
-    if (r.playbook) body.appendChild(h("details", { class: "card" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "The full playbook (invited and hired freelancers see this)" }), playbookPlain(r.playbook)));
+    if (r.playbook) body.appendChild(h("details", { class: "card" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "The document (invited and hired freelancers see their part of it)" }),
+      r.gig_part ? h("p", { class: "small muted", text: "The freelancer sees " + r.gig_part.steps + " of " + r.gig_part.of + " steps" + (r.gig_part.checkpoints ? ", with " + r.gig_part.checkpoints + " \"Attorney decides\" step" + (r.gig_part.checkpoints > 1 ? "s" : "") + " where the work waits for you" : "") + "." }) : null, playbookPlain(r.playbook)));
+    if ((me.switches || {}).document_standard && editable) referencesEditor(body, g, r.references);
+    else { var rb = referencesBlock(r.references); if (rb) body.appendChild(rb); }
   }
 
   function playbookPlain(b) {
+    if (b && b.schema === 2) return docGigView(b);
     return h("div", null, b.outcome ? h("p", null, h("b", { text: "Outcome: " }), b.outcome) : null,
       h("ol", null, (b.steps || []).map(function (s) { return h("li", { text: s.text + (s.who ? " (" + s.who + ")" : "") + (s.tool ? " | " + s.tool : "") }); })),
       (b.checks || []).length ? h("p", null, h("b", { text: "Quality checks: " }), b.checks.join("; ")) : null,
@@ -3006,7 +3014,7 @@
     api.get("/gigs/matches?id=" + g.id + "&refresh=1").then(function (x) {
       D.clear(box);
       box.appendChild(h("h2", { text: "Freelancers who fit" }));
-      box.appendChild(h("p", { class: "small muted", text: "Only match-ready freelancers who confirmed their availability in the last 14 days, work in this practice area and do not exclude this state. DELA shows fewer people rather than inactive ones. Inviting someone lets them see the full playbook and send a proposal that does not use their monthly allowance." }));
+      box.appendChild(h("p", { class: "small muted", text: "Only match-ready freelancers who confirmed their availability in the last 14 days, work in this practice area and do not exclude this state. DELA shows fewer people rather than inactive ones. Inviting someone lets them see the full document and send a proposal that does not use their monthly allowance." }));
       if (!x.ok) { box.appendChild(h("p", { class: "notice", text: gigErr(x) })); return; }
       if (!x.matches.length) box.appendChild(h("p", { class: "muted", text: "No one fits yet. Check back soon, widen the practice area or tools, or search in Talent." }));
       gigBenchCard(box, g);
@@ -3144,7 +3152,7 @@
           }
           act.appendChild(h("button", { class: mine.length ? "ghost small" : "blue small", type: "button", onclick: function () {
             gigs.pendingInvite = { person_id: p.person_id, name: p.name }; gigs.id = null; tab = "projects"; draw();
-          } }, "Create a gig from a playbook"));
+          } }, "Create a gig from an SOP or Workflow"));
           if ((me.switches || {}).bench) act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
             api.post("/bench/invite", { freelancer: p.person_id, request_id: newId() }).then(engOk).then(function (y) { D.toast(app, y.duplicate ? p.name + " is already on your bench or invited" : "Bench invitation sent to " + p.name); }).catch(revFail);
           } }, "Invite to my bench"));
@@ -3220,7 +3228,8 @@
       }
       if (g.milestones && g.milestones.length) el.appendChild(h("div", { class: "card" }, h("h2", { text: "Milestones" }), h("ol", null, g.milestones.map(function (m) { return h("li", { text: m.title }); })),
         h("p", { class: "small muted", text: "DELA finalizes the milestones with the agreement. You review and sign before any work starts." })));
-      if (r.playbook) el.appendChild(h("div", { class: "card watermarked", "data-watermark": r.watermark || "" }, h("h2", { text: "The full playbook" }), h("p", { class: "small muted", text: r.watermark }), playbookPlain(r.playbook)));
+      if (r.playbook) el.appendChild(h("div", { class: "card watermarked", "data-watermark": r.watermark || "" }, h("h2", { text: "The work handed to you" }), h("p", { class: "small muted", text: r.watermark }), r.playbook.gig_view ? docGigView(r.playbook) : playbookPlain(r.playbook)));
+      var refsB = referencesBlock(r.references); if (refsB) el.appendChild(refsB);
       // Files
       if (r.files.length) {
         var fc = h("div", { class: "card" }, h("h2", { text: "Files for this gig" }), h("p", { class: "small muted", text: "Read only, for this gig only. Downloads are logged." }));
@@ -3690,15 +3699,16 @@
     host.appendChild(nextStep(r, mySigned, theirSigned));
     host.appendChild(agreementCard(r, b));
     if (a.status === "signing" || a.status === "signed" || a.status === "active") host.appendChild(changesCard(r, b));
+    var cpc = checkpointsCard(r); if (cpc) host.appendChild(cpc);
     if ((r.milestones || []).length) host.appendChild(milestonesCard(r));
     if (att && (r.payments || []).length) host.appendChild(paymentsCard(r));
     if (!att && r.payout_account !== undefined) host.appendChild(payoutCard(r.payout_account, true));
     host.appendChild(disputeCard(r));
     if (a.status === "completed") { host.appendChild(closeoutCard(r)); reviewPanel(host, r); }
-    if (r.export) host.appendChild(h("div", { class: "card" }, h("h2", { text: "Engagement playbook" }), h("p", { class: "small muted", text: "A Word copy of the playbook for this engagement, now that a milestone is accepted." }),
+    if (r.export) host.appendChild(h("div", { class: "card" }, h("h2", { text: "Engagement document (Word)" }), h("p", { class: "small muted", text: "A Word copy of the document for this engagement, now that a milestone is accepted." }),
       h("button", { class: "ghost small", type: "button", onclick: function () {
         api.get("/engagements/export?id=" + a.id).then(engOk).then(function (x) { saveB64(x.name, x.type, x.b64); }).catch(engFail);
-      } }, "Download the playbook (Word)")));
+      } }, "Download the document (Word)")));
   }
 
   // One clear next step for this person
@@ -4043,7 +4053,7 @@
 
   // ---------- Step 7: reviews, past-client reviews, the bench, webhooks ----------
   var REV_Q = {
-    of_freelancer: [["quality", "Quality of the work"], ["deadlines", "Met the deadlines"], ["communication", "Communication"], ["followed_playbook", "Followed the playbook"]],
+    of_freelancer: [["quality", "Quality of the work"], ["deadlines", "Met the deadlines"], ["communication", "Communication"], ["followed_playbook", "Followed the document"]],
     of_attorney: [["instructions", "Clear instructions"], ["timely_review", "Timely review and feedback"], ["fair_changes", "Fair requests for changes"], ["communication", "Communication"]],
   };
   var REV_ERR = {
@@ -4225,7 +4235,7 @@
       if ((b.suggestions || []).length) {
         var sc = h("div", { class: "card" }, h("h2", { text: "DELA suggests from your bench" }));
         b.suggestions.forEach(function (s) {
-          sc.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin:6px 0" }, h("div", { class: "grow" }, h("b", { text: s.name }), h("div", { class: "small", text: (s.gig_title ? "For the gig \"" + s.gig_title + "\": " : s.playbook_title ? "For the playbook \"" + s.playbook_title + "\": " : "") + s.reason })),
+          sc.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin:6px 0" }, h("div", { class: "grow" }, h("b", { text: s.name }), h("div", { class: "small", text: (s.gig_title ? "For the gig \"" + s.gig_title + "\": " : s.playbook_title ? "For the document \"" + s.playbook_title + "\": " : "") + s.reason })),
             s.gig_id ? h("button", { class: "blue small", type: "button", onclick: function () {
               api.post("/gigs/invite", { gig_id: s.gig_id, person_id: s.freelancer }).then(gigOk).then(function () { api.post("/bench/suggestion", { id: s.id, action: "used" }); D.toast(app, "Invited " + s.name); }).catch(gigFail);
             } }, "Invite to this gig") : null,
@@ -4327,7 +4337,7 @@
 
   // ---------- Webhooks (AI settings) ----------
   var WH_WORDS = {
-    "playbook.approved": "A playbook is approved", "gig.posted": "A gig is posted", "gig.closed": "A gig closes", "proposal.received": "A new proposal", "proposal.chosen": "Your proposal is chosen",
+    "playbook.approved": "A document is approved", "gig.posted": "A gig is posted", "gig.closed": "A gig closes", "proposal.received": "A new proposal", "proposal.chosen": "Your proposal is chosen",
     "match.new": "A new match", "invitation.received": "An invitation to a gig", "meeting.booked": "A meeting is booked", "meeting.canceled": "A meeting is canceled", "agreement.signed": "An agreement is signed",
     "milestone.paid": "A milestone is paid", "milestone.submitted": "A milestone is submitted", "milestone.accepted": "A milestone is accepted", "milestone.changes_requested": "Changes are requested",
     "payout.sent": "A payout is sent", "dispute.opened": "A dispute is opened", "dispute.decided": "A dispute is decided", "bench.invited": "A bench invitation", "bench.accepted": "Someone joins your bench",
@@ -4341,7 +4351,7 @@
       api.get("/webhooks").then(function (w) {
         D.clear(c);
         c.appendChild(h("h2", { text: "Webhooks" }));
-        c.appendChild(h("p", { class: "small muted", text: "Send DELA events to your own tools (for example Zapier, Make or your own server). Each notice holds only an ID, the state, the time and a link back to DELA that needs your login: never playbook text, messages, files, card, bank or identity details. Each notice is signed so your system can check it came from DELA. Your plan allows " + (w.limit === null ? "any number of" : w.limit) + (w.limit === 1 ? " endpoint." : " endpoints.") }));
+        c.appendChild(h("p", { class: "small muted", text: "Send DELA events to your own tools (for example Zapier, Make or your own server). Each notice holds only an ID, the state, the time and a link back to DELA that needs your login: never document text, messages, files, card, bank or identity details. Each notice is signed so your system can check it came from DELA. Your plan allows " + (w.limit === null ? "any number of" : w.limit) + (w.limit === 1 ? " endpoint." : " endpoints.") }));
         (w.endpoints || []).forEach(function (e) {
           var STATUS = { active: e.over_limit ? "Over your plan's limit: not sending" : "Active", paused: e.paused_reason === "failures" ? "Paused after " + e.failures + " failed deliveries" : "Paused" };
           var box = h("div", { class: "card", style: "padding:10px;margin:6px 0" }, h("div", { class: "row" }, h("b", { class: "grow", style: "overflow-wrap:anywhere", text: e.url }), h("span", { class: "badge " + (e.status === "active" && !e.over_limit ? "ready" : "held"), text: STATUS[e.status] || e.status })),
@@ -4424,6 +4434,562 @@
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     return el;
   }
+
+  // ---------- The document standard (Policy, Workflow, SOP, Playbook): docs/briefs/step-2d-document-standard.md ----------
+  var DOC = { starters: null, firm: null, flow: null };
+  var DOC_TYPE_WORDS = { policy: "Policy", workflow: "Workflow", sop: "SOP", playbook: "Playbook" };
+  var DOC_ERR = {
+    checks_failing: "This is blocked until every step has exactly one Accountable (A) and every judgment step is flagged \"Attorney decides\". See the quality panel.",
+    firm_profile_needed: "Fill in your firm profile first. DELA asks it once.", documents_off: "The document standard is not open for your account yet.", name_needed: "Give the process a name.",
+    choose_firm_size: "Choose your firm size.", attorney_role_needed: "Keep at least one attorney role.", not_in_firm: "That person is not in your firm. Choose a firm member or type an email.",
+    bad_email: "Check the email address.", owner_or_manager_only: "Only the firm owner or a manager can change the firm profile.", type_not_for_gigs: "Only SOPs and Workflows can become a Flex Gig. Attach Policies and Playbooks to a gig as reference instead.",
+    no_freelancer_steps: "No step in this workflow has the freelancer role as R (Responsible), so there is nothing to hand over. Set R for the freelancer role in the RACI grid.",
+    reference_policies_and_playbooks: "Only Policies and Playbooks can be attached as reference.", not_a_document: "This is an older playbook. DELA converts it to a document soon.",
+    fix_by_hand: "DELA cannot fix this one for you. Change it in the document.", waiting_for_attorney: "The work waits for the attorney's decision on a step. Submit after they approve it.",
+    attorney_decision_needed: "Every \"Attorney decides\" step needs the attorney's approval before the last milestone is submitted.",
+  };
+
+  function docStarters() { return DOC.starters ? Promise.resolve(DOC.starters) : api.get("/documents/starters").then(function (r) { DOC.starters = r; return r; }); }
+  function docFirm() { return api.get("/documents/firm").then(function (r) { DOC.firm = r; return r; }); }
+
+  // ---------- The firm profile (asked once, editable later) ----------
+  function firmProfileForm(host, f, onSaved) {
+    var firm = f.firm || {}, saved = f.saved;
+    var size = h("select", { "aria-label": "Firm size" }, [["", "Choose"], ["solo", "Solo"], ["2-5", "2 to 5"], ["6-20", "6 to 20"], ["21+", "21+"]].map(function (o) { return h("option", { value: o[0], text: o[1], selected: firm.size === o[0] }); }));
+    var areas = h("input", { "aria-label": "Practice areas", style: "width:100%", value: (firm.practice_areas || []).join(", "), placeholder: "For example: Family law, Estate planning" });
+    var juris = h("input", { "aria-label": "Jurisdictions", style: "width:100%", value: firm.jurisdictions || "", placeholder: "States and federal courts you use, for example: Texas state courts; N.D. Tex." });
+    var rolesBox = h("div");
+    var team = f.team || [];
+    var roles = (firm.roles && firm.roles.length ? firm.roles : (f.default_roles || []).filter(function (r) { return firm.size === "solo" ? (f.solo_roles || []).indexOf(r.name) >= 0 : true; })).map(function (r) { return { name: r.name, kind: r.kind, person_id: r.person_id || "", email: r.email || "", on: true }; });
+    function drawRoles() {
+      D.clear(rolesBox);
+      roles.forEach(function (r, i) {
+        var on = h("input", { type: "checkbox", checked: r.on, "aria-label": "Use the role " + r.name });
+        on.addEventListener("change", function () { r.on = on.checked; });
+        var who = h("select", { "aria-label": "Who holds the role " + r.name }, [h("option", { value: "", text: "Nobody yet" })].concat(team.map(function (t) { return h("option", { value: t.person_id, text: t.name, selected: r.person_id === t.person_id }); })).concat([h("option", { value: "email", text: "An email address", selected: !r.person_id && !!r.email })]));
+        var email = h("input", { type: "email", "aria-label": "Email for the role " + r.name, value: r.email, placeholder: "email", hidden: !(!r.person_id && r.email) });
+        who.addEventListener("change", function () { r.person_id = who.value === "email" ? "" : who.value; email.hidden = who.value !== "email"; if (who.value !== "email") r.email = ""; });
+        email.addEventListener("input", function () { r.email = email.value; });
+        var unassigned = !r.person_id && !r.email;
+        rolesBox.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin:4px 0" }, on, h("span", { style: "min-width:170px", text: r.name + (r.kind === "attorney" ? " (attorney)" : r.kind === "freelancer" ? " (freelancer)" : "") }), who, email,
+          saved && unassigned && r.on ? h("span", { class: "badge held", text: "No one assigned" }) : null));
+      });
+      var custom = h("input", { "aria-label": "Add a custom role", placeholder: "Add a custom role" });
+      var kind = h("select", { "aria-label": "Custom role kind" }, h("option", { value: "staff", text: "Staff" }), h("option", { value: "attorney", text: "Attorney" }), h("option", { value: "freelancer", text: "Freelancer" }));
+      rolesBox.appendChild(h("div", { class: "row", style: "margin-top:6px" }, custom, kind, h("button", { class: "ghost small", type: "button", onclick: function () { if (!custom.value.trim()) return; roles.push({ name: custom.value.trim(), kind: kind.value, person_id: "", email: "", on: true }); drawRoles(); } }, "Add")));
+    }
+    drawRoles();
+    size.addEventListener("change", function () {
+      if (size.value === "solo" && !(firm.roles && firm.roles.length)) { roles.forEach(function (r) { r.on = (f.solo_roles || []).indexOf(r.name) >= 0; }); drawRoles(); }
+    });
+    var sys = {};
+    var sysBox = h("div", { class: "kv" }, (f.system_groups || []).map(function (g) {
+      sys[g[0]] = h("input", { "aria-label": g[1] + " systems", style: "width:100%", value: ((firm.systems || {})[g[0]] || []).join(", "), placeholder: "Names, separated by commas" });
+      return h("div", null, g[1], sys[g[0]]);
+    }));
+    var go = h("button", { class: "blue", type: "button" }, saved ? "Save the firm profile" : "Save and continue");
+    go.addEventListener("click", function () {
+      var systems = {};
+      Object.keys(sys).forEach(function (k) { systems[k] = commas(sys[k].value); });
+      go.disabled = true;
+      api.post("/documents/firm", { size: size.value, practice_areas: commas(areas.value), jurisdictions: juris.value, systems: systems,
+        roles: roles.filter(function (r) { return r.on; }).map(function (r) { return { name: r.name, kind: r.kind, person_id: r.person_id, email: r.email }; }) }).then(function (x) {
+        go.disabled = false;
+        if (!x.ok) { D.toast(app, DOC_ERR[x.reason] || failText(x), true); return; }
+        D.toast(app, (x.unassigned || []).length ? "Saved. No one holds: " + x.unassigned.join(", ") + ". Reminders for their documents go to the firm owner." : "Saved");
+        if (onSaved) onSaved();
+      }).catch(function (e) { go.disabled = false; pbFail(e); });
+    });
+    host.appendChild(h("div", { class: "card" }, h("h2", { text: "Your firm profile for documents" }),
+      h("p", { class: "small muted", text: "DELA uses these facts in every document, so you enter them once. Roles, never people's names, go in documents; who holds each role gets its review reminders." }),
+      f.can_edit === false ? h("p", { class: "notice", text: DOC_ERR.owner_or_manager_only }) : null,
+      field("Firm size", size), field("Practice areas", areas), field("Jurisdictions", juris), h("h3", { text: "Team roles" }), rolesBox, h("h3", { text: "Systems you use" }), sysBox,
+      f.can_edit === false ? null : h("div", { class: "row", style: "margin-top:10px" }, go)));
+  }
+
+  // ---------- New document: firm profile (once), type cards, starter library, the questions ----------
+  function newDocument() {
+    D.clear(libEl);
+    libEl.appendChild(h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "ghost small", onclick: loadLibrary }, "← Library")));
+    libEl.appendChild(h("h1", { text: "New document" }));
+    var host = h("div", null, h("p", { class: "muted", text: "Loading..." }));
+    libEl.appendChild(host);
+    Promise.all([docFirm(), docStarters()]).then(function (rs) {
+      D.clear(host);
+      if (!rs[0].saved) { firmProfileForm(host, rs[0], newDocument); return; }
+      DOC.flow = DOC.flow || {};
+      if (!DOC.flow.type) { pickWhat(host, rs[1]); return; }
+      questionsForm(host, rs[0], rs[1]);
+    }).catch(pbFail);
+  }
+
+  function pickWhat(host, st) {
+    host.appendChild(h("p", { class: "muted", text: "Pick what to build. Each type has its own job: the policy sets the rules, the workflow shows the map, each box on the map gets an SOP, and the playbook covers the forks in the road." }));
+    host.appendChild(h("div", { class: "kv" }, ["sop", "workflow", "playbook", "policy"].map(function (t) {
+      var info = st.types[t];
+      return h("div", { role: "button", tabindex: "0", style: "cursor:pointer", onclick: function () { DOC.flow = { type: t }; newDocument(); } },
+        h("b", { text: info.label }), h("div", { class: "small", text: info.line }), h("div", { class: "small muted", text: "For example: " + info.example }));
+    })));
+    host.appendChild(h("h2", { text: "Or start from a common process" }));
+    st.lifecycle.forEach(function (g) {
+      var list = st.starters.filter(function (s) { return s.lifecycle === g.prefix; });
+      if (!list.length) return;
+      host.appendChild(h("details", { class: "card" }, h("summary", { text: g.prefix + " | " + g.label + " (" + list.length + ")" }),
+        h("div", null, list.map(function (s) {
+          return h("div", { class: "row", style: "margin:6px 0" }, h("span", { class: "badge", text: DOC_TYPE_WORDS[s.type] }), h("span", { class: "grow", text: s.title + (s.high_risk ? " (reviewed every 3 months)" : "") }),
+            h("button", { class: "blue small", type: "button", onclick: function () { DOC.flow = { type: s.type, starter: s }; newDocument(); } }, "Start"));
+        }))));
+    });
+  }
+
+  function questionsForm(host, f, st) {
+    var flow = DOC.flow, s0 = flow.starter || {};
+    var info = st.types[flow.type];
+    host.appendChild(h("p", null, h("b", { text: info.label + ": " }), info.line, " ", h("button", { class: "ghost small", type: "button", onclick: function () { DOC.flow = null; newDocument(); } }, "Change")));
+    var firm = f.firm || {};
+    var roleNames = (firm.roles || []).map(function (r) { return r.name; });
+    var sysNames = [];
+    Object.keys(firm.systems || {}).forEach(function (k) { (firm.systems[k] || []).forEach(function (x) { if (sysNames.indexOf(x) < 0) sysNames.push(x); }); });
+    var name = h("input", { "aria-label": "Process name", style: "width:100%", value: s0.title || "" });
+    var trig = h("input", { "aria-label": "What starts it", style: "width:100%", value: s0.trigger || "" });
+    var done = h("input", { "aria-label": "What done looks like", style: "width:100%", value: s0.done || "" });
+    var checks = function (list, label) { return h("div", { class: "row", style: "flex-wrap:wrap" }, list.map(function (x) { var cb = h("input", { type: "checkbox", value: x, "aria-label": label + ": " + x }); return h("label", { style: "display:flex;gap:6px;font-weight:400;margin-right:10px" }, cb, h("span", { text: x })); })); };
+    var rolesBox = checks(roleNames, "Role"), sysBox = checks(sysNames, "System");
+    var timing = h("input", { "aria-label": "Deadline or time target", style: "width:100%", placeholder: "For example: within 1 business day of the request" });
+    var att = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Steps the attorney must decide or approve" });
+    var wrong = h("textarea", { rows: 2, style: "width:100%", "aria-label": "What goes wrong today (optional)" });
+    var paste = h("textarea", { rows: 3, style: "width:100%", "aria-label": "Paste an existing checklist, email or old SOP (optional)", placeholder: "DELA removes client names, case numbers, passwords and account numbers before drafting." });
+    var files = [], fileWrap = h("div", { class: "small" });
+    var pickFiles = h("button", { class: "ghost small", type: "button", onclick: function () {
+      api.get("/files").then(function (x) {
+        D.clear(fileWrap);
+        (x.files || []).filter(function (fl) { return fl.status === "ready"; }).slice(0, 30).forEach(function (fl) {
+          var cb = h("input", { type: "checkbox" });
+          cb.addEventListener("change", function () { files = files.filter(function (id) { return id !== fl.id; }); if (cb.checked) files.push(fl.id); });
+          fileWrap.appendChild(h("label", { style: "display:flex;gap:6px;font-weight:400" }, cb, fl.name));
+        });
+        if (!fileWrap.children.length) fileWrap.appendChild(h("span", { class: "muted", text: "No ready files. Upload on the Files tab first." }));
+      }).catch(pbFail);
+    } }, "Use a file from your Files");
+    var go = h("button", { class: "blue", type: "button" }, "Draft it with DELA");
+    var status = h("span", { class: "small muted", role: "status" });
+    var req = newId();
+    var picked = function (box) { return [].slice.call(box.querySelectorAll("input:checked")).map(function (x) { return x.value; }); };
+    go.addEventListener("click", function () {
+      if (!name.value.trim()) { D.toast(app, DOC_ERR.name_needed, true); return; }
+      go.disabled = true; status.textContent = "DELA is drafting to your firm's standard and checking its own work. This takes about a minute.";
+      api.post("/documents/draft", { org_id: lib.org, type: flow.type, starter_id: s0.id || "", lifecycle: s0.lifecycle || "", request_id: req, file_ids: files, text: paste.value,
+        answers: { name: name.value, trigger: trig.value, done: done.value, roles: picked(rolesBox), systems: picked(sysBox), timing: timing.value, attorney_steps: att.value, problems: wrong.value } }).then(function (r) {
+        go.disabled = false; status.textContent = "";
+        if (!r.ok) { D.toast(app, DOC_ERR[r.reason] || failText(r), true); return; }
+        DOC.flow = null;
+        lib.questions = r.questions || [];
+        lib.docNotices = r.notices || [];
+        lib.suggested = r.suggested_type || null;
+        openPlaybook(r.id, "read");
+      }).catch(function (e) { go.disabled = false; status.textContent = ""; pbFail(e); });
+    });
+    host.appendChild(h("div", { class: "card" }, h("h2", { text: "About this process" }),
+      h("p", { class: "small muted", text: "Only the name is needed. Anything you skip shows in the quality panel, so you can add it later." }), notice(),
+      field("Process name", name), field("What starts it", trig), field("What done looks like", done), field("Which roles touch it", rolesBox), field("Which systems it uses", sysBox),
+      field("Any deadline or time target", timing, "Use your own service level. For a court rule or statute, DELA adds a field for the rule's link and a date to verify it."),
+      field("Steps you must personally decide or approve", att), field("What goes wrong today (optional)", wrong),
+      h("details", null, h("summary", { text: "Rewrite something you already have (optional)" }), paste, h("div", { class: "row" }, pickFiles), fileWrap),
+      h("div", { class: "row", style: "margin-top:10px" }, go, status)));
+  }
+
+  // ---------- The master index (Library) ----------
+  function docIndex(listEl, rows) {
+    var st = DOC.starters;
+    var groups = st ? st.lifecycle : [];
+    var byG = {};
+    rows.forEach(function (p) { var g = p.lifecycle || "OLD"; (byG[g] = byG[g] || []).push(p); });
+    var order = groups.map(function (g) { return g.prefix; }).concat(["OLD"]);
+    order.forEach(function (g) {
+      var list = byG[g];
+      if (!list) return;
+      var label = g === "OLD" ? "Waiting for the document standard" : (groups.filter(function (x) { return x.prefix === g; })[0] || {}).label || g;
+      listEl.appendChild(h("h3", { text: (g === "OLD" ? "" : g + " | ") + label }));
+      listEl.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack", style: "width:100%" }, h("thead", null, h("tr", null, ["ID", "Title", "Type", "Owner (role)", "Status", "Next review", ""].map(function (t) { return h("th", { text: t }); }))),
+        h("tbody", null, list.map(function (p) {
+          var due = p.status === "approved" && p.next_review_at && p.next_review_at <= D.today();
+          return h("tr", { style: "cursor:pointer", onclick: function () { openPlaybook(p.id, "read"); } },
+            h("td", { "data-label": "ID", text: p.doc_id || "" }), h("td", { "data-label": "Title" }, h("b", { text: p.title }), p.converted ? h("div", { class: "small", text: "Converted: check it" }) : null),
+            h("td", { "data-label": "Type", text: DOC_TYPE_WORDS[p.doc_type] || "Older playbook" }), h("td", { "data-label": "Owner (role)", text: p.owner_role || "" }),
+            h("td", { "data-label": "Status" }, h("span", { class: "badge " + (p.status === "approved" ? "ready" : p.status === "in_review" ? "held" : ""), text: PB_STATUS[p.status] })),
+            h("td", { "data-label": "Next review", text: p.next_review_at ? D.date(p.next_review_at) + (due ? " (due)" : "") : "" }),
+            h("td", { "data-label": "", text: p.blocking ? p.blocking + " blocking" : p.attention ? p.attention + " to look at" : "" }));
+        })))));
+    });
+  }
+
+  // ---------- Draft and review ----------
+  function docWork() { if (!lib.doc || lib.doc._id !== lib.pb.playbook.id + ":" + lib.pb.playbook.version) { lib.doc = JSON.parse(JSON.stringify(lib.pb.body)); lib.doc._id = lib.pb.playbook.id + ":" + lib.pb.playbook.version; } return lib.doc; }
+
+  function drawDocument() {
+    var P = lib.pb.playbook, d = docWork(), ck = lib.pb.check || { items: [], blocking: 0 };
+    var edit = can(3) && P.status !== "trash" && P.status !== "archived";
+    D.clear(libEl);
+    libEl.appendChild(h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "ghost small", onclick: function () { lib.doc = null; loadLibrary(); } }, "← Library")));
+    libEl.appendChild(h("div", { class: "row", style: "margin:8px 0 4px" }, h("h1", { class: "grow", style: "margin:0", text: (P.doc_id ? P.doc_id + " " : "") + P.title }),
+      h("span", { class: "badge", text: DOC_TYPE_WORDS[d.type] }), h("span", { class: "badge " + (P.status === "approved" ? "ready" : P.status === "in_review" ? "held" : ""), text: PB_STATUS[P.status] })));
+    if (P.status !== "approved") libEl.appendChild(h("div", { class: "notice", role: "note", style: "font-weight:700", text: "Draft, not approved. Do not use this as an approved procedure." + (P.approved_version ? " The approved version " + P.approved_version + " stays in use until this one is approved." : "") }));
+    if (P.converted) {
+      var tsel = h("select", { "aria-label": "Change the type" }, ["sop", "workflow", "playbook", "policy"].map(function (t) { return h("option", { value: t, text: DOC_TYPE_WORDS[t], selected: d.type === t }); }));
+      libEl.appendChild(h("div", { class: "notice ok" }, h("p", { style: "margin:0 0 6px", text: "DELA moved this to the document standard as " + DOC_TYPE_WORDS[d.type] + (P.conversion_note ? " (" + P.conversion_note + ")" : "") + ". Check it, then approve it again." }),
+        h("div", { class: "row" }, tsel, h("button", { class: "blue small", type: "button", onclick: function () { changeType(tsel.value); } }, "Change type"),
+          h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/documents/conversion-seen", { id: P.id }).then(function () { openPlaybook(P.id); }).catch(pbFail); } }, "The type is right"))));
+    }
+    if (lib.suggested && lib.suggested.type !== d.type) libEl.appendChild(h("div", { class: "notice" }, h("span", { text: "DELA thinks this fits a " + DOC_TYPE_WORDS[lib.suggested.type] + " better: " + lib.suggested.reason + " " }),
+      h("button", { class: "blue small", type: "button", onclick: function () { var t = lib.suggested.type; lib.suggested = null; changeType(t); } }, "Switch to " + DOC_TYPE_WORDS[lib.suggested.type]),
+      h("button", { class: "ghost small", type: "button", onclick: function () { lib.suggested = null; drawDocument(); } }, "Keep " + DOC_TYPE_WORDS[d.type])));
+    (lib.docNotices || []).forEach(function (n) { libEl.appendChild(h("p", { class: "notice ok", text: n })); });
+    lib.docNotices = [];
+    // Header fields, always visible
+    var owner = h("select", { "aria-label": "Owner (role)", disabled: !edit }, (d.roles || []).map(function (r) { return h("option", { value: r, text: r, selected: d.owner_role === r }); }));
+    owner.addEventListener("change", function () { d.owner_role = owner.value; });
+    var risk = h("input", { type: "checkbox", checked: !!d.high_risk, disabled: !edit, "aria-label": "High risk (trust, conflicts or deadlines)" });
+    risk.addEventListener("change", function () { d.high_risk = risk.checked; });
+    libEl.appendChild(h("div", { class: "kv" }, h("div", null, "Document ID", h("b", { text: P.doc_id || "Set when saved" })), h("div", null, "Version", h("b", { text: String(P.version) })),
+      h("div", null, "Owner (role)", owner), h("div", null, "Last reviewed", h("b", { text: P.last_reviewed_at ? D.date(P.last_reviewed_at) : "Not yet" })),
+      h("div", null, "Next review", h("b", { text: P.next_review_at ? D.date(P.next_review_at) : (d.high_risk ? "3 months after approval" : "12 months after approval") })),
+      h("div", null, "High risk", h("label", { style: "display:flex;gap:6px;font-weight:400" }, risk, h("span", { text: "Trust, conflicts or deadlines (reviewed every 3 months)" })))));
+    var views = [["read", "Draft and review"], ["chat", "Chat"], ["suggestions", "Suggestions (" + lib.pb.suggestions.length + ")"], ["comments", "Comments (" + lib.pb.comments.filter(function (c) { return !c.resolved; }).length + ")"],
+      ["activity", "Activity"], ["versions", "Versions"], ["files", "Files (" + lib.pb.files.length + ")"]];
+    libEl.appendChild(h("div", { class: "tabs", role: "tablist", style: "border-radius:14px;margin:10px 0" }, views.map(function (v) {
+      return h("button", { role: "tab", "aria-selected": String((lib.view === "edit" ? "read" : lib.view) === v[0]), onclick: function () { lib.view = v[0]; drawDocument(); } }, v[1]);
+    })));
+    var area = h("div");
+    libEl.appendChild(area);
+    if (lib.view === "read" || lib.view === "edit" || lib.view === "export") reviewScreen(area, d, ck, edit);
+    else ({ chat: pbChatView, suggestions: docSuggestionsView, comments: commentsView, activity: activityView, versions: versionsView, files: pbFilesView })[lib.view](area, d);
+    if (can(4)) {
+      libEl.appendChild(h("div", { class: "row", style: "margin-top:18px" },
+        P.status === "archived" ? h("button", { class: "ghost small", onclick: function () { status("unarchive", "Back in the library"); } }, "Bring back from the archive")
+          : P.status !== "trash" ? h("button", { class: "ghost small", onclick: function () { status("archive", "Archived"); } }, "Archive") : null,
+        P.status === "trash" ? h("button", { class: "ghost small", onclick: function () { status("restore", "Restored"); } }, "Restore from the trash")
+          : h("button", { class: "danger small", onclick: function () { if (confirm("Move this document to the trash? You can restore it for 30 days.")) status("trash", "Moved to the trash"); } }, "Delete")));
+    }
+  }
+
+  function changeType(t) {
+    api.post("/documents/type", { id: lib.pb.playbook.id, type: t }).then(function (r) { if (!r.ok) throw r; lib.doc = null; openPlaybook(lib.pb.playbook.id, "read"); D.toast(app, "Now a " + DOC_TYPE_WORDS[t]); }).catch(pbFail);
+  }
+
+  function docSave(note, then) {
+    var d = docWork();
+    var payload = JSON.parse(JSON.stringify(d)); delete payload._id;
+    return api.post("/playbooks/save", { id: lib.pb.playbook.id, base_version: lib.pb.playbook.version, body: payload, note: note || "" }).then(function (r) {
+      if (!r.ok) throw r;
+      lib.doc = null;
+      lib.docNotices = r.notices || [];
+      return then ? then(r) : openPlaybook(lib.pb.playbook.id, "read");
+    }).catch(pbFail);
+  }
+
+  function reviewScreen(area, d, ck, edit) {
+    var P = lib.pb.playbook;
+    var grid = h("div", { class: "doc-grid" });
+    var left = h("div", { class: "doc-left" }), right = h("div", { class: "doc-right" });
+    grid.appendChild(left); grid.appendChild(right);
+    area.appendChild(grid);
+    // The quality panel
+    var blocked = ck.blocking > 0;
+    var qp = h("div", { class: "card" }, h("h2", { text: "Quality check" }),
+      h("p", { class: blocked ? "notice bad" : "small muted", text: blocked ? "Export, approval and Flex Gigs are blocked until the items marked Blocking are fixed." : ck.attention ? "Nothing blocks this document. Look at the items marked Needs attention." : "Every check passes." }));
+    var passed = (ck.items || []).filter(function (it) { return it.status === "pass"; });
+    var passBox = h("details", { class: "small" }, h("summary", { text: passed.length + " checks passed" }));
+    (ck.items || []).forEach(function (it) {
+      var mark = it.status === "pass" ? "✓" : it.status === "blocking" ? "✕" : "!";
+      var row = h("div", { class: "qp-item " + it.status, style: "margin:6px 0" }, h("div", { class: "row" }, h("b", { class: "grow", text: mark + " " + it.label }),
+        h("span", { class: "badge " + (it.status === "pass" ? "ready" : it.status === "blocking" ? "bad" : "held"), text: it.status === "pass" ? "Passed" : it.status === "blocking" ? "Blocking" : "Needs attention" })),
+        it.detail ? h("div", { class: "small", text: it.detail }) : null);
+      if (it.status !== "pass" && it.fix && edit) row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function (e) {
+        var b = e.target; b.disabled = true; b.textContent = it.fix === "split" ? "Splitting..." : "Fixing...";
+        api.post("/documents/fix", { id: P.id, check_id: it.id }).then(function (r) {
+          if (!r.ok) throw r;
+          lib.doc = null; lib.docNotices = (r.notices || []).concat(r.created && r.created.length ? ["Split into linked SOPs. New: " + r.created.map(function (c) { return c.title; }).join(", ") + "."] : []);
+          openPlaybook(P.id, "read");
+        }).catch(function (x) { b.disabled = false; b.textContent = it.fix === "split" ? "Split into linked SOPs" : "Fix it"; pbFail(x); });
+      } }, it.fix === "split" ? "Split into linked SOPs" : "Fix it"));
+      (it.status === "pass" ? passBox : qp).appendChild(row);
+    });
+    if (passed.length) qp.appendChild(passBox);
+    // Actions
+    var acts = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:8px" });
+    if (edit) acts.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { docSave("", null); } }, "Save"));
+    if (can(3) && P.status === "draft") acts.appendChild(h("button", { class: "ghost small", type: "button", disabled: blocked, onclick: function () { status("submit", "Sent to the administrator for review"); } }, "Send for review"));
+    if (can(4) && (P.status === "draft" || P.status === "in_review")) acts.appendChild(h("button", { class: "blue small", type: "button", disabled: blocked, title: blocked ? "Fix the blocking items first" : "", onclick: function () { status("approve", "Approved"); } }, "Approve"));
+    if (P.status === "approved" && (d.type === "sop" || d.type === "workflow") && (me.switches || {}).flex_gigs && can(4)) acts.appendChild(h("button", { class: "blue small", type: "button", disabled: blocked, onclick: function () { gigs.id = null; gigs.newFrom = P.id; tab = "projects"; draw(); } }, "Post as a Flex Gig"));
+    qp.appendChild(acts);
+    var ex = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, h("span", { class: "small", text: "Export: " }),
+      [["docx", "Word"], ["pdf", "PDF"], ["md", "Markdown"], ["html", "Web page"], ["csv", "Step checklist"]].map(function (f) { return h("button", { class: "ghost small", type: "button", disabled: blocked, onclick: function () { doExport(f[0]); } }, f[1]); }));
+    qp.appendChild(ex);
+    right.appendChild(qp);
+    if (lib.questions && lib.questions.length && can(3)) right.appendChild(questionsCard());
+    // The editable document, section by section
+    left.appendChild(docEditor(d, edit));
+    if (d.type === "sop" || d.type === "workflow") left.appendChild(raciGrid(d, edit));
+    if (d.type === "workflow") left.appendChild(kpiCards(d, edit));
+    left.appendChild(changeLogCard());
+  }
+
+  function changeLogCard() {
+    var ch = lib.pb.changes || [];
+    var appr = {};
+    ch.forEach(function (c) { if (c.kind === "approval") appr[c.version] = c.by; });
+    return h("details", { class: "card" }, h("summary", { text: "Change log (" + ch.filter(function (c) { return c.kind !== "approval"; }).length + ")" }),
+      h("div", { class: "scroll" }, h("table", { class: "stack" }, h("thead", null, h("tr", null, ["Date", "What changed", "Who", "Approved by"].map(function (t) { return h("th", { text: t }); }))),
+        h("tbody", null, ch.filter(function (c) { return c.kind !== "approval"; }).map(function (c) {
+          return h("tr", null, h("td", { "data-label": "Date", text: D.date(c.at) }), h("td", { "data-label": "What changed", text: c.what }), h("td", { "data-label": "Who", text: c.by || "" }), h("td", { "data-label": "Approved by", text: appr[c.version] || "" }));
+        })))));
+  }
+
+  // Inputs that write straight into the working copy
+  function tIn(obj, key, label, opts) {
+    opts = opts || {};
+    var el = opts.rows ? h("textarea", { rows: opts.rows, style: "width:100%", "aria-label": label, disabled: opts.ro }) : h("input", { style: "width:100%", "aria-label": label, disabled: opts.ro, placeholder: opts.ph || "" });
+    el.value = obj[key] || "";
+    el.addEventListener("input", function () { obj[key] = el.value; });
+    return el;
+  }
+  function lIn(obj, key, label, ro, hint) {
+    var el = h("textarea", { rows: Math.min(Math.max((obj[key] || []).length + 1, 2), 8), style: "width:100%", "aria-label": label, disabled: ro, placeholder: "One per line" });
+    el.value = (obj[key] || []).join("\n");
+    el.addEventListener("input", function () { obj[key] = lines(el.value); });
+    return field(label, el, hint);
+  }
+  function sec(title, kids) { var x = h("div", { class: "doc-sec" }, h("p", { class: "doc-h" }, h("b", { text: title }))); (kids || []).forEach(function (k) { if (k) x.appendChild(k); }); return x; }
+
+  function docEditor(d, edit) {
+    var ro = !edit;
+    var box = h("div", { class: "card" });
+    box.appendChild(field("Title", tIn(d, "title", "Title", { ro: ro })));
+    if (d.type === "sop" || d.type === "policy") {
+      box.appendChild(sec("Purpose", [tIn(d, "purpose", "Purpose", { rows: 2, ro: ro })]));
+      box.appendChild(sec("Scope", [tIn(d, "scope", "Scope", { rows: 2, ro: ro })]));
+    }
+    if (d.type === "sop") {
+      box.appendChild(sec("Trigger", [tIn(d, "trigger", "Trigger", { ro: ro })]));
+      box.appendChild(sec("Roles", [rolesLine(d, ro)]));
+      box.appendChild(sec("Before you start", [lIn(d, "before_you_start", "Before you start", ro)]));
+      box.appendChild(sec("Steps", [stepsEditor(d, ro)]));
+      box.appendChild(sec("Decision points and escalation", [decisionsEditor(d, ro)]));
+      box.appendChild(sec("Timing", [tIn(d, "timing", "Timing", { rows: 2, ro: ro }), ruleFields(d, "timing_rule", ro)]));
+      box.appendChild(sec("Quality check", [lIn(d, "quality_check", "Quality check", ro), field("Reviewed by (role)", tIn(d, "quality_reviewer_role", "Reviewed by (role)", { ro: ro }))]));
+      box.appendChild(sec("Done when", [tIn(d, "done_when", "Done when", { rows: 2, ro: ro }), field("Saved in", tIn(d, "saved_in", "Saved in", { ro: ro }))]));
+      box.appendChild(sec("Related links", [linksEditor(d, ro)]));
+    } else if (d.type === "workflow") {
+      box.appendChild(sec("Name and process owner", [field("Process owner (one role)", tIn(d, "process_owner_role", "Process owner", { ro: ro })), rolesLine(d, ro)]));
+      box.appendChild(sec("Start and end points", [field("Starts when", tIn(d, "start_point", "Starts when", { ro: ro })), field("Finished when", tIn(d, "end_point", "Finished when", { ro: ro }))]));
+      box.appendChild(sec("Stages, handoffs, target times and linked SOPs", [stepsEditor(d, ro)]));
+      box.appendChild(sec("Decision points", [decisionsEditor(d, ro)]));
+    } else if (d.type === "playbook") {
+      box.appendChild(sec("Situations covered", [lIn(d, "situations", "Situations covered", ro)]));
+      box.appendChild(sec("Guiding principles", [lIn(d, "principles", "Guiding principles", ro)]));
+      box.appendChild(sec("Preferred approach", [tIn(d, "preferred", "Preferred approach", { rows: 3, ro: ro })]));
+      box.appendChild(sec("Acceptable fallbacks", [lIn(d, "fallbacks", "Acceptable fallbacks", ro, "Options staff can use without asking")]));
+      box.appendChild(sec("Hard limits", [lIn(d, "hard_limits", "Hard limits", ro, "What nobody agrees to without attorney or partner approval")]));
+      box.appendChild(sec("Escalation", [escalationEditor(d, ro)]));
+      box.appendChild(sec("Scripts and templates", [lIn(d, "scripts", "Scripts and templates", ro)]));
+      box.appendChild(sec("Examples", [lIn(d, "examples", "Examples", ro, "Short fictional scenarios. No client information.")]));
+    } else {
+      box.appendChild(sec("The rules", [lIn(d, "rules_must", "What must happen", ro), lIn(d, "rules_must_not", "What must not happen", ro)]));
+      box.appendChild(sec("Exceptions and who approves them", [tIn(d, "exceptions", "Exceptions", { rows: 2, ro: ro }), field("Approved by (role)", tIn(d, "exceptions_role", "Approved by (role)", { ro: ro }))]));
+      box.appendChild(sec("Related links", [linksEditor(d, ro)]));
+    }
+    if (edit) box.appendChild(h("div", { class: "row", style: "margin-top:10px" }, h("button", { class: "blue small", type: "button", onclick: function () { docSave("", null); } }, "Save")));
+    return box;
+  }
+
+  function rolesLine(d, ro) {
+    var el = h("input", { style: "width:100%", "aria-label": "Roles", disabled: ro, value: (d.roles || []).join(", ") });
+    el.addEventListener("change", function () { d.roles = commas(el.value); });
+    return field("Roles (from your firm profile; roles, never names)", el);
+  }
+  function ruleFields(o, key, ro) {
+    var r = o[key] || { name: "", link: "", verify_by: "" };
+    var name = h("input", { "aria-label": "Rule or statute", disabled: ro, value: r.name || "", placeholder: "Rule or statute" });
+    var link = h("input", { "aria-label": "Link to the rule", disabled: ro, value: r.link || "", placeholder: "https:// link to the rule" });
+    var by = h("input", { type: "date", "aria-label": "Verify by", disabled: ro, value: r.verify_by || "" });
+    function upd() { o[key] = (name.value || link.value || by.value) ? { name: name.value, link: link.value, verify_by: by.value } : null; }
+    [name, link, by].forEach(function (x) { x.addEventListener("input", upd); });
+    return h("div", { class: "row", style: "flex-wrap:wrap;margin-top:4px" }, h("span", { class: "small muted", text: "Court rule, statute or filing deadline:" }), name, link, field("Verify by", by));
+  }
+
+  function stepsEditor(d, ro) {
+    var wf = d.type === "workflow";
+    var box = h("div");
+    (d.steps || []).forEach(function (st, i) {
+      var c = h("div", { class: "card", style: "padding:10px;margin:6px 0" + (st.attorney_decides ? ";border-color:var(--brand)" : "") });
+      c.appendChild(h("div", { class: "row" }, h("b", { class: "grow", text: (wf ? "Stage " : "Step ") + (i + 1) }),
+        st.attorney_decides ? h("span", { class: "badge bad", text: "Attorney decides" }) : null,
+        ro ? null : h("button", { class: "ghost small", type: "button", "aria-label": "Move step " + (i + 1) + " up", disabled: i === 0, onclick: function () { var x = d.steps.splice(i, 1)[0]; d.steps.splice(i - 1, 0, x); drawDocument(); } }, "↑"),
+        ro ? null : h("button", { class: "ghost small", type: "button", "aria-label": "Remove step " + (i + 1), onclick: function () { d.steps.splice(i, 1); drawDocument(); } }, "Remove")));
+      if (wf) c.appendChild(field("Stage name", tIn(st, "stage", "Stage name " + (i + 1), { ro: ro })));
+      c.appendChild(field("What to do (one action, starting with a verb)", tIn(st, "text", "Step " + (i + 1), { rows: 2, ro: ro })));
+      var role = h("select", { "aria-label": "Responsible role for step " + (i + 1), disabled: ro }, [h("option", { value: "", text: "Choose" })].concat((d.roles || []).map(function (r) { return h("option", { value: r, text: r, selected: st.role === r }); })));
+      role.addEventListener("change", function () { st.role = role.value; });
+      c.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, field(wf ? "Lane (role)" : "Role", role), field("System", tIn(st, "system", "System for step " + (i + 1), { ro: ro })), field("Menu path and buttons", tIn(st, "menu_path", "Menu path for step " + (i + 1), { ro: ro, ph: "[Add the menu path in your system]" }))));
+      if (wf) c.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, field("Handoff (what passes, where, how the next person is told)", tIn(st, "handoff", "Handoff " + (i + 1), { ro: ro })), field("Target time", tIn(st, "target_time", "Target time " + (i + 1), { ro: ro })), field("Linked SOP", tIn(st, "linked_sop", "Linked SOP " + (i + 1), { ro: ro, ph: "For example INT-01" }))));
+      var ad = h("input", { type: "checkbox", checked: !!st.attorney_decides, disabled: ro, "aria-label": "Attorney decides, step " + (i + 1) });
+      ad.addEventListener("change", function () { st.attorney_decides = ad.checked; if (ad.checked) st.not_judgment = false; drawDocument(); });
+      var nj = h("input", { type: "checkbox", checked: !!st.not_judgment, disabled: ro, "aria-label": "Not a judgment step, step " + (i + 1) });
+      nj.addEventListener("change", function () { st.not_judgment = nj.checked; });
+      c.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, h("label", { style: "display:flex;gap:6px;font-weight:400" }, ad, h("span", { text: "Attorney decides (the A must be an attorney role)" })),
+        st.attorney_decides ? null : h("label", { style: "display:flex;gap:6px;font-weight:400" }, nj, h("span", { text: "Not a judgment step" }))));
+      c.appendChild(ruleFields(st, "rule", ro));
+      box.appendChild(c);
+    });
+    if (!ro) box.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { d.steps.push({ text: "", role: "", raci: {}, attorney_decides: false }); drawDocument(); } }, wf ? "Add a stage" : "Add a step"));
+    return box;
+  }
+  function decisionsEditor(d, ro) {
+    var box = h("div");
+    (d.decisions || []).forEach(function (x, i) {
+      var ad = h("input", { type: "checkbox", checked: !!x.attorney_decides, disabled: ro, "aria-label": "Attorney decides, decision " + (i + 1) });
+      ad.addEventListener("change", function () { x.attorney_decides = ad.checked; });
+      box.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin:4px 0" }, field("If", tIn(x, "if", "If, decision " + (i + 1), { ro: ro })), field("Then", tIn(x, "then", "Then, decision " + (i + 1), { ro: ro })),
+        field("Escalate to (role)", tIn(x, "escalate_to", "Escalate to, decision " + (i + 1), { ro: ro })), h("label", { style: "display:flex;gap:6px;font-weight:400" }, ad, h("span", { text: "Attorney decides" })),
+        ro ? null : h("button", { class: "ghost small", type: "button", onclick: function () { d.decisions.splice(i, 1); drawDocument(); } }, "Remove")));
+    });
+    if (!ro) box.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { d.decisions.push({ if: "", then: "", attorney_decides: false, escalate_to: "" }); drawDocument(); } }, "Add a decision point"));
+    return box;
+  }
+  function linksEditor(d, ro) {
+    var box = h("div");
+    (d.related_links || []).forEach(function (l, i) {
+      box.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin:4px 0" }, tIn(l, "label", "Link " + (i + 1), { ro: ro, ph: "Template, form, policy or SOP" }), tIn(l, "url", "Link address " + (i + 1), { ro: ro, ph: "https:// or a document ID such as INT-01" }),
+        ro ? null : h("button", { class: "ghost small", type: "button", onclick: function () { d.related_links.splice(i, 1); drawDocument(); } }, "Remove")));
+    });
+    if (!ro) box.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { d.related_links.push({ label: "", url: "" }); drawDocument(); } }, "Add a link"));
+    return box;
+  }
+  function escalationEditor(d, ro) {
+    var box = h("div");
+    (d.escalation || []).forEach(function (x, i) {
+      box.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin:4px 0" }, field("Issue", tIn(x, "issue", "Issue " + (i + 1), { ro: ro })), field("Who decides (role)", tIn(x, "decider_role", "Who decides " + (i + 1), { ro: ro })),
+        field("How fast", tIn(x, "how_fast", "How fast " + (i + 1), { ro: ro })), ro ? null : h("button", { class: "ghost small", type: "button", onclick: function () { d.escalation.splice(i, 1); drawDocument(); } }, "Remove")));
+    });
+    if (!ro) box.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { d.escalation.push({ issue: "", decider_role: "", how_fast: "" }); drawDocument(); } }, "Add an escalation"));
+    return box;
+  }
+
+  // The RACI grid: click a cell to set R, A, C or I (exactly one A per step)
+  var RACI_OPTS = ["", "R", "A", "R,A", "C", "I"];
+  function raciGrid(d, edit) {
+    var roles = d.roles || [];
+    var t = h("table", { class: "stack raci", style: "width:100%" }, h("thead", null, h("tr", null, [h("th", { text: d.type === "workflow" ? "Stage" : "Step" })].concat(roles.map(function (r) { return h("th", { text: r }); })))),
+      h("tbody", null, (d.steps || []).map(function (st, i) {
+        st.raci = st.raci || {};
+        var aCount = Object.keys(st.raci).filter(function (k) { return String(st.raci[k]).indexOf("A") >= 0; }).length;
+        return h("tr", { class: aCount === 1 ? "" : "raci-bad" }, [h("td", { "data-label": d.type === "workflow" ? "Stage" : "Step", text: (i + 1) + ". " + String(st.stage || st.text || "").slice(0, 60) + (aCount === 1 ? "" : " (needs exactly one A)") })].concat(roles.map(function (r) {
+          var cur = st.raci[r] || "";
+          var b = h("button", { class: "raci-cell", type: "button", disabled: !edit, "aria-label": "Step " + (i + 1) + ", " + r + ": " + (cur || "empty") }, cur.replace(",", "+") || "·");
+          b.addEventListener("click", function () {
+            var next = RACI_OPTS[(RACI_OPTS.indexOf(cur) + 1) % RACI_OPTS.length];
+            if (next) st.raci[r] = next; else delete st.raci[r];
+            drawDocument();
+          });
+          return h("td", { "data-label": r }, b);
+        })));
+      })));
+    return h("div", { class: "card" }, h("h2", { text: "RACI" }), h("p", { class: "small muted", text: "R does the work, A owns the outcome and signs off (exactly one per step), C gives input before, I is told after. Keep C's to 2 or fewer. Click a cell to change it, then Save." }),
+      h("div", { class: "scroll" }, t));
+  }
+
+  function kpiCards(d, edit) {
+    var box = h("div", { class: "card" }, h("h2", { text: "KPIs (3 to 5)" }), h("p", { class: "small muted", text: "Each KPI needs a data source in a system you use: the exact report or field. No baseline yet? Write \"measure for 30 days first\"." }));
+    (d.kpis || []).forEach(function (k, i) {
+      var kind = h("select", { "aria-label": "Leading or lagging, KPI " + (i + 1), disabled: !edit }, [["", "Choose"], ["leading", "Leading"], ["lagging", "Lagging"]].map(function (o) { return h("option", { value: o[0], text: o[1], selected: k.kind === o[0] }); }));
+      kind.addEventListener("change", function () { k.kind = kind.value; });
+      box.appendChild(h("div", { class: "card", style: "padding:10px;margin:6px 0" }, field("KPI", tIn(k, "name", "KPI name " + (i + 1), { ro: !edit })), field("What it measures", tIn(k, "measures", "Measures " + (i + 1), { ro: !edit })),
+        h("div", { class: "row", style: "flex-wrap:wrap" }, field("Leading or lagging", kind), field("Data source (report or field)", tIn(k, "source", "Source " + (i + 1), { ro: !edit })), field("Owner (role)", tIn(k, "owner_role", "KPI owner " + (i + 1), { ro: !edit }))),
+        h("div", { class: "row", style: "flex-wrap:wrap" }, field("Baseline", tIn(k, "baseline", "Baseline " + (i + 1), { ro: !edit })), field("Target", tIn(k, "target", "Target " + (i + 1), { ro: !edit })), field("Review rhythm", tIn(k, "rhythm", "Rhythm " + (i + 1), { ro: !edit, ph: "weekly, monthly or quarterly" }))),
+        edit ? h("button", { class: "ghost small", type: "button", onclick: function () { d.kpis.splice(i, 1); drawDocument(); } }, "Remove") : null));
+    });
+    if (edit && (d.kpis || []).length < 5) box.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { d.kpis.push({ name: "", measures: "", kind: "", source: "", owner_role: "", baseline: "", target: "", rhythm: "" }); drawDocument(); } }, "Add a KPI"));
+    return box;
+  }
+
+  function docSuggestionsView(area) {
+    var list = lib.pb.suggestions;
+    if (!list.length) { area.appendChild(h("div", { class: "card" }, h("p", { class: "muted", style: "margin:0", text: "No suggestions waiting." }))); return; }
+    list.forEach(function (sg) {
+      area.appendChild(h("div", { class: "card" }, h("b", { text: sg.note || "A suggested change" }), h("div", { class: "small muted", text: sg.by + ", " + D.dateTime(sg.at) + (sg.removes_review ? ". It removes an attorney decision, so only the administrator can accept it." : "") }),
+        can(3) ? h("div", { class: "row", style: "margin-top:6px" }, h("button", { class: "blue small", type: "button", onclick: function () { decideSuggestion(sg.id, true); } }, "Accept"), h("button", { class: "ghost small", type: "button", onclick: function () { decideSuggestion(sg.id, false); } }, "Reject")) : null));
+    });
+  }
+  function decideSuggestion(id, accept) {
+    api.post("/playbooks/decide", { suggestion_id: id, accept: accept }).then(okOr).then(function () { lib.doc = null; openPlaybook(lib.pb.playbook.id); D.toast(app, accept ? "Accepted" : "Rejected"); }).catch(pbFail);
+  }
+
+  // What a freelancer sees of a document on a gig (only their part), and reference documents
+  function docGigView(b) {
+    var box = h("div");
+    if (b.purpose) box.appendChild(h("p", null, h("b", { text: "Purpose: " }), b.purpose));
+    if ((b.before_you_start || []).length) box.appendChild(h("div", null, h("p", { class: "doc-h" }, h("b", { text: "Before you start" })), h("ul", null, b.before_you_start.map(function (x) { return h("li", { text: x }); }))));
+    box.appendChild(h("p", { class: "doc-h" }, h("b", { text: "Steps" })));
+    box.appendChild(h("ol", null, (b.steps || []).map(function (st) {
+      return h("li", null, (st.stage ? st.stage + ": " : "") + st.text, st.menu_path ? h("div", { class: "small muted", text: "Where: " + st.menu_path }) : null,
+        st.attorney_decides ? h("div", { class: "small", style: "color:var(--brand);font-weight:700", text: "Attorney decides: ask the attorney inside the engagement before you go on." }) : null);
+    })));
+    if (b.timing) box.appendChild(h("p", null, h("b", { text: "Timing: " }), b.timing));
+    if ((b.quality_check || []).length) box.appendChild(h("div", null, h("p", { class: "doc-h" }, h("b", { text: "Quality check" })), h("ul", null, b.quality_check.map(function (x) { return h("li", { text: x }); }))));
+    if (b.done_when) box.appendChild(h("p", null, h("b", { text: "Done when: " }), b.done_when));
+    return box;
+  }
+  function referencesBlock(refs) {
+    if (!(refs || []).length) return null;
+    return h("div", { class: "card" }, h("h2", { text: "Reference documents (read only)" }), refs.map(function (r) {
+      var b = r.body || {};
+      return h("details", null, h("summary", { text: (r.doc_id ? r.doc_id + " " : "") + r.title + " (" + (DOC_TYPE_WORDS[r.doc_type] || "") + ")" }),
+        b.type === "playbook" ? h("div", null, h("p", { class: "small", text: "Preferred approach: " + (b.preferred || "") }), (b.hard_limits || []).length ? h("p", { class: "small", text: "Hard limits: " + b.hard_limits.join("; ") }) : null)
+          : h("div", null, (b.rules_must || []).map(function (x) { return h("p", { class: "small", text: "Must: " + x }); }), (b.rules_must_not || []).map(function (x) { return h("p", { class: "small", text: "Must not: " + x }); })));
+    }));
+  }
+  function referencesEditor(host, g, refs) {
+    var c = h("div", { class: "card" }, h("h2", { text: "Reference documents" }), h("p", { class: "small muted", text: "Attach approved Policies and Playbooks the freelancer should follow. They read them; they cannot change them." }));
+    (refs || []).forEach(function (r) {
+      c.appendChild(h("div", { class: "row" }, h("span", { class: "grow", text: (r.doc_id ? r.doc_id + " " : "") + r.title }), h("button", { class: "ghost small", type: "button", onclick: function () {
+        api.post("/gigs/reference", { gig_id: g.id, doc: r.id, on: false }).then(okOr).then(function () { draw(); }).catch(pbFail);
+      } }, "Remove")));
+    });
+    var sel = h("select", { "aria-label": "Reference document to attach" }, h("option", { value: "", text: "Loading..." }));
+    api.get("/library").then(function (x) {
+      D.clear(sel);
+      var docs = ((x.list || {}).playbooks || []).filter(function (p) { return p.status === "approved" && (p.doc_type === "policy" || p.doc_type === "playbook") && !(refs || []).some(function (r) { return r.id === p.id; }); });
+      sel.appendChild(h("option", { value: "", text: docs.length ? "Choose an approved Policy or Playbook" : "No approved Policies or Playbooks yet" }));
+      docs.forEach(function (p) { sel.appendChild(h("option", { value: p.id, text: (p.doc_id ? p.doc_id + " " : "") + p.title })); });
+    }).catch(function () {});
+    c.appendChild(h("div", { class: "row" }, sel, h("button", { class: "ghost small", type: "button", onclick: function () {
+      if (!sel.value) return;
+      api.post("/gigs/reference", { gig_id: g.id, doc: sel.value }).then(function (r) { if (!r.ok) { D.toast(app, DOC_ERR[r.reason] || failText(r), true); return; } draw(); D.toast(app, "Attached"); }).catch(pbFail);
+    } }, "Attach")));
+    host.appendChild(c);
+  }
+
+  // Attorney checkpoints inside an engagement
+  function checkpointsCard(r) {
+    var cps = r.checkpoints || [];
+    if (!cps.length) return null;
+    var att = r.role === "attorney";
+    var c = h("div", { class: "card" }, h("h2", { text: "Attorney decisions" }), h("p", { class: "small muted", text: "These steps need the attorney's decision. The work waits at each one until the attorney approves it here." }));
+    cps.forEach(function (cp) {
+      var note = h("input", { style: "width:100%", "aria-label": "Note for step " + cp.step_no, placeholder: att ? "A note with your decision (optional)" : "Anything the attorney should know (optional)" });
+      var st = cp.status === "approved" ? "Approved" + (cp.approved_by ? " by " + cp.approved_by : "") + (cp.approval_note ? ": " + cp.approval_note : "") : cp.status === "requested" ? "Waiting for the attorney" + (cp.requested_note ? ": " + cp.requested_note : "") : "Not reached yet";
+      var row = h("div", { style: "margin:6px 0" }, h("div", { class: "row" }, h("b", { class: "grow", text: "Step " + cp.step_no + ": " + cp.text }), h("span", { class: "badge " + (cp.status === "approved" ? "ready" : cp.status === "requested" ? "held" : ""), text: st })));
+      if (!att && cp.status === "pending") row.appendChild(h("div", { class: "row" }, note, h("button", { class: "blue small", type: "button", onclick: function () {
+        api.post("/engagements/checkpoint", { agreement_id: r.agreement.id, step_no: cp.step_no, note: note.value }).then(engOk).then(function () { engReload("The attorney was asked to decide."); }).catch(engFail);
+      } }, "Ask the attorney to decide")));
+      if (att && cp.status !== "approved") row.appendChild(h("div", { class: "row" }, note, h("button", { class: "blue small", type: "button", onclick: function () {
+        api.post("/engagements/checkpoint", { agreement_id: r.agreement.id, step_no: cp.step_no, note: note.value }).then(engOk).then(function () { engReload("Approved. The freelancer can go on."); }).catch(engFail);
+      } }, "Approve this step")));
+      c.appendChild(row);
+    });
+    return c;
+  }
+
 
   function draw() {
     closeMenu();

@@ -107,7 +107,7 @@ async function waitFor(page, words, ms) {
     p = s.page;
     t = await waitFor(p, "Claude wants to connect to DELA");
     ok(t.includes("It will use your Attorney side") && t.includes("you go back to claude.ai"), "the page names the side and where the member goes back to");
-    ok(t.includes("List and read the playbooks") && t.includes("It cannot pay, hire, sign"), "the page lists what the app can and cannot do");
+    ok(t.includes("List and read the documents") && t.includes("It cannot pay, hire, sign"), "the page lists what the app can and cannot do");
     ok(t.includes("Confidential client information does not belong in DELA"), "the client information notice is on the approval page");
     await p.screenshot({ path: path.join(SHOTS, "connector-approve.png"), fullPage: true });
     await Promise.all([p.waitForURL(/claude\.ai/), click(p, "Approve")]);
@@ -152,7 +152,7 @@ async function waitFor(page, words, ms) {
     s = await open(browser, 2401, "tab=connect&req=" + encodeURIComponent(si.req));
     p = s.page;
     t = await waitFor(p, "Claude wants to connect to DELA");
-    ok(t.includes("Freelancer side") && t.includes("See your name, side, plan") && !t.includes("playbooks"), "the freelancer page lists only what the freelancer side can do");
+    ok(t.includes("Freelancer side") && t.includes("See your name, side, plan") && !t.includes("documents"), "the freelancer page lists only what the freelancer side can do");
     await Promise.all([p.waitForURL(/claude\.ai/), click(p, "Approve")]);
     const ft = await (await fetch(API + "/oauth/token", { method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ grant_type: "authorization_code", code: new URL(p.url()).searchParams.get("code"), redirect_uri: REDIRECT, client_id: si.client, code_verifier: si.verifier }) })).json();

@@ -61,9 +61,9 @@ async function makeMember(bd, side, plan) {
     let s = await open(browser, 2200);
     const p = s.page;
     await click(p, "Library");
-    let t = await waitFor(p, "Playbook library");
-    ok(t.includes("0 playbooks (no cap on your plan)"), "the library opens with the count and the plan's cap");
-    await click(p, "New playbook");
+    let t = await waitFor(p, "Document library");
+    ok(t.includes("0 documents (no cap on your plan)"), "the library opens with the count and the plan's cap");
+    await click(p, "New document");
     await dela(p).getByLabel("Describe the task").fill("When a new family law client signs, we run a conflict check, send the engagement letter and open the file.");
     await click(p, "Draft it with DELA");
     t = await waitFor(p, "DELA's questions");
@@ -71,11 +71,11 @@ async function makeMember(bd, side, plan) {
     // Home counts the new draft, and "Open the Library" opens the list, not the last playbook (Stacey's test 2026-11-05)
     await click(p, "Home");
     await p.waitForTimeout(800);
-    const tile = await dela(p).locator(".stat-tile", { hasText: "Draft playbooks" }).innerText();
+    const tile = await dela(p).locator(".stat-tile", { hasText: "Draft documents" }).innerText();
     ok(tile.startsWith("1") || tile.includes("\n1\n") || tile.trim().split("\n").includes("1"), "Home shows 1 draft playbook (" + tile.split("\n").join(" ") + ")");
     await click(p, "Open the Library");
-    t = await waitFor(p, "Playbook library");
-    ok(t.includes("1 playbook"), "Open the Library shows the list of playbooks");
+    t = await waitFor(p, "Document library");
+    ok(t.includes("1 document"), "Open the Library shows the list of playbooks");
     await dela(p).locator(".work", { hasText: "New client intake" }).first().click();
     t = await waitFor(p, "DELA's questions");
     await dela(p).getByLabel("Your answers").fill("The attorney signs. California. The paralegal opens the file in Clio.");
@@ -89,11 +89,11 @@ async function makeMember(bd, side, plan) {
 
     // ---------- Chat: a change becomes a suggestion ----------
     await tab(p, "Chat");
-    await dela(p).getByLabel("Message about this playbook").fill("Who runs the conflict check?");
+    await dela(p).getByLabel("Message about this document").fill("Who runs the conflict check?");
     await click(p, "Send");
     await waitFor(p, "The paralegal runs the conflict check");
     ok(true, "chat answers a question about the playbook");
-    await dela(p).getByLabel("Message about this playbook").fill("Please add a step to send the welcome email");
+    await dela(p).getByLabel("Message about this document").fill("Please add a step to send the welcome email");
     await click(p, "Send");
     t = await waitFor(p, "Suggestions (1)");
     ok(t.includes("waiting on the Suggestions view"), "a requested change becomes a suggestion");
@@ -194,7 +194,7 @@ async function makeMember(bd, side, plan) {
     await dela(p).getByLabel("Step 2").blur();
     await p.waitForTimeout(300);
     await p.screenshot({ path: path.join(SHOTS, "2-scribe-review.png"), fullPage: true });
-    await click(p, "Build my playbook");
+    await click(p, "Build my document");
     t = await waitFor(p, "File a motion", 10000);
     await waitFor(p, "Complete: 100%");
     t = await text(p);
@@ -206,7 +206,7 @@ async function makeMember(bd, side, plan) {
     // ---------- Editor in the firm's library ----------
     s = await open(browser, 2201);
     await click(s.page, "Library");
-    await waitFor(s.page, "Playbook library");
+    await waitFor(s.page, "Document library");
     await dela(s.page).getByLabel("Library").selectOption({ index: 1 });
     t = await waitFor(s.page, "New client intake");
     ok(t.includes("Your role: Editor"), "the editor opens the firm's library from the picker");
@@ -220,8 +220,8 @@ async function makeMember(bd, side, plan) {
     // Upload a file right on the New playbook page and draft from it alone (Stacey 2026-11-05)
     s = await open(browser, 2200);
     await click(s.page, "Library");
-    await waitFor(s.page, "Playbook library");
-    await click(s.page, "New playbook");
+    await waitFor(s.page, "Document library");
+    await click(s.page, "New document");
     await click(s.page, "Upload a new file");
     await dela(s.page).getByLabel("Choose a file").setInputFiles({ name: "Billing steps.txt", mimeType: "text/plain", buffer: Buffer.from("Step 1. Pull the time entries.\nStep 2. Review the draft invoices.\nStep 3. Send the invoices.") });
     await click(s.page, "Upload");
@@ -239,7 +239,7 @@ async function makeMember(bd, side, plan) {
     // Phone
     s = await open(browser, 2200, { width: 390, height: 844 });
     await click(s.page, "Library");
-    await waitFor(s.page, "Playbook library");
+    await waitFor(s.page, "Document library");
     ok(await s.page.evaluate(() => document.documentElement.scrollWidth) <= 392, "the library fits a phone screen");
     await s.page.screenshot({ path: path.join(SHOTS, "2-library-phone.png") });
     await s.ctx.close();

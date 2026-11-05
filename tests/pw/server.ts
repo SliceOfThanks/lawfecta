@@ -65,7 +65,30 @@ const FULL = {
   steps: [{ text: "Run the conflict check", who: "paralegal", tag: "delegate", minutes: 10 }, { text: "Approve the engagement letter", who: "attorney", tag: "keep" }, { text: "Open the file in Clio", who: "paralegal", tool: "Clio", tag: "delegate" }],
   checks: ["Letter signed"], review_points: ["Attorney approves the engagement letter"], deliverables: "Opened file",
 };
+// Document standard answers for the browser test (docs/briefs/step-2d-document-standard.md)
+const DOC_SOP = {
+  type: "sop", title: "Run a conflict check", lifecycle: "INT", owner_role: "Paralegal", roles: ["Attorney", "Paralegal"], purpose: "Find conflicts before a consult.", scope: "Every new matter.",
+  trigger: "A prospective client asks for a consult.", before_you_start: ["Access to Clio"], timing: "Within 1 business day of the request.", quality_check: ["The result is in the matter notes"],
+  done_when: "The result is recorded in the matter notes.", saved_in: "Clio", related_links: [{ label: "INT-02 Respond to a new inquiry", url: "" }],
+  decisions: [{ if: "a possible conflict", then: "Send it to the attorney.", attorney_decides: true, escalate_to: "Attorney" }],
+  steps: [{ text: "Search the party names in Clio.", role: "Paralegal", raci: { Paralegal: "R,A" }, menu_path: "Clio > Contacts > Search" }, { text: "Record the results in the matter notes.", role: "Paralegal", raci: { Paralegal: "R,A" } },
+    { text: "Decide whether to accept the matter.", role: "Attorney", raci: { Attorney: "R,A" }, attorney_decides: true }],
+};
+function documentAnswer(system: string): unknown {
+  if (system.includes("document assistant inside Lawfecta, writing one")) {
+    if (system.includes("writing one Policy")) return { document: { type: "policy", title: "Client trust account rules", roles: ["Attorney", "Paralegal"], owner_role: "Attorney", lifecycle: "BIL", purpose: "Keep client money safe.", scope: "Everyone who touches the trust account.",
+      rules_must: ["Deposit client funds into the trust account within 1 business day"], rules_must_not: ["Pay firm bills from the trust account"], exceptions: "None without approval.", exceptions_role: "Attorney" }, questions: [], notices: [] };
+    return { document: DOC_SOP, suggested_type: null, questions: ["Which report shows conflicts?"], notices: [] };
+  }
+  if (system.includes("fixing a law firm document")) return { document: DOC_SOP, notices: ["Set exactly one Accountable (A) on each step"] };
+  if (system.includes("You classify one existing")) return { type: "sop", lifecycle: "INT", reason: "It is one clear path." };
+  if (system.includes("rewriting an existing law firm playbook")) return { document: { ...DOC_SOP, title: "New client intake" } };
+  if (system.includes("answering questions about one of the firm's documents")) return { reply: "That step is done by the paralegal.", change: null, note: "" };
+  return null;
+}
 function playbookAnswer(system: string, user: string): unknown {
+  const doc = documentAnswer(system);
+  if (doc) return doc;
   if (system.includes("write down one repeatable process")) return { playbook: { title: "New client intake", outcome: "An opened file", steps: [{ text: "Run the conflict check" }] }, questions: ["Who signs the engagement letter?", "Which state is this for?"] };
   if (system.includes("improving a playbook draft")) return { playbook: FULL, questions: [] };
   if (system.includes("answering questions about one of the firm's playbooks")) {
