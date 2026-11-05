@@ -53,6 +53,10 @@
     top.appendChild(h("span", { class: "grow" }));
     top.appendChild(h("span", { class: "small", style: "opacity:.85", text: me.person.name + " (" + me.staff.join(", ") + ")" }));
     top.appendChild(h("a", { class: "btn small ghost", href: "/dela", style: "color:#fff;border-color:rgba(255,255,255,.45);background:transparent" }, "Member view"));
+    // Sign out ends the DELA session, then logs out of Lawfecta too, the same as in the member area
+    top.appendChild(h("button", { class: "btn small ghost", type: "button", style: "color:#fff;border-color:rgba(255,255,255,.45);background:transparent", onclick: function () {
+      api.signOut().then(function () { location.href = root.getAttribute("data-logout-url") || "/logout"; });
+    } }, "Sign out"));
     tabsEl = h("div", { class: "tabs", role: "tablist" });
     mainEl = h("div", { class: "wrap" });
     D.clear(app);

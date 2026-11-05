@@ -30,6 +30,8 @@
 
   D.money = function (cents) {
     if (cents === null || cents === undefined) return "";
+    // A missing or broken amount reads "-", never "$NaN"
+    if (typeof cents !== "number" || !isFinite(cents)) return "-";
     var d = cents / 100;
     return "$" + (d % 1 === 0 ? d.toLocaleString("en-US") : d.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }));
   };

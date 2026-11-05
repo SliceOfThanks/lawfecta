@@ -3167,7 +3167,7 @@
     return out;
   }
   function deleteNowNote(gigId, n, after) {
-    var box = h("div", { class: "notice", role: "status" }, h("p", { style: "margin:0 0 6px", text: n + (n === 1 ? " file is" : " files are") + " already shared on this job. They stay until they expire. You can delete them now." }));
+    var box = h("div", { class: "notice", role: "status" }, h("p", { style: "margin:0 0 6px", text: n === 1 ? "1 file is already shared on this job. It stays until it expires. You can delete it now." : n + " files are already shared on this job. They stay until they expire. You can delete them now." }));
     var row = h("div", { class: "row" });
     var go = h("button", { class: "danger small", type: "button" }, "Delete now");
     go.addEventListener("click", function () {
@@ -3863,7 +3863,14 @@
     empty_message: "Write a message first.", not_found: "That is no longer here."
   };
   function confErr(e) { return e && e.reason === "blocked_data" && e.message ? e.message : (e && CONF_ERR[e.reason]) || engErr(e); }
-  function confFail(e) { D.toast(app, confErr(e), true); }
+  // Every answer stays on the card (a passing message is easy to miss; ChatGPT test 2026-11-05), and shows as a toast too
+  var confLast = null, confStatusEl = null;
+  function confSay(text, bad) {
+    confLast = { text: text, bad: !!bad, at: Date.now() };
+    if (confStatusEl) { confStatusEl.textContent = text; confStatusEl.className = "notice small conf-status" + (bad ? " bad" : " ok"); confStatusEl.hidden = false; }
+    D.toast(app, text, bad);
+  }
+  function confFail(e) { confSay(confErr(e), true); }
   var CONF_NO_SENSITIVE = "This file contains no medical records, ID documents, account numbers, logins or biometric data.";
   var CONF_ACK_TEXT = "I will keep these materials confidential, use them only for this engagement, and delete any copies when it ends.";
   var CONF_LOG_WORDS = { upload: "uploaded", open: "opened", download: "downloaded", link_added: "added the link", link_open: "opened the link", link_removed: "removed the link",
@@ -3890,6 +3897,9 @@
       body.appendChild(h("p", { class: "muted", text: CONF_ERR[v.reason] || confErr(v) }));
       return;
     }
+    confStatusEl = h("p", { class: "notice small conf-status", role: "status", "aria-live": "polite", hidden: "hidden" });
+    if (confLast && Date.now() - confLast.at < 120000) { confStatusEl.textContent = confLast.text; confStatusEl.className = "notice small conf-status" + (confLast.bad ? " bad" : " ok"); confStatusEl.hidden = false; }
+    body.appendChild(confStatusEl);
     body.appendChild(h("p", { class: "small muted", role: "note", text: "Client names, case facts, case numbers, court papers and contracts are allowed here. Never upload medical records, ID documents, account numbers, logins or biometric data: share those with a secure link from your own storage. DELA's AI never reads anything here." }));
     if (v.login_needed) { body.appendChild(confCodeBox(reload, v.login_hours)); return; }
     if (v.ack_needed) {
@@ -3941,9 +3951,9 @@
       var req = newId();
       var send = h("button", { class: "blue small", type: "button" }, "Send");
       send.addEventListener("click", function () {
-        if (!ta.value.trim()) { D.toast(app, CONF_ERR.empty_message, true); return; }
+        if (!ta.value.trim()) { confSay(CONF_ERR.empty_message, true); return; }
         send.disabled = true;
-        api.post("/confidential/message", { agreement_id: a.id, body: ta.value, request_id: req }).then(engOk).then(function () { reload(); D.toast(app, "Sent"); }).catch(function (e) { send.disabled = false; confFail(e); });
+        api.post("/confidential/message", { agreement_id: a.id, body: ta.value, request_id: req }).then(engOk).then(function () { reload(); confSay("Sent"); }).catch(function (e) { send.disabled = false; confFail(e); });
       });
       msgs.appendChild(ta); msgs.appendChild(h("div", { class: "row" }, send));
     }
@@ -3952,13 +3962,13 @@
     body.appendChild(ppl);
     (v.people || []).forEach(function (p) {
       ppl.appendChild(h("div", { class: "row" }, h("span", { class: "grow", text: p.name + " (" + p.role + ")" }), p.removable ? h("button", { class: "ghost small", type: "button", onclick: function () {
-        api.post("/confidential/member", { agreement_id: a.id, person_id: p.person_id, on: false }).then(engOk).then(function () { reload(); D.toast(app, "Removed"); }).catch(confFail);
+        api.post("/confidential/member", { agreement_id: a.id, person_id: p.person_id, on: false }).then(engOk).then(function () { reload(); confSay("Removed"); }).catch(confFail);
       } }, "Remove") : null));
     });
     if (v.staff_options && v.staff_options.length) {
       var sel = h("select", { "aria-label": "Firm staff to add" }, v.staff_options.map(function (o) { return h("option", { value: o.person_id, text: o.name }); }));
       ppl.appendChild(h("div", { class: "row" }, sel, h("button", { class: "ghost small", type: "button", onclick: function () {
-        api.post("/confidential/member", { agreement_id: a.id, person_id: sel.value, on: true }).then(engOk).then(function () { reload(); D.toast(app, "Added"); }).catch(confFail);
+        api.post("/confidential/member", { agreement_id: a.id, person_id: sel.value, on: true }).then(engOk).then(function () { reload(); confSay("Added"); }).catch(confFail);
       } }, "Add to this job")));
     }
     // A dispute: both agree before a Lawfecta reviewer may open the materials
@@ -4008,8 +4018,8 @@
     var out = h("div");
     go.addEventListener("click", function () {
       var file = pick.files && pick.files[0];
-      if (!file) { D.toast(app, "Choose a file first.", true); return; }
-      if (!tick.checked) { D.toast(app, CONF_ERR.no_sensitive_needed, true); return; }
+      if (!file) { confSay("Choose a file first.", true); return; }
+      if (!tick.checked) { confSay(CONF_ERR.no_sensitive_needed, true); return; }
       go.disabled = true; D.clear(out); out.appendChild(h("p", { class: "small muted", text: "Uploading and checking " + file.name + "..." }));
       api.post("/confidential/upload/start", { agreement_id: agId, name: file.name, size_bytes: file.size, request_id: newId(), no_sensitive: true, expiry_days: days ? Number(days.value) : null }).then(engOk).then(function (x) {
         if (x.duplicate) return x;
@@ -4020,12 +4030,12 @@
       }).then(function (c) {
         go.disabled = false;
         if (c && c.ok === false) throw c;
-        reload(); D.toast(app, "Uploaded" + (c && c.scan_state === "not_scanned" ? ". Not virus scanned on the test site." : ""));
+        reload(); confSay("Uploaded" + (c && c.scan_state === "not_scanned" ? ". Not virus scanned on the test site." : ""));
       }).catch(function (e) {
         go.disabled = false; D.clear(out);
         out.appendChild(h("p", { class: "notice bad", role: "alert", text: confErr(e) }));
         if (e && e.reason === "blocked_data" && e.can_mark_sensitive) out.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-          api.post("/gigs/sensitive", { gig_id: gigId, on: true }).then(gigOk).then(function () { reload(); D.toast(app, "Marked as sensitive. Share the file with a secure link instead."); }).catch(gigFail);
+          api.post("/gigs/sensitive", { gig_id: gigId, on: true }).then(gigOk).then(function () { reload(); confSay("Marked as sensitive. Share the file with a secure link instead."); }).catch(gigFail);
         } }, "Mark this job as sensitive"));
       });
     });
@@ -4043,10 +4053,10 @@
     if (!f.view_only && !viewable) acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { confOpenFile(agId, f, "download"); } }, "Download"));
     if (manage) {
       acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-        api.post("/confidential/extend", { agreement_id: agId, file_id: f.id }).then(engOk).then(function (x) { reload(); D.toast(app, x.job_ended ? "Extended, but the job has ended, so the freelancer's access stays closed." : "Extended to " + D.date(x.expires_at)); }).catch(confFail);
+        api.post("/confidential/extend", { agreement_id: agId, file_id: f.id }).then(engOk).then(function (x) { reload(); confSay(x.job_ended ? "Extended, but the job has ended, so the freelancer's access stays closed." : "Extended to " + D.date(x.expires_at)); }).catch(confFail);
       } }, "Extend " + ((v.sharing || {}).extend_days || 14) + " days"));
       acts.appendChild(h("button", { class: "ghost small", type: "button", "aria-pressed": f.view_only ? "true" : "false", onclick: function () {
-        api.post("/confidential/view-only", { agreement_id: agId, file_id: f.id, on: !f.view_only }).then(engOk).then(function () { reload(); D.toast(app, f.view_only ? "Downloads allowed again" : "View only: the download button is gone"); }).catch(confFail);
+        api.post("/confidential/view-only", { agreement_id: agId, file_id: f.id, on: !f.view_only }).then(engOk).then(function () { reload(); confSay(f.view_only ? "Downloads allowed again" : "View only: the download button is gone"); }).catch(confFail);
       } }, f.view_only ? "Allow download" : "View only"));
     }
     if (f.can_delete) {
@@ -4056,7 +4066,7 @@
         acts.appendChild(h("span", { class: "small grow", text: "Delete " + f.name + " for good?" }));
         acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: reload }, "Cancel"));
         acts.appendChild(h("button", { class: "danger small", type: "button", onclick: function () {
-          api.post("/confidential/delete", { agreement_id: agId, file_id: f.id }).then(engOk).then(function () { reload(); D.toast(app, "Deleted"); }).catch(confFail);
+          api.post("/confidential/delete", { agreement_id: agId, file_id: f.id }).then(engOk).then(function () { reload(); confSay("Deleted"); }).catch(confFail);
         } }, "Yes, delete"));
       });
       acts.appendChild(del);
@@ -4101,10 +4111,10 @@
     var req = newId();
     var add = h("button", { class: "blue small", type: "button" }, "Add link");
     add.addEventListener("click", function () {
-      if (!url.value.trim()) { D.toast(app, "Paste the link first.", true); return; }
+      if (!url.value.trim()) { confSay("Paste the link first.", true); return; }
       add.disabled = true;
       api.post("/confidential/links/add", { agreement_id: agId, url: url.value.trim(), label: label.value.trim(), expiry_days: Number(days.value), request_id: req }).then(engOk).then(function (x) {
-        reload(); D.toast(app, "Link added. It expires on " + D.date(x.expires_at) + ".");
+        reload(); confSay("Link added. It expires on " + D.date(x.expires_at) + ".");
       }).catch(function (e) { add.disabled = false; confFail(e); });
     });
     return h("div", { class: "conf-link-form" }, h("div", { class: "row", style: "flex-wrap:wrap" }, label, url),
@@ -4123,7 +4133,7 @@
         acts.appendChild(h("span", { class: "small grow", text: "Remove this link? Also turn off sharing in your own storage." }));
         acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: reload }, "Cancel"));
         acts.appendChild(h("button", { class: "danger small", type: "button", onclick: function () {
-          api.post("/confidential/links/remove", { agreement_id: agId, link_id: l.id }).then(engOk).then(function () { reload(); D.toast(app, "Link removed"); }).catch(confFail);
+          api.post("/confidential/links/remove", { agreement_id: agId, link_id: l.id }).then(engOk).then(function () { reload(); confSay("Link removed"); }).catch(confFail);
         } }, "Yes, remove"));
       });
       acts.appendChild(rm);

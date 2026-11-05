@@ -137,6 +137,10 @@ const SENS = "This job involves sensitive data (SSN, medical, financial, or ID d
     await label(s.page, "Secure link").fill("http://drive.google.com/x");
     await click(s.page, "Add link");
     await waitFor(s.page, "Use a secure link that starts with https.");
+    // The answer stays on the card after the passing message is gone (ChatGPT test 2026-11-05 missed it)
+    await s.page.waitForTimeout(6500);
+    ok((await conf(s.page).locator(".conf-status").innerText()).includes("Use a secure link that starts with https."), "a refusal stays on the card");
+    ok(await s.page.evaluate(() => window.DELA.money(undefined + 1) === "-" && window.DELA.money(45000) === "$450"), "a broken amount reads -, never $NaN");
     await label(s.page, "Secure link").fill("https://drive.google.com/drive/folders/abc");
     await label(s.page, "Link expires after").selectOption("7");
     await click(s.page, "Add link");
@@ -227,6 +231,7 @@ const SENS = "This job involves sensitive data (SSN, medical, financial, or ID d
     // ---------- The admin Security tab ----------
     await sql("select dela_security_contact('{\"name\": \"Pat\", \"email\": \"pat@example.com\", \"topic\": \"Encryption\", \"message\": \"Is my data encrypted at rest?\", \"ip_hash\": \"sharing-test\"}'::jsonb)");
     s = await open(browser, "DELA-Admin", OWNER, "");
+    ok(await dela(s.page).getByRole("button", { name: "Sign out", exact: true }).count() === 1, "the admin area has Sign out");
     await dela(s.page).getByRole("tab", { name: "Security", exact: true }).click();
     t = await waitFor(s.page, "Security questions from the website");
     ok(t.includes("Is my data encrypted at rest?") && t.includes("pat@example.com"), "the question is in the admin area");
