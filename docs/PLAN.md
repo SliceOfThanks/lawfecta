@@ -136,6 +136,7 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
 - Reviews after completed work, kept separate from reviews by past clients.
 - A personal or firm bench of trusted freelancers.
 - Webhooks so members can connect DELA to their own tools.
+- Brief with 18 questions and suggested answers, waiting for your answers: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-7-reviews-bench-webhooks.md
 
 ### Step 7b: Affiliates and referrals (Partnero)
 - Part 1 runs on the current BD site.
