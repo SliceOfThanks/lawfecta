@@ -172,6 +172,14 @@ Deno.test("agreement: DELA drafts version 1 from the facts; only the two parties
   assert(body.rubric[0].criteria.some((c: any) => c.text.includes("Every exhibit is labeled")), "the playbook's quality checks are in the rubric");
   assertEquals((await call("GET", "/agreements/get?id=" + ag, att.token)).body.current.version, 1, "opening it twice makes one version");
   assertEquals((await call("GET", "/agreements/get?id=" + ag, other.token)).body.reason, "not_found", "another freelancer cannot see it");
+  // A made-up id is refused everywhere (the party check is never empty)
+  const fake = crypto.randomUUID();
+  assertEquals((await call("GET", "/agreements/get?id=" + fake, att.token)).body.reason, "not_found");
+  assertEquals((await call("POST", "/agreements/sign", att.token, { id: fake, version: 1, typed_name: "Ann", consent: true })).body.reason, "not_found");
+  assertEquals((await call("POST", "/engagements/pay", att.token, { id: fake })).body.reason, "not_found");
+  assertEquals((await call("POST", "/engagements/cancel", att.token, { id: fake, reason: "x" })).body.reason, "not_found");
+  assertEquals((await call("POST", "/disputes/open", fl.token, { id: fake, reason: "x" })).body.reason, "not_found");
+  assertEquals((await call("GET", "/engagements/export?id=" + fake, fl.token)).body.reason, "export_not_available");
   assertEquals((await call("GET", "/agreements/get?gig=" + r.agreement.gig_id, att.token)).body.agreement.id, ag, "found from the gig too");
   const list = (await call("GET", "/engagements", fl.token)).body;
   assertEquals(list.engagements.find((e: any) => e.id === ag).needs_me, "sign");

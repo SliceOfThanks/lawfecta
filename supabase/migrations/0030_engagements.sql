@@ -249,10 +249,11 @@ create table provider_events (
 alter table provider_events enable row level security;
 
 -- ---------- Helpers ----------
+-- Always '' (never null) when the person is not a party or the agreement does not exist, so every "= ''" check refuses it
 create or replace function dela_agreement_role(p_person uuid, p_side text, p_agreement uuid) returns text language sql stable as $$
-  select case when p_side = 'attorney' and dela_firm_role(p_person, a.attorney_org) in ('owner', 'manager') then 'attorney'
+  select coalesce((select case when p_side = 'attorney' and dela_firm_role(p_person, a.attorney_org) in ('owner', 'manager') then 'attorney'
               when p_side = 'freelancer' and a.freelancer_person = p_person then 'freelancer' else '' end
-  from agreements a where a.id = p_agreement
+  from agreements a where a.id = p_agreement), '')
 $$;
 
 create or replace function dela_ledger(p_agreement uuid, p_milestone uuid, p_kind text, p_amount int, p_ref text, p_note text) returns void language sql as $$
@@ -433,7 +434,7 @@ create or replace function dela_engagements(p_person uuid, p_side text) returns 
       'milestones', (select count(*) from milestones m where m.agreement_id = a.id and m.status <> 'canceled'),
       'accepted', (select count(*) from milestones m where m.agreement_id = a.id and m.status = 'accepted'),
       'earned_cents', (select coalesce(sum(po.amount_cents), 0) from payouts po where po.agreement_id = a.id and po.status = 'sent'),
-      'needs_me', case when a.status = 'signing' and not exists (select 1 from agreement_signatures s where s.agreement_id = a.id and s.version = a.version and s.person_id = p_person) then 'sign' end) x
+      'needs_me', case when a.status in ('draft', 'sent', 'signing') and not exists (select 1 from agreement_signatures s where s.agreement_id = a.id and s.version = a.version and s.person_id = p_person) then 'sign' end) x
     from agreements a join gigs g on g.id = a.gig_id where dela_agreement_role(p_person, p_side, a.id) <> '') y
 $$;
 
