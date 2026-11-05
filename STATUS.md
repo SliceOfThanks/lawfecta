@@ -6,7 +6,14 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - Built with Stacey's answers (docs/briefs/step-7d-agencies.md): migrations 0040 (team, seats, invitations, agency proposals, "Who's working on this", reviews to the team, admin check and seats) and 0041 (5% fees on both sides from settings; already on the test site).
 - Screens: the freelancer "Agency" tab (switch agency_team), "Send as" and "Who will do this work" on proposals, the agency on the attorney's proposal list and profile window, "Who's working on this" on the engagement, and the admin "Agencies" tab.
 - Tests: agency_test.ts (8 api tests), tests/pw/agency-test.js (14 browser checks).
-- Not on the test site yet: 0040, the function and code_version wait until Stacey's security re-test report is in, so nothing changes during her run. Then agency_team goes on for the access list.
+- On the test site since 2026-11-05: commit 0f30ec3 (function version 39, code_version 0f30ec3), migration 0040 applied (fingerprint checked), switch agency_team on for the access list. agency_hiring, agency_subcontracting and agency_extra_seats stay off.
+
+## Security re-test, 2026-11-05 (ChatGPT): 11 PASS, 3 FAIL, all fixed in 0f30ec3
+- 1.2: the "Shared until" and "Extended to" answers were passing toasts. They now stay on "Files for this gig", and the days picked stay picked.
+- 1.5: a refused upload left "Uploaded" at the top of Confidential materials. The refusal now replaces it.
+- 2.2: the freelancer's Download opened a new tab after DELA answered, which browsers block as a pop-up. It now downloads in the same tab.
+- "$NaN" on the test job's fees: that hand-made test agreement has no fee amounts. Missing amounts now read "-"; real agreements always carry them.
+- Each fix has a check that failed before (sharing-test.js, engagements_test.ts).
 
 ## Security and sensitive data (step 6d) and Confidential materials (step 6c), 2026-11-05
 - Built with Stacey's answers to docs/briefs/step-6d-security-sensitive-data.md and her Confidential materials decisions. On the test site: commit d74af66 (function version 37), migrations 0036 to 0039, Confidential materials switch on for the access list.
