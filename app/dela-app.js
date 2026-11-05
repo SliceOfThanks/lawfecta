@@ -3198,9 +3198,13 @@
   function expirySelect(choices, def, label) {
     return h("select", { "aria-label": label }, (choices || [7, 14, 30]).map(function (d) { return h("option", { value: String(d), selected: d === def ? "selected" : null, text: d + " days" }); }));
   }
+  // The last answer on "Files for this gig" stays on the card (a passing message is easy to miss; ChatGPT re-test 2026-11-05)
+  var gigFilesLast = null, gigFilesDays = null;
+  function gigFilesSay(gid, text) { gigFilesLast = { gig: gid, text: text, at: Date.now() }; D.toast(app, text); }
   function gigFiles(body, r) {
     var g = r.gig, sc = r.sharing_choices || {};
     var box = h("div", { class: "card" }, h("h2", { text: "Files for this gig" }));
+    if (gigFilesLast && gigFilesLast.gig === g.id && Date.now() - gigFilesLast.at < 10 * 60 * 1000) box.appendChild(h("p", { class: "notice small ok gig-files-status", role: "status", text: gigFilesLast.text }));
     box.appendChild(sensitiveBox(g.id, !!r.sensitive, function () { draw(); }));
     if (r.sensitive) box.appendChild(h("p", { class: "notice", text: "This job involves sensitive data, so files cannot be shared here. Once you hire and the first milestone is paid, add secure document links in Confidential materials on the engagement." }));
     else box.appendChild(h("p", { class: "small muted", text: "Read only, for this gig only. Each file is open to invited freelancers and the freelancer you hire until it expires (you pick 7, 14 or 30 days) or the job is complete, whichever comes first. Your copy stays in your Files tab. Every download is logged." }));
@@ -3208,13 +3212,14 @@
       var when = f.expired ? "Freelancer access ended " + D.date(f.expires_at) : "Freelancer access until " + D.date(f.expires_at);
       box.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, h("span", { class: "grow" }, f.name, h("span", { class: "small " + (f.expired ? "bad" : "muted"), text: " | " + when })),
         h("button", { class: "ghost small", type: "button", onclick: function () {
-          api.post("/gigs/files/extend", { gig_id: g.id, file_id: f.file_id }).then(gigOk).then(function (x) { draw(); D.toast(app, "Extended to " + D.date(x.expires_at)); }).catch(gigFail);
+          api.post("/gigs/files/extend", { gig_id: g.id, file_id: f.file_id }).then(gigOk).then(function (x) { gigFilesSay(g.id, "Extended to " + D.date(x.expires_at)); draw(); }).catch(gigFail);
         } }, "Extend " + (sc.extend_days || 14) + " days"),
-        h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/gigs/files", { gig_id: g.id, file_id: f.file_id, share: false }).then(gigOk).then(function () { draw(); D.toast(app, "No longer shared"); }).catch(gigFail); } }, "Stop sharing")));
+        h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/gigs/files", { gig_id: g.id, file_id: f.file_id, share: false }).then(gigOk).then(function () { gigFilesSay(g.id, "No longer shared"); draw(); }).catch(gigFail); } }, "Stop sharing")));
     });
     if ((me.switches || {}).file_uploads && !r.sensitive) {
       var pickWrap = h("div");
-      var days = expirySelect(sc.choices, sc.default || 14, "Freelancer can open it for");
+      var days = expirySelect(sc.choices, gigFilesDays || sc.default || 14, "Freelancer can open it for");
+      days.addEventListener("change", function () { gigFilesDays = Number(days.value); });
       box.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:8px" }, h("label", { class: "small", style: "font-weight:400" }, "Freelancer can open it for ", days),
         h("button", { class: "ghost small", type: "button", onclick: function () {
           api.get("/files").then(function (x) {
@@ -3224,7 +3229,7 @@
             if (!ready.length) { pickWrap.appendChild(h("p", { class: "small muted", text: "No other ready files. Upload on the Files tab first." })); return; }
             ready.forEach(function (f) {
               pickWrap.appendChild(h("div", { class: "row" }, h("span", { class: "grow", text: f.name }), h("button", { class: "blue small", type: "button", onclick: function () {
-                api.post("/gigs/files", { gig_id: g.id, file_id: f.id, share: true, expiry_days: Number(days.value) }).then(gigOk).then(function (y) { draw(); D.toast(app, "Shared until " + D.date(y.expires_at)); }).catch(gigFail);
+                api.post("/gigs/files", { gig_id: g.id, file_id: f.id, share: true, expiry_days: Number(days.value) }).then(gigOk).then(function (y) { gigFilesSay(g.id, "Shared until " + D.date(y.expires_at)); draw(); }).catch(gigFail);
               } }, "Share")));
             });
           }).catch(err);
@@ -4091,6 +4096,13 @@
     D.toast(app, text, bad);
   }
   function confFail(e) { confSay(confErr(e), true); }
+  // The link says "save as", so following it in this tab downloads the file and the page stays open.
+  // (window.open after DELA answers is not a click, so browsers block it as a pop-up.)
+  function startDownload(url) {
+    var a = document.createElement("a");
+    a.href = url; a.rel = "noopener"; a.style.display = "none";
+    document.body.appendChild(a); a.click(); a.remove();
+  }
   var CONF_NO_SENSITIVE = "This file contains no medical records, ID documents, account numbers, logins or biometric data.";
   var CONF_ACK_TEXT = "I will keep these materials confidential, use them only for this engagement, and delete any copies when it ends.";
   var CONF_LOG_WORDS = { upload: "uploaded", open: "opened", download: "downloaded", link_added: "added the link", link_open: "opened the link", link_removed: "removed the link",
@@ -4253,6 +4265,7 @@
         reload(); confSay("Uploaded" + (c && c.scan_state === "not_scanned" ? ". Not virus scanned on the test site." : ""));
       }).catch(function (e) {
         go.disabled = false; D.clear(out);
+        confSay(confErr(e), true);
         out.appendChild(h("p", { class: "notice bad", role: "alert", text: confErr(e) }));
         if (e && e.reason === "blocked_data" && e.can_mark_sensitive) out.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
           api.post("/gigs/sensitive", { gig_id: gigId, on: true }).then(gigOk).then(function () { reload(); confSay("Marked as sensitive. Share the file with a secure link instead."); }).catch(gigFail);
@@ -4298,7 +4311,7 @@
   // PDFs come back stamped with the viewer's name and the date; images get the same stamp drawn on top
   function confOpenFile(agId, f, action) {
     api.post("/confidential/open", { agreement_id: agId, file_id: f.id, action: action }).then(engOk).then(function (x) {
-      if (x.kind === "download") { window.open(x.url, "_blank", "noopener"); return; }
+      if (x.kind === "download") { startDownload(x.url); confSay("Downloading " + x.name); return; }
       var m = modal(x.name);
       m.body.appendChild(h("p", { class: "small muted", text: "Watermarked: " + x.watermark }));
       if (x.kind === "pdf") {

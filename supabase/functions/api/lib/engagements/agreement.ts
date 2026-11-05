@@ -5,7 +5,8 @@ export type Criterion = { id: string; text: string; weight: number; required: bo
 export type MilestoneBody = { seq: number; title: string; amount_cents: number; due_date: string; deliverables: string };
 
 const s = (v: unknown, max = 500) => (typeof v === "string" ? v.split("\u0000").join("").replace(/\s+/g, " ").trim().slice(0, max) : "");
-const money = (c: number) => "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 });
+// A missing amount reads "-", never "$NaN"
+const money = (c: number) => typeof c !== "number" || !isFinite(c) ? "-" : "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 });
 
 export const TERMS_TEMPLATE = `DRAFT FOR LAWFECTA'S LAWYER TO REVIEW. Not for live payments until approved.
 

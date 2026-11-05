@@ -5,7 +5,7 @@ import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { handle, type Deps } from "./app.ts";
 import { sessionHash } from "./lib/crypto.ts";
 import { keyAllowed, stripeForm, stripeSignatureHeader, verifyStripeSignature, accountStatus } from "./lib/payments/stripe.ts";
-import { buildBody, proposeMilestones, rubricFor, scoreFindings, termsText } from "./lib/engagements/agreement.ts";
+import { buildBody, feeLines, proposeMilestones, rubricFor, scoreFindings, termsText } from "./lib/engagements/agreement.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
 
@@ -392,3 +392,11 @@ Deno.test("every day: agreements not signed in time close and the attorney can c
 });
 
 Deno.test("teardown", async () => { await pool.end(); });
+
+Deno.test("fees: an agreement with no fee amounts reads \"-\", never \"$NaN\" (ChatGPT re-test 2026-11-05)", () => {
+  const lines = feeLines({ milestones: [{ seq: 1, title: "Draft", amount_cents: 45000 }] });
+  assertEquals(lines.length, 4);
+  for (const l of lines) assert(!l.includes("NaN"), l);
+  assert(lines[0].endsWith(": -"), lines[0]);
+  assert(feeLines({ fees: { total_cents: 60000, attorney_fee_cents: 3000, freelancer_fee_cents: 3000, freelancer_receives_cents: 57000 } })[3].endsWith("$570"));
+});

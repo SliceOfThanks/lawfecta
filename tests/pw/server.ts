@@ -211,7 +211,11 @@ Deno.serve({ port: PORT, hostname: "127.0.0.1" }, async (req) => {
   }
   if (url.pathname.startsWith("/test/storage/get/")) {
     const b = objects.get(url.pathname.slice(18));
-    return b ? new Response(b as Uint8Array<ArrayBuffer>, { headers: { "content-type": "application/octet-stream" } }) : new Response("gone", { status: 404 });
+    // Like Supabase Storage: a download name means "save as" (Content-Disposition: attachment)
+    const dn = url.searchParams.get("download");
+    const hd: Record<string, string> = { "content-type": "application/octet-stream" };
+    if (dn) hd["content-disposition"] = `attachment; filename="${dn.split('"').join("")}"`;
+    return b ? new Response(b as Uint8Array<ArrayBuffer>, { headers: hd }) : new Response("gone", { status: 404 });
   }
   if (url.pathname.startsWith("/api")) return await handle(req, deps);
   return new Response("not found", { status: 404 });

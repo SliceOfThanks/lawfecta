@@ -94,8 +94,12 @@ const SENS = "This job involves sensitive data (SSN, medical, financial, or ID d
     t = await waitFor(s.page, "Freelancer access until");
     const exp = (await sql(`select expires_at from gig_files where gig_id = '${gig}'`))[0].expires_at;
     ok(Math.abs((new Date(exp) - Date.now()) / 86400000 - 7) < 0.1, "shared for the 7 days picked");
+    // The answer stays on the card, and the 7 days picked stay picked (ChatGPT re-test 2026-11-05)
+    ok((await dela(s.page).locator(".gig-files-status").innerText()).startsWith("Shared until "), "the share answer stays on the card");
+    ok(await label(s.page, "Freelancer can open it for").inputValue() === "7", "the days picked stay picked after sharing");
     await click(s.page, "Extend 14 days");
     await waitFor(s.page, "Extended to");
+    ok((await dela(s.page).locator(".gig-files-status").innerText()).startsWith("Extended to "), "the extend answer stays on the card");
     const exp2 = (await sql(`select expires_at from gig_files where gig_id = '${gig}'`))[0].expires_at;
     ok(Math.abs((new Date(exp2) - Date.now()) / 86400000 - 21) < 0.1, "Extend adds 14 days");
     await s.ctx.close();
@@ -132,6 +136,7 @@ const SENS = "This job involves sensitive data (SSN, medical, financial, or ID d
     await click(s.page, "Upload");
     await waitFor(s.page, "This file appears to contain sensitive data like a Social Security or card number. Please share it using a secure link instead.", 10000);
     ok(await dela(s.page).getByRole("button", { name: "Mark this job as sensitive", exact: true }).count() === 1, "the button that ticks the sensitive checkbox");
+    ok((await conf(s.page).locator(".conf-status").innerText()).startsWith("This file appears to contain sensitive data"), "the refusal replaces the earlier Uploaded line at the top");
     // A secure link
     await label(s.page, "Label (optional)").fill("Medical records folder");
     await label(s.page, "Secure link").fill("http://drive.google.com/x");
@@ -161,6 +166,9 @@ const SENS = "This job involves sensitive data (SSN, medical, financial, or ID d
     t = await waitFor(s.page, "Roe intake.txt");
     ok(t.includes("Open to you until") && t.includes("Medical records folder"), "the freelancer sees the file, its date and the link");
     ok(!t.includes(SENS) && await dela(s.page).getByRole("button", { name: "Add link", exact: true }).count() === 0, "freelancers do not mark jobs or add links");
+    // Download starts in this tab (a new tab opened after DELA answers is blocked as a pop-up; ChatGPT re-test 2026-11-05)
+    const [dl] = await Promise.all([s.page.waitForEvent("download", { timeout: 10000 }), click(s.page, "Download")]);
+    ok(dl.suggestedFilename() === "Roe intake.txt", "the freelancer's Download saves the file");
     const popup = s.page.waitForEvent("popup").catch(() => null);
     await click(s.page, "Open link");
     await popup;
