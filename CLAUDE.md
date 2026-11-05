@@ -8,6 +8,7 @@ config/decisions.json holds every approved or proposed business number. Never ha
 ## Owner
 Stacey. Not technical with GitHub. She installs code in Brilliant Directories and changes settings; she does not run tests.
 Live testing goes to ChatGPT through one ready-to-paste prompt per release.
+Group every test (ChatGPT prompts and by-hand steps) by login: all freelancer steps together, then all attorney steps, then the owner (admin area), so each account logs in once. Checks that depend on another account go in one short last group, "Check the results", saying which login each needs. Start each group with "Log in as ..." and end it with signing out.
 Writing style for anything she reads: plain, direct, no em dashes, no "it's not X, it's Y", no punchy negation strings.
 Every step Stacey must do is spelled out in full every time, even when it repeats an earlier step: the exact website or app, where to click, what to type or paste, and the file (sent again) or link. Never say "run the SQL" without saying where (Supabase, Lawfecta AI project, SQL Editor), and never assume she remembers an earlier message. Prefer doing a step yourself when a tool allows it.
 Say exactly where on the page each thing is: which card or heading it sits under, roughly how far down (top, middle, bottom of the page), and the button or box name in quotes. For example: 'On the Profile page, scroll down to the "Your profile" card, then to the "How you work" heading near the bottom; the "Usual hours" box is under "Time zone".' Never name a box or button without where to find it.

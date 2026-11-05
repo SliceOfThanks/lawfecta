@@ -28,4 +28,4 @@ Every number comes from config/decisions.json or admin settings. List them, and 
 Numbered questions for Stacey. The build starts after she answers them.
 
 ## Success looks like
-The checks that must pass on Staging before it goes live. These become the ChatGPT test prompt.
+The checks that must pass on Staging before it goes live. These become the ChatGPT test prompt, grouped by login (freelancer, attorney, owner, then a short "Check the results").

@@ -55,6 +55,7 @@ begin
   perform t_ok((dela_license_add(att, jsonb_build_object('request_id', 'l1'))->>'duplicate')::boolean, 'two clicks add one license');
   perform t_ok((select count(*) from notifications where person_id = att and channel = 'email' and to_email = 'ann@attorneylaw.com' and link like '%confirm=code1') = 1, 'the link goes to the license email, not the login email');
   perform t_ok(not exists (select 1 from email_checks where token_hash = 'code1'), 'only the hash of the code is kept for the check');
+  perform t_ok(dela_a('AK') = 'an' and dela_a('TX') = 'a' and dela_a('NY') = 'an' and dela_a('CA') = 'a', 'a or an before a state code');
   perform t_ok(dela_license_email_confirm(att2, tok)->>'reason' = 'link_not_valid', 'the link does not work for another account');
   perform t_ok((dela_license_email_confirm(att, tok)->>'ok')::boolean, 'the attorney confirms the email');
   perform t_ok((select email_confirmed_at is not null from licenses where id = lic), 'the license email is confirmed');

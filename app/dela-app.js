@@ -102,7 +102,7 @@
     drawer = el;
     scrim = h("div", { class: "dela-scrim", "aria-hidden": "true", onclick: function () { if (!keepOnOutsideClick) closeDrawer(); } });
     var label = el.getAttribute("aria-label") || "panel";
-    el.insertBefore(h("div", { class: "drawer-top" }, h("button", { class: "drawer-x", "aria-label": "Close " + label.toLowerCase(), title: "Close", onclick: closeDrawer }, "✕")), el.firstChild);
+    el.insertBefore(h("div", { class: "drawer-top" }, h("button", { class: "ghost small drawer-x", "aria-label": "Close " + label.toLowerCase(), onclick: closeDrawer }, "Close")), el.firstChild);
     app.appendChild(scrim);
     app.appendChild(el);
   }
@@ -1317,7 +1317,7 @@
     api.get("/files/versions?id=" + f.id).then(function (r) {
       closeDrawer();
       drawer = h("div", { class: "drawer", role: "dialog", "aria-label": "Versions" },
-        h("div", { class: "row" }, h("h2", { class: "grow", text: "Versions of " + f.name }), h("button", { class: "ghost small", onclick: closeDrawer }, "Close")),
+        h("div", { class: "row", style: "padding-right:84px" }, h("h2", { class: "grow", text: "Versions of " + f.name })),
         h("ul", { class: "list" }, r.items.map(function (v) {
           return h("li", null, h("b", { text: "Version " + v.version + (v.is_current ? " (current)" : "") }), h("div", { class: "small muted", text: D.dateTime(v.created_at) + ", " + mbText(v.size_bytes) }),
             h("button", { class: "ghost small", onclick: function () { openFile({ id: v.id }, true); } }, "Download"));
@@ -1590,7 +1590,7 @@
       var bd = h("input", { "aria-label": "BD member ID", inputmode: "numeric", placeholder: "BD member ID" });
       var role = h("select", { "aria-label": "Role" }, ["editor", "commenter", "viewer", "administrator"].map(function (r) { return h("option", { value: r, text: ROLE_WORDS[r] }); }));
       drawer = h("div", { class: "drawer", role: "dialog", "aria-label": "Library team" },
-        h("div", { class: "row" }, h("h2", { class: "grow", text: "Library team" }), h("button", { class: "ghost small", onclick: closeDrawer }, "Close")),
+        h("div", { class: "row", style: "padding-right:84px" }, h("h2", { class: "grow", text: "Library team" })),
         h("p", { class: "small muted", text: "Editors and administrators use a seat (" + t.seats + " on your plan, including you). Commenters and viewers do not, up to " + t.guests + "." }),
         h("ul", { class: "list" }, h("li", null, h("b", { text: t.owner.name }), " Administrator (owner)"), t.members.map(function (m) {
           return h("li", { class: "row" }, h("span", { class: "grow" }, h("b", { text: m.name }), " " + ROLE_WORDS[m.role]),
@@ -1914,7 +1914,7 @@
         closeDrawer();
         var inner = h("div");
         drawer = h("div", { class: "drawer", role: "dialog", "aria-label": "Version " + n, style: "width:min(640px,calc(100% - 48px))" },
-          h("div", { class: "row" }, h("h2", { class: "grow", text: "Version " + n }), h("button", { class: "ghost small", onclick: closeDrawer }, "Close")), inner);
+          h("div", { class: "row", style: "padding-right:84px" }, h("h2", { class: "grow", text: "Version " + n })), inner);
         var saveCan = can;
         can = function () { return false; };
         readView(inner, r.version.body);
@@ -2726,7 +2726,7 @@
     showDrawer(h("div", { class: "drawer", role: "dialog", "aria-label": "Notices" }, nb));
     api.get("/notifications").then(function (r) {
       D.clear(nb);
-      nb.appendChild(h("div", { class: "row", style: "padding-right:44px" }, h("h2", { class: "grow", text: "Notices" }),
+      nb.appendChild(h("div", { class: "row", style: "padding-right:84px" }, h("h2", { class: "grow", text: "Notices" }),
         h("button", { class: "ghost small", onclick: function () { api.post("/notifications/read", { all: true }).then(function () { closeDrawer(); refresh(); }); } }, "Mark all read")));
       if (!r.items.length) nb.appendChild(h("p", { class: "muted", text: "Nothing yet. Notices about your work will show up here." }));
       nb.appendChild(h("ul", { class: "list" }, r.items.map(function (n) {
