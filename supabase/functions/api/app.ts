@@ -10,6 +10,7 @@ import { brevoDelivery } from "./lib/mail/brevo.ts";
 import { verifyPass } from "./lib/pass.ts";
 import { sendSms } from "./lib/sms/brevo.ts";
 import { bdCategories, bdFields, bdMember, bdUpdate, shapeOf } from "./lib/bd/members.ts";
+import { conductRules, GIG_SYSTEM, gigPrompt, normalizeMilestones, normalizePublic, PROPOSAL_SYSTEM, publicFromPlaybook, readReview, REVIEW_SYSTEM, toCents } from "./lib/gigs/model.ts";
 import { asksAboutTools, CATALOG_RULES, catalogText, rankForMember, readCatalog, type Tool } from "./lib/catalog/csv.ts";
 import { aiContext, fromBd, LABELS, normalize as normalizeProfile, PRACTICE_AREAS, PROFILE_SYSTEM, profileText, readiness, FIELD_GUIDE, FIELD_SYSTEM, TECH_GROUPS, TECH_TOOLS, TIMEZONES, toBd, type BdMap, type Side } from "./lib/profiles/model.ts";
 import { encryptionReady, openKey, sealKey } from "./lib/ai/keycrypt.ts";
@@ -1304,6 +1305,183 @@ async function bdProfilePush(ctx: Ctx, p: Record<string, any>) {
   return { ok: true };
 }
 
+// ---------- Step 4: Flex Gigs, matching, proposals, questions, gig files, Talent, insights ----------
+// The database decides who may do what and checks the time on every action; the api adds DELA's AI
+// (the public version of a gig, proposal help) and the off-platform check before anything reaches another member.
+
+// Off-platform check: the rules always run; DELA's AI also runs when conduct_review is on (Lawfecta's key, never the member's credits).
+// It also notes useful facts about the sender for "What DELA has learned about you".
+async function conductCheck(ctx: Ctx, s: Session, text: string): Promise<{ held: boolean; kinds: string[]; source: "rules" | "ai"; insights: string[] }> {
+  const kinds = conductRules(text);
+  let source: "rules" | "ai" = "rules", insights: string[] = [];
+  const key = lawfectaKey(ctx, "openai");
+  if (text.trim().length >= 12 && key && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "conduct_review", p_person: s.person_id })) {
+    const model = await setting(ctx, "ai.model.openai", "gpt-5.4-mini");
+    try {
+      const r = await chat(f(ctx), "openai", key, model, REVIEW_SYSTEM, [{ role: "user", content: text.slice(0, 6000) }], true);
+      const a = readReview(r.text);
+      if (a.off) { for (const k of a.kinds.length ? a.kinds : ["off_platform"]) if (kinds.indexOf(k) < 0) kinds.push(k); source = kinds.length && !conductRules(text).length ? "ai" : source; }
+      insights = a.insights;
+      await logUsage(ctx, { person_id: s.person_id, side: s.side, task: "conduct_review", source: "lawfecta", provider: "openai", model: r.model, input_tokens: r.input_tokens, output_tokens: r.output_tokens, ok: true });
+    } catch (e) {
+      await logUsage(ctx, { person_id: s.person_id, side: s.side, task: "conduct_review", source: "lawfecta", provider: "openai", model, ok: false, error: e instanceof AiFail ? e.code : "provider_down" });
+    }
+  }
+  return { held: kinds.length > 0, kinds, source, insights };
+}
+
+async function afterConduct(ctx: Ctx, s: Session, c: { held: boolean; kinds: string[]; source: string; insights: string[] }, type: string, id: string | null, gig: string, text: string) {
+  if (c.held && id) await rpc(ctx, "dela_conduct_flag", { p: { object_type: type, object_id: id, gig_id: gig, person_id: s.person_id, kinds: c.kinds, excerpt: text.slice(0, 400), source: c.source } });
+  for (const t of c.insights) await rpc(ctx, "dela_insight_add", { p_person: s.person_id, p_side: s.side, p_text: t, p_source: type }).catch(() => null);
+}
+
+const heldNote = "DELA is holding this for a quick check by the Lawfecta Team, because it may plan work, contact or payment outside Lawfecta. Keep everything on Lawfecta.";
+
+async function gigsMine(ctx: Ctx) {
+  const s = await attorney(ctx);
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "flex_gigs", p_person: s.person_id })) return json(ctx, { ok: false, reason: "gigs_off" });
+  return json(ctx, await rpc(ctx, "dela_gigs_mine", { p_person: s.person_id }));
+}
+
+// A new gig from an approved playbook: DELA writes the public version (on the member's AI, like Ask DELA), and the attorney edits it before posting
+async function gigDraft(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const pbId = uuid(ctx.body.playbook_id), requestId = str(ctx.body.request_id, 80);
+  if (!pbId || !requestId) throw new HttpError(400, "bad_request");
+  const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: pbId });
+  if (!cur?.ok) return json(ctx, cur);
+  if (cur.playbook.status !== "approved") return json(ctx, { ok: false, reason: "playbook_not_approved" });
+  const approved = await rpc<Record<string, any>>(ctx, "dela_pb_version", { p_person: s.person_id, p_id: pbId, p_version: cur.playbook.approved_version }).catch(() => null);
+  const body = normalize(approved?.body ?? cur.body);
+  let pub = publicFromPlaybook(body), source = "playbook";
+  const extra = str(ctx.body.notes, 1500);
+  if (extra) { const w = sensitive(ctx, extra); if (w) return json(ctx, w); }
+  if (ctx.body.use_ai !== false && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "ai_generation", p_person: s.person_id })) {
+    const ai = await runAi(ctx, s, `gigdraft:${pbId}:${requestId}`, GIG_SYSTEM, [{ role: "user", content: gigPrompt(body, extra) }], Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
+    if (ai.ok) { const j = readJson(ai.text); if (j && typeof j === "object") { pub = normalizePublic({ ...pub, ...(j as Record<string, unknown>) }); source = "ai"; } }
+  }
+  const r = await rpc<Record<string, any>>(ctx, "dela_gig_create", { p_person: s.person_id, p: { playbook_id: pbId, request_id: requestId, public: pub,
+    budget_min_cents: toCents(ctx.body.budget_min), budget_max_cents: toCents(ctx.body.budget_max), deadline: str(ctx.body.deadline, 10), milestones: [] } });
+  return json(ctx, r?.ok ? { ...r, source } : r);
+}
+
+async function gigSave(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const id = need(uuid(ctx.body.id));
+  const pub = normalizePublic(ctx.body.public);
+  const warn = sensitive(ctx, [pub.title, pub.task, pub.outcome, ...pub.steps].join("\n"));
+  if (warn) return json(ctx, warn);
+  // Milestones change only when they are sent, so a budget edit never wipes them
+  const p: Record<string, unknown> = { public: pub };
+  if (Array.isArray(ctx.body.milestones)) p.milestones = normalizeMilestones(ctx.body.milestones);
+  const min = toCents(ctx.body.budget_min), max = toCents(ctx.body.budget_max);
+  if (min !== null) p.budget_min_cents = min;
+  if (max !== null) p.budget_max_cents = max;
+  if (typeof ctx.body.deadline === "string") p.deadline = /^\d{4}-\d{2}-\d{2}$/.test(ctx.body.deadline) ? ctx.body.deadline : "";
+  return json(ctx, await rpc(ctx, "dela_gig_save", { p_person: s.person_id, p_gig: id, p, p_version: int(ctx.body.version) }));
+}
+
+async function gigGet(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const id = need(uuid(ctx.url.searchParams.get("id")));
+  return json(ctx, await rpc(ctx, "dela_gig_get", { p_person: s.person_id, p_side: s.side, p_gig: id }));
+}
+
+async function gigInvite(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const gig = need(uuid(ctx.body.gig_id)), who = need(uuid(ctx.body.person_id));
+  const message = str(ctx.body.message, 2000);
+  const warn = message ? sensitive(ctx, message) : null;
+  if (warn) return json(ctx, warn);
+  const c = message ? await conductCheck(ctx, s, message) : { held: false, kinds: [], source: "rules" as const, insights: [] };
+  const r = await rpc<Record<string, any>>(ctx, "dela_gig_invite", { p_person: s.person_id, p_gig: gig, p_freelancer: who, p_message: message, p_held: c.held });
+  if (r?.ok && !r.duplicate) await afterConduct(ctx, s, c, "invitation", r.id, gig, message);
+  return json(ctx, r?.held ? { ...r, note: heldNote } : r);
+}
+
+function proposalBody(ctx: Ctx) {
+  return { price_cents: toCents(ctx.body.price), included: str(ctx.body.included, 4000), excluded: str(ctx.body.excluded, 4000), schedule: str(ctx.body.schedule, 2000),
+    days_to_deliver: int(ctx.body.days_to_deliver), qualifications: str(ctx.body.qualifications, 4000), message: str(ctx.body.message, 4000), request_id: str(ctx.body.request_id, 80) };
+}
+
+async function proposalSave(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
+  return json(ctx, await rpc(ctx, "dela_proposal_save", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p: proposalBody(ctx) }));
+}
+
+async function proposalSend(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
+  const gig = need(uuid(ctx.body.gig_id));
+  const p = proposalBody(ctx);
+  const text = [p.included, p.excluded, p.schedule, p.qualifications, p.message].join("\n");
+  const warn = sensitive(ctx, text);
+  if (warn) return json(ctx, warn);
+  const c = await conductCheck(ctx, s, text);
+  const r = await rpc<Record<string, any>>(ctx, "dela_proposal_send", { p_person: s.person_id, p_gig: gig, p, p_held: c.held });
+  if (r?.ok && !r.duplicate) await afterConduct(ctx, s, c, "proposal", r.id, gig, text);
+  return json(ctx, r?.ok && r.status === "held" ? { ...r, note: heldNote } : r);
+}
+
+// DELA drafts the qualifications from the freelancer's own profile; it never invents any
+async function proposalHelp(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
+  const gig = await rpc<Record<string, any>>(ctx, "dela_gig_get", { p_person: s.person_id, p_side: "freelancer", p_gig: need(uuid(ctx.body.gig_id)) });
+  if (!gig?.ok) return json(ctx, gig);
+  const notes = str(ctx.body.notes, 2000);
+  if (notes) { const w = sensitive(ctx, notes); if (w) return json(ctx, w); }
+  const prof = await rpc<Record<string, any>>(ctx, "dela_profile_get", { p_person: s.person_id, p_side: "freelancer" });
+  const g = gig.gig, pub = normalizePublic(g.public);
+  const content = `The gig: ${g.title}\nTask: ${pub.task}\nOutcome: ${pub.outcome}\nSteps: ${pub.steps.join("; ")}\nTools: ${pub.tools.join(", ")}\nPractice area: ${pub.practice_area}\n\n` +
+    `The freelancer's profile:\n${profileText("freelancer", normalizeProfile(prof?.body ?? {})) || "(empty)"}\n\nThe freelancer's notes: ${notes || "(none)"}`;
+  const ai = await runAi(ctx, s, "prophelp:" + (await sha256Hex(s.person_id + g.id + notes)).slice(0, 40), PROPOSAL_SYSTEM, [{ role: "user", content }], Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
+  if (!ai.ok) return json(ctx, ai);
+  const j = readJson(ai.text) as Record<string, any> | null;
+  if (!j) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_answer" });
+  return json(ctx, { ok: true, source: ai.source, qualifications: plainText(str(j.qualifications, 4000)), included: plainText(str(j.included, 4000)),
+    questions: (Array.isArray(j.questions) ? j.questions : []).map((q: unknown) => str(q, 200)).filter(Boolean).slice(0, 2) });
+}
+
+async function questionAsk(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
+  const gig = need(uuid(ctx.body.gig_id)), text = str(ctx.body.question, 2000).trim();
+  if (!text) throw new HttpError(400, "bad_request");
+  const warn = sensitive(ctx, text);
+  if (warn) return json(ctx, warn);
+  const c = await conductCheck(ctx, s, text);
+  const r = await rpc<Record<string, any>>(ctx, "dela_question_ask", { p_person: s.person_id, p_gig: gig, p_text: text, p_request: str(ctx.body.request_id, 80) || crypto.randomUUID(), p_held: c.held });
+  if (r?.ok && !r.duplicate) await afterConduct(ctx, s, c, "question", r.id, gig, text);
+  return json(ctx, r?.held ? { ...r, note: heldNote } : r);
+}
+
+async function questionAnswer(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const q = need(uuid(ctx.body.id)), text = str(ctx.body.answer, 4000).trim();
+  if (!text) throw new HttpError(400, "bad_request");
+  const warn = sensitive(ctx, text);
+  if (warn) return json(ctx, warn);
+  const c = await conductCheck(ctx, s, text);
+  const r = await rpc<Record<string, any>>(ctx, "dela_question_answer", { p_person: s.person_id, p_q: q, p_answer: text, p_held: c.held });
+  if (r?.ok && !r.duplicate) await afterConduct(ctx, s, c, "answer", q, str(ctx.body.gig_id, 40) || null as unknown as string, text);
+  return json(ctx, r?.held ? { ...r, note: heldNote } : r);
+}
+
+async function gigFile(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_gig_file_get", { p_person: s.person_id, p_side: s.side, p_gig: need(uuid(ctx.url.searchParams.get("gig"))), p_file: need(uuid(ctx.url.searchParams.get("file"))) });
+  if (!r?.ok) return json(ctx, r);
+  return json(ctx, { ok: true, name: r.name, url: await storageOf(ctx).signDownload(r.path, 300, r.name) });
+}
+
+async function talent(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const q = ctx.url.searchParams;
+  return json(ctx, await rpc(ctx, "dela_talent_search", { p_person: s.person_id, p: { practice_area: str(q.get("practice_area"), 80), skill: str(q.get("skill"), 80), tool: str(q.get("tool"), 80), state: str(q.get("state"), 2) } }));
+}
+
 // ---------- DELA in ChatGPT and Claude (MCP connector, Step 2b) ----------
 // The open Model Context Protocol over plain HTTP (JSON-RPC), with OAuth 2.1 sign in (PKCE, dynamic client registration).
 // Members sign in with their Lawfecta login on the DELA page; DELA never sees a password. Tokens are stored only as hashes.
@@ -1422,8 +1600,21 @@ function mcpTools(side: string) {
   const who = { name: "lawfecta_whoami", title: "Who am I in DELA", description: "Shows the Lawfecta member and DELA side this connection uses, their plan and AI credits left.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } };
   const prof = { name: "get_my_profile", title: "My DELA profile", description: "Shows the member's DELA profile on this side, where it stands (" + (side === "attorney" ? "license verification" : "match-ready, availability and the LinkedIn check") + ") and exactly what is missing.",
     inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } };
-  if (side !== "attorney") return [who, prof];
-  return [who, prof,
+  const mine = { name: "list_my_gig_work", title: "My matches, invitations and proposals", description: "Lists the freelancer's Flex Gig matches (with why each fits), invitations, open gigs, saved proposal drafts and sent proposals, and how many proposals are left this month.",
+    inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } };
+  const draftProp = { name: "save_proposal_draft", title: "Save a proposal draft", description: "Saves a proposal draft for one gig (price in dollars, what is included and excluded, schedule, qualifications). It is not sent: the freelancer sends it on the DELA website, where it counts against the monthly allowance unless invited. Never invent qualifications. " + NOTICE_TOOLS,
+    inputSchema: { type: "object", properties: { gig_id: { type: "string" }, price_dollars: { type: "number" }, included: { type: "string" }, excluded: { type: "string" }, schedule: { type: "string" }, qualifications: { type: "string" }, message: { type: "string" } }, required: ["gig_id"] },
+    annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } };
+  if (side !== "attorney") return [who, prof, mine, draftProp];
+  const gigTools = [
+    { name: "list_my_gigs", title: "List my Flex Gigs", description: "Lists the attorney's Flex Gigs with status, budget, when each closes and how many proposals each has.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+    { name: "draft_gig_from_playbook", title: "Draft a Flex Gig from a playbook", description: "DELA writes the public version of a Flex Gig from one approved playbook and saves it as a draft. Nothing is posted: the attorney reviews the public version, budget and deadline and posts it on the DELA website. Uses DELA AI credits (or the member's own key).",
+      inputSchema: { type: "object", properties: { playbook_id: { type: "string" }, budget_min_dollars: { type: "number" }, budget_max_dollars: { type: "number" }, deadline: { type: "string", description: "YYYY-MM-DD" } }, required: ["playbook_id"] },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
+    { name: "list_gig_proposals", title: "See proposals for a gig", description: "Shows the proposals for one of the attorney's gigs side by side: price against the budget (outside the range is labeled), what is included and excluded, schedule and qualifications. Choosing one happens on the DELA website.",
+      inputSchema: { type: "object", properties: { gig_id: { type: "string" } }, required: ["gig_id"] }, annotations: { readOnlyHint: true } },
+  ];
+  return [who, prof, ...gigTools,
     { name: "list_playbooks", title: "List my playbooks", description: "Lists playbooks in the member's DELA playbook library, with status and how complete each is.",
       inputSchema: { type: "object", properties: { status: { type: "string", enum: ["draft", "in_review", "approved", "archived"] }, search: { type: "string" } } }, annotations: { readOnlyHint: true } },
     { name: "get_playbook", title: "Read a playbook", description: "Reads one playbook: every part and step, its version, status and what is missing.",
@@ -1450,6 +1641,54 @@ async function mcpCall(ctx: Ctx, w: McpWho, name: string, a: Record<string, any>
     const c = ai?.credits;
     const data = { name: w.name, bd_member_id: w.bd_member_id, side: w.side, ai: ai?.mode === "own_key" ? "member's own key" : "Lawfecta's AI", credits_left: c ? (c.unlimited ? "no cap" : c.remaining) : null };
     return { text: `${w.name} (Lawfecta member ${w.bd_member_id}), ${w.side} side. AI: ${data.ai}; credits left this month: ${data.credits_left ?? "n/a"}.` + (w.side === "freelancer" ? " Freelancer tools (profile and work) come in a later DELA update." : ""), data };
+  }
+  if (name === "list_my_gigs") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_gigs_mine", { p_person: w.person_id });
+    if (!r?.ok) fail(r);
+    const money = (c: number) => "$" + (c / 100).toFixed(2);
+    const rows = (r.gigs as Array<Record<string, any>>);
+    return { text: rows.length ? rows.map((g) => `- ${g.title} (id ${g.id}): ${g.status}, budget ${money(g.budget_min_cents)} to ${money(g.budget_max_cents)}, ${g.proposals} proposals` + (g.closes_at && g.status === "open" ? `, closes ${String(g.closes_at).slice(0, 10)}` : "")).join("\n") : "No Flex Gigs yet.", data: rows };
+  }
+  if (name === "draft_gig_from_playbook") {
+    if (!org) fail({ reason: "no_side" });
+    const pbId = uuid(a.playbook_id);
+    if (!pbId) fail({ reason: "bad_request" });
+    const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: w.person_id, p_id: pbId });
+    if (!cur?.ok) fail(cur);
+    if (cur.playbook.status !== "approved") fail({ reason: "playbook_not_approved" });
+    const ver = await rpc<Record<string, any>>(ctx, "dela_pb_version", { p_person: w.person_id, p_id: pbId, p_version: cur.playbook.approved_version });
+    const body = normalize(ver?.body ?? cur.body);
+    let pub = publicFromPlaybook(body);
+    const ai = await runAi(ctx, s, `mcpgig:${w.connection_id}:${pbId}`, GIG_SYSTEM, [{ role: "user", content: gigPrompt(body, "") }], Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
+    if (ai.ok) { const j = readJson(ai.text); if (j && typeof j === "object") pub = normalizePublic({ ...pub, ...(j as Record<string, unknown>) }); }
+    const r = await rpc<Record<string, any>>(ctx, "dela_gig_create", { p_person: w.person_id, p: { playbook_id: pbId, request_id: "mcp:" + w.connection_id + ":" + pbId, public: pub,
+      budget_min_cents: toCents(a.budget_min_dollars), budget_max_cents: toCents(a.budget_max_dollars), deadline: typeof a.deadline === "string" && /^\d{4}-\d{2}-\d{2}$/.test(a.deadline) ? a.deadline : "", milestones: [] } });
+    if (!r?.ok) fail(r);
+    const minC = Number(await setting(ctx, "gig.min_budget_cents", "25000")) || 25000;
+    return { text: `Saved a draft Flex Gig "${pub.title}" (id ${r.id}). It is not posted. Open DELA, Projects, to review the public version, the budget (at least $${(minC / 100).toFixed(0)}) and the deadline, then post it.`, data: { id: r.id, public: pub } };
+  }
+  if (name === "list_gig_proposals") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_gig_proposals", { p_person: w.person_id, p_gig: uuid(a.gig_id) });
+    if (!r?.ok) fail(r);
+    const money = (c: number) => "$" + (c / 100).toFixed(2);
+    const ps = r.proposals as Array<Record<string, any>>;
+    return { text: ps.length ? ps.map((p, i) => `${i + 1}. ${p.name}: ${money(p.price_cents)} (${p.price_label === "within" ? "within the budget" : p.price_label + " the budget"}). Includes: ${p.included}. Excludes: ${p.excluded || "nothing stated"}. Schedule: ${p.schedule || (p.days_to_deliver ? p.days_to_deliver + " days" : "")}. Qualifications: ${p.qualifications}`).join("\n") +
+      "\nChoose a proposal on the DELA website." : "No proposals yet.", data: ps };
+  }
+  if (name === "list_my_gig_work") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_work", { p_person: w.person_id });
+    if (!r?.ok) fail(r);
+    const line = (g: any) => `- ${g.title} (id ${g.id}): budget $${(g.budget_min_cents / 100).toFixed(0)} to $${(g.budget_max_cents / 100).toFixed(0)}` + (g.reasons?.length ? `; fits because: ${g.reasons.join(", ")}` : "") + (g.proposal_status ? `; proposal ${g.proposal_status}` : "");
+    const al = r.allowance ?? {};
+    return { text: [`Proposals left this month: ${al.unlimited ? "no cap" : al.remaining ?? 0}.`, "Invitations:", ...(r.invitations.length ? r.invitations.map(line) : ["- none"]), "Matches:", ...(r.matches.length ? r.matches.map(line) : ["- none"]),
+      "Open gigs:", ...(r.open_gigs.length ? r.open_gigs.map(line) : ["- none"]), "Drafts:", ...(r.drafts.length ? r.drafts.map(line) : ["- none"]), "Sent:", ...(r.sent.length ? r.sent.map(line) : ["- none"])].join("\n"), data: r };
+  }
+  if (name === "save_proposal_draft") {
+    const p = { price_cents: toCents(a.price_dollars), included: str(a.included, 4000), excluded: str(a.excluded, 4000), schedule: str(a.schedule, 2000), qualifications: str(a.qualifications, 4000), message: str(a.message, 4000) };
+    if (messageLooksSensitive([p.included, p.excluded, p.schedule, p.qualifications, p.message].join("\n")).length) throw new ToolError("This looks like it includes client information. DELA does not accept client names, case numbers or similar details.");
+    const r = await rpc<Record<string, any>>(ctx, "dela_proposal_save", { p_person: w.person_id, p_gig: uuid(a.gig_id), p });
+    if (!r?.ok) fail(r);
+    return { text: "Saved the proposal as a draft. It is not sent: open DELA, Work, to check it and send it.", data: { id: r.id } };
   }
   if (name === "get_my_profile") {
     const r = await rpc<Record<string, any>>(ctx, "dela_profile_summary", { p_person: w.person_id, p_side: w.side });
@@ -1601,6 +1840,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/playbooks": (c, a) => rpc(c, "dela_admin_playbooks", { p_actor: a }),
   "/admin/mcp": (c, a) => rpc(c, "dela_admin_mcp", { p_actor: a }),
   "/admin/catalog": (c, a) => rpc(c, "dela_admin_catalog", { p_actor: a }),
+  "/admin/gigs": (c, a) => rpc(c, "dela_admin_gigs", { p_actor: a }),
   "/admin/verify": async (c, a) => {
     const d = await rpc<Record<string, any>>(c, "dela_admin_verify", { p_actor: a });
     for (const l of (d?.licenses ?? []) as Array<Record<string, any>>) if (l.method === "email" && !l.email_confirmed_at) l.email_delivery = await rpc(c, "dela_license_delivery", { p_license: l.id });
@@ -1633,6 +1873,8 @@ const ADMIN_POST: Record<string, AdminRoute> = {
     if (!read.ok) return { ok: false, reason: "catalog_problems", problems: read.problems };
     return await rpc(c, "dela_catalog_preview", { p_actor: a, p_file: str(c.body.file_name, 200), p_sha: await sha256Hex(text), p_rows: read.tools });
   },
+  "/admin/gigs/pause": (c, a) => rpc(c, "dela_admin_gig_pause", { p_actor: a, p_gig: need(uuid(c.body.id)), p_pause: c.body.pause === true, p_reason: str(c.body.reason, 300) }),
+  "/admin/conduct/decide": (c, a) => rpc(c, "dela_admin_conduct_decide", { p_actor: a, p_flag: need(uuid(c.body.id)), p_clear: c.body.clear === true, p_note: str(c.body.note, 500) }),
   "/admin/catalog/confirm": (c, a) => rpc(c, "dela_catalog_confirm", { p_actor: a, p_version: need(uuid(c.body.version_id)) }),
   "/admin/catalog/pause": (c, a) => rpc(c, "dela_catalog_pause", { p_actor: a, p_tool: need(str(c.body.tool_id, 80)), p_pause: c.body.pause === true, p_reason: str(c.body.reason, 300) }),
   "/admin/mcp/disconnect": (c, a) => rpc(c, "dela_mcp_disconnect", { p_person: a, p_conn: need(uuid(c.body.id)), p_by_staff: true }),
@@ -1859,6 +2101,7 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "email_delivery_check") return await deliveryCheck(ctx, j.payload ?? {});
   if (j.kind === "profiles_daily") { await rpc(ctx, "dela_profiles_daily", {}); return { ok: true }; }
   if (j.kind === "bd_profile_push") return await bdProfilePush(ctx, j.payload ?? {});
+  if (j.kind === "gig_tick") { await rpc(ctx, "dela_gig_tick", { p: j.payload ?? {} }); return { ok: true }; }
   return { ok: false, retry: false, error: "unknown_job_kind" };
 }
 
@@ -1998,6 +2241,32 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /files/open": return await filesOpen(ctx);
       case "POST /files/action": return await filesAction(ctx);
       case "GET /library": return await library(ctx);
+      case "GET /gigs": return await gigsMine(ctx);
+      case "GET /gigs/get": return await gigGet(ctx);
+      case "POST /gigs/draft": return await gigDraft(ctx);
+      case "POST /gigs/save": return await gigSave(ctx);
+      case "POST /gigs/publish": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_publish", { p_person: s.person_id, p_gig: need(uuid(ctx.body.id)) })); }
+      case "POST /gigs/extend": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_extend", { p_person: s.person_id, p_gig: need(uuid(ctx.body.id)) })); }
+      case "POST /gigs/close": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_close", { p_person: s.person_id, p_gig: need(uuid(ctx.body.id)), p_cancel: ctx.body.cancel === true })); }
+      case "GET /gigs/matches": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_matches", { p_person: s.person_id, p_gig: need(uuid(ctx.url.searchParams.get("id"))), p_refresh: ctx.url.searchParams.get("refresh") === "1" })); }
+      case "POST /gigs/invite": return await gigInvite(ctx);
+      case "GET /gigs/proposals": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_proposals", { p_person: s.person_id, p_gig: need(uuid(ctx.url.searchParams.get("id"))) })); }
+      case "POST /gigs/files": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_file_share", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_file: need(uuid(ctx.body.file_id)), p_share: ctx.body.share !== false })); }
+      case "GET /gigs/file": return await gigFile(ctx);
+      case "POST /gigs/questions/ask": return await questionAsk(ctx);
+      case "POST /gigs/questions/answer": return await questionAnswer(ctx);
+      case "POST /gigs/decline": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_gig_invite_decline", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)) })); }
+      case "POST /proposals/save": return await proposalSave(ctx);
+      case "POST /proposals/send": return await proposalSend(ctx);
+      case "POST /proposals/help": return await proposalHelp(ctx);
+      case "POST /proposals/withdraw": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_proposal_withdraw", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)) })); }
+      case "POST /proposals/reconfirm": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_proposal_reconfirm", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)) })); }
+      case "POST /proposals/ask-reconfirm": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_proposal_ask_reconfirm", { p_person: s.person_id, p_prop: need(uuid(ctx.body.id)) })); }
+      case "POST /proposals/select": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_proposal_select", { p_person: s.person_id, p_prop: need(uuid(ctx.body.id)) })); }
+      case "GET /work": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); return json(ctx, await rpc(ctx, "dela_work", { p_person: s.person_id })); }
+      case "GET /talent": return await talent(ctx);
+      case "GET /insights": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_insights", { p_person: s.person_id, p_side: s.side })); }
+      case "POST /insights/remove": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_insight_remove", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)) })); }
       case "GET /playbooks/get": return await pbGet(ctx);
       case "POST /playbooks/create": return await pbCreate(ctx);
       case "POST /playbooks/save": return await pbSave(ctx);
