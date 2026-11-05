@@ -56,10 +56,8 @@ Everything below is on the test site, for the access list only. Live (lawfecta.c
 Tests today: 8 database test files, 84 API tests, 15 script tests and 198 browser checks. GitHub Tests: https://github.com/SliceOfThanks/lawfecta/actions
 
 ## 2. What needs testing, in this order
-1. Get ChatGPT past the BD login. The login uses Google reCAPTCHA, which blocks ChatGPT's browser. Either:
-   - In ChatGPT agent, click Take over, log in yourself at https://www.hirelegalhelp.com/login, then hand control back; or
-   - In the hirelegalhelp.com BD admin, search for "reCAPTCHA" and turn it off for the member login (test site only).
-2. Step 3 test (profiles and verification): https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-3-chatgpt-prompt.md
+1. Logging in during ChatGPT tests: BD's reCAPTCHA cannot be turned off and blocks ChatGPT's agent. Stacey clicks "Take over" in ChatGPT, logs in herself at https://www.hirelegalhelp.com/login, and hands control back. Tests are grouped by login, so this happens about three times per test.
+2. Step 3 test (profiles and verification), passed 2026-11-05: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-3-chatgpt-prompt.md
 3. Short screens test (Ask DELA, Files, library, exports, own key): https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2-short-chatgpt-prompt.md
 4. Connector test in your own Claude and ChatGPT: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2b-connector-test.md
 5. Recorder check on a real computer (Chrome, then Edge and Firefox): https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2-recorder-chatgpt-prompt.md

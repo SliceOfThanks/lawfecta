@@ -4,24 +4,14 @@ Last updated 2026-11-04. Do these from top to bottom. Each one says where to go,
 
 Already done: the Brevo key, Lawfecta's OpenAI key and the key lock secret in Supabase; US only for licenses; practice areas and tech tools on profiles.
 
-## 1. Fix the test site login (do this first; every test waits on it)
-Logging in at https://www.hirelegalhelp.com/login shows "Invalid recaptcha response or setup". reCAPTCHA is turned on in BD but has no working keys, so nobody can log in through that form. Pick one way:
+## 1. Logging in during ChatGPT tests (reCAPTCHA)
+The Lawfecta login uses Google reCAPTCHA, which BD does not let you turn off, and which blocks ChatGPT's agent even when it ticks the box. So you do the logins yourself, inside ChatGPT's browser. Every test is grouped by login, so this happens about three times per test (freelancer, attorney, owner).
 
-Way A: turn reCAPTCHA off for the test site's login (quickest)
-1. Log in to the hirelegalhelp.com BD admin.
-2. In the admin search box, type: reCAPTCHA
-3. Open the setting it finds and turn reCAPTCHA off for the member login form. Save.
-4. Log out, then log in at https://www.hirelegalhelp.com/login as the test attorney to check it works.
-Do this on hirelegalhelp.com only. Never change it on lawfecta.com.
-
-Way B: set reCAPTCHA up properly
-1. Open https://www.google.com/recaptcha/admin/create and sign in with Lawfecta's Google account.
-2. Label: hirelegalhelp test site. Type: the one BD's reCAPTCHA setting asks for (BD shows v2 or v3 next to the key boxes). Domain: hirelegalhelp.com. Click Submit.
-3. Google shows a site key and a secret key. Copy each one.
-4. In the hirelegalhelp.com BD admin, search for "reCAPTCHA", paste the site key and the secret key into their boxes, and save.
-5. Log out, then log in at https://www.hirelegalhelp.com/login to check it works.
-
-With either way: if ChatGPT's agent is still stopped at the login, click "Take over" in ChatGPT, log in yourself, then click to hand control back and type: I'm logged in, continue the checklist. Do the same when it needs the freelancer or owner login.
+Each time ChatGPT reaches the login page:
+1. In the ChatGPT agent window, click "Take over" (top of its browser view).
+2. On https://www.hirelegalhelp.com/login, type the email and password for the account the test names (they are in the ready copy Claude sent you), tick "I'm not a robot", and click "Login Now".
+3. When the DELA page or your account page shows, click "Finish" or "Hand back to ChatGPT" (the wording varies), and type: I'm logged in, continue.
+4. When the test says to sign out, ChatGPT clicks the initials in the top right of the DELA page, then "Sign out". The next group starts at the login page again.
 
 ## 2. Run the ChatGPT tests, in this order
 For each test:
