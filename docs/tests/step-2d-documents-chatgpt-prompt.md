@@ -1,111 +1,174 @@
-# ChatGPT test: the document standard (Policy, Workflow, SOP, Playbook)
+# ChatGPT test (track A, part 1): the document standard (Policy, Workflow, SOP, Playbook)
 
-Claude already tested all of this with the real api and database: 10 api tests, 8 engine tests and 29 browser checks. They cover:
-- the firm profile asked once, with roles held by a member or an email
-- drafting to the standard, with client names and passwords removed before the AI sees them
-- the block on export, approval and gigs for a missing A or a missing "Attorney decides" flag
-- Fix it, Split into linked SOPs and Change type
-- IDs, the change log and review dates (3 months for high risk, 12 months otherwise)
-- the 14-day reminder to the role's holder, and a bounce resent to the firm owner
-- gigs from SOPs and Workflows only, a workflow handing over only the freelancer's steps
-- attorney decisions inside an engagement
-- converting older playbooks
-- the phone screen
+Claude already tested all of this with the real api and database: 10 api tests, the engine tests and 30 browser checks, including misuse and the phone screen. This test covers the real screens with the real AI.
 
-This test covers the real screens with the real AI.
+You can run this at the same time as the Claude test (track B: gigs, messages and meetings). They use different documents, so they do not get in each other's way.
 
 Before you paste this:
-1. The logins are filled in. Passwords are not kept on GitHub. Use the ready-to-paste copy Claude sent you in chat, or replace TEST_PASSWORD with the test password.
-2. The Lawfecta login has reCAPTCHA, which ChatGPT cannot pass. Each time ChatGPT reaches the login page:
-   1. Click "Take over".
-   2. Log in with the account it names.
-   3. Hand control back and type: I'm logged in, continue.
+1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.
+2. Each time ChatGPT reaches the login page: click "Take over", log in with the account it names, hand control back and type: I'm logged in, continue.
 
 Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything wrong or confusing. Never type real client information; use only made-up details.
+You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
 
 Logins:
 - test attorney: stacey+dela-attorney@lawfecta.com (password TEST_PASSWORD)
-- test freelancer: stacey+dela-freelancer@lawfecta.com (password TEST_PASSWORD)
 - owner: stacey@lawfecta.com (password TEST_PASSWORD)
 
-The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+HOW TO WORK (read this first; it saves time and credits)
+1. Do only the numbered steps below, in order. Do not explore, do not open other menus, and do not look for other features.
+2. When a step says "Go to", type that link into the browser's address bar and press Enter. Do not get there by clicking around.
+3. Every button, box and link is named in quotes, exactly as the screen writes it, with where it is. First scroll to the card heading the step names, then look for the item.
+4. If you cannot see it after scrolling to that heading: press Ctrl+F (Cmd+F on a Mac), type the name without the quotes, press Enter, and use the highlighted match. If it is still not there, take one screenshot, write FAIL for that step with what you saw, and go on to the next step. Never try more than this one other way.
+5. When a step says DELA is writing or checking, wait up to 60 seconds without clicking anything else.
+6. What every DELA page looks like:
+   - A dark bar across the very top: the Lawfecta logo and a small yellow "Test site" label on the left; on the right, an "Inbox" button, a "Notices" button and a round button with your initials.
+   - Just under the dark bar, a row of tabs. Attorneys see "⌂ Home", "✦ Ask DELA", "▥ Library", "▤ Files", "▣ Projects", "◌ Talent". Freelancers see "⌂ Home", "✦ Ask DELA", "☺ Profile", "▣ Work", "$ Earnings".
+   - The page is made of white boxes called cards. Each card has a bold heading at its top left. Steps say "in the card titled ...".
+   - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
+   - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
+7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+9. Never type real client information. Use only the made-up details in the steps.
+10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds.
 
-To sign out at the end of a group, click the initials in the top right of the DELA page, then "Sign out".
+A document page, once it is open, looks like this (steps refer to these parts):
+- Top left: a small outlined button "← Library". Below it, the document's ID and title in large bold text, with two small labels at the right end of that line: the type (SOP, Workflow, Playbook or Policy) and the status (Draft, In review or Approved).
+- Under the title: a bold notice "Draft, not approved..." when it is not approved yet.
+- Then a box of header fields in two columns: "Document ID", "Version", "Owner (role)" (a dropdown), "Last reviewed", "Next review", "High risk" (a checkbox).
+- Then a row of tabs: "Draft and review", "Chat", "Suggestions", "Comments", "Activity", "Versions", "Files". Stay on "Draft and review".
+- Below that, two columns. The LEFT column is the document itself: one big card with every section and a blue "Save" button at its bottom, then a card titled "RACI", then (Workflows only) a card titled "KPIs (3 to 5)", then a folded line "Change log (number)". The RIGHT column starts with the card titled "Quality check": a sentence at its top, then the items that need work (each with a label "Blocking" or "Needs attention", some with a "Fix it" button), then a folded line "(number) checks passed", then a row of buttons ("Save", "Send for review", "Approve", "Post as a Flex Gig"), then "Export:" with the buttons "Word", "PDF", "Markdown", "Web page", "Step checklist".
 
-DELA now calls every Library item a "document". Note any place that still says "playbook" (screens, buttons, messages, emails, exports).
+DELA now calls every Library item a "document". Note any place that still says "playbook".
 
 1. Attorney (ask me to log in as the test attorney)
-1. Open www.hirelegalhelp.com/dela?tab=library. Expect "Document library" at the top, then tables grouped by stage, for example "INT | Intake and conflicts" or "DOC | Document drafting". Each table has the columns ID, Title, Type, Owner (role), Status and Next review.
-2. Older items DELA converted show "Converted: check it" under the title. Click one.
-   1. Expect a bold "Draft, not approved" notice near the top, and a green notice saying "DELA moved this to the document standard as ..." with a reason.
-   2. Report the type DELA chose and whether the reason makes sense for the content.
-   3. In that green notice, choose a different type in the box next to "Change type" and click "Change type". Expect "Now a ..." and the page redrawn with that type's sections.
-   4. Change it back the same way to the type DELA first chose.
-3. Click "← Library" at the top left. Open a second converted item and click "The type is right" in the green notice. Expect the notice to go away.
-4. Back in the Library, click "New document" in the card near the top.
-   1. Expect "Your firm profile for documents". Click "Save and continue" without choosing a size. Expect "Choose your firm size."
-   2. Choose "2 to 5" in "Firm size". Type "Family law" in "Practice areas" and "Texas state courts" in "Jurisdictions".
-   3. Under "Team roles", leave the roles ticked. For "Paralegal", choose "An email address" in the box next to it and type a made-up address such as paralegal@example.com. Leave the others as "Nobody yet".
-   4. Under "Systems you use", type "Clio" in "Practice management".
-   5. Click "Save and continue". Expect a message naming the roles with no one assigned, and then "Pick what to build" with four cards: SOP, Workflow, Playbook and Policy.
-5. Under "Or start from a common process", open "INT | Intake and conflicts" and click "Start" next to "Run a conflict check".
-   1. Expect "About this process" with the name, what starts it and what done looks like filled in.
-   2. Tick "Attorney" and "Paralegal" under "Which roles touch it", and "Clio" under "Which systems it uses".
-   3. Type "Within 1 business day of the request" in "Any deadline or time target".
-   4. Type "Deciding whether we accept the matter" in "Steps you must personally decide or approve".
-   5. Open "Rewrite something you already have (optional)" and paste: "Old checklist: search Jane Roe in Clio, case 2026-CV-0042, login password Winter2026!".
-   6. Click "Draft it with DELA". Wait about a minute.
-6. On the document page:
-   1. Expect "Draft, not approved" at the top, an ID starting with INT-, and the header fields: Document ID, Version, Owner (role), Last reviewed, Next review, High risk.
-   2. Expect a notice that client names, case numbers or passwords were removed. Search the page for "Jane Roe", "2026-CV-0042" and "Winter2026". None should appear.
-   3. Expect these sections in order: Purpose, Scope, Trigger, Roles, Before you start, Steps, Decision points and escalation, Timing, Quality check, Done when, Related links.
-   4. Expect the step that decides whether to accept the matter to show the red "Attorney decides" badge.
-   5. On the right (on a phone, above the document) expect the "Quality check" card. Report each item marked "Blocking" or "Needs attention". Click "checks passed" to see the rest.
-7. Break the rules on purpose:
-   1. Scroll to the "RACI" card. On step 1, click the empty cell under "Attorney" twice until it shows "A". Expect step 1 to say "(needs exactly one A)".
-   2. Click "Save" (under the document, or in the "Quality check" card). Expect "Exactly one Accountable (A) for every step" marked "Blocking", and the notice "Export, approval and Flex Gigs are blocked".
-   3. Expect "Approve", "Send for review" and every export button (Word, PDF, Markdown, Web page, Step checklist) greyed out.
-   4. In the "Quality check" card, click "Fix it" under the blocking item. Expect the block to go away.
-   5. In "Steps", untick "Attorney decides" on the accept-the-matter step and click "Save". Expect "Every judgment step is flagged "Attorney decides"" marked "Blocking". Click "Fix it". Expect the flag back.
-8. Approve and export:
-   1. Click "Approve" in the "Quality check" card. Expect "Approved", and the "Draft, not approved" notice gone. Expect "Next review" about 12 months away.
-   2. Tick "High risk" in the header fields, click "Save", then "Approve" again. Expect "Next review" about 3 months away.
-   3. Click "Word". Open the file. Expect the ID in the file name, bold section headings, a RACI table and a change log. Report anything that looks wrong in Word.
-   4. Scroll to "Change log" near the bottom and open it. Expect one row per saved version with the date, what changed, who, and who approved it.
-9. A Policy and a Playbook:
-   1. Click "← Library", then "New document". Click the "Policy" card. Type "Client trust account rules" in "Process name" and click "Draft it with DELA".
-   2. Expect sections: Purpose, Scope, The rules (What must happen, What must not happen), Exceptions and who approves them, Related links, and no RACI card.
-   3. Approve it if nothing blocks. Expect no "Post as a Flex Gig" button.
-   4. Make a Playbook the same way from the "Playbook" card, named "Handle an upset client". Expect Situations covered, Guiding principles, Preferred approach, Acceptable fallbacks, Hard limits, Escalation, Scripts and templates, Examples. Approve it.
-10. A Workflow:
-   1. New document, "Workflow" card, name "Intake to signed engagement". Draft it.
-   2. Expect stages with a lane (role), handoff, target time and linked SOP, a RACI card and a "KPIs (3 to 5)" card. Report how many KPIs DELA wrote and whether each names a data source.
-11. Gigs:
-   1. Open the approved conflict check SOP and click "Post as a Flex Gig". Expect the Projects page with that SOP chosen in "Approved SOP or Workflow".
-   2. Open that box. Expect only SOPs and Workflows, never the Policy or the Playbook.
-   3. Click "Draft the gig with DELA" (do not post it). In the gig, find "Reference documents" and attach "Client trust account rules". Expect it listed with a "Remove" button.
-12. Too long: open the conflict check SOP, add steps until it is long (or paste long text into a few steps), and click "Save". Expect a "Needs attention" item about 900 words with a "Split into linked SOPs" button, and that Approve still works. You do not need to split it.
-13. Open www.hirelegalhelp.com/dela?tab=profile. Scroll to "Your firm profile for documents" near the bottom. Expect your saved answers and "No one assigned" next to roles nobody holds.
-14. On your phone (or a narrow browser window), open the conflict check SOP. Nothing should run off the side of the screen.
-15. Sign out.
 
-2. Freelancer (ask me to log in as the test freelancer)
-1. Open www.hirelegalhelp.com/dela?tab=work. Open the engagement from the earlier tests.
-2. Expect "The work handed to you" with the steps. Report any place on this page that still says "playbook".
-3. Expect no Library tab with the attorney's documents, and no way to see the attorney's other documents.
-4. Sign out.
+1. Go to: https://www.hirelegalhelp.com/dela?tab=library
+   Find: the heading "Document library" at the top. Below it are tables, each with a heading such as "DOC | Documents, drafting and filing" or "ENG | Engagement and onboarding".
+   Expect: each table has the columns "ID", "Title", "Type", "Owner (role)", "Status", "Next review".
 
-3. Owner (ask me to log in as the owner)
-1. Open www.hirelegalhelp.com/dela-admin and click "AI and files" in the row of tabs.
-2. Scroll to the "Documents (Policy, Workflow, SOP, Playbook)" card at the bottom. Expect counts by type, older playbooks waiting to convert (0), converted, converted but not yet checked by the owner, and blocked. Expect a table of recent conversions with the firm, ID, title, type and reason.
-3. Click "Switches" in the row of tabs. Expect "document_standard" and "document_conversion" set to the access list.
-4. Sign out.
+2. Find: in the table under "DOC | Documents, drafting and filing", the row whose ID is DOC-02 ("Preparing a Small Claims Filing Packet for Attorney Review"). It has the grey line "Converted: check it" under the title.
+   Do: click anywhere on that row.
+   Expect: the document page. Near the top, under the title, the bold notice "Draft, not approved..." and a green notice that starts "DELA moved this to the document standard as ...". Report the type DELA chose and whether its reason makes sense.
 
-4. Check the results
-1. Log in as the test attorney and open www.hirelegalhelp.com/dela?tab=library. Expect the conflict check SOP, the Policy, the Playbook and the Workflow in the tables with their IDs, and the converted items you checked no longer marked "Converted: check it". Sign out.
+3. Find: inside that green notice, a dropdown and the blue button "Change type".
+   Do: choose "SOP" in the dropdown (if it already says SOP, choose "Workflow"), then click "Change type".
+   Expect: within 60 seconds a message "Now a ..." at the bottom of the screen, and the page redrawn with that type's sections. The green notice is gone.
 
-At the end, list every FAIL, everything confusing, and every place that still says "playbook".
+4. Do: click "← Library" (top left), then click the row with ID BIL-01 ("Monthly Billing Review") in the table under "BIL | Billing, trust and collections". In its green notice, click the outlined button "The type is right".
+   Expect: the green notice goes away.
+
+5. Do: click "← Library" (top left). In the first card under "Document library", click the blue button "New document".
+   Expect: a card titled "Your firm profile for documents".
+   Do: without changing anything, scroll to the bottom of that card and click the blue button "Save and continue".
+   Expect: a message "Choose your firm size."
+
+6. In the same card, from the top:
+   - "Firm size" (the first dropdown): choose "2 to 5".
+   - "Practice areas" (the box below it): type Family law
+   - "Jurisdictions" (the next box): type Texas state courts
+   - Under the bold heading "Team roles": find the row that says "Paralegal". In the dropdown on that row choose "An email address", then type paralegal@example.com in the small box that appears next to it. Leave every other role on "Nobody yet".
+   - Under the bold heading "Systems you use": in the box "Practice management" type Clio
+   Do: click the blue button "Save and continue" at the bottom of the card.
+   Expect: a message naming the roles that nobody holds, then the heading "New document" with four boxes: "SOP", "Workflow", "Playbook", "Policy", and below them the heading "Or start from a common process".
+
+7. Find: under "Or start from a common process", the folded line "INT | Intake and conflicts (3)".
+   Do: click that line to open it. On the row "Run a conflict check", click the blue button "Start" at the right end of the row.
+   Expect: a card titled "About this process" with "Process name" already filled in as "Run a conflict check".
+
+8. In the card titled "About this process", from the top:
+   - "Which roles touch it": tick "Attorney" and "Paralegal".
+   - "Which systems it uses": tick "Clio".
+   - "Any deadline or time target": type Within 1 business day of the request
+   - "Steps you must personally decide or approve": type Deciding whether we accept the matter
+   - Near the bottom, click the folded line "Rewrite something you already have (optional)" to open it, and type in the big box: Old checklist: search Jane Roe in Clio, case 2026-CV-0042, login password Winter2026!
+   Do: click the blue button "Draft it with DELA" at the very bottom of the card.
+   Expect: within 60 seconds, the document page. Under the title: "Draft, not approved...". In the header fields, "Document ID" starts with INT-.
+
+9. Expect, without clicking:
+   - near the top, a green notice that DELA removed client names, case numbers or passwords
+   - none of these words anywhere on the page: Jane Roe, 2026-CV-0042, Winter2026 (use Ctrl+F for each)
+   - in the left column's big card, these section headings in this order: Purpose, Scope, Trigger, Roles, Before you start, Steps, Decision points and escalation, Timing, Quality check, Done when, Related links
+   - under "Steps", the step about accepting the matter has a red label "Attorney decides" at the right of its top row
+   Report: every item in the "Quality check" card (right column) marked "Blocking" or "Needs attention".
+
+10. Break a rule on purpose.
+    Find: the card titled "RACI" (left column, below the big document card). It is a table: one row per step, one column per role. Each cell is a small button showing "·" (empty) or letters.
+    Do: in the row "1. ..." (the first row), click the cell under "Attorney" twice, until it shows "A".
+    Expect: the first row now ends with "(needs exactly one A)" in red.
+    Do: in the card titled "Quality check" (right column), click the blue button "Save".
+    Expect: in that card, the item "Exactly one Accountable (A) for every step" with a red "Blocking" label, and the sentence "Export, approval and Flex Gigs are blocked until the items marked Blocking are fixed." The buttons "Approve", "Word", "PDF", "Markdown", "Web page" and "Step checklist" are greyed out.
+
+11. Do: under that Blocking item, click the outlined button "Fix it".
+    Expect: within 60 seconds the Blocking item is gone, and the buttons are no longer greyed out.
+
+12. Find: in the left column, under "Steps", the step about accepting the matter (it has the red "Attorney decides" label).
+    Do: untick its checkbox "Attorney decides (the A must be an attorney role)", then click the blue "Save" in the "Quality check" card.
+    Expect: the item "Every judgment step is flagged "Attorney decides"" marked "Blocking".
+    Do: click its "Fix it".
+    Expect: the Blocking item goes away, and the step shows "Attorney decides" again.
+
+13. Do: in the "Quality check" card, click the blue button "Approve".
+    Expect: the status label at the top changes to "Approved", the "Draft, not approved" notice is gone, and "Next review" in the header fields is about 3 months away (conflict checks count as high risk).
+
+14. Do: in the "Quality check" card, after "Export:", click "Word". Open the file.
+    Expect: the ID in the file name, bold section headings, a RACI table and a change log at the end. Report anything that looks wrong in Word.
+
+15. Find: the folded line "Change log (number)" at the bottom of the left column.
+    Do: click it to open it.
+    Expect: a table with the columns "Date", "What changed", "Who", "Approved by", one row for each saved version.
+
+16. A Policy.
+    Do: click "← Library", then the blue "New document", then the box "Policy". In "Process name" type Client trust account rules, then click the blue "Draft it with DELA" at the bottom of the card.
+    Expect: within 60 seconds, the document page with the sections Purpose, Scope, The rules (with "What must happen" and "What must not happen"), Exceptions and who approves them, Related links, and no card titled "RACI".
+    Do: if the "Approve" button in the "Quality check" card is not greyed out, click it.
+    Expect: no "Post as a Flex Gig" button in the "Quality check" card.
+
+17. A Playbook.
+    Do: "← Library", "New document", the box "Playbook". In "Process name" type Handle an upset client, then "Draft it with DELA".
+    Expect: the sections Situations covered, Guiding principles, Preferred approach, Acceptable fallbacks, Hard limits, Escalation, Scripts and templates, Examples. Click "Approve" if it is not greyed out.
+
+18. A Workflow.
+    Do: "← Library", "New document", the box "Workflow". In "Process name" type Intake to signed engagement, then "Draft it with DELA".
+    Expect: each stage shows "Lane (role)", "Handoff", "Target time" and "Linked SOP" boxes, there is a "RACI" card, and there is a card titled "KPIs (3 to 5)". Report how many KPIs DELA wrote and whether each "Data source" box is filled in.
+
+19. Reference documents on a gig.
+    Do: click "← Library", click the row with the ID of the conflict check SOP from step 8 (an INT- number), and in the "Quality check" card click the blue "Post as a Flex Gig".
+    Expect: the Projects page. In the card titled "Post a new gig", the dropdown "Document" already shows the conflict check.
+    Do: open that dropdown.
+    Expect: only SOPs and Workflows in the list, never "Client trust account rules" or "Handle an upset client". Close the dropdown with the conflict check still chosen.
+    Do: click the blue "Draft the gig with DELA" at the bottom of that card.
+    Expect: within 60 seconds, the gig page.
+    Do: scroll to the bottom of the gig page, to the card titled "Reference documents". In its dropdown choose "Client trust account rules", then click the outlined "Attach" next to it.
+    Expect: "Client trust account rules" listed in that card with an outlined "Remove" button. Do not post the gig.
+
+20. Go to: https://www.hirelegalhelp.com/dela?tab=profile
+    Find: the card titled "Your firm profile for documents", near the bottom of the page.
+    Expect: your answers from step 6, and a small label "No one assigned" on each role nobody holds.
+
+21. Sign out.
+
+2. Owner (ask me to log in as the owner)
+
+1. Go to: https://www.hirelegalhelp.com/dela-admin
+   Find: the row of tabs near the top of the admin area.
+   Do: click the tab "AI and files".
+   Find: the card titled "Documents (Policy, Workflow, SOP, Playbook)", at the very bottom of the page.
+   Expect: counts by type ("SOP", "Workflow", "Playbook", "Policy"), "Older playbooks waiting to convert" (0), "Converted", "Converted, not yet checked by the owner", "Blocked (missing A, attorney flag or image check)", and a table of recent conversions.
+
+2. Do: in the same row of tabs at the top, click "Switches".
+   Find: the rows whose small grey code name is "document_standard" and "document_conversion".
+   Expect: the dropdown at the right end of each row shows "Access list".
+
+3. Sign out.
+
+3. Check the results (test attorney)
+
+1. Go to: https://www.hirelegalhelp.com/dela?tab=library
+   Expect: the conflict check SOP, "Client trust account rules", "Handle an upset client" and "Intake to signed engagement" in the tables with their IDs. DOC-02 and BIL-01 no longer show "Converted: check it".
+2. Sign out.
+
+At the end: list every FAIL, every message that was confusing, and every place that still says "playbook".

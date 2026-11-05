@@ -1,5 +1,7 @@
 # ChatGPT test: screens, uploads and your own AI key (Steps 2a and 2)
 
+> **Not rewritten yet (2026-11-05).** Claude rewrites this in the step-by-step style (link, card, where on the page, exact button) before you run it, with the "How to work" block from docs/tests/AGENT-RULES.md. Ask Claude for the new copy first.
+
 Claude already tested these on the test site with the real AI:
 - Ask DELA answers, and the client information warning
 - a playbook drafted by DELA, its questions answered, approval, and a chat change accepted as a new version

@@ -1,5 +1,7 @@
 # ChatGPT test: Step 4, Flex Gigs, matching, proposals and the tech catalog
 
+> **Replaced (2026-11-05).** Use the Claude test docs/tests/claude-track-b-gigs-messages-meetings.md instead. It covers Steps 4 and 5 step by step, with where to click.
+
 Claude already tested all of this with the real api and database: 12 api tests and 28 browser checks for gigs (both sides, mistakes and misuse), 7 tests and admin checks for the tech catalog. It also checked on the test site that the test attorney can post and the test freelancer is match-ready. This test covers the real screens in a real browser.
 
 Before you paste this:

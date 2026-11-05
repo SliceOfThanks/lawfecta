@@ -61,6 +61,12 @@ Everything below is on the test site, for the access list only. Live (lawfecta.c
 
 Tests today: 8 database test files, 84 API tests, 15 script tests and 198 browser checks. GitHub Tests: https://github.com/SliceOfThanks/lawfecta/actions
 
+## 2a. Running now: two tests at the same time (2026-11-05)
+- **Track A, ChatGPT:** the document standard, then images. https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2d-documents-chatgpt-prompt.md then https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2e-images-chatgpt-prompt.md
+- **Track B, Claude in Chrome:** gigs, proposals, messages and meetings (Steps 4 and 5). https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/claude-track-b-gigs-messages-meetings.md
+- The two tracks use different documents (track A: DOC-02, BIL-01 and the new documents it makes; track B: ENG-01), so they do not collide.
+- Every agent test now starts with the "How to work" block (docs/tests/AGENT-RULES.md) and says where to click at each step. The older prompts are marked "Not rewritten yet" until Claude rewrites them.
+
 ## 2. What needs testing, in this order
 1. Logging in during ChatGPT tests: BD's reCAPTCHA cannot be turned off and blocks ChatGPT's agent. Stacey clicks "Take over" in ChatGPT, logs in herself at https://www.hirelegalhelp.com/login, and hands control back. Tests are grouped by login, so this happens about three times per test.
 2. Step 3 test (profiles and verification), passed 2026-11-05: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-3-chatgpt-prompt.md

@@ -1,5 +1,7 @@
 # ChatGPT test: Step 5, messages, booking and meetings
 
+> **Replaced (2026-11-05).** Use the Claude test docs/tests/claude-track-b-gigs-messages-meetings.md instead. It covers Steps 4 and 5 step by step, with where to click.
+
 Claude already tested all of this with the real api and database: 10 api tests and 17 browser checks (both sides, two people booking the same time, reschedule, late cancel, held messages, edits, blocking, attachments, the phone screen). This test covers the real screens.
 
 Before you paste this:

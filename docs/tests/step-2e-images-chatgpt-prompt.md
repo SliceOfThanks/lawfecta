@@ -1,95 +1,156 @@
-# ChatGPT test: images in documents
+# ChatGPT test (track A, part 2): images in documents
 
-Claude already tested all of this with the real api and database: 9 api tests, the engine tests and 33 browser checks. They cover:
-- adding an image with the button, by pasting and by dropping a file
-- a wrong file type, an image over 5 MB and a fourth image on one step
-- flagged text, "Blur all flagged", Box, Arrow and Undo
-- the blur burned into the saved image
-- full screen, reordering, Edit and Remove
-- the block with "Fix it"
-- Word export with the images
-- the warning before a gig
-- "Check images" at a due review
-- the freelancer's read-only view, and the images hidden after the gig closes
-- Policies with no images
-- the phone screen
-- DELA's own check holding an image, including a hold that arrives later
-- another firm's images refused
+Claude already tested all of this with the real api and database: 9 api tests, the engine tests and 33 browser checks. They cover paste and drop, the blur burned in, reordering, the block, DELA's own check holding an image, the freelancer's view, another firm's images and the phone screen. This test covers the real screens, the real text reader and Word.
 
-This test covers the real screens, the real text reader and Word.
+Run it after the document standard test (track A, part 1). It can run at the same time as the Claude test (track B).
 
 Before you paste this:
-1. Make two screenshots on your computer and save them as PNG files:
-   - **Screenshot A:** a page with made-up details typed on it, for example a blank Word page where you type "Jane Roe", "jane.roe@example.com", "(555) 123-4567" and "2026-CV-0042" on separate lines.
-   - **Screenshot B:** a plain screen with no names, for example the Clio or Word menu bar.
-   - Never use a screenshot with real client information.
-2. ChatGPT's agent may not be able to pick files from your computer or paste a screenshot. When the test asks for a file, ChatGPT will stop and ask you. Click "Take over", do that step yourself, then hand control back and type: done, continue.
-3. The logins are filled in. Passwords are not kept on GitHub. Use the ready-to-paste copy Claude sent you in chat, or replace TEST_PASSWORD with the test password.
-4. The Lawfecta login has reCAPTCHA, which ChatGPT cannot pass. Each time ChatGPT reaches the login page:
-   1. Click "Take over".
-   2. Log in with the account it names.
-   3. Hand control back and type: I'm logged in, continue.
+1. Make two screenshots on your computer and save them as PNG files on your desktop:
+   - **Screenshot A:** open a blank Word page and type these made-up details, each on its own line: Jane Roe, jane.roe@example.com, (555) 123-4567, 2026-CV-0042. Take a screenshot of the page.
+   - **Screenshot B:** a screenshot of Word's menu bar only, with no names on it.
+2. ChatGPT cannot pick files from your computer. When it asks for a file, click "Take over", choose the file in the window that opened, hand control back and type: done, continue.
+3. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.
+4. Each time ChatGPT reaches the login page: click "Take over", log in with the account it names, hand control back and type: I'm logged in, continue.
 
 Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything wrong or confusing. Never type real client information; use only made-up details.
+You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
 
 Logins:
 - test attorney: stacey+dela-attorney@lawfecta.com (password TEST_PASSWORD)
-- test freelancer: stacey+dela-freelancer@lawfecta.com (password TEST_PASSWORD)
 - owner: stacey@lawfecta.com (password TEST_PASSWORD)
 
-The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+HOW TO WORK (read this first; it saves time and credits)
+1. Do only the numbered steps below, in order. Do not explore, do not open other menus, and do not look for other features.
+2. When a step says "Go to", type that link into the browser's address bar and press Enter. Do not get there by clicking around.
+3. Every button, box and link is named in quotes, exactly as the screen writes it, with where it is. First scroll to the card heading the step names, then look for the item.
+4. If you cannot see it after scrolling to that heading: press Ctrl+F (Cmd+F on a Mac), type the name without the quotes, press Enter, and use the highlighted match. If it is still not there, take one screenshot, write FAIL for that step with what you saw, and go on to the next step. Never try more than this one other way.
+5. When a step says DELA is writing or checking, wait up to 60 seconds without clicking anything else.
+6. What every DELA page looks like:
+   - A dark bar across the very top: the Lawfecta logo and a small yellow "Test site" label on the left; on the right, an "Inbox" button, a "Notices" button and a round button with your initials.
+   - Just under the dark bar, a row of tabs. Attorneys see "⌂ Home", "✦ Ask DELA", "▥ Library", "▤ Files", "▣ Projects", "◌ Talent". Freelancers see "⌂ Home", "✦ Ask DELA", "☺ Profile", "▣ Work", "$ Earnings".
+   - The page is made of white boxes called cards. Each card has a bold heading at its top left. Steps say "in the card titled ...".
+   - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
+   - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
+7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+9. Never type real client information. Use only the made-up details in the steps.
+10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds.
 
-When a step needs a file from my computer (Screenshot A or Screenshot B) or a paste, stop and ask me to do it. Wait until I say done.
+When a step needs a file from my computer (Screenshot A or Screenshot B), stop and ask me to choose it. Wait until I say done.
 
-To sign out at the end of a group, click the initials in the top right of the DELA page, then "Sign out".
+How the parts you will use look:
+- On a document page, the LEFT column is the document. Under the heading "Steps" each step is its own white box titled "Step 1", "Step 2" and so on. At the right end of each step box's top row are small outlined buttons: "↑", "Remove" and "🖼 Add image". Images appear inside the step box, under the box "What to do (one action, starting with a verb)".
+- The RIGHT column starts with the card titled "Quality check", with the buttons "Save", "Approve" and "Post as a Flex Gig", and "Export:" with "Word".
+- The image window is a pop-up in the middle of the screen titled "Review image". In it, from top to bottom: a row of four outlined buttons "Box", "Arrow", "Blur", "Undo"; a yellow bar (only when DELA found something) with the button "Blur all flagged" at its right end; the image; the box "Caption (what should the reader look at?)"; the checkbox "This image contains no client information, passwords or account numbers."; and at the bottom right the buttons "Cancel" (outlined) and "Save image" (blue).
 
 1. Attorney (ask me to log in as the test attorney)
-1. Open www.hirelegalhelp.com/dela?tab=library. Click "New document" in the card near the top, click the "SOP" card, type "Open a matter in Clio" in "Process name" and click "Draft it with DELA". Wait about a minute.
-2. On the document page, scroll to "Steps". Expect an "Add image" button at the right end of each step's top row, and the grey tip "Tip: Take a screenshot, click a step, and paste it here." under the first step.
-3. Wrong files (ask me to choose the file): click "Add image" on step 1 and choose a PDF or a Word file. Expect "Use a PNG or JPG image." in red under the step. If I have an image over 5 MB, try it too and expect "This image is over 5 MB. Try a smaller screenshot."
-4. Click "Add image" on step 1 and ask me to choose Screenshot A.
-   1. Expect a pop-up titled "Review image" with the image in the middle and the buttons "Box", "Arrow", "Blur" and "Undo" above it.
-   2. Within a few seconds, expect a yellow bar "We found ... items that may be client information." and yellow outlines around the made-up name, email, phone number and case number. Report which items were outlined and which were missed.
-   3. Expect "Save image" greyed out. Hover over it and report the message.
-   4. Click one yellow outline. Expect just that item blurred.
-   5. Click "Blur all flagged". Expect every outlined item blurred.
-   6. Click "Box" and drag a box around something on the image. Click "Arrow" and drag an arrow. Click "Undo" once. Expect the arrow gone and the box still there.
-   7. Type "The New matter button" in "Caption (what should the reader look at?)". Expect "Save image" still greyed out.
-   8. Tick "This image contains no client information, passwords or account numbers." Expect "Save image" to turn on. Click it.
-5. Expect a progress bar on the step, then the image under step 1 at full width with "The New matter button" in grey italics below it.
-6. Click the image. Expect it full screen. Press Esc. Expect it to close. Open it again and close it with the X in the top right.
-7. Paste (ask me to do it): ask me to copy Screenshot B to the clipboard (open it, then Ctrl+C on Windows or Cmd+C on a Mac), click into the text of step 2, and press Ctrl+V or Cmd+V. Expect the same "Review image" window. Add a caption, tick the box and save. Expect it under step 2.
-8. Drag and drop (ask me to do it): ask me to drag Screenshot B from my computer onto step 3. Expect the "Review image" window. Click "Cancel". Expect nothing added.
-9. Add Screenshot B to step 1 twice more (caption, tick, save each time). Then click "Add image" on step 1 again. Expect "Each step can have 3 images. Split this step to add more." in red.
-10. Hover over the first image on step 1. Expect "Edit", "Replace" and "Remove" in its top right corner.
-    1. Click "Edit". Change the caption to "The New matter button, top left" and save (tick the box again). Expect the new caption.
-    2. Click "Remove" on the third image. Expect "Remove this image?" with "Cancel" and "Remove". Click "Remove". Expect it gone.
-    3. Drag the second image above the first. Expect the order to change and stay after you reload the page.
-11. Scroll to the "Quality check" card on the right. Expect no image item marked "Blocking". If any image says "DELA's check thinks this image may show client information", click "Fix it" or "Edit" on it, blur more or confirm, and report what happened.
-12. In the "Quality check" card, click "Word". Open the file in Word. Expect each image at full page width under its step with the caption below it. Report anything that looks wrong.
-13. Click "Approve". Then click "Post as a Flex Gig". On the Projects page, click "Draft the gig with DELA". Expect "The freelancer will see 3 images in this document. Check that none show client information." with "Review images" and "Continue". Click "Continue". Leave the gig as a draft.
-14. Policies: click "Library" at the top, then "New document", the "Policy" card, type "Client trust account rules", and click "Draft it with DELA". Expect no "Add image" button anywhere on the Policy.
-15. A Workflow: make a new document from the "Workflow" card. Expect "Add image" on each stage and a "Swimlane chart" section with its own "Add image". Add Screenshot B to the swimlane chart.
-16. A Playbook: make a new document from the "Playbook" card. Expect "Add image" under "Scripts and templates" and under "Examples".
-17. On your phone (or a narrow window), open the SOP from step 1. Tap an image to see "Edit", "Replace" and "Remove". Tap "Add image" and report whether your phone offers to take a photo or choose from the library. Nothing should run off the side of the screen.
+
+1. Go to: https://www.hirelegalhelp.com/dela?tab=library
+   Do: in the first card under "Document library", click the blue "New document". Click the box "SOP". In "Process name" (the first box in the card "About this process") type Open a matter in Clio. Click the blue "Draft it with DELA" at the bottom of that card.
+   Expect: within 60 seconds, the document page.
+
+2. Find: in the left column, the heading "Steps", then the box "Step 1".
+   Expect: the outlined button "🖼 Add image" at the right end of the top row of each step box, and the grey line "Tip: Take a screenshot, click a step, and paste it here." at the bottom of the "Step 1" box.
+
+3. Wrong file.
+   Do: click "🖼 Add image" in the "Step 1" box. A file window opens: ask me to choose a PDF or Word file (in the file window, I switch the file type at the bottom to "All files" first).
+   Expect: the red line "Use a PNG or JPG image." inside the "Step 1" box.
+
+4. Do: click "🖼 Add image" in the "Step 1" box again. Ask me to choose Screenshot A.
+   Expect: the pop-up "Review image".
+   Wait up to 20 seconds, then expect: the yellow bar "We found (number) items that may be client information." and yellow outlines on the image around the made-up name, email, phone number and case number. Report which of the four were outlined.
+
+5. In the pop-up:
+   Expect: "Save image" (bottom right) is greyed out. Move the mouse over it and report the message that appears.
+   Do: click once inside one yellow outline on the image.
+   Expect: only that item is blurred.
+   Do: click "Blur all flagged" at the right end of the yellow bar.
+   Expect: every outlined item is blurred and the bar says "Every flagged item is blurred. Check the rest of the image yourself."
+
+6. Still in the pop-up:
+   Do: click "Box" (first button of the top row), then press the mouse on an empty part of the image and drag to draw a box. Click "Arrow", then drag on the image to draw an arrow. Click "Undo".
+   Expect: the arrow is gone and the box is still there.
+
+7. Still in the pop-up:
+   Do: click in the box "Caption (what should the reader look at?)" and type The New matter button
+   Expect: "Save image" is still greyed out.
+   Do: tick the checkbox "This image contains no client information, passwords or account numbers.", then click the blue "Save image".
+   Expect: the pop-up closes, a thin progress bar runs in the "Step 1" box, and the image appears inside the "Step 1" box at full width with "The New matter button" in grey italics below it.
+
+8. Do: click the image.
+   Expect: the image fills the screen on a dark background. Press Esc. Expect: it closes. Click the image again, then click the round "✕" in the top right corner of the screen. Expect: it closes.
+
+9. Two more on step 1, then a fourth.
+   Do: click "🖼 Add image" in the "Step 1" box, ask me to choose Screenshot B, type Shot two in the caption box, tick the checkbox, click "Save image". Do this once more with the caption Shot three.
+   Expect: three images in the "Step 1" box.
+   Do: click "🖼 Add image" in the "Step 1" box once more.
+   Expect: the red line "Each step can have 3 images. Split this step to add more." inside the "Step 1" box, and no file window.
+
+10. Edit, Remove and reorder.
+    Do: move the mouse over the first image in the "Step 1" box.
+    Expect: three small buttons in the image's top right corner: "Edit", "Replace", "Remove".
+    Do: click "Edit". In the pop-up, clear the caption box and type The New matter button, top left. Tick the checkbox. Click "Save image".
+    Expect: the new caption under the first image.
+    Do: move the mouse over the third image and click its "Remove".
+    Expect: a small window "Remove this image?" with "Cancel" and "Remove". Click "Remove". Expect: two images left.
+    Do: drag the second image (press on it, move it up over the first image, let go).
+    Expect: the two images swap places. Go to https://www.hirelegalhelp.com/dela?tab=library, open "Open a matter in Clio" again (click its row) and check the order stayed.
+
+11. Paste (ask me to do it).
+    Ask me to: copy Screenshot B to the clipboard (open it, then Ctrl+C or Cmd+C), click inside the box "What to do (one action, starting with a verb)" in the "Step 2" box, and press Ctrl+V or Cmd+V. Wait until I say done.
+    Expect: the pop-up "Review image". Type Pasted shot as the caption, tick the checkbox, click "Save image". Expect: the image inside the "Step 2" box.
+
+12. The quality panel.
+    Find: the card titled "Quality check" (right column).
+    Expect: no image item marked "Blocking". If any image item is there, report its text, click its "Fix it", tick the checkbox in the pop-up, click "Save image", and report what happened.
+
+13. Word.
+    Do: in the "Quality check" card, after "Export:", click "Word". Open the file.
+    Expect: each image at full page width under its step, with the caption below it in grey italics. Report anything that looks wrong.
+
+14. The warning before a gig.
+    Do: in the "Quality check" card, click the blue "Approve". Then click the blue "Post as a Flex Gig" in the same card.
+    Expect: the Projects page with the card "Post a new gig"; its dropdown "Document" shows "Open a matter in Clio".
+    Do: click the blue "Draft the gig with DELA" at the bottom of that card.
+    Expect: a pop-up "Check the images" saying "The freelancer will see 3 images in this document. Check that none show client information." with the buttons "Review images" and "Continue".
+    Do: click "Continue". Expect: within 60 seconds, the gig page. Do not post the gig.
+
+15. A Policy has no images.
+    Do: go to https://www.hirelegalhelp.com/dela?tab=library, click the row "Client trust account rules" (made in the first test).
+    Expect: no "🖼 Add image" button anywhere on the page (use Ctrl+F to search "Add image").
+
+16. A Workflow has a swimlane chart.
+    Do: go to https://www.hirelegalhelp.com/dela?tab=library and click the row "Intake to signed engagement" (made in the first test).
+    Expect: "🖼 Add image" on each stage box, and a section "Swimlane chart" (in the left column, after "Start and end points") with its own "🖼 Add image".
+    Do: click the "🖼 Add image" in the "Swimlane chart" section, ask me to choose Screenshot B, type Our swimlane chart as the caption, tick the checkbox, click "Save image".
+    Expect: the image under "Swimlane chart".
+
+17. A Playbook.
+    Do: go to https://www.hirelegalhelp.com/dela?tab=library and click the row "Handle an upset client".
+    Expect: a "🖼 Add image" button under "Scripts and templates" and another under "Examples". You do not need to add one.
+
 18. Sign out.
 
-2. Freelancer (ask me to log in as the test freelancer)
-1. If Claude has invited this freelancer to the gig from attorney step 13 (I will tell you), open www.hirelegalhelp.com/dela?tab=work, open that gig, and expect the images with captions under "The work handed to you". Click one for full screen.
-2. Expect no download button on any image.
+2. Owner (ask me to log in as the owner)
+
+1. Go to: https://www.hirelegalhelp.com/dela-admin
+   Do: in the row of tabs near the top, click "AI and files".
+   Find: the card titled "Documents (Policy, Workflow, SOP, Playbook)" at the very bottom, and in it the heading "Images in documents".
+   Expect: "Images in documents", "Waiting for a client-data check", "Held by DELA's check", "Items the text reader found" and "Items members blurred", with numbers. No images and no image links.
+
+2. Do: in the row of tabs, click "Switches".
+   Find: the row whose small grey code name is "document_images".
+   Expect: its dropdown shows "Access list".
+
 3. Sign out.
 
-3. Owner (ask me to log in as the owner)
-1. Open www.hirelegalhelp.com/dela-admin and click "AI and files" in the row of tabs.
-2. Scroll to the "Documents (Policy, Workflow, SOP, Playbook)" card at the bottom. Expect image counts: images in documents, waiting for a check, held by DELA's check, and items found and blurred by the text reader. Expect no images or image links.
-3. Click "Switches" in the row of tabs. Expect "document_images" set to the access list.
-4. Sign out.
+3. Check the results (test attorney)
 
-4. Check the results
-1. Log in as the test attorney and open www.hirelegalhelp.com/dela?tab=library, then the SOP "Open a matter in Clio". Expect every image still under its step, in the order you set, with its caption. Sign out.
+1. Go to: https://www.hirelegalhelp.com/dela?tab=library and click the row "Open a matter in Clio".
+   Expect: two images in "Step 1" in the order you set, one in "Step 2", each with its caption.
+2. Sign out.
 
-At the end, list every FAIL, everything confusing, and which made-up details the text reader missed.
+At the end: list every FAIL, every message that was confusing, and which of the four made-up details in Screenshot A the text reader did not outline.

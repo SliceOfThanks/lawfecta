@@ -1,5 +1,7 @@
 # ChatGPT test: Step 6, agreements, payments, delivery and payouts
 
+> **Not rewritten yet (2026-11-05).** Claude rewrites this in the step-by-step style (link, card, where on the page, exact button) before you run it, with the "How to work" block from docs/tests/AGENT-RULES.md. Ask Claude for the new copy first.
+
 Claude already tested all of this with the real api and database, using a stand-in for Stripe: 13 api tests and 35 browser checks. They cover both sides, mistakes and misuse:
 - signing the wrong version
 - two clicks on Pay
