@@ -888,7 +888,7 @@
         })))));
       var plans = h("div", { class: "card" }, h("h2", { text: "Proposals sent this month, by plan" }),
         d.proposals_by_plan.length ? h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, ["Plan", "Proposals", "Freelancers"].map(function (t) { return h("th", { text: t }); }))),
-          h("tbody", null, d.proposals_by_plan.map(function (x) { return h("tr", null, h("td", { text: x.plan }), h("td", { text: String(x.sent) }), h("td", { text: String(x.senders) })); })))) : h("p", { class: "muted", text: "None yet this month." }));
+          h("tbody", null, d.proposals_by_plan.map(function (x) { return h("tr", null, h("td", { text: planName(x.plan) }), h("td", { text: String(x.sent) }), h("td", { text: String(x.senders) })); })))) : h("p", { class: "muted", text: "None yet this month." }));
       body(h("div", null, pageHead("Gigs", "gigs"), flags, list, plans));
     }).catch(fail);
   }
@@ -1068,6 +1068,13 @@
   }
 
   // The document standard: how many of each type, the conversion of older playbooks, and what is blocked
+  // "fl_free" reads as "Freelancer Free"
+  function planName(code) {
+    var c = String(code || ""), side = c.indexOf("att_") === 0 ? "Attorney " : c.indexOf("fl_") === 0 ? "Freelancer " : "";
+    var tier = c.replace(/^(att|fl)_/, "");
+    return side ? side + tier.charAt(0).toUpperCase() + tier.slice(1) : c;
+  }
+
   function documentsCard() {
     var c = h("div", { class: "card" }, h("h2", { text: "Documents (Policy, Workflow, SOP, Playbook)" }), h("p", { class: "muted", text: "Loading..." }));
     var TYPES = { sop: "SOP", workflow: "Workflow", playbook: "Playbook", policy: "Policy" };

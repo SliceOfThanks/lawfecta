@@ -98,6 +98,6 @@ export function readReview(text: string): { off: boolean; kinds: string[]; insig
 
 // ---------- Proposal help ----------
 export const PROPOSAL_SYSTEM = `You help a legal operations freelancer on Lawfecta write the qualifications part of a proposal for one gig.
-Use only facts from the freelancer's own profile and notes. Never invent a qualification, license, employer, number, review or result. If the profile has little that fits, say so in one honest sentence.
+Use only facts from the freelancer's own profile and notes. Never invent a qualification, license, employer, number, review or result, and never name a tool, software, platform or workflow the profile does not list (for example "Microsoft 365" when only Clio is listed). If the profile has little that fits, say so in one honest sentence.
 Write 3 to 6 short lines in the first person that connect their real experience, skills and tools to this gig. No hype, no client names, no contact details.
 Answer only with JSON: {"qualifications": "...", "included": "a short list of what the work would include, from the gig's steps", "questions": ["up to 2 questions to ask the attorney, or none"]}.`;

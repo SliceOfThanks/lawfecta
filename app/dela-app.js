@@ -2932,7 +2932,7 @@
       if (!r.ok) { el.appendChild(h("p", { class: "notice", text: gigErr(r) })); return; }
       var g = r.gig;
       el.appendChild(h("div", { class: "row" }, h("h1", { class: "grow", text: g.title }), h("span", { class: "badge " + (g.status === "open" ? "ready" : "C"), text: GIG_STATUS[g.status] })));
-      el.appendChild(h("p", { class: "muted", text: budgetText(g) + " | " + closesText(g) + (r.counts ? " | " + r.counts.proposals + " proposals, " + r.counts.invited + " invited" : "") }));
+      el.appendChild(h("p", { class: "muted", text: budgetText(g) + " | " + closesText(g) + (r.counts ? " | " + r.counts.proposals + (r.counts.proposals === 1 ? " proposal, " : " proposals, ") + r.counts.invited + " invited" : "") }));
       if (g.paused_by_team) el.appendChild(h("p", { class: "notice bad", text: "The Lawfecta Team paused this gig while they check it. Freelancers cannot send proposals until it opens again." }));
       var views = [["details", "Details"], ["matches", "Matches"], ["questions", "Questions" + (r.counts && r.counts.questions_open ? " (" + r.counts.questions_open + ")" : "")], ["proposals", "Proposals" + (r.counts ? " (" + r.counts.proposals + ")" : "")], ["files", "Files (" + r.files.length + ")"]];
       if ((me.switches || {}).engagements && (g.status === "filled" || gigs.view === "agreement")) views.push(["agreement", "Agreement and work"]);
@@ -3352,7 +3352,7 @@
     thread_closed: "This conversation closed 30 days after the gig closed.", bench_ended: "This bench conversation is closed, because the freelancer is no longer on the bench.",
     project_closed: "This engagement is complete, so its conversation is read only. Use your bench conversation to keep in touch.", bench_no_files: "A bench conversation does not share files. Share files on a gig.", too_many_messages: "You are sending messages very fast. Wait a moment.",
     edit_time_over: "Messages can be edited for 15 minutes only.", edit_needs_check: "That edit looks like contact details or payment outside Lawfecta. Send it as a new message instead, so DELA can check it.",
-    time_taken: "Someone just took that time. Choose another.", hold_expired: "The time was held for 10 minutes and ran out. Choose a time again.",
+    time_taken: "Someone just took that time. Choose another.", same_time: "That is the meeting's current time. Choose a different time.", hold_expired: "The time was held for 10 minutes and ran out. Choose a time again.",
     not_available: "This freelancer is not available for meetings right now.", not_yet: "You can confirm the meeting once it has started.",
     bad_timezone: "Choose your time zone.", choose_a_length: "Choose at least one meeting length.", bad_hours: "Check the hours: each day needs a start before its end.",
     assistant_off: "DELA's help in messages is not open for your account yet.", nothing_to_summarize: "There are no messages yet.",
@@ -3511,7 +3511,7 @@
         var byDay = {};
         r.slots.forEach(function (s) { var d = dayLabel(s); (byDay[d] = byDay[d] || []).push(s); });
         Object.keys(byDay).slice(0, 14).forEach(function (d) {
-          panel.appendChild(h("div", { style: "margin:8px 0" }, h("b", { text: d }), h("div", { class: "row", style: "flex-wrap:wrap;gap:6px;margin-top:4px" }, byDay[d].slice(0, 24).map(function (s) {
+          panel.appendChild(h("div", { style: "margin:8px 0" }, h("b", { text: d }), h("div", { class: "row", style: "flex-wrap:wrap;gap:6px;margin-top:4px" }, byDay[d].map(function (s) {
             return h("button", { class: "ghost small", type: "button", onclick: function () { hold(s); } }, timeLabel(s));
           }))));
         });
@@ -3549,7 +3549,7 @@
     var started = new Date(m.start_at).getTime() <= Date.now();
     if (m.status === "confirmed" && !started) {
       if (m.join_url) c.appendChild(h("a", { class: "btn blue", href: m.join_url, target: "_blank", rel: "noopener" }, "Join the meeting"));
-      else if (m.room_status === "waiting_for_provider") c.appendChild(h("p", { class: "small muted", text: "The meeting room link appears here once Lawfecta's meeting service is connected. You both get it before the meeting." }));
+      else if (m.room_status !== "ready") c.appendChild(h("p", { class: "small muted", text: "The meeting room link appears here once Lawfecta's meeting service is connected. You both get it before the meeting." }));
       else c.appendChild(h("p", { class: "small muted", text: "The room opens at " + timeLabel(m.join_opens_at) + " on " + dayLabel(m.join_opens_at) + "." }));
       var consent = h("input", { type: "checkbox", checked: m.my_consent });
       consent.addEventListener("change", function () { api.post("/meetings/consent", { id: m.id, consent: consent.checked }).then(gigOk).then(function () { D.toast(app, consent.checked ? "Saved. Nothing is recorded unless you both agree." : "Saved"); }).catch(talkFail); });
@@ -4016,7 +4016,7 @@
       var c = h("div", { class: "card" }, h("h2", { text: title + " (" + r.engagements.length + ")" }));
       r.engagements.forEach(function (e) {
         c.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { gigs.id = e.gig_id; gigs.view = "agreement"; tab = me.side === "attorney" ? "projects" : "work"; draw(); } },
-          h("div", null, h("h3", { text: e.gig_title }), h("div", { class: "small muted", text: (me.side === "attorney" ? "Freelancer: " : "Client: ") + (e.other_name || "") + " | " + D.money(e.total_cents) + " | milestones accepted " + e.accepted + " of " + e.milestones + (me.side === "freelancer" && e.earned_cents ? " | paid to you " + D.money(e.earned_cents) : "") })),
+          h("div", null, h("h3", { text: e.gig_title }), h("div", { class: "small muted", text: (me.side === "attorney" ? "Freelancer: " : "Client: ") + (e.other_name || "") + " | " + D.money(e.total_cents) + (e.milestones ? " | milestones accepted " + e.accepted + " of " + e.milestones : " | milestones set when you both sign") + (me.side === "freelancer" && e.earned_cents ? " | paid to you " + D.money(e.earned_cents) : "") })),
           h("span", { class: "grow" }), e.needs_me === "sign" ? h("span", { class: "badge held", text: "Needs your signature" }) : h("span", { class: "badge " + (e.status === "active" || e.status === "completed" ? "ready" : "C"), text: AG_STATUS[e.status] || e.status })));
       });
       host.insertBefore(c, host.children[2] || null);
@@ -4959,7 +4959,7 @@
     var bi = imagesRead(b.before_images || (b.section_images || {}).before_you_start, gig); if (bi) box.appendChild(bi);
     box.appendChild(h("p", { class: "doc-h" }, h("b", { text: "Steps" })));
     box.appendChild(h("ol", null, (b.steps || []).map(function (st) {
-      return h("li", null, (st.stage ? st.stage + ": " : "") + st.text, st.menu_path ? h("div", { class: "small muted", text: "Where: " + st.menu_path }) : null,
+      return h("li", null, (st.stage ? st.stage + ": " : "") + st.text, st.menu_path && st.menu_path.indexOf("[Add the menu path") < 0 ? h("div", { class: "small muted", text: "Where: " + st.menu_path }) : null,
         st.attorney_decides ? h("div", { class: "small", style: "color:var(--brand);font-weight:700", text: "Attorney decides: ask the attorney inside the engagement before you go on." }) : null, imagesRead(st.images, gig));
     })));
     if (b.timing) box.appendChild(h("p", null, h("b", { text: "Timing: " }), b.timing));
