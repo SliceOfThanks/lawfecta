@@ -199,6 +199,8 @@
       storage_not_set_up: "File storage is still being set up. Please try again later.",
       not_uploaded: "The upload did not reach DELA. Check your connection and upload the file again.",
       upload_failed: "The upload did not finish. Check your connection and try again.",
+      photo_too_big: "That photo is too large. Use one under 3 MB.",
+      not_an_image: "That file is not a PNG or JPG photo.",
       server_error: "Something went wrong. Please try again.",
       // Profiles and verification (Step 3)
       profiles_off: "Profiles open soon.",
@@ -274,7 +276,10 @@
     ".tile{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;gap:12px;align-items:flex-start}.tile.col{flex-direction:column;gap:2px}",
     ".soon{font-size:11px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.08em}",
     ".notice{border-left:4px solid var(--brand);background:var(--pink);color:var(--ink);padding:12px 14px;border-radius:12px;margin:12px 0;font-size:14px}",
-    ".notice.bad{border-color:var(--bad);background:#fdeceb}.notice.ok{border-color:var(--ok);background:#e9f5ee}p.small.bad{color:var(--bad)}p.small.ok{color:var(--ok)}",
+    ".notice.bad{border-color:var(--bad);background:#fdeceb}.notice.ok{border-color:var(--ok);background:#e9f5ee}p.small.bad{color:var(--bad)}p.small.ok{color:var(--ok)}" +
+    "@media (max-width:640px){table.stack thead{display:none}table.stack,table.stack tbody,table.stack tr,table.stack td{display:block;width:100%}table.stack tr{border-bottom:1px solid var(--line);padding:10px 0}table.stack td{border:0;padding:3px 0}table.stack td[data-label]:before{content:attr(data-label);display:block;font-size:12px;color:var(--muted);font-weight:700}}" +
+    ".tool-group{border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin:6px 0;background:var(--card)}.tool-group summary{cursor:pointer;list-style:revert}" +
+    ".help-q{width:22px;height:22px;min-height:0;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:12px;font-weight:700;line-height:1;cursor:pointer}.help-q:hover,.help-q[aria-expanded=true]{color:var(--ink);border-color:var(--ink)}",
     "button,.btn{font:inherit;font-weight:700;border-radius:999px;border:1.5px solid var(--brand);background:var(--brand);color:var(--brand-ink);padding:10px 20px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;line-height:1.2}",
     "button.blue,.btn.blue{background:var(--blue);border-color:var(--blue);color:#fff}",
     "button.ghost{background:transparent;color:var(--brand)}button.danger{background:var(--bad);border-color:var(--bad);color:#fff}button.small,.btn.small{padding:6px 14px;font-size:14px}",

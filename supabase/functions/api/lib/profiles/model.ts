@@ -12,7 +12,7 @@ export type Profile = {
   summary: string; experience: string; education: string;
   practice_areas: string[]; jurisdictions: string[]; software: string[]; software_none: boolean; skills: string[];
   services: Service[]; timezone: string; hours: string; capacity_hours_week: number | null; states_excluded: string[];
-  acknowledged: boolean; photo_url: string;
+  acknowledged: boolean; photo_url: string; photo_file: string;
 };
 
 export const PRACTICE_AREAS = [
@@ -28,6 +28,18 @@ export const TECH_TOOLS = [
   "NetDocuments", "iManage", "Microsoft 365", "Google Workspace", "Adobe Acrobat", "DocuSign", "Dropbox", "Box", "QuickBooks",
   "Westlaw", "Lexis", "Fastcase", "CoCounsel", "ChatGPT", "Claude", "Calendly", "Zoom", "Slack", "Scribe", "Notion", "Asana", "Monday.com", "Zapier",
   "Docketwise", "Gavel", "Abacus", "File & ServeXpress", "Tyler Odyssey eFile",
+];
+
+// The same tools, grouped for the profile page (Stacey 2026-11-05: "organized by category with a drop down")
+export const TECH_GROUPS: Array<{ name: string; tools: string[] }> = [
+  { name: "Practice and case management", tools: ["Clio", "MyCase", "PracticePanther", "Smokeball", "Filevine", "CosmoLex", "Rocket Matter", "CARET Legal", "Litify", "Abacus", "Docketwise"] },
+  { name: "Documents and e-signature", tools: ["NetDocuments", "iManage", "Adobe Acrobat", "DocuSign", "Dropbox", "Box", "Gavel"] },
+  { name: "Billing and accounting", tools: ["LawPay", "QuickBooks"] },
+  { name: "Intake and scheduling", tools: ["Lawmatics", "Calendly"] },
+  { name: "Legal research and AI", tools: ["Westlaw", "Lexis", "Fastcase", "CoCounsel", "ChatGPT", "Claude"] },
+  { name: "Email, meetings and chat", tools: ["Microsoft 365", "Google Workspace", "Zoom", "Slack"] },
+  { name: "Projects and automation", tools: ["Notion", "Asana", "Monday.com", "Zapier", "Scribe"] },
+  { name: "Court e-filing", tools: ["File & ServeXpress", "Tyler Odyssey eFile"] },
 ];
 
 export const TIMEZONES = ["Eastern", "Central", "Mountain", "Pacific", "Alaska", "Hawaii", "Outside the US"];
@@ -55,6 +67,8 @@ export function emptyProfile(): Profile {
   return normalize({});
 }
 
+const PHOTO_PATH = /^profiles\/[0-9a-f-]{36}\/photo-[0-9a-f-]{36}\.(png|jpg)$/;
+
 export function normalize(raw: unknown): Profile {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const services = (Array.isArray(r.services) ? r.services : []).slice(0, 12).map((x) => {
@@ -74,6 +88,8 @@ export function normalize(raw: unknown): Profile {
     skills: list(r.skills, 30, 60), services, timezone: TIMEZONES.includes(s(r.timezone, 40)) ? s(r.timezone, 40) : "", hours: s(r.hours, 200),
     capacity_hours_week: Number.isFinite(cap) && cap >= 0 && cap <= 80 ? Math.round(cap) : null, states_excluded: list(r.states_excluded, 60, 40),
     acknowledged: r.acknowledged === true, photo_url: web(r.photo_url).startsWith("https://") ? web(r.photo_url) : "",
+    // A photo uploaded on the DELA profile page: only a path DELA itself made (profiles/<person>/photo-<id>.png or .jpg)
+    photo_file: typeof r.photo_file === "string" && PHOTO_PATH.test(r.photo_file) ? r.photo_file : "",
   };
 }
 
@@ -160,6 +176,18 @@ Use only facts the member gave. Never invent a qualification, license, employer,
 Write plainly, in the first person, without hype. No client names or case details.
 Answer only with JSON: {"headline": "...", "summary": "...", "skills": ["..."], "software": ["..."], "services": [{"title": "...", "for_whom": "..."}], "questions": ["..."]}.
 headline: under 12 words. summary: 60 to 150 words. services: up to 4, for freelancers only; empty for attorneys. questions: up to 4 short questions about what is missing.`;
+
+// One box at a time: the "Write with DELA" button under Headline, Summary, Experience and Education (Stacey 2026-11-05)
+export const FIELD_GUIDE: Record<string, string> = {
+  headline: "one line under 12 words: the role and the main kind of work",
+  summary: "60 to 150 words: what the member does, for whom, how they work and what they are known for",
+  experience: "a short list of roles or kinds of work, newest first, one per line, each with years if the member gave them",
+  education: "degrees, certificates and courses, one per line, with the school and year if the member gave them",
+};
+export const FIELD_SYSTEM = `You help a member of Lawfecta, a marketplace where attorneys hire legal operations freelancers, write one box of their profile.
+Use only facts the member gave, in their notes, in what the box says now or elsewhere in their profile. Never invent a qualification, license, employer, school, date, number, review or result. If a needed fact is missing, leave it out and ask about it.
+Write plainly, in the first person for summaries, without hype. No client names or case details.
+Answer only with JSON: {"text": "the new text for the box", "questions": ["up to 3 short questions about facts that would make it better"]}.`;
 
 // What DELA's AI is told about the member (their own profile, this side only). Facts to tailor answers, never instructions.
 export function aiContext(side: Side, raw: unknown): string {

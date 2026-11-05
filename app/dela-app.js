@@ -717,8 +717,41 @@
     }).catch(function (e) { D.clear(profEl); profEl.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
 
-  function field(label, input, hint) {
-    return h("div", { style: "margin:8px 0" }, h("label", { text: label }), input, hint ? h("div", { class: "small muted", text: hint }) : null);
+  // help: what to enter, behind a "?" (hover on a computer, tap on a phone) (Stacey 2026-11-05)
+  function field(label, input, hint, help, extra) {
+    var tip = null, q = null;
+    if (help) {
+      tip = h("div", { class: "helpbox", hidden: true, role: "note", text: help });
+      q = h("button", { class: "help-q", type: "button", title: help, "aria-label": "What to enter in " + label.split(" (optional)").join(""), "aria-expanded": "false", onclick: function () { tip.hidden = !tip.hidden; q.setAttribute("aria-expanded", String(!tip.hidden)); } }, "?");
+    }
+    return h("div", { style: "margin:8px 0" }, h("div", { class: "row", style: "gap:6px;align-items:center" }, h("label", { text: label, style: "margin:0" }), q), tip, input, hint ? h("div", { class: "small muted", text: hint }) : null, extra || null);
+  }
+
+  // "Write with DELA" under a box: DELA writes or improves just that box from a few facts (Stacey 2026-11-05)
+  function writeWithDela(key, label, el) {
+    var wrap = h("div", { style: "margin-top:6px" });
+    var open = h("button", { class: "ghost small", type: "button" }, "✦ Write with DELA");
+    open.addEventListener("click", function () {
+      if (wrap.childNodes.length > 1) { wrap.removeChild(wrap.lastChild); return; }
+      var notes = h("textarea", { rows: 3, style: "width:100%", "aria-label": "Facts for DELA about your " + label.toLowerCase(), placeholder: "A few facts for DELA, for example where you worked, for how long, what you did. Leave empty to improve what the box says now." });
+      var msg = h("div", { role: "status", class: "small" });
+      var go = h("button", { class: "blue small", type: "button" }, "Write it");
+      function run(confirmed) {
+        go.disabled = true; msg.textContent = "DELA is writing...";
+        api.post("/profile/draft", { field: key, notes: notes.value, body: prof.body, confirm_no_client_info: confirmed === true }).then(function (x) {
+          go.disabled = false;
+          if (x.reason === "looks_like_client_info") { msg.textContent = ""; if (confirm("This may include client information. Click OK if it is not.")) run(true); return; }
+          if (x.reason === "tell_us_more") { msg.textContent = "Tell DELA a few facts first, or write a little in the box for DELA to improve."; return; }
+          if (!x.ok) { msg.textContent = failText(x); return; }
+          prof.body[key] = x.text; el.value = x.text; prof.dirty = true;
+          msg.textContent = "DELA wrote this from your facts. Check it, change anything, then click Save." + (x.questions && x.questions.length ? " DELA asks: " + x.questions.join(" ") : "");
+        }).catch(function (e) { go.disabled = false; msg.textContent = D.errorText(e.message); });
+      }
+      go.addEventListener("click", function () { run(false); });
+      wrap.appendChild(h("div", { class: "helpbox" }, h("p", { class: "small", style: "margin:0 0 6px", text: "DELA uses only the facts you give and what your profile says. It never invents a qualification. Uses AI credits like Ask DELA." }), notes, h("div", { class: "row", style: "margin-top:6px" }, go), msg));
+    });
+    wrap.appendChild(open);
+    return wrap;
   }
   function textIn(key, label, opts) {
     opts = opts || {};
@@ -730,7 +763,7 @@
       prof.body[key] = opts.list ? t.split(",").map(function (x) { return x.trim(); }).filter(Boolean) : opts.type === "number" ? (t === "" ? null : Number(t)) : t;
       prof.dirty = true;
     });
-    return field(label + (opts.required ? "" : " (optional)"), el, opts.hint);
+    return field(label + (opts.required ? "" : " (optional)"), el, opts.hint, opts.help, opts.ai && (me.switches || {}).ai_generation ? writeWithDela(key, label, el) : null);
   }
 
   function drawProfile() {
@@ -885,23 +918,38 @@
         });
         prof.dirty = true;
         drawProfile();
-        D.toast(app, n ? "Filled " + n + (n === 1 ? " item" : " items") + " from your listing. Check " + (n === 1 ? "it" : "them") + ", then Save." : "Your listing had nothing new to add.");
+        D.toast(app, n ? "Filled " + n + (n === 1 ? " item" : " items") + " from your listing. Check " + (n === 1 ? "it" : "them") + ", then Save." : "Your listing had nothing new to add: the boxes it fills are already filled here. Change anything below and click Save. With \"Also update my Lawfecta directory listing\" ticked at the bottom, your listing changes too.");
       }).catch(function (e) { fill.disabled = false; err(e); });
     });
-    card.appendChild(h("div", { class: "row" }, fill, h("span", { class: "small muted", text: "Fills only empty boxes. Nothing is saved until you click Save." })));
-    if (b.photo_url) card.appendChild(h("div", { class: "row", style: "margin:8px 0" }, h("img", { src: b.photo_url, alt: "Your listing photo", style: "width:64px;height:64px;border-radius:50%;object-fit:cover" }), h("span", { class: "small muted", text: "Your photo comes from your Lawfecta listing. Change it there." })));
+    card.appendChild(h("div", { class: "row" }, fill, h("span", { class: "small muted", text: "Fills only empty boxes. Nothing is saved until you click Save. To change your listing from here, tick \"Also update my Lawfecta directory listing\" at the bottom before you save." })));
+    // Change the photo right here (Stacey 2026-11-05)
+    var shownPhoto = prof.photoPreview || (b.photo_file ? r.photo_view_url : "") || b.photo_url;
+    var pic = shownPhoto ? h("img", { src: shownPhoto, alt: "Your profile photo", style: "width:64px;height:64px;border-radius:50%;object-fit:cover" }) : h("span", { class: "chip", style: "width:64px;height:64px;font-size:22px", "aria-hidden": "true", text: "?" });
+    var photoIn = h("input", { type: "file", accept: "image/png,image/jpeg,.png,.jpg,.jpeg", style: "display:none", "aria-label": "Choose a profile photo" });
+    var photoMsg = h("span", { class: "small muted", role: "status", text: b.photo_file ? "Your DELA profile photo." : b.photo_url ? "This photo comes from your Lawfecta listing." : "No photo yet." });
+    photoIn.addEventListener("change", function () {
+      if (!photoIn.files.length) return;
+      photoMsg.textContent = "Uploading...";
+      api.raw("/profile/photo", photoIn.files[0], photoIn.files[0].type || "image/jpeg").then(function (x) {
+        if (!x.ok) { photoMsg.textContent = D.errorText(x.reason); return; }
+        prof.body.photo_file = x.photo_file; prof.photoPreview = x.url; prof.dirty = true;
+        drawProfile();
+        D.toast(app, "New photo ready. Click Save to keep it.");
+      }).catch(function (e) { photoMsg.textContent = D.errorText(e.message); });
+    });
+    card.appendChild(h("div", { class: "row", style: "margin:8px 0;gap:12px" }, pic, h("div", null, h("button", { class: "ghost small", type: "button", onclick: function () { photoIn.click(); } }, shownPhoto ? "Change photo" : "Add a photo"), h("div", null, photoMsg)), photoIn));
     card.appendChild(h("h3", { text: "About you" }));
-    card.appendChild(textIn("first_name", "First name", { required: need("first_name") }));
-    card.appendChild(textIn("last_name", "Last name", { required: need("last_name") }));
-    card.appendChild(textIn("headline", "Headline", { required: need("headline"), placeholder: side === "attorney" ? "Family law attorney in Austin" : "Litigation paralegal, e-filing and discovery" }));
-    card.appendChild(textIn("firm_name", side === "attorney" ? "Firm name" : "Company or agency", { required: need("firm_name") }));
-    if (side === "attorney") card.appendChild(textIn("firm_role", "Your role at the firm", { placeholder: "Owner, partner, associate" }));
-    card.appendChild(textIn("city", "City", { required: need("city") }));
-    card.appendChild(textIn("state", "State", { required: need("state"), placeholder: "TX" }));
-    card.appendChild(textIn("phone", "Business phone", { required: need("phone") }));
-    card.appendChild(textIn("website", "Website", { required: need("website") }));
+    card.appendChild(textIn("first_name", "First name", { required: need("first_name"), help: "Your first name as you want members to see it." }));
+    card.appendChild(textIn("last_name", "Last name", { required: need("last_name"), help: "Your last name as you want members to see it." }));
+    card.appendChild(textIn("headline", "Headline", { required: need("headline"), ai: true, help: "One short line under your name: your role and the main kind of work you do. For example: Litigation paralegal for small firms.", placeholder: side === "attorney" ? "Family law attorney in Austin" : "Litigation paralegal, e-filing and discovery" }));
+    card.appendChild(textIn("firm_name", side === "attorney" ? "Firm name" : "Company or agency", { required: need("firm_name"), help: side === "attorney" ? "The firm name clients and courts know you by." : "Your business name, if you work through one. Leave empty if you work under your own name." }));
+    if (side === "attorney") card.appendChild(textIn("firm_role", "Your role at the firm", { help: "For example owner, partner, associate or of counsel.", placeholder: "Owner, partner, associate" }));
+    card.appendChild(textIn("city", "City", { required: need("city"), help: "The city you work from." }));
+    card.appendChild(textIn("state", "State", { required: need("state"), placeholder: "TX", help: "Two letters, for example TX or CA." }));
+    card.appendChild(textIn("phone", "Business phone", { required: need("phone"), help: "A work number. Members contact you through Lawfecta, so this is shown only where your listing shows it." }));
+    card.appendChild(textIn("website", "Website", { required: need("website"), help: "Your own or your firm's website, starting with https://" }));
     if (side === "attorney") card.appendChild(textIn("linkedin", "LinkedIn profile address", {}));
-    card.appendChild(textIn("booking_link", "Booking link", { hint: "A page where people book time with you, if you have one." }));
+    card.appendChild(textIn("booking_link", "Booking link", { help: "A Calendly, TidyCal or similar link, if you use one.", hint: "A page where people book time with you, if you have one." }));
     card.appendChild(h("h3", { text: side === "attorney" ? "Your practice" : "What you support" }));
     var areas = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" });
     (r.practice_areas || []).forEach(function (a) {
@@ -917,23 +965,23 @@
     });
     card.appendChild(field("Practice areas" + (need("practice_areas") ? "" : " (optional)"), areas));
     if (side === "attorney") card.appendChild(textIn("jurisdictions", "Where you are licensed or practice", { list: true, required: need("jurisdictions"), placeholder: "TX, Western District of Texas", hint: "Separate them with commas." }));
-    card.appendChild(textIn("summary", "Summary", { area: true, rows: 5, required: need("summary") }));
-    card.appendChild(textIn("experience", "Experience", { area: true, required: need("experience") }));
-    card.appendChild(textIn("education", "Education", { area: true, rows: 3, required: need("education") }));
+    card.appendChild(textIn("summary", "Summary", { area: true, rows: 5, required: need("summary"), ai: true, help: side === "attorney" ? "A short paragraph about your practice: what you handle, for whom, and how you like to work with support staff." : "A short paragraph about you: the work you do, for which kinds of firms, how you work and what you are known for. No client names or case details." }));
+    card.appendChild(textIn("experience", "Experience", { area: true, required: need("experience"), ai: true, help: "Your roles or kinds of work, newest first, one per line, with years. For example: Senior paralegal, family law firm, 2019 to now." }));
+    card.appendChild(textIn("education", "Education", { area: true, rows: 3, required: need("education"), ai: true, help: "Degrees, certificates and courses, one per line, with the school and year. For example: Paralegal certificate, Austin Community College, 2018." }));
     var none = h("input", { type: "checkbox", checked: !!b.software_none });
     none.addEventListener("change", function () { prof.body.software_none = none.checked; prof.dirty = true; });
-    card.appendChild(toolsPicker(r.tech_tools || [], need("software")));
+    card.appendChild(toolsPicker(r.tech_tools || [], need("software"), r.tech_groups));
     card.appendChild(h("label", { style: "font-weight:400;display:flex;gap:8px" }, none, h("span", { text: "I do not use specific legal tech tools" })));
     if (side === "freelancer") {
-      card.appendChild(textIn("skills", "Task skills", { list: true, placeholder: "E-filing, discovery requests, client intake", hint: "Separate them with commas." }));
+      card.appendChild(textIn("skills", "Task skills", { list: true, help: "The tasks you do well, separated by commas.", placeholder: "E-filing, discovery requests, client intake", hint: "Separate them with commas." }));
       card.appendChild(servicesEditor(need("services")));
       card.appendChild(h("h3", { text: "How you work" }));
       var tz = h("select", { "aria-label": "Time zone" }, [h("option", { value: "", text: "Choose" })].concat((r.timezones || []).map(function (z) { return h("option", { value: z, text: z, selected: b.timezone === z }); })));
       tz.addEventListener("change", function () { prof.body.timezone = tz.value; prof.dirty = true; });
       card.appendChild(field("Time zone", tz));
-      card.appendChild(textIn("hours", "Usual hours", { placeholder: "Weekdays 9 to 5 Central" }));
-      card.appendChild(textIn("capacity_hours_week", "Hours a week you can take on", { type: "number", required: need("capacity") }));
-      card.appendChild(textIn("states_excluded", "States you will not work for", { list: true, hint: "Leave empty if none. Separate them with commas." }));
+      card.appendChild(textIn("hours", "Usual hours", { help: "When you usually work, with your time zone.", placeholder: "Weekdays 9 to 5 Central" }));
+      card.appendChild(textIn("capacity_hours_week", "Hours a week you can take on", { type: "number", required: need("capacity"), help: "About how many hours of new work you can take each week. DELA uses it for matching." }));
+      card.appendChild(textIn("states_excluded", "States you will not work for", { list: true, help: "Two-letter states where you will not take work, for example because of licensing rules. Leave empty if none.", hint: "Leave empty if none. Separate them with commas." }));
       if (need("linkedin")) card.appendChild(textIn("linkedin", "LinkedIn profile address", { required: true, placeholder: "linkedin.com/in/your-name" }));
       var ack = h("input", { type: "checkbox", checked: !!b.acknowledged });
       ack.addEventListener("change", function () { prof.body.acknowledged = ack.checked; prof.dirty = true; });
@@ -971,18 +1019,29 @@
   }
 
   // Tech tools: common ones as choices, others typed. DELA's AI reads these to name the member's own tools in its answers.
-  function toolsPicker(known, required) {
-    var box = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" });
-    known.forEach(function (t) {
-      var on = prof.body.software.indexOf(t) >= 0;
-      var chip = h("button", { class: on ? "blue small" : "ghost small", "aria-pressed": String(on) }, t);
-      chip.addEventListener("click", function () {
-        var i = prof.body.software.indexOf(t);
-        if (i >= 0) prof.body.software.splice(i, 1); else if (prof.body.software.length < 30) prof.body.software.push(t);
-        prof.dirty = true;
-        chip.className = i >= 0 ? "ghost small" : "blue small"; chip.setAttribute("aria-pressed", String(i < 0));
+  // Grouped by kind of tool, each group opens and closes; a group with picked tools starts open (Stacey 2026-11-05)
+  function toolsPicker(known, required, groups) {
+    groups = groups && groups.length ? groups : [{ name: "Tools", tools: known }];
+    var box = h("div", { class: "tool-groups" });
+    groups.forEach(function (g) {
+      var count = h("span", { class: "small muted" });
+      function recount() { var n = g.tools.filter(function (t) { return prof.body.software.indexOf(t) >= 0; }).length; count.textContent = n ? n + " chosen" : ""; }
+      var chips = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px;padding:8px 0 4px" });
+      g.tools.forEach(function (t) {
+        var on = prof.body.software.indexOf(t) >= 0;
+        var chip = h("button", { class: on ? "blue small" : "ghost small", type: "button", "aria-pressed": String(on) }, t);
+        chip.addEventListener("click", function () {
+          var i = prof.body.software.indexOf(t);
+          if (i >= 0) prof.body.software.splice(i, 1); else if (prof.body.software.length < 30) prof.body.software.push(t);
+          prof.dirty = true;
+          chip.className = i >= 0 ? "ghost small" : "blue small"; chip.setAttribute("aria-pressed", String(i < 0));
+          recount();
+        });
+        chips.appendChild(chip);
       });
-      box.appendChild(chip);
+      recount();
+      var any = g.tools.some(function (t) { return prof.body.software.indexOf(t) >= 0; });
+      box.appendChild(h("details", { class: "tool-group", open: any || undefined }, h("summary", null, h("b", { text: g.name }), " ", count), chips));
     });
     var other = h("input", { type: "text", style: "width:100%", "aria-label": "Other tech tools", placeholder: "Other tools, separated by commas" });
     other.value = prof.body.software.filter(function (t) { return known.indexOf(t) < 0; }).join(", ");
@@ -991,7 +1050,8 @@
       prof.body.software = picked.concat(other.value.split(",").map(function (x) { return x.trim(); }).filter(Boolean));
       prof.dirty = true;
     });
-    return h("div", null, field("Tech tools you use" + (required ? "" : " (optional)"), box, "DELA's AI uses these to tailor its answers, for example by naming your own tools in playbook steps."), other);
+    return h("div", null, field("Tech tools you use" + (required ? "" : " (optional)"), box, "Open a group to choose the tools you use. DELA's AI uses them to tailor its answers, for example by naming your own tools in playbook steps.",
+      "Choose every tool you use day to day. Attorneys can search for freelancers by tool, and DELA names your tools in playbook steps."), other);
   }
 
   function servicesEditor(required) {
@@ -2337,16 +2397,17 @@
       // say so and offer to remove it (Stacey's recorder check 2026-11-05: it stayed at Uploading with no way out)
       var oldUpload = Date.now() - 15 * 60000;
       var stuck = function (x) { return x.status === "uploading" && new Date(x.created_at).getTime() < oldUpload && !waiting.some(function (w) { return w.recId === x.id; }); };
-      card.appendChild(h("div", { class: "scroll" }, h("table", null,
+      // On a phone the table becomes one block per recording (Stacey 2026-11-05: it was cut off)
+      card.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack" },
         h("thead", null, h("tr", null, ["Process name", "Date recorded", "Length", "Status", "Video deletes on", ""].map(function (x) { return h("th", { text: x }); }))),
         h("tbody", null, recs.data.items.map(function (x) {
           var days = x.video_delete_after ? Math.round((new Date(x.video_delete_after) - new Date(today)) / 86400000) : null;
           var del = x.video_deleted_at ? "Video deleted on " + D.date(x.video_deleted_at) : x.video_delete_after ? D.date(x.video_delete_after) : "";
-          return h("tr", null, h("td", null, h("b", { text: x.title })), h("td", { text: D.date(x.created_at) }),
-            h("td", { text: x.duration_seconds ? Math.floor(x.duration_seconds / 60) + " min " + (x.duration_seconds % 60) + " s" : "" }),
-            h("td", null, stuck(x) ? h("span", { class: "badge bad", title: "The rest of this recording is not in this browser, so it cannot finish. Remove it and record again.", text: "Upload did not finish" })
+          return h("tr", null, h("td", { "data-label": "Process name" }, h("b", { text: x.title })), h("td", { "data-label": "Date recorded", text: D.date(x.created_at) }),
+            h("td", { "data-label": "Length", text: x.duration_seconds ? Math.floor(x.duration_seconds / 60) + " min " + (x.duration_seconds % 60) + " s" : "" }),
+            h("td", { "data-label": "Status" }, stuck(x) ? h("span", { class: "badge bad", title: "The rest of this recording is not in this browser, so it cannot finish. Remove it and record again.", text: "Upload did not finish" })
               : h("span", { class: "badge " + (x.status === "ready" ? "ready" : x.status === "failed" ? "bad" : "held"), text: REC_STATUS[x.status] + (x.status === "failed" && x.error ? " (" + x.error.split("_").join(" ") + ")" : "") })),
-            h("td", null, del, days !== null && days <= 3 && !x.video_deleted_at ? h("span", { class: "badge held", style: "margin-left:6px", text: "Deletes in " + Math.max(days, 0) + " days" }) : null),
+            h("td", { "data-label": "Video deletes on" }, del, days !== null && days <= 3 && !x.video_deleted_at ? h("span", { class: "badge held", style: "margin-left:6px", text: "Deletes in " + Math.max(days, 0) + " days" }) : null),
             h("td", null, h("div", { class: "row" },
               x.status === "ready" && x.import_id && !x.playbook_id ? h("button", { class: "blue small", onclick: function () { openImport(x.import_id); } }, "Review") : null,
               x.playbook_id ? h("button", { class: "ghost small", onclick: function () { openPlaybook(x.playbook_id, "read"); } }, "Open playbook") : null,

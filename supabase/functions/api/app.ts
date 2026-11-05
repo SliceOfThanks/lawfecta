@@ -10,7 +10,7 @@ import { brevoDelivery } from "./lib/mail/brevo.ts";
 import { verifyPass } from "./lib/pass.ts";
 import { sendSms } from "./lib/sms/brevo.ts";
 import { bdCategories, bdFields, bdMember, bdUpdate, shapeOf } from "./lib/bd/members.ts";
-import { aiContext, fromBd, LABELS, normalize as normalizeProfile, PRACTICE_AREAS, PROFILE_SYSTEM, profileText, readiness, TECH_TOOLS, TIMEZONES, toBd, type BdMap, type Side } from "./lib/profiles/model.ts";
+import { aiContext, fromBd, LABELS, normalize as normalizeProfile, PRACTICE_AREAS, PROFILE_SYSTEM, profileText, readiness, FIELD_GUIDE, FIELD_SYSTEM, TECH_GROUPS, TECH_TOOLS, TIMEZONES, toBd, type BdMap, type Side } from "./lib/profiles/model.ts";
 import { encryptionReady, openKey, sealKey } from "./lib/ai/keycrypt.ts";
 import { AiFail, chat, guessProvider, looksLikeKey, testKey, transcribe, transcribeLines, type ChatImage, type ChatMsg, type Provider } from "./lib/ai/providers.ts";
 import { plainText } from "./lib/ai/text.ts";
@@ -1152,7 +1152,9 @@ async function profileGet(ctx: Ctx) {
   if (Array.isArray(r.licenses)) {
     for (const l of r.licenses as Array<Record<string, any>>) if (l.method === "email" && !l.email_confirmed) l.email_delivery = await rpc(ctx, "dela_license_delivery", { p_license: l.id });
   }
-  return json(ctx, { ...r, body: normalizeProfile(r.body), state: labelState(r.state), labels: LABELS, practice_areas: PRACTICE_AREAS, tech_tools: TECH_TOOLS, timezones: TIMEZONES });
+  const body = normalizeProfile(r.body);
+  const photo_view_url = body.photo_file ? await storageOf(ctx).signDownload(body.photo_file, 86400).catch(() => "") : "";
+  return json(ctx, { ...r, body, photo_view_url, state: labelState(r.state), labels: LABELS, practice_areas: PRACTICE_AREAS, tech_tools: TECH_TOOLS, tech_groups: TECH_GROUPS, timezones: TIMEZONES });
 }
 
 // What the member's Lawfecta listing holds now, to offer (never copied without the member choosing it)
@@ -1172,6 +1174,7 @@ async function profileFromDirectory(ctx: Ctx) {
 async function profileSave(ctx: Ctx) {
   const s = await memberSide(ctx);
   const body = normalizeProfile(ctx.body.body);
+  if (body.photo_file && !body.photo_file.startsWith("profiles/" + s.person_id + "/")) body.photo_file = "";
   const warn = sensitive(ctx, [body.headline, body.summary, body.experience, ...body.services.map((x) => x.title + " " + x.for_whom)].join("\n"));
   if (warn) return json(ctx, warn);
   const rd = readiness(body, await requiredFor(ctx, s.side));
@@ -1181,10 +1184,28 @@ async function profileSave(ctx: Ctx) {
   return json(ctx, { ...r, state: labelState(r.state), missing_labels: rd.labels, score: rd.score });
 }
 
+// A new profile photo, sent as the image itself (PNG or JPG). Stored privately; the profile keeps its path once the member saves.
+async function profilePhoto(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "profiles", p_person: s.person_id })) return json(ctx, { ok: false, reason: "profiles_off" });
+  const max = (Number(await setting(ctx, "profile.photo_max_kb", "3072")) || 3072) * 1024;
+  const bytes = new Uint8Array(await ctx.req.arrayBuffer());
+  if (!bytes.length) return json(ctx, { ok: false, reason: "bad_request" });
+  if (bytes.length > max) return json(ctx, { ok: false, reason: "photo_too_big", max_kb: max / 1024 });
+  const png = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  const jpg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (!png && !jpg) return json(ctx, { ok: false, reason: "not_an_image" });
+  const path = `profiles/${s.person_id}/photo-${crypto.randomUUID()}.${png ? "png" : "jpg"}`;
+  await storageOf(ctx).put(path, bytes, png ? "image/png" : "image/jpeg");
+  return json(ctx, { ok: true, photo_file: path, url: await storageOf(ctx).signDownload(path, 86400) });
+}
+
 // DELA drafts a headline, summary and services from the member's notes; nothing is saved until they save the form
 async function profileDraft(ctx: Ctx) {
   const s = await memberSide(ctx);
   const notes = str(ctx.body.notes, 6000).trim();
+  const fieldKey = str(ctx.body.field, 20);
+  if (fieldKey) return await profileDraftField(ctx, s, fieldKey, notes);
   if (notes.length < 20) return json(ctx, { ok: false, reason: "tell_us_more" });
   const warn = sensitive(ctx, notes);
   if (warn) return json(ctx, warn);
@@ -1198,6 +1219,25 @@ async function profileDraft(ctx: Ctx) {
   const d = normalizeProfile({ headline: out.headline, summary: plainText(String(out.summary ?? "")), skills: out.skills, software: out.software, services: s.side === "freelancer" ? out.services : [] });
   return json(ctx, { ok: true, source: ai.source, draft: { headline: d.headline, summary: d.summary, skills: d.skills, software: d.software, services: d.services },
     questions: (Array.isArray(out.questions) ? out.questions : []).map((q: unknown) => str(q, 200)).filter(Boolean).slice(0, 4) });
+}
+
+// Write or improve one box (headline, summary, experience, education) from the member's notes and what the box says now
+async function profileDraftField(ctx: Ctx, s: Session & { side: "attorney" | "freelancer" }, key: string, notes: string) {
+  const guide = FIELD_GUIDE[key];
+  if (!guide) throw new HttpError(400, "bad_request");
+  const cur = normalizeProfile(ctx.body.body);
+  const now = String((cur as Record<string, unknown>)[key] ?? "").trim();
+  if (notes.length < 15 && now.length < 15) return json(ctx, { ok: false, reason: "tell_us_more" });
+  const warn = sensitive(ctx, notes + "\n" + now);
+  if (warn) return json(ctx, warn);
+  const idem = "profilefield:" + (await sha256Hex(s.person_id + s.side + key + notes + now)).slice(0, 40);
+  const ai = await runAi(ctx, s, idem, FIELD_SYSTEM, [{ role: "user", content: `Side: ${s.side}\nThe box: ${key} (${guide})\nWhat the box says now:\n${now || "(empty)"}\n\nThe rest of the profile:\n${profileText(s.side, cur) || "(empty)"}\n\nThe member's notes:\n${notes || "(none: improve what the box says now)"}` }],
+    Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
+  if (!ai.ok) return json(ctx, ai);
+  const out = readJson(ai.text) as Record<string, any> | null;
+  const text = out && typeof out.text === "string" ? plainText(out.text).trim().slice(0, key === "headline" ? 120 : 3000) : "";
+  if (!text) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_answer" });
+  return json(ctx, { ok: true, source: ai.source, field: key, text, questions: (Array.isArray(out!.questions) ? out!.questions : []).map((q: unknown) => str(q, 200)).filter(Boolean).slice(0, 3) });
 }
 
 async function licenseAdd(ctx: Ctx) {
@@ -1233,7 +1273,13 @@ async function bdProfilePush(ctx: Ctx, p: Record<string, any>) {
   const person = String(p.person_id ?? ""), side = String(p.side ?? ""), version = Number(p.version);
   const x = await rpc<Record<string, any> | null>(ctx, "dela_profile_for_bd", { p_person: person, p_side: side, p_version: version });
   if (!x?.ok || !x.on) return { ok: true };
-  const fields = toBd(normalizeProfile(x.body), (x.map ?? {}) as BdMap);
+  const pb = normalizeProfile(x.body);
+  const fields = toBd(pb, (x.map ?? {}) as BdMap);
+  // A photo changed on the DELA page goes to the listing only once the BD photo field is confirmed (setting bd.photo_push)
+  if (pb.photo_file && await setting(ctx, "bd.photo_push", "false") === "true") {
+    const key = await setting(ctx, "bd.photo_field", "profile_photo");
+    if (key) fields[key] = await storageOf(ctx).signDownload(pb.photo_file, 7 * 86400);
+  }
   if (!Object.keys(fields).length) { await rpc(ctx, "dela_profile_bd_result", { p_person: person, p_side: side, p_version: version, p_ok: true, p_error: "" }); return { ok: true }; }
   const r = await bdUpdate(f(ctx), await setting(ctx, "site.url", ""), ctx.deps.env("BD_API_KEY"), Number(x.bd_member_id), fields);
   if (!r.ok && (r.status >= 500 || r.status === 429 || r.status === 0)) return { ok: false, retry: true, error: r.error };
@@ -1878,8 +1924,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
   const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim().slice(0, 80);
   try {
     let body: Record<string, unknown> = {};
-    // Speech arrives as sound, not JSON; its handler reads it with its own size limit
-    if (req.method === "POST" && path !== "/ai/transcribe") {
+    // Speech and profile photos arrive as the file itself, not JSON; their handlers read them with their own size limits
+    if (req.method === "POST" && path !== "/ai/transcribe" && path !== "/profile/photo") {
       const text = await req.text();
       if (text.length > MAX_BODY) throw new HttpError(413, "too_large");
       if (text) {
@@ -1978,6 +2024,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /profile/from-directory": return await profileFromDirectory(ctx);
       case "POST /profile/save": return await profileSave(ctx);
       case "POST /profile/draft": return await profileDraft(ctx);
+      case "POST /profile/photo": return await profilePhoto(ctx);
       case "POST /profile/availability": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); const r = await rpc<Record<string, any>>(ctx, "dela_profile_availability", { p_person: s.person_id, p_state: str(ctx.body.state, 20) }); return json(ctx, r?.state ? { ...r, state: labelState(r.state) } : r); }
       case "POST /profile/docs/start": return await profileDocStart(ctx);
       case "POST /profile/docs/action": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_profile_doc_action", { p_person: s.person_id, p_file: uuid(ctx.body.id), p_action: str(ctx.body.action, 20) })); }

@@ -144,6 +144,26 @@ async function waitFor(page, words, ms) {
     await click(p, "Family law");
     await label(p, "Service 1 price from").fill("150");
     await label(p, "Service 1 price to").fill("400");
+    // Each box explains itself behind "?", DELA can write one box, and tech tools are in groups that open (Stacey 2026-11-05)
+    await dela(p).getByRole("button", { name: "What to enter in Education" }).click();
+    t = await text(p);
+    ok(t.includes("Degrees, certificates and courses, one per line"), "the ? next to a box explains what to enter");
+    const writeBtns = await dela(p).getByRole("button", { name: "✦ Write with DELA" }).count();
+    ok(writeBtns === 4, "Headline, Summary, Experience and Education each have Write with DELA (" + writeBtns + ")");
+    await dela(p).getByRole("button", { name: "✦ Write with DELA" }).nth(2).click();
+    await label(p, "Facts for DELA about your experience").fill("Senior paralegal at a family law firm since 2019");
+    await click(p, "Write it");
+    await waitFor(p, "DELA wrote this from your facts");
+    ok(await label(p, "Experience").inputValue() === "Senior paralegal, family law firm, 2019 to now.", "Write with DELA fills just that box, unsaved");
+    const groups = await dela(p).locator("details.tool-group summary").allInnerTexts();
+    ok(groups.length === 8 && groups[0].includes("Practice and case management") && groups[0].includes("1 chosen"), "tech tools are grouped, and a group shows how many are chosen (" + groups[0].split("\n").join(" ") + ")");
+    ok(!(await dela(p).getByRole("button", { name: "Westlaw" }).isVisible()), "groups with nothing chosen start closed");
+    await dela(p).locator("details.tool-group summary", { hasText: "Legal research and AI" }).click();
+    ok(await dela(p).getByRole("button", { name: "Westlaw" }).isVisible(), "opening a group shows its tools");
+    // Change the photo on this page (Stacey 2026-11-05: "doesn't allow me")
+    await dela(p).getByLabel("Choose a profile photo").setInputFiles({ name: "me.png", mimeType: "image/png", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]) });
+    await waitFor(p, "New photo ready. Click Save to keep it.");
+    ok(await dela(p).getByRole("button", { name: "Change photo" }).count() === 1, "a new photo can be chosen on the profile page");
     await label(p, "Experience").fill("Eight years at two family law firms.");
     await click(p, "MyCase");
     await label(p, "Other tech tools").fill("Casemark");
@@ -162,6 +182,7 @@ async function waitFor(page, words, ms) {
     const saved = (await sql("select body from member_profiles mp join people pe on pe.id = mp.person_id where pe.bd_member_id = 2501 and side = 'freelancer'"))[0].body;
     ok(saved.services[0].price_from_cents === 15000 && saved.services[0].price_to_cents === 40000, "prices are saved in cents");
     ok(saved.software.includes("Clio") && saved.software.includes("MyCase") && saved.software.includes("Casemark"), "tech tools are saved from the choices and the other box");
+    ok(/^profiles\/[0-9a-f-]{36}\/photo-[0-9a-f-]{36}\.png$/.test(saved.photo_file || ""), "the new photo is kept when the profile is saved");
 
     // A change not saved yet survives the LinkedIn button (Stacey's Step 3 test, 2026-11-05)
     await label(p, "Usual hours").fill("Not saved yet");
@@ -177,7 +198,7 @@ async function waitFor(page, words, ms) {
     await click(p, "Upload a document");
     await waitFor(p, "Tick the box");
     await dela(p).getByText("This document has no confidential client information.").click();
-    await dela(p).locator("input[type=file]").setInputFiles(pdf);
+    await dela(p).locator(".card", { hasText: "Profile documents" }).locator("input[type=file]").setInputFiles(pdf);
     t = await waitFor(p, "resume.pdf", 15000);
     await sql("update files set status = 'ready', check_state = 'clear' where name = 'resume.pdf'");
     await s.ctx.close();

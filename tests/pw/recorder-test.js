@@ -173,6 +173,9 @@ async function waitFor(page, words, ms) {
     s = await open(browser, 2300, Object.assign({}, devices["iPhone 13"], { permissions: [] }));
     await click(s.page, "Library");
     await waitFor(s.page, "Recordings");
+    await waitFor(s.page, "Video deleted on");
+    const fits = await s.page.evaluate(() => { const sc = document.querySelector(".dela-host").shadowRoot.querySelector(".rec-card .scroll"); return sc && sc.scrollWidth <= sc.clientWidth + 1; });
+    ok(fits, "on a phone each recording is one block, with nothing cut off (Stacey 2026-11-05)");
     await click(s.page, "Record a process");
     t = await waitFor(s.page, "Screen recording isn't available in this browser");
     ok(t.includes("Upload a recording"), "phones see the unsupported message and Upload a recording");

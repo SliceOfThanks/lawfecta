@@ -50,6 +50,7 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
     systems.push(system);
     let out: unknown = {};
     if (body.response_format && system.includes("legal operations tool")) out = { client_info: false, kinds: [] };
+    else if (system.includes("write one box")) out = { text: "**Senior paralegal**, family law firm, 2019 to now.", questions: ["Which courts do you file in?"] };
     else if (system.includes("write their profile")) out = { headline: "Litigation paralegal for solo attorneys", summary: "**I** support solo attorneys with e-filing and discovery.", skills: ["E-filing", "Discovery"], software: ["Clio"], services: [{ title: "E-filing", for_whom: "Solo attorneys" }], questions: ["How many years have you done this work?"] };
     return Response.json({ model: body.model, choices: [{ message: { content: JSON.stringify(out) } }], usage: { prompt_tokens: 10, completion_tokens: 10 } });
   }
@@ -157,6 +158,23 @@ Deno.test("save: cleaned, money in cents, readiness, client information, older c
   assertEquals(r.ok, true, "the same content again is no change");
   r = (await call("POST", "/profile/save", fl.token, { body: { ...body, headline: "Paralegal" }, version: flVersion - 1 })).body;
   assertEquals(r.reason, "changed_elsewhere");
+});
+
+Deno.test("Write with DELA: one box at a time, from facts or what the box says, saving nothing (Stacey 2026-11-05)", async () => {
+  const before = (await call("GET", "/profile", fl.token)).body.version;
+  assertEquals((await call("POST", "/profile/draft", fl.token, { field: "experience", notes: "short", body: {} })).body.reason, "tell_us_more", "too little to go on");
+  assertEquals((await call("POST", "/profile/draft", fl.token, { field: "password", notes: "Eight years as a paralegal in Austin", body: {} })).status, 400, "only the boxes DELA may write");
+  const r = (await call("POST", "/profile/draft", fl.token, { field: "experience", notes: "Senior paralegal at a family law firm since 2019", body: {} })).body;
+  assertEquals([r.ok, r.field, r.text], [true, "experience", "Senior paralegal, family law firm, 2019 to now."], JSON.stringify(r));
+  assertEquals(r.questions, ["Which courts do you file in?"]);
+  const improve = (await call("POST", "/profile/draft", fl.token, { field: "education", notes: "", body: { education: "Paralegal certificate from Austin Community College" } })).body;
+  assertEquals(improve.ok, true, "with no facts, DELA improves what the box says");
+  assertEquals((await call("POST", "/profile/draft", fl.token, { field: "summary", notes: "My client John Smith SSN 123-45-6789", body: {} })).body.reason, "looks_like_client_info");
+  assertEquals((await call("GET", "/profile", fl.token)).body.version, before, "nothing saved");
+  const groups = (await call("GET", "/profile", fl.token)).body.tech_groups as Array<{ tools: string[] }>;
+  const all = groups.flatMap((g) => g.tools);
+  const tools = (await call("GET", "/profile", fl.token)).body.tech_tools as string[];
+  assertEquals([...all].sort(), [...tools].sort(), "every tech tool is in exactly one group");
 });
 
 Deno.test("DELA drafts a headline and summary in plain text and saves nothing", async () => {
@@ -362,6 +380,32 @@ Deno.test("email delivery: a bounced license email is shown on the license and t
   } finally {
     await pool.query("update settings set value = '\"log\"' where key = 'email.sender'");
   }
+});
+
+Deno.test("profile photo: uploaded on the profile page, PNG or JPG only, kept when saved (Stacey 2026-11-05)", async () => {
+  const up = async (bytes: Uint8Array, type: string, who = att) => {
+    const res = await handle(new Request("http://localhost/functions/v1/api/profile/photo", { method: "POST", headers: { origin: "https://lawfecta.com", "x-dela-session": who.token, "content-type": type }, body: new Blob([bytes as BlobPart]) }), deps);
+    return await res.json();
+  };
+  assertEquals((await up(new TextEncoder().encode("MZ not a photo"), "image/png")).reason, "not_an_image", "the contents are checked, not the name");
+  await pool.query("update settings set value = '1' where key = 'profile.photo_max_kb'");
+  assertEquals((await up(new Uint8Array(2048).fill(0xff), "image/jpeg")).reason, "photo_too_big");
+  await pool.query("update settings set value = '3072' where key = 'profile.photo_max_kb'");
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+  const r = await up(png, "image/png");
+  assertEquals(r.ok, true, JSON.stringify(r));
+  assert(r.photo_file.startsWith("profiles/" + att.id + "/photo-") && r.photo_file.endsWith(".png"));
+  const cur = (await call("GET", "/profile", att.token)).body;
+  const saved = (await call("POST", "/profile/save", att.token, { body: { ...cur.body, photo_file: r.photo_file }, version: cur.version, directory: false })).body;
+  assertEquals(saved.ok, true, JSON.stringify(saved));
+  const got = (await call("GET", "/profile", att.token)).body;
+  assertEquals(got.body.photo_file, r.photo_file);
+  assert(got.photo_view_url.includes(r.photo_file), "the page gets a private link to show it");
+  const other = await up(png, "image/png", fl);
+  const flCur = (await call("GET", "/profile", fl.token)).body;
+  await call("POST", "/profile/save", fl.token, { body: { ...flCur.body, photo_file: r.photo_file }, version: flCur.version, directory: false });
+  assertEquals((await call("GET", "/profile", fl.token)).body.body.photo_file, "", "nobody can use another member's photo");
+  assert(other.ok);
 });
 
 Deno.test("teardown", async () => {

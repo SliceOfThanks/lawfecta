@@ -42,6 +42,7 @@ function playbookAnswer(system: string, user: string): unknown {
   }
   if (system.includes("recorded in another tool")) return { playbook: { ...FULL, title: "File a motion", steps: [{ text: "Save the motion as a PDF", from: [1] }, { text: "Upload it to the court website", from: [2] }, { text: "Upload the filed copy to Clio", from: [3] }] }, questions: [] };
   if (system.includes("recorded their whole screen")) return { steps: [{ text: "Open the motion in Word and save it as a PDF", program: "Word", at_ms: 500, frames: [1], extra: [2] }, { text: "Upload the PDF to the court website", program: "Court site", at_ms: 2500, frames: [2] }], flagged: [] };
+  if (system.includes("write one box")) return { text: "Senior paralegal, family law firm, 2019 to now.", questions: ["Which courts do you file in?"] };
   if (system.includes("write their profile")) return { headline: "Litigation paralegal for solo attorneys", summary: "I support solo attorneys with e-filing and discovery in Texas courts.", skills: ["E-filing", "Discovery"], software: ["Clio"], services: [{ title: "E-filing", for_whom: "Solo attorneys" }], questions: ["How many years have you done this?"] };
   if (system.includes("Suggest up to 8")) return { suggestions: [{ title: "Conflict check", why: "Every firm runs one before taking a matter." }] };
   return null;
