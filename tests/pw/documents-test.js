@@ -15,7 +15,7 @@ function ok(cond, msg) { if (!cond) throw new Error("FAILED: " + msg); passed++;
 async function sql(q) { const r = await fetch(BASE + "/test/sql", { method: "POST", body: JSON.stringify({ sql: q }) }); return (await r.json()).rows; }
 const PNG64 = "iVBORw0KGgoAAAANSUhEUgAAACgAAAAeCAIAAADRv8uKAAAAK0lEQVR4nO3NMQ0AAAgDsAlDCYqRhQw4mvRvpvpExGKxWCwWi8VisVj8N16B+mj7BBLoxAAAAABJRU5ErkJggg==";
 
-async function open(browser, uid, viewport) {
+async function open(browser, uid, viewport, extra) {
   const ctx = await browser.newContext({ viewport: viewport || { width: 1200, height: 900 }, acceptDownloads: true });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => { throw new Error("page error: " + e.message); });
@@ -26,7 +26,7 @@ async function open(browser, uid, viewport) {
     route.fulfill({ path: path.join(ROOT, rel), contentType: "application/javascript" });
   });
   await page.route("https://fonts.googleapis.com/**", (r) => r.abort());
-  await page.goto(`${BASE}/page/DELA-App?uid=${uid}&plan=`);
+  await page.goto(`${BASE}/page/DELA-App?uid=${uid}&plan=` + (extra || ""));
   await text(page);
   return { ctx, page };
 }
@@ -174,6 +174,14 @@ async function makeMember(bd, side, plan) {
     await p.waitForTimeout(1200);
     const opts = await dela(p).getByLabel("Approved SOP or Workflow").locator("option").allInnerTexts();
     ok(opts.some((o) => o.includes("Run a conflict check")) && !opts.some((o) => o.includes("Client trust account rules")), "the gig picker lists SOPs and Workflows only (" + opts.join(" | ") + ")");
+
+    // ---------- A notice link opens the document itself (dela?tab=library&pb=ID) ----------
+    await s.ctx.close();
+    const pbId = (await sql("select id from playbooks where doc_id = '" + newId + "' and " + MINE))[0].id;
+    s = await open(browser, 3600, null, "&tab=library&pb=" + pbId);
+    p = s.page;
+    t = await waitFor(p, "Quality check", 10000);
+    ok(t.includes(newId) && t.includes("Run a conflict check"), "a link with the document's id opens that document, not the list");
 
     // ---------- Phone width ----------
     await s.ctx.close();

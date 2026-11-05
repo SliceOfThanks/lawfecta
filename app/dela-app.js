@@ -5503,6 +5503,9 @@
   try {
     var want = new URLSearchParams(location.search).get("tab");
     if (want && /^[a-z]+$/.test(want)) tab = want;
+    // A document link from a notice or a test (dela?tab=library&pb=ID) opens that document
+    var wantPb = new URLSearchParams(location.search).get("pb");
+    if (tab === "library" && wantPb && /^[0-9a-f-]{36}$/.test(wantPb)) { lib.pb = { playbook: { id: wantPb } }; lib.view = "read"; }
   } catch (e) { /* older browsers open Home */ }
 
   var pastToken = null;
