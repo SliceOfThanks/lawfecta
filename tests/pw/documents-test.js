@@ -60,6 +60,8 @@ async function makeMember(bd, side, plan) {
     // ---------- An older playbook, made before the document standard ----------
     let s = await open(browser, 3600);
     let p = s.page;
+    let t0 = await waitFor(p, "What DELA will do for you");
+    ok(!t0.includes("Playbooks") && t0.includes("Documents"), "Home lists Documents, not Playbooks");
     await click(p, "Library");
     let t = await waitFor(p, "Document library");
     await click(p, "New document");

@@ -1100,7 +1100,7 @@
       var pb = r[0].data, rec = r[1].data;
       D.clear(box);
       box.appendChild(h("div", { class: "card" }, titled("h2", "Documents by plan", "ai_playbooks"),
-        pb.by_plan.length ? h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, ["Plan", "Libraries", "Playbooks", "Approved", "Drafts", "From Scribe", "Drafted by DELA"].map(function (x) { return h("th", { text: x }); }))),
+        pb.by_plan.length ? h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, ["Plan", "Libraries", "Documents", "Approved", "Drafts", "From Scribe", "Drafted by DELA"].map(function (x) { return h("th", { text: x }); }))),
           h("tbody", null, pb.by_plan.map(function (x) { return h("tr", null, [x.plan || "", x.libraries, x.playbooks, x.approved, x.drafts, x.from_scribe, x.from_ai].map(function (v) { return h("td", { text: String(v) }); })); })))) : h("p", { class: "muted", text: "No documents yet." }),
         h("p", { class: "small muted", text: "Suggestions waiting for a decision: " + pb.suggestions_open + ". Imports in the last 30 days: " + pb.imports + ". Libraries at their limit: " + pb.at_limit.length + "." })));
       box.appendChild(h("div", { class: "card" }, titled("h2", "Process Recorder", "ai_recorder"),
@@ -1130,7 +1130,7 @@
               api.post("/admin/mcp/disconnect", { id: c.id }).then(function () { ok("Connection stopped"); card.replaceWith(connectorCard()); }).catch(fail);
             } }, "Stop")));
         })))));
-      card.appendChild(h("p", { class: "small muted", text: "Tools used in the last 30 days: " + (d.tools.map(function (t) { return t.tool.split("_").join(" ") + " " + t.calls + (t.failed ? " (" + t.failed + " refused or failed)" : ""); }).join(", ") || "none") + "." }));
+      card.appendChild(h("p", { class: "small muted", text: "Tools used in the last 30 days: " + (d.tools.map(function (t) { return ({ list_playbooks: "list_documents", get_playbook: "get_document", save_playbook_draft: "save_document_draft", draft_playbook_with_dela: "draft_document_with_dela", suggest_playbook_change: "suggest_document_change", export_playbook: "export_document" }[t.tool] || t.tool).split("_").join(" ") + " " + t.calls + (t.failed ? " (" + t.failed + " refused or failed)" : ""); }).join(", ") || "none") + "." }));
     }).catch(function () { D.clear(card); card.appendChild(h("p", { class: "muted small", text: "Connections could not load." })); });
     return card;
   }
