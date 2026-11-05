@@ -2277,19 +2277,23 @@
     }).then(function (r) {
       if (!r.ok) throw r;
       if (r.uploaded) return r;
-      return fetch(r.upload_url, { method: "PUT", headers: { "content-type": "video/webm", "x-upsert": "true" }, body: blob }).then(function (up) {
+      return fetch(r.upload_url, { method: "PUT", headers: { "content-type": (blob.type || "video/webm").split(";")[0], "x-upsert": "true" }, body: blob }).then(function (up) {
         if (!up.ok) throw new Error("upload_failed");
         return api.post("/recordings/part-done", { id: recId, kind: kind, seq: seq });
       });
     }).then(function (r) { if (r && r.ok === false) throw r; return idb.del(key); });
   }
 
-  function recordingsCard() {
-    var card = h("div", { class: "card" }, h("p", { class: "muted", text: "Loading recordings..." }));
+  // prev: the card on the page now. A refresh builds the new card off the page and swaps it in when ready,
+  // so the Recordings card never blanks out (Stacey's recorder check 2026-11-05: it disappeared every few seconds)
+  function recordingsCard(prev) {
+    var card = h("div", { class: "card rec-card" }, prev ? null : h("p", { class: "muted", text: "Loading recordings..." }));
     Promise.all([api.get("/recordings"), idb.all()]).then(function (r) {
+      if (prev && !prev.isConnected) return;
       recs.data = r[0];
       var waiting = r[1] || [];
       D.clear(card);
+      if (prev) prev.replaceWith(card);
       var st = recs.data.settings;
       card.appendChild(h("div", { class: "row" }, h("h2", { class: "grow", text: "Recordings" }),
         st.on ? h("button", { class: "blue small", onclick: recordView }, "Record a process") : null));
@@ -2319,7 +2323,11 @@
                 api.post("/recordings/delete-video", { id: x.id }).then(function (r) { if (r.ok === false) throw r; D.toast(app, "Video deleted"); drawLibrary(); }).catch(pbFail);
               } }, "Delete video") : null)));
         })))));
-      if (recs.data.items.some(function (x) { return x.status === "analyzing" || x.status === "uploading"; })) setTimeout(function () { if (tab === "library" && !lib.pb && !lib.importId && card.isConnected) drawLibrary(); }, 8000);
+      // Check again while DELA is analyzing, or a piece is still arriving from a recording made in the last 15 minutes
+      var fresh = Date.now() - 15 * 60000;
+      if (recs.data.items.some(function (x) { return x.status === "analyzing" || (x.status === "uploading" && new Date(x.created_at).getTime() > fresh); })) {
+        setTimeout(function () { if (tab === "library" && !lib.pb && !lib.importId && card.isConnected) recordingsCard(card); }, 8000);
+      }
     }).catch(function (e) { D.clear(card); card.appendChild(h("p", { class: "small muted", text: D.errorText(e.message) })); });
     return card;
   }

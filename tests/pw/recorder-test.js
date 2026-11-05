@@ -116,8 +116,17 @@ async function waitFor(page, words, ms) {
     ok(shots[0].n >= 2, "screenshots were taken when the screen changed");
     ok((await sql("select count(*)::int n from consents where kind = 'screen_recording'"))[0].n >= 1, "the consent was saved");
 
-    await worker(4);
+    // While DELA analyzes, the Recordings card refreshes in place and never disappears (Stacey's recorder check 2026-11-05)
     await click(p, "Back to the library");
+    await waitFor(p, "Analyzing", 15000);
+    let gone = 0;
+    for (let i = 0; i < 50; i++) {
+      const has = await p.evaluate(() => !!document.querySelector(".dela-host").shadowRoot.querySelector(".rec-card h2"));
+      if (!has) gone++;
+      await p.waitForTimeout(200);
+    }
+    ok(gone === 0, "the Recordings card stays on the page while it refreshes (missing in " + gone + " of 50 looks)");
+    await worker(4);
     t = await waitFor(p, "Ready for review", 15000);
     await p.screenshot({ path: path.join(SHOTS, "rec-list.png"), fullPage: true });
     await click(p, "Review");

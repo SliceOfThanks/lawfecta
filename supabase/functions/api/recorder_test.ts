@@ -88,6 +88,14 @@ async function frame(token: string, id: string, atMs: number) {
   return s.body.file_id as string;
 }
 
+Deno.test("the storage bucket accepts the recorder's video and audio pieces (Stacey's recorder check 2026-11-05)", async () => {
+  // The local database has no storage schema, so this reads the migrations: the bucket's allowed types must include what the browser uploads
+  let all = "";
+  for await (const e of Deno.readDir(new URL("../../migrations/", import.meta.url))) if (e.name.endsWith(".sql")) all += await Deno.readTextFile(new URL("../../migrations/" + e.name, import.meta.url));
+  const bucket = all.split("storage.buckets").slice(1).join(" ");
+  for (const t of ["video/webm", "audio/webm", "video/mp4", "audio/mp4"]) assert(bucket.includes("'" + t + "'"), t + " is allowed in the dela-files bucket");
+});
+
 Deno.test("setup", async () => {
   await pool.query(`create or replace function dela_worker_ok(p_secret text) returns boolean language sql as $$ select p_secret = '${WORKER}' $$`);
   await pool.query("update feature_switches set state = 'off' where key = 'recorder'");
