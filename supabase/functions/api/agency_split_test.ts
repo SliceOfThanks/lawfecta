@@ -93,6 +93,7 @@ Deno.test("assigning: owners and managers, active bench members, one per milesto
   assert(!JSON.stringify(ppl).includes("3000") && !JSON.stringify(ppl).includes("agency_bps"), "no split in what the attorney sees");
   const n = await one("select title, body from notifications where person_id = $1 order by created_at desc limit 1", [att.id]);
   assert(n.title.startsWith("A change in who is working on") && n.body.includes("Nothing is needed from you"), JSON.stringify(n));
+  assertEquals(n.title, "A change in who is working on this job: Intake packet", "the job's name appears once");
   assertEquals((await call("GET", "/agency/bench", pia.token)).body.my_assignments[0].share_cents, 70000, "Pia sees her share of the milestone");
 });
 
