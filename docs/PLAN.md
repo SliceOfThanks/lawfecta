@@ -22,6 +22,7 @@ Everything below is on the test site, for the access list only. Live (lawfecta.c
 | 2b | DELA in ChatGPT and Claude (connector) | Done | Passing, checked on the real site | Passed (2026-11-05), in your Claude and ChatGPT |
 | 3 | Profiles and verification, tech tools, the AI reads the member's own profile | Done | Passing, BD listing read and write checked | Passed (2026-11-05), with 8 fixes from your testing |
 | 4 | Tech catalog, Flex Gigs, matching, proposals, Talent, Work, off-platform checks, what DELA learned | Done | Passing (api and browser, both sides and misuse) | Not run yet: docs/tests/step-4-chatgpt-prompt.md |
+| 5 | Messages, booking and meetings (Vectera rooms wait for Vectera's API access) | Done | Passing (api and browser, both sides and misuse) | Not run yet: docs/tests/step-5-chatgpt-prompt.md |
 
 ### Bring your own AI key (BYOK), built in Step 2a
 - Members on every plan, on both sides, can add their own OpenAI or Claude key in AI settings: https://www.hirelegalhelp.com/dela?tab=ai

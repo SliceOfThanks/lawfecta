@@ -207,3 +207,14 @@ Lawfecta palette from Stacey's mockups: navy #1d2030 to burgundy #8b2146 hero, h
 - On the test site 2026-11-05: commit 0c003b5, migration 0028 applied, switches flex_gigs, public_gigs, talent_search, conduct_review, member_insights = list; multiple_hires off. Smoke test: the test attorney's Projects and the test freelancer's Work load.
 - Test for Stacey: docs/tests/step-4-chatgpt-prompt.md.
 - Open settings to confirm: matching.plan_boost order (to match the BD plans), proposal rate limits, gig.big_change_pct, matching fit levels.
+
+## Step 5: messages, booking and meetings (built 2026-11-05; brief docs/briefs/step-5-booking-meetings-chat.md, all answers as suggested)
+- Migration 0029_meetings_chat: meeting_availability, member_prefs, meetings, meeting_events (append-only), meeting_followups, threads, messages, message_edits (append-only), thread_reads, thread_reports, thread_drafts, message_file_downloads (append-only). Switches meetings, gig_chat, chat_assistant. Settings meeting.* (lengths 15/30/45, 12 hours' notice, 15-minute buffer, 21-day window, 10-minute hold, reminders 24h and 1h, late cancel 2h, 2 in 30 days to the team, 48h to confirm) and chat.* (edit 15 minutes, email gap 15 minutes, rate limit, 30 days after a gig closes).
+- Booking only inside a gig; open times in the freelancer's time zone; holds with both people locked in order (two at once: one wins); one confirmation with a calendar file; reschedule replaces the old time with one update; late cancels and no-shows counted. Vectera room adapter: waits for the provider until VECTERA_API_KEY is set; each person sees only their own link near the time. Consent from both before any recording (recording stays off: meeting_recording switch, G).
+- After the meeting: We met and a summary from each; both met = attendance verified (consultation export grant stays off, O-08); DELA suggests next steps.
+- Messages: a thread per gig per freelancer; attachments read only and logged; edit 15 minutes with history; removal keeps the record; read receipts; report and block; emails without message text; off-platform check (clear cases held, unsure ones sent with a reminder); DELA in the thread (summarize, what we agreed, draft a reply).
+- Connector: list_my_threads, read_thread, save_reply_draft, list_my_meetings.
+- Tests: meetings_test.ts (10), meetings-test.js (17 browser checks).
+- On the test site 2026-11-05: commit b5439c4, migration 0029 applied, switches meetings, gig_chat, chat_assistant = list. Smoke test: the test freelancer's availability and Inbox load.
+- Waiting for: Vectera's answers and API access (VECTERA_API_KEY, entered by Stacey in Supabase), meet.lawfecta.com set up in Vectera and DNS. Google and Outlook calendar sync waits for Google's app review (calendar_sync off).
+- Test for Stacey: docs/tests/step-5-chatgpt-prompt.md (after the Step 4 test).
