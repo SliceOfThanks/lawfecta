@@ -229,8 +229,8 @@ Rules this must follow (checked again in its brief):
 - Each connection follows the security brief (step-6d): logging, the admin "pause this connection" switch and the emergency stop.
 - The firm can export or delete everything imported.
 
-Prepared in Phase 1 so Phase 2 plugs in cleanly:
-- Tools named in playbooks and firm profiles are tied to tech catalog IDs, so a connected tool can be matched to the steps that use it.
+To prepare in Phase 1 so Phase 2 plugs in cleanly:
+- Tie the tools named in playbooks and firm profiles to tech catalog IDs. Today they are stored as plain names. With IDs, a connected tool can be matched to the steps that use it. This is small, and fits the "Automate or delegate" build (step 4d), which already checks tool names against the catalog.
 - The connector for ChatGPT and Claude and the outgoing webhooks already use the same permission checks the integrations will use.
 
 A brief with questions comes before the build, when Phase 2 starts.
