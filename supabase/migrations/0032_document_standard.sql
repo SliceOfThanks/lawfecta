@@ -34,7 +34,15 @@ alter table playbooks add column if not exists converted_from_version int;
 alter table playbooks add column if not exists conversion_note text not null default '';
 alter table playbooks add column if not exists conversion_seen_at timestamptz;
 create unique index if not exists playbooks_doc_id on playbooks (org_id, doc_id) where doc_id is not null;
-alter table playbook_versions add column if not exists blocking int;
+-- The check result of each saved version (the versions themselves are never changed)
+create table doc_version_checks (
+  playbook_id uuid not null references playbooks(id),
+  version int not null,
+  blocking int not null default 0,
+  attention int not null default 0,
+  primary key (playbook_id, version)
+);
+alter table doc_version_checks enable row level security;
 
 create table doc_counters (
   org_id uuid not null references organizations(id),
@@ -153,7 +161,8 @@ begin
   where id = x.id returning * into x;
   -- An ID once, by its lifecycle group; it never changes afterwards, so links keep working
   if x.doc_id is null then update playbooks set doc_id = dela_doc_next_id(x.org_id, x.lifecycle) where id = x.id; end if;
-  update playbook_versions set blocking = coalesce((p->>'blocking')::int, 0) where playbook_id = x.id and version = x.current_version;
+  insert into doc_version_checks (playbook_id, version, blocking, attention) values (x.id, x.current_version, coalesce((p->>'blocking')::int, 0), coalesce((p->>'attention')::int, 0))
+  on conflict (playbook_id, version) do update set blocking = excluded.blocking, attention = excluded.attention;
   insert into document_changes (playbook_id, version, kind, what, person_id) values (x.id, x.current_version, case when p->>'kind' = 'conversion' then 'conversion' else 'change' end,
     left(coalesce(nullif(p->>'what_changed', ''), 'Saved'), 300), (p->>'person_id')::uuid);
 end $$;
@@ -402,7 +411,7 @@ begin
   if pb.id is null or dela_firm_role(p_person, pb.org_id) not in ('owner', 'manager') then return jsonb_build_object('ok', false, 'reason', 'not_found'); end if;
   if pb.status <> 'approved' or pb.approved_version is null then return jsonb_build_object('ok', false, 'reason', 'playbook_not_approved'); end if;
   if pb.doc_type in ('policy', 'playbook') then return jsonb_build_object('ok', false, 'reason', 'type_not_for_gigs', 'doc_type', pb.doc_type); end if;
-  select blocking into v_block from playbook_versions where playbook_id = pb.id and version = pb.approved_version;
+  select blocking into v_block from doc_version_checks where playbook_id = pb.id and version = pb.approved_version;
   if pb.doc_type is not null and coalesce(v_block, 0) > 0 then return jsonb_build_object('ok', false, 'reason', 'checks_failing'); end if;
   v_org := pb.org_id;
   select id into v_id from gigs where org_id = v_org and request_id = p->>'request_id';

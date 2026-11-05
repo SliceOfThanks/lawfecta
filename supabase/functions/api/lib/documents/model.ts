@@ -188,13 +188,13 @@ const CLIENT_DATA: Array<[string, RegExp, string]> = [
   ["dates of birth", /\b(dob|d\.o\.b\.|date of birth|born on)\b[:\s]*\(?\s*(\d{1,2}[\/.-]\d{1,2}[\/.-]\d{2,4}|[a-z]+ \d{1,2},? \d{4})/gi, "[date of birth removed]"],
   ["case numbers", /\b(case|cause|docket|index|matter)\s*(no\.?|number|#)\s*[:#]?\s*[a-z0-9]*\d[a-z0-9:-]{3,}/gi, "[Case Number]"],
   ["case numbers", /\b\d{1,2}:\d{2}-[a-z]{2,4}-\d{3,6}\b/gi, "[Case Number]"],
-  ["client names", /\b((?:my |our |the )?client(?:'s)?(?: is| named|:|,)?\s+)(?!name\b)[A-Z][a-z]+ [A-Z][a-z]+/g, "$1[Client Name]"],
+  ["client names", /\b((?:my |our |the )?client(?:'s)?(?: is| named|:|,)?\s+)(?!name\b)[A-Z][a-z]+ [A-Z][a-z]+/g, "<keep>[Client Name]"],
   ["case captions", /\b[A-Z][a-z]+ v\.? [A-Z][a-z]+\b/g, "[Party A] v. [Party B]"],
 ];
 export function scrubClientData(text: string): { text: string; kinds: string[] } {
   let out = text;
   const kinds: string[] = [];
-  for (const [k, re, w] of CLIENT_DATA) out = out.replace(re, (...m) => { if (!kinds.includes(k)) kinds.push(k); return w.replace("$1", String(m[1] ?? "")); });
+  for (const [k, re, w] of CLIENT_DATA) out = out.replace(re, (...m) => { if (!kinds.includes(k)) kinds.push(k); return w.replace("<keep>", String(m[1] ?? "")); });
   return { text: out, kinds };
 }
 

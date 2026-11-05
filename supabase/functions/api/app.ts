@@ -25,6 +25,8 @@ import { keyAllowed, stripe, checkoutParams, verifyStripeSignature, accountStatu
 import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/webhooks/deliver.ts";
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
+import { attorneyRoles, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
+import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
 import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
 
 export const VERSION = "api-0.9.0";
@@ -727,7 +729,13 @@ async function pbGet(ctx: Ctx) {
     if (!r) throw new HttpError(404, "not_found");
     return json(ctx, { ok: true, version: r });
   }
-  return json(ctx, await rpc(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id }));
+  const r = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
+  if (r?.ok && isDoc(r.body)) {
+    const firm = await docFirm(ctx, s);
+    r.check = checkDoc(normalizeDoc(r.body), await docCtx(ctx, firm));
+    r.firm_roles = firm.roles;
+  }
+  return json(ctx, r);
 }
 
 // New playbook: blank, or drafted by the AI from a description (spoken or typed) and any attached files
@@ -764,6 +772,10 @@ async function pbSave(ctx: Ctx) {
   const s = await attorney(ctx);
   const id = uuid(ctx.body.id);
   if (!id) throw new HttpError(400, "bad_request");
+  if (isDoc(ctx.body.body)) {
+    const prev = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
+    return json(ctx, await docSave(ctx, s, id, int(ctx.body.base_version) ?? -1, ctx.body.body, prev?.ok && isDoc(prev.body) ? normalizeDoc(prev.body) : null, str(ctx.body.note, 300)));
+  }
   const body = normalize(ctx.body.body);
   return json(ctx, await rpc(ctx, "dela_pb_save", { p: { person_id: s.person_id, id, base_version: int(ctx.body.base_version), body, ...meta(body), note: str(ctx.body.note, 300) } }));
 }
@@ -779,6 +791,16 @@ async function pbFill(ctx: Ctx) {
   const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
   if (!cur?.ok) return json(ctx, cur);
   if (dela_rank(cur.role) < 3) return json(ctx, { ok: false, reason: "not_allowed" });
+  if (isDoc(cur.body)) {
+    const before = normalizeDoc(cur.body);
+    const fx = await runAi(ctx, s, `docfill:${id}:${cur.playbook.version}`, FIX_SYSTEM, [{ role: "user", content: "The document:\n" + JSON.stringify(before) + "\n\nAdd the attorney's answers to the right sections:\n" + answers }], await pbCredits(ctx));
+    if (!fx.ok) return json(ctx, fx);
+    const rd = readDocAnswer(readJson(fx.text));
+    if (!rd.body || rd.body.type !== before.type) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_request", source: fx.source });
+    const firm = await docFirm(ctx, s);
+    const next = codeFix(codeFix({ ...rd.body, skipped: [], high_risk: before.high_risk }, "judgment", firm.people), "attorney_a", firm.people);
+    return json(ctx, await docSave(ctx, s, id, cur.playbook.version, next, before, "DELA filled in your answers", "ai_filled", firm));
+  }
   const ai = await runAi(ctx, s, `pbfill:${id}:${cur.playbook.version}`, FILL_SYSTEM,
     [{ role: "user", content: "The playbook now:\n" + playbookText(normalize(cur.body)) + "\n\nThe attorney's answers:\n" + answers }], await pbCredits(ctx));
   if (!ai.ok) return json(ctx, ai);
@@ -803,6 +825,18 @@ async function pbChat(ctx: Ctx) {
   if (warn) return json(ctx, warn);
   const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
   if (!cur?.ok) return json(ctx, cur);
+  if (isDoc(cur.body)) {
+    const db = normalizeDoc(cur.body);
+    const ai2 = await runAi(ctx, s, `docchat:${id}:${str(ctx.body.request_id, 80)}`, DOC_CHAT_SYSTEM, [{ role: "user", content: "The document (version " + cur.playbook.version + "):\n" + JSON.stringify(db) + "\n\nThe member says:\n" + message }], await pbCredits(ctx));
+    if (!ai2.ok) return json(ctx, ai2);
+    const j2 = readJson(ai2.text);
+    const reply2 = plainText(String(j2?.reply ?? "").slice(0, 6000) || (j2 ? "" : ai2.text.slice(0, 6000)));
+    const ch = j2?.change && typeof j2.change === "object" ? normalizeDoc({ ...(j2.change as object), type: db.type }) : null;
+    if (!ch || dela_rank(cur.role) < 3) return json(ctx, { ok: true, reply: reply2 || "(no answer)", source: ai2.source, suggestion_id: null });
+    const rr = docRemovesReview(db, ch);
+    const r2 = await rpc<Record<string, any>>(ctx, "dela_pb_suggest", { p: { person_id: s.person_id, id, kind: "ai", base_version: cur.playbook.version, proposed: ch, note: str(j2?.note, 200) || message.slice(0, 200), removes_review: rr } });
+    return json(ctx, { ok: true, reply: reply2 || "I prepared a change for you to review.", source: ai2.source, suggestion_id: r2?.suggestion_id ?? null, removes_review: rr });
+  }
   const before = normalize(cur.body);
   const ai = await runAi(ctx, s, `pbchat:${id}:${str(ctx.body.request_id, 80)}`, CHAT_SYSTEM,
     [{ role: "user", content: "The playbook (version " + cur.playbook.version + "):\n" + playbookText(before) + "\n\nThe member says:\n" + message }], await pbCredits(ctx));
@@ -827,6 +861,23 @@ function applyPart(b: Body, part: string, text: string): Body {
   else if (["title", "outcome", "practice_area", "jurisdiction", "when_to_use", "roles", "deadlines", "deliverables"].includes(part)) (nb as any)[part] = text.trim();
   return normalize(nb);
 }
+// Documents: a comment's suggested text for one section
+const DOC_TEXT_KEYS = ["title", "purpose", "scope", "trigger", "timing", "done_when", "saved_in", "start_point", "end_point", "preferred", "exceptions"];
+const DOC_LIST_KEYS = ["before_you_start", "quality_check", "situations", "principles", "fallbacks", "hard_limits", "scripts", "examples", "rules_must", "rules_must_not"];
+const DOC_PART_KEYS = [...DOC_TEXT_KEYS, ...DOC_LIST_KEYS];
+function applyDocPart(b: DocBody, part: string, text: string): DocBody {
+  const nb = normalizeDoc(JSON.parse(JSON.stringify(b))) as any;
+  if (part.startsWith("step:")) { const i = Number(part.slice(5)) - 1; if (nb.steps[i]) nb.steps[i].text = text.trim(); }
+  else if (DOC_LIST_KEYS.includes(part)) nb[part] = text.split("\n").map((t) => t.trim()).filter(Boolean);
+  else if (DOC_TEXT_KEYS.includes(part)) nb[part] = text.trim();
+  return normalizeDoc(nb);
+}
+// A change that removes an "Attorney decides" flag or moves an attorney's A: only the administrator may accept it
+function docRemovesReview(before: DocBody, after: DocBody): boolean {
+  const att = (b: DocBody) => b.steps.filter((x) => x.attorney_decides).length + b.decisions.filter((x) => x.attorney_decides).length + b.hard_limits.length;
+  const attA = (b: DocBody) => b.steps.filter((x) => Object.entries(x.raci).some(([r, v]) => v.includes("A") && attorneyRoles(b).includes(r))).length;
+  return att(after) < att(before) || attA(after) < attA(before);
+}
 const PART_KEYS = ["title", "outcome", "practice_area", "jurisdiction", "when_to_use", "roles", "needs", "deadlines", "checks", "review_points", "never_delegate", "resources", "tools", "deliverables"];
 
 async function pbDecide(ctx: Ctx) {
@@ -836,6 +887,15 @@ async function pbDecide(ctx: Ctx) {
   const accept = ctx.body.accept === true;
   const sg = await rpc<Record<string, any> | null>(ctx, "dela_pb_suggestion", { p_person: s.person_id, p_suggestion: sid });
   if (!sg) throw new HttpError(404, "not_found");
+  if (accept && isDoc(sg.kind === "ai" ? sg.proposed : sg.body)) {
+    const firm = await docFirm(ctx, s);
+    const base = isDoc(sg.body) ? normalizeDoc(sg.body) : null;
+    const nb = sg.kind === "ai" ? normalizeDoc(sg.proposed) : applyDocPart(base!, sg.part, String(sg.proposed?.text ?? ""));
+    const prep = await docPrepare(ctx, firm, nb, base);
+    const r = await rpc<Record<string, any>>(ctx, "dela_pb_decide", { p_person: s.person_id, p_suggestion: sid, p_accept: true, p_body: prep.body, p_meta: prep.meta, p_note: str(ctx.body.note, 500) });
+    if (r?.ok && sg.playbook_id) await rpc(ctx, "dela_doc_apply", { p_id: sg.playbook_id, p: { ...prep.doc, person_id: s.person_id, what_changed: "Accepted a suggestion. " + prep.doc.what_changed } });
+    return json(ctx, { ...r, check: prep.check });
+  }
   let body: Body | null = null;
   if (accept) body = sg.kind === "ai" ? normalize(sg.proposed) : applyPart(normalize(sg.body), sg.part, String(sg.proposed?.text ?? ""));
   return json(ctx, await rpc(ctx, "dela_pb_decide", { p_person: s.person_id, p_suggestion: sid, p_accept: accept, p_body: body, p_meta: body ? meta(body) : {}, p_note: str(ctx.body.note, 500) }));
@@ -846,7 +906,7 @@ async function pbComment(ctx: Ctx) {
   const id = uuid(ctx.body.id);
   if (!id) throw new HttpError(400, "bad_request");
   const part = str(ctx.body.part, 40);
-  if (part && !PART_KEYS.includes(part) && !/^step:\d{1,3}$/.test(part)) throw new HttpError(400, "bad_request");
+  if (part && !PART_KEYS.includes(part) && !DOC_PART_KEYS.includes(part) && !/^step:\d{1,3}$/.test(part)) throw new HttpError(400, "bad_request");
   const proposedText = str(ctx.body.suggested_text, 4000).trim();
   if (proposedText) {
     if (!part) throw new HttpError(400, "bad_request");
@@ -860,6 +920,16 @@ async function pbExport(ctx: Ctx) {
   const id = uuid(ctx.body.id);
   const format = str(ctx.body.format, 10);
   if (!id) throw new HttpError(400, "bad_request");
+  const pre = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
+  if (pre?.ok && isDoc(pre.body)) {
+    // Checked before the export allowance is used
+    const firm = await docFirm(ctx, s);
+    const chk = checkDoc(normalizeDoc(pre.body), await docCtx(ctx, firm));
+    if (chk.blocking > 0) return json(ctx, { ok: false, reason: "checks_failing", items: chk.items.filter((i) => i.status === "blocking") });
+    const r0 = await rpc<Record<string, any>>(ctx, "dela_pb_export", { p_person: s.person_id, p_id: id, p_format: format, p_request: str(ctx.body.request_id, 80) || crypto.randomUUID() });
+    if (!r0?.ok) return json(ctx, r0);
+    return json(ctx, await docExportFile(ctx, s, pre, normalizeDoc(pre.body), format));
+  }
   const r = await rpc<Record<string, any>>(ctx, "dela_pb_export", { p_person: s.person_id, p_id: id, p_format: format, p_request: str(ctx.body.request_id, 80) || crypto.randomUUID() });
   if (!r?.ok) return json(ctx, r);
   const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
@@ -886,6 +956,281 @@ async function pbMissing(ctx: Ctx) {
   const j = readJson(ai.text);
   const suggestions = (Array.isArray(j?.suggestions) ? j!.suggestions : []).slice(0, 8).map((x: any) => ({ title: String(x?.title ?? "").slice(0, 120), why: String(x?.why ?? "").slice(0, 300) })).filter((x: any) => x.title);
   return json(ctx, { ok: true, suggestions, source: ai.source });
+}
+
+// ---------- Documents (the document standard: docs/briefs/step-2d-document-standard.md) ----------
+// Every Library item is a document (Policy, Workflow, SOP, Playbook). The checks are worked out here in code (lib/documents),
+// stored with each save, and checked again at every export, approval and gig. Older items keep working until converted.
+
+type DocFirm = { saved: boolean; facts: FirmFacts; systems: string[]; people: Array<{ name: string; role: string }>; roles: Array<{ name: string; kind: RoleKind }>; raw: Record<string, any> };
+
+async function docFirm(ctx: Ctx, s: Session): Promise<DocFirm> {
+  const r = await rpc<Record<string, any>>(ctx, "dela_doc_firm", { p_person: s.person_id });
+  const f = (r?.firm ?? {}) as Record<string, any>;
+  const size = String(f.size ?? "");
+  let roles = (Array.isArray(f.roles) ? f.roles : []).map((x: any) => ({ name: String(x.name), kind: (["attorney", "staff", "freelancer"].includes(x.kind) ? x.kind : guessKind(String(x.name))) as RoleKind, person_id: String(x.person_id ?? ""), email: String(x.email ?? "") }));
+  if (!roles.length) roles = (size === "solo" ? DEFAULT_ROLES.filter((x) => SOLO_ROLES.includes(x.name)) : DEFAULT_ROLES).map((x) => ({ ...x, person_id: "", email: "" }));
+  const team = new Map(((r?.team ?? []) as Array<Record<string, any>>).map((t) => [String(t.person_id), String(t.name)]));
+  const systems: Record<string, string[]> = {};
+  for (const [k] of SYSTEM_GROUPS) systems[k] = Array.isArray(f.systems?.[k]) ? f.systems[k].map(String).filter(Boolean).slice(0, 10) : [];
+  return {
+    saved: !!r?.saved, raw: r ?? {}, roles: roles.map((x) => ({ name: x.name, kind: x.kind })),
+    facts: { size, practice_areas: Array.isArray(f.practice_areas) ? f.practice_areas.map(String) : [], jurisdictions: String(f.jurisdictions ?? ""), roles: roles.map((x) => ({ name: x.name, kind: x.kind })), systems },
+    systems: Object.values(systems).flat(),
+    people: roles.filter((x) => x.person_id && team.get(x.person_id)).map((x) => ({ name: team.get(x.person_id)!, role: x.name })),
+  };
+}
+
+async function docCtx(ctx: Ctx, firm: DocFirm): Promise<CheckContext> {
+  const n = async (k: string, d: number) => Number(await setting(ctx, k, String(d))) || d;
+  return { systems: firm.systems, maxWords: await n("documents.max_words", 900), maxConsulted: await n("documents.max_consulted", 2), kpiMin: await n("documents.kpi_min", 3), kpiMax: await n("documents.kpi_max", 5), skipped: [], people: firm.people };
+}
+
+// Everything a save needs: the cleaned body, the check result, and the facts for the database
+async function docPrepare(ctx: Ctx, firm: DocFirm, raw: unknown, before: DocBody | null): Promise<{ body: DocBody; check: ReturnType<typeof checkDoc>; meta: Record<string, unknown>; doc: Record<string, unknown>; notices: string[] }> {
+  let body = normalizeDoc(raw);
+  const notices: string[] = [];
+  // Hard rules applied on every save: no credentials, roles not names, and the firm's role kinds
+  const cred = scrubCredentials(docText(body));
+  if (cred.removed) { body = eachText(body, (t) => scrubCredentials(t).text); notices.push("DELA removed passwords, logins or account numbers. They belong in a password manager."); }
+  const nm = namesToRoles(body, firm.people);
+  if (nm.replaced.length) { body = nm.body; notices.push("DELA replaced names with roles: " + nm.replaced.join(", ") + "."); }
+  for (const r of firm.roles) if (body.roles.includes(r.name)) body.role_kinds[r.name] = r.kind;
+  if (!body.lifecycle) body.lifecycle = guessLifecycle([body.title, body.purpose, body.trigger].join(" "));
+  if (!body.owner_role) body.owner_role = attorneyRoles(body)[0] || body.roles[0] || "Attorney";
+  const check = checkDoc(body, await docCtx(ctx, firm));
+  const passed = check.items.filter((i) => i.status === "pass").length;
+  const meta = { title: body.title || "Untitled document", completeness: Math.round((passed / Math.max(check.items.length, 1)) * 100), missing: check.items.filter((i) => i.status === "blocking").map((i) => i.label), practice_area: body.practice_area };
+  const doc = { doc_type: body.type, lifecycle: body.lifecycle, high_risk: body.high_risk || looksHighRisk(body), owner_role: body.owner_role, blocking: check.blocking, attention: check.attention, what_changed: changeSummary(before, body) };
+  return { body, check, meta, doc, notices };
+}
+
+async function docSave(ctx: Ctx, s: Session, id: string, baseVersion: number, raw: unknown, before: DocBody | null, note: string, action = "edited", firm?: DocFirm) {
+  const fm = firm ?? await docFirm(ctx, s);
+  const prep = await docPrepare(ctx, fm, raw, before);
+  const r = await rpc<Record<string, any>>(ctx, "dela_pb_save", { p: { person_id: s.person_id, id, base_version: baseVersion, body: prep.body, ...prep.meta, note, action } });
+  if (r?.ok) await rpc(ctx, "dela_doc_apply", { p_id: id, p: { ...prep.doc, person_id: s.person_id, what_changed: (note ? note + ". " : "") + prep.doc.what_changed } });
+  return { ...r, check: prep.check, notices: prep.notices };
+}
+
+async function docCreate(ctx: Ctx, s: Session, org: string, requestId: string, raw: unknown, source: string, note: string, firm: DocFirm, sourceRef = ""): Promise<Record<string, any>> {
+  const prep = await docPrepare(ctx, firm, raw, null);
+  const r = await rpc<Record<string, any>>(ctx, "dela_pb_create", { p: { person_id: s.person_id, org_id: org, request_id: requestId, body: prep.body, ...prep.meta, source, source_ref: sourceRef, note } });
+  if (r?.ok && !r.duplicate) await rpc(ctx, "dela_doc_apply", { p_id: r.id, p: { ...prep.doc, person_id: s.person_id, what_changed: note || "First version" } });
+  return { ...r, check: prep.check, notices: prep.notices, body: prep.body };
+}
+
+// The firm profile for documents (Step 1 of the flow)
+async function docFirmSave(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const systems: Record<string, string[]> = {};
+  for (const [k] of SYSTEM_GROUPS) systems[k] = (Array.isArray((ctx.body.systems as any)?.[k]) ? (ctx.body.systems as any)[k] : []).map((x: unknown) => str(x, 80).trim()).filter(Boolean).slice(0, 10);
+  const roles = (Array.isArray(ctx.body.roles) ? ctx.body.roles : []).slice(0, 30).map((x: any) => ({ name: str(x?.name, 60).trim(), kind: str(x?.kind, 20), person_id: uuid(x?.person_id) ?? "", email: str(x?.email, 200).trim() }));
+  const text = [str(ctx.body.jurisdictions, 500), ...roles.map((r: any) => r.name), ...Object.values(systems).flat()].join("\n");
+  const warn = sensitive(ctx, text);
+  if (warn) return json(ctx, warn);
+  return json(ctx, await rpc(ctx, "dela_doc_firm_save", { p_person: s.person_id, p: { size: str(ctx.body.size, 10), practice_areas: (Array.isArray(ctx.body.practice_areas) ? ctx.body.practice_areas : []).map((x: unknown) => str(x, 80)).filter(Boolean).slice(0, 20),
+    jurisdictions: str(ctx.body.jurisdictions, 500), roles, systems } }));
+}
+
+const ANSWER_LABELS: Array<[keyof ProcessAnswers, string]> = [["trigger", "What starts it"], ["done", "What done looks like"], ["roles", "Which roles touch it"], ["systems", "Which systems it uses"],
+  ["timing", "Deadline or time target"], ["attorney_steps", "Steps the attorney must decide or approve"], ["problems", "What goes wrong today"]];
+
+// Steps 2 and 3: a type, a starter (optional), the process questions and any upload, then DELA drafts to the standard
+async function docDraft(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const org = uuid(ctx.body.org_id), requestId = str(ctx.body.request_id, 80);
+  if (!org || !requestId) throw new HttpError(400, "bad_request");
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "document_standard", p_person: s.person_id })) return json(ctx, { ok: false, reason: "documents_off" });
+  const firm = await docFirm(ctx, s);
+  if (!firm.saved) return json(ctx, { ok: false, reason: "firm_profile_needed" });
+  const type = (DOC_TYPES as string[]).includes(String(ctx.body.type)) ? ctx.body.type as DocType : "sop";
+  const starter = STARTERS.find((x) => x.id === str(ctx.body.starter_id, 40)) ?? null;
+  const q = (ctx.body.answers ?? {}) as Record<string, unknown>;
+  const answers: ProcessAnswers = {
+    name: str(q.name, 200).trim() || starter?.title || "", trigger: str(q.trigger, 600).trim(), done: str(q.done, 600).trim(),
+    roles: (Array.isArray(q.roles) ? q.roles : []).map((x) => str(x, 60)).filter(Boolean).slice(0, 12), systems: (Array.isArray(q.systems) ? q.systems : []).map((x) => str(x, 80)).filter(Boolean).slice(0, 12),
+    timing: str(q.timing, 400).trim(), attorney_steps: str(q.attorney_steps, 1200).trim(), problems: str(q.problems, 1500).trim(),
+    lifecycle: str(ctx.body.lifecycle, 3) || starter?.lifecycle || "", kpi: starter?.kpi,
+  };
+  if (!answers.name) return json(ctx, { ok: false, reason: "name_needed" });
+  const skipped = ANSWER_LABELS.filter(([k]) => Array.isArray(answers[k]) ? !(answers[k] as string[]).length : !answers[k]).map(([, l]) => l);
+  // The scrub runs on everything the attorney typed or uploaded before the AI sees it
+  const notices: string[] = [];
+  const scrub = (t: string) => {
+    const a = scrubCredentials(t), b = scrubClientData(a.text);
+    if (a.removed && !notices.includes("cred")) notices.push("cred");
+    for (const k of b.kinds) if (!notices.includes(k)) notices.push(k);
+    return b.text;
+  };
+  for (const k of ["name", "trigger", "done", "timing", "attorney_steps", "problems"] as const) answers[k] = scrub(answers[k]);
+  const material = scrub(((await fileTexts(ctx, s, ctx.body.file_ids)) + "\n" + str(ctx.body.text, 20000)).trim());
+  const ai = await runAi(ctx, s, `docdraft:${org}:${requestId}`, draftSystem(type), [{ role: "user", content: draftPrompt(type, firm.facts, answers, material) }], await pbCredits(ctx));
+  if (!ai.ok) return json(ctx, ai);
+  const read = readDocAnswer(readJson(ai.text));
+  if (!read.body) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_request", source: ai.source });
+  let body = read.body;
+  body.type = type;
+  body.title = body.title || answers.name;
+  if (!body.trigger && answers.trigger) body.trigger = answers.trigger;
+  if (!body.done_when && answers.done) body.done_when = answers.done;
+  if (!body.roles.length) body.roles = answers.roles.length ? answers.roles : firm.roles.map((r) => r.name);
+  if (answers.lifecycle) body.lifecycle = answers.lifecycle;
+  body.high_risk = !!starter?.high_risk || looksHighRisk(body);
+  body.skipped = skipped;
+  for (const r of firm.roles) body.role_kinds[r.name] = r.kind;
+  // Fix what can be fixed in code before the attorney sees it: every judgment step flagged, an attorney A on each, one A per step
+  for (const id of ["judgment", "attorney_a", "one_a"]) body = codeFix(body, id, firm.people);
+  // One AI pass for what only the AI can fix (sections, vague words, verbs, one action, KPIs)
+  const ctxc = await docCtx(ctx, firm);
+  const first = checkDoc(body, ctxc);
+  const aiFix = first.items.filter((i) => i.status !== "pass" && i.fix === "ai" && i.id !== "sections");
+  if (aiFix.length) {
+    const fx = await runAi(ctx, s, `docfix:${org}:${requestId}`, FIX_SYSTEM, [{ role: "user", content: "The document:\n" + JSON.stringify(body) + "\n\nThe checks it fails:\n" + aiFix.map((i) => "- " + i.label + ": " + i.detail).join("\n") }], Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
+    const fr = fx.ok ? readDocAnswer(readJson(fx.text)) : null;
+    if (fr?.body && fr.body.type === type) { fr.body.skipped = skipped; fr.body.high_risk = body.high_risk; body = fr.body; for (const id of ["judgment", "attorney_a", "one_a"]) body = codeFix(body, id, firm.people); }
+  }
+  const WORDS: Record<string, string> = { cred: "passwords, logins or account numbers", "social security numbers": "social security numbers", "dates of birth": "dates of birth", "case numbers": "case numbers", "client names": "client names", "case captions": "case names" };
+  const removed = notices.map((k) => WORDS[k] ?? k);
+  const r = await docCreate(ctx, s, org, requestId, body, (Array.isArray(ctx.body.file_ids) && ctx.body.file_ids.length) || str(ctx.body.text, 10) ? "file" : "ai", "First draft by DELA", firm);
+  if (!r?.ok) return json(ctx, r);
+  return json(ctx, { ok: true, id: r.id, duplicate: !!r.duplicate, check: r.check, suggested_type: read.suggested && read.suggested.type !== type ? read.suggested : null, questions: read.questions,
+    notices: [...(removed.length ? ["DELA removed " + removed.join(", ") + " from what you gave it, and used fictional examples instead."] : []), ...read.notices.slice(0, 4), ...r.notices] });
+}
+
+async function docCurrent(ctx: Ctx, s: Session, id: string) {
+  const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
+  if (!cur?.ok) return { cur, body: null };
+  return { cur, body: isDoc(cur.body) ? normalizeDoc(cur.body) : null };
+}
+
+// "Fix it" in the quality panel: code fixes, an AI fix for one check, or a split into linked SOPs
+async function docFix(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const id = need(uuid(ctx.body.id)), check = str(ctx.body.check_id, 30);
+  const { cur, body } = await docCurrent(ctx, s, id);
+  if (!body) return json(ctx, cur?.ok ? { ok: false, reason: "not_a_document" } : cur);
+  if (dela_rank(cur!.role) < 3) return json(ctx, { ok: false, reason: "not_allowed" });
+  const firm = await docFirm(ctx, s);
+  const res = checkDoc(body, await docCtx(ctx, firm));
+  const item = res.items.find((i) => i.id === check);
+  if (!item || item.status === "pass") return json(ctx, { ok: true, duplicate: true, check: res });
+  if (item.fix === "split") return await docSplit(ctx, s, cur!, body, firm);
+  let next: DocBody;
+  if (item.fix === "code") next = codeFix(body, item.id, firm.people);
+  else if (item.fix === "ai") {
+    const ai = await runAi(ctx, s, `docfix:${id}:${cur!.playbook.version}:${check}`, FIX_SYSTEM, [{ role: "user", content: "The document:\n" + JSON.stringify(body) + "\n\nThe check it fails:\n- " + item.label + ": " + item.detail }], Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
+    if (!ai.ok) return json(ctx, ai);
+    const read = readDocAnswer(readJson(ai.text));
+    if (!read.body || read.body.type !== body.type) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_request", source: ai.source });
+    // The AI never removes an attorney flag or moves an attorney's A
+    next = codeFix(codeFix({ ...read.body, skipped: body.skipped, high_risk: body.high_risk }, "judgment", firm.people), "attorney_a", firm.people);
+    next.steps.forEach((st, i) => { if (!st.screenshot && body.steps[i]?.screenshot) st.screenshot = body.steps[i].screenshot; });
+  } else return json(ctx, { ok: false, reason: "fix_by_hand" });
+  return json(ctx, await docSave(ctx, s, id, cur!.playbook.version, next, body, "Fixed: " + item.label, "ai_change", firm));
+}
+
+async function docSplit(ctx: Ctx, s: Session, cur: Record<string, any>, body: DocBody, firm: DocFirm) {
+  const ai = await runAi(ctx, s, `docsplit:${cur.playbook.id}:${cur.playbook.version}`, SPLIT_SYSTEM, [{ role: "user", content: "The SOP:\n" + JSON.stringify(body) }], await pbCredits(ctx));
+  if (!ai.ok) return json(ctx, ai);
+  const j = readJson(ai.text);
+  const parts = (Array.isArray(j?.documents) ? j!.documents : []).map((d: unknown) => normalizeDoc({ ...(d as object), type: "sop", lifecycle: body.lifecycle, role_kinds: body.role_kinds })).filter((d: DocBody) => d.title && d.steps.length).slice(0, 4);
+  if (parts.length < 2) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_request", source: ai.source });
+  const created: Array<{ id: string; title: string }> = [];
+  for (let i = 1; i < parts.length; i++) {
+    const r = await docCreate(ctx, s, cur.playbook.org_id, `split:${cur.playbook.id}:${cur.playbook.version}:${i}`, { ...parts[i], high_risk: body.high_risk }, "ai", "Split from " + (cur.playbook.doc_id || body.title), firm);
+    if (r?.ok) created.push({ id: r.id, title: parts[i].title });
+  }
+  const first = { ...parts[0], high_risk: body.high_risk, related_links: [...parts[0].related_links.filter((l) => !created.some((c) => c.title === l.label)), ...created.map((c) => ({ label: c.title, url: "" }))] };
+  const r = await docSave(ctx, s, cur.playbook.id, cur.playbook.version, first, body, "Split into linked SOPs", "ai_change", firm);
+  return json(ctx, { ...r, created });
+}
+
+// Change the type in one click (and after the conversion): DELA moves the content to the new type's sections
+async function docChangeType(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const id = need(uuid(ctx.body.id));
+  const type = (DOC_TYPES as string[]).includes(String(ctx.body.type)) ? ctx.body.type as DocType : null;
+  if (!type) throw new HttpError(400, "bad_request");
+  const { cur, body } = await docCurrent(ctx, s, id);
+  if (!body) return json(ctx, cur?.ok ? { ok: false, reason: "not_a_document" } : cur);
+  if (dela_rank(cur!.role) < 3) return json(ctx, { ok: false, reason: "not_allowed" });
+  await rpc(ctx, "dela_doc_conversion_seen", { p_person: s.person_id, p_id: id });
+  if (body.type === type) return json(ctx, { ok: true, duplicate: true });
+  const firm = await docFirm(ctx, s);
+  let next: DocBody = normalizeDoc({ ...body, type });
+  const ai = await runAi(ctx, s, `doctype:${id}:${cur!.playbook.version}:${type}`, convertSystem(type), [{ role: "user", content: "The document now (as " + TYPE_INFO[body.type].label + "):\n" + JSON.stringify(body) }], await pbCredits(ctx));
+  if (ai.ok) { const read = readDocAnswer(readJson(ai.text)); if (read.body) next = { ...read.body, type, lifecycle: body.lifecycle || read.body.lifecycle }; }
+  next = codeFix(codeFix(next, "judgment", firm.people), "attorney_a", firm.people);
+  return json(ctx, await docSave(ctx, s, id, cur!.playbook.version, next, body, "Type changed to " + TYPE_INFO[type].label, "ai_change", firm));
+}
+
+// The live quality panel while editing (nothing is saved)
+async function docCheck(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const firm = await docFirm(ctx, s);
+  const prep = await docPrepare(ctx, firm, ctx.body.body, null);
+  return json(ctx, { ok: true, check: prep.check, notices: prep.notices });
+}
+
+function docMetaFor(cur: Record<string, any>, date: string): DocMeta {
+  const ch = (cur.changes ?? []) as Array<Record<string, any>>;
+  const approvals = new Map(ch.filter((c) => c.kind === "approval").map((c) => [c.version, c.by]));
+  return { version: cur.playbook.version, date, status: cur.playbook.status, firm: "", doc_id: cur.playbook.doc_id ?? "", last_reviewed: cur.playbook.last_reviewed_at ?? "", next_review: cur.playbook.next_review_at ?? "",
+    changes: ch.filter((c) => c.kind !== "approval").map((c) => ({ at: String(c.at).slice(0, 10), what: String(c.what), by: String(c.by ?? ""), approved_by: String(approvals.get(c.version) ?? "") })) };
+}
+
+// The export block (Stacey decision 4): every format refused while a step lacks its one A or a judgment step lacks the flag
+async function docExportFile(ctx: Ctx, s: Session, cur: Record<string, any>, body: DocBody, format: string): Promise<Record<string, unknown>> {
+  const firm = await docFirm(ctx, s);
+  const check = checkDoc(body, await docCtx(ctx, firm));
+  if (check.blocking > 0) return { ok: false, reason: "checks_failing", items: check.items.filter((i) => i.status === "blocking") };
+  const m = docMetaFor(cur, await today(ctx));
+  if (format === "docx") return { ok: true, name: docFileName(body, m, "docx"), type: CONTENT_TYPES.docx, b64: b64(docToDocx(body, m)) };
+  if (format === "md") return { ok: true, name: docFileName(body, m, "md"), type: "text/markdown", text: docToMarkdown(body, m) };
+  if (format === "csv") return { ok: true, name: docFileName(body, m, "csv"), type: "text/csv", text: docToCsv(body) };
+  return { ok: true, name: docFileName(body, m, format === "pdf" ? "pdf" : "html"), type: "text/html", text: docToHtml(body, m), print: format === "pdf" };
+}
+
+// Older playbooks (Step 2 format) become documents: the guide's type check, then the content moved to the type's sections.
+// Runs on Lawfecta's key as a system task (never the member's credits); without the AI, the rules in code decide.
+async function docConvert(ctx: Ctx, id: string) {
+  const src = await rpc<Record<string, any> | null>(ctx, "dela_doc_convert_source", { p_id: id });
+  if (!src || src.doc_type || isDoc(src.body)) return { ok: true };
+  const v1 = normalize(src.body);
+  let type: DocType = classifyLegacy(v1).type, reason = classifyLegacy(v1).reason, lifecycle = guessLifecycle([v1.title, v1.outcome, v1.when_to_use].join(" "));
+  const key = lawfectaKey(ctx, "openai");
+  const model = await setting(ctx, "ai.model.openai", "gpt-5.4-mini");
+  let body: DocBody | null = null;
+  if (key) {
+    try {
+      const t = await chat(f(ctx), "openai", key, model, TYPE_CHECK_SYSTEM, [{ role: "user", content: playbookText(v1) }], true);
+      const j = readJson(t.text);
+      if (j && (DOC_TYPES as string[]).includes(j.type)) { type = j.type; reason = String(j.reason ?? reason).slice(0, 300); }
+      if (j && /^(INT|ENG|MAT|DOC|BIL|CLS|ADM)$/.test(String(j.lifecycle))) lifecycle = j.lifecycle;
+      const c = await chat(f(ctx), "openai", key, model, convertSystem(type), [{ role: "user", content: "The playbook:\n" + JSON.stringify(v1) }], true);
+      const read = readDocAnswer(readJson(c.text));
+      if (read.body) body = { ...read.body, type };
+    } catch { /* the rules in code decide below */ }
+  }
+  if (!body || !body.title) body = fromLegacy(v1, type);
+  // Screenshots stay with their steps
+  body.steps.forEach((st, i) => { const old = v1.steps.find((x) => x.text === st.text) ?? v1.steps[i]; if (!st.screenshot && old?.screenshot && type !== "playbook") st.screenshot = old.screenshot; });
+  body.lifecycle = lifecycle;
+  const owner = String(src.owner);
+  const firm = await docFirm(ctx, { person_id: owner, side: "attorney" } as Session);
+  for (const r of firm.roles) if (body.roles.includes(r.name)) body.role_kinds[r.name] = r.kind;
+  body = codeFix(codeFix(body, "judgment", firm.people), "attorney_a", firm.people);
+  const prep = await docPrepare(ctx, firm, body, null);
+  await rpc(ctx, "dela_doc_convert_done", { p_id: id, p: { body: prep.body, ...prep.doc, reason } });
+  return { ok: true };
+}
+
+// What a gig hands the freelancer from a document (and the legacy shape the gig's public version is built from)
+function gigLegacy(b: DocBody, part: ReturnType<typeof gigPart>): Body {
+  return normalize({ title: b.title, outcome: part.done_when, practice_area: b.practice_area, jurisdiction: b.jurisdiction, when_to_use: part.purpose, needs: part.before_you_start,
+    steps: part.steps.map((st) => ({ text: st.text, who: st.role, tool: st.system, minutes: st.minutes, tag: st.attorney_decides ? "keep" : "delegate" })),
+    deadlines: part.timing, checks: part.quality_check, deliverables: part.done_when, tools: [...new Set(part.steps.map((st) => st.system).filter(Boolean))] });
 }
 
 // ---------- Imports: a guide from Scribe on the review screen, then Build my playbook ----------
@@ -941,6 +1286,15 @@ async function importBuild(ctx: Ctx) {
   if (!read) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_request", source: ai.source });
   const body = carryScreenshots(raw, read.body, steps);
   if (!body.title) body.title = imp.title || "Imported playbook";
+  if (await rpc<boolean>(ctx, "dela_switch_on", { p_key: "document_standard", p_person: s.person_id })) {
+    const firm = await docFirm(ctx, s);
+    let doc = fromLegacy(body, "sop");
+    doc = codeFix(codeFix(doc, "judgment", firm.people), "attorney_a", firm.people);
+    const rd = await docCreate(ctx, s, imp.org_id, "import:" + id, doc, imp.source === "recorder" ? "recorder" : "scribe", imp.source === "recorder" ? "Built from a recording" : "Built from a Scribe guide", firm, id);
+    if (!rd?.ok) return json(ctx, rd);
+    await rpc(ctx, "dela_import_finish", { p_person: s.person_id, p_id: id, p_status: "built", p_playbook: rd.id });
+    return json(ctx, { ok: true, playbook_id: rd.id, questions: read.questions, check: rd.check });
+  }
   const r = await rpc<Record<string, any>>(ctx, "dela_pb_create", { p: { person_id: s.person_id, org_id: imp.org_id, request_id: "import:" + id, body, ...meta(body),
     source: imp.source === "recorder" ? "recorder" : "scribe", source_ref: id, note: imp.source === "recorder" ? "Built from a recording" : "Built from a Scribe guide" } });
   if (!r?.ok) return json(ctx, r);
@@ -1358,7 +1712,14 @@ async function gigDraft(ctx: Ctx) {
   if (!cur?.ok) return json(ctx, cur);
   if (cur.playbook.status !== "approved") return json(ctx, { ok: false, reason: "playbook_not_approved" });
   const approved = await rpc<Record<string, any>>(ctx, "dela_pb_version", { p_person: s.person_id, p_id: pbId, p_version: cur.playbook.approved_version }).catch(() => null);
-  const body = normalize(approved?.body ?? cur.body);
+  const raw = approved?.body ?? cur.body;
+  let body = normalize(raw);
+  if (isDoc(raw)) {
+    const db = normalizeDoc(raw);
+    const part = gigPart(db);
+    if (!part.ok) return json(ctx, { ok: false, reason: part.reason });
+    body = gigLegacy(db, part);
+  }
   let pub = publicFromPlaybook(body), source = "playbook";
   const extra = str(ctx.body.notes, 1500);
   if (extra) { const w = sensitive(ctx, extra); if (w) return json(ctx, w); }
@@ -1390,7 +1751,17 @@ async function gigSave(ctx: Ctx) {
 async function gigGet(ctx: Ctx) {
   const s = await memberSide(ctx);
   const id = need(uuid(ctx.url.searchParams.get("id")));
-  return json(ctx, await rpc(ctx, "dela_gig_get", { p_person: s.person_id, p_side: s.side, p_gig: id }));
+  const r = await rpc<Record<string, any>>(ctx, "dela_gig_get", { p_person: s.person_id, p_side: s.side, p_gig: id });
+  if (r?.ok && r.playbook && isDoc(r.playbook)) {
+    const db = normalizeDoc(r.playbook);
+    const part = gigPart(db);
+    if (s.side === "freelancer") r.playbook = { schema: 2, gig_view: true, type: db.type, title: db.title, purpose: part.purpose, before_you_start: part.before_you_start,
+      steps: part.steps.map((st) => ({ text: st.text, role: st.role, system: st.system, menu_path: st.menu_path, minutes: st.minutes, attorney_decides: st.attorney_decides, stage: st.stage, handoff: st.handoff, target_time: st.target_time })),
+      timing: part.timing, quality_check: part.quality_check, done_when: part.done_when };
+    else r.gig_part = { steps: part.steps.length, of: db.steps.length, checkpoints: part.checkpoints.length };
+  }
+  if (r?.ok) r.references = await rpc(ctx, "dela_gig_references", { p_person: s.person_id, p_side: s.side, p_gig: id }).catch(() => []);
+  return json(ctx, r);
 }
 
 async function gigInvite(ctx: Ctx) {
@@ -1615,6 +1986,13 @@ async function agreementGet(ctx: Ctx) {
   if (facts.version === 0) await rpc(ctx, "dela_agreement_version_add", { p_person: s.person_id, p_side: s.side, p_agreement: id, p_body: buildBody(facts), p_note: "First draft by DELA", p_base: 0 });
   const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: s.person_id, p_side: s.side, p_agreement: id });
   if (v?.ok && v.current?.body) v.fee_lines = feeLines(v.current.body);
+  // "Attorney decides" steps of the gig's document become checkpoints the work waits at
+  const gdoc = await rpc<Record<string, any> | null>(ctx, "dela_agreement_doc", { p_agreement: id }).catch(() => null);
+  if (v?.ok && gdoc && isDoc(gdoc)) {
+    const part = gigPart(normalizeDoc(gdoc));
+    if (part.ok) await rpc(ctx, "dela_checkpoints_ensure", { p_agreement: id, p_steps: part.steps.map((st, i) => ({ n: i + 1, text: st.text })).filter((_, i) => part.checkpoints.includes(i + 1)) });
+    v.checkpoints = await rpc(ctx, "dela_checkpoints", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+  }
   return json(ctx, { ...v, stripe_ready: !!(await stripeKey(ctx)) });
 }
 
@@ -1823,6 +2201,11 @@ async function engagementExport(ctx: Ctx) {
   if (!v?.ok || !v.export) return json(ctx, { ok: false, reason: "export_not_available" });
   const pb = await rpc<Record<string, any>>(ctx, "dela_gig_get", { p_person: s.person_id, p_side: s.side, p_gig: v.agreement.gig_id });
   if (!pb?.playbook) return json(ctx, { ok: false, reason: "export_not_available" });
+  if (isDoc(pb.playbook)) {
+    const db = normalizeDoc(pb.playbook);
+    const dm: DocMeta = { version: 1, date: await today(ctx), status: "approved", firm: "", doc_id: "", last_reviewed: "", next_review: "", changes: [] };
+    return json(ctx, { ok: true, name: docFileName(db, dm, "docx"), type: CONTENT_TYPES.docx, b64: b64(docToDocx(db, dm)) });
+  }
   const b = normalize(pb.playbook);
   const m: ExportMeta = { version: 1, date: await today(ctx), status: "approved", firm: "" };
   return json(ctx, { ok: true, name: fileName(b, m, "docx"), type: CONTENT_TYPES.docx, b64: b64(toDocx(b, m)) });
@@ -2186,20 +2569,22 @@ function mcpTools(side: string) {
       inputSchema: { type: "object", properties: { gig_id: { type: "string" } }, required: ["gig_id"] }, annotations: { readOnlyHint: true } },
   ];
   return [who, prof, ...gigTools, ...talk,
-    { name: "list_playbooks", title: "List my playbooks", description: "Lists playbooks in the member's DELA playbook library, with status and how complete each is.",
+    { name: "list_documents", title: "List my documents", description: "Lists the documents in the member's DELA Library (Policies, Workflows, SOPs and Playbooks), with ID, type, status and what still needs attention.",
       inputSchema: { type: "object", properties: { status: { type: "string", enum: ["draft", "in_review", "approved", "archived"] }, search: { type: "string" } } }, annotations: { readOnlyHint: true } },
-    { name: "get_playbook", title: "Read a playbook", description: "Reads one playbook: every part and step, its version, status and what is missing.",
-      inputSchema: { type: "object", properties: { playbook_id: { type: "string" } }, required: ["playbook_id"] }, annotations: { readOnlyHint: true } },
-    { name: "save_playbook_draft", title: "Save a new playbook draft", description: "Saves a new draft playbook in the member's DELA library from content you wrote. It stays a draft until the attorney approves it on the website. " + NOTICE_TOOLS,
+    { name: "get_document", title: "Read a document", description: "Reads one document: every section and step, its RACI, ID, version, status and the checks that still need attention.",
+      inputSchema: { type: "object", properties: { document_id: { type: "string" } }, required: ["document_id"] }, annotations: { readOnlyHint: true } },
+    { name: "save_document_draft", title: "Save a new SOP draft", description: "Saves a new draft SOP in the member's DELA Library from content you wrote. DELA checks it against the firm's document standard; it stays a draft until the attorney approves it on the website. " + NOTICE_TOOLS,
       inputSchema: { type: "object", properties: PB_FIELDS, required: ["title", "steps"] }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
-    { name: "draft_playbook_with_dela", title: "Have DELA draft a playbook", description: "DELA's own AI drafts a new playbook from a task description and returns its follow-up questions. Uses the member's DELA AI credits (or their own key). " + NOTICE_TOOLS,
+    { name: "draft_document_with_dela", title: "Have DELA draft a document", description: "DELA's own AI drafts a new SOP from a task description and returns its follow-up questions. Uses the member's DELA AI credits (or their own key). " + NOTICE_TOOLS,
       inputSchema: { type: "object", properties: { description: { type: "string" } }, required: ["description"] }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
-    { name: "suggest_playbook_change", title: "Suggest a change to a playbook", description: "Proposes a new version of an existing playbook. Nothing changes until an editor or the administrator accepts it on the DELA website. Send the whole playbook with your changes. " + NOTICE_TOOLS,
-      inputSchema: { type: "object", properties: { playbook_id: { type: "string" }, note: { type: "string", description: "A short label for the change" }, ...PB_FIELDS }, required: ["playbook_id", "note", "title", "steps"] }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
-    { name: "export_playbook", title: "Export a playbook", description: "Returns a playbook as Markdown, a web page (HTML) or a step checklist (CSV) with its version and date.",
-      inputSchema: { type: "object", properties: { playbook_id: { type: "string" }, format: { type: "string", enum: ["markdown", "html", "csv"] } }, required: ["playbook_id"] }, annotations: { readOnlyHint: true } },
+    { name: "suggest_document_change", title: "Suggest a change to a document", description: "Proposes a new version of an existing document. Nothing changes until an editor or the administrator accepts it on the DELA website. Send the whole document with your changes. " + NOTICE_TOOLS,
+      inputSchema: { type: "object", properties: { document_id: { type: "string" }, note: { type: "string", description: "A short label for the change" }, ...PB_FIELDS }, required: ["document_id", "note", "title", "steps"] }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
+    { name: "export_document", title: "Export a document", description: "Returns a document as Markdown, a web page (HTML) or a step checklist (CSV) with its ID, version and date. Refused while a step lacks its one Accountable owner or a judgment step lacks the attorney flag.",
+      inputSchema: { type: "object", properties: { document_id: { type: "string" }, format: { type: "string", enum: ["markdown", "html", "csv"] } }, required: ["document_id"] }, annotations: { readOnlyHint: true } },
   ];
 }
+// Apps connected before the rename keep working (the tool list shows only the new names)
+const TOOL_ALIASES: Record<string, string> = { list_playbooks: "list_documents", get_playbook: "get_document", save_playbook_draft: "save_document_draft", draft_playbook_with_dela: "draft_document_with_dela", suggest_playbook_change: "suggest_document_change", export_playbook: "export_document" };
 
 class ToolError extends Error {}
 
@@ -2331,35 +2716,49 @@ Where it stands: ${words[st?.readiness] ?? st?.readiness ?? "unknown"}. ${ver}.`
       data: { readiness: st?.readiness, verification: st?.verification, missing: st?.missing_labels ?? [], profile: b } };
   }
   if (w.side !== "attorney") throw new ToolError("This tool is for the attorney side.");
-  if (w.on_hold && name !== "list_playbooks" && name !== "get_playbook") throw new ToolError("Some actions are paused on this account. Contact the Lawfecta Team.");
-  if (name === "list_playbooks") {
+  if (w.on_hold && name !== "list_documents" && name !== "get_document") throw new ToolError("Some actions are paused on this account. Contact the Lawfecta Team.");
+  if (name === "list_documents") {
     const r = await rpc<Record<string, any>>(ctx, "dela_pb_list", { p_person: w.person_id, p_org: org });
     if (!r?.ok) fail(r);
     const q = str(a.search, 100).toLowerCase();
     const rows = (r.playbooks as Array<Record<string, any>>).filter((p) => p.status !== "trash" && (!a.status || p.status === a.status) && (!q || String(p.title).toLowerCase().includes(q)));
-    return { text: rows.length ? rows.map((p) => `- ${p.title} (id ${p.id}): ${p.status}, ${p.completeness}% complete, version ${p.version}`).join("\n") + `\n${r.count} playbooks` + (r.limit === null ? " (no cap)." : ` of ${r.limit}.`) : "No playbooks yet.",
-      data: rows.map((p) => ({ id: p.id, title: p.title, status: p.status, completeness: p.completeness, version: p.version })) };
+    return { text: rows.length ? rows.map((p) => `- ${p.doc_id ? p.doc_id + " " : ""}${p.title} (id ${p.id}): ${p.doc_type ? TYPE_INFO[p.doc_type as DocType].label + ", " : ""}${p.status}, version ${p.version}` + (p.doc_type ? (p.blocking ? `, ${p.blocking} blocking checks` : "") + (p.attention ? `, ${p.attention} to look at` : "") : `, ${p.completeness}% complete`)).join("\n") + `\n${r.count} documents` + (r.limit === null ? " (no cap)." : ` of ${r.limit}.`) : "No documents yet.",
+      data: rows.map((p) => ({ id: p.id, doc_id: p.doc_id, type: p.doc_type, title: p.title, status: p.status, completeness: p.completeness, version: p.version, blocking: p.blocking, attention: p.attention })) };
   }
-  if (name === "get_playbook") {
-    const r = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: w.person_id, p_id: uuid(a.playbook_id) });
+  if (name === "get_document") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: w.person_id, p_id: uuid(a.document_id) });
     if (!r?.ok) fail(r);
+    if (isDoc(r.body)) {
+      const db = normalizeDoc(r.body);
+      const chk = checkDoc(db, await docCtx(ctx, await docFirm(ctx, s)));
+      const open = chk.items.filter((i) => i.status !== "pass");
+      return { text: docToMarkdown(db, docMetaFor(r, await today(ctx))) + `\nStatus: ${r.playbook.status}.` + (open.length ? " Needs attention: " + open.map((i) => i.label + (i.status === "blocking" ? " (blocks export and approval)" : "")).join("; ") + "." : " Every check passes."),
+        data: { id: r.playbook.id, doc_id: r.playbook.doc_id, type: db.type, version: r.playbook.version, status: r.playbook.status, checks: chk.items, document: db } };
+    }
     const b = normalize(r.body);
     return { text: toMarkdown(b, { version: r.playbook.version, date: await today(ctx), status: r.playbook.status, firm: "" }) +
       `\nStatus: ${r.playbook.status}. Complete: ${r.playbook.completeness}%.` + (r.playbook.missing.length ? " Missing: " + r.playbook.missing.join(", ") + "." : ""),
       data: { id: r.playbook.id, version: r.playbook.version, status: r.playbook.status, completeness: r.playbook.completeness, missing: r.playbook.missing, playbook: b } };
   }
-  if (name === "save_playbook_draft") {
+  if (name === "save_document_draft") {
     const b = normalize(a);
     const kinds = messageLooksSensitive(JSON.stringify(b));
     if (kinds.length) throw new ToolError("This may include client information (" + kinds.join(", ").split("_").join(" ") + "). Replace it with placeholders such as [Client Name], then try again.");
     if (!b.title || !b.steps.length) throw new ToolError("A playbook needs a title and at least one step.");
     const idem = "mcp:" + (await sha256Hex(w.connection_id + JSON.stringify(b))).slice(0, 40);
+    if (await rpc<boolean>(ctx, "dela_switch_on", { p_key: "document_standard", p_person: w.person_id })) {
+      const firm = await docFirm(ctx, s);
+      const rd = await docCreate(ctx, s, org!, idem, codeFix(codeFix(fromLegacy(b, "sop"), "judgment", firm.people), "attorney_a", firm.people), "manual", "Saved from an AI app", firm, "connector");
+      if (!rd?.ok) fail(rd);
+      const open = (rd.check?.items ?? []).filter((i: any) => i.status !== "pass").map((i: any) => i.label);
+      return { text: `Saved "${b.title}" as a draft SOP in DELA (id ${rd.id}).` + (open.length ? " Still to look at: " + open.join("; ") + "." : " Every check passes.") + " The attorney approves it on the DELA website.", data: { id: rd.id, duplicate: !!rd.duplicate, checks: rd.check?.items } };
+    }
     const r = await rpc<Record<string, any>>(ctx, "dela_pb_create", { p: { person_id: w.person_id, org_id: org, request_id: idem, body: b, ...meta(b), source: "manual", source_ref: "connector", note: "Saved from " + "an AI app" } });
     if (!r?.ok) fail(r);
     const c = completeness(b);
     return { text: `Saved "${b.title}" as a draft in DELA (id ${r.id}). It is ${c.score}% complete` + (c.missing.length ? "; still missing: " + c.missing.join(", ") : "") + ". The attorney approves it on the DELA website.", data: { id: r.id, completeness: c.score, missing: c.missing, duplicate: !!r.duplicate } };
   }
-  if (name === "draft_playbook_with_dela") {
+  if (name === "draft_document_with_dela") {
     const d = str(a.description, 8000).trim();
     if (!d) throw new ToolError("Describe the task first.");
     const kinds = messageLooksSensitive(d);
@@ -2369,29 +2768,52 @@ Where it stands: ${words[st?.readiness] ?? st?.readiness ?? "unknown"}. ${ver}.`
     if (!ai.ok) throw new ToolError(ai.reason === "ai_failed" ? "DELA's AI could not finish (" + String(ai.code).split("_").join(" ") + ")." : D_TEXT[ai.reason] ?? "DELA said: " + ai.reason.split("_").join(" ") + ".");
     const read = readPlaybook(readJson(ai.text));
     if (!read) throw new ToolError("DELA's AI did not return a playbook. Please try again.");
+    if (await rpc<boolean>(ctx, "dela_switch_on", { p_key: "document_standard", p_person: w.person_id })) {
+      const firm = await docFirm(ctx, s);
+      const rd = await docCreate(ctx, s, org!, "mcp:" + idem, codeFix(codeFix(fromLegacy(read.body, "sop"), "judgment", firm.people), "attorney_a", firm.people), "ai", "First draft by DELA", firm, "connector");
+      if (!rd?.ok) fail(rd);
+      return { text: `DELA drafted the SOP "${read.body.title}" (id ${rd.id}). Its questions:\n` + (read.questions.map((x, i) => `${i + 1}. ${x}`).join("\n") || "(none)") + "\nFinish it on the DELA website, where the quality panel shows what still needs attention.", data: { id: rd.id, questions: read.questions } };
+    }
     const r = await rpc<Record<string, any>>(ctx, "dela_pb_create", { p: { person_id: w.person_id, org_id: org, request_id: "mcp:" + idem, body: read.body, ...meta(read.body), source: "ai", source_ref: "connector", note: "First draft by DELA" } });
     if (!r?.ok) fail(r);
-    return { text: `DELA drafted "${read.body.title}" (id ${r.id}). Its questions:\n` + (read.questions.map((x, i) => `${i + 1}. ${x}`).join("\n") || "(none)") + "\nAnswer them, then use suggest_playbook_change, or finish it on the DELA website.", data: { id: r.id, questions: read.questions } };
+    return { text: `DELA drafted "${read.body.title}" (id ${r.id}). Its questions:\n` + (read.questions.map((x, i) => `${i + 1}. ${x}`).join("\n") || "(none)") + "\nAnswer them, then use suggest_document_change, or finish it on the DELA website.", data: { id: r.id, questions: read.questions } };
   }
-  if (name === "suggest_playbook_change") {
-    const id = uuid(a.playbook_id);
+  if (name === "suggest_document_change") {
+    const id = uuid(a.document_id);
     const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: w.person_id, p_id: id });
     if (!cur?.ok) fail(cur);
     const b = normalize(a);
     const kinds = messageLooksSensitive(JSON.stringify(b));
     if (kinds.length) throw new ToolError("This may include client information (" + kinds.join(", ").split("_").join(" ") + "). Replace it with placeholders, then try again.");
+    if (isDoc(cur.body)) {
+      const dbb = normalizeDoc(cur.body);
+      const nd = a.document && typeof a.document === "object" ? normalizeDoc({ ...a.document, type: dbb.type }) : normalizeDoc({ ...dbb, ...fromLegacy(b, dbb.type), type: dbb.type, lifecycle: dbb.lifecycle, owner_role: dbb.owner_role });
+      const rr = docRemovesReview(dbb, nd);
+      const r2 = await rpc<Record<string, any>>(ctx, "dela_pb_suggest", { p: { person_id: w.person_id, id, kind: "ai", base_version: cur.playbook.version, proposed: nd, note: str(a.note, 200) || "Change from an AI app", removes_review: rr } });
+      if (!r2?.ok) fail(r2);
+      return { text: "The change is waiting on the document's Suggestions view in DELA. Nothing changes until an editor or the administrator accepts it." + (rr ? " It removes an attorney decision, so only the administrator can accept it." : ""), data: { suggestion_id: r2.suggestion_id } };
+    }
     const before = normalize(cur.body);
     // Screenshots stay with their steps
     b.steps.forEach((st, i) => { if (!st.screenshot && before.steps[i]?.text === st.text) st.screenshot = before.steps[i].screenshot; });
     const r = await rpc<Record<string, any>>(ctx, "dela_pb_suggest", { p: { person_id: w.person_id, id, kind: "ai", base_version: cur.playbook.version, proposed: b, note: str(a.note, 200) || "Change from an AI app", removes_review: removesReview(before, b) } });
     if (!r?.ok) fail(r);
-    return { text: "The change is waiting on the playbook's Suggestions view in DELA. Nothing changes until an editor or the administrator accepts it." + (removesReview(before, b) ? " It removes an attorney review point, so only the administrator can accept it." : ""), data: { suggestion_id: r.suggestion_id } };
+    return { text: "The change is waiting on the document's Suggestions view in DELA. Nothing changes until an editor or the administrator accepts it." + (removesReview(before, b) ? " It removes an attorney review point, so only the administrator can accept it." : ""), data: { suggestion_id: r.suggestion_id } };
   }
-  if (name === "export_playbook") {
+  if (name === "export_document") {
     const fmt = a.format === "csv" ? "csv" : a.format === "html" ? "html" : "md";
-    const r = await rpc<Record<string, any>>(ctx, "dela_pb_export", { p_person: w.person_id, p_id: uuid(a.playbook_id), p_format: fmt, p_request: crypto.randomUUID() });
+    const pre = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: w.person_id, p_id: uuid(a.document_id) });
+    if (!pre?.ok) fail(pre);
+    if (isDoc(pre.body)) {
+      const out = await docExportFile(ctx, s, pre, normalizeDoc(pre.body), fmt);
+      if (!out.ok) throw new ToolError("This document cannot be exported yet: " + ((out.items as any[]) ?? []).map((i) => i.label).join("; ") + ". Fix it on the DELA website.");
+      const r0 = await rpc<Record<string, any>>(ctx, "dela_pb_export", { p_person: w.person_id, p_id: uuid(a.document_id), p_format: fmt, p_request: crypto.randomUUID() });
+      if (!r0?.ok) fail(r0);
+      return { text: String(out.text ?? "") };
+    }
+    const r = await rpc<Record<string, any>>(ctx, "dela_pb_export", { p_person: w.person_id, p_id: uuid(a.document_id), p_format: fmt, p_request: crypto.randomUUID() });
     if (!r?.ok) fail(r);
-    const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: w.person_id, p_id: uuid(a.playbook_id) });
+    const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: w.person_id, p_id: uuid(a.document_id) });
     const b = normalize(cur.body), m: ExportMeta = { version: cur.playbook.version, date: await today(ctx), status: cur.playbook.status, firm: "" };
     return { text: fmt === "csv" ? toCsv(b) : fmt === "html" ? toHtml(b, m) : toMarkdown(b, m) };
   }
@@ -2425,10 +2847,13 @@ async function mcpEndpoint(ctx: Ctx) {
   if (msg.method === "ping") return reply({});
   if (msg.method === "tools/list") return reply({ tools: mcpTools(who.side) });
   if (msg.method === "tools/call") {
-    const name = str(msg.params?.name, 60);
+    const asked = str(msg.params?.name, 60);
+    const name = TOOL_ALIASES[asked] ?? asked;
+    const args0 = (msg.params?.arguments ?? {}) as Record<string, any>;
+    if (args0.playbook_id && !args0.document_id) args0.document_id = args0.playbook_id;
     if (!mcpTools(who.side).some((t) => t.name === name)) return json(ctx, { jsonrpc: "2.0", id: msg.id, error: { code: -32602, message: "Unknown tool: " + name } });
     try {
-      const out = await mcpCall(ctx, who, name, (msg.params?.arguments ?? {}) as Record<string, any>);
+      const out = await mcpCall(ctx, who, name, args0);
       await rpc(ctx, "dela_mcp_log", { p_conn: who.connection_id, p_tool: name, p_ok: true, p_error: "" });
       return reply({ content: [{ type: "text", text: out.text }], ...(out.data !== undefined ? { structuredContent: { result: out.data } } : {}), isError: false });
     } catch (e) {
@@ -2468,6 +2893,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/catalog": (c, a) => rpc(c, "dela_admin_catalog", { p_actor: a }),
   "/admin/gigs": (c, a) => rpc(c, "dela_admin_gigs", { p_actor: a }),
   "/admin/reviews": (c, a) => rpc(c, "dela_admin_reviews", { p_actor: a }),
+  "/admin/documents": (c, a) => rpc(c, "dela_admin_documents", { p_actor: a }),
   "/admin/payments": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_payments", { p_actor: a })), stripe_ready: !!(await stripeKey(c)), mode: c.deps.env("STRIPE_SECRET_KEY").includes("_live_") ? "live" : "test" }),
   "/admin/meetings": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_meetings", { p_actor: a })), provider_ready: !!c.deps.env("VECTERA_API_KEY") }),
   "/admin/verify": async (c, a) => {
@@ -2744,6 +3170,7 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "gig_tick") { await rpc(ctx, "dela_gig_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "engagement_tick") { await rpc(ctx, "dela_engagement_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "engagements_daily") return await engagementsDaily(ctx);
+  if (j.kind === "doc_convert") return await docConvert(ctx, String(j.payload?.playbook_id ?? ""));
   if (j.kind === "webhook_send") return await webhookSend(ctx, String(j.payload?.delivery_id ?? ""));
   if (j.kind === "review_tick") { await rpc(ctx, "dela_review_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "bench_tick") { await rpc(ctx, "dela_bench_tick", { p: j.payload ?? {} }); return { ok: true }; }
@@ -2985,6 +3412,16 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /prefs": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_prefs_save", { p_person: s.person_id, p: { read_receipts: ctx.body.read_receipts !== false } })); }
       case "GET /insights": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_insights", { p_person: s.person_id, p_side: s.side })); }
       case "POST /insights/remove": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_insight_remove", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)) })); }
+      case "GET /documents/firm": { const s = await attorney(ctx); return json(ctx, { ...(await rpc<Record<string, any>>(ctx, "dela_doc_firm", { p_person: s.person_id })), default_roles: DEFAULT_ROLES, solo_roles: SOLO_ROLES, system_groups: SYSTEM_GROUPS }); }
+      case "POST /documents/firm": return await docFirmSave(ctx);
+      case "GET /documents/starters": { await attorney(ctx); return json(ctx, { ok: true, types: TYPE_INFO, lifecycle: LIFECYCLE, starters: STARTERS, kpi_examples: KPI_EXAMPLES }); }
+      case "POST /documents/draft": return await docDraft(ctx);
+      case "POST /documents/check": return await docCheck(ctx);
+      case "POST /documents/fix": return await docFix(ctx);
+      case "POST /documents/type": return await docChangeType(ctx);
+      case "POST /documents/conversion-seen": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_doc_conversion_seen", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)) })); }
+      case "POST /gigs/reference": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_reference", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_doc: need(uuid(ctx.body.doc)), p_on: ctx.body.on !== false })); }
+      case "POST /engagements/checkpoint": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_checkpoint_act", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)), p_step: need(int(ctx.body.step_no)), p_note: str(ctx.body.note, 1000) })); }
       case "GET /playbooks/get": return await pbGet(ctx);
       case "POST /playbooks/create": return await pbCreate(ctx);
       case "POST /playbooks/save": return await pbSave(ctx);
@@ -2995,7 +3432,13 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /playbooks/export": return await pbExport(ctx);
       case "POST /playbooks/missing": return await pbMissing(ctx);
       case "POST /playbooks/status": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_status", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_action: str(ctx.body.action, 20) })); }
-      case "POST /playbooks/restore": { const s = await attorney(ctx); const b = await rpc<Record<string, any> | null>(ctx, "dela_pb_version", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_version: int(ctx.body.version) }); return json(ctx, b ? await rpc(ctx, "dela_pb_restore_version", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_version: int(ctx.body.version), p_meta: meta(normalize(b.body)) }) : { ok: false, reason: "not_found" }); }
+      case "POST /playbooks/restore": { const s = await attorney(ctx); const b = await rpc<Record<string, any> | null>(ctx, "dela_pb_version", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_version: int(ctx.body.version) });
+        if (!b) return json(ctx, { ok: false, reason: "not_found" });
+        if (isDoc(b.body)) { const firm = await docFirm(ctx, s); const prep = await docPrepare(ctx, firm, b.body, null);
+          const rr = await rpc<Record<string, any>>(ctx, "dela_pb_restore_version", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_version: int(ctx.body.version), p_meta: prep.meta });
+          if (rr?.ok) await rpc(ctx, "dela_doc_apply", { p_id: uuid(ctx.body.id), p: { ...prep.doc, person_id: s.person_id, what_changed: "Restored version " + int(ctx.body.version) } });
+          return json(ctx, rr); }
+        return json(ctx, await rpc(ctx, "dela_pb_restore_version", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_version: int(ctx.body.version), p_meta: meta(normalize(b.body)) })); }
       case "POST /playbooks/comment/resolve": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_comment_resolve", { p_person: s.person_id, p_comment: uuid(ctx.body.id) })); }
       case "POST /playbooks/attach": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_attach", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_file: uuid(ctx.body.file_id), p_on: ctx.body.on !== false })); }
       case "GET /playbooks/team": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_team", { p_person: s.person_id, p_org: uuid(ctx.url.searchParams.get("org")) })); }

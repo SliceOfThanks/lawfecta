@@ -61,10 +61,10 @@ Deno.test("the MCP client library signs in and uses DELA's tools", async () => {
     await client.connect(transport);
     assertEquals(client.getServerVersion()?.name, "lawfecta-dela");
     const { tools } = await client.listTools();
-    assert(tools.some((t: any) => t.name === "save_playbook_draft"));
-    const saved: any = await client.callTool({ name: "save_playbook_draft", arguments: { title: "Close a matter", steps: [{ text: "Send the closing letter" }, { text: "Archive the file" }] } });
+    assert(tools.some((t: any) => t.name === "save_document_draft"));
+    const saved: any = await client.callTool({ name: "save_document_draft", arguments: { title: "Close a matter", steps: [{ text: "Send the closing letter" }, { text: "Archive the file" }] } });
     assertEquals(saved.isError, false, JSON.stringify(saved));
-    const list: any = await client.callTool({ name: "list_playbooks", arguments: {} });
+    const list: any = await client.callTool({ name: "list_documents", arguments: {} });
     assert(list.content[0].text.includes("Close a matter"));
     await client.close();
   } finally {

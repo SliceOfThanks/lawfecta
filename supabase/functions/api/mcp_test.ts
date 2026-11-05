@@ -192,7 +192,7 @@ Deno.test("initialize, tools/list and notifications", async () => {
   assertEquals(unknownVersion.body.result.protocolVersion, "2025-11-25");
   assertEquals((await mcp(access, "notifications/initialized", undefined, true)).status, 202);
   const names = (await mcp(access, "tools/list")).body.result.tools.map((t: any) => t.name);
-  assertEquals(names, ["lawfecta_whoami", "get_my_profile", "list_my_gigs", "draft_gig_from_playbook", "list_gig_proposals", "list_my_threads", "read_thread", "save_reply_draft", "list_my_meetings", "list_my_reviews", "list_my_bench", "list_my_engagements", "get_engagement", "list_playbooks", "get_playbook", "save_playbook_draft", "draft_playbook_with_dela", "suggest_playbook_change", "export_playbook"]);
+  assertEquals(names, ["lawfecta_whoami", "get_my_profile", "list_my_gigs", "draft_gig_from_playbook", "list_gig_proposals", "list_my_threads", "read_thread", "save_reply_draft", "list_my_meetings", "list_my_reviews", "list_my_bench", "list_my_engagements", "get_engagement", "list_documents", "get_document", "save_document_draft", "draft_document_with_dela", "suggest_document_change", "export_document"]);
   assertEquals((await mcp(access, "resources/list")).body.error.code, -32601);
 });
 
@@ -220,7 +220,7 @@ Deno.test("tools: whoami, save a draft, list, read, suggest a change, export, DE
   assertEquals(after.structuredContent.result.version, got.structuredContent.result.version);
   const pending = (await pool.query("select count(*)::int n from playbook_suggestions where playbook_id = $1 and status = 'open'", [pbId])).rows[0].n;
   assertEquals(pending, 1);
-  const csv = await tool(access, "export_playbook", { playbook_id: pbId, format: "csv" });
+  const csv = await tool(access, "export_document", { document_id: pbId, format: "csv" });
   assert(csv.content[0].text.includes("Run the conflict check"));
   const dela = await tool(access, "draft_playbook_with_dela", { description: "How we send the engagement letter after the first call" });
   assertEquals(dela.isError, false, dela.content[0].text);
@@ -328,7 +328,7 @@ Deno.test("members see and disconnect their own connections; the team sees and s
   const row = list.connections.find((c: any) => c.bd_member_id === att.bd);
   assert(row, "the team sees the connection");
   assert(!JSON.stringify(list).includes(s.token.access_token));
-  assert(list.tools.some((t: any) => t.tool === "save_playbook_draft"));
+  assert(list.tools.some((t: any) => t.tool === "save_document_draft"), "the log keeps the tool name (old names reach the new tools)");
   assertEquals((await call("POST", "/admin/mcp/disconnect", staff.token, { id: row.id })).body.data.ok, true);
   assertEquals((await mcp(s.token.access_token, "ping")).status, 401);
   // Members cannot use the team's route
