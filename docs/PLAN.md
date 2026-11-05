@@ -20,7 +20,7 @@ Everything below is on the test site, for the access list only. Live (lawfecta.c
 | 2 | Playbook library, versions, comments, exports, Import from Scribe | Done | Passing, real AI checked | Not run yet |
 | 2r | Process Recorder beta | Done (no Chrome extension) | Passing | Not run yet |
 | 2b | DELA in ChatGPT and Claude (connector) | Done | Passing, checked on the real site | Not run yet (needs your accounts) |
-| 3 | Profiles and verification, tech tools, the AI reads the member's own profile | Done | Passing, BD listing read and write checked | In progress, blocked at the BD login |
+| 3 | Profiles and verification, tech tools, the AI reads the member's own profile | Done | Passing, BD listing read and write checked | Passed (2026-11-05), with 8 fixes from your testing |
 
 ### Bring your own AI key (BYOK), built in Step 2a
 - Members on every plan, on both sides, can add their own OpenAI or Claude key in AI settings: https://www.hirelegalhelp.com/dela?tab=ai
