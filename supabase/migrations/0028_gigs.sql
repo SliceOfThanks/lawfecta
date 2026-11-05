@@ -818,9 +818,9 @@ end $$;
 
 -- ---------- Lists ----------
 create or replace function dela_gigs_mine(p_person uuid) returns jsonb language plpgsql as $$
-declare g record;
+declare due record;
 begin
-  for g in select id from gigs where status in ('open', 'paused') and closes_at <= now() and dela_firm_role(p_person, org_id) in ('owner', 'manager') loop perform dela_gig_close_if_due(g.id); end loop;
+  for due in select id from gigs where status in ('open', 'paused') and closes_at <= now() and dela_firm_role(p_person, org_id) in ('owner', 'manager') loop perform dela_gig_close_if_due(due.id); end loop;
   return jsonb_build_object('ok', true, 'eligibility', dela_attorney_eligibility(p_person),
     'allowance', (select e from jsonb_array_elements(dela_entitlements(p_person, 'attorney')) e where e->>'key' = 'att.gigs_active'),
     'min_budget_cents', dela_int_setting('gig.min_budget_cents', 25000),

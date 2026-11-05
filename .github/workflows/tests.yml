@@ -56,6 +56,7 @@ jobs:
           SHOTS=shots node tests/pw/recorder-test.js
           SHOTS=shots node tests/pw/connector-test.js
           SHOTS=shots node tests/pw/profiles-test.js
+          SHOTS=shots node tests/pw/gigs-test.js
       - name: Screens from the browser tests
         if: always()
         uses: actions/upload-artifact@v4

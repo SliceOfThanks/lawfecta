@@ -45,6 +45,11 @@ function playbookAnswer(system: string, user: string): unknown {
   if (system.includes("write one box")) return { text: "Senior paralegal, family law firm, 2019 to now.", questions: ["Which courts do you file in?"] };
   if (system.includes("write their profile")) return { headline: "Litigation paralegal for solo attorneys", summary: "I support solo attorneys with e-filing and discovery in Texas courts.", skills: ["E-filing", "Discovery"], software: ["Clio"], services: [{ title: "E-filing", for_whom: "Solo attorneys" }], questions: ["How many years have you done this?"] };
   if (system.includes("Suggest up to 8")) return { suggestions: [{ title: "Conflict check", why: "Every firm runs one before taking a matter." }] };
+  // Step 4: the public version of a gig, the off-platform check and proposal help
+  if (system.includes("public version of a Flex Gig")) return { title: "Client intake for a family law firm (Texas)", task: "Run the conflict check and open the file from our intake form.", outcome: "An opened file, ready for the attorney",
+    steps: ["Run the conflict check", "Open the file in Clio", "Send for attorney review"], tools: ["Clio"], timing: "About 2 hours", state: "TX", practice_area: "Family law", skills: ["Client intake"] };
+  if (system.includes("You review messages members send")) return /venmo|call me/i.test(user) ? { off_platform: true, kinds: ["payment_outside"], insights: [] } : { off_platform: false, kinds: [], insights: ["Prefers fixed-price work"] };
+  if (system.includes("qualifications part of a proposal")) return { qualifications: "Six years of family law intake, mostly in Clio.", included: "Conflict check; file opened in Clio", questions: [] };
   return null;
 }
 // A small PNG served as a Scribe screenshot

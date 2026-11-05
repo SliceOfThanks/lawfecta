@@ -12,7 +12,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   var current = "control";
   var mainEl = null;
   var tabsEl = null;
@@ -75,7 +75,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // ---------- Guide ----------
@@ -678,6 +678,50 @@
   // ---------- Verification (Step 3): licenses and LinkedIn checks ----------
   var LIC_ID = { bar_email: "The email matches the state bar record", firm_domain: "The email is at the firm's own domain", video: "We had the video call" };
   var READY = { incomplete: "Not complete", verification_pending: "Waiting for a check", match_ready: "Ready", availability_stale: "Availability out of date", unavailable: "Not taking work", restricted: "Paused", not_applicable: "Not used" };
+  // ---------- Gigs (Step 4): open gigs, proposals by plan, held messages ----------
+  var GIG_WORDS = { draft: "Draft", open: "Open", paused: "Paused", closed: "Closed", filled: "Filled", canceled: "Canceled" };
+  var KIND_WORDS = { contact_details: "contact details", payment_outside: "payment outside Lawfecta", off_platform: "working outside Lawfecta" };
+  function gigsTab() {
+    api.get("/admin/gigs").then(function (r) {
+      var d = r.data;
+      var sw = d.switches || {};
+      var swText = ["flex_gigs", "public_gigs", "talent_search", "conduct_review", "member_insights", "multiple_hires"].map(function (k) { return k + ": " + (sw[k] || "off"); }).join(" | ");
+      var flags = h("div", { class: "card" }, titled("h2", "Held for a check (" + d.flags.length + ")", "gigs"));
+      if (!d.flags.length) flags.appendChild(h("p", { class: "muted", text: "Nothing is waiting." }));
+      d.flags.forEach(function (f) {
+        var note = h("input", { style: "width:100%", placeholder: "Note (saved in the audit log)", "aria-label": "Note" });
+        function decide(clear) {
+          api.post("/admin/conduct/decide", { id: f.id, clear: clear, note: note.value }).then(function (x) { if (!x.data.ok) throw new Error(x.data.reason); ok(clear ? "Delivered" : "Not delivered; the member was told"); gigsTab(); }).catch(fail);
+        }
+        flags.appendChild(h("div", { class: "card", style: "margin:8px 0" },
+          h("div", { class: "row" }, h("b", { class: "grow", text: f.person + " (" + f.bd_member_id + "): a " + f.object_type + (f.gig_title ? " on \"" + f.gig_title + "\"" : "") }), h("span", { class: "badge held", text: (f.kinds || []).map(function (k) { return KIND_WORDS[k] || k; }).join(", ") })),
+          h("p", { class: "small", text: f.excerpt }), h("div", { class: "small muted", text: "Found by " + (f.source === "ai" ? "DELA's AI" : "DELA's rules") + ", " + D.dateTime(f.created_at) }), note,
+          h("div", { class: "row", style: "margin-top:6px" }, h("button", { class: "blue small", type: "button", onclick: function () { decide(true); } }, "It is fine: deliver it"),
+            h("button", { class: "danger small", type: "button", onclick: function () { decide(false); } }, "Do not deliver"))));
+      });
+      var list = h("div", { class: "card" }, h("h2", { text: "Gigs (" + d.gigs.length + ")" }), h("p", { class: "small muted", text: "Open and paused gigs, and gigs changed in the last 30 days. Switches: " + swText }));
+      if (!d.gigs.length) list.appendChild(h("p", { class: "muted", text: "No gigs yet." }));
+      else list.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack" },
+        h("thead", null, h("tr", null, ["Gig", "Firm", "Status", "Budget", "Proposals", "Matches", "Held", ""].map(function (t) { return h("th", { text: t }); }))),
+        h("tbody", null, d.gigs.map(function (g) {
+          var paused = g.paused_by_team;
+          return h("tr", null, h("td", { "data-label": "Gig" }, h("b", { text: g.title }), h("div", { class: "small muted", text: "by " + g.by + (g.closes_at ? ", closes " + D.dateTime(g.closes_at) : "") })),
+            h("td", { "data-label": "Firm", text: g.firm }), h("td", { "data-label": "Status" }, h("span", { class: "badge " + (g.status === "open" ? "ready" : g.status === "paused" ? "held" : "C"), text: GIG_WORDS[g.status] || g.status }), paused && g.pause_reason ? h("div", { class: "small muted", text: g.pause_reason }) : null),
+            h("td", { "data-label": "Budget", text: D.money(g.budget_min_cents) + " to " + D.money(g.budget_max_cents) }), h("td", { "data-label": "Proposals", text: String(g.proposals) }),
+            h("td", { "data-label": "Matches", text: String(g.matches) }), h("td", { "data-label": "Held", text: String(g.flags) }),
+            h("td", null, g.status === "open" || g.status === "paused" ? h("button", { class: "ghost small", type: "button", onclick: function () {
+              var why = paused ? "" : prompt("Why pause \"" + g.title + "\"? The attorney is told.");
+              if (!paused && why === null) return;
+              api.post("/admin/gigs/pause", { id: g.id, pause: !paused, reason: why || "" }).then(function (x) { if (!x.data.ok) throw new Error(x.data.reason); ok(paused ? "Open again" : "Paused"); gigsTab(); }).catch(fail);
+            } }, paused ? "Resume" : "Pause") : null));
+        })))));
+      var plans = h("div", { class: "card" }, h("h2", { text: "Proposals sent this month, by plan" }),
+        d.proposals_by_plan.length ? h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, ["Plan", "Proposals", "Freelancers"].map(function (t) { return h("th", { text: t }); }))),
+          h("tbody", null, d.proposals_by_plan.map(function (x) { return h("tr", null, h("td", { text: x.plan }), h("td", { text: String(x.sent) }), h("td", { text: String(x.senders) })); })))) : h("p", { class: "muted", text: "None yet this month." }));
+      body(h("div", null, pageHead("Gigs", "gigs"), flags, list, plans));
+    }).catch(fail);
+  }
+
   // ---------- Tech catalog (Step 4): upload a CSV, preview what changes, confirm; pause one tool; history ----------
   function catalogTab() {
     api.get("/admin/catalog").then(function (r) {
@@ -1049,6 +1093,7 @@
     holds: "A hold pauses new actions for one person (and later hiring and payments) while you check something. Release it with a note on what you checked.",
     audit: "Every sign in, refusal and change, newest first, with who did it. Nobody can edit or delete these lines, so it is the record if anything is ever questioned.",
     verify: "Attorney licenses and freelancer LinkedIn profiles waiting for a check. For a license: open the state bar's own lookup, check the number, the name and that the license is active, then record how the attorney showed it is theirs: an email that matches the bar record, an email at the firm's own domain (never Gmail, Yahoo and similar), or the 10 minute video call. For LinkedIn: the name matches the DELA profile and LinkedIn shows its verified badge. Never ask for ID documents.",
+    gigs: "Flex Gigs on DELA. Open gigs with their proposals and matches, proposals sent this month by plan, and messages DELA held because they may plan work, contact or payment outside Lawfecta (against the terms). Deliver a held message if it is fine, or keep it from being delivered (the member is told). Pause a gig to stop new proposals while you check it.",
     catalog: "The Lawfecta tech catalog. Upload one CSV with every tool (the columns are in docs/templates/tech-catalog-guide.md on GitHub). A new upload replaces the whole list: DELA shows what will be added, changed and removed, and nothing changes until you click Confirm. Every earlier version is kept. DELA's AI recommends only active tools from this list. Pause a tool to stop recommending it until the next upload.",
     aifiles: "How members use DELA's AI and files. You see counts, key status and file names, never a member's key and never what a file says.",
     ai_usage: "Every AI call this month by side and plan. Lawfecta's key uses members' included credits; a member's own key or a firm key costs Lawfecta nothing. Tokens are the provider's measure of how much text was read and written.",

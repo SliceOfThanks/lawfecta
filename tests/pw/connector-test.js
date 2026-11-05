@@ -157,7 +157,7 @@ async function waitFor(page, words, ms) {
     const ft = await (await fetch(API + "/oauth/token", { method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ grant_type: "authorization_code", code: new URL(p.url()).searchParams.get("code"), redirect_uri: REDIRECT, client_id: si.client, code_verifier: si.verifier }) })).json();
     const tools = await (await fetch(API + "/mcp", { method: "POST", headers: { authorization: "Bearer " + ft.access_token, "content-type": "application/json" }, body: JSON.stringify({ jsonrpc: "2.0", id: 1, method: "tools/list" }) })).json();
-    ok(tools.result.tools.map((t) => t.name).join(",") === "lawfecta_whoami,get_my_profile", "the freelancer connection has only the freelancer tools");
+    ok(tools.result.tools.map((t) => t.name).join(",") === "lawfecta_whoami,get_my_profile,list_my_gig_work,save_proposal_draft", "the freelancer connection has only the freelancer tools");
     await s.ctx.close();
 
     // Phone width: the approval page fits

@@ -110,6 +110,8 @@ Deno.test("setup", async () => {
 
 Deno.test("attorney: draft from an approved playbook, minimum budget, only verified attorneys post, open-gig allowance", async () => {
   assertEquals((await call("GET", "/gigs", f1.token)).status, 403, "freelancers have no Projects");
+  const list = (await call("GET", "/gigs", att.token)).body;
+  assertEquals([list.ok, list.eligibility.can_post, list.playbooks.length], [true, true, 1], "the Projects list, with approved playbooks to post from");
   const d = (await call("POST", "/gigs/draft", att.token, { playbook_id: pb, request_id: "d1", budget_min: 100, budget_max: 200 })).body;
   assertEquals([d.ok, d.source], [true, "ai"], JSON.stringify(d));
   gig = d.id;

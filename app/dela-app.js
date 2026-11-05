@@ -151,6 +151,11 @@
     return h("div", { class: "stat-tile" }, h("span", { class: "chip", "aria-hidden": "true", text: icon }), h("div", null, h("div", { class: "stat", text: String(n) }), h("div", { class: "muted small", text: label })));
   }
 
+  function liveRow(n, title, text, label, to) {
+    return h("div", { class: "work" }, h("span", { class: "chip", text: String(n) }), h("div", null, h("h3", { text: title }), h("div", { class: "muted small", text: text })), h("span", { class: "grow" }),
+      h("button", { class: "ghost small", onclick: function () { gigs.id = null; tab = to; draw(); } }, label));
+  }
+
   function soon(n, title, text) {
     return h("div", { class: "work" }, h("span", { class: "chip", text: String(n) }), h("div", null, h("h3", { text: title }), h("div", { class: "muted small", text: text })), h("span", { class: "grow" }), h("span", { class: "soon", text: "Coming soon" }));
   }
@@ -169,7 +174,7 @@
 
   function attorneyHome() {
     var s = sideInfo();
-    var gigs = ent("att.gigs_active");
+    var gigsEnt = ent("att.gigs_active");
     var ver = {
       not_started: "Before you can hire, we confirm your license, your identity and your firm. You can plan work before you are verified.",
       pending: "We are checking your details. You can keep planning work while you wait.",
@@ -199,8 +204,10 @@
         ? h("div", { class: "work" }, h("span", { class: "chip", text: "1" }), h("div", null, h("h3", { text: "Playbooks" }), h("div", { class: "muted small", text: "Describe a task. DELA asks what it needs and builds a step by step plan you approve." })), h("span", { class: "grow" }),
           h("button", { class: "ghost small", onclick: function () { tab = "library"; lib.pb = null; lib.importId = null; draw(); } }, "Open the Library"))
         : soon(1, "Playbooks", "Describe a task. DELA asks what it needs and builds a step by step plan you approve."),
-      soon(2, "Flex Gigs", gigs ? "Post approved work with a budget range. Your plan allows " + (gigs.unlimited ? "unlimited" : gigs.limit) + " open at once." : "Post approved work with a budget range."),
-      soon(3, "Talent and your bench", "See available, qualified paralegals, including people you have worked with before."),
+      (me.switches || {}).flex_gigs ? liveRow(2, "Flex Gigs", gigsEnt ? "Post approved work with a budget range. Your plan allows " + (gigsEnt.unlimited ? "unlimited" : gigsEnt.limit) + " open at once." : "Post approved work with a budget range.", "Open Projects", "projects")
+        : soon(2, "Flex Gigs", gigsEnt ? "Post approved work with a budget range. Your plan allows " + (gigsEnt.unlimited ? "unlimited" : gigsEnt.limit) + " open at once." : "Post approved work with a budget range."),
+      (me.switches || {}).talent_search ? liveRow(3, "Talent", "See available, qualified freelancers and invite them to a gig.", "Open Talent", "talent")
+        : soon(3, "Talent and your bench", "See available, qualified paralegals, including people you have worked with before."),
       soon(4, "Engagements and payments", "Sign a fixed-fee agreement and fund each milestone before work starts."),
       planCard());
   }
@@ -238,7 +245,8 @@
       h("h2", { style: "margin-top:22px", text: "What DELA will do for you" }),
       soon(1, "Profile Builder and Profile Audit", "Build a strong profile and see exactly what to improve."),
       soon(2, "Services, promotions and pitches", "Publish clear services. Nothing goes live without your approval."),
-      soon(3, "Matches and proposals", "See work that fits you and send proposals with price, milestones and timeline."),
+      (me.switches || {}).flex_gigs ? liveRow(3, "Matches and proposals", "See gigs that fit you, with why, and send proposals with your price, what is included and your schedule.", "Open Work", "work")
+        : soon(3, "Matches and proposals", "See work that fits you and send proposals with price, milestones and timeline."),
       soon(4, "Active work and payouts", "Deliver milestones, get DELA's check, and track each payout."),
       planCard());
   }
@@ -620,6 +628,7 @@
         h("p", { text: "DELA's AI reads your own " + D.SIDE[me.side] + " profile (headline, practice areas, where you practice, your tech tools and services) to tailor its answers, for example by naming your own tools in playbook steps. It never reads other members' profiles." }),
         h("button", { class: "ghost small", onclick: function () { tab = "profile"; draw(); } }, "Open your profile")));
     }
+    if ((me.switches || {}).member_insights) aiEl.appendChild(insightsCard());
     aiEl.appendChild(connectionsCard());
   }
 
@@ -1735,6 +1744,7 @@
     var pctBar = h("div", { class: "card" },
       h("div", { class: "row" }, h("b", { class: "grow", text: "Complete: " + P.completeness + "%" }),
         can(3) && P.status === "draft" ? h("button", { class: "ghost small", onclick: function () { status("submit", "Sent to the administrator for review"); } }, "Send for review") : null,
+        P.status === "approved" && me.side === "attorney" && (me.switches || {}).flex_gigs && can(4) ? h("button", { class: "blue small", onclick: function () { gigs.id = null; gigs.newFrom = P.id; tab = "projects"; draw(); } }, "Post as a Flex Gig") : null,
         can(4) && (P.status === "draft" || P.status === "in_review") ? h("button", { class: "blue small", disabled: P.completeness < 100, title: P.completeness < 100 ? "Fill in every required part first" : "", onclick: function () { status("approve", "Approved"); } }, "Approve") : null),
       h("div", { class: "bar" }, h("span", { style: "width:" + P.completeness + "%" + (P.completeness === 100 ? ";background:var(--ok)" : "") })),
       P.missing.length ? h("p", { class: "small", style: "margin:6px 0 0", text: "Still missing: " + P.missing.join(", ") + "." }) : h("p", { class: "small", style: "margin:6px 0 0", text: "Every required part is filled." + ((lib.questions || []).length ? " DELA still has " + lib.questions.length + (lib.questions.length === 1 ? " question" : " questions") + " for you below: check its guesses before you approve." : "") }));
@@ -2800,6 +2810,483 @@
   }
 
 
+  // ---------- Step 4: Flex Gigs (attorney Projects and Talent, freelancer Work) ----------
+  var gigs = { id: null, view: "details", pendingInvite: null, newFrom: null };
+  try { var gq = new URLSearchParams(location.search).get("gig"); if (gq && /^[0-9a-f-]{36}$/.test(gq)) gigs.id = gq; } catch (e) { /* no deep link */ }
+  var GIG_STATUS = { draft: "Draft", open: "Open", paused: "Paused by the Lawfecta Team", closed: "Closed", filled: "Filled", canceled: "Canceled" };
+  var PROP_STATUS = { draft: "Draft", sent: "Sent", held: "Being checked", withdrawn: "Withdrawn", selected: "Chosen", not_selected: "Not chosen", closed: "Closed" };
+  var GIG_ERR = {
+    gigs_off: "Flex Gigs are not open for your account yet.", playbook_not_approved: "Only an approved playbook can become a gig. Approve it in the Library first.",
+    not_verified: "Posting work and hiring need a verified license. Open Profile and verification from your account menu.",
+    gig_needs_task: "Describe the task in the public version first.", deadline_past: "The deadline is in the past. Choose a later date.",
+    gig_closed: "This gig is closed.", gig_not_open: "This gig is not open for that now.", no_more_extensions: "This gig was already extended once.",
+    freelancer_not_available: "This freelancer is not available for this gig right now.", proposal_needs_price: "Enter your total price.",
+    proposal_needs_included: "Say what your price includes.", proposal_needs_schedule: "Say when you would deliver, or how many days you need.",
+    too_many_proposals: "You have sent a lot of proposals in a short time. Try again later.", proposal_withdrawn: "You withdrew your proposal for this gig.",
+    already_sent: "This proposal was already sent.", proposal_not_available: "This proposal can no longer be chosen.", talent_off: "Talent search is not open for your account yet.",
+    changed_elsewhere: "Someone saved this gig while you were working. Reload it, then make your change again.", budget_too_high: "That budget is higher than DELA accepts.",
+    needs_reconfirm: "The freelancer needs to confirm this proposal first, because the gig changed a lot or the proposal is older than its actionable days. Click \"Ask to confirm\".",
+  };
+  function gigErr(r) {
+    if (!r) return "That did not work.";
+    if (r.reason === "budget_too_low") return "The smallest gig budget is " + D.money(r.min_cents) + ".";
+    if (r.reason === "limit_reached" && r.allowance) return "You have no proposals left this month. Your allowance resets on " + D.date(r.allowance.resets_on) + ". Matches stay visible.";
+    if (r.reason === "limit_reached") return "Your plan's limit is reached" + (r.limit !== undefined ? " (" + r.limit + ")" : "") + ".";
+    if (r.reason === "freelancer_not_available" && r.why === "excludes_state") return "This freelancer does not work for this gig's state.";
+    return GIG_ERR[r.reason] || failText(r);
+  }
+  function gigOk(r) { if (!r || r.ok === false) throw r || {}; return r; }
+  function gigFail(e) { D.toast(app, e && e.reason ? gigErr(e) : D.errorText(e && e.message ? e.message : String(e)), true); }
+  function budgetText(g) { return D.money(g.budget_min_cents) + " to " + D.money(g.budget_max_cents); }
+  function closesText(g) { return g.status === "open" && g.closes_at ? "Closes " + D.dateTime(g.closes_at) : g.closed_at ? GIG_STATUS[g.status] + " " + D.date(g.closed_at) : GIG_STATUS[g.status] || g.status; }
+  function dollars(c) { return c === null || c === undefined ? "" : String(c / 100); }
+  function lines(t) { return String(t || "").split("\n").map(function (x) { return x.trim(); }).filter(Boolean); }
+  function commas(t) { return String(t || "").split(",").map(function (x) { return x.trim(); }).filter(Boolean); }
+  function gigLink(id, t) { gigs.id = id; gigs.view = "details"; tab = t; draw(); }
+
+  // The public version a freelancer reads before applying
+  function publicBlock(g) {
+    var p = g.public || {};
+    return h("div", null,
+      p.task ? h("p", { text: p.task }) : null,
+      h("div", { class: "kv" },
+        h("div", null, "Budget", h("b", { text: budgetText(g) })),
+        g.deadline ? h("div", null, "Deadline", h("b", { text: D.date(g.deadline) })) : null,
+        p.practice_area ? h("div", null, "Practice area", h("b", { text: p.practice_area })) : null,
+        p.state ? h("div", null, "State", h("b", { text: p.state })) : null,
+        p.timing ? h("div", null, "Usual time", h("b", { text: p.timing })) : null,
+        h("div", null, "Status", h("b", { text: closesText(g) }))),
+      p.outcome ? h("p", null, h("b", { text: "What done looks like: " }), p.outcome) : null,
+      (p.steps || []).length ? h("div", null, h("h3", { text: "Steps" }), h("ol", null, p.steps.map(function (s) { return h("li", { text: s }); }))) : null,
+      (p.tools || []).length ? h("p", null, h("b", { text: "Tools: " }), p.tools.join(", ")) : null,
+      (p.skills || []).length ? h("p", null, h("b", { text: "Skills: " }), p.skills.join(", ")) : null);
+  }
+
+  // ---------- Attorney: Projects ----------
+  function projectsView() {
+    var el = h("div", null, h("h1", { text: "Projects" }), h("p", { class: "muted", text: "Loading..." }));
+    if (gigs.id) { gigPage(el); return el; }
+    api.get("/gigs").then(function (r) {
+      D.clear(el);
+      el.appendChild(h("h1", { text: "Projects" }));
+      if (!r.ok) { el.appendChild(h("p", { class: "notice", text: gigErr(r) })); return; }
+      var e = r.eligibility || {}, al = r.allowance || {};
+      el.appendChild(h("p", { class: "muted", text: "Post approved work as a Flex Gig. DELA finds freelancers who fit, you compare proposals side by side, and you choose one. Signing and funding come next." }));
+      if (!e.can_post) el.appendChild(h("p", { class: "notice", text: "Posting work and hiring need a verified license. You can still draft gigs. Open Profile and verification from your account menu." }));
+      if (gigs.pendingInvite) el.appendChild(h("p", { class: "notice", text: "Post a gig, then invite " + gigs.pendingInvite.name + " from its Matches view or from Talent." }));
+      // New gig
+      var pick = h("select", { "aria-label": "Approved playbook" }, [h("option", { value: "", text: r.playbooks.length ? "Choose an approved playbook" : "No approved playbooks yet" })].concat(r.playbooks.map(function (p) {
+        return h("option", { value: p.id, text: p.title, selected: gigs.newFrom === p.id });
+      })));
+      var notes = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Anything freelancers should know (optional)", placeholder: "Anything freelancers should know (optional). No client information." });
+      var bmin = h("input", { type: "number", min: "0", step: "1", "aria-label": "Budget from ($)", placeholder: String((r.min_budget_cents || 0) / 100) });
+      var bmax = h("input", { type: "number", min: "0", step: "1", "aria-label": "Budget to ($)" });
+      var go = h("button", { class: "blue", type: "button" }, "Draft the gig with DELA");
+      var req = newId();
+      go.addEventListener("click", function () {
+        if (!pick.value) { D.toast(app, "Choose an approved playbook first.", true); return; }
+        go.disabled = true; go.textContent = "DELA is writing the public version...";
+        api.post("/gigs/draft", { playbook_id: pick.value, request_id: req, notes: notes.value, budget_min: bmin.value, budget_max: bmax.value }).then(gigOk).then(function (x) {
+          gigs.newFrom = null; gigLink(x.id, "projects");
+        }).catch(function (x) { go.disabled = false; go.textContent = "Draft the gig with DELA"; gigFail(x); });
+      });
+      el.appendChild(h("div", { class: "card" }, h("h2", { text: "Post a new gig" }),
+        h("p", { class: "small muted", text: "DELA writes a public version of the playbook for freelancers. You check it, set the budget (at least " + D.money(r.min_budget_cents) + ") and the deadline, then post. Open gigs on your plan: " + (al.unlimited ? "no cap" : (al.used || 0) + " of " + al.limit + " in use") + "." }),
+        field("Playbook", pick), notes, h("div", { class: "row" }, field("Budget from ($)", bmin), field("Budget to ($)", bmax)), h("div", { class: "row" }, go)));
+      // My gigs
+      var list = h("div", { class: "card" }, h("h2", { text: "Your gigs" }));
+      if (!r.gigs.length) list.appendChild(h("p", { class: "muted", text: "No gigs yet." }));
+      r.gigs.forEach(function (g) {
+        list.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { gigLink(g.id, "projects"); } },
+          h("span", { class: "chip", text: g.proposals ? String(g.proposals) : "0" }),
+          h("div", null, h("h3", { text: g.title }), h("div", { class: "muted small", text: budgetText(g) + " | " + closesText(g) + " | " + g.proposals + (g.proposals === 1 ? " proposal" : " proposals") + (g.questions_open ? " | " + g.questions_open + " questions to answer" : "") })),
+          h("span", { class: "grow" }), h("span", { class: "badge " + (g.status === "open" ? "ready" : g.status === "paused" ? "held" : "C"), text: GIG_STATUS[g.status] })));
+      });
+      el.appendChild(list);
+    }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+    return el;
+  }
+
+  function gigPage(el) {
+    api.get("/gigs/get?id=" + gigs.id).then(function (r) {
+      D.clear(el);
+      el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", onclick: function () { gigs.id = null; draw(); } }, "← All gigs")));
+      if (!r.ok) { el.appendChild(h("p", { class: "notice", text: gigErr(r) })); return; }
+      var g = r.gig;
+      el.appendChild(h("div", { class: "row" }, h("h1", { class: "grow", text: g.title }), h("span", { class: "badge " + (g.status === "open" ? "ready" : "C"), text: GIG_STATUS[g.status] })));
+      el.appendChild(h("p", { class: "muted", text: budgetText(g) + " | " + closesText(g) + (r.counts ? " | " + r.counts.proposals + " proposals, " + r.counts.invited + " invited" : "") }));
+      if (g.paused_by_team) el.appendChild(h("p", { class: "notice bad", text: "The Lawfecta Team paused this gig while they check it. Freelancers cannot send proposals until it opens again." }));
+      var views = [["details", "Details"], ["matches", "Matches"], ["questions", "Questions" + (r.counts && r.counts.questions_open ? " (" + r.counts.questions_open + ")" : "")], ["proposals", "Proposals" + (r.counts ? " (" + r.counts.proposals + ")" : "")], ["files", "Files (" + r.files.length + ")"]];
+      el.appendChild(h("div", { class: "pills", role: "tablist", "aria-label": "Gig views" }, views.map(function (v) {
+        return h("button", { role: "tab", "aria-selected": String(gigs.view === v[0]), "aria-pressed": String(gigs.view === v[0]), onclick: function () { gigs.view = v[0]; draw(); } }, v[1]);
+      })));
+      var body = h("div");
+      el.appendChild(body);
+      ({ details: gigDetails, matches: gigMatches, questions: gigQuestions, proposals: gigProposals, files: gigFiles })[gigs.view](body, r);
+    }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+  }
+
+  function gigDetails(body, r) {
+    var g = r.gig, p = g.public || {}, editable = g.status === "draft" || g.status === "open";
+    var f = {
+      title: h("input", { "aria-label": "Gig title", style: "width:100%" }), task: h("textarea", { rows: 3, style: "width:100%", "aria-label": "The task" }),
+      outcome: h("textarea", { rows: 2, style: "width:100%", "aria-label": "What done looks like" }), steps: h("textarea", { rows: 6, style: "width:100%", "aria-label": "Steps, one per line" }),
+      tools: h("input", { style: "width:100%", "aria-label": "Tools, separated by commas" }), skills: h("input", { style: "width:100%", "aria-label": "Skills, separated by commas" }),
+      timing: h("input", { style: "width:100%", "aria-label": "Usual time" }), state: h("input", { maxlength: "2", "aria-label": "State (two letters)", placeholder: "TX" }),
+      area: h("input", { style: "width:100%", "aria-label": "Practice area" }),
+      bmin: h("input", { type: "number", min: "0", step: "1", "aria-label": "Budget from ($)" }), bmax: h("input", { type: "number", min: "0", step: "1", "aria-label": "Budget to ($)" }),
+      deadline: h("input", { type: "date", "aria-label": "Deadline" }), miles: h("textarea", { rows: 3, style: "width:100%", "aria-label": "Milestones, one per line" }),
+    };
+    f.title.value = g.title; f.task.value = p.task || ""; f.outcome.value = p.outcome || ""; f.steps.value = (p.steps || []).join("\n"); f.tools.value = (p.tools || []).join(", ");
+    f.skills.value = (p.skills || []).join(", "); f.timing.value = p.timing || ""; f.state.value = p.state || ""; f.area.value = p.practice_area || "";
+    f.bmin.value = dollars(g.budget_min_cents); f.bmax.value = dollars(g.budget_max_cents); f.deadline.value = g.deadline || "";
+    f.miles.value = (g.milestones || []).map(function (m) { return m.title; }).join("\n");
+    Object.keys(f).forEach(function (k) { f[k].disabled = !editable; });
+    function payload() {
+      return { id: g.id, version: g.version, budget_min: f.bmin.value, budget_max: f.bmax.value, deadline: f.deadline.value,
+        public: { title: f.title.value, task: f.task.value, outcome: f.outcome.value, steps: lines(f.steps.value), tools: commas(f.tools.value), skills: commas(f.skills.value), timing: f.timing.value, state: f.state.value, practice_area: f.area.value },
+        milestones: lines(f.miles.value).map(function (t) { return { title: t }; }) };
+    }
+    function save(then) {
+      return api.post("/gigs/save", payload()).then(function (x) {
+        if (x.reason === "looks_like_client_info") { if (confirm("This may include client information (" + kindsText(x.kinds) + "). Use placeholders instead. Click OK only if it is not client information.")) return api.post("/gigs/save", Object.assign(payload(), { confirm_no_client_info: true })).then(gigOk); throw { reason: "canceled" }; }
+        return gigOk(x);
+      }).then(function (x) { if (then) return then(); draw(); D.toast(app, x.big_change ? "Saved. This was a big change, so applicants are asked to confirm their proposals." : "Saved"); }).catch(function (e) { if (e && e.reason !== "canceled") gigFail(e); });
+    }
+    body.appendChild(h("div", { class: "card" }, h("h2", { text: "Public version" }),
+      h("p", { class: "small muted", text: "Matched freelancers read this before they spend a proposal. Invited and hired freelancers also see the full playbook, with their name as a watermark. No client information." + (g.status === "open" ? " Changing the budget or the work tells applicants; a big change asks them to confirm their proposals." : "") }),
+      field("Title", f.title), field("The task", f.task, "Two or three sentences: what the freelancer will do."), field("What done looks like", f.outcome), field("Steps, one per line", f.steps),
+      field("Tools", f.tools, "Separated by commas. DELA matches freelancers who use them."), field("Skills", f.skills, "Separated by commas."),
+      h("div", { class: "row" }, field("Practice area", f.area), field("State", f.state), field("Usual time", f.timing))));
+    body.appendChild(h("div", { class: "card" }, h("h2", { text: "Budget, deadline and milestones" }),
+      h("div", { class: "row" }, field("Budget from ($)", f.bmin), field("Budget to ($)", f.bmax), field("Deadline", f.deadline)),
+      field("Milestones (private)", f.miles, "For example: Draft, then Final. Freelancers see milestones only after you hire them; DELA sets the final milestones with the agreement.")));
+    var acts = h("div", { class: "row" });
+    if (editable) acts.appendChild(h("button", { class: "ghost", type: "button", onclick: function () { save(); } }, "Save"));
+    if (g.status === "draft") acts.appendChild(h("button", { class: "blue", type: "button", onclick: function () {
+      save(function () { return api.post("/gigs/publish", { id: g.id }).then(gigOk).then(function (x) { gigs.view = "matches"; draw(); D.toast(app, "Your gig is open until " + D.dateTime(x.closes_at)); }).catch(gigFail); });
+    } }, "Post the gig"));
+    if (g.status === "open" && g.extensions < g.max_extensions) acts.appendChild(h("button", { class: "ghost", type: "button", onclick: function () {
+      if (!confirm("Keep this gig open for 14 more days? You can extend it once.")) return;
+      api.post("/gigs/extend", { id: g.id }).then(gigOk).then(function (x) { draw(); D.toast(app, "Open until " + D.dateTime(x.closes_at)); }).catch(gigFail);
+    } }, "Extend 14 days"));
+    if (g.status === "open" || g.status === "draft") acts.appendChild(h("button", { class: "danger", type: "button", onclick: function () {
+      if (!confirm(g.status === "draft" ? "Delete this draft gig?" : "Close this gig now? Applicants are told, and you can still choose a proposal for 7 days.")) return;
+      api.post("/gigs/close", { id: g.id, cancel: g.status === "draft" }).then(gigOk).then(function () { gigs.id = g.status === "draft" ? null : g.id; draw(); D.toast(app, "Closed"); }).catch(gigFail);
+    } }, g.status === "draft" ? "Delete draft" : "Close the gig"));
+    body.appendChild(acts);
+    if (r.playbook) body.appendChild(h("details", { class: "card" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "The full playbook (invited and hired freelancers see this)" }), playbookPlain(r.playbook)));
+  }
+
+  function playbookPlain(b) {
+    return h("div", null, b.outcome ? h("p", null, h("b", { text: "Outcome: " }), b.outcome) : null,
+      h("ol", null, (b.steps || []).map(function (s) { return h("li", { text: s.text + (s.who ? " (" + s.who + ")" : "") + (s.tool ? " | " + s.tool : "") }); })),
+      (b.checks || []).length ? h("p", null, h("b", { text: "Quality checks: " }), b.checks.join("; ")) : null,
+      (b.review_points || []).length ? h("p", null, h("b", { text: "Attorney review: " }), b.review_points.join("; ")) : null,
+      b.deliverables ? h("p", null, h("b", { text: "Deliverables: " }), b.deliverables) : null);
+  }
+
+  function gigMatches(body, r) {
+    var g = r.gig;
+    if (g.status === "draft") { body.appendChild(h("p", { class: "notice", text: "Post the gig first. DELA then finds freelancers who fit." })); return; }
+    var box = h("div", { class: "card" }, h("p", { class: "muted", text: "Loading matches..." }));
+    body.appendChild(box);
+    api.get("/gigs/matches?id=" + g.id + "&refresh=1").then(function (x) {
+      D.clear(box);
+      box.appendChild(h("h2", { text: "Freelancers who fit" }));
+      box.appendChild(h("p", { class: "small muted", text: "Only match-ready freelancers who confirmed their availability in the last 14 days, work in this practice area and do not exclude this state. DELA shows fewer people rather than inactive ones. Inviting someone lets them see the full playbook and send a proposal that does not use their monthly allowance." }));
+      if (!x.ok) { box.appendChild(h("p", { class: "notice", text: gigErr(x) })); return; }
+      if (!x.matches.length) box.appendChild(h("p", { class: "muted", text: "No one fits yet. Check back soon, widen the practice area or tools, or search in Talent." }));
+      x.matches.forEach(function (m) {
+        var msg = h("input", { style: "width:100%", "aria-label": "Message to " + m.name + " (optional)", placeholder: "A short note (optional). Keep everything on Lawfecta." });
+        var btn = h("button", { class: "blue small", type: "button", disabled: m.invited || g.status !== "open" }, m.invited ? "Invited" : "Invite");
+        btn.addEventListener("click", function () {
+          btn.disabled = true;
+          api.post("/gigs/invite", { gig_id: g.id, person_id: m.person_id, message: msg.value }).then(gigOk).then(function (y) { D.toast(app, y.held ? y.note : "Invited " + m.name); btn.textContent = "Invited"; }).catch(function (e) { btn.disabled = false; gigFail(e); });
+        });
+        box.appendChild(h("div", { class: "card", style: "margin:8px 0" }, h("div", { class: "row" }, h("b", { class: "grow", text: m.name }), h("span", { class: "badge " + (m.fit === "Good fit" ? "ready" : "C"), text: m.fit }), m.applied ? h("span", { class: "badge C", text: "Sent a proposal" }) : null),
+          m.headline ? h("div", { class: "small", text: m.headline }) : null, h("div", { class: "small muted", text: (m.reasons || []).join(" | ") }), m.invited ? null : msg, h("div", { class: "row", style: "margin-top:6px" }, btn)));
+      });
+    }).catch(function (e) { D.clear(box); box.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+  }
+
+  function gigQuestions(body, r) {
+    var box = h("div", { class: "card" }, h("h2", { text: "Questions" }), h("p", { class: "small muted", text: "Your answers are shown to every applicant. No client information." }));
+    if (!r.questions.length) box.appendChild(h("p", { class: "muted", text: "No questions yet." }));
+    r.questions.forEach(function (q) {
+      var row = h("div", { class: "card", style: "margin:8px 0" }, h("p", { style: "margin:0 0 6px", text: "Q: " + q.question }));
+      if (q.status === "answered") row.appendChild(h("p", { class: "small", text: "Answered: " + q.answer }));
+      else if (q.status === "held") row.appendChild(h("p", { class: "small muted", text: "Your answer is being checked by the Lawfecta Team." }));
+      else {
+        var a = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Your answer" });
+        row.appendChild(a);
+        row.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
+          api.post("/gigs/questions/answer", { id: q.id, gig_id: r.gig.id, answer: a.value }).then(gigOk).then(function (x) { draw(); D.toast(app, x.held ? "Held for a check: keep everything on Lawfecta" : "Answered for every applicant"); }).catch(gigFail);
+        } }, "Answer for everyone"));
+      }
+      box.appendChild(row);
+    });
+    body.appendChild(box);
+  }
+
+  function gigProposals(body, r) {
+    var box = h("div", { class: "card" }, h("p", { class: "muted", text: "Loading proposals..." }));
+    body.appendChild(box);
+    api.get("/gigs/proposals?id=" + r.gig.id).then(function (x) {
+      D.clear(box);
+      box.appendChild(h("h2", { text: "Compare proposals" }));
+      if (!x.ok) { box.appendChild(h("p", { class: "notice", text: gigErr(x) })); return; }
+      box.appendChild(h("p", { class: "small muted", text: "Budget " + D.money(x.budget_min_cents) + " to " + D.money(x.budget_max_cents) + ". Prices outside the range are labeled, never hidden. Check what each price includes, so cheap and complete are not confused." + (x.actionable_until ? " You can choose a proposal until " + D.dateTime(x.actionable_until) + "; after that the freelancer confirms first." : "") }));
+      if (!x.proposals.length) { box.appendChild(h("p", { class: "muted", text: "No proposals yet." })); return; }
+      var labels = { within: ["ready", "Within the budget"], below: ["C", "Below the budget"], above: ["held", "Above the budget"] };
+      box.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack" },
+        h("thead", null, h("tr", null, ["Freelancer", "Price", "Includes", "Leaves out", "Schedule", "Qualifications", ""].map(function (t) { return h("th", { text: t }); }))),
+        h("tbody", null, x.proposals.map(function (p) {
+          var lab = labels[p.price_label];
+          var act = h("div", { class: "row" });
+          if (p.status === "selected") act.appendChild(h("span", { class: "badge ready", text: "Chosen" }));
+          else if (p.status === "sent" && p.needs_reconfirm && !p.reconfirmed_at) act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+            api.post("/proposals/ask-reconfirm", { id: p.id }).then(gigOk).then(function () { D.toast(app, "Asked " + p.name + " to confirm"); }).catch(gigFail);
+          } }, "Ask to confirm"));
+          else if (p.status === "sent") act.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
+            if (!confirm("Choose " + p.name + "'s proposal (" + D.money(p.price_cents) + ")? DELA starts a draft agreement, closes the gig and tells the others politely.")) return;
+            api.post("/proposals/select", { id: p.id }).then(gigOk).then(function () { draw(); D.toast(app, "Chosen. The draft agreement is waiting for signing and funding."); }).catch(gigFail);
+          } }, "Choose"));
+          else act.appendChild(h("span", { class: "badge C", text: PROP_STATUS[p.status] }));
+          return h("tr", null,
+            h("td", { "data-label": "Freelancer" }, h("b", { text: p.name }), p.invited ? h("div", { class: "small muted", text: "Invited" }) : null, p.headline ? h("div", { class: "small", text: p.headline }) : null, (p.match_reasons || []).length ? h("div", { class: "small muted", text: p.match_reasons.join(" | ") }) : null),
+            h("td", { "data-label": "Price" }, h("b", { text: D.money(p.price_cents) }), h("div", null, h("span", { class: "badge " + lab[0], text: lab[1] }))),
+            h("td", { "data-label": "Includes", text: p.included }), h("td", { "data-label": "Leaves out", text: p.excluded || "Nothing stated" }),
+            h("td", { "data-label": "Schedule", text: p.schedule + (p.days_to_deliver ? " (" + p.days_to_deliver + " days)" : "") }),
+            h("td", { "data-label": "Qualifications" }, p.qualifications, p.message ? h("div", { class: "small muted", text: "Note: " + p.message }) : null), h("td", null, act));
+        })))));
+    }).catch(function (e) { D.clear(box); box.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+  }
+
+  function gigFiles(body, r) {
+    var g = r.gig;
+    var box = h("div", { class: "card" }, h("h2", { text: "Files for this gig" }),
+      h("p", { class: "small muted", text: "Read only, for this gig only. Invited freelancers can open them while the gig is open, and the freelancer you hire keeps access. Every download is logged. Access ends if the gig closes without a hire." }));
+    r.files.forEach(function (f) {
+      box.appendChild(h("div", { class: "row" }, h("span", { class: "grow", text: f.name }),
+        h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/gigs/files", { gig_id: g.id, file_id: f.file_id, share: false }).then(gigOk).then(function () { draw(); D.toast(app, "No longer shared"); }).catch(gigFail); } }, "Stop sharing")));
+    });
+    if ((me.switches || {}).file_uploads) {
+      var pickWrap = h("div");
+      box.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+        api.get("/files").then(function (x) {
+          D.clear(pickWrap);
+          var shared = r.files.map(function (f) { return f.file_id; });
+          var ready = (x.files || []).filter(function (f) { return f.status === "ready" && shared.indexOf(f.id) < 0; });
+          if (!ready.length) { pickWrap.appendChild(h("p", { class: "small muted", text: "No other ready files. Upload on the Files tab first." })); return; }
+          ready.forEach(function (f) {
+            pickWrap.appendChild(h("div", { class: "row" }, h("span", { class: "grow", text: f.name }), h("button", { class: "blue small", type: "button", onclick: function () {
+              api.post("/gigs/files", { gig_id: g.id, file_id: f.id, share: true }).then(gigOk).then(function () { draw(); D.toast(app, "Shared with this gig"); }).catch(gigFail);
+            } }, "Share")));
+          });
+        }).catch(err);
+      } }, "Share a file from Files"));
+      box.appendChild(pickWrap);
+    }
+    body.appendChild(box);
+  }
+
+  // ---------- Attorney: Talent ----------
+  var talentQ = { practice_area: "", skill: "", tool: "", state: "" };
+  function talentView() {
+    var el = h("div", null, h("h1", { text: "Talent" }), h("p", { class: "muted", text: "Match-ready freelancers: verified, profile complete and availability confirmed in the last 14 days. Every conversation happens on a gig, so inviting someone needs a gig." }));
+    var inputs = {};
+    [["practice_area", "Practice area"], ["skill", "Skill"], ["tool", "Tech tool"], ["state", "State you need (two letters)"]].forEach(function (x) {
+      inputs[x[0]] = h("input", { "aria-label": x[1], placeholder: x[1], value: talentQ[x[0]] });
+    });
+    var results = h("div");
+    function run() {
+      Object.keys(inputs).forEach(function (k) { talentQ[k] = inputs[k].value.trim(); });
+      D.clear(results); results.appendChild(h("p", { class: "muted", text: "Searching..." }));
+      var qs = Object.keys(talentQ).filter(function (k) { return talentQ[k]; }).map(function (k) { return k + "=" + encodeURIComponent(talentQ[k]); }).join("&");
+      Promise.all([api.get("/talent?" + qs), api.get("/gigs")]).then(function (rs) {
+        var x = rs[0], mine = rs[1].ok ? rs[1].gigs.filter(function (g) { return g.status === "open"; }) : [];
+        D.clear(results);
+        if (!x.ok) { results.appendChild(h("p", { class: "notice", text: gigErr(x) })); return; }
+        if (!x.people.length) results.appendChild(h("p", { class: "muted", text: "No match-ready freelancers fit this search yet." }));
+        x.people.forEach(function (p) {
+          var act = h("div", { class: "row", style: "margin-top:6px" });
+          if (mine.length) {
+            var sel = h("select", { "aria-label": "Gig to invite " + p.name + " to" }, mine.map(function (g) { return h("option", { value: g.id, text: g.title }); }));
+            act.appendChild(sel);
+            act.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
+              api.post("/gigs/invite", { gig_id: sel.value, person_id: p.person_id }).then(gigOk).then(function (y) { D.toast(app, y.duplicate ? "Already invited" : "Invited " + p.name); }).catch(gigFail);
+            } }, "Invite to this gig"));
+          }
+          act.appendChild(h("button", { class: mine.length ? "ghost small" : "blue small", type: "button", onclick: function () {
+            gigs.pendingInvite = { person_id: p.person_id, name: p.name }; gigs.id = null; tab = "projects"; draw();
+          } }, "Create a gig from a playbook"));
+          results.appendChild(h("div", { class: "card", style: "margin:8px 0" }, h("b", { text: p.name }), p.headline ? h("div", { class: "small", text: p.headline }) : null,
+            h("div", { class: "small muted", text: [(p.practice_areas || []).join(", "), (p.software || []).length ? "Uses " + p.software.slice(0, 5).join(", ") : "", p.capacity_hours_week ? p.capacity_hours_week + " hours a week" : "", p.timezone || ""].filter(Boolean).join(" | ") }),
+            p.summary ? h("p", { class: "small", text: p.summary }) : null, act));
+        });
+      }).catch(function (e) { D.clear(results); results.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+    }
+    el.appendChild(h("div", { class: "card" }, h("div", { class: "row", style: "flex-wrap:wrap" }, inputs.practice_area, inputs.skill, inputs.tool, inputs.state, h("button", { class: "blue small", type: "button", onclick: run }, "Search"))));
+    el.appendChild(results);
+    run();
+    return el;
+  }
+
+  // ---------- Freelancer: Work ----------
+  function allowanceText(al) {
+    if (!al) return "";
+    if (al.unlimited) return "No monthly cap on proposals on your plan (spam limits still apply).";
+    return (al.remaining || 0) + " of " + al.limit + " proposals left this month. Resets " + D.date(al.resets_on) + ". Invited proposals do not count.";
+  }
+  function workView() {
+    var el = h("div", null, h("h1", { text: "Work" }), h("p", { class: "muted", text: "Loading..." }));
+    if (gigs.id) { workGig(el); return el; }
+    api.get("/work").then(function (r) {
+      D.clear(el);
+      el.appendChild(h("h1", { text: "Work" }));
+      if (!r.ok || !r.on) { el.appendChild(h("p", { class: "notice", text: "Flex Gigs are not open for your account yet." })); return; }
+      if (r.state && r.state.readiness !== "match_ready") el.appendChild(h("p", { class: "notice", text: "You are not match-ready yet, so attorneys cannot find you. Finish your Profile and confirm your availability." }));
+      el.appendChild(h("p", { class: "notice ok", text: allowanceText(r.allowance) }));
+      function section(title, list, empty, extra) {
+        var c = h("div", { class: "card" }, h("h2", { text: title + " (" + list.length + ")" }));
+        if (!list.length) c.appendChild(h("p", { class: "muted", text: empty }));
+        list.forEach(function (g) {
+          c.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { gigLink(g.id, "work"); } },
+            h("div", null, h("h3", { text: g.title }), h("div", { class: "small", text: budgetText(g) + (g.deadline ? " | due " + D.date(g.deadline) : "") + (g.closes_at && g.status === "open" ? " | closes " + D.date(g.closes_at) : "") }),
+              (g.reasons || []).length ? h("div", { class: "small muted", text: "Why it fits: " + g.reasons.join(" | ") }) : null,
+              g.message ? h("div", { class: "small muted", text: "Invitation: " + g.message }) : null, extra ? extra(g) : null),
+            h("span", { class: "grow" }), g.proposal_status ? h("span", { class: "badge " + (g.proposal_status === "selected" ? "ready" : "C"), text: PROP_STATUS[g.proposal_status] + (g.needs_reconfirm ? ": please confirm" : "") }) : null));
+        });
+        el.appendChild(c);
+      }
+      section("Invitations", r.invitations, "No invitations right now.");
+      section("Matches", r.matches, "No matches right now. Keep your availability confirmed and your profile up to date.");
+      if (r.open_gigs.length) section("Open gigs", r.open_gigs, "");
+      section("Drafts", r.drafts, "No saved drafts.");
+      section("Sent proposals", r.sent, "Nothing sent yet.");
+    }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+    return el;
+  }
+
+  function workGig(el) {
+    api.get("/gigs/get?id=" + gigs.id).then(function (r) {
+      D.clear(el);
+      el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", onclick: function () { gigs.id = null; draw(); } }, "← Work")));
+      if (!r.ok) { el.appendChild(h("p", { class: "notice", text: "This gig is not available to you." })); return; }
+      var g = r.gig, mine = r.my_proposal;
+      el.appendChild(h("div", { class: "row" }, h("h1", { class: "grow", text: g.title }), h("span", { class: "badge " + (g.status === "open" ? "ready" : "C"), text: GIG_STATUS[g.status] })));
+      if (g.firm) el.appendChild(h("p", { class: "muted", text: "Posted by " + g.firm + "." }));
+      if (r.invitation && r.invitation.status === "sent") el.appendChild(h("div", { class: "notice ok" }, h("p", { style: "margin:0 0 6px", text: "You are invited to send a proposal. An invited proposal does not use your monthly allowance." + (r.invitation.message ? " The attorney wrote: " + r.invitation.message : "") }),
+        h("button", { class: "ghost small", type: "button", onclick: function () { if (!confirm("Decline this invitation?")) return; api.post("/gigs/decline", { gig_id: g.id }).then(gigOk).then(function () { gigs.id = null; draw(); D.toast(app, "Declined"); }).catch(gigFail); } }, "Decline")));
+      el.appendChild(h("div", { class: "card" }, publicBlock(g)));
+      if (g.milestones && g.milestones.length) el.appendChild(h("div", { class: "card" }, h("h2", { text: "Milestones" }), h("ol", null, g.milestones.map(function (m) { return h("li", { text: m.title }); })),
+        h("p", { class: "small muted", text: "DELA finalizes the milestones with the agreement. You review and sign before any work starts." })));
+      if (r.playbook) el.appendChild(h("div", { class: "card watermarked", "data-watermark": r.watermark || "" }, h("h2", { text: "The full playbook" }), h("p", { class: "small muted", text: r.watermark }), playbookPlain(r.playbook)));
+      // Files
+      if (r.files.length) {
+        var fc = h("div", { class: "card" }, h("h2", { text: "Files for this gig" }), h("p", { class: "small muted", text: "Read only, for this gig only. Downloads are logged." }));
+        r.files.forEach(function (f) {
+          fc.appendChild(h("div", { class: "row" }, h("span", { class: "grow", text: f.name }), h("button", { class: "ghost small", type: "button", onclick: function () {
+            api.get("/gigs/file?gig=" + g.id + "&file=" + f.file_id).then(gigOk).then(function (x) { window.open(x.url, "_blank", "noopener"); }).catch(gigFail);
+          } }, "Open")));
+        });
+        el.appendChild(fc);
+      }
+      // Questions
+      var qc = h("div", { class: "card" }, h("h2", { text: "Questions" }), h("p", { class: "small muted", text: "Answers are shown to every applicant. Keep everything on Lawfecta: no contact details or payment outside it." }));
+      r.questions.forEach(function (q) { qc.appendChild(h("div", { style: "margin:6px 0" }, h("div", { text: "Q: " + q.question }), q.answer ? h("div", { class: "small", text: "A: " + q.answer }) : h("div", { class: "small muted", text: q.status === "held" ? "Being checked by the Lawfecta Team." : "Waiting for an answer." }))); });
+      if (g.status === "open") {
+        var qa = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Your question" });
+        qc.appendChild(qa);
+        qc.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+          if (!qa.value.trim()) return;
+          api.post("/gigs/questions/ask", { gig_id: g.id, question: qa.value, request_id: newId() }).then(gigOk).then(function (x) { draw(); D.toast(app, x.held ? x.note : "Question sent"); }).catch(gigFail);
+        } }, "Ask the attorney"));
+      }
+      el.appendChild(qc);
+      el.appendChild(proposalCard(r, g, mine));
+    }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+  }
+
+  function proposalCard(r, g, mine) {
+    var c = h("div", { class: "card" }, h("h2", { text: "Your proposal" }));
+    if (mine && mine.status !== "draft") {
+      c.appendChild(h("p", null, h("span", { class: "badge " + (mine.status === "selected" ? "ready" : "C"), text: PROP_STATUS[mine.status] }), " ", D.money(mine.price_cents) + (mine.counted ? " | used one of your proposals" : mine.invited ? " | invited, did not use your allowance" : "")));
+      c.appendChild(h("p", { class: "small", text: "Includes: " + mine.included }));
+      if (mine.status === "held") c.appendChild(h("p", { class: "notice", text: "DELA is holding your proposal for a quick check by the Lawfecta Team, because it may plan contact or payment outside Lawfecta." }));
+      var act = h("div", { class: "row" });
+      if (mine.status === "sent" && (mine.needs_reconfirm || mine.scope_version < g.scope_version)) act.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
+        api.post("/proposals/reconfirm", { gig_id: g.id }).then(gigOk).then(function () { draw(); D.toast(app, "Confirmed. The attorney can choose it now."); }).catch(gigFail);
+      } }, "Confirm my proposal still stands"));
+      if (mine.status === "sent" || mine.status === "held") act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+        if (!confirm("Withdraw your proposal? A withdrawn proposal does not give your monthly allowance back.")) return;
+        api.post("/proposals/withdraw", { gig_id: g.id }).then(gigOk).then(function () { draw(); D.toast(app, "Withdrawn"); }).catch(gigFail);
+      } }, "Withdraw"));
+      c.appendChild(act);
+      return c;
+    }
+    if (g.status !== "open") { c.appendChild(h("p", { class: "muted", text: "This gig is not taking proposals." })); return c; }
+    var f = {
+      price: h("input", { type: "number", min: "0", step: "1", "aria-label": "Your total price ($)" }), days: h("input", { type: "number", min: "1", max: "365", "aria-label": "Days to deliver" }),
+      included: h("textarea", { rows: 3, style: "width:100%", "aria-label": "What your price includes" }), excluded: h("textarea", { rows: 2, style: "width:100%", "aria-label": "What it leaves out" }),
+      schedule: h("input", { style: "width:100%", "aria-label": "Schedule", placeholder: "For example: draft in 3 days, final 2 days after comments" }),
+      quals: h("textarea", { rows: 4, style: "width:100%", "aria-label": "Your relevant qualifications" }), message: h("textarea", { rows: 2, style: "width:100%", "aria-label": "A short note to the attorney (optional)" }),
+    };
+    if (mine) { f.price.value = dollars(mine.price_cents); f.days.value = mine.days_to_deliver || ""; f.included.value = mine.included; f.excluded.value = mine.excluded; f.schedule.value = mine.schedule; f.quals.value = mine.qualifications; f.message.value = mine.message; }
+    function body() { return { gig_id: g.id, price: f.price.value, days_to_deliver: f.days.value ? Number(f.days.value) : null, included: f.included.value, excluded: f.excluded.value, schedule: f.schedule.value, qualifications: f.quals.value, message: f.message.value }; }
+    var invited = r.access === "invited", al = r.allowance || {};
+    c.appendChild(h("p", { class: "small muted", text: (invited ? "You were invited, so this proposal does not use your allowance. " : allowanceText(al) + " ") + "Milestones are set after hiring. Keep everything on Lawfecta." }));
+    var help = h("button", { class: "ghost small", type: "button" }, "✦ Let DELA help with qualifications");
+    help.addEventListener("click", function () {
+      help.disabled = true;
+      api.post("/proposals/help", { gig_id: g.id }).then(gigOk).then(function (x) { help.disabled = false; f.quals.value = x.qualifications; if (!f.included.value) f.included.value = x.included; D.toast(app, "DELA drafted this from your profile. Check it before sending."); }).catch(function (e) { help.disabled = false; gigFail(e); });
+    });
+    c.appendChild(h("div", { class: "row" }, field("Total price ($)", f.price), field("Days to deliver", f.days)));
+    c.appendChild(field("What your price includes", f.included));
+    c.appendChild(field("What it leaves out", f.excluded, "Say it plainly, so the attorney compares complete proposals."));
+    c.appendChild(field("Schedule", f.schedule));
+    c.appendChild(field("Your relevant qualifications", f.quals, "From your profile. DELA never invents qualifications.", null, help));
+    c.appendChild(field("Note to the attorney (optional)", f.message));
+    var send = h("button", { class: "blue", type: "button" }, invited ? "Send proposal (free: invited)" : "Send proposal (uses 1)");
+    var sending = false;
+    function doSend(confirmed) {
+      if (sending) return;
+      sending = true; send.disabled = true;
+      api.post("/proposals/send", Object.assign(body(), { request_id: newId(), confirm_no_client_info: confirmed === true })).then(function (x) {
+        sending = false; send.disabled = false;
+        if (x.reason === "looks_like_client_info") { if (confirm("This may include client information (" + kindsText(x.kinds) + "). Click OK only if it is not.")) doSend(true); return; }
+        gigOk(x);
+        D.toast(app, x.status === "held" ? x.note : "Proposal sent" + (x.counted ? ". " + allowanceText(x.allowance) : ""));
+        draw();
+      }).catch(function (e) { sending = false; send.disabled = false; gigFail(e); });
+    }
+    send.addEventListener("click", function () { doSend(false); });
+    c.appendChild(h("div", { class: "row" }, h("button", { class: "ghost", type: "button", onclick: function () {
+      api.post("/proposals/save", body()).then(gigOk).then(function () { D.toast(app, "Draft saved. It is not sent."); }).catch(gigFail);
+    } }, "Save draft"), send));
+    return c;
+  }
+
+  // ---------- What DELA has learned about you ----------
+  function insightsCard() {
+    var card = h("div", { class: "card" }, h("h2", { text: "What DELA has learned about you" }), h("p", { class: "muted small", text: "Loading..." }));
+    api.get("/insights").then(function (r) {
+      D.clear(card);
+      card.appendChild(h("h2", { text: "What DELA has learned about you" }));
+      card.appendChild(h("p", { class: "small muted", text: "DELA notes useful facts about how you work from what you send on gigs, to help you better. It never keeps client information. Remove anything you do not want it to use." }));
+      if (!r.on) { card.appendChild(h("p", { class: "muted", text: "This is not open for your account yet." })); return; }
+      if (!r.items.length) card.appendChild(h("p", { class: "muted", text: "Nothing yet." }));
+      r.items.forEach(function (i) {
+        card.appendChild(h("div", { class: "row" }, h("span", { class: "grow", text: i.text }), h("button", { class: "ghost small", type: "button", onclick: function () {
+          api.post("/insights/remove", { id: i.id }).then(gigOk).then(function () { D.toast(app, "Removed"); card.replaceWith(insightsCard()); }).catch(gigFail);
+        } }, "Remove")));
+      });
+    }).catch(function () { D.clear(card); });
+    return card;
+  }
+
+
   function draw() {
     closeMenu();
     var main = h("div", { class: "wrap" });
@@ -2822,6 +3309,9 @@
     }
     else if (tab === "connect") main.appendChild(connectView());
     else if (tab === "profile" && (me.switches || {}).profiles) main.appendChild(profileView());
+    else if (tab === "projects" && me.side === "attorney" && (me.switches || {}).flex_gigs) main.appendChild(projectsView());
+    else if (tab === "talent" && me.side === "attorney" && (me.switches || {}).talent_search) main.appendChild(talentView());
+    else if (tab === "work" && me.side === "freelancer" && (me.switches || {}).flex_gigs) main.appendChild(workView());
     else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1] + (me.side === "attorney" && (tab === "projects" || tab === "talent") && (sideInfo() || {}).verification_state !== "verified" ? " Posting work and hiring need a verified license: open Profile and verification from your account menu." : "")));
     else { tab = "home"; main.appendChild(me.side === "attorney" ? attorneyHome() : freelancerHome()); }
     show(h("div", null, header(), nav(), main));
