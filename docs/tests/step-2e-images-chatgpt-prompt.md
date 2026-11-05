@@ -56,8 +56,9 @@ How the parts you will use look:
    Expect: the outlined button "🖼 Add image" at the right end of the top row of each step box, and the grey line "Tip: Take a screenshot, click a step, and paste it here." at the bottom of the "Step 1" box.
 
 3. Wrong file.
-   Do: click "🖼 Add image" in the "Step 1" box. A file window opens: ask me to choose a PDF or Word file (in the file window, I switch the file type at the bottom to "All files" first).
-   Expect: the red line "Use a PNG or JPG image." inside the "Step 1" box.
+   The "🖼 Add image" file window shows only PNG and JPG files, so a wrong file is tested by dragging it in.
+   Do: ask me to drag any PDF or Word file from my desktop and drop it on the "Step 1" box. Wait until I say done.
+   Expect: the red line "Use a PNG or JPG image." inside the "Step 1" box, and no "Review image" pop-up.
 
 4. Do: click "🖼 Add image" in the "Step 1" box again. Ask me to choose Screenshot A.
    Expect: the pop-up "Review image".
@@ -78,7 +79,7 @@ How the parts you will use look:
    Do: click in the box "Caption (what should the reader look at?)" and type The New matter button
    Expect: "Save image" is still greyed out.
    Do: tick the checkbox "This image contains no client information, passwords or account numbers.", then click the blue "Save image".
-   Expect: the pop-up closes, a thin progress bar runs in the "Step 1" box, and the image appears inside the "Step 1" box at full width with "The New matter button" in grey italics below it.
+   Expect: the pop-up closes and the message "Saving the image..." appears at the bottom of the screen. Wait up to 20 seconds. Then expect the message "Image saved" and the image inside the "Step 1" box at full width with "The New matter button" in grey italics below it. Do not mark FAIL before the 20 seconds are up.
 
 8. Do: click the image.
    Expect: the image fills the screen on a dark background. Press Esc. Expect: it closes. Click the image again, then click the round "✕" in the top right corner of the screen. Expect: it closes.

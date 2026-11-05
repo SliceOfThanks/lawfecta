@@ -5341,8 +5341,10 @@
         if (!blob) { ready(); return; }
         if (blob.size > cfg.max_mb * 1048576) { ready(); D.toast(app, "This image is over " + cfg.max_mb + " MB. Try a smaller screenshot.", true); return; }
         m.close();
+        D.toast(app, "Saving the image. It appears under the step in a few seconds.");
         uploadDocImage(blob, jpeg ? "Screenshot.jpg" : "Screenshot.png", caption, flags.length, Object.keys(blurred).length, o.progress).then(function (r) {
           if (r.held) D.toast(app, "Saved. DELA's check thinks this image may show client information, so the document is blocked until you blur it or confirm it shows none.", true);
+          else D.toast(app, "Image saved");
           o.onSaved(r.id, caption);
         }).catch(function (e) { D.toast(app, imgErrText(e), true); });
       }, jpeg ? "image/jpeg" : "image/png", 0.9);
