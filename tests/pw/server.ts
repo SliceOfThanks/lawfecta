@@ -49,6 +49,7 @@ function playbookAnswer(system: string, user: string): unknown {
   if (system.includes("public version of a Flex Gig")) return { title: "Client intake for a family law firm (Texas)", task: "Run the conflict check and open the file from our intake form.", outcome: "An opened file, ready for the attorney",
     steps: ["Run the conflict check", "Open the file in Clio", "Send for attorney review"], tools: ["Clio"], timing: "About 2 hours", state: "TX", practice_area: "Family law", skills: ["Client intake"] };
   if (system.includes("You review messages members send")) return /venmo|call me/i.test(user) ? { off_platform: true, kinds: ["payment_outside"], insights: [] } : { off_platform: false, kinds: [], insights: ["Prefers fixed-price work"] };
+  if (system.includes("suggesting next steps after a meeting")) return { steps: [{ who: "freelancer", text: "Send a proposal" }] };
   if (system.includes("qualifications part of a proposal")) return { qualifications: "Six years of family law intake, mostly in Clio.", included: "Conflict check; file opened in Clio", questions: [] };
   return null;
 }
@@ -65,6 +66,8 @@ function fakeAi(u: string, opts: RequestInit): Response | null {
     if (u.endsWith("/models")) return Response.json({ data: [{ id: "gpt-5.4-mini" }, { id: "gpt-transcribe" }] });
     if (u.endsWith("/audio/transcriptions")) return Response.json({ text: "Make a checklist for filing a motion" });
     const system = String(body?.messages?.[0]?.content ?? "");
+    if (system.includes("summarizing a message thread")) return Response.json({ model: body.model, choices: [{ message: { content: "The attorney asked about intake; the freelancer can start Monday." } }], usage: { prompt_tokens: 20, completion_tokens: 10 } });
+    if (system.includes("drafting a reply for the member")) return Response.json({ model: body.model, choices: [{ message: { content: "Thanks, Monday works for me." } }], usage: { prompt_tokens: 20, completion_tokens: 10 } });
     const pb = playbookAnswer(system, JSON.stringify(body?.messages?.at(-1) ?? ""));
     if (pb) return Response.json({ model: body.model, choices: [{ message: { content: JSON.stringify(pb) } }], usage: { prompt_tokens: 200, completion_tokens: 80 } });
     if (body?.response_format) return Response.json({ model: body.model, choices: [{ message: { content: JSON.stringify({ client_info: JSON.stringify(body.messages).includes("Jane Roe"), kinds: ["client_name"] }) } }], usage: { prompt_tokens: 9, completion_tokens: 3 } });

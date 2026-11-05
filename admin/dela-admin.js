@@ -12,7 +12,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["team", "Lawfecta Team"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   var current = "control";
   var mainEl = null;
   var tabsEl = null;
@@ -75,7 +75,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // ---------- Guide ----------
@@ -678,6 +678,38 @@
   // ---------- Verification (Step 3): licenses and LinkedIn checks ----------
   var LIC_ID = { bar_email: "The email matches the state bar record", firm_domain: "The email is at the firm's own domain", video: "We had the video call" };
   var READY = { incomplete: "Not complete", verification_pending: "Waiting for a check", match_ready: "Ready", availability_stale: "Availability out of date", unavailable: "Not taking work", restricted: "Paused", not_applicable: "Not used" };
+  // ---------- Meetings and messages (Step 5) ----------
+  var ROOM_WORDS = { pending: "Being made", ready: "Ready", failed: "Could not be made (retrying)", waiting_for_provider: "Waiting for Vectera" };
+  function meetTab() {
+    api.get("/admin/meetings").then(function (r) {
+      var d = r.data, c = d.counts || {};
+      var top = h("div", { class: "card" }, titled("h2", "The last 30 days", "meet"),
+        h("div", { class: "kv" },
+          h("div", null, "Meetings booked", h("b", { text: String(c.booked_30d || 0) })), h("div", null, "Both confirmed they met", h("b", { text: String(c.attended_30d || 0) })),
+          h("div", null, "Canceled", h("b", { text: String(c.canceled_30d || 0) })), h("div", null, "Late cancels", h("b", { text: String(c.late_30d || 0) })),
+          h("div", null, "Did not happen", h("b", { text: String(c.no_show_30d || 0) })), h("div", null, "Messages", h("b", { text: String(c.messages_30d || 0) })),
+          h("div", null, "Conversations", h("b", { text: String(c.threads || 0) }))),
+        h("p", { class: d.provider_ready ? "small muted" : "notice", text: d.provider_ready ? "Vectera is connected: DELA makes a meeting room for each booking." : "Vectera is not connected yet, so meetings show \"Waiting for Vectera\" instead of a join link. It needs Vectera's API plan and the VECTERA_API_KEY secret in Supabase." }));
+      var up = h("div", { class: "card" }, h("h2", { text: "Upcoming meetings (" + d.upcoming.length + ")" }));
+      if (!d.upcoming.length) up.appendChild(h("p", { class: "muted", text: "None booked." }));
+      else up.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack" }, h("thead", null, h("tr", null, ["When", "Gig", "Attorney", "Freelancer", "Room"].map(function (t) { return h("th", { text: t }); }))),
+        h("tbody", null, d.upcoming.map(function (m) {
+          return h("tr", null, h("td", { "data-label": "When", text: D.dateTime(m.start_at) + " (" + m.length_min + " min)" }), h("td", { "data-label": "Gig", text: m.gig_title }),
+            h("td", { "data-label": "Attorney", text: m.attorney }), h("td", { "data-label": "Freelancer", text: m.freelancer }), h("td", { "data-label": "Room", text: ROOM_WORDS[m.room_status] || m.room_status }));
+        })))));
+      var reps = h("div", { class: "card" }, h("h2", { text: "Reports (" + d.reports.length + ")" }));
+      if (!d.reports.length) reps.appendChild(h("p", { class: "muted", text: "No open reports." }));
+      d.reports.forEach(function (x) {
+        reps.appendChild(h("div", { class: "card", style: "margin:8px 0" }, h("div", { class: "row" }, h("b", { class: "grow", text: x.reporter + " reported a conversation on \"" + x.gig_title + "\"" }), x.blocked ? h("span", { class: "badge held", text: "Blocked" }) : null),
+          h("p", { class: "small", text: "Reason: " + (x.reason || "none given") }), x.message ? h("p", { class: "small muted", text: "Message: " + x.message }) : null, h("div", { class: "small muted", text: D.dateTime(x.created_at) }),
+          h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/admin/reports/close", { id: x.id }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason); ok("Closed"); meetTab(); }).catch(fail); } }, "Mark as handled")));
+      });
+      var pat = h("div", { class: "card" }, h("h2", { text: "Repeated late cancels or no-shows" }),
+        d.patterns.length ? h("ul", null, d.patterns.map(function (x) { return h("li", { text: x.name + " (" + x.bd_member_id + "): " + x.late + " late cancels, " + x.no_shows + " did not happen" }); })) : h("p", { class: "muted", text: "Nobody right now." }));
+      body(h("div", null, pageHead("Meetings and messages", "meet"), top, up, reps, pat));
+    }).catch(fail);
+  }
+
   // ---------- Gigs (Step 4): open gigs, proposals by plan, held messages ----------
   var GIG_WORDS = { draft: "Draft", open: "Open", paused: "Paused", closed: "Closed", filled: "Filled", canceled: "Canceled" };
   var KIND_WORDS = { contact_details: "contact details", payment_outside: "payment outside Lawfecta", off_platform: "working outside Lawfecta" };
@@ -1093,6 +1125,7 @@
     holds: "A hold pauses new actions for one person (and later hiring and payments) while you check something. Release it with a note on what you checked.",
     audit: "Every sign in, refusal and change, newest first, with who did it. Nobody can edit or delete these lines, so it is the record if anything is ever questioned.",
     verify: "Attorney licenses and freelancer LinkedIn profiles waiting for a check. For a license: open the state bar's own lookup, check the number, the name and that the license is active, then record how the attorney showed it is theirs: an email that matches the bar record, an email at the firm's own domain (never Gmail, Yahoo and similar), or the 10 minute video call. For LinkedIn: the name matches the DELA profile and LinkedIn shows its verified badge. Never ask for ID documents.",
+    meet: "Meetings and messages between attorneys and freelancers on gigs. Upcoming meetings with their meeting room status, reports and blocks from members, and members with repeated late cancels or no-shows. The Lawfecta Team never joins meetings. Held messages wait in the Gigs tab.",
     gigs: "Flex Gigs on DELA. Open gigs with their proposals and matches, proposals sent this month by plan, and messages DELA held because they may plan work, contact or payment outside Lawfecta (against the terms). Deliver a held message if it is fine, or keep it from being delivered (the member is told). Pause a gig to stop new proposals while you check it.",
     catalog: "The Lawfecta tech catalog. Upload one CSV with every tool (the columns are in docs/templates/tech-catalog-guide.md on GitHub). A new upload replaces the whole list: DELA shows what will be added, changed and removed, and nothing changes until you click Confirm. Every earlier version is kept. DELA's AI recommends only active tools from this list. Pause a tool to stop recommending it until the next upload.",
     aifiles: "How members use DELA's AI and files. You see counts, key status and file names, never a member's key and never what a file says.",
