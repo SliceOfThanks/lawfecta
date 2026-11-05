@@ -231,4 +231,5 @@ Lawfecta palette from Stacey's mockups: navy #1d2030 to burgundy #8b2146 hero, h
 - Tests: engagements_test.ts (13), engagements-test.js (35 browser checks, with a Stripe stand-in in tests/pw/server.ts). Fixed along the way: the gigs matches test and the gigs allowance check failed when every test file ran together (GitHub Tests had been red since Step 5 because of it).
 - Waiting on Stacey: the Stripe test account, Connect and the two secrets STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET (docs/STRIPE_SETUP.md). Before live payments: a lawyer reviews the terms template and the chargeback rule (G), and Stripe activation.
 - Test for Stacey: docs/tests/step-6-chatgpt-prompt.md (after the Stripe setup and the Step 4 test).
+- On the test site 2026-11-05: commit 32380f0 (api-0.9.0, function version 31), migration 0030 applied from jsDelivr (SHA-256 checked), switches engagements, milestone_funding, milestone_check = list; engagement_export and live_payments stay off. Smoke test: health 200, the freelancer's engagements list, the admin Payments tab (Stripe not connected yet), an unsigned Stripe event refused (400), a made-up agreement refused. Smoke sessions closed.
 
