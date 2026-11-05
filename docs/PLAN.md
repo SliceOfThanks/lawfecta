@@ -26,6 +26,7 @@ Everything below is on the test site, for the access list only. Live (lawfecta.c
 | 6 | Agreements, e-signature, milestone payments (Stripe test mode), DELA's milestone check, payouts, refunds, disputes, chargebacks | Done | Passing (api and browser with a Stripe stand-in, both sides and misuse) | Waiting for the Stripe setup (docs/STRIPE_SETUP.md), then docs/tests/step-6-chatgpt-prompt.md |
 | 7 | Reviews after completed work and from past clients, the trusted talent bench (personal and firm) with bench conversations and suggestions, member webhooks | Done | Passing (api and browser, both sides and misuse) | Not run yet: docs/tests/step-7-chatgpt-prompt.md (after the Step 6 test) |
 | 2d | The document standard: Policy, Workflow, SOP and Playbook, the self-check and block, RACI, KPIs, IDs, the change log, review reminders, conversion of older playbooks | Done | Passing (api and browser, misuse included); conversion checked with the real AI | Not run yet: docs/tests/step-2d-documents-chatgpt-prompt.md |
+| 2e | Images in documents: screenshots on steps and sections, the text reader and blur, captions, the client-data check, exports, gigs and review | Done | Passing (api and browser, misuse included) | Not run yet: docs/tests/step-2e-images-chatgpt-prompt.md |
 
 ### Bring your own AI key (BYOK), built in Step 2a
 - Members on every plan, on both sides, can add their own OpenAI or Claude key in AI settings: https://www.hirelegalhelp.com/dela?tab=ai
@@ -71,8 +72,9 @@ Tests today: 8 database test files, 84 API tests, 15 script tests and 198 browse
 8. Step 6 test (agreements, payments, delivery, payouts), after the Stripe setup and Step 4: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-6-chatgpt-prompt.md
 9. Step 7 test (reviews, bench, webhooks), after Step 6: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-7-chatgpt-prompt.md
 10. Document standard test (no other test needed first): https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2d-documents-chatgpt-prompt.md
-11. The owner group of the polish recheck (ChatGPT ran out before it on 2026-11-05).
-12. For each report you send: Claude fixes what failed (a Fix commit with a test), puts it on the test site again, and gives you the part to run again.
+11. Images test (after the document standard test): https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2e-images-chatgpt-prompt.md
+12. The owner group of the polish recheck (ChatGPT ran out before it on 2026-11-05).
+13. For each report you send: Claude fixes what failed (a Fix commit with a test), puts it on the test site again, and gives you the part to run again.
 
 After a step's report passes, Claude records that version for Release Control, runs the AI review and attaches your report. No version after 0.2.0 is recorded yet.
 

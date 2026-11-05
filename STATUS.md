@@ -258,3 +258,18 @@ Lawfecta palette from Stacey's mockups: navy #1d2030 to burgundy #8b2146 hero, h
 - Tests: documents_model_test.ts (8), documents_test.ts (10), documents-test.js (29 browser checks). 162 API tests together; all 11 browser tests pass on one shared database.
 - Test for Stacey: docs/tests/step-2d-documents-chatgpt-prompt.md.
 
+## Images in documents (built 2026-11-05; brief docs/briefs/step-2e-document-images.md, Stacey "Yes", all 13 answers as suggested)
+- Migration 0033_document_images: doc_images (one record per image: firm, file, caption, the client-data confirmation, flags found and blurred), doc_image_checks (still-current marks, append-only), files purpose doc_image (not listed on the Files tab, counted in storage). Switch document_images. Settings documents.images.max_mb 5, per_step 3, caption_max 120, max_width_px 2400, export_max_mb 40.
+- Where: SOP steps and Before you start; Workflow stages and a new Swimlane chart section; Playbook Scripts and templates, and Examples. Policies stay text only.
+- Adding: "Add image" at the right end of each step row and section, paste into a step, drop a file on a step; the tip under the first step; a progress bar; red messages for a wrong type, over 5 MB and a fourth image.
+- Review window: Box, Arrow, Blur, Undo; text read in the member's browser with Tesseract (tesseract.js 5.1.1 from jsDelivr, pinned); names, emails, phone numbers, case numbers, account numbers, SSNs and dates outlined in yellow; "Blur all flagged" or click one outline; caption (120 characters, also the alt text) and the checkbox before "Save image". The blur is burned in before upload, so no unblurred original reaches DELA.
+- Server: the type check and DELA's AI image check on Lawfecta's key; a hold (at once or later through the worker) takes the confirmation away, blocks the document and tells the uploader; confirming again is recorded. Only the firm's own images stay in a document. The self-check adds "Every image has a caption" (needs attention) and "Every image has a confirmed client-data check" (blocking with export, approval and gigs). Images and captions do not count toward the 900 words.
+- After saving: full column width with the caption in grey italics; full screen with X or Esc (pinch to zoom); Edit, Replace and Remove on hover or tap; drag to reorder; "Fix it" in the quality panel opens the review window. Older import screenshots become images marked "Confirmed at import" and ask for a caption.
+- Review: at a due review, "Check images" lists every image; Approve waits until each is "Still current" or replaced.
+- Gigs: a warning with the image count before a gig is created; freelancers see images inline with captions, no download button, only through the gig, and not after the engagement ends (or the gig closes without a hire). Exports: Word at full page width with the caption below, PDF and web page embedded, Markdown shows the caption.
+- Images never go to the AI and come back on their steps (fill, chat, fix, split, change type, the connector).
+- Admin: the Documents card shows image counts (never the images).
+- Tests: images_test.ts (9), engine tests (9 in documents_model_test.ts), images-test.js (33 browser checks). 172 API tests together; all 12 browser tests pass on one shared database.
+- Not built yet: deleting image files once no version uses them and the document is deleted from the trash (they stay counted in storage until then).
+- Test for Stacey: docs/tests/step-2e-images-chatgpt-prompt.md.
+

@@ -1080,7 +1080,12 @@
       var bt = d.by_type || {};
       c.appendChild(h("div", { class: "kv" }, Object.keys(TYPES).map(function (k) { return h("div", null, TYPES[k], h("b", { text: String(bt[k] || 0) })); })
         .concat([h("div", null, "Older playbooks waiting to convert", h("b", { text: String(d.waiting || 0) })), h("div", null, "Converted", h("b", { text: String(d.converted || 0) })),
-          h("div", null, "Converted, not yet checked by the owner", h("b", { text: String(d.not_checked_by_owner || 0) })), h("div", null, "Blocked (missing A or attorney flag)", h("b", { text: String(d.blocked || 0) }))])));
+          h("div", null, "Converted, not yet checked by the owner", h("b", { text: String(d.not_checked_by_owner || 0) })), h("div", null, "Blocked (missing A, attorney flag or image check)", h("b", { text: String(d.blocked || 0) }))])));
+      var im = d.images || {};
+      c.appendChild(h("h3", { text: "Images in documents" }));
+      c.appendChild(h("p", { class: "small muted", text: "Image switch: " + (sw.document_images || "off") + ". Counts only; the team never sees the images here." }));
+      c.appendChild(h("div", { class: "kv" }, h("div", null, "Images in documents", h("b", { text: String(im.total || 0) })), h("div", null, "Waiting for a client-data check", h("b", { text: String(im.not_confirmed || 0) })),
+        h("div", null, "Held by DELA's check", h("b", { text: String(im.held || 0) })), h("div", null, "Items the text reader found", h("b", { text: String(im.flags_found || 0) })), h("div", null, "Items members blurred", h("b", { text: String(im.flags_blurred || 0) }))));
       var rows = d.recent || [];
       c.appendChild(rows.length ? h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, ["When", "Firm", "ID", "Title", "Type", "Why"].map(function (x) { return h("th", { text: x }); }))),
         h("tbody", null, rows.map(function (x) { return h("tr", null, h("td", { text: D.dateTime(x.at) }), h("td", { text: x.firm || "" }), h("td", { text: x.doc_id || "" }), h("td", { text: x.title }), h("td", { text: TYPES[x.doc_type] || "" }), h("td", { text: x.note || "" })); }))))

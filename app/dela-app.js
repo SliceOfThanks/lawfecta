@@ -2842,6 +2842,7 @@
   };
   function gigErr(r) {
     if (!r) return "That did not work.";
+    if (DOC_ERR[r.reason]) return DOC_ERR[r.reason];
     if (r.reason === "budget_too_low") return "The smallest gig budget is " + D.money(r.min_cents) + ".";
     if (r.reason === "limit_reached" && r.allowance) return "You have no proposals left this month. Your allowance resets on " + D.date(r.allowance.resets_on) + ". Matches stay visible.";
     if (r.reason === "limit_reached") return "Your plan's limit is reached" + (r.limit !== undefined ? " (" + r.limit + ")" : "") + ".";
@@ -2898,10 +2899,13 @@
       var req = newId();
       go.addEventListener("click", function () {
         if (!pick.value) { D.toast(app, "Choose an approved SOP or Workflow first.", true); return; }
-        go.disabled = true; go.textContent = "DELA is writing the public version...";
-        api.post("/gigs/draft", { playbook_id: pick.value, request_id: req, notes: notes.value, budget_min: bmin.value, budget_max: bmax.value }).then(gigOk).then(function (x) {
-          gigs.newFrom = null; gigLink(x.id, "projects");
-        }).catch(function (x) { go.disabled = false; go.textContent = "Draft the gig with DELA"; gigFail(x); });
+        var chosen = r.playbooks.filter(function (p) { return p.id === pick.value; })[0] || {};
+        gigImageWarning(chosen.images || 0, function () {
+          go.disabled = true; go.textContent = "DELA is writing the public version...";
+          api.post("/gigs/draft", { playbook_id: pick.value, request_id: req, notes: notes.value, budget_min: bmin.value, budget_max: bmax.value }).then(gigOk).then(function (x) {
+            gigs.newFrom = null; gigLink(x.id, "projects");
+          }).catch(function (x) { go.disabled = false; go.textContent = "Draft the gig with DELA"; gigFail(x); });
+        }, function () { tab = "library"; lib.pb = null; draw(); setTimeout(function () { openPlaybook(chosen.id, "read"); }, 50); });
       });
       el.appendChild(h("div", { class: "card" }, h("h2", { text: "Post a new gig" }),
         h("p", { class: "small muted", text: "DELA writes a public version of the document for freelancers. You check it, set the budget (at least " + D.money(r.min_budget_cents) + ") and the deadline, then post. Open gigs on your plan: " + (al.unlimited ? "no cap" : (al.used || 0) + " of " + al.limit + " in use") + "." }),
@@ -3228,7 +3232,7 @@
       }
       if (g.milestones && g.milestones.length) el.appendChild(h("div", { class: "card" }, h("h2", { text: "Milestones" }), h("ol", null, g.milestones.map(function (m) { return h("li", { text: m.title }); })),
         h("p", { class: "small muted", text: "DELA finalizes the milestones with the agreement. You review and sign before any work starts." })));
-      if (r.playbook) el.appendChild(h("div", { class: "card watermarked", "data-watermark": r.watermark || "" }, h("h2", { text: "The work handed to you" }), h("p", { class: "small muted", text: r.watermark }), r.playbook.gig_view ? docGigView(r.playbook) : playbookPlain(r.playbook)));
+      if (r.playbook) el.appendChild(h("div", { class: "card watermarked", "data-watermark": r.watermark || "" }, h("h2", { text: "The work handed to you" }), h("p", { class: "small muted", text: r.watermark }), r.playbook.gig_view ? docGigView(r.playbook, g.id) : playbookPlain(r.playbook)));
       var refsB = referencesBlock(r.references); if (refsB) el.appendChild(refsB);
       // Files
       if (r.files.length) {
@@ -4704,6 +4708,7 @@
       var row = h("div", { class: "qp-item " + it.status, style: "margin:6px 0" }, h("div", { class: "row" }, h("b", { class: "grow", text: mark + " " + it.label }),
         h("span", { class: "badge " + (it.status === "pass" ? "ready" : it.status === "blocking" ? "bad" : "held"), text: it.status === "pass" ? "Passed" : it.status === "blocking" ? "Blocking" : "Needs attention" })),
         it.detail ? h("div", { class: "small", text: it.detail }) : null);
+      if (it.status !== "pass" && it.fix === "image" && edit) { row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { fixImageItem(it, d); } }, "Fix it")); (it.status === "pass" ? passBox : qp).appendChild(row); return; }
       if (it.status !== "pass" && it.fix && edit) row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function (e) {
         var b = e.target; b.disabled = true; b.textContent = it.fix === "split" ? "Splitting..." : "Fixing...";
         api.post("/documents/fix", { id: P.id, check_id: it.id }).then(function (r) {
@@ -4719,13 +4724,15 @@
     var acts = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:8px" });
     if (edit) acts.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { docSave("", null); } }, "Save"));
     if (can(3) && P.status === "draft") acts.appendChild(h("button", { class: "ghost small", type: "button", disabled: blocked, onclick: function () { status("submit", "Sent to the administrator for review"); } }, "Send for review"));
-    if (can(4) && (P.status === "draft" || P.status === "in_review")) acts.appendChild(h("button", { class: "blue small", type: "button", disabled: blocked, title: blocked ? "Fix the blocking items first" : "", onclick: function () { status("approve", "Approved"); } }, "Approve"));
+    var imgDue = !!(lib.pb.images_due && lib.pb.images_due.due && (lib.pb.images_due.ids || []).length);
+    if (can(4) && (P.status === "draft" || P.status === "in_review")) acts.appendChild(h("span", { title: blocked ? "Fix the blocking items first" : imgDue ? "Mark every image \"Still current\" or replace it in Check images first" : "" }, h("button", { class: "blue small", type: "button", disabled: blocked || imgDue, onclick: function () { status("approve", "Approved"); } }, "Approve")));
     if (P.status === "approved" && (d.type === "sop" || d.type === "workflow") && (me.switches || {}).flex_gigs && can(4)) acts.appendChild(h("button", { class: "blue small", type: "button", disabled: blocked, onclick: function () { gigs.id = null; gigs.newFrom = P.id; tab = "projects"; draw(); } }, "Post as a Flex Gig"));
     qp.appendChild(acts);
     var ex = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, h("span", { class: "small", text: "Export: " }),
       [["docx", "Word"], ["pdf", "PDF"], ["md", "Markdown"], ["html", "Web page"], ["csv", "Step checklist"]].map(function (f) { return h("button", { class: "ghost small", type: "button", disabled: blocked, onclick: function () { doExport(f[0]); } }, f[1]); }));
     qp.appendChild(ex);
     right.appendChild(qp);
+    var cic = checkImagesCard(d); if (cic) right.appendChild(cic);
     if (lib.questions && lib.questions.length && can(3)) right.appendChild(questionsCard());
     // The editable document, section by section
     left.appendChild(docEditor(d, edit));
@@ -4761,6 +4768,16 @@
   }
   function sec(title, kids) { var x = h("div", { class: "doc-sec" }, h("p", { class: "doc-h" }, h("b", { text: title }))); (kids || []).forEach(function (k) { if (k) x.appendChild(k); }); return x; }
 
+  function imagesOn(d) { return imgCfg().on && d.type !== "policy"; }
+  function sectionImages(d, key, label, ro) {
+    d.section_images = d.section_images || {};
+    var list = d.section_images[key] || (d.section_images[key] = []);
+    if (!imagesOn(d) && !list.length) return null;
+    var slot = imageSlot(list, label, !ro && imagesOn(d), imagesChanged);
+    var wrap = h("div", { class: "img-section" }, !ro && imagesOn(d) ? h("div", { class: "row" }, h("span", { class: "grow small muted", text: list.length ? "" : "Images for " + label }), addImageButton(slot, label)) : null, slot.el);
+    if (!ro && imagesOn(d)) slot.wire(wrap);
+    return wrap;
+  }
   function docEditor(d, edit) {
     var ro = !edit;
     var box = h("div", { class: "card" });
@@ -4772,7 +4789,7 @@
     if (d.type === "sop") {
       box.appendChild(sec("Trigger", [tIn(d, "trigger", "Trigger", { ro: ro })]));
       box.appendChild(sec("Roles", [rolesLine(d, ro)]));
-      box.appendChild(sec("Before you start", [lIn(d, "before_you_start", "Before you start", ro)]));
+      box.appendChild(sec("Before you start", [lIn(d, "before_you_start", "Before you start", ro), sectionImages(d, "before_you_start", "Before you start", ro)]));
       box.appendChild(sec("Steps", [stepsEditor(d, ro)]));
       box.appendChild(sec("Decision points and escalation", [decisionsEditor(d, ro)]));
       box.appendChild(sec("Timing", [tIn(d, "timing", "Timing", { rows: 2, ro: ro }), ruleFields(d, "timing_rule", ro)]));
@@ -4782,6 +4799,8 @@
     } else if (d.type === "workflow") {
       box.appendChild(sec("Name and process owner", [field("Process owner (one role)", tIn(d, "process_owner_role", "Process owner", { ro: ro })), rolesLine(d, ro)]));
       box.appendChild(sec("Start and end points", [field("Starts when", tIn(d, "start_point", "Starts when", { ro: ro })), field("Finished when", tIn(d, "end_point", "Finished when", { ro: ro }))]));
+      var chart = sectionImages(d, "chart", "Swimlane chart", ro);
+      if (chart) box.appendChild(sec("Swimlane chart", [h("p", { class: "small muted", text: "Attach the chart of lanes and stages you drew elsewhere (for example in Visio or Lucidchart)." }), chart]));
       box.appendChild(sec("Stages, handoffs, target times and linked SOPs", [stepsEditor(d, ro)]));
       box.appendChild(sec("Decision points", [decisionsEditor(d, ro)]));
     } else if (d.type === "playbook") {
@@ -4791,8 +4810,8 @@
       box.appendChild(sec("Acceptable fallbacks", [lIn(d, "fallbacks", "Acceptable fallbacks", ro, "Options staff can use without asking")]));
       box.appendChild(sec("Hard limits", [lIn(d, "hard_limits", "Hard limits", ro, "What nobody agrees to without attorney or partner approval")]));
       box.appendChild(sec("Escalation", [escalationEditor(d, ro)]));
-      box.appendChild(sec("Scripts and templates", [lIn(d, "scripts", "Scripts and templates", ro)]));
-      box.appendChild(sec("Examples", [lIn(d, "examples", "Examples", ro, "Short fictional scenarios. No client information.")]));
+      box.appendChild(sec("Scripts and templates", [lIn(d, "scripts", "Scripts and templates", ro), sectionImages(d, "scripts", "Scripts and templates", ro)]));
+      box.appendChild(sec("Examples", [lIn(d, "examples", "Examples", ro, "Short fictional scenarios. No client information."), sectionImages(d, "examples", "Examples", ro)]));
     } else {
       box.appendChild(sec("The rules", [lIn(d, "rules_must", "What must happen", ro), lIn(d, "rules_must_not", "What must not happen", ro)]));
       box.appendChild(sec("Exceptions and who approves them", [tIn(d, "exceptions", "Exceptions", { rows: 2, ro: ro }), field("Approved by (role)", tIn(d, "exceptions_role", "Approved by (role)", { ro: ro }))]));
@@ -4820,14 +4839,20 @@
   function stepsEditor(d, ro) {
     var wf = d.type === "workflow";
     var box = h("div");
+    var anyImg = (d.steps || []).some(function (x) { return (x.images || []).length; }) || Object.keys(d.section_images || {}).some(function (k) { return d.section_images[k].length; });
     (d.steps || []).forEach(function (st, i) {
-      var c = h("div", { class: "card", style: "padding:10px;margin:6px 0" + (st.attorney_decides ? ";border-color:var(--brand)" : "") });
+      var c = h("div", { class: "card step-card", style: "padding:10px;margin:6px 0" + (st.attorney_decides ? ";border-color:var(--brand)" : "") });
+      st.images = st.images || [];
+      var slot = imagesOn(d) || st.images.length ? imageSlot(st.images, (wf ? "stage " : "step ") + (i + 1), !ro && imagesOn(d), imagesChanged) : null;
       c.appendChild(h("div", { class: "row" }, h("b", { class: "grow", text: (wf ? "Stage " : "Step ") + (i + 1) }),
         st.attorney_decides ? h("span", { class: "badge bad", text: "Attorney decides" }) : null,
         ro ? null : h("button", { class: "ghost small", type: "button", "aria-label": "Move step " + (i + 1) + " up", disabled: i === 0, onclick: function () { var x = d.steps.splice(i, 1)[0]; d.steps.splice(i - 1, 0, x); drawDocument(); } }, "↑"),
-        ro ? null : h("button", { class: "ghost small", type: "button", "aria-label": "Remove step " + (i + 1), onclick: function () { d.steps.splice(i, 1); drawDocument(); } }, "Remove")));
+        ro ? null : h("button", { class: "ghost small", type: "button", "aria-label": "Remove step " + (i + 1), onclick: function () { d.steps.splice(i, 1); drawDocument(); } }, "Remove"),
+        slot && !ro && imagesOn(d) ? addImageButton(slot, (wf ? "stage " : "step ") + (i + 1)) : null));
       if (wf) c.appendChild(field("Stage name", tIn(st, "stage", "Stage name " + (i + 1), { ro: ro })));
       c.appendChild(field("What to do (one action, starting with a verb)", tIn(st, "text", "Step " + (i + 1), { rows: 2, ro: ro })));
+      if (slot) { c.appendChild(slot.el); if (!ro && imagesOn(d)) slot.wire(c); }
+      if (i === 0 && !anyImg && !ro && imagesOn(d)) c.appendChild(h("p", { class: "small muted img-tip", text: "Tip: Take a screenshot, click a step, and paste it here." }));
       var role = h("select", { "aria-label": "Responsible role for step " + (i + 1), disabled: ro }, [h("option", { value: "", text: "Choose" })].concat((d.roles || []).map(function (r) { return h("option", { value: r, text: r, selected: st.role === r }); })));
       role.addEventListener("change", function () { st.role = role.value; });
       c.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, field(wf ? "Lane (role)" : "Role", role), field("System", tIn(st, "system", "System for step " + (i + 1), { ro: ro })), field("Menu path and buttons", tIn(st, "menu_path", "Menu path for step " + (i + 1), { ro: ro, ph: "[Add the menu path in your system]" }))));
@@ -4925,14 +4950,15 @@
   }
 
   // What a freelancer sees of a document on a gig (only their part), and reference documents
-  function docGigView(b) {
+  function docGigView(b, gig) {
     var box = h("div");
     if (b.purpose) box.appendChild(h("p", null, h("b", { text: "Purpose: " }), b.purpose));
     if ((b.before_you_start || []).length) box.appendChild(h("div", null, h("p", { class: "doc-h" }, h("b", { text: "Before you start" })), h("ul", null, b.before_you_start.map(function (x) { return h("li", { text: x }); }))));
+    var bi = imagesRead(b.before_images || (b.section_images || {}).before_you_start, gig); if (bi) box.appendChild(bi);
     box.appendChild(h("p", { class: "doc-h" }, h("b", { text: "Steps" })));
     box.appendChild(h("ol", null, (b.steps || []).map(function (st) {
       return h("li", null, (st.stage ? st.stage + ": " : "") + st.text, st.menu_path ? h("div", { class: "small muted", text: "Where: " + st.menu_path }) : null,
-        st.attorney_decides ? h("div", { class: "small", style: "color:var(--brand);font-weight:700", text: "Attorney decides: ask the attorney inside the engagement before you go on." }) : null);
+        st.attorney_decides ? h("div", { class: "small", style: "color:var(--brand);font-weight:700", text: "Attorney decides: ask the attorney inside the engagement before you go on." }) : null, imagesRead(st.images, gig));
     })));
     if (b.timing) box.appendChild(h("p", null, h("b", { text: "Timing: " }), b.timing));
     if ((b.quality_check || []).length) box.appendChild(h("div", null, h("p", { class: "doc-h" }, h("b", { text: "Quality check" })), h("ul", null, b.quality_check.map(function (x) { return h("li", { text: x }); }))));
@@ -4988,6 +5014,420 @@
       c.appendChild(row);
     });
     return c;
+  }
+
+
+  // ---------- Images in documents (docs/briefs/step-2e-document-images.md) ----------
+  // Paste, drag or choose a screenshot; the review window reads its text in this browser (Tesseract), marks what looks like
+  // client information, and burns the blur, boxes and arrows into the image before anything is uploaded.
+  var OCR_SRC = "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js";
+  var OCR_OPTS = { workerPath: "https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/worker.min.js", corePath: "https://cdn.jsdelivr.net/npm/tesseract.js-core@5.1.1", langPath: "https://cdn.jsdelivr.net/npm/@tesseract.js-data/eng@1.0.0/4.0.0_best_int" };
+  var IMG = { urls: {}, ocr: null };
+  Object.assign(DOC_ERR, {
+    images_off: "Images are not open for your account yet.", policy_text_only: "Policies stay text only, so they have no images.", image_type: "Use a PNG or JPG image.",
+    caption_needed: "Add a caption: what should the reader look at?", confirm_needed: "Tick the box to confirm the image has no client information, passwords or account numbers.",
+    image_refused: "That file is not a real PNG or JPG image, so DELA did not keep it.", images_review_needed: "This document is due for review. In \"Check images\", mark every image \"Still current\" or replace it, then approve.",
+    image_closed: "Images are hidden now that this engagement has ended.", fix_in_image_window: "Open the image to fix it.", storage_full: "Your firm's storage is full. Remove files you no longer need, or upgrade your plan.",
+  });
+  function imgCfg() { return (lib.pb && lib.pb.image_settings) || { on: false, max_mb: 5, per_step: 3, caption_max: 120, max_width_px: 2400 }; }
+  function imgErrText(r) { return r && r.reason === "image_too_big" ? "This image is over " + imgCfg().max_mb + " MB. Try a smaller screenshot." : r && r.reason === "caption_too_long" ? "Keep the caption to " + imgCfg().caption_max + " characters." : DOC_ERR[r && r.reason] || failText(r || {}); }
+  // A short-lived link to one image (cached for a few minutes); a freelancer opens it through the gig
+  function imgUrl(id, gig) {
+    var k = id + (gig || ""), c = IMG.urls[k];
+    if (c && Date.now() - c.at < 180000) return Promise.resolve(c);
+    return api.get("/documents/image?id=" + id + (gig ? "&gig=" + gig : "")).then(function (r) { var v = r.ok ? { url: r.url, at: Date.now() } : { error: r.reason, at: Date.now() }; IMG.urls[k] = v; return v; });
+  }
+  function fillImg(img, id, gig, onFail) {
+    imgUrl(id, gig).then(function (v) { if (v.url) img.src = v.url; else if (onFail) onFail(v.error); }).catch(function () { if (onFail) onFail("not_found"); });
+  }
+
+  // Full screen: click to open, X or Esc to close, pinch to zoom on a phone
+  function imgFull(src, caption) {
+    var box = h("div", { class: "img-full", role: "dialog", "aria-label": "Image, full screen" });
+    function close() { box.remove(); document.removeEventListener("keydown", key, true); }
+    function key(e) { if (e.key === "Escape") { e.preventDefault(); close(); } }
+    box.appendChild(h("button", { class: "img-x", "aria-label": "Close the image", onclick: close }, "✕"));
+    box.appendChild(h("img", { src: src, alt: caption || "", draggable: "false", oncontextmenu: function (e) { e.preventDefault(); } }));
+    if (caption) box.appendChild(h("p", { class: "img-cap", text: caption }));
+    box.addEventListener("click", function (e) { if (e.target === box) close(); });
+    document.addEventListener("keydown", key, true);
+    app.appendChild(box);
+    box.querySelector(".img-x").focus();
+  }
+
+  // Read-only images (reading a document, a freelancer's gig): full width, caption below, no download button
+  function imagesRead(list, gig) {
+    if (!(list || []).length) return null;
+    var wrap = h("div", { class: "img-list" });
+    list.forEach(function (im) {
+      var img = h("img", { alt: im.caption || "Screenshot", draggable: "false", loading: "lazy", oncontextmenu: function (e) { e.preventDefault(); } });
+      var fig = h("figure", { class: "img-fig" }, img, h("figcaption", { text: im.caption || "" }));
+      img.addEventListener("click", function () { if (img.src) imgFull(img.src, im.caption); });
+      fillImg(img, im.id, gig, function (why) { D.clear(fig); fig.appendChild(h("p", { class: "small muted", text: why === "image_closed" ? DOC_ERR.image_closed : "This image is not available." })); });
+      wrap.appendChild(fig);
+    });
+    return wrap;
+  }
+
+  // An image slot on a step or section: the images, Edit, Replace and Remove, drag to reorder, paste, drop, errors and progress
+  function imageSlot(list, where, edit, onChange) {
+    var cfg = imgCfg();
+    var slot = h("div", { class: "img-slot" });
+    var err = h("p", { class: "small bad", role: "alert", style: "margin:4px 0" });
+    var bar = h("div", { class: "bar img-bar", hidden: true }, h("span", { style: "width:0%" }));
+    var figs = h("div", { class: "img-list" });
+    var picker = h("input", { type: "file", accept: "image/png,image/jpeg", hidden: true, "aria-label": "Choose an image for " + where });
+    var replaceAt = -1;
+    picker.addEventListener("change", function () { var f = picker.files && picker.files[0]; picker.value = ""; if (f) take(f, replaceAt); replaceAt = -1; });
+    function fail(t) { err.textContent = t; }
+    function take(file, at) {
+      err.textContent = "";
+      var okType = file.type === "image/png" || file.type === "image/jpeg" || (!file.type && /\.(png|jpe?g)$/i.test(file.name || ""));
+      if (!okType) { fail("Use a PNG or JPG image."); return; }
+      if (file.size > cfg.max_mb * 1048576) { fail("This image is over " + cfg.max_mb + " MB. Try a smaller screenshot."); return; }
+      if (at < 0 && list.length >= cfg.per_step) { fail("Each step can have " + cfg.per_step + " images. Split this step to add more."); return; }
+      reviewImage({ file: file, caption: at >= 0 ? list[at].caption : "", progress: bar, onSaved: function (id, caption) {
+        if (at >= 0) list[at] = { id: id, caption: caption }; else list.push({ id: id, caption: caption });
+        onChange(at >= 0 ? "Replaced an image" : "Added an image");
+      } });
+    }
+    function draw() {
+      D.clear(figs);
+      list.forEach(function (im, i) {
+        var img = h("img", { alt: im.caption || "Screenshot", draggable: "false" });
+        var fact = (lib.pb && lib.pb.images || {})[im.id] || {};
+        var tools = edit ? h("div", { class: "img-tools" },
+          h("button", { class: "small", type: "button", onclick: function (e) { e.stopPropagation(); reviewImage({ existing: im, img: img, progress: bar, onSaved: function (id, caption) { list[i] = { id: id, caption: caption }; onChange("Edited an image"); } }); } }, "Edit"),
+          h("button", { class: "small", type: "button", onclick: function (e) { e.stopPropagation(); replaceAt = i; picker.click(); } }, "Replace"),
+          h("button", { class: "small danger", type: "button", onclick: function (e) { e.stopPropagation(); askRemove(function () { list.splice(i, 1); onChange("Removed an image"); }); } }, "Remove")) : null;
+        var fig = h("figure", { class: "img-fig" + (edit ? " editable" : ""), draggable: edit && list.length > 1 ? "true" : "false", tabindex: edit ? "0" : null, "data-i": String(i) },
+          tools, img, h("figcaption", { text: im.caption || (edit ? "No caption yet" : "") }),
+          fact.held ? h("p", { class: "small bad", text: "DELA's check thinks this image may show client information. Click Edit to blur it or confirm it shows none." }) : !fact.confirmed && fact.source ? h("p", { class: "small bad", text: "No client-data check yet. Click Edit to confirm it." }) : fact.source === "import" ? h("p", { class: "small muted", text: "Confirmed at import" }) : null);
+        img.addEventListener("click", function () { if (img.src) imgFull(img.src, im.caption); });
+        fig.addEventListener("click", function () { fig.classList.toggle("show-tools"); });
+        fig.addEventListener("dragstart", function (e) { e.dataTransfer.setData("text/x-dela-img", String(i)); e.dataTransfer.effectAllowed = "move"; });
+        fig.addEventListener("dragover", function (e) { if ([].slice.call(e.dataTransfer.types || []).indexOf("text/x-dela-img") >= 0) e.preventDefault(); });
+        fig.addEventListener("drop", function (e) {
+          var from = e.dataTransfer.getData("text/x-dela-img");
+          if (from === "") return;
+          e.preventDefault(); e.stopPropagation();
+          var f = Number(from);
+          if (f === i) return;
+          var x = list.splice(f, 1)[0]; list.splice(i, 0, x); onChange("Reordered images");
+        });
+        fillImg(img, im.id, null, function () { img.alt = "This image is not available."; });
+        figs.appendChild(fig);
+      });
+    }
+    draw();
+    slot.appendChild(figs); slot.appendChild(bar); slot.appendChild(err); slot.appendChild(picker);
+    return {
+      el: slot,
+      pick: function () { if (list.length >= cfg.per_step) { fail("Each step can have " + cfg.per_step + " images. Split this step to add more."); return; } replaceAt = -1; picker.click(); },
+      take: function (f) { take(f, -1); },
+      // Paste and drop on the whole step or section
+      wire: function (host) {
+        host.addEventListener("paste", function (e) {
+          var items = e.clipboardData ? [].slice.call(e.clipboardData.items || []) : [];
+          var it = items.filter(function (x) { return x.kind === "file"; })[0];
+          if (!it) return;
+          e.preventDefault();
+          take(it.getAsFile(), -1);
+        });
+        host.addEventListener("dragover", function (e) { if ([].slice.call(e.dataTransfer.types || []).indexOf("Files") >= 0) { e.preventDefault(); host.classList.add("img-drop"); } });
+        host.addEventListener("dragleave", function () { host.classList.remove("img-drop"); });
+        host.addEventListener("drop", function (e) {
+          host.classList.remove("img-drop");
+          var f = e.dataTransfer.files && e.dataTransfer.files[0];
+          if (!f) return;
+          e.preventDefault();
+          take(f, -1);
+        });
+      },
+    };
+  }
+  function addImageButton(slot, where) { return h("button", { class: "ghost small img-add", type: "button", "aria-label": "Add image to " + where, onclick: function () { slot.pick(); } }, "🖼 Add image"); }
+
+  function askRemove(yes) {
+    var m = modal("Remove this image?");
+    m.body.appendChild(h("p", { text: "It stays in older versions of this document." }));
+    m.foot.appendChild(h("button", { class: "ghost", type: "button", onclick: m.close }, "Cancel"));
+    m.foot.appendChild(h("button", { class: "danger", type: "button", onclick: function () { m.close(); yes(); } }, "Remove"));
+  }
+
+  // A centered pop-up window with a dimmed backdrop
+  function modal(title) {
+    var sc = h("div", { class: "dela-scrim" });
+    var body = h("div", { class: "modal-body" }), foot = h("div", { class: "row modal-foot" });
+    var box = h("div", { class: "dela-modal", role: "dialog", "aria-modal": "true", "aria-label": title }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: title })), body, foot);
+    function close() { sc.remove(); box.remove(); document.removeEventListener("keydown", key, true); }
+    function key(e) { if (e.key === "Escape") { e.preventDefault(); close(); } }
+    document.addEventListener("keydown", key, true);
+    app.appendChild(sc); app.appendChild(box);
+    return { box: box, body: body, foot: foot, close: close };
+  }
+
+  // What looks like client information in the text the browser read (patterns in code; names are two capitalized words
+  // that are not common screen words)
+  var SCREEN_WORDS = ("New Save Cancel Open Close File Edit View Help Home Search Settings Contacts Matters Matter Calendar Tasks Documents Billing Reports Dashboard Activity Activities " +
+    "Bills Bill Time Entry Entries Client Clients Name Email Phone Address Notes Note Status Date Due Today Add Delete Remove Upload Download Print Share Export Import Next Back Submit " +
+    "Practice Area Areas Firm Account Accounts User Users Admin Tools Window Insert Format Table Page Layout Review References Mailings Microsoft Word Outlook Google Chrome Clio MyCase PracticePanther " +
+    "Smokeball LawPay QuickBooks Filevine Dropbox Drive OneDrive Court Courts Case Cases Number Type Select All None More Options Filter Sort Total Amount Balance Trust Operating Invoice Invoices Payment Payments " +
+    "January February March April May June July August September October November December Monday Tuesday Wednesday Thursday Friday Saturday Sunday The And For With From Your Our This").split(" ");
+  function ocrFlags(words) {
+    var out = [];
+    var clean = function (t) { return String(t || "").replace(/^[^\w@+(]+|[^\w)]+$/g, ""); };
+    var isCap = function (t) { return /^[A-Z][a-z'’-]{1,}$/.test(t) && SCREEN_WORDS.indexOf(t) < 0; };
+    var box = function (ws) { return { x0: Math.min.apply(null, ws.map(function (w) { return w.bbox.x0; })), y0: Math.min.apply(null, ws.map(function (w) { return w.bbox.y0; })), x1: Math.max.apply(null, ws.map(function (w) { return w.bbox.x1; })), y1: Math.max.apply(null, ws.map(function (w) { return w.bbox.y1; })) }; };
+    var used = {};
+    words.forEach(function (w, i) {
+      var t = clean(w.text);
+      var kind = /[\w.+-]+@[\w-]+\.[\w.]+/.test(t) ? "email" : /^\d{3}-\d{2}-\d{4}$/.test(t) ? "Social Security number" : /^\(?\d{3}\)?[-.\s]?\d{3}[-.]\d{4}$/.test(t) ? "phone number"
+        : /^\d{1,2}:\d{2}-[a-z]{2,4}-\d{3,6}$/i.test(t) || /^\d{2,4}-[A-Z]{1,4}-\d{2,6}$/i.test(t) ? "case number" : /^\d{1,2}\/\d{1,2}\/\d{2,4}$/.test(t) ? "date" : /^[\d-]{8,}$/.test(t) && t.replace(/-/g, "").length >= 8 ? "account number" : "";
+      if (kind) { out.push({ kind: kind, text: t, bbox: w.bbox }); used[i] = true; }
+    });
+    // A phone number read as two words: (555) 123-4567
+    words.forEach(function (w, i) { var a = clean(w.text), b = words[i + 1] && clean(words[i + 1].text); if (!used[i] && b && /^\(\d{3}\)$/.test(a) && /^\d{3}-\d{4}$/.test(b)) { out.push({ kind: "phone number", text: a + " " + b, bbox: box([w, words[i + 1]]) }); used[i] = used[i + 1] = true; } });
+    for (var i = 0; i < words.length - 1; i++) {
+      var a = clean(words[i].text), b = clean(words[i + 1].text);
+      if (used[i] || used[i + 1] || !isCap(a) || !isCap(b)) continue;
+      if (Math.abs(words[i].bbox.y0 - words[i + 1].bbox.y0) > (words[i].bbox.y1 - words[i].bbox.y0)) continue;
+      out.push({ kind: "name", text: a + " " + b, bbox: box([words[i], words[i + 1]]) }); used[i] = used[i + 1] = true; i++;
+    }
+    return out;
+  }
+  function loadOcr() {
+    if (window.DELA_OCR) return Promise.resolve(window.DELA_OCR);
+    if (IMG.ocr) return IMG.ocr;
+    IMG.ocr = new Promise(function (ok, no) {
+      if (window.Tesseract) { ok(window.Tesseract); return; }
+      var sc = document.createElement("script");
+      sc.src = OCR_SRC; sc.async = true;
+      sc.onload = function () { window.Tesseract ? ok(window.Tesseract) : no(new Error("ocr_missing")); };
+      sc.onerror = function () { IMG.ocr = null; no(new Error("ocr_missing")); };
+      document.head.appendChild(sc);
+    });
+    return IMG.ocr;
+  }
+
+  // The review window: preview, Box, Arrow, Blur, Undo, flagged text in yellow, the caption and the checkbox.
+  // o: { file } for a new image, or { existing: {id, caption}, img } to edit one; progress (a bar on the step); onSaved(id, caption)
+  function reviewImage(o) {
+    var cfg = imgCfg();
+    var fact = o.existing ? ((lib.pb && lib.pb.images) || {})[o.existing.id] || {} : {};
+    var m = modal("Review image");
+    m.box.classList.add("img-review");
+    var stage = h("div", { class: "img-stage" });
+    var c = h("canvas", { class: "img-canvas", "aria-label": "The image. Drag on it to draw." });
+    var over = h("canvas", { class: "img-over", "aria-hidden": "true" });
+    stage.appendChild(c); stage.appendChild(over);
+    var tool = "box", ops = [], flags = [], blurred = {}, base = null, jpeg = false;
+    var toolsRow = h("div", { class: "row img-toolbar", role: "toolbar", "aria-label": "Drawing tools" });
+    var toolBtns = {};
+    [["box", "Box"], ["arrow", "Arrow"], ["blur", "Blur"]].forEach(function (t) {
+      toolBtns[t[0]] = h("button", { class: "ghost small", type: "button", "aria-pressed": String(tool === t[0]), onclick: function () { tool = t[0]; Object.keys(toolBtns).forEach(function (k) { toolBtns[k].setAttribute("aria-pressed", String(k === tool)); }); } }, t[1]);
+      toolsRow.appendChild(toolBtns[t[0]]);
+    });
+    toolsRow.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { var x = ops.pop(); if (x && x.flag !== undefined) delete blurred[x.flag]; paint(); } }, "Undo"));
+    var flagBar = h("div", { class: "img-flagbar", hidden: true });
+    var status = h("p", { class: "small muted", role: "status", style: "margin:4px 0" });
+    var heldNote = fact.held ? h("p", { class: "notice bad", text: "DELA's check thinks this image may show client information. Blur it, or confirm below that it shows none." }) : null;
+    var cap = h("input", { maxlength: String(cfg.caption_max), style: "width:100%", "aria-label": "Caption (what should the reader look at?)", value: o.existing ? o.existing.caption : o.caption || "" });
+    var tick = h("input", { type: "checkbox", "aria-label": "This image contains no client information, passwords or account numbers." });
+    var save = h("button", { class: "blue", type: "button", disabled: true }, "Save image");
+    var saveWrap = h("span", { title: "Add a caption and confirm there is no client information." }, save);
+    function ready() { var ok = cap.value.trim() && tick.checked; save.disabled = !ok; saveWrap.title = ok ? "" : "Add a caption and confirm there is no client information."; }
+    cap.addEventListener("input", ready); tick.addEventListener("change", ready);
+    m.body.appendChild(toolsRow); m.body.appendChild(flagBar); m.body.appendChild(status); if (heldNote) m.body.appendChild(heldNote); m.body.appendChild(h("div", { class: "img-center" }, stage));
+    m.body.appendChild(field("Caption (what should the reader look at?)", cap, "Up to " + cfg.caption_max + " characters. It is also the text a screen reader reads."));
+    m.body.appendChild(h("label", { style: "display:flex;gap:8px;align-items:flex-start;font-weight:600;margin-top:8px" }, tick, h("span", { text: "This image contains no client information, passwords or account numbers." })));
+    m.foot.appendChild(h("span", { class: "grow" }));
+    m.foot.appendChild(h("button", { class: "ghost grey", type: "button", onclick: m.close }, "Cancel"));
+    m.foot.appendChild(saveWrap);
+
+    function paint() {
+      var g = c.getContext("2d");
+      g.drawImage(base, 0, 0, c.width, c.height);
+      ops.forEach(function (op) { drawOp(g, op); });
+      var q = over.getContext("2d");
+      q.clearRect(0, 0, over.width, over.height);
+      q.lineWidth = Math.max(3, c.width / 300); q.strokeStyle = "#f5c518";
+      flags.forEach(function (f, i) { if (!blurred[i]) q.strokeRect(f.bbox.x0 - 3, f.bbox.y0 - 3, f.bbox.x1 - f.bbox.x0 + 6, f.bbox.y1 - f.bbox.y0 + 6); });
+      var left = flags.filter(function (f, i) { return !blurred[i]; }).length;
+      flagBar.hidden = !flags.length;
+      D.clear(flagBar);
+      if (flags.length) flagBar.appendChild(left ? h("div", { class: "row" }, h("b", { class: "grow", text: "We found " + left + " item" + (left === 1 ? "" : "s") + " that may be client information." }),
+        h("button", { class: "small", type: "button", onclick: function () { flags.forEach(function (f, i) { if (!blurred[i]) { blurred[i] = true; ops.push({ kind: "blur", x: f.bbox.x0 - 4, y: f.bbox.y0 - 4, w: f.bbox.x1 - f.bbox.x0 + 8, h: f.bbox.y1 - f.bbox.y0 + 8, flag: i }); } }); paint(); } }, "Blur all flagged"))
+        : h("b", { text: "Every flagged item is blurred. Check the rest of the image yourself." }));
+    }
+    function drawOp(g, op) {
+      var lw = Math.max(4, c.width / 250);
+      if (op.kind === "blur") {
+        var x = Math.max(0, op.x), y = Math.max(0, op.y), w = Math.min(c.width - x, op.w), hh = Math.min(c.height - y, op.h);
+        if (w < 1 || hh < 1) return;
+        var tiny = document.createElement("canvas"), k = 0.05;
+        tiny.width = Math.max(1, Math.round(w * k)); tiny.height = Math.max(1, Math.round(hh * k));
+        tiny.getContext("2d").drawImage(c, x, y, w, hh, 0, 0, tiny.width, tiny.height);
+        g.imageSmoothingEnabled = false;
+        g.drawImage(tiny, 0, 0, tiny.width, tiny.height, x, y, w, hh);
+        g.imageSmoothingEnabled = true;
+        g.fillStyle = "rgba(120,120,120,0.6)"; g.fillRect(x, y, w, hh);
+      } else if (op.kind === "box") {
+        g.lineWidth = lw; g.strokeStyle = "#c8102e"; g.strokeRect(op.x, op.y, op.w, op.h);
+      } else {
+        g.lineWidth = lw; g.strokeStyle = g.fillStyle = "#c8102e";
+        var ang = Math.atan2(op.y2 - op.y1, op.x2 - op.x1), hl = lw * 4;
+        g.beginPath(); g.moveTo(op.x1, op.y1); g.lineTo(op.x2 - Math.cos(ang) * hl * 0.6, op.y2 - Math.sin(ang) * hl * 0.6); g.stroke();
+        g.beginPath(); g.moveTo(op.x2, op.y2); g.lineTo(op.x2 - hl * Math.cos(ang - 0.45), op.y2 - hl * Math.sin(ang - 0.45)); g.lineTo(op.x2 - hl * Math.cos(ang + 0.45), op.y2 - hl * Math.sin(ang + 0.45)); g.closePath(); g.fill();
+      }
+    }
+    function pos(e) { var r = c.getBoundingClientRect(); return { x: (e.clientX - r.left) * c.width / r.width, y: (e.clientY - r.top) * c.height / r.height }; }
+    var start = null;
+    c.addEventListener("pointerdown", function (e) { start = pos(e); c.setPointerCapture && c.setPointerCapture(e.pointerId); });
+    c.addEventListener("pointerup", function (e) {
+      if (!start) return;
+      var end = pos(e), s0 = start; start = null;
+      var w = Math.abs(end.x - s0.x), hh = Math.abs(end.y - s0.y);
+      if (w < 6 && hh < 6) {
+        // A click inside a yellow outline blurs just that item
+        flags.forEach(function (f, i) { if (!blurred[i] && end.x >= f.bbox.x0 - 4 && end.x <= f.bbox.x1 + 4 && end.y >= f.bbox.y0 - 4 && end.y <= f.bbox.y1 + 4) { blurred[i] = true; ops.push({ kind: "blur", x: f.bbox.x0 - 4, y: f.bbox.y0 - 4, w: f.bbox.x1 - f.bbox.x0 + 8, h: f.bbox.y1 - f.bbox.y0 + 8, flag: i }); } });
+        paint(); return;
+      }
+      if (tool === "arrow") ops.push({ kind: "arrow", x1: s0.x, y1: s0.y, x2: end.x, y2: end.y });
+      else ops.push({ kind: tool, x: Math.min(s0.x, end.x), y: Math.min(s0.y, end.y), w: w, h: hh });
+      paint();
+    });
+
+    function start2(src, revoke) {
+      var pic = new Image();
+      pic.crossOrigin = "anonymous";
+      pic.onload = function () {
+        var k = Math.min(1, cfg.max_width_px / pic.naturalWidth);
+        c.width = over.width = Math.max(1, Math.round(pic.naturalWidth * k)); c.height = over.height = Math.max(1, Math.round(pic.naturalHeight * k));
+        var b = document.createElement("canvas"); b.width = c.width; b.height = c.height; b.getContext("2d").drawImage(pic, 0, 0, b.width, b.height);
+        base = b;
+        if (revoke) URL.revokeObjectURL(src);
+        paint();
+        status.textContent = "Reading the image for names, emails, phone numbers, case numbers and account numbers...";
+        loadOcr().then(function (T) { return T.recognize(base, "eng", OCR_OPTS); }).then(function (res) {
+          var words = ((res && res.data && res.data.words) || []).filter(function (w) { return w && w.bbox && w.text; });
+          flags = ocrFlags(words);
+          status.textContent = flags.length ? "" : "DELA did not find anything that looks like client information. Check the image yourself before you save.";
+          paint();
+        }).catch(function () { status.textContent = "DELA could not read the text in this image. Check it yourself for client information before you save."; });
+      };
+      pic.onerror = function () { status.textContent = "This image could not be opened. Use a PNG or JPG image."; };
+      pic.src = src;
+    }
+    if (o.file) { jpeg = o.file.type === "image/jpeg"; start2(URL.createObjectURL(o.file), true); }
+    else if (o.img && o.img.src) start2(o.img.src, false);
+    else imgUrl(o.existing.id).then(function (v) { if (v.url) start2(v.url, false); else status.textContent = "This image is not available."; });
+    ready();
+
+    save.addEventListener("click", function () {
+      if (save.disabled || !base) return;
+      var caption = cap.value.trim();
+      save.disabled = true;
+      // Nothing drawn on an image that is already saved: keep it, with the new caption, and confirm it if needed
+      if (o.existing && !ops.length) {
+        var done = function () { m.close(); o.onSaved(o.existing.id, caption); };
+        if (fact.confirmed) { done(); return; }
+        api.post("/documents/images/confirm", { image_id: o.existing.id, confirmed: true }).then(function (r) { if (!r.ok) throw r; done(); }).catch(function (e) { ready(); D.toast(app, imgErrText(e), true); });
+        return;
+      }
+      c.toBlob(function (blob) {
+        if (!blob) { ready(); return; }
+        if (blob.size > cfg.max_mb * 1048576) { ready(); D.toast(app, "This image is over " + cfg.max_mb + " MB. Try a smaller screenshot.", true); return; }
+        m.close();
+        uploadDocImage(blob, jpeg ? "Screenshot.jpg" : "Screenshot.png", caption, flags.length, Object.keys(blurred).length, o.progress).then(function (r) {
+          if (r.held) D.toast(app, "Saved. DELA's check thinks this image may show client information, so the document is blocked until you blur it or confirm it shows none.", true);
+          o.onSaved(r.id, caption);
+        }).catch(function (e) { D.toast(app, imgErrText(e), true); });
+      }, jpeg ? "image/jpeg" : "image/png", 0.9);
+    });
+  }
+
+  // Upload with a progress bar on the step, then the image record with its caption and checkbox
+  function uploadDocImage(blob, name, caption, found, blurredN, bar) {
+    var P = lib.pb.playbook;
+    var setBar = function (pct) { if (!bar) return; bar.hidden = pct === null; if (pct !== null) bar.firstChild.style.width = pct + "%"; };
+    setBar(5);
+    return api.post("/documents/images/start", { playbook_id: P.id, name: name, size_bytes: blob.size, request_id: newId(), ticked: true }).then(function (r) {
+      if (!r.ok) throw r;
+      if (r.duplicate) return r;
+      return new Promise(function (ok, no) {
+        var x = new XMLHttpRequest();
+        x.open("PUT", r.upload_url);
+        x.setRequestHeader("content-type", r.content_type); x.setRequestHeader("x-upsert", "false");
+        x.upload.onprogress = function (e) { if (e.lengthComputable) setBar(5 + Math.round(e.loaded * 80 / e.total)); };
+        x.onload = function () { x.status < 300 ? ok(r) : no({ reason: "upload_failed" }); };
+        x.onerror = function () { no({ reason: "upload_failed" }); };
+        x.send(blob);
+      });
+    }).then(function (r) {
+      setBar(90);
+      return api.post("/documents/images/complete", { playbook_id: P.id, file_id: r.file_id, caption: caption, confirmed: true, flags_found: found, flags_blurred: blurredN });
+    }).then(function (r) {
+      setBar(null);
+      if (!r.ok) throw r;
+      if (lib.pb.images) lib.pb.images[r.id] = { confirmed: !!r.confirmed, held: !!r.held, source: "upload" };
+      return r;
+    }, function (e) { setBar(null); throw e; });
+  }
+
+  // Images join the document as soon as they are saved (a new version), so nothing is lost
+  function imagesChanged(note) {
+    docSave(note, null);
+  }
+
+  // The "Check images" step at a due review
+  function checkImagesCard(d) {
+    var due = lib.pb.images_due || {};
+    if (!due.due) return null;
+    var ids = due.ids || [];
+    var all = placedImagesUi(d);
+    var c = h("div", { class: "card" }, h("h2", { text: "Check images" }),
+      h("p", { class: "small muted", text: ids.length ? "This document is due for review. Software screens change, so mark each image \"Still current\" or replace it. You can approve once every image is checked." : "Every image is checked." }));
+    all.filter(function (p) { return ids.indexOf(p.id) >= 0; }).forEach(function (p) {
+      var img = h("img", { class: "img-thumb", alt: p.caption || "Screenshot" });
+      fillImg(img, p.id);
+      c.appendChild(h("div", { class: "row", style: "margin:6px 0;flex-wrap:wrap" }, img, h("div", { class: "grow" }, h("b", { text: p.where }), h("div", { class: "small", text: p.caption || "No caption" })),
+        h("button", { class: "blue small", type: "button", onclick: function () { api.post("/documents/images/current", { playbook_id: lib.pb.playbook.id, image_id: p.id }).then(okOr).then(function () { lib.doc = null; openPlaybook(lib.pb.playbook.id, "read"); }).catch(pbFail); } }, "Still current"),
+        h("button", { class: "ghost small", type: "button", onclick: function () { var s = p.slot(); s.take ? pickFor(s) : null; } }, "Replace")));
+    });
+    return c;
+  }
+  function pickFor(slotApi) { var inp = h("input", { type: "file", accept: "image/png,image/jpeg" }); inp.addEventListener("change", function () { if (inp.files[0]) slotApi.replace(inp.files[0]); }); inp.click(); }
+  // Every image in the working copy with where it sits, and a way to replace it in place
+  function placedImagesUi(d) {
+    var out = [], word = d.type === "workflow" ? "Stage " : "Step ";
+    function add(list, where) {
+      list.forEach(function (im, i) {
+        out.push({ id: im.id, caption: im.caption, where: where, slot: function () { return { take: true, replace: function (file) { reviewImage({ file: file, caption: im.caption, onSaved: function (id, cap) { list[i] = { id: id, caption: cap }; imagesChanged("Replaced an image"); } }); } }; } });
+      });
+    }
+    (d.steps || []).forEach(function (st, i) { add(st.images || (st.images = []), word + (i + 1)); });
+    var labels = { before_you_start: "Before you start", chart: "Swimlane chart", scripts: "Scripts and templates", examples: "Examples" };
+    Object.keys(d.section_images || {}).forEach(function (k) { add(d.section_images[k], labels[k] || k); });
+    return out;
+  }
+  // "Fix it" on an image item opens the review window for the first image it names
+  function fixImageItem(it, d) {
+    var p = placedImagesUi(d).filter(function (x) { return (it.images || []).indexOf(x.id) >= 0; })[0];
+    if (!p) return;
+    var list = null, idx = -1;
+    (d.steps || []).forEach(function (st) { st.images.forEach(function (im, i) { if (im.id === p.id && !list) { list = st.images; idx = i; } }); });
+    Object.keys(d.section_images || {}).forEach(function (k) { d.section_images[k].forEach(function (im, i) { if (im.id === p.id && !list) { list = d.section_images[k]; idx = i; } }); });
+    reviewImage({ existing: list[idx], onSaved: function (id, caption) { list[idx] = { id: id, caption: caption }; imagesChanged("Fixed an image"); } });
+  }
+  // Before a gig is created from a document with images
+  function gigImageWarning(n, onContinue, onReview) {
+    if (!n) { onContinue(); return; }
+    var m = modal("Check the images");
+    m.body.appendChild(h("p", { text: "The freelancer will see " + n + " image" + (n === 1 ? "" : "s") + " in this document. Check that none show client information." }));
+    m.foot.appendChild(h("span", { class: "grow" }));
+    m.foot.appendChild(h("button", { class: "ghost", type: "button", onclick: function () { m.close(); onReview(); } }, "Review images"));
+    m.foot.appendChild(h("button", { class: "blue", type: "button", onclick: function () { m.close(); onContinue(); } }, "Continue"));
   }
 
 
