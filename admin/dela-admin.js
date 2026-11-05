@@ -309,7 +309,9 @@
   var planList = null;
   function loadPlans() { return planList ? Promise.resolve(planList) : api.get("/admin/plans").then(function (r) { planList = r.data; return planList; }); }
 
+  var peopleQ = "";
   function people(q) {
+    peopleQ = q || "";
     Promise.all([api.get("/admin/people?q=" + encodeURIComponent(q || "")), loadPlans()]).then(function (res) {
       var rows = res[0].data;
       var plansData = res[1].plans;
@@ -341,11 +343,11 @@
     var wrap = h("div", { class: "row" }, sel, h("button", { class: "small", onclick: function () {
       if (!sel.value) return;
       var parts = sel.value.split(":");
-      api.post("/admin/sides/grant", { bd_member_id: p.bd_member_id, side: parts[0], plan_code: parts[1] }).then(check).then(function () { ok("Done. It applies on their next page load."); people(); }).catch(fail);
+      api.post("/admin/sides/grant", { bd_member_id: p.bd_member_id, side: parts[0], plan_code: parts[1] }).then(check).then(function () { ok("Done. It applies on their next page load."); people(peopleQ); }).catch(fail);
     } }, "Give"));
     p.sides.filter(function (s) { return s.plan_source === "staff_grant"; }).forEach(function (s) {
       wrap.appendChild(h("button", { class: "ghost small", onclick: function () {
-        api.post("/admin/sides/release", { bd_member_id: p.bd_member_id, side: s.side }).then(check).then(function () { ok("Back on their BD plan from their next sign in"); people(); }).catch(fail);
+        api.post("/admin/sides/release", { bd_member_id: p.bd_member_id, side: s.side }).then(check).then(function () { ok("Back on their BD plan from their next sign in"); people(peopleQ); }).catch(fail);
       } }, "Use BD plan for " + D.SIDE[s.side]));
     });
     return wrap;
@@ -923,7 +925,7 @@
           h("div", { class: "row", style: "flex-wrap:wrap" }, note,
             h("button", { class: "blue small", type: "button", onclick: function () { api.post("/admin/agencies/check", { org_id: g.org_id, ok: true, note: note.value }).then(done("Checked. The owner was told.")).catch(fail); } }, "Business details are right"),
             h("button", { class: "ghost small", type: "button", onclick: function () {
-              if (!note.value.trim()) { fail({ message: "Write a note saying what to change." }); return; }
+              if (!note.value.trim()) { D.toast(app, "Write a note saying what to change.", true); return; }
               api.post("/admin/agencies/check", { org_id: g.org_id, ok: false, note: note.value }).then(done("Sent. The owner was asked to change the details.")).catch(fail);
             } }, "Ask for a change")),
           h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, h("span", { class: "small", text: "Seat limit for this agency (empty for the plan's limit):" }), seats,

@@ -3797,7 +3797,7 @@
         a.team.forEach(function (t) {
           var cb = h("input", { type: "checkbox", "aria-label": "Name " + t.name + " on this proposal" });
           var role = h("input", { "aria-label": "Role on this job for " + t.name, placeholder: "Role on this job, for example Lead paralegal", maxlength: "80", disabled: "disabled" });
-          var entry = { person_id: t.person_id, role: "" };
+          var entry = { person_id: t.person_id, role: "", box: role };
           cb.addEventListener("change", function () {
             role.disabled = !cb.checked;
             if (cb.checked) agencyPick.team.push(entry); else agencyPick.team = agencyPick.team.filter(function (x) { return x !== entry; });
@@ -3811,7 +3811,7 @@
       agencyBox.appendChild(h("div", { class: "agency-box" }, field("Send as", asSel), people));
       drawPeople();
     }).catch(function () {});
-    function body() { return { gig_id: g.id, agency_org: agencyPick.org, team: agencyPick.org ? agencyPick.team : [], price: f.price.value, days_to_deliver: f.days.value ? Number(f.days.value) : null, included: f.included.value, excluded: f.excluded.value, schedule: f.schedule.value, qualifications: f.quals.value, message: f.message.value }; }
+    function body() { return { gig_id: g.id, agency_org: agencyPick.org, team: agencyPick.org ? agencyPick.team.map(function (e) { return { person_id: e.person_id, role: (e.box ? e.box.value : e.role || "").trim() }; }) : [], price: f.price.value, days_to_deliver: f.days.value ? Number(f.days.value) : null, included: f.included.value, excluded: f.excluded.value, schedule: f.schedule.value, qualifications: f.quals.value, message: f.message.value }; }
     var invited = r.access === "invited", al = r.allowance || {};
     c.appendChild(h("p", { class: "small muted", text: (invited ? "You were invited, so this proposal does not use your allowance. " : allowanceText(al) + " ") + "Milestones are set after hiring. Keep everything on Lawfecta." }));
     var help = h("button", { class: "ghost small", type: "button" }, "✦ Let DELA help with qualifications");
