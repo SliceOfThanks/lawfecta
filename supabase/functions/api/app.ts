@@ -2009,6 +2009,10 @@ function mcpTools(side: string) {
     { name: "save_reply_draft", title: "Save a reply draft", description: "Saves a reply draft in one thread. It is not sent: the member checks and sends it on the DELA website. Keep everything on Lawfecta. " + NOTICE_TOOLS,
       inputSchema: { type: "object", properties: { thread_id: { type: "string" }, body: { type: "string" } }, required: ["thread_id", "body"] }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
     { name: "list_my_meetings", title: "My meetings", description: "Lists the member's meetings on gigs: time (UTC), length, status and whether attendance is confirmed.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+    // Step 6, both sides: engagements to read; signing, paying, submitting and accepting stay on the website
+    { name: "list_my_engagements", title: "My engagements", description: "Lists the member's engagements (signed or waiting for signatures): the other person, the price, how many milestones are accepted and whether their signature is needed.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+    { name: "get_engagement", title: "Read an engagement", description: "Reads one engagement: the current agreement version, its milestones with amounts, due dates and status, the last submission and DELA's check, and any dispute. Signing, paying, submitting and accepting happen on the DELA website.",
+      inputSchema: { type: "object", properties: { engagement_id: { type: "string" } }, required: ["engagement_id"] }, annotations: { readOnlyHint: true } },
   ];
   if (side !== "attorney") return [who, prof, mine, draftProp, ...talk];
   const gigTools = [
@@ -2070,6 +2074,24 @@ async function mcpCall(ctx: Ctx, w: McpWho, name: string, a: Record<string, any>
     const r = await rpc<Record<string, any>>(ctx, "dela_meetings", { p_person: w.person_id, p_side: w.side, p_gig: null, p_meeting: null });
     const ms = (r?.meetings ?? []) as Array<Record<string, any>>;
     return { text: ms.length ? ms.map((m) => `- ${m.gig_title} with ${m.other_name}: ${String(m.start_at).slice(0, 16).replace("T", " ")} UTC, ${m.length_min} minutes, ${m.status}${m.attendance === "verified" ? ", attended" : ""}`).join("\n") : "No meetings yet.", data: ms };
+  }
+  if (name === "list_my_engagements") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_engagements", { p_person: w.person_id, p_side: w.side });
+    if (!r?.on) return { text: "Engagements are not open for this account yet." };
+    const es = (r.engagements ?? []) as Array<Record<string, any>>;
+    const usd = (c: number) => "$" + (Number(c) / 100).toFixed(2);
+    return { text: es.length ? es.map((e) => `- ${e.gig_title} (id ${e.id}) with ${e.other_name}: ${e.status}, ${usd(e.total_cents)}, ${e.accepted} of ${e.milestones} milestones accepted` + (e.needs_me === "sign" ? ", waiting for your signature on the DELA website" : "")).join("\n") : "No engagements yet.", data: es };
+  }
+  if (name === "get_engagement") {
+    const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: w.person_id, p_side: w.side, p_agreement: uuid(a.engagement_id) });
+    if (!v?.ok) fail(v);
+    const usd = (c: number) => "$" + (Number(c) / 100).toFixed(2);
+    const ms = (v.milestones ?? []) as Array<Record<string, any>>;
+    const lines = [`${v.agreement.gig_title}: ${v.agreement.status}, version ${v.agreement.version}, total ${usd(v.agreement.total_cents)}`, ...ms.map((m) => {
+      const last = (m.submissions ?? []).at(-1);
+      return `- Milestone ${m.seq} "${m.title}": ${usd(m.amount_cents)}, ${m.status}` + (m.due_date ? `, due ${m.due_date}` : "") + (last ? `; last submission: ${last.status}${last.score !== null ? ", DELA's score " + last.score : ""}` : "");
+    }), ...((v.disputes ?? []) as Array<Record<string, any>>).filter((d) => d.status === "notice" || d.status === "team_review").map((d) => `Open dispute: ${d.reason}`)];
+    return { text: lines.join("\n"), data: { agreement: v.agreement, milestones: ms.map((m) => ({ ...m, submissions: undefined })), disputes: v.disputes } };
   }
   if (name === "list_my_gigs") {
     const r = await rpc<Record<string, any>>(ctx, "dela_gigs_mine", { p_person: w.person_id });

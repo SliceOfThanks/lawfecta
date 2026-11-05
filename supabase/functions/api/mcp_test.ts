@@ -192,7 +192,7 @@ Deno.test("initialize, tools/list and notifications", async () => {
   assertEquals(unknownVersion.body.result.protocolVersion, "2025-11-25");
   assertEquals((await mcp(access, "notifications/initialized", undefined, true)).status, 202);
   const names = (await mcp(access, "tools/list")).body.result.tools.map((t: any) => t.name);
-  assertEquals(names, ["lawfecta_whoami", "get_my_profile", "list_my_gigs", "draft_gig_from_playbook", "list_gig_proposals", "list_my_threads", "read_thread", "save_reply_draft", "list_my_meetings", "list_playbooks", "get_playbook", "save_playbook_draft", "draft_playbook_with_dela", "suggest_playbook_change", "export_playbook"]);
+  assertEquals(names, ["lawfecta_whoami", "get_my_profile", "list_my_gigs", "draft_gig_from_playbook", "list_gig_proposals", "list_my_threads", "read_thread", "save_reply_draft", "list_my_meetings", "list_my_engagements", "get_engagement", "list_playbooks", "get_playbook", "save_playbook_draft", "draft_playbook_with_dela", "suggest_playbook_change", "export_playbook"]);
   assertEquals((await mcp(access, "resources/list")).body.error.code, -32601);
 });
 
@@ -295,9 +295,14 @@ Deno.test("freelancer: their own tools; attorney tools are not there", async () 
   assertEquals(s.shown.side, "freelancer");
   const t = s.token.access_token;
   const names = (await mcp(t, "tools/list")).body.result.tools.map((x: any) => x.name);
-  assertEquals(names, ["lawfecta_whoami", "get_my_profile", "list_my_gig_work", "save_proposal_draft", "list_my_threads", "read_thread", "save_reply_draft", "list_my_meetings"], "Step 4 adds the freelancer's gig tools");
+  assertEquals(names, ["lawfecta_whoami", "get_my_profile", "list_my_gig_work", "save_proposal_draft", "list_my_threads", "read_thread", "save_reply_draft", "list_my_meetings", "list_my_engagements", "get_engagement"], "Step 4 adds the freelancer's gig tools");
   assertEquals((await mcp(t, "tools/call", { name: "list_playbooks", arguments: {} })).body.error.code, -32602);
   assert((await tool(t, "lawfecta_whoami")).content[0].text.includes("freelancer side"));
+  // Step 6: engagements are read-only in the connector; signing and paying stay on the website
+  await pool.query("update feature_switches set state = 'everyone' where key = 'engagements'");
+  assertEquals((await tool(t, "list_my_engagements")).content[0].text, "No engagements yet.");
+  const ge = await mcp(t, "tools/call", { name: "get_engagement", arguments: { engagement_id: crypto.randomUUID() } });
+  assert(ge.body.result?.isError && ge.body.result.content[0].text.includes("not found"), "someone else's or a made-up engagement is refused");
 });
 
 Deno.test("members see and disconnect their own connections; the team sees and stops any", async () => {
