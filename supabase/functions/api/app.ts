@@ -146,7 +146,8 @@ async function bootstrap(ctx: Ctx): Promise<Response> {
   if (!r?.ok) return json(ctx, { route: "denied", reason: r?.reason ?? "denied", commit });
   const pause = await rpc<Record<string, any>>(ctx, "dela_pause_state", {});
   if (pause?.pause?.all && !(r.me?.staff ?? []).length) return json(ctx, { route: "paused", message: pause.message, commit });
-  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, pause: pause?.pause }, commit, version: VERSION });
+  const drafts = r.me?.side === "attorney" && r.me?.person?.id ? await rpc<number>(ctx, "dela_pb_draft_count", { p_person: r.me.person.id }).catch(() => 0) : 0;
+  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, pause: pause?.pause, playbooks_draft: drafts ?? 0 }, commit, version: VERSION });
 }
 
 // ---------- Member routes ----------

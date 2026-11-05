@@ -155,6 +155,18 @@
     return h("div", { class: "work" }, h("span", { class: "chip", text: String(n) }), h("div", null, h("h3", { text: title }), h("div", { class: "muted small", text: text })), h("span", { class: "grow" }), h("span", { class: "soon", text: "Coming soon" }));
   }
 
+  // The draft count is read fresh each time Home opens, so a playbook drafted a minute ago counts
+  // (Stacey's test 2026-11-05: Home showed 0 while the Library had drafts)
+  function draftTile() {
+    var tile = stat("✦", me.playbooks_draft || 0, "Draft playbooks");
+    if ((me.switches || {}).playbook_library) {
+      api.get("/me").then(function (r) {
+        if (r && r.me && typeof r.me.playbooks_draft === "number") { me.playbooks_draft = r.me.playbooks_draft; var n = tile.querySelector(".stat"); if (n) n.textContent = String(r.me.playbooks_draft); }
+      }).catch(function () {});
+    }
+    return tile;
+  }
+
   function attorneyHome() {
     var s = sideInfo();
     var gigs = ent("att.gigs_active");
@@ -179,13 +191,13 @@
         stat("☰", 0, "Open tasks"),
         stat("▣", 0, "Active projects"),
         stat("!", 0, "Pending reviews"),
-        stat("✦", me.playbooks_draft || 0, "Draft playbooks")),
+        draftTile()),
       h("div", { class: "card" }, h("div", { class: "row" }, h("h2", { text: "Verification" }), h("span", { class: "badge", text: s.verification_state.split("_").join(" ") })), h("p", { text: ver }),
         (me.switches || {}).profiles ? h("button", { class: "blue small", onclick: function () { tab = "profile"; draw(); } }, s.verification_state === "verified" ? "Open your profile" : "Set up your profile and verification") : null),
       h("h2", { style: "margin-top:22px", text: "What DELA will do for you" }),
       (me.switches || {}).playbook_library
         ? h("div", { class: "work" }, h("span", { class: "chip", text: "1" }), h("div", null, h("h3", { text: "Playbooks" }), h("div", { class: "muted small", text: "Describe a task. DELA asks what it needs and builds a step by step plan you approve." })), h("span", { class: "grow" }),
-          h("button", { class: "ghost small", onclick: function () { tab = "library"; draw(); } }, "Open the Library"))
+          h("button", { class: "ghost small", onclick: function () { tab = "library"; lib.pb = null; lib.importId = null; draw(); } }, "Open the Library"))
         : soon(1, "Playbooks", "Describe a task. DELA asks what it needs and builds a step by step plan you approve."),
       soon(2, "Flex Gigs", gigs ? "Post approved work with a budget range. Your plan allows " + (gigs.unlimited ? "unlimited" : gigs.limit) + " open at once." : "Post approved work with a budget range."),
       soon(3, "Talent and your bench", "See available, qualified paralegals, including people you have worked with before."),

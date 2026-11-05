@@ -68,6 +68,16 @@ async function makeMember(bd, side, plan) {
     await click(p, "Draft it with DELA");
     t = await waitFor(p, "DELA's questions");
     ok(t.includes("Who signs the engagement letter?") && t.includes("Still missing"), "DELA drafts the playbook and asks for what is missing");
+    // Home counts the new draft, and "Open the Library" opens the list, not the last playbook (Stacey's test 2026-11-05)
+    await click(p, "Home");
+    await p.waitForTimeout(800);
+    const tile = await dela(p).locator(".stat-tile", { hasText: "Draft playbooks" }).innerText();
+    ok(tile.startsWith("1") || tile.includes("\n1\n") || tile.trim().split("\n").includes("1"), "Home shows 1 draft playbook (" + tile.split("\n").join(" ") + ")");
+    await click(p, "Open the Library");
+    t = await waitFor(p, "Playbook library");
+    ok(t.includes("1 playbook"), "Open the Library shows the list of playbooks");
+    await dela(p).locator(".work", { hasText: "New client intake" }).first().click();
+    t = await waitFor(p, "DELA's questions");
     await dela(p).getByLabel("Your answers").fill("The attorney signs. California. The paralegal opens the file in Clio.");
     await click(p, "Fill these in");
     t = await waitFor(p, "Every required part is filled");
