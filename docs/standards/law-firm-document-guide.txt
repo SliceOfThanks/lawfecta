@@ -1,0 +1,231 @@
+Law Firm SOPs, Workflows and Playbooks
+What a good one includes, what to leave out, how to organize it, who owns what, and how to measure whether it works.
+1. The four document types
+Firms get into trouble when they mix these up. A rigid SOP used where judgment is needed frustrates staff and clients. A flexible playbook used for trust accounting invites risk.
+Type
+ | What it is
+ | Law firm examples
+ | 
+Policy
+ | The rules and boundaries. Says what must and must not happen.
+ | Trust accounting, confidentiality, AI use, file retention
+ | 
+Workflow
+ | The map of how work moves through stages and between people.
+ | Intake to signed engagement; matter open to matter close
+ | 
+SOP
+ | Exact steps for one routine task. Same result every time.
+ | Running a conflict check, opening a matter, depositing a retainer
+ | 
+Playbook
+ | Guidance for situations that need judgment: preferred approach, fallbacks, limits, escalation.
+ | Contract negotiation positions, an upset client, a fee dispute
+ | 
+How they fit: the policy sets the rules, the workflow shows the map, each box on the map gets an SOP, and the playbook covers the forks in the road.
+2. What a good SOP includes and why
+Section
+ | What goes in it
+ | Why it exists
+ | 
+Header
+ | Title, ID number, version, owner (role), last reviewed, next review date
+ | An outdated SOP is worse than none. This shows if it is current and who to ask.
+ | 
+Purpose
+ | One or two sentences on what this task accomplishes
+ | Tells the reader they are in the right document
+ | 
+Scope
+ | When it applies and when it does not (practice area, matter type, jurisdiction)
+ | Stops people from using it in the wrong situation
+ | 
+Trigger
+ | The event that starts the task
+ | People know exactly when to begin
+ | 
+Roles
+ | Who does each part, linked to the RACI chart
+ | Prevents gaps and double work
+ | 
+Before you start
+ | Forms, system access and information needed
+ | Avoids stalling halfway through
+ | 
+Steps
+ | Numbered, one action per step, starting with a verb. Exact system names, menu paths and button labels. Screenshots where helpful.
+ | The core of the document
+ | 
+Decision points and escalation
+ | &quot;If X, do Y.&quot; Clear flags where the task stops and an attorney decides.
+ | Keeps legal judgment with the lawyer and supports supervision duties for non-lawyer staff (ABA Model Rule 5.3)
+ | 
+Timing
+ | Deadline or service level for the task (for example, conflict check within 1 business day)
+ | Makes the task measurable
+ | 
+Quality check
+ | What &quot;done right&quot; looks like and who reviews it
+ | Catches errors before a client or court sees them
+ | 
+Done when
+ | The finished output and where it is saved
+ | Closes the loop
+ | 
+Related links
+ | Templates, forms, policies, other SOPs
+ | One source of truth. Link instead of copying.
+ | 
+Change log
+ | Date, what changed, who approved
+ | Audit trail for malpractice carriers, bar audits and training
+ | 
+Workflow document sections
+Name and process owner: one role accountable for the whole flow
+Start and end points: what kicks it off and what counts as finished
+Stages in a swimlane chart: one lane per role so handoffs are visible
+Handoffs: what passes between people, in which system, and how the next person is notified
+Decision points: where the path splits
+Target time per stage: where delays will be measured
+Linked SOPs: one per box
+KPIs: 3 to 5 measures for the flow
+Playbook sections
+Situations covered: when to open this playbook
+Guiding principles: what the firm cares about most in these situations
+Preferred approach: the standard position or first move
+Acceptable fallbacks: options staff can use without asking
+Hard limits: what nobody agrees to without attorney or partner approval
+Escalation: who decides what, and how fast
+Scripts and templates: sample language, emails, clauses
+Examples: short fictional scenarios showing good calls
+3. What to leave out
+Real client names, matter facts or data. Use fictional examples. Confidentiality rules apply to internal documents too.
+Legal judgment calls handed to non-lawyers. Mark these &quot;attorney decides&quot; instead.
+Passwords and login details. These belong in a password manager.
+Walls of text and backstory. Long SOPs get skimmed or skipped. If one runs past 2 to 3 pages, split it.
+Vague words like &quot;as needed,&quot; &quot;if applicable,&quot; &quot;promptly&quot; or &quot;the usual way.&quot; Say exactly what and when.
+Undefined jargon and internal nicknames. A new hire should be able to follow it on day one.
+Copied content from other documents. Copies go stale. Link to the source.
+Court rules or deadlines pasted in with no source or review date. These change. Link the rule and assign someone to check it.
+People&apos;s names as owners. Use roles. People leave.
+Several processes in one SOP. One task per SOP.
+Policy mixed into steps. Keep the rule in the policy and link to it.
+4. How to organize the library
+Organize by client lifecycle, not by department
+Staff look for documents by what they are doing, not by who owns them. Suggested sections:
+Intake and conflicts
+Engagement and onboarding
+Matter management and calendaring
+Documents, drafting and filing
+Billing, trust and collections
+Matter closing and file retention
+Firm admin (HR, IT, marketing)
+Use a numbering scheme
+Prefix by section so documents are easy to reference: INT-01 Conflict Check, BIL-03 Trust Deposit.
+Keep one home and one index
+Store everything in one searchable place, ideally inside or linked from the practice management system
+Keep a master index listing each document, its owner, status and next review date
+Stack documents in order: policy, then workflow, then SOP, then checklist or template
+5. Who handles what
+Use a RACI chart for each workflow
+R, Responsible: does the work
+A, Accountable: owns the outcome and signs off. Only one per step.
+C, Consulted: gives input before the step is done
+I, Informed: told after it is done
+Rules that matter in a law firm
+Exactly one A per step. Two owners means no owner.
+Any step involving legal judgment has an attorney as A
+The supervising attorney is accountable for work delegated to paralegals and staff
+Keep C&apos;s to a minimum. Every consult adds delay.
+Assign roles, not names
+Name a document owner for each SOP, separate from the process owner, whose job is keeping it current
+Example: intake workflow
+Step
+ | Intake
+ | Paralegal
+ | Attorney
+ | Billing
+ | 
+Respond to inquiry
+ | R, A
+ | 
+ | I
+ | 
+ | 
+Run conflict check
+ | 
+ | R
+ | A
+ | 
+ | 
+Decide to accept matter
+ | C
+ | C
+ | R, A
+ | 
+ | 
+Send engagement letter
+ | 
+ | R
+ | A
+ | I
+ | 
+Open matter in system
+ | 
+ | R, A
+ | I
+ | I
+ | 
+Deposit retainer to trust
+ | 
+ | 
+ | A
+ | R
+ | 
+6. Setting metrics and KPIs
+How to choose them
+Start with why the process exists (for example, intake exists to turn good leads into signed clients fast).
+Name the outcome that proves it is working.
+Pick one leading measure (predicts results, like response time) and one lagging measure (shows results, like conversion rate).
+Measure a baseline for 30 to 60 days before changing anything.
+Set a target, an owner and the exact report or field the number comes from.
+Set a review rhythm: weekly for intake and deadlines, monthly for billing, quarterly for the rest.
+Tests for a good KPI
+It prompts a decision. If nobody would act on it, drop it.
+It can be pulled from data the firm already logs. If the field is not filled in consistently, the number is wrong.
+Keep 3 to 5 per workflow. More than that and nobody watches any of them.
+Cover a mix: speed, quality, client experience, money, and whether the SOP is being followed
+Examples by workflow
+Workflow
+ | Sample KPIs
+ | 
+Intake
+ | Lead response time; consult-to-signed conversion rate; days from consult to signed engagement letter
+ | 
+Conflicts
+ | Percent of checks done before the consult; turnaround time
+ | 
+Matter management
+ | Case cycle time; time spent in each stage; missed or near-miss deadlines (target zero)
+ | 
+Documents
+ | Rework rate (drafts sent back for errors); first-pass approval rate
+ | 
+Billing
+ | Utilization, realization and collection rates; days from work to invoice; A/R over 90 days
+ | 
+Trust
+ | Monthly three-way reconciliation done on time; number of exceptions
+ | 
+Client experience
+ | Client satisfaction or NPS; response time to client messages; complaints
+ | 
+SOP health
+ | Percent of documents reviewed on schedule; new hire time to working independently; errors traced to an unclear SOP
+ | 
+7. Keeping it current
+Review high-risk documents (trust, deadlines, conflicts) quarterly and everything else yearly
+Also review whenever software, staff roles or court rules change
+Have the person who does the task write the first draft, then test it with someone who has never done it
+Give staff an easy way to flag a step that is wrong
+Train on each new or changed SOP and record who completed training
