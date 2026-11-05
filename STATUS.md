@@ -187,3 +187,11 @@ Lawfecta palette from Stacey's mockups: navy #1d2030 to burgundy #8b2146 hero, h
 3. Deploy the api function (verify_jwt false). Set DELA_ORIGINS. Stacey sets BD_SHARED_SECRET, and later GITHUB_DISPATCH_TOKEN and RELEASE_CI_SECRET; GITHUB_REPO = SliceOfThanks/lawfecta.
 4. Set code_version to the pushed commit. The Staging address is already filled in DELA-App and DELA-Admin; send them to Stacey with DELA-Auth.
 5. Record v0.1.0 with dela_release_record and send the ChatGPT test prompt. Save her report with dela_release_attach_report.
+
+## Step 4 part 1: tech catalog (built 2026-11-05; brief docs/briefs/step-4-matching-gigs-proposals.md)
+- Migration 0027_tech_catalog: tech_catalog_versions (every upload kept), tech_catalog_tools, tech_catalog_events (pauses, append-only); switch tech_catalog; settings catalog.max_rows, catalog.ai_max_tools.
+- Admin "Tech catalog" tab: upload CSV, problems listed by row and column, preview (new, changed with fields, removed), Confirm replaces the whole list, Pause and Resume one tool, version history.
+- DELA's AI (Ask DELA and the playbook chat) gets the active tools only when the member asks about software, best fits first, with the rule to recommend only from the catalog. A partner label never changes the order. Paused tools are never included.
+- Tests: catalog_test.ts (7, using Stacey's file data/tech-catalog/catalog-2026-11-05.csv), admin browser checks in foundation-test.js.
+- On the test site 2026-11-05: commit c315827, migration 0027 applied, switch tech_catalog = list. The catalog itself is not uploaded yet: Stacey uploads it in the admin Tech catalog tab as part of the test.
+- Next in Step 4: gigs from approved playbooks, matching, proposals and the allowance, invitations and Talent, questions, comparison and selection, gig files, off-platform checks, "What DELA has learned about you", connector tools, admin Gigs tab.
