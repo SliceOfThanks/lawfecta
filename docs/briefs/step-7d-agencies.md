@@ -187,3 +187,29 @@ New switches, all off until tested:
 - **Who sends proposals.** The owner and managers send as the agency. A team member can still freelance on their own account, under their own plan.
 - **Accepting a team invite** needs an existing Lawfecta freelancer account. A team member can be picked on a proposal only once their own verification is done.
 - **Suggested for the lawyer's review:** the disclosure sentence and the subcontractor's confidentiality and no-poaching term, alongside the confidentiality clause already on that list. Some states expect a lawyer to tell the client when outside help is used.
+
+## Addition from Stacey (2026-11-05): a fee split between the agency and a bench freelancer
+**What Stacey asked:**
+- When an agency adds a freelancer to its bench, the two agree on a percentage split of the fee (for example 50/50, or 30% to the agency and 70% to the freelancer).
+- Both sign an agreement that sets out the split before the freelancer joins the bench.
+- When milestones are paid, each one gets their own share released directly.
+
+**How it would work (suggested):**
+1. **The bench agreement.** The agency invites a freelancer to its bench with a proposed split. The freelancer can accept it or propose another split. Both sign the bench agreement (typed name and a checkbox, the same as engagement agreements). The freelancer joins the bench only after both have signed. The agreement includes the confidentiality and no-poaching terms.
+2. **Assigning bench work.** On an attorney's engagement, the agency assigns a milestone, or the whole engagement, to a bench member. They then show in "Who's working on this".
+3. **Paying out.** When the attorney accepts that milestone, DELA splits the freelancer side of the payment by the signed percentage. Each share is sent to its owner's own Stripe payout account, and each is recorded on its own in the money records.
+4. **No separate funding.** On a split milestone the agency does not fund anything itself: the attorney's payment is shared.
+5. **Separate gigs stay.** The agency's own gigs (answer 3) are still there for work outside the bench and for one-off freelancers.
+
+**Questions (suggested answers in brackets):**
+13. **Whose fee comes off each share?** [Each pays the freelancer fee of their own plan on their own share. Example on a $1,000 milestone at 30/70, with the agency on Business (3%) and the freelancer on Plus (4%): the agency gets $300 minus $9, and the freelancer gets $700 minus $28. The attorney's fee is unchanged.]
+14. **One split, or one per job?** [The bench agreement sets the split for all bench work. A different split for one job needs a short addendum both sign, and it applies only to milestones not yet paid.]
+15. **Limits on the split?** [The agency's share must be between 10% and 50%, as a setting you can change, so the person doing the work keeps most of it. Or should any split be allowed?]
+16. **Several people on one milestone?** [One bench member per milestone at launch. Split larger jobs into more milestones.]
+17. **Refunds and chargebacks** on a split milestone. [They come back from both shares in the same percentages. Any amount still held is taken first.]
+18. **Payout account not set up.** If the freelancer has not set up payouts, their share waits for them. The agency's share is not held back? [Yes.]
+19. **Changing or ending.** To change the split, both sign a new version, and it applies only to future milestones. If either side leaves the bench, new assignments stop, and milestones already assigned keep their split. [Yes.]
+20. **Can the attorney see the split?** [No. It is private between the agency and the freelancer. The attorney sees who is working, not how the fee is shared.]
+21. **Bench members and the Plus plan.** A Free freelancer cannot join a bench (answer 1). If a bench member drops to Free, their assigned milestones still pay out by the split? [Yes. Jobs already on run to the end.]
+
+Note: paying two people from one milestone needs Stripe Connect "separate transfers" through the payments adapter. Stripe supports this. It stays in test mode until live payments are turned on.
