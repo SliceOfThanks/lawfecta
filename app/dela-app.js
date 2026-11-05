@@ -2899,11 +2899,15 @@
     already_on_team: "That person is already on your team.", owner_stays: "The owner stays on the team.", bad_role: "Choose Manager or Member.",
     business_details_needed: "Enter the business name and the two-letter state where it is registered (for example TX).", invite_expired: "This invitation has expired. Ask the agency to send a new one.",
     keep_one_person: "Keep at least one person on the job. Add someone else first.", agreement_closed: "This engagement is closed.",
-    bad_split: "The agency's share must be between 5% and 50% of the fee.", sign_needed: "Type your full name and tick the box to sign.",
+    bad_split: "The agency's share must be between 5% and 50% of the fee.", sign_needed: "Type your full name and tick the box to sign.", tick_to_accept: "Tick the box to accept the split for this job.",
     bench_plus_needed: "Plus plan or higher required to join a bench. Upgrade your Lawfecta membership to Freelancer Plus, then sign.",
     bench_plus_needed_them: "They need Freelancer Plus or higher before they can join your bench. Their invitation stays open.",
     bench_invite_expired: "This bench invitation has expired. Ask the agency to send a new one.", waiting_for_other_side: "You already signed this version. It is waiting for the other side.",
     nothing_to_sign: "There is nothing waiting for your signature.", agency_bench_off: "The agency bench is not open for your account yet.",
+    split_below_fee: "At that split the agency's share does not cover the 5% freelancer fee on this milestone. Raise the agency's share.",
+    already_assigned: "This milestone is already assigned. Take it back first.", not_on_bench: "Choose someone who is on your bench with a signed split.",
+    bench_member_inactive: "They are on the Free plan, so they cannot get new assignments until they upgrade.", no_subcontractors: "This engagement says no subcontractors, so its milestones cannot be assigned to bench members.",
+    milestone_started: "Work on this milestone has started or finished, so its assignment cannot change.", split_not_accepted: "The bench member has not accepted the split for this job yet, so work cannot start.",
     share_expired: "Access to this file has ended. Ask the attorney to share it again if you still need it.",
     blocked_data: "This file appears to contain sensitive data like a Social Security or card number. Please share it using a secure link instead.",
   };
@@ -3337,6 +3341,42 @@
     return card;
   }
 
+  // Bench assignments on an agency engagement (owners and managers): each milestone, who does it, and the split for the job.
+  // The attorney never sees this card or any split.
+  function assignmentsCard(r) {
+    var card = h("div", { class: "card", id: "assign-card" });
+    api.get("/engagements/assignments?agreement=" + r.agreement.id).then(function (v) {
+      if (!v.ok || !v.on) { card.remove(); return; }
+      D.clear(card);
+      card.appendChild(h("h2", { text: "Bench assignments" }));
+      card.appendChild(h("p", { class: "small muted", text: "Give a milestone to someone on your bench. Their bench split fills in; a different split for this job needs their Accept before work starts. " +
+        "When the attorney accepts the milestone, the agency gets its share minus the whole freelancer fee, and they get their full share. The attorney sees them as a subcontractor, never the split." }));
+      if (v.no_subcontractors) card.appendChild(h("p", { class: "notice", text: GIG_ERR.no_subcontractors }));
+      (v.milestones || []).forEach(function (m) {
+        var x = m.assignment, row = h("div", { style: "border-top:1px solid var(--line);padding:8px 0" });
+        row.appendChild(h("b", { text: "Milestone " + m.seq + ": " + m.title + " (" + D.money(m.amount_cents) + ")" }));
+        if (x) {
+          row.appendChild(h("p", { class: "small", style: "margin:4px 0", text: "Assigned to " + x.name + " | split " + splitText(x.agency_bps, false) + (x.status === "proposed" ? " | waiting for " + x.name + " to accept" : "") }));
+          if (x.waiting_payout) row.appendChild(h("p", { class: "small notice", text: "Waiting on " + x.name + "'s payout setup" }));
+          if (["accepted", "refunded", "submitted"].indexOf(m.status) < 0) row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+            api.post("/agency/assignment/remove", { id: x.id }).then(gigOk).then(function () { draw(); D.toast(app, "Milestone " + m.seq + " is unassigned"); }).catch(gigFail);
+          } }, "Take back"));
+        } else if (["pending", "awaiting_funding", "funded"].indexOf(m.status) >= 0 && !v.no_subcontractors && (v.bench || []).length) {
+          var who = h("select", { "aria-label": "Bench member for milestone " + m.seq }, v.bench.map(function (b) { return h("option", { value: b.id, text: b.name + " (bench split " + splitText(b.agency_bps, false) + ")" }); }));
+          var share = h("input", { type: "number", min: String(v.limits.min_bps / 100), max: String(v.limits.max_bps / 100), step: "0.5", "aria-label": "Agency share for this job (%), empty for their bench split", placeholder: "Bench split", style: "width:110px" });
+          row.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:4px" }, who, h("span", { class: "small", text: "Agency share for this job (%):" }), share,
+            h("button", { class: "blue small", type: "button", onclick: function () {
+              api.post("/engagements/assign", { milestone_id: m.id, bench_id: who.value, agency_percent: share.value === "" ? null : Number(share.value) }).then(gigOk).then(function (y) {
+                draw(); D.toast(app, y.status === "proposed" ? "Assigned. Waiting for them to accept the split for this job." : "Assigned. The attorney was told who is working on it.");
+              }).catch(gigFail);
+            } }, "Assign")));
+        } else if (!x) row.appendChild(h("p", { class: "small muted", style: "margin:4px 0", text: (v.bench || []).length ? "Not assigned." : "Not assigned. Nobody on your bench can take new work yet." }));
+        card.appendChild(row);
+      });
+    }).catch(function () { card.remove(); });
+    return card;
+  }
+
   // The Agency tab: invitations, agencies you belong to, and your own agency (business details, team, seats, jobs)
   var ROLE_NAMES = { owner: "Owner", manager: "Manager", member: "Member" };
   function agencyView() {
@@ -3496,6 +3536,31 @@
         c.appendChild(acts);
         box.appendChild(c);
       });
+      // Work the agencies assigned to you
+      if ((v.my_assignments || []).length) {
+        var ac = h("div", { class: "card", id: "my-assignments" }, h("h2", { text: "Your agency assignments" }),
+          h("p", { class: "small muted", text: "Work agencies gave you from their engagements. You hand the work to the agency; the agency delivers it to its client. You pay no platform fee on your share." }));
+        v.my_assignments.forEach(function (x) {
+          var line = h("div", { style: "border-top:1px solid var(--line);padding:8px 0" },
+            h("b", { text: x.job + ", milestone " + x.seq + ": " + x.title }),
+            h("p", { class: "small", style: "margin:4px 0", text: "For " + x.agency + " | " + D.money(x.amount_cents) + " | your share " + D.money(x.share_cents) + (x.due_date ? " | due " + D.date(x.due_date) : "") }),
+            x.deliverables ? h("p", { class: "small muted", style: "margin:0", text: "Deliverables: " + x.deliverables }) : null);
+          if (x.status === "proposed") {
+            var tick = h("input", { type: "checkbox", "aria-label": "I accept this split for this job." });
+            line.appendChild(h("p", { class: "notice", style: "margin:6px 0", text: "Split for this job: " + pct(x.agency_bps) + " agency / " + pct(10000 - x.agency_bps) + " you. Work cannot start until you accept." }));
+            line.appendChild(h("label", { class: "small", style: "font-weight:400;display:flex;gap:6px;align-items:center" }, tick, h("span", { text: "I accept this split for this job." })));
+            line.appendChild(h("div", { class: "row" },
+              h("button", { class: "blue small", type: "button", onclick: function () { api.post("/agency/assignment/answer", { id: x.id, accept: true, agree: tick.checked }).then(gigOk).then(function () { draw(); D.toast(app, "Accepted. You can start once the milestone is funded."); }).catch(gigFail); } }, "Accept"),
+              h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/agency/assignment/answer", { id: x.id, accept: false }).then(gigOk).then(function () { draw(); D.toast(app, "Declined. The milestone goes back to the agency."); }).catch(gigFail); } }, "Decline")));
+          } else {
+            var pay = x.payout;
+            line.appendChild(h("p", { class: "small", style: "margin:4px 0", text: "Split " + pct(x.agency_bps) + " agency / " + pct(10000 - x.agency_bps) + " you | " +
+              (pay ? (pay.status === "sent" ? "your share was paid" : pay.status === "held" ? "your share waits for your payout setup on the Earnings tab" : "your share is on its way") : x.milestone_status === "accepted" ? "accepted" : "in progress") }));
+          }
+          ac.appendChild(line);
+        });
+        box.appendChild(ac);
+      }
       // The agency's own bench (owner and managers)
       if (!v.agency_bench) return;
       var c = h("div", { class: "card", id: "agency-bench" }, h("h2", { text: "Bench" }),
@@ -4172,6 +4237,7 @@
     if (att && (r.payments || []).length) host.appendChild(paymentsCard(r));
     if (!att && r.payout_account !== undefined) host.appendChild(payoutCard(r.payout_account, true));
     host.appendChild(peopleCard(r));
+    if (!att) host.appendChild(assignmentsCard(r));
     host.appendChild(confCard(r));
     host.appendChild(disputeCard(r));
     if (a.status === "completed") { host.appendChild(closeoutCard(r)); reviewPanel(host, r); }

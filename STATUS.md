@@ -2,6 +2,24 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Agencies part 2a and 2b (step 7d), 2026-11-05: built and tested here, not on the test site yet
+- 2a, the agency bench (migration 0042, switch agency_bench, off):
+  - The agency invites a freelancer by email with a default split and signs it. The agency's share is 5% to 50%, never below the freelancer fee.
+  - The freelancer signs, proposes another split (signed), or declines. They join when both have signed.
+  - Only Plus or higher can join. A Free freelancer is told to upgrade, and the invitation stays open 30 days. A bench member who drops to Free shows "Inactive: Free plan".
+  - A new default split needs both signatures. The old one applies until then.
+  - The terms include confidentiality and no poaching. Versions and signatures are append-only.
+- 2b, bench work on attorney engagements (migration 0043):
+  - The owner or a manager assigns a milestone to a bench member in "Bench assignments", one person per milestone.
+  - A different split for one job needs the bench member's Accept before work starts. Decline sends it back to unassigned. The agency's share must cover the 5% fee.
+  - On payout: the agency gets its share minus the whole freelancer fee, and the bench member gets their full share, each paid to their own account.
+  - A missing payout account holds only that share, with reminders at 1, 7 and 30 days. The agency sees "Waiting on [name]'s payout setup", never the amount.
+  - A lost chargeback comes back from both shares by the split: held money first, then Stripe transfer reversals, each recorded separately. Anything that cannot be recovered is recorded as a shortfall and the team is alerted.
+  - The attorney sees the bench member as a subcontractor in "Who's working on this", with an information-only notice, and never the split. Bench members never open the attorney's area.
+- Admin "Agencies" tab: every bench with its split, and every assignment.
+- Tests: agency_bench_test.ts (8), agency_split_test.ts (7), agency-test.js (28 browser checks).
+- Still to come in part 2: the agency's own gigs (Library, posting, Talent, the agency as client). Handing work files between the agency and a bench member comes with part 3.
+
 ## Agencies part 1 (step 7d), 2026-11-05
 - Built with Stacey's answers (docs/briefs/step-7d-agencies.md): migrations 0040 (team, seats, invitations, agency proposals, "Who's working on this", reviews to the team, admin check and seats) and 0041 (5% fees on both sides from settings; already on the test site).
 - Screens: the freelancer "Agency" tab (switch agency_team), "Send as" and "Who will do this work" on proposals, the agency on the attorney's proposal list and profile window, "Who's working on this" on the engagement, and the admin "Agencies" tab.

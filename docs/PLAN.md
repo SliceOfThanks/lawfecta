@@ -174,7 +174,8 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
   - Only the owner and managers sign, change, cancel or dispute. Team members do the work and open the job's files.
   - Reviews go to the agency and to each person named.
   - Admin area, "Agencies" tab: the one-time business check and a hand-raised seat limit for one agency.
-- Part 2, next: the bench agreement with the fee split (both sign, Plus minimum), Talent and the Library for agencies, the agency's own gigs, split payouts, refunds by share, payout holds.
+- Part 2a and 2b, built and tested here (not on the test site yet): the bench agreement with the signed split and the Plus minimum; bench work on attorney engagements with the split for the job, split payouts, payout holds with reminders, and chargebacks taken back from both shares.
+- Part 2c, next: the agency's own gigs (the Library for agencies, posting after the business check, Talent, the agency paying the client fee and the freelancer fee for its bench members).
 - Part 3: subcontracting disclosure, "No subcontractors on this engagement", linked gigs.
 
 ### Security and sensitive data (step 6d), built 2026-11-05

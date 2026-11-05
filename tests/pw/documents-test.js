@@ -168,6 +168,9 @@ async function makeMember(bd, side, plan) {
     await dela(p).getByLabel("Process name").fill("Client trust account rules");
     await click(p, "Draft it with DELA");
     t = await waitFor(p, "The rules", 15000);
+    // On a slow machine the earlier SOP view can still be on screen for a moment: wait for the Policy view to settle
+    await p.waitForFunction(() => { const r = document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText; return r.includes("Exceptions and who approves them") && !r.includes("RACI"); }, null, { timeout: 10000 }).catch(() => {});
+    t = await text(p);
     ok(t.includes("What must happen") && t.includes("Exceptions and who approves them") && !t.includes("RACI"), "a Policy has rules and exceptions, and no RACI grid");
     if (!(await dela(p).getByRole("button", { name: "Approve", exact: true }).isDisabled())) { await click(p, "Approve"); await waitFor(p, "Approved"); }
     await p.waitForTimeout(500);

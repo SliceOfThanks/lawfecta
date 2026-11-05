@@ -193,6 +193,32 @@ const OWNER = 3800, MGR = 3801, ATT = 3802, PIA = 3803, FRED = 3804;
     ok(t.includes("Your split: 20% to the agency / 80% to you") && t.includes("pay no fee"), "Pia is on the bench with her split");
     await s.ctx.close();
 
+    // ---------- A milestone assigned to Pia at a different split for this job; she accepts; the attorney sees no split ----------
+    const agr = (await sql(`select a.id from agreements a where a.gig_id = '${gig}'`))[0].id;
+    await sql(`update agreements set status = 'active', signed_at = now() where id = '${agr}';
+      insert into milestones (agreement_id, seq, title, amount_cents, freelancer_fee_cents, from_version, status) values ('${agr}', 1, 'Draft', 30000, 1500, 1, 'pending') on conflict do nothing; select 1`);
+    s = await open(browser, OWNER, `&tab=work&gig=${gig}&view=agreement`);
+    t = await waitFor(s.page, "Bench assignments");
+    ok(t.includes("Milestone 1: Draft ($300)"), "the agency sees its milestones to assign");
+    await label(s.page, "Agency share for this job (%), empty for their bench split").fill("30");
+    await click(s.page, "Assign");
+    t = await waitFor(s.page, "waiting for Pia Plus to accept");
+    ok(t.includes("Assigned to Pia Plus | split 30% to the agency / 70% to the freelancer"), "assigned at a different split for this job");
+    await s.ctx.close();
+    s = await open(browser, PIA, `&tab=agency`);
+    t = await waitFor(s.page, "Your agency assignments");
+    ok(t.includes("Split for this job: 30% agency / 70% you") && t.includes("your share $210"), "Pia sees the split for this job and her share");
+    await click(s.page, "Accept");
+    await waitFor(s.page, "Tick the box to accept the split for this job.");
+    await label(s.page, "I accept this split for this job.").check();
+    await click(s.page, "Accept");
+    t = await waitFor(s.page, "Split 30% agency / 70% you | in progress");
+    await s.ctx.close();
+    s = await open(browser, ATT, `&tab=projects&gig=${gig}&view=agreement`);
+    t = await waitFor(s.page, "Pia Plus");
+    ok(t.includes("Subcontractor, Milestone 1") && !t.includes("Bench assignments") && !t.includes("30%") && !t.includes("70%"), "the attorney sees the subcontractor, never the split");
+    await s.ctx.close();
+
     // ---------- The Lawfecta Team: the business check and a seat limit ----------
     await sql("insert into staff_roles (person_id, role) select id, 'owner' from people where bd_member_id = 1 and not exists (select 1 from staff_roles s where s.person_id = people.id)");
     s = await open(browser, 1, "");

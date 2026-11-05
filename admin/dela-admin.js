@@ -949,6 +949,18 @@
           (b.waiting ? " | proposed " + pc(b.waiting.agency_bps) + " agency, waiting for " + (b.waiting.agency_signed ? "the freelancer" : "the agency") : "") + (b.inactive ? " | Inactive: Free plan" : "") }));
       });
     }).catch(function (e) { D.clear(bc); bc.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+    // Every milestone an agency gave to a bench member, with the split for that job
+    var ac = h("div", { class: "card" }, h("h2", { text: "Bench assignments" }), h("p", { class: "muted", text: "Loading..." }));
+    if (el.parentNode) el.parentNode.appendChild(ac);
+    api.get("/admin/agencies/assignments").then(function (r) {
+      var d = r.data || r, pc = function (b) { var n = b / 100; return (n % 1 === 0 ? String(n) : n.toFixed(1)) + "%"; };
+      D.clear(ac);
+      ac.appendChild(h("h2", { text: "Bench assignments" }));
+      if (!(d.assignments || []).length) { ac.appendChild(h("p", { class: "muted", text: "None yet." })); return; }
+      (d.assignments || []).forEach(function (x) {
+        ac.appendChild(h("div", { class: "small", style: "border-top:1px solid var(--line);padding:6px 0", text: x.agency + " | " + x.job + ", milestone " + x.seq + " | " + x.name + " | split " + pc(x.agency_bps) + " agency / " + pc(10000 - x.agency_bps) + " | " + x.status + " | milestone " + x.milestone_status }));
+      });
+    }).catch(function (e) { D.clear(ac); ac.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
   function securityTab() {
     var el = h("div");

@@ -2597,6 +2597,15 @@ async function sendPayouts(ctx: Ctx) {
     await rpc(ctx, "dela_payout_result", { p_payout: po.id, p_status: r.ok ? "sent" : "failed", p_ref: r.ok ? r.data.id : "", p_reason: r.ok ? "" : r.error });
   }
 }
+// Money taken back from a split milestone's shares that was already paid out: reverse that Stripe transfer
+async function sendReversals(ctx: Ctx) {
+  const key = await stripeKey(ctx);
+  if (!key) return;
+  for (const rv of (await rpc<Array<Record<string, any>>>(ctx, "dela_reversals_due", {})) ?? []) {
+    const r = await stripe(f(ctx), key, "POST", "/transfers/" + encodeURIComponent(String(rv.transfer_ref)) + "/reversals", { amount: rv.amount_cents, metadata: { reversal_id: rv.id } }, rv.idem_key);
+    await rpc(ctx, "dela_reversal_result", { p_reversal: rv.id, p_status: r.ok ? "succeeded" : "failed", p_ref: r.ok ? r.data.id : "" });
+  }
+}
 async function sendRefunds(ctx: Ctx) {
   const key = await stripeKey(ctx);
   if (!key) return;
@@ -2757,6 +2766,7 @@ async function stripeWebhook(ctx: Ctx) {
     case "charge.dispute.closed":
       await rpc(ctx, "dela_chargeback_event", { p_ref: String(o.id ?? ""), p_payment_ref: String(o.payment_intent ?? ""), p_status: ev.type.endsWith("created") ? "open" : (o.status === "won" ? "won" : o.status === "lost" ? "lost" : "withdrawn"),
         p_amount: int(o.amount) ?? 0, p_reason: String(o.reason ?? "") });
+      await sendReversals(ctx);
       break;
   }
   return json(ctx, { ok: true });
@@ -2768,6 +2778,7 @@ async function engagementsDaily(ctx: Ctx) {
   await rpc(ctx, "dela_engagements_daily", {});
   await sendPayouts(ctx);
   await sendRefunds(ctx);
+  await sendReversals(ctx);
   const key = await stripeKey(ctx);
   if (key) {
     for (const p of (await rpc<Array<Record<string, any>>>(ctx, "dela_payments_to_match", {})) ?? []) {
@@ -3413,6 +3424,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/security": (c, a) => rpc(c, "dela_admin_security", { p_actor: a }),
   "/admin/agencies": (c, a) => rpc(c, "dela_admin_agencies", { p_actor: a }),
   "/admin/agencies/bench": (c, a) => rpc(c, "dela_admin_agency_bench", { p_actor: a }),
+  "/admin/agencies/assignments": (c, a) => rpc(c, "dela_admin_assignments", { p_actor: a }),
   "/admin/confidential/review": (c, a) => rpc(c, "dela_conf_reviewer", { p_actor: a, p_agreement: need(uuid(c.url.searchParams.get("agreement"))), p_file: null }),
   "/admin/payments": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_payments", { p_actor: a })), stripe_ready: !!(await stripeKey(c)), mode: c.deps.env("STRIPE_SECRET_KEY").includes("_live_") ? "live" : "test" }),
   "/admin/meetings": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_meetings", { p_actor: a })), provider_ready: !!c.deps.env("VECTERA_API_KEY") }),
@@ -3889,6 +3901,15 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /agency/bench/invite": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_bench_invite", { p_person: s.person_id, p: benchBody(ctx, { email: str(ctx.body.email, 200), note: str(ctx.body.note, 600), request_id: str(ctx.body.request_id, 80) }) })); }
       case "POST /agency/bench/answer": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_bench_answer", { p_person: s.person_id, p_bench: need(uuid(ctx.body.id)), p: benchBody(ctx, { action: str(ctx.body.action, 10) }) })); }
       case "POST /agency/bench/agency": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_bench_agency", { p_person: s.person_id, p_bench: need(uuid(ctx.body.id)), p: benchBody(ctx, { action: str(ctx.body.action, 10) }) })); }
+      // Attorney work assigned to a bench member (Step 7d part 2b): the split for the job, Accept or Decline
+      case "GET /engagements/assignments": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agreement_assignments", { p_person: s.person_id, p_agreement: need(uuid(ctx.url.searchParams.get("agreement"))) })); }
+      case "POST /engagements/assign": {
+        const s = await freelancerOnly(ctx);
+        const pct = ctx.body.agency_percent === undefined || ctx.body.agency_percent === null || ctx.body.agency_percent === "" ? null : Number(ctx.body.agency_percent);
+        return json(ctx, await rpc(ctx, "dela_milestone_assign", { p_person: s.person_id, p_milestone: need(uuid(ctx.body.milestone_id)), p: { bench_id: need(uuid(ctx.body.bench_id)), agency_bps: pct === null || !Number.isFinite(pct) ? null : Math.round(pct * 100) } }));
+      }
+      case "POST /agency/assignment/answer": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_assignment_answer", { p_person: s.person_id, p_assignment: need(uuid(ctx.body.id)), p: { accept: ctx.body.accept === true, typed_name: str(ctx.body.typed_name, 120), agree: ctx.body.agree === true } })); }
+      case "POST /agency/assignment/remove": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_assignment_remove", { p_person: s.person_id, p_assignment: need(uuid(ctx.body.id)) })); }
       case "POST /agency/bench/end": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_bench_end", { p_person: s.person_id, p_bench: need(uuid(ctx.body.id)) })); }
       case "POST /agency/leave": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_leave", { p_person: s.person_id, p_org: need(uuid(ctx.body.org_id)) })); }
       case "GET /freelancers/card": return await freelancerCard(ctx);
