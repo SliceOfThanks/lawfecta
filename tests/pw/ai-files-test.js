@@ -74,9 +74,11 @@ const MEMBER_CLAUDE = "sk-ant-member-browser-test-key-2222222222"; // rules-ok: 
     const p = s.page;
     t = await text(p);
     ok(t.includes("Ask DELA to plan a task"), "Home offers Ask DELA");
+    ok(!t.includes("DELA is for operations work"), "Home has no client information banner (Stacey 2026-11-05)");
     await dela(p).getByRole("button", { name: "Files" }).first().click();
     t = await waitFor(p, "Add files");
     ok(t.includes("of 250 MB used"), "the storage bar shows the Free plan's 250 MB");
+    ok(!t.includes("DELA is for operations work") && t.includes("These files have no confidential client information"), "Files has no banner, and keeps the reminder and tick box at the upload");
     ok(t.includes("Do not enter confidential client information") || t.includes("confidential client information"), "the confidential information notice shows where people upload");
 
     const input = dela(p).locator("input[type=file]").first();
@@ -154,7 +156,8 @@ const MEMBER_CLAUDE = "sk-ant-member-browser-test-key-2222222222"; // rules-ok: 
     await p.screenshot({ path: path.join(SHOTS, "2a-ai-settings.png"), fullPage: true });
 
     await dela(p).getByRole("button", { name: "Ask DELA" }).first().click();
-    await waitFor(p, "Using your OpenAI key ending");
+    t = await waitFor(p, "Using your OpenAI key ending");
+    ok(t.includes("DELA is for operations work"), "Ask DELA still shows the client information banner where people type");
     await dela(p).getByLabel("Your message").fill("Plan my filing day");
     await dela(p).getByRole("button", { name: "Send", exact: true }).click();
     t = await waitFor(p, "your key)");

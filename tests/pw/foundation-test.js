@@ -171,7 +171,7 @@ const dela = (page) => page.locator(".dela-host");
     ok(t.includes("Plan. Delegate.") && t.includes("Verification") && t.includes("Attorney Pro"), "attorney sees Attorney DELA on their plan");
     ok(t.includes("Delegate") && t.includes("Talent"), "attorney has the attorney tabs");
     ok(t.includes(" of 12 available") && !t.includes("Proposals sent per month"), "attorney sees attorney limits only, with the approved change");
-    ok(t.includes("Do not enter confidential client information"), "the confidential information notice shows");
+    ok(!t.includes("DELA is for operations work"), "Home has no client information banner; it shows where people type (Stacey 2026-11-05)");
     ok(t.includes("Test site"), "the test site badge shows");
     await s.page.screenshot({ path: path.join(SHOTS, "attorney-home.png"), fullPage: true });
     await dela(s.page).getByRole("button", { name: "Talent" }).click();

@@ -65,6 +65,7 @@ async function waitFor(page, words, ms) {
     let p = s.page;
     await click(p, "Set up your profile and verification");
     let t = await waitFor(p, "Profile and verification");
+    ok(!t.includes("DELA is for operations work"), "the profile page has no client information banner (Stacey 2026-11-05)");
     ok(t.includes("Not complete") && t.includes("Firm name") && t.includes("Where you are licensed or practice"), "the attorney sees exactly what is missing");
     ok(t.includes("Posting work and hiring need a verified license"), "the page says hiring needs verification");
     await click(p, "Fill from my Lawfecta listing");
