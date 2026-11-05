@@ -31,7 +31,7 @@ Claude fixes anything that fails, then tells you which part to run again.
   - any program file renamed to end in .pdf
 - During the test, ChatGPT asks you to open that work email and click the button in it while logged in as the test attorney.
 
-### 2b. Short screens test (Ask DELA, Files, library, exports, your own AI key)
+### 2b. Short screens test (Ask DELA, Files, library, exports, your own AI key): passed 2026-11-05 (34 of 36); 7 fixes, short recheck by hand
 - Test: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2-short-chatgpt-prompt.md
 - Have ready:
   - a short process write-up as a Word file or PDF, with no client information
@@ -40,7 +40,7 @@ Claude fixes anything that fails, then tells you which part to run again.
 - Type the key only into ChatGPT on your own computer.
 - After the test, delete that key at https://platform.openai.com/api-keys (click the key, then Revoke), or make a new one.
 
-### 2c. DELA in Claude and ChatGPT (the connector)
+### 2c. DELA in Claude and ChatGPT (the connector): passed 2026-11-05
 - Test: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2b-connector-test.md
 - Claude: open https://claude.ai/settings/connectors, click "Add custom connector", name it Lawfecta DELA, and paste this address: https://ojshgsxgsypbywtqhkch.supabase.co/functions/v1/api/mcp
 - ChatGPT: Settings, then Apps and Connectors, then Create. If there is no Create button, turn on Developer mode under Advanced settings first.

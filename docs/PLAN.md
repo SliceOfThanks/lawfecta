@@ -16,10 +16,10 @@ Everything below is on the test site, for the access list only. Live (lawfecta.c
 | 1 | Foundation: BD sign in, access list, roles, plans and limits, admin, audit, notices | Done | Passing | Done |
 | 1b | Release Control: push to Live, codes, watch, go back | Done | Passing | Done; the real push waits for Live |
 | 1c | Safety kit: rule checker, AI review, monthly health report | Done | Passing | GitHub settings still to turn on |
-| 2a | Bring your own AI key (BYOK: OpenAI or Claude), talking to the AI, Files | Done | Passing, real AI checked | Not run yet |
-| 2 | Playbook library, versions, comments, exports, Import from Scribe | Done | Passing, real AI checked | Not run yet |
+| 2a | Bring your own AI key (BYOK: OpenAI or Claude), talking to the AI, Files | Done | Passing, real AI checked | Passed (2026-11-05, short screens test 34 of 36); your Talk recheck to do |
+| 2 | Playbook library, versions, comments, exports, Import from Scribe | Done | Passing, real AI checked | Passed (2026-11-05) with 7 fixes; a short recheck to do |
 | 2r | Process Recorder beta | Done (no Chrome extension) | Passing | Not run yet |
-| 2b | DELA in ChatGPT and Claude (connector) | Done | Passing, checked on the real site | Not run yet (needs your accounts) |
+| 2b | DELA in ChatGPT and Claude (connector) | Done | Passing, checked on the real site | Passed (2026-11-05), in your Claude and ChatGPT |
 | 3 | Profiles and verification, tech tools, the AI reads the member's own profile | Done | Passing, BD listing read and write checked | Passed (2026-11-05), with 8 fixes from your testing |
 
 ### Bring your own AI key (BYOK), built in Step 2a
