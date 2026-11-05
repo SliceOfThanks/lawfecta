@@ -280,3 +280,10 @@ Lawfecta palette from Stacey's mockups: navy #1d2030 to burgundy #8b2146 hero, h
 - Also fixed from the report: the "Accountable" message now separates "no A" from "more than one A"; the remaining "playbook" words (Home, plan limit labels, switch labels, settings, the admin column, connector tool names) say "document" (migration 0034, labels only); DELA no longer suggests changing trust account rules from a Policy to a Workflow.
 - On the test site: commit 84102b5, migration 0034 applied (SHA-256 checked), function version 35, code_version set. 174 API tests and all 12 browser tests pass.
 
+## Track B (Claude in Chrome: gigs, proposals, messages, meetings) 2026-11-05: most steps pass, 5 fail
+- Fixed: "✦ Summarize" and "✦ Draft a reply" (OpenAI refused JSON mode for plain-text answers); "Change the time" (checked against the meeting being moved, and listed its current time; the same time is now refused); times stopping at 2:45 PM (24 per day on screen, 200 in total); the menu path placeholder shown to freelancers; "1 proposals"; "milestones accepted 0 of 0" before signing; "fl_free" in the admin table; the attorney's meeting card note; DELA's AI naming tools not in the profile or the catalog.
+- The lost freelancer question: the test tab switched to the owner's login, because hirelegalhelp.com was opened as the owner in the same Chrome while the test ran. Not a DELA error. The agent test rules now say so.
+- Not DELA: the login page heading "Welcome To LawWurk" is Brilliant Directories text on hirelegalhelp.com (BD admin). The clipboard note came from the testing tool.
+- Open: DELA still uses the browser's own OK/Cancel pop-ups (about 70 places). Agents handle them now, but in-page pop-ups would be better. Planned.
+- On the test site: commit 8e1b497, migration 0035 applied (SHA-256 checked), function version 36, code_version set. Recheck: docs/tests/claude-track-b-recheck.md.
+
