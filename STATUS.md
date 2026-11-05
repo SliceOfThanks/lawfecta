@@ -271,5 +271,6 @@ Lawfecta palette from Stacey's mockups: navy #1d2030 to burgundy #8b2146 hero, h
 - Admin: the Documents card shows image counts (never the images).
 - Tests: images_test.ts (9), engine tests (9 in documents_model_test.ts), images-test.js (33 browser checks). 172 API tests together; all 12 browser tests pass on one shared database.
 - Not built yet: deleting image files once no version uses them and the document is deleted from the trash (they stay counted in storage until then).
+- On the test site 2026-11-05: commit 3a9a7f8, migration 0033 applied from jsDelivr (SHA-256 checked), function version 34, code_version set, switch document_images on the access list. Smoke test as attorney 687: /playbooks/get returns the image settings (on, 5 MB, 3 per step, 120 characters, 2400 px) and the image check fields; /gigs answers with image counts. The smoke login expires by itself after 15 minutes.
 - Test for Stacey: docs/tests/step-2e-images-chatgpt-prompt.md.
 
