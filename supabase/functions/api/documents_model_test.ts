@@ -172,3 +172,11 @@ Deno.test("images: where they may go, the checks, carried past the AI, sizes, an
   assert(docToMarkdown(b, META).includes("[Image: The New matter button]"));
   assertEquals(changeSummary(b, { ...b, steps: b.steps.map((x) => ({ ...x, images: [] })) }).includes("Images"), true);
 });
+
+Deno.test("the Accountable check says which steps have no A and which have more than one", () => {
+  const b = normalizeDoc({ type: "sop", title: "X", roles, steps: [st("Search the names.", { Paralegal: "R" }), st("Record the result.", { Paralegal: "R,A", Attorney: "A" }), st("File the notes.", { Paralegal: "R,A" })] });
+  const it = checkDoc(b, CTX).items.find((i) => i.id === "one_a")!;
+  assertEquals(it.detail, "Step 1 has no Accountable (A). Give each step one owner. Step 2 has more than one Accountable (A). Two owners means no owner.");
+  const none = checkDoc(normalizeDoc({ ...b, steps: [st("Search the names.", { Paralegal: "R" }), st("Record it.", { Paralegal: "R" })] }), CTX).items.find((i) => i.id === "one_a")!;
+  assertEquals(none.detail, "Steps 1, 2 have no Accountable (A). Give each step one owner.");
+});

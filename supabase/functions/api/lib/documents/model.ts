@@ -331,7 +331,10 @@ export function checkDoc(b: DocBody, c: CheckContext): { items: CheckItem[]; blo
     add("judgment", "Every judgment step is flagged \"Attorney decides\"", unflagged.length > 0,
       "Steps " + unflagged.join(", ") + " look like legal judgment. Flag them \"Attorney decides\", or mark them as not a judgment step.", "code", "blocking", unflagged);
     const badA = b.steps.map((st, i) => (lettersOf(st.raci, "A").length !== 1 ? i + 1 : 0)).filter(Boolean);
-    add("one_a", "Exactly one Accountable (A) for every step", badA.length > 0, "Steps " + badA.join(", ") + " need exactly one A. Two owners means no owner.", "code", "blocking", badA);
+    const noA = badA.filter((n) => lettersOf(b.steps[n - 1].raci, "A").length === 0), twoA = badA.filter((n) => lettersOf(b.steps[n - 1].raci, "A").length > 1);
+    const nums = (l: number[]) => (l.length === 1 ? "Step " + l[0] + " has" : "Steps " + l.join(", ") + " have");
+    add("one_a", "Exactly one Accountable (A) for every step", badA.length > 0,
+      [noA.length ? nums(noA) + " no Accountable (A). Give each step one owner." : "", twoA.length ? nums(twoA) + " more than one Accountable (A). Two owners means no owner." : ""].filter(Boolean).join(" "), "code", "blocking", badA);
     const notAtt = b.steps.map((st, i) => (st.attorney_decides && !lettersOf(st.raci, "A").some((r) => atts.includes(r)) ? i + 1 : 0)).filter(Boolean);
     add("attorney_a", "An attorney is Accountable for every \"Attorney decides\" step", notAtt.length > 0 || (b.steps.some((x) => x.attorney_decides) && !atts.length),
       atts.length ? "Steps " + notAtt.join(", ") + " are attorney decisions but the A is not an attorney role." : "Add an attorney role to the document.", "code", "blocking", notAtt);
