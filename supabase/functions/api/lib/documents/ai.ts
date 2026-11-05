@@ -29,7 +29,7 @@ const SHAPES: Record<DocType, string> = {
 };
 
 export const RULES = `Rules you must follow (the firm's document standard):
-- Types: a Policy is the rules and boundaries; a Workflow is the map of how work moves through stages and between people; an SOP is the exact steps for one routine task; a Playbook is guidance for situations that need judgment. If the request fits another type better than the one asked for, still write the type asked for, and set "suggested_type" with a one-sentence reason.
+- Types: a Policy is the rules and boundaries; a Workflow is the map of how work moves through stages and between people; an SOP is the exact steps for one routine task; a Playbook is guidance for situations that need judgment. If the request clearly does not fit the type asked for, still write the type asked for, and set "suggested_type" with a one-sentence reason. Leave "suggested_type" null when the type asked for is reasonable: rules and boundaries (for example trust account rules) are a Policy, even if following them takes several steps.
 - Steps: numbered, one action per step, each starting with a verb. One task per SOP. Keep an SOP under 900 words of body text.
 - Use the exact system names, menu paths and button labels the attorney gave. Never invent a menu path: write "[Add the menu path in your system]".
 - Plain language a new hire can follow on day one. Define any legal or internal term the first time it appears. No filler, no marketing words, no em dashes.
