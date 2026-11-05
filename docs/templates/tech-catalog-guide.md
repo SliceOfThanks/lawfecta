@@ -4,6 +4,9 @@ The Lawfecta Team uploads one CSV file with every tool in the catalog. A new upl
 
 Template with one example row: docs/templates/tech-catalog-template.csv. The example row is only to show the format; check every fact before uploading.
 
+## The current list
+The first full list (33 tools, from Stacey 2026-11-05) is saved at data/tech-catalog/catalog-2026-11-05.csv. It loads on the test site when the Tech catalog is built in Step 4.
+
 ## How to fill it in
 - One row per tool. The first row is the column names, exactly as in the template.
 - Where a cell holds several things, separate them with a semicolon and a space, for example: Solo; 2-10; 11-50
@@ -18,20 +21,20 @@ Template with one example row: docs/templates/tech-catalog-template.csv. The exa
 | name | Yes | The product name members know | Clio Manage |
 | vendor | Yes | The company | Clio |
 | website | Yes | The product's web address, starting with https:// | https://www.clio.com |
-| category | Yes | One main category: Practice management, Document management, Billing and payments, E-signature, Client intake, Legal research, Calendaring and docketing, Communication, Automation, Document automation, Accounting, AI assistant, E-filing, Other | Practice management |
+| category | Yes | One main category, in your own words. Keep the same spelling for tools in the same group. Used so far: Practice management, Case management, Document management, Legal research, AI assistant, eDiscovery, Payments, E-signature, Document automation, Client intake and CRM, Virtual receptionist, Scheduling, Trial presentation, Case analysis, Accounting, Time and billing, Phone system, Video meetings, Productivity suite, Automation, Practice-specific software, Virtual mailroom, Security | Practice management |
 | subcategories | No | More specific areas, separated by semicolons | Case management; Billing; Calendar |
 | description | Yes | Two or three plain sentences: what it does | Cloud practice management for law firms... |
 | best_for | Yes | Who and what it suits best | Solo and small firms that want one place for matters and billing |
 | not_good_for | No | When not to recommend it | Firms that only need document storage |
 | practice_areas | No | Practice areas it suits (use the profile's names), or All | All; Family law; Personal injury |
-| firm_sizes | Yes | Any of: Solo; 2-10; 11-50; 51+ | Solo; 2-10; 11-50 |
+| firm_sizes | Yes | Any of: Solo; 2-10; 11-50; 51-200; 200+ | Solo; 2-10; 11-50 |
 | roles | No | Who uses it day to day: Attorney; Paralegal; Office manager; Assistant | Attorney; Paralegal |
 | key_features | Yes | Main features, separated by semicolons | Matter management; Time tracking; Billing |
 | ai_features | No | Built-in AI, if any | AI assistant for summaries and drafting |
 | integrations | No | Tools it connects to, separated by semicolons | Microsoft 365; QuickBooks; LawPay |
 | platforms | No | Web; Windows; Mac; iOS; Android | Web; iOS; Android |
-| pricing_model | Yes | Per user per month, Per firm per month, Per use, One time, Free | Per user per month |
-| starting_price_usd_month | No | Lowest monthly price in whole dollars, or empty if it varies | 49 |
+| pricing_model | Yes | How it is priced, in plain words, for example: Per user per month, Per company per month, Custom quote, One-time purchase, Monthly fee plus per transaction | Per user per month |
+| starting_price_usd_month | No | Lowest monthly price in whole dollars. Leave it empty if it varies or is a custom quote. Use 0 only when there is truly no monthly fee. | 49 |
 | free_plan | Yes | Yes or No | No |
 | free_trial_days | No | Number of trial days, or 0 | 7 |
 | setup_time | No | Rough time to get started | 1 to 2 weeks |
@@ -40,7 +43,7 @@ Template with one example row: docs/templates/tech-catalog-template.csv. The exa
 | data_location | No | Where data is stored | US; EU |
 | security | No | Certifications and protections | SOC 2 Type II; Encryption at rest |
 | client_portal | No | Yes or No | Yes |
-| alternatives | No | Other tool names in this catalog, separated by semicolons | MyCase; PracticePanther |
+| alternatives | No | Other tool names, separated by semicolons. Names in this catalog are linked; other names are shown as plain text and never recommended. | MyCase; PracticePanther |
 | notes_for_ai | No | Anything DELA's AI should weigh when recommending: when to suggest it, when not to, what to check first | Recommend when the firm has no practice management system... |
 | lawfecta_partner | Yes | Yes or No. Shown to members as a label. It never changes the order DELA recommends in. | No |
 | status | Yes | active, or paused to keep it in the list but stop recommending it | active |
