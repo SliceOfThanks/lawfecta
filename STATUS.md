@@ -195,3 +195,15 @@ Lawfecta palette from Stacey's mockups: navy #1d2030 to burgundy #8b2146 hero, h
 - Tests: catalog_test.ts (7, using Stacey's file data/tech-catalog/catalog-2026-11-05.csv), admin browser checks in foundation-test.js.
 - On the test site 2026-11-05: commit c315827, migration 0027 applied, switch tech_catalog = list. The catalog itself is not uploaded yet: Stacey uploads it in the admin Tech catalog tab as part of the test.
 - Next in Step 4: gigs from approved playbooks, matching, proposals and the allowance, invitations and Talent, questions, comparison and selection, gig files, off-platform checks, "What DELA has learned about you", connector tools, admin Gigs tab.
+
+## Step 4 parts 2 and 3: Flex Gigs, matching, proposals, Talent, Work, conduct checks, insights (built 2026-11-05)
+- Migration 0028_gigs: gigs, gig_events (append-only), gig_matches, gig_invitations, proposals, gig_questions, gig_files and gig_file_downloads (append-only), agreements (draft, for Step 6), conduct_flags, member_insights. Switches flex_gigs, talent_search, multiple_hires (off), conduct_review, member_insights; settings gig.min_budget_cents (25000, Stacey), gig.big_change_pct, proposal.rate_per_hour and rate_per_day, matching.* (plan boost, fit levels, how many shown), insights.max_per_member.
+- Attorney: Projects (draft from an approved playbook with DELA's public version, budget, deadline, private milestones; post; matches with reasons; invite; public answers; compare side by side; choose; ask to confirm; files; extend once; close), Talent search and invite, Post as a Flex Gig on approved playbooks.
+- Freelancer: Work (allowance counter, invitations, matches with why, open gigs, drafts, sent), gig page (watermarked full playbook when invited, questions, files, proposal with DELA's qualifications help, send, withdraw, confirm).
+- Rules from Stacey's answers: invited proposals free; withdrawn never returned; monthly reset on the 1st Pacific; one hire per gig; public gigs for match-ready freelancers; plan boost only within a fit group; milestones only after hiring; $250 minimum; public answers only; files read only and logged.
+- Off-platform check: rules plus DELA's AI (Lawfecta's key); held items wait in the admin Gigs tab (deliver, or do not deliver and tell the member). What DELA has learned about you in AI settings (remove any item).
+- Connector tools: list_my_gigs, draft_gig_from_playbook, list_gig_proposals (attorney); list_my_gig_work, save_proposal_draft (freelancer). Sending and choosing stay on the website.
+- Tests: gigs_test.ts (12), gigs-test.js (28 browser checks), connector lists updated.
+- On the test site 2026-11-05: commit 0c003b5, migration 0028 applied, switches flex_gigs, public_gigs, talent_search, conduct_review, member_insights = list; multiple_hires off. Smoke test: the test attorney's Projects and the test freelancer's Work load.
+- Test for Stacey: docs/tests/step-4-chatgpt-prompt.md.
+- Open settings to confirm: matching.plan_boost order (to match the BD plans), proposal rate limits, gig.big_change_pct, matching fit levels.
