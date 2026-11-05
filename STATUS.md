@@ -274,3 +274,9 @@ Lawfecta palette from Stacey's mockups: navy #1d2030 to burgundy #8b2146 hero, h
 - On the test site 2026-11-05: commit 3a9a7f8, migration 0033 applied from jsDelivr (SHA-256 checked), function version 34, code_version set, switch document_images on the access list. Smoke test as attorney 687: /playbooks/get returns the image settings (on, 5 MB, 3 per step, 120 characters, 2400 px) and the image check fields; /gigs answers with image counts. The smoke login expires by itself after 15 minutes.
 - Test for Stacey: docs/tests/step-2e-images-chatgpt-prompt.md.
 
+## Track A part 1 (document standard), ChatGPT 2026-11-05: 24 pass, 2 fail
+- Step 10 (fail): the test's own instruction. The first row's Attorney cell already held an A, so two clicks gave C. The prompt now says to click an empty cell. The block itself worked.
+- Step 14 (fail, a real bug): the page showed "Attorney" as the owner while Word and the index said "Supervising attorney". Fixed: the owner role is always added to the document's roles, and the dropdown shows it.
+- Also fixed from the report: the "Accountable" message now separates "no A" from "more than one A"; the remaining "playbook" words (Home, plan limit labels, switch labels, settings, the admin column, connector tool names) say "document" (migration 0034, labels only); DELA no longer suggests changing trust account rules from a Policy to a Workflow.
+- On the test site: commit 84102b5, migration 0034 applied (SHA-256 checked), function version 35, code_version set. 174 API tests and all 12 browser tests pass.
+
