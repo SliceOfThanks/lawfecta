@@ -97,8 +97,8 @@ DELA now calls every Library item a "document". Note any place that still says "
 
 10. Break a rule on purpose.
     Find: the card titled "RACI" (left column, below the big document card). It is a table: one row per step, one column per role. Each cell is a small button showing "·" (empty) or letters.
-    Do: in the row "1. ..." (the first row), click the cell under "Attorney" twice, until it shows "A".
-    Expect: the first row now ends with "(needs exactly one A)" in red.
+    Do: in the row "1. ..." (the first row), find a cell that shows "·" (empty). Click that cell twice, until it shows "A". Do not click a cell that already shows a letter.
+    Expect: the first row now has two cells with an A, and its first cell ends with "(needs exactly one A)" in red.
     Do: in the card titled "Quality check" (right column), click the blue button "Save".
     Expect: in that card, the item "Exactly one Accountable (A) for every step" with a red "Blocking" label, and the sentence "Export, approval and Flex Gigs are blocked until the items marked Blocking are fixed." The buttons "Approve", "Word", "PDF", "Markdown", "Web page" and "Step checklist" are greyed out.
 
