@@ -1,7 +1,7 @@
 # Feature brief: Security and sensitive data
 
 Step: 6d   Spec references: Stacey's "Security and sensitive data requirements" (2026-11-05), the Confidential materials brief (step-6c)
-Status: conflicts flagged, waiting on Stacey's answers
+Status: answered by Stacey 2026-11-05 (the suggestions, with her changes: no limit on extensions, the checkbox also names logins, her wording for both link emails, owners and managers see links). Built and on the test site 2026-11-05.
 
 Stacey's requirements are decided. This brief lists where they conflict with code that is already built, or with her Confidential materials decisions from earlier the same day, and asks one question for each. Each question has a suggested answer. Nothing below has been changed yet.
 

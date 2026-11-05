@@ -52,6 +52,22 @@ The daily summary reminds you once a year.
 - **GitHub push trigger (Staging secret GITHUB_DISPATCH_TOKEN):** create a new fine-grained token (lawfecta only, Actions read and write), replace the Staging secret, delete the old token.
 - **RELEASE_CI_SECRET:** make a new value and replace it in both GitHub and Staging at the same time.
 
+## OpenAI account settings (Stacey 2026-11-05)
+The security page promises that OpenAI does not train on DELA's data. Two settings on Lawfecta's OpenAI account back that up. Only the OpenAI organization owner can change them.
+1. Training off (check once a quarter):
+   - Go to https://platform.openai.com/settings/organization/data-controls (log in with the Lawfecta OpenAI owner account).
+   - On the "Data controls" page, find the "Sharing" section. Every choice there ("Share inputs and outputs with OpenAI", "Share evaluations and fine-tuning data", feedback) must be off, or "Disabled", for the organization and every project.
+   - OpenAI's default is off. If anything is on, turn it off.
+   - Write the date you checked, and what you saw, at the bottom of this section.
+2. Zero Data Retention (one request, then wait):
+   - Zero Data Retention is not a switch you can turn on yourself. OpenAI approves it for eligible accounts.
+   - Go to https://openai.com/contact-sales and ask for "Zero Data Retention for our API organization". Say that Lawfecta is a legal services platform for attorneys, that the API is used for drafting process documents and checking uploads for client information, and give the organization ID (Settings, Organization, General, "Organization ID").
+   - When OpenAI approves it, tell Claude. Claude then sets security.openai_zdr to true in the admin area settings, and the security page changes its OpenAI sentence by itself.
+   - Until then the page says OpenAI may keep inputs for up to 30 days for abuse monitoring and does not train on them.
+
+Checked:
+- (date, who, what the Sharing settings said)
+
 ## Rules Claude follows for every version
 - All automatic tests must pass on GitHub (workflow "Tests"). A version is recorded with its passing test run and plain release notes, or not at all.
 - Push to Live refuses any version whose tests did not pass.

@@ -1,0 +1,5 @@
+Made-up test file for DELA. Not real client data.
+Client: Jane Roe
+Case: 2026-CV-0042, Smith v. Jones, Travis County
+Phone: 512-555-0199
+Next step: send the welcome packet.

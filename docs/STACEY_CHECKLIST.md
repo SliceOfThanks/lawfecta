@@ -18,7 +18,7 @@ Never paste a password, token or secret in chat. You type them only into BD, Sup
 10. Run the ChatGPT test prompt Claude sends. Send Claude the report.
 
 ## Part C. Live (once, before your first push)
-11. Supabase: create a new organization named Lawfecta DELA Live on the Pro plan, and in it a project named dela-live (region West US). Never connect this organization to Claude.
+11. Supabase: create a new organization named Lawfecta DELA Live on the Pro plan, and in it a project named dela-live (region West US). It must be a United States region: the security page says DELA's data is stored in the United States (Stacey 2026-11-05). Never connect this organization to Claude.
 12. In dela-live > Edge Functions > Secrets add: BD_SHARED_SECRET (same as step 5), DELA_ORIGINS = https://lawfecta.com,https://www.lawfecta.com, STAGING_API_URL (Claude gives you the Staging address), and RELEASE_CI_SECRET (same value as step 14, so Staging can read Live's problem count).
 13. Supabase > Account > Access Tokens: create a token named DELA push. Copy it once.
 14. GitHub > lawfecta > Settings > Environments: create an environment named live.

@@ -2,6 +2,29 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Security and sensitive data (step 6d) and Confidential materials (step 6c), 2026-11-05
+- Built with Stacey's answers to docs/briefs/step-6d-security-sensitive-data.md and her Confidential materials decisions. On the test site: commit d74af66 (function version 37), migrations 0036 to 0039, Confidential materials switch on for the access list.
+- What it does:
+  - Sensitive data (SSN and ITIN, ID numbers, account numbers, health information, biometrics, logins) is never uploaded: links only.
+  - Every job has the checkbox "This job involves sensitive data (SSN, medical, financial, or ID documents)". When it is ticked, no uploads or shares are allowed on that job, only secure links. "Delete now" removes what was already shared.
+  - Shared files (gig shares, message attachments, Confidential materials) expire after 7, 14 or 30 days (default 14), with "Extend 14 days" and no limit on extensions. Access also ends when the job is complete. Confidential files are deleted 7 days after access ends, with a "Download all" reminder 2 days before.
+  - Secure links: https only, never opened by DELA. Emails go out 2 days before expiry and at expiry, with Stacey's wording. The address is erased at expiry.
+  - Every view and download is logged and shown on the job page ("File activity") and in Confidential materials ("Activity").
+  - Files shared on a job never go to OpenAI. Deliverables get the pattern check only, and sensitive ones are refused. The milestone check reads only the notes and checklist. Ask DELA takes Files-tab files only.
+  - The 90-day rule: Ask DELA chats, drafts never approved, and deliverables, unless saved to the library. A notice goes out 7 days before. Deleting a chat or a draft is immediate, and Trash has "Delete forever".
+  - CSV is accepted and scanned. A CSV with a formula is refused.
+  - Ask DELA names no software products while the tech catalog is off. The catalog moves to the end of Phase 1.
+  - The /security page widget (widgets/DELA-Security.php, app/dela-security.js) with its contact form (a hidden trap field, 5 messages an hour). Messages go to the admin Security tab and to the team's email.
+  - Security Advisor: both warnings fixed (0037 locks SECURITY DEFINER functions, 0039 moves pg_net). Only the intended "RLS enabled, no policy" notes remain.
+- Tests: 200 api tests; browser tests foundation 75, ai-files 32, playbooks 34, recorder 20, connector 25, profiles 51, gigs 28, meetings 17, engagements 35, reviews 21, documents 32, images 34, security page 93, sharing 28.
+- Test fixture: "Test job: Confidential materials" (gig bc969483) for the test attorney and freelancer, marked signed with milestone 1 funded by SQL (no payment rows) so the area can open without Stripe.
+- Waiting on Stacey:
+  - the ChatGPT test (docs/tests/step-6d-security-chatgpt-prompt.md)
+  - installing the /security page (docs/STACEY_SECURITY_PAGE.md)
+  - the OpenAI settings (docs/RUNBOOK.md, "OpenAI account settings")
+  - a virus scanner choice before Live
+  - a lawyer's review of the confidentiality clause before Live
+
 ## Two sites (Stacey 2026-11-03)
 - hirelegalhelp.com is the test site. Its widgets (as installed now: data-api empty, data-api-staging = the Lawfecta AI project) talk only to DELA Staging. Every new version goes there first for Stacey to test.
 - lawfecta.com is the main site and gets DELA Live. At launch: install DELA-Auth, DELA-App and DELA-Admin on lawfecta.com with data-api = the Live api address and data-api-staging left empty, and a DELA-Auth secret that matches Live's BD_SHARED_SECRET. Until then lawfecta.com stays unchanged.

@@ -165,6 +165,10 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
 - A full test on Live, a security review, a backup restore drill and the uptime monitor.
 - Point-in-time recovery turned on, and live payments turned on by you.
 
+### Security and sensitive data (step 6d), built 2026-11-05
+- Built and on the test site, with Confidential materials (step 6c). Next: Stacey's ChatGPT test (docs/tests/step-6d-security-chatgpt-prompt.md), the /security page install (docs/STACEY_SECURITY_PAGE.md) and the OpenAI settings (docs/RUNBOOK.md).
+- Before Live: a virus scanner, a lawyer's review of the confidentiality clause, and the Live database in a US region (docs/STACEY_CHECKLIST.md Part C).
+
 ### Before the beta (proposed, waiting on Stacey's answers): guided setup and "Automate or delegate"
 - DELA reviews a playbook and recommends specific steps (never the whole playbook) to automate with a tool from the tech catalog, or to delegate to a freelancer.
 - The delegate path runs on one screen: the SOP for that task, its metrics and KPIs, then posting the gig.
