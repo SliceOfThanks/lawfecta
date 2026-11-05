@@ -14,6 +14,7 @@ const BD_KEY = "bd-test-key-0000"; // rules-ok: a made-up test key
 const bdCalls: Array<{ method: string; url: string; body: string }> = [];
 let bdMode: "ok" | "forbidden" = "ok";
 const systems: string[] = [];
+const brevoSent: Array<{ to: string; id: string }> = [];
 
 const BD_RECORD = {
   user_id: 0, first_name: "Fran", last_name: "Lancer", email: "private@login.invalid", company: "Lancer Legal Support", city: "Austin", state_code: "TX", country_code: "US",
@@ -29,6 +30,19 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
     if (bdMode === "forbidden") return Response.json({ status: "error", message: "API Key does not have permission to access this endpoint" }, { status: 403 });
     if (url.includes("/api/v2/user/get/")) return Response.json({ status: "success", message: [BD_RECORD] });
     if (url.endsWith("/api/v2/user/update")) return Response.json({ status: "success", message: { user_id: 1 } });
+  }
+  if (url === "https://api.brevo.com/v3/smtp/email") {
+    const to = JSON.parse(String(init.body)).to[0].email as string;
+    const id = `<${to}-${brevoSent.length}@brevo.test>`;
+    brevoSent.push({ to, id });
+    return Response.json({ messageId: id }, { status: 201 });
+  }
+  if (url.startsWith("https://api.brevo.com/v3/smtp/statistics/events")) {
+    const id = decodeURIComponent(new URL(url).searchParams.get("messageId") ?? "");
+    const to = brevoSent.find((x) => x.id === id)?.to ?? "";
+    if (to.startsWith("bounce")) return Response.json({ events: [{ event: "softBounces", email: to, reason: "551-5.7.1 Your IP is black listed by SpamCop.org" }, { event: "requests", email: to }] });
+    if (to.startsWith("slow")) return Response.json({ events: [{ event: "requests", email: to }] });
+    return Response.json({ events: [{ event: "delivered", email: to }, { event: "requests", email: to }] });
   }
   if (url.endsWith("/chat/completions")) {
     const body = JSON.parse(String(init.body));
@@ -51,7 +65,7 @@ const storage: Storage = {
   remove: (ps) => { ps.forEach((p) => objects.delete(p)); return Promise.resolve(); },
   put: (p, b) => { objects.set(p, b); return Promise.resolve(); },
 };
-const deps: Deps = { rpc, env: (k) => ({ OPENAI_API_KEY: LAWFECTA, BD_API_KEY: BD_KEY, DELA_ORIGINS: "https://lawfecta.com" } as Record<string, string>)[k] ?? "", fetch: fakeFetch, storage };
+const deps: Deps = { rpc, env: (k) => ({ OPENAI_API_KEY: LAWFECTA, BD_API_KEY: BD_KEY, BREVO_API_KEY: "brevo-test-key", DELA_ORIGINS: "https://lawfecta.com" } as Record<string, string>)[k] ?? "", fetch: fakeFetch, storage };
 
 async function call(method: string, path: string, session: string, body?: unknown) {
   const res = await handle(new Request("http://localhost/functions/v1/api" + path, {
@@ -312,6 +326,42 @@ Deno.test("the daily job runs from the worker", async () => {
   const n = (await pool.query("select count(*)::int c from notifications where person_id = $1 and title = 'Confirm your availability'", [fl.id])).rows[0].c;
   assert(n >= 1);
   await pool.query(`update feature_switches set state = 'off' where key in ${SWITCHES} or key = 'mcp_connector'`);
+});
+
+Deno.test("email delivery: a bounced license email is shown on the license and to the team; a delivered one says so", async () => {
+  await pool.query("update settings set value = '\"brevo\"' where key = 'email.sender'");
+  await pool.query(`update feature_switches set state = 'everyone' where key in ${SWITCHES}`);
+  try {
+    const b = await member(7, "att_plus");
+    await call("POST", "/profile/save", b.token, { body: { first_name: "Bo", last_name: "Bounce", firm_name: "Bounce Law", practice_areas: ["Tax"], jurisdictions: ["TX"], city: "Austin", state: "TX" }, version: 0 });
+    let r = (await call("POST", "/licenses/add", b.token, { request_id: "bb1", region: "TX", bar_number: "24077777", name_on_record: "Bo Bounce", method: "email", contact_email: "bounce@blockedfirm.test" })).body;
+    assertEquals(r.ok, true, JSON.stringify(r));
+    r = (await call("POST", "/licenses/add", b.token, { request_id: "bb2", region: "CA", bar_number: "301234", name_on_record: "Bo Bounce", method: "email", contact_email: "ok@goodfirm.test" })).body;
+    assertEquals(r.ok, true, JSON.stringify(r));
+    r = (await call("POST", "/licenses/add", b.token, { request_id: "bb3", region: "NY", bar_number: "5551234", name_on_record: "Bo Bounce", method: "email", contact_email: "slow@slowfirm.test" })).body;
+    assertEquals(r.ok, true, JSON.stringify(r));
+    await worker(1); // sends the three emails and queues the first checks
+    assert(brevoSent.some((x) => x.to === "bounce@blockedfirm.test"), "the email went to Brevo");
+    let p = (await call("GET", "/profile", b.token)).body;
+    assertEquals(p.licenses.find((l: any) => l.region === "TX").email_delivery.state, "waiting", "until the check runs, it is waiting");
+    await worker(1); // the checks run (the worker moves due jobs to now)
+    p = (await call("GET", "/profile", b.token)).body;
+    const tx = p.licenses.find((l: any) => l.region === "TX"), ca = p.licenses.find((l: any) => l.region === "CA"), ny = p.licenses.find((l: any) => l.region === "NY");
+    assertEquals(tx.email_delivery.state, "bounced");
+    assertEquals(tx.email_delivery.reason, "their mail server is blocking our email service for now", "plain words, never the raw server text");
+    assertEquals(ca.email_delivery.state, "delivered");
+    assertEquals(ny.email_delivery.state, "waiting", "no final event yet: checked again later");
+    assertEquals((await pool.query("select count(*)::int n from jobs where kind = 'email_delivery_check' and payload->>'attempt' = '1'")).rows[0].n >= 1, true);
+    const q = (await call("GET", "/admin/verify", staff.token)).body.data;
+    assertEquals(q.licenses.find((l: any) => l.bd_member_id === b.bd && l.region === "TX").email_delivery.state, "bounced");
+    assertEquals((await pool.query("select count(*)::int n from notifications where title = 'A license email bounced'")).rows[0].n >= 1, true, "the team is told");
+    assertEquals((await pool.query("select count(*)::int n from verification_events where action = 'email_bounced'")).rows[0].n, 1);
+    // Checking again never changes a final answer
+    const nid = (await pool.query("select e.notification_id from email_checks e join licenses l on l.id = e.license_id where l.contact_email = 'bounce@blockedfirm.test'")).rows[0].notification_id;
+    assertEquals((await pool.query("select dela_notification_delivery($1, 'delivered', '') r", [nid])).rows[0].r.duplicate, true);
+  } finally {
+    await pool.query("update settings set value = '\"log\"' where key = 'email.sender'");
+  }
 });
 
 Deno.test("teardown", async () => {

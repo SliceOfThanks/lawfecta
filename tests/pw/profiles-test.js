@@ -17,8 +17,8 @@ function ok(cond, msg) { if (!cond) throw new Error("FAILED: " + msg); passed++;
 async function sql(q) { const r = await fetch(BASE + "/test/sql", { method: "POST", body: JSON.stringify({ sql: q }) }); return (await r.json()).rows; }
 async function worker(n) { for (let i = 0; i < n; i++) { await sql("update jobs set run_at = now() where status in ('queued', 'delayed')"); await fetch(BASE + "/api/worker", { method: "POST", headers: { "x-dela-worker": WORKER } }); } }
 
-async function open(browser, uid, query, viewport) {
-  const ctx = await browser.newContext({ viewport: viewport || { width: 1200, height: 900 } });
+async function open(browser, uid, query, viewport, timezoneId) {
+  const ctx = await browser.newContext(Object.assign({ viewport: viewport || { width: 1200, height: 900 } }, timezoneId ? { timezoneId } : {}));
   const page = await ctx.newPage();
   page.on("pageerror", (e) => { throw new Error("page error: " + e.message); });
   page.on("dialog", (d) => d.accept());
@@ -119,6 +119,7 @@ async function waitFor(page, words, ms) {
     p = s.page;
     t = await waitFor(p, "Verified");
     ok(t.includes("Ready") && t.includes("You are verified"), "the attorney is verified and ready");
+    ok(!t.includes("before you are verified"), "the note for unverified attorneys is gone once verified");
     ok((await sql("select count(*)::int n from notifications where title = 'Your license is verified'"))[0].n >= 1, "the attorney was told");
     await click(p, "Projects");
     t = await waitFor(p, "Projects");
@@ -231,6 +232,24 @@ async function waitFor(page, words, ms) {
     await waitFor(p, "Your availability");
     const wide = await p.evaluate(() => document.documentElement.scrollWidth);
     ok(wide <= 392, "the profile fits a phone screen (" + wide + "px)");
+    await s.ctx.close();
+
+    // Dates without a time show the same day in US time zones (Stacey 2026-11-05: "Next yearly check" said Nov 3 for Nov 4)
+    s = await open(browser, 2500, "tab=profile", null, "America/Los_Angeles");
+    p = s.page;
+    await waitFor(p, "Next yearly check");
+    const nextCheck = (await sql("select to_char(next_check_at, 'Mon FMDD, YYYY') d from licenses l join people pe on pe.id = l.person_id where pe.bd_member_id = 2500 and l.status = 'verified'"))[0].d;
+    t = await text(p);
+    ok(t.includes("Next yearly check: " + nextCheck), "the yearly check date shows the right day in Pacific time (" + nextCheck + ")");
+
+    // Sign out ends the DELA session and logs out of Lawfecta too, so another account can log in (Stacey 2026-11-05)
+    let loggedOut = false;
+    await p.route(BASE + "/logout", (r) => { loggedOut = true; r.fulfill({ body: "<h1>Lawfecta login</h1>", contentType: "text/html" }); });
+    await dela(p).getByRole("button", { name: "Account menu" }).click();
+    await Promise.all([p.waitForURL(/\/logout/, { timeout: 10000 }), dela(p).getByRole("menuitem", { name: "Sign out" }).click()]);
+    ok(loggedOut, "sign out goes on to the Lawfecta log out page");
+    const last = (await sql("select s.revoked_at is not null r from sessions s join people pe on pe.id = s.person_id where pe.bd_member_id = 2500 order by s.created_at desc limit 1"))[0].r;
+    ok(last === true, "and the DELA session is ended");
     await s.ctx.close();
 
     // Freelancers have no license form; attorneys no LinkedIn card

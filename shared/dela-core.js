@@ -36,7 +36,9 @@
   D.pct = function (bps) { return (bps / 100).toString() + "%"; };
   D.date = function (iso) {
     if (!iso) return "";
-    var d = new Date(iso);
+    // A plain date (2027-11-04) is a calendar day, not midnight UTC, so it shows the same day in every US time zone
+    var s = String(iso);
+    var d = s.length === 10 && s.charAt(4) === "-" && s.charAt(7) === "-" ? new Date(Number(s.slice(0, 4)), Number(s.slice(5, 7)) - 1, Number(s.slice(8, 10))) : new Date(iso);
     return isNaN(d) ? "" : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
   D.dateTime = function (iso) {

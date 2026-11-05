@@ -6,6 +6,7 @@
 import { b64url, newSessionToken, safeEqual, sessionHash, sha256Hex } from "./lib/crypto.ts";
 import { buildNotice } from "./lib/email.ts";
 import { pickProvider } from "./lib/mail/index.ts";
+import { brevoDelivery } from "./lib/mail/brevo.ts";
 import { verifyPass } from "./lib/pass.ts";
 import { sendSms } from "./lib/sms/brevo.ts";
 import { bdCategories, bdFields, bdMember, bdUpdate, shapeOf } from "./lib/bd/members.ts";
@@ -1141,6 +1142,9 @@ async function profileGet(ctx: Ctx) {
   const s = await memberSide(ctx);
   const r = await rpc<Record<string, any>>(ctx, "dela_profile_get", { p_person: s.person_id, p_side: s.side });
   if (!r?.ok) return json(ctx, r);
+  if (Array.isArray(r.licenses)) {
+    for (const l of r.licenses as Array<Record<string, any>>) if (l.method === "email" && !l.email_confirmed) l.email_delivery = await rpc(ctx, "dela_license_delivery", { p_license: l.id });
+  }
   return json(ctx, { ...r, body: normalizeProfile(r.body), state: labelState(r.state), labels: LABELS, practice_areas: PRACTICE_AREAS, tech_tools: TECH_TOOLS, timezones: TIMEZONES });
 }
 
@@ -1526,7 +1530,11 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/recorder": (c, a) => rpc(c, "dela_admin_recorder", { p_actor: a }),
   "/admin/playbooks": (c, a) => rpc(c, "dela_admin_playbooks", { p_actor: a }),
   "/admin/mcp": (c, a) => rpc(c, "dela_admin_mcp", { p_actor: a }),
-  "/admin/verify": (c, a) => rpc(c, "dela_admin_verify", { p_actor: a }),
+  "/admin/verify": async (c, a) => {
+    const d = await rpc<Record<string, any>>(c, "dela_admin_verify", { p_actor: a });
+    for (const l of (d?.licenses ?? []) as Array<Record<string, any>>) if (l.method === "email" && !l.email_confirmed_at) l.email_delivery = await rpc(c, "dela_license_delivery", { p_license: l.id });
+    return d;
+  },
   // What the BD site holds for listings: field names and kinds for one member (no values), the site's field list and categories
   "/admin/bd/inventory": async (c) => {
     const site = await setting(c, "site.url", ""), key = c.deps.env("BD_API_KEY"), ff = f(c);
@@ -1768,6 +1776,7 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "recording_stage1") return await recStage1(ctx, j);
   if (j.kind === "recordings_daily") return await recDaily(ctx);
   if (j.kind === "playbooks_daily") { await rpc(ctx, "dela_pb_daily", {}); return { ok: true }; }
+  if (j.kind === "email_delivery_check") return await deliveryCheck(ctx, j.payload ?? {});
   if (j.kind === "profiles_daily") { await rpc(ctx, "dela_profiles_daily", {}); return { ok: true }; }
   if (j.kind === "bd_profile_push") return await bdProfilePush(ctx, j.payload ?? {});
   return { ok: false, retry: false, error: "unknown_job_kind" };
@@ -1822,10 +1831,35 @@ async function sendEmail(ctx: Ctx, id: string) {
   }, provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl: n.site_url });
   if (r.ok) {
     await rpc(ctx, "dela_notification_mark", { p_notification: id, p_status: "sent", p_provider: provider.key, p_ref: r.messageId, p_error: "" });
+    // Essential emails (license checks, security codes): ask Brevo later whether they arrived
+    if (n.essential && provider.key === "brevo" && r.messageId) await queueDeliveryCheck(ctx, id, 0);
     return { ok: true };
   }
   if (!r.retry) await rpc(ctx, "dela_notification_mark", { p_notification: id, p_status: "failed", p_provider: provider.key, p_ref: "", p_error: r.error });
   return { ok: false, retry: r.retry, error: r.error };
+}
+
+async function queueDeliveryCheck(ctx: Ctx, id: string, attempt: number) {
+  const mins = await rpc<unknown>(ctx, "dela_setting", { p_key: "email.delivery_check_minutes" });
+  const list = Array.isArray(mins) ? mins.map(Number).filter((x) => x > 0) : [5, 20, 60];
+  if (attempt >= list.length) return false;
+  const at = new Date((ctx.deps.now?.() ?? Date.now()) + list[attempt] * 60000).toISOString();
+  await rpc(ctx, "dela_job_enqueue", { p_kind: "email_delivery_check", p_payload: { notification_id: id, attempt }, p_run_at: at, p_idem: `delivery:${id}:${attempt}` });
+  return true;
+}
+
+async function deliveryCheck(ctx: Ctx, p: Record<string, any>) {
+  const id = String(p.notification_id ?? ""), attempt = Number(p.attempt) || 0;
+  const n = await rpc<Record<string, any> | null>(ctx, "dela_delivery_due", { p_notification: id });
+  if (!n || n.provider !== "brevo" || !n.ref || n.state === "delivered" || n.state === "bounced") return { ok: true };
+  const d = await brevoDelivery(String(n.ref), ctx.deps.env("BREVO_API_KEY"), ctx.deps.fetch);
+  if (d.state === "waiting") {
+    if (!(await queueDeliveryCheck(ctx, id, attempt + 1))) await rpc(ctx, "dela_notification_delivery", { p_notification: id, p_state: "unknown", p_reason: "" });
+    else await rpc(ctx, "dela_notification_delivery", { p_notification: id, p_state: "waiting", p_reason: "" });
+    return { ok: true };
+  }
+  await rpc(ctx, "dela_notification_delivery", { p_notification: id, p_state: d.state, p_reason: d.reason });
+  return { ok: true };
 }
 
 // ---------- Router ----------

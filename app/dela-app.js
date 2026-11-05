@@ -103,7 +103,7 @@
       me.side && (me.switches || {}).profiles ? h("button", { role: "menuitem", onclick: function () { tab = "profile"; draw(); } }, me.side === "attorney" ? "Profile and verification" : "Profile") : null,
       me.side ? h("button", { role: "menuitem", onclick: function () { tab = "ai"; draw(); } }, "AI settings") : null,
       (me.staff || []).length ? h("a", { href: "/dela-admin", role: "menuitem" }, "Admin area") : null,
-      h("button", { role: "menuitem", onclick: signOut }, "Sign out of DELA"));
+      h("button", { role: "menuitem", onclick: signOut }, "Sign out"));
     bar.appendChild(menu);
   }
 
@@ -726,7 +726,7 @@
       var done = miss.indexOf(k) < 0 && miss.indexOf("everything") < 0;
       return h("div", { class: "check" + (done ? " done" : "") }, h("i", { "aria-hidden": "true", text: done ? "✓" : "" }), h("span", { text: (prof.data.labels || {})[k] || k }));
     })));
-    if (me.side === "attorney") card.appendChild(h("p", { class: "small muted", style: "margin-top:8px", text: "You can use Ask DELA, playbooks, files and the recorder before you are verified. Posting work and hiring need a verified license." }));
+    if (me.side === "attorney" && st.verification !== "verified") card.appendChild(h("p", { class: "small muted", style: "margin-top:8px", text: "You can use Ask DELA, playbooks, files and the recorder before you are verified. Posting work and hiring need a verified license." }));
     return card;
   }
 
@@ -756,7 +756,10 @@
       if (l.reason) row.appendChild(h("p", { class: "notice", text: l.reason }));
       if (l.status === "pending" || l.status === "needs_more") {
         if (l.method === "email") {
-          row.appendChild(h("p", { class: "small", text: l.email_confirmed ? "Email " + l.contact_email + " confirmed." : "We emailed " + l.contact_email + ". Click the link in it while signed in to Lawfecta." }));
+          var dv = l.email_delivery || {};
+          if (l.email_confirmed) row.appendChild(h("p", { class: "small", text: "Email " + l.contact_email + " confirmed." }));
+          else if (dv.state === "bounced") row.appendChild(h("p", { class: "notice bad", text: "We could not deliver the email to " + l.contact_email + ": " + (dv.reason || "their mail server refused it") + ". Click \"Send the email again\" later, withdraw this license and add it again with another work email, or ask for a video call instead." }));
+          else row.appendChild(h("p", { class: "small", text: (dv.state === "delivered" ? "Delivered to " : "We emailed ") + l.contact_email + ". Click the link in it while signed in to Lawfecta. Check your spam folder too." }));
         }
         if (l.video_requested_at) row.appendChild(h("p", { class: "small", text: set.video_booking_url ? "Book your " + set.video_minutes + " minute video call:" : "The Lawfecta Team will email you to set up a " + set.video_minutes + " minute video call." },
           set.video_booking_url ? h("a", { href: set.video_booking_url, target: "_blank", rel: "noopener", text: " choose a time" }) : null));
@@ -2690,8 +2693,13 @@
     api.post("/me/side", { side: side }).then(function (r) { me = r.me; tab = "home"; draw(); }).catch(function (e) { D.toast(app, D.errorText(e.message), true); });
   }
 
+  // Sign out ends the DELA session, then logs out of Lawfecta too (BD's own log out page), so the next person or
+  // test account can log in. Without the second part, BD's login opened DELA again straight away (Stacey 2026-11-05).
+  var logoutUrl = root.getAttribute("data-logout-url") || "/logout";
   function signOut() {
-    api.signOut().then(function () { show(frame("You are signed out of DELA", "You are still logged in to Lawfecta. Refresh this page to open DELA again.", h("button", { onclick: function () { location.reload(); } }, "Open DELA again"))); });
+    closeMenu();
+    show(frame("Signing you out...", "One moment."));
+    api.signOut().then(function () { location.href = logoutUrl; });
   }
 
   function openNotices() {
