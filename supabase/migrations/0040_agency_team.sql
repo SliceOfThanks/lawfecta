@@ -16,7 +16,6 @@ insert into settings (key, value, label, section, unit, status, source, note) va
   ('agency.invite_days', '14', 'Days a team invitation stays open', 'Agencies', 'days', 'O', 'Claude suggestion', ''),
   ('agency.bench_min_plan', '"fl_plus"', 'Lowest freelancer plan that can join an agency''s bench', 'Agencies', 'plan', 'C', 'Stacey 2026-11-05', 'Free freelancers see "Plus plan or higher required to join a bench".'),
   ('agency.bench_invite_days', '30', 'Days a bench invitation stays open (time to upgrade and accept)', 'Agencies', 'days', 'C', 'Stacey 2026-11-05', ''),
-  ('agency.client_fee_bps', '{"fl_business": 300}', 'Client-side fee an agency pays on its own gigs, by agency plan', 'Agencies', 'basis points', 'C', 'Stacey 2026-11-05', 'The hired freelancer pays their usual freelancer fee.'),
   ('agency.post_requires_business_check', 'true', 'The Lawfecta Team checks the agency''s business name and state once before its first gig goes live', 'Agencies', '', 'C', 'Stacey 2026-11-05', '')
 on conflict (key) do nothing;
 

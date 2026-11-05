@@ -156,7 +156,7 @@ Deno.test("setup", async () => {
   ag2 = await hire(fl2, 40000, "b");
 });
 
-Deno.test("agreement: DELA drafts version 1 from the facts; only the two parties see it; fees from each plan", async () => {
+Deno.test("agreement: DELA drafts version 1 from the facts; only the two parties see it; fees from settings (5% each side on every plan)", async () => {
   const r = (await call("GET", "/agreements/get?id=" + ag, fl.token)).body;
   assertEquals(r.ok, true, JSON.stringify(r));
   assertEquals(r.current.version, 1);
@@ -165,9 +165,9 @@ Deno.test("agreement: DELA drafts version 1 from the facts; only the two parties
   assert(String(body.terms).startsWith("DRAFT FOR LAWFECTA'S LAWYER"), "the fixed template, marked as a draft for counsel");
   assertEquals(body.parties.client.firm, "Example Legal");
   assertEquals(body.parties.freelancer.name, "Fran Lance");
-  assertEquals([body.fees.attorney_bps, body.fees.freelancer_bps], [350, 400], "Pro attorney and Plus freelancer");
-  assertEquals([body.fees.attorney_fee_cents, body.fees.freelancer_fee_cents], [3500, 4000]);
-  assert(r.fee_lines.some((l: string) => l.includes("$35")));
+  assertEquals([body.fees.attorney_bps, body.fees.freelancer_bps], [500, 500], "5% each side, whatever the plan (Stacey 2026-11-05)");
+  assertEquals([body.fees.attorney_fee_cents, body.fees.freelancer_fee_cents], [5000, 5000]);
+  assert(r.fee_lines.some((l: string) => l.includes("$50")));
   assertEquals(r.stripe_ready, true);
   assert(body.rubric[0].criteria.some((c: any) => c.text.includes("Every exhibit is labeled")), "the playbook's quality checks are in the rubric");
   assertEquals((await call("GET", "/agreements/get?id=" + ag, att.token)).body.current.version, 1, "opening it twice makes one version");
@@ -204,11 +204,11 @@ Deno.test("changes and signing: checked amounts, stale versions refused, both si
   assertEquals((await call("POST", "/agreements/sign", att.token, { id: ag, version: 2, typed_name: "Ann Attorney", consent: true })).body.both_signed, false, "signing twice adds nothing");
   assertEquals((await call("POST", "/engagements/pay", att.token, { id: ag })).body.reason, "not_signed", "no payment before both sign");
   const both = (await call("POST", "/agreements/sign", fl.token, { id: ag, version: 2, typed_name: "Fran Lance", consent: true })).body;
-  assertEquals([both.both_signed, both.attorney_fee_cents, both.freelancer_fee_cents], [true, 3500, 4000]);
+  assertEquals([both.both_signed, both.attorney_fee_cents, both.freelancer_fee_cents], [true, 5000, 5000]);
   const v = (await call("GET", "/agreements/get?id=" + ag, att.token)).body;
   ms = v.milestones;
   assertEquals(ms.map((m: any) => m.amount_cents), [30000, 30000, 40000]);
-  assertEquals(ms.reduce((a: number, m: any) => a + m.freelancer_fee_cents, 0), 4000, "the freelancer fee is spread with nothing lost to rounding");
+  assertEquals(ms.reduce((a: number, m: any) => a + m.freelancer_fee_cents, 0), 5000, "the freelancer fee is spread with nothing lost to rounding");
   assertEquals(v.agreement.status, "signed");
   assertEquals(v.signatures.length, 2);
   let refused = false;
@@ -226,10 +226,10 @@ Deno.test("paying: Checkout once for two clicks; Stripe's events are signed, han
   assertEquals(a.body.url, b.body.url, "the same Checkout page both times");
   assertEquals(stripeCalls.filter((c) => c.path === "/checkout/sessions").length, 1, "one Checkout session");
   const sess = stripeCalls.find((c) => c.path === "/checkout/sessions")!;
-  assert(sess.body.includes("unit_amount%5D=33500"), "milestone 1 and the attorney's platform fee together: " + sess.body);
+  assert(sess.body.includes("unit_amount%5D=35000"), "milestone 1 and the attorney's platform fee together: " + sess.body);
   assert(sess.body.includes("setup_future_usage%5D=off_session"));
   const pay = await one("select id, amount_cents, fee_cents from payments where agreement_id = $1", [ag]);
-  assertEquals([pay.amount_cents, pay.fee_cents], [33500, 3500]);
+  assertEquals([pay.amount_cents, pay.fee_cents], [35000, 5000]);
   assertEquals((await hook({ id: "evt_bad", type: "payment_intent.succeeded", data: { object: { metadata: { payment_id: pay.id } } } }, false)).status, 400, "an unsigned event is refused");
   assertEquals((await hook({ id: "evt_live", type: "payment_intent.succeeded", livemode: true, data: { object: { metadata: { payment_id: pay.id } } } })).status, 400, "a live event while live payments are off");
   assertEquals((await one("select status from payments where id = $1", [pay.id])).status, "requires_payment");
@@ -237,7 +237,7 @@ Deno.test("paying: Checkout once for two clicks; Stripe's events are signed, han
   assertEquals((await hook(ev)).body.ok, true);
   assertEquals((await hook(ev)).body.duplicate, true, "the same event twice is handled once");
   const led = await one("select sum(amount_cents) filter (where kind = 'charge') c, sum(amount_cents) filter (where kind = 'attorney_fee') f, sum(amount_cents) filter (where kind = 'held') h from ledger_entries where agreement_id = $1", [ag]);
-  assertEquals([Number(led.c), Number(led.f), Number(led.h)], [33500, 3500, 30000]);
+  assertEquals([Number(led.c), Number(led.f), Number(led.h)], [35000, 5000, 30000]);
   const v = (await call("GET", "/agreements/get?id=" + ag, att.token)).body;
   assertEquals([v.agreement.status, v.milestones[0].status, v.agreement.saved_payment], ["active", "funded", true]);
   assertEquals((await call("POST", "/engagements/pay", att.token, { id: ag })).body.reason, "previous_not_accepted", "the next milestone waits for this one");
@@ -356,7 +356,7 @@ Deno.test("canceling before work starts refunds everything, the attorney's fee i
   const r = (await call("POST", "/engagements/pay", att.token, { id: ag2 })).body;
   assertEquals(r.status, "requires_payment", "a new agreement pays on Checkout");
   const pay = await one("select id, amount_cents, fee_cents from payments where agreement_id = $1", [ag2]);
-  assertEquals([pay.amount_cents, pay.fee_cents], [20000 + 1400, 1400], "the first half and the 3.5% fee on the whole price");
+  assertEquals([pay.amount_cents, pay.fee_cents], [20000 + 2000, 2000], "the first half and the 5% fee on the whole price");
   await paid(pay.id, "pi_cancel");
   assertEquals((await call("POST", "/engagements/cancel", other.token, { id: ag2, reason: "x" })).body.reason, "not_found");
   assertEquals((await call("POST", "/engagements/cancel", att.token, { id: ag2, reason: "" })).body.reason, "say_why");
@@ -365,12 +365,12 @@ Deno.test("canceling before work starts refunds everything, the attorney's fee i
   assertEquals((await call("POST", "/engagements/cancel", att.token, { id: ag2, reason: "Again" })).body.duplicate, true);
   const rf = stripeCalls.filter((x) => x.path === "/refunds" && x.body.includes("pi_cancel"));
   assertEquals(rf.length, 1);
-  assert(rf[0].body.includes("amount=21400"), "the milestone and the fee: " + rf[0].body);
+  assert(rf[0].body.includes("amount=22000"), "the milestone and the fee: " + rf[0].body);
   assertEquals((await call("POST", "/agreements/propose", fl2.token, { id: ag2, milestones: [{ title: "A", amount: "300" }] })).body.reason, "agreement_closed");
 });
 
 Deno.test("chargebacks pause the engagement; a lost one puts the attorney on hold for review", async () => {
-  const ev = (id: string, type: string, status = "") => hook({ id, type, livemode: false, data: { object: { id: "dp_1", payment_intent: "pi_first", amount: 33500, reason: "fraudulent", status } } });
+  const ev = (id: string, type: string, status = "") => hook({ id, type, livemode: false, data: { object: { id: "dp_1", payment_intent: "pi_first", amount: 35000, reason: "fraudulent", status } } });
   assertEquals((await ev("evt_cb1", "charge.dispute.created")).body.ok, true);
   assertEquals((await one("select status from agreements where id = $1", [ag])).status, "paused");
   assertEquals((await call("GET", "/admin/payments", team.token)).body.data.chargebacks.length >= 1, true);

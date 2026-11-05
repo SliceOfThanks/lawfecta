@@ -13,14 +13,14 @@ What the status means:
 
 ## 1. Plans and prices
 
-Attorneys and freelancers have separate plans. Each side pays its own fee, based on its own plan.
+Attorneys and freelancers have separate plans. Every transaction has a 5% fee from the client side and a 5% fee from the freelancer side, on every plan (Stacey 2026-11-05). No plan lowers the fees.
 
 | Plan | Attorney monthly | Freelancer monthly | Fee per side | Status | Your decision |
 |---|---|---|---|---|---|
 | Free | $0 | $0 | 5% | Confirmed | |
-| Plus | $19 | $12 | 4% | Confirmed | |
-| Pro | $49 | $29 | 3.5% | Confirmed | |
-| Business (firm / agency) | $99 | $59 | 3% | Confirmed | |
+| Plus | $19 | $12 | 5% | Confirmed | |
+| Pro | $49 | $29 | 5% | Confirmed | |
+| Business (firm / agency) | $99 | $59 | 5% | Confirmed | |
 
 - Yearly prices: Yearly price is 10 times the monthly price (two months free). Status: Confirmed. Your decision: ______
 

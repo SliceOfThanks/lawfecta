@@ -31,12 +31,13 @@
       },
       "fee_bps": {
         "free": 500,
-        "plus": 400,
-        "pro": 350,
-        "business": 300
+        "plus": 500,
+        "pro": 500,
+        "business": 500
       },
       "status": "C",
-      "source": "Stacey, Decision Register v1.1 (2026-10-26)"
+      "source": "Stacey, Decision Register v1.1 (2026-10-26)",
+      "fee_note": "Stacey 2026-11-05: every transaction has a 5% client-side fee and a 5% freelancer-side fee. No plan lowers them (settings fee.client_bps and fee.freelancer_bps)."
     },
     "freelancer": {
       "business_name": "Business (agency)",
@@ -48,12 +49,13 @@
       },
       "fee_bps": {
         "free": 500,
-        "plus": 400,
-        "pro": 350,
-        "business": 300
+        "plus": 500,
+        "pro": 500,
+        "business": 500
       },
       "status": "C",
-      "source": "Stacey, Decision Register v1.1 (2026-10-26)"
+      "source": "Stacey, Decision Register v1.1 (2026-10-26)",
+      "fee_note": "Stacey 2026-11-05: every transaction has a 5% client-side fee and a 5% freelancer-side fee. No plan lowers them (settings fee.client_bps and fee.freelancer_bps)."
     },
     "annual": {
       "value": "ten_times_monthly",
@@ -293,7 +295,7 @@
           "unit": "cents",
           "status": "C",
           "source": "C-26",
-          "note": "Charged once per engagement, not per milestone."
+          "note": "Charged once per engagement, not per milestone. Stacey 2026-11-05: kept. The fee is always 5% of the total from each side, with $10 as the floor; at the $250 minimum engagement, 5% is $12.50."
         },
         {
           "key": "fees.attorney_fee_timing",
@@ -356,6 +358,24 @@
           "status": "G",
           "source": "Stacey 2026-10-25",
           "note": "Stays test until Stacey turns on the live_payments switch."
+        },
+        {
+          "key": "fee.client_bps",
+          "label": "Client-side fee on every transaction",
+          "value": 500,
+          "unit": "basis points",
+          "status": "C",
+          "source": "Stacey 2026-11-05",
+          "note": "No plan lowers it."
+        },
+        {
+          "key": "fee.freelancer_bps",
+          "label": "Freelancer-side fee on every transaction",
+          "value": 500,
+          "unit": "basis points",
+          "status": "C",
+          "source": "Stacey 2026-11-05",
+          "note": "No plan lowers it."
         }
       ]
     },
@@ -830,17 +850,6 @@
           "note": ""
         },
         {
-          "key": "agency.client_fee_bps",
-          "label": "Client-side fee an agency pays on its own gigs, by agency plan",
-          "value": {
-            "fl_business": 300
-          },
-          "unit": "basis points",
-          "status": "C",
-          "source": "Stacey 2026-11-05 (agencies brief, step 7d)",
-          "note": "The hired freelancer pays their usual freelancer fee."
-        },
-        {
           "key": "agency.post_requires_business_check",
           "label": "The Lawfecta Team checks the agency's business name and state once before its first gig goes live",
           "value": true,
@@ -875,6 +884,42 @@
           "status": "C",
           "source": "Stacey 2026-11-05 (agencies brief, step 7d)",
           "note": "In-app purchase stays behind the agency_extra_seats switch (off)."
+        },
+        {
+          "key": "agency.own_gig_fees",
+          "label": "Fees on an agency's own gig",
+          "value": "The agency pays the 5% client-side fee. If the hired freelancer is on its bench, the agency also pays the 5% freelancer-side fee and the bench member pays none; a freelancer not on its bench pays the usual 5%.",
+          "unit": "",
+          "status": "C",
+          "source": "Stacey 2026-11-05 (fee answers)",
+          "note": ""
+        },
+        {
+          "key": "agency.split_fees",
+          "label": "Fees on a split milestone (attorney work assigned to a bench member)",
+          "value": "The attorney pays the usual 5% client fee. The agency pays the whole 5% freelancer-side fee from its share. The bench member gets their full share.",
+          "unit": "",
+          "status": "C",
+          "source": "Stacey 2026-11-05 (fee answers)",
+          "note": "Example: $1,000 at 30/70: the agency gets $300 minus $50 = $250, the bench member $700."
+        },
+        {
+          "key": "agency.split_min_agency_bps",
+          "label": "Smallest agency share of a bench member's work",
+          "value": 500,
+          "unit": "basis points",
+          "status": "C",
+          "source": "Stacey 2026-11-05 (fee answers)",
+          "note": "Never below the freelancer-side fee."
+        },
+        {
+          "key": "agency.split_max_agency_bps",
+          "label": "Largest agency share of a bench member's work",
+          "value": 5000,
+          "unit": "basis points",
+          "status": "C",
+          "source": "Stacey 2026-11-05 (fee answers)",
+          "note": ""
         }
       ]
     }

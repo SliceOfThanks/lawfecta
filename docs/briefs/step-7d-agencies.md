@@ -213,3 +213,20 @@ New switches, all off until tested:
 21. **Bench members and the Plus plan.** A Free freelancer cannot join a bench (answer 1). If a bench member drops to Free, their assigned milestones still pay out by the split? [Yes. Jobs already on run to the end.]
 
 Note: paying two people from one milestone needs Stripe Connect "separate transfers" through the payments adapter. Stripe supports this. It stays in test mode until live payments are turned on.
+
+## Stacey's fee answers (2026-11-05; they replace answer 5 and questions 13 to 21)
+- **Fees on every transaction, all plans.** 5% from the client side and 5% from the freelancer side. No plan lowers them, and the per-plan rates are removed (settings fee.client_bps = 500 and fee.freelancer_bps = 500).
+- **5. The agency's own gig.** The agency is the client and pays the 5% client-side fee. If the freelancer it hires is on its bench, the agency also pays the 5% freelancer-side fee, and the bench member pays nothing. A freelancer not on its bench pays the usual 5%. All are settings.
+- **13. A split milestone** (attorney work assigned to a bench member). The attorney pays the usual 5%. The agency pays the whole 5% freelancer-side fee out of its share, and the bench member gets their full share. Example, $1,000 at 30/70: the agency gets $300 minus $50 = $250, and the bench member $700.
+- **14. The split.** The bench agreement sets a default. On assignment the screen fills in the default, and the agency can change it for that job only. If it does, the freelancer sees "Split for this job: X% agency / Y% you" with "Accept" and "Decline"; accepting counts as signing, and work cannot start until then. Declining sends the job back to unassigned. A changed split applies only to that job's unpaid milestones.
+- **15. Limits.** The agency's share is between 5% and 50% (agency.split_min_agency_bps = 500 and agency.split_max_agency_bps = 5000). The minimum can never be set below the freelancer-side fee.
+- **16.** One bench member per milestone at launch.
+- **17. Refunds and chargebacks.** They come back from both shares by the split percentages. Money still held is used first. A share already paid out is reversed from its Stripe transfer, and each reversal is recorded separately under the person it came from.
+- **18. Payout account missing.** The freelancer's share is held until they set up payouts, and the agency's share is released as normal. Reminders go by email and on the dashboard at 1, 7 and 30 days. The agency sees "Waiting on [name]'s payout setup", never the amount held.
+- **19. Changing or ending.** A new default split needs a new version of the bench agreement signed by both, and applies only to milestones assigned after that. Leaving the bench stops new assignments, and milestones already assigned keep their split and pay out.
+- **20. Who sees the split.** Never the attorney. The agency and the bench member see their own split, and the bench member sees they pay no fee. The Lawfecta Team sees every split in the admin area.
+- **21. A bench member who drops to Free.** Milestones already assigned pay out by the signed split, with no fee for them. No new assignments until they upgrade.
+
+Build notes (Claude):
+- The flat fees are on the test site from migration 0041. Fees now come from the two settings, not the plan. Agreements already drafted keep the fees written into them.
+- Stacey 2026-11-05: the $10 minimum per side stays. The fee is always 5% of the total from attorneys, and 5% from freelancers and agencies, and the minimum engagement is $250, so 5% is always at least $12.50.

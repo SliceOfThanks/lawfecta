@@ -89,7 +89,7 @@ async function sign(page, name, version) {
     await dela(p).getByText("Filing packet help").first().click();
     t = await waitFor(p, "Agreement, version 1");
     ok(t.includes("Example Legal") && t.includes("Fran Pays") && t.includes("$600"), "freelancer: DELA's first draft names the firm, the freelancer and the price");
-    ok(t.includes("The freelancer receives: $576"), "freelancer: the fee lines say what they receive (Plus plan 4%)");
+    ok(t.includes("The freelancer receives: $570"), "freelancer: the fee lines say what they receive (5% on every plan)");
     ok(t.includes("Draft") && t.includes("Final") && t.includes("$300"), "freelancer: two milestones of $300 from the proposal");
     await dela(p).getByText("The terms", { exact: true }).click();
     ok((await text(p)).includes("DRAFT FOR LAWFECTA'S LAWYER TO REVIEW"), "freelancer: the terms are the fixed template, marked as a draft for counsel");
@@ -122,17 +122,17 @@ async function sign(page, name, version) {
     await dela(p).getByText("Filing packet help").first().click();
     t = await waitFor(p, "Agreement, version 2");
     ok(t.includes("The other person signed version 2"), "attorney: they see the freelancer signed version 2");
-    ok(t.includes("Price for the work: $600") && t.includes("platform fee: $21"), "attorney: the price and their 3.5% Pro fee before signing");
+    ok(t.includes("Price for the work: $600") && t.includes("platform fee: $30"), "attorney: the price and the 5% fee before signing");
     await sign(p, "Ann Attorney", 2);
-    t = await waitFor(p, "Pay milestone 1 ($250) and the platform fee ($21)");
+    t = await waitFor(p, "Pay milestone 1 ($250) and the platform fee ($30)");
     ok(t.includes("Stripe's test card"), "attorney: after both sign, one clear next step to pay milestone 1 with the fee");
     await click(p, "Pay milestone 1");
     await p.waitForURL(/\/test\/stripe\/checkout\//, { timeout: 8000 });
-    ok((await p.textContent("h1")).includes("27100 cents: paid"), "attorney: Stripe's Checkout charges milestone 1 and the fee together ($271)");
+    ok((await p.textContent("h1")).includes("28000 cents: paid"), "attorney: Stripe's Checkout charges milestone 1 and the fee together ($280)");
     await p.goto(`${BASE}/page/DELA-App?uid=2800&plan=&tab=projects&gig=${gigId}&view=agreement&paid=1`);
     t = await waitFor(p, "Paid: ready to start");
     ok(t.includes("Stripe is confirming the payment") && t.includes("Active"), "attorney: back from Stripe, the milestone is paid and the engagement active");
-    ok(t.includes("$271 (includes the platform fee $21), Paid"), "attorney: their payments list");
+    ok(t.includes("$280 (includes the platform fee $30), Paid"), "attorney: their payments list");
     await s.ctx.close();
 
     // ---------- Freelancer: start, submit, fail DELA's check, ask for a person ----------
@@ -155,7 +155,7 @@ async function sign(page, name, version) {
     p = s.page;
     await dela(p).getByRole("tab", { name: "Payments", exact: true }).click();
     t = await waitFor(p, "Milestones waiting for a human review (1)");
-    ok(t.includes("test mode") && t.includes("Charged") && t.includes("$271"), "owner: Payments shows Stripe in test mode and the money charged");
+    ok(t.includes("test mode") && t.includes("Charged") && t.includes("$280"), "owner: Payments shows Stripe in test mode and the money charged");
     await label(p, "Your note to the freelancer").fill("The draft is enough for this milestone.");
     await click(p, "Passes: send to the attorney");
     await waitFor(p, "Milestones waiting for a human review (0)");
@@ -207,7 +207,7 @@ async function sign(page, name, version) {
     s = await open(browser, "DELA-App", 2801, `&tab=work&gig=${gigId}`);
     p = s.page;
     t = await waitFor(p, "waiting for your payout setup");
-    ok(t.includes("you receive $240"), "freelancer: the accepted milestone waits for payout setup ($250 less their share of the fee)");
+    ok(t.includes("you receive $237"), "freelancer: the accepted milestone waits for payout setup ($250 less their share of the fee)");
     await p.goto(`${BASE}/page/DELA-App?uid=2801&plan=&tab=earnings`);
     await waitFor(p, "Set up payouts with Stripe");
     await click(p, "Set up payouts with Stripe");
@@ -217,7 +217,7 @@ async function sign(page, name, version) {
     await waitFor(p, "Check my payout status");
     await click(p, "Check my payout status");
     t = await waitFor(p, "Ready. Accepted milestones are paid");
-    ok(t.includes("Paid to you\n$240") || t.includes("$240"), "freelancer: payouts ready and the first payout sent");
+    ok(t.includes("$237"), "freelancer: payouts ready and the first payout sent");
     await p.setViewportSize({ width: 390, height: 844 });
     await p.goto(`${BASE}/page/DELA-App?uid=2801&plan=&tab=work&gig=${gigId}`);
     await waitFor(p, "sent to your bank");
@@ -244,7 +244,7 @@ async function sign(page, name, version) {
     await dela(p).getByRole("tab", { name: "Payments", exact: true }).click();
     t = await waitFor(p, "Disputes (1)");
     ok(t.includes("The notice period") || t.includes("Notice period"), "owner: the dispute waits for its notice period");
-    ok(t.includes("Paid out") && t.includes("$240"), "owner: the payout is in the totals");
+    ok(t.includes("Paid out") && t.includes("$237"), "owner: the payout is in the totals");
     await s.ctx.close();
     console.log("\nALL " + passed + " CHECKS PASSED");
   } catch (e) {
