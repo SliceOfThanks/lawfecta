@@ -651,7 +651,9 @@ type AiRun = { ok: true; text: string; source: string } | { ok: false; reason: s
 
 // One AI task on the member's chosen key, with credits on Lawfecta's key reserved and given back on failure.
 // Same rules as Ask DELA: never moves to Lawfecta's key unless the member clicked "Use Lawfecta credits this time".
-async function runAi(ctx: Ctx, s: Session, idem: string, system: string, msgs: ChatMsg[], credits: number): Promise<AiRun> {
+// asJson: the answer must be one JSON object (OpenAI's JSON mode). Plain-text answers (thread summaries, reply drafts) pass false,
+// because OpenAI refuses JSON mode when the instructions never mention JSON.
+async function runAi(ctx: Ctx, s: Session, idem: string, system: string, msgs: ChatMsg[], credits: number, asJson = true): Promise<AiRun> {
   const lawfectaOnce = ctx.body.lawfecta_once === true;
   const route = await rpc<Route>(ctx, "dela_ai_route", { p_person: s.person_id, p_side: s.side, p_task: "chat", p_lawfecta_once: lawfectaOnce });
   if (!route?.ok) return { ok: false, reason: route?.reason ?? "ai_off" };
@@ -661,7 +663,7 @@ async function runAi(ctx: Ctx, s: Session, idem: string, system: string, msgs: C
   if ("error" in k) return { ok: false, reason: k.error, source: route.source };
   const model = await setting(ctx, "ai.model." + k.provider, k.provider === "openai" ? "gpt-5.4-mini" : "claude-opus-5-5");
   try {
-    const r = await chat(f(ctx), k.provider, k.plainKey, model, system + await memberContext(ctx, s) + await catalogContext(ctx, s, String(msgs.at(-1)?.content ?? "")), msgs, true);
+    const r = await chat(f(ctx), k.provider, k.plainKey, model, system + await memberContext(ctx, s) + await catalogContext(ctx, s, String(msgs.at(-1)?.content ?? "")), msgs, asJson);
     await finishRun(ctx, route, k.reservation, true, "");
     await logUsage(ctx, { person_id: s.person_id, side: s.side, task: "chat", source: route.source, key_id: route.key_id, provider: k.provider, model: r.model,
       input_tokens: r.input_tokens, output_tokens: r.output_tokens, credits: route.source === "lawfecta" ? route.credits : 0, ok: true });
@@ -2122,7 +2124,7 @@ async function threadAssist(ctx: Ctx) {
   const lines = (t.lines ?? []) as Array<{ who: string; text: string }>;
   if (!lines.length) return json(ctx, { ok: false, reason: "nothing_to_summarize" });
   const ai = await runAi(ctx, s, `thread:${mode}:` + (await sha256Hex(JSON.stringify(lines))).slice(0, 40), THREAD_SYSTEM[mode], [{ role: "user", content: threadPrompt(t.gig_title, t.role, lines) }],
-    Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
+    Number(await setting(ctx, "ai.credits.chat", "1")) || 1, false);
   if (!ai.ok) return json(ctx, ai);
   return json(ctx, { ok: true, source: ai.source, mode, text: plainText(ai.text).slice(0, 4000) });
 }

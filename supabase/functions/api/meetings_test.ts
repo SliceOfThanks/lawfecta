@@ -23,10 +23,13 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
   if (url.endsWith("/chat/completions")) {
     const body = JSON.parse(String(init.body));
     const system = String(body.messages[0].content), user = String(body.messages.at(-1).content);
+    // OpenAI's own rule: JSON mode is refused unless the messages mention JSON (the cause of the track B Summarize failure)
+    if (body.response_format?.type === "json_object" && !JSON.stringify(body.messages).toLowerCase().includes("json")) return Response.json({ error: { message: "'messages' must contain the word 'json' in some form, to use 'response_format' of type 'json_object'.", type: "invalid_request_error" } }, { status: 400 });
     let out: unknown = "";
     if (body.response_format && system.includes("legal operations tool")) out = { client_info: false, kinds: [] };
     else if (system.includes("You review messages members send")) out = /privately/i.test(user) ? { off_platform: true, kinds: ["off_platform"], insights: [] } : { off_platform: false, kinds: [], insights: ["Replies quickly"] };
     else if (system.includes("suggesting next steps after a meeting")) out = { steps: [{ who: "freelancer", text: "Send a proposal" }, { who: "attorney", text: "Update the gig budget" }] };
+    else if (system.includes("drafting a reply for the member")) return Response.json({ model: body.model, choices: [{ message: { content: "Thanks, Monday works for me." } }], usage: { prompt_tokens: 5, completion_tokens: 5 } });
     else if (system.includes("summarizing a message thread")) return Response.json({ model: body.model, choices: [{ message: { content: "The attorney needs intake help; the freelancer can start Monday." } }], usage: { prompt_tokens: 5, completion_tokens: 5 } });
     return Response.json({ model: body.model, choices: [{ message: { content: typeof out === "string" ? out : JSON.stringify(out) } }], usage: { prompt_tokens: 5, completion_tokens: 5 } });
   }
@@ -171,9 +174,16 @@ Deno.test("the room: waits for Vectera without a key; with it, each person gets 
 Deno.test("consent, reschedule once with one update, and a late cancel", async () => {
   assertEquals((await call("POST", "/meetings/consent", fl.token, { id: meeting, consent: true })).body.ok, true);
   assertEquals((await call("GET", "/meetings?id=" + meeting, att.token)).body.meetings[0].both_consent, false, "both must tick");
-  await pool.query("update meetings set start_at = now() + interval '3 days', end_at = now() + interval '3 days 30 minutes' where id = $1", [meeting]);
-  const slots = (await call("GET", `/meetings/slots?gig=${gig}&freelancer=${fl.id}&length=30`, fl.token)).body.slots as string[];
-  const h = (await call("POST", "/meetings/hold", fl.token, { gig_id: gig, start_at: slots[10], length: 30, request_id: "r1", reschedule_of: meeting })).body;
+  // Put the meeting on an open time, then move it by 15 minutes (track B test and Stacey, 2026-11-05)
+  const all = (await call("GET", `/meetings/slots?gig=${gig}&freelancer=${fl.id}&length=30`, fl.token)).body.slots as string[];
+  const cur = all[20], next15 = new Date(new Date(cur).getTime() + 15 * 60000).toISOString();
+  await pool.query("update meetings set start_at = $2, end_at = $2::timestamptz + interval '30 minutes' where id = $1", [meeting, cur]);
+  const slots = (await call("GET", `/meetings/slots?gig=${gig}&freelancer=${fl.id}&length=30&except=${meeting}`, fl.token)).body.slots as string[];
+  const ms = (x: string) => new Date(x).getTime();
+  assert(!slots.some((x) => ms(x) === ms(cur)), "the new-time list leaves out the meeting's current time");
+  assert(slots.some((x) => ms(x) === ms(next15)), "a time 15 minutes later is offered, because the meeting being moved does not block itself");
+  assertEquals((await call("POST", "/meetings/hold", fl.token, { gig_id: gig, start_at: cur, length: 30, request_id: "r0", reschedule_of: meeting })).body.reason, "same_time");
+  const h = (await call("POST", "/meetings/hold", fl.token, { gig_id: gig, start_at: next15, length: 30, request_id: "r1", reschedule_of: meeting })).body;
   assertEquals(h.ok, true, JSON.stringify(h));
   assertEquals((await call("POST", "/meetings/confirm", fl.token, { id: h.id })).body.ok, true);
   const old = await one("select status from meetings where id = $1", [meeting]);
@@ -247,7 +257,9 @@ Deno.test("messages: only the pair, held when clear, warned when unsure, edits, 
   assert((await one("select body from messages where id = $1", [mid])).body.includes("Tuesday"), "the record stays for the team");
   // DELA in the thread
   const s = (await call("POST", "/threads/assist", att.token, { thread_id: thread, mode: "summarize" })).body;
-  assertEquals([s.ok, s.text], [true, "The attorney needs intake help; the freelancer can start Monday."]);
+  assertEquals([s.ok, s.text], [true, "The attorney needs intake help; the freelancer can start Monday."], JSON.stringify(s));
+  const dr = (await call("POST", "/threads/assist", fl.token, { thread_id: thread, mode: "draft" })).body;
+  assertEquals([dr.ok, dr.text], [true, "Thanks, Monday works for me."], "the freelancer's Draft a reply works: " + JSON.stringify(dr));
   await call("POST", "/threads/send", fl.token, { thread_id: thread, body: "Yes, Monday works.", request_id: "m7" });
   const inbox = (await call("GET", "/threads", att.token)).body.threads;
   assert(inbox.some((x: any) => x.id === thread && x.unread >= 1), "the inbox counts unread messages");

@@ -127,6 +127,8 @@ function fakeAi(u: string, opts: RequestInit): Response | null {
     if (u.endsWith("/models")) return Response.json({ data: [{ id: "gpt-5.4-mini" }, { id: "gpt-transcribe" }] });
     if (u.endsWith("/audio/transcriptions")) return Response.json({ text: "Make a checklist for filing a motion" });
     const system = String(body?.messages?.[0]?.content ?? "");
+    // OpenAI's own rule: JSON mode is refused unless the messages mention JSON
+    if (body?.response_format?.type === "json_object" && !JSON.stringify(body.messages).toLowerCase().includes("json")) return Response.json({ error: { message: "'messages' must contain the word 'json'", type: "invalid_request_error" } }, { status: 400 });
     if (system.includes("summarizing a message thread")) return Response.json({ model: body.model, choices: [{ message: { content: "The attorney asked about intake; the freelancer can start Monday." } }], usage: { prompt_tokens: 20, completion_tokens: 10 } });
     if (system.includes("drafting a reply for the member")) return Response.json({ model: body.model, choices: [{ message: { content: "Thanks, Monday works for me." } }], usage: { prompt_tokens: 20, completion_tokens: 10 } });
     const pb = playbookAnswer(system, JSON.stringify(body?.messages?.at(-1) ?? ""));
