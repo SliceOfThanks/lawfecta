@@ -354,7 +354,7 @@ Deno.test("email delivery: a bounced license email is shown on the license and t
     assertEquals((await pool.query("select count(*)::int n from jobs where kind = 'email_delivery_check' and payload->>'attempt' = '1'")).rows[0].n >= 1, true);
     const q = (await call("GET", "/admin/verify", staff.token)).body.data;
     assertEquals(q.licenses.find((l: any) => l.bd_member_id === b.bd && l.region === "TX").email_delivery.state, "bounced");
-    assertEquals((await pool.query("select count(*)::int n from notifications where title = 'A license email bounced'")).rows[0].n >= 1, true, "the team is told");
+    assertEquals((await pool.query("select count(*)::int n from notifications where title = 'A license email bounced' and body like $1", [`%member ${b.bd}'s TX license%`])).rows[0].n >= 1, true, "the team is told which member and state");
     assertEquals((await pool.query("select count(*)::int n from verification_events where action = 'email_bounced'")).rows[0].n, 1);
     // Checking again never changes a final answer
     const nid = (await pool.query("select e.notification_id from email_checks e join licenses l on l.id = e.license_id where l.contact_email = 'bounce@blockedfirm.test'")).rows[0].notification_id;

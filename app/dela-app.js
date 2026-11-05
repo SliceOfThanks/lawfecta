@@ -90,11 +90,28 @@
 
   function closeMenu() { if (menu) { menu.remove(); menu = null; } }
 
+  // Side panels (Notices, versions, team, blur): above the Lawfecta site's own header, with an X that stays in view,
+  // and a dimmed backdrop that closes the panel when clicked or tapped (Stacey 2026-11-05)
+  var scrim = null;
+  function closeDrawer() {
+    if (drawer) { drawer.remove(); drawer = null; }
+    if (scrim) { scrim.remove(); scrim = null; }
+  }
+  function showDrawer(el, keepOnOutsideClick) {
+    if (scrim) { scrim.remove(); scrim = null; }
+    drawer = el;
+    scrim = h("div", { class: "dela-scrim", "aria-hidden": "true", onclick: function () { if (!keepOnOutsideClick) closeDrawer(); } });
+    var label = el.getAttribute("aria-label") || "panel";
+    el.insertBefore(h("div", { class: "drawer-top" }, h("button", { class: "drawer-x", "aria-label": "Close " + label.toLowerCase(), title: "Close", onclick: closeDrawer }, "✕")), el.firstChild);
+    app.appendChild(scrim);
+    app.appendChild(el);
+  }
+
   // Any click outside the open menu closes it
   app.addEventListener("click", function (e) {
     if (menu && !menu.contains(e.target) && !(e.target.classList && e.target.classList.contains("avatar"))) closeMenu();
   });
-  app.addEventListener("keydown", function (e) { if (e.key === "Escape") { closeMenu(); if (drawer) { drawer.remove(); drawer = null; } } });
+  app.addEventListener("keydown", function (e) { if (e.key === "Escape") { closeMenu(); closeDrawer(); } });
 
   function toggleMenu() {
     if (menu) { closeMenu(); return; }
@@ -1298,14 +1315,14 @@
   }
   function showVersions(f) {
     api.get("/files/versions?id=" + f.id).then(function (r) {
-      if (drawer) drawer.remove();
+      closeDrawer();
       drawer = h("div", { class: "drawer", role: "dialog", "aria-label": "Versions" },
-        h("div", { class: "row" }, h("h2", { class: "grow", text: "Versions of " + f.name }), h("button", { class: "ghost small", onclick: function () { drawer.remove(); drawer = null; } }, "Close")),
+        h("div", { class: "row" }, h("h2", { class: "grow", text: "Versions of " + f.name }), h("button", { class: "ghost small", onclick: closeDrawer }, "Close")),
         h("ul", { class: "list" }, r.items.map(function (v) {
           return h("li", null, h("b", { text: "Version " + v.version + (v.is_current ? " (current)" : "") }), h("div", { class: "small muted", text: D.dateTime(v.created_at) + ", " + mbText(v.size_bytes) }),
             h("button", { class: "ghost small", onclick: function () { openFile({ id: v.id }, true); } }, "Download"));
         })));
-      app.appendChild(drawer);
+      showDrawer(drawer);
     }).catch(err);
   }
 
@@ -1569,11 +1586,11 @@
 
   function openTeam() {
     api.get("/playbooks/team?org=" + lib.org).then(function (t) {
-      if (drawer) drawer.remove();
+      closeDrawer();
       var bd = h("input", { "aria-label": "BD member ID", inputmode: "numeric", placeholder: "BD member ID" });
       var role = h("select", { "aria-label": "Role" }, ["editor", "commenter", "viewer", "administrator"].map(function (r) { return h("option", { value: r, text: ROLE_WORDS[r] }); }));
       drawer = h("div", { class: "drawer", role: "dialog", "aria-label": "Library team" },
-        h("div", { class: "row" }, h("h2", { class: "grow", text: "Library team" }), h("button", { class: "ghost small", onclick: function () { drawer.remove(); drawer = null; } }, "Close")),
+        h("div", { class: "row" }, h("h2", { class: "grow", text: "Library team" }), h("button", { class: "ghost small", onclick: closeDrawer }, "Close")),
         h("p", { class: "small muted", text: "Editors and administrators use a seat (" + t.seats + " on your plan, including you). Commenters and viewers do not, up to " + t.guests + "." }),
         h("ul", { class: "list" }, h("li", null, h("b", { text: t.owner.name }), " Administrator (owner)"), t.members.map(function (m) {
           return h("li", { class: "row" }, h("span", { class: "grow" }, h("b", { text: m.name }), " " + ROLE_WORDS[m.role]),
@@ -1582,7 +1599,7 @@
         h("h3", { style: "margin-top:14px", text: "Add someone" }),
         h("p", { class: "small muted", text: "They need a Lawfecta account and must have opened DELA once. Find their BD member ID in their Lawfecta profile." }),
         h("div", { class: "row" }, bd, role, h("button", { class: "blue small", onclick: function () { teamSet(bd.value, role.value); } }, "Add")));
-      app.appendChild(drawer);
+      showDrawer(drawer);
     }).catch(pbFail);
     function teamSet(id, r) {
       api.post("/playbooks/team", { org_id: lib.org, bd_member_id: id, role: r }).then(okOr).then(function () { D.toast(app, r === "remove" ? "Removed. They lost access straight away." : "Added"); openTeam(); }).catch(pbFail);
@@ -1894,15 +1911,15 @@
     }))));
     function showVersion(n) {
       api.get("/playbooks/get?id=" + lib.pb.playbook.id + "&v=" + n).then(function (r) {
-        if (drawer) drawer.remove();
+        closeDrawer();
         var inner = h("div");
-        drawer = h("div", { class: "drawer", role: "dialog", "aria-label": "Version " + n, style: "width:min(640px,100%)" },
-          h("div", { class: "row" }, h("h2", { class: "grow", text: "Version " + n }), h("button", { class: "ghost small", onclick: function () { drawer.remove(); drawer = null; } }, "Close")), inner);
+        drawer = h("div", { class: "drawer", role: "dialog", "aria-label": "Version " + n, style: "width:min(640px,calc(100% - 48px))" },
+          h("div", { class: "row" }, h("h2", { class: "grow", text: "Version " + n }), h("button", { class: "ghost small", onclick: closeDrawer }, "Close")), inner);
         var saveCan = can;
         can = function () { return false; };
         readView(inner, r.version.body);
         can = saveCan;
-        app.appendChild(drawer);
+        showDrawer(drawer);
       }).catch(pbFail);
     }
   }
@@ -2185,9 +2202,9 @@
         g.fillRect(x, y, w, hh);
         boxes++;
       });
-      if (drawer) drawer.remove();
+      closeDrawer();
       drawer = h("div", { class: "drawer", role: "dialog", "aria-label": "Blur part of this image", style: "width:min(900px,100%)" },
-        h("div", { class: "row" }, h("h2", { class: "grow", text: "Blur part of this image" }), h("button", { class: "ghost small", onclick: function () { drawer.remove(); drawer = null; } }, "Cancel")),
+        h("div", { class: "row" }, h("h2", { class: "grow", text: "Blur part of this image" }), h("button", { class: "ghost small", onclick: closeDrawer }, "Cancel")),
         h("p", { class: "small muted", text: "Drag a box over anything private. Drag again for more boxes. Saving replaces the screenshot with the blurred one." }), c,
         h("div", { class: "row", style: "margin-top:10px" }, h("button", { class: "blue", onclick: function () {
           if (!boxes) { D.toast(app, "Drag a box over the part to blur first.", true); return; }
@@ -2198,10 +2215,10 @@
               st.file_id = r.file_id;
               // The unblurred original is deleted for good
               return saveImport().then(function () { return api.post("/files/action", { action: "drop_version", file_id: old }); });
-            }).then(function () { drawer.remove(); drawer = null; D.toast(app, "Blurred screenshot saved"); openImport(imp.id); }).catch(pbFail);
+            }).then(function () { closeDrawer(); D.toast(app, "Blurred screenshot saved"); openImport(imp.id); }).catch(pbFail);
           }, "image/png");
         } }, "Save the blurred screenshot")));
-      app.appendChild(drawer);
+      showDrawer(drawer, true);
     };
     pic.onerror = function () { D.toast(app, "The screenshot could not be opened for blurring. Untick it instead.", true); };
     pic.src = img.src;
@@ -2704,20 +2721,19 @@
 
   function openNotices() {
     closeMenu();
-    if (drawer) { drawer.remove(); drawer = null; return; }
-    drawer = h("div", { class: "drawer", role: "dialog", "aria-label": "Notices" }, h("p", { class: "muted", text: "Loading..." }));
-    app.appendChild(drawer);
+    if (drawer) { closeDrawer(); return; }
+    var nb = h("div", null, h("p", { class: "muted", text: "Loading..." }));
+    showDrawer(h("div", { class: "drawer", role: "dialog", "aria-label": "Notices" }, nb));
     api.get("/notifications").then(function (r) {
-      D.clear(drawer);
-      drawer.appendChild(h("div", { class: "row" }, h("h2", { class: "grow", text: "Notices" }),
-        h("button", { class: "ghost small", onclick: function () { api.post("/notifications/read", { all: true }).then(function () { drawer.remove(); drawer = null; refresh(); }); } }, "Mark all read"),
-        h("button", { class: "ghost small", "aria-label": "Close", onclick: function () { drawer.remove(); drawer = null; } }, "Close")));
-      if (!r.items.length) drawer.appendChild(h("p", { class: "muted", text: "Nothing yet. Notices about your work will show up here." }));
-      drawer.appendChild(h("ul", { class: "list" }, r.items.map(function (n) {
+      D.clear(nb);
+      nb.appendChild(h("div", { class: "row", style: "padding-right:44px" }, h("h2", { class: "grow", text: "Notices" }),
+        h("button", { class: "ghost small", onclick: function () { api.post("/notifications/read", { all: true }).then(function () { closeDrawer(); refresh(); }); } }, "Mark all read")));
+      if (!r.items.length) nb.appendChild(h("p", { class: "muted", text: "Nothing yet. Notices about your work will show up here." }));
+      nb.appendChild(h("ul", { class: "list" }, r.items.map(function (n) {
         return h("li", null, h("strong", { text: n.title }), n.read ? null : h("span", { class: "badge G", style: "margin-left:6px", text: "New" }),
           n.body ? h("p", { class: "small", text: n.body }) : null, h("div", { class: "muted small", text: D.dateTime(n.created_at) }));
       })));
-    }).catch(function () { D.clear(drawer); drawer.appendChild(h("p", { text: "Notices could not load." })); });
+    }).catch(function () { D.clear(nb); nb.appendChild(h("p", { text: "Notices could not load." })); });
   }
 
   // Links in notices and emails can open a tab (for example /dela?tab=files)

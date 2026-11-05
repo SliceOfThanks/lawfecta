@@ -252,6 +252,28 @@ async function waitFor(page, words, ms) {
     ok(last === true, "and the DELA session is ended");
     await s.ctx.close();
 
+    // The Notices panel opens above the Lawfecta site's own header, with an X, and closes by clicking outside it,
+    // on a computer and on a phone (Stacey 2026-11-05: the site header covered Close)
+    for (const vp of [{ width: 1200, height: 800 }, { width: 390, height: 800 }]) {
+      s = await open(browser, 2501, "", vp);
+      p = s.page;
+      await p.addStyleTag({ content: "body{padding-top:90px} body > header{position:fixed;top:0;left:0;right:0;height:90px;z-index:99999}" });
+      await dela(p).getByRole("button", { name: "Notices", exact: true }).click();
+      const x = dela(p).getByRole("button", { name: "Close notices" });
+      await x.waitFor({ timeout: 5000 });
+      const box = await x.boundingBox();
+      const onTop = await p.evaluate(([cx, cy]) => { const el = document.elementFromPoint(cx, cy); return !!el && el.classList.contains("dela-host"); }, [box.x + box.width / 2, box.y + box.height / 2]);
+      ok(onTop, "the X is above the site's header at " + vp.width + "px");
+      await x.click();
+      ok(await dela(p).getByRole("dialog", { name: "Notices" }).count() === 0, "the X closes the panel at " + vp.width + "px");
+      await dela(p).getByRole("button", { name: "Notices", exact: true }).click();
+      await dela(p).getByRole("dialog", { name: "Notices" }).waitFor();
+      await p.mouse.click(10, vp.height - 20);
+      await p.waitForTimeout(200);
+      ok(await dela(p).getByRole("dialog", { name: "Notices" }).count() === 0, "clicking outside closes the panel at " + vp.width + "px");
+      await s.ctx.close();
+    }
+
     // Freelancers have no license form; attorneys no LinkedIn card
     ok((await sql("select count(*)::int n from licenses l join people p on p.id = l.person_id where p.bd_member_id = 2501"))[0].n === 0, "freelancers never get a license check");
 

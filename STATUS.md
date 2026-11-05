@@ -12,7 +12,9 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 ## Step 3 test, 2026-11-05 (ChatGPT, partly; credits ran out)
 - Passed: A1 to A4, A6, A7, D1 to D7, F1, F2, and the team's LinkedIn check (freelancer 688 match-ready). All alert and member emails were sent through Brevo.
 - Fixed (commit a2fcd5c, api version 20): the page wiped unsaved form changes when a button reloaded it; "Filled 1 items"; the draft label now names services. Each fix has a browser check.
-- Left, by hand: docs/tests/step-3-finish-by-hand.md (A5 email link, B1 to B3 team verify, C1 and C2). The license email to hello@lawwurk.com was sent at 23:32 UTC on 2026-11-04 and has not been clicked yet.
+- Finished by hand by Stacey 2026-11-05: B1 to B3 (team verified the TX license by the video call path), C1 and C2 (Verified and Ready, Projects note gone, Firm details saved), and both fixes checked. All passed.
+- A5 (email link) not possible with hello@lawwurk.com: lawwurk.com's mail server refuses Brevo's shared sending address 77.32.148.23 ("listed by SpamCop", still refused after SpamCop showed it clean). Built the delivery check (migration 0020): DELA now asks Brevo whether essential emails arrived and shows bounces in plain words on the license, in the team queue and as an alert (0021 names the member and state). To retest the link, use an address that receives our email (for example stacey+license@lawfecta.com).
+- Also fixed from her testing: sign out now also logs out of Lawfecta (BD /logout); plain dates showed a day early in US time zones; side panels (Notices, versions, team, blur) open above BD's own header, with an X that stays in view and a backdrop that closes them on click or tap, phones included.
 - BD login: reCAPTCHA is still blocking ChatGPT's agent ("The security check was not completed successfully"). Stacey is fixing it on the test site.
 
 ## Step 3: profiles and verification (built 2026-11-04; brief docs/briefs/step-3-profiles-verification.md, answered by Stacey)

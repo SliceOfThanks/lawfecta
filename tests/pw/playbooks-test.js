@@ -144,7 +144,7 @@ async function makeMember(bd, side, plan) {
     await click(p, "Add");
     t = await waitFor(p, "Member 2201");
     ok(t.includes("Editor"), "the owner adds an editor (Business has 3 seats)");
-    await click(p, "Close");
+    await dela(p).getByRole("button", { name: "Close library team" }).click();
 
     // ---------- Import from Scribe ----------
     await click(p, "Import from Scribe");
