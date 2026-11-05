@@ -25,7 +25,7 @@ import { keyAllowed, stripe, checkoutParams, verifyStripeSignature, accountStatu
 import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/webhooks/deliver.ts";
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
-import { blockedKinds, blockedMessage } from "./lib/confidential/rules.ts";
+import { blockedKinds, blockedMessage, FILE_BLOCKED_MESSAGE } from "./lib/confidential/rules.ts";
 import { attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
 import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
@@ -324,6 +324,16 @@ async function aiChat(ctx: Ctx) {
   return json(ctx, { chat: c });
 }
 
+// Delete is immediate and permanent; "Save to library" keeps a chat past the 90-day rule (Stacey 2026-11-05)
+async function aiChatDelete(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  return json(ctx, await rpc(ctx, "dela_ai_chat_delete", { p_person: s.person_id, p_side: s.side, p_chat: need(uuid(ctx.body.id)) }));
+}
+async function aiChatSave(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  return json(ctx, await rpc(ctx, "dela_ai_chat_save", { p_person: s.person_id, p_side: s.side, p_chat: need(uuid(ctx.body.id)), p_on: ctx.body.saved !== false }));
+}
+
 async function aiChatArchive(ctx: Ctx) {
   const s = await memberSide(ctx);
   const id = uuid(ctx.body.id);
@@ -345,7 +355,8 @@ async function memberContext(ctx: Ctx, s: Session): Promise<string> {
 async function catalogContext(ctx: Ctx, s: Session, text: string): Promise<string> {
   try {
     if (!asksAboutTools(text)) return "";
-    if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "tech_catalog", p_person: s.person_id })) return "";
+    // Without the catalog (it waits for the end of Phase 1 on Live), DELA names no products except the member's own
+    if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "tech_catalog", p_person: s.person_id })) return "\n\n" + NO_CATALOG_RULE;
     const tools = (await rpc<Tool[]>(ctx, "dela_catalog_active", {})) ?? [];
     if (!tools.length) return "";
     const prof = (s.side === "attorney" || s.side === "freelancer") ? await rpc<Record<string, any> | null>(ctx, "dela_profile_ai_context", { p_person: s.person_id, p_side: s.side }) : null;
@@ -356,6 +367,8 @@ async function catalogContext(ctx: Ctx, s: Session, text: string): Promise<strin
     return "";
   }
 }
+
+const NO_CATALOG_RULE = "Software and tools: do not name or recommend any specific software product, app or vendor, except the tools the member lists in their own profile. Describe the kind of tool instead (for example \"a practice management system with intake forms\"), and suggest the member compare options themselves.";
 
 function systemPrompt(side: string): string {
   return [
@@ -566,6 +579,7 @@ async function filesComplete(ctx: Ctx) {
     console.error("file_check", String(e).slice(0, 200));
   }
   const after = await rpc<Record<string, any> | null>(ctx, "dela_file_for_check", { p_file: id });
+  if (after?.status === "refused" && after?.refuse_reason === "blocked_data") return json(ctx, { ok: false, reason: "blocked_data", file_id: id, message: FILE_BLOCKED_MESSAGE });
   return json(ctx, { ok: true, file_id: id, status: after?.status ?? "checking" });
 }
 
@@ -586,10 +600,23 @@ async function filesAction(ctx: Ctx) {
   const s = await memberSide(ctx);
   const action = need(str(ctx.body.action, 30));
   if (action === "drop_version") return json(ctx, await rpc(ctx, "dela_file_drop_version", { p_person: s.person_id, p_file: uuid(ctx.body.file_id) }));
+  // "Delete forever" in Trash: the database first, then the storage objects at once
+  if (action === "delete_forever") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_file_delete_forever", { p_person: s.person_id, p_side: s.side, p_file: need(uuid(ctx.body.file_id)) });
+    if (r?.ok && Array.isArray(r.paths) && r.paths.length) await removeNow(ctx, r.paths);
+    return json(ctx, r?.ok ? { ok: true, duplicate: !!r.duplicate } : r);
+  }
   return json(ctx, await rpc(ctx, "dela_file_action", {
     p_person: s.person_id, p_side: s.side,
     p: { action, file_id: uuid(ctx.body.file_id) ?? "", folder_id: uuid(ctx.body.folder_id) ?? "", name: str(ctx.body.name, 250) },
   }));
+}
+
+// Storage objects removed at once (deletion is immediate and permanent); a failure is retried by the daily sweep
+async function removeNow(ctx: Ctx, paths: string[]) {
+  const list = paths.filter((p) => typeof p === "string" && p);
+  if (!list.length || !ctx.deps.storage) return;
+  try { await ctx.deps.storage.remove(list); } catch (e) { console.error("remove_now", String(e).slice(0, 120)); }
 }
 
 // Type check by contents, text for the AI, and the client information check (patterns, then the AI on Lawfecta's key)
@@ -609,6 +636,18 @@ async function runFileCheck(ctx: Ctx, id: string, recordFn = "dela_file_checked"
     text = await readText(fc.ext, bytes);
   } catch {
     text = "";
+  }
+  // Files uploaded on a job (deliverables) never go to the AI and keep no text (Stacey 2026-11-05). Sensitive data by
+  // pattern refuses the file outright.
+  if (fc.purpose === "deliverable") {
+    const kinds = blockedKinds(fc.name + "\n" + text);
+    if (kinds.length) {
+      await rpc(ctx, recordFn, { p_file: id, p: { ok: false, reason: "blocked_data" } });
+      await storage.remove([fc.storage_path]).catch(() => {});
+      return;
+    }
+    await rpc(ctx, recordFn, { p_file: id, p: { ok: true, mime: sn.mime, sha256: await sha256(bytes), text: "", flagged: false, reasons: [] } });
+    return;
   }
   const hits = patternCheck(fc.name + "\n" + text);
   const reasons = new Set(hits.strong);
@@ -2192,7 +2231,7 @@ async function confScan(ctx: Ctx, bytes: Uint8Array, name: string): Promise<{ ok
 async function confUploadStart(ctx: Ctx) {
   const s = await memberSide(ctx);
   const r = await rpc<Record<string, any>>(ctx, "dela_conf_file_start", { p: { person_id: s.person_id, side: s.side, agreement_id: uuid(ctx.body.agreement_id) ?? "", name: str(ctx.body.name, 250),
-    size_bytes: int(ctx.body.size_bytes), request_id: str(ctx.body.request_id, 80), no_medical: ctx.body.no_medical === true } });
+    size_bytes: int(ctx.body.size_bytes), request_id: str(ctx.body.request_id, 80), no_sensitive: ctx.body.no_sensitive === true, expiry_days: int(ctx.body.expiry_days) } });
   if (!r?.ok) return json(ctx, r);
   if (r.duplicate) return json(ctx, { ok: true, duplicate: true, file_id: r.file_id, status: r.status });
   const ext = String(r.storage_path).split(".").pop() ?? "";
@@ -2224,7 +2263,8 @@ async function confUploadComplete(ctx: Ctx) {
   let text = "";
   try { text = await readText(fc.ext, bytes); } catch { text = ""; }
   const kinds = blockedKinds(String(fc.name) + "\n" + text);
-  if (kinds.length) return await refuse("blocked_data", { kinds, message: blockedMessage(kinds) });
+  // Files with sensitive data are refused, with the way out: mark the job sensitive and share a secure link instead
+  if (kinds.length) return await refuse("blocked_data", { kinds, message: FILE_BLOCKED_MESSAGE, can_mark_sensitive: s.side === "attorney" });
   return json(ctx, await rpc(ctx, "dela_conf_file_checked", { p_file: id, p: { ok: true, mime: sn.mime, sha256: await sha256(bytes), scan: scan.state, agreement_id: ag } }));
 }
 
@@ -2274,14 +2314,98 @@ async function confFilePayload(ctx: Ctx, r: Record<string, any>, action: string)
   return { ok: true, kind: "download", name: r.name, url: await storageOf(ctx).signDownload(r.path, Math.max(Number(r.minutes) || 5, 1) * 60, String(r.name)) };
 }
 
-// Daily: remove the files of engagements past their retention, then mark them deleted
-async function confDaily(ctx: Ctx) {
-  const due = await rpc<Array<{ agreement_id: string; paths: string[] }>>(ctx, "dela_conf_daily", {}) ?? [];
-  for (const d of due) {
-    if (d.paths.length && ctx.deps.storage) await ctx.deps.storage.remove(d.paths);
-    await rpc(ctx, "dela_conf_deleted", { p_agreement: d.agreement_id });
+// Extend, delete, Download all and secure links (Stacey 2026-11-05)
+async function confAct(ctx: Ctx, fn: string, extra: Record<string, unknown> = {}) {
+  const s = await memberSide(ctx);
+  return await rpc<Record<string, any>>(ctx, fn, { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)), ...extra });
+}
+async function confDelete(ctx: Ctx) {
+  const r = await confAct(ctx, "dela_conf_file_delete", { p_file: need(uuid(ctx.body.file_id)) });
+  if (r?.ok) await removeNow(ctx, r.paths ?? []);
+  return json(ctx, r?.ok ? { ok: true, duplicate: !!r.duplicate } : r);
+}
+async function confDownloadAll(ctx: Ctx) {
+  const r = await confAct(ctx, "dela_conf_download_all");
+  if (!r?.ok) return json(ctx, r);
+  const storage = storageOf(ctx);
+  const secs = Math.max(Number(r.minutes) || 5, 1) * 60;
+  const files = [];
+  for (const f of r.files as Array<{ path: string; name: string }>) files.push({ name: f.name, url: await storage.signDownload(f.path, secs, f.name) });
+  return json(ctx, { ok: true, files, view_only_skipped: r.view_only_skipped });
+}
+// A secure link: https only, no login details inside it, never fetched or opened by DELA
+export function checkLink(raw: string): { ok: true; url: string; host: string } | { ok: false; reason: string } {
+  const t = String(raw ?? "").trim();
+  if (!t || t.length > 2000) return { ok: false, reason: "bad_link" };
+  let u: URL;
+  try { u = new URL(t); } catch { return { ok: false, reason: "bad_link" }; }
+  if (u.protocol !== "https:") return { ok: false, reason: "link_not_https" };
+  if (u.username || u.password) return { ok: false, reason: "link_has_login" };
+  const host = u.hostname.toLowerCase();
+  if (!host.includes(".") || host.endsWith(".") || /^[0-9.]+$/.test(host) || host.startsWith("[")) return { ok: false, reason: "bad_link" };
+  return { ok: true, url: u.toString(), host: host.replace(/^www\./, "") };
+}
+async function confLinkAdd(ctx: Ctx) {
+  const c = checkLink(str(ctx.body.url, 2100));
+  if (!c.ok) return json(ctx, c);
+  const label = str(ctx.body.label, 80);
+  const kinds = blockedKinds(label);
+  if (kinds.length) return json(ctx, { ok: false, reason: "blocked_data", kinds, message: blockedMessage(kinds) });
+  return json(ctx, await confAct(ctx, "dela_conf_link_add", { p: { url: c.url, host: c.host, label, expiry_days: int(ctx.body.expiry_days), request_id: str(ctx.body.request_id, 80) } }));
+}
+
+// "Delete now" on a job marked sensitive: every share removed (the Files tab copies stay) and every confidential file deleted
+async function gigDeleteShared(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_gig_shared_delete_all", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)) });
+  if (!r?.ok) return json(ctx, r);
+  let deleted = 0;
+  if (r.agreement_id) {
+    const c = await rpc<Record<string, any>>(ctx, "dela_conf_delete_all_files", { p_person: s.person_id, p_side: s.side, p_agreement: r.agreement_id });
+    if (c?.ok) { await removeNow(ctx, c.paths ?? []); deleted = Number(c.count) || 0; }
   }
-  return { ok: true, deleted: due.length };
+  return json(ctx, { ok: true, unshared: r.unshared, deleted });
+}
+
+// Daily: remove files 7 days after access ended and messages 7 days after the job ended (a dispute holds both)
+async function confDaily(ctx: Ctx) {
+  const due = await rpc<{ files: Array<{ id: string; path: string }>; messages: string[] }>(ctx, "dela_conf_daily", {}) ?? { files: [], messages: [] };
+  if (due.files.length) {
+    if (ctx.deps.storage) await ctx.deps.storage.remove(due.files.map((x) => x.path));
+    await rpc(ctx, "dela_conf_files_gone", { p_ids: due.files.map((x) => x.id), p_reason: "expired", p_person: null });
+  }
+  for (const ag of due.messages) await rpc(ctx, "dela_conf_messages_gone", { p_agreement: ag });
+  return { ok: true, files: due.files.length, messages: due.messages.length };
+}
+
+// Daily: the 90-day rule for drafts, chats and job uploads
+async function retentionDaily(ctx: Ctx) {
+  const r = await rpc<Record<string, any>>(ctx, "dela_retention_daily", {});
+  if (r?.paths?.length && ctx.deps.storage) await ctx.deps.storage.remove(r.paths);
+  return { ok: true, chats: r?.chats ?? 0, drafts: r?.drafts ?? 0, deliverables: r?.deliverables ?? 0 };
+}
+
+// "Save to library" for a deliverable: a copy in the firm's Files tab (marked as from a job, so Ask DELA never reads it)
+async function deliverableSave(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_deliverable_save_start", { p_person: s.person_id, p_side: s.side, p_submission: need(uuid(ctx.body.submission_id)), p_file: need(uuid(ctx.body.file_id)) });
+  if (!r?.ok || r.duplicate) return json(ctx, r);
+  const storage = storageOf(ctx);
+  const bytes = await storage.read(r.from_path);
+  await storage.put(r.to_path, bytes, CONTENT_TYPES[String(r.to_path).split(".").pop() ?? ""] ?? "application/octet-stream");
+  await rpc(ctx, "dela_deliverable_saved", { p_new: r.file_id, p_source: r.source_id });
+  return json(ctx, { ok: true, file_id: r.file_id });
+}
+
+// The /security page (public, no login): the facts from settings, and the contact form
+async function securityFacts(ctx: Ctx) {
+  return json(ctx, { ok: true, facts: await rpc(ctx, "dela_security_facts", {}) });
+}
+async function securityContact(ctx: Ctx) {
+  // The hidden trap field: people never see it, so anything in it is a robot. The answer looks the same.
+  if (str(ctx.body.website, 200)) return json(ctx, { ok: true });
+  const ipHash = await sha256Hex("dela-security-ip:" + (ctx.ip || "unknown"));
+  return json(ctx, await rpc(ctx, "dela_security_contact", { p: { name: str(ctx.body.name, 120), email: str(ctx.body.email, 200), topic: str(ctx.body.topic, 80), message: str(ctx.body.message, 4000), ip_hash: ipHash } }));
 }
 
 // ---------- Step 6: agreements, signing, milestone funding, delivery, payouts, refunds, disputes ----------
@@ -2483,7 +2607,10 @@ async function runMilestoneCheck(ctx: Ctx, submission: string): Promise<Record<s
   const key = lawfectaKey(ctx, "openai");
   const model = await setting(ctx, "ai.model.openai", "gpt-5.4-mini");
   const rubric = (sub.rubric ?? []) as Criterion[];
-  if (!key || !rubric.length) { await rpc(ctx, "dela_submission_checked", { p_submission: submission, p_status: "human_review", p_score: null, p_findings: [], p_model: "" }); return { status: "human_review" }; }
+  // DELA scores only the freelancer's notes and checklist, never the files (Stacey 2026-11-05: files shared on a job
+  // never go to the AI). Files with no notes go straight to the attorney.
+  const notes = String(sub.statement ?? "").trim();
+  if (!key || !rubric.length || notes.length < 10) { await rpc(ctx, "dela_submission_checked", { p_submission: submission, p_status: notes.length < 10 ? "with_attorney" : "human_review", p_score: null, p_findings: [], p_model: "" }); return { status: notes.length < 10 ? "with_attorney" : "human_review" }; }
   try {
     const r = await chat(f(ctx), "openai", key, model, CHECK_SYSTEM, [{ role: "user", content: checkPrompt(sub) }], true);
     await logUsage(ctx, { person_id: sub.person_id, side: "freelancer", task: "milestone_check", source: "lawfecta", provider: "openai", model: r.model, input_tokens: r.input_tokens, output_tokens: r.output_tokens, ok: true });
@@ -3233,6 +3360,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/reviews": (c, a) => rpc(c, "dela_admin_reviews", { p_actor: a }),
   "/admin/documents": (c, a) => rpc(c, "dela_admin_documents", { p_actor: a }),
   "/admin/confidential": (c, a) => rpc(c, "dela_admin_confidential", { p_actor: a }),
+  "/admin/security": (c, a) => rpc(c, "dela_admin_security", { p_actor: a }),
   "/admin/confidential/review": (c, a) => rpc(c, "dela_conf_reviewer", { p_actor: a, p_agreement: need(uuid(c.url.searchParams.get("agreement"))), p_file: null }),
   "/admin/payments": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_payments", { p_actor: a })), stripe_ready: !!(await stripeKey(c)), mode: c.deps.env("STRIPE_SECRET_KEY").includes("_live_") ? "live" : "test" }),
   "/admin/meetings": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_meetings", { p_actor: a })), provider_ready: !!c.deps.env("VECTERA_API_KEY") }),
@@ -3306,6 +3434,7 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   "/admin/releases/push": (c, a) => startRelease(c, a, "push"),
   "/admin/settings/undo": (c, a) => rpc(c, "dela_admin_undo_setting", { p_actor: a, p_history: need(int(c.body.history_id)) }),
   "/admin/plans/restore": (c, a) => rpc(c, "dela_admin_plan_restore", { p_actor: a, p_version: need(int(c.body.version_id)), p_password: need(str(c.body.password, 200), "wrong_password") }),
+  "/admin/security/handled": (c, a) => rpc(c, "dela_admin_security_handled", { p_actor: a, p_id: need(uuid(c.body.id)) }),
   "/admin/confidential/open": async (c, a) => { const r = await rpc<Record<string, any>>(c, "dela_conf_reviewer", { p_actor: a, p_agreement: need(uuid(c.body.agreement_id)), p_file: need(uuid(c.body.file_id)) }); return r?.ok ? await confFilePayload(c, r, "open") : r; },
   "/admin/pause": (c, a) => rpc(c, "dela_admin_set_pause", { p_actor: a, p_area: need(str(c.body.area, 20)), p_on: c.body.on === true, p_reason: str(c.body.reason, 500) }),
   "/admin/staging/reset": (c, a) => c.body.confirm === "RESET" ? rpc(c, "dela_admin_reset_staging", { p_actor: a }) : Promise.resolve({ ok: false, reason: "confirm_needed" }),
@@ -3520,6 +3649,8 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "engagement_tick") { await rpc(ctx, "dela_engagement_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "engagements_daily") return await engagementsDaily(ctx);
   if (j.kind === "confidential_daily") return await confDaily(ctx);
+  if (j.kind === "links_hourly") return { ok: true, ...(await rpc<Record<string, unknown>>(ctx, "dela_links_sweep", {}) ?? {}) };
+  if (j.kind === "retention_daily") return await retentionDaily(ctx);
   if (j.kind === "doc_convert") return await docConvert(ctx, String(j.payload?.playbook_id ?? ""));
   if (j.kind === "webhook_send") return await webhookSend(ctx, String(j.payload?.delivery_id ?? ""));
   if (j.kind === "review_tick") { await rpc(ctx, "dela_review_tick", { p: j.payload ?? {} }); return { ok: true }; }
@@ -3660,6 +3791,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /ai/chats": return await aiChats(ctx);
       case "GET /ai/chat": return await aiChat(ctx);
       case "POST /ai/chat/archive": return await aiChatArchive(ctx);
+      case "POST /ai/chat/delete": return await aiChatDelete(ctx);
+      case "POST /ai/chat/save": return await aiChatSave(ctx);
       case "POST /ai/chat/send": return await aiSend(ctx);
       case "POST /ai/transcribe": return await aiTranscribe(ctx);
       case "GET /files": return await filesList(ctx);
@@ -3679,7 +3812,11 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /gigs/matches": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_matches", { p_person: s.person_id, p_gig: need(uuid(ctx.url.searchParams.get("id"))), p_refresh: ctx.url.searchParams.get("refresh") === "1" })); }
       case "POST /gigs/invite": return await gigInvite(ctx);
       case "GET /gigs/proposals": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_proposals", { p_person: s.person_id, p_gig: need(uuid(ctx.url.searchParams.get("id"))) })); }
-      case "POST /gigs/files": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_file_share", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_file: need(uuid(ctx.body.file_id)), p_share: ctx.body.share !== false })); }
+      case "POST /gigs/files": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_file_share", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_file: need(uuid(ctx.body.file_id)), p_share: ctx.body.share !== false, p_days: int(ctx.body.expiry_days) })); }
+      case "POST /gigs/files/extend": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_file_extend", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_file: need(uuid(ctx.body.file_id)) })); }
+      case "POST /gigs/sensitive": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_sensitive", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_on: ctx.body.on === true })); }
+      case "POST /gigs/sensitive/delete-files": return await gigDeleteShared(ctx);
+      case "GET /gigs/activity": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_job_activity", { p_person: s.person_id, p_side: s.side, p_gig: need(uuid(ctx.url.searchParams.get("gig"))) })); }
       case "GET /gigs/file": return await gigFile(ctx);
       case "POST /gigs/questions/ask": return await questionAsk(ctx);
       case "POST /gigs/questions/answer": return await questionAnswer(ctx);
@@ -3702,6 +3839,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /public/past-review": return await pastReviewPublic(ctx, "get");
       case "POST /public/past-review": return await pastReviewPublic(ctx, "submit");
       case "POST /public/past-review/optout": return await pastReviewPublic(ctx, "optout");
+      case "GET /public/security": return await securityFacts(ctx);
+      case "POST /public/security/contact": return await securityContact(ctx);
       case "GET /bench": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_bench", { p_person: s.person_id, p_side: s.side })); }
       case "POST /bench/invite": return await benchInvite(ctx);
       case "POST /bench/answer": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); return json(ctx, await rpc(ctx, "dela_bench_answer", { p_person: s.person_id, p_bench: need(uuid(ctx.body.id)), p_accept: ctx.body.accept === true })); }
@@ -3736,6 +3875,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
         return json(ctx, await rpc(ctx, "dela_dispute_open", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.id)), p_milestone: uuid(ctx.body.milestone_id), p_reason: r0 })); }
       case "POST /disputes/withdraw": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_dispute_withdraw", { p_person: s.person_id, p_dispute: need(uuid(ctx.body.id)) })); }
       case "GET /deliverables/file": return await deliverableFile(ctx);
+      case "POST /deliverables/save": return await deliverableSave(ctx);
       case "POST /stripe/webhook": return await stripeWebhook(ctx);
       case "GET /meetings": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_meetings", { p_person: s.person_id, p_side: s.side, p_gig: uuid(ctx.url.searchParams.get("gig")), p_meeting: uuid(ctx.url.searchParams.get("id")) })); }
       case "GET /meetings/slots": return await meetingSlots(ctx);
@@ -3781,6 +3921,12 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /confidential/open": return await confOpen(ctx);
       case "POST /confidential/view-only": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_conf_view_only", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)), p_file: need(uuid(ctx.body.file_id)), p_on: ctx.body.on === true })); }
       case "POST /confidential/member": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_conf_member", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)), p_member: need(uuid(ctx.body.person_id)), p_on: ctx.body.on !== false })); }
+      case "POST /confidential/extend": return json(ctx, await confAct(ctx, "dela_conf_extend", { p_file: need(uuid(ctx.body.file_id)) }));
+      case "POST /confidential/delete": return await confDelete(ctx);
+      case "POST /confidential/download-all": return await confDownloadAll(ctx);
+      case "POST /confidential/links/add": return await confLinkAdd(ctx);
+      case "POST /confidential/links/open": return json(ctx, await confAct(ctx, "dela_conf_link_open", { p_link: need(uuid(ctx.body.link_id)) }));
+      case "POST /confidential/links/remove": return json(ctx, await confAct(ctx, "dela_conf_link_remove", { p_link: need(uuid(ctx.body.link_id)) }));
       case "POST /confidential/review-consent": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_conf_review_consent", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)), p_agree: ctx.body.agree === true })); }
       case "POST /engagements/checkpoint": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_checkpoint_act", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)), p_step: need(int(ctx.body.step_no)), p_note: str(ctx.body.note, 1000) })); }
       case "GET /playbooks/get": return await pbGet(ctx);
@@ -3792,6 +3938,10 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /playbooks/comment": return await pbComment(ctx);
       case "POST /playbooks/export": return await pbExport(ctx);
       case "POST /playbooks/missing": return await pbMissing(ctx);
+      case "POST /playbooks/delete-draft": { const s = await attorney(ctx); const r = await rpc<Record<string, any>>(ctx, "dela_pb_draft_delete", { p_person: s.person_id, p_playbook: need(uuid(ctx.body.id)) });
+        if (r?.ok) await removeNow(ctx, r.paths ?? []); return json(ctx, r?.ok ? { ok: true, duplicate: !!r.duplicate } : r); }
+      case "POST /playbooks/save-draft": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_save_draft", { p_person: s.person_id, p_playbook: need(uuid(ctx.body.id)), p_on: ctx.body.saved !== false })); }
+      case "GET /playbooks/drafts-due": { const s = await attorney(ctx); return json(ctx, { ok: true, drafts: await rpc(ctx, "dela_pb_drafts_due", { p_person: s.person_id }) }); }
       case "POST /playbooks/status": { const s = await attorney(ctx); const pid = uuid(ctx.body.id), act = str(ctx.body.action, 20);
         const gate = pid ? await docStatusGate(ctx, s, pid, act) : null;
         if (gate) return json(ctx, gate);

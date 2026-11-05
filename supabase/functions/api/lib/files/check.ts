@@ -8,6 +8,7 @@ export const CONTENT_TYPES: Record<string, string> = {
   docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
   xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   txt: "text/plain",
+  csv: "text/csv",
   md: "text/markdown",
   png: "image/png",
   jpg: "image/jpeg",
@@ -24,6 +25,17 @@ function hasBytes(b: Uint8Array, needle: string): boolean {
   outer: for (let i = 0; i + n.length <= b.length; i++) {
     for (let j = 0; j < n.length; j++) if (b[i + j] !== n[j]) continue outer;
     return true;
+  }
+  return false;
+}
+
+// A cell that starts with = or @, or with + or - followed by a letter or bracket, is a formula
+export function csvHasFormula(t: string): boolean {
+  for (const line of t.split(/\r?\n/)) {
+    for (const raw of line.split(",")) {
+      const cell = raw.trim().replace(/^"/, "").trimStart();
+      if (/^[=@]/.test(cell) || /^[+-][A-Za-z(]/.test(cell) || /^\t[=+@-]/.test(raw)) return true;
+    }
   }
   return false;
 }
@@ -69,13 +81,17 @@ export function sniff(ext: string, b: Uint8Array): Sniff {
     case "jpg":
       return starts(b, [0xff, 0xd8, 0xff]) ? { ok: true, mime: CONTENT_TYPES.jpg } : { ok: false, reason: "wrong_type" };
     case "txt":
+    case "csv":
     case "md": {
       if (b.includes(0)) return { ok: false, reason: "wrong_type" };
+      let t = "";
       try {
-        new TextDecoder("utf-8", { fatal: true }).decode(b);
+        t = new TextDecoder("utf-8", { fatal: true }).decode(b);
       } catch {
         return { ok: false, reason: "wrong_type" };
       }
+      // A spreadsheet formula in a CSV cell runs when the file is opened in Excel, so CSVs with formulas are refused
+      if (ext === "csv" && csvHasFormula(t)) return { ok: false, reason: "active_content" };
       return { ok: true, mime: CONTENT_TYPES[ext] };
     }
   }
@@ -117,7 +133,7 @@ async function pdfText(b: Uint8Array): Promise<string> {
 // Text for the AI. Images have none here; the AI looks at them directly when a member asks.
 export async function readText(ext: string, b: Uint8Array): Promise<string> {
   let t = "";
-  if (ext === "txt" || ext === "md") t = new TextDecoder().decode(b);
+  if (ext === "txt" || ext === "md" || ext === "csv") t = new TextDecoder().decode(b);
   else if (ext === "docx") t = docxText(b);
   else if (ext === "xlsx") t = xlsxText(b);
   else if (ext === "pdf") t = await pdfText(b);

@@ -135,6 +135,8 @@ Deno.test("pause stops DELA recommending a tool; the AI gets the catalog only wh
   await pool.query("update feature_switches set state = 'off' where key = 'tech_catalog'");
   await call("POST", "/ai/chat/send", att.token, { content: "Which billing software should I use?", request_id: crypto.randomUUID() });
   assert(!systems.at(-1)!.includes("Lawfecta tech catalog"), "switch off: no catalog");
+  // The catalog waits for the end of Phase 1 on Live: without it, DELA names no products except the member's own tools
+  assert(systems.at(-1)!.includes("do not name or recommend any specific software product"), "switch off: no product names");
 });
 
 Deno.test("teardown", async () => { await pool.end(); });
