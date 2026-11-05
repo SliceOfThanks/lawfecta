@@ -1,6 +1,6 @@
 # DELA Phase 1 plan
 
-Last updated 2026-11-04. Stacey's own checklist, in order, is docs/STACEY_TODO.md. Read this with STATUS.md. It shows what is done, what is being tested, what needs work, what is waiting on Stacey, and what comes next.
+Last updated 2026-11-05. The one-page picture (built, in progress, next, before the MVP, after) is docs/MVP_OVERVIEW.md. Stacey's own checklist, in order, is docs/STACEY_TODO.md. Read this with STATUS.md. It shows what is done, what is being tested, what needs work, what is waiting on Stacey, and what comes next.
 
 ## Decisions for this plan (Stacey 2026-11-04)
 - Beta users wait for hiring. Nobody outside the test accounts uses DELA until matching, gigs, proposals, meetings and payments (Steps 4 to 6) are built and tested. Everything stays on the test site (hirelegalhelp.com) until then.
@@ -165,16 +165,16 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
 - A full test on Live, a security review, a backup restore drill and the uptime monitor.
 - Point-in-time recovery turned on, and live payments turned on by you.
 
-### Agencies (step 7d), Stacey answered 2026-11-05; part 1 built
+### Agencies (step 7d), Stacey answered 2026-11-05; parts 1, 2a and 2b on the test site
 - Brief and answers: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-7d-agencies.md
-- Part 1, built and tested here (not yet on the test site; it goes there after the security re-test report):
+- Part 1, on the test site and tested by Stacey (25 of 28; the 3 failures fixed):
   - A Freelancer Business member's own organization becomes their agency, with an "Agency" tab: business name and state, team, 3 seats (owner included), roles (owner, manager, member), invitations, and the agency's jobs.
   - Agency proposals: "Send as" the agency and "Who will do this work (required)", with each person's role. They share the agency's proposal allowance.
   - The attorney sees the agency, the people and their roles on the proposal, and "Who's working on this" after the hire. Changes to the team send the attorney an information-only notice.
   - Only the owner and managers sign, change, cancel or dispute. Team members do the work and open the job's files.
   - Reviews go to the agency and to each person named.
   - Admin area, "Agencies" tab: the one-time business check and a hand-raised seat limit for one agency.
-- Part 2a and 2b, built and tested here (not on the test site yet): the bench agreement with the signed split and the Plus minimum; bench work on attorney engagements with the split for the job, split payouts, payout holds with reminders, and chargebacks taken back from both shares.
+- Part 2a and 2b, on the test site (Stacey's ChatGPT test: docs/tests/step-7d-bench-chatgpt-prompt.md): the bench agreement with the signed split and the Plus minimum; bench work on attorney engagements with the split for the job, split payouts, payout holds with reminders, and chargebacks taken back from both shares.
 - Part 2c, next: the agency's own gigs (the Library for agencies, posting after the business check, Talent, the agency paying the client fee and the freelancer fee for its bench members).
 - Part 3: subcontracting disclosure, "No subcontractors on this engagement", linked gigs.
 
