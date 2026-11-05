@@ -5088,10 +5088,16 @@
       if (!okType) { fail("Use a PNG or JPG image."); return; }
       if (file.size > cfg.max_mb * 1048576) { fail("This image is over " + cfg.max_mb + " MB. Try a smaller screenshot."); return; }
       if (at < 0 && list.length >= cfg.per_step) { fail("Each step can have " + cfg.per_step + " images. Split this step to add more."); return; }
-      reviewImage({ file: file, caption: at >= 0 ? list[at].caption : "", progress: bar, onSaved: function (id, caption) {
+      reviewImage({ file: file, caption: at >= 0 ? list[at].caption : "", progress: bar, onSaved: function (id, caption, f) {
         if (at >= 0) list[at] = { id: id, caption: caption }; else list.push({ id: id, caption: caption });
+        showNow(id, f);
         onChange(at >= 0 ? "Replaced an image" : "Added an image");
       } });
+    }
+    // Show the new caption and check state at once, while the document saves
+    function showNow(id, f) {
+      if (lib.pb && f) { lib.pb.images = lib.pb.images || {}; var cur = lib.pb.images[id] || {}; lib.pb.images[id] = Object.assign({}, cur, f, { source: cur.source || "upload" }); }
+      draw();
     }
     function draw() {
       D.clear(figs);
@@ -5099,7 +5105,7 @@
         var img = h("img", { alt: im.caption || "Screenshot", draggable: "false" });
         var fact = (lib.pb && lib.pb.images || {})[im.id] || {};
         var tools = edit ? h("div", { class: "img-tools" },
-          h("button", { class: "small", type: "button", onclick: function (e) { e.stopPropagation(); reviewImage({ existing: im, img: img, progress: bar, onSaved: function (id, caption) { list[i] = { id: id, caption: caption }; onChange("Edited an image"); } }); } }, "Edit"),
+          h("button", { class: "small", type: "button", onclick: function (e) { e.stopPropagation(); reviewImage({ existing: im, img: img, progress: bar, onSaved: function (id, caption, f) { list[i] = { id: id, caption: caption }; showNow(id, f); onChange("Edited an image"); } }); } }, "Edit"),
           h("button", { class: "small", type: "button", onclick: function (e) { e.stopPropagation(); replaceAt = i; picker.click(); } }, "Replace"),
           h("button", { class: "small danger", type: "button", onclick: function (e) { e.stopPropagation(); askRemove(function () { list.splice(i, 1); onChange("Removed an image"); }); } }, "Remove")) : null;
         var fig = h("figure", { class: "img-fig" + (edit ? " editable" : ""), draggable: edit && list.length > 1 ? "true" : "false", tabindex: edit ? "0" : null, "data-i": String(i) },
@@ -5332,7 +5338,7 @@
       save.disabled = true;
       // Nothing drawn on an image that is already saved: keep it, with the new caption, and confirm it if needed
       if (o.existing && !ops.length) {
-        var done = function () { m.close(); o.onSaved(o.existing.id, caption); };
+        var done = function () { m.close(); o.onSaved(o.existing.id, caption, { confirmed: true, held: false }); };
         if (fact.confirmed) { done(); return; }
         api.post("/documents/images/confirm", { image_id: o.existing.id, confirmed: true }).then(function (r) { if (!r.ok) throw r; done(); }).catch(function (e) { ready(); D.toast(app, imgErrText(e), true); });
         return;
@@ -5345,7 +5351,7 @@
         uploadDocImage(blob, jpeg ? "Screenshot.jpg" : "Screenshot.png", caption, flags.length, Object.keys(blurred).length, o.progress).then(function (r) {
           if (r.held) D.toast(app, "Saved. DELA's check thinks this image may show client information, so the document is blocked until you blur it or confirm it shows none.", true);
           else D.toast(app, "Image saved");
-          o.onSaved(r.id, caption);
+          o.onSaved(r.id, caption, { confirmed: !r.held, held: !!r.held });
         }).catch(function (e) { D.toast(app, imgErrText(e), true); });
       }, jpeg ? "image/jpeg" : "image/png", 0.9);
     });

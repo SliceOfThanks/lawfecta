@@ -195,7 +195,17 @@ const imgs = (step) => sql("select v.body->'steps'->" + step + "->'images' as im
     await dela(p).locator(".step-card").first().locator(".img-fig").nth(0).hover();
     await dela(p).locator(".step-card").first().locator(".img-fig").nth(0).getByRole("button", { name: "Edit" }).click();
     await waitFor(p, "Review image");
-    await finish(p, "The matter list, filtered");
+    // A slow save must not show the old caption or an old warning in the meantime
+    await p.route("**/playbooks/save", async (r) => { await new Promise((ok) => setTimeout(ok, 2500)); await r.continue(); });
+    await dela(p).getByLabel("Caption (what should the reader look at?)").fill("The matter list, filtered");
+    await dela(p).getByLabel("This image contains no client information, passwords or account numbers.").check();
+    await click(p, "Save image");
+    await p.waitForTimeout(500);
+    const capNow = await dela(p).locator(".step-card").first().locator(".img-fig figcaption").nth(0).textContent();
+    ok(capNow === "The matter list, filtered", "the new caption shows at once, before the document finishes saving (" + capNow + ")");
+    await p.unroute("**/playbooks/save");
+    await waitFor(p, "The matter list, filtered", 10000);
+    await p.waitForTimeout(3000);
     ok((await sql("select count(*)::int n from doc_images where " + MINE))[0].n === n0 && (await imgs(0))[0].caption === "The matter list, filtered", "Edit changes the caption without a new upload");
     // Remove asks first
     await dela(p).locator(".step-card").first().locator(".img-fig").nth(2).hover();
