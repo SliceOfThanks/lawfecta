@@ -49,7 +49,7 @@ DELA-Auth (helper), DELA-App, DELA-Admin. Keep them tiny. BD widget rules: no ba
 - The current Lawfecta site stays unchanged. DELA is added next to it.
 
 ## Safety rules that never change
-- Confidential client data does not belong in DELA. Show the notice where people type or upload. Members are responsible for what they enter.
+- Sensitive data is never uploaded to DELA, only linked from the firm's own storage. Sensitive data means: SSNs and ITINs, government ID numbers, financial account numbers, health information, biometric data, and logins and passwords. Client names, dates of birth, contact details, case numbers and case facts are normal data, stored only where the security rules allow (Stacey 2026-11-05, docs/briefs/step-6d-security-sensitive-data.md). Show the notice where people type or upload.
 - Money in integer cents. Financial and audit history is append-only; corrections are new records.
 - Every consequential command is idempotent and re-checks permission at the moment it runs.
 - Open decisions ship as a switch or a setting that is off, never as a guess.

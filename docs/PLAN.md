@@ -176,6 +176,11 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
   - Attorneys: profile, first playbook, first gig (reuses the "Get set up" sequence).
   - Freelancers: every part of DELA, to finish the profile, become match-ready, gain visibility and teach DELA how they work.
   - Brief: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-4d-guided-setup-delegate-automate.md (part A)
+- **Evaluate the tech catalog** (Stacey 2026-11-05) with the other features above, then decide whether to include it.
+  - It is already built (Step 4) and stays on the test site for testing. It is not part of the MVP: its switch (tech_catalog) stays off on Live.
+  - While it is off, two things change:
+    - Ask DELA must name no specific products, apart from the tools the member lists in their own profile. Without the catalog, the AI could otherwise name any product, as it did with "Google Workspace" in the track B test.
+    - In "Automate or delegate" (step 4d), the Automate path suggests only tools the firm already lists in its firm profile.
 - **Evaluate live chat and the "Ask DELA about a freelancer" assistant** on freelancer profiles, then decide whether to build them.
   - Brief: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-4c-freelancer-profile-chat.md
 

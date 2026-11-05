@@ -12,6 +12,9 @@ do $$ begin
   if not exists (select 1 from pg_roles where rolname = 'authenticated') then create role authenticated nologin; end if;
   if not exists (select 1 from pg_roles where rolname = 'service_role') then create role service_role nologin bypassrls; end if;
 end $$;
+-- Like a new Supabase project: a SECURITY DEFINER event trigger function anyone may call (Security Advisor warning)
+create or replace function public.rls_auto_enable() returns event_trigger language plpgsql security definer as $f$ begin end $f$;
+grant execute on function public.rls_auto_enable() to anon, authenticated;
 SQL
 for f in supabase/migrations/[0-9]*.sql; do
   case "$f" in *cron*) echo "skip $f (Supabase only)"; continue;; esac

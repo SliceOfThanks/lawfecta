@@ -17,6 +17,11 @@ begin
   perform t_ok(bad is null, 'no DELA function can be called from the browser (found: ' || coalesce(bad, '') || ')');
 
   select string_agg(distinct p.proname, ', ') into bad from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.prosecdef
+    and (has_function_privilege('anon', p.oid, 'execute') or has_function_privilege('authenticated', p.oid, 'execute'));
+  perform t_ok(bad is null, 'no SECURITY DEFINER function in public can be called from the browser (found: ' || coalesce(bad, '') || ')');
+
+  select string_agg(distinct p.proname, ', ') into bad from pg_proc p join pg_namespace n on n.oid = p.pronamespace
   where n.nspname = 'public' and p.proname like 'dela%'
     and not exists (select 1 from unnest(coalesce(p.proconfig, '{}')) c where c like 'search_path=%');
   perform t_ok(bad is null, 'every DELA function pins its search path (missing: ' || coalesce(bad, '') || ')');
