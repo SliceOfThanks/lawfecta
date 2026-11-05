@@ -149,13 +149,15 @@ Deno.test("matches: eligible first, plain reasons, no stale, excluded or wrong-a
   assert(!ids.includes(f3.id), "another practice area is not matched");
   assert(!ids.includes(f4.id), "a freelancer who excludes Texas is not matched");
   assert(!ids.includes(f5.id), "availability older than 14 days is not matched");
-  assertEquals(m[0].person_id, f1.id, "the best fit comes first");
-  assert(m[0].reasons.includes("Family law") && m[0].reasons.some((r: string) => r.startsWith("Uses Clio")), JSON.stringify(m[0].reasons));
+  // Other test files make freelancers too, so compare only this file's own
+  const mine = m.filter((x) => [f1.id, f2.id].includes(x.person_id));
+  assertEquals(mine[0].person_id, f1.id, "the best fit comes first");
+  assert(mine[0].reasons.includes("Family law") && mine[0].reasons.some((r: string) => r.startsWith("Uses Clio")), JSON.stringify(m[0].reasons));
   assert(!JSON.stringify(m).includes("fit_score") && !/%/.test(JSON.stringify(m)), "no fit percentage");
   // The plan boost orders only within the same fit group: a Business plan never lifts a fair fit above a good fit
   await pool.query("update side_profiles set plan_code = 'fl_business' where person_id = $1 and side = 'freelancer'", [f2.id]);
   const m2 = (await call("GET", "/gigs/matches?id=" + gig + "&refresh=1", att.token)).body.matches as Array<Record<string, any>>;
-  assertEquals(m2[0].person_id, f1.id);
+  assertEquals(m2.filter((x) => [f1.id, f2.id].includes(x.person_id))[0].person_id, f1.id);
 });
 
 Deno.test("freelancers: matched sees the gig without milestones or playbook; invited sees the watermarked playbook", async () => {
