@@ -12,6 +12,9 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - Also fixed from Stacey's part 2c report (all 18 steps passed): the bench member's "Waiting for the agency to pay", "you pay no platform fee" on milestones with no fee, and "This gig is not available to your account" instead of "Refresh the page".
 - Tests: agency_subs_test.ts (7), agency-test.js 47 browser checks, all api tests 243.
 - Part 2c ChatGPT test: passed 2026-11-06, 18 of 18.
+- On the test site since 2026-11-06: 0046 applied (fingerprint checked), function version 42 (commit 61bbfa2), switch agency_subcontracting on for the access list. Security Advisor: no new warnings.
+- Prepared for the test: "Test job: Subcontracting choice (prepared)" (gig c00a6abf, agreement 1afd6549, not signed), "Test job: Subcontracting active (prepared)" (gig 6a31398c, agreement 6b785bff, signed), and "Test gig: Linked part (prepared)" (gig 3f3c6b67, agreement d7b6d827) with Stacey Lake hired as the subcontractor.
+- Test: docs/tests/step-7d-subcontracting-chatgpt-prompt.md (one login per account).
 
 ## Agencies part 2c (step 7d): the agency's own gigs, built 2026-11-06
 - Migration 0045, behind the switch agency_hiring (off until deployed and turned on for the access list).
