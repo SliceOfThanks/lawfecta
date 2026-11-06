@@ -2,6 +2,15 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 7c part 2: standing arrangements (limited automatic repeat hiring), on the test site 2026-11-06 (commit d6302df, api version 51, migrations 0052 and 0053)
+- Behind the switch auto_repeat_hiring: on for the test accounts only on the test site; off on Live until counsel approves the wording.
+- An attorney owner or manager (paid attorney plans) sets one up from Talent ("Set up a standing arrangement"): the approved SOPs and Workflows it covers, a price per job, a required monthly spend cap, the most jobs open at once and an end date (up to 12 months). Both sign once with typed names.
+- Inside the limits, "Hire again from my standing arrangement" on Projects hires in one click: the agreement is built and signed from the stored signatures and the saved card is charged. Outside the limits (over the cap, too many open, a document not covered) DELA makes a normal gig draft instead and charges nothing.
+- The freelancer can decline a job within 24 hours (full refund). New limits, or a new approved version of a covered document, pause hiring until both approve again. Either side can end it; open jobs finish as agreed. A monthly statement goes to both.
+- Lawfecta Team: the Recurring tab lists every arrangement with spend, jobs and declines.
+- Fixed while preparing the test: a firm with no saved card got a server error when hiring; the job now waits for payment on Stripe's page (Fix commit d6302df, with a test).
+- ChatGPT test: docs/tests/step-7c-standing-chatgpt-prompt.md (items prepared 2026-11-06; the prepared job can be declined until 2026-11-07, 2:49 PM Pacific).
+
 ## Step 8 part 3: shared patterns, on the test site 2026-11-06 (commit 4c091fc, api version 50)
 - One accessible help tip (keyboard, Escape, tied to its note) for the member app and the admin; a glossary of 20 terms written from what the code does, shown next to the headings that use them. The review's own tooltip list was not in this session, so the glossary is Claude's, checked against the code.
 - "What you are agreeing to" before every signature, "Before you pay" before the first payment; one style for AI buttons; DELA's Inbox summary labeled "AI suggestion" with Dismiss.

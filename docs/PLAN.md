@@ -68,6 +68,7 @@ Tests today: 8 database test files, 84 API tests, 15 script tests and 198 browse
 - Every agent test now starts with the "How to work" block (docs/tests/AGENT-RULES.md) and says where to click at each step. The older prompts are marked "Not rewritten yet" until Claude rewrites them.
 
 ## 2. What needs testing, in this order
+- Now (before 2026-11-07, 2:49 PM Pacific): the standing arrangements test (docs/tests/step-7c-standing-chatgpt-prompt.md), freelancer, attorney, then owner. Items prepared 2026-11-06.
 - Then: the usage limits test (docs/tests/step-9b-usage-limits-chatgpt-prompt.md), after the other two; Claude prepares and restores the test attorney.
 - Now: the monthly engagements test (docs/tests/step-7c-monthly-chatgpt-prompt.md), freelancer, attorney, then owner. Items prepared 2026-11-06.
 - Then: the part 3 check (docs/tests/step-8-ux-part-3-chatgpt-prompt.md), then the attorney UX review again to compare.
@@ -117,7 +118,7 @@ Things only you can provide
 - A lawyer's review of the agreement terms template and the chargeback rule, before live payments.
 
 ## 4. What we build next
-- Done: UX review parts 0 to 3 on the test site. Next: step 7c part 2 (standing arrangements), then the Phase 4 brief (approved-version view, new AI buttons, onboarding).
+- Done: UX review parts 0 to 3 and step 7c part 2 (standing arrangements) on the test site. Next: the Phase 4 brief (approved-version view, new AI buttons, onboarding).
 - Built: attorney plan usage limits (step 9b), on the test site with blocking off. Turn blocking on after the test.
 - Waiting on Stacey: the Pro trial and downgrade to Free (docs/briefs/step-9-pro-trial-downgrade.md). Plan only; not built until she answers.
 
@@ -191,7 +192,7 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
 
 ### Monthly recurring engagements and repeat hiring (step 7c), Stacey answered 2026-11-06
 - Part 1, monthly engagements: built 2026-11-06 (next: the test site and Stacey's ChatGPT test).
-- Part 2, standing arrangements for repeat hiring: next. Off on Live until counsel approves the wording.
+- Part 2, standing arrangements for repeat hiring: on the test site 2026-11-06 (migrations 0052 and 0053), test accounts only. Off on Live until counsel approves the wording.
 
 ### Before the beta: guided setup and "Automate or delegate" (step 4d), Stacey answered 2026-11-06; parts B and C built (next: the test site and her ChatGPT test)
 - DELA reviews a playbook and recommends specific steps (never the whole playbook) to automate with a tool from the tech catalog, or to delegate to a freelancer.
