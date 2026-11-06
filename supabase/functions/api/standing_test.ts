@@ -179,6 +179,13 @@ Deno.test("material changes: a new approved version stops hiring until both appr
   await pool.query("delete from holds where id = $1", [hold]);
 });
 
+Deno.test("Fix: a firm without a saved card can still hire; the job waits for payment on Stripe's page", async () => {
+  await pool.query("update standing_arrangements set provider_customer = '', provider_payment_method = '' where id = $1", [sa]);
+  const r = await hire(pb2, "h10");
+  assertEquals([r.ok, r.status, typeof r.pay_url], [true, "paying", "string"], JSON.stringify(r));
+  await pool.query("update standing_arrangements set provider_customer = 'cus_saved', provider_payment_method = 'pm_saved' where id = $1", [sa]);
+});
+
 Deno.test("new limits need both; ending waits for open jobs; the statement; the Lawfecta Team's list", async () => {
   assert((await call("POST", "/standing/change", att.token, { id: sa, price: "300", cap: "1200", max_open: 3, typed_name: "Sam Standing", consent: true })).body.ok);
   assertEquals((await hire(pb, "h8")).reason, "standing_not_active", "paused until the freelancer approves");
@@ -190,7 +197,7 @@ Deno.test("new limits need both; ending waits for open jobs; the statement; the 
   await rpc("dela_standing_tick", {});
   assertEquals((await one("select status from standing_arrangements where id = $1", [sa])).status, "ended");
   const adm = (await call("GET", "/admin/standing", team.token)).body;
-  assert(adm.arrangements.some((x: any) => x.id === sa && x.declined === 1 && x.hires === 1), JSON.stringify(adm).slice(0, 300));
+  assert(adm.arrangements.some((x: any) => x.id === sa && x.declined === 1 && x.hires === 2), JSON.stringify(adm).slice(0, 300));
   assertEquals((await call("GET", "/admin/standing", att.token)).status, 403);
 });
 
