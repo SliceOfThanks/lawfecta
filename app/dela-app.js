@@ -7110,7 +7110,7 @@
       nb.appendChild(h("div", { class: "row", style: "padding-right:84px" }, h("h2", { class: "grow", text: "Notices" }),
         h("button", { class: "ghost small", onclick: function () { api.post("/notifications/read", { all: true }).then(function () { closeDrawer(); refresh(); }); } }, "Mark all read")));
       if (!r.items.length) nb.appendChild(h("p", { class: "muted", text: "Nothing yet. Notices about your work will show up here." }));
-      nb.appendChild(h("ul", { class: "list" }, r.items.map(function (n) {
+      function noticeLi(n, extra) {
         var go = noticeAction(n.link);
         return h("li", null, h("strong", { text: n.title }), n.read ? null : h("span", { class: "badge G", style: "margin-left:6px", text: "New" }),
           n.body ? h("p", { class: "small", text: n.body }) : null,
@@ -7118,8 +7118,24 @@
             go ? h("button", { class: "ghost small", type: "button", onclick: function () {
               var done = function () { location.assign(go.href); };
               (n.read ? Promise.resolve() : api.post("/notifications/read", { id: n.id })).then(done, done);
-            } }, go.label) : null));
-      })));
+            } }, go.label) : null), extra || null);
+      }
+      // "Needs your action" first, checked against each job's current state; then "Updates", one line per job (UX review N01)
+      var act = r.items.filter(function (n) { return n.action; }), upd = r.items.filter(function (n) { return !n.action; });
+      if (r.items.length) {
+        nb.appendChild(h("h3", { text: "Needs your action (" + act.length + ")" }));
+        nb.appendChild(act.length ? h("ul", { class: "list", id: "notices-action" }, act.map(function (n) { return noticeLi(n); })) : h("p", { class: "muted small", text: "Nothing waits on you right now." }));
+        nb.appendChild(h("h3", { text: "Updates" }));
+        var seen = {}, groups = [];
+        upd.forEach(function (n) {
+          if (n.gig_id && seen[n.gig_id]) { seen[n.gig_id].more.push(n); return; }
+          var g = { first: n, more: [] }; groups.push(g); if (n.gig_id) seen[n.gig_id] = g;
+        });
+        nb.appendChild(h("ul", { class: "list", id: "notices-updates" }, groups.map(function (g) {
+          return noticeLi(g.first, g.more.length ? h("details", null, h("summary", { class: "small", text: g.more.length + " earlier " + (g.more.length === 1 ? "update" : "updates") + " about this job" }),
+            h("ul", { class: "list" }, g.more.map(function (n) { return noticeLi(n); }))) : null);
+        })));
+      }
     }).catch(function () { D.clear(nb); nb.appendChild(h("p", { text: "Notices could not load." })); });
   }
 

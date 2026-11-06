@@ -199,7 +199,16 @@ async function signOut(ctx: Ctx) {
 
 async function notifications(ctx: Ctx) {
   const s = await member(ctx);
-  return json(ctx, { items: await rpc(ctx, "dela_notifications", { p_person: s.person_id, p_limit: 50 }) });
+  const items = (await rpc<Array<Record<string, any>>>(ctx, "dela_notifications", { p_person: s.person_id, p_limit: 50 })) ?? [];
+  // "Needs your action" vs "Updates" (UX review N01): a notice about a job needs action only while that job still waits on
+  // this member, checked now against the job's state. A document review reminder needs action until it is read.
+  const waiting = new Set<string>(s.side === "attorney" || s.side === "freelancer" ? ((await rpc<string[]>(ctx, "dela_notice_actions", { p_person: s.person_id, p_side: s.side })) ?? []) : []);
+  for (const n of items) {
+    const gig = /[?&]gig=([0-9a-f-]{36})/.exec(String(n.link ?? ""))?.[1];
+    n.action = gig ? waiting.has(gig) : (n.kind === "doc_review" || n.kind === "review_due") && !n.read;
+    n.gig_id = gig ?? null;
+  }
+  return json(ctx, { items });
 }
 
 async function readNotification(ctx: Ctx) {

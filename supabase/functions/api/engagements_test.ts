@@ -204,7 +204,13 @@ Deno.test("changes and signing: checked amounts, stale versions refused, both si
   assertEquals((await call("POST", "/agreements/sign", att.token, { id: ag, version: 2, typed_name: "Ann Attorney", consent: false })).body.reason, "sign_needs_name_and_consent");
   assertEquals((await call("POST", "/agreements/sign", att.token, { id: ag, version: 2, typed_name: "Ann Attorney", consent: true })).body.reason, "firm_details_missing", "the firm's signatory, address and notice email come first");
   await pool.query("insert into firm_profiles (org_id, body) values ($1, $2) on conflict (org_id) do update set body = excluded.body", [org, { signatory_name: "Ann Attorney", billing_address: "1 Main St, Austin TX", service_email: "notices@example.com" }]);
+  // Notices: "Needs your action" while the agreement waits on this person, an update once they signed (UX review N01)
+  const agGig = (await one("select gig_id from agreements where id = $1", [ag])).gig_id;
+  await pool.query("insert into notifications (person_id, side, kind, channel, title, link, dedupe_key) values ($1, 'attorney', 'engagement', 'in_app', 'Ready to sign', $2, $3)", [att.id, "/dela?tab=projects&gig=" + agGig + "&view=agreement", "n01-" + att.id]);
+  const noticeFor = async () => ((await call("GET", "/notifications", att.token)).body.items as any[]).find((n) => n.dedupe_key === undefined && n.gig_id === agGig && n.title === "Ready to sign");
+  assertEquals((await noticeFor())?.action, true, "the signature notice needs action before signing");
   assertEquals((await call("POST", "/agreements/sign", att.token, { id: ag, version: 2, typed_name: "Ann Attorney", consent: true })).body.both_signed, false);
+  assertEquals((await noticeFor())?.action, false, "after signing it is only an update");
   assertEquals((await call("POST", "/agreements/sign", att.token, { id: ag, version: 2, typed_name: "Ann Attorney", consent: true })).body.both_signed, false, "signing twice adds nothing");
   assertEquals((await call("POST", "/engagements/pay", att.token, { id: ag })).body.reason, "not_signed", "no payment before both sign");
   const both = (await call("POST", "/agreements/sign", fl.token, { id: ag, version: 2, typed_name: "Fran Lance", consent: true })).body;
