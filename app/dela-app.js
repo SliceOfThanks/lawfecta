@@ -6945,6 +6945,28 @@
     api.signOut().then(function () { location.href = logoutUrl; });
   }
 
+  // A notice's own button (UX review N01): the stored link is a DELA page such as /dela?tab=projects&gig=ID&view=agreement.
+  // It opens on this page's address, keeping the website's own parameters and replacing DELA's.
+  var NOTICE_TABS = { home: "Open Home", projects: "Open Projects", work: "Open Work", library: "Open the Library", files: "Open Files", talent: "Open Talent",
+    inbox: "Open Inbox", meetings: "Open Meetings", profile: "Open your profile", earnings: "Open Earnings", ai: "Open AI settings", agency: "Open Agency",
+    delegate: "Open Ask DELA", setup: "Open Get set up", connect: "Open the connection page" };
+  var NOTICE_KEYS = ["tab", "gig", "view", "pb", "thread", "meeting", "bench", "paid", "payout"];
+  function noticeAction(link) {
+    if (typeof link !== "string" || link.indexOf("/dela") !== 0) return null;
+    var q;
+    try { q = new URLSearchParams(link.split("?")[1] || ""); } catch (e) { return null; }
+    var tabName = q.get("tab") || "home";
+    var label = q.get("gig") ? (q.get("view") === "agreement" ? "Open the agreement" : "Open the gig") : q.get("pb") ? "Open the document" :
+      q.get("meeting") ? "Open the meeting" : q.get("thread") ? "Open the conversation" : q.get("bench") ? "Open the bench agreement" : NOTICE_TABS[tabName];
+    if (!label) return null;
+    var cur;
+    try { cur = new URLSearchParams(location.search); } catch (e) { return null; }
+    NOTICE_KEYS.forEach(function (k) { cur.delete(k); });
+    q.forEach(function (v, k) { if (NOTICE_KEYS.indexOf(k) >= 0 && v) cur.set(k, v); });
+    if (!cur.get("tab")) cur.set("tab", tabName);
+    return { label: label, href: location.pathname + "?" + cur.toString() };
+  }
+
   function openNotices() {
     closeMenu();
     if (drawer) { closeDrawer(); return; }
@@ -6956,8 +6978,14 @@
         h("button", { class: "ghost small", onclick: function () { api.post("/notifications/read", { all: true }).then(function () { closeDrawer(); refresh(); }); } }, "Mark all read")));
       if (!r.items.length) nb.appendChild(h("p", { class: "muted", text: "Nothing yet. Notices about your work will show up here." }));
       nb.appendChild(h("ul", { class: "list" }, r.items.map(function (n) {
+        var go = noticeAction(n.link);
         return h("li", null, h("strong", { text: n.title }), n.read ? null : h("span", { class: "badge G", style: "margin-left:6px", text: "New" }),
-          n.body ? h("p", { class: "small", text: n.body }) : null, h("div", { class: "muted small", text: D.dateTime(n.created_at) }));
+          n.body ? h("p", { class: "small", text: n.body }) : null,
+          h("div", { class: "row", style: "gap:8px;align-items:center" }, h("span", { class: "muted small grow", text: D.dateTime(n.created_at) }),
+            go ? h("button", { class: "ghost small", type: "button", onclick: function () {
+              var done = function () { location.assign(go.href); };
+              (n.read ? Promise.resolve() : api.post("/notifications/read", { id: n.id })).then(done, done);
+            } }, go.label) : null));
       })));
     }).catch(function () { D.clear(nb); nb.appendChild(h("p", { text: "Notices could not load." })); });
   }

@@ -303,6 +303,18 @@ async function waitFor(page, words, ms) {
       await s.ctx.close();
     }
 
+    // Each notice has its own button to the page it is about, and opening it marks the notice read (UX review N01)
+    await sql("insert into notifications (person_id, kind, channel, title, body, link, dedupe_key) select id, 'test', 'in_app', 'Payout sent', 'Your payout is on its way.', '/dela?tab=earnings', 'ux-n01-' || id from people where bd_member_id = 2501; select 1");
+    s = await open(browser, 2501, "");
+    p = s.page;
+    await dela(p).getByRole("button", { name: "Notices", exact: true }).click();
+    const go = dela(p).getByRole("button", { name: "Open Earnings", exact: true });
+    await go.waitFor({ timeout: 5000 });
+    await Promise.all([p.waitForURL(/tab=earnings/, { timeout: 8000 }), go.click()]);
+    ok(p.url().includes("uid=2501"), "a notice's own button opens the page it is about");
+    ok((await sql("select read_at is not null r from notifications where dedupe_key like 'ux-n01-%'"))[0].r === true, "and marks the notice read");
+    await s.ctx.close();
+
     // Freelancers have no license form; attorneys no LinkedIn card
     ok((await sql("select count(*)::int n from licenses l join people p on p.id = l.person_id where p.bd_member_id = 2501"))[0].n === 0, "freelancers never get a license check");
 
