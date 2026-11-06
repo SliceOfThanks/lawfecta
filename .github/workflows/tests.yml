@@ -71,6 +71,7 @@ jobs:
           SHOTS=shots node tests/pw/standing-test.js
           SHOTS=shots node tests/pw/approved-test.js
           SHOTS=shots node tests/pw/helpers-test.js
+          SHOTS=shots node tests/pw/layout-test.js
       - name: Screens from the browser tests
         if: always()
         uses: actions/upload-artifact@v4

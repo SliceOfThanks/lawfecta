@@ -3917,7 +3917,7 @@
       if (!st.on) { m.body.appendChild(h("p", { text: "Standing arrangements are coming soon." })); m.foot.appendChild(h("button", { class: "ghost", type: "button", onclick: m.close }, "Close")); return; }
       if (!st.can_create) { m.body.appendChild(h("p", { class: "notice", text: STANDING_ERR.standing_paid_plans_only + " " + STANDING_ERR.owners_and_managers_only })); m.foot.appendChild(h("button", { class: "ghost", type: "button", onclick: m.close }, "Close")); return; }
       var df = st.defaults || {};
-      m.body.appendChild(h("p", { class: "small", text: "Hire " + personName + " again for the same work without a new proposal each time. You both sign once. Inside these limits you hire in one click and DELA charges your saved card at once. Anything outside them becomes a normal gig draft." }));
+      m.body.appendChild(h("p", { class: "small", text: "Hire " + personName + " again for the same work without a new proposal each time. You both sign once. Inside these limits you hire in one click and DELA charges your saved card at once (with no saved card, the Stripe payment page opens). Anything outside them becomes a normal gig draft." }));
       var docs = (st.docs || []).map(function (d) { var c = h("input", { type: "checkbox", value: d.playbook_id }); return { c: c, el: h("label", { style: "display:flex;gap:8px;font-weight:400" }, c, h("span", { text: (d.doc_id ? d.doc_id + " " : "") + d.title + " (version " + d.version + ")" })) }; });
       m.body.appendChild(h("b", { text: "Documents covered (approved SOPs and Workflows)" }));
       if (!docs.length) m.body.appendChild(h("p", { class: "muted small", text: "No approved SOPs or Workflows yet." }));
@@ -4011,7 +4011,7 @@
         if (att && a.role === "manager" && a.status === "active") tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
           var pr = h("input", { type: "number", min: "0", step: "1", "aria-label": "New price per job ($)", value: String(a.price_cents / 100) }), cp = h("input", { type: "number", min: "0", step: "1", "aria-label": "New monthly spend cap ($)", value: String(a.cap_cents / 100) });
           var op = h("input", { type: "number", min: "1", max: "20", step: "1", "aria-label": "New most jobs open at once", value: String(a.max_open) }), sbC = signBox("New limits");
-          box.appendChild(h("div", { class: "soft", style: "margin-top:6px" }, h("p", { class: "small", text: "New limits pause one-click hiring until the freelancer approves them." }), h("div", { class: "row", style: "flex-wrap:wrap" }, field("Price per job ($)", pr), field("Monthly spend cap ($)", cp), field("Most jobs open at once", op)),
+          box.appendChild(h("div", { class: "soft", style: "margin-top:6px" }, h("p", { class: "small", text: "Once you send them, new limits pause one-click hiring until the freelancer approves them. Limits that are not allowed are refused and nothing changes." }), h("div", { class: "row", style: "flex-wrap:wrap" }, field("Price per job ($)", pr), field("Monthly spend cap ($)", cp), field("Most jobs open at once", op)),
             field("Your full name", sbC.name), h("label", { style: "display:flex;gap:8px;font-weight:400" }, sbC.ok, h("span", { text: "I sign the new limits for the firm." })),
             h("button", { class: "blue small", type: "button", onclick: function () { act("/standing/change", { price: pr.value, cap: cp.value, max_open: Number(op.value), typed_name: sbC.name.value, consent: sbC.ok.checked }, "Sent. Hiring is paused until the freelancer approves."); } }, "Sign and send the new limits")));
         } }, "Change limits"));
@@ -7427,6 +7427,7 @@
     else if (tab === "agency" && me.side === "freelancer" && (me.switches || {}).agency_team) main.appendChild(agencyView());
     else if (tab === "inbox" && me.side && (me.switches || {}).gig_chat) main.appendChild(inboxView());
     else if (tab === "meetings" && me.side && (me.switches || {}).meetings) main.appendChild(meetingsView());
+    else if (wrongSideTab(tab)) main.appendChild(wrongSideView(tab));
     else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1] + (me.side === "attorney" && (tab === "projects" || tab === "talent") && (sideInfo() || {}).verification_state !== "verified" ? " Posting work and hiring need a verified license: open Profile and verification from your account menu." : "")));
     else { tab = "home"; main.appendChild(me.side === "attorney" ? attorneyHome() : freelancerHome()); }
     if (me.side === "attorney") { usageBanner(main); usageMeter(main); }
@@ -7512,6 +7513,24 @@
   // The word freelancers see for whoever posted a gig
   function clientWord(g) { return g && g.client_kind === "agency" ? "agency" : "attorney"; }
 
+  // A link to the other side's page (for example an attorney opening dela?tab=work) says so, instead of an empty page
+  // (Stacey's standing arrangements report, 2026-11-06)
+  function wrongSideTab(t) {
+    if (me.side === "attorney") return ["work", "earnings", "agency", "ask"].indexOf(t) >= 0;
+    if (me.side === "freelancer") return ["files", "setup", "delegate", "record", "usage"].indexOf(t) >= 0 || (!me.agency_client && ["library", "projects", "talent"].indexOf(t) >= 0);
+    return false;
+  }
+  function wrongSideView(t) {
+    var other = me.side === "attorney" ? "freelancer" : "attorney";
+    var hasOther = (me.sides || []).some(function (x) { return x.side === other; });
+    var who = ((me.person || {}).name ? " (" + me.person.name + ")" : "");
+    return h("div", { class: "card", id: "wrong-side" }, h("h2", { text: "This page is for " + other + "s" }),
+      h("p", { text: "This page is on the " + other + " side of DELA. You are signed in as " + (me.side === "attorney" ? "an attorney" : "a freelancer") + who + "." +
+        (hasOther ? " Switch sides to open it." : " To use it, sign out and sign in with your " + other + " account.") }),
+      h("div", { class: "row", style: "flex-wrap:wrap" },
+        hasOther ? h("button", { class: "blue small", type: "button", onclick: function () { switchSide(other); } }, "Switch to the " + other + " side") : null,
+        h("button", { class: hasOther ? "ghost small" : "blue small", type: "button", onclick: function () { tab = "home"; draw(); } }, "Go to Home")));
+  }
   function switchSide(side) {
     if (side === me.side) return;
     api.post("/me/side", { side: side }).then(function (r) { me = r.me; tab = "home"; draw(); }).catch(function (e) { D.toast(app, D.errorText(e.message), true); });

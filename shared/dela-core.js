@@ -337,7 +337,7 @@
     ".hero h2{font-size:30px;line-height:1.15;margin:8px 0 10px;color:#fff}.hero p{color:rgba(255,255,255,.9);max-width:560px}",
     ".hero .pill-white{background:#fff;color:var(--brand);border-color:#fff}",
     ".grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:12px}",
-    ".stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}@media (min-width:800px){.stats{grid-template-columns:repeat(4,1fr)}}",
+    ".stats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}@media (max-width:360px){.stats{grid-template-columns:minmax(0,1fr)}}@media (min-width:800px){.stats{grid-template-columns:repeat(4,minmax(0,1fr))}}",
     ".stat-tile{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;gap:12px;align-items:flex-start}",
     ".chip{width:38px;height:38px;border-radius:50%;background:var(--pink);color:var(--pink-ink);display:inline-flex;align-items:center;justify-content:center;font-weight:800;flex:none}",
     ".tile{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;gap:12px;align-items:flex-start}.tile.col{flex-direction:column;gap:2px}",
@@ -382,7 +382,8 @@
     ".drawer-x{background:var(--card)!important;flex:none;margin-top:2px}",
     ".menu{position:absolute;right:12px;top:calc(100% + 6px);background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:16px;box-shadow:0 12px 30px rgba(0,0,0,.15);padding:8px;z-index:15;min-width:220px}.menu button,.menu a{display:flex;width:100%;background:transparent;color:var(--ink);border:0;border-radius:10px;padding:10px 12px;font-weight:600}.menu button:hover,.menu a:hover{background:var(--soft)}",
     ".nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:6}",
-    ".nav button{flex:1;background:transparent;border:0;color:var(--muted);flex-direction:column;gap:2px;font-size:13px;font-weight:600;padding:6px 4px;border-radius:12px}.nav button i{font-style:normal;font-size:20px;line-height:1}.nav button[aria-current=page]{color:var(--brand)}",
+    // Every tab shares the width, so seven tabs fit a 290-pixel phone (Stacey's report 2026-11-06): long names wrap instead
+    ".nav button{flex:1 1 0;min-width:0;background:transparent;border:0;color:var(--muted);flex-direction:column;gap:2px;font-size:13px;font-weight:600;padding:6px 2px;border-radius:12px;white-space:normal;line-height:1.15;text-align:center}@media (max-width:380px){.nav button{font-size:11px}.nav button i{font-size:18px}}.nav button i{font-style:normal;font-size:20px;line-height:1}.nav button[aria-current=page]{color:var(--brand)}",
     "@media (min-width:900px){.nav{position:static;justify-content:flex-start;gap:6px;border:0;background:transparent;padding:8px 16px;max-width:1040px;margin:0 auto}.nav button{flex:none;flex-direction:row;gap:8px;font-size:15px;padding:8px 14px}.nav button[aria-current=page]{background:var(--pink)}.dela{padding-bottom:48px}}",
     ".toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;z-index:30;font-weight:700;max-width:90%}.toast.bad{background:var(--bad);color:#fff}",
     ".check{display:flex;gap:10px;align-items:flex-start;padding:6px 0}.check i{width:18px;height:18px;border-radius:50%;border:2px solid #d5aebb;flex:none;margin-top:3px;font-style:normal;font-size:12px;line-height:14px;text-align:center;color:#fff}.check.done i{background:#2f7a4f;border-color:#2f7a4f}.check.done span{color:var(--muted)}",

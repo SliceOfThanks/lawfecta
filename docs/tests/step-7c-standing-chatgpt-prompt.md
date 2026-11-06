@@ -95,13 +95,13 @@ ATTORNEY (log in once)
     Expect: the message "This job would pass the monthly cap ($600 of $700 used). Nothing was charged. A gig draft was made instead; open it from Your gigs to post it the normal way." No new job line is added. Do not post the draft.
 
 11. In the same $300 box:
-    Do: click "Open the job" on the newest job line.
-    Expect: the job's agreement page opens, with the title "Repeat: Send the welcome packet" near the top and the card "The agreement". Do not sign or pay anything.
+    Do: click "Open the job" on the newest job line ("Run a Conflict Check", hired in step 9).
+    Expect: the job's agreement page opens, with the title "Repeat: Run a Conflict Check" near the top and the card "The agreement". Do not sign or pay anything.
     Then go to: https://www.hirelegalhelp.com/dela?tab=projects
 
 12. In the card "Standing arrangements (2)", in the $300 box:
     Do: click "Change limits" (an outlined button at the bottom of the box).
-    Expect: a shaded form opens in the box with "New limits pause one-click hiring until the freelancer approves them.", the boxes "Price per job ($)" (300), "Monthly spend cap ($)" (700), "Most jobs open at once" (2), "Your full name", the tick box "I sign the new limits for the firm." and the blue button "Sign and send the new limits".
+    Expect: a shaded form opens in the box with "Once you send them, new limits pause one-click hiring until the freelancer approves them. Limits that are not allowed are refused and nothing changes.", the boxes "Price per job ($)" (300), "Monthly spend cap ($)" (700), "Most jobs open at once" (2), "Your full name", the tick box "I sign the new limits for the firm." and the blue button "Sign and send the new limits".
     Do: change "Price per job ($)" to 800 and leave "Monthly spend cap ($)" at 700. Type Test Attorney in "Your full name", tick "I sign the new limits for the firm.", and click "Sign and send the new limits".
     Expect: the message "The price per job cannot be more than the monthly cap." The box stays "Active". Do not send other limits.
 
@@ -112,7 +112,7 @@ ATTORNEY (log in once)
 14. Go to: https://www.hirelegalhelp.com/dela?tab=talent
     Find: the card "Find a freelancer" at the top, and below it the results. Find the result "DELA Test Freelancer".
     Do: in that result, click "Set up a standing arrangement" (an outlined button in its row of buttons).
-    Expect: a window "Standing arrangement with DELA Test Freelancer" with the text "Hire DELA Test Freelancer again for the same work without a new proposal each time. You both sign once. Inside these limits you hire in one click and DELA charges your saved card at once. Anything outside them becomes a normal gig draft.", the heading "Documents covered (approved SOPs and Workflows)" with tick boxes, and the boxes "Price per job ($)", "Monthly spend cap ($)" (with the hint "Required. Hires stop at the cap each month."), "Most jobs open at once", "End date" (with "Up to 12 months."), the tick box "Let other attorneys in the firm use this arrangement", "Your full name" and the buttons "Sign and send" and "Cancel".
+    Expect: a window "Standing arrangement with DELA Test Freelancer" with the text "Hire DELA Test Freelancer again for the same work without a new proposal each time. You both sign once. Inside these limits you hire in one click and DELA charges your saved card at once (with no saved card, the Stripe payment page opens). Anything outside them becomes a normal gig draft.", the heading "Documents covered (approved SOPs and Workflows)" with tick boxes, and the boxes "Price per job ($)", "Monthly spend cap ($)" (with the hint "Required. Hires stop at the cap each month."), "Most jobs open at once", "End date" (with "Up to 12 months."), the tick box "Let other attorneys in the firm use this arrangement", "Your full name" and the buttons "Sign and send" and "Cancel".
 
 15. In the same window:
     Do: tick the first document, type 300 in "Price per job ($)", leave "Monthly spend cap ($)" empty, and click "Sign and send".
