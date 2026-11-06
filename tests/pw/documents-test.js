@@ -157,6 +157,12 @@ async function makeMember(bd, side, plan) {
     const changes = await sql("select count(*)::int as n from document_changes c join playbooks p on p.id = c.playbook_id where p.doc_id = '" + newId + "' and p." + MINE);
     ok(changes[0].n >= 2, "the change log records each saved version and the approval");
     ok(t.includes("Post as a Flex Gig"), "an approved SOP can be posted as a Flex Gig");
+    // The empty Comments view names the real tab and takes you there (UX review D01)
+    await dela(p).getByRole("tab", { name: "Comments (0)", exact: true }).click();
+    t = await waitFor(p, "No comments yet.");
+    ok(!t.includes("Read view") && t.includes("click \"Comment\" beside any part"), "the empty Comments view names the Draft and review tab");
+    await click(p, "Go to Draft and review");
+    ok((await dela(p).getByRole("tab", { name: "Draft and review", exact: true }).getAttribute("aria-selected")) === "true", "and its button opens it");
 
     // ---------- A Policy cannot become a gig ----------
     await click(p, "← Library");

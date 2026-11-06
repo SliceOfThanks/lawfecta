@@ -2068,7 +2068,8 @@
 
   function commentsView(area) {
     var cs = lib.pb.comments;
-    if (!cs.length) area.appendChild(h("div", { class: "card" }, h("p", { class: "muted", style: "margin:0", text: "No comments yet. Use Comment on any part in the Read view." })));
+    if (!cs.length) area.appendChild(h("div", { class: "card" }, h("p", { class: "muted", text: "No comments yet. In \"Draft and review\", click \"Comment\" beside any part." }),
+      h("button", { class: "ghost small", type: "button", onclick: function () { lib.view = "read"; drawDocument(); } }, "Go to Draft and review")));
     cs.forEach(function (c) {
       area.appendChild(h("div", { class: "card", style: c.resolved ? "opacity:.65" : "" },
         h("div", { class: "row" }, h("b", { class: "grow", text: c.by + (c.part ? " on " + (c.part.indexOf("step:") === 0 ? "step " + c.part.slice(5) : c.part.split("_").join(" ")) : "") }), h("span", { class: "small muted", text: D.dateTime(c.at) })),
