@@ -20,7 +20,8 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - Tests: agency_bench_test.ts (8), agency_split_test.ts (7), agency-test.js (28 browser checks).
 - On the test site since 2026-11-05: commit 992e5a4 for the database (0042, 0043, 0044 applied, fingerprints checked), function version 40 and code_version 277cabc, switch agency_bench on for the access list. The made-up job "Test job: Agency proposal" has its agreement marked signed with two $300 milestones (no payment rows).
 - Fixed from the agency ChatGPT test (25 PASS, 3 FAIL): the proposal role is read from the box when sent; admin messages read plainly; giving a plan keeps the People search. The attorney's notice names the job once (0044).
-- Next test: docs/tests/step-7d-bench-chatgpt-prompt.md.
+- Bench ChatGPT test 2026-11-05: 21 PASS, 3 FAIL. The FAILs (1.3, 1.4, 3.5) were refusal messages shown only for 4 seconds. Fixed in 026d9e4: the Bench, bench invitation and Bench assignments cards keep their last answer on the card. Also fixed: "and the platform fee ()" with no fee; the test job's agreement now has its fees and matching due dates. Stacey's by-hand recheck is one login (the test freelancer).
+- Rule from Stacey after this test: each account logs in once per agent test (CLAUDE.md, docs/tests/AGENT-RULES.md).
 - Still to come in part 2: the agency's own gigs (Library, posting, Talent, the agency as client). Handing work files between the agency and a bench member comes with part 3.
 
 ## Agencies part 1 (step 7d), 2026-11-05
