@@ -1,7 +1,7 @@
 # Feature brief: Monthly recurring engagements and limited automatic repeat hiring
 
 Step: 7c   Spec references: Program Guide C-16, C-17, O-04, O-05, G-CONTRACT and line 50 (repeat hiring is a launch direction, gated); 1A sections 18 (standing arrangements and the deterministic authorization procedure) and 22 (monthly recurring engagements); tests T13 (cancel while the renewal runs) and T17 (mandate revoked before it runs); Decision Register v1.1 questions 5 and 6; config/decisions.json recurring.*
-Status: draft, waiting for Stacey's answers
+Status: approved by Stacey 2026-11-06 (answers below). Built in two parts: 7c-1 monthly recurring engagements, then 7c-2 standing arrangements (repeat hiring, off on Live until counsel approves).
 
 ## Who
 - Attorneys on every plan (monthly engagements are on every tier, C). Firm owners and managers set up and change them; firm staff see them if they can see the engagement.
@@ -133,3 +133,41 @@ Check the results:
 - No charge after the cancellation date.
 - A revoked arrangement blocks a queued hire.
 - Ledgers and payouts add up.
+
+## Stacey's answers (2026-11-06)
+
+### Monthly recurring engagements
+1. **How it starts.** In Projects, the new gig form starts with a choice: "One-off" or "Monthly". On a completed one-off engagement, the engagement page shows "Make this monthly". It drafts a monthly agreement with the same freelancer, using the finished work as the starting scope. Both sign before anything is charged.
+2. **Billing day.** The day the first month is paid. A 29th, 30th or 31st bills on the last day of shorter months. All billing dates use the attorney's time zone.
+3. **Paying each month.** The card or bank account used for the first payment is saved with Stripe for renewals. A required checkbox at signing: "Charge this payment method each month on my billing day until I or the freelancer cancel." Bank payments take about 4 business days; the new month's tasks open only once the payment clears, and the payment screen says so next to the bank option.
+4. **What each month includes.** Each task, how often (daily, weekly, every two weeks or monthly), the included quantity, the turnaround and any exclusions. The word "unlimited" can't be used, and code blocks an agreement with no included quantity. Extra work becomes a separate one-off gig or a change for next month; DELA never adds an extra charge on its own.
+5. **Paying the freelancer.** Chosen at signing: "Weekly units" (the default) or "One monthly delivery". Weekly units split the month into units that add up to the monthly price, each checked, accepted and paid like a milestone. One monthly delivery is one unit, checked and accepted at month end. Reason: weekly units pay sooner and make ending early simple.
+6. **Check and review.** The same as a fixed-fee milestone: DELA's milestone check, 7 days for the attorney to review, one free human review, then the dispute process.
+7. **Failed payment.** New-month work pauses right away. Retries on day 2 and day 5 after the failed charge. The engagement ends after 14 days paused. Both get an email and an in-app notice at each step: failed, each retry, paused, ended.
+8. **3-D Secure.** The attorney gets an email and an in-app notice with a secure "Pay now" link. Paying through it counts as the renewal; the dates in 7 still apply.
+9. **After a pause.** The billing day stays; the included work doesn't change; that month's due dates move later by the days paused. Nothing is prorated.
+10. **Changes.** Either side uses "Request a change" on the engagement page; the other approves or declines. Approved at least 1 day before billing: it starts next month. Otherwise the current terms continue another month. Never a higher charge without approval.
+11. **Cancelling.** Either side, any time, with "Cancel monthly engagement". Effective at the end of the paid month. Undoing it needs the other side's approval before that date. No minimum term.
+12. **Ending early by agreement.** Accepted units are paid and the rest of the month is refunded. Automatic with weekly units. With one monthly delivery, the two agree an amount in DELA, or it goes to the dispute process. DELA never makes up a daily rate.
+13. **Minimum fee.** The $10 minimum per party applies to each paid month. It sits alongside the 5% client and 5% freelancer fees; whichever is higher applies.
+14. **Plan limits.** A running monthly engagement uses one of the attorney's active gig places (att.gigs_active) while it runs. It uses one of the freelancer's proposals only when they propose on a monthly gig, not each month.
+15. **Weekends and holidays.** Due dates move to the next business day in the attorney's time zone, using US federal holidays.
+16. **Next month's tasks.** Drafted when the 3-day reminder goes out, so both can see them; opened only after the payment succeeds.
+
+### Limited automatic repeat hiring (off on Live until counsel approves)
+17. Only the attorney's click, "Hire again from my standing arrangement", on an approved SOP or Workflow the arrangement covers. Hires from other systems come in Phase 2.
+18. Firm owners and managers create, change and end arrangements. Other firm attorneys use one only if the owner turns on "Let other attorneys in the firm use this arrangement". Raising the cap or the price needs both to sign again.
+19. Every arrangement has a fixed price per job, a monthly spend cap (DELA won't save one without it), the most jobs open at once (3 by default), the covered documents at their approved versions, and an end date (6 months by default, 12 at most).
+20. Material changes stop automatic hiring until both approve again: a new approved version of a covered document; a change to the price, the cap or the state; a freelancer step added to a covered Workflow; the freelancer's verification lapsing. Both get a notice naming the change with a "Review and approve" button.
+21. The freelancer accepts once; hires within the limits start without accepting again. They can decline a hire within 24 hours, and the attorney is refunded in full. They can end the arrangement any time; it ends once their open jobs finish.
+22. The saved card is charged the moment the hire happens. Work starts once paid. It counts against the monthly cap at once.
+23. Both get a notice for each repeat hire with the price and the cap left this month. The attorney gets a monthly statement of each arrangement's use.
+24. Built and tested fully on the test site. On Live, auto_repeat_hiring stays off and the screens show "Coming soon" until counsel approves.
+
+### Both
+25. Monthly engagements on every plan, both sides. Standing arrangements on paid attorney plans only.
+26. Read-only connector tools that list monthly engagements and standing arrangements. No renewing, hiring or cancelling from an AI app.
+27. On the test site only, the owner gets "Run the renewal now" on each monthly engagement, never on Live. It rolls a month over in minutes with Stripe test cards, including a failing card.
+
+### Agencies on monthly engagements
+An agency can be hired monthly like a solo freelancer. It can assign weekly units to a team member or a bench member. Bench units pay out by the signed fee split; the agency covers the 5% freelancer fee and the bench member pays none.

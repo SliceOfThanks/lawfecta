@@ -123,9 +123,17 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Automatic acceptance when the attorney stays silent. Built behind the admin_acceptance_timeout switch. | switch | Needs a gate | C-13 and G-CONTRACT | |
 | Renewal reminder, days before billing | 3 days | Confirmed | C-16 | |
 | Automatic retries after a failed renewal | 2 | Confirmed | C-17 | |
-| Days between renewal retries | 2, 5 | Open | Decision Register v1.1, question 5 (A recommended: day 2 and day 5) | |
-| Days a failed renewal stays paused before it ends | 14 days | Open | Decision Register v1.1, question 5 | |
-| How monthly money is released to the freelancer | parties choose monthly or split | Open | Decision Register v1.1, question 6 (C recommended) | |
+| Days between renewal retries | 2, 5 | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 7 | |
+| Days a failed renewal stays paused before it ends | 14 days | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 7 | |
+| How monthly money is released to the freelancer. The two choose at signing: Weekly units (the default) or One monthly delivery. | weekly units default or one monthly | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 5 | |
+| A scope or price change starts next month only if approved at least this many days before billing | 1 days | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 10 | |
+| The minimum platform fee per party applies to each paid month. Each month is a separate payment; the higher of 5% and the minimum applies. | Yes | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 13 | |
+| Holidays that move a due date to the next business day. In the attorney's time zone. | us federal | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 15 | |
+| Longest standing arrangement | 12 months | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 19 | |
+| Standing arrangement length unless changed | 6 months | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 19 | |
+| Most jobs open at once on a standing arrangement, unless changed | 3 jobs | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 19 | |
+| Hours a freelancer has to decline a repeat hire (the attorney is refunded in full) | 24 hours | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 21 | |
+| Lowest attorney plan that can set up a standing arrangement | att plus | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 25 | |
 
 ## 7. Exports and playbooks
 
