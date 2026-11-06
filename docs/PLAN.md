@@ -118,7 +118,7 @@ Things only you can provide
 - A lawyer's review of the agreement terms template and the chargeback rule, before live payments.
 
 ## 4. What we build next
-- Done: UX review parts 0 to 3 and step 7c part 2 (standing arrangements) on the test site. Next: the Phase 4 brief (approved-version view, new AI buttons, onboarding).
+- Done: UX review parts 0 to 3 and step 7c part 2 (standing arrangements) on the test site. Phase 4 brief written (docs/briefs/step-8a-phase-4.md): the approved-version view, 13 new AI helpers and 7 refined, the first ten minutes (with the onboarding widget), and the dark mode choice. Waiting on Stacey's 10 answers before building.
 - Built: attorney plan usage limits (step 9b), on the test site with blocking off. Turn blocking on after the test.
 - Waiting on Stacey: the Pro trial and downgrade to Free (docs/briefs/step-9-pro-trial-downgrade.md). Plan only; not built until she answers.
 
