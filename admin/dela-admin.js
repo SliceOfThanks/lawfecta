@@ -6,6 +6,7 @@
   if (!D || !root) return;
   var m = D.mount(root);
   var app = m.app;
+  D.markAi(app);
   var h = D.h;
   var api = D.client(root, function () { body(h("div", { class: "notice bad", text: "Your sign in ended. Refresh the page." })); });
   var boot = api.boot || {};
@@ -1530,17 +1531,8 @@
 
   // A "?" button and the help box it opens. The box stays open across the page's own refreshes.
   function tipPair(key) {
-    if (!HELP[key]) return [null, null];
-    var box = h("div", { class: "helpbox", role: "note", hidden: !ctl.tips[key], text: HELP[key] });
-    var btn = h("button", { class: "tip", type: "button", "aria-label": "What does this mean?", "aria-expanded": String(!!ctl.tips[key]) }, "?");
-    btn.addEventListener("click", function (e) {
-      e.stopPropagation();
-      var opening = box.hidden;
-      box.hidden = !opening;
-      btn.setAttribute("aria-expanded", String(opening));
-      if (opening) ctl.tips[key] = 1; else delete ctl.tips[key];
-    });
-    return [btn, box];
+    // The shared help tip from dela-core.js; the admin remembers which tips are open
+    return D.helpTip(HELP[key], "What does this mean?", function (open) { if (open) ctl.tips[key] = 1; else delete ctl.tips[key]; }, !!ctl.tips[key]);
   }
 
   function kv(label, value, key) {

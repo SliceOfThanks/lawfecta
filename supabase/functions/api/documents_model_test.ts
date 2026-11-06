@@ -180,3 +180,14 @@ Deno.test("the Accountable check says which steps have no A and which have more 
   const none = checkDoc(normalizeDoc({ ...b, steps: [st("Search the names.", { Paralegal: "R" }), st("Record it.", { Paralegal: "R" })] }), CTX).items.find((i) => i.id === "one_a")!;
   assertEquals(none.detail, "Steps 1, 2 have no Accountable (A). Give each step one owner.");
 });
+
+Deno.test("a conditional step with a clear action passes the verb check (UX review D03)", () => {
+  const verbsOf = (texts: string[]) => {
+    const b = goodSop();
+    b.steps = normalizeDoc({ steps: texts.map((t) => ({ text: t, raci: { Paralegal: "R,A" } })) }).steps;
+    return checkDoc(b, CTX).items.find((i) => i.id === "verbs");
+  };
+  assertEquals(verbsOf(["If the client signs, send the engagement letter.", "When the retainer arrives, open the matter in Clio."])?.status, "pass");
+  assertEquals(verbsOf(["If the client signs, the letter goes out."])?.status, "attention", "a condition still needs an action after it");
+  assertEquals(verbsOf(["The client gets a call."])?.status, "attention");
+});

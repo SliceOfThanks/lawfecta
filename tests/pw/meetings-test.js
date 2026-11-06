@@ -129,9 +129,10 @@ async function makeMember(bd, side, plan) {
     ok(!t.includes("512-555-0199"), "the held message is not shown to the freelancer");
     await dela(p).locator("summary", { hasText: "✦ AI help" }).click();
     ok(await dela(p).locator("summary", { hasText: "More" }).count() === 1, "Report and Block sit under More, AI help under its own menu (UX review I01)");
+    ok((await dela(p).getByRole("button", { name: "✦ Summarize" }).getAttribute("class")).includes("ai-btn"), "AI buttons share one style (UX review part 3)");
     await click(p, "✦ Summarize");
     t = await waitFor(p, "The attorney asked about intake");
-    ok(t.includes("does not change the gig"), "DELA's summary is labeled as reading only");
+    ok(t.includes("does not change the gig") && t.includes("AI suggestion"), "DELA's summary is labeled as an AI suggestion, for reading only");
     await click(p, "✦ Draft a reply");
     await p.waitForTimeout(600);
     ok((await label(p, "Your message").inputValue()) === "Thanks, Monday works for me.", "DELA drafts a reply, which the member sends");

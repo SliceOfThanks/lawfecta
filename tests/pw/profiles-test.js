@@ -148,6 +148,15 @@ async function waitFor(page, words, ms) {
     await dela(p).getByRole("button", { name: "What to enter in Education" }).click();
     t = await text(p);
     ok(t.includes("Degrees, certificates and courses, one per line"), "the ? next to a box explains what to enter");
+    // The shared help tip: tied to its note, opens with the keyboard, Escape closes it and returns focus (UX review part 3)
+    const q = dela(p).getByRole("button", { name: "What to enter in Education" });
+    const noteId = await q.getAttribute("aria-controls");
+    ok(!!noteId && (await q.getAttribute("aria-describedby")) === noteId && (await q.getAttribute("aria-expanded")) === "true", "the ? is tied to its note");
+    await q.focus();
+    await p.keyboard.press("Escape");
+    ok((await q.getAttribute("aria-expanded")) === "false" && await p.evaluate(() => document.querySelector(".dela-host").shadowRoot.activeElement.getAttribute("aria-label")) === "What to enter in Education", "Escape closes it and keeps focus on the ?");
+    await p.keyboard.press("Enter");
+    ok((await q.getAttribute("aria-expanded")) === "true", "Enter opens it again");
     const writeBtns = await dela(p).getByRole("button", { name: "✦ Write with DELA" }).count();
     ok(writeBtns === 4, "Headline, Summary, Experience and Education each have Write with DELA (" + writeBtns + ")");
     await dela(p).getByRole("button", { name: "✦ Write with DELA" }).nth(2).click();

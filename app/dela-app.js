@@ -6,6 +6,7 @@
   if (!D || !root) return;
   var m = D.mount(root);
   var app = m.app;
+  D.markAi(app);
   var h = D.h;
   var loginUrl = root.getAttribute("data-login-url") || "/login";
   var api = D.client(root, function () { show(signedOut(true)); });
@@ -771,11 +772,8 @@
 
   // help: what to enter, behind a "?" (hover on a computer, tap on a phone) (Stacey 2026-11-05)
   function field(label, input, hint, help, extra) {
-    var tip = null, q = null;
-    if (help) {
-      tip = h("div", { class: "helpbox", hidden: true, role: "note", text: help });
-      q = h("button", { class: "help-q", type: "button", title: help, "aria-label": "What to enter in " + label.split(" (optional)").join(""), "aria-expanded": "false", onclick: function () { tip.hidden = !tip.hidden; q.setAttribute("aria-expanded", String(!tip.hidden)); } }, "?");
-    }
+    // The shared help tip (UX review part 3): keyboard and Escape, tied to the box it explains
+    var pair = D.helpTip(help, "What to enter in " + label.split(" (optional)").join("")), q = pair[0], tip = pair[1];
     return h("div", { style: "margin:8px 0" }, h("div", { class: "row", style: "gap:6px;align-items:center" }, h("label", { text: label, style: "margin:0" }), q), tip, input, hint ? h("div", { class: "small muted", text: hint }) : null, extra || null);
   }
 
@@ -3765,7 +3763,7 @@
       }
       // The agency's own bench (owner and managers)
       if (!v.agency_bench) return;
-      var c = h("div", { class: "card", id: "agency-bench" }, h("h2", { text: "Bench" }),
+      var c = h("div", { class: "card", id: "agency-bench" }, h("h2", null, D.term("Bench", "bench")),
         h("p", { class: "small muted", text: "Outside freelancers you hire for your work. They never use a seat. Before someone joins, you both sign a bench agreement that sets the split of the fee. " +
           "The agency's share is " + pct(lim.min_bps) + " to " + pct(lim.max_bps) + ", and the agency pays the " + pct(v.fee_bps) + " freelancer platform fee from its share. Only Freelancer Plus or higher can join. The attorney never sees the split." }));
       c.appendChild(cardStatus("bench"));
@@ -3828,6 +3826,7 @@
       if (talentMode === "bench") { benchView(el); return el; }
     }
     el.appendChild(h("p", { class: "muted", text: "Match-ready freelancers: verified, profile complete and availability confirmed in the last 14 days. Every conversation happens on a gig, so inviting someone needs a gig." }));
+    el.appendChild(h("p", { class: "small" }, D.term("What match-ready means", "match_ready")));
     // Visible labels on every box, and the state picked by its full name (UX review T01)
     var inputs = {};
     [["practice_area", "Practice area", "For example: Family law"], ["skill", "Skill", "For example: E-filing"], ["tool", "Tech tool", "For example: Clio"]].forEach(function (x) {
@@ -3892,12 +3891,16 @@
       el.appendChild(h("h1", { text: "Work" }));
       if (!r.ok || !r.on) { el.appendChild(h("p", { class: "notice", text: "Flex Gigs are not open for your account yet." })); return; }
       if (r.state && r.state.readiness !== "match_ready") el.appendChild(h("p", { class: "notice", text: "You are not match-ready yet, so attorneys cannot find you. Finish your Profile and confirm your availability." }));
-      el.appendChild(h("p", { class: "notice ok", text: allowanceText(r.allowance) }));
+      var alTip = D.helpTip(D.HELP.proposal_allowance, "What is the proposal allowance?");
+      el.appendChild(h("p", { class: "notice ok" }, allowanceText(r.allowance), " ", alTip[0]));
+      el.appendChild(alTip[1]);
       var engSlot = h("div");
       el.appendChild(engSlot);
       function section(title, list, empty, extra) {
         var c = h("div", { class: "card" }, h("h2", { text: title + " (" + list.length + ")" }));
         if (!list.length) c.appendChild(h("p", { class: "muted", text: empty }));
+        // An empty list says what to do next (UX review part 3, freelancer side)
+        if (!list.length && title === "Matches") c.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: function () { tab = "profile"; draw(); } }, "Open my profile and availability")));
         list.forEach(function (g) {
           c.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { gigLink(g.id, "work"); } },
             h("div", null, h("h3", { text: g.title }), h("div", { class: "small", text: budgetText(g) + (g.deadline ? " | due " + D.date(g.deadline) : "") + (g.closes_at && g.status === "open" ? " | closes " + D.date(g.closes_at) : "") }),
@@ -4149,7 +4152,11 @@
       if ((me.switches || {}).chat_assistant) {
         [["summarize", "✦ Summarize"], ["agreed", "✦ What we agreed"]].forEach(function (x) {
           aiHelp.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-            api.post("/threads/assist", { thread_id: t.id, mode: x[0] }).then(gigOk).then(function (y) { aiOut.hidden = false; aiOut.textContent = y.text + "\n\nDELA's summary is for reading only. It does not change the gig, a proposal or an agreement."; }).catch(talkFail);
+            api.post("/threads/assist", { thread_id: t.id, mode: x[0] }).then(gigOk).then(function (y) {
+              aiOut.hidden = false; D.clear(aiOut);
+              aiOut.appendChild(h("div", { class: "row", style: "align-items:center;margin-bottom:4px" }, D.aiLabel(), h("span", { class: "grow" }), h("button", { class: "ghost small", type: "button", onclick: function () { aiOut.hidden = true; } }, "Dismiss")));
+              aiOut.appendChild(h("div", { text: y.text + "\n\nDELA's summary is for reading only. It does not change the gig, a proposal or an agreement." }));
+            }).catch(talkFail);
           } }, x[1]));
         });
       }
@@ -4540,7 +4547,7 @@
       h("div", null, "This month", h("b", { text: "Month " + cur.n + ": " + D.date(cur.starts_on) + " to " + D.date(cur.ends_on) })),
       h("div", null, "Monthly price", h("b", { text: D.money(t.price_cents) })),
       h("div", null, "Units accepted", h("b", { text: cur.accepted + " of " + cur.units })),
-      h("div", null, "Next billing", h("b", { text: t.cancel_effective ? "None: it ends on " + D.date(t.cancel_effective) : nx.bill_on ? D.date(nx.bill_on) + (nx.price_cents ? " (" + D.money(nx.price_cents) + " plus the " + D.money(nx.fee_cents) + " platform fee)" : "") : "-" }))));
+      h("div", null, D.term("Next billing", "billing_day"), h("b", { text: t.cancel_effective ? "None: it ends on " + D.date(t.cancel_effective) : nx.bill_on ? D.date(nx.bill_on) + (nx.price_cents ? " (" + D.money(nx.price_cents) + " plus the " + D.money(nx.fee_cents) + " platform fee)" : "") : "-" }))));
     card.appendChild(h("h3", { text: "Included each month" }));
     card.appendChild(tasksList(t.tasks));
     card.appendChild(h("p", { class: "small muted", text: (t.unit_mode === "monthly" ? "Paid as one monthly delivery, checked and accepted at month end." : "Paid in weekly units, each checked, accepted and paid like a milestone. The units are how the month is checked and paid, not a weekly limit.") +
@@ -4626,13 +4633,14 @@
     if (r.monthly && (a.status === "draft" || a.status === "signing" || a.status === "sent")) host.appendChild(monthlyTermsCard(r));
     if (r.monthly && !(a.status === "draft" || a.status === "signing" || a.status === "sent")) host.appendChild(monthlyCard(r));
     host.appendChild(agreementCard(r, b));
+    // Who is on the job comes right under the agreement and its subcontracting terms (UX review E02)
     var sc = subsCard(r, b); if (sc) host.appendChild(sc);
+    host.appendChild(peopleCard(r));
     if (!r.monthly && (a.status === "signing" || a.status === "signed" || a.status === "active")) host.appendChild(changesCard(r, b));
     var cpc = checkpointsCard(r); if (cpc) host.appendChild(cpc);
     if ((r.milestones || []).length) host.appendChild(milestonesCard(r));
     if (att && (r.payments || []).length) host.appendChild(paymentsCard(r));
     if (!att && r.payout_account !== undefined) host.appendChild(payoutCard(r.payout_account, true));
-    host.appendChild(peopleCard(r));
     if (!att) host.appendChild(assignmentsCard(r));
     host.appendChild(confCard(r));
     host.appendChild(disputeCard(r));
@@ -4690,7 +4698,7 @@
   var CONF_LOG_WORDS = { upload: "uploaded", open: "opened", download: "downloaded", link_added: "added the link", link_open: "opened the link", link_removed: "removed the link",
     link_expired: "expired: the link", extended: "extended", file_deleted: "deleted", files_expired: "deleted after access ended:", messages_deleted: "deleted the messages", review_open: "A Lawfecta reviewer opened" };
   function confCard(r) {
-    var a = r.agreement, card = h("div", { class: "card", id: "conf-card" }, h("h2", { text: "Confidential materials" }));
+    var a = r.agreement, card = h("div", { class: "card", id: "conf-card" }, h("h2", null, D.term("Confidential materials", "confidential")));
     var body = h("div", null, h("p", { class: "small muted", text: "Loading..." }));
     card.appendChild(body);
     function load() {
@@ -4964,6 +4972,7 @@
       var mv = r.monthly, cur = mv.current, nx = mv.next || {};
       if (!cur && att) {
         var p1 = (mv.periods || [])[0] || {};
+        var csum = commitmentSummary(r, true); if (csum) box.appendChild(csum);
         box.appendChild(h("p", { text: "Pay month 1 (" + D.money(p1.price_cents) + ") and the platform fee (" + D.money(p1.fee_cents) + "). The day it is paid becomes your billing day each month. Lawfecta holds it until each unit is accepted." }));
         if (!r.stripe_ready) box.appendChild(h("p", { class: "notice", text: ENG_ERR.payments_not_set_up }));
         else {
@@ -4991,6 +5000,7 @@
       if (waiting) box.appendChild(h("p", { text: "Your payment of " + D.money(waiting.amount_cents) + " is being confirmed by the bank. Work starts when it is confirmed." }));
       else if (due && !open) {
         var first = !a.started_at;
+        var csum1 = first ? commitmentSummary(r, true) : null; if (csum1) box.appendChild(csum1);
         box.appendChild(h("p", { text: "Pay milestone " + due.seq + " (" + D.money(due.amount_cents) + ")" + (first && typeof a.attorney_fee_cents === "number" && a.attorney_fee_cents > 0 ? " and the platform fee (" + D.money(a.attorney_fee_cents) + ")" : "") + ". Lawfecta holds it until you accept the milestone." }));
         if (!r.stripe_ready) box.appendChild(h("p", { class: "notice", text: ENG_ERR.payments_not_set_up }));
         else {
@@ -5024,7 +5034,7 @@
   function subsCard(r, b) {
     var sub = b.subcontracting || {}, a = r.agreement;
     if (!sub.agency) return null;
-    var card = h("div", { class: "card", id: "subs-card" }, h("h2", { text: "Subcontractors" }), cardStatus("subs"));
+    var card = h("div", { class: "card", id: "subs-card" }, h("h2", null, D.term("Subcontractors", "subcontractors")), cardStatus("subs"));
     card.appendChild(h("p", { text: sub.no_subcontractors ? "No subcontractors on this engagement: only the agency's own team works on it." : "This agency may use vetted subcontractors from Lawfecta to complete this work." }));
     var open = r.role === "attorney" && (a.status === "draft" || a.status === "signing");
     if (!open) {
@@ -5052,6 +5062,28 @@
   // "agency" when the client is an agency hiring for its own gig, otherwise "attorney"
   function clientKindWord(r) { return ((((r.current || {}).body || {}).parties || {}).client || {}).kind === "agency" ? "agency" : "attorney"; }
 
+  // One "what you are agreeing to" summary before every signature and payment (UX review part 3): the money from the
+  // api's own summary, then the few rules that matter most, from the agreement being signed. The full terms stay below.
+  function commitmentSummary(r, paying) {
+    var b = (r.current || {}).body || {}, lim = b.limits || {}, att = r.role === "attorney";
+    var lines = (r.money_summary || []).slice();
+    if (!paying) {
+      if (b.kind === "monthly") {
+        lines.push(att ? "Month 1 is charged when you pay it; that day becomes your billing day, and the saved payment method is charged once on it each month." : "You are paid each month for the work accepted that month.");
+        lines.push("Cancellation takes effect at the end of the paid month. Ending sooner needs both of you to agree.");
+        lines.push("The limits are for each month. Unused work does not carry over.");
+      } else {
+        if (lim.review_days) lines.push((att ? "You have " : "The client has ") + lim.review_days + " days to review each milestone; " + (lim.revisions || 0) + " rounds of changes are included.");
+        lines.push("Canceling before work starts refunds the client in full. After that, paid milestones not yet submitted are refunded and accepted ones stay paid.");
+      }
+      if ((b.subcontracting || {}).agency && !(b.subcontracting || {}).no_subcontractors) lines.push("The agency may use vetted Lawfecta subcontractors. Everyone working on the job is listed under Who's working on this.");
+      lines.push("Keep all work, messages and payment on Lawfecta.");
+    }
+    if (!lines.length) return null;
+    return h("div", { class: "soft commitment", id: paying ? "commitment-pay" : "commitment", style: "margin:8px 0;padding:10px 12px;border-radius:12px" },
+      h("b", { text: paying ? "Before you pay" : "What you are agreeing to" }), h("ul", { style: "margin:6px 0 0" }, lines.map(function (l) { return h("li", { text: l }); })));
+  }
+
   function signForm(r, theirSigned) {
     var a = r.agreement;
     var name = h("input", { "aria-label": "Type your full name to sign", style: "width:100%", autocomplete: "name" });
@@ -5068,6 +5100,7 @@
     });
     return h("div", null,
       h("p", { text: (theirSigned ? "The other person signed version " + a.version + ". " : "") + "Read the agreement below. If it is right, sign it here. If not, propose changes." }),
+      commitmentSummary(r, false),
       field("Your full name", name, "Your typed name is your signature. DELA records it with the time, this version and its fingerprint."),
       h("label", { style: "display:flex;gap:8px;font-weight:400;margin:8px 0" }, ok, h("span", { text: "I have read version " + a.version + " of this agreement and I sign it electronically." })),
       rec ? h("label", { style: "display:flex;gap:8px;font-weight:400;margin:8px 0" }, rec, h("span", { text: "Charge this payment method each month on my billing day until I or the freelancer cancel." })) : null,
@@ -5080,8 +5113,11 @@
     c.appendChild(h("div", { class: "kv" },
       h("div", null, "Client (firm)", h("b", { text: (p.client || {}).firm || "-" })),
       h("div", null, "Signs for the firm", h("b", { text: (p.client || {}).signatory || "Not set yet" })),
-      h("div", null, "Freelancer", h("b", { text: (p.freelancer || {}).name || "-" })),
+      (p.freelancer || {}).company ? h("div", null, "Agency", h("b", { text: p.freelancer.company })) : null,
+      h("div", null, (p.freelancer || {}).company ? "Agency lead" : "Freelancer", h("b", { text: (p.freelancer || {}).name || "-" })),
       h("div", null, b.kind === "monthly" ? "Monthly price for the work" : "Price for the work", h("b", { text: D.money(fe.total_cents) }))));
+    // The subcontracting consent in one plain sentence, next to the parties (UX review E02)
+    if ((b.subcontracting || {}).agency) c.appendChild(h("p", { class: "small", text: (b.subcontracting.no_subcontractors ? "No subcontractors: only the agency's own team works on this job." : "By signing, the client agrees the agency may use vetted Lawfecta subcontractors. The agency stays responsible for them.") + " Everyone working on the job is listed under \"Who's working on this\" below." }));
     // What this person pays or receives, worked out by the api from the same fees (UX review E01)
     if ((r.money_summary || []).length) c.appendChild(h("div", { class: "notice ok", id: "money-summary" }, (r.money_summary || []).map(function (l, i) { return h("p", { style: "margin:" + (i ? "4px" : "0") + " 0 0;" + (i ? "" : "font-weight:700;font-size:1.1em"), text: l }); })));
     if (s.task) c.appendChild(h("p", null, h("b", { text: "The work: " }), s.task));
@@ -5093,9 +5129,9 @@
         return h("tr", null, h("td", { "data-label": "#", text: String(m.seq) }), h("td", { "data-label": "Milestone", text: m.title }), h("td", { "data-label": "Amount", text: D.money(m.amount_cents) }),
           h("td", { "data-label": "Due", text: m.due_date ? D.date(m.due_date) : "-" }), h("td", { "data-label": "Deliverables", text: m.deliverables || "" }));
       })));
-    c.appendChild(h("h3", { text: "Milestones" }));
+    c.appendChild(h("h3", null, D.term("Milestones", "milestone")));
     c.appendChild(t);
-    c.appendChild(h("h3", { text: "Fees" }));
+    c.appendChild(h("h3", null, D.term("Fees", "platform_fee")));
     c.appendChild(h("ul", null, (r.fee_lines || []).map(function (l) { return h("li", { text: l }); })));
     var rub = h("details", null, h("summary", { text: "Completion checklist (how DELA checks each milestone)" }),
       h("p", { class: "small muted", text: "Agreed at signing. A score of " + ((b.limits || {}).pass_score || 90) + " or more with every required item met passes, then the attorney reviews it. DELA's check is not a legal review." }));
@@ -5143,7 +5179,7 @@
         eng.editing = false; engReload("Version " + x.version + " sent. Both of you sign it next.");
       }).catch(function (e) { send.disabled = false; engFail(e); });
     });
-    c.appendChild(h("h3", { text: "Milestones" }));
+    c.appendChild(h("h3", null, D.term("Milestones", "milestone")));
     c.appendChild(rows);
     c.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { row({}); } }, "Add a milestone"));
     c.appendChild(field("Included", inc));
@@ -5272,7 +5308,7 @@
   }
 
   function disputeCard(r) {
-    var a = r.agreement, c = h("div", { class: "card" }, h("h2", { text: "Problems, disputes and canceling" }));
+    var a = r.agreement, c = h("div", { class: "card" }, h("h2", null, D.term("Problems, disputes and canceling", "dispute")));
     var open = (r.disputes || []).filter(function (d) { return d.status === "notice" || d.status === "team_review"; })[0];
     (r.disputes || []).forEach(function (d) {
       c.appendChild(h("p", { class: "small", text: (d.status === "notice" ? "Open dispute: talk it through in Messages until " + D.dateTime(d.notice_ends_at) + ", then the Lawfecta Team reviews it." : d.status === "team_review" ? "The Lawfecta Team is reviewing the dispute." : d.status === "resolved" ? "Decided: " + d.resolution_note + " (" + D.money(d.release_cents) + " to the freelancer, " + D.money(d.refund_cents) + " back to the attorney)" : "Withdrawn.") + " Reason given: " + d.reason }));
@@ -6324,6 +6360,9 @@
     }).catch(pbFail);
   }
 
+  // Each fix button says what it fixes (UX review D03), for example "Fix it: Each step starts with a verb"
+  function fixLabel(it) { var l = String(it.label || "").split(":")[0]; return "Fix it: " + (l.length > 48 ? l.slice(0, 46) + "..." : l); }
+
   function reviewScreen(area, d, ck, edit) {
     var P = lib.pb.playbook;
     var grid = h("div", { class: "doc-grid" });
@@ -6332,7 +6371,7 @@
     area.appendChild(grid);
     // The quality panel
     var blocked = ck.blocking > 0;
-    var qp = h("div", { class: "card", id: "quality-check" }, h("h2", { text: "Quality check" }), h("p", { class: "small muted", text: "Blocking items are required before approval. Needs attention items are suggestions. These checks look at how the document is written; they do not confirm it is legally correct." }),
+    var qp = h("div", { class: "card", id: "quality-check" }, h("h2", null, D.term("Quality check", "raci")), h("p", { class: "small muted", text: "Blocking items are required before approval. Needs attention items are suggestions. These checks look at how the document is written; they do not confirm it is legally correct." }),
       h("p", { class: blocked ? "notice bad" : "small muted", text: blocked ? "Export, approval and Flex Gigs are blocked until the items marked \"Required before approval\" are fixed." : ck.attention ? "Nothing blocks this document. Look at the items marked \"Suggestion\"." : "Every check passes." }));
     var passed = (ck.items || []).filter(function (it) { return it.status === "pass"; });
     var passBox = h("details", { class: "small" }, h("summary", { text: passed.length + " checks passed" }));
@@ -6341,15 +6380,15 @@
       var row = h("div", { class: "qp-item " + it.status, style: "margin:6px 0" }, h("div", { class: "row" }, h("b", { class: "grow", text: mark + " " + it.label }),
         h("span", { class: "badge " + (it.status === "pass" ? "ready" : it.status === "blocking" ? "bad" : "held"), text: it.status === "pass" ? "Passed" : it.status === "blocking" ? "Required before approval" : "Suggestion" })),
         it.detail ? h("div", { class: "small", text: it.detail }) : null);
-      if (it.status !== "pass" && it.fix === "image" && edit) { row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { fixImageItem(it, d); } }, "Fix it")); (it.status === "pass" ? passBox : qp).appendChild(row); return; }
+      if (it.status !== "pass" && it.fix === "image" && edit) { row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { fixImageItem(it, d); } }, fixLabel(it))); (it.status === "pass" ? passBox : qp).appendChild(row); return; }
       if (it.status !== "pass" && it.fix && edit) row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function (e) {
         var b = e.target; b.disabled = true; b.textContent = it.fix === "split" ? "Splitting..." : "Fixing...";
         api.post("/documents/fix", { id: P.id, check_id: it.id }).then(function (r) {
           if (!r.ok) throw r;
           lib.doc = null; lib.docNotices = (r.notices || []).concat(r.created && r.created.length ? ["Split into linked SOPs. New: " + r.created.map(function (c) { return c.title; }).join(", ") + "."] : []);
           openPlaybook(P.id, "read");
-        }).catch(function (x) { b.disabled = false; b.textContent = it.fix === "split" ? "Split into linked SOPs" : "Fix it"; pbFail(x); });
-      } }, it.fix === "split" ? "Split into linked SOPs" : "Fix it"));
+        }).catch(function (x) { b.disabled = false; b.textContent = it.fix === "split" ? "Split into linked SOPs" : fixLabel(it); pbFail(x); });
+      } }, it.fix === "split" ? "Split into linked SOPs" : fixLabel(it)));
       (it.status === "pass" ? passBox : qp).appendChild(row);
     });
     if (passed.length) qp.appendChild(passBox);
@@ -7161,7 +7200,7 @@
       var card = h("div", { class: "card", id: "usage-card" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Your plan: " + u.plan }), upgradeButton(u)));
       usageLines(u).forEach(function (l) {
         var p = usagePct(l.used, l.limit);
-        card.appendChild(h("div", { style: "margin:14px 0" }, h("div", { class: "row" }, h("b", { class: "grow", text: l.label }), h("span", { class: "small", text: l.text })),
+        card.appendChild(h("div", { style: "margin:14px 0" }, h("div", { class: "row" }, h("b", { class: "grow" }, l.key === "actions" ? D.term(l.label, "dela_actions") : l.key === "playbooks" && (u.locked_ids || []).length ? D.term(l.label, "read_only") : l.label), h("span", { class: "small", text: l.text })),
           l.limit ? h("div", { class: "bar", role: "progressbar", "aria-label": l.label, "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(p) }, h("span", { style: "width:" + p + "%" + (p >= 100 ? ";background:var(--bad)" : p >= (u.warn_pct || 80) ? ";background:#d9a400" : "") })) : null));
       });
       card.appendChild(h("p", { class: "small muted", text: "DELA actions reset on " + D.date(u.resets_on) + ". A larger task, such as drafting a whole document, uses more than a short answer. Actions on your own AI key do not count. Viewing, exporting and assigning documents, messaging freelancers, posting gigs, hiring and paying are never limited." }));

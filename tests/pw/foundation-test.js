@@ -32,7 +32,7 @@ async function open(browser, widget, uid, plan, opts) {
 // Text inside the DELA shadow root
 // Opens a folded admin section by its id (sections remember their state only inside one browser)
 async function unfold(page, id) {
-  await dela(page).locator("#sec-" + id).evaluate((el) => { if (el.hidden) el.parentElement.querySelector("button[aria-controls]").click(); });
+  await dela(page).locator("#sec-" + id).evaluate((el, sid) => { if (el.hidden) el.parentElement.querySelector('button[aria-controls="sec-' + sid + '"]').click(); }, id);
   await page.waitForTimeout(200);
 }
 

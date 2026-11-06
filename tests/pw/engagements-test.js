@@ -51,6 +51,10 @@ async function makeMember(bd, side, plan) {
     insert into access_list (bd_member_id, channel) select ${bd}, 'access' where not exists (select 1 from access_list where bd_member_id = ${bd} and channel = 'access' and revoked_at is null); select 1`);
 }
 async function sign(page, name, version) {
+  // Every signature shows what is being agreed to first (UX review part 3)
+  const box = await dela(page).locator("#commitment").innerText().catch(() => "");
+  if (!box.includes("What you are agreeing to") || !box.includes("Keep all work, messages and payment on Lawfecta.")) throw new Error("FAILED: no commitment summary before signing: " + box);
+  passed++; console.log("ok the commitment summary shows before signing");
   await label(page, "Type your full name to sign").fill(name);
   await label(page, "I agree to sign electronically").check();
   await click(page, "Sign version " + version);

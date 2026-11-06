@@ -147,6 +147,66 @@
     setTimeout(measure, 0);
   };
 
+  // ---------- One accessible help tip for the member app and the admin (UX review part 3) ----------
+  // A "?" button that opens a short note under it: by click, tap or keyboard (Enter or Space); Escape closes it and
+  // returns focus to the button. The note is tied to the button with aria-controls and aria-describedby. Essential
+  // money, privacy and legal text always stays on the page; a tip only explains a word.
+  var tipN = 0;
+  D.helpTip = function (text, label, onToggle, startOpen) {
+    if (!text) return [null, null];
+    var id = "dela-tip-" + (++tipN);
+    var box = D.h("div", { class: "helpbox", role: "note", id: id, hidden: !startOpen, text: text });
+    var btn = D.h("button", { class: "help-q", type: "button", "aria-label": label || "What does this mean?", "aria-expanded": String(!!startOpen), "aria-controls": id, "aria-describedby": id }, "?");
+    function set(open) { box.hidden = !open; btn.setAttribute("aria-expanded", String(open)); if (onToggle) onToggle(open); }
+    btn.addEventListener("click", function (e) { e.stopPropagation(); set(box.hidden); });
+    function esc(e) { if (e.key === "Escape" && !box.hidden) { e.stopPropagation(); set(false); btn.focus(); } }
+    btn.addEventListener("keydown", esc);
+    box.addEventListener("keydown", esc);
+    return [btn, box];
+  };
+  // Words members meet on many screens, each checked against what DELA really does (2026-11-06)
+  D.HELP = {
+    verified: "The Lawfecta Team checked this person: an attorney's bar license, or a freelancer's identity and LinkedIn profile. It does not rate the quality of their work.",
+    match_ready: "Verified, profile complete and availability confirmed in the last 14 days. Only match-ready freelancers show in Talent and gig matches.",
+    bench: "Freelancers an agency hires for its own clients' work under a signed bench agreement. They never use a team seat, and the attorney never sees the agency's share.",
+    platform_fee: "Lawfecta's fee on each engagement: a percentage of the price, with a minimum. The client's fee is added to what they pay; the freelancer's fee comes out of their payouts.",
+    milestone: "A part of the work with its own price and due date. The client pays it through Lawfecta before work starts, and the money is held until the client accepts it.",
+    checklist: "The points DELA checks in each milestone's completion statement before the client reviews it. It is agreed at signing. DELA's check is not a legal review.",
+    dela_check: "DELA scores the completion statement against the checklist. A pass needs the agreed score and every required point. The client still reviews the work.",
+    dispute: "A way to settle a problem with held money. You talk it through in Messages for the notice period, then the Lawfecta Team decides. It is not a court or arbitration.",
+    weekly_units: "How a monthly engagement is checked and paid: the month splits into units, each accepted and paid out like a milestone. They are not a weekly limit.",
+    billing_day: "The day of the month a monthly engagement renews, set by the day month 1 is paid. The saved payment method is charged once on that day.",
+    dela_actions: "DELA's AI use on Lawfecta's AI each month. A larger task, such as drafting a whole document, uses more than a short answer. Your own AI key uses none.",
+    read_only: "Your plan saves fewer documents than you have. The most recently edited ones stay editable; the rest can be viewed, exported and assigned, not edited.",
+    sensitive: "Social Security and ID numbers, financial account numbers, health information, biometric data, and logins or passwords. Never upload them to DELA; link to your own storage.",
+    confidential: "A private area on an engagement for client files and secure links, open only to the attorney and the hired freelancer, after signing and the first payment.",
+    subcontractors: "Vetted Lawfecta freelancers an agency brings onto a job. The agency stays responsible for them, and everyone is listed under Who's working on this.",
+    raci: "Who does each step: R does the work, A is accountable and approves (exactly one per step), C is consulted, I is kept informed.",
+    doc_types: "Policy: a rule the firm follows. Workflow: steps across roles. SOP: one task, step by step. Playbook: how to handle a situation that needs judgment.",
+    next_review: "The date the document should be checked again: 12 months after approval, or 3 months for high-risk documents about trust money, conflicts or deadlines.",
+    proposal_allowance: "How many proposals you can send this month on your plan. It resets on the 1st. Proposals to gigs you were invited to do not count.",
+    agency_share: "The part of the freelancer's payout an agency keeps on a bench job, agreed in the bench agreement. The attorney never sees it."
+  };
+  // One look for every AI action (UX review part 3): any button whose label starts with the ✦ sign gets the AI style,
+  // including buttons drawn later. Members can always tell which actions use DELA's AI (and AI credits).
+  D.markAi = function (root) {
+    function mark(node) {
+      if (!node || !node.querySelectorAll) return;
+      var list = node.matches && node.matches("button") ? [node] : node.querySelectorAll("button");
+      Array.prototype.forEach.call(list, function (b) { if ((b.textContent || "").trim().charAt(0) === "✦" && b.className.indexOf("ai-btn") < 0) b.className += " ai-btn"; });
+    }
+    mark(root);
+    if (window.MutationObserver) new MutationObserver(function (ms) { ms.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes, mark); }); }).observe(root, { childList: true, subtree: true });
+  };
+  // A label for text DELA's AI wrote, so it is never mistaken for a person's words
+  D.aiLabel = function () { return D.h("span", { class: "badge ai-label", text: "AI suggestion" }); };
+
+  // A label with its help tip after it, for headings and short terms
+  D.term = function (label, key, tag) {
+    var t = D.helpTip(D.HELP[key], "What does " + label.toLowerCase() + " mean?");
+    return D.h("span", { class: "term" }, D.h(tag || "span", { text: label }), t[0] ? " " : null, t[0], t[1]);
+  };
+
   D.toast = function (app, text, bad) {
     var t = D.h("div", { class: "toast" + (bad ? " bad" : ""), role: "status", text: text });
     app.appendChild(t);
@@ -297,6 +357,8 @@
     ".img-stage{position:relative;display:inline-block;margin:8px 0;max-width:100%;line-height:0}.img-canvas{display:block;max-width:100%;height:auto;cursor:crosshair;touch-action:none;border:1px solid var(--line);border-radius:10px}.img-over{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}.img-flagbar{background:#fff7cc;border:1px solid #f5c518;border-radius:10px;padding:8px 12px;margin:6px 0}.img-toolbar{gap:6px;flex-wrap:wrap}" +
     ".msg{max-width:80%;margin:8px 0;padding:10px 12px;border-radius:14px;background:var(--bg);border:1px solid var(--line)}.msg.mine{margin-left:auto;background:var(--bluebg);border-color:#b9d9f4}" +
     ".tool-group{border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin:6px 0;background:var(--card)}.tool-group summary{cursor:pointer;list-style:revert}" +
+    "button.ai-btn{border-color:#7a4b8c;color:#5a2d6b;background:#f7f0fa}button.ai-btn.blue{background:#5a2d6b;color:#fff;border-color:#5a2d6b}.badge.ai-label{background:#f7f0fa;color:#5a2d6b;border:1px solid #d8c2e2}" +
+    ".term .helpbox{display:block}.term .helpbox[hidden]{display:none}.help-q:focus-visible{outline:3px solid var(--blue);outline-offset:2px}" +
     ".help-q{width:22px;height:22px;min-height:0;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:12px;font-weight:700;line-height:1;cursor:pointer}.help-q:hover,.help-q[aria-expanded=true]{color:var(--ink);border-color:var(--ink)}",
     "button,.btn{font:inherit;font-weight:700;border-radius:999px;border:1.5px solid var(--brand);background:var(--brand);color:var(--brand-ink);padding:10px 20px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;line-height:1.2}",
     "button.blue,.btn.blue{background:var(--blue);border-color:var(--blue);color:#fff}",

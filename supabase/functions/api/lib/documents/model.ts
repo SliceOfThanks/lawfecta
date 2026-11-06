@@ -271,6 +271,12 @@ export function vagueWords(text: string): string[] {
   }
   return found;
 }
+// "If the client signs, send the letter." is a clear action: a condition before the comma, then a verb (UX review D03)
+const CONDITION = /^(if|when|after|before|once|unless)\b[^,]{1,160},\s*/i;
+function notVerb(text: string): boolean {
+  const t = String(text ?? "").trim(), rest = t.replace(CONDITION, "");
+  return rest !== t ? rest === "" || NOT_VERB.test(rest) : NOT_VERB.test(t);
+}
 const NOT_VERB = /^(the|a|an|this|that|these|our|your|their|it|if|when|after|before|once|client|clients|attorney|paralegal|staff|we|you|they|he|she|there|all|each|every|step|note|in|on|for|to)\b/i;
 export const RULE_WORDS = /\b(rule|rules of|statute|code §|§|frcp|local rule|court rule|filing deadline|deadline to file|days (after|before|from) (service|filing|entry|judgment)|statute of limitations|limitations period)\b/i;
 const MENU_PLACEHOLDER = "[Add the menu path in your system]";
@@ -317,7 +323,7 @@ export function checkDoc(b: DocBody, c: CheckContext): { items: CheckItem[]; blo
     add("names", "Roles, not people's names", named.length > 0, "Names found: " + named.join(", ") + ". Use roles; people leave.", "code");
   }
   if (b.steps.length) {
-    const verbs = b.steps.map((st, i) => (NOT_VERB.test(st.text) ? i + 1 : 0)).filter(Boolean);
+    const verbs = b.steps.map((st, i) => (notVerb(st.text) ? i + 1 : 0)).filter(Boolean);
     add("verbs", b.type === "workflow" ? "Each stage starts with a verb" : "Each step starts with a verb", verbs.length > 0, "Steps " + verbs.join(", ") + " do not start with a verb.", "ai", "attention", verbs);
     const multi = b.steps.map((st, i) => (/\band then\b|;\s*\w|\.\s+[A-Z][a-z]+\s/.test(st.text) ? i + 1 : 0)).filter(Boolean);
     add("one_action", "One action per step", multi.length > 0, "Steps " + multi.join(", ") + " hold more than one action.", "ai", "attention", multi);
