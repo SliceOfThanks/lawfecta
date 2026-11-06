@@ -91,7 +91,8 @@ const SENS = "This job involves sensitive data (SSN, medical, financial, or ID d
     await click(s.page, "Share a file from Files");
     await waitFor(s.page, "Welcome template.txt");
     await dela(s.page).getByRole("button", { name: "Share", exact: true }).first().click();
-    t = await waitFor(s.page, "Freelancer access until");
+    t = await waitFor(s.page, "Access expires after");
+    ok(t.includes("Expiry cannot recall a copy someone already downloaded."), "the gig file card says expiry cannot recall a downloaded copy (UX review G03)");
     const exp = (await sql(`select expires_at from gig_files where gig_id = '${gig}'`))[0].expires_at;
     ok(Math.abs((new Date(exp) - Date.now()) / 86400000 - 7) < 0.1, "shared for the 7 days picked");
     // The answer stays on the card, and the 7 days picked stay picked (ChatGPT re-test 2026-11-05)
@@ -129,7 +130,7 @@ const SENS = "This job involves sensitive data (SSN, medical, financial, or ID d
     await conf(s.page).getByLabel("Freelancer can open it for").selectOption("30");
     await click(s.page, "Upload");
     t = await waitFor(s.page, "Roe intake.txt", 10000);
-    await waitFor(s.page, "Freelancer access until");
+    await waitFor(s.page, "access until");
     ok((await sql(`select count(*)::int n from conf_files where agreement_id = '${ag}' and expires_at > now() + interval '29 days'`))[0].n === 1, "the 30 days picked");
     await pick.setInputFiles({ name: "ids.txt", mimeType: "text/plain", buffer: Buffer.from("Client SSN 123-45-6789") });
     await label(s.page, "This file contains no medical records, ID documents, account numbers, logins or biometric data.").check();

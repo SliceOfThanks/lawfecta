@@ -75,7 +75,7 @@ const DOC = (title) => JSON.stringify({ schema: 2, type: "sop", title, lifecycle
     await label(s.page, "How long does it take each time?").fill("60");
     await click(s.page, "✦ Find what to automate or delegate");
     t = await waitFor(s.page, "DELA found 2 to look at.", 10000);
-    ok(t.includes("Collect and log intake forms") && t.includes("Steps 1 to 2") && t.includes("Time saved: about 2 hours a month"), "a delegate suggestion with its steps and time saved");
+    ok(t.includes("Collect and log intake forms") && t.includes("Steps 1 to 2") && t.includes("Estimated time saved: about 2 hours a month") && t.includes("2 ideas"), "a delegate suggestion with its steps and time saved");
     ok(t.includes("Tool: Clio. Already in your firm profile.") && !t.includes("All of it"), "a tool from the firm's systems; the whole document is never suggested");
     ok(t.includes("Logs each returned form.") && !(await dela(s.page).locator("#automate-card").innerText()).includes(".."), "Fix: one period at the end of each sentence");
     ok(t.includes("Add this tool to the steps") && t.includes("Hire a freelancer to set it up"), "the Automate path's actions");
@@ -110,6 +110,7 @@ const DOC = (title) => JSON.stringify({ schema: 2, type: "sop", title, lifecycle
     ok(t.includes("Gig drafted, not posted yet."), "the parent shows what was delegated, and that its gig is not posted");
     const recRow = await dela(s.page).locator("#automate-card .soft").filter({ hasText: "Collect and log intake forms" }).innerText();
     ok(recRow.includes("Gig drafted") && recRow.includes("View gig") && !recRow.includes("Delegate these steps"), "a suggestion already delegated shows its gig, not a new idea (UX review D02)");
+    ok((await dela(s.page).locator("#automate-summary").innerText()).includes("1 already delegated"), "the summary line counts what is already delegated");
     await s.page.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=library&pb=${pb2}`);
     await waitFor(s.page, "DELA can find steps in this playbook");
     await dela(s.page).locator("#automate-card").getByText("Dismiss", { exact: true }).click();

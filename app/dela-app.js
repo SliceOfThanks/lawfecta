@@ -992,7 +992,7 @@
     card.appendChild(h("h3", { text: "About you" }));
     card.appendChild(textIn("first_name", "First name", { required: need("first_name"), help: "Your first name as you want members to see it." }));
     card.appendChild(textIn("last_name", "Last name", { required: need("last_name"), help: "Your last name as you want members to see it." }));
-    card.appendChild(textIn("headline", "Headline", { required: need("headline"), ai: true, help: "One short line under your name: your role and the main kind of work you do. For example: Litigation paralegal for small firms.", placeholder: side === "attorney" ? "Family law attorney in Austin" : "Litigation paralegal, e-filing and discovery" }));
+    card.appendChild(textIn("headline", "Headline", { required: need("headline"), ai: true, help: "One short line under your name: your role and the main kind of work you do. For example: " + (side === "attorney" ? "Family law attorney for Texas families." : "Litigation paralegal for small firms."), placeholder: side === "attorney" ? "Family law attorney in Austin" : "Litigation paralegal, e-filing and discovery" }));
     card.appendChild(textIn("firm_name", side === "attorney" ? "Firm name" : "Company or agency", { required: need("firm_name"), help: side === "attorney" ? "The firm name clients and courts know you by." : "Your business name, if you work through one. Leave empty if you work under your own name." }));
     if (side === "attorney") card.appendChild(textIn("firm_role", "Your role at the firm", { help: "For example owner, partner, associate or of counsel.", placeholder: "Owner, partner, associate" }));
     card.appendChild(textIn("city", "City", { required: need("city"), help: "The city you work from." }));
@@ -1017,8 +1017,8 @@
     card.appendChild(field("Practice areas" + (need("practice_areas") ? "" : " (optional)"), areas));
     if (side === "attorney") card.appendChild(textIn("jurisdictions", "Where you are licensed or practice", { list: true, required: need("jurisdictions"), placeholder: "TX, Western District of Texas", hint: "Separate them with commas." }));
     card.appendChild(textIn("summary", "Summary", { area: true, rows: 5, required: need("summary"), ai: true, help: side === "attorney" ? "A short paragraph about your practice: what you handle, for whom, and how you like to work with support staff." : "A short paragraph about you: the work you do, for which kinds of firms, how you work and what you are known for. No client names or case details." }));
-    card.appendChild(textIn("experience", "Experience", { area: true, required: need("experience"), ai: true, help: "Your roles or kinds of work, newest first, one per line, with years. For example: Senior paralegal, family law firm, 2019 to now." }));
-    card.appendChild(textIn("education", "Education", { area: true, rows: 3, required: need("education"), ai: true, help: "Degrees, certificates and courses, one per line, with the school and year. For example: Paralegal certificate, Austin Community College, 2018." }));
+    card.appendChild(textIn("experience", "Experience", { area: true, required: need("experience"), ai: true, help: "Your roles or kinds of work, newest first, one per line, with years. For example: " + (side === "attorney" ? "Founding attorney, Smith Family Law, 2019 to now." : "Senior paralegal, family law firm, 2019 to now.") }));
+    card.appendChild(textIn("education", "Education", { area: true, rows: 3, required: need("education"), ai: true, help: "Degrees, certificates and courses, one per line, with the school and year. For example: " + (side === "attorney" ? "J.D., University of Texas School of Law, 2012." : "Paralegal certificate, Austin Community College, 2018.") }));
     var none = h("input", { type: "checkbox", checked: !!b.software_none });
     none.addEventListener("change", function () { prof.body.software_none = none.checked; prof.dirty = true; });
     card.appendChild(toolsPicker(r.tech_tools || [], need("software"), r.tech_groups));
@@ -3141,7 +3141,9 @@
       box.appendChild(h("h2", { text: "Freelancers who fit" }));
       box.appendChild(h("p", { class: "small muted", text: "Only match-ready freelancers who confirmed their availability in the last 14 days, work in this practice area and do not exclude this state. DELA shows fewer people rather than inactive ones. Inviting someone lets them see the full document and send a proposal that does not use their monthly allowance." }));
       if (!x.ok) { box.appendChild(h("p", { class: "notice", text: gigErr(x) })); return; }
-      if (!x.matches.length) box.appendChild(h("p", { class: "muted", text: "No one fits yet. Check back soon, widen the practice area or tools, or search in Talent." }));
+      if (!x.matches.length) box.appendChild(h("div", null, h("p", { class: "muted", text: "No one fits yet. Check back soon, widen the practice area or tools, or search in Talent." }),
+        h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: function () { tab = "talent"; gigs.id = null; draw(); } }, "Search Talent"),
+          h("button", { class: "ghost small", type: "button", onclick: function () { gigs.view = "details"; draw(); } }, "Review gig requirements"))));
       gigBenchCard(box, g);
       x.matches.forEach(function (m) {
         var msg = h("input", { style: "width:100%", "aria-label": "Message to " + m.name + " (optional)", placeholder: "A short note (optional). Keep everything on Lawfecta." });
@@ -3204,7 +3206,7 @@
           return h("tr", null,
             h("td", { "data-label": "Freelancer" }, p.agency ? agencyOnProposal(p.agency) : null, p.agency ? h("div", { class: "small muted", text: "Sent by " + p.name }) : h("b", { text: p.name }), p.invited ? h("div", { class: "small muted", text: "Invited" }) : null, p.headline ? h("div", { class: "small", text: p.headline }) : null, (p.match_reasons || []).length ? h("div", { class: "small muted", text: p.match_reasons.join(" | ") }) : null),
             h("td", { "data-label": "Price" }, h("b", { text: D.money(p.price_cents) }), h("div", null, h("span", { class: "badge " + lab[0], text: lab[1] }))),
-            h("td", { "data-label": "Includes", text: p.included }), h("td", { "data-label": "Leaves out", text: p.excluded || "Nothing stated" }),
+            h("td", { "data-label": "Includes", text: p.included }), h("td", { "data-label": "Leaves out", text: p.excluded || "Not specified. Confirm before signing." }),
             h("td", { "data-label": "Schedule", text: p.schedule + (p.days_to_deliver ? " (" + p.days_to_deliver + " days)" : "") }),
             h("td", { "data-label": "Qualifications" }, p.qualifications, p.message ? h("div", { class: "small muted", text: "Note: " + p.message }) : null), h("td", null, act));
         })))));
@@ -3266,9 +3268,9 @@
     if (gigFilesLast && gigFilesLast.gig === g.id && Date.now() - gigFilesLast.at < 10 * 60 * 1000) box.appendChild(h("p", { class: "notice small ok gig-files-status", role: "status", text: gigFilesLast.text }));
     box.appendChild(sensitiveBox(g.id, !!r.sensitive, function () { draw(); }));
     if (r.sensitive) box.appendChild(h("p", { class: "notice", text: "This job involves sensitive data, so files cannot be shared here. Once you hire and the first milestone is paid, add secure document links in Confidential materials on the engagement." }));
-    else box.appendChild(h("p", { class: "small muted", text: "Read only, for this gig only. Each file is open to invited freelancers and the freelancer you hire until it expires (you pick 7, 14 or 30 days) or the job is complete, whichever comes first. Your copy stays in your Files tab. Every download is logged." }));
+    else box.appendChild(h("p", { class: "small muted", text: "Read only, for this gig only. Each file is open to invited freelancers and the freelancer you hire until it expires (you pick 7, 14 or 30 days) or the job is complete, whichever comes first. Your copy stays in your Files tab. Every download is logged. Expiry cannot recall a copy someone already downloaded." }));
     r.files.forEach(function (f) {
-      var when = f.expired ? "Freelancer access ended " + D.date(f.expires_at) : "Freelancer access until " + D.date(f.expires_at);
+      var when = f.expired ? "Access ended " + D.date(f.expires_at) : "Access expires after " + D.date(f.expires_at) + " for invited freelancers and the one you hire";
       box.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, h("span", { class: "grow" }, f.name, h("span", { class: "small " + (f.expired ? "bad" : "muted"), text: " | " + when })),
         h("button", { class: "ghost small", type: "button", onclick: function () {
           api.post("/gigs/files/extend", { gig_id: g.id, file_id: f.file_id }).then(gigOk).then(function (x) { gigFilesSay(g.id, "Extended to " + D.date(x.expires_at)); draw(); }).catch(gigFail);
@@ -3994,7 +3996,7 @@
     if (/^[0-9a-f-]{36}$/.test(tq.get("thread") || "")) talk.thread = tq.get("thread");
     if (/^[0-9a-f-]{36}$/.test(tq.get("meeting") || "")) talk.meeting = tq.get("meeting");
   } catch (e) { /* no deep link */ }
-  var MEET_STATUS = { held: "Held, not confirmed", confirmed: "Booked", completed: "Done", canceled: "Canceled", rescheduled: "Moved", no_show: "Did not happen" };
+  var MEET_STATUS = { held: "Held, not confirmed", confirmed: "Time confirmed", completed: "Done", canceled: "Canceled", rescheduled: "Moved", no_show: "Did not happen" };
   var ATTEND = { unverified: "Not confirmed yet", evidence_received: "One person confirmed", verified: "Both confirmed: you met", disputed: "You disagree on whether it happened" };
   var TALK_ERR = {
     chat_off: "Messages are not open for your account yet.", meetings_off: "Booking is not open for your account yet.", blocked: "This conversation is blocked.",
@@ -4013,7 +4015,13 @@
   }
   function dayLabel(iso) { return new Date(iso).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); }
   function timeLabel(iso) { return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }); }
-  function whenLabel(iso, len) { return dayLabel(iso) + ", " + timeLabel(iso) + " (" + len + " minutes, your time)"; }
+  // Meetings show the full date with the year and the viewer's own time zone by name (UX review I02)
+  function zoneName(iso) {
+    try { var p = new Intl.DateTimeFormat("en-US", { timeZoneName: "long" }).formatToParts(new Date(iso)).filter(function (x) { return x.type === "timeZoneName"; })[0]; return p ? p.value : "your time"; } catch (e) { return "your time"; }
+  }
+  function whenLabel(iso, len) {
+    return new Date(iso).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }) + ", " + timeLabel(iso) + " " + zoneName(iso) + " (" + len + " minutes)";
+  }
 
   // The Inbox: every thread with its unread count
   function inboxView() {
@@ -4198,7 +4206,7 @@
     var started = new Date(m.start_at).getTime() <= Date.now();
     if (m.status === "confirmed" && !started) {
       if (m.join_url) c.appendChild(h("a", { class: "btn blue", href: m.join_url, target: "_blank", rel: "noopener" }, "Join the meeting"));
-      else if (m.room_status !== "ready") c.appendChild(h("p", { class: "small muted", text: "The meeting room link appears here once Lawfecta's meeting service is connected. You both get it before the meeting." }));
+      else if (m.room_status !== "ready") c.appendChild(h("p", { class: "small muted", text: "Meeting room not connected yet. The link appears here once Lawfecta's meeting service is connected, and you both get it before the meeting." }));
       else c.appendChild(h("p", { class: "small muted", text: "The room opens at " + timeLabel(m.join_opens_at) + " on " + dayLabel(m.join_opens_at) + "." }));
       var consent = h("input", { type: "checkbox", checked: m.my_consent });
       consent.addEventListener("change", function () { api.post("/meetings/consent", { id: m.id, consent: consent.checked }).then(gigOk).then(function () { D.toast(app, consent.checked ? "Saved. Nothing is recorded unless you both agree." : "Saved"); }).catch(talkFail); });
@@ -4960,7 +4968,7 @@
     if ((r.money_summary || []).length) c.appendChild(h("div", { class: "notice ok", id: "money-summary" }, (r.money_summary || []).map(function (l, i) { return h("p", { style: "margin:" + (i ? "4px" : "0") + " 0 0;" + (i ? "" : "font-weight:700;font-size:1.1em"), text: l }); })));
     if (s.task) c.appendChild(h("p", null, h("b", { text: "The work: " }), s.task));
     if (s.included) c.appendChild(h("p", null, h("b", { text: "Included: " }), s.included));
-    if (s.excluded) c.appendChild(h("p", null, h("b", { text: "Not included: " }), s.excluded));
+    c.appendChild(h("p", null, h("b", { text: "Not included: " }), s.excluded || "Not specified. Confirm with the other person before signing."));
     if (s.schedule) c.appendChild(h("p", null, h("b", { text: "Schedule: " }), s.schedule));
     var t = h("table", { class: "stack", style: "width:100%" }, h("thead", null, h("tr", null, h("th", { text: "#" }), h("th", { text: "Milestone" }), h("th", { text: "Amount" }), h("th", { text: "Due" }), h("th", { text: "Deliverables" }))),
       h("tbody", null, (b.milestones || []).map(function (m) {
@@ -5875,7 +5883,7 @@
           card.appendChild(h("p", { class: "small muted", text: "Each review uses " + (me.side === "attorney" ? "your" : "the") + " AI credits (or your own AI key) once for this approved version." }));
         } else {
           var t = st.review.time || {};
-          card.appendChild(h("p", { class: "small muted", text: "DELA reviewed version " + st.review.version + ". " + (t.estimated ? "Time saved is Estimated by DELA" + (t.frequency ? " (" + (FREQ_WORDS[t.frequency] || "").toLowerCase() + ", about " + t.minutes + " minutes each time)" : "") + ". Add your own numbers for a better estimate." : "Time saved uses your answers.") }));
+          card.appendChild(h("p", { class: "small muted", text: "DELA reviewed version " + st.review.version + ". " + (t.estimated ? "Time saved is estimated by DELA" + (t.frequency ? " (" + (FREQ_WORDS[t.frequency] || "").toLowerCase() + ", about " + t.minutes + " minutes each time)" : "") + ". Add your own numbers for a better estimate." : "Time saved uses your answers.") }));
           var upd = h("button", { class: "ghost small", type: "button" }, "Update time saved");
           upd.addEventListener("click", function () {
             api.post("/automate/review", { playbook_id: pid, frequency: freq.value, minutes: mins.value ? Number(mins.value) : null }).then(function (x) { if (!x.ok) throw x; cardSay("automate", "Time saved updated."); load(); })
@@ -5883,12 +5891,17 @@
           });
           card.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;align-items:flex-end" }, boxes, upd));
           if (!(st.review.recommendations || []).length) card.appendChild(h("p", { class: "muted", text: "DELA found nothing to automate or delegate in this version." }));
+          else {
+            // One line that says where things stand (UX review D02)
+            var recs = st.review.recommendations, handed = recs.filter(function (x) { return (st.delegations || []).some(function (d) { return d.rec_id === x.id; }); }).length;
+            card.appendChild(h("p", { class: "small", style: "font-weight:700", id: "automate-summary", text: recs.length + (recs.length === 1 ? " idea" : " ideas") + (handed ? " | " + handed + " already delegated" : "") }));
+          }
           (st.review.recommendations || []).forEach(function (r) {
             var row = h("div", { class: "soft", style: "margin:8px 0" },
               h("div", { class: "row" }, h("span", { class: "badge " + (r.kind === "delegate" ? "ready" : ""), text: r.kind === "delegate" ? "Delegate" : "Automate" }), h("b", { class: "grow", text: " " + r.title }),
                 r.partner ? h("span", { class: "badge", text: "Lawfecta partner" }) : null),
               h("div", { class: "small", text: stepsText(r.steps) + (r.why ? ". " + r.why : "") }),
-              h("div", { class: "small", text: "Time saved: " + hoursText(r.hours_month) + (t.estimated ? " (Estimated by DELA)" : "") }));
+              h("div", { class: "small", text: "Estimated time saved: " + hoursText(r.hours_month) + (t.estimated ? " (estimated by DELA)" : " (from your numbers)") }));
             if (r.kind === "automate") row.appendChild(h("div", { class: "small", text: "Tool: " + r.tool + ". " + (r.in_firm ? "Already in your firm profile. " : "") + sentence(r.what_it_does) + (r.in_firm ? "" : sentence(r.tool_description)) }));
             else if ((r.skills || []).length) row.appendChild(h("div", { class: "small muted", text: "Skills: " + r.skills.join(", ") }));
             var acts = h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" });

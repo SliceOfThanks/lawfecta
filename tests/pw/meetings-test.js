@@ -109,7 +109,7 @@ async function makeMember(bd, side, plan) {
     t = await waitFor(p, "Times are shown in your own time zone");
     await dela(p).locator(".card[aria-label='Book a meeting'] .row button").first().click();
     t = await waitFor(p, "Your meetings", 10000).catch(() => text(p));
-    t = await waitFor(p, "Booked", 10000);
+    t = await waitFor(p, "Time confirmed", 10000);
     ok(t.includes("The room opens at") || t.includes("meeting service is connected"), "the page says when the room opens, or that the link comes once the meeting service is connected");
     ok((await sql(`select count(*)::int n from meetings where gig_id = '${gigId}' and status = 'confirmed'`))[0].n === 1, "one meeting booked");
     await p.screenshot({ path: path.join(SHOTS, "meeting-booked.png"), fullPage: true });
@@ -136,8 +136,8 @@ async function makeMember(bd, side, plan) {
     await s.ctx.close();
     s = await open(browser, "DELA-App", 2701, "&tab=meetings");
     p = s.page;
-    t = await waitFor(p, "Booked");
-    ok(t.includes("minutes, your time"), "the meeting shows in the freelancer's own time");
+    t = await waitFor(p, "Time confirmed");
+    ok(/(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), \w+ \d+, 20\d\d, .* (Time|Universal|Coordinated)/.test(t), "the meeting shows the full date with the year and the time zone by name (UX review I02)");
     await click(p, "Change the time");
     await waitFor(p, "Choose a new time");
     await waitFor(p, "Times are shown in your own time zone");
