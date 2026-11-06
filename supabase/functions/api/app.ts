@@ -1752,7 +1752,10 @@ async function profileGet(ctx: Ctx) {
   }
   const body = normalizeProfile(r.body);
   const photo_view_url = body.photo_file ? await storageOf(ctx).signDownload(body.photo_file, 86400).catch(() => "") : "";
-  return json(ctx, { ...r, body, photo_view_url, state: labelState(r.state), labels: LABELS, practice_areas: PRACTICE_AREAS, tech_tools: TECH_TOOLS, tech_groups: TECH_GROUPS, timezones: TIMEZONES });
+  // Which boxes Save copies to the directory listing (UX review R02): the fields in the listing map, named as on the form
+  const map = (await rpc<Record<string, string> | null>(ctx, "dela_setting", { p_key: "bd.profile_map" }).catch(() => null)) ?? {};
+  const directory_fields = Object.keys(map && typeof map === "object" ? map : {}).filter((k) => map[k] && LABELS[k]).map((k) => LABELS[k].replace(" (or tick none)", ""));
+  return json(ctx, { ...r, body, photo_view_url, directory_fields, state: labelState(r.state), labels: LABELS, practice_areas: PRACTICE_AREAS, tech_tools: TECH_TOOLS, tech_groups: TECH_GROUPS, timezones: TIMEZONES });
 }
 
 // What the member's Lawfecta listing holds now, to offer (never copied without the member choosing it)

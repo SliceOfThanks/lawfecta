@@ -1044,7 +1044,15 @@
       if (bdw) card.appendChild(h("p", { class: "small muted", text: bdw }));
       card.appendChild(h("p", { class: "small muted", text: "Clearing a box here does not clear it on your listing." }));
     }
+    // The Save button says where the change goes (UX review R02)
     var save = h("button", { class: "blue" }, "Save");
+    var dirList = h("p", { class: "small muted", id: "directory-fields" });
+    function saveLabel() {
+      var toListing = r.sync_on && dir.checked;
+      save.textContent = toListing ? "Save and update my directory listing" : r.sync_on ? "Save to DELA only" : "Save";
+      dirList.textContent = toListing && (r.directory_fields || []).length ? "These boxes also change on your directory listing: " + r.directory_fields.join(", ") + "." : "";
+    }
+    dir.addEventListener("change", saveLabel);
     function doSave(confirmed) {
       save.disabled = true; msg.textContent = "Saving...";
       api.post("/profile/save", { body: prof.body, version: r.version, directory: dir.checked, confirm_no_client_info: confirmed === true }).then(function (x) {
@@ -1061,6 +1069,8 @@
       }).catch(function (e) { save.disabled = false; msg.textContent = D.errorText(e.message); });
     }
     save.addEventListener("click", function () { doSave(false); });
+    saveLabel();
+    card.appendChild(dirList);
     card.appendChild(h("div", { class: "row", style: "margin-top:12px" }, save));
     card.appendChild(msg);
     return card;
@@ -5787,15 +5797,15 @@
       if (!list) return;
       var label = g === "OLD" ? "Waiting for the document standard" : (groups.filter(function (x) { return x.prefix === g; })[0] || {}).label || g;
       listEl.appendChild(h("h3", { text: (g === "OLD" ? "" : g + " | ") + label }));
-      listEl.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack", style: "width:100%" }, h("thead", null, h("tr", null, ["ID", "Title", "Type", "Owner (role)", "Status", "Next review", ""].map(function (t) { return h("th", { text: t }); }))),
+      listEl.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack", style: "width:100%" }, h("thead", null, h("tr", null, ["ID", "Title", "Type", "Owner (role)", "Status", "Next review", "Review"].map(function (t) { return h("th", { text: t }); }))),
         h("tbody", null, list.map(function (p) {
           var due = p.status === "approved" && p.next_review_at && p.next_review_at <= D.today();
           return h("tr", { style: "cursor:pointer", onclick: function () { openPlaybook(p.id, "read"); } },
-            h("td", { "data-label": "ID", text: p.doc_id || "" }), h("td", { "data-label": "Title" }, h("b", { text: p.title }), p.converted ? h("div", { class: "small", text: "Converted: check it" }) : null),
-            h("td", { "data-label": "Type", text: DOC_TYPE_WORDS[p.doc_type] || "Older playbook" }), h("td", { "data-label": "Owner (role)", text: p.owner_role || "" }),
+            h("td", { "data-label": "ID", text: p.doc_id || "" }), h("td", { "data-label": "Title" }, h("b", { text: p.title }), p.converted ? h("div", { class: "small", text: "Imported: review required" }) : null),
+            h("td", { "data-label": "Type", text: DOC_TYPE_WORDS[p.doc_type] || "Older playbook" }), h("td", { "data-label": "Owner (role)", text: p.owner_role || "Not assigned" }),
             h("td", { "data-label": "Status" }, h("span", { class: "badge " + (p.status === "approved" ? "ready" : p.status === "in_review" ? "held" : ""), text: PB_STATUS[p.status] })),
-            h("td", { "data-label": "Next review", text: p.next_review_at ? D.date(p.next_review_at) + (due ? " (due)" : "") : "" }),
-            h("td", { "data-label": "", text: p.blocking ? p.blocking + " blocking" : p.attention ? p.attention + " to look at" : "" }));
+            h("td", { "data-label": "Next review", text: p.next_review_at ? D.date(p.next_review_at) + (due ? " (due)" : "") : "Not scheduled" }),
+            h("td", { "data-label": "Review", text: p.blocking ? "Review " + p.blocking + (p.blocking === 1 ? " issue" : " issues") : p.attention ? p.attention + (p.attention === 1 ? " suggestion" : " suggestions") : "None" }));
         })))));
     });
   }

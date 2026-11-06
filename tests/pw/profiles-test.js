@@ -238,7 +238,13 @@ async function waitFor(page, words, ms) {
     await p.reload();
     await waitFor(p, "Also update my Lawfecta directory listing");
     await label(p, "Usual hours").fill("Weekdays 9 to 5 Central");
-    await click(p, "Save");
+    // The Save button says where the change goes, and which boxes change on the listing (UX review R02)
+    await label(p, "Also update my Lawfecta directory listing").uncheck();
+    ok(await dela(p).getByRole("button", { name: "Save to DELA only", exact: true }).count() === 1, "unticked, the button says Save to DELA only");
+    await label(p, "Also update my Lawfecta directory listing").check();
+    const dirNote = await dela(p).locator("#directory-fields").innerText();
+    ok(dirNote.includes("These boxes also change on your directory listing:") && dirNote.includes("First name"), "ticked, it lists the boxes that change on the listing: " + dirNote);
+    await click(p, "Save and update my directory listing");
     await waitFor(p, "Your listing is being updated");
     await worker(1);
     const sent = new URLSearchParams((await (await fetch(BASE + "/test/bd-update")).json()).body);
