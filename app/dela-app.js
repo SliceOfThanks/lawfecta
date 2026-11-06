@@ -3028,22 +3028,57 @@
           }).catch(function (x) { go.disabled = false; go.textContent = "Draft the gig with DELA"; gigFail(x); });
         }, function () { tab = "library"; lib.pb = null; draw(); setTimeout(function () { openPlaybook(chosen.id, "read"); }, 50); });
       });
-      el.appendChild(h("div", { class: "card" }, h("h2", { text: "Post a new gig" }),
+      // The new gig form opens on request once there is work to manage (UX review P01); it starts open with no gigs yet
+      var formOpen = gigs.formOpen || !r.gigs.some(function (g) { return g.status === "open" || g.status === "draft"; }) || !!gigs.newFrom || !!gigs.linkTo || !!gigs.pendingInvite;
+      if (!formOpen) el.appendChild(h("div", { class: "card", id: "new-gig-card" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Post a new gig" }),
+        h("button", { class: "blue small", type: "button", onclick: function () { gigs.formOpen = true; draw(); } }, "Start a new gig")),
+        h("p", { class: "small muted", style: "margin:6px 0 0", text: "Turn an approved SOP or Workflow into a Flex Gig. One-off or monthly." })));
+      else el.appendChild(h("div", { class: "card", id: "new-gig-card" }, h("h2", { text: "Post a new gig" }),
         h("p", { class: "small muted", text: "DELA writes a public version of the document for freelancers. You check it, set the budget (at least " + D.money(r.min_budget_cents) + ") and the deadline, then post. Open gigs on your plan: " + (al.unlimited ? "no cap" : (al.used || 0) + " of " + al.limit + " in use") + "." }),
         gigs.linkTo ? h("p", { class: "notice", text: "Linked to: " + gigs.linkTo.title + ". Whoever you hire is listed on the attorney's \"Who's working on this\", as your subcontractor. Share with them only what their part needs." },
           " ", h("button", { class: "ghost small", type: "button", onclick: function () { gigs.linkTo = null; draw(); } }, "Do not link")) : null,
         kindRow, field("Document", pick), notes, h("div", { class: "row" }, field("Budget from ($)", bmin), field("Budget to ($)", bmax)), feeNote, h("div", { class: "row" }, go)));
-      // My gigs
-      var list = h("div", { class: "card" }, h("h2", { text: "Your gigs" }));
-      if (!r.gigs.length) list.appendChild(h("p", { class: "muted", text: "No gigs yet." }));
+      // What needs the attorney now (UX review P01): proposals to review, questions to answer, drafts to post, agreements to sign
+      var todo = h("div", { class: "card", id: "needs-action" }, h("h2", { text: "Needs your action" }));
+      var todoList = h("ul", { class: "list" });
+      todo.appendChild(todoList);
+      function todoItem(text, label, go) { todoList.appendChild(h("li", { class: "row" }, h("span", { class: "grow", text: text }), h("button", { class: "ghost small", type: "button", onclick: go }, label))); }
       r.gigs.forEach(function (g) {
+        if (g.questions_open) todoItem(g.title + ": " + g.questions_open + (g.questions_open === 1 ? " question" : " questions") + " to answer", "Answer", function () { gigs.id = g.id; gigs.view = "questions"; draw(); });
+        if (g.status === "open" && g.proposals) todoItem(g.title + ": " + g.proposals + (g.proposals === 1 ? " proposal" : " proposals") + " to review", "Review proposals", function () { gigs.id = g.id; gigs.view = "proposals"; draw(); });
+        if (g.status === "draft") todoItem(g.title + ": a draft, not posted yet", "Finish and post", function () { gigLink(g.id, "projects"); });
+      });
+      function todoEmpty() { if (!todoList.children.length && !todo.querySelector(".muted")) todo.appendChild(h("p", { class: "muted", style: "margin:0", text: "Nothing waits on you right now." })); else if (todoList.children.length) { var m = todo.querySelector("p.muted"); if (m) m.remove(); } }
+      todoEmpty();
+      el.appendChild(todo);
+      // My gigs: open and drafts first; filled, closed and the rest behind a filter; a short first page (UX review P01)
+      var list = h("div", { class: "card" }, h("h2", { text: "Your gigs" }));
+      var GF = [["active", "Open and drafts", function (g) { return g.status === "open" || g.status === "draft" || g.status === "paused"; }], ["filled", "Filled", function (g) { return g.status === "filled"; }],
+        ["closed", "Closed", function (g) { return g.status === "closed" || g.status === "canceled"; }], ["all", "All", function () { return true; }]];
+      var gf = GF.filter(function (f) { return f[0] === (gigs.listFilter || "active"); })[0] || GF[0];
+      if (r.gigs.length) list.appendChild(h("div", { class: "pills", style: "margin-bottom:8px" }, GF.map(function (f) {
+        return h("button", { "aria-pressed": String(f[0] === gf[0]), onclick: function () { gigs.listFilter = f[0]; gigs.listMore = false; draw(); } }, f[1] + " (" + r.gigs.filter(f[2]).length + ")");
+      })));
+      var shown = r.gigs.filter(gf[2]);
+      if (!r.gigs.length) list.appendChild(h("p", { class: "muted", text: "No gigs yet." }));
+      else if (!shown.length) list.appendChild(h("p", { class: "muted", text: "None in this view." }));
+      var PAGE = 6, rest = 0;
+      if (shown.length > PAGE && !gigs.listMore) { rest = shown.length - PAGE; shown = shown.slice(0, PAGE); }
+      shown.forEach(function (g) {
         list.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { gigLink(g.id, "projects"); } },
           h("span", { class: "chip", text: g.proposals ? String(g.proposals) : "0" }),
           h("div", null, h("h3", { text: g.title }), h("div", { class: "muted small", text: (g.kind === "monthly" ? "Monthly | " : "") + (g.linked_to ? "Linked to " + g.linked_to + " | " : "") + budgetText(g) + " | " + closesText(g) + " | " + g.proposals + (g.proposals === 1 ? " proposal" : " proposals") + (g.questions_open ? " | " + g.questions_open + " questions to answer" : "") })),
           h("span", { class: "grow" }), h("span", { class: "badge " + (g.status === "open" ? "ready" : g.status === "paused" ? "held" : "C"), text: GIG_STATUS[g.status] })));
       });
+      if (rest) list.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { gigs.listMore = true; draw(); } }, "Show " + rest + " more"));
       el.appendChild(list);
-      if ((me.switches || {}).engagements) { var engSlot = h("div"); el.appendChild(engSlot); engagementsList(engSlot, "Engagements"); }
+      if ((me.switches || {}).engagements) {
+        var engSlot = h("div"); el.appendChild(engSlot);
+        engagementsList(engSlot, "Engagements", function (list) {
+          list.filter(function (x) { return x.needs_me === "sign"; }).forEach(function (x) { todoItem(x.gig_title + ": the agreement needs your signature", "Open the agreement", function () { gigs.id = x.gig_id; gigs.view = "agreement"; draw(); }); });
+          todoEmpty();
+        });
+      }
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     return el;
   }
@@ -5240,9 +5275,10 @@
 
   // The list of engagements on Projects (attorney), Work and Earnings (freelancer).
   // It fills a place kept for it when the page was drawn, so the cards never move after loading.
-  function engagementsList(slot, title) {
+  function engagementsList(slot, title, onLoad) {
     api.get("/engagements").then(function (r) {
       if (!r.ok || !r.on || !(r.engagements || []).length) return;
+      if (onLoad) onLoad(r.engagements);
       var c = h("div", { class: "card" }, h("h2", { text: title + " (" + r.engagements.length + ")" }));
       r.engagements.forEach(function (e) {
         c.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { gigs.id = e.gig_id; gigs.view = "agreement"; tab = me.side === "attorney" ? "projects" : "work"; draw(); } },

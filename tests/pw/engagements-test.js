@@ -119,6 +119,7 @@ async function sign(page, name, version) {
     p = s.page;
     t = await waitFor(p, "Engagements (1)");
     ok(t.includes("Needs your signature"), "attorney: Projects lists the engagement waiting for their signature");
+    ok((await dela(p).locator("#needs-action").innerText()).includes("the agreement needs your signature"), "Needs your action lists the agreement to sign (UX review P01)");
     const heads = await dela(p).locator("h2").allTextContents();
     ok(heads.indexOf("Post a new gig") >= 0 && heads.indexOf("Post a new gig") < heads.indexOf("Your gigs") && heads.indexOf("Your gigs") < heads.indexOf("Engagements (1)"), "attorney: the Projects cards keep their order after loading (" + heads.join(", ") + ")");
     await dela(p).getByText("Filing packet help").last().click();
