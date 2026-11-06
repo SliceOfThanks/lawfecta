@@ -10,7 +10,7 @@ import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { handle, type Deps } from "./app.ts";
 import { sessionHash } from "./lib/crypto.ts";
 import type { Storage } from "./lib/files/storage.ts";
-import { hoursSaved, readRecommendations, suggestBudget } from "./lib/automate/model.ts";
+import { defaultKpis, hoursSaved, readRecommendations, suggestBudget } from "./lib/automate/model.ts";
 import { normalizeDoc } from "./lib/documents/model.ts";
 import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
 
@@ -83,10 +83,13 @@ Deno.test("the rules in code: drop attorney decisions, judgment steps, the whole
   const r = readRecommendations(REVIEW, body, [{ name: "Clio", description: "Already in your firm profile.", partner: false, in_firm: true, tool_id: "" }], 5);
   assertEquals(r.recommendations.map((x) => [x.id, x.kind, x.steps, x.tool ?? ""]), [["r1", "delegate", [1, 2, 3], ""], ["r2", "automate", [3], "Clio"], ["r3", "delegate", [4], ""]]);
   assertEquals(r.recommendations[1].tool_description, "Already in your firm profile.", "the description comes from the list, never the AI");
+  // Fix: the delegated SOP never takes the parent's "done when" for the whole process
+  assertEquals(defaultKpis(body, [1]).done, "Every step above is done and recorded where the firm keeps it.");
   assertEquals(hoursSaved(0.4, "weekly", 90), 2.5);
   assertEquals(hoursSaved(0.4, "", null), 0);
   const b = suggestBudget(1.5, 4000, 7500, 25000, 500, 1000);
-  assertEquals([b.low_cents, b.high_cents, b.fee_low_cents], [25000, 25000, 1250], "never below the smallest gig budget");
+  assertEquals([b.low_cents, b.high_cents, b.fee_low_cents, b.at_minimum], [25000, 25000, 1250, true], "never below the smallest gig budget, and it says so");
+  assertEquals(suggestBudget(10, 4000, 7500, 25000, 500, 1000).at_minimum, false);
   assertEquals(suggestBudget(10, 4000, 7500, 25000, 500, 1000).high_cents, 75000);
 });
 
@@ -168,7 +171,7 @@ Deno.test("delegate: the steps, the SOP for just those steps, KPIs as its qualit
   assertEquals([gig.playbook_id, gig.status, gig.budget_min_cents], [sop.sop.id, "draft", 30000]);
   assertEquals((await call("POST", "/automate/delegation/gig", att.token, { id: del })).body.duplicate, true);
   const st = (await call("GET", "/automate?playbook=" + pb, att.token)).body;
-  assertEquals(st.delegations.map((x: any) => [x.title, x.steps, x.sop_status]), [["Collect and log intake forms", [1, 2, 3], "approved"]], "the parent shows what was delegated");
+  assertEquals(st.delegations.map((x: any) => [x.title, x.steps, x.sop_status, x.gig_status]), [["Collect and log intake forms", [1, 2, 3], "approved", "draft"]], "the parent shows what was delegated, and whether its gig is posted");
 });
 
 Deno.test("automate: hire a freelancer to set it up (the tool on the gig), and add the tool to the steps", async () => {

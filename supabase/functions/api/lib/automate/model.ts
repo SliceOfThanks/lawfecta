@@ -93,7 +93,7 @@ export function timeInputs(review: { frequency?: string | null; minutes?: number
 export type DelegateKpis = { turnaround_days: number; accuracy_pct: number; checklist: string[]; done: string };
 export function defaultKpis(parent: DocBody, steps: number[]): DelegateKpis {
   const picked = steps.map((k) => parent.steps[k - 1]).filter(Boolean);
-  return { turnaround_days: 2, accuracy_pct: 95, checklist: picked.map((st) => "Done: " + st.text).slice(0, 8), done: parent.done_when || "Every step above is done and recorded where the firm keeps it." };
+  return { turnaround_days: 2, accuracy_pct: 95, checklist: picked.map((st) => "Done: " + st.text).slice(0, 8), done: "Every step above is done and recorded where the firm keeps it." };
 }
 export function readKpis(raw: unknown, fallback: DelegateKpis): DelegateKpis {
   const k = (raw && typeof raw === "object" ? raw : {}) as Record<string, any>;
@@ -105,6 +105,8 @@ export function readKpis(raw: unknown, fallback: DelegateKpis): DelegateKpis {
 
 const FREELANCER_ROLE = "Outsourced freelancer";
 
+// The parent's "done when" describes the whole process, so the delegated SOP never inherits it (ChatGPT 4d test 2026-11-06:
+// the gig's public version took on work outside the delegated step).
 // The SOP for just the delegated steps, under the document standard. The supervising attorney stays Accountable (A)
 // on every step; the freelancer is Responsible (R). Images stay with their steps. KPIs become its quality check,
 // done-when and KPIs, so the milestone check scores the gig against them.
@@ -145,10 +147,11 @@ export function setupSteps(parent: DocBody, steps: number[], tool: string): DocB
 
 // The suggested budget for a delegated gig: hours for one run at the low and high rates, never below the smallest gig budget.
 // The client-side fee is shown with it so the attorney sees the full cost before posting.
-export function suggestBudget(hours: number, rateLow: number, rateHigh: number, minCents: number, clientBps: number, floorCents: number): { low_cents: number; high_cents: number; fee_low_cents: number; fee_high_cents: number } {
+// at_minimum: the work costs less than the smallest gig budget, so the suggestion is that minimum (never the same amount twice as a range)
+export function suggestBudget(hours: number, rateLow: number, rateHigh: number, minCents: number, clientBps: number, floorCents: number): { low_cents: number; high_cents: number; fee_low_cents: number; fee_high_cents: number; at_minimum: boolean } {
   const h = Math.max(hours, 0.5);
   const r100 = (c: number) => Math.ceil(c / 1000) * 1000;   // rounded up to whole tens of dollars
   const low = Math.max(r100(h * rateLow), minCents), high = Math.max(r100(h * rateHigh), low);
   const fee = (c: number) => Math.max(Math.round(c * clientBps / 10000), floorCents);
-  return { low_cents: low, high_cents: high, fee_low_cents: fee(low), fee_high_cents: fee(high) };
+  return { low_cents: low, high_cents: high, fee_low_cents: fee(low), fee_high_cents: fee(high), at_minimum: high <= minCents };
 }

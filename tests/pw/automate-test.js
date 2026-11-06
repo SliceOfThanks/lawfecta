@@ -77,6 +77,7 @@ const DOC = (title) => JSON.stringify({ schema: 2, type: "sop", title, lifecycle
     t = await waitFor(s.page, "DELA found 2 to look at.", 10000);
     ok(t.includes("Collect and log intake forms") && t.includes("Steps 1 to 2") && t.includes("Time saved: about 2 hours a month"), "a delegate suggestion with its steps and time saved");
     ok(t.includes("Tool: Clio. Already in your firm profile.") && !t.includes("All of it"), "a tool from the firm's systems; the whole document is never suggested");
+    ok(t.includes("Logs each returned form.") && !(await dela(s.page).locator("#automate-card").innerText()).includes(".."), "Fix: one period at the end of each sentence");
     ok(t.includes("Add this tool to the steps") && t.includes("Hire a freelancer to set it up"), "the Automate path's actions");
 
     // ---------- The delegate path on one screen ----------
@@ -94,7 +95,8 @@ const DOC = (title) => JSON.stringify({ schema: 2, type: "sop", title, lifecycle
     ok(sopBody.timing.includes("3 business days") && sopBody.steps.length === 2, "the KPIs are in the SOP");
     await click(s.page, "Approve the SOP");
     t = await waitFor(s.page, "The SOP is approved.");
-    ok(t.includes("Suggested budget: $250 to") && t.includes("You set the final amount.") && t.includes("You also pay Lawfecta's platform fee"), "the suggested budget and the fee before posting");
+    // Fix (ChatGPT 4d test 2026-11-06): a small job reads as the smallest gig budget, never "$250 to $250"
+    ok(t.includes("Suggested budget: $250, the smallest gig budget on Lawfecta.") && !t.includes("$250 to $250") && t.includes("You set the final amount.") && t.includes("You also pay Lawfecta's platform fee"), "the suggested budget and the fee before posting");
     await label(s.page, "Budget from ($)").fill("300");
     await label(s.page, "Budget to ($)").fill("500");
     await click(s.page, "Draft the gig");
@@ -105,7 +107,7 @@ const DOC = (title) => JSON.stringify({ schema: 2, type: "sop", title, lifecycle
     // ---------- Back on the document: what was delegated; Dismiss on another ----------
     s = await open(browser, ATT, `&tab=library&pb=${pb}`);
     t = await waitFor(s.page, "Delegated: Steps 1 to 2");
-    ok(t.includes("Gig drafted."), "the parent shows what was delegated");
+    ok(t.includes("Gig drafted, not posted yet."), "the parent shows what was delegated, and that its gig is not posted");
     await s.page.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=library&pb=${pb2}`);
     await waitFor(s.page, "DELA can find steps in this playbook");
     await dela(s.page).locator("#automate-card").getByText("Dismiss", { exact: true }).click();

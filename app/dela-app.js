@@ -5621,6 +5621,8 @@
     var run = a.every(function (x, i) { return i === 0 || x === a[i - 1] + 1; });
     return "Steps " + (run ? a[0] + " to " + a[a.length - 1] : a.join(", "));
   }
+  // One sentence ending in one period, whatever the AI or the catalog wrote (ChatGPT 4d test: "..")
+  function sentence(x) { var s = String(x || "").trim(); while (s && (s.charAt(s.length - 1) === "." || s.charAt(s.length - 1) === " ")) s = s.slice(0, -1); return s ? s + ". " : ""; }
   function hoursText(x) { return x >= 1 ? "about " + (x % 1 ? x.toFixed(1) : String(x)) + (x === 1 ? " hour a month" : " hours a month") : x > 0 ? "about " + Math.round(x * 60) + " minutes a month" : "not worked out yet"; }
 
   function automateCard(pid) {
@@ -5670,7 +5672,7 @@
                 r.partner ? h("span", { class: "badge", text: "Lawfecta partner" }) : null),
               h("div", { class: "small", text: stepsText(r.steps) + (r.why ? ". " + r.why : "") }),
               h("div", { class: "small", text: "Time saved: " + hoursText(r.hours_month) + (t.estimated ? " (Estimated by DELA)" : "") }));
-            if (r.kind === "automate") row.appendChild(h("div", { class: "small", text: "Tool: " + r.tool + ". " + (r.in_firm ? "Already in your firm profile. " : "") + (r.what_it_does ? r.what_it_does + ". " : "") + (r.in_firm ? "" : r.tool_description || "") }));
+            if (r.kind === "automate") row.appendChild(h("div", { class: "small", text: "Tool: " + r.tool + ". " + (r.in_firm ? "Already in your firm profile. " : "") + sentence(r.what_it_does) + (r.in_firm ? "" : sentence(r.tool_description)) }));
             else if ((r.skills || []).length) row.appendChild(h("div", { class: "small muted", text: "Skills: " + r.skills.join(", ") }));
             var acts = h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" });
             function start(kind) {
@@ -5694,7 +5696,7 @@
         }
         (st.delegations || []).forEach(function (d) {
           card.appendChild(h("div", { class: "row", style: "border-top:1px solid var(--line);padding-top:6px;margin-top:6px" },
-            h("span", { class: "small grow", text: (d.kind === "setup" ? "Setup task" : "Delegated") + ": " + stepsText(d.steps) + ", " + d.title + (d.sop_id ? ". See SOP " + ((d.sop_doc_id ? d.sop_doc_id + " " : "") + d.sop_title) + (d.sop_status === "approved" ? "" : " (draft)") : "") + (d.gig_id ? ". Gig drafted." : "") }),
+            h("span", { class: "small grow", text: (d.kind === "setup" ? "Setup task" : "Delegated") + ": " + stepsText(d.steps) + ", " + d.title + (d.sop_id ? ". See SOP " + ((d.sop_doc_id ? d.sop_doc_id + " " : "") + d.sop_title) + (d.sop_status === "approved" ? "" : " (draft)") : "") + (d.gig_id ? (d.gig_status && d.gig_status !== "draft" ? ". Gig posted." : ". Gig drafted, not posted yet.") : "") }),
             h("button", { class: "ghost small", type: "button", onclick: function () { auto.open = d.id; load(); } }, auto.open === d.id ? "Open below" : "Continue")));
         });
         if (auto.open) card.appendChild(delegatePanel(auto.open, load));
@@ -5776,7 +5778,9 @@
       var bmin = h("input", { type: "number", min: "0", step: "1", "aria-label": "Budget from ($)", value: String(Math.round((b.low_cents || 0) / 100)) });
       var bmax = h("input", { type: "number", min: "0", step: "1", "aria-label": "Budget to ($)", value: String(Math.round((b.high_cents || 0) / 100)) });
       var dl = h("input", { type: "date", "aria-label": "Deadline" });
-      s5.appendChild(h("p", { class: "small", text: "Suggested budget: " + D.money(b.low_cents) + " to " + D.money(b.high_cents) + ", for about " + v.hours + " hours of work. Suggested budget. You set the final amount." }));
+      s5.appendChild(h("p", { class: "small", text: b.at_minimum
+        ? "Suggested budget: " + D.money(b.low_cents) + ", the smallest gig budget on Lawfecta. About " + v.hours + " hours of work would cost less at usual rates, so you could add more to this gig. Suggested budget. You set the final amount."
+        : "Suggested budget: " + D.money(b.low_cents) + " to " + D.money(b.high_cents) + ", for about " + v.hours + " hours of work. Suggested budget. You set the final amount." }));
       s5.appendChild(h("p", { class: "small", text: "You also pay Lawfecta's platform fee: " + D.money(b.fee_low_cents) + " to " + D.money(b.fee_high_cents) + " on that budget, so the full cost is " + D.money((b.low_cents || 0) + (b.fee_low_cents || 0)) + " to " + D.money((b.high_cents || 0) + (b.fee_high_cents || 0)) + "." }));
       if (d.gig_id) s5.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { gigLink(d.gig_id, "projects"); } }, "Open the gig"));
       else if (!sop || sop.status !== "approved") s5.appendChild(h("p", { class: "small muted", text: "Approve the SOP first (step 4)." }));
