@@ -4320,7 +4320,7 @@
     monthly_tasks_needed: "List at least one task with how often and how many are included each month.", no_unlimited: "\"Unlimited\" is not allowed. Give each task an included number.",
     monthly_task_needs_name: "Name each task.", monthly_task_needs_frequency: "Choose how often each task happens.", monthly_task_needs_quantity: "Give each task an included number each month (1 or more).",
     recurring_consent_needed: "Tick the box that lets Lawfecta charge your payment method each month. Without it, a monthly engagement cannot start.",
-    use_monthly_terms: "A monthly agreement changes through its Monthly terms (before signing) or \"Request a change\" (after).", use_change_request: "Both of you signed. Use \"Request a change\" for next month.",
+    use_monthly_cancel: "A monthly engagement is canceled from its Monthly engagement card: \"Cancel monthly engagement\" or \"End now by agreement\".", use_monthly_terms: "A monthly agreement changes through its Monthly terms (before signing) or \"Request a change\" (after).", use_change_request: "Both of you signed. Use \"Request a change\" for next month.",
     other_side_approves: "The other person approves this.", nothing_to_undo: "There is nothing to undo.", too_late: "The cancellation date has passed.",
     monthly_delivery_use_dispute: "With One monthly delivery, agree on an amount with the other person, or open a dispute below. DELA never makes up a daily rate.",
     not_started_use_cancel: "Month 1 is not paid yet. Cancel the agreement instead.", not_completed: "Only a completed engagement can be made monthly.", recurring_off: "Monthly engagements are not open for your account yet.",
@@ -5133,6 +5133,8 @@
           api.post("/disputes/open", { id: a.id, milestone_id: ms.value || null, reason: why.value }).then(engOk).then(function () { engReload("The dispute is open. Both of you were told."); }).catch(engFail);
         } }, "Open the dispute")));
     }
+    // A monthly engagement is canceled or ended early from the monthly card only
+    if (r.monthly) return c;
     var reason = h("input", { "aria-label": "Why cancel", style: "width:100%" });
     c.appendChild(h("details", null, h("summary", { text: "Cancel the engagement" }),
       h("p", { class: "small", text: "Before work starts on the first milestone, the attorney is refunded in full, platform fee included. After that, a paid milestone not yet submitted is refunded, accepted milestones stay paid, and the attorney's platform fee is kept. A milestone under review cannot be canceled; open a dispute instead." }),

@@ -241,6 +241,9 @@ Deno.test("cancel: effective at the end of the paid month; no charge after it, e
   // The renewal is due right now when the cancellation arrives
   await call("POST", "/admin/monthly/run-now", team.token, { agreement_id: agA }).catch(() => null);
   const paidBefore = (await one("select count(*)::int c from payments where agreement_id = $1 and status = 'succeeded'", [agA])).c;
+  // The one-off cancel (milestone refunds) does not apply to a monthly engagement
+  assertEquals((await call("POST", "/engagements/cancel", att.token, { id: agA, reason: "test" })).body.reason, "use_monthly_cancel");
+  assertEquals((await one("select status from agreements where id = $1", [agA])).status, "active");
   const cur = await one("select n, ends_on from monthly_periods where agreement_id = $1 and status = 'paid' order by n desc limit 1", [agA]);
   const c = (await call("POST", "/monthly/cancel", att.token, { id: agA })).body;
   assert(c.ok && c.effective, JSON.stringify(c) + JSON.stringify(cur));

@@ -3036,7 +3036,10 @@ async function milestoneDecide(ctx: Ctx) {
 
 async function engagementCancel(ctx: Ctx) {
   const s = await memberSide(ctx);
-  const r = await rpc<Record<string, any>>(ctx, "dela_engagement_cancel", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.id)), p_reason: str(ctx.body.reason, 500) });
+  const id = need(uuid(ctx.body.id));
+  // A monthly engagement ends through /monthly/cancel or /monthly/end-now; milestone refunds do not fit it
+  if (await rpc<boolean>(ctx, "dela_agreement_is_monthly", { p_agreement: id })) return json(ctx, { ok: false, reason: "use_monthly_cancel" });
+  const r = await rpc<Record<string, any>>(ctx, "dela_engagement_cancel", { p_person: s.person_id, p_side: s.side, p_agreement: id, p_reason: str(ctx.body.reason, 500) });
   if (r?.ok) await sendRefunds(ctx);
   return json(ctx, r);
 }
