@@ -1,7 +1,7 @@
 # Feature brief: Guided setup, and "Automate or delegate" for a playbook
 
 Step: 4d   Spec references: Step 2 (playbooks), 2d (document standard: SOP, KPIs, RACI), 3 (profiles, firm profile), 4 (gigs, tech catalog)
-Status: plan only. Not approved to build. Waiting on Stacey's answers.
+Status: approved by Stacey 2026-11-06 (answers below). Build C and B now; A after the MVP launch.
 
 Stacey asked for three things (2026-11-05):
 - **A. An onboarding widget** for attorneys and freelancers. It goes at the end of Phase 1, after the MVP launch.
@@ -121,3 +121,23 @@ New switches, off until tested:
 - The guided setup can be skipped at any step and picked up later from Home.
 - Freelancer onboarding ends with the person match-ready.
 - The admin funnel shows each step's completion.
+
+## Stacey's answers (2026-11-06)
+
+1. **When to build.** C ("✦ Automate or delegate") and B (the "Get set up" screen) before the beta launch. A (the onboarding widget) at the end of Phase 1, after the MVP launch; for attorneys it reuses the B screen. Reason: B and C lead attorneys straight to posting their first gig, and gigs are what the beta needs.
+2. **Running it on its own.** Never. The attorney clicks "✦ Find what to automate or delegate". Every approved SOP, Workflow or Playbook shows a small hint card above the document: "DELA can find steps in this playbook to automate or hand to a freelancer." The card has the "✦ Find what to automate or delegate" button and a "Dismiss" link. Reason: each review uses credits, so the attorney decides when to spend them.
+3. **Time saved.** Two optional boxes: "How often does this run?" (a dropdown: daily, weekly, monthly, quarterly) and "How long does it take each time?" (in minutes). If both are empty, DELA estimates and labels the numbers "Estimated by DELA". Each recommendation shows "Time saved: about X hours a month".
+4. **Suggested budget.** Yes. On the gig draft step, DELA suggests a range from the estimated hours and the rates freelancers on Lawfecta charge for that skill, labeled "Suggested budget. You set the final amount." The gig draft also shows the 5% client-side fee, so the attorney sees the full cost before "Post the gig".
+5. **"Hire a freelancer to set it up".** Yes, on the Automate path. It starts the Delegate path with a setup task for that tool, and matches freelancers who list that tool in their tech skills first.
+6. **Partner tools.** A "Lawfecta partner" label. Ranked only by time saved; being a partner never moves a tool up.
+7. **Practice proposal (A, freelancer onboarding).** Yes. Step 8 is a practice proposal for a sample gig, never sent. DELA gives tips on the draft. This one run is free on every plan, Free included, and uses no credits.
+8. **Reminder emails (A).** Day 2 and day 7, then stop. Each email names only the steps not done and links straight to the next one. Subject lines in sentence case. Admins turn reminders off with the onboarding.reminder_days setting.
+9. **Firm staff.** Attorneys and managers can run "✦ Find what to automate or delegate" and draft the delegated SOP. Only an attorney can approve the delegated SOP and click "Post the gig". The supervising attorney stays Accountable (A) in the RACI on every delegated SOP.
+10. **Wording.** Screens say "Teach DELA about your firm" (attorneys) and "Teach DELA about your work" (freelancers). The word "train" never appears on any screen, email or help text about firm content.
+
+**Plan tie-ins for freelancer onboarding (A).** Step 7, the visibility checklist, shows Free plan freelancers that DELA Member Match starts on Plus, with an "Upgrade to Plus" button. On Plus and higher, it shows what improves their placement in DELA Member Match.
+
+### Build notes (Claude, 2026-11-06)
+- While the tech catalog switch is off (the MVP), the Automate path names only tools the firm already lists in its firm profile, the same rule Ask DELA follows. With the catalog on, catalog tools are allowed too, with their descriptions and partner labels from the catalog.
+- "The rates freelancers on Lawfecta charge": Lawfecta has no hourly rates yet, so the suggested range uses the settings automate.rate_low_cents and automate.rate_high_cents (status O) until enough hires exist.
+- "Only an attorney" means an attorney with a verified license (the same check as posting a gig).

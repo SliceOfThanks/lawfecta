@@ -185,7 +185,17 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | On an agency's own gig, a bench member pays no freelancer fee; the agency pays it | Yes | Confirmed | Stacey 2026-11-05 (fee answer 5) | |
 | Share of an agency gig's words found in one of its engagements that flags it as a copy. Agencies part 3. Only gigs not linked to that engagement are flagged. The flag goes to the Lawfecta Team; the gig still posts. | 0.6 share | Open | Claude suggestion | |
 
-## 11. On and off switches
+## 11. Guided setup and Automate or delegate
+
+| Item | Suggested value | Status | Where it comes from | Your decision |
+|---|---|---|---|---|
+| Most recommendations in one Automate or delegate review. Ranked only by time saved. | 5 recommendations | Confirmed | Stacey 2026-11-06 (step 4d answers) | |
+| Credits for one Automate or delegate review (Lawfecta's key only). One review per approved version, reused until the document changes. | 2 credits | Open | Claude suggestion | |
+| Low end of the hourly rate DELA uses to suggest a delegated gig's budget. Used until Lawfecta has enough hires to work out real rates for a skill. | 4000 cents an hour | Open | Claude suggestion | |
+| High end of the hourly rate DELA uses to suggest a delegated gig's budget. Used until Lawfecta has enough hires to work out real rates for a skill. | 7500 cents an hour | Open | Claude suggestion | |
+| Days after sign-up for reminder emails about unfinished setup steps (empty turns them off). For the onboarding widget, after the MVP launch. | 2, 7 | Confirmed | Stacey 2026-11-06 (step 4d answers) | |
+
+## 12. On and off switches
 
 Every switch starts Off. In the admin area each one can be set to Off, Lawfecta Team only, Access list, or Everyone.
 
@@ -208,3 +218,6 @@ Every switch starts Off. In the admin area each one can be set to Off, Lawfecta 
 | Agency bench: bench agreements with a fee split (agencies on Freelancer Business) | Step 7d part 2 tested |
 | Agencies hand parts of attorney engagements to subcontractors (disclosed in the agreement) | Step 7d tested |
 | In-app purchase of extra agency seats | DELA bills seats itself |
+| Automate or delegate: DELA finds steps in an approved document to automate or hand to a freelancer | Step 4d tested |
+| The Get set up screen for attorneys | Step 4d tested |
+| The onboarding widget for new attorneys and freelancers | After the MVP launch |

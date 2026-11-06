@@ -958,6 +958,59 @@
           "note": "Agencies part 3. Only gigs not linked to that engagement are flagged. The flag goes to the Lawfecta Team; the gig still posts."
         }
       ]
+    },
+    {
+      "title": "Guided setup and Automate or delegate",
+      "items": [
+        {
+          "key": "automate.max_recommendations",
+          "label": "Most recommendations in one Automate or delegate review",
+          "value": 5,
+          "unit": "recommendations",
+          "status": "C",
+          "source": "Stacey 2026-11-06 (step 4d answers)",
+          "note": "Ranked only by time saved."
+        },
+        {
+          "key": "ai.credits.automate_review",
+          "label": "Credits for one Automate or delegate review (Lawfecta's key only)",
+          "value": 2,
+          "unit": "credits",
+          "status": "O",
+          "source": "Claude suggestion",
+          "note": "One review per approved version, reused until the document changes."
+        },
+        {
+          "key": "automate.rate_low_cents",
+          "label": "Low end of the hourly rate DELA uses to suggest a delegated gig's budget",
+          "value": 4000,
+          "unit": "cents an hour",
+          "status": "O",
+          "source": "Claude suggestion",
+          "note": "Used until Lawfecta has enough hires to work out real rates for a skill."
+        },
+        {
+          "key": "automate.rate_high_cents",
+          "label": "High end of the hourly rate DELA uses to suggest a delegated gig's budget",
+          "value": 7500,
+          "unit": "cents an hour",
+          "status": "O",
+          "source": "Claude suggestion",
+          "note": "Used until Lawfecta has enough hires to work out real rates for a skill."
+        },
+        {
+          "key": "onboarding.reminder_days",
+          "label": "Days after sign-up for reminder emails about unfinished setup steps (empty turns them off)",
+          "value": [
+            2,
+            7
+          ],
+          "unit": "days",
+          "status": "C",
+          "source": "Stacey 2026-11-06 (step 4d answers)",
+          "note": "For the onboarding widget, after the MVP launch."
+        }
+      ]
     }
   ],
   "switches": [
@@ -1045,6 +1098,21 @@
       "key": "agency_extra_seats",
       "label": "In-app purchase of extra agency seats",
       "gate": "DELA bills seats itself"
+    },
+    {
+      "key": "automate_delegate",
+      "label": "Automate or delegate: DELA finds steps in an approved document to automate or hand to a freelancer",
+      "gate": "Step 4d tested"
+    },
+    {
+      "key": "guided_setup",
+      "label": "The Get set up screen for attorneys",
+      "gate": "Step 4d tested"
+    },
+    {
+      "key": "onboarding_widget",
+      "label": "The onboarding widget for new attorneys and freelancers",
+      "gate": "After the MVP launch"
     }
   ]
 }
