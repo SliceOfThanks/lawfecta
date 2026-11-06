@@ -15,6 +15,10 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - Get set up (part B): a "Get set up" tab for attorneys with six steps (profile and verification, Teach DELA about your firm, first playbook, Automate or delegate, first gig, invite freelancers). Each opens in place, each has "Skip for now", and Home shows "Get set up: X of 6 done" until done or dismissed.
 - Also fixed from Stacey's part 3 report (16 of 17 passed): a gig link with view=proposals (or any view) now opens that view.
 - Tests: automate_test.ts (9), automate-test.js 16 browser checks, all api tests 252.
+- On the test site since 2026-11-06: 0047 applied (fingerprint checked), function version 43 (commit c03e0c0), switches automate_delegate and guided_setup on for the access list. All 16 browser suites passed before the deploy.
+- Claude ran one real review on the test site on a copy ("Claude check", now in Trash, its review removed): 4 checked suggestions, step 5 never delegated, the delegated SOP passed the self-check.
+- Prepared for the test: "Test SOP: Automate or delegate" (8b835621) in the test attorney's Library; their Get set up shows 5 of 6.
+- Test: docs/tests/step-4d-automate-chatgpt-prompt.md (one login per account).
 
 ## Agencies part 3 (step 7d): subcontracting, built 2026-11-06
 - Migration 0046, behind the switch agency_subcontracting (off until deployed and turned on for the access list).
