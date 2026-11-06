@@ -703,7 +703,16 @@
           "unit": "units",
           "status": "O",
           "source": "Claude suggestion",
-          "note": "The last unit covers the rest of the month."
+          "note": "The last unit covers the rest of the month. Units are how the month is reviewed and paid out, not a weekly cap."
+        },
+        {
+          "key": "recurring.unused_rollover",
+          "label": "Unused monthly capacity rolls into the next month",
+          "value": false,
+          "unit": "",
+          "status": "C",
+          "source": "Stacey 2026-11-06 (UX review answers)",
+          "note": "No rollover. The monthly limit is per month. A 5-week month has the same limit and price."
         },
         {
           "key": "recurring.renewals_stopped",
