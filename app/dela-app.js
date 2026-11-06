@@ -3015,7 +3015,7 @@
           h("span", { class: "grow" }), h("span", { class: "badge " + (g.status === "open" ? "ready" : g.status === "paused" ? "held" : "C"), text: GIG_STATUS[g.status] })));
       });
       el.appendChild(list);
-      if ((me.switches || {}).engagements) engagementsList(el, "Engagements");
+      if ((me.switches || {}).engagements) { var engSlot = h("div"); el.appendChild(engSlot); engagementsList(engSlot, "Engagements"); }
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     return el;
   }
@@ -3778,6 +3778,8 @@
       if (!r.ok || !r.on) { el.appendChild(h("p", { class: "notice", text: "Flex Gigs are not open for your account yet." })); return; }
       if (r.state && r.state.readiness !== "match_ready") el.appendChild(h("p", { class: "notice", text: "You are not match-ready yet, so attorneys cannot find you. Finish your Profile and confirm your availability." }));
       el.appendChild(h("p", { class: "notice ok", text: allowanceText(r.allowance) }));
+      var engSlot = h("div");
+      el.appendChild(engSlot);
       function section(title, list, empty, extra) {
         var c = h("div", { class: "card" }, h("h2", { text: title + " (" + list.length + ")" }));
         if (!list.length) c.appendChild(h("p", { class: "muted", text: empty }));
@@ -3795,7 +3797,7 @@
       if (r.open_gigs.length) section("Open gigs", r.open_gigs, "");
       section("Drafts", r.drafts, "No saved drafts.");
       section("Sent proposals", r.sent, "Nothing sent yet.");
-      if ((me.switches || {}).engagements) engagementsList(el, "Your engagements");
+      if ((me.switches || {}).engagements) engagementsList(engSlot, "Your engagements");
       benchFreelancerCard(el);
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     return el;
@@ -5163,8 +5165,9 @@
     return c;
   }
 
-  // The list of engagements on Projects (attorney), Work and Earnings (freelancer)
-  function engagementsList(host, title) {
+  // The list of engagements on Projects (attorney), Work and Earnings (freelancer).
+  // It fills a place kept for it when the page was drawn, so the cards never move after loading.
+  function engagementsList(slot, title) {
     api.get("/engagements").then(function (r) {
       if (!r.ok || !r.on || !(r.engagements || []).length) return;
       var c = h("div", { class: "card" }, h("h2", { text: title + " (" + r.engagements.length + ")" }));
@@ -5173,7 +5176,7 @@
           h("div", null, h("h3", { text: e.gig_title }), h("div", { class: "small muted", text: (me.side === "attorney" ? "Freelancer: " : "Client: ") + (e.other_name || "") + " | " + D.money(e.total_cents) + (e.milestones ? " | milestones accepted " + e.accepted + " of " + e.milestones : " | milestones set when you both sign") + (me.side === "freelancer" && e.earned_cents ? " | paid to you " + D.money(e.earned_cents) : "") })),
           h("span", { class: "grow" }), e.needs_me === "sign" ? h("span", { class: "badge held", text: "Needs your signature" }) : h("span", { class: "badge " + (e.status === "active" || e.status === "completed" ? "ready" : "C"), text: AG_STATUS[e.status] || e.status })));
       });
-      host.insertBefore(c, host.children[2] || null);
+      slot.appendChild(c);
     }).catch(function () {});
   }
 
