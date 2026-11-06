@@ -77,7 +77,7 @@ const MEMBER_CLAUDE = "sk-ant-member-browser-test-key-2222222222"; // rules-ok: 
     ok(!t.includes("DELA is for operations work"), "Home has no client information banner (Stacey 2026-11-05)");
     await dela(p).getByRole("button", { name: "Files" }).first().click();
     t = await waitFor(p, "Add files");
-    ok(t.includes("of 250 MB used"), "the storage bar shows the Free plan's 250 MB");
+    ok(t.includes("of 1000 MB used") || t.includes("of 1024 MB used") || t.includes("of 1 GB used"), "the storage bar shows Attorney Free's 1 GB (step 9b)");
     ok(!t.includes("DELA is for operations work") && t.includes("These files have no confidential client information"), "Files has no banner, and keeps the reminder and tick box at the upload");
     ok(t.includes("Do not enter confidential client information") || t.includes("confidential client information"), "the confidential information notice shows where people upload");
 

@@ -139,14 +139,15 @@ begin
     from plan_features where plan_version_id = (select id from plan_versions where plan_code = 'att_free' and status = 'approved');
   update plan_versions set status = 'retired' where plan_code = 'att_free' and status = 'approved';
   update plan_versions set status = 'approved', effective_from = now() where id = v_ver;
+  update feature_switches set state = 'everyone' where key = 'usage_limits_enforced'; -- the block applies once the switch is on (step 9b)
   perform t_ok(dela_pb_limit(org) = 2 and dela_pb_count(org) = 2, 'the library is at its limit');
   r := dela_pb_create(jsonb_build_object('person_id', own, 'org_id', org, 'request_id', 'p3', 'title', 'Third', 'body', '{}'::jsonb));
   perform t_ok(r->>'reason' = 'playbook_limit' and (r->>'limit')::int = 2, 'the third is refused with the numbers');
   perform dela_pb_status(own, pb2, 'archive');
-  perform t_ok(dela_pb_create(jsonb_build_object('person_id', own, 'org_id', org, 'request_id', 'p3', 'title', 'Third', 'body', '{}'::jsonb))->>'reason' = 'playbook_limit', 'archiving does not free a place');
-  perform dela_pb_status(own, pb2, 'trash');
+  -- Archived documents no longer count (Stacey 2026-11-06, usage limits answer 3)
   r := dela_pb_create(jsonb_build_object('person_id', own, 'org_id', org, 'request_id', 'p3', 'title', 'Third', 'body', '{}'::jsonb));
-  perform t_ok((r->>'ok')::boolean, 'the trash frees a place');
+  perform t_ok((r->>'ok')::boolean, 'archiving frees a place');
+  perform dela_pb_status(own, pb2, 'trash');
   perform t_ok(dela_pb_status(own, pb2, 'restore')->>'reason' = 'playbook_limit', 'restoring over the limit is refused');
   perform t_ok(dela_pb_get(ed, pb2)->>'reason' = 'not_found', 'only the administrator sees the trash');
   perform t_ok((dela_pb_save(jsonb_build_object('person_id', ed, 'id', pb, 'base_version', (select current_version from playbooks where id = pb), 'body', full_body))->>'ok')::boolean, 'over the limit, existing playbooks stay editable');

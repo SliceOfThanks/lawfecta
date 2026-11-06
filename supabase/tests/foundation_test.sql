@@ -122,7 +122,7 @@ begin
 
   -- Plans: a new version replaces the old one, which stays on record and cannot change
   r := dela_admin_plan_draft(owner_id, 'att_plus', '{"monthly_cents": 2400, "features": {"att.gigs_active": {"enabled": true, "limit": 5}}}');
-  perform t_ok((r->>'version')::int = 2, 'draft is version 2');
+  perform t_ok((r->>'version')::int = (select max(version) from plan_versions where plan_code = 'att_plus'), 'the draft is the newest version');
   perform t_ok((dela_admin_plan_approve(owner_id, (r->>'version_id')::bigint)->>'ok')::boolean, 'approve');
   perform t_ok((select monthly_cents from plan_versions where plan_code = 'att_plus' and status = 'approved') = 2400, 'new price applies');
   perform t_ok((select quota_limit from plan_features pf join plan_versions v on v.id = pf.plan_version_id where v.plan_code = 'att_plus' and v.status = 'approved' and pf.feature_key = 'exports') = 2, 'untouched limits are copied');

@@ -524,6 +524,7 @@
       box.appendChild(h("p", { text: D.errorText(pr.reason) }));
       box.appendChild(h("div", { class: "row" }, fix, once));
     } else if (pr.reason === "no_credits_left") {
+      if (me.side === "attorney" && !pr.popped) { pr.popped = true; limitPopup("actions"); }
       box.appendChild(h("p", { text: D.errorText(pr.reason) }));
       box.appendChild(h("div", { class: "row" }, btn("Add my own key", function () { tab = "ai"; draw(); }, "blue")));
     } else {
@@ -1546,6 +1547,7 @@
         next();
       }).catch(function (e) {
         say(e.message === "upload_failed" ? "the upload did not finish. Check your connection and try again." : D.errorText(e.message));
+        if (e.message === "storage_full" && me.side === "attorney") limitPopup("storage");
         next();
       });
     }
@@ -1574,7 +1576,7 @@
   function can(n) { return lib.pb ? (RANK[lib.pb.role] || 0) >= n : (lib.data && lib.data.list ? (RANK[lib.data.list.role] || 0) >= n : false); }
   function failText(r) {
     if (DOC_ERR[r.reason]) return DOC_ERR[r.reason];
-    if (r.reason === "playbook_limit") return "Your library is full: " + r.count + " of " + r.limit + " documents. Archived documents count too. Delete one you no longer need, or upgrade your plan for more.";
+    if (r.reason === "playbook_limit") return "Your library is full: " + r.count + " of " + r.limit + " documents. Archive or delete one you no longer need, or upgrade your plan for more.";
     if (r.reason === "changed") return "Someone saved a newer version while you were working. Your changes were not saved. Reload the document, then make your change again.";
     if (r.reason === "not_complete") return "This document is not complete yet. Still missing: " + (r.missing || []).join(", ") + ".";
     if (r.reason === "administrator_only") return "Only the library's administrator can do that.";
@@ -1589,7 +1591,11 @@
     if (r.reason === "ai_failed") return "DELA's AI could not finish: " + (KEY_PROBLEM[r.code] || "something went wrong.") + " No credits were used. Please try again.";
     return D.errorText(r.reason || "server_error");
   }
-  function pbFail(e) { D.toast(app, e && e.reason ? failText(e) : D.errorText(e && e.message ? e.message : String(e)), true); }
+  function pbFail(e) {
+    if (e && e.reason === "playbook_limit") { limitPopup("playbooks"); return; }
+    if (e && e.reason === "document_read_only") { limitPopup("read_only"); return; }
+    D.toast(app, e && e.reason ? failText(e) : D.errorText(e && e.message ? e.message : String(e)), true);
+  }
   function okOr(r) { if (r && r.ok === false) throw r; return r; }
 
   function libraryView() {
@@ -1603,7 +1609,7 @@
   function loadLibrary() {
     lib.pb = null;
     lib.importId = null;
-    api.get("/library" + (lib.org ? "?org=" + lib.org : "")).then(function (r) { lib.data = r; lib.org = r.org_id; drawLibrary(); })
+    Promise.all([api.get("/library" + (lib.org ? "?org=" + lib.org : "")), loadUsage(true)]).then(function (rs) { var r = rs[0]; lib.data = r; lib.org = r.org_id; drawLibrary(); })
       .catch(function (e) { D.clear(libEl); libEl.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
 
@@ -1668,7 +1674,7 @@
       rows.forEach(function (p) {
         listEl.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { openPlaybook(p.id, "read"); } },
           h("span", { class: "chip", text: String(p.completeness) + "%" }),
-          h("div", { class: "grow" }, h("h3", { style: "margin:0", text: p.title }),
+          h("div", { class: "grow" }, h("h3", { style: "margin:0", text: p.title }), docLocked(p.id) ? h("div", { class: "small", text: "🔒 Upgrade to edit this document." }) : null,
             h("div", { class: "small muted", text: [p.practice_area, "version " + p.version, "updated " + D.date(p.updated_at), p.open_suggestions ? p.open_suggestions + " suggestion" + (p.open_suggestions > 1 ? "s" : "") + " waiting" : ""].filter(Boolean).join(" | ") })),
           h("span", { class: "badge " + (p.status === "approved" ? "ready" : p.status === "in_review" ? "held" : ""), text: PB_STATUS[p.status] })));
       });
@@ -1815,7 +1821,8 @@
 
   function openPlaybook(id, view) {
     lib.importId = null;
-    api.get("/playbooks/get?id=" + id).then(function (r) {
+    Promise.all([api.get("/playbooks/get?id=" + id), loadUsage()]).then(function (rs) {
+      var r = rs[0];
       if (!r.ok) throw r;
       lib.pb = r;
       lib.view = view || lib.view || "read";
@@ -1825,10 +1832,19 @@
 
   function body() { return lib.pb.body || {}; }
 
+  // Read-only after a downgrade (step 9b): a lock and Upgrade at the top of the document
+  function docLocked(id) { return !!(usage.data && (usage.data.locked_ids || []).indexOf(id) >= 0); }
+  function lockNotice(id) {
+    if (!docLocked(id)) return;
+    libEl.appendChild(h("div", { class: "notice", role: "note", id: "doc-locked", style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px" },
+      h("span", { class: "grow", text: "🔒 Upgrade to edit this document. Your plan saves fewer documents, so this one is read-only. You can still view, export and assign it." }), upgradeButton(usage.data)));
+  }
+
   function drawPlaybook() {
     if (lib.pb.body && lib.pb.body.schema === 2) return drawDocument();
     var P = lib.pb.playbook, b = body();
     D.clear(libEl);
+    lockNotice(P.id);
     libEl.appendChild(h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "ghost small", onclick: loadLibrary }, "← Library")));
     libEl.appendChild(h("div", { class: "row", style: "margin:8px 0 4px" }, h("h1", { class: "grow", style: "margin:0", text: P.title }),
       h("span", { class: "badge " + (P.status === "approved" ? "ready" : P.status === "in_review" ? "held" : ""), text: PB_STATUS[P.status] })));
@@ -5917,7 +5933,8 @@
       list.forEach(function (p) {
         var due = p.status === "approved" && p.next_review_at && p.next_review_at <= D.today();
         body.appendChild(h("tr", { style: "cursor:pointer", tabindex: "0", onclick: function () { openPlaybook(p.id, "read"); }, onkeydown: function (e) { if (e.key === "Enter") openPlaybook(p.id, "read"); } },
-          h("td", { "data-label": "Document" }, h("b", { text: p.title }), h("div", { class: "small muted", text: p.doc_id || "No ID yet" }), p.converted ? h("div", { class: "small", text: "Imported: review required" }) : null),
+          h("td", { "data-label": "Document" }, h("b", { text: p.title }), h("div", { class: "small muted", text: p.doc_id || "No ID yet" }),
+            usage.data && (usage.data.locked_ids || []).indexOf(p.id) >= 0 ? h("div", { class: "small", text: "🔒 Upgrade to edit this document." }) : null, p.converted ? h("div", { class: "small", text: "Imported: review required" }) : null),
           h("td", { "data-label": "Type", text: DOC_TYPE_WORDS[p.doc_type] || "Older playbook" }), h("td", { "data-label": "Owner (role)", text: p.owner_role || "Not assigned" }),
           h("td", { "data-label": "Status" }, h("span", { class: "badge " + (p.status === "approved" ? "ready" : p.status === "in_review" ? "held" : ""), text: PB_STATUS[p.status] })),
           h("td", { "data-label": "Next review", text: p.next_review_at ? D.date(p.next_review_at) + (due ? " (due)" : "") : "Not scheduled" }),
@@ -6236,8 +6253,10 @@
 
   function drawDocument() {
     var P = lib.pb.playbook, d = docWork(), ck = lib.pb.check || { items: [], blocking: 0 };
-    var edit = can(3) && P.status !== "trash" && P.status !== "archived";
+    var locked = docLocked(P.id);
+    var edit = can(3) && P.status !== "trash" && P.status !== "archived" && !locked;
     D.clear(libEl);
+    lockNotice(P.id);
     libEl.appendChild(h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "ghost small", onclick: function () { lib.doc = null; loadLibrary(); } }, "← Library")));
     libEl.appendChild(h("div", { class: "row", style: "margin:8px 0 4px" }, h("h1", { class: "grow", style: "margin:0", text: (P.doc_id ? P.doc_id + " " : "") + P.title }),
       h("span", { class: "badge", text: DOC_TYPE_WORDS[d.type] }), h("span", { class: "badge " + (P.status === "approved" ? "ready" : P.status === "in_review" ? "held" : ""), text: PB_STATUS[P.status] })));
@@ -7063,6 +7082,7 @@
     if (me.pause && me.pause.all) main.appendChild(h("div", { class: "notice bad", role: "alert", text: "DELA is paused for members right now. You can still use it because you are on the Lawfecta Team." }));
     if (me.on_hold) main.appendChild(h("div", { class: "notice bad", role: "alert", text: "Some actions are paused on your account. Contact the Lawfecta Team." }));
     if (!me.side) main.appendChild(noSide());
+    else if (tab === "usage" && me.side === "attorney") main.appendChild(usageView());
     else if (tab === "home") main.appendChild(me.side === "attorney" ? attorneyHome() : freelancerHome());
     else if (tab === "ai") main.appendChild(aiSettingsView());
     else if ((tab === "delegate" || tab === "ask") && (me.switches || {}).ai_generation) main.appendChild(chatView());
@@ -7084,11 +7104,83 @@
     else if (tab === "meetings" && me.side && (me.switches || {}).meetings) main.appendChild(meetingsView());
     else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1] + (me.side === "attorney" && (tab === "projects" || tab === "talent") && (sideInfo() || {}).verification_state !== "verified" ? " Posting work and hiring need a verified license: open Profile and verification from your account menu." : "")));
     else { tab = "home"; main.appendChild(me.side === "attorney" ? attorneyHome() : freelancerHome()); }
+    if (me.side === "attorney") { usageBanner(main); usageMeter(main); }
     show(h("div", null, header(), nav(), main));
   }
 
   function refresh() {
     return api.get("/me").then(function (r) { me = r.me; draw(); });
+  }
+
+  // ---------- Step 9b: usage limits (docs/briefs/step-9b-attorney-usage-limits.md) ----------
+  // Attorneys see what they have used: a yellow banner at 80% of any limit, a small meter at the bottom of DELA, the
+  // Usage page, and a pop-up when an action hits a limit. Viewing, exporting, assigning, messaging, posting, hiring and
+  // paying are never blocked by these limits.
+  var usage = { data: null, at: 0 };
+  function loadUsage(force) {
+    if (me.side !== "attorney") return Promise.resolve(null);
+    if (!force && usage.data && Date.now() - usage.at < 60000) return Promise.resolve(usage.data);
+    return api.get("/usage").then(function (u) { if (u && u.ok) { usage.data = u; usage.at = Date.now(); } return usage.data; }).catch(function () { return usage.data; });
+  }
+  function usagePct(used, limit) { return limit ? Math.min(100, Math.round(used * 100 / limit)) : 0; }
+  function gbText(b) { return b >= 1073741824 ? (Math.round(b / 107374182.4) / 10) + " GB" : Math.round(b / 1048576) + " MB"; }
+  function usageLines(u) {
+    return [
+      { key: "playbooks", label: "Saved documents", used: u.playbooks.used, limit: u.playbooks.limit, text: u.playbooks.limit === null ? u.playbooks.used + " saved (no limit on your plan)" : u.playbooks.used + " of " + u.playbooks.limit + " saved" },
+      { key: "actions", label: "DELA actions this month", used: u.actions.used, limit: u.actions.limit, text: u.actions.limit === null ? u.actions.used + " used (no limit)" : u.actions.used + " of " + u.actions.limit + " this month" + (u.actions.shared ? ", shared by your firm" : "") },
+      { key: "storage", label: "Storage", used: u.storage.used_bytes, limit: u.storage.limit_bytes, text: u.storage.limit_bytes === null ? gbText(u.storage.used_bytes) + " used" : gbText(u.storage.used_bytes) + " of " + gbText(u.storage.limit_bytes) + " used" }
+    ];
+  }
+  function upgradeButton(u, cls) {
+    return h("a", { class: "btn " + (cls || "blue") + " small", href: (u && u.upgrade_url) || "/account/upgrade" }, u && u.next_plan ? "Upgrade to " + u.next_plan.replace("Attorney ", "") : "Upgrade");
+  }
+  function usageBanner(host) {
+    loadUsage().then(function (u) {
+      if (!u) return;
+      var near = usageLines(u).filter(function (l) { return l.limit && usagePct(l.used, l.limit) >= (u.warn_pct || 80); });
+      if (!near.length) return;
+      var words = near.map(function (l) { return l.key === "actions" ? "You've used " + u.actions.used + " of " + u.actions.limit + " DELA actions this month." : l.key === "playbooks" ? "You've saved " + u.playbooks.used + " of " + u.playbooks.limit + " documents." : "You've used " + gbText(u.storage.used_bytes) + " of " + gbText(u.storage.limit_bytes) + " of storage."; }).join(" ");
+      host.insertBefore(h("div", { class: "notice warn usage-banner", role: "status", style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap;background:#fff7d6;border-color:#e6c84f" },
+        h("span", { class: "grow", text: words }), upgradeButton(u)), host.firstChild);
+    });
+  }
+  function usageMeter(host) {
+    loadUsage().then(function (u) {
+      if (!u || u.actions.limit === null) return;
+      host.appendChild(h("p", { class: "small muted usage-meter", style: "text-align:center;margin:18px 0 4px" },
+        h("a", { href: "#", onclick: function (e) { e.preventDefault(); tab = "usage"; draw(); }, text: "DELA actions: " + u.actions.used + " of " + u.actions.limit + " this month" })));
+    });
+  }
+  function usageView() {
+    var el = h("div", null, h("h1", { text: "Usage" }), h("p", { class: "muted", text: "Loading..." }));
+    loadUsage(true).then(function (u) {
+      D.clear(el);
+      el.appendChild(h("h1", { text: "Usage" }));
+      if (!u) { el.appendChild(h("p", { class: "notice", text: "Usage is shown for the attorney side." })); return; }
+      var card = h("div", { class: "card", id: "usage-card" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Your plan: " + u.plan }), upgradeButton(u)));
+      usageLines(u).forEach(function (l) {
+        var p = usagePct(l.used, l.limit);
+        card.appendChild(h("div", { style: "margin:14px 0" }, h("div", { class: "row" }, h("b", { class: "grow", text: l.label }), h("span", { class: "small", text: l.text })),
+          l.limit ? h("div", { class: "bar", role: "progressbar", "aria-label": l.label, "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(p) }, h("span", { style: "width:" + p + "%" + (p >= 100 ? ";background:var(--bad)" : p >= (u.warn_pct || 80) ? ";background:#d9a400" : "") })) : null));
+      });
+      card.appendChild(h("p", { class: "small muted", text: "DELA actions reset on " + D.date(u.resets_on) + ". A larger task, such as drafting a whole document, uses more than a short answer. Actions on your own AI key do not count. Viewing, exporting and assigning documents, messaging freelancers, posting gigs, hiring and paying are never limited." }));
+      if ((u.locked_ids || []).length) card.appendChild(h("p", { class: "notice", text: "🔒 " + u.locked_ids.length + (u.locked_ids.length === 1 ? " document is" : " documents are") + " read-only because your plan saves fewer documents. You can still view, export and assign them. Upgrade to edit them, or archive others to make room." }));
+      el.appendChild(card);
+    });
+    return el;
+  }
+  // The pop-up when an action hits a limit: Upgrade, or Not now (only that action stops)
+  function limitPopup(kind) {
+    loadUsage(true).then(function (u) {
+      var m = modal("Limit reached");
+      var text = kind === "playbooks" ? "You've saved " + (u ? u.playbooks.used + " of " + u.playbooks.limit : "all your") + " documents on " + (u ? u.plan.replace("Attorney ", "") : "your plan") + "." + (u && u.next_plan ? " Upgrade to " + u.next_plan.replace("Attorney ", "") + " to save more." : "")
+        : kind === "read_only" ? "This document is read-only on your plan. Upgrade to edit it. You can still view, export and assign it."
+        : kind === "storage" ? "Your storage is full. Delete files or upgrade for more space."
+        : "You've used this month's DELA actions. They reset on " + (u ? D.date(u.resets_on) : "the 1st of next month") + ", or upgrade for more.";
+      m.body.appendChild(h("p", { text: text }));
+      m.foot.appendChild(upgradeButton(u));
+      m.foot.appendChild(h("button", { class: "ghost", type: "button", onclick: m.close }, "Not now"));
+    });
   }
   // Who hires: attorneys, and agencies on the freelancer side once switched on (Step 7d part 2c)
   function canHire() { return me.side === "attorney" || !!me.agency_client; }
@@ -7174,6 +7266,8 @@
   try {
     var want = new URLSearchParams(location.search).get("tab");
     if (want && /^[a-z]+$/.test(want)) tab = want;
+    // The Usage page on the member dashboard (/account/usage) shows the usage view
+    if (location.pathname.indexOf("/account/usage") >= 0) tab = "usage";
     // A document link from a notice or a test (dela?tab=library&pb=ID) opens that document
     var wantPb = new URLSearchParams(location.search).get("pb");
     if (tab === "library" && wantPb && /^[0-9a-f-]{36}$/.test(wantPb)) { lib.pb = { playbook: { id: wantPb } }; lib.view = "read"; }

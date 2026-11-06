@@ -31,10 +31,11 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Limit | Free | Plus | Pro | Business | Status | Your decision |
 |---|---|---|---|---|---|---|
 | Open Flex Gigs at one time | 1 | 3 | 10 | No cap | Confirmed | |
-| Saved playbooks | No cap | No cap | No cap | No cap | Confirmed | |
+| Saved playbooks | 3 | 15 | 50 | No cap | Confirmed | |
 | Team seats included | 1 | 1 | 1 | 3 | Confirmed | |
 
 - Open Flex Gigs at one time: No numerical cap still keeps anti-spam and security safeguards.
+- Saved playbooks: Archived documents and the trash do not count. Blocking waits for the switch usage_limits_enforced.
 - Team seats included: Business includes three seats, owner included. Extra seats are $15 a month each.
 
 ### Freelancer side
@@ -63,8 +64,9 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | File storage | 250 | 1000 | 5000 | 20000 | Open | |
 | Bring your own AI key (OpenAI or Claude) | Yes | Yes | Yes | Yes | Confirmed | |
 
-- Weighted AI credits per month on Lawfecta's key: Provisional until costs are validated. Credits are weighted by AI cost; they are not a number of playbooks or conversations. Calls on the member's own key do not use credits.
+- Weighted AI credits per month on Lawfecta's key: Provisional until costs are validated. Credits are weighted by AI cost; they are not a number of playbooks or conversations. Calls on the member's own key do not use credits. Attorney plans since step 9b (Stacey 2026-11-06), shown to attorneys as DELA actions: Free 50, Plus 300, Pro 1,000, Business 2,500 shared by the firm. The values here are the freelancer plans, unchanged.
 - Playbook exports per month: Free members still earn the consultation export and the engagement playbook, and can buy single exports.
+- File storage: Attorney plans since step 9b (Stacey 2026-11-06): Free 1,024, Plus 10,240, Pro 51,200, Business 204,800 MB, shared by the firm. The values here are the freelancer plans, unchanged.
 
 ## 3. Engagement money
 

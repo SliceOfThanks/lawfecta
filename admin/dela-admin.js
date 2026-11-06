@@ -12,7 +12,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["reviews", "Reviews and bench"], ["agencies", "Agencies"], ["recurring", "Recurring"], ["team", "Lawfecta Team"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["reviews", "Reviews and bench"], ["agencies", "Agencies"], ["recurring", "Recurring"], ["usage", "Usage"], ["team", "Lawfecta Team"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   var current = "control";
   var mainEl = null;
   var tabsEl = null;
@@ -79,7 +79,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, usage: usageTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // ---------- Guide ----------
@@ -928,6 +928,43 @@
             api.post("/admin/monthly/run-now", { agreement_id: x.agreement_id }).then(function (y) { var z = y.data || y; if (z.ok === false) throw new Error(z.reason); ok("Renewal run: " + JSON.stringify(z.run || {})); recurringTab(); }).catch(fail);
           } }, "Run the renewal now (test site)") : null));
       });
+    }).catch(fail);
+  }
+
+  // Step 9b: every attorney's plan, usage and AI cost this month; Resync plan from BD; bonus credits with a note
+  function usageTab() {
+    var el = h("div", { class: "card" }, h("h2", { text: "Usage" }), h("p", { class: "muted", text: "Loading..." }));
+    body(el);
+    api.get("/admin/usage").then(function (r) {
+      var d = r.data || r;
+      D.clear(el);
+      el.appendChild(h("h2", { text: "Usage" }));
+      el.appendChild(h("p", { class: "small muted", text: "Attorneys' saved documents, DELA actions this month (weighted AI credits on Lawfecta's AI) and storage. AI cost is worked out from the provider prices in Settings (ai.price_cents_per_mtok). Anyone above " + D.money(d.flag_cents) + " this month is flagged. Blocking at 100% follows the switch usage_limits_enforced, now: " + (d.enforced_switch || "off") + "." }));
+      var list = d.attorneys || [];
+      if (!list.length) { el.appendChild(h("p", { class: "muted", text: "No attorneys yet." })); return; }
+      function frac(u, l) { return l === null || l === undefined ? u + " (no limit)" : u + " of " + l; }
+      function mb(b) { return b === null || b === undefined ? "" : (b >= 1073741824 ? (Math.round(b / 107374182.4) / 10) + " GB" : Math.round(b / 1048576) + " MB"); }
+      el.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack", style: "width:100%" },
+        h("thead", null, h("tr", null, ["Attorney", "Plan", "Documents", "DELA actions", "Storage", "AI cost this month", ""].map(function (t) { return h("th", { text: t }); }))),
+        h("tbody", null, list.map(function (x) {
+          var flagged = Number(x.ai_cost_cents) > d.flag_cents;
+          var amt = h("input", { type: "number", min: "1", max: "100000", step: "1", "aria-label": "Bonus actions for " + x.name, style: "width:90px" });
+          var note = h("input", { "aria-label": "Note for the bonus for " + x.name, placeholder: "Why (required)", style: "width:160px" });
+          return h("tr", null,
+            h("td", { "data-label": "Attorney" }, h("b", { text: x.name }), h("div", { class: "small muted", text: (x.email || "") + " | BD " + x.bd_member_id })),
+            h("td", { "data-label": "Plan", text: x.plan + (x.plan_source === "staff_grant" ? " (set by the team)" : "") }),
+            h("td", { "data-label": "Documents", text: frac(x.playbooks, x.playbooks_limit) }),
+            h("td", { "data-label": "DELA actions", text: frac(x.actions, x.actions_limit) + (x.bonus ? " (includes " + x.bonus + " bonus)" : "") + (x.shared_with ? ", shared with " + x.shared_with : "") }),
+            h("td", { "data-label": "Storage", text: mb(x.storage_bytes) + (x.storage_limit_bytes ? " of " + mb(x.storage_limit_bytes) : "") }),
+            h("td", { "data-label": "AI cost this month" }, h("span", { class: flagged ? "badge bad" : "", text: D.money(Math.round(Number(x.ai_cost_cents) || 0)) + (flagged ? " over " + D.money(d.flag_cents) : "") })),
+            h("td", null, h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" },
+              h("button", { class: "ghost small", type: "button", onclick: function () {
+                api.post("/admin/usage/resync", { person_id: x.person_id }).then(function (y) { var z = y.data || y; if (z.ok === false) throw new Error(z.reason); ok(z.changed ? "Plan updated: " + z.from + " to " + z.to : "The plan is up to date."); usageTab(); }).catch(fail);
+              } }, "Resync plan"),
+              amt, note, h("button", { class: "ghost small", type: "button", onclick: function () {
+                api.post("/admin/usage/bonus", { person_id: x.person_id, amount: Number(amt.value), note: note.value }).then(function (y) { var z = y.data || y; if (z.ok === false) throw new Error(z.reason); ok("Bonus actions added for this month."); usageTab(); }).catch(fail);
+              } }, "Grant bonus actions"))));
+        })))));
     }).catch(fail);
   }
 

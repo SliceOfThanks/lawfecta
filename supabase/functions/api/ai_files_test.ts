@@ -229,7 +229,7 @@ Deno.test("Lawfecta's AI: credits reserved, used once, given back on failure", a
   assertEquals((await call("GET", "/ai/chat?id=" + r.body.chat_id, { session: ann })).status, 404, "another member cannot read it");
 
   // Credits used up
-  await pool.query("update quota_usage set used = 25 where person_id = $1 and feature_key = 'ai.runs'", [await personOf(bo)]);
+  await pool.query("update quota_usage set used = 1000000 where person_id = $1 and feature_key = 'ai.runs'", [await personOf(bo)]);
   assertEquals((await call("POST", "/ai/chat/send", { session: bo, body: { content: "More", request_id: "bo-3" } })).body.reason, "no_credits_left");
   await pool.query("update quota_usage set used = 0 where person_id = $1 and feature_key = 'ai.runs'", [await personOf(bo)]);
 
@@ -387,10 +387,10 @@ Deno.test("files: size checked again after upload, storage full, versions, trash
 
   const full = await call("POST", "/files/start", { session: ann, body: { name: "huge.pdf", size_bytes: 24 * 1048576, ticked: true, request_id: "full-1" } });
   assertEquals(full.body.ok, true);
-  for (let i = 0; i < 10; i++) await call("POST", "/files/start", { session: ann, body: { name: `p${i}.pdf`, size_bytes: 24 * 1048576, ticked: true, request_id: "full-x" + i } });
+  for (let i = 0; i < 45; i++) await call("POST", "/files/start", { session: ann, body: { name: `p${i}.pdf`, size_bytes: 24 * 1048576, ticked: true, request_id: "full-x" + i } });
   const refused = await call("POST", "/files/start", { session: ann, body: { name: "last.pdf", size_bytes: 24 * 1048576, ticked: true, request_id: "full-last" } });
   assertEquals(refused.body.reason, "storage_full");
-  assert(refused.body.limit_bytes === 250 * 1048576, "the Free plan allows 250 MB");
+  assert(refused.body.limit_bytes === 1024 * 1048576, "Attorney Free allows 1 GB (step 9b)");
   await pool.query("delete from files where request_id like 'full-%'");
 
   const v2 = await upload(ann, "Intake steps v2.txt", strToU8("Step 1. Open the new intake form."), { replace_of: readyFile });

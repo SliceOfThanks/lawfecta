@@ -9,7 +9,7 @@ import { pickProvider } from "./lib/mail/index.ts";
 import { brevoDelivery } from "./lib/mail/brevo.ts";
 import { verifyPass } from "./lib/pass.ts";
 import { sendSms } from "./lib/sms/brevo.ts";
-import { bdCategories, bdFields, bdMember, bdUpdate, shapeOf } from "./lib/bd/members.ts";
+import { bdCategories, bdFields, bdMember, bdMember as bdMember_, bdUpdate, shapeOf } from "./lib/bd/members.ts";
 import { meetingIcs, NEXT_STEPS_SYSTEM, readSteps, THREAD_SYSTEM, threadPrompt, vecteraRoom, withoutLawfectaLinks } from "./lib/meetings/meet.ts";
 import { conductRules, GIG_SYSTEM, gigPrompt, normalizeMilestones, normalizePublic, PROPOSAL_SYSTEM, publicFromPlaybook, readReview, REVIEW_SYSTEM, toCents } from "./lib/gigs/model.ts";
 import { asksAboutTools, CATALOG_RULES, catalogText, rankForMember, readCatalog, type Tool } from "./lib/catalog/csv.ts";
@@ -3993,6 +3993,7 @@ async function worker(ctx: Ctx) {
   await rpc(ctx, "dela_worker_beat", {});
   await rpc(ctx, "dela_maybe_queue_daily", {});
   await rpc(ctx, "dela_maybe_queue_monthly", {}).catch(() => null);
+  await rpc(ctx, "dela_maybe_queue_plan_sync", {}).catch(() => null);
   if (await rpc<string>(ctx, "dela_setting_text", { p_key: "environment", p_default: "staging" }) === "staging") {
     await rpc(ctx, "dela_release_expire", {});
     await checkLive(ctx);
@@ -4080,6 +4081,7 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "engagement_tick") { await rpc(ctx, "dela_engagement_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "engagements_daily") return await engagementsDaily(ctx);
   if (j.kind === "monthly_hourly") return await monthlyRun(ctx);
+  if (j.kind === "bd_plan_sync") return await planSyncJob(ctx, j.payload ?? {});
   if (j.kind === "confidential_daily") return await confDaily(ctx);
   if (j.kind === "links_hourly") return { ok: true, ...(await rpc<Record<string, unknown>>(ctx, "dela_links_sweep", {}) ?? {}) };
   if (j.kind === "retention_daily") return await retentionDaily(ctx);
@@ -4178,6 +4180,43 @@ async function deliveryCheck(ctx: Ctx, p: Record<string, any>) {
 
 // ---------- Router ----------
 
+// Routes that change a document's content (the read-only check after a downgrade applies to these)
+const EDIT_ROUTES = new Set(["POST /playbooks/save", "POST /playbooks/save-draft", "POST /playbooks/fill", "POST /playbooks/restore", "POST /documents/fix", "POST /documents/type"]);
+
+// ---------- The BD plan sync (step 9b): nightly at 2:00 AM Pacific, and "Resync plan" in admin ----------
+// Reads subscription_id from the member's BD record and applies it. A failed read changes nothing: the member keeps
+// the last known plan, so nobody drops to Free because BD did not answer.
+async function syncOne(ctx: Ctx, person: string, bdMember: number): Promise<Record<string, any>> {
+  const r = await bdMember_(f(ctx), await setting(ctx, "site.url", ""), ctx.deps.env("BD_API_KEY"), bdMember);
+  if (!r.ok) return { ok: false, error: r.error ?? "bd_error", status: r.status };
+  const sub = Number((r.data as Record<string, unknown>).subscription_id);
+  if (!Number.isFinite(sub) || sub <= 0) return { ok: false, error: "no_subscription_id" };
+  return await rpc<Record<string, any>>(ctx, "dela_plan_sync_apply", { p_person: person, p_bd_plan: sub });
+}
+async function planResync(ctx: Ctx) {
+  const s = await staff(ctx);
+  const person = need(uuid(ctx.body.person_id));
+  const who = await rpc<Record<string, any> | null>(ctx, "dela_person_bd", { p_person: person });
+  if (!who?.bd_member_id) return json(ctx, { ok: false, reason: "not_found" });
+  const r = await syncOne(ctx, person, Number(who.bd_member_id));
+  await rpc(ctx, "dela_plan_sync_log", { p_kind: "resync", p_checked: 1, p_changed: r.changed ? 1 : 0, p_errors: r.ok === false ? 1 : 0, p_detail: [{ person, ...r }], p_actor: s.person_id });
+  return json(ctx, r.ok === false ? { ok: false, reason: r.error } : r);
+}
+async function planSyncJob(ctx: Ctx, p: Record<string, any>) {
+  const batch = (await rpc<Array<{ person_id: string; bd_member_id: number }>>(ctx, "dela_plan_sync_batch", { p_after: Number(p.after ?? 0), p_limit: 50 })) ?? [];
+  const detail: Array<Record<string, unknown>> = [];
+  let changed = 0, errors = 0;
+  for (const m of batch) {
+    const r: Record<string, any> = await syncOne(ctx, m.person_id, m.bd_member_id).catch((e) => ({ ok: false, error: String(e).slice(0, 100) }));
+    if (r.ok === false) errors++; else if (r.changed) { changed++; detail.push({ bd_member_id: m.bd_member_id, from: r.from, to: r.to }); }
+    if (r.ok === false && r.status === 403) { errors += batch.length - 1; detail.push({ error: "not_allowed" }); break; }
+  }
+  await rpc(ctx, "dela_plan_sync_log", { p_kind: "nightly", p_checked: batch.length, p_changed: changed, p_errors: errors, p_detail: detail, p_actor: null });
+  // The next batch is its own job, so a long list never runs past the worker's time limit
+  if (batch.length === 50) await rpc(ctx, "dela_job_enqueue", { p_kind: "bd_plan_sync", p_payload: { after: batch[batch.length - 1].bd_member_id, run: p.run }, p_run_at: new Date().toISOString(), p_idem: "bd_plan_sync:" + p.run + ":" + batch[batch.length - 1].bd_member_id, p_person: null });
+  return { ok: true };
+}
+
 export async function handle(req: Request, deps: Deps): Promise<Response> {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(req, deps) });
   const url = new URL(req.url);
@@ -4202,7 +4241,14 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     }
     const ctx: Ctx = { req, deps, body, url, ip };
     const key = `${req.method} ${path}`;
+    // Read-only documents after a downgrade (step 9b): edits stop; viewing, exporting, assigning, archiving and
+    // deleting still work. The check runs only while usage_limits_enforced is on (inside dela_pb_locked).
+    if (EDIT_ROUTES.has(key) && uuid(body.id) && await rpc<boolean>(ctx, "dela_pb_locked", { p_pb: uuid(body.id) })) return json(ctx, { ok: false, reason: "document_read_only" });
     switch (key) {
+      case "GET /usage": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_usage", { p_person: s.person_id, p_side: s.side })); }
+      case "GET /admin/usage": { const s = await staff(ctx); return json(ctx, await rpc(ctx, "dela_admin_usage", { p_actor: s.person_id })); }
+      case "POST /admin/usage/bonus": { const s = await staff(ctx); return json(ctx, await rpc(ctx, "dela_admin_usage_bonus", { p_actor: s.person_id, p_person: need(uuid(ctx.body.person_id)), p_amount: int(ctx.body.amount), p_note: str(ctx.body.note, 500) })); }
+      case "POST /admin/usage/resync": return await planResync(ctx);
       case "GET /health": {
         // Watched every 5 minutes by the uptime monitor. 503 when the database or the background worker is not working.
         const hh = await rpc<Record<string, any>>(ctx, "dela_health", {});

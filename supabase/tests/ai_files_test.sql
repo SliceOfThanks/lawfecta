@@ -127,8 +127,8 @@ begin
   r := dela_file_start(jsonb_build_object('person_id', a, 'side', 'attorney', 'request_id', 'r1', 'name', 'Intake process.PDF', 'size_bytes', 1000, 'ticked', true));
   perform t_ok((r->>'duplicate')::boolean and (r->>'file_id')::uuid = f1, 'the same upload twice is one file');
 
-  -- Storage limit (Free: 250 MB): space counts uploads in progress
-  for n in 1..11 loop
+  -- Storage limit (Attorney Free: 1 GB since step 9b): space counts uploads in progress
+  for n in 1..43 loop
     r := dela_file_start(jsonb_build_object('person_id', a, 'side', 'attorney', 'request_id', 'big' || n, 'name', 'part' || n || '.pdf', 'size_bytes', 24 * 1048576, 'ticked', true));
   end loop;
   perform t_ok(r->>'reason' = 'storage_full', 'the storage allowance is checked when an upload starts');

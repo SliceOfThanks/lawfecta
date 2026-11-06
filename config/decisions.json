@@ -151,13 +151,14 @@
       "unit": "playbooks",
       "period": "none",
       "values": {
-        "free": null,
-        "plus": null,
-        "pro": null,
+        "free": 3,
+        "plus": 15,
+        "pro": 50,
         "business": null
       },
       "status": "C",
-      "source": "Stacey, Decision Register v1.1 (2026-10-26)"
+      "source": "Stacey 2026-11-06 (usage limits note, step 9b)",
+      "note": "Archived documents and the trash do not count. Blocking waits for the switch usage_limits_enforced."
     },
     {
       "key": "att.team_seats",
@@ -205,7 +206,7 @@
       },
       "status": "O",
       "source": "Stacey, Decision Register v1.1 (2026-10-26); provisional",
-      "note": "Provisional until costs are validated. Credits are weighted by AI cost; they are not a number of playbooks or conversations. Calls on the member's own key do not use credits."
+      "note": "Provisional until costs are validated. Credits are weighted by AI cost; they are not a number of playbooks or conversations. Calls on the member's own key do not use credits. Attorney plans since step 9b (Stacey 2026-11-06), shown to attorneys as DELA actions: Free 50, Plus 300, Pro 1,000, Business 2,500 shared by the firm. The values here are the freelancer plans, unchanged."
     },
     {
       "key": "exports",
@@ -266,7 +267,8 @@
         "business": 20000
       },
       "status": "O",
-      "source": "Suggestion by Claude"
+      "source": "Suggestion by Claude",
+      "note": "Attorney plans since step 9b (Stacey 2026-11-06): Free 1,024, Plus 10,240, Pro 51,200, Business 204,800 MB, shared by the firm. The values here are the freelancer plans, unchanged."
     },
     {
       "key": "byok",
