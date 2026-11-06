@@ -1822,8 +1822,12 @@
     Promise.all([api.get("/playbooks/get?id=" + id), loadUsage()]).then(function (rs) {
       var r = rs[0];
       if (!r.ok) throw r;
+      var other = lib.lastDoc !== id;
       lib.pb = r;
-      lib.view = view || lib.view || "read";
+      lib.lastDoc = id;
+      if (other) lib.editDraft = null;
+      // Phase 4 part A: a document with an approved version opens on that version, read-only
+      lib.view = view || (other && r.approved ? "approved" : lib.view) || "read";
       drawPlaybook();
     }).catch(function (e) { pbFail(e); loadLibrary(); });
   }
@@ -2197,9 +2201,9 @@
       })));
   }
 
-  function doExport(format) {
+  function doExport(format, which) {
     var w = format === "pdf" ? window.open("", "_blank") : null;
-    api.post("/playbooks/export", { id: lib.pb.playbook.id, format: format, request_id: newId() }).then(function (r) {
+    api.post("/playbooks/export", { id: lib.pb.playbook.id, format: format, which: which || "", request_id: newId() }).then(function (r) {
       if (!r.ok) throw r;
       if (r.print) {
         if (!w) { D.toast(app, "Allow pop-ups for this site to print to PDF.", true); return; }
@@ -6425,12 +6429,19 @@
     var P = lib.pb.playbook, d = docWork(), ck = lib.pb.check || { items: [], blocking: 0 };
     var locked = docLocked(P.id);
     var edit = can(3) && P.status !== "trash" && P.status !== "archived" && !locked;
+    var AV = lib.pb.approved || null;
+    // An approved document is only edited after "Edit a new draft"; otherwise the draft tab shows its approved version
+    if (AV && AV.current && lib.editDraft !== P.id && (lib.view === "read" || lib.view === "edit")) lib.view = "approved";
+    if (!AV && lib.view === "approved") lib.view = "read";
     D.clear(libEl);
     lockNotice(P.id);
     libEl.appendChild(h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "ghost small", onclick: function () { lib.doc = null; loadLibrary(); } }, "← Library")));
     libEl.appendChild(h("div", { class: "row", style: "margin:8px 0 4px" }, h("h1", { class: "grow", style: "margin:0", text: (P.doc_id ? P.doc_id + " " : "") + P.title }),
       h("span", { class: "badge", text: DOC_TYPE_WORDS[d.type] }), h("span", { class: "badge " + (P.status === "approved" ? "ready" : P.status === "in_review" ? "held" : ""), text: PB_STATUS[P.status] })));
-    if (P.status !== "approved") libEl.appendChild(h("div", { class: "notice", role: "note", style: "font-weight:700", text: "Draft, not approved. Do not use this as an approved procedure." + (P.approved_version ? " The approved version " + P.approved_version + " stays in use until this one is approved." : "") }));
+    if (lib.view === "approved") { /* the approved page says which version is in use */ }
+    else if (P.status !== "approved") libEl.appendChild(h("div", { class: "notice", role: "note", style: "font-weight:700" }, h("span", { text: "Draft, not approved. Do not use this as an approved procedure." + (P.approved_version ? " The approved version " + P.approved_version + " stays in use until this one is approved." : "") }),
+      AV ? h("span", null, " ", h("button", { class: "ghost small", type: "button", onclick: function () { lib.view = "approved"; drawDocument(); } }, "View the approved version")) : null));
+    else if (AV && lib.editDraft === P.id) libEl.appendChild(h("div", { class: "notice", role: "note", text: "New draft. Your first save makes version " + (P.version + 1) + " as a draft; the approved version " + P.approved_version + " stays in use until the draft is approved." }));
     if (P.converted) {
       var tsel = h("select", { "aria-label": "Change the type" }, ["sop", "workflow", "playbook", "policy"].map(function (t) { return h("option", { value: t, text: DOC_TYPE_WORDS[t], selected: d.type === t }); }));
       libEl.appendChild(h("div", { class: "notice ok" }, h("p", { style: "margin:0 0 6px", text: "DELA moved this to the document standard as " + DOC_TYPE_WORDS[d.type] + (P.conversion_note ? " (" + P.conversion_note + ")" : "") + ". Check it, then approve it again." }),
@@ -6451,18 +6462,23 @@
     owner.addEventListener("change", function () { d.owner_role = owner.value; });
     var risk = h("input", { type: "checkbox", checked: !!d.high_risk, disabled: !edit, "aria-label": "High risk (trust, conflicts or deadlines)" });
     risk.addEventListener("change", function () { d.high_risk = risk.checked; });
-    libEl.appendChild(h("div", { class: "kv" }, h("div", null, "Document ID", h("b", { text: P.doc_id || "Set when saved" })), h("div", null, "Version", h("b", { text: String(P.version) })),
-      h("div", null, "Owner (role)", owner), h("div", null, "Last reviewed", h("b", { text: P.last_reviewed_at ? D.date(P.last_reviewed_at) : "Not yet" })),
+    if (lib.view !== "approved") libEl.appendChild(h("div", { class: "kv" }, h("div", null, "Document ID", h("b", { text: P.doc_id || "Not given yet (given at the first save)" })), h("div", null, "Version", h("b", { text: String(P.version) })),
+      h("div", null, "Owner (role)", owner), h("div", null, "Last reviewed", h("b", { text: P.last_reviewed_at ? D.date(P.last_reviewed_at) : P.approved_version ? "Never reviewed since approval" : "Not reviewed yet" })),
       h("div", null, "Next review", h("b", { text: P.next_review_at ? D.date(P.next_review_at) : (d.high_risk ? "3 months after approval" : "12 months after approval") })),
       h("div", null, "High risk", h("label", { style: "display:flex;gap:6px;font-weight:400" }, risk, h("span", { text: "Trust, conflicts or deadlines (reviewed every 3 months)" })))));
     var views = [["read", "Draft and review"], ["chat", "Chat"], ["suggestions", "Suggestions (" + lib.pb.suggestions.length + ")"], ["comments", "Comments (" + lib.pb.comments.filter(function (c) { return !c.resolved; }).length + ")"],
       ["activity", "Activity"], ["versions", "Versions"], ["files", "Files (" + lib.pb.files.length + ")"]];
+    if (AV) {
+      if (AV.current && lib.editDraft !== P.id) views[0] = ["approved", "Approved version"];
+      else views.splice(0, 1, ["approved", "Approved version"], ["read", AV.current ? "New draft" : "Draft (version " + P.version + ")"]);
+    }
     libEl.appendChild(h("div", { class: "tabs", role: "tablist", style: "border-radius:14px;margin:10px 0" }, views.map(function (v) {
       return h("button", { role: "tab", "aria-selected": String((lib.view === "edit" ? "read" : lib.view) === v[0]), onclick: function () { lib.view = v[0]; drawDocument(); } }, v[1]);
     })));
     var area = h("div");
     libEl.appendChild(area);
-    if (lib.view === "read" || lib.view === "edit" || lib.view === "export") reviewScreen(area, d, ck, edit);
+    if (lib.view === "approved" && AV) approvedPage(area, d, AV, edit);
+    else if (lib.view === "read" || lib.view === "edit" || lib.view === "export") reviewScreen(area, d, ck, edit);
     else ({ chat: pbChatView, suggestions: docSuggestionsView, comments: commentsView, activity: activityView, versions: versionsView, files: pbFilesView })[lib.view](area, d);
     if (can(4)) {
       libEl.appendChild(h("div", { class: "row", style: "margin-top:18px" },
@@ -6495,6 +6511,46 @@
 
   // Each fix button says what it fixes (UX review D03), for example "Fix it: Each step starts with a verb"
   function fixLabel(it) { var l = String(it.label || "").split(":")[0]; return "Fix it: " + (l.length > 48 ? l.slice(0, 46) + "..." : l); }
+
+  // Phase 4 part A (UX review D01): the approved version, read-only. Gigs, standing arrangements and exports use it.
+  function approvedPage(area, d, AV, edit) {
+    var P = lib.pb.playbook, draftOpen = !AV.current;
+    var card = h("div", { class: "card", id: "approved-version" }, h("h2", { text: "Approved version " + AV.version }));
+    card.appendChild(h("div", { class: "kv" },
+      h("div", null, "Document ID", h("b", { text: P.doc_id || "Not given yet" })),
+      h("div", null, "Version", h("b", { text: String(AV.version) })),
+      h("div", null, "Approved", h("b", { text: AV.approved_at ? D.date(AV.approved_at) + (AV.approved_by ? " by " + AV.approved_by : "") : "Date not recorded" })),
+      h("div", null, "Owner (role)", h("b", { text: d.owner_role || "Not set" })),
+      h("div", null, "Last reviewed", h("b", { text: P.last_reviewed_at ? D.date(P.last_reviewed_at) : "Never reviewed since approval" })),
+      h("div", null, "Next review", h("b", { text: P.next_review_at ? D.date(P.next_review_at) : "Not set" }))));
+    card.appendChild(h("p", { class: "small muted", text: "This is the version in use: new gigs, standing arrangements and exports use it." + (P.status === "archived" ? " The document is archived." : P.status === "trash" ? " The document is in the trash." : "") }));
+    var acts = h("div", { class: "row", style: "flex-wrap:wrap" });
+    if (draftOpen) {
+      card.appendChild(h("p", { class: "notice", role: "note", text: "A draft (version " + P.version + ") is in progress. This approved version stays in use until the draft is approved." }));
+      acts.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { lib.view = "read"; drawDocument(); } }, "Open the draft"));
+    } else if (edit) acts.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { lib.editDraft = P.id; lib.view = "read"; drawDocument(); } }, "Edit a new draft"));
+    if (!draftOpen && P.status === "approved" && (d.type === "sop" || d.type === "workflow") && (me.switches || {}).flex_gigs && can(4)) acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { gigs.id = null; gigs.newFrom = P.id; tab = "projects"; draw(); } }, "Post as a Flex Gig"));
+    if (acts.children.length) card.appendChild(acts);
+    card.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:8px" }, h("span", { class: "small", text: "Export the approved version: " }),
+      [["docx", "Word"], ["pdf", "PDF"], ["md", "Markdown"], ["html", "Web page"], ["csv", "Step checklist"]].map(function (f) { return h("button", { class: "ghost small", type: "button", onclick: function () { doExport(f[0], "approved"); } }, f[1]); })));
+    area.appendChild(card);
+    // The document itself, laid out as the export (no boxes, no Save buttons)
+    var doc = h("div", { class: "card", id: "approved-body" });
+    (AV.blocks || []).forEach(function (b) {
+      doc.appendChild(h("h3", { text: b.title }));
+      if (b.paras) { var ps = b.paras.filter(Boolean); if (ps.length) ps.forEach(function (t) { doc.appendChild(h("p", { text: t })); }); else doc.appendChild(h("p", { class: "muted", text: "Not set" })); }
+      if (b.items) {
+        if (!b.items.length) doc.appendChild(h("p", { class: "muted", text: "Not set" }));
+        else doc.appendChild(h(b.numbered ? "ol" : "ul", null, b.items.map(function (t, i) { return h("li", null, h("span", { style: "white-space:pre-line", text: t }), imagesRead((b.itemImages || [])[i])); })));
+      }
+      var cell = "border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top";
+      if (b.table) doc.appendChild(h("div", { class: "scroll" }, h("table", { style: "width:100%;border-collapse:collapse;font-size:14px" },
+        b.table.head.some(Boolean) ? h("tr", null, b.table.head.map(function (x) { return h("th", { style: cell, text: x }); })) : null,
+        b.table.rows.map(function (r) { return h("tr", null, r.map(function (x) { return h("td", { style: cell, text: x }); })); }))));
+      var ims = imagesRead(b.images); if (ims) doc.appendChild(ims);
+    });
+    area.appendChild(doc);
+  }
 
   function reviewScreen(area, d, ck, edit) {
     var P = lib.pb.playbook;
@@ -6533,8 +6589,9 @@
     if (can(4) && (P.status === "draft" || P.status === "in_review")) acts.appendChild(h("span", { title: blocked ? "Fix the blocking items first" : imgDue ? "Mark every image \"Still current\" or replace it in Check images first" : "" }, h("button", { class: "blue small", type: "button", disabled: blocked || imgDue, onclick: function () { status("approve", "Approved"); } }, "Approve")));
     if (P.status === "approved" && (d.type === "sop" || d.type === "workflow") && (me.switches || {}).flex_gigs && can(4)) acts.appendChild(h("button", { class: "blue small", type: "button", disabled: blocked, onclick: function () { gigs.id = null; gigs.newFrom = P.id; tab = "projects"; draw(); } }, "Post as a Flex Gig"));
     qp.appendChild(acts);
-    var ex = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, h("span", { class: "small", text: "Export: " }),
-      [["docx", "Word"], ["pdf", "PDF"], ["md", "Markdown"], ["html", "Web page"], ["csv", "Step checklist"]].map(function (f) { return h("button", { class: "ghost small", type: "button", disabled: blocked, onclick: function () { doExport(f[0]); } }, f[1]); }));
+    var draftEx = !!(lib.pb.approved && P.status !== "approved");
+    var ex = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, h("span", { class: "small", text: draftEx ? "Export this draft (marked DRAFT on every page): " : "Export: " }),
+      [["docx", "Word"], ["pdf", "PDF"], ["md", "Markdown"], ["html", "Web page"], ["csv", "Step checklist"]].map(function (f) { return h("button", { class: "ghost small", type: "button", disabled: blocked, onclick: function () { doExport(f[0], draftEx ? "draft" : ""); } }, f[1]); }));
     qp.appendChild(ex);
     right.appendChild(qp);
     var cic = checkImagesCard(d); if (cic) right.appendChild(cic);

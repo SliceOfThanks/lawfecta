@@ -208,7 +208,28 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | High end of the hourly rate DELA uses to suggest a delegated gig's budget. Used until Lawfecta has enough hires to work out real rates for a skill. | 7500 cents an hour | Open | Claude suggestion | |
 | Days after sign-up for reminder emails about unfinished setup steps (empty turns them off). For the onboarding widget, after the MVP launch. | 2, 7 | Confirmed | Stacey 2026-11-06 (step 4d answers) | |
 
-## 12. On and off switches
+## 12. UX Phase 4: approved version, AI helpers, appearance
+
+| Item | Suggested value | Status | Where it comes from | Your decision |
+|---|---|---|---|---|
+| DELA actions for one run of "✦ Check the scope" on a gig draft (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 1 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
+| DELA actions for one run of "✦ Compare these proposals" (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 2 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
+| DELA actions for one run of "✦ Check this for me" on an agreement (attorney or freelancer) (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 2 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
+| DELA actions for one run of "✦ Improve acceptance criteria" on a milestone (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 1 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
+| DELA actions for one run of "✦ Check monthly scope" (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 1 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
+| DELA actions for one run of "✦ Check my proposal" (freelancer) (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 1 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
+| DELA actions for one run of "✦ Check these steps" in a document (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 1 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
+| DELA actions for one run of "✦ Improve this section" in a document (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 1 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
+| DELA actions for one run of "✦ Explain these findings" on the quality check (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 1 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
+| DELA actions for one run of "✦ Help me describe my firm" (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 1 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
+| DELA actions for one run of "✦ Improve my request" in Ask DELA (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 1 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
+| DELA actions for one run of "✦ Help me find a fit" in Talent (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 1 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
+| DELA actions for one run of "✦ Draft an agenda" for a meeting (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 1 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
+| DELA actions for one run of "✦ Help me write a review" (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 1 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
+| Most proposals compared at once by "✦ Compare these proposals". Keeps one comparison inside one DELA run. | 10 proposals | Open | Claude suggestion | |
+| Starting appearance for every member (light, dark or device). Members change it in the account menu: Match my device, Light or Dark. The same choice in the admin area. | light | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
+
+## 13. On and off switches
 
 Every switch starts Off. In the admin area each one can be set to Off, Lawfecta Team only, Access list, or Everyone.
 
@@ -234,3 +255,6 @@ Every switch starts Off. In the admin area each one can be set to Off, Lawfecta 
 | Automate or delegate: DELA finds steps in an approved document to automate or hand to a freelancer | Step 4d tested |
 | The Get set up screen for attorneys | Step 4d tested |
 | The onboarding widget for new attorneys and freelancers | After the MVP launch |
+| Approved documents open on a read-only "Approved version" page with "Edit a new draft" | Phase 4 part A tested |
+| The Phase 4 AI helpers (checks before a commitment and writing helpers) | Phase 4 part B tested |
+| The Appearance choice (Match my device, Light, Dark) in the account menu | Phase 4 part D tested |

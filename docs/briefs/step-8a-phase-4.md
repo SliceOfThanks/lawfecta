@@ -1,7 +1,7 @@
 # Feature brief: UX review Phase 4 (approved-version view, AI helpers, first ten minutes, dark mode)
 
 Step: 8a   Spec references: docs/briefs/step-8-ux-review.md (Phase 4), UX review findings D01, Part 4 (AI help buttons), Part 8 (first ten minutes), the mockups' dark-mode examples; docs/briefs/step-4d-guided-setup-delegate-automate.md (onboarding widget A); docs/briefs/step-9b-attorney-usage-limits.md (DELA actions)
-Status: draft, waiting for Stacey's answers
+Status: approved by Stacey 2026-11-06 ("all as suggested"). Build A, then B checks 1 to 5 with the two freelancer helpers, then the rest of B, then D. C waits for the onboarding widget.
 
 Phases 0 to 3 of the UX review are on the test site. Phase 4 holds the four items that were too large or too new to build without their own brief. Each one is a separate part, so they can be built and tested one at a time.
 
@@ -140,6 +140,18 @@ My suggestion is in brackets after each one.
 8. **Dark mode default.** Keep following the device (today), or start everyone on Light because the BD page around DELA is light? [Start on Light, with the "Appearance" choice in the account menu. A dark DELA inside a light BD page looks out of place.]
 9. **Dark mode in the admin area.** Same choice there? [Yes, the same menu.]
 10. **Any helper to drop?** [None. If you want fewer, drop "✦ Draft an agenda" and "✦ Help me find a fit" first; they save the least time.]
+
+## Stacey's answers (2026-11-06: "all as suggested")
+1. **Build order.** A, then the five checks before a commitment (B 1 to 5, with the freelancer helpers from answer 4), then the rest of B, then D. C stays with the onboarding widget after the MVP launch.
+2. **Freelancers and the approved version.** They keep today's gig copy. The read-only page is for the firm only.
+3. **Exports.** Always the approved version. A separate "Export this draft" is marked DRAFT on every page.
+4. **Freelancer helpers.** Yes: "✦ Check my proposal" before sending and "✦ Check this for me" on the agreement they sign. Same rules; DELA actions on their own plan.
+5. **"✦ Help me write a review."** Yes, only from the attorney's own stars and notes, labeled "AI suggestion" while editing, and not offered for a 1- or 2-star review without notes.
+6. **First ten minutes.** Stays with the onboarding widget after the MVP launch. "Get set up" covers the beta.
+7. **DELA actions.** 1 per run for short helpers, 2 for "Compare these proposals" and "Check this for me". No free first try.
+8. **Dark mode default.** Light for everyone, with "Appearance: Match my device / Light / Dark" in the account menu.
+9. **Admin area.** The same Appearance choice.
+10. **Helpers to drop.** None.
 
 ## Success looks like
 Claude's tests (api and browser) for each part, then a ChatGPT test grouped by login:

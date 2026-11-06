@@ -26,7 +26,7 @@ import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, moneySummary, readTasks, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
 import { blockedKinds, blockedMessage, FILE_BLOCKED_MESSAGE } from "./lib/confidential/rules.ts";
-import { looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
+import { blocks as docBlocks, looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
 import { AUTOMATE_SYSTEM, defaultKpis, delegatedSop, FREQUENCIES, hoursSaved, promptFor, readKpis, readRecommendations, setupSteps, suggestBudget, timeInputs, type AllowedTool, type Frequency, type Recommendation } from "./lib/automate/model.ts";
 import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
@@ -804,8 +804,35 @@ async function pbGet(ctx: Ctx) {
     r.images = imageView(cc.images ?? {});
     r.images_due = imageIds(body).length ? await rpc(ctx, "dela_doc_images_due", { p_playbook: id, p_ids: imageIds(body) }) : { due: false, ids: [] };
     r.image_settings = await imageSettings(ctx, s);
+    // Phase 4 part A: the approved version, read-only, as gigs and exports use it
+    if (r.playbook.approved_version && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "approved_view", p_person: s.person_id })) r.approved = await approvedView(ctx, s, r);
   }
   return json(ctx, r);
+}
+
+// The approved version's body (null for an approved version saved before the document standard)
+async function approvedVersion(ctx: Ctx, s: Session, cur: Record<string, any>): Promise<{ version: number; body: DocBody } | null> {
+  const av = Number(cur.playbook.approved_version);
+  if (!av) return null;
+  if (av === Number(cur.playbook.version)) return { version: av, body: normalizeDoc(cur.body) };
+  const v = await rpc<Record<string, any> | null>(ctx, "dela_pb_version", { p_person: s.person_id, p_id: cur.playbook.id, p_version: av });
+  if (!v || !isDoc(v.body)) return null;
+  return { version: av, body: await docUpgradeImages(ctx, normalizeDoc(v.body), cur.playbook.org_id) };
+}
+
+// The document as it stood at the approved version: the header facts and change log up to that version
+function approvedCur(cur: Record<string, any>, av: number): Record<string, any> {
+  return { ...cur, playbook: { ...cur.playbook, version: av, status: "approved" }, changes: ((cur.changes ?? []) as Array<Record<string, any>>).filter((c) => Number(c.version) <= av) };
+}
+
+async function approvedView(ctx: Ctx, s: Session, cur: Record<string, any>) {
+  const a = await approvedVersion(ctx, s, cur);
+  if (!a) return null;
+  const ch = ((cur.changes ?? []) as Array<Record<string, any>>).filter((c) => c.kind === "approval" && Number(c.version) === a.version).pop();
+  const act = ((cur.activity ?? []) as Array<Record<string, any>>).find((x) => x.action === "approved" && Number(x.version) === a.version);
+  const m = docMetaFor(approvedCur(cur, a.version), await today(ctx));
+  return { version: a.version, current: a.version === Number(cur.playbook.version), approved_at: ch?.at ?? act?.at ?? null, approved_by: ch?.by ?? act?.by ?? "",
+    blocks: docBlocks(a.body, m).filter((b) => b.title !== "Header") };
 }
 
 // New playbook: blank, or drafted by the AI from a description (spoken or typed) and any attached files
@@ -1000,11 +1027,19 @@ async function pbExport(ctx: Ctx) {
   const id = uuid(ctx.body.id);
   const format = str(ctx.body.format, 10);
   if (!id) throw new HttpError(400, "bad_request");
-  const pre = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
+  let pre = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
   if (pre?.ok && isDoc(pre.body)) {
+    // Phase 4 part A: while a draft is open, exports use the approved version unless the member asks for the draft
+    // (which then carries the draft banner on every page)
+    let src: DocBody = pre.body;
+    if (str(ctx.body.which, 10) !== "draft" && pre.playbook.approved_version && pre.playbook.status !== "approved"
+      && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "approved_view", p_person: s.person_id })) {
+      const a = await approvedVersion(ctx, s, pre);
+      if (a) { pre = approvedCur(pre, a.version); src = a.body; }
+    }
     // Checked before the export allowance is used
     const firm = await docFirm(ctx, s);
-    const pbody = await docUpgradeImages(ctx, normalizeDoc(pre.body), pre.playbook.org_id);
+    const pbody = await docUpgradeImages(ctx, normalizeDoc(src), pre.playbook.org_id);
     const chk = checkDoc(pbody, await docCtx(ctx, firm, pbody, pre.playbook.org_id));
     if (chk.blocking > 0) return json(ctx, { ok: false, reason: "checks_failing", items: chk.items.filter((i) => i.status === "blocking") });
     const r0 = await rpc<Record<string, any>>(ctx, "dela_pb_export", { p_person: s.person_id, p_id: id, p_format: format, p_request: str(ctx.body.request_id, 80) || crypto.randomUUID() });
