@@ -28,6 +28,7 @@ import { buildBody, feeLines, moneySummary, readTasks, SUBCONTRACTING_NOTE, CHEC
 import { blockedKinds, blockedMessage, FILE_BLOCKED_MESSAGE } from "./lib/confidential/rules.ts";
 import { blocks as docBlocks, looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
+import { HELPER_SIDE, HELPER_SYSTEM, HELPERS, NOT_LEGAL, readCompare, readCriteria, readFindings, type HelperKey } from "./lib/helpers/model.ts";
 import { AUTOMATE_SYSTEM, defaultKpis, delegatedSop, FREQUENCIES, hoursSaved, promptFor, readKpis, readRecommendations, setupSteps, suggestBudget, timeInputs, type AllowedTool, type Frequency, type Recommendation } from "./lib/automate/model.ts";
 import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
 
@@ -2514,6 +2515,100 @@ async function messageSend(ctx: Ctx) {
   return json(ctx, r);
 }
 
+// ---------- UX review Phase 4 part B: the checks before a commitment (docs/briefs/step-8a-phase-4.md) ----------
+// One route for the seven checks. Each re-checks who may see the gig, proposals or agreement at the moment it runs, reads
+// what the member typed only for the check, and never saves, posts, signs or pays. Code checks the AI's answer first.
+const HELPER_CREDITS: Record<HelperKey, [string, number]> = {
+  check_scope: ["ai.credits.check_scope", 1], compare_proposals: ["ai.credits.compare_proposals", 2], agreement_check: ["ai.credits.agreement_check", 2],
+  acceptance_criteria: ["ai.credits.acceptance_criteria", 1], monthly_scope: ["ai.credits.monthly_scope", 1], proposal_check: ["ai.credits.proposal_check", 1],
+};
+const hMoney = (c: unknown) => "$" + ((Number(c) || 0) / 100).toFixed(2);
+const hNum = (x: unknown) => { const n = Number(x); return x === "" || x === null || x === undefined || !Number.isFinite(n) ? null : n; };
+const lineList = (x: unknown, n = 20) => (Array.isArray(x) ? x : String(x ?? "").split("\n")).map((t) => str(t, 300)).filter(Boolean).slice(0, n);
+const gigText = (g: Record<string, any>) => {
+  const p = g?.public ?? {};
+  return ["Gig: " + str(g?.title ?? p.title, 200), "Task: " + str(p.task, 1500), "Done looks like: " + str(p.outcome, 800), "Steps:\n" + lineList(p.steps).map((t, i) => (i + 1) + ". " + t).join("\n"),
+    "Usual time: " + str(p.timing, 200)].join("\n");
+};
+
+async function helperRun(ctx: Ctx) {
+  const key = str(ctx.body.helper, 40) as HelperKey;
+  if (!HELPERS.includes(key)) throw new HttpError(400, "bad_request");
+  const side = HELPER_SIDE[key];
+  const s = side === "client" ? await client(ctx) : await memberSide(ctx);
+  if (side === "freelancer" && s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "ai_helpers", p_person: s.person_id })) return json(ctx, { ok: false, reason: "helpers_off" });
+  let prompt = "", typed = "", rows = 0, ids: string[] = [], seqs: number[] = [];
+  if (key === "check_scope") {
+    const g = await rpc<Record<string, any>>(ctx, "dela_gig_get", { p_person: s.person_id, p_side: s.side, p_gig: need(uuid(ctx.body.gig_id)) });
+    if (!g?.ok || g.access !== "manager") return json(ctx, { ok: false, reason: "not_found" });
+    const d = (ctx.body.draft ?? {}) as Record<string, any>;
+    typed = [d.title, d.task, d.outcome, lineList(d.steps).join("\n"), d.timing, lineList(d.milestones).join("\n")].map((x) => str(x, 2000)).join("\n");
+    prompt = ["Title: " + str(d.title, 200), "The task: " + str(d.task, 1500), "What done looks like: " + str(d.outcome, 800), "Steps:\n" + lineList(d.steps).join("\n"),
+      "Usual time: " + str(d.timing, 200), "Budget: $" + (hNum(d.budget_min) ?? 0) + " to $" + (hNum(d.budget_max) ?? 0), "Deadline: " + (str(d.deadline, 20) || "none"),
+      "Milestones:\n" + lineList(d.milestones, 10).join("\n")].join("\n");
+  } else if (key === "compare_proposals") {
+    const gig = need(uuid(ctx.body.gig_id));
+    const r = await rpc<Record<string, any>>(ctx, "dela_gig_proposals", { p_person: s.person_id, p_gig: gig });
+    if (!r?.ok) return json(ctx, r);
+    const max = Number(await setting(ctx, "ai.compare_max_proposals", "10")) || 10;
+    const list = ((r.proposals ?? []) as Array<Record<string, any>>).filter((p) => ["sent", "selected"].includes(p.status)).slice(0, max);
+    if (list.length < 2) return json(ctx, { ok: false, reason: "need_two_proposals" });
+    const g = await rpc<Record<string, any>>(ctx, "dela_gig_get", { p_person: s.person_id, p_side: s.side, p_gig: gig });
+    ids = list.map((p) => String(p.id));
+    // Names stay out of the prompt, so the AI compares the work, not the people
+    prompt = gigText(g?.gig ?? {}) + "\n\nProposals:\n" + list.map((p) => ["id: " + p.id, "Price: " + hMoney(p.price_cents), "Includes: " + str(p.included, 1500), "Leaves out: " + (str(p.excluded, 800) || "(not said)"),
+      "Schedule: " + str(p.schedule, 500) + (p.days_to_deliver ? " (" + p.days_to_deliver + " days)" : ""), "Qualifications: " + str(p.qualifications, 800)].join("\n")).join("\n\n");
+  } else {
+    if (key === "proposal_check") {
+      const g = await rpc<Record<string, any>>(ctx, "dela_gig_get", { p_person: s.person_id, p_side: "freelancer", p_gig: need(uuid(ctx.body.gig_id)) });
+      if (!g?.ok) return json(ctx, { ok: false, reason: "not_found" });
+      const p = (ctx.body.proposal ?? {}) as Record<string, any>;
+      typed = [p.included, p.excluded, p.schedule, p.qualifications, p.message].map((x) => str(x, 2000)).join("\n");
+      prompt = gigText(g.gig ?? {}) + "\n\nThe proposal:\nPrice: $" + (hNum(p.price) ?? 0) + "\nDays to deliver: " + (hNum(p.days) ?? "") + "\nIncludes: " + str(p.included, 1500) +
+        "\nLeaves out: " + (str(p.excluded, 800) || "(not said)") + "\nSchedule: " + str(p.schedule, 500) + "\nQualifications: " + str(p.qualifications, 1000) + "\nNote: " + str(p.message, 500);
+    } else {
+      const id = need(uuid(ctx.body.agreement_id));
+      const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+      if (!v?.ok || !v.current?.body) return json(ctx, { ok: false, reason: "not_found" });
+      const b = v.current.body as Record<string, any>;
+      if (key === "acceptance_criteria" && v.role !== "attorney") throw new HttpError(403, "clients_only");
+      const ms = (Array.isArray(b.milestones) ? b.milestones : []) as Array<Record<string, any>>;
+      const msText = ms.map((m) => m.seq + ". " + str(m.title, 200) + " (" + hMoney(m.amount_cents) + (m.due_date ? ", due " + m.due_date : "") + "): " + (str(m.deliverables, 600) || "(no deliverables written)")).join("\n");
+      if (key === "agreement_check") {
+        const f = await rpc<Record<string, any>>(ctx, "dela_agreement_facts", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+        const pr = f?.proposal ?? {};
+        prompt = gigText(f?.gig ?? {}) + "\n\nThe proposal:\nIncludes: " + str(pr.included, 1500) + "\nLeaves out: " + (str(pr.excluded, 800) || "(not said)") + "\nSchedule: " + str(pr.schedule, 500) +
+          "\nPrice: " + hMoney(pr.price_cents) + "\n\nThe agreement:\nIncluded: " + str(b.scope?.included, 1500) + "\nNot included: " + (str(b.scope?.excluded, 800) || "(not said)") +
+          "\nSchedule: " + str(b.scope?.schedule, 500) + "\nMilestones:\n" + msText;
+      } else if (key === "acceptance_criteria") {
+        seqs = ms.map((m) => Number(m.seq));
+        prompt = "The work: " + str(b.scope?.task, 1500) + "\nIncluded: " + str(b.scope?.included, 1500) + "\nMilestones:\n" + msText;
+      } else {
+        if (!v.monthly && b.kind !== "monthly") return json(ctx, { ok: false, reason: "not_monthly" });
+        const tasks = (Array.isArray(ctx.body.tasks) ? ctx.body.tasks : []).slice(0, 20) as Array<Record<string, any>>;
+        rows = tasks.length;
+        if (!rows) return json(ctx, { ok: false, reason: "no_tasks" });
+        typed = tasks.map((t) => [t.task, t.turnaround, t.exclusions].map((x) => str(x, 300)).join(" ")).join("\n");
+        prompt = "Monthly tasks:\n" + tasks.map((t, i) => (i + 1) + ". Task: " + str(t.task, 300) + " | how often: " + str(t.frequency, 20) + " | included each month: " + (hNum(t.quantity) ?? "(not set)") +
+          " | turnaround: " + (str(t.turnaround, 100) || "(not set)") + " | not included: " + (str(t.exclusions, 300) || "(not said)")).join("\n");
+      }
+    }
+  }
+  // What the member typed goes through the client information check first, as everywhere else the AI reads typed text
+  if (typed) { const warn = sensitive(ctx, typed); if (warn) return json(ctx, warn); }
+  const [ck, dflt] = HELPER_CREDITS[key];
+  const credits = Number(await setting(ctx, ck, String(dflt))) || dflt;
+  const ai = await runAi(ctx, s, `helper:${key}:` + (await sha256Hex(s.person_id + ":" + prompt)).slice(0, 40), HELPER_SYSTEM[key], [{ role: "user", content: prompt }], credits);
+  if (!ai.ok) return json(ctx, ai);
+  const j = readJson(ai.text);
+  const out: Record<string, unknown> = { ok: true, helper: key, source: ai.source, credits: ai.source === "lawfecta" ? credits : 0, note: NOT_LEGAL };
+  if (key === "compare_proposals") { out.proposals = readCompare(j, ids); out.note = "DELA lists the same details for every proposal and does not rank them. You choose. " + NOT_LEGAL; }
+  else if (key === "acceptance_criteria") out.milestones = readCriteria(j, seqs);
+  else out.findings = readFindings(key, j, rows);
+  return json(ctx, out);
+}
+
 async function threadAssist(ctx: Ctx) {
   const s = await memberSide(ctx);
   const mode = str(ctx.body.mode, 20);
@@ -4550,6 +4645,11 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /threads/report": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_report", { p_person: s.person_id, p_side: s.side, p_thread: need(uuid(ctx.body.thread_id)), p_msg: uuid(ctx.body.message_id), p_reason: str(ctx.body.reason, 1000) })); }
       case "POST /threads/block": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_block", { p_person: s.person_id, p_side: s.side, p_thread: need(uuid(ctx.body.thread_id)), p_block: ctx.body.block !== false })); }
       case "POST /threads/assist": return await threadAssist(ctx);
+      case "POST /helpers/run": return await helperRun(ctx);
+      case "GET /helpers": { const s = await memberSide(ctx); const on = !!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "ai_helpers", p_person: s.person_id });
+        const credits: Record<string, number> = {};
+        if (on) for (const k of HELPERS) credits[k] = Number(await setting(ctx, HELPER_CREDITS[k][0], String(HELPER_CREDITS[k][1]))) || HELPER_CREDITS[k][1];
+        return json(ctx, { ok: true, on, credits }); }
       case "GET /threads/file": return await messageFile(ctx);
       case "GET /prefs": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_prefs", { p_person: s.person_id })); }
       case "POST /prefs": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_prefs_save", { p_person: s.person_id, p: { read_receipts: ctx.body.read_receipts !== false } })); }

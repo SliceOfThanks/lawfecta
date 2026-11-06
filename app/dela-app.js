@@ -3151,6 +3151,67 @@
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
 
+  // ---------- UX review Phase 4 part B: the checks before a commitment (docs/briefs/step-8a-phase-4.md) ----------
+  // One look for every check: a ✦ button, how many DELA actions it uses (from settings), then an "AI suggestion" panel with
+  // Use suggestion, Edit and Dismiss. A suggestion only fills the unsaved form; nothing is saved, posted, signed or paid.
+  var helperInfo = null;
+  function loadHelpers() { if (!helperInfo) helperInfo = api.get("/helpers").catch(function () { return { on: false, credits: {} }; }); return helperInfo; }
+  var HELPER_FIELD = { title: "Title", task: "The task", outcome: "What done looks like", steps: "Steps", timing: "Usual time", budget: "Budget", deadline: "Deadline", milestones: "Milestones",
+    included: "Included", excluded: "Not included", schedule: "Schedule", price: "Price", quantity: "Included each month", turnaround: "Turnaround", exclusions: "Not included", days: "Days to deliver",
+    qualifications: "Qualifications", message: "Note", other: "In general" };
+  var HELPER_ERR = { helpers_off: "DELA's checks are not on for your account yet.", need_two_proposals: "Compare needs at least two proposals.", no_tasks: "Add at least one task first.",
+    not_monthly: "This is not a monthly engagement.", no_credits_left: "You have used this month's DELA actions." };
+  function helperButton(key, label, getBody, opts) {
+    opts = opts || {};
+    var wrap = h("div", { class: "helper", "data-helper": key, style: "margin:8px 0" });
+    loadHelpers().then(function (info) {
+      if (!info || !info.on) return;
+      var n = (info.credits || {})[key] || 1;
+      var btn = h("button", { class: "ghost small ai-btn", type: "button" }, label);
+      var out = h("div", { class: "soft", style: "margin-top:6px;padding:10px 12px;border-radius:12px", hidden: true, role: "status" });
+      wrap.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;align-items:center;gap:8px" }, btn, h("span", { class: "small muted", text: "Uses " + n + " DELA action" + (n === 1 ? "" : "s") + " on Lawfecta's AI (none on your own key)." })));
+      wrap.appendChild(out);
+      function run(confirmed) {
+        btn.disabled = true; var was = btn.textContent; btn.textContent = "DELA is checking...";
+        api.post("/helpers/run", Object.assign({ helper: key, confirm_no_client_info: confirmed === true }, getBody())).then(function (x) {
+          btn.disabled = false; btn.textContent = was;
+          if (x.reason === "looks_like_client_info") { if (confirm("This may include client information (" + kindsText(x.kinds) + "). Use placeholders instead. Click OK only if it is not client information.")) run(true); return; }
+          if (!x.ok) throw x;
+          out.hidden = false; D.clear(out);
+          out.appendChild(h("div", { class: "row", style: "align-items:center;margin-bottom:6px" }, D.aiLabel(), h("span", { class: "grow" }),
+            h("button", { class: "ghost small", type: "button", onclick: function () { out.hidden = true; } }, "Dismiss")));
+          if (opts.render) opts.render(out, x); else helperFindings(out, x.findings || [], opts);
+          out.appendChild(h("p", { class: "small muted", style: "margin:8px 0 0", text: x.note || "" }));
+        }).catch(function (e) {
+          btn.disabled = false; btn.textContent = was;
+          var r = e && (e.reason || e.message);
+          out.hidden = false; D.clear(out); out.appendChild(h("p", { class: "notice bad", style: "margin:0", text: HELPER_ERR[r] || D.errorText(r) }));
+        });
+      }
+      btn.addEventListener("click", function () { run(false); });
+    });
+    return wrap;
+  }
+  // Findings: what DELA flagged, where, and a suggestion that fills the form only when the member clicks
+  function helperFindings(out, list, opts) {
+    if (!list.length) { out.appendChild(h("p", { style: "margin:0", text: "DELA found nothing to flag." })); return; }
+    var ul = h("ul", { class: "list", style: "margin:0" });
+    list.forEach(function (f) {
+      var target = opts.field ? opts.field(f) : null;
+      var li = h("li", { style: "display:block;padding:6px 0" }, h("div", null, h("b", { text: (f.row ? "Task " + f.row + ", " : "") + (HELPER_FIELD[f.field] || f.field) + ": " }), h("span", { text: f.problem })));
+      if (f.suggestion) li.appendChild(h("div", { class: "small", style: "white-space:pre-line;margin:4px 0", text: "Suggestion: " + f.suggestion }));
+      var acts = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" });
+      if (f.suggestion && target) {
+        acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { target.value = f.suggestion; target.dispatchEvent(new Event("input")); li.remove(); D.toast(app, "Added to the form. Nothing is saved until you save."); } }, "Use suggestion"));
+        acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { target.value = f.suggestion; target.dispatchEvent(new Event("input")); li.remove(); target.focus(); } }, "Edit"));
+      }
+      acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { li.remove(); } }, "Dismiss"));
+      li.appendChild(acts);
+      ul.appendChild(li);
+    });
+    out.appendChild(ul);
+  }
+
   function gigDetails(body, r) {
     var g = r.gig, p = g.public || {}, editable = g.status === "draft" || g.status === "open";
     var f = {
@@ -3186,6 +3247,9 @@
     body.appendChild(h("div", { class: "card" }, h("h2", { text: "Budget, deadline and milestones" }),
       h("div", { class: "row" }, field("Budget from ($)", f.bmin), field("Budget to ($)", f.bmax), field("Deadline", f.deadline)),
       field("Milestones (private)", f.miles, "For example: Draft, then Final. Freelancers see milestones only after you hire them; DELA sets the final milestones with the agreement.")));
+    if (g.status === "draft") body.appendChild(helperButton("check_scope", "✦ Check the scope", function () {
+      var p = payload(); return { gig_id: g.id, draft: { title: p.public.title, task: p.public.task, outcome: p.public.outcome, steps: p.public.steps, timing: p.public.timing, budget_min: p.budget_min, budget_max: p.budget_max, deadline: p.deadline, milestones: lines(f.miles.value) } };
+    }, { field: function (x) { return { title: f.title, task: f.task, outcome: f.outcome, steps: f.steps, timing: f.timing, milestones: f.miles }[x.field] || null; } }));
     var acts = h("div", { class: "row" });
     if (editable) acts.appendChild(h("button", { class: "ghost", type: "button", onclick: function () { save(); } }, "Save"));
     if (g.status === "draft") acts.appendChild(h("button", { class: "blue", type: "button", onclick: function () {
@@ -3295,6 +3359,16 @@
             h("td", { "data-label": "Schedule", text: p.schedule + (p.days_to_deliver ? " (" + p.days_to_deliver + " days)" : "") }),
             h("td", { "data-label": "Qualifications" }, p.qualifications, p.message ? h("div", { class: "small muted", text: "Note: " + p.message }) : null), h("td", null, act));
         })))));
+      var live = x.proposals.filter(function (p) { return p.status === "sent" || p.status === "selected"; });
+      if (live.length >= 2) box.appendChild(helperButton("compare_proposals", "✦ Compare these proposals", function () { return { gig_id: r.gig.id }; }, { render: function (out, y) {
+        var names = {}; x.proposals.forEach(function (p) { names[p.id] = p.agency ? (p.agency.name || p.name) : p.name; });
+        (y.proposals || []).forEach(function (c) {
+          out.appendChild(h("div", { style: "margin:6px 0;padding-top:6px;border-top:1px solid var(--line)" }, h("b", { text: names[c.id] || "A proposal" }),
+            h("p", { style: "margin:4px 0", text: c.covers }),
+            h("p", { class: "small", style: "margin:2px 0", text: "Not said: " + (c.missing.length ? c.missing.join("; ") : "nothing DELA noticed") }),
+            c.ask.length ? h("p", { class: "small", style: "margin:2px 0", text: "You could ask: " + c.ask.join(" ") }) : null));
+        });
+      } }));
     }).catch(function (e) { D.clear(box); box.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
 
@@ -4179,6 +4253,9 @@
     c.appendChild(field("Schedule", f.schedule));
     c.appendChild(field("Your relevant qualifications", f.quals, "From your profile. DELA never invents qualifications.", null, help));
     c.appendChild(field("Note to the attorney (optional)", f.message));
+    c.appendChild(helperButton("proposal_check", "✦ Check my proposal", function () {
+      return { gig_id: g.id, proposal: { price: f.price.value, days: f.days.value, included: f.included.value, excluded: f.excluded.value, schedule: f.schedule.value, qualifications: f.quals.value, message: f.message.value } };
+    }, { field: function (x) { return { included: f.included, excluded: f.excluded, schedule: f.schedule, qualifications: f.quals, message: f.message }[x.field] || null; } }));
     var send = h("button", { class: "blue", type: "button" }, invited ? "Send proposal (free: invited)" : "Send proposal (uses 1)");
     var sending = false;
     function doSend(confirmed) {
@@ -4641,7 +4718,7 @@
       var ta = h("input", { "aria-label": "Turnaround", value: x.turnaround || "", placeholder: "For example: 1 business day" });
       var ex = h("input", { "aria-label": "Not included", style: "width:100%", value: x.exclusions || "", placeholder: "Optional" });
       var row = h("div", { class: "soft", style: "margin:6px 0" }, field("Task", t), h("div", { class: "row", style: "flex-wrap:wrap" }, field("How often", fq), field("Included each month", q), field("Turnaround", ta)), field("Not included", ex));
-      var item = { row: row, get: function () { return { task: t.value, frequency: fq.value, quantity: Number(q.value), turnaround: ta.value, exclusions: ex.value }; } };
+      var item = { row: row, boxes: { task: t, quantity: q, turnaround: ta, exclusions: ex }, get: function () { return { task: t.value, frequency: fq.value, quantity: Number(q.value), turnaround: ta.value, exclusions: ex.value }; } };
       row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { row.remove(); list.splice(list.indexOf(item), 1); } }, "Remove this task"));
       list.push(item); rows.appendChild(row);
     }
@@ -4654,7 +4731,7 @@
       h("div", { style: "margin-top:8px" }, h("b", { text: "How the freelancer is paid each month" }),
         h("label", { style: "display:flex;gap:8px;font-weight:400" }, weekly, h("span", { text: "Weekly units: the month is split into weekly units, each checked, accepted and paid like a milestone" })),
         h("label", { style: "display:flex;gap:8px;font-weight:400" }, monthly, h("span", { text: "One monthly delivery: checked and accepted at month end" }))));
-    return { el: el, value: function () { return { tasks: list.map(function (i) { return i.get(); }), unit_mode: monthly.checked ? "monthly" : "weekly" }; } };
+    return { el: el, box: function (n, k) { var it = list[n - 1]; return it ? it.boxes[k] || null : null; }, value: function () { return { tasks: list.map(function (i) { return i.get(); }), unit_mode: monthly.checked ? "monthly" : "weekly" }; } };
   }
   function monthlyTermsCard(r) {
     var a = r.agreement, mv = r.monthly, card = h("div", { class: "card", id: "monthly-terms" }, h("h2", { text: "Monthly terms" }), cardStatus("monthly"));
@@ -4669,6 +4746,7 @@
         cardSay("monthly", "Saved as version " + x.version + ". Both of you sign the new version."); engReload();
       }).catch(function (e) { save.disabled = false; cardSay("monthly", monthlyErr(e), true); });
     });
+    card.appendChild(helperButton("monthly_scope", "✦ Check monthly scope", function () { return { agreement_id: a.id, tasks: ed.value().tasks }; }, { field: function (x) { return x.row ? ed.box(x.row, x.field) : null; } }));
     card.appendChild(h("div", { class: "row", style: "margin-top:8px" }, save));
     return card;
   }
@@ -5257,6 +5335,12 @@
     if ((b.subcontracting || {}).agency) c.appendChild(h("p", { class: "small", text: (b.subcontracting.no_subcontractors ? "No subcontractors: only the agency's own team works on this job." : "By signing, the client agrees the agency may use vetted Lawfecta subcontractors. The agency stays responsible for them.") + " Everyone working on the job is listed under \"Who's working on this\" below." }));
     // What this person pays or receives, worked out by the api from the same fees (UX review E01)
     if ((r.money_summary || []).length) c.appendChild(h("div", { class: "notice ok", id: "money-summary" }, (r.money_summary || []).map(function (l, i) { return h("p", { style: "margin:" + (i ? "4px" : "0") + " 0 0;" + (i ? "" : "font-weight:700;font-size:1.1em"), text: l }); })));
+    var agSt = (r.agreement || {}).status;
+    if (["draft", "sent", "signing"].indexOf(agSt) >= 0) c.appendChild(helperButton("agreement_check", "✦ Check this for me", function () { return { agreement_id: r.agreement.id }; }, {
+      render: function (out, y) {
+        helperFindings(out, y.findings || [], {});
+        if (!r.monthly && agSt === "signing" && (y.findings || []).length) out.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { eng.editing = true; draw(); } }, "Propose changes"));
+      } }));
     if (s.task) c.appendChild(h("p", null, h("b", { text: "The work: " }), s.task));
     if (s.included) c.appendChild(h("p", null, h("b", { text: "Included: " }), s.included));
     c.appendChild(h("p", null, h("b", { text: "Not included: " }), s.excluded || "Not specified. Confirm with the other person before signing."));
@@ -5268,6 +5352,15 @@
       })));
     c.appendChild(h("h3", null, D.term("Milestones", "milestone")));
     c.appendChild(t);
+    if (r.role === "attorney" && !r.monthly && ["signing", "signed", "active"].indexOf(agSt) >= 0) c.appendChild(helperButton("acceptance_criteria", "✦ Improve acceptance criteria", function () { return { agreement_id: r.agreement.id }; }, {
+      render: function (out, y) {
+        var ms = y.milestones || [];
+        if (!ms.length) { out.appendChild(h("p", { style: "margin:0", text: "DELA found nothing to improve." })); return; }
+        ms.forEach(function (m) { out.appendChild(h("div", { style: "margin:6px 0" }, h("b", { text: "Milestone " + m.seq + ": " }), h("span", { text: m.deliverables }), m.why ? h("div", { class: "small muted", text: m.why }) : null)); });
+        out.appendChild(h("p", { class: "small", text: "Using them starts a new version of the agreement. Both of you sign it before it applies." }));
+        function useIt() { eng.suggestDeliverables = {}; ms.forEach(function (m) { eng.suggestDeliverables[m.seq] = m.deliverables; }); eng.editing = true; draw(); }
+        out.appendChild(h("div", { class: "row", style: "gap:6px" }, h("button", { class: "ghost small", type: "button", onclick: useIt }, "Use suggestion"), h("button", { class: "ghost small", type: "button", onclick: useIt }, "Edit")));
+      } }));
     c.appendChild(h("h3", null, D.term("Fees", "platform_fee")));
     c.appendChild(h("ul", null, (r.fee_lines || []).map(function (l) { return h("li", { text: l }); })));
     var rub = h("details", null, h("summary", { text: "Completion checklist (how DELA checks each milestone)" }),
@@ -5303,7 +5396,9 @@
       el.read = function () { return { title: t.value, amount: amt.value, due_date: due.value, deliverables: del.value }; };
       rows.appendChild(el);
     }
-    (b.milestones || []).forEach(row);
+    var sugg = eng.suggestDeliverables || null; eng.suggestDeliverables = null;
+    (b.milestones || []).forEach(function (m) { row(sugg && sugg[m.seq] ? Object.assign({}, m, { deliverables: sugg[m.seq] }) : m); });
+    if (sugg) c.appendChild(h("p", { class: "notice", text: "DELA's suggested deliverables are filled in below. Check them, then send the new version; nothing changes until you both sign." }));
     var s = b.scope || {};
     var inc = h("textarea", { rows: 3, style: "width:100%", "aria-label": "Included" }), exc = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Not included" }), sch = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Schedule" });
     inc.value = s.included || ""; exc.value = s.excluded || ""; sch.value = s.schedule || "";

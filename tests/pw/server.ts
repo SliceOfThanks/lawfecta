@@ -74,7 +74,7 @@ const DOC_SOP = {
   steps: [{ text: "Search the party names in Clio.", role: "Paralegal", raci: { Paralegal: "R,A" }, menu_path: "Clio > Contacts > Search" }, { text: "Record the results in the matter notes.", role: "Paralegal", raci: { Paralegal: "R,A" } },
     { text: "Decide whether to accept the matter.", role: "Attorney", raci: { Attorney: "R,A" }, attorney_decides: true }],
 };
-function documentAnswer(system: string): unknown {
+function documentAnswer(system: string, user = ""): unknown {
   if (system.includes("document assistant inside Lawfecta, writing one")) {
     if (system.includes("writing one Policy")) return { document: { type: "policy", title: "Client trust account rules", roles: ["Attorney", "Paralegal"], owner_role: "Attorney", lifecycle: "BIL", purpose: "Keep client money safe.", scope: "Everyone who touches the trust account.",
       rules_must: ["Deposit client funds into the trust account within 1 business day"], rules_must_not: ["Pay firm bills from the trust account"], exceptions: "None without approval.", exceptions_role: "Attorney" }, questions: [], notices: [] };
@@ -86,13 +86,20 @@ function documentAnswer(system: string): unknown {
     { kind: "delegate", title: "Collect and log intake forms", steps: [1, 2], why: "Repeatable with clear inputs and outputs.", share: 0.5, skills: ["Intake"], hours_each: 1.5 },
     { kind: "automate", title: "Log forms in Clio", steps: [3], why: "Clio can log each form.", share: 0.2, tool: "Clio", what_it_does: "Logs each returned form." },
     { kind: "delegate", title: "All of it", steps: [1, 2, 3, 4], why: "Everything.", share: 1 }] };
+  // UX review Phase 4 part B: the checks before a commitment
+  if (system.includes("Check a gig draft")) return { findings: [{ field: "outcome", problem: "What done looks like is vague.", suggestion: "The intake summary is saved in the matter in Clio." }, { field: "deadline", problem: "There is no deadline.", suggestion: "" }] };
+  if (system.includes("Compare proposals for one gig")) return { proposals: [...user.matchAll(/id: ([0-9a-f-]{36})/g)].map((m, i) => ({ id: m[1], covers: i ? "Covers the calls only. This one is the best choice." : "Covers the calls and the conflict checks.", missing: ["Does not say what is left out"], ask: ["Who makes the calls?"] })) };
+  if (system.includes("Compare an agreement")) return { findings: [{ field: "excluded", problem: "The agreement does not say what is not included.", suggestion: "" }] };
+  if (system.includes("observable deliverables")) return { milestones: [{ seq: 1, deliverables: "A call log for every new client, saved in Clio", why: "Both of you can see it is done." }] };
+  if (system.includes("tasks of a monthly engagement")) return { findings: [{ row: 1, field: "turnaround", problem: "There is no turnaround.", suggestion: "1 business day" }] };
+  if (system.includes("freelancer's proposal before")) return { findings: [{ field: "excluded", problem: "Say what the price does not include.", suggestion: "Court filings are not included." }] };
   if (system.includes("You classify one existing")) return { type: "sop", lifecycle: "INT", reason: "It is one clear path." };
   if (system.includes("rewriting an existing law firm playbook")) return { document: { ...DOC_SOP, title: "New client intake" } };
   if (system.includes("answering questions about one of the firm's documents")) return { reply: "That step is done by the paralegal.", change: null, note: "" };
   return null;
 }
 function playbookAnswer(system: string, user: string): unknown {
-  const doc = documentAnswer(system);
+  const doc = documentAnswer(system, user);
   if (doc) return doc;
   if (system.includes("write down one repeatable process")) return { playbook: { title: "New client intake", outcome: "An opened file", steps: [{ text: "Run the conflict check" }] }, questions: ["Who signs the engagement letter?", "Which state is this for?"] };
   if (system.includes("improving a playbook draft")) return { playbook: FULL, questions: [] };
