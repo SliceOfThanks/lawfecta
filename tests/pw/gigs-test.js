@@ -174,6 +174,11 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     p = s.page;
     t = await waitFor(p, "Fran 2601");
     ok(t.includes("Create a gig from an SOP or Workflow") && !t.includes("@test.invalid"), "Talent lists match-ready freelancers, with no contact details");
+    ok(await dela(p).getByLabel("State you need", { exact: true }).locator("option", { hasText: "Texas" }).count() === 1 && t.includes("Practice area") && t.includes("Tech tool"), "Talent boxes have visible labels and the state has full names (UX review T01)");
+    await dela(p).getByRole("button", { name: "View profile", exact: true }).first().click();
+    await dela(p).getByRole("dialog").locator("h3").first().waitFor({ timeout: 8000 });
+    ok((await dela(p).getByRole("dialog").innerText()).includes("Verified"), "View profile opens the freelancer's profile from Talent");
+    await dela(p).getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
     await s.ctx.close();
 
     // ---------- Freelancer 1: chosen; insights ----------

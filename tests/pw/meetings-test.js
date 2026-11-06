@@ -107,7 +107,9 @@ async function makeMember(bd, side, plan) {
     ok(true, "a message with contact details and payment outside Lawfecta is held");
     await click(p, "Book a meeting");
     t = await waitFor(p, "Times are shown in your own time zone");
-    await dela(p).locator(".card[aria-label='Book a meeting'] .row button").first().click();
+    await dela(p).locator(".card[aria-label='Book a meeting'] button.slot").first().click();
+    ok((await dela(p).locator("#book-summary").innerText()).includes("Selected:"), "picking a time shows what was selected before booking (UX review I03)");
+    await click(p, "Review booking");
     t = await waitFor(p, "Your meetings", 10000).catch(() => text(p));
     t = await waitFor(p, "Time confirmed", 10000);
     ok(t.includes("The room opens at") || t.includes("meeting service is connected"), "the page says when the room opens, or that the link comes once the meeting service is connected");
@@ -141,7 +143,8 @@ async function makeMember(bd, side, plan) {
     await click(p, "Change the time");
     await waitFor(p, "Choose a new time");
     await waitFor(p, "Times are shown in your own time zone");
-    await dela(p).locator(".card[aria-label='Book a meeting'] .row button").nth(3).click();
+    await dela(p).locator(".card[aria-label='Book a meeting'] button.slot").nth(3).click();
+    await click(p, "Review the new time");
     await waitFor(p, "One update went to both of you", 10000);
     const ms = await sql(`select status from meetings where gig_id = '${gigId}' order by created_at`);
     ok(ms.map((x) => x.status).join(",") === "rescheduled,confirmed", "the new time replaces the old one");

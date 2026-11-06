@@ -3736,6 +3736,7 @@
   var talentQ = { practice_area: "", skill: "", tool: "", state: "" };
   var talentMode = "search";
   try { if (new URLSearchParams(location.search).get("view") === "bench") talentMode = "bench"; } catch (e) { /* no deep link */ }
+  var US_STATES = [["AL","Alabama"],["AK","Alaska"],["AZ","Arizona"],["AR","Arkansas"],["CA","California"],["CO","Colorado"],["CT","Connecticut"],["DE","Delaware"],["DC","District of Columbia"],["FL","Florida"],["GA","Georgia"],["HI","Hawaii"],["ID","Idaho"],["IL","Illinois"],["IN","Indiana"],["IA","Iowa"],["KS","Kansas"],["KY","Kentucky"],["LA","Louisiana"],["ME","Maine"],["MD","Maryland"],["MA","Massachusetts"],["MI","Michigan"],["MN","Minnesota"],["MS","Mississippi"],["MO","Missouri"],["MT","Montana"],["NE","Nebraska"],["NV","Nevada"],["NH","New Hampshire"],["NJ","New Jersey"],["NM","New Mexico"],["NY","New York"],["NC","North Carolina"],["ND","North Dakota"],["OH","Ohio"],["OK","Oklahoma"],["OR","Oregon"],["PA","Pennsylvania"],["RI","Rhode Island"],["SC","South Carolina"],["SD","South Dakota"],["TN","Tennessee"],["TX","Texas"],["UT","Utah"],["VT","Vermont"],["VA","Virginia"],["WA","Washington"],["WV","West Virginia"],["WI","Wisconsin"],["WY","Wyoming"]];
   function talentView() {
     var el = h("div", null, h("h1", { text: "Talent" }));
     if ((me.switches || {}).bench) {
@@ -3745,10 +3746,14 @@
       if (talentMode === "bench") { benchView(el); return el; }
     }
     el.appendChild(h("p", { class: "muted", text: "Match-ready freelancers: verified, profile complete and availability confirmed in the last 14 days. Every conversation happens on a gig, so inviting someone needs a gig." }));
+    // Visible labels on every box, and the state picked by its full name (UX review T01)
     var inputs = {};
-    [["practice_area", "Practice area"], ["skill", "Skill"], ["tool", "Tech tool"], ["state", "State you need (two letters)"]].forEach(function (x) {
-      inputs[x[0]] = h("input", { "aria-label": x[1], placeholder: x[1], value: talentQ[x[0]] });
+    [["practice_area", "Practice area", "For example: Family law"], ["skill", "Skill", "For example: E-filing"], ["tool", "Tech tool", "For example: Clio"]].forEach(function (x) {
+      inputs[x[0]] = h("input", { "aria-label": x[1], placeholder: x[2], value: talentQ[x[0]] });
     });
+    inputs.state = h("select", { "aria-label": "State you need" }, [h("option", { value: "", text: "Any state" })].concat(US_STATES.map(function (st) {
+      return h("option", { value: st[0], text: st[1], selected: talentQ.state === st[0] });
+    })));
     var results = h("div");
     function run() {
       Object.keys(inputs).forEach(function (k) { talentQ[k] = inputs[k].value.trim(); });
@@ -3760,7 +3765,8 @@
         if (!x.ok) { results.appendChild(h("p", { class: "notice", text: gigErr(x) })); return; }
         if (!x.people.length) results.appendChild(h("p", { class: "muted", text: "No match-ready freelancers fit this search yet." }));
         x.people.forEach(function (p) {
-          var act = h("div", { class: "row", style: "margin-top:6px" });
+          var act = h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" });
+          act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { profileModal(p.person_id); } }, "View profile"));
           if (mine.length) {
             var sel = h("select", { "aria-label": "Gig to invite " + p.name + " to" }, mine.map(function (g) { return h("option", { value: g.id, text: g.title }); }));
             act.appendChild(sel);
@@ -3782,7 +3788,9 @@
         });
       }).catch(function (e) { D.clear(results); results.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     }
-    el.appendChild(h("div", { class: "card" }, h("div", { class: "row", style: "flex-wrap:wrap" }, inputs.practice_area, inputs.skill, inputs.tool, inputs.state, h("button", { class: "blue small", type: "button", onclick: run }, "Search"))));
+    el.appendChild(h("div", { class: "card" }, h("h2", { text: "Find a freelancer" }), h("div", { class: "row", style: "flex-wrap:wrap;align-items:flex-end" },
+      field("Practice area", inputs.practice_area), field("Skill", inputs.skill), field("Tech tool", inputs.tool), field("State you need", inputs.state),
+      h("button", { class: "blue small", type: "button", onclick: run }, "Search"))));
     el.appendChild(results);
     run();
     return el;
@@ -4165,13 +4173,36 @@
         panel.appendChild(h("p", { class: "small muted", text: "Times are shown in your own time zone. Meetings are free and happen in a Lawfecta meeting room. The freelancer's time zone: " + r.timezone + "." }));
         panel.appendChild(field("Length", sel));
         if (!r.slots.length) panel.appendChild(h("p", { class: "muted", text: "No open times in the next 3 weeks for this length." }));
-        var byDay = {};
+        // Morning and afternoon groups, a few times first, then pick and review (UX review I03)
+        var byDay = {}, chosen = null, FIRST = 6;
         r.slots.forEach(function (s) { var d = dayLabel(s); (byDay[d] = byDay[d] || []).push(s); });
+        var summary = h("div", { class: "soft", style: "margin-top:10px", id: "book-summary" });
+        function pick(s, btn) {
+          chosen = s;
+          Array.prototype.forEach.call(panel.querySelectorAll(".slot"), function (b) { b.setAttribute("aria-pressed", "false"); b.className = "ghost slot"; });
+          btn.setAttribute("aria-pressed", "true"); btn.className = "blue slot";
+          D.clear(summary);
+          summary.appendChild(h("p", { style: "margin:0 0 6px", text: "Selected: " + whenLabel(s, length) }));
+          summary.appendChild(h("button", { class: "blue", type: "button", onclick: function () { hold(chosen); } }, rescheduleOf ? "Review the new time" : "Review booking"));
+        }
+        function slotBtn(s) { var b = h("button", { class: "ghost slot", type: "button", "aria-pressed": "false", style: "min-width:96px;min-height:40px" }, timeLabel(s)); b.addEventListener("click", function () { pick(s, b); }); return b; }
         Object.keys(byDay).slice(0, 14).forEach(function (d) {
-          panel.appendChild(h("div", { style: "margin:8px 0" }, h("b", { text: d }), h("div", { class: "row", style: "flex-wrap:wrap;gap:6px;margin-top:4px" }, byDay[d].map(function (s) {
-            return h("button", { class: "ghost small", type: "button", onclick: function () { hold(s); } }, timeLabel(s));
-          }))));
+          var day = h("div", { style: "margin:10px 0" }, h("b", { text: d }));
+          [["Morning", function (s) { return new Date(s).getHours() < 12; }], ["Afternoon", function (s) { return new Date(s).getHours() >= 12; }]].forEach(function (part) {
+            var list = byDay[d].filter(part[1]);
+            if (!list.length) return;
+            var row = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px;margin-top:4px" }, h("span", { class: "small muted", style: "min-width:72px", text: part[0] }));
+            list.slice(0, FIRST).forEach(function (s) { row.appendChild(slotBtn(s)); });
+            if (list.length > FIRST) {
+              var more = h("button", { class: "ghost small", type: "button" }, "Show more times");
+              more.addEventListener("click", function () { more.remove(); list.slice(FIRST).forEach(function (s) { row.appendChild(slotBtn(s)); }); });
+              row.appendChild(more);
+            }
+            day.appendChild(row);
+          });
+          panel.appendChild(day);
         });
+        panel.appendChild(summary);
       }).catch(function (e) { D.clear(panel); panel.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     }
     function hold(s) {
