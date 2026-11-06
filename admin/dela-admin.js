@@ -857,7 +857,7 @@
 
   // ---------- Gigs (Step 4): open gigs, proposals by plan, held messages ----------
   var GIG_WORDS = { draft: "Draft", open: "Open", paused: "Paused", closed: "Closed", filled: "Filled", canceled: "Canceled" };
-  var KIND_WORDS = { contact_details: "contact details", payment_outside: "payment outside Lawfecta", off_platform: "working outside Lawfecta" };
+  var KIND_WORDS = { contact_details: "contact details", payment_outside: "payment outside Lawfecta", off_platform: "working outside Lawfecta", copied_engagement: "copies an engagement's text but is not linked to it" };
   function gigsTab() {
     api.get("/admin/gigs").then(function (r) {
       var d = r.data;
@@ -868,13 +868,13 @@
       d.flags.forEach(function (f) {
         var note = h("input", { style: "width:100%", placeholder: "Note (saved in the audit log)", "aria-label": "Note" });
         function decide(clear) {
-          api.post("/admin/conduct/decide", { id: f.id, clear: clear, note: note.value }).then(function (x) { if (!x.data.ok) throw new Error(x.data.reason); ok(clear ? "Delivered" : "Not delivered; the member was told"); gigsTab(); }).catch(fail);
+          api.post("/admin/conduct/decide", { id: f.id, clear: clear, note: note.value }).then(function (x) { if (!x.data.ok) throw new Error(x.data.reason); ok(f.object_type === "gig" ? (clear ? "Cleared; the gig stays open" : "Gig paused; the agency was told") : clear ? "Delivered" : "Not delivered; the member was told"); gigsTab(); }).catch(fail);
         }
         flags.appendChild(h("div", { class: "card", style: "margin:8px 0" },
           h("div", { class: "row" }, h("b", { class: "grow", text: f.person + " (" + f.bd_member_id + "): a " + f.object_type + (f.gig_title ? " on \"" + f.gig_title + "\"" : "") }), h("span", { class: "badge held", text: (f.kinds || []).map(function (k) { return KIND_WORDS[k] || k; }).join(", ") })),
           h("p", { class: "small", text: f.excerpt }), h("div", { class: "small muted", text: "Found by " + (f.source === "ai" ? "DELA's AI" : "DELA's rules") + ", " + D.dateTime(f.created_at) }), note,
-          h("div", { class: "row", style: "margin-top:6px" }, h("button", { class: "blue small", type: "button", onclick: function () { decide(true); } }, "It is fine: deliver it"),
-            h("button", { class: "danger small", type: "button", onclick: function () { decide(false); } }, "Do not deliver"))));
+          h("div", { class: "row", style: "margin-top:6px" }, h("button", { class: "blue small", type: "button", onclick: function () { decide(true); } }, f.object_type === "gig" ? "It is fine" : "It is fine: deliver it"),
+            h("button", { class: "danger small", type: "button", onclick: function () { decide(false); } }, f.object_type === "gig" ? "Pause the gig" : "Do not deliver"))));
       });
       var list = h("div", { class: "card" }, h("h2", { text: "Gigs (" + d.gigs.length + ")" }), h("p", { class: "small muted", text: "Open and paused gigs, and gigs changed in the last 30 days. Switches: " + swText }));
       if (!d.gigs.length) list.appendChild(h("p", { class: "muted", text: "No gigs yet." }));

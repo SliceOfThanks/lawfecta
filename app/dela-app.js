@@ -2882,7 +2882,7 @@
 
 
   // ---------- Step 4: Flex Gigs (attorney Projects and Talent, freelancer Work) ----------
-  var gigs = { id: null, view: "details", pendingInvite: null, newFrom: null };
+  var gigs = { id: null, view: "details", pendingInvite: null, newFrom: null, linkTo: null };
   try { var gq = new URLSearchParams(location.search).get("gig"); if (gq && /^[0-9a-f-]{36}$/.test(gq)) gigs.id = gq; } catch (e) { /* no deep link */ }
   var GIG_STATUS = { draft: "Draft", open: "Open", paused: "Paused by the Lawfecta Team", closed: "Closed", filled: "Filled", canceled: "Canceled" };
   var PROP_STATUS = { draft: "Draft", sent: "Sent", held: "Being checked", withdrawn: "Withdrawn", selected: "Chosen", not_selected: "Not chosen", closed: "Closed" };
@@ -2914,7 +2914,9 @@
     agency_details_missing: "Add the agency's client details on the Agency tab (who signs, billing address, email for notices) before signing.", client_details_needed: "Add who signs for the agency and the billing address.",
     split_below_fee: "At that split the agency's share does not cover the 5% freelancer fee on this milestone. Raise the agency's share.",
     already_assigned: "This milestone is already assigned. Take it back first.", not_on_bench: "Choose someone who is on your bench with a signed split.",
-    bench_member_inactive: "They are on the Free plan, so they cannot get new assignments until they upgrade.", no_subcontractors: "This engagement says no subcontractors, so its milestones cannot be assigned to bench members.",
+    bench_member_inactive: "They are on the Free plan, so they cannot get new assignments until they upgrade.", no_subcontractors: "This engagement says no subcontractors, so its milestones cannot be assigned to bench members and no gig can be posted for part of it.",
+    subcontracting_off: "Posting gigs for part of a job is not open for your account yet.", subcontractors_in_use: "Someone is already working on this job as a subcontractor, so No subcontractors cannot be turned on.",
+    agreement_signed: "Both of you signed this agreement, so this choice can no longer change.", gig_already_posted: "This gig is already posted, so it cannot be linked to a job now.",
     milestone_started: "Work on this milestone has started or finished, so its assignment cannot change.", split_not_accepted: "The bench member has not accepted the split for this job yet, so work cannot start.",
     share_expired: "Access to this file has ended. Ask the attorney to share it again if you still need it.",
     blocked_data: "This file appears to contain sensitive data like a Social Security or card number. Please share it using a secure link instead.",
@@ -2983,13 +2985,15 @@
         var chosen = r.playbooks.filter(function (p) { return p.id === pick.value; })[0] || {};
         gigImageWarning(chosen.images || 0, function () {
           go.disabled = true; go.textContent = "DELA is writing the public version...";
-          api.post("/gigs/draft", { playbook_id: pick.value, request_id: req, notes: notes.value, budget_min: bmin.value, budget_max: bmax.value }).then(gigOk).then(function (x) {
-            gigs.newFrom = null; gigLink(x.id, "projects");
+          api.post("/gigs/draft", { playbook_id: pick.value, request_id: req, notes: notes.value, budget_min: bmin.value, budget_max: bmax.value, linked_agreement: gigs.linkTo ? gigs.linkTo.id : undefined }).then(gigOk).then(function (x) {
+            gigs.newFrom = null; gigs.linkTo = null; gigLink(x.id, "projects");
           }).catch(function (x) { go.disabled = false; go.textContent = "Draft the gig with DELA"; gigFail(x); });
         }, function () { tab = "library"; lib.pb = null; draw(); setTimeout(function () { openPlaybook(chosen.id, "read"); }, 50); });
       });
       el.appendChild(h("div", { class: "card" }, h("h2", { text: "Post a new gig" }),
         h("p", { class: "small muted", text: "DELA writes a public version of the document for freelancers. You check it, set the budget (at least " + D.money(r.min_budget_cents) + ") and the deadline, then post. Open gigs on your plan: " + (al.unlimited ? "no cap" : (al.used || 0) + " of " + al.limit + " in use") + "." }),
+        gigs.linkTo ? h("p", { class: "notice", text: "Linked to: " + gigs.linkTo.title + ". Whoever you hire is listed on the attorney's \"Who's working on this\", as your subcontractor. Share with them only what their part needs." },
+          " ", h("button", { class: "ghost small", type: "button", onclick: function () { gigs.linkTo = null; draw(); } }, "Do not link")) : null,
         field("Document", pick), notes, h("div", { class: "row" }, field("Budget from ($)", bmin), field("Budget to ($)", bmax)), h("div", { class: "row" }, go)));
       // My gigs
       var list = h("div", { class: "card" }, h("h2", { text: "Your gigs" }));
@@ -2997,7 +3001,7 @@
       r.gigs.forEach(function (g) {
         list.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { gigLink(g.id, "projects"); } },
           h("span", { class: "chip", text: g.proposals ? String(g.proposals) : "0" }),
-          h("div", null, h("h3", { text: g.title }), h("div", { class: "muted small", text: budgetText(g) + " | " + closesText(g) + " | " + g.proposals + (g.proposals === 1 ? " proposal" : " proposals") + (g.questions_open ? " | " + g.questions_open + " questions to answer" : "") })),
+          h("div", null, h("h3", { text: g.title }), h("div", { class: "muted small", text: (g.linked_to ? "Linked to " + g.linked_to + " | " : "") + budgetText(g) + " | " + closesText(g) + " | " + g.proposals + (g.proposals === 1 ? " proposal" : " proposals") + (g.questions_open ? " | " + g.questions_open + " questions to answer" : "") })),
           h("span", { class: "grow" }), h("span", { class: "badge " + (g.status === "open" ? "ready" : g.status === "paused" ? "held" : "C"), text: GIG_STATUS[g.status] })));
       });
       el.appendChild(list);
@@ -3015,6 +3019,7 @@
       el.appendChild(h("div", { class: "row" }, h("h1", { class: "grow", text: g.title }), h("span", { class: "badge " + (g.status === "open" ? "ready" : "C"), text: GIG_STATUS[g.status] })));
       el.appendChild(h("p", { class: "muted", text: budgetText(g) + " | " + closesText(g) + (r.counts ? " | " + r.counts.proposals + (r.counts.proposals === 1 ? " proposal, " : " proposals, ") + r.counts.invited + " invited" : "") }));
       if (g.paused_by_team) el.appendChild(h("p", { class: "notice bad", text: "The Lawfecta Team paused this gig while they check it. Freelancers cannot send proposals until it opens again." }));
+      if (r.linked_to) el.appendChild(h("p", { class: "notice", text: "Linked to " + r.linked_to.title + ". Whoever you hire is listed on the attorney's \"Who's working on this\", as your subcontractor." }));
       var views = [["details", "Details"], ["matches", "Matches"], ["questions", "Questions" + (r.counts && r.counts.questions_open ? " (" + r.counts.questions_open + ")" : "")], ["proposals", "Proposals" + (r.counts ? " (" + r.counts.proposals + ")" : "")], ["files", "Files (" + r.files.length + ")"]];
       if ((me.switches || {}).engagements && (g.status === "filled" || gigs.view === "agreement")) views.push(["agreement", "Agreement and work"]);
       if (gigs.view === "agreement" && !(me.switches || {}).engagements) gigs.view = "details";
@@ -3313,6 +3318,7 @@
     var box = h("div", { class: "agency-box" }, h("div", null, h("span", { class: "badge agency", text: "Agency" }), " ", h("b", { text: a.name }), h("span", { class: "small muted", text: " | " + reviewsLine(a.reviews) })),
       h("div", { class: "small", style: "margin-top:4px", text: "Who will do this work:" }));
     (a.team || []).forEach(function (t) { box.appendChild(personLine(t)); });
+    if (a.subcontracting_note) box.appendChild(h("p", { class: "small muted", style: "margin:6px 0 0", text: a.subcontracting_note }));
     return box;
   }
 
@@ -3364,6 +3370,12 @@
       card.appendChild(h("p", { class: "small muted", text: "Give a milestone to someone on your bench. Their bench split fills in; a different split for this job needs their Accept before work starts. " +
         "When the attorney accepts the milestone, the agency gets its share minus the whole freelancer fee, and they get their full share. The attorney sees them as a subcontractor, never the split." }));
       if (v.no_subcontractors) card.appendChild(h("p", { class: "notice", text: GIG_ERR.no_subcontractors }));
+      else if ((me.switches || {}).agency_subcontracting && me.agency_client && ["signing", "signed", "active"].indexOf(r.agreement.status) >= 0) {
+        var jobTitle = (((r.current || {}).body || {}).gig_title) || "this job";
+        card.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin:6px 0" }, h("button", { class: "ghost", type: "button", onclick: function () {
+          gigs.linkTo = { id: r.agreement.id, title: jobTitle }; gigs.id = null; gigs.newFrom = null; tab = "projects"; draw();
+        } }, "Post a gig for part of this job"), h("span", { class: "small muted", text: "For someone outside your bench. Whoever you hire is listed on the attorney's \"Who's working on this\", as your subcontractor." })));
+      }
       (v.milestones || []).forEach(function (m) {
         var x = m.assignment, row = h("div", { style: "border-top:1px solid var(--line);padding:8px 0" });
         row.appendChild(h("b", { text: "Milestone " + m.seq + ": " + m.title + " (" + D.money(m.amount_cents) + ")" }));
@@ -4304,6 +4316,7 @@
     if (a.status === "canceled") host.appendChild(h("p", { class: "notice", text: "This engagement was canceled" + (a.cancel_reason ? ": " + (a.cancel_reason === "not_signed_in_time" ? "it was not signed in time" : a.cancel_reason) : "") + "." }));
     host.appendChild(nextStep(r, mySigned, theirSigned));
     host.appendChild(agreementCard(r, b));
+    var sc = subsCard(r, b); if (sc) host.appendChild(sc);
     if (a.status === "signing" || a.status === "signed" || a.status === "active") host.appendChild(changesCard(r, b));
     var cpc = checkpointsCard(r); if (cpc) host.appendChild(cpc);
     if ((r.milestones || []).length) host.appendChild(milestonesCard(r));
@@ -4666,6 +4679,36 @@
     } else if (a.status === "completed") box.appendChild(h("p", { text: "Every milestone is accepted. This engagement is complete." }));
     else box.appendChild(h("p", { class: "muted", text: "Nothing to do here." }));
     return box;
+  }
+
+  // Subcontractors on an agency engagement (Step 7d part 3): the disclosure, and the attorney's "No subcontractors on this
+  // engagement" while the agreement is being signed. A change makes a new version both sign.
+  function subsCard(r, b) {
+    var sub = b.subcontracting || {}, a = r.agreement;
+    if (!sub.agency) return null;
+    var card = h("div", { class: "card", id: "subs-card" }, h("h2", { text: "Subcontractors" }), cardStatus("subs"));
+    card.appendChild(h("p", { text: sub.no_subcontractors ? "No subcontractors on this engagement: only the agency's own team works on it." : "This agency may use vetted subcontractors from Lawfecta to complete this work." }));
+    var open = r.role === "attorney" && (a.status === "draft" || a.status === "signing");
+    if (!open) {
+      card.appendChild(h("p", { class: "small muted", text: r.role === "attorney" ? "Everyone working on this job is listed under \"Who's working on this\". You get a notice when it changes; nothing is needed from you." :
+        sub.no_subcontractors ? "The attorney chose this. Bench assignments and gigs for part of this job are off." : "Subcontractors are verified Lawfecta freelancers. You choose what to share with them and stay responsible for the work." }));
+      return card;
+    }
+    var box = h("input", { type: "checkbox", "aria-label": "No subcontractors on this engagement" });
+    box.checked = !!sub.no_subcontractors;
+    var save = h("button", { class: "ghost", type: "button" }, "Save");
+    save.addEventListener("click", function () {
+      save.disabled = true;
+      api.post("/agreements/subcontractors", { id: a.id, no_subcontractors: box.checked, base: a.version }).then(engOk).then(function (x) {
+        if (x.duplicate) { save.disabled = false; cardSay("subs", "Nothing changed."); return; }
+        cardSay("subs", "Saved as version " + x.version + ". Both of you sign the new version.");
+        engReload();
+      }).catch(function (e) { save.disabled = false; cardFail("subs")(e); });
+    });
+    card.appendChild(h("p", { class: "small muted", text: "Subcontractors are verified Lawfecta freelancers who accept confidentiality and no-poaching terms. You do not approve each person; they are listed under \"Who's working on this\". To keep this job to the agency's own team, tick the box. Saving makes a new version of the agreement that both of you sign." }));
+    card.appendChild(h("label", { style: "display:flex;gap:8px;font-weight:400;margin:8px 0" }, box, h("span", { text: "No subcontractors on this engagement" })));
+    card.appendChild(h("div", { class: "row" }, save));
+    return card;
   }
 
   // "agency" when the client is an agency hiring for its own gig, otherwise "attorney"

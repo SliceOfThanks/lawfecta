@@ -20,9 +20,23 @@ export const TERMS_TEMPLATE = `DRAFT FOR LAWFECTA'S LAWYER TO REVIEW. Not for li
 8. Independent contractor. The Freelancer is an independent contractor, not an employee of the Client or of Lawfecta.
 9. Signing. The parties sign electronically on Lawfecta. Each signature records the signer's typed name, the time, the version of this agreement and its fingerprint (hash).`;
 
-export function termsText(limits: Record<string, number>): string {
-  return TERMS_TEMPLATE.replace("{pass_score}", String(limits.pass_score ?? 90)).replace("{review_days}", String(limits.review_days ?? 7))
-    .replace("{revisions}", String(limits.revisions ?? 2)).replace("{dispute_days}", String(limits.dispute_days ?? 14));
+// Agencies part 3 (Stacey's answers 2 and 3): the disclosure on agency proposals and agreements, the attorney's opt-out,
+// and the subcontractor's confidentiality and no-poaching terms on an agency's own gig
+export const SUBCONTRACTING_NOTE = "This agency may use vetted subcontractors from Lawfecta to complete this work.";
+export const SUBS_CLAUSE = "10. Subcontractors. " + SUBCONTRACTING_NOTE + " Every subcontractor is a verified Lawfecta freelancer who has accepted confidentiality and no-poaching terms before seeing anything. The agency decides what to share with them and stays responsible for the work and for everyone it brings in. The Client agrees to this by signing; no approval is needed for each person. Everyone working on this job is listed under Who's working on this.";
+export const NO_SUBS_CLAUSE = "10. No subcontractors on this engagement. Only the agency's own team works on this job. The agency may not assign any part of it to a subcontractor or post a gig for any part of it.";
+export const SUB_TERMS_CLAUSE = "11. Confidentiality and no poaching. The Client here is an agency. The Freelancer keeps everything the agency shares confidential, including anything about the agency's clients, uses it only for this work, and deletes their copies when the work ends. For 12 months after this work ends, the Freelancer does not take work directly from a client of the agency that they learned of through this work, except through the agency.";
+
+export function subsClauses(sub: { agency?: boolean; no_subcontractors?: boolean } | undefined, clientKind: string): string[] {
+  const out: string[] = [];
+  if (sub?.agency) out.push(sub.no_subcontractors ? NO_SUBS_CLAUSE : SUBS_CLAUSE);
+  if (clientKind === "agency") out.push(SUB_TERMS_CLAUSE);
+  return out;
+}
+
+export function termsText(limits: Record<string, number>, extra: string[] = []): string {
+  return [TERMS_TEMPLATE.replace("{pass_score}", String(limits.pass_score ?? 90)).replace("{review_days}", String(limits.review_days ?? 7))
+    .replace("{revisions}", String(limits.revisions ?? 2)).replace("{dispute_days}", String(limits.dispute_days ?? 14)), ...extra].join("\n");
 }
 
 const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86400000).toISOString().slice(0, 10);
@@ -71,9 +85,11 @@ export function buildBody(f: Record<string, any>, milestones?: MilestoneBody[], 
   // A bench member hired by their own agency pays no fee; the agency pays it in its client fee (Stacey's fee answer 5)
   const benchWaiver = fees.bench_waiver === true;
   const flFee = benchWaiver ? 0 : Math.min(Math.max(Math.round(total * Number(fees.freelancer_bps ?? 500) / 10000), Number(fees.floor_cents ?? 1000)), total);
+  const clientKind = f.attorney?.kind === "agency" ? "agency" : "attorney";
+  const sub = f.subcontracting && typeof f.subcontracting === "object" ? f.subcontracting : undefined;
   return {
     template_version: f.template_version ?? "", gig_title: f.gig?.title ?? "",
-    parties: { client: { kind: f.attorney?.kind === "agency" ? "agency" : "attorney", firm: f.attorney?.firm ?? "", signatory: f.attorney?.signatory ?? "", notice_email: f.attorney?.notice_email ?? "", address: f.attorney?.address ?? "" },
+    parties: { client: { kind: clientKind, firm: f.attorney?.firm ?? "", signatory: f.attorney?.signatory ?? "", notice_email: f.attorney?.notice_email ?? "", address: f.attorney?.address ?? "" },
       freelancer: { name: f.freelancer?.name ?? "", company: f.freelancer?.company ?? "" } },
     scope: { task: s(f.gig?.public?.task, 1500), outcome: s(f.gig?.public?.outcome, 800), included, excluded, schedule: s(scope?.schedule ?? f.proposal?.schedule, 2000) },
     milestones: ms,
@@ -81,7 +97,8 @@ export function buildBody(f: Record<string, any>, milestones?: MilestoneBody[], 
       total_cents: total, attorney_fee_cents: attFee, freelancer_fee_cents: flFee, attorney_pays_cents: total + attFee, freelancer_receives_cents: total - flFee, bench_waiver: benchWaiver },
     rubric: ms.map((m, i) => ({ milestone_seq: m.seq, criteria: rubricFor(m, incList, checks, i === ms.length - 1) })),
     limits: f.limits ?? {},
-    terms: termsText(f.limits ?? {}),
+    subcontracting: sub ? { agency: sub.agency === true, no_subcontractors: sub.no_subcontractors === true } : { agency: false, no_subcontractors: false },
+    terms: termsText(f.limits ?? {}, subsClauses(sub, clientKind)),
   };
 }
 

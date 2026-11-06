@@ -2,6 +2,17 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Agencies part 3 (step 7d): subcontracting, built 2026-11-06
+- Migration 0046, behind the switch agency_subcontracting (off until deployed and turned on for the access list).
+- The disclosure: an agency's proposal shows "This agency may use vetted subcontractors from Lawfecta to complete this work.", and the agency's agreement carries it as clause 10. The attorney agrees by signing; no approval for each person.
+- "No subcontractors on this engagement": the attorney's "Subcontractors" card on the agreement, while it is being signed. Saving makes a new version both sign, with clause 10 reading "No subcontractors". It blocks bench assignments and linked gigs, and cannot be turned on while a subcontractor is working. Fixed once both sign.
+- Linked gigs: on an attorney job, the agency's "Bench assignments" card has "Post a gig for part of this job". The gig is linked to the job. Whoever the agency hires on it is added to the attorney's "Who's working on this" as a subcontractor, with an information-only notice, and never opens the attorney's area. Canceling that hire takes them off the list.
+- Every agreement where an agency is the client has clause 11, "Confidentiality and no poaching", so every subcontractor accepts it by signing before anything is shared.
+- The copy flag: an agency gig that is not linked but shares at least 60% of its words with one of the agency's engagements (setting agency.copy_flag_share, status O) is flagged for the Lawfecta Team in the admin Gigs tab, with an alert. The gig still posts. "Pause the gig" pauses it and tells the agency.
+- Also fixed from Stacey's part 2c report (all 18 steps passed): the bench member's "Waiting for the agency to pay", "you pay no platform fee" on milestones with no fee, and "This gig is not available to your account" instead of "Refresh the page".
+- Tests: agency_subs_test.ts (7), agency-test.js 47 browser checks, all api tests 243.
+- Part 2c ChatGPT test: passed 2026-11-06, 18 of 18.
+
 ## Agencies part 2c (step 7d): the agency's own gigs, built 2026-11-06
 - Migration 0045, behind the switch agency_hiring (off until deployed and turned on for the access list).
 - An agency on Freelancer Business acts as a client from its freelancer session:

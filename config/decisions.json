@@ -947,6 +947,15 @@
           "status": "C",
           "source": "Stacey 2026-11-05 (fee answer 5)",
           "note": ""
+        },
+        {
+          "key": "agency.copy_flag_share",
+          "label": "Share of an agency gig's words found in one of its engagements that flags it as a copy",
+          "value": 0.6,
+          "unit": "share",
+          "status": "O",
+          "source": "Claude suggestion",
+          "note": "Agencies part 3. Only gigs not linked to that engagement are flagged. The flag goes to the Lawfecta Team; the gig still posts."
         }
       ]
     }

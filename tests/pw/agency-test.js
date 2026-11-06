@@ -317,6 +317,40 @@ const OWNER = 3800, MGR = 3801, ATT = 3802, PIA = 3803, FRED = 3804;
     ok(t.includes("(you receive all of it; you pay no platform fee)") && !t.includes("after the platform fee"), "a milestone with no fee says so");
     await s.ctx.close();
 
+    // ---------- Subcontracting (part 3): the disclosure, No subcontractors, linked gigs ----------
+    await sql(`update feature_switches set state = 'everyone' where key = 'agency_subcontracting';
+      insert into agreement_versions (agreement_id, version, body, body_hash, proposed_by) select a.id, a.version + 1, v.body || '{"gig_title":"Agency intake job","subcontracting":{"agency":true,"no_subcontractors":false}}', 'h2', a.attorney_person
+        from agreements a join agreement_versions v on v.agreement_id = a.id and v.version = a.version where a.gig_id = '${gig}';
+      update agreements set version = version + 1 where gig_id = '${gig}'; select 1`);
+    const j2 = (await sql(`insert into gigs (org_id, created_by, playbook_id, playbook_version, title, public, budget_min_cents, budget_max_cents, status, opened_at, closes_at, request_id, visibility)
+      values ('${ids.org}', '${ids.att}', '${pb}', 1, 'Second agency job', '{"task":"Intake"}', 30000, 90000, 'filled', now(), now() + interval '14 days', 'agb2', 'public') returning id`))[0].id;
+    const p2 = (await sql(`insert into proposals (gig_id, freelancer_id, status, price_cents, agency_org, included, schedule) values ('${j2}', '${own.owner}', 'selected', 60000, '${own.org}', 'The intake packet', '5 days') returning id`))[0].id;
+    await sql(`insert into agreements (gig_id, proposal_id, attorney_org, attorney_person, freelancer_person, total_cents, status, agency_org) values ('${j2}', '${p2}', '${ids.org}', '${ids.att}', '${own.owner}', 60000, 'draft', '${own.org}'); select 1`);
+    s = await open(browser, ATT, `&tab=projects&gig=${j2}&view=agreement`);
+    t = await waitFor(s.page, "Subcontractors");
+    ok(t.includes("This agency may use vetted subcontractors from Lawfecta to complete this work."), "the attorney reads the disclosure on an agency agreement");
+    await label(s.page, "No subcontractors on this engagement").check();
+    await dela(s.page).locator("#subs-card").getByRole("button", { name: "Save", exact: true }).click();
+    await waitFor(s.page, "Saved as version 2. Both of you sign the new version.");
+    t = await waitFor(s.page, "No subcontractors on this engagement: only the agency's own team works on it.");
+    ok((await dela(s.page).locator("#subs-card .card-status").innerText()).includes("Saved as version 2"), "the answer stays on the Subcontractors card");
+    await s.ctx.close();
+    s = await open(browser, OWNER, `&tab=work&gig=${gig}&view=agreement`);
+    t = await waitFor(s.page, "Post a gig for part of this job");
+    await click(s.page, "Post a gig for part of this job");
+    t = await waitFor(s.page, "Linked to: Agency intake job");
+    ok(t.includes("as your subcontractor"), "Projects shows the gig will be linked to the job");
+    await label(s.page, "Approved SOP or Workflow").selectOption({ label: "Agency intake SOP" });
+    await label(s.page, "Budget from ($)").fill("300");
+    await label(s.page, "Budget to ($)").fill("600");
+    await click(s.page, "Draft the gig with DELA");
+    t = await waitFor(s.page, "Linked to Agency intake job", 10000);
+    ok(t.includes("Public version"), "the linked gig's page says what it is linked to");
+    await s.ctx.close();
+    s = await open(browser, ATT, `&tab=projects&gig=${gig}&view=agreement`);
+    t = await waitFor(s.page, "Subcontractors");
+    ok(t.includes("This agency may use vetted subcontractors") && !t.includes("No subcontractors on this engagement") , "after signing, the attorney sees the choice read-only");
+    await s.ctx.close();
     console.log(passed + " browser checks passed");
   } catch (e) {
     if (s && s.page) await s.page.screenshot({ path: path.join(SHOTS, "agency-fail.png"), fullPage: true }).catch(() => {});

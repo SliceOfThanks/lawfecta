@@ -24,7 +24,7 @@ import { completeness, emptyBody, fileName, normalize, removesReview, toCsv, toD
 import { keyAllowed, stripe, checkoutParams, verifyStripeSignature, accountStatus } from "./lib/payments/stripe.ts";
 import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/webhooks/deliver.ts";
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
-import { buildBody, feeLines, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
+import { buildBody, feeLines, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
 import { blockedKinds, blockedMessage, FILE_BLOCKED_MESSAGE } from "./lib/confidential/rules.ts";
 import { attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
@@ -1927,6 +1927,12 @@ async function gigDraft(ctx: Ctx) {
   const s = await client(ctx);
   const pbId = uuid(ctx.body.playbook_id), requestId = str(ctx.body.request_id, 80);
   if (!pbId || !requestId) throw new HttpError(400, "bad_request");
+  // A gig for part of one of the agency's attorney engagements (Step 7d part 3): checked before any AI credit is spent
+  const linked = ctx.body.linked_agreement ? need(uuid(ctx.body.linked_agreement)) : null;
+  if (linked) {
+    const why = await rpc<string | null>(ctx, "dela_gig_link_check", { p_person: s.person_id, p_agreement: linked });
+    if (why) return json(ctx, { ok: false, reason: why });
+  }
   const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: pbId });
   if (!cur?.ok) return json(ctx, cur);
   if (cur.playbook.status !== "approved") return json(ctx, { ok: false, reason: "playbook_not_approved" });
@@ -1953,6 +1959,11 @@ async function gigDraft(ctx: Ctx) {
   }
   const r = await rpc<Record<string, any>>(ctx, "dela_gig_create", { p_person: s.person_id, p: { playbook_id: pbId, request_id: requestId, public: pub,
     budget_min_cents: toCents(ctx.body.budget_min), budget_max_cents: toCents(ctx.body.budget_max), deadline: str(ctx.body.deadline, 10), milestones: [] } });
+  if (r?.ok && linked) {
+    const l = await rpc<Record<string, any>>(ctx, "dela_gig_link", { p_person: s.person_id, p_gig: r.id ?? r.gig_id, p_agreement: linked });
+    if (!l?.ok) return json(ctx, { ...l, gig_id: r.id ?? r.gig_id });
+    r.linked_agreement = linked;
+  }
   return json(ctx, r?.ok ? { ...r, source } : r);
 }
 
@@ -2058,7 +2069,7 @@ async function gigProposalsWithAgencies(ctx: Ctx) {
   const ag = await rpc<Record<string, any>>(ctx, "dela_proposals_agency", { p_person: s.person_id, p_gig: gig }) ?? {};
   for (const p of r.proposals ?? []) {
     const a = ag[p.id];
-    if (a) p.agency = { ...a.agency, team: await withPhotos(ctx, a.team ?? []) };
+    if (a) p.agency = { ...a.agency, team: await withPhotos(ctx, a.team ?? []), subcontracting_note: SUBCONTRACTING_NOTE };
   }
   return json(ctx, r);
 }
@@ -2516,6 +2527,25 @@ async function agreementPropose(ctx: Ctx) {
   if (warn) return json(ctx, warn);
   if (conductRules(withoutLawfectaLinks(text, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com"))).length) return json(ctx, { ok: false, reason: "keep_on_lawfecta" });
   return json(ctx, await rpc(ctx, "dela_agreement_version_add", { p_person: s.person_id, p_side: s.side, p_agreement: id, p_body: buildBody(facts, ms, scope), p_note: str(ctx.body.note, 300), p_base: int(ctx.body.base) }));
+}
+
+// "No subcontractors on this engagement" (Step 7d part 3): the attorney chooses before both sign; the choice is written
+// into a new version with the same milestones and scope, so both sign it again
+async function agreementSubcontractors(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = need(uuid(ctx.body.id));
+  const r = await rpc<Record<string, any>>(ctx, "dela_agreement_subs_set", { p_person: s.person_id, p_side: s.side, p_agreement: id, p_no: ctx.body.no_subcontractors === true });
+  if (!r?.ok || r.duplicate) return json(ctx, r);
+  const facts = await rpc<Record<string, any>>(ctx, "dela_agreement_facts", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+  if (!facts?.ok) return json(ctx, facts);
+  const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+  const body = v?.current?.body;
+  const add = await rpc<Record<string, any>>(ctx, "dela_agreement_version_add", { p_person: s.person_id, p_side: s.side, p_agreement: id,
+    p_body: body ? buildBody(facts, body.milestones, body.scope) : buildBody(facts),
+    p_note: r.no_subcontractors ? "No subcontractors on this engagement" : "Subcontractors allowed", p_base: int(ctx.body.base) || Number(v?.current?.version ?? 0) });
+  // The choice and its version go together: when the version cannot be added, the choice goes back
+  if (!add?.ok) { await rpc(ctx, "dela_agreement_subs_set", { p_person: s.person_id, p_side: s.side, p_agreement: id, p_no: !r.no_subcontractors }); return json(ctx, add); }
+  return json(ctx, { ...add, no_subcontractors: r.no_subcontractors });
 }
 
 async function agreementSign(ctx: Ctx) {
@@ -3965,6 +3995,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /engagements": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_engagements", { p_person: s.person_id, p_side: s.side })); }
       case "GET /agreements/get": return await agreementGet(ctx);
       case "POST /agreements/propose": return await agreementPropose(ctx);
+      case "POST /agreements/subcontractors": return await agreementSubcontractors(ctx);
       case "POST /agreements/sign": return await agreementSign(ctx);
       case "POST /engagements/pay": return await engagementPay(ctx);
       case "POST /engagements/cancel": return await engagementCancel(ctx);

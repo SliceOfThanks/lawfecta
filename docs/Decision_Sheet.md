@@ -183,6 +183,7 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Open gigs an agency can have at once (0 means no limit). Agencies part 2c. | 0 gigs | Open | Claude suggestion: the same as Attorney Business (no limit) | |
 | Documents an agency can keep in its Library (0 means no limit). Agencies part 2c. | 0 documents | Open | Claude suggestion: the same as Attorney Business (no limit) | |
 | On an agency's own gig, a bench member pays no freelancer fee; the agency pays it | Yes | Confirmed | Stacey 2026-11-05 (fee answer 5) | |
+| Share of an agency gig's words found in one of its engagements that flags it as a copy. Agencies part 3. Only gigs not linked to that engagement are flagged. The flag goes to the Lawfecta Team; the gig still posts. | 0.6 share | Open | Claude suggestion | |
 
 ## 11. On and off switches
 

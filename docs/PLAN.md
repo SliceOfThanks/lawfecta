@@ -1,6 +1,6 @@
 # DELA Phase 1 plan
 
-Last updated 2026-11-05. The one-page picture (built, in progress, next, before the MVP, after) is docs/MVP_OVERVIEW.md. Stacey's own checklist, in order, is docs/STACEY_TODO.md. Read this with STATUS.md. It shows what is done, what is being tested, what needs work, what is waiting on Stacey, and what comes next.
+Last updated 2026-11-06. The one-page picture (built, in progress, next, before the MVP, after) is docs/MVP_OVERVIEW.md. Stacey's own checklist, in order, is docs/STACEY_TODO.md. Read this with STATUS.md. It shows what is done, what is being tested, what needs work, what is waiting on Stacey, and what comes next.
 
 ## Decisions for this plan (Stacey 2026-11-04)
 - Beta users wait for hiring. Nobody outside the test accounts uses DELA until matching, gigs, proposals, meetings and payments (Steps 4 to 6) are built and tested. Everything stays on the test site (hirelegalhelp.com) until then.
@@ -165,7 +165,7 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
 - A full test on Live, a security review, a backup restore drill and the uptime monitor.
 - Point-in-time recovery turned on, and live payments turned on by you.
 
-### Agencies (step 7d), Stacey answered 2026-11-05; parts 1, 2a and 2b on the test site
+### Agencies (step 7d), Stacey answered 2026-11-05; parts 1 to 2c on the test site, part 3 built
 - Brief and answers: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-7d-agencies.md
 - Part 1, on the test site and tested by Stacey (25 of 28; the 3 failures fixed):
   - A Freelancer Business member's own organization becomes their agency, with an "Agency" tab: business name and state, team, 3 seats (owner included), roles (owner, manager, member), invitations, and the agency's jobs.
@@ -175,8 +175,8 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
   - Reviews go to the agency and to each person named.
   - Admin area, "Agencies" tab: the one-time business check and a hand-raised seat limit for one agency.
 - Part 2a and 2b, on the test site (Stacey's ChatGPT test: docs/tests/step-7d-bench-chatgpt-prompt.md): the bench agreement with the signed split and the Plus minimum; bench work on attorney engagements with the split for the job, split payouts, payout holds with reminders, and chargebacks taken back from both shares.
-- Part 2c, built 2026-11-06: the agency's own gigs (its Library, posting after the business check, Talent, the bench first, the agency as the client, and on a bench hire the agency pays both fees).
-- Part 3: subcontracting disclosure, "No subcontractors on this engagement", linked gigs.
+- Part 2c, on the test site and tested by Stacey 2026-11-06 (18 of 18 passed; the 3 confusing messages fixed): the agency's own gigs (its Library, posting after the business check, Talent, the bench first, the agency as the client, and on a bench hire the agency pays both fees).
+- Part 3, built 2026-11-06 (next: deploy to the test site and Stacey's ChatGPT test): the subcontracting disclosure on agency proposals and agreements, the attorney's "No subcontractors on this engagement" before signing, linked gigs whose hire appears on the attorney's "Who's working on this", confidentiality and no-poaching terms for every subcontractor, and the copy flag for the Lawfecta Team.
 
 ### Security and sensitive data (step 6d), built 2026-11-05
 - Built and on the test site, with Confidential materials (step 6c). Next: Stacey's ChatGPT test (docs/tests/step-6d-security-chatgpt-prompt.md), the /security page install (docs/STACEY_SECURITY_PAGE.md) and the OpenAI settings (docs/RUNBOOK.md).
