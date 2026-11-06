@@ -26,8 +26,9 @@ import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
 import { blockedKinds, blockedMessage, FILE_BLOCKED_MESSAGE } from "./lib/confidential/rules.ts";
-import { attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
+import { looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
+import { AUTOMATE_SYSTEM, defaultKpis, delegatedSop, FREQUENCIES, hoursSaved, promptFor, readKpis, readRecommendations, setupSteps, suggestBudget, timeInputs, type AllowedTool, type Frequency, type Recommendation } from "./lib/automate/model.ts";
 import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
 
 export const VERSION = "api-0.9.0";
@@ -1965,6 +1966,230 @@ async function gigDraft(ctx: Ctx) {
     r.linked_agreement = linked;
   }
   return json(ctx, r?.ok ? { ...r, source } : r);
+}
+
+// ---------- Step 4d: "✦ Automate or delegate" and "Get set up" (docs/briefs/step-4d-guided-setup-delegate-automate.md) ----------
+// The tools DELA may name: the firm's own systems always; the Lawfecta tech catalog only while its switch is on.
+// Descriptions and partner labels come from the catalog, never from the AI.
+async function automateTools(ctx: Ctx, s: Session, org: string): Promise<AllowedTool[]> {
+  const out = new Map<string, AllowedTool>();
+  const sys = (await rpc<Record<string, unknown>>(ctx, "dela_automate_systems", { p_person: s.person_id, p_org: org })) ?? {};
+  const firmSystems = Object.values(sys).flatMap((v) => (Array.isArray(v) ? v.map((x) => String(x).trim()).filter(Boolean) : [])).slice(0, 60);
+  for (const name of firmSystems) out.set(name.toLowerCase(), { name, description: "Already in your firm profile.", partner: false, in_firm: true, tool_id: "" });
+  if (await rpc<boolean>(ctx, "dela_switch_on", { p_key: "tech_catalog", p_person: s.person_id })) {
+    for (const t of (await rpc<Tool[]>(ctx, "dela_catalog_active", {})) ?? []) {
+      const name = String(t.name ?? ""), had = out.get(name.toLowerCase());
+      if (!name) continue;
+      out.set(name.toLowerCase(), { name, description: String(t.description ?? "").slice(0, 300), partner: t.lawfecta_partner === true, in_firm: !!had, tool_id: String(t.tool_id ?? "") });
+    }
+  }
+  return [...out.values()].slice(0, Number(await setting(ctx, "catalog.ai_max_tools", "60")) || 60);
+}
+// The approved version of a document, which is what DELA reviews and what a delegated SOP is cut from
+async function approvedDoc(ctx: Ctx, s: Session, id: string): Promise<{ cur: Record<string, any> | null; body: DocBody | null }> {
+  const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
+  if (!cur?.ok || !cur.playbook?.approved_version) return { cur, body: null };
+  const v = await rpc<Record<string, any> | null>(ctx, "dela_pb_version", { p_person: s.person_id, p_id: id, p_version: cur.playbook.approved_version }).catch(() => null);
+  const raw = v?.body ?? cur.body;
+  return { cur, body: isDoc(raw) ? normalizeDoc(raw) : null };
+}
+// Time saved and the plain words for each recommendation, worked out in code from the attorney's answers or DELA's estimate
+function withHours(state: Record<string, any>): Record<string, any> {
+  const r = state.review;
+  if (!r) return state;
+  const t = timeInputs(r);
+  r.time = t;
+  r.recommendations = (r.recommendations ?? []).map((x: Recommendation) => ({ ...x, hours_month: hoursSaved(x.share, t.frequency, t.minutes) }));
+  return state;
+}
+async function automateState(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = need(uuid(ctx.url.searchParams.get("playbook")));
+  return json(ctx, withHours(await rpc<Record<string, any>>(ctx, "dela_automate_state", { p_person: s.person_id, p_playbook: id })));
+}
+async function automateReview(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = need(uuid(ctx.body.playbook_id));
+  const st = await rpc<Record<string, any>>(ctx, "dela_automate_state", { p_person: s.person_id, p_playbook: id });
+  if (!st?.ok) return json(ctx, st);
+  if (!st.on) return json(ctx, { ok: false, reason: "automate_off" });
+  if (!st.can_run) return json(ctx, { ok: false, reason: "not_allowed" });
+  if (!st.approved) return json(ctx, { ok: false, reason: "not_approved" });
+  const freq = FREQUENCIES.includes(ctx.body.frequency as Frequency) ? ctx.body.frequency as Frequency : null;
+  const mins = int(ctx.body.minutes);
+  if (mins !== null && (mins < 1 || mins > 6000)) return json(ctx, { ok: false, reason: "bad_minutes" });
+  // One review per approved version: asking again only saves new answers to the two boxes
+  if (st.review) {
+    if (ctx.body.frequency !== undefined || ctx.body.minutes !== undefined) await rpc(ctx, "dela_automate_inputs", { p_person: s.person_id, p_review: st.review.id, p_frequency: freq, p_minutes: mins });
+    return json(ctx, { ...withHours(await rpc<Record<string, any>>(ctx, "dela_automate_state", { p_person: s.person_id, p_playbook: id })), duplicate: true });
+  }
+  const { cur, body } = await approvedDoc(ctx, s, id);
+  if (!body) return json(ctx, { ok: false, reason: "not_approved" });
+  if (body.steps.length < 2) return json(ctx, { ok: false, reason: "no_steps" });
+  const tools = await automateTools(ctx, s, cur!.playbook.org_id);
+  const ai = await runAi(ctx, s, `automate:${id}:${st.approved_version}`, AUTOMATE_SYSTEM, [{ role: "user", content: promptFor(withoutImages(body), tools) }], Number(await setting(ctx, "ai.credits.automate_review", "2")) || 2);
+  if (!ai.ok) return json(ctx, ai);
+  const read = readRecommendations(readJson(ai.text), body, tools, Number(await setting(ctx, "automate.max_recommendations", "5")) || 5);
+  const saved = await rpc<Record<string, any>>(ctx, "dela_automate_save", { p_person: s.person_id, p_playbook: id, p_version: st.approved_version, p_recs: read.recommendations,
+    p_estimate: read.estimate, p_source: ai.source, p_frequency: freq, p_minutes: mins });
+  if (!saved?.ok) return json(ctx, saved);
+  return json(ctx, withHours(await rpc<Record<string, any>>(ctx, "dela_automate_state", { p_person: s.person_id, p_playbook: id })));
+}
+
+// "Add this tool to the steps" (the Automate path): the steps name the tool in a new version of the document (which then
+// needs approving again, as every change does), and a catalog tool the firm does not list yet joins the firm profile
+async function automateApplyTool(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = need(uuid(ctx.body.playbook_id)), recId = str(ctx.body.rec_id, 10);
+  const st = withHours(await rpc<Record<string, any>>(ctx, "dela_automate_state", { p_person: s.person_id, p_playbook: id }));
+  if (!st?.ok || !st.review) return json(ctx, st?.ok ? { ok: false, reason: "review_first" } : st);
+  if (!st.can_run) return json(ctx, { ok: false, reason: "not_allowed" });
+  const rec = ((st.review.recommendations ?? []) as Recommendation[]).find((x) => x.id === recId && x.kind === "automate");
+  if (!rec?.tool) return json(ctx, { ok: false, reason: "not_found" });
+  const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
+  if (!cur?.ok || !isDoc(cur.body)) return json(ctx, cur?.ok ? { ok: false, reason: "not_a_document" } : cur);
+  if (cur.playbook.version !== cur.playbook.approved_version) return json(ctx, { ok: false, reason: "draft_waiting" });
+  const before = normalizeDoc(cur.body);
+  if (rec.steps.every((k) => before.steps[k - 1]?.system === rec.tool)) return json(ctx, { ok: true, duplicate: true });
+  const next: DocBody = { ...before, steps: before.steps.map((x, i) => (rec.steps.includes(i + 1) ? { ...x, system: rec.tool! } : x)) };
+  const firm = await docFirm(ctx, s);
+  const r = await docSave(ctx, s, id, cur.playbook.version, next, before, `Steps ${rec.steps.join(", ")} now use ${rec.tool}`, "edited", firm) as Record<string, any>;
+  if (!r?.ok) return json(ctx, r);
+  // Only the firm's own people add to its firm profile; a collaborator in another member's library changes the document only
+  const ownOrg = await rpc<string | null>(ctx, "dela_client_org", { p_person: s.person_id, p_side: s.side });
+  if (!rec.in_firm && ownOrg === cur.playbook.org_id && !firm.systems.some((x) => x.toLowerCase() === rec.tool!.toLowerCase())) {
+    const f = (firm.raw?.firm ?? {}) as Record<string, any>;
+    const systems = { ...firm.facts.systems, other: [...(firm.facts.systems.other ?? []), rec.tool].slice(0, 10) };
+    await rpc(ctx, "dela_doc_firm_save_side", { p_person: s.person_id, p_side: s.side, p: { ...f, systems } });
+  }
+  return json(ctx, { ok: true, version: r.version, tool: rec.tool, steps: rec.steps });
+}
+
+// The steps a delegation may take: in the document, never an attorney decision or a judgment step, never every step
+function delegableSteps(body: DocBody, steps: unknown): number[] | null {
+  const n = body.steps.length;
+  const list = [...new Set((Array.isArray(steps) ? steps : []).map((x) => Math.round(Number(x))).filter((x) => x >= 1 && x <= n))].sort((a, b) => a - b);
+  if (!list.length || list.length >= n) return null;
+  if (list.some((k) => body.steps[k - 1].attorney_decides || (!body.steps[k - 1].not_judgment && looksLikeJudgment(body.steps[k - 1].text)))) return null;
+  return list;
+}
+async function delegationView(ctx: Ctx, s: Session, id: string): Promise<Record<string, any>> {
+  const d = await rpc<Record<string, any>>(ctx, "dela_delegation_get", { p_person: s.person_id, p_id: id });
+  if (!d?.ok) return d;
+  const { body } = await approvedDoc(ctx, s, d.delegation.playbook_id);
+  if (!body) return { ok: false, reason: "not_approved" };
+  const rec = ((d.review?.recommendations ?? []) as Recommendation[]).find((x) => x.id === d.delegation.rec_id);
+  const steps: number[] = d.delegation.steps?.length ? d.delegation.steps : rec?.steps ?? [];
+  const kpis = readKpis(d.delegation.kpis, defaultKpis(body, steps));
+  const t = timeInputs(d.review ?? {});
+  const hours = d.delegation.kind === "setup" ? Math.max(rec?.hours_each ?? 4, 2) : (rec?.hours_each ?? (t.minutes ? t.minutes * (rec?.share ?? 0.3) / 60 : 1));
+  const budget = suggestBudget(hours, Number(await setting(ctx, "automate.rate_low_cents", "4000")) || 4000, Number(await setting(ctx, "automate.rate_high_cents", "7500")) || 7500,
+    Number(await setting(ctx, "gig.min_budget_cents", "25000")) || 25000, Number(await setting(ctx, "fee.client_bps", "500")) || 500, Number(await setting(ctx, "fees.floor_cents_per_party", "1000")) || 1000);
+  return { ...d, recommendation: rec ?? null, kpis, budget, hours: Math.round(hours * 10) / 10,
+    parent_steps: body.steps.map((st, i) => ({ n: i + 1, text: st.text, attorney_decides: st.attorney_decides, judgment: !st.not_judgment && looksLikeJudgment(st.text), chosen: steps.includes(i + 1) })) };
+}
+async function delegationStart(ctx: Ctx) {
+  const s = await client(ctx);
+  const rid = need(uuid(ctx.body.review_id)), recId = str(ctx.body.rec_id, 10);
+  const kind = ctx.body.kind === "setup" ? "setup" : "delegate";
+  const pid = await rpc<string | null>(ctx, "dela_automate_review_playbook", { p_review: rid });
+  if (!pid) return json(ctx, { ok: false, reason: "not_found" });
+  const st = await rpc<Record<string, any>>(ctx, "dela_automate_state", { p_person: s.person_id, p_playbook: pid });
+  const rec = ((st?.review?.recommendations ?? []) as Recommendation[]).find((x) => x.id === recId);
+  if (!st?.ok || !st.review || st.review.id !== rid) return json(ctx, { ok: false, reason: st?.review ? "not_found" : "review_out_of_date" });
+  if (!rec || (kind === "setup" && rec.kind !== "automate") || (kind === "delegate" && rec.kind !== "delegate")) return json(ctx, { ok: false, reason: "not_found" });
+  const title = kind === "setup" ? "Set up " + rec.tool + ": " + rec.title : rec.title;
+  const r = await rpc<Record<string, any>>(ctx, "dela_delegation_start", { p_person: s.person_id, p_review: rid, p_rec_id: recId, p_kind: kind, p_title: title, p_steps: rec.steps, p_tool: rec.tool ?? "" });
+  return json(ctx, r?.ok ? await delegationView(ctx, s, r.id) : r);
+}
+async function delegationSave(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = need(uuid(ctx.body.id));
+  const cur = await delegationView(ctx, s, id);
+  if (!cur?.ok) return json(ctx, cur);
+  if (cur.delegation.sop_id && cur.sop?.status === "approved" && (ctx.body.steps !== undefined || ctx.body.kpis !== undefined)) return json(ctx, { ok: false, reason: "sop_approved" });
+  const p: Record<string, unknown> = {};
+  if (ctx.body.steps !== undefined) {
+    const { body } = await approvedDoc(ctx, s, cur.delegation.playbook_id);
+    const steps = cur.delegation.kind === "setup" ? cur.delegation.steps : delegableSteps(body!, ctx.body.steps);
+    if (!steps) return json(ctx, { ok: false, reason: "steps_not_delegable" });
+    p.steps = steps;
+  }
+  if (ctx.body.kpis !== undefined) {
+    const k = readKpis(ctx.body.kpis, cur.kpis);
+    const warn = sensitive(ctx, [...k.checklist, k.done].join("\n"));
+    if (warn) return json(ctx, warn);
+    p.kpis = k;
+  }
+  if (ctx.body.stage !== undefined) p.stage = int(ctx.body.stage);
+  if (ctx.body.cancel === true) p.status = "canceled";
+  const r = await rpc<Record<string, any>>(ctx, "dela_delegation_save", { p_person: s.person_id, p_id: id, p });
+  return json(ctx, r?.ok ? await delegationView(ctx, s, id) : r);
+}
+// The SOP for just the delegated steps (a draft in the same library), made again from the chosen steps and KPIs until approved
+async function delegationSop(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = need(uuid(ctx.body.id));
+  const cur = await delegationView(ctx, s, id);
+  if (!cur?.ok) return json(ctx, cur);
+  if (cur.sop?.status === "approved") return json(ctx, { ...cur, duplicate: true });
+  const { cur: pcur, body } = await approvedDoc(ctx, s, cur.delegation.playbook_id);
+  if (!body) return json(ctx, { ok: false, reason: "not_approved" });
+  const d = cur.delegation, rec = cur.recommendation as Recommendation | null;
+  const label = (cur.parent?.doc_id ? cur.parent.doc_id + " " : "") + (cur.parent?.title ?? body.title);
+  const steps = d.kind === "setup" ? d.steps : delegableSteps(body, d.steps);
+  if (!steps) return json(ctx, { ok: false, reason: "steps_not_delegable" });
+  const src = d.kind === "setup" ? setupSteps(body, steps, d.tool) : body;
+  const sop = delegatedSop(src, d.kind === "setup" ? src.steps.map((_, i) => i + 1) : steps, d.title, rec?.why ?? "", cur.kpis, label, d.kind === "setup" ? d.tool : "");
+  if (d.kind === "setup") sop.scope = `Setting up ${d.tool} for steps ${steps.join(", ")} of ${label}. The supervising attorney keeps every legal decision and reviews each delivery.`;
+  const firm = await docFirm(ctx, s);
+  let r: Record<string, any>;
+  if (d.sop_id && cur.sop) {
+    const sc = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: d.sop_id });
+    r = await docSave(ctx, s, d.sop_id, sc?.playbook?.version ?? 1, sop, sc?.body && isDoc(sc.body) ? normalizeDoc(sc.body) : null, "Made again from the delegated steps and KPIs", "edited", firm);
+  } else {
+    r = await docCreate(ctx, s, pcur!.playbook.org_id, `delegate:${id}`, sop, "ai", "Delegated from " + label, firm, d.playbook_id);
+    if (r?.ok) await rpc(ctx, "dela_delegation_save", { p_person: s.person_id, p_id: id, p: { sop_id: r.id, stage: 4 } });
+  }
+  if (!r?.ok) return json(ctx, r);
+  return json(ctx, { ...await delegationView(ctx, s, id), check: r.check });
+}
+// Only an attorney who can post gigs approves the delegated SOP (Stacey's answer 9), with the usual approval checks
+async function delegationApprove(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = need(uuid(ctx.body.id));
+  const cur = await delegationView(ctx, s, id);
+  if (!cur?.ok) return json(ctx, cur);
+  if (!cur.can_approve) return json(ctx, { ok: false, reason: "attorney_approves" });
+  if (!cur.delegation.sop_id) return json(ctx, { ok: false, reason: "sop_first" });
+  if (cur.sop?.status === "approved") return json(ctx, { ...cur, duplicate: true });
+  const gate = await docStatusGate(ctx, s, cur.delegation.sop_id, "approve");
+  if (gate) return json(ctx, gate);
+  const r = await rpc<Record<string, any>>(ctx, "dela_pb_status", { p_person: s.person_id, p_id: cur.delegation.sop_id, p_action: "approve" });
+  if (!r?.ok) return json(ctx, r);
+  await rpc(ctx, "dela_delegation_save", { p_person: s.person_id, p_id: id, p: { stage: 5 } });
+  return json(ctx, await delegationView(ctx, s, id));
+}
+// The gig draft from the approved SOP; the attorney checks it on the gig page and clicks "Post the gig" there
+async function delegationGig(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = need(uuid(ctx.body.id));
+  const cur = await delegationView(ctx, s, id);
+  if (!cur?.ok) return json(ctx, cur);
+  if (!cur.can_approve) return json(ctx, { ok: false, reason: "attorney_approves" });
+  if (cur.sop?.status !== "approved") return json(ctx, { ok: false, reason: "sop_not_approved" });
+  if (cur.delegation.gig_id) return json(ctx, { ...cur, duplicate: true, gig_id: cur.delegation.gig_id });
+  const res = await gigDraft({ ...ctx, body: { playbook_id: cur.delegation.sop_id, request_id: "delegate:" + id, budget_min: ctx.body.budget_min, budget_max: ctx.body.budget_max, deadline: ctx.body.deadline, lawfecta_once: ctx.body.lawfecta_once } });
+  const g = await res.json() as Record<string, any>;
+  if (!g?.ok) return json(ctx, g);
+  const gid = g.id ?? g.gig_id;
+  // "Hire a freelancer to set it up" matches freelancers who list the tool first
+  if (cur.delegation.kind === "setup" && cur.delegation.tool) {
+    const gg = await rpc<Record<string, any>>(ctx, "dela_gig_get", { p_person: s.person_id, p_side: s.side, p_gig: gid });
+    if (gg?.ok) await rpc(ctx, "dela_gig_save", { p_person: s.person_id, p_gig: gid, p: { public: normalizePublic({ ...gg.gig.public, tools: [...new Set([cur.delegation.tool, ...(gg.gig.public?.tools ?? [])])] }) }, p_version: gg.gig.version });
+  }
+  await rpc(ctx, "dela_delegation_save", { p_person: s.person_id, p_id: id, p: { gig_id: gid, stage: 5 } });
+  return json(ctx, { ...await delegationView(ctx, s, id), gig_id: gid });
 }
 
 async function gigSave(ctx: Ctx) {
@@ -3996,6 +4221,19 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /agreements/get": return await agreementGet(ctx);
       case "POST /agreements/propose": return await agreementPropose(ctx);
       case "POST /agreements/subcontractors": return await agreementSubcontractors(ctx);
+      case "GET /setup": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_setup_state", { p_person: s.person_id, p_side: s.side })); }
+      case "POST /setup": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_setup_mark", { p_person: s.person_id, p_side: s.side, p_step: ctx.body.step ? str(ctx.body.step, 20) : null,
+        p_skip: ctx.body.skip === true, p_dismiss: typeof ctx.body.dismissed === "boolean" ? ctx.body.dismissed : null })); }
+      case "GET /automate": return await automateState(ctx);
+      case "POST /automate/review": return await automateReview(ctx);
+      case "POST /automate/dismiss": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_automate_dismiss", { p_person: s.person_id, p_playbook: need(uuid(ctx.body.playbook_id)), p_on: ctx.body.dismissed !== false })); }
+      case "POST /automate/apply-tool": return await automateApplyTool(ctx);
+      case "POST /automate/delegate": return await delegationStart(ctx);
+      case "GET /automate/delegation": { const s = await client(ctx); return json(ctx, await delegationView(ctx, s, need(uuid(ctx.url.searchParams.get("id"))))); }
+      case "POST /automate/delegation": return await delegationSave(ctx);
+      case "POST /automate/delegation/sop": return await delegationSop(ctx);
+      case "POST /automate/delegation/approve": return await delegationApprove(ctx);
+      case "POST /automate/delegation/gig": return await delegationGig(ctx);
       case "POST /agreements/sign": return await agreementSign(ctx);
       case "POST /engagements/pay": return await engagementPay(ctx);
       case "POST /engagements/cancel": return await engagementCancel(ctx);
