@@ -1604,23 +1604,28 @@
         can(3) && L.scribe_on ? h("button", { class: "ghost", onclick: startScribe }, "Import from Scribe") : null,
         can(3) ? h("button", { class: "ghost", onclick: suggestMissing }, "What am I missing?") : null,
         L.role === "administrator" ? h("button", { class: "ghost", onclick: openTeam }, "Team") : null)));
+    // Search and filters come first; imports wait in a compact line that opens on request; Archived and Trash sit under More (UX review L01, L03)
+    var q = h("input", { type: "search", placeholder: "Search by title, ID or practice area", "aria-label": "Search documents", value: lib.q, style: "min-width:240px" });
+    q.addEventListener("input", function () { lib.q = q.value; drawList(); });
+    var filters = [["all", "All"], ["draft", "Drafts"], ["in_review", "In review"], ["approved", "Approved"], ["due", "Due for review"]];
+    var more = [["archived", "Archived"]];
+    if (L.role === "administrator") more.push(["trash", "Trash"]);
+    var moreOpen = lib.filter === "archived" || lib.filter === "trash" || lib.moreOpen;
+    var pills = h("div", { class: "pills" }, filters.concat(moreOpen ? more : []).map(function (f) {
+      return h("button", { "aria-pressed": String(lib.filter === f[0]), onclick: function () { lib.filter = f[0]; drawLibrary(); } }, f[1]);
+    }));
+    if (!moreOpen) pills.appendChild(h("button", { "aria-expanded": "false", onclick: function () { lib.moreOpen = true; drawLibrary(); } }, "More"));
+    libEl.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;gap:8px;margin:10px 0" }, q, pills));
+    var listEl = h("div");
+    libEl.appendChild(listEl);
     libEl.appendChild(draftsDueCard());
     if (L.imports.length) {
-      libEl.appendChild(h("div", { class: "card" }, h("h2", { text: "Imports waiting for review" }), h("ul", { class: "list" }, L.imports.map(function (i) {
+      libEl.appendChild(h("details", { class: "card", id: "imports-card" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "Imports waiting for review (" + L.imports.length + ")" }), h("ul", { class: "list" }, L.imports.map(function (i) {
         return h("li", { class: "row" }, h("span", { class: "grow" }, h("b", { text: i.title || "Imported guide" }), h("span", { class: "small muted", text: " " + i.steps + " steps, " + D.date(i.created_at) })),
           h("button", { class: "small blue", onclick: function () { openImport(i.id); } }, "Review"));
       }))));
     }
     if (can(3)) libEl.appendChild(recordingsCard());
-    var q = h("input", { type: "search", placeholder: "Search", "aria-label": "Search documents", value: lib.q });
-    q.addEventListener("input", function () { lib.q = q.value; drawList(); });
-    var filters = [["all", "All"], ["draft", "Drafts"], ["in_review", "In review"], ["approved", "Approved"], ["due", "Due for review"], ["archived", "Archived"]];
-    if (L.role === "administrator") filters.push(["trash", "Trash"]);
-    libEl.appendChild(h("div", { class: "row" }, q, h("div", { class: "pills" }, filters.map(function (f) {
-      return h("button", { "aria-pressed": String(lib.filter === f[0]), onclick: function () { lib.filter = f[0]; drawLibrary(); } }, f[1]);
-    }))));
-    var listEl = h("div");
-    libEl.appendChild(listEl);
     function drawList() {
       D.clear(listEl);
       var today = D.today();
@@ -5828,28 +5833,32 @@
   }
 
   // ---------- The master index (Library) ----------
+  // One aligned table for the whole library, with each lifecycle group as a band row (UX review L01).
+  // The ID sits under the title; on a phone the table stacks into cards (class "stack").
   function docIndex(listEl, rows) {
     var st = DOC.starters;
     var groups = st ? st.lifecycle : [];
     var byG = {};
     rows.forEach(function (p) { var g = p.lifecycle || "OLD"; (byG[g] = byG[g] || []).push(p); });
     var order = groups.map(function (g) { return g.prefix; }).concat(["OLD"]);
+    var body = h("tbody");
     order.forEach(function (g) {
       var list = byG[g];
       if (!list) return;
       var label = g === "OLD" ? "Waiting for the document standard" : (groups.filter(function (x) { return x.prefix === g; })[0] || {}).label || g;
-      listEl.appendChild(h("h3", { text: (g === "OLD" ? "" : g + " | ") + label }));
-      listEl.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack", style: "width:100%" }, h("thead", null, h("tr", null, ["ID", "Title", "Type", "Owner (role)", "Status", "Next review", "Review"].map(function (t) { return h("th", { text: t }); }))),
-        h("tbody", null, list.map(function (p) {
-          var due = p.status === "approved" && p.next_review_at && p.next_review_at <= D.today();
-          return h("tr", { style: "cursor:pointer", onclick: function () { openPlaybook(p.id, "read"); } },
-            h("td", { "data-label": "ID", text: p.doc_id || "" }), h("td", { "data-label": "Title" }, h("b", { text: p.title }), p.converted ? h("div", { class: "small", text: "Imported: review required" }) : null),
-            h("td", { "data-label": "Type", text: DOC_TYPE_WORDS[p.doc_type] || "Older playbook" }), h("td", { "data-label": "Owner (role)", text: p.owner_role || "Not assigned" }),
-            h("td", { "data-label": "Status" }, h("span", { class: "badge " + (p.status === "approved" ? "ready" : p.status === "in_review" ? "held" : ""), text: PB_STATUS[p.status] })),
-            h("td", { "data-label": "Next review", text: p.next_review_at ? D.date(p.next_review_at) + (due ? " (due)" : "") : "Not scheduled" }),
-            h("td", { "data-label": "Review", text: p.blocking ? "Review " + p.blocking + (p.blocking === 1 ? " issue" : " issues") : p.attention ? p.attention + (p.attention === 1 ? " suggestion" : " suggestions") : "None" }));
-        })))));
+      body.appendChild(h("tr", { class: "band" }, h("th", { colspan: "6", scope: "colgroup", style: "text-align:left;background:var(--soft, #f6f1f5);padding:6px 8px", text: (g === "OLD" ? "" : g + " | ") + label + " (" + list.length + ")" })));
+      list.forEach(function (p) {
+        var due = p.status === "approved" && p.next_review_at && p.next_review_at <= D.today();
+        body.appendChild(h("tr", { style: "cursor:pointer", tabindex: "0", onclick: function () { openPlaybook(p.id, "read"); }, onkeydown: function (e) { if (e.key === "Enter") openPlaybook(p.id, "read"); } },
+          h("td", { "data-label": "Document" }, h("b", { text: p.title }), h("div", { class: "small muted", text: p.doc_id || "No ID yet" }), p.converted ? h("div", { class: "small", text: "Imported: review required" }) : null),
+          h("td", { "data-label": "Type", text: DOC_TYPE_WORDS[p.doc_type] || "Older playbook" }), h("td", { "data-label": "Owner (role)", text: p.owner_role || "Not assigned" }),
+          h("td", { "data-label": "Status" }, h("span", { class: "badge " + (p.status === "approved" ? "ready" : p.status === "in_review" ? "held" : ""), text: PB_STATUS[p.status] })),
+          h("td", { "data-label": "Next review", text: p.next_review_at ? D.date(p.next_review_at) + (due ? " (due)" : "") : "Not scheduled" }),
+          h("td", { "data-label": "Review", text: p.blocking ? "Review " + p.blocking + (p.blocking === 1 ? " issue" : " issues") : p.attention ? p.attention + (p.attention === 1 ? " suggestion" : " suggestions") : "None" })));
+      });
     });
+    listEl.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack doc-index", style: "width:100%" },
+      h("thead", null, h("tr", null, ["Document", "Type", "Owner (role)", "Status", "Next review", "Review"].map(function (t) { return h("th", { scope: "col", text: t }); }))), body)));
   }
 
   // ---------- Draft and review ----------

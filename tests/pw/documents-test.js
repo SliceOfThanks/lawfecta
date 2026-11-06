@@ -86,6 +86,7 @@ async function makeMember(bd, side, plan) {
     await click(p, "Library");
     t = await waitFor(p, "Intake and conflicts");
     ok(t.includes(oldId) && t.includes("Imported: review required") && t.includes("Owner (role)") && t.includes("Next review") && t.includes("Review") && !t.includes("Converted: check it") && !/\d+ blocking/.test(t), "the master index groups by lifecycle with ID, type, owner role, next review and a Review column (UX review L02)");
+    ok(await dela(p).locator("table.doc-index").count() === 1 && await dela(p).locator("table.doc-index tr.band").count() >= 1, "the library is one aligned table with a band row per lifecycle group (UX review L01)");
     await dela(p).locator("tr", { hasText: oldId }).first().click();
     t = await waitFor(p, "DELA moved this to the document standard as SOP");
     ok(t.includes("Draft, not approved"), "a converted document shows Draft, not approved until it is approved again");
