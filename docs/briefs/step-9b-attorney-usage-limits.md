@@ -1,7 +1,7 @@
 # Feature brief: attorney plan usage limits (MVP)
 
 Step: 9b   Spec references: developer notes from Stacey 2026-11-06; config/decisions.json att.playbooks_saved, ai.runs, storage.mb
-Status: draft, questions for Stacey. The build starts after she answers.
+Status: questions answered 2026-11-06 (four by Stacey, the rest use the suggested answers until she says otherwise). Approved to build.
 
 ## Who
 Attorneys on the four attorney plans: Attorney Free (BD plan 5), Attorney Plus (13), Attorney Pro (12) and Attorney Business (14). Business limits are shared by the whole firm. The Lawfecta Team manages limits and bonus actions in the admin area.
@@ -65,3 +65,13 @@ Attorneys on the four attorney plans: Attorney Free (BD plan 5), Attorney Plus (
 - A Business firm's counter is shared: two members' actions add up.
 - A downgrade from Pro to Free with 10 playbooks leaves the 3 most recently edited ones editable and 7 read-only with the lock.
 - The admin page shows each attorney's usage and AI cost, flags anyone over $10, and a bonus grant raises that month's limit only.
+
+## Stacey's answers (2026-11-06)
+1. AI use: keep weighted credits, shown to members as "DELA actions". A heavier task (for example a full document draft) uses more than a short answer. The monthly numbers become 50, 300, 1,000 and 2,500 for attorneys. Each response also records its real AI cost.
+2. Freelancer AI limits stay as they are (suggested answer; the note sets attorney values only).
+3. Saved playbooks: 3, 15, 50, unlimited, counting every saved document (SOPs, workflows, policies, playbooks, drafts included; archived and trash not counted). Suggested answer.
+4. Plan check: page load (already built) plus the 2:00 AM Pacific nightly BD sync and the admin "Resync plan" button. No 15-minute timer.
+5. Upgrade address: open. Until Stacey confirms the address that preselects a plan, the Upgrade buttons open /account/upgrade.
+6. Own AI keys do not count against the monthly limit.
+7. Business: one shared counter for everyone in the firm's DELA workspace, owner included. Suggested answer.
+8. Go live: counting, banners, the Usage page and the admin page ship on; blocking ships behind the switch usage_limits_enforced, off until Stacey turns it on after the test.
