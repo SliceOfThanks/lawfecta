@@ -920,6 +920,33 @@
           "status": "C",
           "source": "Stacey 2026-11-05 (fee answers)",
           "note": ""
+        },
+        {
+          "key": "agency.gigs_active",
+          "label": "Open gigs an agency can have at once (0 means no limit)",
+          "value": 0,
+          "unit": "gigs",
+          "status": "O",
+          "source": "Claude suggestion: the same as Attorney Business (no limit)",
+          "note": "Agencies part 2c."
+        },
+        {
+          "key": "agency.playbooks_saved",
+          "label": "Documents an agency can keep in its Library (0 means no limit)",
+          "value": 0,
+          "unit": "documents",
+          "status": "O",
+          "source": "Claude suggestion: the same as Attorney Business (no limit)",
+          "note": "Agencies part 2c."
+        },
+        {
+          "key": "agency.bench_fee_waiver",
+          "label": "On an agency's own gig, a bench member pays no freelancer fee; the agency pays it",
+          "value": true,
+          "unit": "",
+          "status": "C",
+          "source": "Stacey 2026-11-05 (fee answer 5)",
+          "note": ""
         }
       ]
     }

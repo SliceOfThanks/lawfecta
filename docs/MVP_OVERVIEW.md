@@ -44,8 +44,9 @@ Links on GitHub start with https://github.com/SliceOfThanks/lawfecta/blob/claude
 
 **Agencies**
 - Part 1: the team and seats, agency proposals with "Who will do this work", "Who's working on this", and the admin Agencies tab. Tested by you (25 of 28; the 3 failures fixed).
-- Part 2a: the bench with the signed fee split and the Plus minimum. Your test is running now.
-- Part 2b: bench work on attorney jobs paid by the split, payout holds with reminders, and chargebacks taken back from both shares. Your test is running now.
+- Part 2a: the bench with the signed fee split and the Plus minimum. Tested by you.
+- Part 2b: bench work on attorney jobs paid by the split, payout holds with reminders, and chargebacks taken back from both shares. Tested by you.
+- Part 2c: the agency's own gigs: its Library, posting after the business check, Talent, the bench first, and the agency as the client. A bench hire pays no fee; the agency pays both. Your test is next.
 
 **Money rules in place**
 - 5% from each side on every plan, with the $10 minimum per side and the $250 minimum engagement.

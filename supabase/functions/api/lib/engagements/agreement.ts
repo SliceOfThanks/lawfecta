@@ -68,15 +68,17 @@ export function buildBody(f: Record<string, any>, milestones?: MilestoneBody[], 
   const total = ms.reduce((a, m) => a + m.amount_cents, 0);
   const fees = f.fees ?? {};
   const attFee = Math.max(Math.round(total * Number(fees.attorney_bps ?? 500) / 10000), Number(fees.floor_cents ?? 1000));
-  const flFee = Math.min(Math.max(Math.round(total * Number(fees.freelancer_bps ?? 500) / 10000), Number(fees.floor_cents ?? 1000)), total);
+  // A bench member hired by their own agency pays no fee; the agency pays it in its client fee (Stacey's fee answer 5)
+  const benchWaiver = fees.bench_waiver === true;
+  const flFee = benchWaiver ? 0 : Math.min(Math.max(Math.round(total * Number(fees.freelancer_bps ?? 500) / 10000), Number(fees.floor_cents ?? 1000)), total);
   return {
     template_version: f.template_version ?? "", gig_title: f.gig?.title ?? "",
-    parties: { client: { firm: f.attorney?.firm ?? "", signatory: f.attorney?.signatory ?? "", notice_email: f.attorney?.notice_email ?? "", address: f.attorney?.address ?? "" },
+    parties: { client: { kind: f.attorney?.kind === "agency" ? "agency" : "attorney", firm: f.attorney?.firm ?? "", signatory: f.attorney?.signatory ?? "", notice_email: f.attorney?.notice_email ?? "", address: f.attorney?.address ?? "" },
       freelancer: { name: f.freelancer?.name ?? "", company: f.freelancer?.company ?? "" } },
     scope: { task: s(f.gig?.public?.task, 1500), outcome: s(f.gig?.public?.outcome, 800), included, excluded, schedule: s(scope?.schedule ?? f.proposal?.schedule, 2000) },
     milestones: ms,
     fees: { attorney_bps: Number(fees.attorney_bps ?? 500), freelancer_bps: Number(fees.freelancer_bps ?? 500), floor_cents: Number(fees.floor_cents ?? 1000),
-      total_cents: total, attorney_fee_cents: attFee, freelancer_fee_cents: flFee, attorney_pays_cents: total + attFee, freelancer_receives_cents: total - flFee },
+      total_cents: total, attorney_fee_cents: attFee, freelancer_fee_cents: flFee, attorney_pays_cents: total + attFee, freelancer_receives_cents: total - flFee, bench_waiver: benchWaiver },
     rubric: ms.map((m, i) => ({ milestone_seq: m.seq, criteria: rubricFor(m, incList, checks, i === ms.length - 1) })),
     limits: f.limits ?? {},
     terms: termsText(f.limits ?? {}),
@@ -86,7 +88,12 @@ export function buildBody(f: Record<string, any>, milestones?: MilestoneBody[], 
 // A plain summary of what the attorney pays and the freelancer receives, shown before signing
 export function feeLines(b: Record<string, any>): string[] {
   const fe = b.fees ?? {};
-  return [`Price for the work: ${money(fe.total_cents)}`, `The attorney also pays the platform fee: ${money(fe.attorney_fee_cents)} (charged once, with the first milestone)`,
+  const who = b.parties?.client?.kind === "agency" ? "The agency" : "The attorney";
+  if (fe.bench_waiver === true) {
+    return [`Price for the work: ${money(fe.total_cents)}`, `${who} also pays the platform fee: ${money(fe.attorney_fee_cents)} (charged once, with the first milestone)`,
+      `The agency also pays the freelancer's platform fee, because they are on its bench. The freelancer pays no platform fee.`, `The freelancer receives: ${money(fe.freelancer_receives_cents)} (the full price)`];
+  }
+  return [`Price for the work: ${money(fe.total_cents)}`, `${who} also pays the platform fee: ${money(fe.attorney_fee_cents)} (charged once, with the first milestone)`,
     `The freelancer's platform fee: ${money(fe.freelancer_fee_cents)}, taken from the payouts across the milestones`, `The freelancer receives: ${money(fe.freelancer_receives_cents)}`];
 }
 

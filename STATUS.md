@@ -2,6 +2,19 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Agencies part 2c (step 7d): the agency's own gigs, built 2026-11-06
+- Migration 0045, behind the switch agency_hiring (off until deployed and turned on for the access list).
+- An agency on Freelancer Business acts as a client from its freelancer session:
+  - its own Library, where the owner is the administrator and managers are editors
+  - posting gigs from approved SOPs and Workflows, once the owner is verified and the Lawfecta Team has checked the business details
+  - Talent, and "Your bench" first on each gig
+  - signing the agreement once its client details are given (who signs, billing address, email for notices), paying, and accepting milestones
+- Agency members are never matched to their own agency's gigs. Freelancers see "Posted by X (agency)". Notices reach the agency on its freelancer side.
+- Fees: an outside hire pays the usual 5% and the agency 5%. A bench hire pays nothing, and the agency pays both, 10% (setting agency.bench_fee_waiver).
+- New settings: agency.gigs_active and agency.playbooks_saved (0 means no limit, the same as Attorney Business; status O), and agency.bench_fee_waiver.
+- One helper, dela_client_role, decides client rights (attorneys on the attorney side; agencies on the freelancer side), so the attorney screens and rules are reused and attorney behavior is unchanged.
+- Tests: agency_gigs_test.ts (9), agency-test.js 39 browser checks, all api tests 236.
+
 ## Agencies part 2a and 2b (step 7d), 2026-11-05: on the test site
 - 2a, the agency bench (migration 0042, switch agency_bench, off):
   - The agency invites a freelancer by email with a default split and signs it. The agency's share is 5% to 50%, never below the freelancer fee.

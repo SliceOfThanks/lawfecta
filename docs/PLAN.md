@@ -175,7 +175,7 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
   - Reviews go to the agency and to each person named.
   - Admin area, "Agencies" tab: the one-time business check and a hand-raised seat limit for one agency.
 - Part 2a and 2b, on the test site (Stacey's ChatGPT test: docs/tests/step-7d-bench-chatgpt-prompt.md): the bench agreement with the signed split and the Plus minimum; bench work on attorney engagements with the split for the job, split payouts, payout holds with reminders, and chargebacks taken back from both shares.
-- Part 2c, next: the agency's own gigs (the Library for agencies, posting after the business check, Talent, the agency paying the client fee and the freelancer fee for its bench members).
+- Part 2c, built 2026-11-06: the agency's own gigs (its Library, posting after the business check, Talent, the bench first, the agency as the client, and on a bench hire the agency pays both fees).
 - Part 3: subcontracting disclosure, "No subcontractors on this engagement", linked gigs.
 
 ### Security and sensitive data (step 6d), built 2026-11-05

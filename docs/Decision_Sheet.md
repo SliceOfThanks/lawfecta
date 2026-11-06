@@ -180,6 +180,9 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Fees on a split milestone (attorney work assigned to a bench member). Example: $1,000 at 30/70: the agency gets $300 minus $50 = $250, the bench member $700. | The attorney pays the usual 5% client fee. The agency pays the whole 5% freelancer-side fee from its share. The bench member gets their full share. | Confirmed | Stacey 2026-11-05 (fee answers) | |
 | Smallest agency share of a bench member's work. Never below the freelancer-side fee. | 5% | Confirmed | Stacey 2026-11-05 (fee answers) | |
 | Largest agency share of a bench member's work | 50% | Confirmed | Stacey 2026-11-05 (fee answers) | |
+| Open gigs an agency can have at once (0 means no limit). Agencies part 2c. | 0 gigs | Open | Claude suggestion: the same as Attorney Business (no limit) | |
+| Documents an agency can keep in its Library (0 means no limit). Agencies part 2c. | 0 documents | Open | Claude suggestion: the same as Attorney Business (no limit) | |
+| On an agency's own gig, a bench member pays no freelancer fee; the agency pays it | Yes | Confirmed | Stacey 2026-11-05 (fee answer 5) | |
 
 ## 11. On and off switches
 

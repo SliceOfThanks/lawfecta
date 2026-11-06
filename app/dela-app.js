@@ -29,6 +29,12 @@
     if (sw.ai_generation) f.push(["ask", "Ask DELA", "✦"]);
     f = f.concat([["profile", "Profile", "☺"], ["work", "Work", "▣"], ["earnings", "Earnings", "$"]]);
     if (sw.agency_team) f.push(["agency", "Agency", "◆"]);
+    // An agency that hires (Step 7d part 2c): its own Library, Projects and Talent, as an attorney has
+    if (me.agency_client) {
+      if (sw.playbook_library) f.push(["library", "Library", "▥"]);
+      if (sw.flex_gigs) f.push(["projects", "Projects", "▣"]);
+      if (sw.talent_search) f.push(["talent", "Talent", "◌"]);
+    }
     return f;
   }
 
@@ -2904,6 +2910,8 @@
     bench_plus_needed_them: "They need Freelancer Plus or higher before they can join your bench. Their invitation stays open.",
     bench_invite_expired: "This bench invitation has expired. Ask the agency to send a new one.", waiting_for_other_side: "You already signed this version. It is waiting for the other side.",
     nothing_to_sign: "There is nothing waiting for your signature.", agency_bench_off: "The agency bench is not open for your account yet.",
+    clients_only: "Only attorneys and agencies that hire can do that.", agency_not_ready: "Your agency cannot post yet. Open the Agency tab to see what is missing.",
+    agency_details_missing: "Add the agency's client details on the Agency tab (who signs, billing address, email for notices) before signing.", client_details_needed: "Add who signs for the agency and the billing address.",
     split_below_fee: "At that split the agency's share does not cover the 5% freelancer fee on this milestone. Raise the agency's share.",
     already_assigned: "This milestone is already assigned. Take it back first.", not_on_bench: "Choose someone who is on your bench with a signed split.",
     bench_member_inactive: "They are on the Free plan, so they cannot get new assignments until they upgrade.", no_subcontractors: "This engagement says no subcontractors, so its milestones cannot be assigned to bench members.",
@@ -2957,7 +2965,7 @@
       if (!r.ok) { el.appendChild(h("p", { class: "notice", text: gigErr(r) })); return; }
       var e = r.eligibility || {}, al = r.allowance || {};
       el.appendChild(h("p", { class: "muted", text: "Post approved work as a Flex Gig. DELA finds freelancers who fit, you compare proposals side by side, and you choose one. Signing and funding come next." }));
-      if (!e.can_post) el.appendChild(h("p", { class: "notice", text: "Posting work and hiring need a verified license. You can still draft gigs. Open Profile and verification from your account menu." }));
+      if (!e.can_post) el.appendChild(h("p", { class: "notice", text: r.agency ? "Your agency cannot post yet. You can still draft gigs. Open the Agency tab to see what is missing." : "Posting work and hiring need a verified license. You can still draft gigs. Open Profile and verification from your account menu." }));
       if (gigs.pendingInvite) el.appendChild(h("p", { class: "notice", text: "Post a gig, then invite " + gigs.pendingInvite.name + " from its Matches view or from Talent." }));
       // New gig
       var pick = h("select", { "aria-label": "Approved SOP or Workflow" }, [h("option", { value: "", text: r.playbooks.length ? "Choose an approved SOP or Workflow" : "No approved SOPs or Workflows yet" })].concat(r.playbooks.map(function (p) {
@@ -3084,6 +3092,7 @@
   function gigMatches(body, r) {
     var g = r.gig;
     if (g.status === "draft") { body.appendChild(h("p", { class: "notice", text: "Post the gig first. DELA then finds freelancers who fit." })); return; }
+    if (g.client_kind === "agency") body.appendChild(agencyBenchInvite(g));
     var box = h("div", { class: "card" }, h("p", { class: "muted", text: "Loading matches..." }));
     body.appendChild(box);
     api.get("/gigs/matches?id=" + g.id + "&refresh=1").then(function (x) {
@@ -3378,6 +3387,47 @@
     return card;
   }
 
+  // An agency invites its own bench first (Step 7d part 2c). Bench members it hires pay no platform fee; the agency pays it.
+  function agencyBenchInvite(g) {
+    var card = h("div", { class: "card", id: "agency-bench-invite" }, h("h2", { text: "Your bench" }), h("p", { class: "muted small", text: "Loading..." }));
+    api.get("/gigs/agency-bench?gig=" + g.id).then(function (x) {
+      D.clear(card);
+      card.appendChild(h("h2", { text: "Your bench" }));
+      card.appendChild(cardStatus("agbench"));
+      card.appendChild(h("p", { class: "small muted", text: "Invite your bench first. A bench member you hire pays no platform fee; the agency pays it with its own." }));
+      if (!x.ok || !(x.bench || []).length) { card.appendChild(h("p", { class: "muted", text: "Nobody on your bench yet. Invite people on the Agency tab." })); return; }
+      x.bench.forEach(function (b) {
+        var act = b.invited ? h("span", { class: "badge ready", text: "Invited" })
+          : b.eligible ? h("button", { class: "blue small", type: "button", onclick: function () {
+              api.post("/gigs/invite", { gig_id: g.id, person_id: b.person_id }).then(gigOk).then(function (y) { cardSay("agbench", y.duplicate ? b.name + " is already invited" : "Invited " + b.name); draw(); }).catch(cardFail("agbench"));
+            } }, "Invite to this gig")
+          : h("span", { class: "small muted", text: b.why === "not_match_ready" ? "Not available right now" : "Cannot be invited" });
+        card.appendChild(h("div", { class: "row", style: "border-top:1px solid var(--line);padding:6px 0" }, h("span", { class: "grow" }, h("b", { text: b.name })), act));
+      });
+    }).catch(function () { card.remove(); });
+    return card;
+  }
+
+  // The agency's client details: who signs for it and where notices go, needed before it pays (Step 7d part 2c)
+  function agencyClientCard() {
+    var c = me.agency_client;
+    if (!c) return null;
+    var e = c.eligibility || {}, d = c.details || {};
+    var NEEDS = { agency_inactive: "the agency is on Freelancer Business", owner_not_verified: "the owner's own verification is done", business_check_needed: "the Lawfecta Team has checked the business details above" };
+    var card = h("div", { class: "card", id: "agency-client" }, h("h2", { text: "Posting gigs" }), cardStatus("agclient"),
+      h("p", { class: e.can_post ? "small ok" : "small muted", text: e.can_post ? "Ready to post gigs from your Library (Projects tab)." : "Your agency can post gigs once " + (e.needs || []).map(function (n) { return NEEDS[n] || n; }).join(", and ") + "." }));
+    if (c.role !== "owner") { card.appendChild(h("p", { class: "small muted", text: "The owner adds the client details below." })); return card; }
+    var sig = h("input", { "aria-label": "Who signs for the agency", value: d.signatory_name || "", maxlength: "120" });
+    var addr = h("input", { "aria-label": "Billing address", value: d.billing_address || "", maxlength: "300", style: "min-width:280px" });
+    var mail = h("input", { type: "email", "aria-label": "Email for notices", value: d.service_email || "", maxlength: "200" });
+    card.appendChild(h("p", { class: "small muted", text: "Needed before your agency pays for a gig: the agreement names who signs for the agency and where notices go." }));
+    card.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, field("Who signs for the agency", sig), field("Billing address", addr), field("Email for notices", mail)));
+    card.appendChild(h("div", { class: "row" }, h("button", { class: "blue small", type: "button", onclick: function () {
+      api.post("/agency/client", { signatory_name: sig.value, billing_address: addr.value, service_email: mail.value }).then(gigOk).then(function () { cardSay("agclient", "Client details saved"); refresh(); }).catch(cardFail("agclient"));
+    } }, "Save client details")));
+    return card;
+  }
+
   // The Agency tab: invitations, agencies you belong to, and your own agency (business details, team, seats, jobs)
   var ROLE_NAMES = { owner: "Owner", manager: "Manager", member: "Member" };
   function agencyView() {
@@ -3430,6 +3480,7 @@
             api.post("/agency/business", { name: bn.value, state: bs.value }).then(gigOk).then(function () { draw(); D.toast(app, "Saved. The Lawfecta Team will check it."); }).catch(gigFail);
           } }, "Save business details"))));
       }
+      var cc = agencyClientCard(); if (cc) el.appendChild(cc);
       // The team and its seats
       var seats = ag.seats || {};
       var tc = h("div", { class: "card" }, h("h2", { text: "Team" }),
@@ -3732,15 +3783,15 @@
       if (!r.ok) { el.appendChild(h("p", { class: "notice", text: "This gig is not available to you." })); return; }
       var g = r.gig, mine = r.my_proposal;
       el.appendChild(h("div", { class: "row" }, h("h1", { class: "grow", text: g.title }), h("span", { class: "badge " + (g.status === "open" ? "ready" : "C"), text: GIG_STATUS[g.status] })));
-      if (g.firm) el.appendChild(h("p", { class: "muted", text: "Posted by " + g.firm + "." }));
-      if ((me.switches || {}).reviews) el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: function () { showReviews("gig=" + g.id, "attorney", g.firm || "the attorney"); } }, "Reviews of this attorney")));
+      if (g.firm) el.appendChild(h("p", { class: "muted", text: "Posted by " + g.firm + (g.client_kind === "agency" ? " (agency)" : "") + "." }));
+      if ((me.switches || {}).reviews) el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: function () { showReviews("gig=" + g.id, "attorney", g.firm || "the " + clientWord(g)); } }, "Reviews of this " + clientWord(g))));
       if (r.invitation && r.invitation.status === "sent") el.appendChild(h("div", { class: "notice ok" }, h("p", { style: "margin:0 0 6px", text: "You are invited to send a proposal. An invited proposal does not use your monthly allowance." + (r.invitation.message ? " The attorney wrote: " + r.invitation.message : "") }),
         h("button", { class: "ghost small", type: "button", onclick: function () { if (!confirm("Decline this invitation?")) return; api.post("/gigs/decline", { gig_id: g.id }).then(gigOk).then(function () { gigs.id = null; draw(); D.toast(app, "Declined"); }).catch(gigFail); } }, "Decline")));
       if (((mine && mine.status === "selected") || r.access === "hired") && (me.switches || {}).engagements) { var engBox = h("div", { id: "engagement" }); el.appendChild(engBox); engagementPanel(engBox, g.id); }
       el.appendChild(h("div", { class: "card" }, publicBlock(g)));
       if ((r.access === "invited" || r.access === "applicant" || r.access === "hired") && ((me.switches || {}).gig_chat || (me.switches || {}).meetings)) {
         el.appendChild(h("div", { class: "row" },
-          (me.switches || {}).gig_chat ? h("button", { class: "blue small", type: "button", onclick: function () { openThread(g.id, null); } }, "Message the attorney") : null,
+          (me.switches || {}).gig_chat ? h("button", { class: "blue small", type: "button", onclick: function () { openThread(g.id, null); } }, "Message the " + clientWord(g)) : null,
           (me.switches || {}).meetings ? h("button", { class: "ghost small", type: "button", onclick: function () { talk.meeting = null; tab = "meetings"; draw(); } }, "Your meetings") : null));
       }
       if (g.milestones && g.milestones.length) el.appendChild(h("div", { class: "card" }, h("h2", { text: "Milestones" }), h("ol", null, g.milestones.map(function (m) { return h("li", { text: m.title }); })),
@@ -6328,15 +6379,15 @@
     else if (tab === "ai") main.appendChild(aiSettingsView());
     else if ((tab === "delegate" || tab === "ask") && (me.switches || {}).ai_generation) main.appendChild(chatView());
     else if (tab === "files" && me.side === "attorney" && (me.switches || {}).file_uploads) main.appendChild(filesView());
-    else if ((tab === "library" || tab === "record") && me.side === "attorney" && (me.switches || {}).playbook_library) {
+    else if ((tab === "library" && canHire() || tab === "record" && me.side === "attorney") && (me.switches || {}).playbook_library) {
       // A direct link to the recorder (/dela?tab=record) opens the Record a Process page
       if (tab === "record") { tab = "library"; lib.startRecord = true; }
       main.appendChild(libraryView());
     }
     else if (tab === "connect") main.appendChild(connectView());
     else if (tab === "profile" && (me.switches || {}).profiles) main.appendChild(profileView());
-    else if (tab === "projects" && me.side === "attorney" && (me.switches || {}).flex_gigs) main.appendChild(projectsView());
-    else if (tab === "talent" && me.side === "attorney" && (me.switches || {}).talent_search) main.appendChild(talentView());
+    else if (tab === "projects" && canHire() && (me.switches || {}).flex_gigs) main.appendChild(projectsView());
+    else if (tab === "talent" && canHire() && (me.switches || {}).talent_search) main.appendChild(talentView());
     else if (tab === "work" && me.side === "freelancer" && (me.switches || {}).flex_gigs) main.appendChild(workView());
     else if (tab === "earnings" && me.side === "freelancer" && (me.switches || {}).engagements) main.appendChild(earningsView());
     else if (tab === "agency" && me.side === "freelancer" && (me.switches || {}).agency_team) main.appendChild(agencyView());
@@ -6350,6 +6401,10 @@
   function refresh() {
     return api.get("/me").then(function (r) { me = r.me; draw(); });
   }
+  // Who hires: attorneys, and agencies on the freelancer side once switched on (Step 7d part 2c)
+  function canHire() { return me.side === "attorney" || !!me.agency_client; }
+  // The word freelancers see for whoever posted a gig
+  function clientWord(g) { return g && g.client_kind === "agency" ? "agency" : "attorney"; }
 
   function switchSide(side) {
     if (side === me.side) return;

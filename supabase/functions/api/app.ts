@@ -158,7 +158,8 @@ async function bootstrap(ctx: Ctx): Promise<Response> {
   const pause = await rpc<Record<string, any>>(ctx, "dela_pause_state", {});
   if (pause?.pause?.all && !(r.me?.staff ?? []).length) return json(ctx, { route: "paused", message: pause.message, commit });
   const drafts = r.me?.side === "attorney" && r.me?.person?.id ? await rpc<number>(ctx, "dela_pb_draft_count", { p_person: r.me.person.id }).catch(() => 0) : 0;
-  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, pause: pause?.pause, playbooks_draft: drafts ?? 0 }, commit, version: VERSION });
+  const agencyClient = r.me?.side === "freelancer" && r.me?.person?.id ? await rpc<Record<string, unknown> | null>(ctx, "dela_agency_client", { p_person: r.me.person.id }).catch(() => null) : null;
+  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient }, commit, version: VERSION });
 }
 
 // ---------- Member routes ----------
@@ -177,7 +178,9 @@ async function me(ctx: Ctx) {
   const s = await member(ctx);
   const pause = await rpc<Record<string, any>>(ctx, "dela_pause_state", {});
   const drafts = s.side === "attorney" ? await rpc<number>(ctx, "dela_pb_draft_count", { p_person: s.person_id }).catch(() => 0) : 0;
-  return json(ctx, { me: { ...(await rpc<Record<string, unknown>>(ctx, "dela_me", { p_person: s.person_id, p_side: s.side })), pause: pause?.pause, playbooks_draft: drafts ?? 0 } });
+  // An agency that hires (Step 7d part 2c): its Library, Projects and Talent, and whether it can post yet
+  const agencyClient = s.side === "freelancer" ? await rpc<Record<string, unknown> | null>(ctx, "dela_agency_client", { p_person: s.person_id }).catch(() => null) : null;
+  return json(ctx, { me: { ...(await rpc<Record<string, unknown>>(ctx, "dela_me", { p_person: s.person_id, p_side: s.side })), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient } });
 }
 
 async function setSide(ctx: Ctx) {
@@ -721,6 +724,14 @@ async function attorney(ctx: Ctx) {
   if (s.side !== "attorney") throw new HttpError(403, "attorneys_only");
   return s;
 }
+// A client: an attorney, or a freelancer who runs an agency that hires (Step 7d part 2c). The database re-checks the
+// client's rights on every gig, document and agreement.
+async function client(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (s.side === "attorney") return s;
+  if (await rpc<string | null>(ctx, "dela_client_org", { p_person: s.person_id, p_side: s.side })) return s;
+  throw new HttpError(403, "clients_only");
+}
 
 async function pbCredits(ctx: Ctx) {
   return Number(await setting(ctx, "ai.credits.playbook", "3")) || 3;
@@ -753,8 +764,8 @@ async function fileTexts(ctx: Ctx, s: Session, ids: unknown): Promise<string> {
 }
 
 async function library(ctx: Ctx) {
-  const s = await attorney(ctx);
-  const libs = await rpc<Array<Record<string, any>>>(ctx, "dela_pb_libraries", { p_person: s.person_id }) ?? [];
+  const s = await client(ctx);
+  const libs = await rpc<Array<Record<string, any>>>(ctx, "dela_pb_libraries_side", { p_person: s.person_id, p_side: s.side }) ?? [];
   const want = uuid(ctx.url.searchParams.get("org"));
   const org = (want && libs.find((l) => l.org_id === want)) ? want : libs.find((l) => l.mine)?.org_id ?? libs[0]?.org_id;
   if (!org) return json(ctx, { ok: true, libraries: [], list: null });
@@ -762,7 +773,7 @@ async function library(ctx: Ctx) {
 }
 
 async function pbGet(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const id = uuid(ctx.url.searchParams.get("id"));
   if (!id) throw new HttpError(400, "bad_request");
   const v = int(ctx.url.searchParams.get("v"));
@@ -789,7 +800,7 @@ async function pbGet(ctx: Ctx) {
 
 // New playbook: blank, or drafted by the AI from a description (spoken or typed) and any attached files
 async function pbCreate(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const org = uuid(ctx.body.org_id);
   const requestId = str(ctx.body.request_id, 80);
   if (!org || !requestId) throw new HttpError(400, "bad_request");
@@ -818,7 +829,7 @@ async function pbCreate(ctx: Ctx) {
 }
 
 async function pbSave(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const id = uuid(ctx.body.id);
   if (!id) throw new HttpError(400, "bad_request");
   if (isDoc(ctx.body.body)) {
@@ -831,7 +842,7 @@ async function pbSave(ctx: Ctx) {
 
 // The AI fills empty parts from the attorney's answers to its questions (the attorney is editing, so it saves as a new version)
 async function pbFill(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const id = uuid(ctx.body.id);
   const answers = str(ctx.body.answers, 8000).trim();
   if (!id || !answers) throw new HttpError(400, "bad_request");
@@ -866,7 +877,7 @@ const dela_rank = (r: string) => ({ administrator: 4, editor: 3, commenter: 2, v
 
 // Chat with a playbook: answers questions; a requested change becomes a suggestion nobody has accepted yet
 async function pbChat(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const id = uuid(ctx.body.id);
   const message = str(ctx.body.message, 4000).trim();
   if (!id || !message) throw new HttpError(400, "bad_request");
@@ -930,7 +941,7 @@ function docRemovesReview(before: DocBody, after: DocBody): boolean {
 const PART_KEYS = ["title", "outcome", "practice_area", "jurisdiction", "when_to_use", "roles", "needs", "deadlines", "checks", "review_points", "never_delegate", "resources", "tools", "deliverables"];
 
 async function pbDecide(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const sid = uuid(ctx.body.suggestion_id);
   if (!sid) throw new HttpError(400, "bad_request");
   const accept = ctx.body.accept === true;
@@ -951,7 +962,7 @@ async function pbDecide(ctx: Ctx) {
 }
 
 async function pbComment(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const id = uuid(ctx.body.id);
   if (!id) throw new HttpError(400, "bad_request");
   const part = str(ctx.body.part, 40);
@@ -965,7 +976,7 @@ async function pbComment(ctx: Ctx) {
 }
 
 async function pbExport(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const id = uuid(ctx.body.id);
   const format = str(ctx.body.format, 10);
   if (!id) throw new HttpError(400, "bad_request");
@@ -993,7 +1004,7 @@ async function pbExport(ctx: Ctx) {
 }
 
 async function pbMissing(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const org = uuid(ctx.body.org_id);
   if (!org) throw new HttpError(400, "bad_request");
   if (await setting(ctx, "playbooks.suggest_missing", "true") !== "true") return json(ctx, { ok: false, reason: "not_available" });
@@ -1015,7 +1026,7 @@ async function pbMissing(ctx: Ctx) {
 type DocFirm = { saved: boolean; facts: FirmFacts; systems: string[]; people: Array<{ name: string; role: string }>; roles: Array<{ name: string; kind: RoleKind }>; raw: Record<string, any> };
 
 async function docFirm(ctx: Ctx, s: Session): Promise<DocFirm> {
-  const r = await rpc<Record<string, any>>(ctx, "dela_doc_firm", { p_person: s.person_id });
+  const r = await rpc<Record<string, any>>(ctx, "dela_doc_firm_side", { p_person: s.person_id, p_side: s.side === "freelancer" ? "freelancer" : "attorney" });
   const f = (r?.firm ?? {}) as Record<string, any>;
   const size = String(f.size ?? "");
   let roles = (Array.isArray(f.roles) ? f.roles : []).map((x: any) => ({ name: String(x.name), kind: (["attorney", "staff", "freelancer"].includes(x.kind) ? x.kind : guessKind(String(x.name))) as RoleKind, person_id: String(x.person_id ?? ""), email: String(x.email ?? "") }));
@@ -1088,7 +1099,7 @@ async function docRecheckImage(ctx: Ctx, imageId: string) {
 async function docRecheck(ctx: Ctx, id: string) {
   const d = await rpc<Record<string, any> | null>(ctx, "dela_doc_for_recheck", { p_id: id });
   if (!d) return;
-  const firm = await docFirm(ctx, { person_id: String(d.owner), side: "attorney" } as Session);
+  const firm = await docFirm(ctx, { person_id: String(d.owner), side: (await rpc<boolean>(ctx, "dela_is_agency", { p_org: d.org_id })) ? "freelancer" : "attorney" } as Session);
   for (const [v, raw] of [[d.current_version, d.current], [d.approved_version, d.approved]] as Array<[number | null, unknown]>) {
     if (v === null || !isDoc(raw)) continue;
     const body = normalizeDoc(raw);
@@ -1098,7 +1109,7 @@ async function docRecheck(ctx: Ctx, id: string) {
 }
 
 async function docImageStart(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const r = await rpc<Record<string, any>>(ctx, "dela_doc_image_start", { p: { person_id: s.person_id, playbook_id: uuid(ctx.body.playbook_id) ?? "", name: str(ctx.body.name, 250),
     size_bytes: int(ctx.body.size_bytes), request_id: str(ctx.body.request_id, 80), ticked: ctx.body.ticked === true } });
   if (!r?.ok) return json(ctx, r);
@@ -1109,7 +1120,7 @@ async function docImageStart(ctx: Ctx) {
 
 // The upload arrived: real size, the type check and DELA's client information check, then the image record with its caption
 async function docImageComplete(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const storage = storageOf(ctx);
   const id = need(uuid(ctx.body.file_id));
   const fc = await rpc<Record<string, any> | null>(ctx, "dela_file_for_check", { p_file: id });
@@ -1136,7 +1147,7 @@ async function docImageOpen(ctx: Ctx) {
 }
 
 async function docImageConfirm(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const id = need(uuid(ctx.body.image_id));
   if (ctx.body.confirmed !== true) return json(ctx, { ok: false, reason: "confirm_needed" });
   const r = await rpc<Record<string, any>>(ctx, "dela_doc_image_confirm", { p_person: s.person_id, p_image: id });
@@ -1213,14 +1224,14 @@ async function docCreate(ctx: Ctx, s: Session, org: string, requestId: string, r
 
 // The firm profile for documents (Step 1 of the flow)
 async function docFirmSave(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const systems: Record<string, string[]> = {};
   for (const [k] of SYSTEM_GROUPS) systems[k] = (Array.isArray((ctx.body.systems as any)?.[k]) ? (ctx.body.systems as any)[k] : []).map((x: unknown) => str(x, 80).trim()).filter(Boolean).slice(0, 10);
   const roles = (Array.isArray(ctx.body.roles) ? ctx.body.roles : []).slice(0, 30).map((x: any) => ({ name: str(x?.name, 60).trim(), kind: str(x?.kind, 20), person_id: uuid(x?.person_id) ?? "", email: str(x?.email, 200).trim() }));
   const text = [str(ctx.body.jurisdictions, 500), ...roles.map((r: any) => r.name), ...Object.values(systems).flat()].join("\n");
   const warn = sensitive(ctx, text);
   if (warn) return json(ctx, warn);
-  return json(ctx, await rpc(ctx, "dela_doc_firm_save", { p_person: s.person_id, p: { size: str(ctx.body.size, 10), practice_areas: (Array.isArray(ctx.body.practice_areas) ? ctx.body.practice_areas : []).map((x: unknown) => str(x, 80)).filter(Boolean).slice(0, 20),
+  return json(ctx, await rpc(ctx, "dela_doc_firm_save_side", { p_person: s.person_id, p_side: s.side, p: { size: str(ctx.body.size, 10), practice_areas: (Array.isArray(ctx.body.practice_areas) ? ctx.body.practice_areas : []).map((x: unknown) => str(x, 80)).filter(Boolean).slice(0, 20),
     jurisdictions: str(ctx.body.jurisdictions, 500), roles, systems } }));
 }
 
@@ -1229,7 +1240,7 @@ const ANSWER_LABELS: Array<[keyof ProcessAnswers, string]> = [["trigger", "What 
 
 // Steps 2 and 3: a type, a starter (optional), the process questions and any upload, then DELA drafts to the standard
 async function docDraft(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const org = uuid(ctx.body.org_id), requestId = str(ctx.body.request_id, 80);
   if (!org || !requestId) throw new HttpError(400, "bad_request");
   if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "document_standard", p_person: s.person_id })) return json(ctx, { ok: false, reason: "documents_off" });
@@ -1297,7 +1308,7 @@ async function docCurrent(ctx: Ctx, s: Session, id: string) {
 
 // "Fix it" in the quality panel: code fixes, an AI fix for one check, or a split into linked SOPs
 async function docFix(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const id = need(uuid(ctx.body.id)), check = str(ctx.body.check_id, 30);
   const { cur, body } = await docCurrent(ctx, s, id);
   if (!body) return json(ctx, cur?.ok ? { ok: false, reason: "not_a_document" } : cur);
@@ -1351,7 +1362,7 @@ async function docSplit(ctx: Ctx, s: Session, cur: Record<string, any>, body: Do
 
 // Change the type in one click (and after the conversion): DELA moves the content to the new type's sections
 async function docChangeType(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const id = need(uuid(ctx.body.id));
   const type = (DOC_TYPES as string[]).includes(String(ctx.body.type)) ? ctx.body.type as DocType : null;
   if (!type) throw new HttpError(400, "bad_request");
@@ -1370,7 +1381,7 @@ async function docChangeType(ctx: Ctx) {
 
 // The live quality panel while editing (nothing is saved)
 async function docCheck(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const firm = await docFirm(ctx, s);
   const pid = uuid(ctx.body.id);
   const prep = await docPrepare(ctx, firm, ctx.body.body, null, pid ? await rpc<string | null>(ctx, "dela_pb_org", { p_id: pid }) : null);
@@ -1426,7 +1437,7 @@ async function docConvert(ctx: Ctx, id: string) {
   body.steps.forEach((st, i) => { const old = v1.steps.find((x) => x.text === st.text) ?? v1.steps[i]; if (!st.screenshot && old?.screenshot && type !== "playbook") st.screenshot = old.screenshot; });
   body.lifecycle = lifecycle;
   const owner = String(src.owner);
-  const firm = await docFirm(ctx, { person_id: owner, side: "attorney" } as Session);
+  const firm = await docFirm(ctx, { person_id: owner, side: (await rpc<boolean>(ctx, "dela_is_agency", { p_org: src.org_id })) ? "freelancer" : "attorney" } as Session);
   for (const r of firm.roles) if (body.roles.includes(r.name)) body.role_kinds[r.name] = r.kind;
   body = codeFix(codeFix(body, "judgment", firm.people), "attorney_a", firm.people);
   const prep = await docPrepare(ctx, firm, body, null, String(src.org_id));
@@ -1906,14 +1917,14 @@ async function afterConduct(ctx: Ctx, s: Session, c: { held: boolean; kinds: str
 const heldNote = "DELA is holding this for a quick check by the Lawfecta Team, because it may plan work, contact or payment outside Lawfecta. Keep everything on Lawfecta.";
 
 async function gigsMine(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "flex_gigs", p_person: s.person_id })) return json(ctx, { ok: false, reason: "gigs_off" });
-  return json(ctx, await rpc(ctx, "dela_gigs_mine", { p_person: s.person_id }));
+  return json(ctx, await rpc(ctx, "dela_gigs_mine_side", { p_person: s.person_id, p_side: s.side }));
 }
 
 // A new gig from an approved playbook: DELA writes the public version (on the member's AI, like Ask DELA), and the attorney edits it before posting
 async function gigDraft(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const pbId = uuid(ctx.body.playbook_id), requestId = str(ctx.body.request_id, 80);
   if (!pbId || !requestId) throw new HttpError(400, "bad_request");
   const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: pbId });
@@ -1946,7 +1957,7 @@ async function gigDraft(ctx: Ctx) {
 }
 
 async function gigSave(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const id = need(uuid(ctx.body.id));
   const pub = normalizePublic(ctx.body.public);
   const warn = sensitive(ctx, [pub.title, pub.task, pub.outcome, ...pub.steps].join("\n"));
@@ -1978,7 +1989,7 @@ async function gigGet(ctx: Ctx) {
 }
 
 async function gigInvite(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const gig = need(uuid(ctx.body.gig_id)), who = need(uuid(ctx.body.person_id));
   const message = str(ctx.body.message, 2000);
   const warn = message ? sensitive(ctx, message) : null;
@@ -2040,7 +2051,7 @@ async function withPhotos<T extends Record<string, any>>(ctx: Ctx, list: T[]): P
   return list;
 }
 async function gigProposalsWithAgencies(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const gig = need(uuid(ctx.url.searchParams.get("id")));
   const r = await rpc<Record<string, any>>(ctx, "dela_gig_proposals", { p_person: s.person_id, p_gig: gig });
   if (!r?.ok) return json(ctx, r);
@@ -2098,7 +2109,7 @@ async function questionAsk(ctx: Ctx) {
 }
 
 async function questionAnswer(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const q = need(uuid(ctx.body.id)), text = str(ctx.body.answer, 4000).trim();
   if (!text) throw new HttpError(400, "bad_request");
   const warn = sensitive(ctx, text);
@@ -2117,7 +2128,7 @@ async function gigFile(ctx: Ctx) {
 }
 
 async function talent(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const q = ctx.url.searchParams;
   return json(ctx, await rpc(ctx, "dela_talent_search", { p_person: s.person_id, p: { practice_area: str(q.get("practice_area"), 80), skill: str(q.get("skill"), 80), tool: str(q.get("tool"), 80), state: str(q.get("state"), 2) } }));
 }
@@ -2406,7 +2417,7 @@ async function confLinkAdd(ctx: Ctx) {
 
 // "Delete now" on a job marked sensitive: every share removed (the Files tab copies stay) and every confidential file deleted
 async function gigDeleteShared(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const r = await rpc<Record<string, any>>(ctx, "dela_gig_shared_delete_all", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)) });
   if (!r?.ok) return json(ctx, r);
   let deleted = 0;
@@ -2515,7 +2526,7 @@ async function agreementSign(ctx: Ctx) {
 
 // Pay the next milestone: with a saved payment method, charged straight away (off session); otherwise on Stripe's Checkout page
 async function engagementPay(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const id = need(uuid(ctx.body.id));
   const key = await stripeKey(ctx);
   if (!key) return json(ctx, { ok: false, reason: "payments_not_set_up" });
@@ -2538,7 +2549,7 @@ async function chargeOrCheckout(ctx: Ctx, key: string, n: Record<string, any>, f
     }
     // The bank wants the attorney to confirm, or the card failed: a Checkout link to pay again
     await rpc(ctx, "dela_payment_result", { p_payment: n.payment_id, p_status: "failed", p_ref: "", p_customer: "", p_method: "", p_failure: r.error });
-    const again = await rpc<Record<string, any>>(ctx, "dela_payment_next", { p_person: n.attorney_person, p_side: "attorney", p_agreement: n.agreement_id });
+    const again = await rpc<Record<string, any>>(ctx, "dela_payment_next", { p_person: n.attorney_person, p_side: n.payer_side ?? "attorney", p_agreement: n.agreement_id });
     if (again?.ok) return { ...(await checkout(ctx, key, again, name)), failed_first: r.error };
     return { ok: false, reason: "payment_failed", detail: r.error };
   }
@@ -2621,7 +2632,7 @@ async function afterAccept(ctx: Ctx, agreement: string, attorneyPerson: string) 
   await sendPayouts(ctx);
   const key = await stripeKey(ctx);
   if (!key) return null;
-  const n = await rpc<Record<string, any>>(ctx, "dela_payment_next", { p_person: attorneyPerson, p_side: "attorney", p_agreement: agreement });
+  const n = await rpc<Record<string, any>>(ctx, "dela_payment_next", { p_person: attorneyPerson, p_side: (await rpc<boolean>(ctx, "dela_agreement_client_is_agency", { p_agreement: agreement })) ? "freelancer" : "attorney", p_agreement: agreement });
   if (!n?.ok || n.status === "succeeded" || n.status === "processing") return null;
   return await chargeOrCheckout(ctx, key, n, false);
 }
@@ -2686,7 +2697,7 @@ async function runMilestoneCheck(ctx: Ctx, submission: string): Promise<Record<s
 }
 
 async function milestoneDecide(ctx: Ctx) {
-  const s = await attorney(ctx);
+  const s = await client(ctx);
   const note = str(ctx.body.note, 2000);
   if (note) { const w = sensitive(ctx, note); if (w) return json(ctx, w); }
   const r = await rpc<Record<string, any>>(ctx, "dela_milestone_decide", { p_person: s.person_id, p_submission: need(uuid(ctx.body.submission_id)), p_accept: ctx.body.accept === true, p_note: note });
@@ -3872,17 +3883,17 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /gigs/get": return await gigGet(ctx);
       case "POST /gigs/draft": return await gigDraft(ctx);
       case "POST /gigs/save": return await gigSave(ctx);
-      case "POST /gigs/publish": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_publish", { p_person: s.person_id, p_gig: need(uuid(ctx.body.id)) })); }
-      case "POST /gigs/extend": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_extend", { p_person: s.person_id, p_gig: need(uuid(ctx.body.id)) })); }
-      case "POST /gigs/close": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_close", { p_person: s.person_id, p_gig: need(uuid(ctx.body.id)), p_cancel: ctx.body.cancel === true })); }
-      case "GET /gigs/matches": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_matches", { p_person: s.person_id, p_gig: need(uuid(ctx.url.searchParams.get("id"))), p_refresh: ctx.url.searchParams.get("refresh") === "1" })); }
+      case "POST /gigs/publish": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_gig_publish", { p_person: s.person_id, p_gig: need(uuid(ctx.body.id)) })); }
+      case "POST /gigs/extend": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_gig_extend", { p_person: s.person_id, p_gig: need(uuid(ctx.body.id)) })); }
+      case "POST /gigs/close": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_gig_close", { p_person: s.person_id, p_gig: need(uuid(ctx.body.id)), p_cancel: ctx.body.cancel === true })); }
+      case "GET /gigs/matches": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_gig_matches", { p_person: s.person_id, p_gig: need(uuid(ctx.url.searchParams.get("id"))), p_refresh: ctx.url.searchParams.get("refresh") === "1" })); }
       case "POST /gigs/invite": return await gigInvite(ctx);
       case "GET /gigs/proposals": return await gigProposalsWithAgencies(ctx);
-      case "POST /gigs/files": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_file_share", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_file: need(uuid(ctx.body.file_id)), p_share: ctx.body.share !== false, p_days: int(ctx.body.expiry_days) })); }
-      case "POST /gigs/files/extend": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_file_extend", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_file: need(uuid(ctx.body.file_id)) })); }
-      case "POST /gigs/sensitive": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_sensitive", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_on: ctx.body.on === true })); }
+      case "POST /gigs/files": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_gig_file_share", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_file: need(uuid(ctx.body.file_id)), p_share: ctx.body.share !== false, p_days: int(ctx.body.expiry_days) })); }
+      case "POST /gigs/files/extend": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_gig_file_extend", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_file: need(uuid(ctx.body.file_id)) })); }
+      case "POST /gigs/sensitive": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_gig_sensitive", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_on: ctx.body.on === true })); }
       case "POST /gigs/sensitive/delete-files": return await gigDeleteShared(ctx);
-      case "GET /gigs/activity": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_job_activity", { p_person: s.person_id, p_side: s.side, p_gig: need(uuid(ctx.url.searchParams.get("gig"))) })); }
+      case "GET /gigs/activity": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_job_activity", { p_person: s.person_id, p_side: s.side, p_gig: need(uuid(ctx.url.searchParams.get("gig"))) })); }
       case "GET /gigs/file": return await gigFile(ctx);
       case "POST /gigs/questions/ask": return await questionAsk(ctx);
       case "POST /gigs/questions/answer": return await questionAnswer(ctx);
@@ -3911,6 +3922,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /agency/assignment/answer": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_assignment_answer", { p_person: s.person_id, p_assignment: need(uuid(ctx.body.id)), p: { accept: ctx.body.accept === true, typed_name: str(ctx.body.typed_name, 120), agree: ctx.body.agree === true } })); }
       case "POST /agency/assignment/remove": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_assignment_remove", { p_person: s.person_id, p_assignment: need(uuid(ctx.body.id)) })); }
       case "POST /agency/bench/end": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_bench_end", { p_person: s.person_id, p_bench: need(uuid(ctx.body.id)) })); }
+      case "POST /agency/client": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_client_save", { p_person: s.person_id, p: { signatory_name: str(ctx.body.signatory_name, 120), billing_address: str(ctx.body.billing_address, 300), service_email: str(ctx.body.service_email, 200) } })); }
+      case "GET /gigs/agency-bench": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_gig_bench_for", { p_person: s.person_id, p_gig: need(uuid(ctx.url.searchParams.get("gig"))) })); }
       case "POST /agency/leave": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_leave", { p_person: s.person_id, p_org: need(uuid(ctx.body.org_id)) })); }
       case "GET /freelancers/card": return await freelancerCard(ctx);
       case "GET /engagements/people": return await engagementPeople(ctx);
@@ -3918,8 +3931,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /proposals/help": return await proposalHelp(ctx);
       case "POST /proposals/withdraw": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_proposal_withdraw", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)) })); }
       case "POST /proposals/reconfirm": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_proposal_reconfirm", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)) })); }
-      case "POST /proposals/ask-reconfirm": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_proposal_ask_reconfirm", { p_person: s.person_id, p_prop: need(uuid(ctx.body.id)) })); }
-      case "POST /proposals/select": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_proposal_select", { p_person: s.person_id, p_prop: need(uuid(ctx.body.id)) })); }
+      case "POST /proposals/ask-reconfirm": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_proposal_ask_reconfirm", { p_person: s.person_id, p_prop: need(uuid(ctx.body.id)) })); }
+      case "POST /proposals/select": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_proposal_select", { p_person: s.person_id, p_prop: need(uuid(ctx.body.id)) })); }
       case "GET /reviews/state": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_review_state", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.url.searchParams.get("agreement"))) })); }
       case "POST /reviews/save": return await reviewSave(ctx);
       case "POST /reviews/respond": return await reviewRespond(ctx);
@@ -3994,15 +4007,15 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /prefs": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_prefs_save", { p_person: s.person_id, p: { read_receipts: ctx.body.read_receipts !== false } })); }
       case "GET /insights": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_insights", { p_person: s.person_id, p_side: s.side })); }
       case "POST /insights/remove": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_insight_remove", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)) })); }
-      case "GET /documents/firm": { const s = await attorney(ctx); return json(ctx, { ...(await rpc<Record<string, any>>(ctx, "dela_doc_firm", { p_person: s.person_id })), default_roles: DEFAULT_ROLES, solo_roles: SOLO_ROLES, system_groups: SYSTEM_GROUPS }); }
+      case "GET /documents/firm": { const s = await client(ctx); return json(ctx, { ...(await rpc<Record<string, any>>(ctx, "dela_doc_firm_side", { p_person: s.person_id, p_side: s.side })), default_roles: DEFAULT_ROLES, solo_roles: SOLO_ROLES, system_groups: SYSTEM_GROUPS }); }
       case "POST /documents/firm": return await docFirmSave(ctx);
-      case "GET /documents/starters": { await attorney(ctx); return json(ctx, { ok: true, types: TYPE_INFO, lifecycle: LIFECYCLE, starters: STARTERS, kpi_examples: KPI_EXAMPLES }); }
+      case "GET /documents/starters": { await client(ctx); return json(ctx, { ok: true, types: TYPE_INFO, lifecycle: LIFECYCLE, starters: STARTERS, kpi_examples: KPI_EXAMPLES }); }
       case "POST /documents/draft": return await docDraft(ctx);
       case "POST /documents/check": return await docCheck(ctx);
       case "POST /documents/fix": return await docFix(ctx);
       case "POST /documents/type": return await docChangeType(ctx);
-      case "POST /documents/conversion-seen": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_doc_conversion_seen", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)) })); }
-      case "POST /gigs/reference": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_gig_reference", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_doc: need(uuid(ctx.body.doc)), p_on: ctx.body.on !== false })); }
+      case "POST /documents/conversion-seen": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_doc_conversion_seen", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)) })); }
+      case "POST /gigs/reference": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_gig_reference", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_doc: need(uuid(ctx.body.doc)), p_on: ctx.body.on !== false })); }
       case "GET /confidential": return await confView(ctx);
       case "POST /confidential/code": return await confCodeSend(ctx);
       case "POST /confidential/code/confirm": return await confCodeConfirm(ctx);
@@ -4030,30 +4043,30 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /playbooks/comment": return await pbComment(ctx);
       case "POST /playbooks/export": return await pbExport(ctx);
       case "POST /playbooks/missing": return await pbMissing(ctx);
-      case "POST /playbooks/delete-draft": { const s = await attorney(ctx); const r = await rpc<Record<string, any>>(ctx, "dela_pb_draft_delete", { p_person: s.person_id, p_playbook: need(uuid(ctx.body.id)) });
+      case "POST /playbooks/delete-draft": { const s = await client(ctx); const r = await rpc<Record<string, any>>(ctx, "dela_pb_draft_delete", { p_person: s.person_id, p_playbook: need(uuid(ctx.body.id)) });
         if (r?.ok) await removeNow(ctx, r.paths ?? []); return json(ctx, r?.ok ? { ok: true, duplicate: !!r.duplicate } : r); }
-      case "POST /playbooks/save-draft": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_save_draft", { p_person: s.person_id, p_playbook: need(uuid(ctx.body.id)), p_on: ctx.body.saved !== false })); }
-      case "GET /playbooks/drafts-due": { const s = await attorney(ctx); return json(ctx, { ok: true, drafts: await rpc(ctx, "dela_pb_drafts_due", { p_person: s.person_id }) }); }
-      case "POST /playbooks/status": { const s = await attorney(ctx); const pid = uuid(ctx.body.id), act = str(ctx.body.action, 20);
+      case "POST /playbooks/save-draft": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_pb_save_draft", { p_person: s.person_id, p_playbook: need(uuid(ctx.body.id)), p_on: ctx.body.saved !== false })); }
+      case "GET /playbooks/drafts-due": { const s = await client(ctx); return json(ctx, { ok: true, drafts: await rpc(ctx, "dela_pb_drafts_due", { p_person: s.person_id }) }); }
+      case "POST /playbooks/status": { const s = await client(ctx); const pid = uuid(ctx.body.id), act = str(ctx.body.action, 20);
         const gate = pid ? await docStatusGate(ctx, s, pid, act) : null;
         if (gate) return json(ctx, gate);
         return json(ctx, await rpc(ctx, "dela_pb_status", { p_person: s.person_id, p_id: pid, p_action: act })); }
       case "POST /documents/images/start": return await docImageStart(ctx);
       case "POST /documents/images/complete": return await docImageComplete(ctx);
       case "POST /documents/images/confirm": return await docImageConfirm(ctx);
-      case "POST /documents/images/current": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_doc_image_current", { p_person: s.person_id, p_playbook: need(uuid(ctx.body.playbook_id)), p_image: need(uuid(ctx.body.image_id)) })); }
+      case "POST /documents/images/current": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_doc_image_current", { p_person: s.person_id, p_playbook: need(uuid(ctx.body.playbook_id)), p_image: need(uuid(ctx.body.image_id)) })); }
       case "GET /documents/image": return await docImageOpen(ctx);
-      case "POST /playbooks/restore": { const s = await attorney(ctx); const b = await rpc<Record<string, any> | null>(ctx, "dela_pb_version", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_version: int(ctx.body.version) });
+      case "POST /playbooks/restore": { const s = await client(ctx); const b = await rpc<Record<string, any> | null>(ctx, "dela_pb_version", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_version: int(ctx.body.version) });
         if (!b) return json(ctx, { ok: false, reason: "not_found" });
         if (isDoc(b.body)) { const firm = await docFirm(ctx, s); const prep = await docPrepare(ctx, firm, b.body, null, await rpc<string | null>(ctx, "dela_pb_org", { p_id: uuid(ctx.body.id) }));
           const rr = await rpc<Record<string, any>>(ctx, "dela_pb_restore_version", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_version: int(ctx.body.version), p_meta: prep.meta });
           if (rr?.ok) await rpc(ctx, "dela_doc_apply", { p_id: uuid(ctx.body.id), p: { ...prep.doc, person_id: s.person_id, what_changed: "Restored version " + int(ctx.body.version) } });
           return json(ctx, rr); }
         return json(ctx, await rpc(ctx, "dela_pb_restore_version", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_version: int(ctx.body.version), p_meta: meta(normalize(b.body)) })); }
-      case "POST /playbooks/comment/resolve": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_comment_resolve", { p_person: s.person_id, p_comment: uuid(ctx.body.id) })); }
-      case "POST /playbooks/attach": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_attach", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_file: uuid(ctx.body.file_id), p_on: ctx.body.on !== false })); }
-      case "GET /playbooks/team": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_team", { p_person: s.person_id, p_org: uuid(ctx.url.searchParams.get("org")) })); }
-      case "POST /playbooks/team": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_pb_team_set", { p_person: s.person_id, p_org: uuid(ctx.body.org_id), p_bd: need(int(ctx.body.bd_member_id), "bad_member_id"), p_role: str(ctx.body.role, 20) })); }
+      case "POST /playbooks/comment/resolve": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_pb_comment_resolve", { p_person: s.person_id, p_comment: uuid(ctx.body.id) })); }
+      case "POST /playbooks/attach": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_pb_attach", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_file: uuid(ctx.body.file_id), p_on: ctx.body.on !== false })); }
+      case "GET /playbooks/team": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_pb_team", { p_person: s.person_id, p_org: uuid(ctx.url.searchParams.get("org")) })); }
+      case "POST /playbooks/team": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_pb_team_set", { p_person: s.person_id, p_org: uuid(ctx.body.org_id), p_bd: need(int(ctx.body.bd_member_id), "bad_member_id"), p_role: str(ctx.body.role, 20) })); }
       case "GET /recordings": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_rec_list", { p_person: s.person_id })); }
       case "POST /recordings/start": return await recStart(ctx);
       case "POST /recordings/part": return await recPart(ctx, false);
