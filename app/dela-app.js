@@ -2919,6 +2919,8 @@
     share_expired: "Access to this file has ended. Ask the attorney to share it again if you still need it.",
     blocked_data: "This file appears to contain sensitive data like a Social Security or card number. Please share it using a secure link instead.",
   };
+  // A gig this account cannot open (another member's, or removed): never "refresh the page" (ChatGPT agency gigs test 2026-11-05)
+  var GIG_NOT_YOURS = "This gig is not available to your account. It belongs to another member, or it was removed.";
   function gigErr(r) {
     if (!r) return "That did not work.";
     if (DOC_ERR[r.reason]) return DOC_ERR[r.reason];
@@ -3008,7 +3010,7 @@
     api.get("/gigs/get?id=" + gigs.id).then(function (r) {
       D.clear(el);
       el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", onclick: function () { gigs.id = null; draw(); } }, "← All gigs")));
-      if (!r.ok) { el.appendChild(h("p", { class: "notice", text: gigErr(r) })); return; }
+      if (!r.ok) { el.appendChild(h("p", { class: "notice", text: r.reason === "not_found" ? GIG_NOT_YOURS : gigErr(r) })); return; }
       var g = r.gig;
       el.appendChild(h("div", { class: "row" }, h("h1", { class: "grow", text: g.title }), h("span", { class: "badge " + (g.status === "open" ? "ready" : "C"), text: GIG_STATUS[g.status] })));
       el.appendChild(h("p", { class: "muted", text: budgetText(g) + " | " + closesText(g) + (r.counts ? " | " + r.counts.proposals + (r.counts.proposals === 1 ? " proposal, " : " proposals, ") + r.counts.invited + " invited" : "") }));
@@ -4659,12 +4661,15 @@
       else box.appendChild(h("p", { text: "Nothing is due from you right now." }));
     } else if (a.status === "signed" || a.status === "active") {
       var ready = (r.milestones || []).filter(function (m) { return m.status === "funded" || m.status === "in_progress" || m.status === "changes_requested"; })[0];
-      box.appendChild(h("p", { text: ready ? "Milestone " + ready.seq + " is paid and held by Lawfecta. Do the work, then submit it below." : "Waiting for the attorney to pay the next milestone. Do not start unpaid work." }));
+      box.appendChild(h("p", { text: ready ? "Milestone " + ready.seq + " is paid and held by Lawfecta. Do the work, then submit it below." : "Waiting for the " + clientKindWord(r) + " to pay the next milestone. Do not start unpaid work." }));
       if (!r.payout_account || r.payout_account.status !== "ready") box.appendChild(h("p", { class: "small", text: "Set up payouts on the Earnings tab so accepted milestones reach your bank." }));
     } else if (a.status === "completed") box.appendChild(h("p", { text: "Every milestone is accepted. This engagement is complete." }));
     else box.appendChild(h("p", { class: "muted", text: "Nothing to do here." }));
     return box;
   }
+
+  // "agency" when the client is an agency hiring for its own gig, otherwise "attorney"
+  function clientKindWord(r) { return ((((r.current || {}).body || {}).parties || {}).client || {}).kind === "agency" ? "agency" : "attorney"; }
 
   function signForm(r, theirSigned) {
     var a = r.agreement;
@@ -4768,7 +4773,7 @@
     r.milestones.forEach(function (m) {
       var box = h("div", { class: "card", style: "padding:12px" },
         h("div", { class: "row" }, h("h3", { class: "grow", style: "margin:0", text: m.seq + ". " + m.title }), h("span", { class: "badge " + (m.status === "accepted" ? "ready" : m.status === "disputed" ? "bad" : "held"), text: MS_STATUS[m.status] || m.status })),
-        h("p", { class: "small muted", text: D.money(m.amount_cents) + (r.role === "freelancer" ? " (you receive " + D.money(m.payout_cents) + " after the platform fee)" : "") + (m.due_date ? " | due " + D.date(m.due_date) : "") + (m.revisions_used ? " | rounds of changes used: " + m.revisions_used + " of " + r.limits.revisions : "") }));
+        h("p", { class: "small muted", text: D.money(m.amount_cents) + (r.role === "freelancer" ? (m.payout_cents === m.amount_cents ? " (you receive all of it; you pay no platform fee)" : " (you receive " + D.money(m.payout_cents) + " after the platform fee)") : "") + (m.due_date ? " | due " + D.date(m.due_date) : "") + (m.revisions_used ? " | rounds of changes used: " + m.revisions_used + " of " + r.limits.revisions : "") }));
       if (m.deliverables) box.appendChild(h("p", { class: "small", text: "Deliverables: " + m.deliverables }));
       if (m.payout) box.appendChild(h("p", { class: "small", text: "Payout: " + D.money(m.payout.amount_cents) + ", " + (m.payout.status === "sent" ? "sent to your bank" : m.payout.status === "held" ? (m.payout.held_reason === "payout_account" ? "waiting for your payout setup (Earnings tab)" : "held") : m.payout.status === "failed" ? "did not go through. The Lawfecta Team is checking it" : "on its way") }));
       var last = (m.submissions || [])[m.submissions.length - 1];

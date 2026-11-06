@@ -299,7 +299,24 @@ const OWNER = 3800, MGR = 3801, ATT = 3802, PIA = 3803, FRED = 3804;
     await s.page.waitForTimeout(800);
     t = await text(s.page);
     ok(!t.includes("Agency intake SOP"), "an attorney never sees an agency's Library");
+    // Fix (ChatGPT agency gigs test 2026-11-05): an attorney opening an agency's gig is told it is not theirs, not to refresh
+    await s.page.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=projects&gig=${agGig}`);
+    t = await waitFor(s.page, "This gig is not available to your account");
+    ok(!t.includes("Refresh the page"), "an agency's gig reads as not available to the attorney, not as a refresh problem");
     await s.ctx.close();
+    // Fix (same test): after both sign a bench hire, the bench member waits for the agency to pay, and pays no fee
+    const own = (await sql(`select o.id org, o.owner_person_id owner, (select id from people where bd_member_id = ${PIA}) pia from organizations o where o.kind = 'agency' limit 1`))[0];
+    const bp = (await sql(`insert into proposals (gig_id, freelancer_id, status, price_cents) values ('${agGig}', '${own.pia}', 'selected', 60000) returning id`))[0].id;
+    const bag = (await sql(`insert into agreements (gig_id, proposal_id, attorney_org, attorney_person, freelancer_person, total_cents, status, signed_at) values ('${agGig}', '${bp}', '${own.org}', '${own.owner}', '${own.pia}', 60000, 'signed', now()) returning id`))[0].id;
+    await sql(`insert into agreement_versions (agreement_id, version, body, body_hash, proposed_by) values ('${bag}', 1, '{"gig_title":"Agency job","parties":{"client":{"kind":"agency","firm":"Roe Support Group"}},"milestones":[],"fees":{"bench_waiver":true}}', 'h', '${own.owner}');
+      update agreements set version = 1 where id = '${bag}';
+      insert into milestones (agreement_id, seq, title, amount_cents, freelancer_fee_cents, from_version, status) values ('${bag}', 1, 'Draft', 30000, 0, 1, 'pending'); select 1`);
+    s = await open(browser, PIA, `&tab=work&gig=${agGig}&view=agreement`);
+    t = await waitFor(s.page, "to pay the next milestone");
+    ok(t.includes("Waiting for the agency to pay the next milestone") && !t.includes("Waiting for the attorney"), "the bench member waits for the agency, not an attorney");
+    ok(t.includes("(you receive all of it; you pay no platform fee)") && !t.includes("after the platform fee"), "a milestone with no fee says so");
+    await s.ctx.close();
+
     console.log(passed + " browser checks passed");
   } catch (e) {
     if (s && s.page) await s.page.screenshot({ path: path.join(SHOTS, "agency-fail.png"), fullPage: true }).catch(() => {});
