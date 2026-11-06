@@ -141,6 +141,7 @@ Deno.test("setup: a verified attorney, a freelancer, the Lawfecta owner", async 
 Deno.test("signing: the terms list tasks with quantities; the client gives permission to charge each month", async () => {
   const v = await view(att, agA);
   assertEquals([v.current.body.kind, v.current.body.milestones.length, v.fee_lines[0]], ["monthly", 4, "Monthly price: $1,000"]);
+  assertEquals(v.money_summary, v.role === "attorney" ? ["You pay $1,050 each month, including the $50 platform fee."] : ["You receive $950 each month, after your $50 platform fee."]);
   assert(v.current.body.terms.includes("12. Monthly engagement.") && v.current.body.terms.includes("charge the saved payment method each month"));
   assertEquals((await call("POST", "/agreements/sign", fl.token, { id: agA, version: 1, typed_name: "Fran Lance", consent: true })).body.reason, "monthly_tasks_needed", "no included quantity, no signature");
   assertEquals((await call("POST", "/monthly/terms", att.token, { id: agA, tasks: [{ task: "Unlimited intake calls", frequency: "weekly", quantity: 20 }] })).body.reason, "no_unlimited");

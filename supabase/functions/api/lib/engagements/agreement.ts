@@ -103,10 +103,10 @@ export function monthlyUnits(price: number, mode: string, weeks: number, today =
 export function monthlyClause(m: Record<string, any>): string {
   const tasks = (Array.isArray(m.tasks) ? m.tasks : []).map((x: MonthlyTask) => `${x.task}: ${FREQ_WORDS[x.frequency] ?? x.frequency}, up to ${x.quantity} included each month${x.turnaround ? ", each within " + x.turnaround : ""}${x.exclusions ? " (not included: " + x.exclusions + ")" : ""}`).join("; ");
   const retry = Array.isArray(m.retry_days) ? m.retry_days.join(" and ") : "2 and 5";
-  return `12. Monthly engagement. This agreement renews every month for ${money(Number(m.price_cents))} plus platform fees until either party cancels. Each month includes: ${tasks}. Nothing is unlimited; extra work is a separate gig or a change for a later month, never an extra charge. ` +
+  return `12. Monthly engagement. This agreement renews every month for ${money(Number(m.price_cents))} plus platform fees until either party cancels. Each month includes: ${tasks}. Nothing is unlimited; extra work is a separate gig or a change for a later month, never an extra charge. The quantities are limits for each month: unused work does not carry over to the next month, and a month with five weeks has the same limits and price. ` +
     `The billing day is the day month 1 is paid (the last day of a shorter month), in the Client's time zone. The Client agrees that Lawfecta may charge the saved payment method each month on the billing day until either party cancels. ` +
     `Both are reminded ${m.reminder_days ?? 3} days before billing, and the next month's tasks open only once it is paid. ` +
-    (m.unit_mode === "monthly" ? "The Freelancer delivers once a month; the month is checked and accepted at month end. " : "The month is paid out in weekly units that add up to the monthly price; each unit is checked, accepted and paid like a milestone. ") +
+    (m.unit_mode === "monthly" ? "The Freelancer delivers once a month; the month is checked and accepted at month end. " : "The month is paid out in weekly units that add up to the monthly price; each unit is checked, accepted and paid like a milestone. The units are how the month is checked and paid, not a weekly limit. ") +
     `If a renewal payment fails, new work pauses, Lawfecta tries again on days ${retry} after the failure, and the engagement ends after ${m.pause_limit_days ?? 14} days unpaid. ` +
     `A change to the price or the work needs both parties' approval at least ${m.change_deadline_days ?? 1} day before billing, and then starts the next month. Either party may cancel at any time, effective at the end of the paid month; undoing a cancellation needs the other party's approval. ` +
     `The minimum platform fee applies to each paid month.`;
@@ -159,6 +159,30 @@ export function feeLines(b: Record<string, any>): string[] {
   }
   return [`Price for the work: ${money(fe.total_cents)}`, `${who} also pays the platform fee: ${money(fe.attorney_fee_cents)} (charged once, with the first milestone)`,
     `The freelancer's platform fee: ${money(fe.freelancer_fee_cents)}, taken from the payouts across the milestones`, `The freelancer receives: ${money(fe.freelancer_receives_cents)}`];
+}
+
+// What this person pays or receives, worked out from the signed body's own fees, so the screen, the api and the
+// charge always agree (UX review E01 and M01). role is "attorney" for the client side (an agency client too).
+export function moneySummary(b: Record<string, any>, role: string): string[] {
+  const fe = b.fees ?? {}, ms: MilestoneBody[] = Array.isArray(b.milestones) ? b.milestones : [];
+  const client = role === "attorney";
+  if (b.kind === "monthly") {
+    if (client) return [`You pay ${money(Number(fe.total_cents) + Number(fe.attorney_fee_cents))} each month, including the ${money(fe.attorney_fee_cents)} platform fee.`];
+    return [`You receive ${money(fe.freelancer_receives_cents)} each month` + (Number(fe.freelancer_fee_cents) ? `, after your ${money(fe.freelancer_fee_cents)} platform fee.` : ".")];
+  }
+  if (!client) {
+    return [`You receive ${money(fe.freelancer_receives_cents)} in total` + (Number(fe.freelancer_fee_cents) ? `, after your ${money(fe.freelancer_fee_cents)} platform fee.` : "."),
+      "Each milestone is paid out after the client accepts it."];
+  }
+  const lines = [`Your total: ${money(fe.attorney_pays_cents ?? Number(fe.total_cents) + Number(fe.attorney_fee_cents))}`];
+  if (ms.length) {
+    lines.push(`First payment: ${money(ms[0].amount_cents + Number(fe.attorney_fee_cents))} (milestone 1 and the platform fee)`);
+    if (ms.length > 1) {
+      lines.push("Then " + ms.slice(1).map((m) => `${money(m.amount_cents)} for milestone ${m.seq}`).join(", "));
+      lines.push("The next milestone is charged automatically after you accept the previous milestone.");
+    }
+  }
+  return lines;
 }
 
 // ---------- The milestone check ----------

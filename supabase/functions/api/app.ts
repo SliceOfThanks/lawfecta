@@ -24,7 +24,7 @@ import { completeness, emptyBody, fileName, normalize, removesReview, toCsv, toD
 import { keyAllowed, stripe, checkoutParams, verifyStripeSignature, accountStatus } from "./lib/payments/stripe.ts";
 import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/webhooks/deliver.ts";
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
-import { buildBody, feeLines, readTasks, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
+import { buildBody, feeLines, moneySummary, readTasks, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
 import { blockedKinds, blockedMessage, FILE_BLOCKED_MESSAGE } from "./lib/confidential/rules.ts";
 import { looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
@@ -1920,7 +1920,10 @@ const heldNote = "DELA is holding this for a quick check by the Lawfecta Team, b
 async function gigsMine(ctx: Ctx) {
   const s = await client(ctx);
   if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "flex_gigs", p_person: s.person_id })) return json(ctx, { ok: false, reason: "gigs_off" });
-  return json(ctx, await rpc(ctx, "dela_gigs_mine_side", { p_person: s.person_id, p_side: s.side }));
+  const r = await rpc<Record<string, any>>(ctx, "dela_gigs_mine_side", { p_person: s.person_id, p_side: s.side });
+  // The client's platform fee, so the gig form can show an estimated total (UX review P02); never typed into screen code
+  if (r && typeof r === "object") r.fee = { client_bps: Number(await setting(ctx, "fee.client_bps", "500")) || 500, floor_cents: Number(await setting(ctx, "fees.floor_cents_per_party", "1000")) || 1000 };
+  return json(ctx, r);
 }
 
 // A new gig from an approved playbook: DELA writes the public version (on the member's AI, like Ask DELA), and the attorney edits it before posting
@@ -2728,7 +2731,7 @@ async function agreementGet(ctx: Ctx) {
   if (!facts?.ok) return json(ctx, facts);
   if (facts.version === 0) await rpc(ctx, "dela_agreement_version_add", { p_person: s.person_id, p_side: s.side, p_agreement: id, p_body: buildBody(facts), p_note: "First draft by DELA", p_base: 0 });
   const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: s.person_id, p_side: s.side, p_agreement: id });
-  if (v?.ok && v.current?.body) v.fee_lines = feeLines(v.current.body);
+  if (v?.ok && v.current?.body) { v.fee_lines = feeLines(v.current.body); v.money_summary = moneySummary(v.current.body, v.role); }
   if (v?.ok) { const mv = await rpc<Record<string, any>>(ctx, "dela_monthly_view", { p_person: s.person_id, p_side: s.side, p_agreement: id }); if (mv?.monthly) v.monthly = { ...mv, staff_owner: (s.staff ?? []).includes("owner") }; }
   // "Attorney decides" steps of the gig's document become checkpoints the work waits at
   const gdoc = await rpc<Record<string, any> | null>(ctx, "dela_agreement_doc", { p_agreement: id }).catch(() => null);

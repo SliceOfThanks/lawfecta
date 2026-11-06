@@ -79,6 +79,8 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     await label(p, "Approved SOP or Workflow").selectOption({ label: "New client intake" });
     await label(p, "Budget from ($)").fill("300");
     await label(p, "Budget to ($)").fill("600");
+    const feeNote = await dela(p).locator("#gig-fee-note").innerText();
+    ok(feeNote.includes("The budget covers the work. Your platform fee (5%, at least $10) is added and shown before signing.") && feeNote.includes("Estimated total: $315 to $630."), "the gig form explains the fee and estimates the total (UX review P02): " + feeNote);
     await click(p, "Draft the gig with DELA");
     t = await waitFor(p, "Public version", 10000);
     ok((await label(p, "Gig title").inputValue()) === "Client intake for a family law firm (Texas)", "DELA wrote the public version, ready to edit");

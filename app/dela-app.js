@@ -2990,6 +2990,16 @@
         h("label", { style: "display:flex;gap:6px;font-weight:400" }, kOne, h("span", { text: "One-off" })),
         h("label", { style: "display:flex;gap:6px;font-weight:400" }, kMon, h("span", { text: "Monthly" })),
         h("span", { class: "small muted", text: "Monthly: the same work every month for a flat monthly price, until either of you cancels. The budget is the monthly price." })) : null;
+      // The budget is for the work; the client's platform fee comes on top (UX review P02). The rate comes from the api's settings.
+      var fee = r.fee || {}, feeNote = h("p", { class: "small muted", id: "gig-fee-note" });
+      function feeOf(c) { return Math.max(Math.round(c * (fee.client_bps || 0) / 10000), fee.floor_cents || 0); }
+      function showFee() {
+        var mon = kMon.checked, lo = Math.round(Number(bmin.value || 0) * 100), hi = Math.round(Number(bmax.value || 0) * 100);
+        var est = lo > 0 ? " Estimated total" + (mon ? " each month" : "") + ": " + D.money(lo + feeOf(lo)) + (hi > lo ? " to " + D.money(hi + feeOf(hi)) : "") + "." : "";
+        feeNote.textContent = (mon ? "The budget is the monthly price for the work. " : "The budget covers the work. ") + (fee.client_bps ? "Your platform fee (" + (fee.client_bps / 100) + "%, at least " + D.money(fee.floor_cents) + (mon ? " each month" : "") + ") is added and shown before signing." : "Your platform fee is added and shown before signing.") + est;
+      }
+      [bmin, bmax, kOne, kMon].forEach(function (x) { x.addEventListener("input", showFee); x.addEventListener("change", showFee); });
+      showFee();
       go.addEventListener("click", function () {
         if (!pick.value) { D.toast(app, "Choose an approved SOP or Workflow first.", true); return; }
         var chosen = r.playbooks.filter(function (p) { return p.id === pick.value; })[0] || {};
@@ -3004,7 +3014,7 @@
         h("p", { class: "small muted", text: "DELA writes a public version of the document for freelancers. You check it, set the budget (at least " + D.money(r.min_budget_cents) + ") and the deadline, then post. Open gigs on your plan: " + (al.unlimited ? "no cap" : (al.used || 0) + " of " + al.limit + " in use") + "." }),
         gigs.linkTo ? h("p", { class: "notice", text: "Linked to: " + gigs.linkTo.title + ". Whoever you hire is listed on the attorney's \"Who's working on this\", as your subcontractor. Share with them only what their part needs." },
           " ", h("button", { class: "ghost small", type: "button", onclick: function () { gigs.linkTo = null; draw(); } }, "Do not link")) : null,
-        kindRow, field("Document", pick), notes, h("div", { class: "row" }, field("Budget from ($)", bmin), field("Budget to ($)", bmax)), h("div", { class: "row" }, go)));
+        kindRow, field("Document", pick), notes, h("div", { class: "row" }, field("Budget from ($)", bmin), field("Budget to ($)", bmax)), feeNote, h("div", { class: "row" }, go)));
       // My gigs
       var list = h("div", { class: "card" }, h("h2", { text: "Your gigs" }));
       if (!r.gigs.length) list.appendChild(h("p", { class: "muted", text: "No gigs yet." }));
@@ -4323,7 +4333,7 @@
     monthly_tasks_needed: "List at least one task with how often and how many are included each month.", no_unlimited: "\"Unlimited\" is not allowed. Give each task an included number.",
     monthly_task_needs_name: "Name each task.", monthly_task_needs_frequency: "Choose how often each task happens.", monthly_task_needs_quantity: "Give each task an included number each month (1 or more).",
     recurring_consent_needed: "Tick the box that lets Lawfecta charge your payment method each month. Without it, a monthly engagement cannot start.",
-    use_monthly_cancel: "A monthly engagement is canceled from its Monthly engagement card: \"Cancel monthly engagement\" or \"End now by agreement\".", use_monthly_terms: "A monthly agreement changes through its Monthly terms (before signing) or \"Request a change\" (after).", use_change_request: "Both of you signed. Use \"Request a change\" for next month.",
+    use_monthly_cancel: "A monthly engagement is canceled from its Monthly engagement card: \"Review cancellation\" or \"Ask to end now\".", use_monthly_terms: "A monthly agreement changes through its Monthly terms (before signing) or \"Request a change\" (after).", use_change_request: "Both of you signed. Use \"Request a change\" for next month.",
     other_side_approves: "The other person approves this.", nothing_to_undo: "There is nothing to undo.", too_late: "The cancellation date has passed.",
     monthly_delivery_use_dispute: "With One monthly delivery, agree on an amount with the other person, or open a dispute below. DELA never makes up a daily rate.",
     not_started_use_cancel: "Month 1 is not paid yet. Cancel the agreement instead.", not_completed: "Only a completed engagement can be made monthly.", recurring_off: "Monthly engagements are not open for your account yet.",
@@ -4385,6 +4395,8 @@
     function act(path, body, msg) { return api.post(path, Object.assign({ id: a.id }, body || {})).then(engOk).then(function (x) { cardSay("monthly", typeof msg === "function" ? msg(x) : msg); engReload(); return x; }).catch(function (e) { cardSay("monthly", monthlyErr(e), true); }); }
     if (t.status === "ended") card.appendChild(h("p", { class: "notice", text: "This monthly engagement ended" + (t.ended_reason === "canceled" ? ", as canceled" : t.ended_reason === "unpaid" ? " because a month stayed unpaid" : t.ended_reason === "ended_early" ? " early by agreement" : "") + "." }));
     if (mv.renewals_stopped && t.status !== "ended") card.appendChild(h("p", { class: "notice", text: "The Lawfecta Team paused all renewal charges for a moment. Nothing is charged until they start again." }));
+    // What the attorney pays each month and when (UX review M01)
+    if (att && (r.money_summary || []).length) card.appendChild(h("p", { style: "font-weight:700", text: r.money_summary[0] + (cur ? "" : " Your billing day is set when you pay month 1.") }));
     if (cur) card.appendChild(h("div", { class: "kv" },
       h("div", null, "This month", h("b", { text: "Month " + cur.n + ": " + D.date(cur.starts_on) + " to " + D.date(cur.ends_on) })),
       h("div", null, "Monthly price", h("b", { text: D.money(t.price_cents) })),
@@ -4392,7 +4404,8 @@
       h("div", null, "Next billing", h("b", { text: t.cancel_effective ? "None: it ends on " + D.date(t.cancel_effective) : nx.bill_on ? D.date(nx.bill_on) + (nx.price_cents ? " (" + D.money(nx.price_cents) + " plus the " + D.money(nx.fee_cents) + " platform fee)" : "") : "-" }))));
     card.appendChild(h("h3", { text: "Included each month" }));
     card.appendChild(tasksList(t.tasks));
-    card.appendChild(h("p", { class: "small muted", text: t.unit_mode === "monthly" ? "Paid as one monthly delivery, checked and accepted at month end." : "Paid in weekly units, each checked, accepted and paid like a milestone." }));
+    card.appendChild(h("p", { class: "small muted", text: (t.unit_mode === "monthly" ? "Paid as one monthly delivery, checked and accepted at month end." : "Paid in weekly units, each checked, accepted and paid like a milestone. The units are how the month is checked and paid, not a weekly limit.") +
+      " The limits are for each month: unused work does not carry over, and a month with five weeks has the same limits and price." }));
     if (nx.status === "draft") card.appendChild(h("p", { class: "small", text: "Month " + nx.n + "'s tasks are drafted. They open once it is paid on " + D.date(nx.bill_on) + "." }));
     if (nx.status === "failed" && t.status !== "ended") {
       card.appendChild(h("p", { class: "notice bad", text: "The payment for month " + nx.n + " did not go through, so new work is paused." + (att ? "" : " Do not start month " + nx.n + "'s tasks.") +
@@ -4402,10 +4415,11 @@
       } }, "Pay now")));
     }
     if (t.status === "ended") return card;
-    // Cancelling, and undoing it with the other side's approval
+    // Cancelling, and undoing it with the other side's approval. The rule stays on the page (UX review M02).
+    card.appendChild(h("p", { class: "small", style: "margin-top:10px", text: "Cancellation takes effect at the end of the paid month. Ending sooner needs both of you to agree." }));
     var cancelRow = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:8px" });
     if (!t.cancel_effective) {
-      var cb = h("button", { class: "ghost small", type: "button" }, "Cancel monthly engagement");
+      var cb = h("button", { class: "ghost small", type: "button" }, "Review cancellation");
       cb.addEventListener("click", function () {
         D.clear(cancelRow);
         cancelRow.appendChild(h("span", { class: "small grow", text: "Cancel at the end of this paid month" + (cur ? " (" + D.date(cur.ends_on) + ")" : "") + "? Nothing more is charged." }));
@@ -4430,7 +4444,7 @@
       endRow.appendChild(h("button", { class: "danger small", type: "button", onclick: function () { act("/monthly/end-now", { approve: true }, "Ended. Unstarted units were refunded."); } }, "Agree to end now"));
       endRow.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { act("/monthly/end-now", { approve: false }, "It keeps running."); } }, "Keep it running"));
     } else if (t.end_now_requested) endRow.appendChild(h("span", { class: "small muted", text: "Waiting for the other person to agree to end now." }));
-    else endRow.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { act("/monthly/end-now", { approve: true }, "Asked the other person to end now."); } }, "End now by agreement"));
+    else endRow.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { act("/monthly/end-now", { approve: true }, "Asked the other person to end now."); } }, "Ask to end now"));
     card.appendChild(endRow);
     // Changes for next month
     var open = (mv.changes || []).filter(function (c) { return c.status === "open"; })[0];
@@ -4928,7 +4942,9 @@
       h("div", null, "Client (firm)", h("b", { text: (p.client || {}).firm || "-" })),
       h("div", null, "Signs for the firm", h("b", { text: (p.client || {}).signatory || "Not set yet" })),
       h("div", null, "Freelancer", h("b", { text: (p.freelancer || {}).name || "-" })),
-      h("div", null, "Price", h("b", { text: D.money(fe.total_cents) }))));
+      h("div", null, b.kind === "monthly" ? "Monthly price for the work" : "Price for the work", h("b", { text: D.money(fe.total_cents) }))));
+    // What this person pays or receives, worked out by the api from the same fees (UX review E01)
+    if ((r.money_summary || []).length) c.appendChild(h("div", { class: "notice ok", id: "money-summary" }, (r.money_summary || []).map(function (l, i) { return h("p", { style: "margin:" + (i ? "4px" : "0") + " 0 0;" + (i ? "" : "font-weight:700;font-size:1.1em"), text: l }); })));
     if (s.task) c.appendChild(h("p", null, h("b", { text: "The work: " }), s.task));
     if (s.included) c.appendChild(h("p", null, h("b", { text: "Included: " }), s.included));
     if (s.excluded) c.appendChild(h("p", null, h("b", { text: "Not included: " }), s.excluded));

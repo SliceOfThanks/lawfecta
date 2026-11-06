@@ -168,6 +168,10 @@ Deno.test("agreement: DELA drafts version 1 from the facts; only the two parties
   assertEquals([body.fees.attorney_bps, body.fees.freelancer_bps], [500, 500], "5% each side, whatever the plan (Stacey 2026-11-05)");
   assertEquals([body.fees.attorney_fee_cents, body.fees.freelancer_fee_cents], [5000, 5000]);
   assert(r.fee_lines.some((l: string) => l.includes("$50")));
+  // What each side pays or receives, from the same fees (UX review E01)
+  assertEquals(r.money_summary, ["You receive $950 in total, after your $50 platform fee.", "Each milestone is paid out after the client accepts it."]);
+  assertEquals((await call("GET", "/agreements/get?id=" + ag, att.token)).body.money_summary, ["Your total: $1,050", "First payment: $550 (milestone 1 and the platform fee)", "Then $500 for milestone 2",
+    "The next milestone is charged automatically after you accept the previous milestone."]);
   assertEquals(r.stripe_ready, true);
   assert(body.rubric[0].criteria.some((c: any) => c.text.includes("Every exhibit is labeled")), "the playbook's quality checks are in the rubric");
   assertEquals((await call("GET", "/agreements/get?id=" + ag, att.token)).body.current.version, 1, "opening it twice makes one version");
