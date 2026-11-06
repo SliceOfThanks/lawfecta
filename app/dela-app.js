@@ -3349,6 +3349,7 @@
       if (!v.ok || !v.on) { card.remove(); return; }
       D.clear(card);
       card.appendChild(h("h2", { text: "Bench assignments" }));
+      card.appendChild(cardStatus("assign"));
       card.appendChild(h("p", { class: "small muted", text: "Give a milestone to someone on your bench. Their bench split fills in; a different split for this job needs their Accept before work starts. " +
         "When the attorney accepts the milestone, the agency gets its share minus the whole freelancer fee, and they get their full share. The attorney sees them as a subcontractor, never the split." }));
       if (v.no_subcontractors) card.appendChild(h("p", { class: "notice", text: GIG_ERR.no_subcontractors }));
@@ -3359,7 +3360,7 @@
           row.appendChild(h("p", { class: "small", style: "margin:4px 0", text: "Assigned to " + x.name + " | split " + splitText(x.agency_bps, false) + (x.status === "proposed" ? " | waiting for " + x.name + " to accept" : "") }));
           if (x.waiting_payout) row.appendChild(h("p", { class: "small notice", text: "Waiting on " + x.name + "'s payout setup" }));
           if (["accepted", "refunded", "submitted"].indexOf(m.status) < 0) row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-            api.post("/agency/assignment/remove", { id: x.id }).then(gigOk).then(function () { draw(); D.toast(app, "Milestone " + m.seq + " is unassigned"); }).catch(gigFail);
+            api.post("/agency/assignment/remove", { id: x.id }).then(gigOk).then(function () { draw(); cardSay("assign", "Milestone " + m.seq + " is unassigned"); }).catch(cardFail("assign"));
           } }, "Take back"));
         } else if (["pending", "awaiting_funding", "funded"].indexOf(m.status) >= 0 && !v.no_subcontractors && (v.bench || []).length) {
           var who = h("select", { "aria-label": "Bench member for milestone " + m.seq }, v.bench.map(function (b) { return h("option", { value: b.id, text: b.name + " (bench split " + splitText(b.agency_bps, false) + ")" }); }));
@@ -3367,8 +3368,8 @@
           row.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:4px" }, who, h("span", { class: "small", text: "Agency share for this job (%):" }), share,
             h("button", { class: "blue small", type: "button", onclick: function () {
               api.post("/engagements/assign", { milestone_id: m.id, bench_id: who.value, agency_percent: share.value === "" ? null : Number(share.value) }).then(gigOk).then(function (y) {
-                draw(); D.toast(app, y.status === "proposed" ? "Assigned. Waiting for them to accept the split for this job." : "Assigned. The attorney was told who is working on it.");
-              }).catch(gigFail);
+                draw(); cardSay("assign", y.status === "proposed" ? "Assigned. Waiting for them to accept the split for this job." : "Assigned. The attorney was told who is working on it.");
+              }).catch(cardFail("assign"));
             } }, "Assign")));
         } else if (!x) row.appendChild(h("p", { class: "small muted", style: "margin:4px 0", text: (v.bench || []).length ? "Not assigned." : "Not assigned. Nobody on your bench can take new work yet." }));
         card.appendChild(row);
@@ -3481,6 +3482,22 @@
     return h("div", null, el, benchBox);
   }
 
+  // A card's last answer stays on the card for 10 minutes (a passing message is easy to miss; ChatGPT bench test 2026-11-05)
+  var cardLast = {}, cardEls = {};
+  function cardStatus(key) {
+    var l = cardLast[key], el = h("p", { class: "notice small card-status", role: "status" });
+    if (l && Date.now() - l.at < 10 * 60 * 1000) { el.textContent = l.text; el.className = "notice small card-status" + (l.bad ? " bad" : " ok"); } else el.hidden = true;
+    cardEls[key] = el;
+    return el;
+  }
+  function cardSay(key, text, bad) {
+    cardLast[key] = { text: text, bad: !!bad, at: Date.now() };
+    var el = cardEls[key];
+    if (el) { el.textContent = text; el.className = "notice small card-status" + (bad ? " bad" : " ok"); el.hidden = false; }
+    D.toast(app, text, bad);
+  }
+  function cardFail(key) { return function (e) { cardSay(key, e && e.reason ? gigErr(e) : D.errorText(e && e.message ? e.message : String(e)), true); }; }
+
   // ---------- The agency bench (Step 7d part 2a): a bench agreement with a signed fee split ----------
   function pct(bps) { var n = bps / 100; return (n % 1 === 0 ? String(n) : n.toFixed(1)) + "%"; }
   function splitText(bps, forFreelancer) {
@@ -3504,6 +3521,7 @@
       // Benches you are invited to or on
       (v.my_benches || []).forEach(function (b) {
         var c = h("div", { class: "card bench-card" }, h("h2", { text: b.status === "invited" ? "Bench invitation from " + b.agency : "On " + b.agency + "'s bench" }));
+        c.appendChild(cardStatus("mybench"));
         if (b.split) c.appendChild(h("p", null, h("b", { text: "Your split: " }), splitText(b.split.agency_bps, true) + ". The agency pays the platform fee from its share, so you receive your full share and pay no fee."));
         var w = b.waiting;
         if (w) c.appendChild(h("p", null, h("b", { text: w.freelancer_signed ? "You proposed: " : (b.status === "invited" ? "Proposed split: " : "New split proposed: ") }), splitText(w.agency_bps, true) +
@@ -3515,22 +3533,22 @@
         var sr = signRow("I have read the bench agreement and I sign it electronically.");
         var acts = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" });
         if (w && !w.freelancer_signed && v.plan_ok) acts.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
-          api.post("/agency/bench/answer", Object.assign({ id: b.id, action: "sign" }, sr.body())).then(gigOk).then(function (x) { draw(); D.toast(app, x.joined ? "Signed. You joined " + b.agency + "'s bench." : "Signed. The new split applies to new work."); }).catch(gigFail);
+          api.post("/agency/bench/answer", Object.assign({ id: b.id, action: "sign" }, sr.body())).then(gigOk).then(function (x) { draw(); cardSay("mybench", x.joined ? "Signed. You joined " + b.agency + "'s bench." : "Signed. The new split applies to new work."); }).catch(cardFail("mybench"));
         } }, b.status === "invited" ? "Sign and join" : "Sign the new split"));
         if (v.plan_ok) {
           var other = h("input", { type: "number", min: String(lim.min_bps / 100), max: String(lim.max_bps / 100), step: "0.5", "aria-label": "Agency share you propose (%)", style: "width:90px" });
           acts.appendChild(h("span", { class: "small", text: "Or propose the agency's share (%):" }));
           acts.appendChild(other);
           acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-            api.post("/agency/bench/answer", Object.assign({ id: b.id, action: "counter", agency_percent: Number(other.value) }, sr.body())).then(gigOk).then(function () { draw(); D.toast(app, "Proposed and signed. Waiting for the agency."); }).catch(gigFail);
+            api.post("/agency/bench/answer", Object.assign({ id: b.id, action: "counter", agency_percent: Number(other.value) }, sr.body())).then(gigOk).then(function () { draw(); cardSay("mybench", "Proposed and signed. Waiting for the agency."); }).catch(cardFail("mybench"));
           } }, "Propose this split"));
         }
         if (b.status === "invited") acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-          api.post("/agency/bench/answer", { id: b.id, action: "decline" }).then(gigOk).then(function () { draw(); D.toast(app, "Declined"); }).catch(gigFail);
+          api.post("/agency/bench/answer", { id: b.id, action: "decline" }).then(gigOk).then(function () { draw(); cardSay("mybench", "Declined"); }).catch(cardFail("mybench"));
         } }, "Decline"));
         if (b.status === "active") acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
           if (!confirm("Leave " + b.agency + "'s bench? New assignments stop. Work already assigned keeps its split and pays out.")) return;
-          api.post("/agency/bench/end", { id: b.id }).then(gigOk).then(function () { draw(); D.toast(app, "You left the bench"); }).catch(gigFail);
+          api.post("/agency/bench/end", { id: b.id }).then(gigOk).then(function () { draw(); cardSay("mybench", "You left the bench"); }).catch(cardFail("mybench"));
         } }, "Leave the bench"));
         if (v.plan_ok) c.appendChild(sr.el);
         c.appendChild(acts);
@@ -3540,6 +3558,7 @@
       if ((v.my_assignments || []).length) {
         var ac = h("div", { class: "card", id: "my-assignments" }, h("h2", { text: "Your agency assignments" }),
           h("p", { class: "small muted", text: "Work agencies gave you from their engagements. You hand the work to the agency; the agency delivers it to its client. You pay no platform fee on your share." }));
+        ac.appendChild(cardStatus("myassign"));
         v.my_assignments.forEach(function (x) {
           var line = h("div", { style: "border-top:1px solid var(--line);padding:8px 0" },
             h("b", { text: x.job + ", milestone " + x.seq + ": " + x.title }),
@@ -3550,8 +3569,8 @@
             line.appendChild(h("p", { class: "notice", style: "margin:6px 0", text: "Split for this job: " + pct(x.agency_bps) + " agency / " + pct(10000 - x.agency_bps) + " you. Work cannot start until you accept." }));
             line.appendChild(h("label", { class: "small", style: "font-weight:400;display:flex;gap:6px;align-items:center" }, tick, h("span", { text: "I accept this split for this job." })));
             line.appendChild(h("div", { class: "row" },
-              h("button", { class: "blue small", type: "button", onclick: function () { api.post("/agency/assignment/answer", { id: x.id, accept: true, agree: tick.checked }).then(gigOk).then(function () { draw(); D.toast(app, "Accepted. You can start once the milestone is funded."); }).catch(gigFail); } }, "Accept"),
-              h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/agency/assignment/answer", { id: x.id, accept: false }).then(gigOk).then(function () { draw(); D.toast(app, "Declined. The milestone goes back to the agency."); }).catch(gigFail); } }, "Decline")));
+              h("button", { class: "blue small", type: "button", onclick: function () { api.post("/agency/assignment/answer", { id: x.id, accept: true, agree: tick.checked }).then(gigOk).then(function () { draw(); cardSay("myassign", "Accepted. You can start once the milestone is funded."); }).catch(cardFail("myassign")); } }, "Accept"),
+              h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/agency/assignment/answer", { id: x.id, accept: false }).then(gigOk).then(function () { draw(); cardSay("myassign", "Declined. The milestone goes back to the agency."); }).catch(cardFail("myassign")); } }, "Decline")));
           } else {
             var pay = x.payout;
             line.appendChild(h("p", { class: "small", style: "margin:4px 0", text: "Split " + pct(x.agency_bps) + " agency / " + pct(10000 - x.agency_bps) + " you | " +
@@ -3566,24 +3585,25 @@
       var c = h("div", { class: "card", id: "agency-bench" }, h("h2", { text: "Bench" }),
         h("p", { class: "small muted", text: "Outside freelancers you hire for your work. They never use a seat. Before someone joins, you both sign a bench agreement that sets the split of the fee. " +
           "The agency's share is " + pct(lim.min_bps) + " to " + pct(lim.max_bps) + ", and the agency pays the " + pct(v.fee_bps) + " freelancer platform fee from its share. Only Freelancer Plus or higher can join. The attorney never sees the split." }));
+      c.appendChild(cardStatus("bench"));
       if (!v.agency_bench.length) c.appendChild(h("p", { class: "muted", text: "Nobody on your bench yet." }));
       var sr = signRow("I have read the bench agreement and I sign it for the agency.");
       v.agency_bench.forEach(function (b) {
         var acts = h("div", { class: "row", style: "flex-wrap:wrap" });
         var w = b.waiting, open = b.status === "invited" || b.status === "active";
         if (open && w && !w.agency_signed) acts.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
-          api.post("/agency/bench/agency", Object.assign({ id: b.id, action: "sign" }, sr.body())).then(gigOk).then(function (x) { draw(); D.toast(app, x.joined ? "Signed. " + b.name + " joined your bench." : "Signed. The new split applies to new work."); }).catch(gigFail);
+          api.post("/agency/bench/agency", Object.assign({ id: b.id, action: "sign" }, sr.body())).then(gigOk).then(function (x) { draw(); cardSay("bench", x.joined ? "Signed. " + b.name + " joined your bench." : "Signed. The new split applies to new work."); }).catch(cardFail("bench"));
         } }, "Sign their split"));
         if (b.status === "active") {
           var nw = h("input", { type: "number", min: String(lim.min_bps / 100), max: String(lim.max_bps / 100), step: "0.5", "aria-label": "New agency share for " + b.name + " (%)", style: "width:90px" });
           acts.appendChild(nw);
           acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-            api.post("/agency/bench/agency", Object.assign({ id: b.id, action: "change", agency_percent: Number(nw.value) }, sr.body())).then(gigOk).then(function () { draw(); D.toast(app, "Proposed and signed. Waiting for " + b.name + "."); }).catch(gigFail);
+            api.post("/agency/bench/agency", Object.assign({ id: b.id, action: "change", agency_percent: Number(nw.value) }, sr.body())).then(gigOk).then(function () { draw(); cardSay("bench", "Proposed and signed. Waiting for " + b.name + "."); }).catch(cardFail("bench"));
           } }, "Propose a new default split"));
         }
         if (open) acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
           if (!confirm(b.status === "invited" ? "Cancel the bench invitation to " + b.name + "?" : "Remove " + b.name + " from your bench? New assignments stop. Work already assigned keeps its split and pays out.")) return;
-          api.post("/agency/bench/end", { id: b.id }).then(gigOk).then(function () { draw(); D.toast(app, b.status === "invited" ? "Invitation canceled" : b.name + " removed from your bench"); }).catch(gigFail);
+          api.post("/agency/bench/end", { id: b.id }).then(gigOk).then(function () { draw(); cardSay("bench", b.status === "invited" ? "Invitation canceled" : b.name + " removed from your bench"); }).catch(cardFail("bench"));
         } }, b.status === "invited" ? "Cancel invitation" : "Remove"));
         var facts = [BENCH_STATUS[b.status] || b.status];
         if (b.split) facts.push("split " + splitText(b.split.agency_bps, false));
@@ -3604,8 +3624,8 @@
       c.appendChild(sr.el);
       c.appendChild(h("div", { class: "row", style: "margin-top:6px" }, h("button", { class: "blue small", type: "button", onclick: function () {
         api.post("/agency/bench/invite", Object.assign({ email: em.value.trim(), agency_percent: Number(share.value), note: note.value, request_id: newId() }, sr.body())).then(gigOk).then(function (x) {
-          draw(); D.toast(app, x.duplicate ? "Already invited or on your bench" : x.plan_ok ? "Bench invitation sent" : "Bench invitation sent. They need Freelancer Plus or higher to join.");
-        }).catch(gigFail);
+          draw(); cardSay("bench", x.duplicate ? "Already invited or on your bench" : x.plan_ok ? "Bench invitation sent" : "Bench invitation sent. They need Freelancer Plus or higher to join.");
+        }).catch(cardFail("bench"));
       } }, "Invite to the bench")));
       box.appendChild(c);
     }).catch(function () { D.clear(box); });
@@ -4567,7 +4587,7 @@
       if (waiting) box.appendChild(h("p", { text: "Your payment of " + D.money(waiting.amount_cents) + " is being confirmed by the bank. Work starts when it is confirmed." }));
       else if (due && !open) {
         var first = !a.started_at;
-        box.appendChild(h("p", { text: "Pay milestone " + due.seq + " (" + D.money(due.amount_cents) + ")" + (first ? " and the platform fee (" + D.money(a.attorney_fee_cents) + ")" : "") + ". Lawfecta holds it until you accept the milestone." }));
+        box.appendChild(h("p", { text: "Pay milestone " + due.seq + " (" + D.money(due.amount_cents) + ")" + (first && typeof a.attorney_fee_cents === "number" && a.attorney_fee_cents > 0 ? " and the platform fee (" + D.money(a.attorney_fee_cents) + ")" : "") + ". Lawfecta holds it until you accept the milestone." }));
         if (!r.stripe_ready) box.appendChild(h("p", { class: "notice", text: ENG_ERR.payments_not_set_up }));
         else {
           var pay = h("button", { class: "blue", type: "button" }, a.saved_payment ? "Pay milestone " + due.seq + " with your saved payment method" : "Pay milestone " + due.seq);

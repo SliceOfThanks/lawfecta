@@ -3,6 +3,7 @@
 Every test prompt starts with this block, word for word, right after the line. It stops the agent from searching and exploring, which uses up credits (Stacey 2026-11-05).
 
 Rules for writing test steps:
+- One login per account per test (Stacey 2026-11-05). Group every step by login: each account logs in once, does all its steps, and signs out. When one account has to answer another (an invitation, a counter-offer, a signature), Claude prepares that earlier state on the test site before the test (and says so at the top of the prompt), so no account comes back for a second turn. A last "Check the results" group may only look, never act, and still uses each login once.
 - Each step has up to four lines: "Go to" (the exact link), "Find" (the card heading, how far down the page, left or right), "Do" (the exact button or box name in quotes and what it looks like), "Expect" (what should appear).
 - Name every button exactly as the screen writes it, including symbols (for example "🖼 Add image", "← Library").
 - Give the direct link whenever a page has one, so the agent types it instead of clicking around.
