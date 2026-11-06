@@ -112,6 +112,8 @@ const ATT = 4100, FL = 4101;
     await p.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=projects&gig=${gig}&view=agreement`);
     t = await waitFor(p, "Monthly engagement");
     ok(t.includes("Month 1:") && t.includes("Units accepted") && t.includes("0 of 4") && t.includes("Intake calls and conflict checks: weekly, up to 20 included each month, each within 1 business day"), "the Monthly engagement card: this month, units and what is included");
+    const endsOn = (await sql(`select to_char(ends_on + 1, 'FMMon FMDD') d from monthly_periods where agreement_id = '${ag}' and n = 1`))[0].d;
+    ok(/Next billing\s*\n?\s*\S/.test(t) && t.includes(endsOn) && !/Next billing\s*-/.test(t), "Next billing shows the day after the paid month, before month 2 is drafted (" + endsOn + ")");
     ok(!t.includes("Cancel the engagement"), "a monthly engagement shows only the monthly cancel, not the one-off Cancel the engagement");
 
     // ---------- Renewals on the test site ----------
