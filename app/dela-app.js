@@ -5898,6 +5898,7 @@
       api.post("/documents/draft", { org_id: lib.org, type: flow.type, starter_id: s0.id || "", lifecycle: s0.lifecycle || "", request_id: req, file_ids: files, text: paste.value,
         answers: { name: name.value, trigger: trig.value, done: done.value, roles: picked(rolesBox), systems: picked(sysBox), timing: timing.value, attorney_steps: att.value, problems: wrong.value } }).then(function (r) {
         go.disabled = false; status.textContent = "";
+        if (!r.ok && r.reason === "playbook_limit") { limitPopup("playbooks"); return; }
         if (!r.ok) { D.toast(app, DOC_ERR[r.reason] || failText(r), true); return; }
         DOC.flow = null;
         lib.questions = r.questions || [];

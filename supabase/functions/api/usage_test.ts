@@ -119,6 +119,11 @@ Deno.test("read-only after a downgrade: the newest stay editable up to the limit
   assert((await call("POST", "/playbooks/save", free.token, { id: ids[0], body: {} })).body.reason !== "document_read_only", "the newest stays editable");
   const made = (await call("POST", "/playbooks/create", free.token, { org_id: org, request_id: "u-new-" + RUN, title: "Sixth", body: {} })).body;
   assertEquals(made.reason, "playbook_limit", JSON.stringify(made));
+  // At the limit, a draft by DELA is refused before the AI runs, so no credits are spent on a document that cannot be saved
+  const before = (await call("GET", "/usage", free.token)).body.actions.used;
+  const drafted = (await call("POST", "/playbooks/create", free.token, { org_id: org, request_id: "u-ai-" + RUN, description: "Open a new matter and run the conflict check." })).body;
+  assertEquals(drafted.reason, "playbook_limit", JSON.stringify(drafted));
+  assertEquals((await call("GET", "/usage", free.token)).body.actions.used, before, "no credits used");
   // Archiving frees room: one fewer counted, so one more is editable
   await pool.query("update playbooks set status = 'archived' where id = $1", [ids[1]]);
   assertEquals((await call("GET", "/usage", free.token)).body.locked_ids, [ids[4]]);
