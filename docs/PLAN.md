@@ -69,7 +69,7 @@ Tests today: 8 database test files, 84 API tests, 15 script tests and 198 browse
 
 ## 2. What needs testing, in this order
 - Now: the monthly engagements test (docs/tests/step-7c-monthly-chatgpt-prompt.md), freelancer, attorney, then owner. Items prepared 2026-11-06.
-- Now: the step 8 UX check (docs/tests/step-8-ux-phase-0-1-chatgpt-prompt.md), freelancer then attorney, look and type only.
+- Now: the step 8 UX check (docs/tests/step-8-ux-parts-0-2-chatgpt-prompt.md), freelancer then attorney, look and type only.
 1. Logging in during ChatGPT tests: BD's reCAPTCHA cannot be turned off and blocks ChatGPT's agent. Stacey clicks "Take over" in ChatGPT, logs in herself at https://www.hirelegalhelp.com/login, and hands control back. Tests are grouped by login, so this happens about three times per test.
 2. Step 3 test (profiles and verification), passed 2026-11-05: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-3-chatgpt-prompt.md
 3. Short screens test (Ask DELA, Files, library, exports, own key): https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2-short-chatgpt-prompt.md

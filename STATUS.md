@@ -7,9 +7,11 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - Phase 0 (five Fix commits, each with a test that failed first): monthly engagements show only the monthly cancel (the api refuses the one-off cancel), each notice has its own button, Comments names "Draft and review", the Engagements card keeps its place, delegated suggestions show their gig.
 - Phase 1 wording: what each side pays or receives on the agreement, the monthly price with its fee and the cancel rule, no rollover, the gig form fee note and estimate, the Library "Review" column, the profile Save button, "Your DELA plan", accurate key wording, credits reset date, meeting dates with year and time zone, file expiry note, "Not specified" exclusions, attorney examples, "Estimated time saved".
 - Setting added: recurring.unused_rollover (false).
-- ChatGPT check: docs/tests/step-8-ux-phase-0-1-chatgpt-prompt.md (waiting for Stacey to run it).
+- ChatGPT check: docs/tests/step-8-ux-parts-0-2-chatgpt-prompt.md (waiting for Stacey to run it).
 - Held, not built: the Pro trial and downgrade to Free (docs/briefs/step-9-pro-trial-downgrade.md, 8 questions for Stacey).
-- Next: phase 2 (layout), then phase 3 (shared patterns), then step 7c part 2.
+- Part 2 (layout) on the test site 2026-11-06 (commit 014ab70, api version 47, migration 0050): Library as one table with search first, Projects with "Needs your action" and filters, Notices split by "Needs your action" and "Updates" (checked against each job's state), Talent labels and "View profile", booking by morning and afternoon, Ask DELA and Inbox layout, Files search, Connect page sections, quality check wording, Profile section menu.
+- Moved to part 3: the agreement parties order (E02), section-named fix buttons and the "If..." step rule (D03).
+- Next: attorney usage limits (step 9b, MVP, answered), then part 3, then step 7c part 2.
 
 ## Step 7c part 1: monthly recurring engagements, built 2026-11-06
 - Brief approved with Stacey's 27 answers (and the agency note): docs/briefs/step-7c-recurring-repeat-hiring.md. Migration 0049, behind the switch recurring_engagements (off until deployed and turned on for the access list). Part 2, standing arrangements (repeat hiring), comes next and stays off on Live until counsel approves.

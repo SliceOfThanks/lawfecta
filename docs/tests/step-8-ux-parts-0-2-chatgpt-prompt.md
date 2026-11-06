@@ -1,10 +1,11 @@
-# ChatGPT test: UX review fixes, phases 0 and 1 (step 8)
+# ChatGPT test: UX review fixes, parts 0, 1 and 2 (step 8)
 
 Claude already tested this with the real api and database: 264 api tests and all 17 browser test files pass. This test checks the changed screens on the test site.
 
 It is a look-and-type test: nothing is saved, sent, paid or signed. Each account logs in once: freelancer first, then attorney.
 
 What it covers:
+- Part 2 layout: the Library table, Projects with "Needs your action", Notices split, Talent labels and "View profile", Ask DELA, the Inbox menus, Files search, the Connect page and the Profile section menu.
 - Phase 0 fixes:
   - a monthly engagement shows only the monthly cancel
   - each notice has its own button
@@ -77,11 +78,13 @@ FREELANCER (log in once)
    - "Not included:" followed by either the excluded work or "Not specified. Confirm with the other person before signing."
 
 4. Click "Notices" in the dark top bar.
-   Expect: notices that point to a page have an outlined button on the right of their date, named for where it goes (for example "Open the agreement", "Open the gig", "Open Earnings", "Open your profile"). Write down two button names you see.
+   Expect: two headings in the panel, "Needs your action (" with a number, and "Updates". A job with several updates shows one line with "earlier updates about this job" that opens on click. Notices that point to a page have an outlined button on the right of their date, named for where it goes (for example "Open the agreement", "Open the gig", "Open Earnings"). Write down two button names you see.
    Do: click the first of those buttons.
    Expect: DELA opens that page, and that notice no longer shows "New" when you open "Notices" again. Close the panel.
 
 5. Go to: https://www.hirelegalhelp.com/dela?tab=profile
+   Find: the row of buttons near the top of the page, under the grey line about your profile.
+   Expect: section buttons "Availability", "LinkedIn check" and "Your profile". Click "Your profile": the page scrolls to that card.
    Find: the card "Your profile", the "Headline" box near the top.
    Expect: the grey hint under it ends with an example for a freelancer, "Litigation paralegal for small firms."
    Find: the bottom of the same card.
@@ -96,10 +99,13 @@ ATTORNEY (log in once)
 7. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
 
 8. Go to: https://www.hirelegalhelp.com/dela?tab=projects
-   Expect: the cards in this order from the top: "Post a new gig", then "Your gigs", then "Engagements (" with a number. Wait 5 seconds and check the order did not change.
+   Expect: the cards in this order from the top: "Post a new gig", "Needs your action", "Your gigs", then "Engagements (" with a number. Wait 5 seconds and check the order did not change.
+   - "Post a new gig" is short, with a blue "Start a new gig" button (the form opens on request once you have gigs).
+   - "Needs your action" lists what waits on you, each with a button such as "Review proposals", "Answer", "Finish and post" or "Open the agreement".
+   - "Your gigs" has filter buttons "Open and drafts (", "Filled (", "Closed (" and "All (", and shows at most 6 gigs with a "Show ... more" button when there are more. Click "Filled (" and then "Open and drafts (" to see the list change.
 
 9. On the same page, in the card "Post a new gig":
-   Do: type 300 in "Budget from ($)" and 600 in "Budget to ($)". Do not click "Draft the gig with DELA".
+   Do: click "Start a new gig". Then type 300 in "Budget from ($)" and 600 in "Budget to ($)". Do not click "Draft the gig with DELA".
    Expect: a grey line under the budget boxes: "The budget covers the work. Your platform fee (5%, at least $10) is added and shown before signing. Estimated total: $315 to $630."
    Do: if you see the choice "Monthly" above "Document", click it.
    Expect: the line now starts "The budget is the monthly price for the work." and says "Estimated total each month: $315 to $630." Leave the page without saving.
@@ -121,12 +127,12 @@ ATTORNEY (log in once)
     Expect: there is NO "Cancel the engagement" in that card.
 
 12. Go to: https://www.hirelegalhelp.com/dela?tab=library
-    Find: the first table of documents.
     Expect:
-    - the last column is headed "Review".
-    - its cells say "Review 1 issue", "Review 2 issues", "1 suggestion", "2 suggestions" or "None". Never "blocking" or "to look at".
+    - right under the card with the document count: a search box "Search by title, ID or practice area" and the filter buttons "All", "Drafts", "In review", "Approved", "Due for review" and "More". Click "More": "Archived" (and "Trash" for an administrator) appear.
+    - one table with the columns "Document", "Type", "Owner (role)", "Status", "Next review" and "Review". Each group (for example "INT | Intake and conflicts") is a shaded row inside the same table, and each document's ID sits under its title.
+    - the "Review" cells say "Review 1 issue", "Review 2 issues", "1 suggestion", "2 suggestions" or "None". Never "blocking" or "to look at".
     - empty Owner cells say "Not assigned" and empty Next review cells say "Not scheduled".
-    - an imported document says "Imported: review required" under its title (if there is one).
+    - below the table, if there are imports, one line "Imports waiting for review (" that opens on click.
 
 13. Go to: https://www.hirelegalhelp.com/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
     Find: the card "✦ Automate or delegate" near the top.
@@ -157,4 +163,28 @@ ATTORNEY (log in once)
     Then click the view button "Matches" near the top.
     Expect: if nobody fits, the card shows the buttons "Search Talent" and "Review gig requirements". Do not click them.
 
-18. Sign out.
+18. Go to: https://www.hirelegalhelp.com/dela?tab=talent
+    Find: the card "Find a freelancer" at the top.
+    Expect: the boxes have labels you can see: "Practice area", "Skill", "Tech tool" and "State you need". "State you need" is a list of full state names (for example "Texas"), starting with "Any state".
+    Do: click "Search". If any freelancer shows, click "View profile" on the first one. (If none shows, write "no freelancers listed" and go on.)
+    Expect: a window "Profile" with their name, "Verified" or "Verification not finished", and their details. Click "Close".
+
+19. Go to: https://www.hirelegalhelp.com/dela?tab=delegate
+    Do: click "New chat" at the top right.
+    Expect: the message box comes right under the heading, with a card "Example: ..." and a button "Use this example" below it. Click "Use this example": the example text fills the message box. Do not send it.
+
+20. Go to: https://www.hirelegalhelp.com/dela?tab=inbox
+    Do: click the first conversation in the list.
+    Expect: under the heading, "Open the gig" and a blue "Book a meeting", then "✦ AI help" and "More", which open on click. "More" holds "Report" and "Block". Do not click any of them.
+
+21. Go to: https://www.hirelegalhelp.com/dela?tab=files
+    Expect: a search box "Search files by name" above the list. Each file shows "Version" and when it was uploaded under its name, and a file marked "Ready" says "Available to your firm".
+
+22. Go to: https://www.hirelegalhelp.com/dela?tab=connect
+    Expect: the headings "What ChatGPT or Claude can access", "What it can change", "What stays private" and "How to disconnect".
+
+23. Go to: https://www.hirelegalhelp.com/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
+    Find: the card "Quality check" on the right of the document.
+    Expect: a grey line "Blocking items are required before approval. Needs attention items are suggestions. These checks look at how the document is written; they do not confirm it is legally correct." Items not passed are labeled "Required before approval" or "Suggestion".
+
+24. Sign out.
