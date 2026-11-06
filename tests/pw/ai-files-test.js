@@ -113,6 +113,8 @@ const MEMBER_CLAUDE = "sk-ant-member-browser-test-key-2222222222"; // rules-ok: 
     await dela(p).getByRole("row", { name: /Intake steps\.txt/ }).getByRole("button", { name: "Ask DELA" }).click();
     t = await waitFor(p, "Send");
     ok(t.includes("Intake steps.txt"), "Ask DELA from a file attaches it");
+    await dela(p).getByRole("button", { name: "Use this example", exact: true }).click();
+    ok((await dela(p).getByLabel("Your message").inputValue()).startsWith("Turn my notes on opening a new matter"), "a new chat starts with the message box and an example to use (UX review A01)");
     await dela(p).getByLabel("Your message").fill("Turn this into a playbook");
     await dela(p).getByRole("button", { name: "Send", exact: true }).click();
     t = await waitFor(p, "I read your file");

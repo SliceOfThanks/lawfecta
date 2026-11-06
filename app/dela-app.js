@@ -396,13 +396,16 @@
       if (soon.length) chatEl.appendChild(h("p", { class: "notice", role: "status", text: soon.length + (soon.length === 1 ? " chat is" : " chats are") + " due to be deleted soon: " + soon.map(function (c) { return c.title + " (" + D.date(c.delete_at) + ")"; }).join(", ") + ". Open a chat and click \"Save to library\" to keep it." }));
     }
     var list = h("div", { class: "chat", "aria-live": "polite" });
-    if (!chat.messages.length && !chat.pending) list.appendChild(h("div", { class: "card soft" }, h("p", { style: "margin:0", text: "Try: \"Turn my notes on opening a new matter into a step by step checklist a paralegal can follow.\"" })));
+    // A new chat: the message box comes first, right under the heading, with an example to use (UX review A01)
+    var fresh = !chat.messages.length && !chat.pending;
+    var EXAMPLE = "Turn my notes on opening a new matter into a step by step checklist a paralegal can follow.";
+    if (fresh) list.appendChild(h("div", { class: "card soft", id: "chat-example" }, h("p", { style: "margin:0 0 6px", text: "Example: \"" + EXAMPLE + "\"" }),
+      h("button", { class: "ghost small", type: "button", onclick: function () { if (composerText) { composerText.value = EXAMPLE; composerText.focus(); } } }, "Use this example")));
     chat.messages.forEach(function (m) { list.appendChild(bubble(m)); });
     if (chat.pending && chat.busy) list.appendChild(h("div", { class: "msg user", text: chat.pending.content }));
     if (chat.busy) list.appendChild(h("div", { class: "msg assistant muted", text: "DELA is thinking..." }));
-    chatEl.appendChild(list);
-    if (chat.problem) chatEl.appendChild(problemBox(chat.problem));
-    chatEl.appendChild(composer());
+    if (fresh) { chatEl.appendChild(composer()); if (chat.problem) chatEl.appendChild(problemBox(chat.problem)); chatEl.appendChild(list); }
+    else { chatEl.appendChild(list); if (chat.problem) chatEl.appendChild(problemBox(chat.problem)); chatEl.appendChild(composer()); }
   }
 
   function bubble(m) {
@@ -4122,24 +4125,29 @@
       el.appendChild(h("h1", { text: t.other_name }));
       el.appendChild(h("p", { class: "muted", text: t.kind === "bench" ? t.gig_title + ": your ongoing bench conversation. It shares no files and is not a contract; new work goes through a gig. Keep all work, contact and payment on Lawfecta." : "About the gig \"" + t.gig_title + "\". Keep all work, contact and payment on Lawfecta." }));
       var tools = h("div", { class: "row", style: "flex-wrap:wrap" });
-      if ((me.switches || {}).meetings && r.writable && t.kind !== "bench") tools.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { bookPanel(el, t.gig_id, t.freelancer_person, null); } }, "Book a meeting"));
       if (t.kind !== "bench") tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { gigs.id = t.gig_id; gigs.view = "details"; tab = me.side === "attorney" ? "projects" : "work"; talk.thread = null; draw(); } }, "Open the gig"));
+      if ((me.switches || {}).meetings && r.writable && t.kind !== "bench") tools.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { bookPanel(el, t.gig_id, t.freelancer_person, null); } }, "Book a meeting"));
+      // The two main actions first; AI help and More (Report, Block) open on request (UX review I01)
+      var aiHelp = h("details", { class: "inline-menu" }, h("summary", { class: "small", style: "cursor:pointer", text: "✦ AI help" }));
+      var moreMenu = h("details", { class: "inline-menu" }, h("summary", { class: "small", style: "cursor:pointer", text: "More" }));
       if ((me.switches || {}).chat_assistant) {
         [["summarize", "✦ Summarize"], ["agreed", "✦ What we agreed"]].forEach(function (x) {
-          tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+          aiHelp.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
             api.post("/threads/assist", { thread_id: t.id, mode: x[0] }).then(gigOk).then(function (y) { aiOut.hidden = false; aiOut.textContent = y.text + "\n\nDELA's summary is for reading only. It does not change the gig, a proposal or an agreement."; }).catch(talkFail);
           } }, x[1]));
         });
       }
-      tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+      moreMenu.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
         var why = prompt("What is wrong? The Lawfecta Team reads every report.");
         if (why === null) return;
         api.post("/threads/report", { thread_id: t.id, reason: why }).then(gigOk).then(function () { D.toast(app, "Reported to the Lawfecta Team"); }).catch(talkFail);
       } }, "Report"));
-      if (!t.blocked || t.blocked_by_me) tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+      if (!t.blocked || t.blocked_by_me) moreMenu.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
         if (!t.blocked && !confirm("Block this conversation? New messages and meetings stop, and upcoming meetings are canceled. The Lawfecta Team is told.")) return;
         api.post("/threads/block", { thread_id: t.id, block: !t.blocked }).then(gigOk).then(function () { draw(); D.toast(app, t.blocked ? "Unblocked" : "Blocked"); }).catch(talkFail);
       } }, t.blocked ? "Unblock" : "Block"));
+      if ((me.switches || {}).chat_assistant) tools.appendChild(aiHelp);
+      tools.appendChild(moreMenu);
       el.appendChild(tools);
       var aiOut = h("p", { class: "helpbox", hidden: true, role: "status", style: "white-space:pre-wrap" });
       el.appendChild(aiOut);

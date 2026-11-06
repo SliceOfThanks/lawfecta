@@ -127,6 +127,8 @@ async function makeMember(bd, side, plan) {
     await dela(p).locator(".work", { hasText: "Client intake help" }).first().click();
     t = await waitFor(p, "Can you start Monday?");
     ok(!t.includes("512-555-0199"), "the held message is not shown to the freelancer");
+    await dela(p).locator("summary", { hasText: "✦ AI help" }).click();
+    ok(await dela(p).locator("summary", { hasText: "More" }).count() === 1, "Report and Block sit under More, AI help under its own menu (UX review I01)");
     await click(p, "✦ Summarize");
     t = await waitFor(p, "The attorney asked about intake");
     ok(t.includes("does not change the gig"), "DELA's summary is labeled as reading only");
