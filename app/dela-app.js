@@ -4629,7 +4629,7 @@
   function nextStep(r, mySigned, theirSigned) {
     var a = r.agreement, att = r.role === "attorney", box = h("div", { class: "card" }, h("h2", { text: "What happens next" }));
     if (a.status === "signing" || a.status === "draft") {
-      if (mySigned && !theirSigned) box.appendChild(h("p", { text: "You signed version " + a.version + ". Waiting for the " + (att ? "freelancer" : "attorney") + " to sign." }));
+      if (mySigned && !theirSigned) box.appendChild(h("p", { text: "You signed version " + a.version + ". Waiting for the " + (att ? "freelancer" : ((((r.current || {}).body || {}).parties || {}).client || {}).kind === "agency" ? "agency" : "attorney") + " to sign." }));
       else box.appendChild(signForm(r, theirSigned));
     } else if ((a.status === "signed" || a.status === "active") && att) {
       var due = (r.milestones || []).filter(function (m) { return m.status === "pending" || m.status === "awaiting_funding"; })[0];
@@ -4675,7 +4675,7 @@
       if (!name.value.trim() || !ok.checked) { D.toast(app, ENG_ERR.sign_needs_name_and_consent, true); return; }
       go.disabled = true;
       api.post("/agreements/sign", { id: a.id, version: a.version, typed_name: name.value, consent: true }).then(engOk).then(function (x) {
-        engReload(x.both_signed ? "Signed by both of you." + (r.role === "attorney" ? " Pay the first milestone to start." : " The attorney pays the first milestone next.") : "Signed. Waiting for the other signature.");
+        engReload(x.both_signed ? "Signed by both of you." + (r.role === "attorney" ? " Pay the first milestone to start." : ((((r.current || {}).body || {}).parties || {}).client || {}).kind === "agency" ? " The agency pays the first milestone next." : " The attorney pays the first milestone next.") : "Signed. Waiting for the other signature.");
       }).catch(function (e) { go.disabled = false; engFail(e); });
     });
     return h("div", null,
