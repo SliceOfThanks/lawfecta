@@ -2,6 +2,13 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## UX Phase 4 part A: the approved-version page, on the test site 2026-11-06 (commit c62557c, api version 52, migration 0054)
+- Brief and Stacey's answers ("all as suggested"): docs/briefs/step-8a-phase-4.md. Order: A, then the five checks before a commitment with the two freelancer helpers, then the other AI helpers, then the Appearance choice. The first ten minutes waits for the onboarding widget.
+- Behind the switch approved_view (access list on the test site, off on Live): an approved document opens on "Approved version N" (version, approval date and approver, the document as exported, no Save button) with "Edit a new draft". While a draft is open the approved version stays in use, the draft page links back to it, and exports use the approved version unless "Export this draft" is used (marked DRAFT).
+- An approved version saved before the document standard (for example DOC-01 on the test site) still opens the old way.
+- New settings (migration 0054): DELA actions for each AI helper (1, or 2 for comparing proposals and checking an agreement), ai.compare_max_proposals, appearance.default (light). Switches ai_helpers and appearance_choice, off.
+- ChatGPT test: docs/tests/step-8a-approved-version-chatgpt-prompt.md (attorney, then owner).
+
 ## Step 7c part 2: standing arrangements (limited automatic repeat hiring), on the test site 2026-11-06 (commit d6302df, api version 51, migrations 0052 and 0053)
 - Behind the switch auto_repeat_hiring: on for the test accounts only on the test site; off on Live until counsel approves the wording.
 - An attorney owner or manager (paid attorney plans) sets one up from Talent ("Set up a standing arrangement"): the approved SOPs and Workflows it covers, a price per job, a required monthly spend cap, the most jobs open at once and an end date (up to 12 months). Both sign once with typed names.
