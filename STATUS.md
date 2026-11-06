@@ -2,6 +2,16 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 9b: attorney plan usage limits, on the test site 2026-11-06 (commit dbeb27b, api version 49, migration 0051)
+- Brief and answers: docs/briefs/step-9b-attorney-usage-limits.md.
+- New attorney plan versions: documents 3, 15, 50, unlimited; DELA actions (weighted credits) 50, 300, 1,000, 2,500; storage 1, 10, 50, 200 GB. A Business firm shares one counter. Freelancer limits unchanged.
+- BD plan IDs linked on the test site: Attorney Free 5, Plus 13, Pro 12, Business 14. Freelancer IDs not linked yet (waiting for the trial answers).
+- Counting, the 80% banner, the meter, the Usage page (tab=usage, or a BD page at /account/usage) and the admin Usage tab are on. Blocking at 100% (the saved-documents block and read-only documents after a downgrade) waits for the switch usage_limits_enforced, off.
+- Nightly BD plan sync at 2:00 AM Pacific; admin "Resync plan"; bonus actions with a required note.
+- Fixed: a full library was refused only after DELA's AI had drafted (and used credits); now refused first.
+- ChatGPT test: docs/tests/step-9b-usage-limits-chatgpt-prompt.md (Claude prepares the test attorney first, and restores after).
+- For Stacey in BD: the Usage page at /account/usage needs a BD page with the DELA-App widget; the Upgrade buttons go to /account/upgrade until she confirms the address that preselects a plan.
+
 ## Step 8: UX review fixes, phases 0 and 1, on the test site 2026-11-06 (commit 91f08fc, api version 46)
 - Brief: docs/briefs/step-8-ux-review.md (Stacey's answers: phases 0 to 3 now, directory sync stays ticked, no monthly rollover, UX before 7c part 2).
 - Phase 0 (five Fix commits, each with a test that failed first): monthly engagements show only the monthly cancel (the api refuses the one-off cancel), each notice has its own button, Comments names "Draft and review", the Engagements card keeps its place, delegated suggestions show their gig.
