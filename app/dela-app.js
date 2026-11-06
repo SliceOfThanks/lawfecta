@@ -3119,6 +3119,7 @@
           todoEmpty();
         });
       }
+      var stSlot = h("div"); el.appendChild(stSlot); standingCard(stSlot);
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     return el;
   }
@@ -3816,6 +3817,136 @@
   var talentQ = { practice_area: "", skill: "", tool: "", state: "" };
   var talentMode = "search";
   try { if (new URLSearchParams(location.search).get("view") === "bench") talentMode = "bench"; } catch (e) { /* no deep link */ }
+  // ---------- Step 7c part 2: standing arrangements (limited automatic repeat hiring) ----------
+  // Off on Live until counsel approves (switch auto_repeat_hiring): the card then says "Coming soon".
+  var STANDING_WORDS = { proposed: "Waiting for the freelancer", active: "Active", needs_review: "Needs review", ending: "Ending after open jobs", ended: "Ended", declined: "Declined" };
+  var STANDING_ERR = { standing_off: "Standing arrangements are not open for your account yet.", standing_paid_plans_only: "Standing arrangements are part of the paid attorney plans (Plus, Pro and Business).",
+    owners_and_managers_only: "Only the firm's owner or a manager can set up or change a standing arrangement.", cap_required: "Set a monthly spend cap. DELA does not save an arrangement without one.",
+    price_over_cap: "The price per job cannot be more than the monthly cap.", price_too_low: "The price per job is below the smallest engagement allowed.", bad_end_date: "Pick an end date within 12 months.",
+    docs_required: "Choose at least one approved SOP or Workflow.", doc_not_approved: "Only approved SOPs and Workflows can be covered.", freelancer_not_verified: "This freelancer is not verified right now.",
+    sign_needs_name_and_consent: "Type your full name and tick the box.", standing_not_active: "This arrangement is not active, so it cannot hire right now.", on_hold: "A hold on one of the accounts stops hiring right now.",
+    dispute_open: "A job from this arrangement is in a dispute, so hiring is paused.", freelancer_unavailable: "The freelancer is not available right now. Try someone from your bench, or post a gig.",
+    decline_window_over: "The time to decline this job is over.", work_started: "Work on this job has started, so it cannot be declined here.", bad_max_open: "Choose 1 to 20 jobs open at once." };
+  function standingErr(e) { return STANDING_ERR[e && e.reason] || ENG_ERR[e && e.reason] || D.errorText(e && (e.reason || e.message)); }
+  function signBox(prefix) {
+    var name = h("input", { "aria-label": prefix + ": type your full name", style: "width:100%", autocomplete: "name" });
+    var ok = h("input", { type: "checkbox", "aria-label": prefix + ": I agree" });
+    return { name: name, ok: ok };
+  }
+  function standingSetup(person, personName) {
+    loadStanding().then(function (st) {
+      var m = modal("Standing arrangement with " + personName);
+      if (!st.on) { m.body.appendChild(h("p", { text: "Standing arrangements are coming soon." })); m.foot.appendChild(h("button", { class: "ghost", type: "button", onclick: m.close }, "Close")); return; }
+      if (!st.can_create) { m.body.appendChild(h("p", { class: "notice", text: STANDING_ERR.standing_paid_plans_only + " " + STANDING_ERR.owners_and_managers_only })); m.foot.appendChild(h("button", { class: "ghost", type: "button", onclick: m.close }, "Close")); return; }
+      var df = st.defaults || {};
+      m.body.appendChild(h("p", { class: "small", text: "Hire " + personName + " again for the same work without a new proposal each time. You both sign once. Inside these limits you hire in one click and DELA charges your saved card at once. Anything outside them becomes a normal gig draft." }));
+      var docs = (st.docs || []).map(function (d) { var c = h("input", { type: "checkbox", value: d.playbook_id }); return { c: c, el: h("label", { style: "display:flex;gap:8px;font-weight:400" }, c, h("span", { text: (d.doc_id ? d.doc_id + " " : "") + d.title + " (version " + d.version + ")" })) }; });
+      m.body.appendChild(h("b", { text: "Documents covered (approved SOPs and Workflows)" }));
+      if (!docs.length) m.body.appendChild(h("p", { class: "muted small", text: "No approved SOPs or Workflows yet." }));
+      docs.forEach(function (d) { m.body.appendChild(d.el); });
+      var price = h("input", { type: "number", min: "0", step: "1", "aria-label": "Price per job ($)", placeholder: String((df.min_price_cents || 0) / 100) });
+      var cap = h("input", { type: "number", min: "0", step: "1", "aria-label": "Monthly spend cap ($)" });
+      var open = h("input", { type: "number", min: "1", max: "20", step: "1", "aria-label": "Most jobs open at once", value: String(df.max_open || 3) });
+      var endDefault = new Date(); endDefault.setMonth(endDefault.getMonth() + (df.months || 6));
+      var end = h("input", { type: "date", "aria-label": "End date", value: endDefault.toISOString().slice(0, 10) });
+      var firm = h("input", { type: "checkbox" });
+      m.body.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, field("Price per job ($)", price), field("Monthly spend cap ($)", cap, "Required. Hires stop at the cap each month.")));
+      m.body.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, field("Most jobs open at once", open), field("End date", end, "Up to " + (df.max_months || 12) + " months.")));
+      m.body.appendChild(h("label", { style: "display:flex;gap:8px;font-weight:400;margin:6px 0" }, firm, h("span", { text: "Let other attorneys in the firm use this arrangement" })));
+      var sb = signBox("Standing arrangement");
+      m.body.appendChild(field("Your full name", sb.name, "Your typed name is your signature."));
+      m.body.appendChild(h("label", { style: "display:flex;gap:8px;font-weight:400;margin:6px 0" }, sb.ok, h("span", { text: "I sign this standing arrangement for the firm, and I agree that Lawfecta may charge the saved payment method for each job hired from it, up to the monthly cap." })));
+      var msg = h("p", { class: "small", role: "status" });
+      m.body.appendChild(msg);
+      m.foot.appendChild(h("button", { class: "blue", type: "button", onclick: function () {
+        api.post("/standing/create", { freelancer_person: person, docs: docs.filter(function (d) { return d.c.checked; }).map(function (d) { return d.c.value; }), price: price.value, cap: cap.value, max_open: Number(open.value),
+          end_on: end.value, allow_firm: firm.checked, typed_name: sb.name.value, consent: sb.ok.checked, request_id: newId() }).then(function (r) {
+          if (!r.ok) { msg.textContent = standingErr(r); return; }
+          m.close(); D.toast(app, "Sent to " + personName + " to accept."); if (tab === "projects") draw();
+        }).catch(function (e) { msg.textContent = standingErr(e); });
+      } }, "Sign and send"));
+      m.foot.appendChild(h("button", { class: "ghost", type: "button", onclick: m.close }, "Cancel"));
+    });
+  }
+  function loadStanding() { return api.get("/standing").catch(function () { return { on: false, arrangements: [] }; }); }
+  function standingCard(slot) {
+    loadStanding().then(function (st) {
+      var att = me.side === "attorney";
+      if (!st.on) { if (att) slot.appendChild(h("div", { class: "card" }, h("h2", { text: "Standing arrangements" }), h("span", { class: "soon", text: "Coming soon" }), h("p", { class: "small muted", text: "Hire a trusted freelancer again in one click, inside limits you both sign once." }))); return; }
+      var list = st.arrangements || [];
+      if (!list.length && !att) return;
+      var c = h("div", { class: "card", id: "standing-card" }, h("h2", { text: "Standing arrangements (" + list.length + ")" }), cardStatus("standing"));
+      if (!list.length) c.appendChild(h("p", { class: "muted", text: "None yet. In Talent, choose a freelancer and click \"Set up a standing arrangement\"." }));
+      list.forEach(function (a) {
+        var box = h("div", { class: "soft standing", style: "margin:10px 0;padding:10px 12px;border-radius:12px" });
+        box.appendChild(h("div", { class: "row" }, h("b", { class: "grow", text: att ? a.freelancer_name : a.firm_name }), h("span", { class: "badge " + (a.status === "active" ? "ready" : a.status === "needs_review" || a.status === "proposed" ? "held" : "C"), text: STANDING_WORDS[a.status] || a.status })));
+        box.appendChild(h("p", { class: "small", style: "margin:4px 0", text: D.money(a.price_cents) + " per job | " + D.money(a.spend_cents) + " of " + D.money(a.cap_cents) + " this month | " + a.open + " of " + a.max_open + " jobs open | until " + D.date(a.end_on) }));
+        box.appendChild(h("p", { class: "small muted", style: "margin:4px 0", text: "Covers: " + (a.docs || []).map(function (d) { return (d.doc_id ? d.doc_id + " " : "") + d.title + " (version " + d.version + ")"; }).join("; ") }));
+        if (a.review_reason) box.appendChild(h("p", { class: "notice", text: a.review_reason + " Automatic hiring is paused until you both approve." }));
+        function act(path, body, okMsg) { return api.post(path, Object.assign({ id: a.id }, body || {})).then(function (r) { if (!r.ok) throw r; cardSay("standing", typeof okMsg === "function" ? okMsg(r) : okMsg); setTimeout(draw, 900); }).catch(function (e) { cardSay("standing", standingErr(e), true); }); }
+        // The freelancer accepts once, with their typed name
+        if (!att && a.status === "proposed") {
+          var sbA = signBox("Accept");
+          box.appendChild(field("Your full name", sbA.name));
+          box.appendChild(h("label", { style: "display:flex;gap:8px;font-weight:400;margin:6px 0" }, sbA.ok, h("span", { text: "I accept this standing arrangement. Jobs inside its limits start without a new proposal; I can decline a job within " + ((st.defaults || {}).decline_hours || 24) + " hours, and end the arrangement any time." })));
+          box.appendChild(h("div", { class: "row" }, h("button", { class: "blue small", type: "button", onclick: function () { act("/standing/accept", { accept: true, typed_name: sbA.name.value, consent: sbA.ok.checked }, "Accepted. The firm can now hire you again in one click."); } }, "Accept"),
+            h("button", { class: "ghost small", type: "button", onclick: function () { act("/standing/accept", { accept: false }, "Declined."); } }, "Decline")));
+        }
+        // Approving again after a material change or new limits
+        if (a.status === "needs_review" && (att ? a.role === "manager" : true)) {
+          var mineOk = att ? a.review_attorney_ok : a.review_freelancer_ok;
+          if (mineOk) box.appendChild(h("p", { class: "small muted", text: "You approved. Waiting for the other person." }));
+          else {
+            var sbR = signBox("Review");
+            box.appendChild(field("Your full name", sbR.name));
+            box.appendChild(h("label", { style: "display:flex;gap:8px;font-weight:400;margin:6px 0" }, sbR.ok, h("span", { text: "I approve the arrangement again with these documents and limits." })));
+            box.appendChild(h("div", { class: "row" }, h("button", { class: "blue small", type: "button", onclick: function () { act("/standing/review", { approve: true, typed_name: sbR.name.value, consent: sbR.ok.checked }, function (r) { return r.status === "active" ? "Approved by both. One-click hiring works again." : "Approved. Waiting for the other person."; }); } }, "Review and approve"),
+              a.pending ? h("button", { class: "ghost small", type: "button", onclick: function () { act("/standing/review", { approve: false }, "Not approved. The signed limits stay."); } }, "Do not approve") : null));
+          }
+        }
+        // One click: hire again (attorneys who may use it)
+        if (att && a.status === "active" && (a.role === "manager" || a.role === "user")) {
+          var pick = h("select", { "aria-label": "Document to hire for" }, (a.docs || []).map(function (d) { return h("option", { value: d.playbook_id, text: d.title }); }));
+          var go = h("button", { class: "blue small", type: "button" }, "Hire again from my standing arrangement");
+          var req = newId();
+          go.addEventListener("click", function () {
+            go.disabled = true;
+            api.post("/standing/hire", { id: a.id, playbook_id: pick.value, request_id: req }).then(function (r) {
+              go.disabled = false; req = newId();
+              if (!r.ok && r.draft_gig_id) { cardSay("standing", (r.reason === "over_cap" ? "This job would pass the monthly cap (" + D.money(r.spend_cents) + " of " + D.money(r.cap_cents) + " used)." : r.reason === "too_many_open" ? "The most jobs open at once (" + r.max_open + ") are already open." : "That document is not covered.") + " Nothing was charged. A gig draft was made instead; open it from Your gigs to post it the normal way.", true); return; }
+              if (!r.ok) { cardSay("standing", standingErr(r), true); return; }
+              if (r.pay_url) { location.href = r.pay_url; return; }
+              cardSay("standing", r.status === "active" ? "Hired and paid. " + D.money(r.cap_left_cents) + " of this month's cap is left." : "Hired. The payment is not finished yet: " + (r.payment === "payments_not_set_up" ? "payments are not set up on this site yet." : "open the job to pay."));
+              setTimeout(draw, 1200);
+            }).catch(function (e) { go.disabled = false; cardSay("standing", standingErr(e), true); });
+          });
+          box.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, pick, go));
+        }
+        // The jobs hired from it
+        if ((a.hires || []).length) box.appendChild(h("ul", { class: "list", style: "margin-top:6px" }, a.hires.map(function (x) {
+          return h("li", { class: "row" }, h("span", { class: "grow small", text: D.date(x.created_at) + ": " + x.title + ", " + D.money(x.price_cents) + " | " + ({ active: "Hired", paying: "Waiting for payment", declined: "Declined, refunded", failed: "Did not start", signing: "Starting" }[x.status] || x.status) }),
+            x.gig_id && x.status !== "failed" ? h("button", { class: "ghost small", type: "button", onclick: function () { gigs.id = x.gig_id; gigs.view = "agreement"; draw(); } }, "Open the job") : null,
+            x.can_decline ? h("button", { class: "ghost small", type: "button", onclick: function () { if (!confirm("Decline this job? The firm is refunded in full.")) return; api.post("/standing/decline-hire", { hire_id: x.id }).then(function (r) { if (!r.ok) throw r; cardSay("standing", "Declined. The firm is refunded in full."); setTimeout(draw, 900); }).catch(function (e) { cardSay("standing", standingErr(e), true); }); } }, "Decline this job") : null);
+        })));
+        // Change the limits (both sign again) and end it
+        var tools = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" });
+        if (att && a.role === "manager" && a.status === "active") tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+          var pr = h("input", { type: "number", min: "0", step: "1", "aria-label": "New price per job ($)", value: String(a.price_cents / 100) }), cp = h("input", { type: "number", min: "0", step: "1", "aria-label": "New monthly spend cap ($)", value: String(a.cap_cents / 100) });
+          var op = h("input", { type: "number", min: "1", max: "20", step: "1", "aria-label": "New most jobs open at once", value: String(a.max_open) }), sbC = signBox("New limits");
+          box.appendChild(h("div", { class: "soft", style: "margin-top:6px" }, h("p", { class: "small", text: "New limits pause one-click hiring until the freelancer approves them." }), h("div", { class: "row", style: "flex-wrap:wrap" }, field("Price per job ($)", pr), field("Monthly spend cap ($)", cp), field("Most jobs open at once", op)),
+            field("Your full name", sbC.name), h("label", { style: "display:flex;gap:8px;font-weight:400" }, sbC.ok, h("span", { text: "I sign the new limits for the firm." })),
+            h("button", { class: "blue small", type: "button", onclick: function () { act("/standing/change", { price: pr.value, cap: cp.value, max_open: Number(op.value), typed_name: sbC.name.value, consent: sbC.ok.checked }, "Sent. Hiring is paused until the freelancer approves."); } }, "Sign and send the new limits")));
+        } }, "Change limits"));
+        if ((att ? a.role === "manager" : true) && ["proposed", "active", "needs_review"].indexOf(a.status) >= 0 && !(a.status === "proposed" && !att)) tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+          if (!confirm("End this standing arrangement? No new jobs can be hired from it; open jobs finish as agreed.")) return; act("/standing/end", {}, function (r) { return r.status === "ending" ? "Ending once the open jobs finish." : "Ended."; });
+        } }, "End arrangement"));
+        if (tools.children.length) box.appendChild(tools);
+        c.appendChild(box);
+      });
+      slot.appendChild(c);
+    });
+  }
+
   var US_STATES = [["AL","Alabama"],["AK","Alaska"],["AZ","Arizona"],["AR","Arkansas"],["CA","California"],["CO","Colorado"],["CT","Connecticut"],["DE","Delaware"],["DC","District of Columbia"],["FL","Florida"],["GA","Georgia"],["HI","Hawaii"],["ID","Idaho"],["IL","Illinois"],["IN","Indiana"],["IA","Iowa"],["KS","Kansas"],["KY","Kentucky"],["LA","Louisiana"],["ME","Maine"],["MD","Maryland"],["MA","Massachusetts"],["MI","Michigan"],["MN","Minnesota"],["MS","Mississippi"],["MO","Missouri"],["MT","Montana"],["NE","Nebraska"],["NV","Nevada"],["NH","New Hampshire"],["NJ","New Jersey"],["NM","New Mexico"],["NY","New York"],["NC","North Carolina"],["ND","North Dakota"],["OH","Ohio"],["OK","Oklahoma"],["OR","Oregon"],["PA","Pennsylvania"],["RI","Rhode Island"],["SC","South Carolina"],["SD","South Dakota"],["TN","Tennessee"],["TX","Texas"],["UT","Utah"],["VT","Vermont"],["VA","Virginia"],["WA","Washington"],["WV","West Virginia"],["WI","Wisconsin"],["WY","Wyoming"]];
   function talentView() {
     var el = h("div", null, h("h1", { text: "Talent" }));
@@ -3861,6 +3992,7 @@
           if ((me.switches || {}).bench) act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
             api.post("/bench/invite", { freelancer: p.person_id, request_id: newId() }).then(engOk).then(function (y) { D.toast(app, y.duplicate ? p.name + " is already on your bench or invited" : "Bench invitation sent to " + p.name); }).catch(revFail);
           } }, "Invite to my bench"));
+          if ((me.switches || {}).auto_repeat_hiring && me.side === "attorney") act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { standingSetup(p.person_id, p.name); } }, "Set up a standing arrangement"));
           var rb = reviewsButton(p.person_id, "freelancer", p.name);
           if (rb) act.appendChild(rb);
           results.appendChild(h("div", { class: "card", style: "margin:8px 0" }, h("b", { text: p.name }), p.headline ? h("div", { class: "small", text: p.headline }) : null,
@@ -3910,6 +4042,7 @@
         });
         el.appendChild(c);
       }
+      var stSlotF = h("div"); el.appendChild(stSlotF); standingCard(stSlotF);
       section("Invitations", r.invitations, "No invitations right now.");
       section("Matches", r.matches, "No matches right now. Keep your availability confirmed and your profile up to date.");
       if (r.open_gigs.length) section("Open gigs", r.open_gigs, "");

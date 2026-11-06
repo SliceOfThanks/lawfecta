@@ -930,6 +930,21 @@
           } }, "Run the renewal now (test site)") : null));
       });
     }).catch(fail);
+    // Step 7c part 2: standing arrangements and their spend this month
+    var st = h("div", { class: "card", id: "admin-standing" }, h("h2", { text: "Standing arrangements" }), h("p", { class: "muted", text: "Loading..." }));
+    mainEl.appendChild(st);
+    api.get("/admin/standing").then(function (r) {
+      var d = r.data || r;
+      D.clear(st);
+      st.appendChild(h("h2", { text: "Standing arrangements" }));
+      st.appendChild(h("p", { class: "small muted", text: "Limited automatic repeat hiring. Each one names a price per job, a monthly cap, the most jobs open at once and an end date. Off on Live until counsel approves (switch auto_repeat_hiring)." }));
+      var list = d.arrangements || [];
+      if (!list.length) { st.appendChild(h("p", { class: "muted", text: "No standing arrangements yet." })); return; }
+      list.forEach(function (x) {
+        st.appendChild(h("div", { style: "border-top:1px solid var(--line);padding:8px 0" }, h("div", { class: "row" }, h("b", { class: "grow", text: x.firm + " hires " + x.freelancer }), h("span", { class: "badge " + (x.status === "active" ? "ready" : x.status === "needs_review" ? "bad" : "C"), text: x.status })),
+          h("p", { class: "small", style: "margin:4px 0", text: D.money(x.price_cents) + " per job | spend this month " + D.money(x.spend_cents) + " of " + D.money(x.cap_cents) + " | " + x.open + " of " + x.max_open + " open | jobs " + x.hires + ", declined " + x.declined + " | until " + D.date(x.end_on) })));
+      });
+    }).catch(fail);
   }
 
   // Step 9b: every attorney's plan, usage and AI cost this month; Resync plan from BD; bonus credits with a note

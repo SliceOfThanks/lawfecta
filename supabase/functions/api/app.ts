@@ -3449,6 +3449,7 @@ function mcpTools(side: string) {
     { name: "list_my_reviews", title: "My reviews", description: "Shows the reviews other members wrote about this member on this side (from completed Lawfecta engagements), with the averages once there are enough. Writing a review happens on the DELA website.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
     { name: "list_my_bench", title: "My bench", description: "Attorneys: the freelancers on their trusted bench (and the firm bench), with availability and reviews. Freelancers: the benches they are on and open invitations. Inviting and accepting happen on the DELA website.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
     { name: "list_my_engagements", title: "My engagements", description: "Lists the member's engagements (signed or waiting for signatures): the other person, the price, how many milestones are accepted and whether their signature is needed.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+    { name: "list_my_recurring_work", title: "My monthly engagements and standing arrangements", description: "Lists the member's monthly engagements and standing arrangements (price, monthly cap and spend, jobs open, end date, status). Read only: renewing, hiring, cancelling and approving happen on the DELA website.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
     { name: "get_engagement", title: "Read an engagement", description: "Reads one engagement: the current agreement version, its milestones with amounts, due dates and status, the last submission and DELA's check, and any dispute. Signing, paying, submitting and accepting happen on the DELA website.",
       inputSchema: { type: "object", properties: { engagement_id: { type: "string" } }, required: ["engagement_id"] }, annotations: { readOnlyHint: true } },
   ];
@@ -3534,6 +3535,19 @@ async function mcpCall(ctx: Ctx, w: McpWho, name: string, a: Record<string, any>
     const es = (r.engagements ?? []) as Array<Record<string, any>>;
     const usd = (c: number) => "$" + (Number(c) / 100).toFixed(2);
     return { text: es.length ? es.map((e) => `- ${e.gig_title} (id ${e.id}) with ${e.other_name}: ${e.status}, ${usd(e.total_cents)}, ${e.accepted} of ${e.milestones} milestones accepted` + (e.needs_me === "sign" ? ", waiting for your signature on the DELA website" : "")).join("\n") : "No engagements yet.", data: es };
+  }
+  if (name === "list_my_recurring_work") {
+    const usd = (c: number) => "$" + (Number(c) / 100).toFixed(2);
+    const e = await rpc<Record<string, any>>(ctx, "dela_engagements", { p_person: w.person_id, p_side: w.side });
+    const monthly: Array<Record<string, any>> = [];
+    for (const x of (e?.engagements ?? []) as Array<Record<string, any>>) if (await rpc<boolean>(ctx, "dela_agreement_is_monthly", { p_agreement: x.id })) monthly.push(x);
+    const st = await rpc<Record<string, any>>(ctx, "dela_standing_list", { p_person: w.person_id, p_side: w.side });
+    const arr = st?.on ? ((st.arrangements ?? []) as Array<Record<string, any>>) : [];
+    const lines = [
+      ...monthly.map((m) => `- Monthly: ${m.gig_title} with ${m.other_name}, ${usd(m.total_cents)} a month, ${m.status}`),
+      ...arr.map((x) => `- Standing arrangement with ${w.side === "attorney" ? x.freelancer_name : x.firm_name}: ${usd(x.price_cents)} per job, ${usd(x.spend_cents)} of ${usd(x.cap_cents)} this month, ${x.open} of ${x.max_open} jobs open, until ${x.end_on}, ${x.status}`),
+    ];
+    return { text: lines.length ? lines.join("\n") : "No monthly engagements or standing arrangements yet.", data: { monthly, standing: arr } };
   }
   if (name === "get_engagement") {
     const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: w.person_id, p_side: w.side, p_agreement: uuid(a.engagement_id) });
@@ -4092,7 +4106,7 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "gig_tick") { await rpc(ctx, "dela_gig_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "engagement_tick") { await rpc(ctx, "dela_engagement_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "engagements_daily") return await engagementsDaily(ctx);
-  if (j.kind === "monthly_hourly") return await monthlyRun(ctx);
+  if (j.kind === "monthly_hourly") { await rpc(ctx, "dela_standing_tick", {}).catch(() => null); return await monthlyRun(ctx); }
   if (j.kind === "bd_plan_sync") return await planSyncJob(ctx, j.payload ?? {});
   if (j.kind === "confidential_daily") return await confDaily(ctx);
   if (j.kind === "links_hourly") return { ok: true, ...(await rpc<Record<string, unknown>>(ctx, "dela_links_sweep", {}) ?? {}) };
@@ -4192,6 +4206,37 @@ async function deliveryCheck(ctx: Ctx, p: Record<string, any>) {
 
 // ---------- Router ----------
 
+// ---------- Step 7c part 2: standing arrangements (limited automatic repeat hiring; off on Live until counsel approves) ----------
+// One click hires again inside the signed limits: the database checks every limit and makes the gig and the agreement,
+// then the api builds the agreement, signs it for both under the arrangement, and charges the saved card at once.
+async function standingHire(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (s.side !== "attorney") throw new HttpError(403, "attorneys_only");
+  const r = await rpc<Record<string, any>>(ctx, "dela_standing_hire_start", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)), p_playbook: need(uuid(ctx.body.playbook_id)), p_request: need(str(ctx.body.request_id, 80)) });
+  if (!r?.ok || r.duplicate) return json(ctx, r);
+  const ag = r.agreement_id as string, att = r.attorney_person as string;
+  const fail = async (why: string) => { await rpc(ctx, "dela_standing_hire_done", { p_hire: r.hire_id, p_status: "failed", p_failure: why }); return json(ctx, { ok: false, reason: why, hire_id: r.hire_id }); };
+  const facts = await rpc<Record<string, any>>(ctx, "dela_agreement_facts", { p_person: att, p_side: "attorney", p_agreement: ag });
+  if (!facts?.ok) return await fail(facts?.reason ?? "agreement_failed");
+  await rpc(ctx, "dela_agreement_version_add", { p_person: att, p_side: "attorney", p_agreement: ag, p_body: buildBody(facts), p_note: "Repeat hire under a standing arrangement", p_base: 0 });
+  // Both signed the arrangement once; each hire inside its limits is signed under it (answer 21)
+  const how = { version: 1, consent: true, ip: "standing arrangement", user_agent: "standing arrangement " + ctx.body.id };
+  const a1 = await rpc<Record<string, any>>(ctx, "dela_agreement_sign", { p_person: att, p_side: "attorney", p_agreement: ag, p: { ...how, typed_name: r.attorney_typed_name } });
+  if (!a1?.ok) return await fail(a1?.reason ?? "sign_failed");
+  const a2 = await rpc<Record<string, any>>(ctx, "dela_agreement_sign", { p_person: r.freelancer_person, p_side: "freelancer", p_agreement: ag, p: { ...how, typed_name: r.freelancer_typed_name } });
+  if (!a2?.ok) return await fail(a2?.reason ?? "sign_failed");
+  // The saved card is charged now; work starts once it is paid (answer 22). Without Stripe or a saved card, a pay link.
+  const key = await stripeKey(ctx);
+  let status = "paying", pay: Record<string, any> = { ok: false, reason: "payments_not_set_up" };
+  if (key) {
+    const n = await rpc<Record<string, any>>(ctx, "dela_payment_next", { p_person: att, p_side: "attorney", p_agreement: ag });
+    if (n?.ok) pay = await chargeOrCheckout(ctx, key, n, false);
+    if (pay.ok && pay.status === "succeeded") status = "active";
+  }
+  const done = await rpc<Record<string, any>>(ctx, "dela_standing_hire_done", { p_hire: r.hire_id, p_status: status, p_failure: pay.ok ? "" : String(pay.reason ?? "") });
+  return json(ctx, { ok: true, hire_id: r.hire_id, gig_id: r.gig_id, agreement_id: ag, status, pay_url: pay.url ?? null, payment: pay.ok ? pay.status : pay.reason, cap_left_cents: done?.cap_left_cents });
+}
+
 // Routes that change a document's content (the read-only check after a downgrade applies to these)
 const EDIT_ROUTES = new Set(["POST /playbooks/save", "POST /playbooks/save-draft", "POST /playbooks/fill", "POST /playbooks/restore", "POST /documents/fix", "POST /documents/type"]);
 
@@ -4257,6 +4302,31 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     // deleting still work. The check runs only while usage_limits_enforced is on (inside dela_pb_locked).
     if (EDIT_ROUTES.has(key) && uuid(body.id) && await rpc<boolean>(ctx, "dela_pb_locked", { p_pb: uuid(body.id) })) return json(ctx, { ok: false, reason: "document_read_only" });
     switch (key) {
+      case "GET /standing": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_standing_list", { p_person: s.person_id, p_side: s.side })); }
+      case "POST /standing/create": {
+        const s = await memberSide(ctx);
+        if (s.side !== "attorney") throw new HttpError(403, "attorneys_only");
+        return json(ctx, await rpc(ctx, "dela_standing_create", { p_person: s.person_id, p: { freelancer_person: need(uuid(ctx.body.freelancer_person)), docs: Array.isArray(ctx.body.docs) ? (ctx.body.docs as unknown[]).map(uuid).filter(Boolean).slice(0, 20) : [],
+          price_cents: toCents(ctx.body.price), cap_cents: toCents(ctx.body.cap), max_open: int(ctx.body.max_open), end_on: /^\d{4}-\d{2}-\d{2}$/.test(String(ctx.body.end_on ?? "")) ? ctx.body.end_on : "",
+          allow_firm: ctx.body.allow_firm === true, typed_name: str(ctx.body.typed_name, 200), consent: ctx.body.consent === true, request_id: need(str(ctx.body.request_id, 80)) } }));
+      }
+      case "POST /standing/accept": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); return json(ctx, await rpc(ctx, "dela_standing_accept", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)), p: { accept: ctx.body.accept === true, typed_name: str(ctx.body.typed_name, 200), consent: ctx.body.consent === true } })); }
+      case "POST /standing/hire": return await standingHire(ctx);
+      case "POST /standing/decline-hire": {
+        const s = await memberSide(ctx);
+        if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
+        const r = await rpc<Record<string, any>>(ctx, "dela_standing_decline_hire", { p_person: s.person_id, p_hire: need(uuid(ctx.body.hire_id)) });
+        if (r?.ok) await sendRefunds(ctx);
+        return json(ctx, r);
+      }
+      case "POST /standing/end": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_standing_end", { p_person: s.person_id, p_side: s.side, p_id: need(uuid(ctx.body.id)) })); }
+      case "POST /standing/change": {
+        const s = await memberSide(ctx);
+        if (s.side !== "attorney") throw new HttpError(403, "attorneys_only");
+        return json(ctx, await rpc(ctx, "dela_standing_change", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)), p: { price_cents: toCents(ctx.body.price), cap_cents: toCents(ctx.body.cap), max_open: int(ctx.body.max_open), typed_name: str(ctx.body.typed_name, 200), consent: ctx.body.consent === true } }));
+      }
+      case "POST /standing/review": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_standing_review", { p_person: s.person_id, p_side: s.side, p_id: need(uuid(ctx.body.id)), p: { approve: ctx.body.approve === true, typed_name: str(ctx.body.typed_name, 200), consent: ctx.body.consent === true } })); }
+      case "GET /admin/standing": { const s = await staff(ctx); return json(ctx, await rpc(ctx, "dela_admin_standing", { p_actor: s.person_id })); }
       case "GET /usage": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_usage", { p_person: s.person_id, p_side: s.side })); }
       case "GET /admin/usage": { const s = await staff(ctx); return json(ctx, await rpc(ctx, "dela_admin_usage", { p_actor: s.person_id })); }
       case "POST /admin/usage/bonus": { const s = await staff(ctx); return json(ctx, await rpc(ctx, "dela_admin_usage_bonus", { p_actor: s.person_id, p_person: need(uuid(ctx.body.person_id)), p_amount: int(ctx.body.amount), p_note: str(ctx.body.note, 500) })); }
