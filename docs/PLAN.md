@@ -70,6 +70,7 @@ Tests today: 8 database test files, 84 API tests, 15 script tests and 198 browse
 ## 2. What needs testing, in this order
 - Then: the usage limits test (docs/tests/step-9b-usage-limits-chatgpt-prompt.md), after the other two; Claude prepares and restores the test attorney.
 - Now: the monthly engagements test (docs/tests/step-7c-monthly-chatgpt-prompt.md), freelancer, attorney, then owner. Items prepared 2026-11-06.
+- Then: the part 3 check (docs/tests/step-8-ux-part-3-chatgpt-prompt.md), then the attorney UX review again to compare.
 - Now: the step 8 UX check (docs/tests/step-8-ux-parts-0-2-chatgpt-prompt.md), freelancer then attorney, look and type only.
 1. Logging in during ChatGPT tests: BD's reCAPTCHA cannot be turned off and blocks ChatGPT's agent. Stacey clicks "Take over" in ChatGPT, logs in herself at https://www.hirelegalhelp.com/login, and hands control back. Tests are grouped by login, so this happens about three times per test.
 2. Step 3 test (profiles and verification), passed 2026-11-05: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-3-chatgpt-prompt.md
@@ -116,7 +117,7 @@ Things only you can provide
 - A lawyer's review of the agreement terms template and the chargeback rule, before live payments.
 
 ## 4. What we build next
-- Now: UX review phase 2 (layout) and phase 3 (shared patterns), docs/briefs/step-8-ux-review.md. Then step 7c part 2.
+- Done: UX review parts 0 to 3 on the test site. Next: step 7c part 2 (standing arrangements), then the Phase 4 brief (approved-version view, new AI buttons, onboarding).
 - Built: attorney plan usage limits (step 9b), on the test site with blocking off. Turn blocking on after the test.
 - Waiting on Stacey: the Pro trial and downgrade to Free (docs/briefs/step-9-pro-trial-downgrade.md). Plan only; not built until she answers.
 

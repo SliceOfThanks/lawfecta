@@ -2,6 +2,13 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 8 part 3: shared patterns, on the test site 2026-11-06 (commit 4c091fc, api version 50)
+- One accessible help tip (keyboard, Escape, tied to its note) for the member app and the admin; a glossary of 20 terms written from what the code does, shown next to the headings that use them. The review's own tooltip list was not in this session, so the glossary is Claude's, checked against the code.
+- "What you are agreeing to" before every signature, "Before you pay" before the first payment; one style for AI buttons; DELA's Inbox summary labeled "AI suggestion" with Dismiss.
+- Moved from part 2 and done: the team card under the agreement, Agency and Agency lead first with the subcontracting sentence; fix buttons named for the check; "If ..., <action>" steps pass the verb check.
+- ChatGPT check: docs/tests/step-8-ux-part-3-chatgpt-prompt.md. After it, run the original attorney UX review again (docs/tests/attorney-ux-review-chatgpt-prompt.md) to compare ratings.
+- Not built (Phase 4, own brief): the read-only approved-version view, the 20 new AI buttons, first-10-minutes onboarding, dark mode.
+
 ## Step 9b: attorney plan usage limits, on the test site 2026-11-06 (commit dbeb27b, api version 49, migration 0051)
 - Brief and answers: docs/briefs/step-9b-attorney-usage-limits.md.
 - New attorney plan versions: documents 3, 15, 50, unlimited; DELA actions (weighted credits) 50, 300, 1,000, 2,500; storage 1, 10, 50, 200 GB. A Business firm shares one counter. Freelancer limits unchanged.
