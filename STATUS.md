@@ -2,6 +2,14 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## UX Phase 4 part B: the checks before a commitment, on the test site 2026-11-06 (commit 166e0a5, api version 53)
+- Behind the switch ai_helpers (access list on the test site, off on Live): "✦ Check the scope" (gig draft), "✦ Compare these proposals", "✦ Check this for me" (attorney and freelancer, before signing), "✦ Improve acceptance criteria" (fills the change editor; both sign a new version), "✦ Check monthly scope", "✦ Check my proposal" (freelancer).
+- Each shows its DELA actions before it runs (1, or 2 for comparing and checking an agreement), labels its answer "AI suggestion" with Use suggestion, Edit and Dismiss, and only fills the unsaved form. Code keeps known fields, at most 8 findings, drops sentences that rank people or call something legally correct, and keeps names out of the comparison prompt.
+- Checked on the test site with the real AI: Compare listed both proposals with the same fields and no ranking.
+- Fixed from Stacey's standing arrangements report (18 of 19 passed; step 11 was a wrong prompt line, now corrected): DELA fits a 290-pixel screen (Home tiles and bottom tabs), and an attorney opening a freelancer page is told so instead of seeing an empty page. Clearer wording on a hire with no saved card and on refused limits.
+- Prepared for the test: "Sample Freelancer (prepared)" (a made-up person, no login) and two proposals on "Build document checklist from questionnaire answers"; the test freelancer invited to "Preparing a Small Claims Filing Packet".
+- ChatGPT test: docs/tests/step-8a-checks-chatgpt-prompt.md (freelancer, then attorney; saves nothing).
+
 ## UX Phase 4 part A: the approved-version page, on the test site 2026-11-06 (commit c62557c, api version 52, migration 0054)
 - Brief and Stacey's answers ("all as suggested"): docs/briefs/step-8a-phase-4.md. Order: A, then the five checks before a commitment with the two freelancer helpers, then the other AI helpers, then the Appearance choice. The first ten minutes waits for the onboarding widget.
 - Behind the switch approved_view (access list on the test site, off on Live): an approved document opens on "Approved version N" (version, approval date and approver, the document as exported, no Save button) with "Edit a new draft". While a draft is open the approved version stays in use, the draft page links back to it, and exports use the approved version unless "Export this draft" is used (marked DRAFT).

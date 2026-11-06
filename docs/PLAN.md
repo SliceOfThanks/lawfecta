@@ -68,6 +68,8 @@ Tests today: 8 database test files, 84 API tests, 15 script tests and 198 browse
 - Every agent test now starts with the "How to work" block (docs/tests/AGENT-RULES.md) and says where to click at each step. The older prompts are marked "Not rewritten yet" until Claude rewrites them.
 
 ## 2. What needs testing, in this order
+- The checks before a commitment (docs/tests/step-8a-checks-chatgpt-prompt.md), freelancer then attorney, look only, before the usage limits test.
+- Done: standing arrangements test, 2026-11-06, 18 of 19 passed (step 11 was a prompt error, corrected).
 - The approved-version page (docs/tests/step-8a-approved-version-chatgpt-prompt.md), attorney then owner, before the usage limits test.
 - Now (before 2026-11-07, 2:49 PM Pacific): the standing arrangements test (docs/tests/step-7c-standing-chatgpt-prompt.md), freelancer, attorney, then owner. Items prepared 2026-11-06.
 - Then: the usage limits test (docs/tests/step-9b-usage-limits-chatgpt-prompt.md), after the other two; Claude prepares and restores the test attorney.
@@ -119,7 +121,7 @@ Things only you can provide
 - A lawyer's review of the agreement terms template and the chargeback rule, before live payments.
 
 ## 4. What we build next
-- Done: UX review parts 0 to 3 and step 7c part 2 (standing arrangements) on the test site. Phase 4 (docs/briefs/step-8a-phase-4.md, answered 2026-11-06): part A, the approved-version page, is on the test site. Next: the five checks before a commitment (scope, compare proposals, agreement, acceptance criteria, monthly scope) and the freelancer helpers, then the other AI helpers, then the Appearance choice.
+- Done: UX review parts 0 to 3 and step 7c part 2 (standing arrangements) on the test site. Phase 4 (docs/briefs/step-8a-phase-4.md, answered 2026-11-06): parts A (the approved-version page) and B (the checks before a commitment, with the freelancer helpers) are on the test site. Next: the other AI helpers (Check these steps, Improve this section, Explain these findings, Help me describe my firm, Improve my request, Help me find a fit, Draft an agenda, Help me write a review), then the Appearance choice.
 - Built: attorney plan usage limits (step 9b), on the test site with blocking off. Turn blocking on after the test.
 - Waiting on Stacey: the Pro trial and downgrade to Free (docs/briefs/step-9-pro-trial-downgrade.md). Plan only; not built until she answers.
 
