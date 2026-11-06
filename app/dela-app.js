@@ -5863,6 +5863,17 @@
             if (r.kind === "automate") row.appendChild(h("div", { class: "small", text: "Tool: " + r.tool + ". " + (r.in_firm ? "Already in your firm profile. " : "") + sentence(r.what_it_does) + (r.in_firm ? "" : sentence(r.tool_description)) }));
             else if ((r.skills || []).length) row.appendChild(h("div", { class: "small muted", text: "Skills: " + r.skills.join(", ") }));
             var acts = h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" });
+            // Already delegated (UX review D02): show where it stands, never as a new idea
+            var done = (st.delegations || []).filter(function (d) { return d.rec_id === r.id; })[0];
+            if (done) {
+              var gs = done.gig_status;
+              acts.appendChild(h("span", { class: "badge ready", text: !done.gig_id ? (done.kind === "setup" ? "Setup task started" : "Delegation started") : gs === "draft" ? "Gig drafted" : gs === "open" ? "Gig posted" : "Gig " + ((GIG_STATUS[gs] || gs || "").toLowerCase()) }));
+              acts.appendChild(done.gig_id ? h("button", { class: "ghost small", type: "button", onclick: function () { gigLink(done.gig_id, "projects"); } }, "View gig")
+                : h("button", { class: "ghost small", type: "button", onclick: function () { auto.open = done.id; load(); } }, "Continue"));
+              row.appendChild(acts);
+              card.appendChild(row);
+              return;
+            }
             function start(kind) {
               api.post("/automate/delegate", { review_id: st.review.id, rec_id: r.id, kind: kind }).then(function (x) { if (!x.ok) throw x; auto.open = x.delegation.id; load(); })
                 .catch(function (e) { cardSay("automate", autoErr(e), true); });

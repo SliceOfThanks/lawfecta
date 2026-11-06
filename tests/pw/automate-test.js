@@ -108,6 +108,8 @@ const DOC = (title) => JSON.stringify({ schema: 2, type: "sop", title, lifecycle
     s = await open(browser, ATT, `&tab=library&pb=${pb}`);
     t = await waitFor(s.page, "Delegated: Steps 1 to 2");
     ok(t.includes("Gig drafted, not posted yet."), "the parent shows what was delegated, and that its gig is not posted");
+    const recRow = await dela(s.page).locator("#automate-card .soft").filter({ hasText: "Collect and log intake forms" }).innerText();
+    ok(recRow.includes("Gig drafted") && recRow.includes("View gig") && !recRow.includes("Delegate these steps"), "a suggestion already delegated shows its gig, not a new idea (UX review D02)");
     await s.page.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=library&pb=${pb2}`);
     await waitFor(s.page, "DELA can find steps in this playbook");
     await dela(s.page).locator("#automate-card").getByText("Dismiss", { exact: true }).click();
