@@ -116,6 +116,7 @@ Things only you can provide
 
 ## 4. What we build next
 - Now: UX review phase 2 (layout) and phase 3 (shared patterns), docs/briefs/step-8-ux-review.md. Then step 7c part 2.
+- Waiting on Stacey: attorney plan usage limits (MVP), docs/briefs/step-9b-attorney-usage-limits.md. 8 questions; built after she answers.
 - Waiting on Stacey: the Pro trial and downgrade to Free (docs/briefs/step-9-pro-trial-downgrade.md). Plan only; not built until she answers.
 
 Every step follows the same path:
@@ -195,6 +196,9 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
 - The delegate path runs on one screen: the SOP for that task, its metrics and KPIs, then posting the gig.
 - A one-screen "Get set up" sequence for attorneys: profile, teach DELA about the firm, first playbook, automate or delegate, first gig.
 - Brief: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-4d-guided-setup-delegate-automate.md
+
+### 2027: attorney team seats (roadmap only)
+- docs/briefs/roadmap-2027-attorney-team-seats.md. First task in 2027: a feasibility review of BD Sub Accounts and seat billing, with a written estimate. No build before then.
 
 ### End of Phase 1, after the MVP launch (Stacey 2026-11-05)
 - **Onboarding widget** for attorneys and freelancers when they sign up. Each step can be skipped; the goal is to get people active.
