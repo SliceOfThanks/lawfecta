@@ -74,8 +74,47 @@ export function rubricFor(m: MilestoneBody, included: string[], checks: string[]
   return out;
 }
 
+// ---------- Monthly recurring engagements (Step 7c, Stacey's answers 2026-11-06) ----------
+export type MonthlyTask = { task: string; frequency: "daily" | "weekly" | "every_two_weeks" | "monthly"; quantity: number; turnaround: string; exclusions: string };
+export const FREQ_WORDS: Record<string, string> = { daily: "daily", weekly: "weekly", every_two_weeks: "every two weeks", monthly: "monthly" };
+// Each task names how often, an included quantity and a turnaround; "unlimited" is never allowed (answer 4)
+export function readTasks(raw: unknown): { tasks: MonthlyTask[]; reason?: string } {
+  const list = Array.isArray(raw) ? raw.slice(0, 12) : [];
+  const tasks = list.map((x: any) => ({ task: s(x?.task, 300), frequency: (["daily", "weekly", "every_two_weeks", "monthly"].includes(x?.frequency) ? x.frequency : "") as MonthlyTask["frequency"],
+    quantity: Math.round(Number(x?.quantity)), turnaround: s(x?.turnaround, 120), exclusions: s(x?.exclusions, 300) })).filter((x) => x.task || x.quantity);
+  if (!tasks.length) return { tasks, reason: "monthly_tasks_needed" };
+  if (tasks.some((x) => /unlimited/i.test([x.task, x.turnaround, x.exclusions].join(" ")))) return { tasks, reason: "no_unlimited" };
+  if (tasks.some((x) => x.task.length < 3)) return { tasks, reason: "monthly_task_needs_name" };
+  if (tasks.some((x) => !x.frequency)) return { tasks, reason: "monthly_task_needs_frequency" };
+  if (tasks.some((x) => !Number.isFinite(x.quantity) || x.quantity < 1)) return { tasks, reason: "monthly_task_needs_quantity" };
+  return { tasks };
+}
+// Month 1's units: Weekly units add up to the monthly price (whole dollars, the remainder on the last), or one monthly delivery
+export function monthlyUnits(price: number, mode: string, weeks: number, today = new Date()): MilestoneBody[] {
+  const n = mode === "monthly" ? 1 : Math.max(weeks || 4, 1);
+  let left = price;
+  return Array.from({ length: n }, (_, i) => {
+    const amt = i === n - 1 ? left : Math.floor(price / n / 100) * 100;
+    left -= amt;
+    return { seq: i + 1, title: n === 1 ? "Month 1 delivery" : "Month 1, week " + (i + 1), amount_cents: amt, due_date: addDays(today, n === 1 ? 30 : Math.min((i + 1) * 7, 30)),
+      deliverables: n === 1 ? "The month's included work, as listed in the terms" : "This week's share of the month's included work, as listed in the terms" };
+  });
+}
+export function monthlyClause(m: Record<string, any>): string {
+  const tasks = (Array.isArray(m.tasks) ? m.tasks : []).map((x: MonthlyTask) => `${x.task}: ${FREQ_WORDS[x.frequency] ?? x.frequency}, up to ${x.quantity} included each month${x.turnaround ? ", each within " + x.turnaround : ""}${x.exclusions ? " (not included: " + x.exclusions + ")" : ""}`).join("; ");
+  const retry = Array.isArray(m.retry_days) ? m.retry_days.join(" and ") : "2 and 5";
+  return `12. Monthly engagement. This agreement renews every month for ${money(Number(m.price_cents))} plus platform fees until either party cancels. Each month includes: ${tasks}. Nothing is unlimited; extra work is a separate gig or a change for a later month, never an extra charge. ` +
+    `The billing day is the day month 1 is paid (the last day of a shorter month), in the Client's time zone. The Client agrees that Lawfecta may charge the saved payment method each month on the billing day until either party cancels. ` +
+    `Both are reminded ${m.reminder_days ?? 3} days before billing, and the next month's tasks open only once it is paid. ` +
+    (m.unit_mode === "monthly" ? "The Freelancer delivers once a month; the month is checked and accepted at month end. " : "The month is paid out in weekly units that add up to the monthly price; each unit is checked, accepted and paid like a milestone. ") +
+    `If a renewal payment fails, new work pauses, Lawfecta tries again on days ${retry} after the failure, and the engagement ends after ${m.pause_limit_days ?? 14} days unpaid. ` +
+    `A change to the price or the work needs both parties' approval at least ${m.change_deadline_days ?? 1} day before billing, and then starts the next month. Either party may cancel at any time, effective at the end of the paid month; undoing a cancellation needs the other party's approval. ` +
+    `The minimum platform fee applies to each paid month.`;
+}
+
 export function buildBody(f: Record<string, any>, milestones?: MilestoneBody[], scope?: { included?: string; excluded?: string; schedule?: string }): Record<string, unknown> {
-  const ms = (milestones ?? proposeMilestones(f)).map((m, i) => ({ seq: i + 1, title: s(m.title, 120), amount_cents: Math.round(Number(m.amount_cents)), due_date: /^\d{4}-\d{2}-\d{2}$/.test(String(m.due_date)) ? m.due_date : "", deliverables: s(m.deliverables, 600) }));
+  const isMonthly = f.kind === "monthly" && f.monthly && typeof f.monthly === "object";
+  const ms = (milestones ?? (isMonthly ? monthlyUnits(Number(f.monthly.price_cents), String(f.monthly.unit_mode), Number(f.monthly.weekly_units)) : proposeMilestones(f))).map((m, i) => ({ seq: i + 1, title: s(m.title, 120), amount_cents: Math.round(Number(m.amount_cents)), due_date: /^\d{4}-\d{2}-\d{2}$/.test(String(m.due_date)) ? m.due_date : "", deliverables: s(m.deliverables, 600) }));
   const included = s(scope?.included ?? f.proposal?.included, 4000), excluded = s(scope?.excluded ?? f.proposal?.excluded, 4000);
   const incList = included.split(/[;\n]|, (?=[A-Z])/).map((x) => s(x, 200)).filter(Boolean);
   const checks = (Array.isArray(f.checks) ? f.checks : []).map((x: unknown) => s(x, 200)).filter(Boolean);
@@ -98,13 +137,21 @@ export function buildBody(f: Record<string, any>, milestones?: MilestoneBody[], 
     rubric: ms.map((m, i) => ({ milestone_seq: m.seq, criteria: rubricFor(m, incList, checks, i === ms.length - 1) })),
     limits: f.limits ?? {},
     subcontracting: sub ? { agency: sub.agency === true, no_subcontractors: sub.no_subcontractors === true } : { agency: false, no_subcontractors: false },
-    terms: termsText(f.limits ?? {}, subsClauses(sub, clientKind)),
+    terms: termsText(f.limits ?? {}, [...subsClauses(sub, clientKind), ...(isMonthly ? [monthlyClause(f.monthly)] : [])]),
+    kind: isMonthly ? "monthly" : "one_off",
+    monthly: isMonthly ? { price_cents: Number(f.monthly.price_cents), unit_mode: f.monthly.unit_mode === "monthly" ? "monthly" : "weekly", tasks: readTasks(f.monthly.tasks).tasks } : null,
   };
 }
 
 // A plain summary of what the attorney pays and the freelancer receives, shown before signing
 export function feeLines(b: Record<string, any>): string[] {
   const fe = b.fees ?? {};
+  if (b.kind === "monthly") {
+    const who = b.parties?.client?.kind === "agency" ? "The agency" : "The attorney";
+    return [`Monthly price: ${money(fe.total_cents)}`, `${who} also pays the platform fee each month: ${money(fe.attorney_fee_cents)}`,
+      fe.bench_waiver === true ? "The agency also pays the freelancer's platform fee, because they are on its bench. The freelancer pays no platform fee." : `The freelancer's platform fee each month: ${money(fe.freelancer_fee_cents)}, taken from the payouts`,
+      `The freelancer receives each month: ${money(fe.freelancer_receives_cents)}${fe.bench_waiver === true ? " (the full price)" : ""}`];
+  }
   const who = b.parties?.client?.kind === "agency" ? "The agency" : "The attorney";
   if (fe.bench_waiver === true) {
     return [`Price for the work: ${money(fe.total_cents)}`, `${who} also pays the platform fee: ${money(fe.attorney_fee_cents)} (charged once, with the first milestone)`,

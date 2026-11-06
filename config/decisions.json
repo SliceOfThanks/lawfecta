@@ -695,6 +695,24 @@
           "unit": "",
           "status": "C",
           "source": "Stacey 2026-11-06 (step 7c answers), answer 25"
+        },
+        {
+          "key": "recurring.weekly_units",
+          "label": "Weekly units in one month when the two choose Weekly units",
+          "value": 4,
+          "unit": "units",
+          "status": "O",
+          "source": "Claude suggestion",
+          "note": "The last unit covers the rest of the month."
+        },
+        {
+          "key": "recurring.renewals_stopped",
+          "label": "Emergency stop: no renewal charges run while this is on",
+          "value": false,
+          "unit": "",
+          "status": "C",
+          "source": "Brief step 7c (the emergency stop for renewals)",
+          "note": "Set from the admin Recurring tab. Reminders and drafting still run; nothing is charged."
         }
       ]
     },

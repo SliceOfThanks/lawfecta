@@ -134,6 +134,8 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Most jobs open at once on a standing arrangement, unless changed | 3 jobs | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 19 | |
 | Hours a freelancer has to decline a repeat hire (the attorney is refunded in full) | 24 hours | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 21 | |
 | Lowest attorney plan that can set up a standing arrangement | att plus | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 25 | |
+| Weekly units in one month when the two choose Weekly units. The last unit covers the rest of the month. | 4 units | Open | Claude suggestion | |
+| Emergency stop: no renewal charges run while this is on. Set from the admin Recurring tab. Reminders and drafting still run; nothing is charged. | No | Confirmed | Brief step 7c (the emergency stop for renewals) | |
 
 ## 7. Exports and playbooks
 

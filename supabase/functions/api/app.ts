@@ -24,7 +24,7 @@ import { completeness, emptyBody, fileName, normalize, removesReview, toCsv, toD
 import { keyAllowed, stripe, checkoutParams, verifyStripeSignature, accountStatus } from "./lib/payments/stripe.ts";
 import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/webhooks/deliver.ts";
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
-import { buildBody, feeLines, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
+import { buildBody, feeLines, readTasks, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
 import { blockedKinds, blockedMessage, FILE_BLOCKED_MESSAGE } from "./lib/confidential/rules.ts";
 import { looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
@@ -1959,7 +1959,8 @@ async function gigDraft(ctx: Ctx) {
     if (ai.ok) { const j = readJson(ai.text); if (j && typeof j === "object") { pub = normalizePublic({ ...pub, ...(j as Record<string, unknown>) }); source = "ai"; } }
   }
   const r = await rpc<Record<string, any>>(ctx, "dela_gig_create", { p_person: s.person_id, p: { playbook_id: pbId, request_id: requestId, public: pub,
-    budget_min_cents: toCents(ctx.body.budget_min), budget_max_cents: toCents(ctx.body.budget_max), deadline: str(ctx.body.deadline, 10), milestones: [] } });
+    budget_min_cents: toCents(ctx.body.budget_min), budget_max_cents: toCents(ctx.body.budget_max), deadline: str(ctx.body.deadline, 10), milestones: [],
+    kind: ctx.body.kind === "monthly" && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "recurring_engagements", p_person: s.person_id }) ? "monthly" : "one_off" } });
   if (r?.ok && linked) {
     const l = await rpc<Record<string, any>>(ctx, "dela_gig_link", { p_person: s.person_id, p_gig: r.id ?? r.gig_id, p_agreement: linked });
     if (!l?.ok) return json(ctx, { ...l, gig_id: r.id ?? r.gig_id });
@@ -2728,6 +2729,7 @@ async function agreementGet(ctx: Ctx) {
   if (facts.version === 0) await rpc(ctx, "dela_agreement_version_add", { p_person: s.person_id, p_side: s.side, p_agreement: id, p_body: buildBody(facts), p_note: "First draft by DELA", p_base: 0 });
   const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: s.person_id, p_side: s.side, p_agreement: id });
   if (v?.ok && v.current?.body) v.fee_lines = feeLines(v.current.body);
+  if (v?.ok) { const mv = await rpc<Record<string, any>>(ctx, "dela_monthly_view", { p_person: s.person_id, p_side: s.side, p_agreement: id }); if (mv?.monthly) v.monthly = { ...mv, staff_owner: (s.staff ?? []).includes("owner") }; }
   // "Attorney decides" steps of the gig's document become checkpoints the work waits at
   const gdoc = await rpc<Record<string, any> | null>(ctx, "dela_agreement_doc", { p_agreement: id }).catch(() => null);
   if (v?.ok && gdoc && isDoc(gdoc)) {
@@ -2744,6 +2746,8 @@ async function agreementPropose(ctx: Ctx) {
   const id = need(uuid(ctx.body.id));
   const facts = await rpc<Record<string, any>>(ctx, "dela_agreement_facts", { p_person: s.person_id, p_side: s.side, p_agreement: id });
   if (!facts?.ok) return json(ctx, facts);
+  // A monthly agreement's units come from its monthly terms; changes after signing go through "Request a change"
+  if (facts.kind === "monthly") return json(ctx, { ok: false, reason: "use_monthly_terms" });
   const raw = Array.isArray(ctx.body.milestones) ? ctx.body.milestones.slice(0, 12) : [];
   const ms = raw.map((m: any, i: number) => ({ seq: i + 1, title: str(m?.title, 120), amount_cents: toCents(m?.amount) ?? 0, due_date: str(m?.due_date, 10), deliverables: str(m?.deliverables, 600) }));
   const scope = { included: str(ctx.body.included, 4000), excluded: str(ctx.body.excluded, 4000), schedule: str(ctx.body.schedule, 2000) };
@@ -2776,15 +2780,82 @@ async function agreementSubcontractors(ctx: Ctx) {
 async function agreementSign(ctx: Ctx) {
   const s = await memberSide(ctx);
   return json(ctx, await rpc(ctx, "dela_agreement_sign", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.id)),
-    p: { version: int(ctx.body.version), typed_name: str(ctx.body.typed_name, 200), consent: ctx.body.consent === true, ip: ctx.ip, user_agent: str(ctx.req.headers.get("user-agent"), 300) } }));
+    p: { version: int(ctx.body.version), typed_name: str(ctx.body.typed_name, 200), consent: ctx.body.consent === true, recurring_consent: ctx.body.recurring_consent === true, ip: ctx.ip, user_agent: str(ctx.req.headers.get("user-agent"), 300) } }));
 }
 
 // Pay the next milestone: with a saved payment method, charged straight away (off session); otherwise on Stripe's Checkout page
+// ---------- Step 7c: monthly recurring engagements (docs/briefs/step-7c-recurring-repeat-hiring.md) ----------
+// The terms before both sign: tasks with quantities, Weekly units or One monthly delivery, the monthly price. A new version
+// of the agreement is built from them, so both sign what will renew.
+async function monthlyTerms(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const id = need(uuid(ctx.body.id));
+  const read = readTasks(ctx.body.tasks);
+  if (read.reason) return json(ctx, { ok: false, reason: read.reason });
+  const warn = sensitive(ctx, read.tasks.map((x) => [x.task, x.turnaround, x.exclusions].join(" ")).join("\n"));
+  if (warn) return json(ctx, warn);
+  const price = ctx.body.price !== undefined ? toCents(ctx.body.price) : null;
+  const r = await rpc<Record<string, any>>(ctx, "dela_monthly_terms_save", { p_person: s.person_id, p_side: s.side, p_agreement: id,
+    p: { tasks: read.tasks, unit_mode: ctx.body.unit_mode === "monthly" ? "monthly" : "weekly", ...(price ? { price_cents: price } : {}) } });
+  if (!r?.ok) return json(ctx, r);
+  const facts = await rpc<Record<string, any>>(ctx, "dela_agreement_facts", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+  if (!facts?.ok) return json(ctx, facts);
+  const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+  const scope = v?.current?.body?.scope;
+  const add = await rpc<Record<string, any>>(ctx, "dela_agreement_version_add", { p_person: s.person_id, p_side: s.side, p_agreement: id,
+    p_body: buildBody(facts, undefined, scope), p_note: "Monthly terms", p_base: int(ctx.body.base) || Number(v?.current?.version ?? 0) });
+  return json(ctx, add);
+}
+
+// A month's charge with the saved payment method (the renewal, or a retry). Never Stripe's own retries: DELA's retry
+// days decide. A bank asking for the attorney's confirmation (3-D Secure) means a "Pay now" from the engagement page.
+async function chargeMonth(ctx: Ctx, key: string, n: Record<string, any>): Promise<string> {
+  if (!n.customer || !n.payment_method) {
+    await rpc(ctx, "dela_payment_result", { p_payment: n.payment_id, p_status: "failed", p_ref: "", p_customer: "", p_method: "", p_failure: "no saved payment method" });
+    return "failed";
+  }
+  const r = await stripe(f(ctx), key, "POST", "/payment_intents", { amount: n.amount_cents, currency: await setting(ctx, "payments.currency", "usd"), customer: n.customer, payment_method: n.payment_method,
+    off_session: "true", confirm: "true", description: `Lawfecta: ${n.gig_title}, month ${n.period?.n}`, metadata: { payment_id: n.payment_id }, transfer_group: "agreement_" + n.agreement_id }, n.idem_key);
+  if (r.ok) {
+    await rpc(ctx, "dela_payment_ref", { p_payment: n.payment_id, p_ref: r.data.id, p_url: "", p_status: r.data.status === "processing" ? "processing" : "" });
+    if (r.data.status === "succeeded") await rpc(ctx, "dela_payment_result", { p_payment: n.payment_id, p_status: "succeeded", p_ref: r.data.id, p_customer: n.customer, p_method: n.payment_method, p_failure: "" });
+    return r.data.status === "succeeded" ? "succeeded" : "processing";
+  }
+  await rpc(ctx, "dela_payment_result", { p_payment: n.payment_id, p_status: "failed", p_ref: "", p_customer: "", p_method: "", p_failure: r.error });
+  if (/authentication_required|requires_action|3d secure|three_d_secure/i.test(String(r.error))) {
+    await rpc(ctx, "dela_engagement_notify", { p_agreement: n.agreement_id, p_to: "attorney", p_title: "Your bank asks you to confirm the monthly payment",
+      p_body: `Your bank wants you to confirm the payment for month ${n.period?.n}. Open the engagement and click "Pay now". New work waits until it is paid.`, p_key: "period_3ds:" + n.payment_id });
+  }
+  return "failed";
+}
+// The hourly renewal: reminders and drafting in the database, then each charge due now
+async function monthlyRun(ctx: Ctx, only: string | null = null) {
+  const due = (await rpc<Array<Record<string, any>>>(ctx, "dela_monthly_tick", { p_only: only })) ?? [];
+  const key = await stripeKey(ctx);
+  const out: Record<string, number> = {};
+  for (const n of due) {
+    if (!key) { out.no_stripe = (out.no_stripe ?? 0) + 1; continue; }
+    const st = await chargeMonth(ctx, key, n);
+    out[st] = (out[st] ?? 0) + 1;
+  }
+  return { ok: true, charges: due.length, ...out };
+}
+async function monthlyPay(ctx: Ctx, s: Session, id: string) {
+  const key = await stripeKey(ctx);
+  if (!key) return json(ctx, { ok: false, reason: "payments_not_set_up" });
+  const n = await rpc<Record<string, any>>(ctx, "dela_monthly_payment_next", { p_person: s.person_id, p_side: s.side, p_agreement: id, p_system: false });
+  if (!n?.ok) return json(ctx, n);
+  if (n.status === "succeeded") return json(ctx, { ok: true, duplicate: true, status: "succeeded" });
+  if (n.status === "processing") return json(ctx, { ok: true, status: "processing" });
+  return json(ctx, await chargeOrCheckout(ctx, key, n, ctx.body.use_checkout === true));
+}
+
 async function engagementPay(ctx: Ctx) {
   const s = await client(ctx);
   const id = need(uuid(ctx.body.id));
   const key = await stripeKey(ctx);
   if (!key) return json(ctx, { ok: false, reason: "payments_not_set_up" });
+  if (await rpc<boolean>(ctx, "dela_agreement_is_monthly", { p_agreement: id })) return await monthlyPay(ctx, s, id);
   const n = await rpc<Record<string, any>>(ctx, "dela_payment_next", { p_person: s.person_id, p_side: s.side, p_agreement: id });
   if (!n?.ok) return json(ctx, n);
   if (n.status === "succeeded") return json(ctx, { ok: true, duplicate: true, status: "succeeded" });
@@ -2793,7 +2864,7 @@ async function engagementPay(ctx: Ctx) {
 }
 
 async function chargeOrCheckout(ctx: Ctx, key: string, n: Record<string, any>, forceCheckout: boolean) {
-  const name = `Lawfecta: ${n.gig_title}, milestone ${n.milestone.seq}` + (n.fee_cents ? " and the platform fee" : "");
+  const name = (n.monthly ? `Lawfecta: ${n.gig_title}, month ${n.period?.n}` : `Lawfecta: ${n.gig_title}, milestone ${n.milestone.seq}`) + (n.fee_cents ? " and the platform fee" : "");
   if (n.customer && n.payment_method && !forceCheckout) {
     const r = await stripe(f(ctx), key, "POST", "/payment_intents", { amount: n.amount_cents, currency: await setting(ctx, "payments.currency", "usd"), customer: n.customer, payment_method: n.payment_method,
       off_session: "true", confirm: "true", description: name, metadata: { payment_id: n.payment_id }, transfer_group: "agreement_" + n.agreement_id }, n.idem_key);
@@ -3684,6 +3755,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/mcp": (c, a) => rpc(c, "dela_admin_mcp", { p_actor: a }),
   "/admin/catalog": (c, a) => rpc(c, "dela_admin_catalog", { p_actor: a }),
   "/admin/gigs": (c, a) => rpc(c, "dela_admin_gigs", { p_actor: a }),
+  "/admin/monthly": (c, a) => rpc(c, "dela_admin_monthly", { p_actor: a }),
   "/admin/reviews": (c, a) => rpc(c, "dela_admin_reviews", { p_actor: a }),
   "/admin/documents": (c, a) => rpc(c, "dela_admin_documents", { p_actor: a }),
   "/admin/confidential": (c, a) => rpc(c, "dela_admin_confidential", { p_actor: a }),
@@ -3738,6 +3810,14 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   },
   "/admin/reviews/decide": (c, a) => rpc(c, "dela_admin_review_decide", { p_actor: a, p: { kind: str(c.body.kind, 20), id: need(uuid(c.body.id)), action: str(c.body.action, 20), note: str(c.body.note, 1000) } }),
   "/admin/gigs/pause": (c, a) => rpc(c, "dela_admin_gig_pause", { p_actor: a, p_gig: need(uuid(c.body.id)), p_pause: c.body.pause === true, p_reason: str(c.body.reason, 300) }),
+  "/admin/monthly/stop": (c, a) => rpc(c, "dela_admin_monthly_stop", { p_actor: a, p_on: c.body.on === true }),
+  // Test site only: the next month (or retry) is billed now, so a whole renewal can be tried in minutes
+  "/admin/monthly/run-now": async (c, a) => {
+    const id = need(uuid(c.body.agreement_id));
+    const r = await rpc<Record<string, any>>(c, "dela_admin_monthly_run_now", { p_actor: a, p_agreement: id });
+    if (!r?.ok) return r;
+    return { ...r, run: await monthlyRun(c, id) };
+  },
   "/admin/conduct/decide": (c, a) => rpc(c, "dela_admin_conduct_decide", { p_actor: a, p_flag: need(uuid(c.body.id)), p_clear: c.body.clear === true, p_note: str(c.body.note, 500) }),
   "/admin/catalog/confirm": (c, a) => rpc(c, "dela_catalog_confirm", { p_actor: a, p_version: need(uuid(c.body.version_id)) }),
   "/admin/catalog/pause": (c, a) => rpc(c, "dela_catalog_pause", { p_actor: a, p_tool: need(str(c.body.tool_id, 80)), p_pause: c.body.pause === true, p_reason: str(c.body.reason, 300) }),
@@ -3894,6 +3974,7 @@ async function worker(ctx: Ctx) {
   if (!ok) throw new HttpError(401, "bad_worker");
   await rpc(ctx, "dela_worker_beat", {});
   await rpc(ctx, "dela_maybe_queue_daily", {});
+  await rpc(ctx, "dela_maybe_queue_monthly", {}).catch(() => null);
   if (await rpc<string>(ctx, "dela_setting_text", { p_key: "environment", p_default: "staging" }) === "staging") {
     await rpc(ctx, "dela_release_expire", {});
     await checkLive(ctx);
@@ -3980,6 +4061,7 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "gig_tick") { await rpc(ctx, "dela_gig_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "engagement_tick") { await rpc(ctx, "dela_engagement_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "engagements_daily") return await engagementsDaily(ctx);
+  if (j.kind === "monthly_hourly") return await monthlyRun(ctx);
   if (j.kind === "confidential_daily") return await confDaily(ctx);
   if (j.kind === "links_hourly") return { ok: true, ...(await rpc<Record<string, unknown>>(ctx, "dela_links_sweep", {}) ?? {}) };
   if (j.kind === "retention_daily") return await retentionDaily(ctx);
@@ -4221,6 +4303,22 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /agreements/get": return await agreementGet(ctx);
       case "POST /agreements/propose": return await agreementPropose(ctx);
       case "POST /agreements/subcontractors": return await agreementSubcontractors(ctx);
+      case "POST /monthly/terms": return await monthlyTerms(ctx);
+      case "POST /monthly/cancel": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_monthly_cancel", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.id)) })); }
+      case "POST /monthly/undo": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_monthly_undo", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.id)), p_approve: ctx.body.approve !== false })); }
+      case "POST /monthly/end-now": { const s = await memberSide(ctx); const r = await rpc<Record<string, any>>(ctx, "dela_monthly_end_now", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.id)), p_approve: ctx.body.approve !== false }); if (r?.ended) await sendRefunds(ctx); return json(ctx, r); }
+      case "POST /monthly/change": {
+        const s = await memberSide(ctx);
+        const read = readTasks(ctx.body.tasks);
+        if (read.reason) return json(ctx, { ok: false, reason: read.reason });
+        const warn = sensitive(ctx, [str(ctx.body.note, 500), ...read.tasks.map((x) => [x.task, x.turnaround, x.exclusions].join(" "))].join("\n"));
+        if (warn) return json(ctx, warn);
+        const price = toCents(ctx.body.price);
+        return json(ctx, await rpc(ctx, "dela_monthly_change_propose", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.id)),
+          p: { tasks: read.tasks, unit_mode: ctx.body.unit_mode === "monthly" ? "monthly" : "weekly", note: str(ctx.body.note, 500), ...(price ? { price_cents: price } : {}) } }));
+      }
+      case "POST /monthly/change/decide": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_monthly_change_decide", { p_person: s.person_id, p_side: s.side, p_change: need(uuid(ctx.body.id)), p_approve: ctx.body.approve === true })); }
+      case "POST /engagements/make-monthly": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_make_monthly", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.id)) })); }
       case "GET /setup": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_setup_state", { p_person: s.person_id, p_side: s.side })); }
       case "POST /setup": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_setup_mark", { p_person: s.person_id, p_side: s.side, p_step: ctx.body.step ? str(ctx.body.step, 20) : null,
         p_skip: ctx.body.skip === true, p_dismiss: typeof ctx.body.dismissed === "boolean" ? ctx.body.dismissed : null })); }
