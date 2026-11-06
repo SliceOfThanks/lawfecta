@@ -134,7 +134,7 @@ async function makeMember(bd, side, plan) {
     t = await text(p);
     ok(t.includes("(needs exactly one A)"), "the RACI grid marks a step with two A's");
     await click(p, "Save");
-    t = await waitFor(p, "Blocking");
+    t = await waitFor(p, "Required before approval");
     ok(t.includes("Export, approval and Flex Gigs are blocked"), "the quality panel blocks a missing or double A");
     ok(await dela(p).getByRole("button", { name: "Approve", exact: true }).isDisabled(), "Approve is off while blocked");
     ok(await dela(p).getByRole("button", { name: "Word", exact: true }).isDisabled(), "Word export is off while blocked");

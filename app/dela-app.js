@@ -819,15 +819,19 @@
     D.clear(profEl);
     profEl.appendChild(h("h1", { text: side === "attorney" ? "Profile and verification" : "Profile" }));
     profEl.appendChild(h("p", { class: "muted", text: "This is your " + D.SIDE[side] + " profile. Your Lawfecta directory listing is your public profile; DELA keeps them in step when you choose." }));
+    // A section menu at the top, so the important parts are one click away (UX review R01)
+    var nav = h("nav", { class: "pills", "aria-label": "Profile sections", style: "margin:8px 0 12px" });
+    profEl.appendChild(nav);
+    function section(el, id, label) { el.id = id; nav.appendChild(h("button", { type: "button", onclick: function () { el.scrollIntoView({ behavior: "smooth", block: "start" }); var f = el.querySelector("input, select, textarea, button"); if (f) f.focus({ preventScroll: true }); } }, label)); return el; }
     profEl.appendChild(statusCard(st));
-    if (side === "freelancer") profEl.appendChild(availabilityCard(st));
+    if (side === "freelancer") profEl.appendChild(section(availabilityCard(st), "sec-availability", "Availability"));
     if (side === "freelancer" && (me.switches || {}).meetings) profEl.appendChild(meetingAvailabilityCard());
-    profEl.appendChild(side === "attorney" ? licenseCard() : linkedinCard());
-    profEl.appendChild(formCard());
+    profEl.appendChild(section(side === "attorney" ? licenseCard() : linkedinCard(), "sec-verify", side === "attorney" ? "License verification" : "LinkedIn check"));
+    profEl.appendChild(section(formCard(), "sec-profile", "Your profile"));
     if (side === "freelancer" && r.settings.documents_on) profEl.appendChild(docsCard());
     if (side === "attorney") {
-      profEl.appendChild(firmCard());
-      if ((me.switches || {}).document_standard) { var dfBox = h("div"); profEl.appendChild(dfBox); docFirm().then(function (f) { firmProfileForm(dfBox, f, function () { draw(); }); }).catch(function () {}); }
+      profEl.appendChild(section(firmCard(), "sec-firm", "Firm details"));
+      if ((me.switches || {}).document_standard) { var dfBox = section(h("div"), "sec-docprefs", "Document preferences"); profEl.appendChild(dfBox); docFirm().then(function (f) { firmProfileForm(dfBox, f, function () { draw(); }); }).catch(function () {}); }
       ((r.firm || {}).staff_of || []).forEach(function (o) { profEl.appendChild(firmCard(o)); });
     }
     profileReviewsCard(profEl);
@@ -1270,21 +1274,34 @@
   var CONNECT_CANNOT = "It cannot pay, hire, sign, send messages, delete anything or see your passwords or AI keys.";
   var CONNECT_ERR = { request_expired: "This connection request ran out or was already answered. Start again from ChatGPT or Claude.", connector_off: "DELA in ChatGPT and Claude is not open for your account yet.", not_in_plan: "Your plan does not include the ChatGPT and Claude connector.", on_hold: "Some actions are paused on your account. Contact the Lawfecta Team." };
 
+  // What a connected assistant can access, change and never see, and how to disconnect (UX review C01)
+  function connectExplain(box, side, who, approving) {
+    if (!approving) box.appendChild(h("h1", { text: "Connect DELA to ChatGPT or Claude" }));
+    var can = CONNECT_CAN[side] || [];
+    var changes = can.filter(function (t) { return /^(Save|Have|Draft|Suggest|Answer|Add)/.test(t); }), reads = can.filter(function (t) { return changes.indexOf(t) < 0; });
+    box.appendChild(h("h2", { text: "What " + who + " can access" }));
+    box.appendChild(h("ul", null, reads.map(function (t) { return h("li", { text: t }); })));
+    box.appendChild(h("h2", { text: "What it can change" }));
+    box.appendChild(changes.length ? h("ul", null, changes.map(function (t) { return h("li", { text: t }); })) : h("p", { text: "Nothing. It can only read." }));
+    box.appendChild(h("h2", { text: "What stays private" }));
+    box.appendChild(h("p", { text: CONNECT_CANNOT }));
+    box.appendChild(h("h2", { text: "How to disconnect" }));
+    box.appendChild(h("p", { text: "Open AI settings, find the card \"Use DELA in ChatGPT and Claude\" and click \"Disconnect\". It stops working right away." }));
+  }
+
   // The page ChatGPT or Claude sends a member to when they connect DELA (/dela?tab=connect&req=...)
   function connectView() {
     var box = h("div", { class: "card", style: "max-width:620px;margin:0 auto" }, h("p", { class: "muted", text: "Loading..." }));
     var req = "";
     try { req = new URLSearchParams(location.search).get("req") || ""; } catch (e) { req = ""; }
-    if (!req) { D.clear(box); box.appendChild(h("h1", { text: "Connect DELA to ChatGPT or Claude" })); box.appendChild(h("p", { text: "Open ChatGPT or Claude and add DELA there. It brings you back to this page to approve. The steps are in AI settings." })); box.appendChild(h("button", { onclick: function () { tab = "ai"; draw(); } }, "Open AI settings")); return box; }
+    if (!req) { D.clear(box); connectExplain(box, me.side, "ChatGPT or Claude"); box.appendChild(h("p", { text: "To connect: open ChatGPT or Claude and add DELA there. It brings you back to this page to approve. The steps are in AI settings." })); box.appendChild(h("button", { onclick: function () { tab = "ai"; draw(); } }, "Open AI settings")); return box; }
     api.get("/oauth/request?req=" + encodeURIComponent(req)).then(function (r) {
       D.clear(box);
       if (!r.ok) { box.appendChild(h("h1", { text: "Connect DELA" })); box.appendChild(h("p", { class: "notice bad", text: CONNECT_ERR[r.reason] || D.errorText(r.reason) })); return; }
       box.appendChild(h("h1", { text: r.client_name + " wants to connect to DELA" }));
       box.appendChild(h("p", { text: "It will use your " + D.SIDE[r.side] + " side" + ((me.sides || []).length > 1 ? ". To connect your other side instead, switch sides at the top of this page first." : ".") }));
       box.appendChild(h("p", { class: "small muted", text: "After you choose, you go back to " + r.redirect_host + "." }));
-      box.appendChild(h("h2", { text: "What " + r.client_name + " can do" }));
-      box.appendChild(h("ul", null, (CONNECT_CAN[r.side] || []).map(function (t) { return h("li", { text: t }); })));
-      box.appendChild(h("p", { class: "small", text: CONNECT_CANNOT }));
+      connectExplain(box, r.side, r.client_name, true);
       box.appendChild(h("p", { class: "notice", role: "note", text: "Confidential client information does not belong in DELA, and that includes what you type in ChatGPT or Claude for DELA. Use placeholders such as [Client Name]. You are responsible for what you enter." }));
       if (!r.on || !r.plan_ok) { box.appendChild(h("p", { class: "notice bad", text: CONNECT_ERR[!r.on ? "connector_off" : "not_in_plan"] })); }
       var msg = h("p", { role: "status", class: "small" });
@@ -1374,13 +1391,18 @@
       return h("button", { "aria-pressed": String(fileState.folder === f[0]), onclick: function () { fileState.folder = f[0]; drawFiles(); } }, f[1]);
     }), h("button", { onclick: newFolder }, "+ New folder"),
       fileState.folder !== "all" && fileState.folder !== "trash" ? h("button", { onclick: function () { folderMenu(fileState.folder); } }, "Rename or delete this folder") : null));
+    // Search by name (UX review F01)
+    var fq = h("input", { type: "search", "aria-label": "Search files", placeholder: "Search files by name", value: fileState.q || "", style: "min-width:240px;margin:8px 0" });
+    fq.addEventListener("change", function () { fileState.q = fq.value; drawFiles(); });
+    filesEl.appendChild(fq);
     var rows = d.files.filter(function (f) {
+      if (fileState.q && String(f.name).toLowerCase().indexOf(fileState.q.toLowerCase()) < 0) return false;
       if (fileState.folder === "trash") return f.status === "trash";
       if (f.status === "trash") return false;
       return fileState.folder === "all" || f.folder_id === fileState.folder;
     });
     if (!rows.length) { filesEl.appendChild(h("div", { class: "card" }, h("p", { class: "muted", style: "margin:0", text: fileState.folder === "trash" ? "The trash is empty." : "No files here yet." }))); return; }
-    filesEl.appendChild(h("div", { class: "card scroll" }, h("table", null,
+    filesEl.appendChild(h("div", { class: "card scroll" }, h("table", { class: "stack", style: "width:100%" },
       h("thead", null, h("tr", null, ["Name", "Status", "Size", "Added", ""].map(function (x) { return h("th", { text: x }); }))),
       h("tbody", null, rows.map(fileRow)))));
   }
@@ -1418,8 +1440,9 @@
       fileAction({ action: "delete_forever", file_id: f.id }, "Deleted forever");
     }));
     return h("tr", null,
-      h("td", null, h("b", { text: f.name }), f.version > 1 ? h("span", { class: "small muted", text: " (version " + f.version + ")" }) : null, info),
-      h("td", null, badge), h("td", { text: mbText(f.size_bytes) }), h("td", { class: "small", text: D.date(f.created_at) + " by " + f.uploaded_by }),
+      h("td", { "data-label": "Name" }, h("b", { text: f.name }), h("div", { class: "small muted", text: "Version " + (f.version || 1) + ", uploaded " + D.dateTime(f.created_at) }), info),
+      h("td", { "data-label": "Status" }, badge, f.status === "ready" ? h("div", { class: "small muted", text: "Available to your firm" }) : null), h("td", { "data-label": "Size", text: mbText(f.size_bytes) }),
+      h("td", { class: "small", "data-label": "Added", text: D.dateTime(f.created_at) + " by " + f.uploaded_by }),
       h("td", null, h("div", { class: "row" }, acts)));
   }
 
@@ -5050,7 +5073,7 @@
     c.appendChild(t);
     c.appendChild(h("h3", { text: "Fees" }));
     c.appendChild(h("ul", null, (r.fee_lines || []).map(function (l) { return h("li", { text: l }); })));
-    var rub = h("details", null, h("summary", { text: "How DELA checks each milestone (the rubric)" }),
+    var rub = h("details", null, h("summary", { text: "Completion checklist (how DELA checks each milestone)" }),
       h("p", { class: "small muted", text: "Agreed at signing. A score of " + ((b.limits || {}).pass_score || 90) + " or more with every required item met passes, then the attorney reviews it. DELA's check is not a legal review." }));
     (b.rubric || []).forEach(function (x) {
       rub.appendChild(h("p", { style: "margin:8px 0 2px;font-weight:700", text: "Milestone " + x.milestone_seq }));
@@ -6281,14 +6304,14 @@
     area.appendChild(grid);
     // The quality panel
     var blocked = ck.blocking > 0;
-    var qp = h("div", { class: "card" }, h("h2", { text: "Quality check" }),
-      h("p", { class: blocked ? "notice bad" : "small muted", text: blocked ? "Export, approval and Flex Gigs are blocked until the items marked Blocking are fixed." : ck.attention ? "Nothing blocks this document. Look at the items marked Needs attention." : "Every check passes." }));
+    var qp = h("div", { class: "card", id: "quality-check" }, h("h2", { text: "Quality check" }), h("p", { class: "small muted", text: "Blocking items are required before approval. Needs attention items are suggestions. These checks look at how the document is written; they do not confirm it is legally correct." }),
+      h("p", { class: blocked ? "notice bad" : "small muted", text: blocked ? "Export, approval and Flex Gigs are blocked until the items marked \"Required before approval\" are fixed." : ck.attention ? "Nothing blocks this document. Look at the items marked \"Suggestion\"." : "Every check passes." }));
     var passed = (ck.items || []).filter(function (it) { return it.status === "pass"; });
     var passBox = h("details", { class: "small" }, h("summary", { text: passed.length + " checks passed" }));
     (ck.items || []).forEach(function (it) {
       var mark = it.status === "pass" ? "✓" : it.status === "blocking" ? "✕" : "!";
       var row = h("div", { class: "qp-item " + it.status, style: "margin:6px 0" }, h("div", { class: "row" }, h("b", { class: "grow", text: mark + " " + it.label }),
-        h("span", { class: "badge " + (it.status === "pass" ? "ready" : it.status === "blocking" ? "bad" : "held"), text: it.status === "pass" ? "Passed" : it.status === "blocking" ? "Blocking" : "Needs attention" })),
+        h("span", { class: "badge " + (it.status === "pass" ? "ready" : it.status === "blocking" ? "bad" : "held"), text: it.status === "pass" ? "Passed" : it.status === "blocking" ? "Required before approval" : "Suggestion" })),
         it.detail ? h("div", { class: "small", text: it.detail }) : null);
       if (it.status !== "pass" && it.fix === "image" && edit) { row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { fixImageItem(it, d); } }, "Fix it")); (it.status === "pass" ? passBox : qp).appendChild(row); return; }
       if (it.status !== "pass" && it.fix && edit) row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function (e) {
