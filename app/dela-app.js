@@ -154,10 +154,10 @@
       return h("tr", null, h("td", { text: e.label }), h("td", { text: D.limitText(e) }));
     });
     return h("div", { class: "card" },
-      h("div", { class: "row" }, h("h2", { text: "Your plan: " + (s ? s.plan_name : "") }), s && s.plan_source === "staff_grant" ? h("span", { class: "badge", text: "Set by the Lawfecta Team" }) : null),
+      h("div", { class: "row" }, h("h2", { text: "Your DELA plan: " + (s ? s.plan_name : "") }), s && s.plan_source === "staff_grant" ? h("span", { class: "badge", text: "Set by the Lawfecta Team" }) : null),
       me.trial && me.trial.active ? h("div", { class: "notice ok", text: "Your free trial gives you Pro features until " + D.date(me.trial.ends_at) + ". After that you keep everything you made, on your own plan." }) : null,
       h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "What you get" }), h("th", { text: "Right now" }))), h("tbody", null, rows))),
-      h("p", { class: "muted small", style: "margin-top:10px", text: "Plans and billing are managed in your Lawfecta account." }));
+      h("p", { class: "muted small", style: "margin-top:10px", text: "Your DELA plan comes from your Lawfecta directory plan. Change or pay for it in your Lawfecta account." }));
   }
 
   function ent(key) { return (me.entitlements || []).filter(function (e) { return e.key === key; })[0]; }
@@ -629,7 +629,7 @@
     aiEl.appendChild(h("p", { class: "muted", text: "These settings are for your " + D.SIDE[me.side] + " side only." }));
     var c = ai.credits;
     var radios = h("div", null,
-      choice("lawfecta", "Use Lawfecta's AI", c ? (c.unlimited ? "Included with your plan." : "Included with your plan: " + (c.remaining === null ? c.limit : c.remaining) + " of " + c.limit + " credits left this month.") : "Included with your plan."),
+      choice("lawfecta", "Use Lawfecta's AI", c ? (c.unlimited ? "Included with your plan." : "Included with your plan: " + (c.remaining === null ? c.limit : c.remaining) + " of " + c.limit + " credits left this month. Credits reset on the 1st of each month (Pacific time).") : "Included with your plan."),
       choice("own_key", "Use my own key", ai.byok_on ? "Your OpenAI or Claude account pays for the AI. Your included credits stay as a backup you can choose to use." : "Opens soon."));
     function choice(v, label, sub) {
       var r = h("input", { type: "radio", name: "dela-ai-mode", value: v, checked: ai.mode === v, disabled: v === "own_key" && !ai.byok_on });
@@ -640,7 +640,10 @@
     }
     aiEl.appendChild(h("div", { class: "card" }, h("h2", { text: "Which AI DELA uses" }), radios,
       ai.lawfecta_ready === false ? h("p", { class: "small muted", text: "Lawfecta's AI is still being set up." }) : null));
-    if (ai.byok_on) {
+    // Key setup shows once "Use my own key" is chosen, or when a key is already saved (UX review AI01)
+    if (ai.byok_on && ai.mode !== "own_key" && !ai.own_key && !ai.firm_key) {
+      aiEl.appendChild(h("p", { class: "small muted", text: "To add your own OpenAI or Claude key, choose \"Use my own key\" above." }));
+    } else if (ai.byok_on) {
       aiEl.appendChild(keyCard(ai, "person", ai.own_key, "Your own key", "Only you use this key."));
       if (ai.may_manage_firm_key || (ai.firm_key && !ai.firm_key.mine)) {
         aiEl.appendChild(keyCard(ai, "org", ai.firm_key, "Firm key", ai.may_manage_firm_key ? "Everyone in your firm can use this key. A person's own key is used first." : "Your firm owner added this key for the team."));
@@ -721,7 +724,7 @@
       h("label", { text: "Provider" }), prov, help,
       h("label", { text: "Your key" }), key,
       h("label", { text: "Use it for" }), use,
-      h("p", { class: "small muted", text: "DELA tests the key, then stores it locked so nobody, including the Lawfecta Team, can read it. Only the last 4 characters are shown." }),
+      h("p", { class: "small muted", text: "DELA tests the key, then stores it encrypted. It is used only to run your requests, and the Lawfecta Team cannot see it. Only the last 4 characters are shown." }),
       h("div", { class: "row" }, save), msg);
   }
 
@@ -4302,7 +4305,7 @@
     firm_details_missing: "Before you sign, add your firm's signatory, billing address and notice email in Profile, under \"Firm details\".",
     milestone_count: "Use between 1 and the most milestones allowed.", milestone_too_small: "Each milestone needs a title and at least the smallest amount.",
     total_too_small: "The total is below the smallest engagement.", too_long: "A due date is further out than DELA allows.", paid_milestone_fixed: "A milestone that is already paid cannot change its amount.",
-    agreement_closed: "This agreement is closed.", payments_not_set_up: "Payments are not set up on this site yet. The Lawfecta Team is adding Stripe.", funding_off: "Milestone payments are not open for your account yet.",
+    agreement_closed: "This agreement is closed.", payments_not_set_up: "Payments are not set up on this site yet, so nothing can be charged here. The Lawfecta Team is adding Stripe.", funding_off: "Milestone payments are not open for your account yet.",
     not_signed: "Both of you sign first.", previous_not_accepted: "The previous milestone needs to be accepted first.", nothing_to_pay: "Nothing is due right now.",
     in_dispute: "A dispute is open on this engagement, so this waits until it is settled.", payment_failed: "The payment did not go through.", on_hold: "Some actions are paused on your account. Contact the Lawfecta Team.",
     not_funded: "This milestone is not paid yet. Work starts when the attorney's payment is confirmed.", statement_needed: "Write a completion statement: what you did and anything still open.",

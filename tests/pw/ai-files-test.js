@@ -139,7 +139,10 @@ const MEMBER_CLAUDE = "sk-ant-member-browser-test-key-2222222222"; // rules-ok: 
     // ---------- Attorney: own OpenAI key ----------
     await dela(p).getByRole("button", { name: "AI settings" }).click();
     t = await waitFor(p, "Which AI DELA uses");
-    ok(t.includes("Use Lawfecta's AI") && t.includes("credits left this month"), "AI settings show the included credits");
+    ok(t.includes("Use Lawfecta's AI") && t.includes("credits left this month") && t.includes("Credits reset on the 1st of each month"), "AI settings show the included credits and when they reset");
+    ok(!t.includes("Save and test") && t.includes("choose \"Use my own key\" above"), "key setup stays hidden until Use my own key is chosen (UX review AI01)");
+    await dela(p).getByText("Use my own key", { exact: true }).click();
+    await waitFor(p, "Your own key");
     await dela(p).getByPlaceholder("Paste your key").first().fill(MEMBER_CLAUDE);
     await dela(p).getByRole("button", { name: "Save and test" }).first().click();
     t = await waitFor(p, "That looks like a Claude key");
@@ -174,7 +177,7 @@ const MEMBER_CLAUDE = "sk-ant-member-browser-test-key-2222222222"; // rules-ok: 
     await dela(p).getByRole("button", { name: "AI settings" }).click();
     await waitFor(p, "Your own key");
     await dela(p).getByRole("button", { name: "Remove" }).first().click();
-    t = await waitFor(p, "Save and test");
+    t = await waitFor(p, "choose \"Use my own key\" above");
     ok(true, "the member removes the key and is back on Lawfecta's AI");
     await s.ctx.close();
 
@@ -185,6 +188,8 @@ const MEMBER_CLAUDE = "sk-ant-member-browser-test-key-2222222222"; // rules-ok: 
     await dela(s.page).getByRole("button", { name: "Ask DELA" }).first().click();
     await waitFor(s.page, "AI settings");
     await dela(s.page).getByRole("button", { name: "AI settings" }).click();
+    await waitFor(s.page, "Which AI DELA uses");
+    await dela(s.page).getByText("Use my own key", { exact: true }).click();
     await waitFor(s.page, "Your own key");
     await dela(s.page).getByLabel("Provider").first().selectOption("anthropic");
     await dela(s.page).getByPlaceholder("Paste your key").first().fill(MEMBER_CLAUDE);
