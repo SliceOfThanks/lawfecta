@@ -109,8 +109,8 @@ const OWNER = 3800, MGR = 3801, ATT = 3802, PIA = 3803, FRED = 3804;
     await s.ctx.close();
 
     // ---------- The attorney sees the agency and its people ----------
-    s = await open(browser, ATT, `&tab=projects&gig=${gig}`);
-    await dela(s.page).getByRole("tab", { name: /^Proposals/ }).click();
+    // Fix (ChatGPT subcontracting test 2026-11-06): a link with view=proposals opens the Proposals view, not Details
+    s = await open(browser, ATT, `&tab=projects&gig=${gig}&view=proposals`);
     t = await waitFor(s.page, "Who will do this work:");
     ok(t.includes("Agency") && t.includes("Roe Support Group") && t.includes("Olive Owner") && t.includes("Lead paralegal"), "the attorney sees the agency, the person and their role");
     await click(s.page, "View profile");

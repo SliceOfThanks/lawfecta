@@ -4258,7 +4258,7 @@
 
   // ---------- Step 6: the agreement, signing, paying, delivery, review, payouts, disputes ----------
   var eng = { gig: null, editing: false, paid: false };
-  try { if (new URLSearchParams(location.search).get("paid") === "1") eng.paid = true; if (new URLSearchParams(location.search).get("view") === "agreement") gigs.view = "agreement"; } catch (e) { /* no deep link */ }
+  try { if (new URLSearchParams(location.search).get("paid") === "1") eng.paid = true; var gv = new URLSearchParams(location.search).get("view"); if (["details", "matches", "questions", "proposals", "files", "agreement"].indexOf(gv) >= 0) gigs.view = gv; } catch (e) { /* no deep link */ }
   var AG_STATUS = { draft: "Draft", sent: "Draft", signing: "Waiting for signatures", signed: "Signed: waiting for the first payment", active: "Active", completed: "Complete", canceled: "Canceled", disputed: "In dispute", paused: "Paused by the Lawfecta Team" };
   var MS_STATUS = { pending: "Not paid yet", awaiting_funding: "Waiting for payment", funded: "Paid: ready to start", in_progress: "In progress", submitted: "Submitted", changes_requested: "Changes requested",
     accepted: "Accepted", refunded: "Refunded", canceled: "Canceled", disputed: "In dispute" };
