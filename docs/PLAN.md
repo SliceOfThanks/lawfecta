@@ -176,13 +176,13 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
   - Admin area, "Agencies" tab: the one-time business check and a hand-raised seat limit for one agency.
 - Part 2a and 2b, on the test site (Stacey's ChatGPT test: docs/tests/step-7d-bench-chatgpt-prompt.md): the bench agreement with the signed split and the Plus minimum; bench work on attorney engagements with the split for the job, split payouts, payout holds with reminders, and chargebacks taken back from both shares.
 - Part 2c, on the test site and tested by Stacey 2026-11-06 (18 of 18 passed; the 3 confusing messages fixed): the agency's own gigs (its Library, posting after the business check, Talent, the bench first, the agency as the client, and on a bench hire the agency pays both fees).
-- Part 3, built 2026-11-06 (next: deploy to the test site and Stacey's ChatGPT test): the subcontracting disclosure on agency proposals and agreements, the attorney's "No subcontractors on this engagement" before signing, linked gigs whose hire appears on the attorney's "Who's working on this", confidentiality and no-poaching terms for every subcontractor, and the copy flag for the Lawfecta Team.
+- Part 3, on the test site and tested by Stacey 2026-11-06 (16 of 17; the failure fixed): the subcontracting disclosure on agency proposals and agreements, the attorney's "No subcontractors on this engagement" before signing, linked gigs whose hire appears on the attorney's "Who's working on this", confidentiality and no-poaching terms for every subcontractor, and the copy flag for the Lawfecta Team.
 
 ### Security and sensitive data (step 6d), built 2026-11-05
 - Built and on the test site, with Confidential materials (step 6c). Next: Stacey's ChatGPT test (docs/tests/step-6d-security-chatgpt-prompt.md), the /security page install (docs/STACEY_SECURITY_PAGE.md) and the OpenAI settings (docs/RUNBOOK.md).
 - Before Live: a virus scanner, a lawyer's review of the confidentiality clause, and the Live database in a US region (docs/STACEY_CHECKLIST.md Part C).
 
-### Before the beta (proposed, waiting on Stacey's answers): guided setup and "Automate or delegate"
+### Before the beta: guided setup and "Automate or delegate" (step 4d), Stacey answered 2026-11-06; parts B and C built (next: the test site and her ChatGPT test)
 - DELA reviews a playbook and recommends specific steps (never the whole playbook) to automate with a tool from the tech catalog, or to delegate to a freelancer.
 - The delegate path runs on one screen: the SOP for that task, its metrics and KPIs, then posting the gig.
 - A one-screen "Get set up" sequence for attorneys: profile, teach DELA about the firm, first playbook, automate or delegate, first gig.

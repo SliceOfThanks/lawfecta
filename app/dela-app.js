@@ -23,7 +23,9 @@
       var a = [["home", "Home", "⌂"], ["delegate", sw.ai_generation ? "Ask DELA" : "Delegate", "✦"]];
       if (sw.playbook_library) a.push(["library", "Library", "▥"]);
       if (sw.file_uploads) a.push(["files", "Files", "▤"]);
-      return a.concat([["projects", "Projects", "▣"], ["talent", "Talent", "◌"]]);
+      a = a.concat([["projects", "Projects", "▣"], ["talent", "Talent", "◌"]]);
+      if (sw.guided_setup) a.push(["setup", "Get set up", "✓"]);
+      return a;
     }
     var f = [["home", "Home", "⌂"]];
     if (sw.ai_generation) f.push(["ask", "Ask DELA", "✦"]);
@@ -205,6 +207,7 @@
         (me.switches || {}).ai_generation
           ? h("button", { class: "pill-white", onclick: function () { tab = "delegate"; draw(); } }, "Ask DELA to plan a task")
           : h("button", { class: "pill-white", disabled: true, title: "Opens in the next DELA update" }, "Start a new delegation (opening soon)")),
+      (me.switches || {}).guided_setup ? setupHomeCard() : null,
       h("div", { class: "stats" },
         stat("☰", 0, "Open tasks"),
         stat("▣", 0, "Active projects"),
@@ -5596,6 +5599,289 @@
   // ---------- Draft and review ----------
   function docWork() { if (!lib.doc || lib.doc._id !== lib.pb.playbook.id + ":" + lib.pb.playbook.version) { lib.doc = JSON.parse(JSON.stringify(lib.pb.body)); lib.doc._id = lib.pb.playbook.id + ":" + lib.pb.playbook.version; } return lib.doc; }
 
+  // ---------- Step 4d: "✦ Automate or delegate" (docs/briefs/step-4d-guided-setup-delegate-automate.md) ----------
+  // Never runs on its own: the attorney clicks. One review per approved version. The delegate path is one screen of
+  // numbered steps the attorney can go back to; only an attorney who can post approves the SOP and drafts the gig.
+  var auto = { open: null };
+  var FREQ_WORDS = { daily: "Daily", weekly: "Weekly", monthly: "Monthly", quarterly: "Quarterly" };
+  var AUTO_ERR = {
+    automate_off: "Automate or delegate is not open for your account yet.", not_approved: "Approve this document first. DELA reviews the approved version.",
+    no_steps: "This document has no numbered steps for DELA to review. Automate or delegate works on SOPs and Workflows with steps.",
+    not_allowed: "Only the document's administrators and editors can do that.", bad_minutes: "Type how long it takes as minutes, from 1 to 6000.",
+    steps_not_delegable: "Choose some steps, not all of them, and none that need an attorney's decision or legal judgment.",
+    attorney_approves: "An attorney approves the SOP and posts the gig. Ask the supervising attorney to open this page.",
+    sop_first: "Draft the SOP first (step 2).", sop_not_approved: "Approve the SOP first (step 4).", sop_approved: "The SOP is approved, so its steps and KPIs are set. Start a new delegation to change them.",
+    review_out_of_date: "This document has a newer approved version. Run Automate or delegate again first.", draft_waiting: "This document has a draft waiting for approval. Approve or discard it first.",
+    review_first: "Run Automate or delegate first.",
+  };
+  function autoErr(r) { return r && AUTO_ERR[r.reason] ? AUTO_ERR[r.reason] : gigErr(r); }
+  function stepsText(a) {
+    if (!a || !a.length) return "";
+    if (a.length === 1) return "Step " + a[0];
+    var run = a.every(function (x, i) { return i === 0 || x === a[i - 1] + 1; });
+    return "Steps " + (run ? a[0] + " to " + a[a.length - 1] : a.join(", "));
+  }
+  function hoursText(x) { return x >= 1 ? "about " + (x % 1 ? x.toFixed(1) : String(x)) + (x === 1 ? " hour a month" : " hours a month") : x > 0 ? "about " + Math.round(x * 60) + " minutes a month" : "not worked out yet"; }
+
+  function automateCard(pid) {
+    var card = h("div", { class: "card", id: "automate-card" }, h("p", { class: "small muted", text: "Loading..." }));
+    function load() {
+      api.get("/automate?playbook=" + pid).then(function (st) {
+        D.clear(card);
+        if (!st.ok || !st.on || !st.can_run || st.doc_type === "policy" || !st.approved) { card.remove(); return; }
+        card.appendChild(h("h2", { text: "✦ Automate or delegate" }));
+        card.appendChild(cardStatus("automate"));
+        var freq = h("select", { "aria-label": "How often does this run?" }, [h("option", { value: "", text: "Choose (optional)" })].concat(["daily", "weekly", "monthly", "quarterly"].map(function (k) {
+          return h("option", { value: k, text: FREQ_WORDS[k], selected: st.review && st.review.frequency === k });
+        })));
+        var mins = h("input", { type: "number", min: "1", max: "6000", step: "1", "aria-label": "How long does it take each time?", placeholder: "Minutes (optional)", value: st.review && st.review.minutes ? String(st.review.minutes) : "" });
+        var boxes = h("div", { class: "row", style: "flex-wrap:wrap" }, field("How often does this run?", freq), field("How long does it take each time?", mins, "In minutes. Leave both empty and DELA estimates."));
+        if (!st.review) {
+          if (st.dismissed) { card.remove(); return; }
+          card.appendChild(h("p", { text: "DELA can find steps in this playbook to automate or hand to a freelancer." }));
+          if (st.out_of_date) card.appendChild(h("p", { class: "small muted", text: "The last review was for an older version. This approved version needs its own review." }));
+          card.appendChild(boxes);
+          var go = h("button", { class: "blue", type: "button" }, "✦ Find what to automate or delegate");
+          go.addEventListener("click", function () {
+            go.disabled = true; go.textContent = "DELA is reviewing the steps...";
+            api.post("/automate/review", { playbook_id: pid, frequency: freq.value, minutes: mins.value ? Number(mins.value) : null }).then(function (x) {
+              if (!x.ok) throw x;
+              cardSay("automate", (x.review.recommendations || []).length ? "DELA found " + x.review.recommendations.length + " to look at." : "DELA found nothing to automate or delegate in this document.");
+              load();
+            }).catch(function (e) { go.disabled = false; go.textContent = "✦ Find what to automate or delegate"; cardSay("automate", e && e.reason ? autoErr(e) : D.errorText(e && e.message), true); });
+          });
+          card.appendChild(h("div", { class: "row" }, go, h("a", { href: "#", class: "small", style: "margin-left:12px", onclick: function (ev) {
+            ev.preventDefault(); api.post("/automate/dismiss", { playbook_id: pid, dismissed: true }).then(function () { card.remove(); }).catch(gigFail);
+          } }, "Dismiss")));
+          card.appendChild(h("p", { class: "small muted", text: "Each review uses " + (me.side === "attorney" ? "your" : "the") + " AI credits (or your own AI key) once for this approved version." }));
+        } else {
+          var t = st.review.time || {};
+          card.appendChild(h("p", { class: "small muted", text: "DELA reviewed version " + st.review.version + ". " + (t.estimated ? "Time saved is Estimated by DELA" + (t.frequency ? " (" + (FREQ_WORDS[t.frequency] || "").toLowerCase() + ", about " + t.minutes + " minutes each time)" : "") + ". Add your own numbers for a better estimate." : "Time saved uses your answers.") }));
+          var upd = h("button", { class: "ghost small", type: "button" }, "Update time saved");
+          upd.addEventListener("click", function () {
+            api.post("/automate/review", { playbook_id: pid, frequency: freq.value, minutes: mins.value ? Number(mins.value) : null }).then(function (x) { if (!x.ok) throw x; cardSay("automate", "Time saved updated."); load(); })
+              .catch(function (e) { cardSay("automate", autoErr(e), true); });
+          });
+          card.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;align-items:flex-end" }, boxes, upd));
+          if (!(st.review.recommendations || []).length) card.appendChild(h("p", { class: "muted", text: "DELA found nothing to automate or delegate in this version." }));
+          (st.review.recommendations || []).forEach(function (r) {
+            var row = h("div", { class: "soft", style: "margin:8px 0" },
+              h("div", { class: "row" }, h("span", { class: "badge " + (r.kind === "delegate" ? "ready" : ""), text: r.kind === "delegate" ? "Delegate" : "Automate" }), h("b", { class: "grow", text: " " + r.title }),
+                r.partner ? h("span", { class: "badge", text: "Lawfecta partner" }) : null),
+              h("div", { class: "small", text: stepsText(r.steps) + (r.why ? ". " + r.why : "") }),
+              h("div", { class: "small", text: "Time saved: " + hoursText(r.hours_month) + (t.estimated ? " (Estimated by DELA)" : "") }));
+            if (r.kind === "automate") row.appendChild(h("div", { class: "small", text: "Tool: " + r.tool + ". " + (r.in_firm ? "Already in your firm profile. " : "") + (r.what_it_does ? r.what_it_does + ". " : "") + (r.in_firm ? "" : r.tool_description || "") }));
+            else if ((r.skills || []).length) row.appendChild(h("div", { class: "small muted", text: "Skills: " + r.skills.join(", ") }));
+            var acts = h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" });
+            function start(kind) {
+              api.post("/automate/delegate", { review_id: st.review.id, rec_id: r.id, kind: kind }).then(function (x) { if (!x.ok) throw x; auto.open = x.delegation.id; load(); })
+                .catch(function (e) { cardSay("automate", autoErr(e), true); });
+            }
+            if (r.kind === "delegate") acts.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { start("delegate"); } }, "Delegate these steps"));
+            else {
+              acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+                api.post("/automate/apply-tool", { playbook_id: pid, rec_id: r.id }).then(function (x) {
+                  if (!x.ok) throw x;
+                  cardSay("automate", x.duplicate ? "Those steps already use " + r.tool + "." : stepsText(x.steps) + " now use " + r.tool + ". That is a new version of the document: approve it to use it.");
+                  if (!x.duplicate) setTimeout(function () { openPlaybook(pid); }, 600);
+                }).catch(function (e) { cardSay("automate", autoErr(e), true); });
+              } }, "Add this tool to the steps"));
+              acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { start("setup"); } }, "Hire a freelancer to set it up"));
+            }
+            row.appendChild(acts);
+            card.appendChild(row);
+          });
+        }
+        (st.delegations || []).forEach(function (d) {
+          card.appendChild(h("div", { class: "row", style: "border-top:1px solid var(--line);padding-top:6px;margin-top:6px" },
+            h("span", { class: "small grow", text: (d.kind === "setup" ? "Setup task" : "Delegated") + ": " + stepsText(d.steps) + ", " + d.title + (d.sop_id ? ". See SOP " + ((d.sop_doc_id ? d.sop_doc_id + " " : "") + d.sop_title) + (d.sop_status === "approved" ? "" : " (draft)") : "") + (d.gig_id ? ". Gig drafted." : "") }),
+            h("button", { class: "ghost small", type: "button", onclick: function () { auto.open = d.id; load(); } }, auto.open === d.id ? "Open below" : "Continue")));
+        });
+        if (auto.open) card.appendChild(delegatePanel(auto.open, load));
+      }).catch(function () { card.remove(); });
+    }
+    load();
+    return card;
+  }
+
+  function delegatePanel(id, reloadCard) {
+    var box = h("div", { id: "delegate-panel", style: "border-top:2px solid var(--line);margin-top:12px;padding-top:8px" }, h("p", { class: "small muted", text: "Loading..." }));
+    function fail(e) { cardSay("delegate", e && e.reason ? autoErr(e) : D.errorText(e && e.message), true); }
+    function post(path, body, msg) { return api.post(path, Object.assign({ id: id }, body || {})).then(function (x) { if (!x.ok) throw x; if (msg) cardSay("delegate", msg); render(x); return x; }).catch(fail); }
+    function section(n, title, stage, body) {
+      return h("div", { class: "soft", style: "margin:8px 0" + (n === stage ? ";border:2px solid var(--brand)" : "") }, h("h3", { style: "margin:0 0 4px", text: n + ". " + title }), body);
+    }
+    function render(v) {
+      D.clear(box);
+      if (!v.ok) { box.appendChild(h("p", { class: "notice", text: autoErr(v) })); return; }
+      var d = v.delegation, sop = v.sop, stage = d.stage;
+      box.appendChild(h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: (d.kind === "setup" ? "Hire a freelancer to set it up: " : "Delegate: ") + d.title }),
+        h("button", { class: "ghost small", type: "button", onclick: function () { auto.open = null; reloadCard(); } }, "Close")));
+      box.appendChild(h("p", { class: "small muted", text: "Your progress is saved. You can stop and come back from this card." }));
+      box.appendChild(cardStatus("delegate"));
+      // 1. The steps
+      var s1 = h("div");
+      if (d.kind === "setup") s1.appendChild(h("p", { class: "small", text: "A setup task for " + d.tool + " on " + stepsText(d.steps).toLowerCase() + " of " + (v.parent ? v.parent.title : "this document") + ". Freelancers who list " + d.tool + " in their tools are matched first." }));
+      else {
+        var ticks = (v.parent_steps || []).map(function (p) {
+          var locked = p.attorney_decides || p.judgment;
+          var c = h("input", { type: "checkbox", disabled: locked || (sop && sop.status === "approved"), "aria-label": "Step " + p.n });
+          c.checked = p.chosen && !locked;
+          s1.appendChild(h("label", { style: "display:flex;gap:8px;font-weight:400;margin:2px 0" }, c, h("span", { text: p.n + ". " + p.text + (p.attorney_decides ? " (Attorney decides: stays with the attorney)" : p.judgment ? " (Needs legal judgment: stays with the attorney)" : "") })));
+          return [p.n, c];
+        });
+        if (!(sop && sop.status === "approved")) s1.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+          post("/automate/delegation", { steps: ticks.filter(function (x) { return x[1].checked; }).map(function (x) { return x[0]; }), stage: Math.max(stage, 2) }, "Steps saved.");
+        } }, "Save the steps"));
+      }
+      box.appendChild(section(1, "Confirm which steps to delegate", stage, s1));
+      // 2. The SOP
+      var s2 = h("div");
+      if (sop) s2.appendChild(h("p", { class: "small", text: "SOP: " + (sop.doc_id ? sop.doc_id + " " : "") + sop.title + " (" + (sop.status === "approved" ? "approved" : "draft") + "). It links back to " + (v.parent ? v.parent.title : "the document") + ", and the supervising attorney stays Accountable (A) on every step." }));
+      s2.appendChild(h("div", { class: "row" }, !sop ? h("button", { class: "blue small", type: "button", onclick: function () { post("/automate/delegation/sop", {}, "DELA drafted the SOP for just these steps."); } }, "Draft the SOP for these steps") : null,
+        sop ? h("button", { class: "ghost small", type: "button", onclick: function () { openPlaybook(sop.id); } }, "Open the SOP") : null));
+      box.appendChild(section(2, "The SOP for just this task", stage, s2));
+      // 3. KPIs
+      var k = v.kpis || {};
+      var days = h("input", { type: "number", min: "1", max: "90", "aria-label": "Turnaround (business days)", value: String(k.turnaround_days || 2) });
+      var acc = h("input", { type: "number", min: "50", max: "100", "aria-label": "Accuracy target (%)", value: String(k.accuracy_pct || 95) });
+      var chk = h("textarea", { rows: 4, style: "width:100%", "aria-label": "Quality checklist, one per line" });
+      chk.value = (k.checklist || []).join("\n");
+      var done = h("textarea", { rows: 2, style: "width:100%", "aria-label": "What done means" });
+      done.value = k.done || "";
+      var locked3 = sop && sop.status === "approved";
+      [days, acc, chk, done].forEach(function (x) { x.disabled = locked3; });
+      var s3 = h("div", null, h("p", { class: "small muted", text: "These become the SOP's quality check and the rubric DELA's milestone check scores the gig against. No client information." }),
+        h("div", { class: "row" }, field("Turnaround (business days)", days), field("Accuracy target (%)", acc)), field("Quality checklist, one per line", chk), field("What done means", done));
+      if (!locked3) s3.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+        var body = { kpis: { turnaround_days: Number(days.value), accuracy_pct: Number(acc.value), checklist: lines(chk.value), done: done.value }, stage: Math.max(stage, 4) };
+        api.post("/automate/delegation", Object.assign({ id: id }, body)).then(function (x) {
+          if (!x.ok) throw x;
+          return sop ? api.post("/automate/delegation/sop", { id: id }).then(function (y) { if (!y.ok) throw y; return y; }) : x;
+        }).then(function (y) { cardSay("delegate", sop ? "KPIs saved. The SOP now uses them." : "KPIs saved. Draft the SOP in step 2."); render(y); }).catch(fail);
+      } }, "Save the KPIs"));
+      box.appendChild(section(3, "Metrics and KPIs", stage, s3));
+      // 4. Self-check and approval
+      var s4 = h("div");
+      if (!sop) s4.appendChild(h("p", { class: "small muted", text: "Draft the SOP first (step 2)." }));
+      else if (sop.status === "approved") s4.appendChild(h("p", { class: "small", text: "Approved. DELA's self-check passed." }));
+      else {
+        s4.appendChild(h("p", { class: "small", text: sop.blocking ? "DELA's self-check found " + sop.blocking + (sop.blocking === 1 ? " thing" : " things") + " to fix. Open the SOP to fix them." : "DELA's self-check passes." }));
+        if (v.can_approve) s4.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { post("/automate/delegation/approve", {}, "The SOP is approved."); } }, "Approve the SOP"));
+        else s4.appendChild(h("p", { class: "small muted", text: "An attorney approves the SOP and posts the gig." }));
+      }
+      box.appendChild(section(4, "DELA's self-check and your approval", stage, s4));
+      // 5. The gig
+      var b = v.budget || {}, s5 = h("div");
+      var bmin = h("input", { type: "number", min: "0", step: "1", "aria-label": "Budget from ($)", value: String(Math.round((b.low_cents || 0) / 100)) });
+      var bmax = h("input", { type: "number", min: "0", step: "1", "aria-label": "Budget to ($)", value: String(Math.round((b.high_cents || 0) / 100)) });
+      var dl = h("input", { type: "date", "aria-label": "Deadline" });
+      s5.appendChild(h("p", { class: "small", text: "Suggested budget: " + D.money(b.low_cents) + " to " + D.money(b.high_cents) + ", for about " + v.hours + " hours of work. Suggested budget. You set the final amount." }));
+      s5.appendChild(h("p", { class: "small", text: "You also pay Lawfecta's platform fee: " + D.money(b.fee_low_cents) + " to " + D.money(b.fee_high_cents) + " on that budget, so the full cost is " + D.money((b.low_cents || 0) + (b.fee_low_cents || 0)) + " to " + D.money((b.high_cents || 0) + (b.fee_high_cents || 0)) + "." }));
+      if (d.gig_id) s5.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { gigLink(d.gig_id, "projects"); } }, "Open the gig"));
+      else if (!sop || sop.status !== "approved") s5.appendChild(h("p", { class: "small muted", text: "Approve the SOP first (step 4)." }));
+      else if (!v.can_approve) s5.appendChild(h("p", { class: "small muted", text: "An attorney approves the SOP and posts the gig." }));
+      else {
+        s5.appendChild(h("div", { class: "row" }, field("Budget from ($)", bmin), field("Budget to ($)", bmax), field("Deadline", dl)));
+        var mk = h("button", { class: "blue small", type: "button" }, "Draft the gig");
+        mk.addEventListener("click", function () {
+          mk.disabled = true; mk.textContent = "DELA is writing the public version...";
+          api.post("/automate/delegation/gig", { id: id, budget_min: bmin.value, budget_max: bmax.value, deadline: dl.value }).then(function (x) { if (!x.ok) throw x; gigLink(x.gig_id, "projects"); })
+            .catch(function (e) { mk.disabled = false; mk.textContent = "Draft the gig"; fail(e); });
+        });
+        s5.appendChild(mk);
+        s5.appendChild(h("p", { class: "small muted", text: "The gig page opens. Check the public version there, then click \"Post the gig\"." }));
+      }
+      box.appendChild(section(5, "The gig", stage, s5));
+      if (!d.gig_id) box.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+        api.post("/automate/delegation", { id: id, cancel: true }).then(function () { auto.open = null; reloadCard(); }).catch(fail);
+      } }, "Stop delegating these steps"));
+    }
+    api.get("/automate/delegation?id=" + id).then(render).catch(fail);
+    return box;
+  }
+
+  // ---------- Step 4d, part B: "Get set up" for attorneys (one screen; each step opens in place; Skip for now) ----------
+  var setup = { open: null };
+  var SETUP_STEPS = [
+    ["profile", "Your profile and verification", "Your license and firm details, so you can hire."],
+    ["firm", "Teach DELA about your firm", "Practice areas, the systems you use and your roles. DELA reads this each time it writes for you, only for your firm."],
+    ["playbook", "Your first playbook", "Import from Scribe, record a process, or start from a starter document. Then approve it."],
+    ["automate", "✦ Find what to automate or delegate", "DELA reviews an approved document and suggests steps to automate or hand to a freelancer."],
+    ["gig", "Post your first gig", "From the delegated SOP, or any approved SOP or Workflow."],
+    ["invite", "Invite freelancers", "From your gig's matches."],
+  ];
+  function setupHomeCard() {
+    var card = h("div", { class: "card", id: "setup-home" });
+    api.get("/setup").then(function (st) {
+      if (!st.ok || !st.on || st.finished || st.dismissed) { card.remove(); return; }
+      card.appendChild(h("div", { class: "row" }, h("h2", { class: "grow", text: "Get set up: " + st.done + " of " + st.total + " done" }),
+        h("a", { href: "#", class: "small", onclick: function (ev) { ev.preventDefault(); api.post("/setup", { dismissed: true }).then(function () { card.remove(); }).catch(gigFail); } }, "Dismiss")));
+      card.appendChild(h("div", { class: "bar" }, h("span", { style: "width:" + Math.round(st.done / st.total * 100) + "%" })));
+      card.appendChild(h("button", { class: "blue small", style: "margin-top:8px", type: "button", onclick: function () { tab = "setup"; draw(); } }, "Continue setting up"));
+    }).catch(function () { card.remove(); });
+    return card;
+  }
+  function setupView() {
+    var el = h("div", null, h("h1", { text: "Get set up" }), h("p", { class: "muted", text: "Six steps to your first gig. Each one opens here. Skip any step and come back to it later." }), cardStatus("setup"));
+    var list = h("div");
+    el.appendChild(list);
+    function load() {
+      api.get("/setup").then(function (st) {
+        D.clear(list);
+        if (!st.ok || !st.on) { list.appendChild(h("p", { class: "notice", text: "Get set up is not open for your account yet." })); return; }
+        list.appendChild(h("p", { class: "small", text: st.done + " of " + st.total + " done" + (st.finished ? ". You are set up." : ".") }));
+        SETUP_STEPS.forEach(function (sd, i) {
+          var s = (st.steps || []).filter(function (x) { return x.key === sd[0]; })[0] || {}, skipped = (st.skipped || []).indexOf(sd[0]) >= 0;
+          var open = setup.open === sd[0];
+          var card = h("div", { class: "card", id: "setup-" + sd[0] },
+            h("div", { class: "row" }, h("span", { class: "chip", text: String(i + 1) }), h("h2", { class: "grow", style: "margin:0", text: sd[1] }),
+              h("span", { class: "badge " + (s.done ? "ready" : skipped ? "held" : ""), text: s.done ? "Done" : skipped ? "Skipped" : "To do" })),
+            h("p", { class: "small muted", text: sd[2] }));
+          var acts = h("div", { class: "row" }, h("button", { class: open ? "ghost small" : "blue small", type: "button", onclick: function () { setup.open = open ? null : sd[0]; load(); } }, open ? "Close" : "Open"));
+          if (!s.done) acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+            api.post("/setup", { step: sd[0], skip: !skipped }).then(function (x) { if (!x.ok) throw x; cardSay("setup", skipped ? "Back on your list." : "Skipped for now. It stays here for later."); load(); }).catch(gigFail);
+          } }, skipped ? "Pick up again" : "Skip for now"));
+          card.appendChild(acts);
+          if (open) { var host = h("div", { style: "margin-top:10px" }); card.appendChild(host); setupStep(sd[0], host, load); }
+          list.appendChild(card);
+        });
+      }).catch(function (e) { D.clear(list); list.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+    }
+    load();
+    return el;
+  }
+  function setupStep(key, host, reload) {
+    if (key === "profile") { host.appendChild(profileView()); return; }
+    if (key === "firm") {
+      docFirm().then(function (f) { firmProfileForm(host, f, function () { cardSay("setup", "Firm profile saved."); reload(); }); }).catch(function (e) { host.appendChild(h("p", { class: "notice", text: gigErr(e) })); });
+      return;
+    }
+    if (key === "playbook") { lib.pb = null; host.appendChild(libraryView()); return; }
+    if (key === "gig") { host.appendChild(projectsView()); return; }
+    api.get("/gigs").then(function (r) {
+      if (key === "automate") {
+        var docs = (r.playbooks || []);
+        if (!docs.length) { host.appendChild(h("p", { class: "muted", text: "Approve an SOP or Workflow first (step 3)." })); return; }
+        var pick = h("select", { "aria-label": "Approved document to review" }, docs.map(function (p) { return h("option", { value: p.id, text: (p.doc_id ? p.doc_id + " " : "") + p.title }); }));
+        var slot = h("div");
+        host.appendChild(field("Approved document to review", pick));
+        host.appendChild(slot);
+        function show() { D.clear(slot); api.post("/automate/dismiss", { playbook_id: pick.value, dismissed: false }).catch(function () {}).then(function () { slot.appendChild(automateCard(pick.value)); }); }
+        pick.addEventListener("change", show);
+        show();
+        return;
+      }
+      var open = (r.gigs || []).filter(function (g) { return g.status === "open"; });
+      if (!open.length) { host.appendChild(h("p", { class: "muted", text: "Post a gig first (step 5)." })); return; }
+      open.forEach(function (g) {
+        host.appendChild(h("div", { class: "row", style: "margin:4px 0" }, h("span", { class: "grow", text: g.title }), h("button", { class: "ghost small", type: "button", onclick: function () {
+          var slot = h("div"); host.appendChild(slot); gigs.id = g.id; gigs.view = "matches"; gigPage(slot);
+        } }, "Open matches")));
+      });
+    }).catch(function (e) { host.appendChild(h("p", { class: "notice", text: D.errorText(e.message) })); });
+  }
+
   function drawDocument() {
     var P = lib.pb.playbook, d = docWork(), ck = lib.pb.check || { items: [], blocking: 0 };
     var edit = can(3) && P.status !== "trash" && P.status !== "archived";
@@ -5615,6 +5901,8 @@
       h("button", { class: "ghost small", type: "button", onclick: function () { lib.suggested = null; drawDocument(); } }, "Keep " + DOC_TYPE_WORDS[d.type])));
     (lib.docNotices || []).forEach(function (n) { libEl.appendChild(h("p", { class: "notice ok", text: n })); });
     lib.docNotices = [];
+    // Step 4d: the hint card above an approved SOP, Workflow or Playbook (it removes itself when the switch is off)
+    if ((me.switches || {}).automate_delegate && P.approved_version && d.type !== "policy") libEl.appendChild(automateCard(P.id));
     // Header fields, always visible
     var ownerOpts = (d.roles || []).slice();
     if (d.owner_role && ownerOpts.indexOf(d.owner_role) < 0) ownerOpts.unshift(d.owner_role);
@@ -6432,6 +6720,7 @@
       if (tab === "record") { tab = "library"; lib.startRecord = true; }
       main.appendChild(libraryView());
     }
+    else if (tab === "setup" && me.side === "attorney" && (me.switches || {}).guided_setup) main.appendChild(setupView());
     else if (tab === "connect") main.appendChild(connectView());
     else if (tab === "profile" && (me.switches || {}).profiles) main.appendChild(profileView());
     else if (tab === "projects" && canHire() && (me.switches || {}).flex_gigs) main.appendChild(projectsView());

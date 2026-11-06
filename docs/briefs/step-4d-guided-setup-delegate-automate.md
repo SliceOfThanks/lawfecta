@@ -141,3 +141,5 @@ New switches, off until tested:
 - While the tech catalog switch is off (the MVP), the Automate path names only tools the firm already lists in its firm profile, the same rule Ask DELA follows. With the catalog on, catalog tools are allowed too, with their descriptions and partner labels from the catalog.
 - "The rates freelancers on Lawfecta charge": Lawfecta has no hourly rates yet, so the suggested range uses the settings automate.rate_low_cents and automate.rate_high_cents (status O) until enough hires exist.
 - "Only an attorney" means an attorney with a verified license (the same check as posting a gig).
+- "The parent's steps then say Delegated: see SOP ...": changing the parent would make it a draft that needs approving again, so the parent is not changed. Its "✦ Automate or delegate" card lists each delegation instead ("Delegated: Steps 1 to 3, ... See SOP ..."), and the delegated SOP links back to the parent.
+- "Add this tool to the steps" does change the document, so it saves a new version that the attorney approves, as every change is.

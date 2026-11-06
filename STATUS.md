@@ -2,6 +2,20 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 4d: "✦ Automate or delegate" and "Get set up", built 2026-11-06
+- Brief approved with Stacey's 10 answers: docs/briefs/step-4d-guided-setup-delegate-automate.md. Migration 0047, switches automate_delegate and guided_setup (off until deployed). The onboarding widget (part A) waits until after the MVP launch.
+- Automate or delegate (part C):
+  - On every approved SOP, Workflow or Playbook, a hint card: "DELA can find steps in this playbook to automate or hand to a freelancer.", with "✦ Find what to automate or delegate" and "Dismiss". It never runs on its own.
+  - Two optional boxes, "How often does this run?" and "How long does it take each time?". Empty boxes: DELA estimates and labels it "Estimated by DELA". Each suggestion shows "Time saved: about X hours a month".
+  - Code checks every suggestion: never an "Attorney decides" or judgment step to delegate, never the whole document, only tools in the firm profile (or the catalog when its switch is on, with the catalog's description and "Lawfecta partner" label), at most 5 (automate.max_recommendations), ranked only by time saved.
+  - One review per approved version (ai.credits.automate_review, status O); a new approved version needs a new review.
+  - Delegate path, one screen, saved as it goes: 1 the steps, 2 the SOP for just those steps (the supervising attorney A on every step), 3 KPIs (they become its quality check, so the milestone check scores against them), 4 self-check and approval, 5 the gig with the suggested budget and the client fee. Attorneys and managers draft; only an attorney who can post approves and drafts the gig.
+  - Automate path: "Add this tool to the steps" (a new version to approve; the tool joins the firm profile) and "Hire a freelancer to set it up" (a setup gig with the tool, so freelancers who list it match first).
+  - The suggested budget uses automate.rate_low_cents and automate.rate_high_cents (status O) until Lawfecta has real rates.
+- Get set up (part B): a "Get set up" tab for attorneys with six steps (profile and verification, Teach DELA about your firm, first playbook, Automate or delegate, first gig, invite freelancers). Each opens in place, each has "Skip for now", and Home shows "Get set up: X of 6 done" until done or dismissed.
+- Also fixed from Stacey's part 3 report (16 of 17 passed): a gig link with view=proposals (or any view) now opens that view.
+- Tests: automate_test.ts (9), automate-test.js 16 browser checks, all api tests 252.
+
 ## Agencies part 3 (step 7d): subcontracting, built 2026-11-06
 - Migration 0046, behind the switch agency_subcontracting (off until deployed and turned on for the access list).
 - The disclosure: an agency's proposal shows "This agency may use vetted subcontractors from Lawfecta to complete this work.", and the agency's agreement carries it as clause 10. The attorney agrees by signing; no approval for each person.
@@ -11,7 +25,7 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - The copy flag: an agency gig that is not linked but shares at least 60% of its words with one of the agency's engagements (setting agency.copy_flag_share, status O) is flagged for the Lawfecta Team in the admin Gigs tab, with an alert. The gig still posts. "Pause the gig" pauses it and tells the agency.
 - Also fixed from Stacey's part 2c report (all 18 steps passed): the bench member's "Waiting for the agency to pay", "you pay no platform fee" on milestones with no fee, and "This gig is not available to your account" instead of "Refresh the page".
 - Tests: agency_subs_test.ts (7), agency-test.js 47 browser checks, all api tests 243.
-- Part 2c ChatGPT test: passed 2026-11-06, 18 of 18.
+- Part 2c ChatGPT test: passed 2026-11-06, 18 of 18. Part 3 ChatGPT test: 16 of 17 passed 2026-11-06; the failure (a view=proposals link) is fixed and on the test site.
 - On the test site since 2026-11-06: 0046 applied (fingerprint checked), function version 42 (commit 61bbfa2), switch agency_subcontracting on for the access list. Security Advisor: no new warnings.
 - Prepared for the test: "Test job: Subcontracting choice (prepared)" (gig c00a6abf, agreement 1afd6549, not signed), "Test job: Subcontracting active (prepared)" (gig 6a31398c, agreement 6b785bff, signed), and "Test gig: Linked part (prepared)" (gig 3f3c6b67, agreement d7b6d827) with Stacey Lake hired as the subcontractor.
 - Test: docs/tests/step-7d-subcontracting-chatgpt-prompt.md (one login per account).

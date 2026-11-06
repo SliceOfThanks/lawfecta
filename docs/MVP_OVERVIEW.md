@@ -47,14 +47,17 @@ Links on GitHub start with https://github.com/SliceOfThanks/lawfecta/blob/claude
 - Part 2a: the bench with the signed fee split and the Plus minimum. Tested by you.
 - Part 2b: bench work on attorney jobs paid by the split, payout holds with reminders, and chargebacks taken back from both shares. Tested by you.
 - Part 2c: the agency's own gigs: its Library, posting after the business check, Talent, the bench first, and the agency as the client. A bench hire pays no fee; the agency pays both. Tested by you (18 of 18).
-- Part 3: subcontracting. The disclosure on agency proposals and agreements, "No subcontractors on this engagement", linked gigs with the subcontractor on the attorney's list, the subcontractor's confidentiality and no-poaching terms, and the copy flag. Built; your test is next.
+- Part 3: subcontracting. The disclosure on agency proposals and agreements, "No subcontractors on this engagement", linked gigs with the subcontractor on the attorney's list, the subcontractor's confidentiality and no-poaching terms, and the copy flag. Tested by you (16 of 17; the failure fixed).
+
+**Guided setup**
+- Step 4d: "✦ Automate or delegate" on approved documents, and the "Get set up" screen for attorneys. Built; your test is next.
 
 **Money rules in place**
 - 5% from each side on every plan, with the $10 minimum per side and the $250 minimum engagement.
 - Stripe stays in test mode until you turn on live payments.
 
 ## 2. In progress now
-- Your ChatGPT test of agencies part 3, subcontracting. GitHub: docs/tests/step-7d-subcontracting-chatgpt-prompt.md
+- Your ChatGPT test of guided setup and Automate or delegate. GitHub: docs/tests/step-4d-automate-chatgpt-prompt.md
 - GitHub Tests are green again since the agencies part 2b push. Claude confirms each new run.
 
 ## 3. Up next, in order
@@ -81,7 +84,7 @@ Links on GitHub start with https://github.com/SliceOfThanks/lawfecta/blob/claude
 
 **Builds (each starts with a brief whose questions you answer)**
 - Agencies parts 2c and 3 (above). Your answer: all agency parts come before the beta.
-- Guided setup and "Automate or delegate" (step 4d). Waiting on your 10 answers. GitHub: docs/briefs/step-4d-guided-setup-delegate-automate.md
+- Guided setup and "Automate or delegate" (step 4d). Built with your answers; your test is next. GitHub: docs/briefs/step-4d-guided-setup-delegate-automate.md
 - Monthly recurring engagements and limited repeat hiring (step 7c). Waiting on your answers. GitHub: docs/briefs/step-7c-recurring-repeat-hiring.md
 - In-page pop-ups instead of the browser's OK and Cancel boxes (about 70 places).
 - Smaller items:

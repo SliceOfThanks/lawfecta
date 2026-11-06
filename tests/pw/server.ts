@@ -81,6 +81,11 @@ function documentAnswer(system: string): unknown {
     return { document: DOC_SOP, suggested_type: null, questions: ["Which report shows conflicts?"], notices: [] };
   }
   if (system.includes("fixing a law firm document")) return { document: DOC_SOP, notices: ["Set exactly one Accountable (A) on each step"] };
+  // Step 4d: Automate or delegate (the api checks every suggestion in code; this stand-in also tries the whole document)
+  if (system.includes("find specific groups of steps that could be automated")) return { estimate: { frequency: "weekly", minutes: 60 }, recommendations: [
+    { kind: "delegate", title: "Collect and log intake forms", steps: [1, 2], why: "Repeatable with clear inputs and outputs.", share: 0.5, skills: ["Intake"], hours_each: 1.5 },
+    { kind: "automate", title: "Log forms in Clio", steps: [3], why: "Clio can log each form.", share: 0.2, tool: "Clio", what_it_does: "Logs each returned form" },
+    { kind: "delegate", title: "All of it", steps: [1, 2, 3, 4], why: "Everything.", share: 1 }] };
   if (system.includes("You classify one existing")) return { type: "sop", lifecycle: "INT", reason: "It is one clear path." };
   if (system.includes("rewriting an existing law firm playbook")) return { document: { ...DOC_SOP, title: "New client intake" } };
   if (system.includes("answering questions about one of the firm's documents")) return { reply: "That step is done by the paralegal.", change: null, note: "" };
