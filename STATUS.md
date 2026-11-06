@@ -2,6 +2,21 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 7c part 1: monthly recurring engagements, built 2026-11-06
+- Brief approved with Stacey's 27 answers (and the agency note): docs/briefs/step-7c-recurring-repeat-hiring.md. Migration 0049, behind the switch recurring_engagements (off until deployed and turned on for the access list). Part 2, standing arrangements (repeat hiring), comes next and stays off on Live until counsel approves.
+- How it starts: the new gig form's "One-off" or "Monthly", or "Make this monthly" on a completed one-off engagement (same freelancer; both sign first).
+- The terms: each task with how often, the included quantity each month, the turnaround and what is not included. "Unlimited" is refused in code; no agreement signs without an included quantity. "Weekly units" (the default) or "One monthly delivery".
+- Signing: the client must tick "Charge this payment method each month on my billing day until I or the freelancer cancel."
+- Money: each month is one payment that funds the month's units; each unit is checked, accepted and paid like a milestone. The billing day is the day month 1 is paid (the last day of shorter months), in the attorney's time zone. The minimum fee applies each month.
+- Renewals run hourly: 3 days before billing the next month is drafted and both are reminded; on the billing day the saved method is charged; tasks open only when paid. A failed charge pauses new work at once, retries on day 2 and day 5, and ends the engagement after 14 days. A bank's extra check sends the attorney to "Pay now".
+- Changes ("Request a change") start next month only if the other side approves at least 1 day before billing. Cancel ("Cancel monthly engagement") takes effect at the end of the paid month; the cancellation is checked inside the same locked step as the charge, so a cancel during a renewal never charges (T13). Undoing needs the other side. "End now by agreement" refunds unstarted weekly units; with One monthly delivery it goes to a dispute.
+- A running monthly engagement holds one of the attorney's active gig places. Due dates move past weekends and US federal holidays.
+- Admin area: a "Recurring" tab (renewals due, failed and paused, cancellations), the emergency stop for renewal charges, and "Run the renewal now (test site)" (also on the engagement page for the Lawfecta owner; never on Live).
+- Agencies: monthly units work with bench assignments and the signed split, like milestones.
+- New settings: recurring.change_deadline_days, recurring.fee_floor_each_month, recurring.holidays, recurring.weekly_units (O), recurring.renewals_stopped, and the standing.* settings for part 2.
+- Also fixed from Stacey's step 4d report (18 of 18 passed): the delegated SOP stays within its steps, "Gig posted." once posted, single periods, and the smallest-budget wording (on the test site since 2026-11-06, migration 0048).
+- Tests: monthly_test.ts (12), monthly-test.js 19 browser checks, all api tests 264.
+
 ## Step 4d: "✦ Automate or delegate" and "Get set up", built 2026-11-06
 - Brief approved with Stacey's 10 answers: docs/briefs/step-4d-guided-setup-delegate-automate.md. Migration 0047, switches automate_delegate and guided_setup (off until deployed). The onboarding widget (part A) waits until after the MVP launch.
 - Automate or delegate (part C):

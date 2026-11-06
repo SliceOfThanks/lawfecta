@@ -182,6 +182,10 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
 - Built and on the test site, with Confidential materials (step 6c). Next: Stacey's ChatGPT test (docs/tests/step-6d-security-chatgpt-prompt.md), the /security page install (docs/STACEY_SECURITY_PAGE.md) and the OpenAI settings (docs/RUNBOOK.md).
 - Before Live: a virus scanner, a lawyer's review of the confidentiality clause, and the Live database in a US region (docs/STACEY_CHECKLIST.md Part C).
 
+### Monthly recurring engagements and repeat hiring (step 7c), Stacey answered 2026-11-06
+- Part 1, monthly engagements: built 2026-11-06 (next: the test site and Stacey's ChatGPT test).
+- Part 2, standing arrangements for repeat hiring: next. Off on Live until counsel approves the wording.
+
 ### Before the beta: guided setup and "Automate or delegate" (step 4d), Stacey answered 2026-11-06; parts B and C built (next: the test site and her ChatGPT test)
 - DELA reviews a playbook and recommends specific steps (never the whole playbook) to automate with a tool from the tech catalog, or to delegate to a freelancer.
 - The delegate path runs on one screen: the SOP for that task, its metrics and KPIs, then posting the gig.

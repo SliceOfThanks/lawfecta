@@ -12,7 +12,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["reviews", "Reviews and bench"], ["agencies", "Agencies"], ["team", "Lawfecta Team"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["reviews", "Reviews and bench"], ["agencies", "Agencies"], ["recurring", "Recurring"], ["team", "Lawfecta Team"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   var current = "control";
   var mainEl = null;
   var tabsEl = null;
@@ -79,7 +79,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, reviews: reviewsTab, agencies: agenciesTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // ---------- Guide ----------
@@ -902,6 +902,35 @@
   // ---------- Tech catalog (Step 4): upload a CSV, preview what changes, confirm; pause one tool; history ----------
   // ---------- Security: questions from the /security page, Confidential materials counts, dispute reviews ----------
   // Agencies (Step 7d): the one-time business name and state check, and a hand-raised seat limit for one agency
+  // ---------- Step 7c: monthly recurring engagements (renewals due, failed and paused, cancellations, the emergency stop) ----------
+  function recurringTab() {
+    var el = h("div", { class: "card" }, h("h2", { text: "Recurring" }), h("p", { class: "muted", text: "Loading..." }));
+    body(el);
+    api.get("/admin/monthly").then(function (r) {
+      var d = r.data || r;
+      D.clear(el);
+      el.appendChild(h("h2", { text: "Recurring" }));
+      el.appendChild(h("p", { class: "small muted", text: "Monthly engagements: renewals due, failed and paused ones, and cancellations. Renewals run every hour; each month is charged once, on its billing day, with the saved payment method." }));
+      el.appendChild(h("div", { class: "row", style: "margin:6px 0" },
+        h("span", { class: "badge " + (d.stopped ? "bad" : "ready"), text: d.stopped ? "Renewal charges are stopped" : "Renewal charges are running" }),
+        h("button", { class: d.stopped ? "blue small" : "danger small", type: "button", onclick: function () {
+          api.post("/admin/monthly/stop", { on: !d.stopped }).then(function (x) { if (!(x.data || x).ok) throw new Error("not saved"); ok(d.stopped ? "Renewal charges run again" : "Renewal charges stopped. Reminders still go out; nothing is charged."); recurringTab(); }).catch(fail);
+        } }, d.stopped ? "Start renewal charges again" : "Emergency stop: no renewal charges")));
+      var list = d.engagements || [];
+      if (!list.length) { el.appendChild(h("p", { class: "muted", text: "No monthly engagements yet." })); return; }
+      var words = { setup: "Not started", active: "Running", paused: "Paused: payment failed", ended: "Ended" };
+      list.forEach(function (x) {
+        el.appendChild(h("div", { style: "border-top:1px solid var(--line);padding:8px 0" },
+          h("div", { class: "row" }, h("b", { class: "grow", text: x.title }), h("span", { class: "badge " + (x.status === "paused" ? "bad" : x.status === "active" ? "ready" : "C"), text: words[x.status] || x.status })),
+          h("p", { class: "small", style: "margin:4px 0", text: x.attorney + " hires " + x.freelancer + " | " + D.money(x.price_cents) + " a month | months paid: " + x.months_paid +
+            (x.next_bill_on ? " | next charge " + D.date(x.next_bill_on) : "") + (x.failed_on ? " | failed " + D.date(x.failed_on) : "") + (x.cancel_effective ? " | canceled, ends " + D.date(x.cancel_effective) : "") + (x.ended_reason ? " | ended: " + x.ended_reason : "") }),
+          d.staging && (x.status === "active" || x.status === "paused") ? h("button", { class: "ghost small", type: "button", onclick: function () {
+            api.post("/admin/monthly/run-now", { agreement_id: x.agreement_id }).then(function (y) { var z = y.data || y; if (z.ok === false) throw new Error(z.reason); ok("Renewal run: " + JSON.stringify(z.run || {})); recurringTab(); }).catch(fail);
+          } }, "Run the renewal now (test site)") : null));
+      });
+    }).catch(fail);
+  }
+
   function agenciesTab() {
     var el = h("div", { class: "card" }, h("h2", { text: "Agencies" }), h("p", { class: "muted", text: "Loading..." }));
     body(el);

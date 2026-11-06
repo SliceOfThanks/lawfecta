@@ -2983,12 +2983,18 @@
       var bmax = h("input", { type: "number", min: "0", step: "1", "aria-label": "Budget to ($)" });
       var go = h("button", { class: "blue", type: "button" }, "Draft the gig with DELA");
       var req = newId();
+      // One-off or Monthly (Step 7c answer 1): a monthly gig's budget is the monthly price
+      var kOne = h("input", { type: "radio", name: "gig_kind", value: "one_off", checked: true }), kMon = h("input", { type: "radio", name: "gig_kind", value: "monthly" });
+      var kindRow = (me.switches || {}).recurring_engagements ? h("div", { class: "row", style: "gap:16px;margin-bottom:6px" },
+        h("label", { style: "display:flex;gap:6px;font-weight:400" }, kOne, h("span", { text: "One-off" })),
+        h("label", { style: "display:flex;gap:6px;font-weight:400" }, kMon, h("span", { text: "Monthly" })),
+        h("span", { class: "small muted", text: "Monthly: the same work every month for a flat monthly price, until either of you cancels. The budget is the monthly price." })) : null;
       go.addEventListener("click", function () {
         if (!pick.value) { D.toast(app, "Choose an approved SOP or Workflow first.", true); return; }
         var chosen = r.playbooks.filter(function (p) { return p.id === pick.value; })[0] || {};
         gigImageWarning(chosen.images || 0, function () {
           go.disabled = true; go.textContent = "DELA is writing the public version...";
-          api.post("/gigs/draft", { playbook_id: pick.value, request_id: req, notes: notes.value, budget_min: bmin.value, budget_max: bmax.value, linked_agreement: gigs.linkTo ? gigs.linkTo.id : undefined }).then(gigOk).then(function (x) {
+          api.post("/gigs/draft", { playbook_id: pick.value, request_id: req, notes: notes.value, budget_min: bmin.value, budget_max: bmax.value, linked_agreement: gigs.linkTo ? gigs.linkTo.id : undefined, kind: kMon.checked ? "monthly" : "one_off" }).then(gigOk).then(function (x) {
             gigs.newFrom = null; gigs.linkTo = null; gigLink(x.id, "projects");
           }).catch(function (x) { go.disabled = false; go.textContent = "Draft the gig with DELA"; gigFail(x); });
         }, function () { tab = "library"; lib.pb = null; draw(); setTimeout(function () { openPlaybook(chosen.id, "read"); }, 50); });
@@ -2997,14 +3003,14 @@
         h("p", { class: "small muted", text: "DELA writes a public version of the document for freelancers. You check it, set the budget (at least " + D.money(r.min_budget_cents) + ") and the deadline, then post. Open gigs on your plan: " + (al.unlimited ? "no cap" : (al.used || 0) + " of " + al.limit + " in use") + "." }),
         gigs.linkTo ? h("p", { class: "notice", text: "Linked to: " + gigs.linkTo.title + ". Whoever you hire is listed on the attorney's \"Who's working on this\", as your subcontractor. Share with them only what their part needs." },
           " ", h("button", { class: "ghost small", type: "button", onclick: function () { gigs.linkTo = null; draw(); } }, "Do not link")) : null,
-        field("Document", pick), notes, h("div", { class: "row" }, field("Budget from ($)", bmin), field("Budget to ($)", bmax)), h("div", { class: "row" }, go)));
+        kindRow, field("Document", pick), notes, h("div", { class: "row" }, field("Budget from ($)", bmin), field("Budget to ($)", bmax)), h("div", { class: "row" }, go)));
       // My gigs
       var list = h("div", { class: "card" }, h("h2", { text: "Your gigs" }));
       if (!r.gigs.length) list.appendChild(h("p", { class: "muted", text: "No gigs yet." }));
       r.gigs.forEach(function (g) {
         list.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { gigLink(g.id, "projects"); } },
           h("span", { class: "chip", text: g.proposals ? String(g.proposals) : "0" }),
-          h("div", null, h("h3", { text: g.title }), h("div", { class: "muted small", text: (g.linked_to ? "Linked to " + g.linked_to + " | " : "") + budgetText(g) + " | " + closesText(g) + " | " + g.proposals + (g.proposals === 1 ? " proposal" : " proposals") + (g.questions_open ? " | " + g.questions_open + " questions to answer" : "") })),
+          h("div", null, h("h3", { text: g.title }), h("div", { class: "muted small", text: (g.kind === "monthly" ? "Monthly | " : "") + (g.linked_to ? "Linked to " + g.linked_to + " | " : "") + budgetText(g) + " | " + closesText(g) + " | " + g.proposals + (g.proposals === 1 ? " proposal" : " proposals") + (g.questions_open ? " | " + g.questions_open + " questions to answer" : "") })),
           h("span", { class: "grow" }), h("span", { class: "badge " + (g.status === "open" ? "ready" : g.status === "paused" ? "held" : "C"), text: GIG_STATUS[g.status] })));
       });
       el.appendChild(list);
@@ -3022,6 +3028,7 @@
       el.appendChild(h("div", { class: "row" }, h("h1", { class: "grow", text: g.title }), h("span", { class: "badge " + (g.status === "open" ? "ready" : "C"), text: GIG_STATUS[g.status] })));
       el.appendChild(h("p", { class: "muted", text: budgetText(g) + " | " + closesText(g) + (r.counts ? " | " + r.counts.proposals + (r.counts.proposals === 1 ? " proposal, " : " proposals, ") + r.counts.invited + " invited" : "") }));
       if (g.paused_by_team) el.appendChild(h("p", { class: "notice bad", text: "The Lawfecta Team paused this gig while they check it. Freelancers cannot send proposals until it opens again." }));
+      if (g.kind === "monthly") el.appendChild(h("p", { class: "small", text: "Monthly gig: the budget is the monthly price. The agreement lists the work included each month." }));
       if (r.linked_to) el.appendChild(h("p", { class: "notice", text: "Linked to " + r.linked_to.title + ". Whoever you hire is listed on the attorney's \"Who's working on this\", as your subcontractor." }));
       var views = [["details", "Details"], ["matches", "Matches"], ["questions", "Questions" + (r.counts && r.counts.questions_open ? " (" + r.counts.questions_open + ")" : "")], ["proposals", "Proposals" + (r.counts ? " (" + r.counts.proposals + ")" : "")], ["files", "Files (" + r.files.length + ")"]];
       if ((me.switches || {}).engagements && (g.status === "filled" || gigs.view === "agreement")) views.push(["agreement", "Agreement and work"]);
@@ -4308,6 +4315,148 @@
     }).catch(function (e) { D.clear(host); host.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
 
+  // ---------- Step 7c: monthly recurring engagements (docs/briefs/step-7c-recurring-repeat-hiring.md) ----------
+  var MONTHLY_ERR = {
+    monthly_tasks_needed: "List at least one task with how often and how many are included each month.", no_unlimited: "\"Unlimited\" is not allowed. Give each task an included number.",
+    monthly_task_needs_name: "Name each task.", monthly_task_needs_frequency: "Choose how often each task happens.", monthly_task_needs_quantity: "Give each task an included number each month (1 or more).",
+    recurring_consent_needed: "Tick the box that lets Lawfecta charge your payment method each month. Without it, a monthly engagement cannot start.",
+    use_monthly_terms: "A monthly agreement changes through its Monthly terms (before signing) or \"Request a change\" (after).", use_change_request: "Both of you signed. Use \"Request a change\" for next month.",
+    other_side_approves: "The other person approves this.", nothing_to_undo: "There is nothing to undo.", too_late: "The cancellation date has passed.",
+    monthly_delivery_use_dispute: "With One monthly delivery, agree on an amount with the other person, or open a dispute below. DELA never makes up a daily rate.",
+    not_started_use_cancel: "Month 1 is not paid yet. Cancel the agreement instead.", not_completed: "Only a completed engagement can be made monthly.", recurring_off: "Monthly engagements are not open for your account yet.",
+    test_site_only: "This only works on the test site.", not_running: "This monthly engagement is not running.", canceled: "This month was canceled with the engagement.",
+  };
+  function monthlyErr(e) { return e && MONTHLY_ERR[e.reason] ? MONTHLY_ERR[e.reason] : engErr(e); }
+  var FREQ = [["daily", "Daily"], ["weekly", "Weekly"], ["every_two_weeks", "Every two weeks"], ["monthly", "Monthly"]];
+  function freqWord(f) { return (FREQ.filter(function (x) { return x[0] === f; })[0] || [f, f])[1].toLowerCase(); }
+  function tasksList(tasks) {
+    return h("ul", { style: "margin:4px 0" }, (tasks || []).map(function (x) {
+      return h("li", { text: x.task + ": " + freqWord(x.frequency) + ", up to " + x.quantity + " included each month" + (x.turnaround ? ", each within " + x.turnaround : "") + (x.exclusions ? ". Not included: " + x.exclusions : "") });
+    }));
+  }
+  // The tasks editor (rows of task, how often, included each month, turnaround, not included) and the unit choice
+  function tasksEditor(tasks, mode) {
+    var rows = h("div"), list = [];
+    function addRow(x) {
+      x = x || {};
+      var t = h("input", { "aria-label": "Task", style: "width:100%", value: x.task || "", placeholder: "For example: intake calls and conflict checks" });
+      var fq = h("select", { "aria-label": "How often" }, FREQ.map(function (f) { return h("option", { value: f[0], text: f[1], selected: (x.frequency || "weekly") === f[0] }); }));
+      var q = h("input", { type: "number", min: "1", step: "1", "aria-label": "Included each month", value: x.quantity ? String(x.quantity) : "" });
+      var ta = h("input", { "aria-label": "Turnaround", value: x.turnaround || "", placeholder: "For example: 1 business day" });
+      var ex = h("input", { "aria-label": "Not included", style: "width:100%", value: x.exclusions || "", placeholder: "Optional" });
+      var row = h("div", { class: "soft", style: "margin:6px 0" }, field("Task", t), h("div", { class: "row", style: "flex-wrap:wrap" }, field("How often", fq), field("Included each month", q), field("Turnaround", ta)), field("Not included", ex));
+      var item = { row: row, get: function () { return { task: t.value, frequency: fq.value, quantity: Number(q.value), turnaround: ta.value, exclusions: ex.value }; } };
+      row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { row.remove(); list.splice(list.indexOf(item), 1); } }, "Remove this task"));
+      list.push(item); rows.appendChild(row);
+    }
+    (tasks && tasks.length ? tasks : [{}]).forEach(addRow);
+    var weekly = h("input", { type: "radio", name: "unit_mode_" + Math.random().toString(36).slice(2), value: "weekly" });
+    var monthly = h("input", { type: "radio", name: weekly.name, value: "monthly" });
+    (mode === "monthly" ? monthly : weekly).checked = true;
+    var el = h("div", null, h("p", { class: "small muted", text: "List each task, how often it happens and how many are included each month. Nothing is unlimited: extra work is a separate gig or a change for next month." }), rows,
+      h("button", { class: "ghost small", type: "button", onclick: function () { addRow(); } }, "Add a task"),
+      h("div", { style: "margin-top:8px" }, h("b", { text: "How the freelancer is paid each month" }),
+        h("label", { style: "display:flex;gap:8px;font-weight:400" }, weekly, h("span", { text: "Weekly units: the month is split into weekly units, each checked, accepted and paid like a milestone" })),
+        h("label", { style: "display:flex;gap:8px;font-weight:400" }, monthly, h("span", { text: "One monthly delivery: checked and accepted at month end" }))));
+    return { el: el, value: function () { return { tasks: list.map(function (i) { return i.get(); }), unit_mode: monthly.checked ? "monthly" : "weekly" }; } };
+  }
+  function monthlyTermsCard(r) {
+    var a = r.agreement, mv = r.monthly, card = h("div", { class: "card", id: "monthly-terms" }, h("h2", { text: "Monthly terms" }), cardStatus("monthly"));
+    var t = mv.terms;
+    card.appendChild(h("p", { text: "Monthly price: " + D.money(t.price_cents) + ". It renews every month until either of you cancels." }));
+    var ed = tasksEditor(t.tasks, t.unit_mode);
+    card.appendChild(ed.el);
+    var save = h("button", { class: "blue small", type: "button" }, "Save the monthly terms");
+    save.addEventListener("click", function () {
+      save.disabled = true;
+      api.post("/monthly/terms", Object.assign({ id: a.id, base: a.version }, ed.value())).then(engOk).then(function (x) {
+        cardSay("monthly", "Saved as version " + x.version + ". Both of you sign the new version."); engReload();
+      }).catch(function (e) { save.disabled = false; cardSay("monthly", monthlyErr(e), true); });
+    });
+    card.appendChild(h("div", { class: "row", style: "margin-top:8px" }, save));
+    return card;
+  }
+  function monthlyCard(r) {
+    var a = r.agreement, mv = r.monthly, t = mv.terms, att = r.role === "attorney", cur = mv.current, nx = mv.next || {};
+    var card = h("div", { class: "card", id: "monthly-card" }, h("h2", { text: "Monthly engagement" }), cardStatus("monthly"));
+    function act(path, body, msg) { return api.post(path, Object.assign({ id: a.id }, body || {})).then(engOk).then(function (x) { cardSay("monthly", typeof msg === "function" ? msg(x) : msg); engReload(); return x; }).catch(function (e) { cardSay("monthly", monthlyErr(e), true); }); }
+    if (t.status === "ended") card.appendChild(h("p", { class: "notice", text: "This monthly engagement ended" + (t.ended_reason === "canceled" ? ", as canceled" : t.ended_reason === "unpaid" ? " because a month stayed unpaid" : t.ended_reason === "ended_early" ? " early by agreement" : "") + "." }));
+    if (mv.renewals_stopped && t.status !== "ended") card.appendChild(h("p", { class: "notice", text: "The Lawfecta Team paused all renewal charges for a moment. Nothing is charged until they start again." }));
+    if (cur) card.appendChild(h("div", { class: "kv" },
+      h("div", null, "This month", h("b", { text: "Month " + cur.n + ": " + D.date(cur.starts_on) + " to " + D.date(cur.ends_on) })),
+      h("div", null, "Monthly price", h("b", { text: D.money(t.price_cents) })),
+      h("div", null, "Units accepted", h("b", { text: cur.accepted + " of " + cur.units })),
+      h("div", null, "Next billing", h("b", { text: t.cancel_effective ? "None: it ends on " + D.date(t.cancel_effective) : nx.bill_on ? D.date(nx.bill_on) + (nx.price_cents ? " (" + D.money(nx.price_cents) + " plus the " + D.money(nx.fee_cents) + " platform fee)" : "") : "-" }))));
+    card.appendChild(h("h3", { text: "Included each month" }));
+    card.appendChild(tasksList(t.tasks));
+    card.appendChild(h("p", { class: "small muted", text: t.unit_mode === "monthly" ? "Paid as one monthly delivery, checked and accepted at month end." : "Paid in weekly units, each checked, accepted and paid like a milestone." }));
+    if (nx.status === "draft") card.appendChild(h("p", { class: "small", text: "Month " + nx.n + "'s tasks are drafted. They open once it is paid on " + D.date(nx.bill_on) + "." }));
+    if (nx.status === "failed" && t.status !== "ended") {
+      card.appendChild(h("p", { class: "notice bad", text: "The payment for month " + nx.n + " did not go through, so new work is paused." + (att ? "" : " Do not start month " + nx.n + "'s tasks.") +
+        (nx.next_retry_on ? " DELA tries again on " + D.date(nx.next_retry_on) + "." : "") + " It ends on " + D.date(nx.ends_if_unpaid) + " if it stays unpaid." }));
+      if (att) card.appendChild(h("div", { class: "row" }, h("button", { class: "blue small", type: "button", onclick: function () {
+        api.post("/engagements/pay", { id: a.id, use_checkout: true }).then(engOk).then(function (x) { if (x.url) location.href = x.url; else { cardSay("monthly", "Paid. Month " + nx.n + " is open."); engReload(); } }).catch(function (e) { cardSay("monthly", monthlyErr(e), true); });
+      } }, "Pay now")));
+    }
+    if (t.status === "ended") return card;
+    // Cancelling, and undoing it with the other side's approval
+    var cancelRow = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:8px" });
+    if (!t.cancel_effective) {
+      var cb = h("button", { class: "ghost small", type: "button" }, "Cancel monthly engagement");
+      cb.addEventListener("click", function () {
+        D.clear(cancelRow);
+        cancelRow.appendChild(h("span", { class: "small grow", text: "Cancel at the end of this paid month" + (cur ? " (" + D.date(cur.ends_on) + ")" : "") + "? Nothing more is charged." }));
+        cancelRow.appendChild(h("button", { class: "danger small", type: "button", onclick: function () { act("/monthly/cancel", {}, function (x) { return "Canceled. It ends on " + D.date(x.effective) + ". Nothing more is charged."; }); } }, "Yes, cancel at month end"));
+        cancelRow.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { engReload(); } }, "Keep it"));
+      });
+      cancelRow.appendChild(cb);
+    } else {
+      cancelRow.appendChild(h("span", { class: "small grow", text: "Canceled: it ends on " + D.date(t.cancel_effective) + "." }));
+      if (!t.undo_requested) cancelRow.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { act("/monthly/undo", { approve: true }, "Asked the other person to keep the engagement going."); } }, "Ask to keep it going"));
+      else if (t.undo_by_me) cancelRow.appendChild(h("span", { class: "small muted", text: "Waiting for the other person to approve keeping it." }));
+      else {
+        cancelRow.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { act("/monthly/undo", { approve: true }, "The engagement continues."); } }, "Approve keeping it"));
+        cancelRow.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { act("/monthly/undo", { approve: false }, "The cancellation stays."); } }, "Keep the cancellation"));
+      }
+    }
+    card.appendChild(cancelRow);
+    // Ending early by agreement (weekly units refund the unstarted rest)
+    var endRow = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" });
+    if (t.end_now_requested && !t.end_now_by_me) {
+      endRow.appendChild(h("span", { class: "small grow", text: "The other person asks to end now. Accepted units stay paid; the unstarted rest of this month is refunded to the client." }));
+      endRow.appendChild(h("button", { class: "danger small", type: "button", onclick: function () { act("/monthly/end-now", { approve: true }, "Ended. Unstarted units were refunded."); } }, "Agree to end now"));
+      endRow.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { act("/monthly/end-now", { approve: false }, "It keeps running."); } }, "Keep it running"));
+    } else if (t.end_now_requested) endRow.appendChild(h("span", { class: "small muted", text: "Waiting for the other person to agree to end now." }));
+    else endRow.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { act("/monthly/end-now", { approve: true }, "Asked the other person to end now."); } }, "End now by agreement"));
+    card.appendChild(endRow);
+    // Changes for next month
+    var open = (mv.changes || []).filter(function (c) { return c.status === "open"; })[0];
+    if (open) {
+      var box = h("div", { class: "soft", style: "margin-top:8px" }, h("b", { text: open.mine ? "Your change, waiting for the other person" : "A change to approve" }),
+        h("p", { class: "small", text: "Monthly price: " + D.money(open.price_cents) + ". " + (open.unit_mode === "monthly" ? "One monthly delivery." : "Weekly units.") + (open.note ? " Note: " + open.note : "") }), tasksList(open.tasks));
+      if (!open.mine) box.appendChild(h("div", { class: "row" },
+        h("button", { class: "blue small", type: "button", onclick: function () { api.post("/monthly/change/decide", { id: open.id, approve: true }).then(engOk).then(function () { cardSay("monthly", "Approved. It starts next month if approved at least 1 day before billing."); engReload(); }).catch(function (e) { cardSay("monthly", monthlyErr(e), true); }); } }, "Approve the change"),
+        h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/monthly/change/decide", { id: open.id, approve: false }).then(engOk).then(function () { cardSay("monthly", "Declined. The current terms continue."); engReload(); }).catch(function (e) { cardSay("monthly", monthlyErr(e), true); }); } }, "Decline")));
+      card.appendChild(box);
+    }
+    var chHost = h("div");
+    card.appendChild(h("div", { class: "row", style: "margin-top:8px" }, h("button", { class: "ghost small", type: "button", onclick: function () {
+      D.clear(chHost);
+      var price = h("input", { type: "number", min: "0", step: "1", "aria-label": "New monthly price ($)", value: String(Math.round(t.price_cents / 100)) });
+      var note = h("input", { "aria-label": "Why (optional)", style: "width:100%" });
+      var ed = tasksEditor(t.tasks, t.unit_mode);
+      chHost.appendChild(h("div", { class: "soft" }, field("New monthly price ($)", price), ed.el, field("Why (optional)", note),
+        h("button", { class: "blue small", type: "button", onclick: function () { act("/monthly/change", Object.assign({ price: price.value, note: note.value }, ed.value()), "Sent. If the other person approves at least 1 day before billing, it starts next month."); } }, "Send the change")));
+    } }, "Request a change")));
+    card.appendChild(chHost);
+    // Test site only: the Lawfecta owner rolls a month over now (never on Live)
+    if (mv.staff_owner && me.environment !== "live") card.appendChild(h("div", { class: "row", style: "margin-top:8px" }, h("button", { class: "ghost small", type: "button", onclick: function () {
+      api.post("/admin/monthly/run-now", { agreement_id: a.id }).then(function (x) { var d = x.data || x; if (d.ok === false) throw d; cardSay("monthly", "Renewal run: " + ((d.run || {}).succeeded ? "the month was charged" : (d.run || {}).failed ? "the charge failed" : "the next month was drafted") + "."); engReload(); })
+        .catch(function (e) { cardSay("monthly", monthlyErr(e), true); });
+    } }, "Run the renewal now (test site)")));
+    return card;
+  }
+
   function drawEngagement(host, r) {
     var a = r.agreement, cur = r.current || {}, b = cur.body || {}, att = r.role === "attorney";
     var mySigned = (r.signatures || []).some(function (s) { return s.version === a.version && s.role === r.role; });
@@ -4318,9 +4467,11 @@
     if (a.status === "paused") host.appendChild(h("p", { class: "notice bad", text: "A payment on this engagement is under review with the bank, so it is paused. You can still read everything and send messages. The Lawfecta Team will be in touch." }));
     if (a.status === "canceled") host.appendChild(h("p", { class: "notice", text: "This engagement was canceled" + (a.cancel_reason ? ": " + (a.cancel_reason === "not_signed_in_time" ? "it was not signed in time" : a.cancel_reason) : "") + "." }));
     host.appendChild(nextStep(r, mySigned, theirSigned));
+    if (r.monthly && (a.status === "draft" || a.status === "signing" || a.status === "sent")) host.appendChild(monthlyTermsCard(r));
+    if (r.monthly && !(a.status === "draft" || a.status === "signing" || a.status === "sent")) host.appendChild(monthlyCard(r));
     host.appendChild(agreementCard(r, b));
     var sc = subsCard(r, b); if (sc) host.appendChild(sc);
-    if (a.status === "signing" || a.status === "signed" || a.status === "active") host.appendChild(changesCard(r, b));
+    if (!r.monthly && (a.status === "signing" || a.status === "signed" || a.status === "active")) host.appendChild(changesCard(r, b));
     var cpc = checkpointsCard(r); if (cpc) host.appendChild(cpc);
     if ((r.milestones || []).length) host.appendChild(milestonesCard(r));
     if (att && (r.payments || []).length) host.appendChild(paymentsCard(r));
@@ -4330,6 +4481,13 @@
     host.appendChild(confCard(r));
     host.appendChild(disputeCard(r));
     if (a.status === "completed") { host.appendChild(closeoutCard(r)); reviewPanel(host, r); }
+    // Make this monthly (Step 7c answer 1): a completed one-off engagement, the same freelancer, both sign first
+    if (a.status === "completed" && !r.monthly && att && (me.switches || {}).recurring_engagements) host.appendChild(h("div", { class: "card", id: "make-monthly" }, h("h2", { text: "Keep this going every month" }), cardStatus("makemonthly"),
+      h("p", { class: "small muted", text: "Draft a monthly agreement with the same freelancer, starting from this finished work. You both sign before anything is charged." }),
+      h("button", { class: "blue small", type: "button", onclick: function () {
+        api.post("/engagements/make-monthly", { id: a.id }).then(engOk).then(function (x) { gigs.id = x.gig_id; gigs.view = "agreement"; draw(); setTimeout(function () { cardSay("makemonthly", "Drafted. Fill in the monthly terms, then both of you sign."); }, 300); })
+          .catch(function (e) { cardSay("makemonthly", monthlyErr(e), true); });
+      } }, "Make this monthly")));
     if (r.export) host.appendChild(h("div", { class: "card" }, h("h2", { text: "Engagement document (Word)" }), h("p", { class: "small muted", text: "A Word copy of the document for this engagement, now that a milestone is accepted." }),
       h("button", { class: "ghost small", type: "button", onclick: function () {
         api.get("/engagements/export?id=" + a.id).then(engOk).then(function (x) { saveB64(x.name, x.type, x.b64); }).catch(engFail);
@@ -4646,6 +4804,27 @@
   // One clear next step for this person
   function nextStep(r, mySigned, theirSigned) {
     var a = r.agreement, att = r.role === "attorney", box = h("div", { class: "card" }, h("h2", { text: "What happens next" }));
+    if (r.monthly && (a.status === "signed" || a.status === "active") && r.monthly.terms.status !== "ended") {
+      var mv = r.monthly, cur = mv.current, nx = mv.next || {};
+      if (!cur && att) {
+        var p1 = (mv.periods || [])[0] || {};
+        box.appendChild(h("p", { text: "Pay month 1 (" + D.money(p1.price_cents) + ") and the platform fee (" + D.money(p1.fee_cents) + "). The day it is paid becomes your billing day each month. Lawfecta holds it until each unit is accepted." }));
+        if (!r.stripe_ready) box.appendChild(h("p", { class: "notice", text: ENG_ERR.payments_not_set_up }));
+        else {
+          var pm = h("button", { class: "blue", type: "button" }, "Pay month 1");
+          pm.addEventListener("click", function () {
+            pm.disabled = true; pm.textContent = "Starting the payment...";
+            api.post("/engagements/pay", { id: a.id }).then(engOk).then(function (x) { if (x.url) { location.href = x.url; return; } engReload(x.status === "succeeded" ? "Paid. Month 1 is open." : "The payment is being confirmed."); })
+              .catch(function (e) { pm.disabled = false; pm.textContent = "Pay month 1"; engFail(e); });
+          });
+          box.appendChild(h("div", { class: "row" }, pm));
+          box.appendChild(h("p", { class: "small muted", text: "You pay on Stripe's secure page, and that payment method is saved for each month's renewal. A bank payment takes about 4 business days; the month's tasks open only once it clears. Stripe is in test mode on the test site: use Stripe's test card 4000 0000 0000 0077 (any future date, any 3 digits)." }));
+        }
+      } else if (!cur) box.appendChild(h("p", { text: "Waiting for the client to pay month 1. Do not start unpaid work." }));
+      else if (nx.status === "failed") box.appendChild(h("p", { text: att ? "Month " + nx.n + "'s payment did not go through. Pay now from the Monthly engagement card below." : "Month " + nx.n + " is not paid yet, so new work is paused. Do not start month " + nx.n + "'s tasks." }));
+      else box.appendChild(h("p", { text: att ? "Month " + cur.n + " is paid. Review each unit when it is submitted. The next month renews on its billing day." : "Month " + cur.n + " is paid and held by Lawfecta. Do this month's units, then submit each one below." }));
+      return box;
+    }
     if (a.status === "signing" || a.status === "draft") {
       if (mySigned && !theirSigned) box.appendChild(h("p", { text: "You signed version " + a.version + ". Waiting for the " + (att ? "freelancer" : ((((r.current || {}).body || {}).parties || {}).client || {}).kind === "agency" ? "agency" : "attorney") + " to sign." }));
       else box.appendChild(signForm(r, theirSigned));
@@ -4722,10 +4901,12 @@
     var name = h("input", { "aria-label": "Type your full name to sign", style: "width:100%", autocomplete: "name" });
     var ok = h("input", { type: "checkbox", "aria-label": "I agree to sign electronically" });
     var go = h("button", { class: "blue", type: "button" }, "Sign version " + a.version);
+    var rec = r.monthly && r.role === "attorney" ? h("input", { type: "checkbox", "aria-label": "Charge this payment method each month" }) : null;
     go.addEventListener("click", function () {
       if (!name.value.trim() || !ok.checked) { D.toast(app, ENG_ERR.sign_needs_name_and_consent, true); return; }
+      if (rec && !rec.checked) { D.toast(app, MONTHLY_ERR.recurring_consent_needed, true); return; }
       go.disabled = true;
-      api.post("/agreements/sign", { id: a.id, version: a.version, typed_name: name.value, consent: true }).then(engOk).then(function (x) {
+      api.post("/agreements/sign", { id: a.id, version: a.version, typed_name: name.value, consent: true, recurring_consent: !!(rec && rec.checked) }).then(engOk).then(function (x) {
         engReload(x.both_signed ? "Signed by both of you." + (r.role === "attorney" ? " Pay the first milestone to start." : ((((r.current || {}).body || {}).parties || {}).client || {}).kind === "agency" ? " The agency pays the first milestone next." : " The attorney pays the first milestone next.") : "Signed. Waiting for the other signature.");
       }).catch(function (e) { go.disabled = false; engFail(e); });
     });
@@ -4733,6 +4914,7 @@
       h("p", { text: (theirSigned ? "The other person signed version " + a.version + ". " : "") + "Read the agreement below. If it is right, sign it here. If not, propose changes." }),
       field("Your full name", name, "Your typed name is your signature. DELA records it with the time, this version and its fingerprint."),
       h("label", { style: "display:flex;gap:8px;font-weight:400;margin:8px 0" }, ok, h("span", { text: "I have read version " + a.version + " of this agreement and I sign it electronically." })),
+      rec ? h("label", { style: "display:flex;gap:8px;font-weight:400;margin:8px 0" }, rec, h("span", { text: "Charge this payment method each month on my billing day until I or the freelancer cancel." })) : null,
       h("div", { class: "row" }, go));
   }
 

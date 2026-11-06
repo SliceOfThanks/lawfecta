@@ -85,7 +85,7 @@ Links on GitHub start with https://github.com/SliceOfThanks/lawfecta/blob/claude
 **Builds (each starts with a brief whose questions you answer)**
 - Agencies parts 2c and 3 (above). Your answer: all agency parts come before the beta.
 - Guided setup and "Automate or delegate" (step 4d). Built with your answers; your test is next. GitHub: docs/briefs/step-4d-guided-setup-delegate-automate.md
-- Monthly recurring engagements and limited repeat hiring (step 7c). Waiting on your answers. GitHub: docs/briefs/step-7c-recurring-repeat-hiring.md
+- Monthly recurring engagements and limited repeat hiring (step 7c). Built with your answers: part 1 (monthly) done, part 2 (repeat hiring) next. GitHub: docs/briefs/step-7c-recurring-repeat-hiring.md
 - In-page pop-ups instead of the browser's OK and Cancel boxes (about 70 places).
 - Smaller items:
   - hide BD's default logo when a member has no photo
