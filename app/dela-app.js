@@ -3964,6 +3964,9 @@
       // One request ID for this window, and the button waits for the answer: a double click makes one arrangement
       // (AI review 0.9.0, payments 1)
       var req = newId();
+      // A changed box is a new request, so a repeat after a lost answer never keeps old numbers (AI review 0.9.1, payments 1)
+      m.body.addEventListener("input", function () { req = newId(); });
+      m.body.addEventListener("change", function () { req = newId(); });
       var send = h("button", { class: "blue", type: "button" }, "Sign and send");
       send.addEventListener("click", function () {
         if (send.disabled) return;
@@ -5199,7 +5202,7 @@
     var stateText = l.state === "open" ? "Expires " + D.date(l.expires_at) : l.state === "expired" ? "Expired " + D.date(l.expires_at) : "Removed";
     var acts = h("div", { class: "row", style: "flex-wrap:wrap" });
     if (l.state === "open") acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-      D.openTab(function () { return api.post("/confidential/links/open", { agreement_id: agId, link_id: l.id }).then(engOk).then(function (x) { return x.url; }); }, confFail);
+      D.openTab(function () { return api.post("/confidential/links/open", { agreement_id: agId, link_id: l.id }).then(engOk).then(function (x) { return x.url; }); }, confFail, { noReferrer: true });
     } }, "Open link"));
     if (att && l.state === "open") {
       var rm = h("button", { class: "ghost small", type: "button" }, "Remove");
@@ -7616,8 +7619,15 @@
   var logoutUrl = root.getAttribute("data-logout-url") || "/logout";
   function signOut() {
     closeMenu();
+    // Unfinished recording parts and their notes leave this browser with the person (AI review 0.9.0, privacy 1).
+    // A recording still uploading is named first, so it is never deleted without a warning (AI review 0.9.1, privacy 1).
+    idb.mine().then(function (left) {
+      if (left.length && !confirm("A recording has not finished uploading. Sign out and delete it from this browser?")) return;
+      signOutNow();
+    });
+  }
+  function signOutNow() {
     show(frame("Signing you out...", "One moment."));
-    // Unfinished recording parts and their notes leave this browser with the person (AI review 0.9.0, privacy 1)
     var clearLocal = idb.clear().then(function () { try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf("dela.rec.") === 0) localStorage.removeItem(k); }); } catch (e) { /* private windows */ } });
     Promise.all([clearLocal, api.signOut()]).then(function () { location.href = logoutUrl; }, function () { location.href = logoutUrl; });
   }

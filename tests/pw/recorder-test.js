@@ -196,9 +196,8 @@ async function waitFor(page, words, ms) {
     await putPart("someone-else");
     await click(s.page, "Home");
     await click(s.page, "Library");
-    t = await waitFor(s.page, "Recordings");
-    await s.page.waitForTimeout(800);
-    t = await text(s.page);
+    // The card has finished loading once it shows the storage line (AI review 0.9.1, tests 5: no fixed wait)
+    t = await waitFor(s.page, "Storage used:");
     ok(!t.includes("Your last recording didn't finish uploading."), "another person's unfinished recording in this browser is not offered");
     await putPart(meId);
     await click(s.page, "Home");
@@ -207,8 +206,11 @@ async function waitFor(page, words, ms) {
     ok(true, "this person's own unfinished recording is offered");
     await s.page.evaluate(() => localStorage.setItem("dela.rec.test", "notes"));
     await s.page.route(BASE + "/logout", (r) => r.fulfill({ body: "<h1>Lawfecta login</h1>", contentType: "text/html" }));
+    const asked = [];
+    s.page.on("dialog", (d) => asked.push(d.message()));
     await dela(s.page).getByRole("button", { name: "Account menu" }).click();
     await Promise.all([s.page.waitForURL(/\/logout/, { timeout: 10000 }), dela(s.page).getByRole("menuitem", { name: "Sign out" }).click()]);
+    ok(asked.some((m) => m.includes("A recording has not finished uploading")), "signing out warns before deleting a recording that has not finished uploading");
     ok(await countParts() === 0 && await s.page.evaluate(() => localStorage.getItem("dela.rec.test")) === null, "signing out removes unfinished recording parts and notes from this browser");
     await s.ctx.close();
 

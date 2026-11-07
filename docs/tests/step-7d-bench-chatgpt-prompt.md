@@ -55,11 +55,11 @@ Group 1. The agency invites a bench member (log in as the test freelancer)
 2. Go to: https://www.hirelegalhelp.com/dela?tab=agency
    Find: the card titled "Bench", near the bottom of the page (below "The agency's jobs").
    Expect: the grey text starting "Outside freelancers you hire for your work. They never use a seat." and ending "The attorney never sees the split.", and "Nobody on your bench yet."
-   Expect: at the bottom of the card, the heading "Invite to the bench" with a box "Their email on Lawfecta", a box "Agency share (%)" (it shows 30), a box "Note to them (optional)", a line "Read the bench agreement", a box "Your full name", a checkbox "I have read the bench agreement and I sign it for the agency." and a blue "Invite to the bench".
+   Expect: at the bottom of the card, the heading "Invite to the bench" with a box "Their email on Lawfecta", a box "Agency share (%)" (empty, with "Allowed: 5% to 50%." under it), a box "Note to them (optional)", a line "Read the bench agreement", a box "Your full name", a checkbox "I have read the bench agreement and I sign it for the agency." and a blue "Invite to the bench".
    Note: the card "Team" higher up also has a box "Their email on Lawfecta". Use the one in the card "Bench".
 
 3. In the card "Bench", under "Invite to the bench":
-   Do: type stacey@lawfecta.com in "Their email on Lawfecta". Change "Agency share (%)" to 60. Type Roe Owner in "Your full name". Tick "I have read the bench agreement and I sign it for the agency." Click "Invite to the bench".
+   Do: type stacey@lawfecta.com in "Their email on Lawfecta". Type 60 in "Agency share (%)". Type Roe Owner in "Your full name". Tick "I have read the bench agreement and I sign it for the agency." Click "Invite to the bench".
    Expect: the message "The agency's share is outside the allowed range. Use a share inside the range shown with the box."
 
 4. Still there:

@@ -991,6 +991,8 @@
                 // (AI review 0.9.0, payments 2)
                 var req = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "b" + Date.now() + Math.random().toString(36).slice(2);
                 var go = h("button", { class: "ghost small", type: "button" }, "Grant bonus actions");
+                // A changed amount or note is a new request (AI review 0.9.1, payments 1)
+                [amt, note].forEach(function (el) { el.addEventListener("input", function () { req = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "b" + Date.now() + Math.random().toString(36).slice(2); }); });
                 go.addEventListener("click", function () {
                   if (go.disabled) return;
                   go.disabled = true;

@@ -328,11 +328,24 @@ D.darkCss = function (css) {
 // Open a file whose short-lived link comes from the server (AI review 0.9.0, tests finding 1): the tab opens during the
 // click, so pop-up blockers (Safari above all) allow it, then it is sent to the link once the server answers. A blob link
 // (a file shown from memory) is released a minute later, so the copy does not stay reachable (privacy finding 6).
-D.openTab = function (getUrl, onFail) {
+D.openTab = function (getUrl, onFail, opts) {
   var w = window.open("", "_blank");
   return Promise.resolve().then(getUrl).then(function (url) {
-    if (!url) { if (w) w.close(); return; }
-    if (w) { try { w.opener = null; } catch (e) { /* some browsers keep it */ } w.location.href = url; } else location.href = url;
+    // Only a web address or a file held in memory is followed (AI review 0.9.1, security 1)
+    // (plain http only for this computer's own test server)
+    if (!url || !/^(https:|blob:|http:[/][/](127[.]0[.]0[.]1|localhost)[:/])/i.test(String(url))) { if (w) w.close(); if (url && onFail) onFail({ message: "That link cannot be opened." }); return; }
+    if (!w) {
+      // The browser blocked the tab: say so instead of leaving the page, so nothing typed is lost (privacy 4)
+      if (onFail) onFail({ message: "Your browser blocked the new tab. Allow pop-ups for this site, then click again." });
+      return;
+    }
+    try { w.opener = null; } catch (e) { /* some browsers keep it */ }
+    if (opts && opts.noReferrer) {
+      // The other site is not told which page sent the visitor (privacy 5)
+      var safe = String(url).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+      w.document.write('<meta name="referrer" content="no-referrer"><meta http-equiv="refresh" content="0;url=' + safe + '">');
+      w.document.close();
+    } else w.location.href = url;
     if (String(url).indexOf("blob:") === 0) setTimeout(function () { try { URL.revokeObjectURL(url); } catch (e) { /* already gone */ } }, 60000);
   }).catch(function (e) { if (w) w.close(); if (onFail) onFail(e); });
 };

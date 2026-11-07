@@ -45,7 +45,7 @@ A. Set up Live (once): docs/STACEY_CHECKLIST.md steps 11 to 15b. The Supabase pr
 
 B. Before the first push:
 1. Add the secrets in section 2 to dela-live. BD_SHARED_SECRET must be a new one, never the test site's.
-1a. Member numbers: hirelegalhelp.com and lawfecta.com number their members separately (member 687 on one site is a different person on the other). Everywhere Live asks for a member number (the GitHub variable OWNER_BD_MEMBER_ID, Live's Lawfecta Team and Live's access list), use the number from lawfecta.com's own Brilliant Directories admin > Members. Never copy a number from the test site.
+1a. Member numbers: hirelegalhelp.com and lawfecta.com number their members separately (member 1234 on one site can be a different person on the other). Everywhere Live asks for a member number (the GitHub variable OWNER_BD_MEMBER_ID, Live's Lawfecta Team and Live's access list), use the number from lawfecta.com's own Brilliant Directories admin > Members. Never copy a number from the test site.
 1b. Agent tests (ChatGPT and Claude) run in a separate Chrome profile that is signed in only with the test accounts on hirelegalhelp.com. In Chrome: click your profile picture at the top right > "Add" > name it "DELA tests". Never sign in to lawfecta.com's admin or Live's /dela-admin in that profile, and keep your own owner login in your normal profile.
 2. In GitHub, create the environment "live" (checklist step 14).
 3. Done 2026-11-07: the ANTHROPIC_API_KEY secret is in GitHub and the AI review of 0.9.0 ran (issue #9).
@@ -103,5 +103,5 @@ Testing (the test site, and Live before any real member is invited) stays in Str
 1. A lawyer reviews the agreement terms template and the chargeback rule (and the confidentiality clause if Confidential materials are on).
 2. Stripe in live mode: Lawfecta's Stripe account verified for live payments with Connect, and the live STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in dela-live's secrets (docs/STRIPE_SETUP.md, the same steps with the live keys).
 3. Point-in-time recovery turned on for dela-live, the uptime monitor running, and one restore drill done (docs/RUNBOOK.md).
-4. One small real payment end to end on Live by Stacey (a test gig between her own two accounts, then a refund), with Claude watching the Payments tab.
+4. One real payment end to end on Live by Stacey (a test gig between her own two accounts, then a refund), with Claude watching the Payments tab. It cannot be tiny: the smallest engagement is $250 plus the 5% client fee, and Stripe keeps its card processing fee when a payment is refunded, so the test costs that fee.
 5. Then Stacey turns on live_payments in Live's /dela-admin > Switches, and invites the first beta members.
