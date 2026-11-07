@@ -108,7 +108,7 @@ async function waitFor(page, words, ms) {
     t = await waitFor(p, "Claude wants to connect to DELA");
     ok(t.includes("It will use your Attorney side") && t.includes("you go back to claude.ai"), "the page names the side and where the member goes back to");
     ok(t.includes("List and read the documents") && t.includes("It cannot pay, hire, sign"), "the page lists what the app can and cannot do");
-    ok(t.includes("Confidential client information does not belong in DELA"), "the client information notice is on the approval page");
+    ok(t.includes("Never enter sensitive data in DELA, and that includes what you type in ChatGPT or Claude") && t.includes("logins and passwords"), "the sensitive data notice is on the approval page");
     await p.screenshot({ path: path.join(SHOTS, "connector-approve.png"), fullPage: true });
     await Promise.all([p.waitForURL(/claude\.ai/), click(p, "Approve")]);
     const back = new URL(p.url());

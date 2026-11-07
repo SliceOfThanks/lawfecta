@@ -318,7 +318,10 @@
     return v >= 1000 ? String(Math.round(v / 100) / 10) + " GB" : (v < 10 ? v.toFixed(1) : String(Math.round(v))) + " MB";
   }
   // The full notice is at the top of every page; next to where people type or upload, a short reminder
-  function notice() { return h("p", { class: "small muted", style: "margin:0 0 8px", role: "note", text: "No confidential client information. Use placeholders such as [Client Name] or [Case Number]. You are responsible for what you enter." }); }
+  // The sensitive data rule (Stacey 2026-11-05, docs/briefs/step-6d-security-sensitive-data.md): these six kinds are never
+  // entered or uploaded, only linked from the firm's own storage (AI review 0.9.0, privacy 3)
+  var SENSITIVE_KINDS = "SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords";
+  function notice() { return h("p", { class: "small muted", style: "margin:0 0 8px", role: "note", text: "Never enter sensitive data: " + SENSITIVE_KINDS + ". Share a link from your own storage instead. You are responsible for what you enter." }); }
 
   // ---------- Ask DELA ----------
 
@@ -1307,7 +1310,7 @@
       box.appendChild(h("p", { text: "It will use your " + D.SIDE[r.side] + " side" + ((me.sides || []).length > 1 ? ". To connect your other side instead, switch sides at the top of this page first." : ".") }));
       box.appendChild(h("p", { class: "small muted", text: "After you choose, you go back to " + r.redirect_host + "." }));
       connectExplain(box, r.side, r.client_name, true);
-      box.appendChild(h("p", { class: "notice", role: "note", text: "Confidential client information does not belong in DELA, and that includes what you type in ChatGPT or Claude for DELA. Use placeholders such as [Client Name]. You are responsible for what you enter." }));
+      box.appendChild(h("p", { class: "notice", role: "note", text: "Never enter sensitive data in DELA, and that includes what you type in ChatGPT or Claude for DELA: " + SENSITIVE_KINDS + ". Share a link from your own storage instead. You are responsible for what you enter." }));
       if (!r.on || !r.plan_ok) { box.appendChild(h("p", { class: "notice bad", text: CONNECT_ERR[!r.on ? "connector_off" : "not_in_plan"] })); }
       var msg = h("p", { role: "status", class: "small" });
       function decide(yes) {
@@ -1507,7 +1510,7 @@
     });
     var list = h("div", null, fileState.uploading.map(function (u) { return h("p", { class: "small", text: u.name + ": " + u.text }); }));
     return h("div", { class: "card" }, h("h2", { text: "Add files" }), notice(),
-      h("label", { style: "display:flex;gap:8px;align-items:flex-start;font-weight:600" }, tick, h("span", { text: "These files have no confidential client information (no client names, case numbers, dates of birth or similar)." })),
+      h("label", { style: "display:flex;gap:8px;align-items:flex-start;font-weight:600" }, tick, h("span", { text: "These files have no sensitive data (no " + SENSITIVE_KINDS + ")." })),
       h("p", { class: "small muted", text: "PDF, Word (.docx), text, Markdown, PNG or JPG, up to " + d.max_mb_per_file + " MB each. DELA checks each file. A file that looks like it has client information is held until you check it." }),
       h("div", { class: "row" }, input, go), list);
   }
@@ -1516,7 +1519,7 @@
     var input = h("input", { type: "file", accept: "." + f.ext });
     input.addEventListener("change", function () {
       if (!input.files.length) return;
-      if (!confirm("Upload a new version of \"" + f.name + "\"? Confirm it has no confidential client information.")) return;
+      if (!confirm("Upload a new version of \"" + f.name + "\"? Confirm it has no sensitive data (" + SENSITIVE_KINDS + ").")) return;
       uploadAll([input.files[0]], f.id);
     });
     input.click();
@@ -1744,12 +1747,12 @@
     var upWrap = h("div");
     var upBtn = (me.switches || {}).file_uploads ? h("button", { class: "ghost small", type: "button", onclick: function () {
       D.clear(upWrap);
-      var tick = h("input", { type: "checkbox", "aria-label": "This file has no confidential client information" });
+      var tick = h("input", { type: "checkbox", "aria-label": "This file has no sensitive data" });
       var input = h("input", { type: "file", accept: ".pdf,.docx,.txt,.md", "aria-label": "Choose a file" });
       var say = h("p", { class: "small", role: "status" });
       var go2 = h("button", { class: "blue small", type: "button", onclick: function () {
         if (!input.files.length) { say.textContent = "Choose a file first."; return; }
-        if (!tick.checked) { say.className = "small bad"; say.textContent = "Tick the box to confirm the file has no confidential client information."; return; }
+        if (!tick.checked) { say.className = "small bad"; say.textContent = "Tick the box to confirm the file has no sensitive data."; return; }
         var f = input.files[0];
         go2.disabled = true; say.className = "small"; say.textContent = "Uploading " + f.name + "...";
         uploadBlob(f, f.name, "").then(function (r) {
@@ -1765,7 +1768,7 @@
         }).catch(function (e) { go2.disabled = false; say.className = "small bad"; say.textContent = D.errorText(e.message); });
       } }, "Upload");
       upWrap.appendChild(h("div", { class: "pick" }, input,
-        h("label", { style: "display:flex;gap:8px;align-items:flex-start" }, tick, h("span", { text: "This file has no confidential client information (no client names, case numbers, dates of birth or similar)." })),
+        h("label", { style: "display:flex;gap:8px;align-items:flex-start" }, tick, h("span", { text: "This file has no sensitive data (no " + SENSITIVE_KINDS + ")." })),
         h("div", { class: "row" }, go2), say));
     } }, "Upload a new file") : null;
     box.appendChild(h("h2", { text: "New document" }));

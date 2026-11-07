@@ -247,7 +247,7 @@
       bad_provider: "Choose OpenAI or Claude.",
       file_not_usable: "One of those files cannot go to the AI yet. Files waiting for your client information check, or still being checked, cannot be used.",
       too_many_files: "Attach up to 5 files at a time.",
-      tick_needed: "Tick the box to confirm the file has no confidential client information.",
+      tick_needed: "Tick the confirmation box above the upload first.",
       type_not_allowed: "That file type is not accepted. Use PDF, Word (.docx), text, Markdown, PNG or JPG.",
       file_too_big: "That file is too big.",
       empty_file: "That file is empty.",

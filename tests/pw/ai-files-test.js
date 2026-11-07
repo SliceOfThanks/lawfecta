@@ -78,8 +78,10 @@ const MEMBER_CLAUDE = "sk-ant-member-browser-test-key-2222222222"; // rules-ok: 
     await dela(p).getByRole("button", { name: "Files" }).first().click();
     t = await waitFor(p, "Add files");
     ok(t.includes("of 1000 MB used") || t.includes("of 1024 MB used") || t.includes("of 1 GB used"), "the storage bar shows Attorney Free's 1 GB (step 9b)");
-    ok(!t.includes("DELA is for operations work") && t.includes("These files have no confidential client information"), "Files has no banner, and keeps the reminder and tick box at the upload");
-    ok(t.includes("Do not enter confidential client information") || t.includes("confidential client information"), "the confidential information notice shows where people upload");
+    ok(!t.includes("DELA is for operations work") && t.includes("These files have no sensitive data (no SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords)."), "Files has no banner, and keeps the reminder and tick box at the upload");
+    // Fix (AI review 0.9.0, privacy 3): the reminder names the six kinds of sensitive data (Stacey 2026-11-05), not client names
+    ok(t.includes("Never enter sensitive data: SSNs or ITINs") && t.includes("Share a link from your own storage instead.") && !t.includes("[Case Number]"), "the reminder names the sensitive data kinds and says to share a link");
+    ok(t.includes("Never enter sensitive data"), "the sensitive data notice shows where people upload");
 
     const input = dela(p).locator("input[type=file]").first();
     await input.setInputFiles({ name: "Intake steps.txt", mimeType: "text/plain", buffer: Buffer.from("Step 1. Open the intake form.\nStep 2. Run the conflict check.") });

@@ -227,7 +227,7 @@ async function makeMember(bd, side, plan) {
     await click(s.page, "Upload");
     t = await waitFor(s.page, "Tick the box");
     ok(t.includes("Tick the box to confirm"), "uploading here needs the no client information tick");
-    await dela(s.page).getByLabel("This file has no confidential client information").check();
+    await dela(s.page).getByLabel("This file has no sensitive data", { exact: false }).check();
     await click(s.page, "Upload");
     t = await waitFor(s.page, "is ready. DELA will draft from it", 15000);
     ok(t.includes("Billing steps.txt is ready"), "the file uploads from the New playbook page");

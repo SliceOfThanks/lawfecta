@@ -205,7 +205,7 @@ async function waitFor(page, words, ms) {
     const pdf = path.join(SHOTS, "resume.pdf");
     fs.writeFileSync(pdf, "%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\ntrailer << /Root 1 0 R >>\n%%EOF\n" + " ".repeat(400));
     await click(p, "Upload a document");
-    await waitFor(p, "Tick the box");
+    await waitFor(p, "Tick the confirmation box above the upload first.");
     await dela(p).getByText("This document has no confidential client information.").click();
     await dela(p).locator(".card", { hasText: "Profile documents" }).locator("input[type=file]").setInputFiles(pdf);
     t = await waitFor(p, "resume.pdf", 15000);

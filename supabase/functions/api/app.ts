@@ -3648,7 +3648,8 @@ function mcpUnauthorized(ctx: Ctx, error = "invalid_token") {
 
 type McpWho = { connection_id: string; person_id: string; side: "attorney" | "freelancer"; bd_member_id: number; name: string; on_hold: boolean; write_actions: boolean };
 
-const NOTICE_TOOLS = "Confidential client information does not belong in DELA: use placeholders such as [Client Name].";
+// The sensitive data rule (Stacey 2026-11-05): the six kinds are never entered, only linked (AI review 0.9.0, privacy 3)
+const NOTICE_TOOLS = "Never enter sensitive data in DELA: SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords. Share a link from the firm's own storage instead.";
 const PB_FIELDS = {
   title: { type: "string" }, outcome: { type: "string", description: "What done produces" }, practice_area: { type: "string" }, jurisdiction: { type: "string" },
   when_to_use: { type: "string", description: "What starts the process" }, roles: { type: "string", description: "Who does what; which parts only an attorney may do" },

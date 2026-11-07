@@ -187,7 +187,7 @@ Deno.test("initialize, tools/list and notifications", async () => {
   assertEquals(i.status, 200);
   assertEquals(i.body.result.protocolVersion, "2025-06-18");
   assertEquals(i.body.result.serverInfo.title, "Lawfecta DELA");
-  assert(i.body.result.instructions.includes("Confidential client information"));
+  assert(i.body.result.instructions.includes("Never enter sensitive data in DELA"));
   const unknownVersion = await mcp(access, "initialize", { protocolVersion: "1999-01-01" });
   assertEquals(unknownVersion.body.result.protocolVersion, "2025-11-25");
   assertEquals((await mcp(access, "notifications/initialized", undefined, true)).status, 202);
