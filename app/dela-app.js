@@ -136,6 +136,7 @@
       me.side && (me.switches || {}).profiles ? h("button", { role: "menuitem", onclick: function () { tab = "profile"; draw(); } }, me.side === "attorney" ? "Profile and verification" : "Profile") : null,
       me.side ? h("button", { role: "menuitem", onclick: function () { tab = "ai"; draw(); } }, "AI settings") : null,
       (me.staff || []).length ? h("a", { href: "/dela-admin", role: "menuitem" }, "Admin area") : null,
+      appearanceItems(),
       h("button", { role: "menuitem", onclick: signOut }, "Sign out"));
     bar.appendChild(menu);
   }
@@ -7427,7 +7428,22 @@
   }
 
 
+  // How DELA looks (UX review Phase 4 part D): the person's choice; while the switch is off it follows the device
+  function applyTheme() { if (me) D.setTheme(app, (me.appearance || {}).mode); }
+  function appearanceItems() {
+    var ap = (me && me.appearance) || {};
+    if (!ap.on) return [];
+    return [h("div", { class: "small muted", style: "padding:8px 12px 2px", text: "Appearance" })].concat([["device", "Match my device"], ["light", "Light"], ["dark", "Dark"]].map(function (o) {
+      return h("button", { role: "menuitemradio", "aria-checked": String(ap.mode === o[0]), onclick: function () {
+        api.post("/me/appearance", { mode: o[0] }).then(function (x) {
+          if (!x.ok) throw x;
+          me.appearance = { on: true, mode: x.mode }; applyTheme(); closeMenu(); D.toast(app, "Appearance: " + o[1]);
+        }).catch(function (e) { D.toast(app, D.errorText(e && (e.reason || e.message)), true); });
+      } }, (ap.mode === o[0] ? "✓ " : "") + o[1]);
+    }));
+  }
   function draw() {
+    applyTheme();
     closeMenu();
     var main = h("div", { class: "wrap" });
     // The full client information notice shows on Ask DELA, the Library and the recorder (where people describe processes).

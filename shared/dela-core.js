@@ -313,13 +313,34 @@
   };
 
   // Lawfecta brand: deep navy to burgundy, burgundy and blue pill buttons, soft pink highlights, Inter type.
+// Each dark rule twice: for data-theme=dark always, and for data-theme=auto when the device is dark. A rule for the root
+// (".dela{...}") gets the attribute on .dela itself; every other rule is scoped inside it.
+D.darkCss = function (css) {
+  var dark = "", auto = "";
+  css.split("}").forEach(function (rule) {
+    if (!rule) return;
+    var at = rule.indexOf("{"), sel = rule.slice(0, at), body = rule.slice(at);
+    var one = function (attr) { return sel.split(",").map(function (x) { x = x.trim(); return x === ".dela" ? ".dela" + attr : ".dela" + attr + " " + x; }).join(",") + body + "}"; };
+    dark += one("[data-theme=dark]"); auto += one("[data-theme=auto]");
+  });
+  return dark + "@media (prefers-color-scheme:dark){" + auto + "}";
+};
+// How DELA looks: "device" follows the computer or phone, "light" and "dark" are fixed
+D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode === "light" || mode === "dark" ? mode : "auto"); };
+
   D.CSS = [
     ":host{all:initial}",
     ".dela{--bg:#f4f5f7;--card:#ffffff;--ink:#1c2230;--muted:#5f6675;--line:#e6e7ec;--brand:#8b2146;--brand-ink:#ffffff;--blue:#0d83dd;--pink:#fbeef2;--pink-ink:#8b2146;",
     "--navy:#1d2030;--hero:linear-gradient(135deg,#1d2030 0%,#3a1a33 45%,#8b2146 100%);--hot:linear-gradient(120deg,#3a1238 0%,#8b2146 55%,#d23b62 100%);",
     "--ok:#2f7a4f;--warn:#a46a00;--bad:#b3261e;--soft:#f1f2f6;--shadow:0 10px 30px rgba(139,33,70,.10);--okbg:#e3f3ea;--okline:#b6dcc5;--bluebg:#eef6fd;",
     "font-family:Inter,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:var(--ink);background:var(--bg);min-height:60vh;padding:0 0 88px;box-sizing:border-box;-webkit-font-smoothing:antialiased}",
-    "@media (prefers-color-scheme:dark){.dela{--bg:#11131b;--card:#1a1d28;--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c;--brand:#c2416f;--pink:#2a1622;--pink-ink:#f19ab8;--soft:#222634;--shadow:none;--okbg:#17301f;--okline:#2b5a3b;--bluebg:#132233}}",
+    // Dark colors (UX review Phase 4 part D): on when the person chose Dark (data-theme=dark), or when they chose Match my
+    // device and the device is dark (data-theme=auto). Light (data-theme=light) never turns dark.
+    D.darkCss(".dela{--bg:#11131b;--card:#1a1d28;--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c;--brand:#c2416f;--pink:#2a1622;--pink-ink:#f19ab8;--soft:#222634;--shadow:none;--okbg:#17301f;--okline:#2b5a3b;--bluebg:#132233}" +
+      ".problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b}.notice.ok{background:#17301f}" +
+      ".msg.mine,.flow,.helpbox{border-color:#2b4a66}button.ai-btn{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}.badge.ai-label{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}" +
+      // Readable text on dark (at least 4.5 to 1): links, outlined buttons, the current tab, labels and blue buttons
+      "a{color:#8cc4ff}.soon{color:#8cc4ff}button.ghost,button.mic{color:#f19ab8}.nav button[aria-current=page]{color:#f19ab8}button.blue,.btn.blue{background:#1f6fb2;border-color:#1f6fb2}"),
     ".dela *{box-sizing:border-box}",
     ".top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;background:linear-gradient(120deg,#1d1426,#3a1430);color:#fff;position:sticky;top:var(--dela-top,0px);z-index:5}",
     ".brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}.brand img{width:34px;height:34px;border-radius:50%}",
@@ -429,7 +450,6 @@
     ".chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.chips span{background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:3px 10px;font-size:13px;display:inline-flex;gap:6px;align-items:center}" +
     ".chips button{padding:0 6px;border:0;background:transparent;color:var(--muted);font-size:15px}" +
     ".problem{border:1px solid #f3b8b3;background:#fdeceb;color:var(--ink);border-radius:14px;padding:12px 14px;margin:10px 0}" +
-    "@media (prefers-color-scheme:dark){.problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b}.notice.ok{background:#17301f}}" +
     ".pick{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:6px 10px;margin:8px 0}.pick label{font-weight:400;display:flex;gap:8px;align-items:center}" +
     ".badge.held{background:#fff3d6;color:#7a5200;border-color:#e8c97a}.badge.ready{background:#e3f3ea;color:#21613d;border-color:#b6dcc5}",
     "@media (max-width:600px){h1{font-size:24px}.wrap{padding:12px}.card{padding:16px}.hero{padding:20px}.hero h2{font-size:26px}.brand span{display:none}.top{flex-wrap:nowrap;gap:6px;padding:10px 12px}.top .bell{padding:6px 10px;font-size:13px}.top .brand{min-width:0;overflow:hidden}.brand b{font-size:16px;letter-spacing:.04em}.brand img{width:30px;height:30px}.top .badge{font-size:11px;padding:2px 8px}.bell{padding:6px 10px}.gd-terms>div{grid-template-columns:1fr;gap:2px}}",

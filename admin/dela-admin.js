@@ -53,6 +53,18 @@
     top.appendChild(h("span", { class: "badge " + (me.environment === "live" ? "C" : "stage"), title: me.environment === "live" ? "Live: lawfecta.com, real members" : "Test site: hirelegalhelp.com, test data only", text: me.environment === "live" ? "Live" : "Test site" }));
     top.appendChild(h("span", { class: "grow" }));
     top.appendChild(h("span", { class: "small", style: "opacity:.85", text: me.person.name + " (" + me.staff.join(", ") + ")" }));
+    // How DELA looks, the same choice as in the member area (UX review Phase 4 part D)
+    var ap = me.appearance || {};
+    D.setTheme(app, ap.mode);
+    if (ap.on) {
+      var look = h("select", { "aria-label": "Appearance", class: "small", style: "background:transparent;color:#fff;border:1px solid rgba(255,255,255,.45);border-radius:999px;padding:4px 10px" },
+        [["device", "Match my device"], ["light", "Light"], ["dark", "Dark"]].map(function (o) { return h("option", { value: o[0], text: o[1], selected: ap.mode === o[0], style: "color:#1c2230" }); }));
+      look.addEventListener("change", function () {
+        api.post("/me/appearance", { mode: look.value }).then(function (x) { if (!x.ok) throw x; me.appearance = { on: true, mode: x.mode }; D.setTheme(app, x.mode); ok("Appearance saved"); })
+          .catch(function (e) { fail(new Error((e && (e.reason || e.message)) || "error")); });
+      });
+      top.appendChild(look);
+    }
     top.appendChild(h("a", { class: "btn small ghost", href: "/dela", style: "color:#fff;border-color:rgba(255,255,255,.45);background:transparent" }, "Member view"));
     // Sign out ends the DELA session, then logs out of Lawfecta too, the same as in the member area
     top.appendChild(h("button", { class: "btn small ghost", type: "button", style: "color:#fff;border-color:rgba(255,255,255,.45);background:transparent", onclick: function () {

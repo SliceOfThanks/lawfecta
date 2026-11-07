@@ -161,7 +161,8 @@ async function bootstrap(ctx: Ctx): Promise<Response> {
   if (pause?.pause?.all && !(r.me?.staff ?? []).length) return json(ctx, { route: "paused", message: pause.message, commit });
   const drafts = r.me?.side === "attorney" && r.me?.person?.id ? await rpc<number>(ctx, "dela_pb_draft_count", { p_person: r.me.person.id }).catch(() => 0) : 0;
   const agencyClient = r.me?.side === "freelancer" && r.me?.person?.id ? await rpc<Record<string, unknown> | null>(ctx, "dela_agency_client", { p_person: r.me.person.id }).catch(() => null) : null;
-  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient }, commit, version: VERSION });
+  const appearance = r.me?.person?.id ? await rpc<Record<string, unknown>>(ctx, "dela_appearance", { p_person: r.me.person.id }).catch(() => ({ on: false, mode: "device" })) : { on: false, mode: "device" };
+  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance }, commit, version: VERSION });
 }
 
 // ---------- Member routes ----------
@@ -182,7 +183,9 @@ async function me(ctx: Ctx) {
   const drafts = s.side === "attorney" ? await rpc<number>(ctx, "dela_pb_draft_count", { p_person: s.person_id }).catch(() => 0) : 0;
   // An agency that hires (Step 7d part 2c): its Library, Projects and Talent, and whether it can post yet
   const agencyClient = s.side === "freelancer" ? await rpc<Record<string, unknown> | null>(ctx, "dela_agency_client", { p_person: s.person_id }).catch(() => null) : null;
-  return json(ctx, { me: { ...(await rpc<Record<string, unknown>>(ctx, "dela_me", { p_person: s.person_id, p_side: s.side })), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient } });
+  // How DELA looks for this person (UX review Phase 4 part D): their choice, or the starting setting
+  const appearance = await rpc<Record<string, unknown>>(ctx, "dela_appearance", { p_person: s.person_id }).catch(() => ({ on: false, mode: "device" }));
+  return json(ctx, { me: { ...(await rpc<Record<string, unknown>>(ctx, "dela_me", { p_person: s.person_id, p_side: s.side })), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance } });
 }
 
 async function setSide(ctx: Ctx) {
@@ -4554,6 +4557,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /bootstrap": return await bootstrap(ctx);
       case "GET /me": return await me(ctx);
       case "POST /me/side": return await setSide(ctx);
+      case "POST /me/appearance": { const s = await member(ctx); return json(ctx, await rpc(ctx, "dela_appearance_set", { p_person: s.person_id, p_mode: str(ctx.body.mode, 10) })); }
       case "POST /sign-out": return await signOut(ctx);
       case "GET /notifications": return await notifications(ctx);
       case "POST /notifications/read": return await readNotification(ctx);
