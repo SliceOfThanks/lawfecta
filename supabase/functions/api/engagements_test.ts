@@ -285,6 +285,8 @@ Deno.test("review: changes need a note and stop at the included rounds; acceptan
   checkFindings = {};
   let s = (await call("POST", "/milestones/submit", fl.token, { milestone_id: ms[0].id, statement: "Added the case caption as asked. Nothing is open.", request_id: "s2" })).body;
   assertEquals([s.status, s.score], ["with_attorney", 100], JSON.stringify(s));
+  // Fix (AI review 0.9.1, tests 2): a delivery waiting for the attorney shows on their Home tile
+  assertEquals((await call("GET", "/me", att.token)).body.me.home.pending_reviews, 1, "the attorney's Deliveries to review tile");
   assertEquals((await call("POST", "/milestones/decide", att.token, { submission_id: s.id, accept: false, note: "And the county." })).body.revisions_left, 0);
   s = (await call("POST", "/milestones/submit", fl.token, { milestone_id: ms[0].id, statement: "Added the county too. Nothing is open.", request_id: "s3" })).body;
   assertEquals((await call("POST", "/milestones/decide", att.token, { submission_id: s.id, accept: false, note: "One more thing." })).body.reason, "revisions_used_up", "more rounds need a change order");

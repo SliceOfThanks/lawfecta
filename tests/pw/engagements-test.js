@@ -215,6 +215,18 @@ async function sign(page, name, version) {
     ok(!!(await fileReq), "attorney: the new tab then goes to the file");
     await tab.close().catch(() => {});
     await p.unroute("**/deliverables/file*");
+    // Fix (AI review 0.9.1, tests 3 and security 1): when the server refuses, or sends anything but a web address, the
+    // new tab closes and the page says so
+    for (const [answer, words] of [[{ ok: false, reason: "file_expired" }, null], [{ ok: true, url: "javascript:alert(1)" }, "That link cannot be opened."]]) {
+      await p.route("**/deliverables/file*", (r) => r.fulfill({ json: answer }));
+      const opened2 = p.waitForEvent("popup");
+      await dela(p).getByRole("button", { name: "Open", exact: true }).first().click();
+      const tab2 = await opened2;
+      await tab2.waitForEvent("close", { timeout: 5000 }).catch(() => {});
+      ok(tab2.isClosed(), "the blank tab closes when the server answers " + JSON.stringify(answer));
+      if (words) { await waitFor(p, words); ok(true, "the page says the link cannot be opened"); }
+      await p.unroute("**/deliverables/file*");
+    }
     ok((await sql("select count(*)::int n from deliverable_downloads"))[0].n === 1, "attorney: the download is in the log");
     await click(p, "Accept and release payment");
     t = await waitFor(p, "Accepted");

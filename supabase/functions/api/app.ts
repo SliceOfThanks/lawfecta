@@ -31,6 +31,7 @@ import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, r
 import { clean, HELPER_SIDE, HELPER_SYSTEM, HELPERS, NOT_LEGAL, readCompare, readCriteria, readExplain, readFindings, readFirm, readFit, type HelperKey } from "./lib/helpers/model.ts";
 import { AUTOMATE_SYSTEM, defaultKpis, delegatedSop, FREQUENCIES, hoursSaved, promptFor, readKpis, readRecommendations, setupSteps, suggestBudget, timeInputs, type AllowedTool, type Frequency, type Recommendation } from "./lib/automate/model.ts";
 import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
+import { FORM_LIMITS } from "./lib/limits.ts";
 
 export const VERSION = "api-0.9.0";
 
@@ -163,7 +164,7 @@ async function bootstrap(ctx: Ctx): Promise<Response> {
   const agencyClient = r.me?.side === "freelancer" && r.me?.person?.id ? await rpc<Record<string, unknown> | null>(ctx, "dela_agency_client", { p_person: r.me.person.id }).catch(() => null) : null;
   const appearance = r.me?.person?.id ? await rpc<Record<string, unknown>>(ctx, "dela_appearance", { p_person: r.me.person.id }).catch(() => ({ on: false, mode: "device" })) : { on: false, mode: "device" };
   const home = r.me?.person?.id && r.me?.side ? await rpc<Record<string, unknown>>(ctx, "dela_home_counts", { p_person: r.me.person.id, p_side: r.me.side }).catch(() => null) : null;
-  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home }, commit, version: VERSION });
+  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, limits: FORM_LIMITS }, commit, version: VERSION });
 }
 
 // ---------- Member routes ----------
@@ -188,7 +189,7 @@ async function me(ctx: Ctx) {
   const appearance = await rpc<Record<string, unknown>>(ctx, "dela_appearance", { p_person: s.person_id }).catch(() => ({ on: false, mode: "device" }));
   // The Home tiles' real counts (AI review 0.9.0, payments 3); null hides them if the count cannot be read
   const home = await rpc<Record<string, unknown>>(ctx, "dela_home_counts", { p_person: s.person_id, p_side: s.side }).catch(() => null);
-  return json(ctx, { me: { ...(await rpc<Record<string, unknown>>(ctx, "dela_me", { p_person: s.person_id, p_side: s.side })), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home } });
+  return json(ctx, { me: { ...(await rpc<Record<string, unknown>>(ctx, "dela_me", { p_person: s.person_id, p_side: s.side })), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, limits: FORM_LIMITS } });
 }
 
 async function setSide(ctx: Ctx) {
@@ -2518,7 +2519,7 @@ async function messageSend(ctx: Ctx) {
   const held = rules.length > 0;
   const warned = !held && c.held;
   const r = await rpc<Record<string, any>>(ctx, "dela_message_send", { p_person: s.person_id, p_side: s.side, p_thread: thread,
-    p: { body, attachments: Array.isArray(ctx.body.attachments) ? ctx.body.attachments.map(uuid).filter(Boolean).slice(0, 5) : [], request_id: str(ctx.body.request_id, 80), held, warned } });
+    p: { body, attachments: Array.isArray(ctx.body.attachments) ? ctx.body.attachments.map(uuid).filter(Boolean).slice(0, FORM_LIMITS.chat_attach_max) : [], request_id: str(ctx.body.request_id, 80), held, warned } });
   if (r?.ok && !r.duplicate) {
     const gig = (await rpc<Record<string, any>>(ctx, "dela_thread_text", { p_person: s.person_id, p_side: s.side, p_thread: thread }))?.gig_id ?? null;
     await afterConduct(ctx, s, { ...c, held: held || warned, kinds: held ? rules : c.kinds }, "message", r.id, gig, body);

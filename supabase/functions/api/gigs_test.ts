@@ -167,6 +167,9 @@ Deno.test("freelancers: matched sees the gig without milestones or playbook; inv
   assertEquals((await call("POST", "/gigs/invite", att.token, { gig_id: gig, person_id: f4.id })).body.why, "excludes_state", "checked again when invited");
   const inv = (await call("POST", "/gigs/invite", att.token, { gig_id: gig, person_id: f2.id, message: "Your profile looks like a good fit." })).body;
   assertEquals(inv.ok, true, JSON.stringify(inv));
+  // Fix (AI review 0.9.1, tests 2): Home counts the invitation for the freelancer and the open gig for the attorney
+  assertEquals((await call("GET", "/me", f2.token)).body.me.home.invitations, 1, "the freelancer's Invitations tile");
+  assert((await call("GET", "/me", att.token)).body.me.home.open_gigs >= 1, "the attorney's Open gigs tile");
   const v2 = (await call("GET", "/gigs/get?id=" + gig, f2.token)).body;
   assertEquals(v2.access, "invited");
   assert(v2.playbook && v2.watermark.includes("Gig "), "the full playbook, with the freelancer's name as a watermark");

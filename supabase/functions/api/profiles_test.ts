@@ -5,6 +5,8 @@
 import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { handle, type Deps } from "./app.ts";
 import { sessionHash } from "./lib/crypto.ts";
+import { FORM_LIMITS } from "./lib/limits.ts";
+import { normalize } from "./lib/profiles/model.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
 
@@ -406,6 +408,13 @@ Deno.test("profile photo: uploaded on the profile page, PNG or JPG only, kept wh
   await call("POST", "/profile/save", fl.token, { body: { ...flCur.body, photo_file: r.photo_file }, version: flCur.version, directory: false });
   assertEquals((await call("GET", "/profile", fl.token)).body.body.photo_file, "", "nobody can use another member's photo");
   assert(other.ok);
+});
+
+// Fix (AI review 0.9.1, payments 2): the server sends its form limits with the account, and keeps to the same numbers
+Deno.test("the form limits come from one place: sent with the account and used when saving", async () => {
+  assertEquals((await call("GET", "/me", fl.token)).body.me.limits, FORM_LIMITS);
+  const many = normalize({ services: Array.from({ length: 20 }, (_, i) => ({ title: "S" + i })), practice_areas: Array.from({ length: 20 }, (_, i) => "Area " + i) });
+  assertEquals([many.services.length, many.practice_areas.length], [FORM_LIMITS.services_max, FORM_LIMITS.practice_areas_max]);
 });
 
 Deno.test("teardown", async () => {

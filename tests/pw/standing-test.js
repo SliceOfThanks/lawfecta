@@ -76,10 +76,19 @@ const ATT = 4400, FL = 4401, TEAM = 4402;
     // ---------- The attorney: set one up from Talent ----------
     s = await open(browser, "DELA-App", ATT, "&tab=talent");
     p = s.page;
+    // Fix (AI review 0.9.1, payments 2): form limits come from the server. The test changes the open-jobs limit on its
+    // way to the screen and the box follows it.
+    await p.route(/\/(bootstrap|me)(\?|$)/, async (route) => {
+      const r = await route.fetch(); const j = await r.json();
+      if (j && j.me && j.me.limits) j.me.limits.standing_max_open = 7;
+      await route.fulfill({ response: r, json: j });
+    });
+    await p.reload();
     t = await waitFor(p, "Rita Repeat", 10000);
     await dela(p).locator(".card", { hasText: "Rita Repeat" }).last().getByRole("button", { name: "Set up a standing arrangement" }).click();
     const dlg = dela(p).getByRole("dialog");
     await dlg.waitFor();
+    ok(await label(p, "Most jobs open at once").getAttribute("max") === "7", "the most-open-jobs box takes its limit from the server");
     t = await dlg.innerText();
     ok(t.includes("Send the welcome packet (version 1)") && t.includes("Run a conflict check (version 1)"), "the approved SOPs to cover, each at its version");
     await dlg.getByText("Send the welcome packet (version 1)").click();

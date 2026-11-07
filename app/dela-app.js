@@ -321,6 +321,10 @@
   // The sensitive data rule (Stacey 2026-11-05, docs/briefs/step-6d-security-sensitive-data.md): these six kinds are never
   // entered or uploaded, only linked from the firm's own storage (AI review 0.9.0, privacy 3)
   var SENSITIVE_KINDS = "SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords";
+  // Form limits come from the server with the account (AI review 0.9.1, payments 2). Missing means no limit on the
+  // screen: the server still refuses anything over its limit.
+  function lim(key) { var v = me && me.limits && me.limits[key]; return typeof v === "number" && v > 0 ? v : Infinity; }
+  function limAttr(key) { var v = lim(key); return v === Infinity ? null : String(v); }
   function notice() { return h("p", { class: "small muted", style: "margin:0 0 8px", role: "note", text: "Never enter sensitive data: " + SENSITIVE_KINDS + ". Share a link from your own storage instead. You are responsible for what you enter." }); }
 
   // ---------- Ask DELA ----------
@@ -461,7 +465,7 @@
       var on = chat.attach.some(function (x) { return x.id === f.id; });
       var cb = h("input", { type: "checkbox", checked: on });
       cb.addEventListener("change", function () {
-        if (cb.checked) { if (chat.attach.length >= 5) { cb.checked = false; D.toast(app, D.errorText("too_many_files"), true); return; } chat.attach.push({ id: f.id, name: f.name }); }
+        if (cb.checked) { if (chat.attach.length >= lim("chat_attach_max")) { cb.checked = false; D.toast(app, D.errorText("too_many_files"), true); return; } chat.attach.push({ id: f.id, name: f.name }); }
         else chat.attach = chat.attach.filter(function (x) { return x.id !== f.id; });
         drawChat();
       });
@@ -1020,7 +1024,7 @@
       var chip = h("button", { class: on ? "blue small" : "ghost small", "aria-pressed": String(on) }, a);
       chip.addEventListener("click", function () {
         var i = prof.body.practice_areas.indexOf(a);
-        if (i >= 0) prof.body.practice_areas.splice(i, 1); else if (prof.body.practice_areas.length < 15) prof.body.practice_areas.push(a);
+        if (i >= 0) prof.body.practice_areas.splice(i, 1); else if (prof.body.practice_areas.length < lim("practice_areas_max")) prof.body.practice_areas.push(a);
         prof.dirty = true;
         chip.className = i >= 0 ? "ghost small" : "blue small"; chip.setAttribute("aria-pressed", String(i < 0));
       });
@@ -1105,7 +1109,7 @@
         var chip = h("button", { class: on ? "blue small" : "ghost small", type: "button", "aria-pressed": String(on) }, t);
         chip.addEventListener("click", function () {
           var i = prof.body.software.indexOf(t);
-          if (i >= 0) prof.body.software.splice(i, 1); else if (prof.body.software.length < 30) prof.body.software.push(t);
+          if (i >= 0) prof.body.software.splice(i, 1); else if (prof.body.software.length < lim("software_max")) prof.body.software.push(t);
           prof.dirty = true;
           chip.className = i >= 0 ? "ghost small" : "blue small"; chip.setAttribute("aria-pressed", String(i < 0));
           recount();
@@ -1154,7 +1158,7 @@
     }
     drawList();
     box.appendChild(listEl);
-    box.appendChild(h("button", { class: "ghost small", onclick: function () { if (prof.body.services.length >= 12) return; prof.body.services.push({ title: "", for_whom: "", price_from_cents: null, price_to_cents: null, unit: "fixed" }); prof.dirty = true; drawList(); } }, "Add a service"));
+    box.appendChild(h("button", { class: "ghost small", onclick: function () { if (prof.body.services.length >= lim("services_max")) return; prof.body.services.push({ title: "", for_whom: "", price_from_cents: null, price_to_cents: null, unit: "fixed" }); prof.dirty = true; drawList(); } }, "Add a service"));
     return box;
   }
 
@@ -2287,7 +2291,7 @@
       var file = input.files[0];
       if (!file) { D.toast(app, "Choose the exported Scribe file first.", true); return; }
       if (!tick.checked) { D.toast(app, D.errorText("tick_needed"), true); return; }
-      if (file.size > 25 * 1048576) { D.toast(app, D.errorText("file_too_big"), true); return; }
+      if (file.size > lim("scribe_file_mb") * 1048576) { D.toast(app, D.errorText("file_too_big"), true); return; }
       var reader = new FileReader();
       reader.onload = function () {
         var g = parseGuide(file.name, String(reader.result || ""));
@@ -3949,7 +3953,7 @@
       docs.forEach(function (d) { m.body.appendChild(d.el); });
       var price = h("input", { type: "number", min: "0", step: "1", "aria-label": "Price per job ($)", placeholder: String((df.min_price_cents || 0) / 100) });
       var cap = h("input", { type: "number", min: "0", step: "1", "aria-label": "Monthly spend cap ($)" });
-      var open = h("input", { type: "number", min: "1", max: "20", step: "1", "aria-label": "Most jobs open at once", value: String(df.max_open || 3) });
+      var open = h("input", { type: "number", min: "1", max: limAttr("standing_max_open"), step: "1", "aria-label": "Most jobs open at once", value: String(df.max_open || 3) });
       var endDefault = new Date(); endDefault.setMonth(endDefault.getMonth() + (df.months || 6));
       var end = h("input", { type: "date", "aria-label": "End date", value: endDefault.toISOString().slice(0, 10) });
       var firm = h("input", { type: "checkbox" });
@@ -4046,7 +4050,7 @@
         var tools = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" });
         if (att && a.role === "manager" && a.status === "active") tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
           var pr = h("input", { type: "number", min: "0", step: "1", "aria-label": "New price per job ($)", value: String(a.price_cents / 100) }), cp = h("input", { type: "number", min: "0", step: "1", "aria-label": "New monthly spend cap ($)", value: String(a.cap_cents / 100) });
-          var op = h("input", { type: "number", min: "1", max: "20", step: "1", "aria-label": "New most jobs open at once", value: String(a.max_open) }), sbC = signBox("New limits");
+          var op = h("input", { type: "number", min: "1", max: limAttr("standing_max_open"), step: "1", "aria-label": "New most jobs open at once", value: String(a.max_open) }), sbC = signBox("New limits");
           box.appendChild(h("div", { class: "soft", style: "margin-top:6px" }, h("p", { class: "small", text: "Once you send them, new limits pause one-click hiring until the freelancer approves them. Limits that are not allowed are refused and nothing changes." }), h("div", { class: "row", style: "flex-wrap:wrap" }, field("Price per job ($)", pr), field("Monthly spend cap ($)", cp), field("Most jobs open at once", op)),
             field("Your full name", sbC.name), h("label", { style: "display:flex;gap:8px;font-weight:400" }, sbC.ok, h("span", { text: "I sign the new limits for the firm." })),
             h("button", { class: "blue small", type: "button", onclick: function () { act("/standing/change", { price: pr.value, cap: cp.value, max_open: Number(op.value), typed_name: sbC.name.value, consent: sbC.ok.checked }, "Sent. Hiring is paused until the freelancer approves."); } }, "Sign and send the new limits")));

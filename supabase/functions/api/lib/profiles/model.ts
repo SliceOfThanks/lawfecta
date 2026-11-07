@@ -1,3 +1,4 @@
+import { FORM_LIMITS } from "../limits.ts";
 // Member profiles (Step 3): one shape for both sides, cleaned on every save, with the plain list of what is missing.
 // The Lawfecta directory listing (BD) is the public profile: fromBd reads it, toBd writes it (only fields with a value,
 // so DELA never blanks a listing).
@@ -71,7 +72,7 @@ const PHOTO_PATH = /^profiles\/[0-9a-f-]{36}\/photo-[0-9a-f-]{36}\.(png|jpg)$/;
 
 export function normalize(raw: unknown): Profile {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
-  const services = (Array.isArray(r.services) ? r.services : []).slice(0, 12).map((x) => {
+  const services = (Array.isArray(r.services) ? r.services : []).slice(0, FORM_LIMITS.services_max).map((x) => {
     const o = (x && typeof x === "object" ? x : {}) as Record<string, unknown>;
     let from = cents(o.price_from_cents), to = cents(o.price_to_cents);
     if (from !== null && to !== null && to < from) [from, to] = [to, from];
@@ -84,7 +85,7 @@ export function normalize(raw: unknown): Profile {
     city: s(r.city, 80), state: state.length === 2 ? state.toUpperCase() : state, country: s(r.country, 2).toUpperCase() || "US", zip: s(r.zip, 12), phone: s(r.phone, 40),
     website: web(r.website), linkedin: web(r.linkedin), booking_link: web(r.booking_link),
     summary: s(r.summary, 3000), experience: s(r.experience, 3000), education: s(r.education, 1500),
-    practice_areas: list(r.practice_areas, 15), jurisdictions: list(r.jurisdictions, 30, 60), software: list(r.software, 30, 60), software_none: r.software_none === true,
+    practice_areas: list(r.practice_areas, FORM_LIMITS.practice_areas_max), jurisdictions: list(r.jurisdictions, 30, 60), software: list(r.software, FORM_LIMITS.software_max, 60), software_none: r.software_none === true,
     skills: list(r.skills, 30, 60), services, timezone: TIMEZONES.includes(s(r.timezone, 40)) ? s(r.timezone, 40) : "", hours: s(r.hours, 200),
     capacity_hours_week: Number.isFinite(cap) && cap >= 0 && cap <= 80 ? Math.round(cap) : null, states_excluded: list(r.states_excluded, 60, 40),
     acknowledged: r.acknowledged === true, photo_url: web(r.photo_url).startsWith("https://") ? web(r.photo_url) : "",
