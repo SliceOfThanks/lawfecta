@@ -67,8 +67,8 @@ FREELANCER (log in once)
    Do: click "✦ Check this for me". Wait up to 60 seconds.
    Expect: an "AI suggestion" panel listing what does not match between the proposal and the agreement (or "DELA found nothing to flag."), ending with the legal-correctness line. Do not sign.
 
-4. Go to: https://www.hirelegalhelp.com/dela?tab=projects
-   Expect: a card "This page is for attorneys" saying "This page is on the attorney side of DELA. You are signed in as a freelancer (DELA Test Freelancer)." with a "Go to Home" button (no empty "Coming soon" page).
+4. Go to: https://www.hirelegalhelp.com/dela?tab=files
+   Expect: a card "This page is for attorneys" saying "This page is on the attorney side of DELA. You are signed in as a freelancer (DELA Test Freelancer)." with a "Go to Home" button (no empty "Coming soon" page). (The test freelancer runs an agency that hires, so its Projects page is its own; Files is attorney-only.)
 
 5. Sign out.
 
