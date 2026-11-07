@@ -68,7 +68,7 @@ Tests today: 8 database test files, 84 API tests, 15 script tests and 198 browse
 - Every agent test now starts with the "How to work" block (docs/tests/AGENT-RULES.md) and says where to click at each step. The older prompts are marked "Not rewritten yet" until Claude rewrites them.
 
 ## 2. What needs testing, in this order
-- The Appearance choice (docs/tests/step-8a-appearance-chatgpt-prompt.md), freelancer, attorney, then owner.
+- Done: the Appearance choice, 2026-11-07, passed; the narrow-screen layout issues it found are fixed.
 - Done: the other eight AI helpers, 2026-11-07, 9 of 12 passed; the two real issues fixed, one prompt error corrected. Optional re-run of its steps 2 and 7.
 - Done: the checks before a commitment, 2026-11-07, 12 of 13 passed (step 4 was a prompt error, corrected).
 - Done: standing arrangements test, 2026-11-06, 18 of 19 passed (step 11 was a prompt error, corrected).

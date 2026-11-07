@@ -6,7 +6,9 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - The guide: docs/LIVE_READINESS.md (where things stand, every secret Live needs, Stacey's steps in order, the gates that stay off, the switches for the beta). docs/STACEY_CHECKLIST.md steps 12, 17 and 18 now match the two-site setup (lawfecta.com has its own widgets and secret).
 - Checked: all 55 database changes apply to an empty database in order; every switch starts Off on a new copy; settings come from the Decision Sheet; the push applies only what Live lacks and puts Live back by itself on a failure.
 - Found: Live needs lawfecta.com's eight BD plan numbers linked (none are linked on a new copy; the freelancer plans are not linked on the test site either); email must be switched to Brevo on Live; Confidential materials uploads are refused on Live until a virus scanner is set up.
-- Version 0.9.0 recorded in Release Control as the first Live candidate. The AI review waits for the ANTHROPIC_API_KEY GitHub secret; the November health report's 2 security scan findings wait for Stacey's screenshot.
+- Version 0.9.0 (commit d053cb7, GitHub tests run 42321621128) recorded in Release Control as the first Live candidate.
+- Stacey's Appearance test (2026-11-07): the choice itself passed everywhere. Fixed from it: long status labels and the gig form's budget boxes ran off a 290-pixel screen (Fix commit d053cb7, on the test site).
+- The AI review waits for the ANTHROPIC_API_KEY GitHub secret; the November health report's 2 security scan findings wait for Stacey's screenshot.
 
 ## UX Phase 4 part D: the Appearance choice, on the test site 2026-11-07 (commit b816524, api version 55, migration 0055)
 - Behind appearance_choice (access list on the test site, off on Live): "Appearance: Match my device / Light / Dark" in the member account menu and as a drop-down in the admin top bar, saved per person. Everyone starts on Light (appearance.default), even on a dark device; while the switch is off DELA follows the device as before.
