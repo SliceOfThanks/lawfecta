@@ -479,6 +479,13 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
     ".problem{border:1px solid #f3b8b3;background:#fdeceb;color:var(--ink);border-radius:14px;padding:12px 14px;margin:10px 0}" +
     ".pick{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:6px 10px;margin:8px 0}.pick label{font-weight:400;display:flex;gap:8px;align-items:center}" +
     ".badge.held{background:#fff3d6;color:#7a5200;border-color:#e8c97a}.badge.ready{background:#e3f3ea;color:#21613d;border-color:#b6dcc5}",
+    // The plain-language Library (step 8b Part B): two columns of cards on a computer, one on a phone, same order inside
+    ".lib-head>.grow{flex:1 1 260px}.lib-search{margin:14px 0 10px}.lib-find{width:100%;font-size:17px;padding:12px 14px;border-radius:12px}" +
+    ".lib-filters{display:flex;flex-direction:column;gap:8px;margin-bottom:6px}.lib-group h2{font-size:18px;margin:20px 0 8px}" +
+    ".lib-cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}.lib-card{margin:0;display:flex;flex-direction:column;border-radius:16px}" +
+    ".lib-card .lib-title{margin:0 0 6px;font-size:17px;line-height:1.3;overflow-wrap:anywhere}.lib-card .lib-purpose{margin:0 0 10px;color:var(--muted);font-size:14px;line-height:1.45}" +
+    ".lib-card>.row:last-child{margin-top:auto !important;padding-top:10px}.lib-help{margin-top:16px}" +
+    "@media (max-width:640px){.lib-filters .pills{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}.lib-filters .pills>button{flex:0 0 auto}.lib-cards{grid-template-columns:1fr;gap:10px}.lib-card{padding:14px}.lib-head h1{font-size:24px}.lib-card .lib-title{font-size:16px}}",
     "@media (max-width:600px){h1{font-size:24px}.wrap{padding:12px}.card{padding:16px}.hero{padding:20px}.hero h2{font-size:26px}.brand span{display:none}.top{flex-wrap:nowrap;gap:6px;padding:10px 12px}.top .bell{padding:6px 10px;font-size:13px}.top .brand{min-width:0;overflow:hidden}.brand b{font-size:16px;letter-spacing:.04em}.brand img{width:30px;height:30px}.top .badge{font-size:11px;padding:2px 8px}.bell{padding:6px 10px}.gd-terms>div{grid-template-columns:1fr;gap:2px}}",
   ].join("");
 

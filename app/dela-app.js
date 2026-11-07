@@ -1644,6 +1644,7 @@
     D.clear(libEl);
     var d = lib.data, L = d.list;
     if (!L) { libEl.appendChild(h("p", { class: "muted", text: "No library yet." })); return; }
+    if (L.workspace && L.on && !localPref("libTable")) { drawWorkspace(); return; }
     var head = h("div", { class: "row", style: "margin:18px 0 4px" }, h("h1", { class: "grow", style: "margin:0", text: "Document library" }));
     if (d.libraries.length > 1) {
       var pick = h("select", { "aria-label": "Library", onchange: function () { lib.org = pick.value; loadLibrary(); } }, d.libraries.map(function (l) {
@@ -1707,6 +1708,141 @@
       });
     }
     drawList();
+    if (L.workspace) libEl.appendChild(h("p", { class: "small" }, h("button", { class: "linkish", type: "button", onclick: function () { localPref("libTable", false); drawLibrary(); } }, "Show as cards")));
+    if (lib.startRecord) { lib.startRecord = false; recordView(); }
+  }
+
+  // ---------- Step 8b Part B: the plain-language Library (switch library_workspace; docs/briefs/step-8b-ux-retest.md) ----------
+  // Cards with a title, one purpose sentence, a status and one action. Plain categories, search by title, purpose or ID.
+  // Coming back from a document keeps the search, the category, the status and the scroll position.
+  lib.ws = { q: "", cat: "all", st: "all", scroll: null, more: null };
+  var WS_STATES = [["all", "All"], ["ready", "Ready to use"], ["draft", "Draft"], ["review", "Needs your review"]];
+  var READY_TIP = "Approved by your firm. DELA checks how it is written, not whether it is legally correct.";
+  function wsGo(fn) { lib.ws.scroll = window.pageYOffset || 0; fn(); }
+  // The status and the one action for a card (the two tables in the brief, answer B5)
+  function cardState(p, L) {
+    var today = D.today(), admin = L.role === "administrator", edit = can(3);
+    var hasApproved = !!p.approved_version && (p.status === "approved" || p.status === "draft" || p.status === "in_review");
+    var draftOpen = hasApproved && p.status !== "approved";
+    if (p.converted) return { k: "review", label: "Review imported document", go: function () { openPlaybook(p.id, "read"); } };
+    if (p.status === "in_review" && admin) return { k: "review", label: "Review and approve", note: draftOpen ? "A new draft is waiting for your approval." : "", go: function () { openPlaybook(p.id, "read"); } };
+    if (hasApproved) {
+      if (p.next_review_at && p.next_review_at <= today) return { k: "review", label: "Review now", note: "Review overdue since " + D.date(p.next_review_at), go: function () { openPlaybook(p.id); } };
+      return { k: "ready", label: "Open document", note: draftOpen ? "A new draft is in progress." : "", go: function () { openPlaybook(p.id); } };
+    }
+    if (p.blocking > 0 && edit && p.status === "draft") return { k: "review", label: "Fix required items", note: p.blocking + (p.blocking === 1 ? " required item" : " required items") + " before approval.", go: function () { openPlaybook(p.id, "read", "quality-check"); } };
+    if (p.status === "in_review") return { k: "draft", label: "Open draft", note: "Sent for approval.", go: function () { openPlaybook(p.id, "read"); } };
+    return { k: "draft", label: edit ? "Continue draft" : "Open draft", go: function () { openPlaybook(p.id, "read"); } };
+  }
+  var WS_WORDS = { ready: "Ready to use", draft: "Draft", review: "Needs your review" };
+  function docCard(p, L) {
+    var c = cardState(p, L);
+    var locked = usage.data && (usage.data.locked_ids || []).indexOf(p.id) >= 0;
+    var tip = c.k === "ready" ? D.helpTip(READY_TIP, "What does Ready to use mean?") : [null, null];
+    var act = h("button", { class: c.k === "draft" ? "ghost small" : "blue small", type: "button", onclick: function () { wsGo(c.go); } }, c.label);
+    return h("div", { class: "card lib-card", "data-id": p.id },
+      h("h3", { class: "lib-title", text: p.title }),
+      p.purpose ? h("p", { class: "lib-purpose", text: p.purpose })
+        : can(3) ? h("p", { class: "lib-purpose" }, h("button", { class: "linkish", type: "button", onclick: function () { wsGo(function () { openPlaybook(p.id, "read"); }); } }, "Add a purpose")) : null,
+      h("div", { class: "row lib-state", style: "flex-wrap:wrap;gap:6px" }, h("span", { class: "badge " + (c.k === "ready" ? "ready" : c.k === "review" ? "held" : ""), text: WS_WORDS[c.k] }), tip[0]),
+      tip[1],
+      c.note ? h("p", { class: "small muted", style: "margin:4px 0 0", text: c.note }) : null,
+      locked ? h("p", { class: "small", style: "margin:4px 0 0", text: "🔒 Upgrade to edit this document." }) : null,
+      h("div", { class: "row", style: "margin-top:10px" }, act));
+  }
+  function drawWorkspace() {
+    D.clear(libEl);
+    var d = lib.data, L = d.list, ws = lib.ws, G = L.groups || {};
+    var head = h("div", { class: "row lib-head", style: "margin:18px 0 4px;flex-wrap:wrap;gap:8px" },
+      h("div", { class: "grow" }, h("h1", { style: "margin:0", text: "Library" }), h("p", { class: "muted", style: "margin:4px 0 0", text: "Your firm's processes and policies, all in one place." })),
+      can(3) ? h("button", { class: "blue", type: "button", onclick: function () { DOC.flow = null; if (L.standard) newDocument(); else newPlaybook(); } }, "Create a document") : null,
+      can(3) ? h("button", { class: "ghost", type: "button", "aria-expanded": String(ws.more === "import"), onclick: function () { ws.more = ws.more === "import" ? null : "import"; drawWorkspace(); } }, "Import") : null,
+      L.role === "administrator" ? h("button", { class: "linkish", type: "button", onclick: openTeam }, "Library settings") : null);
+    libEl.appendChild(head);
+    if (d.libraries.length > 1) {
+      var pick = h("select", { "aria-label": "Library", onchange: function () { lib.org = pick.value; loadLibrary(); } }, d.libraries.map(function (l) {
+        return h("option", { value: l.org_id, selected: l.org_id === lib.org, text: (l.mine ? "My library" : l.name) + " (" + ROLE_WORDS[l.role] + ")" });
+      }));
+      libEl.appendChild(h("div", { class: "row" }, pick));
+    }
+    if (ws.more === "import") libEl.appendChild(h("div", { class: "card", id: "import-choices" }, h("h2", { text: "Import" }),
+      h("div", { class: "row", style: "flex-wrap:wrap" },
+        L.scribe_on ? h("button", { class: "ghost", type: "button", onclick: startScribe }, "From a Scribe guide") : null,
+        h("button", { class: "ghost", type: "button", onclick: newPlaybook }, "From a file or text you already have")),
+      h("p", { class: "small muted", text: "DELA turns it into a draft. Nothing is ready to use until someone approves it." })));
+    var q = h("input", { type: "search", class: "lib-find", "aria-label": "Find a document", placeholder: "Find a document by name, purpose or ID", value: ws.q });
+    libEl.appendChild(h("div", { class: "lib-search" }, q));
+    // Categories that have documents, in the lifecycle order, plus documents not grouped yet
+    var live = L.playbooks.filter(function (p) { return p.status !== "trash" && p.status !== "archived"; });
+    var order = ["INT", "ENG", "MAT", "DOC", "BIL", "CLS", "ADM"].filter(function (g) { return live.some(function (p) { return p.lifecycle === g; }); });
+    if (live.some(function (p) { return !G[p.lifecycle]; })) order.push("OTHER");
+    var catName = function (g) { return g === "OTHER" ? "Not grouped yet" : G[g]; };
+    if (ws.cat !== "all" && order.indexOf(ws.cat) < 0) ws.cat = "all";
+    var cats = h("div", { class: "pills", role: "group", "aria-label": "Category" }, [["all", "All categories"]].concat(order.map(function (g) { return [g, catName(g)]; })).map(function (c) {
+      return h("button", { type: "button", "aria-pressed": String(ws.cat === c[0]), onclick: function () { ws.cat = c[0]; drawWorkspace(); } }, c[1]);
+    }));
+    var sts = h("div", { class: "pills", role: "group", "aria-label": "Status" }, WS_STATES.map(function (c) {
+      return h("button", { type: "button", "aria-pressed": String(ws.st === c[0]), onclick: function () { ws.st = c[0]; drawWorkspace(); } }, c[1]);
+    }));
+    libEl.appendChild(h("div", { class: "lib-filters" }, cats, sts));
+    var listEl = h("div", { class: "lib-list" });
+    libEl.appendChild(listEl);
+    function drawCards() {
+      D.clear(listEl);
+      var words = ws.q.trim().toLowerCase();
+      var imports = ws.cat === "all" && (ws.st === "all" || ws.st === "review") ? L.imports.filter(function (i) { return !words || (i.title || "imported guide").toLowerCase().indexOf(words) >= 0; }) : [];
+      var rows = live.filter(function (p) {
+        var g = G[p.lifecycle] ? p.lifecycle : "OTHER";
+        if (ws.cat !== "all" && g !== ws.cat) return false;
+        if (ws.st !== "all" && cardState(p, L).k !== ws.st) return false;
+        if (!words) return true;
+        return [p.title, p.purpose || "", p.doc_id || "", catName(g) || "", p.practice_area || ""].join(" ").toLowerCase().indexOf(words) >= 0;
+      });
+      if (imports.length) listEl.appendChild(h("section", { class: "lib-group" }, h("h2", { text: "Imported, waiting for review" }), h("div", { class: "lib-cards" }, imports.map(function (i) {
+        return h("div", { class: "card lib-card" }, h("h3", { class: "lib-title", text: i.title || "Imported guide" }),
+          h("p", { class: "lib-purpose", text: i.steps + (i.steps === 1 ? " step" : " steps") + " imported on " + D.date(i.created_at) + "." }),
+          h("div", { class: "row lib-state" }, h("span", { class: "badge held", text: "Needs your review" })),
+          h("div", { class: "row", style: "margin-top:10px" }, h("button", { class: "blue small", type: "button", onclick: function () { wsGo(function () { openImport(i.id); }); } }, "Review imported document")));
+      }))));
+      if (!rows.length && !imports.length) {
+        listEl.appendChild(h("div", { class: "card" }, h("p", { class: "muted", style: "margin:0 0 8px", text: live.length ? "No documents match." : "No documents yet. Click \"Create a document\" and describe what you want to document." }),
+          live.length ? h("button", { class: "ghost small", type: "button", onclick: function () { ws.q = ""; ws.cat = "all"; ws.st = "all"; drawWorkspace(); } }, "Show all documents") : null));
+        return;
+      }
+      order.forEach(function (g) {
+        var list = rows.filter(function (p) { return (G[p.lifecycle] ? p.lifecycle : "OTHER") === g; });
+        if (!list.length) return;
+        list.sort(function (a, b) { return a.title.localeCompare(b.title); });
+        listEl.appendChild(h("section", { class: "lib-group" }, h("h2", { text: catName(g) }), h("div", { class: "lib-cards" }, list.map(function (p) { return docCard(p, L); }))));
+      });
+    }
+    q.addEventListener("input", function () { ws.q = q.value; drawCards(); });
+    drawCards();
+    // At the bottom: Recordings, Recently deleted, the table choice, the plan limit and the help panel
+    var gone = L.playbooks.filter(function (p) { return p.status === "archived" || p.status === "trash"; });
+    libEl.appendChild(h("div", { class: "row lib-links", style: "flex-wrap:wrap;gap:16px;margin:18px 0 8px" },
+      can(3) ? h("button", { class: "linkish", type: "button", "aria-expanded": String(ws.more === "rec"), onclick: function () { ws.more = ws.more === "rec" ? null : "rec"; drawWorkspace(); } }, "Recordings") : null,
+      gone.length ? h("button", { class: "linkish", type: "button", "aria-expanded": String(ws.more === "gone"), onclick: function () { ws.more = ws.more === "gone" ? null : "gone"; drawWorkspace(); } }, "Recently deleted (" + gone.length + ")") : null,
+      h("button", { class: "linkish", type: "button", onclick: function () { localPref("libTable", true); drawLibrary(); } }, "Show as a table")));
+    if (ws.more === "rec" && can(3)) libEl.appendChild(recordingsCard());
+    if (ws.more === "gone") libEl.appendChild(h("div", { class: "card", id: "recently-deleted" }, h("h2", { text: "Recently deleted" }),
+      h("p", { class: "small muted", text: "Archived documents and documents in the trash. Open one to restore it." }),
+      h("ul", { class: "list" }, gone.map(function (p) {
+        return h("li", { class: "row" }, h("span", { class: "grow" }, h("b", { text: p.title }), h("span", { class: "small muted", text: " " + PB_STATUS[p.status] })),
+          h("button", { class: "ghost small", type: "button", onclick: function () { wsGo(function () { openPlaybook(p.id, "read"); }); } }, "Open"));
+      }))));
+    libEl.appendChild(draftsDueCard());
+    if (can(3)) {
+      var want = h("textarea", { rows: 3, style: "width:100%", "aria-label": "What would you like to document?", placeholder: "For example: how we check for conflicts before accepting a new client" });
+      libEl.appendChild(h("div", { class: "card soft lib-help", id: "lib-help" }, h("h2", { text: "Not sure where to start?" }),
+        h("p", { class: "small muted", text: "Describe the process in a sentence. DELA suggests how to structure it, asks a few questions and drafts it for you. The draft is yours to edit, and it is never the working version until someone approves it." }),
+        notice(), want,
+        h("div", { class: "row", style: "margin-top:8px;flex-wrap:wrap" },
+          h("button", { class: "blue", type: "button", onclick: function () { DOC.flow = { what: want.value }; if (L.standard) newDocument(); else newPlaybook(); } }, "✦ Help me create a document"),
+          h("button", { class: "ghost", type: "button", onclick: suggestMissing }, "What am I missing?"))));
+    }
+    libEl.appendChild(h("p", { class: "small muted", text: (function (x) { return x + (x.slice(-1) === "." ? "" : "."); })(libLimitText(L)) + " Your role: " + ROLE_WORDS[L.role] + "." }));
+    if (ws.scroll !== null) { var y = ws.scroll; ws.scroll = null; setTimeout(function () { window.scrollTo(0, y); }, 0); }
     if (lib.startRecord) { lib.startRecord = false; recordView(); }
   }
 
@@ -6253,9 +6389,47 @@
       D.clear(host);
       if (!rs[0].saved) { firmProfileForm(host, rs[0], newDocument); return; }
       DOC.flow = DOC.flow || {};
-      if (!DOC.flow.type) { pickWhat(host, rs[1]); return; }
+      if (!DOC.flow.type) { if (lib.data && lib.data.list && lib.data.list.workspace && !DOC.flow.pick) wsWhat(host, rs[1]); else pickWhat(host, rs[1]); return; }
       questionsForm(host, rs[0], rs[1]);
     }).catch(pbFail);
+  }
+
+  // Step 8b Part B (answer B8): "What would you like to document?" comes first. DELA suggests the structure in plain
+  // words (worked out in code, no credits); the person can pick another type before the questions start.
+  function wsWhat(host, st) {
+    var flow = DOC.flow || {};
+    var ta = h("textarea", { rows: 3, style: "width:100%", "aria-label": "What would you like to document?", placeholder: "For example: how we check for conflicts before accepting a new client", value: flow.what || "" });
+    var out = h("div", { "aria-live": "polite" });
+    var next = h("button", { class: "blue", type: "button" }, "Next");
+    function use(type, starter, sg) { DOC.flow = { type: type, starter: starter || null, describe: ta.value.trim(), lifecycle: sg ? sg.lifecycle : "" }; newDocument(); }
+    next.addEventListener("click", function () {
+      if (ta.value.trim().length < 3) { D.toast(app, "Describe what you would like to document first.", true); ta.focus(); return; }
+      next.disabled = true;
+      api.post("/documents/suggest", { text: ta.value }).then(function (sg) {
+        next.disabled = false;
+        if (!sg.ok) throw sg;
+        D.clear(out);
+        var starter = sg.starter ? (st.starters || []).filter(function (x) { return x.id === sg.starter.id; })[0] : null;
+        var others = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:8px", hidden: true }, ["sop", "workflow", "playbook", "policy"].filter(function (t) { return t !== sg.type; }).map(function (t) {
+          return h("button", { class: "ghost small", type: "button", title: st.types[t].line, onclick: function () { use(t, null, sg); } }, st.types[t].label);
+        }));
+        out.appendChild(h("div", { class: "card soft", id: "lib-suggest" }, h("h3", { style: "margin-top:0", text: "DELA suggests: " + sg.label }),
+          h("p", { text: sg.reason }),
+          starter ? h("p", { class: "small", text: "It matches a common process, \"" + starter.title + "\", so DELA starts from it." }) : null,
+          h("p", { class: "small muted", text: "Category: " + sg.group + "." }),
+          h("div", { class: "row", style: "flex-wrap:wrap" },
+            h("button", { class: "blue", type: "button", onclick: function () { use(sg.type, starter, sg); } }, "Use this"),
+            h("button", { class: "ghost", type: "button", "aria-expanded": "false", onclick: function (e) { others.hidden = !others.hidden; e.currentTarget.setAttribute("aria-expanded", String(!others.hidden)); } }, "Choose another type")),
+          others));
+      }).catch(function (e) { next.disabled = false; pbFail(e); });
+    });
+    host.appendChild(h("div", { class: "card" }, h("h2", { text: "What would you like to document?" }),
+      h("p", { class: "small muted", text: "Describe it in a sentence, the way you would explain it to a new team member." }), notice(), ta,
+      h("div", { class: "row", style: "margin-top:8px;flex-wrap:wrap" }, next,
+        h("button", { class: "linkish", type: "button", onclick: function () { DOC.flow = { pick: true }; newDocument(); } }, "I know which type I want")),
+      out));
+    ta.focus();
+    if (flow.what) next.click();
   }
 
   function pickWhat(host, st) {
@@ -6280,7 +6454,7 @@
   function questionsForm(host, f, st) {
     var flow = DOC.flow, s0 = flow.starter || {};
     var info = st.types[flow.type];
-    host.appendChild(h("p", null, h("b", { text: info.label + ": " }), info.line, " ", h("button", { class: "ghost small", type: "button", onclick: function () { DOC.flow = null; newDocument(); } }, "Change")));
+    host.appendChild(h("p", null, h("b", { text: info.label + ": " }), info.line, " ", h("button", { class: "ghost small", type: "button", onclick: function () { DOC.flow = flow.describe ? { what: flow.describe } : null; newDocument(); } }, "Change")));
     var firm = f.firm || {};
     var roleNames = (firm.roles || []).map(function (r) { return r.name; });
     var sysNames = [];
@@ -6294,6 +6468,8 @@
     var att = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Steps the attorney must decide or approve" });
     var wrong = h("textarea", { rows: 2, style: "width:100%", "aria-label": "What goes wrong today (optional)" });
     var paste = h("textarea", { rows: 3, style: "width:100%", "aria-label": "Paste an existing checklist, email or old SOP (optional)", placeholder: "DELA removes client names, case numbers, passwords and account numbers before drafting." });
+    // From "What would you like to document?": the description goes with the answers, so DELA drafts from it
+    if (flow.describe) paste.value = flow.describe;
     var files = [], fileWrap = h("div", { class: "small" });
     var pickFiles = h("button", { class: "ghost small", type: "button", onclick: function () {
       api.get("/files").then(function (x) {
@@ -6313,7 +6489,7 @@
     go.addEventListener("click", function () {
       if (!name.value.trim()) { D.toast(app, DOC_ERR.name_needed, true); return; }
       go.disabled = true; status.textContent = "DELA is drafting to your firm's standard and checking its own work. This takes about a minute.";
-      api.post("/documents/draft", { org_id: lib.org, type: flow.type, starter_id: s0.id || "", lifecycle: s0.lifecycle || "", request_id: req, file_ids: files, text: paste.value,
+      api.post("/documents/draft", { org_id: lib.org, type: flow.type, starter_id: s0.id || "", lifecycle: s0.lifecycle || flow.lifecycle || "", request_id: req, file_ids: files, text: paste.value,
         answers: { name: name.value, trigger: trig.value, done: done.value, roles: picked(rolesBox), systems: picked(sysBox), timing: timing.value, attorney_steps: att.value, problems: wrong.value } }).then(function (r) {
         go.disabled = false; status.textContent = "";
         if (!r.ok && r.reason === "playbook_limit") { limitPopup("playbooks"); return; }
@@ -6330,7 +6506,7 @@
       field("Process name", name), field("What starts it", trig), field("What done looks like", done), field("Which roles touch it", rolesBox), field("Which systems it uses", sysBox),
       field("Any deadline or time target", timing, "Use your own service level. For a court rule or statute, DELA adds a field for the rule's link and a date to verify it."),
       field("Steps you must personally decide or approve", att), field("What goes wrong today (optional)", wrong),
-      h("details", null, h("summary", { text: "Rewrite something you already have (optional)" }), paste, h("div", { class: "row" }, pickFiles), fileWrap),
+      h("details", { open: !!flow.describe }, h("summary", { text: flow.describe ? "What you described, and anything you already have (optional)" : "Rewrite something you already have (optional)" }), paste, h("div", { class: "row" }, pickFiles), fileWrap),
       h("div", { class: "row", style: "margin-top:10px" }, go, status)));
   }
 

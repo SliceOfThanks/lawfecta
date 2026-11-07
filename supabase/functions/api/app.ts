@@ -3,6 +3,7 @@
 //
 // Sign in: the DELA-Auth widget in BD signs a one-use pass; POST /bootstrap swaps it for a DELA session token.
 // Every other member route sends that token in the x-dela-session header and is checked again on every call.
+import { PLAIN_GROUPS, purposeLine, suggestStructure } from "./lib/documents/cards.ts";
 import { b64url, newSessionToken, safeEqual, sessionHash, sha256Hex } from "./lib/crypto.ts";
 import { buildNotice } from "./lib/email.ts";
 import { pickProvider } from "./lib/mail/index.ts";
@@ -841,7 +842,29 @@ async function library(ctx: Ctx) {
   const want = uuid(ctx.url.searchParams.get("org"));
   const org = (want && libs.find((l) => l.org_id === want)) ? want : libs.find((l) => l.mine)?.org_id ?? libs[0]?.org_id;
   if (!org) return json(ctx, { ok: true, libraries: [], list: null });
-  return json(ctx, { ok: true, libraries: libs, org_id: org, list: await rpc(ctx, "dela_pb_list", { p_person: s.person_id, p_org: org }) });
+  const list = await rpc<Record<string, any>>(ctx, "dela_pb_list", { p_person: s.person_id, p_org: org });
+  // Step 8b Part B: with library_workspace on, each document carries its card line (purpose, or the first step) and the
+  // plain category names come with the list
+  if (list?.ok && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "library_workspace", p_person: s.person_id }).catch(() => false) === true) {
+    const facts = new Map(((await rpc<Array<Record<string, string>>>(ctx, "dela_pb_cards", { p_person: s.person_id, p_org: org })) ?? []).map((c) => [c.id, c]));
+    for (const p of (list.playbooks ?? []) as Array<Record<string, unknown>>) {
+      const f = facts.get(String(p.id));
+      const line = purposeLine(f?.purpose ?? "", f?.first_step ?? "");
+      p.purpose = line.text;
+      p.purpose_from = line.from;
+    }
+    list.workspace = true;
+    list.groups = PLAIN_GROUPS;
+  }
+  return json(ctx, { ok: true, libraries: libs, org_id: org, list });
+}
+
+// "What would you like to document?" (step 8b Part B, B8): DELA's suggested structure, worked out in code (no AI, no credits)
+async function documentSuggest(ctx: Ctx) {
+  await client(ctx);
+  const text = str(ctx.body.text, 2000).trim();
+  if (text.length < 3) return json(ctx, { ok: false, reason: "describe_first" }, 400);
+  return json(ctx, { ok: true, ...suggestStructure(text) });
 }
 
 async function pbGet(ctx: Ctx) {
@@ -4839,6 +4862,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /insights/remove": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_insight_remove", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)) })); }
       case "GET /documents/firm": { const s = await client(ctx); return json(ctx, { ...(await rpc<Record<string, any>>(ctx, "dela_doc_firm_side", { p_person: s.person_id, p_side: s.side })), default_roles: DEFAULT_ROLES, solo_roles: SOLO_ROLES, system_groups: SYSTEM_GROUPS }); }
       case "POST /documents/firm": return await docFirmSave(ctx);
+      case "POST /documents/suggest": return await documentSuggest(ctx);
       case "GET /documents/starters": { await client(ctx); return json(ctx, { ok: true, types: TYPE_INFO, lifecycle: LIFECYCLE, starters: STARTERS, kpi_examples: KPI_EXAMPLES }); }
       case "POST /documents/draft": return await docDraft(ctx);
       case "POST /documents/check": return await docCheck(ctx);

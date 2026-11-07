@@ -126,9 +126,9 @@ Things only you can provide
 ## 4. What we build next
 - Done: UX review parts 0 to 3 and step 7c part 2 (standing arrangements) on the test site. Phase 4 (docs/briefs/step-8a-phase-4.md, answered 2026-11-06): parts A (the approved-version page) and B (the checks before a commitment, with the freelancer helpers) are on the test site. All 14 AI helpers and the Appearance choice are on the test site (2026-11-07), so Phase 4 is built except the first ten minutes, which waits for the onboarding widget after the MVP launch.
 - Built: attorney plan usage limits (step 9b), on the test site with blocking off. Turn blocking on after the test.
-- Waiting on Stacey: the Pro trial and downgrade to Free (docs/briefs/step-9-pro-trial-downgrade.md). Plan only; not built until she answers.
+- Pro trial and downgrade to Free (docs/briefs/step-9-pro-trial-downgrade.md): answered 2026-11-07. Next: Stacey runs the read-only BD API check (docs/handoff/bd-api-trial-check.md) and allows the permissions it lists; then build the job (dry run for 3 days, "Trial downgrade mode" setting, run log, daily summary email), remove DELA's own "trials" switch from the plan logic.
 - Built 2026-11-07, on the test site behind client_details_allowed: the client information check follows the sensitive data rule (docs/briefs/step-9c-client-information-check.md). Its ChatGPT test: docs/tests/step-9c-client-details-chatgpt-prompt.md (freelancer, attorney, owner).
-- Step 8b (docs/briefs/step-8b-ux-retest.md, answered 2026-11-07): Part A built and on the test site; its ChatGPT check is docs/tests/step-8b-part-a-chatgpt-prompt.md. Part B revised from Stacey's own Library brief and mockup (2026-11-07): questions B1 to B10 in the 8b brief wait for her answers. Then Part C.
+- Step 8b (docs/briefs/step-8b-ux-retest.md, answered 2026-11-07): Part A built and on the test site; its ChatGPT check is docs/tests/step-8b-part-a-chatgpt-prompt.md. Part B (the plain-language Library, from Stacey's own brief and mockup) built behind library_workspace and on the test site: Stacey reviews it on computer and phone (B10), Claude adjusts from her notes, then writes its ChatGPT check. Then Part C.
 
 Every step follows the same path:
 1. Claude writes a brief with a suggested answer for every question.

@@ -51,7 +51,7 @@ jobs:
       - name: Database tests
         run: tools/dbtest.sh
       - name: API and widget tests
-        run: npx deno test -A supabase/functions/api/app_test.ts supabase/functions/api/ai_files_test.ts supabase/functions/api/playbooks_test.ts supabase/functions/api/recorder_test.ts supabase/functions/api/mcp_test.ts supabase/functions/api/mcp_sdk_test.ts supabase/functions/api/profiles_test.ts supabase/functions/api/catalog_test.ts supabase/functions/api/gigs_test.ts supabase/functions/api/meetings_test.ts supabase/functions/api/engagements_test.ts supabase/functions/api/reviews_test.ts supabase/functions/api/documents_model_test.ts supabase/functions/api/documents_test.ts supabase/functions/api/images_test.ts supabase/functions/api/confidential_test.ts supabase/functions/api/security_test.ts supabase/functions/api/agency_test.ts supabase/functions/api/agency_bench_test.ts supabase/functions/api/agency_split_test.ts supabase/functions/api/agency_gigs_test.ts supabase/functions/api/agency_subs_test.ts supabase/functions/api/automate_test.ts supabase/functions/api/monthly_test.ts supabase/functions/api/usage_test.ts supabase/functions/api/standing_test.ts supabase/functions/api/approved_view_test.ts supabase/functions/api/helpers_test.ts supabase/functions/api/appearance_test.ts supabase/functions/api/storage_test.ts supabase/functions/api/regressions_test.ts supabase/functions/api/client_details_test.ts tests/php/auth_test.ts
+        run: npx deno test -A supabase/functions/api/app_test.ts supabase/functions/api/ai_files_test.ts supabase/functions/api/playbooks_test.ts supabase/functions/api/recorder_test.ts supabase/functions/api/mcp_test.ts supabase/functions/api/mcp_sdk_test.ts supabase/functions/api/profiles_test.ts supabase/functions/api/catalog_test.ts supabase/functions/api/gigs_test.ts supabase/functions/api/meetings_test.ts supabase/functions/api/engagements_test.ts supabase/functions/api/reviews_test.ts supabase/functions/api/documents_model_test.ts supabase/functions/api/documents_test.ts supabase/functions/api/images_test.ts supabase/functions/api/confidential_test.ts supabase/functions/api/security_test.ts supabase/functions/api/agency_test.ts supabase/functions/api/agency_bench_test.ts supabase/functions/api/agency_split_test.ts supabase/functions/api/agency_gigs_test.ts supabase/functions/api/agency_subs_test.ts supabase/functions/api/automate_test.ts supabase/functions/api/monthly_test.ts supabase/functions/api/usage_test.ts supabase/functions/api/standing_test.ts supabase/functions/api/approved_view_test.ts supabase/functions/api/helpers_test.ts supabase/functions/api/appearance_test.ts supabase/functions/api/storage_test.ts supabase/functions/api/regressions_test.ts supabase/functions/api/client_details_test.ts supabase/functions/api/library_workspace_test.ts tests/php/auth_test.ts
       - name: Push to Live script tests
         run: node --test tests/promote_test.mjs tests/ai_review_test.mjs
       - name: Browser tests
@@ -83,6 +83,7 @@ jobs:
           SHOTS=shots node tests/pw/helpers-test.js
           SHOTS=shots node tests/pw/layout-test.js
           SHOTS=shots node tests/pw/appearance-test.js
+          SHOTS=shots node tests/pw/library-ws-test.js
       - name: Screens from the browser tests
         if: always()
         uses: actions/upload-artifact@v4

@@ -1401,6 +1401,11 @@
       "key": "client_details_allowed",
       "label": "The client information check follows the sensitive data rule (client details allowed where the rule allows them)",
       "gate": "Lawyer reviews the privacy policy and data handling"
+    },
+    {
+      "key": "library_workspace",
+      "label": "The plain-language Library: cards, plain categories, \"What would you like to document?\"",
+      "gate": "Stacey reviews it on computer and phone (step 8b Part B, question B10)"
     }
   ]
 }

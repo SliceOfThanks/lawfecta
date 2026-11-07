@@ -91,7 +91,9 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - Phase 1 wording: what each side pays or receives on the agreement, the monthly price with its fee and the cancel rule, no rollover, the gig form fee note and estimate, the Library "Review" column, the profile Save button, "Your DELA plan", accurate key wording, credits reset date, meeting dates with year and time zone, file expiry note, "Not specified" exclusions, attorney examples, "Estimated time saved".
 - Setting added: recurring.unused_rollover (false).
 - ChatGPT check: docs/tests/step-8-ux-parts-0-2-chatgpt-prompt.md (waiting for Stacey to run it).
-- Held, not built: the Pro trial and downgrade to Free (docs/briefs/step-9-pro-trial-downgrade.md, 8 questions for Stacey).
+- Pro trial and downgrade to Free (docs/briefs/step-9-pro-trial-downgrade.md): Stacey answered all 8 questions on 2026-11-07. Not built yet: waiting on the read-only BD API check (docs/handoff/bd-api-trial-check.md), run by Stacey in the Claude chat with the BD connector.
+- Step 8b Part B, the plain-language Library: built behind the switch library_workspace (migration 0065, POST /documents/suggest, tests/pw/library-ws-test.js). On the test site for Stacey to review on computer and phone (answer B10) before its ChatGPT check.
+- Fixed 2026-11-07: the page notice and the Inbox message box follow the sensitive data rule when client_details_allowed is on (migration 0064, setting data.notice_text_sensitive).
 - Part 2 (layout) on the test site 2026-11-06 (commit 014ab70, api version 47, migration 0050): Library as one table with search first, Projects with "Needs your action" and filters, Notices split by "Needs your action" and "Updates" (checked against each job's state), Talent labels and "View profile", booking by morning and afternoon, Ask DELA and Inbox layout, Files search, Connect page sections, quality check wording, Profile section menu.
 - Moved to part 3: the agreement parties order (E02), section-named fix buttons and the "If..." step rule (D03).
 - Next: attorney usage limits (step 9b, MVP, answered), then part 3, then step 7c part 2.
