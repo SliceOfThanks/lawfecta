@@ -72,6 +72,7 @@ Tests today: 8 database test files, 84 API tests, 15 script tests and 198 browse
 - Done: the other eight AI helpers, 2026-11-07, 9 of 12 passed; the two real issues fixed, one prompt error corrected. Optional re-run of its steps 2 and 7.
 - Done: the checks before a commitment, 2026-11-07, 12 of 13 passed (step 4 was a prompt error, corrected).
 - Done: standing arrangements test, 2026-11-06, 18 of 19 passed (step 11 was a prompt error, corrected).
+- Next: the Live candidate check (docs/tests/step-9-live-candidate-chatgpt-prompt.md), freelancer, attorney, then owner; look only, about 15 minutes. Covers the sensitive data notice, Home counts, the bench share box and the admin Access list.
 - The approved-version page (docs/tests/step-8a-approved-version-chatgpt-prompt.md), attorney then owner, before the usage limits test.
 - Now (before 2026-11-07, 2:49 PM Pacific): the standing arrangements test (docs/tests/step-7c-standing-chatgpt-prompt.md), freelancer, attorney, then owner. Items prepared 2026-11-06.
 - Then: the usage limits test (docs/tests/step-9b-usage-limits-chatgpt-prompt.md), after the other two; Claude prepares and restores the test attorney.
