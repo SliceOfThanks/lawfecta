@@ -34,6 +34,7 @@ export const MAX_FINDINGS = 8;
 
 const BASE = "You help a legal operations marketplace. You check text for gaps before a commitment. You never give legal advice, never say the " +
   "work or agreement is legally correct, never invent facts, qualifications or numbers, and never rank or recommend a person. Use plain words. " +
+  "A suggestion is always the finished text for that box, written as the member would write it, never an instruction about what to write. " +
   "Answer only with JSON.";
 
 export const HELPER_SYSTEM: Record<HelperKey, string> = {
@@ -47,7 +48,8 @@ export const HELPER_SYSTEM: Record<HelperKey, string> = {
     "work in the proposal that the agreement leaves out, milestones without a clear deliverable, and missing acceptance criteria. " +
     "JSON: {\"findings\":[{\"field\":one of included|excluded|schedule|milestones|price|other,\"problem\":\"...\",\"suggestion\":\"\"}]}. At most 8.",
   acceptance_criteria: BASE + " Suggest clearer, observable deliverables for each milestone, so both people can tell when it is done. Keep the " +
-    "milestone's purpose; do not add new work or change amounts or dates. JSON: {\"milestones\":[{\"seq\":1,\"deliverables\":\"...\",\"why\":\"...\"}]}",
+    "milestone's purpose; do not add new work or change amounts or dates. Describe what the freelancer hands over and how both can see it is done; " +
+    "never say the work is final, sufficient or ready to rely on, because the attorney decides that. JSON: {\"milestones\":[{\"seq\":1,\"deliverables\":\"...\",\"why\":\"...\"}]}",
   monthly_scope: BASE + " Check the tasks of a monthly engagement. Flag unclear tasks, missing monthly quantities, missing turnaround and missing " +
     "exclusions. Never change the price. JSON: {\"findings\":[{\"row\":1,\"field\":one of task|quantity|turnaround|exclusions|other,\"problem\":\"...\",\"suggestion\":\"\"}]}. At most 8.",
   proposal_check: BASE + " Check a freelancer's proposal before they send it, against the gig. Flag what the gig asks for that the proposal does " +
@@ -78,7 +80,7 @@ const clip = (x: unknown, n: number) => String(x ?? "").replace(/\s+\n/g, "\n").
 
 // Sentences that rank, recommend, judge legal correctness or say something is approved are removed (the attorney chooses
 // and approves; DELA is not a lawyer)
-const BANNED = /\b(best|better than|worse than|strongest|weakest|top choice|winner|rank(ed|ing)?|recommend(ed|s)?|should (choose|hire|pick|go with)|legally (sound|correct|valid|binding|enforceable)|is enforceable|complies with the law|(is|are|now) approved|ready (to|for) (be )?approv\w*|you can approve|approves? (it|this|the document))\b/i;
+const BANNED = /\b(best|better than|worse than|strongest|weakest|top choice|winner|rank(ed|ing)?|recommend(ed|s)?|should (choose|hire|pick|go with)|legally (sound|correct|valid|binding|enforceable)|is enforceable|complies with the law|(is|are|now) approved|ready (to|for) (be )?approv\w*|you can approve|approves? (it|this|the document)|ready to (be )?rel(y|ied) on|can be relied (on|upon)|safe to rely)\b/i;
 export function clean(text: unknown, n = 500): string {
   const t = clip(text, n * 2);
   const out = t.split(/(?<=[.!?])\s+/).filter((sx) => !BANNED.test(sx)).join(" ").trim();

@@ -65,7 +65,7 @@ const ATT = 4430;
     ok(t.includes("This page is on the freelancer side of DELA. You are signed in as an attorney") && !t.includes("COMING SOON") && !t.includes("Coming soon"), "the attorney is told it is the freelancer side");
     await click(p, "Go to Home");
     await waitFor(p, "Projects");
-    ok(true, "Go to Home works");
+    ok(!p.url().includes("tab=work"), "Go to Home also clears the freelancer page from the address bar (" + p.url() + ")");
     await s.ctx.close();
     console.log(passed + " browser checks passed");
   } catch (e) {

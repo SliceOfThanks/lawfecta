@@ -7560,7 +7560,10 @@
         (hasOther ? " Switch sides to open it." : " To use it, sign out and sign in with your " + other + " account.") }),
       h("div", { class: "row", style: "flex-wrap:wrap" },
         hasOther ? h("button", { class: "blue small", type: "button", onclick: function () { switchSide(other); } }, "Switch to the " + other + " side") : null,
-        h("button", { class: hasOther ? "ghost small" : "blue small", type: "button", onclick: function () { tab = "home"; draw(); } }, "Go to Home")));
+        h("button", { class: hasOther ? "ghost small" : "blue small", type: "button", onclick: function () {
+          // The address bar stops pointing at the other side's page
+          try { var u = new URL(location.href); u.searchParams.delete("tab"); history.replaceState(null, "", u.toString()); } catch (e) { /* older browsers keep the address */ }
+          tab = "home"; draw(); } }, "Go to Home")));
   }
   function switchSide(side) {
     if (side === me.side) return;

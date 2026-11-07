@@ -74,6 +74,8 @@ Deno.test("the rules in code: known fields, at most 8, no ranking or legal-corre
   assertEquals(clean("Covers the work. Fran is the best choice. Ask about filings."), "Covers the work. Ask about filings.");
   assertEquals(clean("The agreement is legally sound."), "");
   assertEquals(clean("Fix the A on step 2. The document is approved."), "Fix the A on step 2.", "DELA never says something is approved");
+  // Fix (Stacey's checks report, 2026-11-07): an acceptance criterion said the report was "ready to rely on"; the attorney decides that
+  assertEquals(clean("A conflict report for every party. It is ready to rely on."), "A conflict report for every party.");
   const f = readFindings("check_scope", { findings: [{ field: "salary", problem: "Low.", suggestion: "More" }, ...many(10)] });
   assertEquals([f.length, f[0].field, f[0].suggestion], [8, "other", ""]);
   assertEquals(readFindings("monthly_scope", { findings: [{ row: 3, field: "task", problem: "P", suggestion: "S" }] }, 2)[0].suggestion, "", "a row that does not exist gets no suggestion");
