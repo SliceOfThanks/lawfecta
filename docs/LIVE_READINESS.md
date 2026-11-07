@@ -7,12 +7,12 @@ Checked by Claude on 2026-11-07. Live does not exist yet; nothing here changes t
 | Check | Result |
 | --- | --- |
 | Automatic tests (GitHub "Tests") | Passing on every recent version |
-| Every database change applied to an empty database, in order | All 58 apply cleanly (checked on a fresh copy; the one Supabase-only change, the worker schedule, is handled by the push itself) |
+| Every database change applied to an empty database, in order | All 59 apply cleanly (checked on a fresh copy; the one Supabase-only change, the worker schedule, is handled by the push itself) |
 | Switches on a new Live copy | Every switch starts Off. Live shows nothing to members until Stacey turns switches on |
 | Settings on a new Live copy | Come from the Decision Sheet (config/decisions.json); the push sets Live's own site address (lawfecta.com), its environment name and Stacey as owner |
 | The push (Release Control) | Needs Stacey's release password and a code; checks the tests passed for that exact version; applies only the database changes Live does not have yet; switches Live back by itself if a step fails; watches Live for 15 minutes |
-| Version recorded for Live | 0.9.1, the first Live candidate, with the AI review fixes (Release Control on the test site). 0.9.0 is replaced |
-| AI review of the version | Done for 0.9.0 (GitHub issue #9). Its findings are fixed or explained in version 0.9.1 |
+| Version recorded for Live | 0.9.2, the first Live candidate, with the fixes from both AI reviews (Release Control on the test site). It replaces 0.9.1 and 0.9.0 |
+| AI review of the version | Done for 0.9.0 (GitHub issue #9) and for the fixes (issue #10). Findings fixed or explained in 0.9.1 and 0.9.2 |
 | Security scan (GitHub) | High finding fixed on the working branch (it closes when main is updated); Medium finding dismissed by Stacey as intended |
 
 Differences between the test site and a new Live copy that matter:
@@ -53,7 +53,7 @@ B. Before the first push:
 5. Run the remaining ChatGPT tests on the test site (docs/PLAN.md, "What needs testing").
 
 C. The first push and right after (only Stacey's account and the access list can see anything):
-1. /dela-admin on the test site > Release Control: on version 0.9.1, tick "I tested this version", click "Push to Live", enter the release password and the code.
+1. /dela-admin on the test site > Release Control: on version 0.9.2, tick "I tested this version", click "Push to Live", enter the release password and the code.
 2. In Live's /dela-admin > Plans: type lawfecta.com's Brilliant Directories plan number next to each of the eight DELA plans.
 3. In Live's /dela-admin > Settings: set email.sender to brevo, and alerts.sms_to to your mobile number.
 4. In Brilliant Directories on lawfecta.com: create the pages /dela and /dela-admin (logged-in members only) and the widgets DELA-Auth, DELA-App and DELA-Admin, pointing at Live's address (checklist step 17).
