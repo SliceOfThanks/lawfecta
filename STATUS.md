@@ -2,6 +2,12 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## UX Phase 4 part B, second half: the other eight AI helpers, on the test site 2026-11-07 (commit 2924c98, api version 54)
+- Behind ai_helpers (access list): "✦ Check these steps" and "✦ Improve this section" (document drafts), "✦ Explain these findings" (quality check), "✦ Help me describe my firm" (firm profile; only systems the attorney named), "✦ Improve my request" (Ask DELA, both sides), "✦ Help me find a fit" (Talent filters only, a real state, never a person), "✦ Draft an agenda" (gig conversation; fills the message box) and "✦ Help me write a review" (only the member's own ratings and notes; a low rating needs notes first). 1 DELA action each.
+- Code also removes sentences saying something is approved or ready to rely on, and every helper is told a suggestion is finished wording, not an instruction.
+- Stacey's checks report (2026-11-07): 12 of 13 passed. Step 4 was a prompt error (the test freelancer runs a hiring agency, so its Projects page is real); the prompt now uses Files. Usage showed 5 of 7 actions because Claude had already run the identical comparison, and identical requests are not charged twice. Fixed from her notes: suggestions as finished wording, no "ready to rely on", Go to Home clears the address bar.
+- ChatGPT test: docs/tests/step-8a-helpers-chatgpt-prompt.md (freelancer, then attorney; saves nothing).
+
 ## UX Phase 4 part B: the checks before a commitment, on the test site 2026-11-06 (commit 166e0a5, api version 53)
 - Behind the switch ai_helpers (access list on the test site, off on Live): "✦ Check the scope" (gig draft), "✦ Compare these proposals", "✦ Check this for me" (attorney and freelancer, before signing), "✦ Improve acceptance criteria" (fills the change editor; both sign a new version), "✦ Check monthly scope", "✦ Check my proposal" (freelancer).
 - Each shows its DELA actions before it runs (1, or 2 for comparing and checking an agreement), labels its answer "AI suggestion" with Use suggestion, Edit and Dismiss, and only fills the unsaved form. Code keeps known fields, at most 8 findings, drops sentences that rank people or call something legally correct, and keeps names out of the comparison prompt.
