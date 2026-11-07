@@ -238,6 +238,10 @@ async function sign(page, name, version) {
     await click(p, "Check my payout status");
     t = await waitFor(p, "Ready. Accepted milestones are paid");
     ok(t.includes("$237"), "freelancer: payouts ready and the first payout sent");
+    // Fix (AI review 0.9.0, payments 3): Home shows the real amount paid out, not $0.00
+    await p.goto(`${BASE}/page/DELA-App?uid=2801&plan=&tab=home`);
+    t = await waitFor(p, "Paid out");
+    ok(/\$237\.50\s*Paid out/.test(t) && /1\s*Active projects/.test(t), "freelancer: Home shows $237.50 paid out and 1 active project");
     await p.setViewportSize({ width: 390, height: 844 });
     await p.goto(`${BASE}/page/DELA-App?uid=2801&plan=&tab=work&gig=${gigId}`);
     await waitFor(p, "sent to your bank");

@@ -162,7 +162,8 @@ async function bootstrap(ctx: Ctx): Promise<Response> {
   const drafts = r.me?.side === "attorney" && r.me?.person?.id ? await rpc<number>(ctx, "dela_pb_draft_count", { p_person: r.me.person.id }).catch(() => 0) : 0;
   const agencyClient = r.me?.side === "freelancer" && r.me?.person?.id ? await rpc<Record<string, unknown> | null>(ctx, "dela_agency_client", { p_person: r.me.person.id }).catch(() => null) : null;
   const appearance = r.me?.person?.id ? await rpc<Record<string, unknown>>(ctx, "dela_appearance", { p_person: r.me.person.id }).catch(() => ({ on: false, mode: "device" })) : { on: false, mode: "device" };
-  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance }, commit, version: VERSION });
+  const home = r.me?.person?.id && r.me?.side ? await rpc<Record<string, unknown>>(ctx, "dela_home_counts", { p_person: r.me.person.id, p_side: r.me.side }).catch(() => null) : null;
+  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home }, commit, version: VERSION });
 }
 
 // ---------- Member routes ----------
@@ -185,7 +186,9 @@ async function me(ctx: Ctx) {
   const agencyClient = s.side === "freelancer" ? await rpc<Record<string, unknown> | null>(ctx, "dela_agency_client", { p_person: s.person_id }).catch(() => null) : null;
   // How DELA looks for this person (UX review Phase 4 part D): their choice, or the starting setting
   const appearance = await rpc<Record<string, unknown>>(ctx, "dela_appearance", { p_person: s.person_id }).catch(() => ({ on: false, mode: "device" }));
-  return json(ctx, { me: { ...(await rpc<Record<string, unknown>>(ctx, "dela_me", { p_person: s.person_id, p_side: s.side })), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance } });
+  // The Home tiles' real counts (AI review 0.9.0, payments 3); null hides them if the count cannot be read
+  const home = await rpc<Record<string, unknown>>(ctx, "dela_home_counts", { p_person: s.person_id, p_side: s.side }).catch(() => null);
+  return json(ctx, { me: { ...(await rpc<Record<string, unknown>>(ctx, "dela_me", { p_person: s.person_id, p_side: s.side })), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home } });
 }
 
 async function setSide(ctx: Ctx) {

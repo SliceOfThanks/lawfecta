@@ -314,6 +314,10 @@ Deno.test("review: changes need a note and stop at the included rounds; acceptan
   assertEquals(v.payments, null, "the freelancer does not see the attorney's payments");
   const ex = (await call("GET", "/engagements/export?id=" + ag, fl.token)).body;
   assertEquals(ex.ok, true, "the engagement playbook export unlocks after the first accepted milestone");
+  // Fix (AI review 0.9.0, payments 3): Home shows what was really paid out, not $0.00
+  const home = (await call("GET", "/me", fl.token)).body.me.home;
+  assertEquals([home.paid_out_cents, home.active_projects], [30000 - ms[0].freelancer_fee_cents, 1], "the freelancer's Home counts");
+  assertEquals((await call("GET", "/me", att.token)).body.me.home.active_projects, 1, "the attorney's Home counts");
 });
 
 Deno.test("a declined card falls back to Stripe's Checkout page; the work waits", async () => {

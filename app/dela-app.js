@@ -211,9 +211,10 @@
           : h("button", { class: "pill-white", disabled: true, title: "Opens in the next DELA update" }, "Start a new delegation (opening soon)")),
       (me.switches || {}).guided_setup ? setupHomeCard() : null,
       h("div", { class: "stats" },
-        stat("☰", 0, "Open tasks"),
-        stat("▣", 0, "Active projects"),
-        stat("!", 0, "Pending reviews"),
+        // Real counts from the server (AI review 0.9.0, payments 3); a tile is left out if its count is missing
+        me.home ? stat("☰", me.home.open_gigs, "Open gigs") : null,
+        me.home ? stat("▣", me.home.active_projects, "Active projects") : null,
+        me.home ? stat("!", me.home.pending_reviews, "Deliveries to review") : null,
         draftTile()),
       h("div", { class: "card" }, h("div", { class: "row" }, h("h2", { text: "Verification" }), h("span", { class: "badge", text: s.verification_state.split("_").join(" ") })), h("p", { text: ver }),
         (me.switches || {}).profiles ? h("button", { class: "blue small", onclick: function () { tab = "profile"; draw(); } }, s.verification_state === "verified" ? "Open your profile" : "Set up your profile and verification") : null),
@@ -252,9 +253,9 @@
         h("span", { class: "badge", style: "background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)", text: s.readiness_state.split("_").join(" ") })),
       h("div", { class: "stats" },
         stat("✉", props ? (props.unlimited ? "No cap" : props.remaining) : 0, "Proposals left this month"),
-        stat("★", 0, "Invitations"),
-        stat("▣", 0, "Active projects"),
-        stat("$", D.money(0), "Paid out")),
+        me.home ? stat("★", me.home.invitations, "Invitations") : null,
+        me.home ? stat("▣", me.home.active_projects, "Active projects") : null,
+        me.home ? stat("$", D.money(me.home.paid_out_cents), "Paid out") : null),
       (me.switches || {}).profiles
         ? h("div", { class: "card" }, h("h2", { text: "Your match checklist" }), h("p", { class: "muted small", text: ready || "Open your profile to see exactly what is missing." }),
             h("button", { class: "blue small", onclick: function () { tab = "profile"; draw(); } }, s.readiness_state === "match_ready" ? "Open your profile" : "Finish your profile"))
