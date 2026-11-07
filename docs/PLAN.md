@@ -128,7 +128,7 @@ Things only you can provide
 - Built: attorney plan usage limits (step 9b), on the test site with blocking off. Turn blocking on after the test.
 - Waiting on Stacey: the Pro trial and downgrade to Free (docs/briefs/step-9-pro-trial-downgrade.md). Plan only; not built until she answers.
 - Built 2026-11-07, on the test site behind client_details_allowed: the client information check follows the sensitive data rule (docs/briefs/step-9c-client-information-check.md). Its ChatGPT test: docs/tests/step-9c-client-details-chatgpt-prompt.md (freelancer, attorney, owner).
-- Waiting on Stacey: the UX retest brief (docs/briefs/step-8b-ux-retest.md), 10 questions with suggested answers: defects first (monthly dates, Notices, Library counts), then the Library workspace, then layout and wording.
+- Step 8b (docs/briefs/step-8b-ux-retest.md, answered 2026-11-07): Part A built and on the test site; its ChatGPT check is docs/tests/step-8b-part-a-chatgpt-prompt.md. Next: Part B, the Library workspace, then Part C.
 
 Every step follows the same path:
 1. Claude writes a brief with a suggested answer for every question.

@@ -2,6 +2,17 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 8b Part A: UX retest fixes, on the test site 2026-11-07 (commit db31364, migrations 0061 to 0063)
+- Brief and Stacey's answers ("all as suggested"): docs/briefs/step-8b-ux-retest.md. Each fix has a test that fails before.
+- Monthly due dates follow the signed agreement and never fall after the paid month (the test-site engagement now reads Nov 13, 20, 27, Dec 4; a moved date says "moved from" and why); the agreement's "Not included" shows the monthly exclusions.
+- Notices and Projects share one live "Needs your action" list (questions, proposals, signatures, deliveries to review, payments due); drafts are not action.
+- The Library's Review column says "N quality notes" and opens the quality check; the AI's proposed edits tab is "Suggested edits".
+- Comments on an approved document offers "Edit a new draft"; "Continue" on the automation card names where it goes; older approved documents say "Not recorded".
+- Home: "Open gigs" counts posted gigs, plus a "Gig drafts" tile; the Library states the plan's document limit while limits are not switched on.
+- Proposals say their days once ("from signing"); a monthly change shows Now and Proposed side by side.
+- Not done in Part A: naming the contracting agency in the agreement's party summary (moved to Part C).
+- ChatGPT check: docs/tests/step-8b-part-a-chatgpt-prompt.md.
+
 ## Step 9c: the client information check follows the sensitive data rule, built 2026-11-07
 - Brief and Stacey's answers ("all as suggested"): docs/briefs/step-9c-client-information-check.md. Behind the switch client_details_allowed (on for the access list on the test site, off on Live until the lawyer's privacy review).
 - With it on: the six sensitive kinds are stopped everywhere with no "send anyway" (new: government ID numbers); health and biometric words bring a reminder; client details are fine in Ask DELA and the AI helpers (one reminder per conversation while privacy.ai_client_details_reminder is on, never on the member's own key), in the Files tab, and in gig conversations after signing (a reminder before); profiles, profile documents, the public gig, gig questions and reviews keep the warning; documents keep the quality check's fictional-examples rule. The connector follows the same rule. Turning the switch on released Files-tab files held only for client details, with a notice to each owner.
