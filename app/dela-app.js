@@ -757,7 +757,7 @@
   var prof = { data: null, body: null, dirty: false };
   var profEl = null;
   var READY_WORDS = {
-    attorney: { incomplete: "A few profile items are still needed.", verification_pending: "Your profile is complete. Your license check is next.", match_ready: "You are verified. When hiring opens in DELA, you can post work and hire.", restricted: "Some actions are paused on your account. Contact the Lawfecta Team." },
+    attorney: { incomplete: "A few profile items are still needed.", verification_pending: "Your profile is complete. Your license check is next.", match_ready: "You are verified. You can post work and hire on DELA.", restricted: "Some actions are paused on your account. Contact the Lawfecta Team." },
     freelancer: { incomplete: "A few profile items are still needed before attorneys can be matched with you.", verification_pending: "Your profile is complete. Your LinkedIn check is next.", availability_stale: "Confirm your availability so attorneys know you can take work.", unavailable: "You are marked as not taking new work.", match_ready: "You are match-ready. Attorneys can find and invite you.", restricted: "Matching is paused on your account. Contact the Lawfecta Team." },
   };
   var STATE_BADGE = { incomplete: "Not complete", verification_pending: "Waiting for a check", match_ready: "Ready", availability_stale: "Availability out of date", unavailable: "Not taking work", restricted: "Paused" };
@@ -2160,8 +2160,14 @@
 
   function commentsView(area) {
     var cs = lib.pb.comments;
-    if (!cs.length) area.appendChild(h("div", { class: "card" }, h("p", { class: "muted", text: "No comments yet. In \"Draft and review\", click \"Comment\" beside any part." }),
-      h("button", { class: "ghost small", type: "button", onclick: function () { lib.view = "read"; drawDocument(); } }, "Go to Draft and review")));
+    // Comments point to a tab that is really there (step 8b, retest R07): an approved document with no draft open shows
+    // "Approved version" instead of "Draft and review", so the way to comment is to start a new draft
+    var AVc = lib.pb.approved || null, P = lib.pb.playbook;
+    var noDraftTab = !!(AVc && AVc.current && lib.editDraft !== P.id);
+    if (!cs.length && noDraftTab) area.appendChild(h("div", { class: "card" }, h("p", { class: "muted", text: "No comments yet. The approved version is read-only: to comment, start a new draft. The approved version stays in use until the new one is approved." }),
+      h("button", { class: "ghost small", type: "button", onclick: function () { lib.editDraft = P.id; lib.view = "read"; drawDocument(); } }, "Edit a new draft")));
+    else if (!cs.length) area.appendChild(h("div", { class: "card" }, h("p", { class: "muted", text: "No comments yet. In \"" + (AVc ? (AVc.current ? "New draft" : "Draft (version " + P.version + ")") : "Draft and review") + "\", click \"Comment\" beside any part." }),
+      h("button", { class: "ghost small", type: "button", onclick: function () { lib.view = "read"; drawDocument(); } }, "Go to " + (AVc ? (AVc.current ? "New draft" : "Draft (version " + P.version + ")") : "Draft and review"))));
     cs.forEach(function (c) {
       area.appendChild(h("div", { class: "card", style: c.resolved ? "opacity:.65" : "" },
         h("div", { class: "row" }, h("b", { class: "grow", text: c.by + (c.part ? " on " + (c.part.indexOf("step:") === 0 ? "step " + c.part.slice(5) : c.part.split("_").join(" ")) : "") }), h("span", { class: "small muted", text: D.dateTime(c.at) })),

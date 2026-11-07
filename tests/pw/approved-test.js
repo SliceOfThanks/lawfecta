@@ -74,6 +74,14 @@ const ATT = 4410;
     ok(t.includes("Export the approved version:") && t.includes("Edit a new draft"), "export and one clear edit action");
     ok(await dela(p).getByRole("tab", { name: "Approved version", exact: true }).count() === 1 && await dela(p).getByRole("tab", { name: "Draft and review", exact: true }).count() === 0, "the first tab is the approved version");
 
+    // Fix (step 8b, retest R07): Comments points to a tab that is really there. With only the approved version open,
+    // it offers "Edit a new draft" instead of the missing "Draft and review"
+    await dela(p).getByRole("tab", { name: /^Comments/ }).click();
+    t = await waitFor(p, "No comments yet");
+    ok(t.includes("to comment, start a new draft") && await dela(p).getByRole("button", { name: "Go to Draft and review" }).count() === 0, "Comments on an approved document offers a new draft, not a missing tab");
+    await dela(p).getByRole("tab", { name: "Approved version", exact: true }).click();
+    await waitFor(p, "Approved version 1");
+
     // ---------- Edit a new draft, save, and the approved version stays in use ----------
     await click(p, "Edit a new draft");
     t = await waitFor(p, "Your first save makes version 2");
