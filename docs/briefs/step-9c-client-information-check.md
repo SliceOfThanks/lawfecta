@@ -1,7 +1,7 @@
 # Feature brief: The client information check follows the sensitive data rule
 
 Step: 9c   Spec references: Stacey's sensitive data rule (2026-11-05, docs/briefs/step-6d-security-sensitive-data.md, question 18), the notice change (Stacey 2026-11-07, "update the notice"), AI review of 0.9.0 (privacy 3)
-Status: draft, waiting for Stacey's answers. Nothing is built yet.
+Status: answered by Stacey 2026-11-07 ("all as suggested"). Built 2026-11-07: migration 0060, the api check (sensitive() by place), the connector, the Files check, the re-check of held files, the screens, api tests (client_details_test.ts) and a browser check (ai-files).
 
 ## The problem in one paragraph
 Your rule from 2026-11-05 says six kinds of sensitive data are never uploaded or typed, only linked from the firm's own storage: SSNs and ITINs, government ID numbers, financial account numbers, health information, biometric data, and logins and passwords. Client names, dates of birth, contact details, case numbers and case facts are normal data, kept only where the security rules allow. The notice on screen now says this. DELA's automatic check still works the old way: it treats client names, dates of birth, case numbers, phone numbers, email and street addresses as the problem, and it does not look for most of the six sensitive kinds. So members are stopped for normal work data, and some truly sensitive data (a health record, a driver's license number, a password) can get through without a word.

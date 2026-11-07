@@ -2,6 +2,11 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 9c: the client information check follows the sensitive data rule, built 2026-11-07
+- Brief and Stacey's answers ("all as suggested"): docs/briefs/step-9c-client-information-check.md. Behind the switch client_details_allowed (on for the access list on the test site, off on Live until the lawyer's privacy review).
+- With it on: the six sensitive kinds are stopped everywhere with no "send anyway" (new: government ID numbers); health and biometric words bring a reminder; client details are fine in Ask DELA and the AI helpers (one reminder per conversation while privacy.ai_client_details_reminder is on, never on the member's own key), in the Files tab, and in gig conversations after signing (a reminder before); profiles, profile documents, the public gig, gig questions and reviews keep the warning; documents keep the quality check's fictional-examples rule. The connector follows the same rule. Turning the switch on released Files-tab files held only for client details, with a notice to each owner.
+- ChatGPT UX retest of the attorney side (2026-11-06) saved in docs/reviews/ux-retest-2026-11-07: 9 of 33 findings addressed, 22 partly, 2 open, and 12 new priorities (R01 to R12). A brief comes next. Its R06 suggests placeholders for client names, which conflicts with Stacey's 2026-11-05 rule; the brief will flag it.
+
 ## Getting ready for Live, 2026-11-07
 - Payments (Stacey 2026-11-07): Stripe test mode for all testing; the pilot/beta runs with real payments, so the lawyer's review, live Stripe keys, point-in-time recovery, the uptime monitor, a restore drill and one real end-to-end payment come before the first beta member (docs/LIVE_READINESS.md section 6).
 - The guide: docs/LIVE_READINESS.md (where things stand, every secret Live needs, Stacey's steps in order, the gates that stay off, the switches for the beta). docs/STACEY_CHECKLIST.md steps 12, 17 and 18 now match the two-site setup (lawfecta.com has its own widgets and secret).

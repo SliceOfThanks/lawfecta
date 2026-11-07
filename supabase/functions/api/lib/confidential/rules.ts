@@ -4,7 +4,7 @@
 // passwords or logins, in every file shared on a job and in confidential messages. ID documents, health information and
 // biometric data cannot be found by a pattern: the upload checkbox covers them.
 
-export type Blocked = "ssn" | "card" | "bank" | "password";
+export type Blocked = "ssn" | "card" | "bank" | "password" | "gov_id";
 
 // A real card number passes the Luhn check, so long reference numbers are not mistaken for cards
 function luhn(digits: string): boolean {
@@ -34,6 +34,9 @@ export function blockedKinds(text: string): Blocked[] {
   // Bank accounts: an account or routing number named as such, or an IBAN
   if (/\b(bank )?(account|acct|routing|aba|checking|savings)\s*(number|no\.?|num|#)?\s*(is|:|=|-)?\s*\d[\d -]{5,20}\d\b/i.test(t)) out.add("bank");
   if (/\b[A-Z]{2}\d{2}(?: ?[A-Z0-9]{4}){2,7}(?: ?[A-Z0-9]{1,4})?\b/.test(t) && /\biban\b/i.test(t)) out.add("bank");
+  // Government ID numbers (step 9c): a driver's license, passport, state ID, green card or alien number named as such,
+  // followed by an ID that has at least one digit
+  if (/\b(driver'?s?\s+licen[cs]e|passport|state\s+id|government\s+id|green\s+card|alien\s+(registration\s+)?number|a-number)\s*(number|no\.?|num|#)?\s*(is|:|=|-)?\s*(?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]{5,14}\b/i.test(t)) out.add("gov_id");
   // Passwords and logins
   if (/\b(password|passcode|passwd|pwd|pin)\s*(is|:|=)\s*\S+/i.test(t)) out.add("password");
   if (/\b(user ?name|login|log-in)\s*(is|:|=)\s*\S+/i.test(t) && /\b(password|passcode|pwd)\b/i.test(t)) out.add("password");
@@ -42,6 +45,7 @@ export function blockedKinds(text: string): Blocked[] {
 
 export const BLOCKED_WORDS: Record<Blocked, string> = {
   ssn: "a full Social Security number or ITIN", card: "a card number", bank: "a bank account number", password: "a password or login",
+  gov_id: "a government ID number",
 };
 export function blockedMessage(kinds: Blocked[]): string {
   const words = kinds.map((k) => BLOCKED_WORDS[k]);

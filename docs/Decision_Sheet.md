@@ -1,6 +1,6 @@
 # DELA Decision Sheet
 
-Version DS-1.1, updated 2026-11-05. Built from config/decisions.json.
+Version DS-1.1, updated 2026-11-07. Built from config/decisions.json.
 
 How to use this sheet: for each line, write Approve, or write the number you want instead. Every value can be changed later in the DELA admin area, and every change is saved with its history.
 
@@ -229,7 +229,13 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Most proposals compared at once by "✦ Compare these proposals". Keeps one comparison inside one DELA run. | 10 proposals | Open | Claude suggestion | |
 | Starting appearance for every member (light, dark or device). Members change it in the account menu: Match my device, Light or Dark. The same choice in the admin area. | light | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
 
-## 13. On and off switches
+## 13. Security and sensitive data
+
+| Item | Suggested value | Status | Where it comes from | Your decision |
+|---|---|---|---|---|
+| Remind members before client details go to DELA's AI on Lawfecta's key. Turn off once OpenAI approves Zero Data Retention (docs/RUNBOOK.md). Never shown when the member uses their own AI key. | Yes | Confirmed | Stacey 2026-11-07 (step 9c answers) | |
+
+## 14. On and off switches
 
 Every switch starts Off. In the admin area each one can be set to Off, Lawfecta Team only, Access list, or Everyone.
 
@@ -258,3 +264,4 @@ Every switch starts Off. In the admin area each one can be set to Off, Lawfecta 
 | Approved documents open on a read-only "Approved version" page with "Edit a new draft" | Phase 4 part A tested |
 | The Phase 4 AI helpers (checks before a commitment and writing helpers) | Phase 4 part B tested |
 | The Appearance choice (Match my device, Light, Dark) in the account menu | Phase 4 part D tested |
+| The client information check follows the sensitive data rule (client details allowed where the rule allows them) | Lawyer reviews the privacy policy and data handling |

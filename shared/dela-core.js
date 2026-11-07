@@ -217,6 +217,7 @@
   D.errorText = function (code) {
     var map = {
       forbidden: "Only the Lawfecta Team owner can do that.",
+      sensitive_data: "This looks like sensitive data (a Social Security number or ITIN, a government ID number, an account or card number, or a password). Sensitive data never goes in DELA. Keep it in your own storage and share a link instead.",
       note_required: "Add a note saying why.", bad_amount: "Enter a number of actions from 1 to 100,000.",
       document_read_only: "This document is read-only on your plan. Upgrade to edit it.", no_subscription_id: "Brilliant Directories did not say which plan this member is on.",
       bd_member_not_found: "Brilliant Directories has no member with this number.",

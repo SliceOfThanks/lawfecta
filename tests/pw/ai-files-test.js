@@ -132,6 +132,23 @@ const MEMBER_CLAUDE = "sk-ant-member-browser-test-key-2222222222"; // rules-ok: 
     await waitFor(p, "Here is a checklist");
     ok(true, "the member can still send after confirming");
 
+    // Fix (step 9c): with client_details_allowed on, client details get the AI reminder with "Continue", and sensitive
+    // data is stopped with no way to send it anyway
+    await sql("update feature_switches set state = 'everyone' where key = 'client_details_allowed'; select 1");
+    await dela(p).getByRole("button", { name: "New chat" }).click();
+    await dela(p).getByLabel("Your message").fill("My client John Smith, case no. 2024-CV-1234, needs an intake checklist");
+    await dela(p).getByRole("button", { name: "Send", exact: true }).click();
+    t = await waitFor(p, "They go to OpenAI");
+    ok(!t.includes("[Client Name]"), "the reminder no longer asks for placeholders");
+    await dela(p).getByRole("button", { name: "Continue", exact: true }).click();
+    await waitFor(p, "Here is a checklist");
+    ok(true, "client details go after Continue");
+    await dela(p).getByLabel("Your message").fill("Her passport number is X12345678");
+    await dela(p).getByRole("button", { name: "Send", exact: true }).click();
+    t = await waitFor(p, "a government ID number");
+    ok(t.includes("share a link") && await dela(p).getByRole("button", { name: /Send anyway|Continue/ }).count() === 0, "sensitive data is stopped, with no way to send it anyway");
+    await sql("update feature_switches set state = 'off' where key = 'client_details_allowed'; select 1");
+
     // Talking: the fake microphone records, the words land in the box
     await dela(p).getByRole("button", { name: "● Talk" }).click();
     await p.waitForTimeout(1800);

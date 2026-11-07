@@ -1,0 +1,284 @@
+DELA ATTORNEY UX RETEST AND CHANGE REVIEW
+November 6, 2026
+Baseline: DELA-attorney-ux-review.txt from this chat.
+Site: https://hirelegalhelp.com/dela
+
+OVERALL ASSESSMENT
+
+There are substantial visible improvements. Costs, approved documents, file identification, talent access and several navigation paths are clearer. The Library is structurally better, but it still needs a visual and interaction redesign. The user's latest feedback is that the revised Library remains unsatisfactory. Do not close that item simply because the table columns now align.
+
+The next development pass should prioritize consistency of the information and destinations, then the Library workspace design. In particular, monthly milestone dates disagree, action queues disagree, and Library suggestion counts disagree with the document view. Booking now has grouped times, but still renders too many dates and choices at once.
+
+This is a change review of the current interface, not proof that a particular deployment caused each difference. No build identifier was available. The sample data also changed between reviews. For example, the monthly engagement is now paid and active, and standing arrangements have been added. Those data changes are not attributed to actions taken during this retest.
+
+WHAT WAS TESTED
+
+Read-only inspection covered Home, Get set up, Ask DELA, Library, approved documents, Files, Projects, agency proposals, Matches, gig files, one-off agreements, monthly work, Talent, a freelancer profile, Inbox, booking, Meetings, Notices, Profile, AI settings and Connect.
+
+Direct interaction checks:
+- Searching Library for "conflict" narrowed the list to Run a Conflict Check.
+- Pressing Enter on the focused document row opened its approved reading view.
+- Searching for "zzzz-no-match" showed "Nothing here." Search was cleared afterward.
+- Clicking the Library's "2 suggestions" text opened the approved document, whose Suggestions tab showed zero.
+- Entering an unsaved $300 to $500 gig budget showed an estimated attorney total of $315 to $525.
+- Selecting Monthly changed the estimate to an each-month total. No gig was drafted or saved.
+- Opening the Milestones information control with Enter worked. Escape closed it.
+- The new View profile button opened a freelancer profile with experience, tools and agency affiliation.
+- Opening Book a meeting displayed available slots. One Show more times control was exercised. No time was selected or booked.
+- The Firm details section shortcut was exercised.
+
+Desktop and phone layouts were inspected. A 1440 by 1000 desktop viewport and a 390 by 844 phone viewport were requested. The browser's actual narrow widths varied during the session, so phone findings are reported as narrow-layout observations rather than a breakpoint certification. Measured Library page width did not exceed its viewport. A narrow monthly view also showed no measured horizontal overflow.
+
+No save, send, signature, payment, hiring, cancellation, invitation, AI generation, OTP email or connection action was submitted. The confidential-materials code gate was read but not opened. The browser's temporary viewport override was reset and the Library was left open. The account remains signed in for the user to inspect it.
+
+LIMITS
+
+AI button presence, labeling and cost explanations were reviewed. Generated outputs, credit deduction, acceptance behavior and safety enforcement were not tested because DELA's AI was not run. Payment, cancellation, repeat hiring, agreement modification, public-directory synchronization and external connector permissions were not executed. The signed-version versus draft flow was inspected at its entry, but Edit a new draft was not activated because it could create saved work. No full screen-reader, contrast, focus-trap or dark-mode audit was performed.
+
+RECOMMENDED NEXT WORK, IN PRIORITY ORDER
+
+R01. Make monthly dates and scope agree everywhere
+Impact: High. Effort: Medium. Type: Consistency.
+Where: Monthly engagement, The agreement > Milestones, operational Milestones cards and Included each month.
+Observed: Week 1 is due Nov 13 in the agreement table and Nov 12 in the work card. Week 2 says Nov 20 versus Nov 19. Week 4 says Dec 4 versus Dec 7. The displayed paid month ends Dec 5 and next billing is Dec 6. The scope card excludes court filings, while The agreement says exclusions are not specified.
+Why it matters: The attorney and provider can read different dates and boundaries on the same page. A due date after renewal needs explanation, not an implicit assumption.
+Recommendation: Render agreed dates and exclusions from the same signed-version records. If an operational date differs, show the reason and governing agreement version beside it. Do not silently substitute a recalculated date. Use one milestone list for agreed outputs and working status, rather than duplicating two competing schedules. For existing sample records, repair the fixture or explain the difference before marking the issue resolved. This review cannot determine whether the root cause is sample data or application logic.
+Acceptance check: Every repeated milestone has the same ID, version and due date. Any permitted exception is explicitly labeled. Exclusions match the signed scope. A month-end boundary test covers a final unit falling after renewal.
+Attorney benefit: A dependable schedule and clearer review obligations.
+Freelancer and agency benefit: Fewer deadline and scope disagreements.
+Expected use change: Attorneys can rely on the operational page instead of rechecking terms.
+Source: Designer judgment. Consistent representation is supported by NN/g heuristic 4: https://www.nngroup.com/articles/ten-usability-heuristics/ .
+Evidence: monthly-desktop.jpg.
+
+R02. Reconcile Notices with the actual work queue
+Impact: High. Effort: Medium. Type: Feedback.
+Where: Notices > Needs your action and Projects > Needs your action.
+Observed: Notices said "Needs your action (0)" and "Nothing waits on you right now." Projects simultaneously showed pending signature tasks, drafts and a gig with two proposals to review.
+Why it matters: The new action queue can falsely reassure an attorney that nothing needs attention. Not every draft must be urgent, but pending signatures and unread proposals need consistent treatment.
+Recommendation: Use a shared definition of actionable work. Separate required decisions from optional drafts, and show that distinction in both places. Derive the zero state from current work, not only the set of notice types categorized as actionable. If Notices intentionally covers a narrower subset, say "No unread action notices" and link to the full Projects queue instead of claiming nothing waits.
+Acceptance check: The same pending signature appears in both queues, disappears after completion, and does not reappear from older history. An open proposal-review task is discoverable from Notices or a visible link to Projects.
+Attorney benefit: Less chance of overlooking a decision.
+Freelancer and agency benefit: Faster proposal and agreement responses.
+Expected use change: The notification badge becomes a reliable return point.
+Source: Designer judgment. Status feedback principle: https://www.nngroup.com/articles/ten-usability-heuristics/ .
+Evidence: notices.jpg and projects.jpg.
+
+R03. Redesign the Library as a document workspace
+Impact: High. Effort: Medium. Type: Layout.
+Where: Library, document list on desktop and stacked rows on phones.
+Observed: Columns now align, IDs sit below titles, and missing values are named. However, the page still gives similar visual weight to title, owner, status, date and review metadata. On a phone, each row becomes six vertically labeled fields. A title search is well below the heading, introduction, privacy notice and large action card.
+Recommendation: Replace the default desktop table with compact title-first rows. Retain an optional comparison view only if attorneys demonstrate a need for it. Each row should show the document title, a secondary ID and type line, status and one clear review action. Put owner and review date in a detail panel or a short secondary line. On desktop, use a collection sidebar and a selected-document detail panel. On phones, use compact cards with details on demand. Put search and New document immediately below the page heading. Move imports, recording administration and team management into secondary areas. Keep critical review warnings visible.
+Acceptance check: At a phone width, title, status and review action fit within a compact card without six repeated labels. On desktop, selecting a row shows its owner and review date without losing search, filters or list position. The primary title remains the most prominent element. Validate with the user before treating the visual design as complete.
+Attorney benefit: Faster recognition and less scanning.
+Freelancer and agency benefit: Approved procedures are easier to find and turn into work.
+Expected use change: The Library becomes a useful daily reference.
+Source: Designer judgment. Defer secondary detail while preserving essentials: https://www.nngroup.com/articles/progressive-disclosure/ . Favor recognizable titles and context: https://www.nngroup.com/articles/recognition-and-recall/ . Tables are appropriate for comparison, not automatically the best retrieval surface: https://design-system.service.gov.uk/components/table/ .
+Evidence: library-desktop.jpg and library-phone-rows.jpg.
+Proposed visual: library-second-pass.png. It is a concept, not a site change.
+
+R04. Give Library review counts one meaning and a direct destination
+Impact: High. Effort: Medium. Type: Navigation.
+Where: Library > Run a Conflict Check > "2 suggestions" and the document Suggestions tab.
+Observed: The list said "2 suggestions". Clicking it opened the approved document. Its Suggestions tab said "Suggestions (0)" and "No suggestions waiting."
+Why it matters: The attorney cannot locate the two items they were asked to review. Quality checks and proposed document edits may be different data, but they currently use the same word.
+Recommendation: Verify the actual source of the list count. If it counts quality notes, label it "2 quality notes" and open those exact notes in the relevant version. Reserve "Suggested edits" for proposed edits awaiting acceptance. Do not call all checks optional unless the data distinguishes blockers from advice. Add a visible note explaining when these sets differ. Use an explicit link or button with the document title in its accessible name.
+Acceptance check: A seeded document with two quality notes and zero suggested edits displays both counts accurately. The count opens the correct items. A zero state never contradicts the clicked label. Closing the review returns to the prior filtered list.
+Attorney benefit: Review work becomes findable.
+Freelancer and agency benefit: Ambiguities can be addressed before delegation.
+Expected use change: Attorneys can trust review indicators and finish the intended task.
+Source: Designer judgment. Labels should convey their actual purpose: https://www.w3.org/WAI/WCAG22/Understanding/labels-or-instructions.html .
+Evidence: library-desktop.jpg, library-suggestion-destination.jpg and library-suggestions-empty.jpg.
+
+R05. Show booking times for one selected date
+Impact: High. Effort: Medium. Type: Layout.
+Where: Inbox conversation > Book a meeting.
+Observed: The picker now groups times into Morning and Afternoon. However, it initially renders 14 date sections, 12 time choices per date and 28 Show more controls. That is 168 time choices before expansion. Phone buttons wrap into a long, irregular sequence. The viewer's zone is still described as "your own time zone" rather than named beside the choices.
+Recommendation: Put a compact date selector first. Render times only for the selected date. Show a named viewer time zone, duration and full selected date above the list. Start with six to eight useful slots total across dayparts, then one Show more action for that date. Keep a persistent selected-time summary and separate Review booking from final confirmation. Give each time an accessible name including its date and zone. The product should verify this review step exists; it was not exercised here.
+Acceptance check: Only one date's slots are initially interactive. Choosing another date replaces the list and handles selection explicitly. Keyboard users can identify the day and time without recalling a distant heading. Slot-taken recovery preserves context. Test at least a second time zone and a daylight-saving boundary before release.
+Attorney benefit: A manageable decision on a phone.
+Freelancer and agency benefit: Less scheduling friction between conversation and hire.
+Expected use change: More attorneys can complete booking in a short visit.
+Source: Designer judgment. Progressive disclosure: https://www.nngroup.com/articles/progressive-disclosure/ . Single-choice grouping: https://design-system.service.gov.uk/components/radios/ .
+Evidence: booking-desktop.jpg and booking-phone.jpg.
+
+R06. State consistent client-information boundaries beside AI inputs
+Impact: High. Effort: Small. Type: Trust and safety.
+Where: Ask DELA, Talent task description, firm-description helper, Profile and Confidential materials.
+Observed: Some global banners prohibit client names, case numbers and privileged details. The newer warning names sensitive identifiers and says "Share a link from your own storage instead." Talent's new AI task box has no nearby privacy reminder. Confidential materials explicitly permits client names and case facts while stating AI never reads that area.
+Why it matters: An attorney can mistake secure human document sharing for permission to paste a sensitive link into an AI box.
+Recommendation: Use one clear boundary for operations AI inputs: "Use placeholders for client names and case details. Never enter sensitive identifiers, account details, health information or passwords." Put it beside every AI writing box. Remove the generic secure-link instruction from AI inputs. Keep link-sharing instructions only in the human-sharing area and say that storage permissions must be set there. Describe Confidential materials as a distinct area with its own access rules. Product and security owners must verify the claimed isolation; this review did not test it.
+Acceptance check: Every new AI composer includes the local reminder. No AI reminder implies that sending a sensitive storage link to AI is a safe substitute. The product's actual data handling agrees with its labels.
+Attorney benefit: Less ambiguity about what can be entered where.
+Freelancer and agency benefit: Clearer, safer handoff instructions.
+Expected use change: Attorneys can use operations AI with a more consistent mental model.
+Source: Designer judgment. Clear input instructions: https://www.w3.org/WAI/WCAG22/Understanding/labels-or-instructions.html .
+Evidence: ask-dela warning recorded during inspection; corresponding pages are described in the comparison matrix. No sensitive data was entered.
+
+R07. Fix approval-view navigation and legacy metadata
+Impact: Medium. Effort: Medium. Type: Consistency.
+Where: Approved documents, Comments and the automation card.
+Observed: The new Approved version view is a significant improvement. However, Comments now refers to "Draft and review" and offers Go to Draft and review even when the visible main tab is Approved version. The prepared Test SOP still lacks its ID, approval date and scheduled review. Its automation ideas include View gig but also retain a generic Continue action and a long repeated description block.
+Recommendation: Make comments name and link to a real destination. If commenting requires a new draft, explain that before creating it and preserve the approved version. Provide a read-only comment path when appropriate. Identify legacy records needing metadata repair without fabricating approval dates. Compact the automation card to its summary and show details on request. Replace Continue with its real destination.
+Acceptance check: Comments never points to a missing tab. Legacy metadata has a clear repair state. Already delegated steps lead to the existing gig rather than a duplicate action.
+Attorney benefit: Clearer version control and fewer dead-end instructions.
+Freelancer and agency benefit: A stable approved process remains easy to identify.
+Expected use change: Attorneys can review documents with less uncertainty.
+Source: Designer judgment. Consistency principle: https://www.nngroup.com/articles/ten-usability-heuristics/ .
+
+R08. Explain standing-arrangement capacity before repeat hiring
+Impact: Medium. Effort: Medium. Type: Trust and safety.
+Where: Projects > Standing arrangements.
+Observed: The active arrangement showed $300 per job, $600 of a $700 monthly cap, and 2 of 2 jobs open. A Hire again button was still present. Its execution was not tested. Ended and active arrangements appeared together. Notices said repeat hiring can happen in one click and providers can decline within 24 hours.
+Recommendation: Show "$100 remaining this month" and "0 open-job slots remaining" beside the action. Explain whether the cap includes platform fees. Show the eligible document version, per-job total, provider decline window and payment timing before the consequential action. If capacity is exhausted, explain why hiring is unavailable and link to a review of limits. Keep ended arrangements in history. Do not claim the backend permits overspending based only on the visible button.
+Acceptance check: Budget and job-count limits are explained before activation and enforced when hiring is committed. A stale screen cannot bypass either limit. A declined job restores capacity according to the agreed rules.
+Attorney benefit: Repeat hiring remains predictable.
+Freelancer and agency benefit: Recurring work arrives within mutually understood limits.
+Expected use change: Attorneys can reuse trusted providers without guessing about capacity.
+Source: Designer judgment. Important commitments should be reviewable and correctable: https://www.w3.org/WAI/WCAG22/Understanding/error-prevention-legal-financial-data.html .
+
+R09. Make the default Profile page shorter, not only easier to jump around
+Impact: Medium. Effort: Medium. Type: Layout.
+Where: Profile and verification, section navigation, practice areas and public-directory sync.
+Observed: Section shortcuts are new, and the Save button now explicitly names the directory update. A visible paragraph lists fields that sync. Nevertheless, billing essentials still follow a long profile and 25 practice-area choices. The sync summary lists fields broadly rather than previewing actual changed values. The Headline example is now attorney-specific.
+Recommendation: Keep the shortcuts, but show one section at a time or collapse optional biography. Make incomplete firm requirements visible at the top. Put selected practice areas first with search. When public sync is selected, show only actual before-and-after changes at save review, without changing an existing user's preference silently.
+Acceptance check: The required billing section is reachable and understandable without reading optional biography. Public-sync review accurately names the affected destination and values.
+Attorney benefit: Less setup effort and clearer publishing effects.
+Freelancer and agency benefit: Fewer administrative delays before work begins.
+Expected use change: Attorneys can keep profiles current without a long form session.
+Source: Designer judgment. Progressive disclosure: https://www.nngroup.com/articles/progressive-disclosure/ .
+
+R10. Finish proposal, milestone and pending-change wording
+Impact: Medium. Effort: Small. Type: Clarity.
+Where: Agency proposal Schedule and Qualifications; agreement parties and milestone outputs; monthly pending change.
+Observed: Missing exclusions now say to confirm before signing. Schedule still says "10 days (10 days)". Qualifications still contains selection and messaging rather than evidence. The agreement names the freelancer while a lower card identifies the hired agency. Outputs still say Draft and refer back to Scope. The monthly pending-change note says two more packets a week while the itemized allowance rises from 10 to 12 per month.
+Recommendation: Show one duration with an agreed start event. Separate worker qualifications from actions. Name the contracting agency in the party summary and the lead separately. Require specific outputs before commitment, with AI improvement as optional help. Show a pending-change comparison of current and proposed monthly quantity, price, fee-inclusive total and effective date. Flag contradictory free-text units for review; do not assume which statement is intended.
+Acceptance check: Price, scope and party summaries agree with the proposal and agreement. Pending terms are visibly separate from currently active terms.
+Attorney benefit: Less interpretation before hiring or changing scope.
+Freelancer and agency benefit: Better shared expectations about delivery and volume.
+Expected use change: Agreement review is easier to finish confidently.
+Source: Designer judgment.
+
+R11. Reconcile Home counts and availability language
+Impact: Medium. Effort: Medium. Type: Feedback.
+Where: Home metrics, plan availability and Projects.
+Observed: Home said 6 Open gigs. Projects' Open and drafts filter also contained 6 items, including drafts and two visibly open gigs. The posting form said 1 of 10 open slots in use and the plan showed 9 available. The Library said 13 documents with no cap, while Home showed 50 of 50 saved documents available. Profile still says "When hiring opens" while Home says verified users can hire.
+Recommendation: Count published open gigs separately from drafts. Explain any deliberate exclusions from plan usage. Derive Library limits and Home usage from the same entitlement definition. Name directory and DELA plans distinctly. Replace broad availability language with capability-specific test-site states, especially for payments.
+Acceptance check: Counts and limits reconcile for this account or explain their differing scope. The same capability is never described as both available and future-only without context.
+Attorney benefit: Better understanding of readiness and capacity.
+Freelancer and agency benefit: Fewer false starts in posting and hiring.
+Expected use change: The dashboard can serve as a dependable return point.
+Source: Designer judgment. Visibility of system status: https://www.nngroup.com/articles/ten-usability-heuristics/ .
+
+R12. Finish the privacy and advanced-settings explanations
+Impact: Medium. Effort: Medium. Type: Clarity.
+Where: AI settings > memory and Webhooks, and Connect > What stays private.
+Observed: Own-key setup is now hidden until selected and the credit reset schedule is visible. Technical webhooks remain expanded. Memory facts still lack dates and source context. Connect now lists access, allowed changes, blocked actions and disconnection instructions. It does not clearly explain that content retrieved into an external assistant is processed there, or that disconnecting cannot recall content already transferred.
+Recommendation: Keep provider choice and usage first. Collapse technical integrations. For each learned fact, show its source, date and actual removal effect. On Connect, separate "Actions the connector cannot perform" from "Data shared with the external assistant". Explain external processing and the limits of revocation using verified permissions and policies. Do not turn interface copy into an unverified security guarantee.
+Acceptance check: Users can tell what leaves DELA and what disconnection does. Implementation tests verify the advertised permissions and confidential-materials exclusions.
+Attorney benefit: More informed personalization and connection decisions.
+Freelancer and agency benefit: More consistent, appropriately shared operational context.
+Expected use change: Optional integrations feel understandable rather than mandatory.
+Source: Designer judgment.
+
+SMALL FOLLOW-UPS
+
+- Empty Library search: replace "Nothing here" with "No documents match your search" and a Clear search action. Do not imply the library is empty.
+- Milestones tooltip: keyboard opening and Escape dismissal worked. Shorten the current long definition to "A portion of work with its own price, due date and review. Funds are released after acceptance." Keep payment rules visible on the page.
+- Attendance reporting: the meeting is not confirmed, but "We met" is already selected. Require an explicit choice with "Choose what happened" before submitting. This is a recommendation about input accuracy, not a tested submission defect.
+- Login still says LawWurk. Use the same product identity as the service the attorney is entering.
+- Keep AI costs near buttons. However, standardize the words action, task and credit so the user understands which balance will change. Presence of the cost label does not prove correct charging.
+- Keep safety actions in More and AI conversation actions in their own group. Those changes reduced Inbox clutter.
+
+COMPARISON WITH ALL 33 ORIGINAL FINDINGS
+
+Status meanings:
+Addressed in inspected UI: the main visible problem is resolved in this account. This is not an end-to-end backend certification.
+Partly addressed: meaningful improvement is visible, but part of the original problem remains.
+Still open: the original problem is still visible.
+Limited verification: safe read-only inspection did not reach all behavior needed to decide.
+
+ID | Original subject | Retest status | Current observation / remaining work
+H01 | Login branding | Still open | Login still says Welcome To LawWurk.
+H02 | Home next step and plan clarity | Partly addressed | Your DELA plan is named, but counts and capability language need reconciliation.
+S01 | Expanded firm setup | Partly addressed | Describe your firm and AI helper added. Role and system form remains long.
+A01 | Ask DELA writing entry | Partly addressed | Example moved below composer, Use this example and Improve my request added. Privacy wording still needs consistency.
+L01 | Library alignment and reflow | Partly addressed | One aligned table, IDs below titles and stacked phone rows. Visual redesign still needed and requested by the user.
+L02 | Review-count clarity | Partly addressed | Suggestions and missing-value labels added, but a two-versus-zero count mismatch remains.
+L03 | Library search hierarchy | Partly addressed | Search precedes imports and recordings; Archive and Trash moved under More. Top action area remains large and recording status is still ambiguous.
+D01 | Approved reading versus editing | Partly addressed | Approved version and Edit a new draft now exist. The normal INT-01 record shows approval metadata. Legacy sample metadata and Comments navigation remain unresolved.
+D02 | Delegation estimates and completion | Partly addressed | Idea count, already-delegated status, estimated savings and View gig added. Long expansion and generic Continue remain.
+D03 | Quality findings and RACI | Limited verification | RACI codes remain in read view. Editing and quality-fix behavior was not activated.
+F01 | Duplicate file identification | Addressed in inspected UI | Version, upload time, search and Available to your firm labels are visible.
+P01 | Projects hierarchy | Partly addressed | Posting and action queue now come first; active/draft filter added. Completed and canceled engagements remain in a long lower list.
+P02 | Budget versus total cost | Addressed in inspected UI | Fee rate and minimum are explicit. Unsaved $300-$500 test produced $315-$525; Monthly changed recurrence wording.
+G01 | Proposal scope clarity | Partly addressed | Missing exclusions warning improved. Duplicate duration and Qualifications column still need work.
+G02 | Empty-match recovery | Addressed in inspected UI | Search Talent and Review gig requirements actions are visible. Their downstream editing flow was not exercised.
+G03 | File sharing boundaries | Partly addressed | Download-recall limitation added. Recipient and permission review before sharing not tested.
+E01 | Attorney total and charges | Addressed in inspected UI | $630 total, $330 first and $300 next, with automatic-charge rule, are prominent.
+E02 | Agency accountability | Partly addressed | Subcontracting consent is closer to terms and team moved up. Contracting agency identity is still separated from the party summary.
+E03 | Milestone acceptance criteria | Partly addressed | Completion checklist label and AI improvement added. Generic deliverables remain.
+M01 | Monthly total and billing | Addressed in inspected UI | $1,050 total and actual next billing date visible in the active sample. Unpaid-state branch not retested.
+M02 | Cancellation explanation | Partly addressed | Inline end-of-month rule and review-oriented labels added. Final review and confirmation flow not executed.
+M03 | Monthly allowance | Partly addressed | Unused-work and five-week rules added. Scope, pending-change units and dates need reconciliation.
+T01 | Talent labels and profile | Addressed in inspected UI | Visible labels, named states, AI filter help and working View profile added. Exact availability timestamp still absent.
+I01 | Conversation actions | Addressed in inspected UI | Open gig and Book meeting lead; AI help and More group secondary actions. Draft reply remains beside composer.
+I02 | Meeting time and readiness | Partly addressed | Full year and Pacific Standard Time now shown. Current event is post-meeting, so join readiness and consent branch not rechecked.
+I03 | Booking choices | Partly addressed | Daypart groups and Show more exist. Live picker now verified: 168 initial choices across 14 dates remain too many.
+N01 | Action notices and history | Partly addressed | Action/updates sections, buttons and grouping added. Zero-action state conflicts with Projects.
+R01 | Required firm details | Partly addressed | Section shortcuts added. Long default profile and practice-area block remain before billing essentials.
+R02 | Public-directory syncing | Partly addressed | Explicit save label and list of synced fields added. Actual before/after change preview and save effects not tested.
+R03 | Attorney-specific help | Partly addressed | Headline example now describes an attorney. Long practice-area choices remain; not every help text was rechecked.
+AI01 | AI billing choice | Addressed in inspected UI | Own-key form hidden until selected, reset date visible and provider billing distinguished. Key activation was not performed.
+AI02 | Memory and advanced settings | Still open | Facts lack source/date context and technical webhooks remain expanded. Key storage behavior not audited.
+C01 | External connection explanation | Partly addressed | Access, changes, blocked actions and disconnection are now described. External processing and limits of revocation need explanation and implementation validation.
+
+LIBRARY SECOND-PASS BUILD NOTES
+
+The new mockup is deliberately a stronger departure from the current spreadsheet presentation. It illustrates a compact document workspace. It does not change the live site.
+
+Desktop layout
+1. Use a short page heading and subtitle. Avoid repeating the complete process-definition paragraph on every visit.
+2. Put Search documents, New document and Import in one compact toolbar.
+3. Use a sidebar for All documents, Needs attention, Approved and Drafts, then collections. Keep their counts accurate and do not treat draft and urgent as synonyms.
+4. Show title-first rows. Use title, ID/type, status and review action as the default information. Avoid separate ID, owner and date columns in this default retrieval view.
+5. Selecting a row reveals owner, version, review date and direct actions in a detail panel. A separate Open document action opens the full approved procedure.
+6. Keep quality notes separate from suggested edits. Both need specific, tested destinations.
+7. Put imports and recordings in a small secondary area; retain required review counts without letting administration dominate the collection.
+
+Phone layout
+1. Put search immediately below Library, then compact filters and New document.
+2. Show title, ID/type, status and review action within each compact card.
+3. Show owner and due date on one quiet line or inside Details. Do not repeat six field labels per document.
+4. Keep tap targets generous. Do not force dates, titles or status into a shrunken desktop table.
+5. Return from document review to the same search, filter and list position.
+
+Visual treatment
+Use Lawfecta's navy and maroon for identity and emphasis, blue for primary actions, quiet neutral surfaces for the collection, and meaningful status pills. Do not make every action equally prominent. Titles should carry the list. Keep the typography readable and let metadata recede without relying on low contrast.
+
+Proposed wording
+Page title: "Your firm's documents". The visual concept uses "Your firm's playbooks" as a tone direction; use the broader Documents label in production because the collection contains multiple types.
+Subtitle: "Find the process. Check what needs attention. Put it to work."
+Quality count: "2 quality notes" when that is the actual data being counted.
+Suggested-edit count: "2 suggested edits" only for proposals awaiting acceptance.
+Imported state: "Review imported draft".
+Empty search: "No documents match your search." Action: "Clear search".
+Missing review date: "Review not scheduled" with a relevant setup action.
+Missing owner: "Owner not assigned".
+
+AI help
+Keep a small field-related AI improvement action in the selected-document detail panel. It proposes edits to an unsaved/new draft and never changes the approved version automatically. Keep the client-information reminder adjacent. Do not use AI to hide unresolved navigation or count inconsistencies.
+
+What not to change
+Keep the successful aligned metadata model, searchable IDs, explicit missing states, approved-version separation, keyboard row activation and visible review cues. The next pass should improve retrieval and reading rather than removing useful information.
+
+SUGGESTED VALIDATION BEFORE CLOSING THE RETEST
+
+1. Compare every rendered milestone date and scope field with its signed agreement version.
+2. Seed a pending signature and proposals; verify Home, Projects and Notices agree about the required action.
+3. Seed two quality notes and zero proposed edits; verify Library counts and links are accurate.
+4. Compare the current Library and compact workspace concept with the user on desktop and phone.
+5. Complete booking in a disposable test flow, including another time zone, a taken slot and final review. This was not completed here.
+6. Test AI outputs and selective acceptance with synthetic information in an explicitly authorized execution pass.
+7. Verify public sync, repeat-hire limits, cancellation confirmations and connector permission boundaries in dedicated tests before claiming those behaviors are safe.
+
+Sources were opened during this retest. Exact layouts, priority and wording are designer judgment. Accessibility references identify principles, not a claim of complete WCAG conformance. All reported monetary values come from the test interface; no financial transaction was performed.

@@ -1,6 +1,6 @@
 {
   "sheet_version": "DS-1.1",
-  "updated": "2026-11-05",
+  "updated": "2026-11-07",
   "status_legend": {
     "C": "Confirmed. Decided by Stacey or confirmed in the plan documents.",
     "R": "Suggested. The plan documents or Claude suggest it; Stacey has not approved it yet.",
@@ -1256,6 +1256,20 @@
           "note": "Members change it in the account menu: Match my device, Light or Dark. The same choice in the admin area."
         }
       ]
+    },
+    {
+      "title": "Security and sensitive data",
+      "items": [
+        {
+          "key": "privacy.ai_client_details_reminder",
+          "label": "Remind members before client details go to DELA's AI on Lawfecta's key",
+          "value": true,
+          "unit": "",
+          "status": "C",
+          "source": "Stacey 2026-11-07 (step 9c answers)",
+          "note": "Turn off once OpenAI approves Zero Data Retention (docs/RUNBOOK.md). Never shown when the member uses their own AI key."
+        }
+      ]
     }
   ],
   "switches": [
@@ -1373,6 +1387,11 @@
       "key": "appearance_choice",
       "label": "The Appearance choice (Match my device, Light, Dark) in the account menu",
       "gate": "Phase 4 part D tested"
+    },
+    {
+      "key": "client_details_allowed",
+      "label": "The client information check follows the sensitive data rule (client details allowed where the rule allows them)",
+      "gate": "Lawyer reviews the privacy policy and data handling"
     }
   ]
 }

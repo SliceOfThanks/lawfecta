@@ -127,7 +127,8 @@ Things only you can provide
 - Done: UX review parts 0 to 3 and step 7c part 2 (standing arrangements) on the test site. Phase 4 (docs/briefs/step-8a-phase-4.md, answered 2026-11-06): parts A (the approved-version page) and B (the checks before a commitment, with the freelancer helpers) are on the test site. All 14 AI helpers and the Appearance choice are on the test site (2026-11-07), so Phase 4 is built except the first ten minutes, which waits for the onboarding widget after the MVP launch.
 - Built: attorney plan usage limits (step 9b), on the test site with blocking off. Turn blocking on after the test.
 - Waiting on Stacey: the Pro trial and downgrade to Free (docs/briefs/step-9-pro-trial-downgrade.md). Plan only; not built until she answers.
-- Waiting on Stacey: the client information check follows the sensitive data rule (docs/briefs/step-9c-client-information-check.md), 8 questions with suggested answers. Not built until she answers.
+- Built 2026-11-07, on the test site behind client_details_allowed: the client information check follows the sensitive data rule (docs/briefs/step-9c-client-information-check.md). Its ChatGPT test is next.
+- Next: a brief for the ChatGPT UX retest (docs/reviews/ux-retest-2026-11-07), R01 to R12 and the Library redesign.
 
 Every step follows the same path:
 1. Claude writes a brief with a suggested answer for every question.

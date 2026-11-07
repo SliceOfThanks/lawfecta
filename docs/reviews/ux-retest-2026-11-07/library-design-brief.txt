@@ -1,0 +1,17 @@
+LIBRARY SECOND DESIGN PASS
+Generated with the built-in image-generation tool. Concept only; no site changes.
+
+Final design prompt
+Create one high-fidelity board showing a large desktop Library and a compact phone Library. Use Inter-style typography, Lawfecta blue #0D83DD, maroon #8B2146, light background #f5f5f7, a modest navy-to-maroon hero, rounded cards, quiet borders and clear primary actions. Avoid a spreadsheet or a wall of metadata labels.
+
+Make document titles dominant. Put ID, type and owner in a secondary line. Show approval status and a direct review action. Use a desktop collection sidebar and a selected-document detail panel for version, owner, review date and actions. Put search and New document near the heading. Move imports and recordings to secondary links. On phones, use compact cards with title, ID/type, status and review action, plus a quiet metadata line. Do not render six stacked field labels per document.
+
+Show realistic examples: Run a Conflict Check, Build a document checklist, Test SOP: Automate or delegate and Send the welcome packet. Distinguish quality notes from proposed edits. Include an open tooltip explaining that distinction, a field-related AI improvement button and a client-information reminder. Label the board as a proposed second design pass.
+
+Final content correction prompt
+Preserve the layout and style. Replace suggestion labels with review-note labels, and make the open tooltip say: "Quality notes are separate from proposed edits. Open a note to see what needs review." Make the third document consistent on both desktop and phone: Test SOP: Automate or delegate, No ID, SOP, Not assigned, Approved, Add review date. Show Owner not assigned and Review not scheduled on its phone card.
+
+Implementation notes
+The concept uses "Your firm's playbooks" for tone. Use "Your firm's documents" in production because the collection contains Policy, SOP, Workflow and Playbook types. Verify the actual source of all review counts before choosing their final labels. Use "quality notes" only for quality findings and "suggested edits" for proposed changes. Sidebar counts and grouping in the generated image are illustrative, not a complete rendering of the test dataset.
+
+Use DELA-attorney-ux-retest.txt as the behavioral source of truth. Generated pixels do not define exact CSS, embedded fonts, accessibility compliance or backend behavior.

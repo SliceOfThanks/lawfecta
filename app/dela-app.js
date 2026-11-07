@@ -309,7 +309,10 @@
     bad_request: "the provider could not handle this request.",
   };
   var KIND_WORDS = { social_security_number: "a Social Security number", date_of_birth: "a date of birth", case_number: "a case number", federal_case_number: "a case number",
-    client_name: "a client's name", account_number: "an account number", case_caption: "a case name", phone_number: "a phone number", email_address: "an email address", street_address: "a street address" };
+    client_name: "a client's name", account_number: "an account number", case_caption: "a case name", phone_number: "a phone number", email_address: "an email address", street_address: "a street address",
+    health_information: "health information", biometric_data: "biometric data", gov_id: "a government ID number", ssn: "a Social Security number or ITIN", card: "a card number", bank: "a bank account number", password: "a password or login" };
+  // The server's own words for a client-details reminder (step 9c), or the screen's older wording when the switch is off
+  function ciNote(x, fallback) { return x && x.note ? x.note : fallback; }
   function kindsText(k) { return (k || []).map(function (x) { return KIND_WORDS[x] || x.split("_").join(" "); }).join(", "); }
   function mbText(bytes) {
     if (bytes === null || bytes === undefined) return "no cap";
@@ -493,7 +496,9 @@
     var p = chat.pending;
     if (!p) return;
     if (extra.retry) p.attempt += 1;
-    if (extra.confirm_no_client_info) p.confirmed = true;
+    if (extra.confirm_no_client_info) { p.confirmed = true; chat.clientOk = chat.id || "new"; }
+    // The reminder before client details go to DELA's AI shows once per conversation (step 9c, question 2)
+    if (chat.clientOk && (chat.clientOk === chat.id || chat.clientOk === "new")) p.confirmed = true;
     chat.busy = true;
     chat.problem = null;
     drawChat();
@@ -520,10 +525,14 @@
     function btn(label, fn, cls) { return h("button", { class: (cls || "ghost") + " small", onclick: fn }, label); }
     var fix = btn("Fix my key", function () { tab = "ai"; draw(); });
     var once = ai.backup_credits !== false ? btn("Use Lawfecta credits this time", function () { send({ lawfecta_once: true, retry: true }); }, "blue") : null;
-    if (pr.reason === "looks_like_client_info") {
-      box.appendChild(h("p", { text: "This message may include " + kindsText(pr.kinds) + ". Confidential client information does not belong in DELA. Please replace names and numbers with placeholders such as [Client Name] or [Case Number]." }));
+    if (pr.reason === "sensitive_data") {
+      // Sensitive data never goes, so there is no "send anyway" (step 9c)
+      box.appendChild(h("p", { text: pr.message || D.errorText("sensitive_data") }));
+      box.appendChild(h("div", { class: "row" }, btn("Edit my message", function () { chat.problem = null; drawChat(); if (composerText) composerText.focus(); })));
+    } else if (pr.reason === "looks_like_client_info") {
+      box.appendChild(h("p", { text: ciNote(pr, "This message may include " + kindsText(pr.kinds) + ". Confidential client information does not belong in DELA. Please replace names and numbers with placeholders such as [Client Name] or [Case Number].") }));
       box.appendChild(h("div", { class: "row" }, btn("Edit my message", function () { chat.problem = null; drawChat(); if (composerText) composerText.focus(); }),
-        btn("Send anyway, it has no client information", function () { send({ confirm_no_client_info: true }); })));
+        btn(pr.rule === "ai" ? "Continue" : pr.rule ? "Send anyway" : "Send anyway, it has no client information", function () { send({ confirm_no_client_info: true }); })));
     } else if (pr.reason === "ai_failed" && pr.source !== "lawfecta") {
       var k = ai.own_key || ai.firm_key || {};
       box.appendChild(h("p", { text: "Your " + providerName(k.provider) + " key did not work: " + (KEY_PROBLEM[pr.code] || "the provider refused the request.") + " Nothing was sent with Lawfecta's key." }));
@@ -800,7 +809,7 @@
         go.disabled = true; msg.textContent = "DELA is writing...";
         api.post("/profile/draft", { field: key, notes: notes.value, body: prof.body, confirm_no_client_info: confirmed === true }).then(function (x) {
           go.disabled = false;
-          if (x.reason === "looks_like_client_info") { msg.textContent = ""; if (confirm("This may include client information. Click OK if it is not.")) run(true); return; }
+          if (x.reason === "looks_like_client_info") { msg.textContent = ""; if (confirm(ciNote(x, "This may include client information. Click OK if it is not."))) run(true); return; }
           if (x.reason === "tell_us_more") { msg.textContent = "Tell DELA a few facts first, or write a little in the box for DELA to improve."; return; }
           if (!x.ok) { msg.textContent = failText(x); return; }
           prof.body[key] = x.text; el.value = x.text; prof.dirty = true;
@@ -1078,7 +1087,7 @@
         save.disabled = false;
         if (x.reason === "looks_like_client_info") {
           msg.textContent = "";
-          if (confirm("This may include client information (" + (x.kinds || []).join(", ").split("_").join(" ") + "). Take it out and click Save, or click OK if it is not client information.")) doSave(true);
+          if (confirm(ciNote(x, "This may include client information (" + (x.kinds || []).join(", ").split("_").join(" ") + "). Take it out and click Save, or click OK if it is not client information."))) doSave(true);
           return;
         }
         if (!x.ok) { msg.textContent = D.errorText(x.reason); return; }
@@ -1170,7 +1179,7 @@
       go.disabled = true; msg.textContent = "DELA is writing...";
       api.post("/profile/draft", { notes: notes.value, body: prof.body, confirm_no_client_info: confirmed === true }).then(function (x) {
         go.disabled = false;
-        if (x.reason === "looks_like_client_info") { msg.textContent = ""; if (confirm("This may include client information. Click OK if it is not.")) run(true); return; }
+        if (x.reason === "looks_like_client_info") { msg.textContent = ""; if (confirm(ciNote(x, "This may include client information. Click OK if it is not."))) run(true); return; }
         if (!x.ok) { msg.textContent = failText(x); return; }
         var d = x.draft;
         if (d.headline) prof.body.headline = d.headline;
@@ -1583,6 +1592,7 @@
     deleted: "Moved to the trash", restored_from_trash: "Restored from the trash", file_attached: "Attached a file", file_removed: "Removed a file" };
   function can(n) { return lib.pb ? (RANK[lib.pb.role] || 0) >= n : (lib.data && lib.data.list ? (RANK[lib.data.list.role] || 0) >= n : false); }
   function failText(r) {
+    if (r.reason === "sensitive_data" && r.message) return r.message;
     if (DOC_ERR[r.reason]) return DOC_ERR[r.reason];
     if (r.reason === "playbook_limit") return "Your library is full: " + r.count + " of " + r.limit + " documents. Archive or delete one you no longer need, or upgrade your plan for more.";
     if (r.reason === "changed") return "Someone saved a newer version while you were working. Your changes were not saved. Reload the document, then make your change again.";
@@ -1718,7 +1728,7 @@
         status.textContent = "";
         if (!r.ok) {
           if (r.reason === "looks_like_client_info") {
-            problem.appendChild(h("div", { class: "problem" }, h("p", { text: "This may include " + kindsText(r.kinds) + ". Use placeholders such as [Client Name] instead." }),
+            problem.appendChild(h("div", { class: "problem" }, h("p", { text: ciNote(r, "This may include " + kindsText(r.kinds) + ". Use placeholders such as [Client Name] instead.") }),
               h("button", { class: "ghost small", onclick: function () { send({ confirm: true }); } }, "Send anyway, it has no client information")));
           } else {
             problem.appendChild(h("div", { class: "problem" }, h("p", { text: failText(r) }),
@@ -1933,7 +1943,7 @@
         btn.disabled = false;
         status.textContent = "";
         if (!r.ok) {
-          if (r.reason === "looks_like_client_info" && confirm("This may include " + kindsText(r.kinds) + ". Send anyway? Only if it has no client information.")) { send({ confirm: true }); return; }
+          if (r.reason === "looks_like_client_info" && confirm(ciNote(r, "This may include " + kindsText(r.kinds) + ". Send anyway? Only if it has no client information."))) { send({ confirm: true }); return; }
           D.toast(app, failText(r), true);
           return;
         }
@@ -2083,7 +2093,7 @@
         btn.disabled = false;
         status.textContent = "";
         if (!r.ok) {
-          if (r.reason === "looks_like_client_info" && confirm("This may include " + kindsText(r.kinds) + ". Send anyway? Only if it has no client information.")) { send({ confirm: true }); return; }
+          if (r.reason === "looks_like_client_info" && confirm(ciNote(r, "This may include " + kindsText(r.kinds) + ". Send anyway? Only if it has no client information."))) { send({ confirm: true }); return; }
           if (r.reason === "ai_failed" && r.source !== "lawfecta" && confirm(failText(r) + " Use Lawfecta credits this time?")) { attempt++; send({ once: true }); return; }
           attempt++;
           D.toast(app, failText(r), true);
@@ -2420,7 +2430,7 @@
         btn.disabled = false;
         btn.textContent = "Build my document";
         if (!r.ok) {
-          if (r.reason === "looks_like_client_info" && confirm("The steps may include " + kindsText(r.kinds) + ". Build anyway? Only if there is no client information.")) { build({ confirm: true }); return; }
+          if (r.reason === "looks_like_client_info" && confirm(ciNote(r, "The steps may include " + kindsText(r.kinds) + ". Build anyway? Only if there is no client information."))) { build({ confirm: true }); return; }
           attempt++;
           D.toast(app, failText(r), true);
           return;
@@ -3195,7 +3205,7 @@
         btn.disabled = true; var was = btn.textContent; btn.textContent = "DELA is checking...";
         api.post("/helpers/run", Object.assign({ helper: key, confirm_no_client_info: confirmed === true }, getBody())).then(function (x) {
           btn.disabled = false; btn.textContent = was;
-          if (x.reason === "looks_like_client_info") { if (confirm("This may include client information (" + kindsText(x.kinds) + "). Use placeholders instead. Click OK only if it is not client information.")) run(true); return; }
+          if (x.reason === "looks_like_client_info") { if (confirm(ciNote(x, "This may include client information (" + kindsText(x.kinds) + "). Use placeholders instead. Click OK only if it is not client information."))) run(true); return; }
           if (!x.ok) throw x;
           out.hidden = false; D.clear(out);
           out.appendChild(h("div", { class: "row", style: "align-items:center;margin-bottom:6px" }, D.aiLabel(), h("span", { class: "grow" }),
@@ -3258,7 +3268,7 @@
     }
     function save(then) {
       return api.post("/gigs/save", payload()).then(function (x) {
-        if (x.reason === "looks_like_client_info") { if (confirm("This may include client information (" + kindsText(x.kinds) + "). Use placeholders instead. Click OK only if it is not client information.")) return api.post("/gigs/save", Object.assign(payload(), { confirm_no_client_info: true })).then(gigOk); throw { reason: "canceled" }; }
+        if (x.reason === "looks_like_client_info") { if (confirm(ciNote(x, "This may include client information (" + kindsText(x.kinds) + "). Use placeholders instead. Click OK only if it is not client information."))) return api.post("/gigs/save", Object.assign(payload(), { confirm_no_client_info: true })).then(gigOk); throw { reason: "canceled" }; }
         return gigOk(x);
       }).then(function (x) { if (then) return then(); draw(); D.toast(app, x.big_change ? "Saved. This was a big change, so applicants are asked to confirm their proposals." : "Saved"); }).catch(function (e) { if (e && e.reason !== "canceled") gigFail(e); });
     }
@@ -4307,7 +4317,7 @@
       sending = true; send.disabled = true;
       api.post("/proposals/send", Object.assign(body(), { request_id: newId(), confirm_no_client_info: confirmed === true })).then(function (x) {
         sending = false; send.disabled = false;
-        if (x.reason === "looks_like_client_info") { if (confirm("This may include client information (" + kindsText(x.kinds) + "). Click OK only if it is not.")) doSend(true); return; }
+        if (x.reason === "looks_like_client_info") { if (confirm(ciNote(x, "This may include client information (" + kindsText(x.kinds) + "). Click OK only if it is not."))) doSend(true); return; }
         gigOk(x);
         D.toast(app, x.status === "held" ? x.note : "Proposal sent" + (x.counted ? ". " + allowanceText(x.allowance) : ""));
         draw();
@@ -4492,7 +4502,7 @@
         send.disabled = true;
         api.post("/threads/send", { thread_id: t.id, body: ta.value, attachments: attach, request_id: req, confirm_no_client_info: confirmed === true }).then(function (x) {
           send.disabled = false;
-          if (x.reason === "looks_like_client_info") { if (confirm("This may include client information (" + kindsText(x.kinds) + "). Click OK only if it is not.")) doSend(true); return; }
+          if (x.reason === "looks_like_client_info") { if (confirm(ciNote(x, "This may include client information (" + kindsText(x.kinds) + "). Click OK only if it is not."))) doSend(true); return; }
           gigOk(x);
           var note = x.held || x.warned ? x.note : "";
           draw();
@@ -4616,7 +4626,7 @@
         c.appendChild(h("div", { class: "helpbox" }, h("p", { style: "margin:0 0 6px", text: "Did the meeting happen? Tell DELA within " + confirmHours + " hours. DELA suggests next steps from both summaries." }), met, sum,
           h("button", { class: "blue small", type: "button", onclick: function () {
             api.post("/meetings/followup", { id: m.id, met: met.value === "yes", summary: sum.value }).then(function (x) {
-              if (x.reason === "looks_like_client_info") { D.toast(app, "This may include client information. Use placeholders instead.", true); return; }
+              if (x.reason === "looks_like_client_info") { D.toast(app, ciNote(x, "This may include client information. Use placeholders instead."), true); return; }
               gigOk(x); draw(); D.toast(app, "Thank you. " + (x.both_in ? "You both answered." : "Waiting for the other person."));
             }).catch(talkFail);
           } }, "Send")));
@@ -4714,7 +4724,7 @@
     if (r.reason === "too_long" && r.max_days) return "Every due date must be within " + r.max_days + " days.";
     if (r.reason === "revisions_used_up" && r.included) return "The " + r.included + " included rounds of changes are used up. Propose a change order on the agreement instead.";
     if (r.reason === "payment_failed" && r.detail) return "The payment did not go through: " + r.detail;
-    if (r.reason === "looks_like_client_info") return failText(r);
+    if (r.reason === "looks_like_client_info") return ciNote(r, failText(r));
     if (r.reason === "blocked_data" && r.message) return r.message;
     return ENG_ERR[r.reason] || gigErr(r);
   }

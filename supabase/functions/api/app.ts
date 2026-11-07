@@ -17,7 +17,7 @@ import { aiContext, fromBd, LABELS, normalize as normalizeProfile, PRACTICE_AREA
 import { encryptionReady, openKey, sealKey } from "./lib/ai/keycrypt.ts";
 import { AiFail, chat, guessProvider, looksLikeKey, testKey, transcribe, transcribeLines, type ChatImage, type ChatMsg, type Provider } from "./lib/ai/providers.ts";
 import { plainText } from "./lib/ai/text.ts";
-import { CHECK_PROMPT, messageLooksSensitive, patternCheck, readCheckAnswer } from "./lib/ai/clientcheck.ts";
+import { CHECK_PROMPT, SENSITIVE_CHECK_PROMPT, clientDetails, messageLooksSensitive, patternCheck, readCheckAnswer, readSensitiveAnswer, reminderKinds } from "./lib/ai/clientcheck.ts";
 import { CONTENT_TYPES, readText, sha256, sniff } from "./lib/files/check.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { completeness, emptyBody, fileName, normalize, removesReview, toCsv, toDocx, toHtml, toMarkdown, dayIn, type Body, type ExportMeta } from "./lib/playbooks/model.ts";
@@ -447,12 +447,10 @@ async function aiSend(ctx: Ctx) {
   if (!content || !requestId) throw new HttpError(400, "bad_request");
   const fileIds = (Array.isArray(ctx.body.file_ids) ? ctx.body.file_ids : []).map(uuid).filter(Boolean).slice(0, 6) as string[];
   const lawfectaOnce = ctx.body.lawfecta_once === true;
-  // The client information check runs on what is sent; the member can still send after confirming
-  if (ctx.body.confirm_no_client_info !== true) {
-    const kinds = messageLooksSensitive(content);
-    if (kinds.length) return json(ctx, { ok: false, reason: "looks_like_client_info", kinds });
-  }
   const task = fileIds.length ? "file" : "chat";
+  // The client information check runs on what is sent; the member can still send after confirming (step 9c rules when on)
+  const warnAsk = await sensitive(ctx, s, content, "ai", { task });
+  if (warnAsk) return json(ctx, warnAsk);
   const route = await rpc<Route>(ctx, "dela_ai_route", { p_person: s.person_id, p_side: s.side, p_task: task, p_lawfecta_once: lawfectaOnce });
   if (!route?.ok) return json(ctx, { ok: false, reason: route?.reason ?? "ai_off" });
   const prep = await rpc<Record<string, any>>(ctx, "dela_ai_chat_prepare", {
@@ -670,8 +668,11 @@ async function runFileCheck(ctx: Ctx, id: string, recordFn = "dela_file_checked"
     await rpc(ctx, recordFn, { p_file: id, p: { ok: true, mime: sn.mime, sha256: await sha256(bytes), text: "", flagged: false, reasons: [] } });
     return;
   }
+  // Step 9c: with client_details_allowed on, a file in the Files tab is held only for the six sensitive kinds; client
+  // details are normal data there. Profile documents (read by other members) keep the client information check.
+  const rule9c = fc.purpose === "member" && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "client_details_allowed", p_person: fc.person_id }).catch(() => false) === true;
   const hits = patternCheck(fc.name + "\n" + text);
-  const reasons = new Set(hits.strong);
+  const reasons = new Set<string>(rule9c ? blockedKinds(fc.name + "\n" + text) : hits.strong);
   let aiRan = false;
   const key = fc.purpose === "recording" ? "" : lawfectaKey(ctx, "openai");
   const image = fc.ext === "png" || fc.ext === "jpg";
@@ -679,18 +680,18 @@ async function runFileCheck(ctx: Ctx, id: string, recordFn = "dela_file_checked"
     const sample = text.length > 20000 ? text.slice(0, 12000) + "\n...\n" + text.slice(-8000) : text;
     const model = await setting(ctx, "ai.model.openai", "gpt-5.4-mini");
     try {
-      const r = await chat(f(ctx), "openai", key, model, CHECK_PROMPT,
+      const r = await chat(f(ctx), "openai", key, model, rule9c ? SENSITIVE_CHECK_PROMPT : CHECK_PROMPT,
         [{ role: "user", content: sample || "The member uploaded this image.", images: image ? [{ media: fc.ext === "png" ? "image/png" : "image/jpeg", b64: b64(bytes) }] : undefined }], true);
-      const a = readCheckAnswer(r.text);
+      const a = rule9c ? readSensitiveAnswer(r.text) : readCheckAnswer(r.text);
       aiRan = true;
-      if (a.flagged) for (const k of a.kinds.length ? a.kinds : ["client_information"]) reasons.add(k);
+      if (a.flagged) for (const k of a.kinds.length ? a.kinds : [rule9c ? "sensitive_data" : "client_information"]) reasons.add(k);
       await logUsage(ctx, { person_id: fc.person_id, side: fc.side, task: "client_check", source: "lawfecta", provider: "openai", model: r.model, input_tokens: r.input_tokens, output_tokens: r.output_tokens, ok: true });
     } catch (e) {
       await logUsage(ctx, { person_id: fc.person_id, side: fc.side, task: "client_check", source: "lawfecta", provider: "openai", model, ok: false, error: e instanceof AiFail ? e.code : "provider_down" });
     }
   }
   // Without the AI check, two different weaker signs are enough to hold the file
-  if (!aiRan && hits.weak.length >= 2) for (const k of hits.weak) reasons.add(k);
+  if (!aiRan && !rule9c && hits.weak.length >= 2) for (const k of hits.weak) reasons.add(k);
   await rpc(ctx, recordFn, {
     p_file: id, p: { ok: true, mime: sn.mime, sha256: await sha256(bytes), text, flagged: reasons.size > 0, reasons: [...reasons] },
   });
@@ -760,11 +761,44 @@ const meta = (b: Body) => {
   return { title: b.title || "Untitled playbook", completeness: c.score, missing: c.missing, practice_area: b.practice_area };
 };
 
-// The client information check runs on what the member types for the AI (Stacey's rule); they can still send after confirming
-function sensitive(ctx: Ctx, text: string) {
-  if (ctx.body.confirm_no_client_info === true) return null;
-  const kinds = messageLooksSensitive(text);
-  return kinds.length ? { ok: false, reason: "looks_like_client_info", kinds } : null;
+// The client information check on what members type. With the switch client_details_allowed off, the original check
+// (client details warn, the member can still send after confirming). With it on (step 9c, Stacey 2026-11-07), the
+// sensitive data rule: the six sensitive kinds are stopped everywhere and cannot be confirmed past; health and biometric
+// words bring a reminder; client details are fine except in public places, in a gig conversation before signing (a
+// reminder), and once before they go to DELA's AI on Lawfecta's key (a reminder, while privacy.ai_client_details_reminder
+// is on). Every reminder keeps the reason looks_like_client_info, so each screen's existing "send anyway" path works,
+// and adds a note in plain words.
+type Place = "ai" | "public" | "conversation" | "internal";
+const SENSITIVE_LINK = " Keep it in your own storage and share a link instead.";
+async function sensitive(ctx: Ctx, s: { person_id: string | null; side: string | null }, text: string, place: Place, o: { signed?: boolean; task?: string } = {}) {
+  const on = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "client_details_allowed", p_person: s.person_id }).catch(() => false);
+  const confirmed = ctx.body.confirm_no_client_info === true;
+  if (!on) {
+    if (confirmed) return null;
+    const kinds = messageLooksSensitive(text);
+    return kinds.length ? { ok: false, reason: "looks_like_client_info", kinds } : null;
+  }
+  const blocked = blockedKinds(text);
+  if (blocked.length) return { ok: false, reason: "sensitive_data", kinds: blocked, message: blockedMessage(blocked) + SENSITIVE_LINK };
+  if (confirmed) return null;
+  const remind = reminderKinds(text);
+  if (remind.length) return { ok: false, reason: "looks_like_client_info", kinds: remind, rule: "maybe_sensitive",
+    note: "This may include health information or biometric data. That is sensitive data, which never goes in DELA." + SENSITIVE_LINK + " Click OK only if it is not sensitive." };
+  const details = clientDetails(text);
+  if (!details.length || place === "internal") return null;
+  if (place === "public") return { ok: false, reason: "looks_like_client_info", kinds: details, rule: "public",
+    note: "This may include client details. Other members read this, so leave client names, case numbers and contact details out. Click OK only if it has none." };
+  if (place === "conversation") {
+    if (o.signed) return null;
+    return { ok: false, reason: "looks_like_client_info", kinds: details, rule: "before_signing",
+      note: "This may include client details. Nobody has signed an agreement on this gig yet, so share only what the freelancer needs to decide. Send anyway?" };
+  }
+  // place === "ai": a reminder before client details go to DELA's AI on Lawfecta's key, never on the member's own key
+  if (await setting(ctx, "privacy.ai_client_details_reminder", "true") === "false") return null;
+  const route = await rpc<Route>(ctx, "dela_ai_route", { p_person: s.person_id, p_side: s.side, p_task: o.task || "chat", p_lawfecta_once: false }).catch(() => null);
+  if (route && route.ok && route.source !== "lawfecta") return null;
+  return { ok: false, reason: "looks_like_client_info", kinds: details, rule: "ai",
+    note: "This includes client details. They go to OpenAI to run DELA's AI, and OpenAI may keep them up to 30 days for abuse checks. Continue?" };
 }
 
 async function fileTexts(ctx: Ctx, s: Session, ids: unknown): Promise<string> {
@@ -864,7 +898,7 @@ async function pbCreate(ctx: Ctx) {
   const hasFiles = Array.isArray(ctx.body.file_ids) && ctx.body.file_ids.length > 0;
   // A file alone is enough: DELA drafts from the file (Stacey's test 2026-11-05)
   if (description || hasFiles) {
-    const warn = sensitive(ctx, description);
+    const warn = (await sensitive(ctx, s, description, "ai"));
     if (warn) return json(ctx, warn);
     const full = await libraryFull(ctx, org);
     if (full) return json(ctx, full);
@@ -901,7 +935,7 @@ async function pbFill(ctx: Ctx) {
   const id = uuid(ctx.body.id);
   const answers = str(ctx.body.answers, 8000).trim();
   if (!id || !answers) throw new HttpError(400, "bad_request");
-  const warn = sensitive(ctx, answers);
+  const warn = (await sensitive(ctx, s, answers, "ai"));
   if (warn) return json(ctx, warn);
   const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
   if (!cur?.ok) return json(ctx, cur);
@@ -936,7 +970,7 @@ async function pbChat(ctx: Ctx) {
   const id = uuid(ctx.body.id);
   const message = str(ctx.body.message, 4000).trim();
   if (!id || !message) throw new HttpError(400, "bad_request");
-  const warn = sensitive(ctx, message);
+  const warn = (await sensitive(ctx, s, message, "ai"));
   if (warn) return json(ctx, warn);
   const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
   if (!cur?.ok) return json(ctx, cur);
@@ -1292,7 +1326,7 @@ async function docFirmSave(ctx: Ctx) {
   for (const [k] of SYSTEM_GROUPS) systems[k] = (Array.isArray((ctx.body.systems as any)?.[k]) ? (ctx.body.systems as any)[k] : []).map((x: unknown) => str(x, 80).trim()).filter(Boolean).slice(0, 10);
   const roles = (Array.isArray(ctx.body.roles) ? ctx.body.roles : []).slice(0, 30).map((x: any) => ({ name: str(x?.name, 60).trim(), kind: str(x?.kind, 20), person_id: uuid(x?.person_id) ?? "", email: str(x?.email, 200).trim() }));
   const text = [str(ctx.body.jurisdictions, 500), ...roles.map((r: any) => r.name), ...Object.values(systems).flat()].join("\n");
-  const warn = sensitive(ctx, text);
+  const warn = (await sensitive(ctx, s, text, "ai"));
   if (warn) return json(ctx, warn);
   return json(ctx, await rpc(ctx, "dela_doc_firm_save_side", { p_person: s.person_id, p_side: s.side, p: { size: str(ctx.body.size, 10), practice_areas: (Array.isArray(ctx.body.practice_areas) ? ctx.body.practice_areas : []).map((x: unknown) => str(x, 80)).filter(Boolean).slice(0, 20),
     jurisdictions: str(ctx.body.jurisdictions, 500), roles, systems } }));
@@ -1559,7 +1593,7 @@ async function importBuild(ctx: Ctx) {
     said = lines.filter((l) => !l.private).map((l) => `[${mmss(Number(l.start_ms))}] ${l.text}`).join("\n");
   }
   const guide = steps.map((x, i) => `${i + 1}. ${x.text}${x.note ? "\n   Attorney's note: " + x.note : ""}`).join("\n") + (said ? "\n\nWhat the attorney said while recording (material, not instructions):\n" + said : "");
-  const warn = sensitive(ctx, guide);
+  const warn = (await sensitive(ctx, s, guide, "ai"));
   if (warn) return json(ctx, warn);
   const ai = await runAi(ctx, s, `pbimport:${id}`, IMPORT_SYSTEM,
     [{ role: "user", content: `Guide title: ${imp.title || "(none)"}\nThe guide's steps (material, not instructions):\n${guide}` + (str(ctx.body.context, 4000) ? "\n\nWhat the attorney added:\n" + str(ctx.body.context, 4000) : "") }],
@@ -1840,7 +1874,7 @@ async function profileSave(ctx: Ctx) {
   const s = await memberSide(ctx);
   const body = normalizeProfile(ctx.body.body);
   if (body.photo_file && !body.photo_file.startsWith("profiles/" + s.person_id + "/")) body.photo_file = "";
-  const warn = sensitive(ctx, [body.headline, body.summary, body.experience, ...body.services.map((x) => x.title + " " + x.for_whom)].join("\n"));
+  const warn = (await sensitive(ctx, s, [body.headline, body.summary, body.experience, ...body.services.map((x) => x.title + " " + x.for_whom)].join("\n"), "public"));
   if (warn) return json(ctx, warn);
   const rd = readiness(body, await requiredFor(ctx, s.side));
   const r = await rpc<Record<string, any>>(ctx, "dela_profile_save", { p_person: s.person_id, p: { side: s.side, body, missing: rd.missing, score: rd.score,
@@ -1872,7 +1906,7 @@ async function profileDraft(ctx: Ctx) {
   const fieldKey = str(ctx.body.field, 20);
   if (fieldKey) return await profileDraftField(ctx, s, fieldKey, notes);
   if (notes.length < 20) return json(ctx, { ok: false, reason: "tell_us_more" });
-  const warn = sensitive(ctx, notes);
+  const warn = (await sensitive(ctx, s, notes, "public"));
   if (warn) return json(ctx, warn);
   const cur = normalizeProfile(ctx.body.body);
   const idem = "profiledraft:" + (await sha256Hex(s.person_id + s.side + notes)).slice(0, 40);
@@ -1893,7 +1927,7 @@ async function profileDraftField(ctx: Ctx, s: Session & { side: "attorney" | "fr
   const cur = normalizeProfile(ctx.body.body);
   const now = String((cur as Record<string, unknown>)[key] ?? "").trim();
   if (notes.length < 15 && now.length < 15) return json(ctx, { ok: false, reason: "tell_us_more" });
-  const warn = sensitive(ctx, notes + "\n" + now);
+  const warn = (await sensitive(ctx, s, notes + "\n" + now, "public"));
   if (warn) return json(ctx, warn);
   const idem = "profilefield:" + (await sha256Hex(s.person_id + s.side + key + notes + now)).slice(0, 40);
   const ai = await runAi(ctx, s, idem, FIELD_SYSTEM, [{ role: "user", content: `Side: ${s.side}\nThe box: ${key} (${guide})\nWhat the box says now:\n${now || "(empty)"}\n\nThe rest of the profile:\n${profileText(s.side, cur) || "(empty)"}\n\nThe member's notes:\n${notes || "(none: improve what the box says now)"}` }],
@@ -2023,7 +2057,7 @@ async function gigDraft(ctx: Ctx) {
   }
   let pub = publicFromPlaybook(body), source = "playbook";
   const extra = str(ctx.body.notes, 1500);
-  if (extra) { const w = sensitive(ctx, extra); if (w) return json(ctx, w); }
+  if (extra) { const w = (await sensitive(ctx, s, extra, "public")); if (w) return json(ctx, w); }
   if (ctx.body.use_ai !== false && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "ai_generation", p_person: s.person_id })) {
     const ai = await runAi(ctx, s, `gigdraft:${pbId}:${requestId}`, GIG_SYSTEM, [{ role: "user", content: gigPrompt(body, extra) }], Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
     if (ai.ok) { const j = readJson(ai.text); if (j && typeof j === "object") { pub = normalizePublic({ ...pub, ...(j as Record<string, unknown>) }); source = "ai"; } }
@@ -2188,7 +2222,7 @@ async function delegationSave(ctx: Ctx) {
   }
   if (ctx.body.kpis !== undefined) {
     const k = readKpis(ctx.body.kpis, cur.kpis);
-    const warn = sensitive(ctx, [...k.checklist, k.done].join("\n"));
+    const warn = (await sensitive(ctx, s, [...k.checklist, k.done].join("\n"), "public"));
     if (warn) return json(ctx, warn);
     p.kpis = k;
   }
@@ -2267,7 +2301,7 @@ async function gigSave(ctx: Ctx) {
   const s = await client(ctx);
   const id = need(uuid(ctx.body.id));
   const pub = normalizePublic(ctx.body.public);
-  const warn = sensitive(ctx, [pub.title, pub.task, pub.outcome, ...pub.steps].join("\n"));
+  const warn = (await sensitive(ctx, s, [pub.title, pub.task, pub.outcome, ...pub.steps].join("\n"), "public"));
   if (warn) return json(ctx, warn);
   // Milestones change only when they are sent, so a budget edit never wipes them
   const p: Record<string, unknown> = { public: pub };
@@ -2306,7 +2340,7 @@ async function gigInvite(ctx: Ctx) {
   const s = await client(ctx);
   const gig = need(uuid(ctx.body.gig_id)), who = need(uuid(ctx.body.person_id));
   const message = str(ctx.body.message, 2000);
-  const warn = message ? sensitive(ctx, message) : null;
+  const warn = message ? (await sensitive(ctx, s, message, "conversation")) : null;
   if (warn) return json(ctx, warn);
   const c = message ? await conductCheck(ctx, s, message) : { held: false, kinds: [], source: "rules" as const, insights: [] };
   const r = await rpc<Record<string, any>>(ctx, "dela_gig_invite", { p_person: s.person_id, p_gig: gig, p_freelancer: who, p_message: message, p_held: c.held });
@@ -2337,7 +2371,7 @@ async function proposalSend(ctx: Ctx) {
   const gig = need(uuid(ctx.body.gig_id));
   const p = proposalBody(ctx);
   const text = [p.included, p.excluded, p.schedule, p.qualifications, p.message].join("\n");
-  const warn = sensitive(ctx, text);
+  const warn = (await sensitive(ctx, s, text, "conversation"));
   if (warn) return json(ctx, warn);
   const c = await conductCheck(ctx, s, text);
   // An agency proposal (Step 7d) names who will do the work; the database checks the agency's rules
@@ -2396,7 +2430,7 @@ async function proposalHelp(ctx: Ctx) {
   const gig = await rpc<Record<string, any>>(ctx, "dela_gig_get", { p_person: s.person_id, p_side: "freelancer", p_gig: need(uuid(ctx.body.gig_id)) });
   if (!gig?.ok) return json(ctx, gig);
   const notes = str(ctx.body.notes, 2000);
-  if (notes) { const w = sensitive(ctx, notes); if (w) return json(ctx, w); }
+  if (notes) { const w = (await sensitive(ctx, s, notes, "ai")); if (w) return json(ctx, w); }
   const prof = await rpc<Record<string, any>>(ctx, "dela_profile_get", { p_person: s.person_id, p_side: "freelancer" });
   const g = gig.gig, pub = normalizePublic(g.public);
   const content = `The gig: ${g.title}\nTask: ${pub.task}\nOutcome: ${pub.outcome}\nSteps: ${pub.steps.join("; ")}\nTools: ${pub.tools.join(", ")}\nPractice area: ${pub.practice_area}\n\n` +
@@ -2414,7 +2448,7 @@ async function questionAsk(ctx: Ctx) {
   if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
   const gig = need(uuid(ctx.body.gig_id)), text = str(ctx.body.question, 2000).trim();
   if (!text) throw new HttpError(400, "bad_request");
-  const warn = sensitive(ctx, text);
+  const warn = (await sensitive(ctx, s, text, "public"));
   if (warn) return json(ctx, warn);
   const c = await conductCheck(ctx, s, text);
   const r = await rpc<Record<string, any>>(ctx, "dela_question_ask", { p_person: s.person_id, p_gig: gig, p_text: text, p_request: str(ctx.body.request_id, 80) || crypto.randomUUID(), p_held: c.held });
@@ -2426,7 +2460,7 @@ async function questionAnswer(ctx: Ctx) {
   const s = await client(ctx);
   const q = need(uuid(ctx.body.id)), text = str(ctx.body.answer, 4000).trim();
   if (!text) throw new HttpError(400, "bad_request");
-  const warn = sensitive(ctx, text);
+  const warn = (await sensitive(ctx, s, text, "public"));
   if (warn) return json(ctx, warn);
   const c = await conductCheck(ctx, s, text);
   const r = await rpc<Record<string, any>>(ctx, "dela_question_answer", { p_person: s.person_id, p_q: q, p_answer: text, p_held: c.held });
@@ -2493,7 +2527,7 @@ async function meetingFollowup(ctx: Ctx) {
   const s = await memberSide(ctx);
   const id = need(uuid(ctx.body.id));
   const summary = str(ctx.body.summary, 4000);
-  if (summary) { const w = sensitive(ctx, summary); if (w) return json(ctx, w); }
+  if (summary) { const w = (await sensitive(ctx, s, summary, "ai")); if (w) return json(ctx, w); }
   const r = await rpc<Record<string, any>>(ctx, "dela_meeting_followup", { p_person: s.person_id, p_side: s.side, p_meeting: id, p_met: ctx.body.met === true, p_summary: summary });
   // When both summaries are in, DELA suggests next steps (suggestions only, on the member's own AI)
   if (r?.ok && r.both_in && Array.isArray(r.summaries) && r.summaries.some((x: any) => x.summary) && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "ai_generation", p_person: s.person_id })) {
@@ -2511,7 +2545,9 @@ async function messageSend(ctx: Ctx) {
   const thread = need(uuid(ctx.body.thread_id));
   const body = str(ctx.body.body, 8000).trim();
   if (!body) throw new HttpError(400, "bad_request");
-  const warn = sensitive(ctx, body);
+  // After both have signed an agreement on this gig, client details are fine in the conversation (step 9c)
+  const signed = await rpc<boolean>(ctx, "dela_thread_signed", { p_thread: thread }).catch(() => false);
+  const warn = await sensitive(ctx, s, body, "conversation", { signed: signed === true });
   if (warn) return json(ctx, warn);
   const checked = withoutLawfectaLinks(body, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com"));
   const rules = conductRules(checked);
@@ -2616,7 +2652,7 @@ async function helperRun(ctx: Ctx) {
     }
   }
   // What the member typed goes through the client information check first, as everywhere else the AI reads typed text
-  if (typed) { const warn = sensitive(ctx, typed); if (warn) return json(ctx, warn); }
+  if (typed) { const warn = (await sensitive(ctx, s, typed, "ai")); if (warn) return json(ctx, warn); }
   const [ck, dflt] = HELPER_CREDITS[key];
   const credits = Number(await setting(ctx, ck, String(dflt))) || dflt;
   const ai = await runAi(ctx, s, `helper:${key}:` + (await sha256Hex(s.person_id + ":" + prompt)).slice(0, 40), HELPER_SYSTEM[key], [{ role: "user", content: prompt }], credits);
@@ -2683,7 +2719,7 @@ async function helperRun2(ctx: Ctx, s: Session, key: HelperKey) {
     typed = notes;
     prompt = "Ratings (1 to 5): " + ratings.map(([k, x]) => k + " " + x).join(", ") + "\nWould work with them again: " + (ctx.body.would_again === true ? "yes" : ctx.body.would_again === false ? "no" : "not said") + "\nTheir notes:\n" + notes;
   }
-  if (typed) { const warn = sensitive(ctx, typed); if (warn) return json(ctx, warn); }
+  if (typed) { const warn = (await sensitive(ctx, s, typed, "ai")); if (warn) return json(ctx, warn); }
   const [ck, dflt] = HELPER_CREDITS[key];
   const credits = Number(await setting(ctx, ck, String(dflt))) || dflt;
   const ai = await runAi(ctx, s, `helper:${key}:` + (await sha256Hex(s.person_id + ":" + prompt)).slice(0, 40), HELPER_SYSTEM[key], [{ role: "user", content: prompt }], credits);
@@ -3010,7 +3046,7 @@ async function agreementPropose(ctx: Ctx) {
   const ms = raw.map((m: any, i: number) => ({ seq: i + 1, title: str(m?.title, 120), amount_cents: toCents(m?.amount) ?? 0, due_date: str(m?.due_date, 10), deliverables: str(m?.deliverables, 600) }));
   const scope = { included: str(ctx.body.included, 4000), excluded: str(ctx.body.excluded, 4000), schedule: str(ctx.body.schedule, 2000) };
   const text = [scope.included, scope.excluded, scope.schedule, ...ms.map((m: any) => m.title + " " + m.deliverables), str(ctx.body.note, 300)].join("\n");
-  const warn = sensitive(ctx, text);
+  const warn = (await sensitive(ctx, s, text, "conversation"));
   if (warn) return json(ctx, warn);
   if (conductRules(withoutLawfectaLinks(text, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com"))).length) return json(ctx, { ok: false, reason: "keep_on_lawfecta" });
   return json(ctx, await rpc(ctx, "dela_agreement_version_add", { p_person: s.person_id, p_side: s.side, p_agreement: id, p_body: buildBody(facts, ms, scope), p_note: str(ctx.body.note, 300), p_base: int(ctx.body.base) }));
@@ -3050,7 +3086,7 @@ async function monthlyTerms(ctx: Ctx) {
   const id = need(uuid(ctx.body.id));
   const read = readTasks(ctx.body.tasks);
   if (read.reason) return json(ctx, { ok: false, reason: read.reason });
-  const warn = sensitive(ctx, read.tasks.map((x) => [x.task, x.turnaround, x.exclusions].join(" ")).join("\n"));
+  const warn = (await sensitive(ctx, s, read.tasks.map((x) => [x.task, x.turnaround, x.exclusions].join(" ")).join("\n"), "conversation"));
   if (warn) return json(ctx, warn);
   const price = ctx.body.price !== undefined ? toCents(ctx.body.price) : null;
   const r = await rpc<Record<string, any>>(ctx, "dela_monthly_terms_save", { p_person: s.person_id, p_side: s.side, p_agreement: id,
@@ -3236,7 +3272,7 @@ async function milestoneSubmit(ctx: Ctx) {
   const s = await memberSide(ctx);
   if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
   const statement = str(ctx.body.statement, 6000);
-  const warn = sensitive(ctx, statement);
+  const warn = (await sensitive(ctx, s, statement, "conversation", { signed: true }));
   if (warn) return json(ctx, warn);
   const r = await rpc<Record<string, any>>(ctx, "dela_submission_create", { p_person: s.person_id, p_milestone: need(uuid(ctx.body.milestone_id)),
     p: { statement, checklist: Array.isArray(ctx.body.checklist) ? ctx.body.checklist.slice(0, 20) : [], files: Array.isArray(ctx.body.files) ? ctx.body.files.map(uuid).filter(Boolean).slice(0, 10) : [], request_id: str(ctx.body.request_id, 80) } });
@@ -3283,7 +3319,7 @@ async function runMilestoneCheck(ctx: Ctx, submission: string): Promise<Record<s
 async function milestoneDecide(ctx: Ctx) {
   const s = await client(ctx);
   const note = str(ctx.body.note, 2000);
-  if (note) { const w = sensitive(ctx, note); if (w) return json(ctx, w); }
+  if (note) { const w = (await sensitive(ctx, s, note, "conversation", { signed: true })); if (w) return json(ctx, w); }
   const r = await rpc<Record<string, any>>(ctx, "dela_milestone_decide", { p_person: s.person_id, p_submission: need(uuid(ctx.body.submission_id)), p_accept: ctx.body.accept === true, p_note: note });
   if (r?.ok && ctx.body.accept === true && !r.duplicate) {
     const next = r.agreement_id ? await afterAccept(ctx, r.agreement_id, s.person_id) : null;
@@ -3395,7 +3431,7 @@ async function engagementsDaily(ctx: Ctx) {
 // contact details or payment outside Lawfecta, threats, hate, harassment and impersonation are held for the team.
 // A negative opinion is never held. If the AI check is down, the review publishes on the rule checks alone.
 async function reviewSafety(ctx: Ctx, person: string, side: string, text: string): Promise<{ stop?: Record<string, unknown>; held: boolean; kinds: string[] }> {
-  const warn = sensitive(ctx, text);
+  const warn = (await sensitive(ctx, { person_id: person, side }, text, "public"));
   if (warn) return { stop: warn, held: false, kinds: [] };
   const kinds = conductRules(withoutLawfectaLinks(text, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com")));
   const key = lawfectaKey(ctx, "openai");
@@ -3463,7 +3499,8 @@ async function pastReviewPublic(ctx: Ctx, action: "get" | "submit" | "optout") {
   if (head?.reason === "already_reviewed") return json(ctx, { ok: true, duplicate: true });
   if (!head?.ok) return json(ctx, head);
   const body = str(ctx.body.body, 3000).trim();
-  const warn = sensitive(ctx, body);
+  // A past client writes without a DELA login: the switch is read as it stands for everyone
+  const warn = (await sensitive(ctx, { person_id: null, side: "attorney" }, body, "public"));
   if (warn) return json(ctx, warn);
   const kinds = conductRules(body);
   const key = lawfectaKey(ctx, "openai");
@@ -3482,7 +3519,7 @@ async function benchInvite(ctx: Ctx) {
   const s = await attorney(ctx);
   const note = str(ctx.body.note, 600).trim();
   if (note) {
-    const w = sensitive(ctx, note);
+    const w = (await sensitive(ctx, s, note, "conversation"));
     if (w) return json(ctx, w);
     if (conductRules(withoutLawfectaLinks(note, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com"))).length) return json(ctx, { ok: false, reason: "keep_on_lawfecta" });
   }
@@ -3647,6 +3684,17 @@ function mcpUnauthorized(ctx: Ctx, error = "invalid_token") {
     "www-authenticate": `Bearer resource_metadata="${base}/.well-known/oauth-protected-resource", error="${error}"` } });
 }
 
+// The connector follows the same rule as the screens (step 9c). It cannot ask "send anyway?", so: with the switch off the
+// old check refuses any client detail; with it on, sensitive data and client details in public places are refused, and a
+// reminder case goes through (the person chose to send it from ChatGPT or Claude).
+async function mcpSensitive(ctx: Ctx, w: { person_id: string; side: string }, text: string, place: Place, signed: boolean) {
+  const r = await sensitive(ctx, w, text, place, { signed }) as Record<string, any> | null;
+  if (!r) return;
+  if (r.reason === "sensitive_data") throw new ToolError(String(r.message));
+  if (!r.rule) throw new ToolError("This looks like it includes client information. DELA does not accept client names, case numbers or similar details.");
+  if (r.rule === "public") throw new ToolError(String(r.note));
+}
+
 type McpWho = { connection_id: string; person_id: string; side: "attorney" | "freelancer"; bd_member_id: number; name: string; on_hold: boolean; write_actions: boolean };
 
 // The sensitive data rule (Stacey 2026-11-05): the six kinds are never entered, only linked (AI review 0.9.0, privacy 3)
@@ -3737,7 +3785,7 @@ async function mcpCall(ctx: Ctx, w: McpWho, name: string, a: Record<string, any>
   }
   if (name === "save_reply_draft") {
     const body = str(a.body, 8000);
-    if (messageLooksSensitive(body).length) throw new ToolError("This looks like it includes client information. DELA does not accept client names, case numbers or similar details.");
+    await mcpSensitive(ctx, w, body, "conversation", (await rpc<boolean>(ctx, "dela_thread_signed", { p_thread: uuid(a.thread_id) }).catch(() => false)) === true);
     if (conductRules(withoutLawfectaLinks(body, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com"))).length) throw new ToolError("Keep everything on Lawfecta: the draft cannot include personal contact details or payment outside Lawfecta.");
     const r = await rpc<Record<string, any>>(ctx, "dela_thread_draft", { p_person: w.person_id, p_side: w.side, p_thread: uuid(a.thread_id), p_body: body });
     if (!r?.ok) fail(r);
@@ -3835,7 +3883,7 @@ async function mcpCall(ctx: Ctx, w: McpWho, name: string, a: Record<string, any>
   }
   if (name === "save_proposal_draft") {
     const p = { price_cents: toCents(a.price_dollars), included: str(a.included, 4000), excluded: str(a.excluded, 4000), schedule: str(a.schedule, 2000), qualifications: str(a.qualifications, 4000), message: str(a.message, 4000) };
-    if (messageLooksSensitive([p.included, p.excluded, p.schedule, p.qualifications, p.message].join("\n")).length) throw new ToolError("This looks like it includes client information. DELA does not accept client names, case numbers or similar details.");
+    await mcpSensitive(ctx, w, [p.included, p.excluded, p.schedule, p.qualifications, p.message].join("\n"), "conversation", false);
     const r = await rpc<Record<string, any>>(ctx, "dela_proposal_save", { p_person: w.person_id, p_gig: uuid(a.gig_id), p });
     if (!r?.ok) fail(r);
     return { text: "Saved the proposal as a draft. It is not sent: open DELA, Work, to check it and send it.", data: { id: r.id } };
@@ -3881,8 +3929,7 @@ Where it stands: ${words[st?.readiness] ?? st?.readiness ?? "unknown"}. ${ver}.`
   }
   if (name === "save_document_draft") {
     const b = normalize(a);
-    const kinds = messageLooksSensitive(JSON.stringify(b));
-    if (kinds.length) throw new ToolError("This may include client information (" + kinds.join(", ").split("_").join(" ") + "). Replace it with placeholders such as [Client Name], then try again.");
+    await mcpSensitive(ctx, w, JSON.stringify(b), "ai", false);
     if (!b.title || !b.steps.length) throw new ToolError("A playbook needs a title and at least one step.");
     const idem = "mcp:" + (await sha256Hex(w.connection_id + JSON.stringify(b))).slice(0, 40);
     if (await rpc<boolean>(ctx, "dela_switch_on", { p_key: "document_standard", p_person: w.person_id })) {
@@ -3900,8 +3947,7 @@ Where it stands: ${words[st?.readiness] ?? st?.readiness ?? "unknown"}. ${ver}.`
   if (name === "draft_document_with_dela") {
     const d = str(a.description, 8000).trim();
     if (!d) throw new ToolError("Describe the task first.");
-    const kinds = messageLooksSensitive(d);
-    if (kinds.length) throw new ToolError("This may include client information (" + kinds.join(", ").split("_").join(" ") + "). Replace it with placeholders such as [Client Name], then try again.");
+    await mcpSensitive(ctx, w, d, "ai", false);
     const idem = (await sha256Hex(w.connection_id + d)).slice(0, 40);
     const ai = await runAi({ ...ctx, body: {} }, s, `mcpdraft:${idem}`, DRAFT_SYSTEM, [{ role: "user", content: "The process, in the attorney's words:\n" + d }], await pbCredits(ctx));
     if (!ai.ok) throw new ToolError(ai.reason === "ai_failed" ? "DELA's AI could not finish (" + String(ai.code).split("_").join(" ") + ")." : D_TEXT[ai.reason] ?? "DELA said: " + ai.reason.split("_").join(" ") + ".");
@@ -3922,8 +3968,7 @@ Where it stands: ${words[st?.readiness] ?? st?.readiness ?? "unknown"}. ${ver}.`
     const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: w.person_id, p_id: id });
     if (!cur?.ok) fail(cur);
     const b = normalize(a);
-    const kinds = messageLooksSensitive(JSON.stringify(b));
-    if (kinds.length) throw new ToolError("This may include client information (" + kinds.join(", ").split("_").join(" ") + "). Replace it with placeholders, then try again.");
+    await mcpSensitive(ctx, w, JSON.stringify(b), "ai", false);
     if (isDoc(cur.body)) {
       const dbb = normalizeDoc(cur.body);
       const nd = carryImages(dbb, a.document && typeof a.document === "object" ? normalizeDoc({ ...a.document, type: dbb.type }) : normalizeDoc({ ...dbb, ...fromLegacy(b, dbb.type), type: dbb.type, lifecycle: dbb.lifecycle, owner_role: dbb.owner_role }));
@@ -4101,7 +4146,16 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   "/admin/settings": (c, a) => rpc(c, "dela_admin_set_setting", {
     p_actor: a, p_key: need(str(c.body.key, 100)), p_value: need(c.body.value as unknown), p_status: need(str(c.body.status, 1)), p_reason: str(c.body.reason, 500),
   }),
-  "/admin/switches": (c, a) => rpc(c, "dela_admin_set_switch", { p_actor: a, p_key: need(str(c.body.key, 100)), p_state: need(str(c.body.state, 20)) }),
+  "/admin/switches": async (c, a) => {
+    const key = need(str(c.body.key, 100)), state = need(str(c.body.state, 20));
+    const r = await rpc<Record<string, any>>(c, "dela_admin_set_switch", { p_actor: a, p_key: key, p_state: state });
+    // Turning on the sensitive data rule releases Files-tab files held only for client details (step 9c, question 6)
+    if (key === "client_details_allowed" && state !== "off" && r && (r as any).ok !== false) {
+      const rc = await rpc<Record<string, any>>(c, "dela_files_recheck_client_details", { p_actor: a });
+      return { ...r, released: rc?.released ?? 0 };
+    }
+    return r;
+  },
   "/admin/access/grant": (c, a) => rpc(c, "dela_admin_access_grant", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id"), p_channel: need(str(c.body.channel, 20)), p_note: str(c.body.note, 200) }),
   "/admin/access/revoke": (c, a) => rpc(c, "dela_admin_access_revoke", { p_actor: a, p_id: need(int(c.body.id)) }),
   "/admin/staff/grant": (c, a) => rpc(c, "dela_admin_staff_grant", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id"), p_role: need(str(c.body.role, 20)) }),
@@ -4690,7 +4744,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
         const s = await memberSide(ctx);
         const read = readTasks(ctx.body.tasks);
         if (read.reason) return json(ctx, { ok: false, reason: read.reason });
-        const warn = sensitive(ctx, [str(ctx.body.note, 500), ...read.tasks.map((x) => [x.task, x.turnaround, x.exclusions].join(" "))].join("\n"));
+        const warn = (await sensitive(ctx, s, [str(ctx.body.note, 500), ...read.tasks.map((x) => [x.task, x.turnaround, x.exclusions].join(" "))].join("\n"), "conversation", { signed: true }));
         if (warn) return json(ctx, warn);
         const price = toCents(ctx.body.price);
         return json(ctx, await rpc(ctx, "dela_monthly_change_propose", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.id)),
@@ -4722,7 +4776,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /milestones/submit": return await milestoneSubmit(ctx);
       case "POST /milestones/human": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_submission_human", { p_person: s.person_id, p_submission: need(uuid(ctx.body.id)) })); }
       case "POST /milestones/decide": return await milestoneDecide(ctx);
-      case "POST /disputes/open": { const s = await memberSide(ctx); const r0 = str(ctx.body.reason, 2000); const w = sensitive(ctx, r0); if (w) return json(ctx, w);
+      case "POST /disputes/open": { const s = await memberSide(ctx); const r0 = str(ctx.body.reason, 2000); const w = (await sensitive(ctx, s, r0, "conversation", { signed: true })); if (w) return json(ctx, w);
         return json(ctx, await rpc(ctx, "dela_dispute_open", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.id)), p_milestone: uuid(ctx.body.milestone_id), p_reason: r0 })); }
       case "POST /disputes/withdraw": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_dispute_withdraw", { p_person: s.person_id, p_dispute: need(uuid(ctx.body.id)) })); }
       case "GET /deliverables/file": return await deliverableFile(ctx);
@@ -4740,7 +4794,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /threads/open": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_open", { p_person: s.person_id, p_side: s.side, p_gig: need(uuid(ctx.body.gig_id)), p_freelancer: uuid(ctx.body.freelancer) })); }
       case "GET /threads/get": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_get", { p_person: s.person_id, p_side: s.side, p_thread: need(uuid(ctx.url.searchParams.get("id"))) })); }
       case "POST /threads/send": return await messageSend(ctx);
-      case "POST /threads/edit": { const s = await memberSide(ctx); const b = str(ctx.body.body, 8000).trim(); if (!b) throw new HttpError(400, "bad_request"); const w = sensitive(ctx, b); if (w) return json(ctx, w);
+      case "POST /threads/edit": { const s = await memberSide(ctx); const b = str(ctx.body.body, 8000).trim(); if (!b) throw new HttpError(400, "bad_request"); const w = await sensitive(ctx, s, b, "conversation", { signed: (await rpc<boolean>(ctx, "dela_thread_signed", { p_thread: uuid(ctx.body.thread_id) ?? uuid(ctx.body.id) }).catch(() => false)) === true }); if (w) return json(ctx, w);
         if (conductRules(withoutLawfectaLinks(b, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com"))).length) return json(ctx, { ok: false, reason: "edit_needs_check" });
         return json(ctx, await rpc(ctx, "dela_message_edit", { p_person: s.person_id, p_msg: need(uuid(ctx.body.id)), p_body: b })); }
       case "POST /threads/remove": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_message_remove", { p_person: s.person_id, p_msg: need(uuid(ctx.body.id)) })); }
