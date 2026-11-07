@@ -165,6 +165,8 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     t = await waitFor(p, "Compare proposals");
     ok(t.includes("Within the budget") && t.includes("Above the budget"), "prices outside the range are labeled, never hidden");
     ok(t.includes("Opening the file"), "what each proposal leaves out is shown");
+    // Fix (step 8b, retest R10): the schedule's duration is said once, never "10 days (10 days)"
+    ok(!/(\d+) days? \(\1 days?\)/.test(t) && t.includes("from signing"), "each schedule says its duration once, from signing");
     await p.screenshot({ path: path.join(SHOTS, "gig-compare.png"), fullPage: true });
     await dela(p).locator("tr", { hasText: "Fran 2601" }).getByRole("button", { name: "Choose" }).click();
     await waitFor(p, "Filled", 10000);

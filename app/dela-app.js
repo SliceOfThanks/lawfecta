@@ -3179,6 +3179,13 @@
   }
 
   // What needs the member now, worked out from the live work (step 8b, retest R02): Projects and Notices both use these
+  // One duration, said once (step 8b, retest R10): "10 days (10 days)" became "10 days from signing"
+  function scheduleText(p) {
+    var sch = String(p.schedule || "").trim(), d = p.days_to_deliver;
+    if (!d) return sch || "-";
+    var says = new RegExp("^" + d + "\\s*(business\\s+)?days?\\.?$", "i").test(sch);
+    return !sch || says ? d + (d === 1 ? " day" : " days") + " from signing" : sch + " (" + d + (d === 1 ? " day" : " days") + " from signing)";
+  }
   function gigActionItems(list) {
     var out = [];
     (list || []).forEach(function (g) {
@@ -3435,7 +3442,7 @@
             h("td", { "data-label": "Freelancer" }, p.agency ? agencyOnProposal(p.agency) : null, p.agency ? h("div", { class: "small muted", text: "Sent by " + p.name }) : h("b", { text: p.name }), p.invited ? h("div", { class: "small muted", text: "Invited" }) : null, p.headline ? h("div", { class: "small", text: p.headline }) : null, (p.match_reasons || []).length ? h("div", { class: "small muted", text: p.match_reasons.join(" | ") }) : null),
             h("td", { "data-label": "Price" }, h("b", { text: D.money(p.price_cents) }), h("div", null, h("span", { class: "badge " + lab[0], text: lab[1] }))),
             h("td", { "data-label": "Includes", text: p.included }), h("td", { "data-label": "Leaves out", text: p.excluded || "Not specified. Confirm before signing." }),
-            h("td", { "data-label": "Schedule", text: p.schedule + (p.days_to_deliver ? " (" + p.days_to_deliver + " days)" : "") }),
+            h("td", { "data-label": "Schedule", text: scheduleText(p) }),
             h("td", { "data-label": "Qualifications" }, p.qualifications, p.message ? h("div", { class: "small muted", text: "Note: " + p.message }) : null), h("td", null, act));
         })))));
       var live = x.proposals.filter(function (p) { return p.status === "sent" || p.status === "selected"; });
