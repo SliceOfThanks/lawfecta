@@ -359,7 +359,7 @@
           "value": "test",
           "status": "G",
           "source": "Stacey 2026-10-25",
-          "note": "Stays test until Stacey turns on the live_payments switch."
+          "note": "Stays test until Stacey turns on the live_payments switch. Stacey 2026-11-07: test mode for all testing; the pilot/beta runs with real payments, after the lawyer's review and the steps in docs/LIVE_READINESS.md section 6."
         },
         {
           "key": "fee.client_bps",

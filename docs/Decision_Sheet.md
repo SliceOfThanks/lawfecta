@@ -80,7 +80,7 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Longest funded money can wait for acceptance before a Lawfecta Team review | 45 days | Needs a gate | O-02 and G-PAYMENT; suggestion by Claude, needs a payments lawyer | |
 | Hourly billing. Not part of launch. | No | Confirmed | C-12 | |
 | Payment provider | stripe connect | Confirmed | C-24 | |
-| Stripe mode. Stays test until Stacey turns on the live_payments switch. | test | Needs a gate | Stacey 2026-10-25 | |
+| Stripe mode. Stays test until Stacey turns on the live_payments switch. Stacey 2026-11-07: test mode for all testing; the pilot/beta runs with real payments, after the lawyer's review and the steps in docs/LIVE_READINESS.md section 6. | test | Needs a gate | Stacey 2026-10-25 | |
 | Client-side fee on every transaction. No plan lowers it. | 5% | Confirmed | Stacey 2026-11-05 | |
 | Freelancer-side fee on every transaction. No plan lowers it. | 5% | Confirmed | Stacey 2026-11-05 | |
 

@@ -3,6 +3,7 @@
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
 ## Getting ready for Live, 2026-11-07
+- Payments (Stacey 2026-11-07): Stripe test mode for all testing; the pilot/beta runs with real payments, so the lawyer's review, live Stripe keys, point-in-time recovery, the uptime monitor, a restore drill and one real end-to-end payment come before the first beta member (docs/LIVE_READINESS.md section 6).
 - The guide: docs/LIVE_READINESS.md (where things stand, every secret Live needs, Stacey's steps in order, the gates that stay off, the switches for the beta). docs/STACEY_CHECKLIST.md steps 12, 17 and 18 now match the two-site setup (lawfecta.com has its own widgets and secret).
 - Checked: all 55 database changes apply to an empty database in order; every switch starts Off on a new copy; settings come from the Decision Sheet; the push applies only what Live lacks and puts Live back by itself on a failure.
 - Found: Live needs lawfecta.com's eight BD plan numbers linked (none are linked on a new copy; the freelancer plans are not linked on the test site either); email must be switched to Brevo on Live; Confidential materials uploads are refused on Live until a virus scanner is set up.

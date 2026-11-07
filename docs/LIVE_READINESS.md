@@ -56,13 +56,13 @@ C. The first push and right after (only Stacey's account and the access list can
 3. In Live's /dela-admin > Settings: set email.sender to brevo, and alerts.sms_to to your mobile number.
 4. In Brilliant Directories on lawfecta.com: create the pages /dela and /dela-admin (logged-in members only) and the widgets DELA-Auth, DELA-App and DELA-Admin, pointing at Live's address (checklist step 17).
 5. In Live's /dela-admin > Switches: turn on the switches in section 5 for "Lawfecta Team only", try them yourself, then "Access list".
-6. Add beta members to Live's access list in small groups.
+6. Finish section 6 (real payments), then add beta members to Live's access list in small groups.
 
 ## 4. Gates that are decisions, not code (each switch stays Off on Live until cleared)
 
 | Gate | Keeps off | Who clears it |
 | --- | --- | --- |
-| A lawyer reviews the agreement terms template and the chargeback rule | live_payments (real money) | Lawyer, then Stacey turns it on |
+| A lawyer reviews the agreement terms template and the chargeback rule. **Required before the beta** (the beta uses real payments, section 6) | live_payments (real money) | Lawyer, then Stacey turns it on |
 | A lawyer reviews the confidentiality clause, privacy policy and data handling, and a virus scanner is chosen | confidential_materials | Lawyer and Stacey |
 | Counsel approves the standing arrangement wording | auto_repeat_hiring | Counsel |
 | Consent wording for recording | meeting_recording, transcript_training_use | Lawyer |
@@ -71,7 +71,7 @@ C. The first push and right after (only Stacey's account and the access list can
 | The usage limits test passes | usage_limits_enforced | Stacey's test |
 | Google app review | calendar_sync | Google |
 | Later or not in the MVP | tech_catalog, public_gigs, multiple_hires, onboarding_widget, engagement_export, consultation_export_grant, agency_extra_seats | Stacey decides later |
-| Before real payments | Point-in-time recovery on dela-live, the uptime monitor, a restore drill (docs/RUNBOOK.md) | Stacey, with Claude's steps |
+| Before real payments, so **before the beta** | Point-in-time recovery on dela-live, the uptime monitor, a restore drill (docs/RUNBOOK.md) | Stacey, with Claude's steps |
 
 ## 5. Switches to turn on for the beta (each after its test passed on the test site)
 
@@ -88,11 +88,18 @@ Turn on first for "Lawfecta Team only", check, then "Access list".
 - **Files:** file_uploads
 - **Gigs and hiring:**
   - flex_gigs, talent_search, gig_chat, meetings
-  - engagements, milestone_check, milestone_funding (payments stay in Stripe test mode until live_payments)
+  - engagements, milestone_check, milestone_funding (Stripe test mode while testing; real payments for the beta once section 6 is done)
 - **After the work:** reviews, past_client_reviews, bench, bench_suggestions, member_webhooks
 - **Getting started:** guided_setup, automate_delegate
 - **Agencies:** agency_team, agency_bench, agency_hiring, agency_subcontracting
 - **Monthly work:** recurring_engagements (its test is still waiting)
 - **Look:** appearance_choice (its test is still waiting)
 
-Real payments are the biggest open decision for the beta: without live_payments, hiring works but no real money moves. Stacey decides whether the beta starts with hiring in test mode or waits for the lawyer's review.
+## 6. Payments: test mode for testing, real payments for the pilot/beta (Stacey, 2026-11-07)
+
+Testing (the test site, and Live before any real member is invited) stays in Stripe test mode. The pilot/beta runs with real payments, so these must be done before the first beta member is invited:
+1. A lawyer reviews the agreement terms template and the chargeback rule (and the confidentiality clause if Confidential materials are on).
+2. Stripe in live mode: Lawfecta's Stripe account verified for live payments with Connect, and the live STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in dela-live's secrets (docs/STRIPE_SETUP.md, the same steps with the live keys).
+3. Point-in-time recovery turned on for dela-live, the uptime monitor running, and one restore drill done (docs/RUNBOOK.md).
+4. One small real payment end to end on Live by Stacey (a test gig between her own two accounts, then a refund), with Claude watching the Payments tab.
+5. Then Stacey turns on live_payments in Live's /dela-admin > Switches, and invites the first beta members.

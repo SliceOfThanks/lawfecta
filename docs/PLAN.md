@@ -173,7 +173,8 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
 - The full Live guide (2026-11-07): https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/LIVE_READINESS.md. Version 0.9.0 is recorded as the first Live candidate.
 1. Set up Live in the Lawfecta Live Supabase organization. Upgrade it to Pro, then add the secrets and the GitHub environment (https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/STACEY_CHECKLIST.md, Part C).
 2. First push from Release Control, then install the DELA widgets on lawfecta.com.
-3. Add beta members to Live's access list in small groups. Feedback through Userback if you want it.
+3. The beta uses real payments (Stacey 2026-11-07): the lawyer's review, live Stripe keys, point-in-time recovery, the uptime monitor, a restore drill and one real end-to-end payment first (docs/LIVE_READINESS.md section 6).
+4. Add beta members to Live's access list in small groups. Feedback through Userback if you want it.
 
 ### Step 8: Launch readiness
 - A full test on Live, a security review, a backup restore drill and the uptime monitor.
