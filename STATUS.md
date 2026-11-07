@@ -12,6 +12,7 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - Proposals say their days once ("from signing"); a monthly change shows Now and Proposed side by side.
 - Not done in Part A: naming the contracting agency in the agreement's party summary (moved to Part C).
 - ChatGPT check: docs/tests/step-8b-part-a-chatgpt-prompt.md.
+- Stacey's check (2026-11-07): 11 of 12 passed (docs/reviews/test-reports/2026-11-07-step-8b-part-a.txt). Fixed from it: on an approved document the "quality notes" link now opens a read-only Quality notes card on the Approved version page; a schedule like "Within 5 business days" no longer adds "(5 days from signing)". Noted for Part C: a monthly change's free-text note can contradict its numbers ("two more a week" against 10 to 12 a month).
 
 ## Step 9c: the client information check follows the sensitive data rule, built 2026-11-07
 - Brief and Stacey's answers ("all as suggested"): docs/briefs/step-9c-client-information-check.md. Behind the switch client_details_allowed (on for the access list on the test site, off on Live until the lawyer's privacy review).

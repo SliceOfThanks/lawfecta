@@ -1,0 +1,64 @@
+DELA UX test report - November 6, 2026 (America/Los_Angeles)
+Site: https://www.hirelegalhelp.com
+
+1 PASS - Correct test attorney account already signed in.
+2 PASS - Open gigs 2; Gig drafts 4; Active projects 8; Deliveries to review 0. Also Draft documents 6.
+3 PASS - Needs your action (4); lines below; panel closed without using its action buttons.
+4 PASS - Projects shows the same four action lines; no draft-not-posted action line.
+5 PASS - Exclusion: Court filings. Both milestone displays: Nov 13, Nov 20, Nov 27 and Dec 4, 2026. Now $1,000; Proposed $1,100; From the month that starts Dec 6, 2026, if approved at least 1 day before.
+6 FAIL - ENG-01 shows 3 quality notes; Suggested edits (0) is correctly named and no library row says suggestions. But the notes button opens Approved version, not Draft and review; Quality check shows the operational checklist rather than the three review notes. Screenshot: DELA-step-6.jpg
+7 PASS - Comments (0) shows approved-version read-only explanation and Edit a new draft; no Go to Draft and review button.
+8 PASS - About two weeks (14 days from signing); Within 5 business days (5 days from signing). No repeated-day pattern like 10 days (10 days).
+9 PASS - Attorney signed out; login form visible afterward.
+10 PASS - Freelancer credentials filled; user completed CAPTCHA/login; correct freelancer account confirmed.
+11 PASS - Agreement and Milestones both show Nov 13, Nov 20, Nov 27 and Dec 4, 2026, matching attorney view.
+12 PASS - Freelancer signed out; login?action=loggedout verified.
+
+FAIL LIST
+6 - Quality notes link opens approved version instead of draft/review quality notes. Screenshot: DELA-step-6.jpg
+
+STEP 3 ACTION LINES (identical in Projects)
+Build document checklist from questionnaire answers: 2 proposals to review [Review proposals]
+Test job: Monthly to sign (prepared): the agreement needs your signature [Open the agreement]
+Test job: Subcontracting choice (prepared): the agreement needs your signature [Open the agreement]
+Send the Welcome Packet and Intake Follow-Up: the agreement needs your signature [Open the agreement]
+
+STEP 3 UPDATE LINES (panel order; bodies summarized)
+A due date was corrected - Month 1, week 1 now Nov 13, 2026, matching signed agreement/paid month. Nov 6, 8:28 PM. [Open Projects]
+A due date was corrected - Month 1, week 2 now Nov 20, 2026, matching signed agreement/paid month. Nov 6, 8:28 PM. [Open Projects]
+A due date was corrected - Month 1, week 4 now Dec 4, 2026, matching signed agreement/paid month. Nov 6, 8:28 PM. [Open Projects]
+Repeat hire: Run a Conflict Check - $300 hire; $100 monthly cap left; 24-hour decline/full refund. Nov 6, 3:40 PM. [Open Projects]
+Repeat hire: Send the welcome packet - $300 hire; $400 monthly cap left; 24-hour decline/full refund. Nov 6, 3:40 PM. [Open Projects]
+Standing arrangement accepted - Hire again within signed limits. Nov 6, 3:39 PM. [Open Projects]
+Engagement canceled: Repeat: Send the welcome packet - Declined within 24 hours; accepted milestones paid; paid/unsubmitted refunded. Nov 6, 3:39 PM. [Open the agreement; 1 earlier update]
+A repeat hire was declined - Full refund; does not count against monthly cap. Nov 6, 3:39 PM. [Open Projects]
+Repeat hire: Send the welcome packet - $300 hire; $400 monthly cap left; 24-hour decline window. Nov 6, 2:49 PM. [Open Projects]
+Standing arrangement accepted - Hire again within signed limits. Nov 6, 2:43 PM. [Open Projects]
+Did your meeting happen? Send the Welcome Packet and Intake Follow-Up - Report meeting and summary; DELA suggests next steps. Nov 6, 10:30 AM. [Open the meeting]
+How did it go?: Test job: One-off finished (prepared) - Complete; optional review available for 60 days. Nov 6, 9:10 AM. [Open the agreement]
+Meeting in 1 hour: Send the Welcome Packet and Intake Follow-Up - Room opens 15 minutes before. Nov 6, 9:00 AM. [Open the meeting]
+Agreement signed: Test job: Monthly running (prepared) - Both signed version 2; first milestone/platform fee before work starts. Nov 5, 7:28 PM. [Open the agreement; 1 earlier update]
+A change in who is working on this job: Test job: Subcontracting active (prepared) - Stacey Lake subcontractor; agency responsible; nothing needed. Nov 5, 5:45 PM. [Open the agreement]
+A change in who is working on this job: Test job: Agency proposal - Stacey Lake subcontractor on milestone 1; agency responsible. Nov 5, 4:08 PM. [Open the agreement; 3 earlier updates]
+Meeting in 24 hours: Send the Welcome Packet and Intake Follow-Up. Nov 5, 10:00 AM. [Open the meeting]
+A message was not delivered - Looked like outside-platform work/payment; contact team if incorrect. Nov 5, 9:28 AM. [Open Home]
+Meeting booked: Send the Welcome Packet and Intake Follow-Up - 30-minute meeting; local time/calendar/join link in DELA. Nov 5, 9:25 AM. [Open the meeting]
+New proposal for your gig - Send the Welcome Packet and Intake Follow-Up ($450). Nov 5, 9:12 AM. [Open the gig]
+New Family Law Client Intake After Signature is now a Workflow - Multiple roles/handoffs; review and approve conversion; approved version remains. Nov 5, 1:26 AM. [Open the document]
+Monthly Billing Review is now a Workflow - Multiple roles, decisions and approvals; review conversion. Nov 5, 1:26 AM. [Open the document]
+Preparing a Small Claims Filing Packet for Attorney Review is now a Workflow - Multiple roles/handoffs; review conversion. Nov 5, 1:26 AM. [Open the document]
+Send the welcome packet 2 is now an SOP - Clear step-by-step path; review conversion. Nov 5, 1:26 AM. [Open the document]
+Preparing a Small Claims Filing Packet is now a Workflow - Multiple roles; review conversion; approved version remains. Nov 5, 1:26 AM. [Open the document]
+Send the welcome packet is now an SOP - Simple onboarding path; review conversion. Nov 5, 1:26 AM. [Open the document]
+Your recording is ready to review - Sample Process; check steps/screenshots then build playbook. Nov 4, 8:17 PM. [Open the Library]
+A file was not accepted - DELA Test - Program File.pdf not really PDF or could not open; not kept. Nov 4, 6:36 PM.
+Your license is verified - TX license checked. Nov 4, 4:19 PM. [Open your profile]
+
+NOTES / CONFUSING MESSAGES
+- Step 6 navigation leads to the approved operational Quality check rather than review notes.
+- Proposed change says 10 to 12 each month, but its note says Two more welcome packets a week; conflicting units.
+- Proposal schedule says 5 business days and 5 days from signing; business/calendar-day distinction is unclear.
+- No moved from annotation is shown in milestone displays. Correction notices explain dates were matched to signed agreement/paid month. Prior dates were not independently inspected, so the conditional moved-date annotation requirement is not conclusively verified.
+- Initial home load was checked after a 50-second wait plus navigation/reading overhead; exact load time was not measured. No operation was conclusively observed taking over 60 seconds. User CAPTCHA handoff excluded.
+- Automated review initially rejected reading Notices as exploration. Exact numbered step 3 was verified and the requested read-only check then succeeded; nothing remained blocked.
+- No signatures, payments, agreement changes, edits or approvals submitted.
