@@ -6444,7 +6444,7 @@
               var gs = done.gig_status;
               acts.appendChild(h("span", { class: "badge ready", text: !done.gig_id ? (done.kind === "setup" ? "Setup task started" : "Delegation started") : gs === "draft" ? "Gig drafted" : gs === "open" ? "Gig posted" : "Gig " + ((GIG_STATUS[gs] || gs || "").toLowerCase()) }));
               acts.appendChild(done.gig_id ? h("button", { class: "ghost small", type: "button", onclick: function () { gigLink(done.gig_id, "projects"); } }, "View gig")
-                : h("button", { class: "ghost small", type: "button", onclick: function () { auto.open = done.id; load(); } }, "Continue"));
+                : h("button", { class: "ghost small", type: "button", onclick: function () { auto.open = done.id; load(); } }, done.kind === "setup" ? "Open the setup task" : "Open the delegation"));
               row.appendChild(acts);
               card.appendChild(row);
               return;
@@ -6471,7 +6471,7 @@
         (st.delegations || []).forEach(function (d) {
           card.appendChild(h("div", { class: "row", style: "border-top:1px solid var(--line);padding-top:6px;margin-top:6px" },
             h("span", { class: "small grow", text: (d.kind === "setup" ? "Setup task" : "Delegated") + ": " + stepsText(d.steps) + ", " + d.title + (d.sop_id ? ". See SOP " + ((d.sop_doc_id ? d.sop_doc_id + " " : "") + d.sop_title) + (d.sop_status === "approved" ? "" : " (draft)") : "") + (d.gig_id ? (d.gig_status && d.gig_status !== "draft" ? ". Gig posted." : ". Gig drafted, not posted yet.") : "") }),
-            h("button", { class: "ghost small", type: "button", onclick: function () { auto.open = d.id; load(); } }, auto.open === d.id ? "Open below" : "Continue")));
+            h("button", { class: "ghost small", type: "button", onclick: function () { auto.open = d.id; load(); } }, auto.open === d.id ? "Open below" : d.kind === "setup" ? "Open the setup task" : "Open the delegation")));
         });
         if (auto.open) card.appendChild(delegatePanel(auto.open, load));
       }).catch(function () { card.remove(); });
@@ -6752,12 +6752,15 @@
     var P = lib.pb.playbook, draftOpen = !AV.current;
     var card = h("div", { class: "card", id: "approved-version" }, h("h2", { text: "Approved version " + AV.version }));
     card.appendChild(h("div", { class: "kv" },
-      h("div", null, "Document ID", h("b", { text: P.doc_id || "Not given yet" })),
+      h("div", null, "Document ID", h("b", { text: P.doc_id || "Not recorded" })),
       h("div", null, "Version", h("b", { text: String(AV.version) })),
       h("div", null, "Approved", h("b", { text: AV.approved_at ? D.date(AV.approved_at) + (AV.approved_by ? " by " + AV.approved_by : "") : "Date not recorded" })),
       h("div", null, "Owner (role)", h("b", { text: d.owner_role || "Not set" })),
       h("div", null, "Last reviewed", h("b", { text: P.last_reviewed_at ? D.date(P.last_reviewed_at) : "Never reviewed since approval" })),
-      h("div", null, "Next review", h("b", { text: P.next_review_at ? D.date(P.next_review_at) : "Not set" }))));
+      h("div", null, "Next review", h("b", { text: P.next_review_at ? D.date(P.next_review_at) : "Not scheduled" }))));
+    // An older document approved before IDs and review dates existed (step 8b, retest R07): say what is missing and how
+    // to add it, never a made-up date
+    if (!P.doc_id || !AV.approved_at || !P.next_review_at) card.appendChild(h("p", { class: "small muted", text: "Some details were not recorded when this version was approved. They are added when a new draft is approved." }));
     card.appendChild(h("p", { class: "small muted", text: "This is the version in use: new gigs, standing arrangements and exports use it." + (P.status === "archived" ? " The document is archived." : P.status === "trash" ? " The document is in the trash." : "") }));
     var acts = h("div", { class: "row", style: "flex-wrap:wrap" });
     if (draftOpen) {
