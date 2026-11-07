@@ -1,7 +1,7 @@
 # Feature brief: UX retest fixes and the Library workspace
 
 Step: 8b   Spec references: ChatGPT's attorney UX retest (2026-11-06, docs/reviews/ux-retest-2026-11-07/DELA-attorney-ux-retest.txt), its Library design notes and mockup (library-design-brief.txt, library-second-pass.png), the first review's brief (docs/briefs/step-8-ux-review.md)
-Status: answered by Stacey 2026-11-07 ("all as suggested"). Building Part A first.
+Status: answered by Stacey 2026-11-07 ("all as suggested"). Part A built and checked (11 of 12, the failure fixed). Part B revised from Stacey's own Library brief (2026-11-07): questions B1 to B10 wait for her answers.
 
 ## Where things stand
 ChatGPT looked at the attorney side again (look only, nothing saved). Of the 33 findings from the first review:
@@ -51,21 +51,51 @@ Attorneys first (the review was of the attorney side), with the same patterns ca
    - The party summary names the agency and its lead.
    - A pending monthly change shows current and proposed side by side: quantity, price with fee, start date.
 
-### Part B: the Library workspace (R03, R04, your feedback)
-Built from ChatGPT's design notes and mockup, adjusted to DELA:
-- **Page top:**
-  - a short heading, "Your firm's documents"
-  - one line under it: "Find the process. Check what needs attention. Put it to work."
-  - right under that, one toolbar: "Search documents", "New document" and "Import"
-- **Desktop:**
-  - a left sidebar with All documents, Needs attention, Approved and Drafts (with counts), then the four types
-  - title-first rows: the title, a second line with ID, type and owner, a status pill, and one review action
-  - clicking a row opens a detail panel on the right: owner, version, approval date, next review, quality notes, suggested edits, and the actions "Open document", "Edit a new draft" and "✦ Improve this section"
-  - the list, search and scroll position stay in place
-- **Phone:** compact cards with the title, ID and type, status, and the review action, plus one quiet line with owner and review date. No six repeated labels.
-- **Imports and recordings** move to a small secondary area ("2 imports to review", "Recordings") that opens on request.
-- **Empty search** says "No documents match your search" with "Clear search".
-- The current table stays available as a "Table view" choice for people who compare many documents (question 1).
+### Part B (revised 2026-11-07): the plain-language Library
+Stacey sent her own Library brief and mockup on 2026-11-07 (docs/reviews/library-redesign-2026-11-07). They replace the sidebar and detail panel plan. Part B is built from her brief, behind the switch `library_workspace`, and stays a proposal until she has reviewed it on the test site (her last acceptance criterion).
+
+**What the page shows**
+- "Library", with the line "Your firm's processes and policies, all in one place."
+- A wide "Find a document" box right under the heading. It searches titles, purposes and IDs (so "INT-03" still works).
+- "Create a document" (blue) and "Import" (secondary) at the top right.
+- Category buttons in plain words, then a "Status" choice: All, Ready to use, Draft, Needs your review.
+- Two columns of cards on a computer, one column on a phone, each card in the same order: title, one purpose sentence, status, one action.
+- At the bottom: "Recordings" and "Recently deleted" links (archived documents included there), then the "Not sure where to start?" panel with "✦ Help me create a document".
+- No document IDs, types, owners, versions or review dates on the cards. They stay inside each document.
+- Coming back from a document keeps the search, the category, the status and the scroll position.
+
+**How DELA's data becomes each card**
+
+| On the card | Comes from | When it is missing |
+|---|---|---|
+| Title | The document's title, as written. Nothing is shortened automatically (question B7) | Never missing |
+| Purpose sentence | The first sentence of the document's "Purpose" section, up to about 120 characters | Older documents: the first step instead; otherwise nothing |
+| Category | The document's lifecycle group, in plain words (question B3) | "Not grouped yet" |
+| Status and action | See the next table | |
+| Search | Title, purpose, ID and category words | |
+
+| Status | When | Action button |
+|---|---|---|
+| Ready to use | An approved version is in use, and nothing below applies | "Open document" (opens the approved version) |
+| Draft | Never approved, or a new draft of an approved document is open and not yet sent for approval | "Continue draft" |
+| Needs your review | Imported and not reviewed yet | "Review imported document" |
+| Needs your review | Waiting for this person's approval (sent for review) | "Review and approve" |
+| Needs your review | Its review date has passed | "Review now" (with "Review overdue since (date)") |
+| Needs your review | Items marked "Required before approval" are open on a draft | "Fix required items" |
+
+- An approved document with a new draft open still shows "Ready to use", with one quiet line: "A new draft is in progress."
+- Quality notes (optional advice) are not on the card. They stay inside the document, so an approved document never looks unusable because of wording suggestions.
+- "Ready to use" has a small ⓘ: "Approved by your firm. DELA checks how it is written, not whether it is legally correct."
+
+**Creating a document**
+- "Create a document" opens one box first: "What would you like to document?"
+- DELA suggests the structure in plain words, for example "This sounds like a step-by-step procedure (SOP): one routine task done the same way each time". The person can pick another type before the questions start.
+- "✦ Help me create a document" in the panel at the bottom does the same, with DELA drafting the whole document from the answers. The draft is always editable and is never the working version until someone approves it, as today. It uses DELA actions as today.
+- The notice beside the writing box follows the sensitive data rule (question B2).
+
+**Kept from today**
+- Today's table stays available as a choice (question B6).
+- The quality notes, suggested edits and Approved version pages from Part A.
 
 ### Part C: layout and wording
 1. **Booking (R05).**
@@ -148,6 +178,27 @@ Each has a suggested answer. Reply "all as suggested" or change any of them.
    - put ended arrangements in a "Past arrangements" list
    - If you would rather the cap include the fee, say so and it changes in the database rule too.
 10. **Order and checks.** Suggested: Part A, then Part B, then Part C, each with a short ChatGPT check. After Part C, the same look-only attorney review again to compare.
+
+### Questions about the revised Library (Part B)
+Each has a suggested answer. Reply "all as suggested" or change any of them.
+
+- **B1. The word on buttons and cards.** Your mockup says "procedure" ("Create a procedure", "Open procedure"), while your brief says "document". A policy is not a procedure. Suggested: "document" everywhere ("Find a document", "Create a document", "Open document").
+- **B2. The reminder under "Help me create a document".** The mockup says "Use placeholders. No sensitive client information." That conflicts with your 2026-11-05 rule. Suggested: "Never enter sensitive data (SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, logins and passwords)."
+- **B3. Categories.** DELA has seven groups; your brief names five. Suggested plain names for all seven, showing only those that have documents:
+  - Client intake
+  - Client onboarding
+  - Matter management
+  - Documents and filing
+  - Billing
+  - Closing a matter
+  - Firm administration
+- **B4. A document with no purpose written.** Suggested: the card shows its first step instead. If there is nothing, editors see a quiet "Add a purpose" link.
+- **B5. The status rules.** Suggested: the two tables above, including "Ready to use" staying on an approved document while a new draft is in progress.
+- **B6. Today's table.** Your earlier answer kept a "Table view" choice; your new brief replaces the table. Suggested: keep a small "Show as a table" link at the bottom, remembered per person, for firms comparing many documents. Cards are always the default.
+- **B7. Short titles.** Suggested: no automatic shortening. Documents keep one title. Shorter names come from editing the title, which is recorded in the change log like any edit.
+- **B8. Creating a document.** Suggested: build "What would you like to document?" with DELA's suggested structure as part of Part B, replacing today's four type cards as the first screen. The type cards stay one click away for people who know what they want.
+- **B9. Team settings.** Today the Library shows team and library settings near the top. Suggested: move them under a "Library settings" link next to "Import", for owners and managers only.
+- **B10. Review before it counts as done.** Suggested: when Part B is on the test site, you look at it on your computer and phone first. I adjust from your notes, then write the ChatGPT check.
 
 ## Success looks like
 - Claude's tests: a test that fails before each Part A fix; browser checks at desktop, 390 and 320 pixels for the Library, booking and profile; the dark contrast check on every changed page.
