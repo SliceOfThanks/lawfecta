@@ -185,8 +185,11 @@ Deno.test("no one can be added as a test site account, so Live never sends a mem
   await pool.query("update settings set value = '\"live\"' where key = 'environment'");
   const g = await call("POST", "/admin/access/grant", { session: ownerSession, body: { bd_member_id: 9200, channel: "staging_tester" } });
   assertEquals((g.body.data ?? g.body).reason, "bad_channel");
+  // Fix (AI review 0.9.1, tests 6): even a leftover row on the old list sends no one to the test site
+  await pool.query("insert into access_list (bd_member_id, channel, note) values (9200, 'staging_tester', 'leftover')");
   const r = await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9200 }) } });
-  assert(r.body.route !== "staging" && !r.body.session, "not sent to the test site");
+  assert(r.body.route !== "staging" && !r.body.session, "not sent to the test site: " + JSON.stringify(r.body));
+  await pool.query("update access_list set revoked_at = now() where bd_member_id = 9200 and channel = 'staging_tester'");
   await pool.query("update settings set value = '\"staging\"' where key = 'environment'");
 });
 

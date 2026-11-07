@@ -196,8 +196,10 @@ begin
   -- The "Test site account" list is gone (AI review 0.9.0, security 5): it cannot be added, and Live sends no one to Staging
   update settings set value = '"live"' where key = 'environment';
   perform t_ok(dela_admin_access_grant(owner_id, 400, 'staging_tester', 'Test attorney on staging')->>'reason' = 'bad_channel', 'the test site account list cannot be added to');
+  insert into access_list (bd_member_id, channel, note) values (400, 'staging_tester', 'leftover from before migration 0057');
   r := dela_exchange(t_pass(400, '12', 'p-stage-1'));
-  perform t_ok(coalesce(r->>'route', '') <> 'staging' and r->>'session_id' is null, 'no one is routed to Staging, and no session opens');
+  perform t_ok(coalesce(r->>'route', '') <> 'staging' and r->>'session_id' is null, 'even a leftover row routes no one to Staging, and no session opens');
+  update access_list set revoked_at = now() where bd_member_id = 400 and channel = 'staging_tester';
   update settings set value = '"staging"' where key = 'environment';
 
   -- Nobody but the service role can call DELA functions or read tables
