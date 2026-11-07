@@ -147,7 +147,8 @@ const ATT = 4100, FL = 4101;
     s = await open(browser, "DELA-App", FL, `&tab=work&gig=${gig}&view=agreement`);
     p = s.page;
     t = await waitFor(p, "A change to approve");
-    ok(t.includes("Monthly price: $1,200"), "the freelancer sees the change");
+    // Fix (step 8b, retest R10): a change shows current and proposed side by side, and when it would start
+    ok(t.includes("Now") && t.includes("Proposed") && /\$1,000[\s\S]*\$1,200/.test(t) && /From the (next month|month that starts)/.test(t), "the freelancer sees the change next to what is in force now");
     await click(p, "Approve the change");
     await waitFor(p, "Approved. It starts next month");
     await click(p, "Approve keeping it");
