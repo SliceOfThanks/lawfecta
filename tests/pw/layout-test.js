@@ -59,6 +59,32 @@ const ATT = 4430;
     ok(nav.right <= nav.vw + 1, "every tab, Get set up included, is on screen (" + Math.round(nav.right) + " of " + nav.vw + ")");
     await s.ctx.close();
 
+    // ---------- Fix (Stacey's appearance report, 2026-11-07): nine tabs and long status labels at 290 pixels ----------
+    // A freelancer agency that hires has nine bottom tabs, and a job waiting for its first payment has a long label
+    const FLA = 4431, ATT2 = 4432;
+    await sql(`update feature_switches set state = 'everyone' where key in ('agency_team', 'agency_hiring', 'engagements', 'ai_generation', 'flex_gigs', 'talent_search', 'playbook_library');
+      insert into people (bd_member_id, display_name, email) values (${FLA}, 'Nina Narrow', '${FLA}@test.invalid'), (${ATT2}, 'Wes Wide', '${ATT2}@test.invalid') on conflict (bd_member_id) do nothing;
+      select dela_ensure_side((select id from people where bd_member_id = ${FLA}), 'freelancer', 'fl_business', 'staff_grant');
+      select dela_ensure_side((select id from people where bd_member_id = ${ATT2}), 'attorney', 'att_pro', 'staff_grant');
+      insert into access_list (bd_member_id, channel) select x, 'access' from unnest(array[${FLA}, ${ATT2}]) x where not exists (select 1 from access_list where bd_member_id = x and channel = 'access' and revoked_at is null); select 1`);
+    const nid = (await sql(`select (select id from people where bd_member_id = ${FLA}) fl, (select id from people where bd_member_id = ${ATT2}) att, dela_side_org((select id from people where bd_member_id = ${ATT2}), 'attorney') org`))[0];
+    await sql(`update organizations set kind = 'agency' where id = dela_side_org('${nid.fl}', 'freelancer'); select 1`).catch(() => {});
+    const npb = (await sql(`insert into playbooks (org_id, title, status, current_version, approved_version, completeness, request_id, created_by) values ('${nid.org}', 'Conflict check', 'approved', 1, 1, 100, 'lay-pb', '${nid.att}') returning id`))[0].id;
+    await sql(`insert into playbook_versions (playbook_id, version, body, created_by) values ('${npb}', 1, '{"title":"Conflict check","steps":[{"text":"Check"}]}', '${nid.att}'); select 1`);
+    const ng = (await sql(`insert into gigs (org_id, created_by, playbook_id, playbook_version, title, public, budget_min_cents, budget_max_cents, status, opened_at, closes_at, request_id)
+      values ('${nid.org}', '${nid.att}', '${npb}', 1, 'Repeat: Run a very long conflict check name', '{"task":"Check"}', 30000, 30000, 'filled', now(), now() + interval '14 days', 'lay-g') returning id`))[0].id;
+    const np = (await sql(`insert into proposals (gig_id, freelancer_id, status, price_cents, included, schedule, days_to_deliver, sent_at) values ('${ng}', '${nid.fl}', 'selected', 30000, 'Check', 'Soon', 3, now()) returning id`))[0].id;
+    await sql(`insert into agreements (gig_id, proposal_id, attorney_org, attorney_person, freelancer_person, total_cents, status) values ('${ng}', '${np}', '${nid.org}', '${nid.att}', '${nid.fl}', 30000, 'signed'); select 1`);
+    for (const [uid, tb] of [[FLA, "work"], [FLA, "earnings"], [ATT2, "projects"]]) {
+      s = await open(browser, "DELA-App", uid, "&tab=" + tb, 290); p = s.page;
+      await waitFor(p, "Signed: waiting for the first payment", 15000);
+      const w = await dela(p).locator(".nav").evaluate((n) => ({ page: document.documentElement.scrollWidth, vw: window.innerWidth, tabs: n.querySelectorAll("button").length }));
+      ok(w.page <= w.vw + 1, tb + " at 290 pixels (" + w.tabs + " tabs): the page does not scroll sideways (" + w.page + " > " + w.vw + ")");
+      const cut = await dela(p).locator(".dela").evaluate((root) => [...root.querySelectorAll(".badge")].filter((b) => b.offsetParent && b.getBoundingClientRect().right > window.innerWidth + 1).map((b) => b.textContent));
+      ok(!cut.length, tb + ": no label runs off the screen" + (cut.length ? " (" + cut.join("; ") + ")" : ""));
+      await s.ctx.close();
+    }
+
     // ---------- An attorney on a freelancer page ----------
     s = await open(browser, "DELA-App", ATT, "&tab=work"); p = s.page;
     t = await waitFor(p, "freelancer side", 15000);

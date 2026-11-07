@@ -396,6 +396,8 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
     ".stat{font-size:28px;font-weight:800;line-height:1.1}",
     ".list{list-style:none;padding:0;margin:0}.list li{padding:12px 0;border-bottom:1px solid var(--line)}",
     ".work{display:flex;gap:14px;align-items:center;background:var(--card);border:1px solid var(--line);border-radius:18px;padding:14px 16px;margin:10px 0}",
+    // On a narrow screen a long status label ("Signed: waiting for the first payment") wraps instead of running off the card
+    "@media (max-width:640px){.work{flex-wrap:wrap}.badge{white-space:normal;max-width:100%}.row>*{min-width:0}input,select,textarea{max-width:100%;min-width:0}}",
     ".bell{position:relative;background:transparent;color:#fff;border-color:rgba(255,255,255,.45)}.bell b{position:absolute;top:-6px;right:-6px;background:#d23b62;color:#fff;border-radius:999px;font-size:11px;padding:1px 6px}",
     ".drawer{position:fixed;top:0;right:0;bottom:0;width:min(380px,calc(100% - 48px));background:var(--card);border-left:1px solid var(--line);z-index:2147483001;padding:16px;padding-top:max(16px,env(safe-area-inset-top));overflow:auto;-webkit-overflow-scrolling:touch;box-shadow:-8px 0 30px rgba(0,0,0,.15)}",
     ".dela-scrim{position:fixed;inset:0;background:rgba(15,18,30,.28);z-index:2147483000}",
