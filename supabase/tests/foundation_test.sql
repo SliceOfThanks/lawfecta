@@ -193,11 +193,11 @@ begin
   perform t_ok(exists (select 1 from jobs where kind = 'send_email'), 'email job created');
   perform t_ok(dela_notifications_read_all(fl_id) = 1, 'mark read');
 
-  -- The Live copy sends test accounts to Staging
+  -- The "Test site account" list is gone (AI review 0.9.0, security 5): it cannot be added, and Live sends no one to Staging
   update settings set value = '"live"' where key = 'environment';
-  perform dela_admin_access_grant(owner_id, 400, 'staging_tester', 'Test attorney on staging');
+  perform t_ok(dela_admin_access_grant(owner_id, 400, 'staging_tester', 'Test attorney on staging')->>'reason' = 'bad_channel', 'the test site account list cannot be added to');
   r := dela_exchange(t_pass(400, '12', 'p-stage-1'));
-  perform t_ok(r->>'route' = 'staging' and r->>'session_id' is null, 'staging testers are routed, with no live session');
+  perform t_ok(coalesce(r->>'route', '') <> 'staging' and r->>'session_id' is null, 'no one is routed to Staging, and no session opens');
   update settings set value = '"staging"' where key = 'environment';
 
   -- Nobody but the service role can call DELA functions or read tables

@@ -179,13 +179,14 @@ Deno.test("notifications and the worker", async () => {
   assertEquals((await call("POST", "/notifications/read", { session: ownerSession, body: { all: true } })).body.ok, true);
 });
 
-Deno.test("staging testers are handed to Staging by Live", async () => {
+// Fix (AI review 0.9.0, security 5): the "Test site account" list is gone. Live never sends a member to the test site,
+// because the two sites number their members separately.
+Deno.test("no one can be added as a test site account, so Live never sends a member to the test site", async () => {
   await pool.query("update settings set value = '\"live\"' where key = 'environment'");
-  await call("POST", "/admin/access/grant", { session: ownerSession, body: { bd_member_id: 9200, channel: "staging_tester" } });
+  const g = await call("POST", "/admin/access/grant", { session: ownerSession, body: { bd_member_id: 9200, channel: "staging_tester" } });
+  assertEquals((g.body.data ?? g.body).reason, "bad_channel");
   const r = await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9200 }) } });
-  assertEquals(r.body.route, "staging");
-  assertEquals(r.body.api, "https://staging.example.invalid/functions/v1/api");
-  assertEquals(r.body.session, undefined);
+  assert(r.body.route !== "staging" && !r.body.session, "not sent to the test site");
   await pool.query("update settings set value = '\"staging\"' where key = 'environment'");
 });
 

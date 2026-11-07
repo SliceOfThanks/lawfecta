@@ -244,7 +244,6 @@
         h("div", { class: "grid" },
           stat("People who opened DELA", d.people, d.signed_in_7d + " in the last 7 days", "ov_people"),
           stat("On the access list", d.access_list, null, "ov_access"),
-          stat("Test site accounts", d.staging_testers, null, "ov_testers"),
           stat("Turned away (7 days)", d.denied_7d, "Not on the access list", "ov_denied"),
           stat("Decisions to make", (dec.O || 0) + (dec.R || 0), (dec.O || 0) + " open, " + (dec.R || 0) + " suggested, " + (dec.G || 0) + " need a gate", "ov_decisions"),
           stat("Plans not linked to BD", d.unmapped_plans, "Link them on the Plans tab", "ov_unmapped"),
@@ -303,17 +302,15 @@
       };
       var idIn = h("input", { type: "number", min: "1", placeholder: "BD member ID", "aria-label": "BD member ID" });
       var noteIn = h("input", { placeholder: "Note (for example: test attorney)", "aria-label": "Note" });
-      var chIn = h("select", { "aria-label": "List" }, h("option", { value: "access", text: "Access list (may open this copy of DELA)" }), h("option", { value: "staging_tester", text: "Test site account (Live sends them to the test site)" }));
       body(h("div", null,
         pageHead("Access list", "acc"),
         h("p", { class: "muted", text: "Find a member's ID in BD admin under Members. The Lawfecta Team can always open DELA." }),
-        ownerOnly(h("div", { class: "card" }, titled("h2", "Add someone", "acc_add"), h("div", { class: "row", style: "margin-top:8px" }, idIn, noteIn, chIn,
+        ownerOnly(h("div", { class: "card" }, titled("h2", "Add someone", "acc_add"), h("div", { class: "row", style: "margin-top:8px" }, idIn, noteIn,
           h("button", { onclick: function () {
-            api.post("/admin/access/grant", { bd_member_id: idIn.value, channel: chIn.value, note: noteIn.value }).then(check).then(function (d) { ok(d.duplicate ? "Already on that list" : "Added"); access(); }).catch(fail);
+            api.post("/admin/access/grant", { bd_member_id: idIn.value, channel: "access", note: noteIn.value }).then(check).then(function (d) { ok(d.duplicate ? "Already on that list" : "Added"); access(); }).catch(fail);
           } }, "Add")))),
-        section("acc_list", "May open DELA", "acc_list", true, h("span", { class: "badge", text: String(rows.filter(function (a) { return a.channel === "access"; }).length) }), list("access")),
-        section("acc_staging", "Test site accounts", "acc_staging", true, h("span", { class: "badge", text: String(rows.filter(function (a) { return a.channel === "staging_tester"; }).length) }),
-          [h("p", { class: "muted small", style: "margin-top:8px", text: "These accounts load the test site copy with test data and Stripe test mode. Add them on the Live admin area. On the test site, add them to the access list too." }), list("staging_tester")])));
+        // The "Test site account" list is gone: each site has its own members (AI review 0.9.0, security 5)
+        section("acc_list", "May open DELA", "acc_list", true, h("span", { class: "badge", text: String(rows.filter(function (a) { return a.channel === "access"; }).length) }), list("access"))));
     }).catch(fail);
   }
 
@@ -1509,7 +1506,6 @@
     ov: "A quick picture of this copy of DELA (the test site or Live, shown in the badge at the top): who is using it, what is waiting on a decision, and anything paused or on hold.",
     ov_people: "Everyone who has opened DELA at least once on this copy, and how many of them came back in the last 7 days.",
     ov_access: "Members you have let into DELA. Everyone else sees a 'not open yet' message. The Lawfecta Team can always get in.",
-    ov_testers: "Test accounts that the Live copy sends over to the test site, so testing never touches real data.",
     ov_denied: "Members who tried to open DELA in the last 7 days but are not on the access list. A rising number can mean word is spreading before you open DELA.",
     ov_decisions: "Business numbers still marked Open or Suggested in Settings. Open: no decision yet. Suggested: Claude's suggestion waiting for your yes. Needs a gate: only switch on after a check, such as a lawyer review.",
     ov_unmapped: "DELA plans not yet linked to a BD membership plan. Until linked, members only get those plans if you give them one on the People tab. Linking happens at launch.",
@@ -1519,9 +1515,8 @@
     ov_recent: "The latest sign ins, refusals and changes on this copy. The full list is on the Audit log tab.",
     ov_pause: "Stops all of DELA, or one part, at once, with no push. Members see a short message. The Lawfecta Team keeps working. You get an email each time it is turned on or off.",
     acc: "Who may open DELA on this copy. While DELA is in testing, only people on this list (and the Lawfecta Team) can get in. Removing someone signs them out at once.",
-    acc_add: "Add a member by their BD member ID (BD admin, Members). Choose the access list to let them in, or test site account so Live sends them to the test site (not needed while testing happens on hirelegalhelp.com).",
+    acc_add: "Add a member by their BD member ID (BD admin, Members). They can then open this copy of DELA. Use member numbers from this site only: hirelegalhelp.com and lawfecta.com number their members separately.",
     acc_list: "Members who may open this copy of DELA. Each line shows when they were added and why.",
-    acc_staging: "Accounts used for testing. On Live, being on this list sends them to the test site. On the test site, they also need to be on the access list above.",
     people: "Everyone who has opened DELA, with their sides (attorney, freelancer) and plans. You can give a side and plan here for testing, or place a hold.",
     plans: "The eight DELA plans, four per side. Attorneys and freelancers have separate prices, fees and limits. A change is saved as a draft and applies only when you approve it. Old versions are kept.",
     plans_side: "Each column is a plan. Rows show the price, the platform fee this side pays, the BD plan it is linked to, how many members are on it, and every limit. 'No cap' means unlimited.",
