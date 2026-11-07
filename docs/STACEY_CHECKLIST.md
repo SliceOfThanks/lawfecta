@@ -19,7 +19,7 @@ Never paste a password, token or secret in chat. You type them only into BD, Sup
 
 ## Part C. Live (once, before your first push)
 11. Supabase: create a new organization named Lawfecta DELA Live on the Pro plan, and in it a project named dela-live (region West US). It must be a United States region: the security page says DELA's data is stored in the United States (Stacey 2026-11-05). Never connect this organization to Claude.
-12. In dela-live > Edge Functions > Secrets add: BD_SHARED_SECRET (same as step 5), DELA_ORIGINS = https://lawfecta.com,https://www.lawfecta.com, STAGING_API_URL (Claude gives you the Staging address), and RELEASE_CI_SECRET (same value as step 14, so Staging can read Live's problem count).
+12. In dela-live > Edge Functions > Secrets add the secrets in docs/LIVE_READINESS.md section 2 (https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/LIVE_READINESS.md). Use a new BD_SHARED_SECRET for Live (lawfecta.com has its own DELA-Auth widget), DELA_ORIGINS = https://lawfecta.com,https://www.lawfecta.com, STAGING_API_URL (Claude gives you the Staging address), and RELEASE_CI_SECRET (same value as step 14, so Staging can read Live's problem count).
 13. Supabase > Account > Access Tokens: create a token named DELA push. Copy it once.
 14. GitHub > lawfecta > Settings > Environments: create an environment named live.
     - Secrets: SUPABASE_ACCESS_TOKEN (the token from step 13), RELEASE_CI_SECRET (make 40 letters and numbers).
@@ -33,7 +33,7 @@ Never paste a password, token or secret in chat. You type them only into BD, Sup
 
 ## Part D. First push and after
 16. /dela-admin (Staging) > Release Control: tick "I tested this version on Staging", click Push to Live, enter your release password, then the 6 digit code sent to you. Watch the steps tick through. Live is then watched for 15 minutes and goes back by itself if it becomes unhealthy.
-17. When it says Live now: in BD, put the dela-live address (https://<project id>.supabase.co/functions/v1/api) into the data-api field of DELA-App and DELA-Admin. Click Refresh Live Site.
-18. Open /dela-admin: you are owner of Live automatically. On Live's Access list, add your two test members as "Staging test accounts" so they keep landing on Staging. Add real members to the access list only when you are ready.
+17. When it says Live now: in Brilliant Directories on lawfecta.com (the main site), create the pages /dela and /dela-admin (logged-in members only, not in any menu) and the widgets DELA-Auth, DELA-App and DELA-Admin with the code Claude sends. Type Live's BD_SHARED_SECRET into DELA-Auth, and put the dela-live address (https://<project id>.supabase.co/functions/v1/api) into the data-api field of DELA-App and DELA-Admin. Click Refresh Live Site. The test site (hirelegalhelp.com) keeps its own widgets pointing at Staging.
+18. Open lawfecta.com/dela-admin: you are owner of Live automatically. Then follow docs/LIVE_READINESS.md section 3, step C: link the eight BD plan numbers (Plans), set email (Settings), turn on the beta switches (Switches), and add real members to the access list in small groups only when you are ready. Test accounts stay on the test site.
 
 From then on, every release is steps 10 and 16 only.

@@ -170,6 +170,7 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
 - Part 2, inside DELA, comes after Step 6: a credit ledger and Refer and earn cards. The brief's questions are still open: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-7b-partnero-referrals.md
 
 ### Beta launch (after Steps 4 to 6 pass their tests)
+- The full Live guide (2026-11-07): https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/LIVE_READINESS.md. Version 0.9.0 is recorded as the first Live candidate.
 1. Set up Live in the Lawfecta Live Supabase organization. Upgrade it to Pro, then add the secrets and the GitHub environment (https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/STACEY_CHECKLIST.md, Part C).
 2. First push from Release Control, then install the DELA widgets on lawfecta.com.
 3. Add beta members to Live's access list in small groups. Feedback through Userback if you want it.
