@@ -28,7 +28,7 @@ import { buildBody, feeLines, moneySummary, readTasks, SUBCONTRACTING_NOTE, CHEC
 import { blockedKinds, blockedMessage, FILE_BLOCKED_MESSAGE } from "./lib/confidential/rules.ts";
 import { blocks as docBlocks, looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
-import { HELPER_SIDE, HELPER_SYSTEM, HELPERS, NOT_LEGAL, readCompare, readCriteria, readFindings, type HelperKey } from "./lib/helpers/model.ts";
+import { clean, HELPER_SIDE, HELPER_SYSTEM, HELPERS, NOT_LEGAL, readCompare, readCriteria, readExplain, readFindings, readFirm, readFit, type HelperKey } from "./lib/helpers/model.ts";
 import { AUTOMATE_SYSTEM, defaultKpis, delegatedSop, FREQUENCIES, hoursSaved, promptFor, readKpis, readRecommendations, setupSteps, suggestBudget, timeInputs, type AllowedTool, type Frequency, type Recommendation } from "./lib/automate/model.ts";
 import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
 
@@ -2521,7 +2521,12 @@ async function messageSend(ctx: Ctx) {
 const HELPER_CREDITS: Record<HelperKey, [string, number]> = {
   check_scope: ["ai.credits.check_scope", 1], compare_proposals: ["ai.credits.compare_proposals", 2], agreement_check: ["ai.credits.agreement_check", 2],
   acceptance_criteria: ["ai.credits.acceptance_criteria", 1], monthly_scope: ["ai.credits.monthly_scope", 1], proposal_check: ["ai.credits.proposal_check", 1],
+  check_steps: ["ai.credits.check_steps", 1], improve_section: ["ai.credits.improve_section", 1], explain_findings: ["ai.credits.explain_findings", 1],
+  describe_firm: ["ai.credits.describe_firm", 1], improve_request: ["ai.credits.improve_request", 1], find_fit: ["ai.credits.find_fit", 1],
+  agenda: ["ai.credits.agenda", 1], review_draft: ["ai.credits.review_draft", 1],
 };
+const HELPERS2: HelperKey[] = ["check_steps", "improve_section", "explain_findings", "describe_firm", "improve_request", "find_fit", "agenda", "review_draft"];
+const US_STATE_CODES = "AL AK AZ AR CA CO CT DE DC FL GA HI ID IL IN IA KS KY LA ME MD MA MI MN MS MO MT NE NV NH NJ NM NY NC ND OH OK OR PA RI SC SD TN TX UT VT VA WA WV WI WY".split(" ");
 const hMoney = (c: unknown) => "$" + ((Number(c) || 0) / 100).toFixed(2);
 const hNum = (x: unknown) => { const n = Number(x); return x === "" || x === null || x === undefined || !Number.isFinite(n) ? null : n; };
 const lineList = (x: unknown, n = 20) => (Array.isArray(x) ? x : String(x ?? "").split("\n")).map((t) => str(t, 300)).filter(Boolean).slice(0, n);
@@ -2538,6 +2543,7 @@ async function helperRun(ctx: Ctx) {
   const s = side === "client" ? await client(ctx) : await memberSide(ctx);
   if (side === "freelancer" && s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
   if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "ai_helpers", p_person: s.person_id })) return json(ctx, { ok: false, reason: "helpers_off" });
+  if (HELPERS2.includes(key)) return await helperRun2(ctx, s, key);
   let prompt = "", typed = "", rows = 0, ids: string[] = [], seqs: number[] = [];
   if (key === "check_scope") {
     const g = await rpc<Record<string, any>>(ctx, "dela_gig_get", { p_person: s.person_id, p_side: s.side, p_gig: need(uuid(ctx.body.gig_id)) });
@@ -2606,6 +2612,84 @@ async function helperRun(ctx: Ctx) {
   if (key === "compare_proposals") { out.proposals = readCompare(j, ids); out.note = "DELA lists the same details for every proposal and does not rank them. You choose. " + NOT_LEGAL; }
   else if (key === "acceptance_criteria") out.milestones = readCriteria(j, seqs);
   else out.findings = readFindings(key, j, rows);
+  return json(ctx, out);
+}
+
+// The other eight helpers (Phase 4 part B, second half): documents, the firm profile, Ask DELA, Talent, meetings and reviews
+async function helperRun2(ctx: Ctx, s: Session, key: HelperKey) {
+  let prompt = "", typed = "", rows = 0, ids: string[] = [], typedForFirm = "";
+  if (key === "check_steps" || key === "improve_section" || key === "explain_findings") {
+    const pb = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: need(uuid(ctx.body.playbook_id)) });
+    if (!pb?.ok || !isDoc(pb.body)) return json(ctx, { ok: false, reason: "not_found" });
+    if (key === "check_steps") {
+      const steps = (Array.isArray(ctx.body.steps) ? ctx.body.steps : []).slice(0, 60) as Array<Record<string, any>>;
+      rows = steps.length;
+      if (!rows) return json(ctx, { ok: false, reason: "no_steps" });
+      typed = steps.map((x) => str(x.text, 500)).join("\n");
+      prompt = "Document: " + str(pb.playbook.title, 200) + "\nSteps:\n" + steps.map((x, i) => (i + 1) + ". " + str(x.text, 500) + " (role: " + (str(x.role, 80) || "not set") + ")" + (x.attorney_decides ? " [attorney decides]" : "")).join("\n");
+    } else if (key === "improve_section") {
+      typed = [ctx.body.purpose, ctx.body.scope].map((x) => str(x, 2000)).join("\n");
+      prompt = "Document: " + str(pb.playbook.title, 200) + "\nPurpose: " + (str(ctx.body.purpose, 2000) || "(empty)") + "\nScope: " + (str(ctx.body.scope, 2000) || "(empty)");
+    } else {
+      // The findings the quality check panel shows, worked out here from the saved document
+      const firm = await docFirm(ctx, s);
+      const body = await docUpgradeImages(ctx, normalizeDoc(pb.body), pb.playbook.org_id);
+      const items = checkDoc(body, await docCtx(ctx, firm, body, pb.playbook.org_id)).items.filter((i) => i.status !== "pass").slice(0, 20);
+      if (!items.length) return json(ctx, { ok: false, reason: "nothing_to_explain" });
+      ids = items.map((i) => String(i.id));
+      prompt = "Findings:\n" + items.map((i) => "id: " + i.id + " | " + (i.status === "blocking" ? "blocks approval" : "suggestion") + " | " + i.label + (i.detail ? " | " + i.detail : "")).join("\n");
+    }
+  } else if (key === "describe_firm") {
+    typedForFirm = str(ctx.body.text, 1500);
+    if (!typedForFirm) return json(ctx, { ok: false, reason: "no_text" });
+    typed = typedForFirm;
+    prompt = "System group keys: " + SYSTEM_GROUPS.map((g) => g[0] + " (" + g[1] + ")").join(", ") + "\n\nThe description:\n" + typedForFirm;
+  } else if (key === "improve_request" || key === "find_fit") {
+    typed = str(ctx.body.text, key === "find_fit" ? 1000 : 4000);
+    if (!typed) return json(ctx, { ok: false, reason: "no_text" });
+    prompt = (key === "find_fit" ? "The task:\n" : "The unsent request:\n") + typed;
+  } else if (key === "agenda") {
+    const g = await rpc<Record<string, any>>(ctx, "dela_gig_get", { p_person: s.person_id, p_side: s.side, p_gig: need(uuid(ctx.body.gig_id)) });
+    if (!g?.ok) return json(ctx, { ok: false, reason: "not_found" });
+    const p = g.gig?.public ?? {};
+    prompt = "Gig: " + str(g.gig?.title, 200) + "\nTask: " + str(p.task, 1500) + "\nDone looks like: " + str(p.outcome, 800) + "\nSteps:\n" + (Array.isArray(p.steps) ? p.steps.slice(0, 15).map((t: unknown) => "- " + str(t, 200)).join("\n") : "");
+  } else {
+    // A review: only the member's own stars and notes; a low rating needs their own notes first (Stacey's answer 5)
+    const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)) });
+    if (!v?.ok) return json(ctx, { ok: false, reason: "not_found" });
+    const ratings = Object.entries((ctx.body.ratings ?? {}) as Record<string, unknown>).map(([k, x]) => [str(k, 40), Number(x)] as [string, number]).filter(([, x]) => x >= 1 && x <= 5).slice(0, 10);
+    const notes = str(ctx.body.notes, 2000);
+    if (!ratings.length) return json(ctx, { ok: false, reason: "ratings_first" });
+    const avg = ratings.reduce((a, [, x]) => a + x, 0) / ratings.length;
+    if (!notes && avg <= 2) return json(ctx, { ok: false, reason: "notes_first" });
+    if (!notes) return json(ctx, { ok: false, reason: "notes_needed" });
+    typed = notes;
+    prompt = "Ratings (1 to 5): " + ratings.map(([k, x]) => k + " " + x).join(", ") + "\nWould work with them again: " + (ctx.body.would_again === true ? "yes" : ctx.body.would_again === false ? "no" : "not said") + "\nTheir notes:\n" + notes;
+  }
+  if (typed) { const warn = sensitive(ctx, typed); if (warn) return json(ctx, warn); }
+  const [ck, dflt] = HELPER_CREDITS[key];
+  const credits = Number(await setting(ctx, ck, String(dflt))) || dflt;
+  const ai = await runAi(ctx, s, `helper:${key}:` + (await sha256Hex(s.person_id + ":" + prompt)).slice(0, 40), HELPER_SYSTEM[key], [{ role: "user", content: prompt }], credits);
+  if (!ai.ok) return json(ctx, ai);
+  const j = readJson(ai.text);
+  const out: Record<string, unknown> = { ok: true, helper: key, source: ai.source, credits: ai.source === "lawfecta" ? credits : 0, note: NOT_LEGAL };
+  if (key === "explain_findings") out.items = readExplain(j, ids);
+  else if (key === "describe_firm") { out.findings = readFirm(j, typedForFirm, SYSTEM_GROUPS.map((g) => g[0])); out.note = "DELA only fills in what your description says. Check it, then save the firm profile."; }
+  else if (key === "find_fit") { out.findings = readFit(j, US_STATE_CODES); out.note = "These are search filters only. DELA does not pick a freelancer or promise who is available."; }
+  else if (key === "improve_request") {
+    const sug = clean(j?.suggestion, 4000);
+    out.findings = [...(sug ? [{ field: "request", problem: "A clearer version of your request.", suggestion: sug }] : []),
+      ...(Array.isArray(j?.missing) ? j.missing : []).map((m: unknown) => clean(m, 200)).filter(Boolean).slice(0, 5).map((m: string) => ({ field: "other", problem: "Missing: " + m, suggestion: "" }))];
+    out.note = "Nothing is sent until you click Send.";
+  } else if (key === "agenda") {
+    const pts = (Array.isArray(j?.points) ? j.points : []).map((t: unknown) => clean(t, 200)).filter(Boolean).slice(0, 3);
+    out.findings = pts.length ? [{ field: "message", problem: "A short agenda for your meeting.", suggestion: "Agenda for our meeting:\n" + pts.map((t: string, i: number) => (i + 1) + ". " + t).join("\n") }] : [];
+    out.note = "Nothing is sent until you click Send.";
+  } else if (key === "review_draft") {
+    const r = clean(j?.review, 1500);
+    out.findings = r ? [{ field: "body", problem: "A draft from your own ratings and notes.", suggestion: r }] : [];
+    out.note = "DELA uses only your ratings and notes. Check every word: the review is yours, and nothing is posted until you click to post it.";
+  } else out.findings = readFindings(key, j, rows);
   return json(ctx, out);
 }
 

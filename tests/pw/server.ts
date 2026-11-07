@@ -93,6 +93,14 @@ function documentAnswer(system: string, user = ""): unknown {
   if (system.includes("observable deliverables")) return { milestones: [{ seq: 1, deliverables: "A call log for every new client, saved in Clio", why: "Both of you can see it is done." }] };
   if (system.includes("tasks of a monthly engagement")) return { findings: [{ row: 1, field: "turnaround", problem: "There is no turnaround.", suggestion: "1 business day" }] };
   if (system.includes("freelancer's proposal before")) return { findings: [{ field: "excluded", problem: "Say what the price does not include.", suggestion: "Court filings are not included." }] };
+  if (system.includes("Check the steps of a law firm procedure")) return { findings: [{ row: 1, field: "step", problem: "Not one clear action.", suggestion: "Call the new client within one business day." }] };
+  if (system.includes("Improve the Purpose and Scope")) return { findings: [{ field: "purpose", problem: "The purpose is empty.", suggestion: "Bring every new client in the same way." }] };
+  if (system.includes("Explain, in plain words")) return { items: [...user.matchAll(/id: (\S+)/g)].map((m) => ({ id: m[1], explain: "Plain words: fix this before approval. The document is approved." })) };
+  if (system.includes("From a short description a lawyer wrote")) return { size: "2-5", practice_areas: ["Family law"], jurisdictions: "Texas state courts", systems: { practice_management: ["Clio", "MyCase"] } };
+  if (system.includes("unsent request")) return { suggestion: "Draft a welcome email for new family law clients, from the intake form, by Friday.", missing: ["Who signs it"] };
+  if (system.includes("search filters for finding a freelancer")) return { practice_area: "Family law", skill: "E-filing", tool: "Clio", state: "TX", why: "From the task you described." };
+  if (system.includes("three short discussion points")) return { points: ["Scope", "Timing", "Tools"] };
+  if (system.includes("own star ratings and notes")) return { review: "Calls were made on time and logged in Clio." };
   if (system.includes("You classify one existing")) return { type: "sop", lifecycle: "INT", reason: "It is one clear path." };
   if (system.includes("rewriting an existing law firm playbook")) return { document: { ...DOC_SOP, title: "New client intake" } };
   if (system.includes("answering questions about one of the firm's documents")) return { reply: "That step is done by the paralegal.", change: null, note: "" };

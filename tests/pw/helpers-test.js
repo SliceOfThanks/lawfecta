@@ -45,7 +45,7 @@ const ATT = 4420, FL = 4421, FL2 = 4422;
   const browser = await chromium.launch();
   let s, p, t;
   try {
-    await sql("update feature_switches set state = 'everyone' where key in ('flex_gigs', 'engagements', 'profiles', 'talent_search', 'playbook_library', 'ai_generation', 'ai_helpers'); update settings set value = 'false' where key = 'verify.freelancer_linkedin'; select 1");
+    await sql("update feature_switches set state = 'everyone' where key in ('flex_gigs', 'engagements', 'profiles', 'talent_search', 'playbook_library', 'ai_generation', 'ai_helpers', 'document_standard'); update settings set value = 'false' where key = 'verify.freelancer_linkedin'; select 1");
     await sql(`insert into people (bd_member_id, display_name, email) values (${ATT}, 'Hana Helper', '${ATT}@test.invalid'), (${FL}, 'Pia Proposal', '${FL}@test.invalid'), (${FL2}, 'Quinn Quote', '${FL2}@test.invalid') on conflict (bd_member_id) do nothing;
       select dela_ensure_side((select id from people where bd_member_id = ${ATT}), 'attorney', 'att_pro', 'staff_grant');
       select dela_ensure_side((select id from people where bd_member_id = ${FL}), 'freelancer', 'fl_plus', 'staff_grant');
@@ -115,6 +115,59 @@ const ATT = 4420, FL = 4421, FL2 = 4422;
     await dela(p).locator('[data-helper="proposal_check"]').getByRole("button", { name: "Use suggestion", exact: true }).click();
     ok((await label(p, "What it leaves out").inputValue()) === "Court filings are not included.", "the freelancer's suggestion fills What it leaves out");
     ok((await sql(`select count(*)::int n from proposals where gig_id = '${openGig}'`))[0].n === 0, "nothing is sent");
+    await s.ctx.close();
+
+    // ---------- The other eight: documents, firm profile, Talent, Ask DELA ----------
+    const DOC = { schema: 2, type: "sop", title: "Intake doc", roles: ["Attorney", "Paralegal"], role_kinds: { Attorney: "attorney", Paralegal: "staff" }, owner_role: "Attorney", purpose: "", scope: "", steps: [{ text: "Call", role: "Paralegal", raci: { Attorney: "R" } }] };
+    const dpb = (await sql(`insert into playbooks (org_id, title, status, current_version, completeness, request_id, created_by, doc_type) values ('${ids.org}', 'Intake doc', 'draft', 1, 50, 'hp-doc', '${ids.att}', 'sop') returning id`))[0].id;
+    await sql(`insert into playbook_versions (playbook_id, version, body, created_by) values ('${dpb}', 1, '${JSON.stringify(DOC)}', '${ids.att}'); select 1`);
+    s = await open(browser, "DELA-App", ATT, `&tab=library&pb=${dpb}`); p = s.page;
+    t = await waitFor(p, "✦ Improve this section", 15000);
+    await click(p, "✦ Improve this section");
+    await waitFor(p, "The purpose is empty.");
+    await dela(p).locator('[data-helper="improve_section"]').getByRole("button", { name: "Use suggestion", exact: true }).click();
+    await p.waitForTimeout(300);
+    ok((await label(p, "Purpose").inputValue()) === "Bring every new client in the same way.", "Improve this section fills Purpose in the unsaved draft");
+    await click(p, "✦ Check these steps");
+    t = await waitFor(p, "Step 1, Step: Not one clear action.");
+    await dela(p).locator('[data-helper="check_steps"]').getByRole("button", { name: "Use suggestion", exact: true }).click();
+    t = await waitFor(p, "Call the new client within one business day.");
+    ok((await label(p, "Purpose").inputValue()) === "Bring every new client in the same way.", "the step suggestion keeps the earlier unsaved change");
+    ok((await sql(`select current_version v from playbooks where id = '${dpb}'`))[0].v === 1, "nothing saved");
+    await click(p, "✦ Explain these findings");
+    t = await waitFor(p, "Plain words: fix this before approval.");
+    ok(!t.includes("The document is approved."), "Explain these findings never says the document is approved");
+    await s.ctx.close();
+
+    s = await open(browser, "DELA-App", ATT, "&tab=profile"); p = s.page;
+    await waitFor(p, "Document preferences", 15000);
+    await dela(p).locator("#sec-sec-docprefs, #sec-docprefs").first().evaluate((el) => { if (el.hidden) { const b = el.parentElement.querySelector('button[aria-controls="' + el.id + '"]'); if (b) b.click(); } }).catch(() => {});
+    t = await waitFor(p, "✦ Help me describe my firm");
+    await label(p, "Describe your firm").fill("Three attorneys doing family law in Texas state courts; we use Clio.");
+    await click(p, "✦ Help me describe my firm");
+    t = await waitFor(p, "DELA only fills in what your description says.");
+    ok(t.includes("Systems: Systems") || t.includes("Systems:"), "the systems it found are listed");
+    ok(!t.includes("MyCase"), "a system the attorney never named is dropped");
+    for (let i = 0; i < 4; i++) await dela(p).locator('[data-helper="describe_firm"]').getByRole("button", { name: "Use suggestion", exact: true }).first().click();
+    ok((await label(p, "Firm size").inputValue()) === "2-5" && (await label(p, "Practice areas").inputValue()) === "Family law" && (await label(p, "Practice management systems").inputValue()) === "Clio", "the firm profile boxes are filled, not saved");
+    await s.ctx.close();
+
+    s = await open(browser, "DELA-App", ATT, "&tab=talent"); p = s.page;
+    await waitFor(p, "✦ Help me find a fit", 15000);
+    await label(p, "Describe the task").fill("E-filing family law motions in Texas with Clio");
+    await click(p, "✦ Help me find a fit");
+    t = await waitFor(p, "These are search filters only.");
+    for (let i = 0; i < 4; i++) await dela(p).locator('[data-helper="find_fit"]').getByRole("button", { name: "Use suggestion", exact: true }).first().click();
+    ok((await label(p, "Practice area").inputValue()) === "Family law" && (await label(p, "State you need").inputValue()) === "TX", "Help me find a fit fills the search filters");
+    await s.ctx.close();
+
+    s = await open(browser, "DELA-App", ATT, "&tab=delegate"); p = s.page;
+    await waitFor(p, "✦ Improve my request", 15000);
+    await label(p, "Your message").fill("write welcome email");
+    await click(p, "✦ Improve my request");
+    t = await waitFor(p, "Missing: Who signs it");
+    await dela(p).locator('[data-helper="improve_request"]').getByRole("button", { name: "Use suggestion", exact: true }).click();
+    ok((await label(p, "Your message").inputValue()).startsWith("Draft a welcome email"), "Improve my request fills the unsent message");
     await s.ctx.close();
 
     // ---------- The switch off: no check buttons ----------

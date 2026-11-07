@@ -439,6 +439,7 @@
       notice(),
       attachRow,
       ta,
+      helperButton("improve_request", "✦ Improve my request", function () { return { text: ta.value }; }, { field: function (x) { return x.field === "request" ? ta : null; } }),
       h("div", { class: "row", style: "margin-top:8px" },
         mic,
         mic ? h("label", { for: "dela-auto-send", class: "small", style: "margin:0;font-weight:600;display:flex;gap:6px;align-items:center" }, auto, "Send when I stop talking") : null,
@@ -3158,9 +3159,12 @@
   function loadHelpers() { if (!helperInfo) helperInfo = api.get("/helpers").catch(function () { return { on: false, credits: {} }; }); return helperInfo; }
   var HELPER_FIELD = { title: "Title", task: "The task", outcome: "What done looks like", steps: "Steps", timing: "Usual time", budget: "Budget", deadline: "Deadline", milestones: "Milestones",
     included: "Included", excluded: "Not included", schedule: "Schedule", price: "Price", quantity: "Included each month", turnaround: "Turnaround", exclusions: "Not included", days: "Days to deliver",
-    qualifications: "Qualifications", message: "Note", other: "In general" };
+    qualifications: "Qualifications", message: "Note", other: "In general", step: "Step", purpose: "Purpose", scope: "Scope", request: "Your request",
+    body: "Your review", size: "Firm size", practice_areas: "Practice areas", jurisdictions: "Jurisdictions", practice_area: "Practice area", skill: "Skill", tool: "Tech tool", state: "State" };
   var HELPER_ERR = { helpers_off: "DELA's checks are not on for your account yet.", need_two_proposals: "Compare needs at least two proposals.", no_tasks: "Add at least one task first.",
-    not_monthly: "This is not a monthly engagement.", no_credits_left: "You have used this month's DELA actions." };
+    not_monthly: "This is not a monthly engagement.", no_credits_left: "You have used this month's DELA actions.", no_steps: "Add at least one step first.",
+    nothing_to_explain: "Every check passed, so there is nothing to explain.", no_text: "Type a few words first.", ratings_first: "Choose your ratings first.",
+    notes_first: "For a low rating, write your own notes in Your review first. DELA only tidies what you wrote.", notes_needed: "Write your own notes in Your review first. DELA only tidies what you wrote." };
   function helperButton(key, label, getBody, opts) {
     opts = opts || {};
     var wrap = h("div", { class: "helper", "data-helper": key, style: "margin:8px 0" });
@@ -3198,12 +3202,15 @@
     var ul = h("ul", { class: "list", style: "margin:0" });
     list.forEach(function (f) {
       var target = opts.field ? opts.field(f) : null;
-      var li = h("li", { style: "display:block;padding:6px 0" }, h("div", null, h("b", { text: (f.row ? "Task " + f.row + ", " : "") + (HELPER_FIELD[f.field] || f.field) + ": " }), h("span", { text: f.problem })));
+      if (!target && opts.apply && f.suggestion && (!opts.canApply || opts.canApply(f))) target = { apply: opts.apply };
+      var fname = String(f.field).indexOf("sys:") === 0 ? "Systems" : (HELPER_FIELD[f.field] || f.field);
+      var li = h("li", { style: "display:block;padding:6px 0" }, h("div", null, h("b", { text: (f.row ? (opts.rowWord || "Task") + " " + f.row + ", " : "") + fname + ": " }), h("span", { text: f.problem })));
       if (f.suggestion) li.appendChild(h("div", { class: "small", style: "white-space:pre-line;margin:4px 0", text: "Suggestion: " + f.suggestion }));
       var acts = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" });
       if (f.suggestion && target) {
-        acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { target.value = f.suggestion; target.dispatchEvent(new Event("input")); li.remove(); D.toast(app, "Added to the form. Nothing is saved until you save."); } }, "Use suggestion"));
-        acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { target.value = f.suggestion; target.dispatchEvent(new Event("input")); li.remove(); target.focus(); } }, "Edit"));
+        var put = function () { if (target.apply) { target.apply(f); return; } target.value = f.suggestion; target.dispatchEvent(new Event("input")); target.dispatchEvent(new Event("change")); };
+        acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { put(); li.remove(); D.toast(app, "Added to the form. Nothing is saved until you save."); } }, "Use suggestion"));
+        acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { put(); li.remove(); if (target.focus) target.focus(); } }, "Edit"));
       }
       acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { li.remove(); } }, "Dismiss"));
       li.appendChild(acts);
@@ -4079,9 +4086,12 @@
         });
       }).catch(function (e) { D.clear(results); results.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     }
+    var task = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Describe the task", placeholder: "For example: e-filing family law motions in Texas, using Clio" });
     el.appendChild(h("div", { class: "card" }, h("h2", { text: "Find a freelancer" }), h("div", { class: "row", style: "flex-wrap:wrap;align-items:flex-end" },
       field("Practice area", inputs.practice_area), field("Skill", inputs.skill), field("Tech tool", inputs.tool), field("State you need", inputs.state),
-      h("button", { class: "blue small", type: "button", onclick: run }, "Search"))));
+      h("button", { class: "blue small", type: "button", onclick: run }, "Search")),
+      (me.switches || {}).ai_helpers ? field("Describe the task (for ✦ Help me find a fit)", task, "DELA suggests filters from it. You check them, then click Search.") : null,
+      helperButton("find_fit", "✦ Help me find a fit", function () { return { text: task.value }; }, { field: function (x) { return inputs[x.field] || null; } })));
     el.appendChild(results);
     run();
     return el;
@@ -4460,7 +4470,8 @@
       var draftBtn = (me.switches || {}).chat_assistant ? h("button", { class: "ghost small", type: "button", onclick: function () {
         api.post("/threads/assist", { thread_id: t.id, mode: "draft" }).then(gigOk).then(function (y) { ta.value = y.text; D.toast(app, "DELA drafted a reply. Check it, then Send."); }).catch(talkFail);
       } }, "✦ Draft a reply") : null;
-      el.appendChild(h("div", { class: "card" }, ta, h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" }, t.kind === "bench" ? null : pick, draftBtn, h("span", { class: "grow" }), send), attachWrap));
+      el.appendChild(h("div", { class: "card" }, ta, h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" }, t.kind === "bench" ? null : pick, draftBtn, h("span", { class: "grow" }), send), attachWrap,
+        t.kind === "bench" ? null : helperButton("agenda", "✦ Draft an agenda", function () { return { gig_id: t.gig_id }; }, { field: function (x) { return x.field === "message" ? ta : null; } })));
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
 
@@ -5797,7 +5808,10 @@
       }).catch(function (e) { go.disabled = false; revFail(e); });
     });
     return h("div", null, ratings, h("div", { class: "row", style: "margin:4px 0" }, h("span", { class: "grow", text: dir === "of_freelancer" ? "Would you hire them again?" : "Would you work with them again?" }), again),
-      field("Your review", body, "About the work only. No client information."), h("div", { class: "row" }, go));
+      field("Your review", body, "About the work only. No client information."),
+      helperButton("review_draft", "✦ Help me write a review", function () { return { agreement_id: r.agreement.id, ratings: ratings.read(), would_again: again.value === "" ? null : again.value === "yes", notes: body.value }; },
+        { field: function (x) { return x.field === "body" ? body : null; } }),
+      h("div", { class: "row" }, go));
   }
 
   // ---------- The bench ----------
@@ -6088,6 +6102,13 @@
     host.appendChild(h("div", { class: "card" }, h("h2", { text: "Your firm profile for documents" }),
       h("p", { class: "small muted", text: "DELA uses these facts in every document, so you enter them once. Roles, never people's names, go in documents; who holds each role gets its review reminders." }),
       f.can_edit === false ? h("p", { class: "notice", text: DOC_ERR.owner_or_manager_only }) : null,
+      f.can_edit === false ? null : (function () {
+        var desc = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Describe your firm", placeholder: "For example: three attorneys doing family law in Texas state courts; we use Clio and Microsoft 365" });
+        return h("div", null, field("Describe your firm (optional)", desc, "A sentence or two. DELA fills in the boxes below from it; you check them and save."),
+          helperButton("describe_firm", "✦ Help me describe my firm", function () { return { text: desc.value }; }, { field: function (x) {
+            if (x.field === "size") return size; if (x.field === "practice_areas") return areas; if (x.field === "jurisdictions") return juris;
+            return String(x.field).indexOf("sys:") === 0 ? sys[x.field.slice(4)] || null : null; } }));
+      })(),
       field("Firm size", size), field("Practice areas", areas), field("Jurisdictions", juris), h("h3", { text: "Team roles" }), rolesBox, h("h3", { text: "Systems you use" }), sysBox,
       f.can_edit === false ? null : h("div", { class: "row", style: "margin-top:10px" }, go)));
   }
@@ -6684,6 +6705,12 @@
     if (can(4) && (P.status === "draft" || P.status === "in_review")) acts.appendChild(h("span", { title: blocked ? "Fix the blocking items first" : imgDue ? "Mark every image \"Still current\" or replace it in Check images first" : "" }, h("button", { class: "blue small", type: "button", disabled: blocked || imgDue, onclick: function () { status("approve", "Approved"); } }, "Approve")));
     if (P.status === "approved" && (d.type === "sop" || d.type === "workflow") && (me.switches || {}).flex_gigs && can(4)) acts.appendChild(h("button", { class: "blue small", type: "button", disabled: blocked, onclick: function () { gigs.id = null; gigs.newFrom = P.id; tab = "projects"; draw(); } }, "Post as a Flex Gig"));
     qp.appendChild(acts);
+    var openItems = (ck.items || []).filter(function (it) { return it.status !== "pass"; });
+    if (openItems.length) qp.appendChild(helperButton("explain_findings", "✦ Explain these findings", function () { return { playbook_id: P.id }; }, { render: function (out, y) {
+      var byId = {}; openItems.forEach(function (it) { byId[it.id] = it; });
+      (y.items || []).forEach(function (x) { var it = byId[x.id]; if (it) out.appendChild(h("div", { style: "margin:6px 0" }, h("b", { text: it.label + ": " }), h("span", { text: x.explain }))); });
+      if (!(y.items || []).length) out.appendChild(h("p", { style: "margin:0", text: "DELA could not explain these. Read each item's own note above." }));
+    } }));
     var draftEx = !!(lib.pb.approved && P.status !== "approved");
     var ex = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, h("span", { class: "small", text: draftEx ? "Export this draft (marked DRAFT on every page): " : "Export: " }),
       [["docx", "Word"], ["pdf", "PDF"], ["md", "Markdown"], ["html", "Web page"], ["csv", "Step checklist"]].map(function (f) { return h("button", { class: "ghost small", type: "button", disabled: blocked, onclick: function () { doExport(f[0], draftEx ? "draft" : ""); } }, f[1]); }));
@@ -6742,12 +6769,16 @@
     if (d.type === "sop" || d.type === "policy") {
       box.appendChild(sec("Purpose", [tIn(d, "purpose", "Purpose", { rows: 2, ro: ro })]));
       box.appendChild(sec("Scope", [tIn(d, "scope", "Scope", { rows: 2, ro: ro })]));
+      if (!ro) box.appendChild(helperButton("improve_section", "✦ Improve this section", function () { return { playbook_id: lib.pb.playbook.id, purpose: d.purpose || "", scope: d.scope || "" }; },
+        { apply: function (f) { d[f.field] = f.suggestion; drawDocument(); }, canApply: function (f) { return f.field === "purpose" || f.field === "scope"; } }));
     }
     if (d.type === "sop") {
       box.appendChild(sec("Trigger", [tIn(d, "trigger", "Trigger", { ro: ro })]));
       box.appendChild(sec("Roles", [rolesLine(d, ro)]));
       box.appendChild(sec("Before you start", [lIn(d, "before_you_start", "Before you start", ro), sectionImages(d, "before_you_start", "Before you start", ro)]));
       box.appendChild(sec("Steps", [stepsEditor(d, ro)]));
+      if (!ro) box.appendChild(helperButton("check_steps", "✦ Check these steps", function () { return { playbook_id: lib.pb.playbook.id, steps: (d.steps || []).map(function (x) { return { text: x.text, role: x.role, attorney_decides: !!x.attorney_decides }; }) }; },
+        { rowWord: "Step", apply: function (f) { if (d.steps[f.row - 1]) { d.steps[f.row - 1].text = f.suggestion; drawDocument(); } }, canApply: function (f) { return f.field === "step" && !!f.row; } }));
       box.appendChild(sec("Decision points and escalation", [decisionsEditor(d, ro)]));
       box.appendChild(sec("Timing", [tIn(d, "timing", "Timing", { rows: 2, ro: ro }), ruleFields(d, "timing_rule", ro)]));
       box.appendChild(sec("Quality check", [lIn(d, "quality_check", "Quality check", ro), field("Reviewed by (role)", tIn(d, "quality_reviewer_role", "Reviewed by (role)", { ro: ro }))]));

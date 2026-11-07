@@ -32,6 +32,14 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
   else if (system.includes("observable deliverables")) out = { milestones: [{ seq: 1, deliverables: "A call log for every new client, saved in Clio.", why: "Observable." }, { seq: 9, deliverables: "Extra work" }] };
   else if (system.includes("monthly engagement")) out = { findings: [{ row: 1, field: "turnaround", problem: "No turnaround.", suggestion: "1 business day" }, { row: 7, field: "task", problem: "Row 7.", suggestion: "x" }] };
   else if (system.includes("freelancer's proposal")) out = { findings: [{ field: "excluded", problem: "Say what is not included.", suggestion: "Court filings are not included." }] };
+  else if (system.includes("Check the steps of a law firm procedure")) out = { findings: [{ row: 1, field: "step", problem: "Not one clear action.", suggestion: "Call the new client within one business day." }, { row: 9, field: "step", problem: "No such step.", suggestion: "x" }] };
+  else if (system.includes("Improve the Purpose and Scope")) out = { findings: [{ field: "purpose", problem: "Too vague.", suggestion: "Bring every new client in the same way." }, { field: "price", problem: "Odd.", suggestion: "y" }] };
+  else if (system.includes("Explain, in plain words")) { const id = (user.match(/id: (\S+)/) ?? [])[1]; out = { items: [{ id, explain: "Each step needs exactly one A. The document is approved." }, { id: "made-up", explain: "x" }] }; }
+  else if (system.includes("From a short description a lawyer wrote")) out = { size: "huge", practice_areas: ["Family law"], jurisdictions: "Texas state courts", systems: { practice_management: ["Clio", "MyCase"] } };
+  else if (system.includes("unsent request")) out = { suggestion: "Draft a welcome email for new family law clients. Inputs: the intake form. Output: one email.", missing: ["A deadline"] };
+  else if (system.includes("search filters for finding a freelancer")) out = { practice_area: "Family law", skill: "E-filing", tool: "Clio", state: "ZZ", why: "From the task. Fran is the best choice." };
+  else if (system.includes("three short discussion points")) out = { points: ["Scope", "Timing", "Tools", "A fourth"] };
+  else if (system.includes("own star ratings and notes")) out = { review: "Calls were made on time and logged in Clio." };
   return Response.json({ model: body.model, choices: [{ message: { content: JSON.stringify(out) } }], usage: { prompt_tokens: 10, completion_tokens: 10 } });
 }) as typeof fetch;
 const storage: Storage = {
@@ -65,6 +73,7 @@ const run = async (who: M, body: Record<string, unknown>) => (await call("POST",
 Deno.test("the rules in code: known fields, at most 8, no ranking or legal-correctness sentences, the same fields for every proposal", () => {
   assertEquals(clean("Covers the work. Fran is the best choice. Ask about filings."), "Covers the work. Ask about filings.");
   assertEquals(clean("The agreement is legally sound."), "");
+  assertEquals(clean("Fix the A on step 2. The document is approved."), "Fix the A on step 2.", "DELA never says something is approved");
   const f = readFindings("check_scope", { findings: [{ field: "salary", problem: "Low.", suggestion: "More" }, ...many(10)] });
   assertEquals([f.length, f[0].field, f[0].suggestion], [8, "other", ""]);
   assertEquals(readFindings("monthly_scope", { findings: [{ row: 3, field: "task", problem: "P", suggestion: "S" }] }, 2)[0].suggestion, "", "a row that does not exist gets no suggestion");
@@ -148,6 +157,38 @@ Deno.test("Check monthly scope and Check my proposal", async () => {
   assertEquals((await run(att, { helper: "proposal_check", gig_id: gig, proposal: { included: "Calls" } })).status, 403, "attorneys do not check proposals");
   const p = (await run(fl, { helper: "proposal_check", gig_id: gig, proposal: { price: 400, days: 7, included: "Intake calls", excluded: "", schedule: "A week", qualifications: "Five years" } })).body;
   assertEquals([p.ok, p.findings[0].field, p.findings[0].suggestion], [true, "excluded", "Court filings are not included."]);
+});
+
+Deno.test("The other eight: documents, firm profile, Ask DELA, Talent, agenda and review, each code-checked", async () => {
+  const DOC = { schema: 2, type: "sop", title: "Intake", roles: ["Attorney", "Paralegal"], role_kinds: { Attorney: "attorney", Paralegal: "staff" }, owner_role: "Attorney", purpose: "", scope: "",
+    steps: [{ text: "Call", role: "Paralegal", raci: { Attorney: "R" } }] };
+  const dpb = (await one(`insert into playbooks (org_id, title, status, current_version, completeness, request_id, created_by, doc_type) values ($1, 'Intake doc', 'draft', 1, 50, $2, $3, 'sop') returning id`, [org, "hp-doc" + RUN, att.id])).id;
+  await pool.query("insert into playbook_versions (playbook_id, version, body, created_by) values ($1, 1, $2, $3)", [dpb, DOC, att.id]);
+  assertEquals((await run(fl, { helper: "check_steps", playbook_id: dpb, steps: [{ text: "Call" }] })).status, 403, "freelancers do not check a firm's steps");
+  assertEquals((await run(other, { helper: "check_steps", playbook_id: dpb, steps: [{ text: "Call" }] })).body.reason, "not_found", "another firm's document");
+  const st = (await run(att, { helper: "check_steps", playbook_id: dpb, steps: [{ text: "Call", role: "Paralegal" }] })).body;
+  assertEquals([st.ok, st.findings[0].row, st.findings[0].suggestion, st.findings[1].row, st.findings[1].suggestion], [true, 1, "Call the new client within one business day.", undefined, ""], "a step that does not exist gets no suggestion");
+  const sec = (await run(att, { helper: "improve_section", playbook_id: dpb, purpose: "", scope: "" })).body;
+  assertEquals([sec.findings[0].field, sec.findings[1].field, sec.findings[1].suggestion], ["purpose", "other", ""]);
+  const ex = (await run(att, { helper: "explain_findings", playbook_id: dpb })).body;
+  assertEquals([ex.ok, ex.items.length, ex.items[0].explain], [true, 1, "Each step needs exactly one A."], "only real findings, and no claim that it is approved");
+  const firm = (await run(att, { helper: "describe_firm", text: "Three attorneys in family law in Texas; we use Clio." })).body;
+  assertEquals(firm.findings.map((f: any) => [f.field, f.suggestion]), [["practice_areas", "Family law"], ["jurisdictions", "Texas state courts"], ["sys:practice_management", "Clio"]], "an unknown size and a system they never named are dropped");
+  const rq = (await run(fl, { helper: "improve_request", text: "write welcome email" })).body;
+  assertEquals([rq.ok, rq.findings[0].field, rq.findings[1].problem], [true, "request", "Missing: A deadline"], "freelancers can improve their request too");
+  assertEquals((await run(fl, { helper: "find_fit", text: "e-filing" })).status, 403);
+  const fit = (await run(att, { helper: "find_fit", text: "E-filing family law motions with Clio" })).body;
+  assertEquals(fit.findings.map((f: any) => f.field), ["practice_area", "skill", "tool"], "a made-up state is dropped");
+  assertEquals(fit.findings[0].problem, "From the task.", "never picks a person");
+  assertEquals((await run(other, { helper: "agenda", gig_id: gig })).body.reason, "not_found");
+  const ag2 = (await run(fl, { helper: "agenda", gig_id: gig })).body;
+  assertEquals(ag2.findings[0].suggestion, "Agenda for our meeting:\n1. Scope\n2. Timing\n3. Tools", "three points at most");
+  assertEquals((await run(att, { helper: "review_draft", agreement_id: ag, ratings: { quality: 1, communication: 2 }, notes: "" })).body.reason, "notes_first", "a low rating needs the member's own notes");
+  assertEquals((await run(att, { helper: "review_draft", agreement_id: ag, ratings: { quality: 5 }, notes: "" })).body.reason, "notes_needed");
+  assertEquals((await run(fl2, { helper: "review_draft", agreement_id: ag, ratings: { quality: 5 }, notes: "Good" })).body.reason, "not_found", "only the people on the agreement");
+  const rv = (await run(att, { helper: "review_draft", agreement_id: ag, ratings: { quality: 5 }, would_again: true, notes: "calls on time, logged in clio" })).body;
+  assertEquals([rv.ok, rv.findings[0].field, rv.findings[0].suggestion], [true, "body", "Calls were made on time and logged in Clio."]);
+  assertEquals((await one("select count(*)::int n from reviews where agreement_id = $1", [ag])).n, 0, "nothing posted");
 });
 
 Deno.test("teardown", async () => {
