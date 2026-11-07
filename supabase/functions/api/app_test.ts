@@ -312,7 +312,9 @@ Deno.test("BD email: notices go through BD's email outbox on the DELA site", asy
   assertEquals(sent.url, "https://hirelegalhelp.com/api/v2/email_outbox/create");
   assertEquals(sent.key, "bd-test-key");
   assertEquals(sent.form.subject, "[Test site] DELA test notice");
-  assert(sent.form.html.includes("https://hirelegalhelp.com/dela"), "links point to the DELA site");
+  // Each link is read as an address and its site compared exactly (a text search could be fooled by a look-alike address)
+  const links = [...String(sent.form.html).matchAll(/href="([^"]+)"/g)].map((m) => new URL(m[1].replaceAll("&amp;", "&")));
+  assert(links.some((u) => u.origin === "https://hirelegalhelp.com" && u.pathname.startsWith("/dela")), "links point to the DELA site");
   const n = (await pool.query("select status, provider, provider_ref from notifications where channel = 'email' and kind = 'test' order by created_at desc limit 1")).rows[0];
   assertEquals([n.status, n.provider, n.provider_ref], ["sent", "bd", "bd-outbox-901"]);
   await pool.query(`update settings set value = '"log"' where key = 'email.sender'`);

@@ -39,6 +39,10 @@ export async function promote({ env, fetchFn = fetch, run = (cmd, args) => execF
   const deploy = () => run("npx", ["--yes", "supabase@2.20.12", "functions", "deploy", "api", "--project-ref", ref, "--no-verify-jwt"]);
   const releaseId = Number(env.RELEASE_ID);
   const ref = env.LIVE_PROJECT_REF;
+  // Sends SQL to Live's database through the Supabase Management API. On purpose, this includes the repository's own
+  // migration files (read from the approved commit): that is how Live gets its database changes. The security scan
+  // reports it as "file data in outbound network request"; it goes only to Lawfecta's own Live project, over HTTPS,
+  // with the push token Stacey keeps in the GitHub "live" environment.
   const mgmt = async (query) => {
     const r = await fetchFn(`https://api.supabase.com/v1/projects/${ref}/database/query`, {
       method: "POST", headers: { authorization: `Bearer ${env.SUPABASE_ACCESS_TOKEN}`, "content-type": "application/json" }, body: JSON.stringify({ query }),
