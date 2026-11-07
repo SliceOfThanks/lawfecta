@@ -1216,7 +1216,7 @@
     (r.documents || []).forEach(function (d) {
       var row = h("div", { class: "row", style: "border-top:1px solid var(--line);padding:8px 0" },
         h("span", { class: "grow" }, h("b", { text: d.name }), h("span", { class: "small muted", text: " " + (DOC[d.status] || d.status) + (d.status === "ready" ? (d.shown ? ", shown to attorneys" : ", private") : "") })));
-      if (d.status === "ready" || d.status === "held") row.appendChild(h("button", { class: "ghost small", onclick: function () { api.post("/files/open", { file_id: d.id }).then(function (x) { if (x.ok) window.open(x.url, "_blank", "noopener"); else D.toast(app, D.errorText(x.reason), true); }).catch(err); } }, "Open"));
+      if (d.status === "ready" || d.status === "held") row.appendChild(h("button", { class: "ghost small", onclick: function () { D.openTab(function () { return api.post("/files/open", { file_id: d.id }).then(function (x) { if (x.ok) return x.url; D.toast(app, D.errorText(x.reason), true); return null; }); }, err); } }, "Open"));
       if (d.status === "ready") row.appendChild(h("button", { class: "ghost small", onclick: function () { docAct(d.id, d.shown ? "hide" : "show"); } }, d.shown ? "Make private" : "Show to attorneys"));
       if (d.status === "held") row.appendChild(h("button", { class: "ghost small", onclick: function () { if (confirm("Confirm this document has no confidential client information?")) docAct(d.id, "confirm"); } }, "It has no client information"));
       if (d.status !== "uploading" && d.status !== "checking") row.appendChild(h("button", { class: "danger small", onclick: function () { if (confirm("Remove \"" + d.name + "\"?")) docAct(d.id, "remove"); } }, "Remove"));
@@ -2506,11 +2506,15 @@
     put: function (rec) { return idb.run("readwrite", function (st) { st.put(rec); }).catch(function () {}); },
     del: function (key) { return idb.run("readwrite", function (st) { st.delete(key); }).catch(function () {}); },
     all: function () { return idb.run("readonly", function (st) { return st.getAll(); }).catch(function () { return []; }); },
+    // Only this person's unfinished parts (AI review 0.9.0, privacy 1): a part saved without an owner, or by someone else
+    // who used this browser, is never offered to the person signed in now
+    mine: function () { var me1 = me && me.person && me.person.id; return idb.all().then(function (all) { return (all || []).filter(function (p) { return me1 && p.owner === me1; }); }); },
+    clear: function () { return idb.run("readwrite", function (st) { st.clear(); }).catch(function () {}); },
   };
 
   function uploadPart(recId, kind, seq, startMs, blob) {
     var key = recId + ":" + kind + ":" + seq;
-    return idb.put({ key: key, recId: recId, kind: kind, seq: seq, startMs: startMs, blob: blob, at: Date.now() }).then(function () {
+    return idb.put({ key: key, recId: recId, kind: kind, seq: seq, startMs: startMs, blob: blob, at: Date.now(), owner: me && me.person && me.person.id }).then(function () {
       return api.post("/recordings/part", { id: recId, kind: kind, seq: seq, start_ms: startMs, bytes: blob.size });
     }).then(function (r) {
       if (!r.ok) throw r;
@@ -2526,7 +2530,7 @@
   // so the Recordings card never blanks out (Stacey's recorder check 2026-11-05: it disappeared every few seconds)
   function recordingsCard(prev) {
     var card = h("div", { class: "card rec-card" }, prev ? null : h("p", { class: "muted", text: "Loading recordings..." }));
-    Promise.all([api.get("/recordings"), idb.all()]).then(function (r) {
+    Promise.all([api.get("/recordings"), idb.mine()]).then(function (r) {
       if (prev && !prev.isConnected) return;
       recs.data = r[0];
       var waiting = r[1] || [];
@@ -2641,7 +2645,9 @@
     var meter = h("div", { class: "bar", "aria-label": "Microphone level" }, h("span", { style: "width:0%" }));
     var consent = h("input", { type: "checkbox", id: "dela-rec-consent" });
     var start = h("button", { class: "blue big", disabled: !st.consented }, "Start recording");
-    consent.addEventListener("change", function () { start.disabled = !consent.checked; });
+    // Uploading a recording needs the same consent as recording, and sends the real answer (AI review 0.9.0, privacy 2)
+    var upBtn = h("button", { class: can ? "ghost" : "blue", disabled: !st.consented, onclick: function () { upload.click(); } }, "Upload a recording");
+    consent.addEventListener("change", function () { start.disabled = !consent.checked; upBtn.disabled = !consent.checked; });
     var status = h("div", { role: "status" });
     var probe = null;
     if (can && navigator.mediaDevices.enumerateDevices) {
@@ -2654,7 +2660,7 @@
       }).catch(function () { status.textContent = "DELA could not use a microphone. Allow the microphone for this site (the icon left of the web address), then reload. You can still record without talking, but the steps will be less clear."; });
     }
     var upload = h("input", { type: "file", accept: "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov", style: "display:none" });
-    upload.addEventListener("change", function () { if (upload.files[0]) uploadRecording(upload.files[0], name.value, st, status); });
+    upload.addEventListener("change", function () { if (upload.files[0]) uploadRecording(upload.files[0], name.value, st, status, !!(st.consented || consent.checked)); });
     start.addEventListener("click", function () {
       if (!name.value.trim()) { D.toast(app, "Give the process a name first.", true); name.focus(); return; }
       if (probe) probe.getTracks().forEach(function (t) { t.stop(); });
@@ -2673,10 +2679,11 @@
       card.appendChild(h("div", { class: "notice", style: "border-color:#e8c97a;background:#fff3d6;color:#5a3d00" }, h("b", { text: "💡 Before you start" }),
         h("ul", { style: "margin:6px 0 0" }, h("li", { text: "Close email and chat windows you don't need." }), h("li", { text: "Keep the whole process on one screen." }), h("li", { text: "Say out loud what you are doing and why." }), h("li", { text: "For the beta, record a practice run or non-client work. Confidential client information does not belong in DELA." }))));
       card.appendChild(h("p", { class: "small", text: "Your plan allows recordings up to " + st.max_minutes + " minutes." }));
-      card.appendChild(h("div", { class: "row" }, start, h("button", { class: "ghost", onclick: function () { upload.click(); } }, "Upload a recording"), upload));
+      card.appendChild(h("div", { class: "row" }, start, upBtn, upload));
     } else {
       card.appendChild(h("p", { class: "notice", text: "Screen recording isn't available in this browser. Open DELA in Chrome, Edge, Firefox or Safari on a computer, or upload a recording you made elsewhere." }));
-      card.appendChild(h("div", { class: "row" }, h("button", { class: "blue", onclick: function () { upload.click(); } }, "Upload a recording"), upload));
+      if (!st.consented) card.appendChild(h("label", { style: "display:flex;gap:8px;align-items:flex-start;font-weight:600;margin-top:12px" }, consent, h("span", { text: st.consent_text })));
+      card.appendChild(h("div", { class: "row" }, upBtn, upload));
     }
     card.appendChild(status);
     libEl.appendChild(card);
@@ -2876,7 +2883,7 @@
 
   // Upload a recording made elsewhere (Loom, the computer's own recorder): played once in the background, silently,
   // to take screenshots and the speech, then it goes through the same steps
-  function uploadRecording(file, title, st, status) {
+  function uploadRecording(file, title, st, status, consented) {
     if (!/\.(mp4|webm|mov)$/i.test(file.name)) { D.toast(app, "Upload an MP4, MOV or WebM file.", true); return; }
     var v = document.createElement("video");
     v.preload = "auto";
@@ -2885,7 +2892,7 @@
     v.onloadedmetadata = function () {
       if (v.duration > st.max_minutes * 60 + 5) { status.textContent = "That recording is longer than your plan's " + st.max_minutes + " minutes."; return; }
       if (!v.captureStream && !v.mozCaptureStream) { status.textContent = "Uploading a recording needs Chrome, Edge or Firefox on a computer."; return; }
-      api.post("/recordings/start", { title: title || file.name.replace(/\.[^.]+$/, ""), request_id: newId(), browser: browserName(), mime: file.type, source: "upload", consent: true }).then(function (r) {
+      api.post("/recordings/start", { title: title || file.name.replace(/\.[^.]+$/, ""), request_id: newId(), browser: browserName(), mime: file.type, source: "upload", consent: consented === true }).then(function (r) {
         if (!r.ok) throw r;
         status.textContent = "Reading your recording. This takes about half its length. Keep this tab open.";
         // The sound goes to DELA, not to your speakers
@@ -3944,13 +3951,21 @@
       m.body.appendChild(h("label", { style: "display:flex;gap:8px;font-weight:400;margin:6px 0" }, sb.ok, h("span", { text: "I sign this standing arrangement for the firm, and I agree that Lawfecta may charge the saved payment method for each job hired from it, up to the monthly cap." })));
       var msg = h("p", { class: "small", role: "status" });
       m.body.appendChild(msg);
-      m.foot.appendChild(h("button", { class: "blue", type: "button", onclick: function () {
+      // One request ID for this window, and the button waits for the answer: a double click makes one arrangement
+      // (AI review 0.9.0, payments 1)
+      var req = newId();
+      var send = h("button", { class: "blue", type: "button" }, "Sign and send");
+      send.addEventListener("click", function () {
+        if (send.disabled) return;
+        send.disabled = true;
         api.post("/standing/create", { freelancer_person: person, docs: docs.filter(function (d) { return d.c.checked; }).map(function (d) { return d.c.value; }), price: price.value, cap: cap.value, max_open: Number(open.value),
-          end_on: end.value, allow_firm: firm.checked, typed_name: sb.name.value, consent: sb.ok.checked, request_id: newId() }).then(function (r) {
+          end_on: end.value, allow_firm: firm.checked, typed_name: sb.name.value, consent: sb.ok.checked, request_id: req }).then(function (r) {
+          send.disabled = false;
           if (!r.ok) { msg.textContent = standingErr(r); return; }
           m.close(); D.toast(app, "Sent to " + personName + " to accept."); if (tab === "projects") draw();
-        }).catch(function (e) { msg.textContent = standingErr(e); });
-      } }, "Sign and send"));
+        }).catch(function (e) { send.disabled = false; msg.textContent = standingErr(e); });
+      });
+      m.foot.appendChild(send);
       m.foot.appendChild(h("button", { class: "ghost", type: "button", onclick: m.close }, "Cancel"));
     });
   }
@@ -4170,7 +4185,7 @@
         var fc = h("div", { class: "card" }, h("h2", { text: "Files for this gig" }), h("p", { class: "small muted", text: "Read only, for this gig only. Each file is open to you until the date shown or until the job is complete. Downloads are logged and shown to the attorney." }));
         r.files.forEach(function (f) {
           fc.appendChild(h("div", { class: "row" }, h("span", { class: "grow" }, f.name, f.expires_at ? h("span", { class: "small muted", text: " | until " + D.date(f.expires_at) }) : null), h("button", { class: "ghost small", type: "button", onclick: function () {
-            api.get("/gigs/file?gig=" + g.id + "&file=" + f.file_id).then(gigOk).then(function (x) { window.open(x.url, "_blank", "noopener"); }).catch(gigFail);
+            D.openTab(function () { return api.get("/gigs/file?gig=" + g.id + "&file=" + f.file_id).then(gigOk).then(function (x) { return x.url; }); }, gigFail);
           } }, "Open")));
         });
         el.appendChild(fc);
@@ -4410,7 +4425,7 @@
           box.appendChild(h("p", { style: "margin:0;white-space:pre-wrap", text: m.body }));
           (m.attachments || []).forEach(function (a) {
             box.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-              api.get("/threads/file?thread=" + t.id + "&file=" + a.file_id).then(gigOk).then(function (x) { window.open(x.url, "_blank", "noopener"); }).catch(talkFail);
+              D.openTab(function () { return api.get("/threads/file?thread=" + t.id + "&file=" + a.file_id).then(gigOk).then(function (x) { return x.url; }); }, talkFail);
             } }, "Open " + a.name));
           });
           if (m.status === "held") box.appendChild(h("p", { class: "small bad", text: "Being checked by the Lawfecta Team. The other person does not see it yet." }));
@@ -5174,7 +5189,7 @@
     var stateText = l.state === "open" ? "Expires " + D.date(l.expires_at) : l.state === "expired" ? "Expired " + D.date(l.expires_at) : "Removed";
     var acts = h("div", { class: "row", style: "flex-wrap:wrap" });
     if (l.state === "open") acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-      api.post("/confidential/links/open", { agreement_id: agId, link_id: l.id }).then(engOk).then(function (x) { window.open(x.url, "_blank", "noopener,noreferrer"); }).catch(confFail);
+      D.openTab(function () { return api.post("/confidential/links/open", { agreement_id: agId, link_id: l.id }).then(engOk).then(function (x) { return x.url; }); }, confFail);
     } }, "Open link"));
     if (att && l.state === "open") {
       var rm = h("button", { class: "ghost small", type: "button" }, "Remove");
@@ -5464,7 +5479,7 @@
       var row = h("div", { class: "row", style: "flex-wrap:wrap" }, h("span", { class: "grow small" }, f.name,
         f.saved ? h("span", { class: "small muted", text: " | saved to your library" }) : f.delete_at ? h("span", { class: "small muted", text: " | deleted on " + D.date(f.delete_at) + " unless saved" }) : null),
         h("button", { class: "ghost small", type: "button", onclick: function () {
-          api.get("/deliverables/file?submission=" + s.id + "&file=" + f.file_id).then(engOk).then(function (x) { window.open(x.url, "_blank", "noopener"); }).catch(engFail);
+          D.openTab(function () { return api.get("/deliverables/file?submission=" + s.id + "&file=" + f.file_id).then(engOk).then(function (x) { return x.url; }); }, engFail);
         } }, "Open"));
       if (r.role === "attorney" && !f.saved) row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
         api.post("/deliverables/save", { submission_id: s.id, file_id: f.file_id }).then(engOk).then(function () { engReload("Saved to your Files tab. DELA's AI never reads files from a job."); }).catch(engFail);
@@ -7592,7 +7607,9 @@
   function signOut() {
     closeMenu();
     show(frame("Signing you out...", "One moment."));
-    api.signOut().then(function () { location.href = logoutUrl; });
+    // Unfinished recording parts and their notes leave this browser with the person (AI review 0.9.0, privacy 1)
+    var clearLocal = idb.clear().then(function () { try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf("dela.rec.") === 0) localStorage.removeItem(k); }); } catch (e) { /* private windows */ } });
+    Promise.all([clearLocal, api.signOut()]).then(function () { location.href = logoutUrl; }, function () { location.href = logoutUrl; });
   }
 
   // A notice's own button (UX review N01): the stored link is a DELA page such as /dela?tab=projects&gig=ID&view=agreement.

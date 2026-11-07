@@ -199,9 +199,22 @@ async function sign(page, name, version) {
     s = await open(browser, "DELA-App", 2800, `&tab=projects&gig=${gigId}&view=agreement`);
     p = s.page;
     await waitFor(p, "petition-draft.txt");
+    // Fix (AI review 0.9.0, tests 1): the tab opens during the click, before the server answers, so a pop-up blocker
+    // (Safari above all) allows it; it then goes to the file. The server's answer is held back a second to prove it.
+    await p.route("**/deliverables/file*", async (r) => { await new Promise((w) => setTimeout(w, 1500)); await r.continue(); });
+    await p.evaluate(() => { const o = window.open; window.__opened = []; window.open = function () { window.__opened.push(Date.now()); return o.apply(window, arguments); }; });
+    const clickedAt = await p.evaluate(() => Date.now());
+    const popup = p.waitForEvent("popup");
+    const fileReq = s.ctx.waitForEvent("request", { predicate: (r) => r.url().includes("/test/storage/get/") && r.frame().page() !== p, timeout: 10000 }).catch(() => null);
     const [resp] = await Promise.all([p.waitForResponse((r) => r.url().includes("/deliverables/file")), dela(p).getByRole("button", { name: "Open", exact: true }).first().click()]);
     const dl = await resp.json();
     ok(dl.ok && dl.name === "petition-draft.txt" && dl.url.includes("/test/storage/get/"), "attorney: opens the delivered file (a short-lived link, and the download is logged)");
+    const opened = await p.evaluate(() => window.__opened);
+    ok(opened.length === 1 && opened[0] - clickedAt < 1000, "attorney: the new tab opens during the click, before the server answers");
+    const tab = await popup;
+    ok(!!(await fileReq), "attorney: the new tab then goes to the file");
+    await tab.close().catch(() => {});
+    await p.unroute("**/deliverables/file*");
     ok((await sql("select count(*)::int n from deliverable_downloads"))[0].n === 1, "attorney: the download is in the log");
     await click(p, "Accept and release payment");
     t = await waitFor(p, "Accepted");

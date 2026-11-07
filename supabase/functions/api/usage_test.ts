@@ -97,6 +97,15 @@ Deno.test("bonus credits: the Lawfecta Team only, a note required, this month on
   assertEquals((await call("POST", "/admin/usage/bonus", free.token, { person_id: free.id, amount: 20, note: "x" })).status, 403);
   assertEquals((await call("POST", "/admin/usage/bonus", team.token, { person_id: free.id, amount: 20, note: " " })).body.reason, "note_required");
   assert((await call("POST", "/admin/usage/bonus", team.token, { person_id: free.id, amount: 20, note: "Launch week" })).body.ok);
+  // Fix (AI review 0.9.0, payments 2): the same grant sent twice (a double click) adds the bonus once
+  const extra = await member(9, "att_free");
+  const before = Number((await pool.query("select coalesce(sum(amount), 0) n from usage_bonus where person_id = $1", [extra.id])).rows[0].n);
+  const req = "bonus-" + crypto.randomUUID();
+  const g1 = (await call("POST", "/admin/usage/bonus", team.token, { person_id: extra.id, amount: 7, note: "Double click", request_id: req })).body;
+  const g2 = (await call("POST", "/admin/usage/bonus", team.token, { person_id: extra.id, amount: 7, note: "Double click", request_id: req })).body;
+  assertEquals([g1.ok, g2.ok, g2.duplicate, g2.id === g1.id], [true, true, true, true]);
+  const after = Number((await pool.query("select coalesce(sum(amount), 0) n from usage_bonus where person_id = $1", [extra.id])).rows[0].n);
+  assertEquals(after - before, 7, "added once");
   assertEquals((await call("GET", "/usage", free.token)).body.actions.limit, 70);
   assert((await reserve(free, 20, "u-f3")).ok, "the bonus can be used");
   assertEquals((await one("select plan_code from side_profiles where person_id = $1 and side = 'attorney'", [free.id])).plan_code, "att_free");

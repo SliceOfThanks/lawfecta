@@ -92,8 +92,11 @@ const ATT = 4400, FL = 4401, TEAM = 4402;
     await label(p, "Most jobs open at once").fill("2");
     await label(p, "Standing arrangement: type your full name").fill("Sam Standing");
     await label(p, "Standing arrangement: I agree").check();
-    await click(p, "Sign and send");
+    // Fix (AI review 0.9.0, payments 1): a double click on Sign and send makes one arrangement
+    await dela(p).getByRole("button", { name: "Sign and send", exact: true }).first().dblclick();
     await waitFor(p, "Sent to Rita Repeat to accept.");
+    await p.waitForTimeout(800);
+    ok((await sql("select count(*)::int n from standing_arrangements"))[0].n === 1, "a double click on Sign and send makes one arrangement");
     await p.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=projects`);
     t = await waitFor(p, "Standing arrangements (1)", 10000);
     ok(t.includes("Waiting for the freelancer") && t.includes("$300 per job | $0 of $700 this month | 0 of 2 jobs open"), "Projects shows the arrangement and its limits");

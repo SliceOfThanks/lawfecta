@@ -169,6 +169,49 @@ async function waitFor(page, words, ms) {
     ok(t.includes("Your plan allows recordings up to"), "the direct link /dela?tab=record opens the Record a Process page");
     await s.ctx.close();
 
+    // Fix (AI review 0.9.0, privacy 2): uploading a recording needs the consent box ticked first, like recording does
+    await sql(`insert into people (bd_member_id, display_name, email) values (2301, 'New Recorder', 'rec2@test.invalid') on conflict do nothing;
+      select dela_ensure_side((select id from people where bd_member_id = 2301), 'attorney', 'att_pro', 'staff_grant');
+      insert into access_list (bd_member_id, channel) values (2301, 'access'); select 1`);
+    s = await open(browser, 2301, { viewport: { width: 1200, height: 900 }, permissions: ["microphone"], startTab: "record" });
+    await waitFor(s.page, "Upload a recording");
+    const upBtn = dela(s.page).getByRole("button", { name: "Upload a recording", exact: true });
+    ok(await upBtn.isDisabled(), "Upload a recording waits until the consent box is ticked");
+    await dela(s.page).locator("#dela-rec-consent").check();
+    ok(await upBtn.isEnabled(), "ticking the consent box allows the upload");
+
+    // Fix (AI review 0.9.0, privacy 1): unfinished parts left in this browser by someone else are never offered, and
+    // signing out removes this person's own
+    const meId = (await sql("select id from people where bd_member_id = 2301"))[0].id;
+    const putPart = (owner) => s.page.evaluate((o) => new Promise((done) => {
+      const r = indexedDB.open("dela-recorder", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("parts", { keyPath: "key" });
+      r.onsuccess = () => { const tx = r.result.transaction("parts", "readwrite"); tx.objectStore("parts").put({ key: o + ":screen:0", recId: o, kind: "screen", seq: 0, startMs: 0, blob: new Blob(["x"]), at: Date.now(), owner: o }); tx.oncomplete = () => { r.result.close(); done(); }; };
+    }), owner);
+    const countParts = () => s.page.evaluate(() => new Promise((done) => {
+      const r = indexedDB.open("dela-recorder", 1);
+      r.onupgradeneeded = () => r.result.createObjectStore("parts", { keyPath: "key" });
+      r.onsuccess = () => { const q = r.result.transaction("parts").objectStore("parts").count(); q.onsuccess = () => { r.result.close(); done(q.result); }; };
+    }));
+    await putPart("someone-else");
+    await click(s.page, "Home");
+    await click(s.page, "Library");
+    t = await waitFor(s.page, "Recordings");
+    await s.page.waitForTimeout(800);
+    t = await text(s.page);
+    ok(!t.includes("Your last recording didn't finish uploading."), "another person's unfinished recording in this browser is not offered");
+    await putPart(meId);
+    await click(s.page, "Home");
+    await click(s.page, "Library");
+    await waitFor(s.page, "Your last recording didn't finish uploading.");
+    ok(true, "this person's own unfinished recording is offered");
+    await s.page.evaluate(() => localStorage.setItem("dela.rec.test", "notes"));
+    await s.page.route(BASE + "/logout", (r) => r.fulfill({ body: "<h1>Lawfecta login</h1>", contentType: "text/html" }));
+    await dela(s.page).getByRole("button", { name: "Account menu" }).click();
+    await Promise.all([s.page.waitForURL(/\/logout/, { timeout: 10000 }), dela(s.page).getByRole("menuitem", { name: "Sign out" }).click()]);
+    ok(await countParts() === 0 && await s.page.evaluate(() => localStorage.getItem("dela.rec.test")) === null, "signing out removes unfinished recording parts and notes from this browser");
+    await s.ctx.close();
+
     // Phones see the upload option instead
     s = await open(browser, 2300, Object.assign({}, devices["iPhone 13"], { permissions: [] }));
     await click(s.page, "Library");

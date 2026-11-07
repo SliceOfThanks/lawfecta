@@ -114,9 +114,11 @@ const ATT = 4200, TEAM = 4201;
     await waitFor(p, "Add a note saying why.");
     ok(true, "a bonus needs a note");
     await label(p, "Note for the bonus for Member 4200").fill("Launch week");
-    await row.getByRole("button", { name: "Grant bonus actions" }).click();
+    // Fix (AI review 0.9.0, payments 2): a double click grants the bonus once
+    await row.getByRole("button", { name: "Grant bonus actions" }).dblclick();
     t = await waitFor(p, "includes 25 bonus");
     ok(t.includes("40 of 75"), "the bonus raises this month's limit");
+    ok((await sql(`select coalesce(sum(amount), 0)::int n from usage_bonus where person_id = '${ids.att}'`))[0].n === 25, "a double click on Grant bonus actions adds the bonus once");
     await s.ctx.close();
     console.log(passed + " browser checks passed");
   } catch (e) {

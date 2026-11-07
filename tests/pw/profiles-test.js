@@ -219,10 +219,18 @@ async function waitFor(page, words, ms) {
     ok(true, "a document uploads, passes the check, and is shown to attorneys only when the freelancer chooses");
     await s.ctx.close();
 
+    // Fix (AI review 0.9.0, security 4): an address that is not LinkedIn's shows as plain text, never as a link
+    await sql("update linkedin_checks set url = 'javascript:alert(1)' where status = 'pending'; select 1");
     a = await open(browser, "admin");
     ap = a.page;
     await dela(ap).getByRole("tab", { name: "Verification" }).click();
     t = await waitFor(ap, "Freelancer LinkedIn checks (1)");
+    ok(t.includes("javascript:alert(1)") && await dela(ap).locator("a[href^='javascript']").count() === 0, "an address that is not LinkedIn's is not a link");
+    await sql("update linkedin_checks set url = 'https://www.linkedin.com/in/fran-freelancer' where status = 'pending'; select 1");
+    await dela(ap).getByRole("tab", { name: "Overview" }).click();
+    await dela(ap).getByRole("tab", { name: "Verification" }).click();
+    t = await waitFor(ap, "Freelancer LinkedIn checks (1)");
+    ok(await dela(ap).locator("a[href='https://www.linkedin.com/in/fran-freelancer']").count() === 1, "a LinkedIn address is a link");
     ok(t.includes("Name on the DELA profile: Fran Freelancer"), "the team sees the LinkedIn profile next to the DELA name");
     await click(ap, "Checked");
     await waitFor(ap, "Tick both: the name matches");

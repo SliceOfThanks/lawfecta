@@ -4549,7 +4549,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /admin/standing": { const s = await staff(ctx); return json(ctx, await rpc(ctx, "dela_admin_standing", { p_actor: s.person_id })); }
       case "GET /usage": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_usage", { p_person: s.person_id, p_side: s.side })); }
       case "GET /admin/usage": { const s = await staff(ctx); return json(ctx, await rpc(ctx, "dela_admin_usage", { p_actor: s.person_id })); }
-      case "POST /admin/usage/bonus": { const s = await staff(ctx); return json(ctx, await rpc(ctx, "dela_admin_usage_bonus", { p_actor: s.person_id, p_person: need(uuid(ctx.body.person_id)), p_amount: int(ctx.body.amount), p_note: str(ctx.body.note, 500) })); }
+      case "POST /admin/usage/bonus": { const s = await staff(ctx); return json(ctx, await rpc(ctx, "dela_admin_usage_bonus", { p_actor: s.person_id, p_person: need(uuid(ctx.body.person_id)), p_amount: int(ctx.body.amount), p_note: str(ctx.body.note, 500), p_request: str(ctx.body.request_id, 80) })); }
       case "POST /admin/usage/resync": return await planResync(ctx);
       case "GET /health": {
         // Watched every 5 minutes by the uptime monitor. 503 when the database or the background worker is not working.

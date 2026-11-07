@@ -989,9 +989,20 @@
               h("button", { class: "ghost small", type: "button", onclick: function () {
                 api.post("/admin/usage/resync", { person_id: x.person_id }).then(function (y) { var z = y.data || y; if (z.ok === false) throw new Error(z.reason); ok(z.changed ? "Plan updated: " + z.from + " to " + z.to : "The plan is up to date."); usageTab(); }).catch(fail);
               } }, "Resync plan"),
-              amt, note, h("button", { class: "ghost small", type: "button", onclick: function () {
-                api.post("/admin/usage/bonus", { person_id: x.person_id, amount: Number(amt.value), note: note.value }).then(function (y) { var z = y.data || y; if (z.ok === false) throw new Error(z.reason); ok("Bonus actions added for this month."); usageTab(); }).catch(fail);
-              } }, "Grant bonus actions"))));
+              amt, note, (function () {
+                // One request ID per form, and the button waits for the answer, so a double click adds the bonus once
+                // (AI review 0.9.0, payments 2)
+                var req = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : "b" + Date.now() + Math.random().toString(36).slice(2);
+                var go = h("button", { class: "ghost small", type: "button" }, "Grant bonus actions");
+                go.addEventListener("click", function () {
+                  if (go.disabled) return;
+                  go.disabled = true;
+                  api.post("/admin/usage/bonus", { person_id: x.person_id, amount: Number(amt.value), note: note.value, request_id: req }).then(function (y) {
+                    var z = y.data || y; if (z.ok === false) throw new Error(z.reason); ok("Bonus actions added for this month."); usageTab();
+                  }).catch(function (e) { go.disabled = false; fail(e); });
+                });
+                return go;
+              })())));
         })))));
     }).catch(fail);
   }
@@ -1107,13 +1118,14 @@
       area.appendChild(h("p", { class: "small notice", text: "Logged: both people see that a Lawfecta reviewer opened these materials." }));
       d.files.forEach(function (f) {
         area.appendChild(h("div", { class: "row" }, h("span", { class: "grow", text: f.name + " (" + f.by + ", " + D.date(f.at) + ")" }), h("button", { class: "ghost small", type: "button", onclick: function () {
-          api.post("/admin/confidential/open", { agreement_id: agreementId, file_id: f.id }).then(function (x) {
+          // The tab opens during the click (pop-up blockers allow it); a file shown from memory is released a minute later
+          D.openTab(function () { return api.post("/admin/confidential/open", { agreement_id: agreementId, file_id: f.id }).then(function (x) {
             var p = x.data || x;
-            if (!p.ok) { fail({ message: p.reason }); return; }
-            if (p.kind === "download") { window.open(p.url, "_blank", "noopener"); return; }
+            if (!p.ok) throw { message: p.reason };
+            if (p.kind === "download") return p.url;
             var blob = new Blob([Uint8Array.from(atob(p.b64), function (c) { return c.charCodeAt(0); })], { type: p.kind === "pdf" ? "application/pdf" : "image/" + (p.ext === "png" ? "png" : "jpeg") });
-            window.open(URL.createObjectURL(blob), "_blank", "noopener");
-          }).catch(fail);
+            return URL.createObjectURL(blob);
+          }); }, fail);
         } }, "Open")));
       });
       if (d.messages.length) area.appendChild(h("h3", { text: "Messages" }));
@@ -1233,7 +1245,8 @@
         }
         li.appendChild(h("div", { class: "card", style: "margin:8px 0" },
           h("b", { text: c.name + " (" + c.bd_member_id + ")" }), h("div", { class: "small", text: "Name on the DELA profile: " + (c.profile_name || "not filled in") }),
-          h("div", { class: "small" }, h("a", { href: c.url, target: "_blank", rel: "noopener noreferrer", text: c.url })),
+          // Only a LinkedIn address becomes a link; anything else shows as plain text (AI review 0.9.0, security 4)
+          h("div", { class: "small" }, /^https:\/\/([a-z]{2,3}\.)?linkedin\.com\//i.test(String(c.url || "")) ? h("a", { href: c.url, target: "_blank", rel: "noopener noreferrer", text: c.url }) : h("span", { text: String(c.url || "") })),
           h("label", { style: "font-weight:400;display:flex;gap:8px" }, nm, h("span", { text: "The name on LinkedIn matches" })),
           h("label", { style: "font-weight:400;display:flex;gap:8px" }, badge, h("span", { text: "LinkedIn shows its verified badge" })),
           reason, h("div", { class: "row", style: "margin-top:6px" },
