@@ -105,8 +105,21 @@ async function makeMember(bd, side, plan) {
     await click(p, "Send");
     t = await waitFor(p, "Being checked by the Lawfecta Team");
     ok(true, "a message with contact details and payment outside Lawfecta is held");
+    const slotsResp = p.waitForResponse((r) => r.url().includes("/meetings/slots"));
     await click(p, "Book a meeting");
+    const slotsJson = await (await slotsResp).json();
     t = await waitFor(p, "Times are shown in your own time zone");
+    // Fix (AI review 0.9.0, tests 4; the Track B bug where times stopped at 2:45 PM): every open time of the first day is
+    // offered once "Show more times" is opened, including the day's last time
+    const bookCard = dela(p).locator(".card[aria-label='Book a meeting']");
+    while (await bookCard.getByRole("button", { name: "Show more times" }).count()) await bookCard.getByRole("button", { name: "Show more times" }).first().click();
+    const perDay = await p.evaluate((slots) => {
+      const out = [], seen = {};
+      slots.forEach((x) => { const d = new Date(x).toDateString(); if (!(d in seen)) { seen[d] = out.length; out.push(0); } out[seen[d]]++; });
+      return out.slice(0, 14);
+    }, (slotsJson.slots || []));
+    const shown = await bookCard.locator("div[style*='margin:10px 0']").evaluateAll((els) => els.map((e) => e.querySelectorAll("button.slot").length));
+    ok(Math.max(...perDay) > 24 && JSON.stringify(shown) === JSON.stringify(perDay), "every open time of each day is offered, past the old cut-off of 24 (" + shown.join(",") + ")");
     await dela(p).locator(".card[aria-label='Book a meeting'] button.slot").first().click();
     ok((await dela(p).locator("#book-summary").innerText()).includes("Selected:"), "picking a time shows what was selected before booking (UX review I03)");
     await click(p, "Review booking");
