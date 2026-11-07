@@ -1837,7 +1837,16 @@
 
   // ---------- One playbook ----------
 
-  function openPlaybook(id, view) {
+  // The Library's Review column (step 8b, retest R04): the quality check's notes are "quality notes", never
+  // "suggestions" (those are AI-proposed edits, on the document's "Suggested edits" tab). The count opens exactly those
+  // notes: the document's draft and review page, scrolled to its quality check.
+  function reviewCell(p) {
+    var n = p.blocking || p.attention || 0;
+    if (!n) return h("span", { text: "None" });
+    var words = n + (n === 1 ? " quality note" : " quality notes") + (p.blocking ? " (required)" : "");
+    return h("button", { class: "linkish", type: "button", "aria-label": "Open the " + words + " for " + p.title, onclick: function (e) { e.stopPropagation(); openPlaybook(p.id, "read", "quality-check"); } }, words);
+  }
+  function openPlaybook(id, view, focusId) {
     lib.importId = null;
     Promise.all([api.get("/playbooks/get?id=" + id), loadUsage()]).then(function (rs) {
       var r = rs[0];
@@ -1849,6 +1858,7 @@
       // Phase 4 part A: a document with an approved version opens on that version, read-only
       lib.view = view || (other && r.approved ? "approved" : lib.view) || "read";
       drawPlaybook();
+      if (focusId) setTimeout(function () { var el = app.querySelector("#" + focusId); if (el) { el.setAttribute("tabindex", "-1"); el.scrollIntoView({ block: "start" }); el.focus({ preventScroll: true }); } }, 0);
     }).catch(function (e) { pbFail(e); loadLibrary(); });
   }
 
@@ -1881,7 +1891,7 @@
       P.missing.length ? h("p", { class: "small", style: "margin:6px 0 0", text: "Still missing: " + P.missing.join(", ") + "." }) : h("p", { class: "small", style: "margin:6px 0 0", text: "Every required part is filled." + ((lib.questions || []).length ? " DELA still has " + lib.questions.length + (lib.questions.length === 1 ? " question" : " questions") + " for you below: check its guesses before you approve." : "") }));
     libEl.appendChild(pctBar);
     if (lib.questions && lib.questions.length && can(3)) libEl.appendChild(questionsCard());
-    var views = [["read", "Read"], ["edit", "Edit"], ["chat", "Chat"], ["suggestions", "Suggestions (" + lib.pb.suggestions.length + ")"], ["comments", "Comments (" + lib.pb.comments.filter(function (c) { return !c.resolved; }).length + ")"],
+    var views = [["read", "Read"], ["edit", "Edit"], ["chat", "Chat"], ["suggestions", "Suggested edits (" + lib.pb.suggestions.length + ")"], ["comments", "Comments (" + lib.pb.comments.filter(function (c) { return !c.resolved; }).length + ")"],
       ["activity", "Activity"], ["versions", "Versions"], ["files", "Files (" + lib.pb.files.length + ")"], ["export", "Export"]];
     if (!can(3)) views = views.filter(function (v) { return ["edit", "files", "export"].indexOf(v[0]) < 0 || v[0] === "files"; });
     libEl.appendChild(h("div", { class: "tabs", role: "tablist", style: "border-radius:14px;margin:10px 0" }, views.map(function (v) {
@@ -6300,7 +6310,7 @@
           h("td", { "data-label": "Type", text: DOC_TYPE_WORDS[p.doc_type] || "Older playbook" }), h("td", { "data-label": "Owner (role)", text: p.owner_role || "Not assigned" }),
           h("td", { "data-label": "Status" }, h("span", { class: "badge " + (p.status === "approved" ? "ready" : p.status === "in_review" ? "held" : ""), text: PB_STATUS[p.status] })),
           h("td", { "data-label": "Next review", text: p.next_review_at ? D.date(p.next_review_at) + (due ? " (due)" : "") : "Not scheduled" }),
-          h("td", { "data-label": "Review", text: p.blocking ? "Review " + p.blocking + (p.blocking === 1 ? " issue" : " issues") : p.attention ? p.attention + (p.attention === 1 ? " suggestion" : " suggestions") : "None" })));
+          h("td", { "data-label": "Review" }, reviewCell(p))));
       });
     });
     listEl.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack doc-index", style: "width:100%" },
@@ -6654,7 +6664,7 @@
       h("div", null, "Owner (role)", owner), h("div", null, "Last reviewed", h("b", { text: P.last_reviewed_at ? D.date(P.last_reviewed_at) : P.approved_version ? "Never reviewed since approval" : "Not reviewed yet" })),
       h("div", null, "Next review", h("b", { text: P.next_review_at ? D.date(P.next_review_at) : (d.high_risk ? "3 months after approval" : "12 months after approval") })),
       h("div", null, "High risk", h("label", { style: "display:flex;gap:6px;font-weight:400" }, risk, h("span", { text: "Trust, conflicts or deadlines (reviewed every 3 months)" })))));
-    var views = [["read", "Draft and review"], ["chat", "Chat"], ["suggestions", "Suggestions (" + lib.pb.suggestions.length + ")"], ["comments", "Comments (" + lib.pb.comments.filter(function (c) { return !c.resolved; }).length + ")"],
+    var views = [["read", "Draft and review"], ["chat", "Chat"], ["suggestions", "Suggested edits (" + lib.pb.suggestions.length + ")"], ["comments", "Comments (" + lib.pb.comments.filter(function (c) { return !c.resolved; }).length + ")"],
       ["activity", "Activity"], ["versions", "Versions"], ["files", "Files (" + lib.pb.files.length + ")"]];
     if (AV) {
       if (AV.current && lib.editDraft !== P.id) views[0] = ["approved", "Approved version"];

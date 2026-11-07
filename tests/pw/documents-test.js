@@ -81,12 +81,23 @@ async function makeMember(bd, side, plan) {
     ok(conv.length === 1 && conv[0].doc_type === "sop" && conv[0].conv && conv[0].doc_id.startsWith("INT-"), "the type check makes it an SOP with an ID (" + JSON.stringify(conv[0]) + ")");
     const oldId = conv[0].doc_id;
 
+    // Two quality notes on the imported document, for the Review column check below
+    await sql(`update playbooks set attention = 2, blocking = 0 where doc_id = '${oldId}'; select 1`);
     s = await open(browser, 3600);
     p = s.page;
     await click(p, "Library");
     t = await waitFor(p, "Intake and conflicts");
     ok(t.includes(oldId) && t.includes("Imported: review required") && t.includes("Owner (role)") && t.includes("Next review") && t.includes("Review") && !t.includes("Converted: check it") && !/\d+ blocking/.test(t), "the master index groups by lifecycle with ID, type, owner role, next review and a Review column (UX review L02)");
     ok(await dela(p).locator("table.doc-index").count() === 1 && await dela(p).locator("table.doc-index tr.band").count() >= 1, "the library is one aligned table with a band row per lifecycle group (UX review L01)");
+    // Fix (step 8b, retest R04): the Review count says "quality notes" and opens exactly those, on the quality check
+    const noteBtn = dela(p).locator("tr", { hasText: oldId }).first().getByRole("button", { name: /quality note/ });
+    ok(await noteBtn.count() === 1 && /quality notes?/.test(await noteBtn.innerText()) && !t.includes(" suggestions"), "the Review column counts quality notes, not suggestions (" + (await noteBtn.innerText().catch(() => "none")) + ")");
+    await noteBtn.click();
+    await waitFor(p, "Blocking items are required before approval");
+    ok(await p.evaluate(() => { const q = document.querySelector(".dela-host").shadowRoot.querySelector("#quality-check"); const r = q && q.getBoundingClientRect(); return !!r && r.top < innerHeight && r.bottom > 0; }), "the count opens the document at its quality check");
+    ok(!(await text(p)).includes("Suggestions ("), "the AI-proposed edits tab is called Suggested edits");
+    await click(p, "← Library");
+    await waitFor(p, "Intake and conflicts");
     await dela(p).locator("tr", { hasText: oldId }).first().click();
     t = await waitFor(p, "DELA moved this to the document standard as SOP");
     ok(t.includes("Draft, not approved"), "a converted document shows Draft, not approved until it is approved again");

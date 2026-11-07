@@ -95,9 +95,9 @@ async function makeMember(bd, side, plan) {
     ok(true, "chat answers a question about the playbook");
     await dela(p).getByLabel("Message about this document").fill("Please add a step to send the welcome email");
     await click(p, "Send");
-    t = await waitFor(p, "Suggestions (1)");
+    t = await waitFor(p, "Suggested edits (1)");
     ok(t.includes("waiting on the Suggestions view"), "a requested change becomes a suggestion");
-    await tab(p, "Suggestions (1)");
+    await tab(p, "Suggested edits (1)");
     t = await waitFor(p, "Add a welcome email");
     ok(t.includes("Send the welcome email"), "the suggestion shows what would change");
     await click(p, "Accept");
@@ -112,8 +112,8 @@ async function makeMember(bd, side, plan) {
     await dela(p).getByText("Suggest new text for this part").click();
     await dela(p).getByLabel("Suggested text").fill("A signed engagement letter, the retainer paid, and an opened file");
     await click(p, "Send");
-    await waitFor(p, "Suggestions (1)");
-    await tab(p, "Suggestions (1)");
+    await waitFor(p, "Suggested edits (1)");
+    await tab(p, "Suggested edits (1)");
     await waitFor(p, "the retainer paid");
     await click(p, "Accept");
     await waitFor(p, "Version 4");
