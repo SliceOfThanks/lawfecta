@@ -221,10 +221,12 @@ async function sign(page, name, version) {
       await p.route("**/deliverables/file*", (r) => r.fulfill({ json: answer }));
       const opened2 = p.waitForEvent("popup");
       await dela(p).getByRole("button", { name: "Open", exact: true }).first().click();
+      // The message shows for a few seconds, so it is watched for while the tab closes (slower on GitHub's machines)
+      const said = words ? waitFor(p, words, 15000).then(() => true, () => false) : Promise.resolve(true);
       const tab2 = await opened2;
-      await tab2.waitForEvent("close", { timeout: 5000 }).catch(() => {});
+      if (!tab2.isClosed()) await tab2.waitForEvent("close", { timeout: 15000 }).catch(() => {});
       ok(tab2.isClosed(), "the blank tab closes when the server answers " + JSON.stringify(answer));
-      if (words) { await waitFor(p, words); ok(true, "the page says the link cannot be opened"); }
+      ok(await said, "the page says so when the link cannot be opened");
       await p.unroute("**/deliverables/file*");
     }
     ok((await sql("select count(*)::int n from deliverable_downloads"))[0].n === 1, "attorney: the download is in the log");
