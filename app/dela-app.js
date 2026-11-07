@@ -1853,7 +1853,7 @@
     var n = p.blocking || p.attention || 0;
     if (!n) return h("span", { text: "None" });
     var words = n + (n === 1 ? " quality note" : " quality notes") + (p.blocking ? " (required)" : "");
-    return h("button", { class: "linkish", type: "button", "aria-label": "Open the " + words + " for " + p.title, onclick: function (e) { e.stopPropagation(); openPlaybook(p.id, "read", "quality-check"); } }, words);
+    return h("button", { class: "linkish", type: "button", "aria-label": "Open the " + words + " for " + p.title, onclick: function (e) { e.stopPropagation(); openPlaybook(p.id, p.status === "approved" ? "approved" : "read", "quality-check"); } }, words);
   }
   function openPlaybook(id, view, focusId) {
     lib.importId = null;
@@ -3184,7 +3184,10 @@
     var sch = String(p.schedule || "").trim(), d = p.days_to_deliver;
     if (!d) return sch || "-";
     var says = new RegExp("^" + d + "\\s*(business\\s+)?days?\\.?$", "i").test(sch);
-    return !sch || says ? d + (d === 1 ? " day" : " days") + " from signing" : sch + " (" + d + (d === 1 ? " day" : " days") + " from signing)";
+    if (!sch || says) return d + (d === 1 ? " day" : " days") + " from signing";
+    // The freelancer's own words already give the same number (for example "Within 5 business days"): say only when it starts
+    if (new RegExp("\\b" + d + "\\s+(business\\s+)?days?\\b", "i").test(sch)) return sch + ", from signing";
+    return sch + " (" + d + (d === 1 ? " day" : " days") + " from signing)";
   }
   // A monthly change shown next to what is in force now (step 8b, retest R10): each task's quantity, the price and the
   // way units are delivered, current and proposed side by side, and when it would start
@@ -6712,7 +6715,7 @@
     })));
     var area = h("div");
     libEl.appendChild(area);
-    if (lib.view === "approved" && AV) approvedPage(area, d, AV, edit);
+    if (lib.view === "approved" && AV) approvedPage(area, d, AV, edit, ck);
     else if (lib.view === "read" || lib.view === "edit" || lib.view === "export") reviewScreen(area, d, ck, edit);
     else ({ chat: pbChatView, suggestions: docSuggestionsView, comments: commentsView, activity: activityView, versions: versionsView, files: pbFilesView })[lib.view](area, d);
     if (can(4)) {
@@ -6748,7 +6751,7 @@
   function fixLabel(it) { var l = String(it.label || "").split(":")[0]; return "Fix it: " + (l.length > 48 ? l.slice(0, 46) + "..." : l); }
 
   // Phase 4 part A (UX review D01): the approved version, read-only. Gigs, standing arrangements and exports use it.
-  function approvedPage(area, d, AV, edit) {
+  function approvedPage(area, d, AV, edit, ck) {
     var P = lib.pb.playbook, draftOpen = !AV.current;
     var card = h("div", { class: "card", id: "approved-version" }, h("h2", { text: "Approved version " + AV.version }));
     card.appendChild(h("div", { class: "kv" },
@@ -6772,6 +6775,18 @@
     card.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:8px" }, h("span", { class: "small", text: "Export the approved version: " }),
       [["docx", "Word"], ["pdf", "PDF"], ["md", "Markdown"], ["html", "Web page"], ["csv", "Step checklist"]].map(function (f) { return h("button", { class: "ghost small", type: "button", onclick: function () { doExport(f[0], "approved"); } }, f[1]); })));
     area.appendChild(card);
+    // The quality check's notes on the approved version, read-only (step 8b, retest R04 follow-up: the Library's
+    // "N quality notes" link opens here for an approved document). Acting on them means a new draft.
+    var notes = ((ck || {}).items || []).filter(function (it) { return it.status !== "pass"; });
+    if (notes.length) {
+      var qn = h("div", { class: "card", id: "quality-check" }, h("h2", { text: "Quality notes (" + notes.length + ")" }),
+        h("p", { class: "small muted", text: "What the quality check suggests for this version. They do not block anything, and they do not confirm the document is legally correct. To act on them, start a new draft; the approved version stays in use until the new one is approved." }));
+      notes.forEach(function (it) {
+        qn.appendChild(h("div", { class: "qp-item " + it.status, style: "margin:6px 0" }, h("div", { class: "row" }, h("b", { class: "grow", text: (it.status === "blocking" ? "✕ " : "! ") + it.label }),
+          h("span", { class: "badge " + (it.status === "blocking" ? "bad" : "held"), text: it.status === "blocking" ? "Required before approval" : "Suggestion" })), it.detail ? h("div", { class: "small", text: it.detail }) : null));
+      });
+      area.appendChild(qn);
+    }
     // The document itself, laid out as the export (no boxes, no Save buttons)
     var doc = h("div", { class: "card", id: "approved-body" });
     (AV.blocks || []).forEach(function (b) {

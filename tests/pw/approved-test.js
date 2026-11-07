@@ -82,6 +82,16 @@ const ATT = 4410;
     await dela(p).getByRole("tab", { name: "Approved version", exact: true }).click();
     await waitFor(p, "Approved version 1");
 
+    // Fix (ChatGPT check of step 8b Part A, step 6): on an approved document the Library's "N quality notes" link opens
+    // the Approved version page at a read-only "Quality notes" card (it used to land on the approved page with no notes)
+    await sql(`update playbooks set attention = 2 where id = '${pb}'; select 1`);
+    await p.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=library`);
+    await waitFor(p, "New client intake");
+    await dela(p).locator("tr", { hasText: "INT-07" }).first().getByRole("button", { name: /quality note/ }).click();
+    t = await waitFor(p, "Approved version 1");
+    ok(await dela(p).locator("#quality-check").count() === 1 && /Quality notes \(\d+\)/.test(t) && t.includes("To act on them, start a new draft"), "the quality notes link opens the approved page at its quality notes");
+    ok(await p.evaluate(() => { const q = document.querySelector(".dela-host").shadowRoot.querySelector("#quality-check"); const r = q && q.getBoundingClientRect(); return !!r && r.top < innerHeight && r.bottom > 0; }), "scrolled to the notes");
+
     // ---------- Edit a new draft, save, and the approved version stays in use ----------
     await click(p, "Edit a new draft");
     t = await waitFor(p, "Your first save makes version 2");
