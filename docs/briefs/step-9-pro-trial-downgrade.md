@@ -1,7 +1,7 @@
 # Feature brief: Pro trial on signup and automatic downgrade to Free
 
 Step: 9 (BD plans)   Spec references: developer notes from Stacey 2026-11-06; trial settings trial.* in config/decisions.json
-Status: draft, questions for Stacey. Nothing is built until she answers.
+Status: answered by Stacey 2026-11-07 (below). Next: the read-only BD API check, then the build.
 
 ## Who
 New freelancers on hirelegalhelp.com (the test site), later lawfecta.com. Plans in BD (website ID 24325): Free (3), Plus (7), Pro (8), Agency Business (9), Pro Founding Member (10), Agency Business Lifetime (11). The Lawfecta Team (owner) watches the runs.
@@ -35,12 +35,13 @@ Members see every paid feature before deciding to pay. Nobody skips the trial by
 - An endpoint DELA needs does not exist in BD's API (cancelling an invoice or a subscription is the most likely gap). Then that step needs a different route or stays manual.
 - A paying member downgraded by mistake. Guard: check for a paid Pro invoice at the moment of the change, skip anything not "active", and start with a dry run that only lists who would change.
 - Half-done downgrade (plan changed, invoice not canceled). Guard: each step is recorded, and the next run finishes the missing steps without repeating the done ones.
-- Attorneys share BD plan numbers with freelancers. Guard: only the six freelancer plans above, and only members with dela_trial_status = active.
+- An attorney with trial data by mistake. Guard: only plans 7 and 8 with dela_trial_status = active, and never plans 5, 12, 13 or 14 (checked again at the moment of the change).
 - Plans 10 and 11, admin-created accounts and test accounts are never touched (no dela_trial_status).
 - Hidden content: unpublishing posts and areas of law changes the public listing. Restore must use the saved list, never guess.
 
 ## Settings and switches it uses
-- A new switch "bd_trial_downgrade", off until Stacey turns it on, with a dry-run setting (on by default) that logs and changes nothing.
+- A new switch "bd_trial_downgrade", off until Stacey turns it on, and the admin setting "Trial downgrade mode" (Dry run by default, or Live). Dry run logs and changes nothing.
+- DELA's own "trials" switch is turned off and removed from the plan logic.
 - Settings: trial.days (7), trial.reminder_days (2), the BD plan IDs (pro 8, free 3, plus 7, agency 9, and the never-touch list 10 and 11), the free areas-of-law limit (3), and the run time (2:00 AM Pacific).
 
 ## Questions to make it better
@@ -52,6 +53,16 @@ Members see every paid feature before deciding to pay. Nobody skips the trial by
 6. First run: dry run on the test site for a few days (it lists who it would downgrade and why, and you check the list in the admin area), then real changes. Agreed?
 7. "Converted" by moving to Plus (7) and paying: if they move to Plus but the Plus invoice is unpaid at day 7, should they go to Free too?
 8. Who gets the run log: the admin area only, or also an email to you when someone is downgraded?
+
+## Stacey's answers (2026-11-07)
+1. Attorneys have their own BD plans: Attorney Free (5), Attorney Plus (13), Attorney Pro (12), Attorney Business (14). Plans 3, 7, 8, 9, 10 and 11 are freelancer plans only. The test attorney (user 687, "DELA Test Attorney") is on plan 3 only because it was created before the attorney plans existed: move it to plan 5. The job only touches members with subscription_id 7 or 8 AND dela_trial_status active. Hard guard: the job never changes a member on plans 5, 12, 13 or 14, even with trial data (attorneys never get a trial).
+2. Yes: DELA may search BD members by plan and signup date, so the daily job finds members who never open DELA. Stacey is adding "search users" to the API key.
+3. Yes: a read-only check of BD's API before any build, for users_meta, invoices, subscriptions and posts. Claude sends the list of endpoints and permissions; Stacey allows them on the key. No changes during the check.
+4. Yes: the two emails ("Your Pro trial ends in 2 days" and "Your Pro trial has ended") go through DELA's emails, out through BD's email outbox from the same sender, with the subject, wording and button exactly as in the original notes.
+5. Yes: the BD plan is the only source of truth. Turn off DELA's own "trials" switch and remove it from the plan logic. DELA allowances follow the BD plan only.
+6. Yes: dry run on hirelegalhelp.com for 3 days. Each run lists every member it would downgrade or mark converted, the condition that matched, the plan, the trial end date and the invoice status, shown in the DELA admin area. After 3 clean days, switch to real changes with the admin setting "Trial downgrade mode" (Dry run or Live).
+7. A member counts as converted only when a paid invoice exists for the plan they are on. A trial member who moved to Plus (7) with the Plus invoice still unpaid at the end of day 7 goes to Free (3) too, and the unpaid Plus subscription and invoice are canceled the same way as Pro.
+8. Every run is logged in the DELA admin area. On a day with at least one downgrade, one summary email goes to stacey@lawfecta.com listing each downgraded member's name, user ID and trial end date. No email on days without downgrades, and never one email per member.
 
 ## Success looks like
 - A new freelancer from any signup button is on Pro (8) with dela_trial_status active and dela_trial_ends_at 7 days out.

@@ -56,7 +56,7 @@ FREELANCER (log in once)
 
 2. Go to: https://www.hirelegalhelp.com/dela?tab=home
    Find: a row of four small tiles below the dark blue "Match readiness" box near the top.
-   Expect: the tiles "Proposals left this month", "Invitations", "Active projects" and "Paid out", each with a number above its name. On 2026-11-07 they read Invitations 1, Active projects 8 and Paid out $0.00 (no payout has been sent to this test account yet). Write down the numbers you see. A different number is a note, not a FAIL; FAIL only if a tile is missing or shows no number.
+   Expect: the tiles "Proposals left this month", "Invitations", "Active projects" and "Paid out", each with a number above its name. "Proposals left this month" shows "No cap" instead of a number when the plan has no monthly proposal limit (the test freelancer is on an unlimited agency plan), and that is correct. On 2026-11-07 they read Proposals left this month No cap, Invitations 1, Active projects 8 and Paid out $0 (whole dollar amounts show without cents; no payout has been sent to this test account yet). Write down what you see. A different number is a note, not a FAIL; FAIL only if a tile is missing or is blank.
 
 3. Go to: https://www.hirelegalhelp.com/dela?tab=ask
    Find: the message box "Your message" near the bottom of the page, and the small grey line just above it.

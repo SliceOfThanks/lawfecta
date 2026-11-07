@@ -1,0 +1,31 @@
+DELA browser test report
+Test date: November 6, 2026 (America/Los_Angeles)
+Source: READY-9-ChatGPT-live-candidate.md
+
+1 PASS - Test freelancer login completed; user handled reCAPTCHA.
+2 FAIL - All four tiles present: Proposals left this month = No cap; Invitations = 1; Active projects = 8; Paid out = $0. Strict test requires a number in each tile; No cap is nonnumeric. Screenshot: not captured before sign-out.
+3 PASS - Exact sensitive-data warning present above Your message; old placeholder sentence absent. No message entered.
+4 PASS - Agency share empty; Allowed: 5% to 50%. shown. Empty Invite to the bench click displayed: Enter the agency's share (%) first. Allowed: 5% to 50%. Existing single bench entry unchanged; no invitation sent.
+5 PASS - Freelancer signed out; login page reached.
+6 PASS - Test attorney login completed; user handled reCAPTCHA.
+7 PASS - Open gigs = 2; Gig drafts = 4; Active projects = 8; Deliveries to review = 0; Draft documents = 6. No old tile names; not all zero.
+8 PASS - Exact sensitive-data warning present above Your message. No message entered.
+9 PASS - Add files warning matches; exact no-sensitive-data checkbox present and unchecked. No file chosen or uploaded.
+10 PASS - Attorney signed out; login page reached.
+11 PASS - User completed owner login; admin page identified Stacey Lake (owner).
+12 PASS - Overview includes People who opened DELA = 5, On the access list = 2, Turned away (7 days) = 1. No Test site accounts tile.
+13 PASS - Add someone has BD member ID, Note (for example: test attorney), and Add; no adjacent dropdown. May open DELA lists two people. No Test site accounts section. Add not clicked.
+14 PASS - Owner signed out; login?action=loggedout confirmed.
+
+FAIL list
+- Step 2: Proposals left this month displays No cap, rather than a number. This may be intentional for the agency plan, but fails the written numeric-only expectation.
+- Evidence limitation: No screenshot of step 2 was captured before sign-out. The result was recorded from the browser accessibility state.
+
+Notes and confusing messages
+- Step 2: Paid out displays $0 rather than the reference formatting $0.00; amount is equivalent.
+- Step 7: Open gigs is 2 rather than reference 6. Per test instructions, differing counts are notes, not failures. Additional tiles show Gig drafts 4 and Draft documents 6.
+- Ask DELA also shows an older, broader notice prohibiting client names and case numbers, while the new warning enumerates sensitive data and recommends sharing a storage link. These overlapping notices could confuse users about whether all client information is prohibited.
+- The source's reference counts are dated 2026-11-07; this test used the user's local date 2026-11-06.
+- No observed page load or validation took longer than 60 seconds. User login/reCAPTCHA handoffs were excluded from application timing.
+- This was a browser check only. No server-side audit was performed to independently verify absence of outgoing invitations; the validation and unchanged bench list were observed on screen.
+- No records, files, access permissions, agreements, or release approvals were added or changed. Only the specified empty bench validation was submitted, plus sign-in/sign-out actions.
