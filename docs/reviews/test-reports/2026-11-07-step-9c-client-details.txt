@@ -1,0 +1,27 @@
+DELA client-details browser test
+Site: https://www.hirelegalhelp.com
+Date: November 6, 2026 (America/Los_Angeles)
+
+1 PASS - Logged in as DELA Test Freelancer after user completed reCAPTCHA.
+2 PASS - Client detail confirmation appeared; canceled. Text: This may include client details. Nobody has signed an agreement on this gig yet, so share only what the freelancer needs to decide. Send anyway?
+3 FAIL - Passport message not sent, but required government-ID explanation was not observed; no popup. Screenshot: step-3.png
+4 PASS - Profile warning appeared; canceled. Text: This may include client details. Other members read this, so leave client names, case numbers and contact details out. Click OK only if it has none.
+5 PASS - Signed out of freelancer account; summary restored without saving.
+6 PASS - Logged in as DELA Test Attorney after user completed reCAPTCHA.
+7 PASS - Exact OpenAI/30-day consent shown with Edit my message and Continue, without [Client Name]; clicked Continue and received 12-part intake checklist within 60 seconds. Note: answer asks for placeholders.
+8 PASS - Government ID blocked with Edit my message only; no Continue or Send anyway. Text: This looks like it contains a government ID number. Sensitive data cannot be sent in DELA. Send only the last 4 digits. Keep it in your own storage and share a link instead.
+9 PASS - Cleared government-ID input and signed out of attorney account.
+10 PASS - Owner login verified: Stacey Lake (owner), member 686.
+11 PASS - client_details_allowed is Access list; left unchanged.
+12 PASS - Owner signed out; blank login form shown.
+
+FAIL LIST
+Step 3: The passport message was not sent and no popup appeared, but the required government-ID explanation was not observed. A brief transient message may have been missed; persistent page text and browser Find did not show it. Screenshot: step-3.png
+
+CONFUSING MESSAGES AND NOTES
+- Inbox banner and profile notice still categorically prohibit client names and case details, while the tested warning allows limited details and the admin switch allows client details where the rule allows them.
+- Step 7 consent correctly omitted [Client Name], but the AI answer asked to use [Client Name] and [Case Number] placeholders.
+- Step 8 block says both Sensitive data cannot be sent in DELA and Send only the last 4 digits, which could be confusing.
+- Owner handoff initially remained on the attorney account; admin access correctly denied. Eventually verified Stacey Lake (owner), member 686.
+- No DELA writing/checking operation was observed to exceed 60 seconds. User login/reCAPTCHA handoffs excluded.
+- Freelancer confirmation dialogs were canceled as required by the test; no profile changes saved. The fictional attorney checklist chat was created. No switches changed.

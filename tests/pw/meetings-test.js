@@ -101,6 +101,15 @@ async function makeMember(bd, side, plan) {
     await click(p, "Send");
     t = await waitFor(p, "Can you start Monday?");
     ok(t.includes("Open Intake template.docx"), "the message shows with its attachment");
+    // Fix (Stacey's ChatGPT check of step 9c, step 3): with the new rule on, sensitive data in a conversation is refused
+    // in words that stay under the message box (a toast faded before it was read)
+    await sql("update feature_switches set state = 'everyone' where key = 'client_details_allowed'; select 1");
+    await label(p, "Your message").fill("Her passport number is X12345678");
+    await click(p, "Send");
+    await p.waitForTimeout(6000);
+    t = await waitFor(p, "a government ID number");
+    ok(await dela(p).locator("#thread-say").isVisible() && t.includes("share a link") && !t.includes("X12345678</"), "the refusal is still on screen after 6 seconds, under the message box");
+    await sql("update feature_switches set state = 'off' where key = 'client_details_allowed'; select 1");
     await label(p, "Your message").fill("Or text me at 512-555-0199 and I will pay you directly");
     await click(p, "Send");
     t = await waitFor(p, "Being checked by the Lawfecta Team");

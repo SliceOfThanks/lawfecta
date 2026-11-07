@@ -4566,11 +4566,18 @@
       });
       var send = h("button", { class: "blue", type: "button" }, "Send");
       var req = newId();
+      var sayEl = h("p", { class: "notice bad", role: "alert", id: "thread-say" });
+      sayEl.hidden = true;
+      ta.addEventListener("input", function () { sayEl.hidden = true; });
       function doSend(confirmed) {
         if (!ta.value.trim()) return;
         send.disabled = true;
         api.post("/threads/send", { thread_id: t.id, body: ta.value, attachments: attach, request_id: req, confirm_no_client_info: confirmed === true }).then(function (x) {
           send.disabled = false;
+          // Sensitive data is refused in words that stay under the box until the message changes (Stacey's ChatGPT check
+          // 2026-11-07, step 3: a toast faded before it was read)
+          if (x.reason === "sensitive_data") { sayEl.textContent = x.message || D.errorText("sensitive_data"); sayEl.hidden = false; ta.focus(); return; }
+          sayEl.hidden = true;
           if (x.reason === "looks_like_client_info") { if (confirm(ciNote(x, "This may include client information (" + kindsText(x.kinds) + "). Click OK only if it is not."))) doSend(true); return; }
           gigOk(x);
           var note = x.held || x.warned ? x.note : "";
@@ -4582,7 +4589,7 @@
       var draftBtn = (me.switches || {}).chat_assistant ? h("button", { class: "ghost small", type: "button", onclick: function () {
         api.post("/threads/assist", { thread_id: t.id, mode: "draft" }).then(gigOk).then(function (y) { ta.value = y.text; D.toast(app, "DELA drafted a reply. Check it, then Send."); }).catch(talkFail);
       } }, "✦ Draft a reply") : null;
-      el.appendChild(h("div", { class: "card" }, ta, h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" }, t.kind === "bench" ? null : pick, draftBtn, h("span", { class: "grow" }), send), attachWrap,
+      el.appendChild(h("div", { class: "card" }, ta, sayEl, h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" }, t.kind === "bench" ? null : pick, draftBtn, h("span", { class: "grow" }), send), attachWrap,
         t.kind === "bench" ? null : helperButton("agenda", "✦ Draft an agenda", function () { return { gig_id: t.gig_id }; }, { field: function (x) { return x.field === "compose" ? ta : null; }, toast: "Added to your message. Nothing is sent until you click Send." })));
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }

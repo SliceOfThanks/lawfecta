@@ -107,6 +107,8 @@ Deno.test("switch on, Ask DELA: sensitive data stopped for good; client details 
   const ssn = (await ask(att.token, "Her SSN is 123-45-6789, draft the letter", true)).body;
   assertEquals([ssn.ok, ssn.reason], [false, "sensitive_data"], "confirming does not get past sensitive data");
   assert(String(ssn.message).includes("share a link"));
+  // Fix (Stacey's ChatGPT check 2026-11-07): one clear instruction, not "cannot be sent" next to "send the last 4 digits"
+  assert(!String(ssn.message).includes("last 4 digits"), String(ssn.message));
   const id = (await ask(att.token, "Passport number: X12345678. What next?")).body;
   assertEquals([id.reason, id.kinds], ["sensitive_data", ["gov_id"]]);
   const before = aiCalls.length;
@@ -116,6 +118,9 @@ Deno.test("switch on, Ask DELA: sensitive data stopped for good; client details 
   assertEquals(aiCalls.length, before, "nothing went to the AI before the member chose");
   const go = (await ask(att.token, CLIENT, true)).body;
   assertEquals(go.ok, true, JSON.stringify(go));
+  // Fix (same check, step 7 note): with the rule on, DELA's AI is told not to ask for placeholders
+  const sys = aiCalls[aiCalls.length - 1];
+  assert(sys.includes("do not ask the member to replace them with placeholders") && !sys.includes("use placeholders such as [Client Name]"), "the AI's privacy instruction follows the rule");
   const health = (await ask(att.token, "Summarize the diagnosis in the medical records")).body;
   assertEquals(health.rule, "maybe_sensitive");
   // With the reminder setting off (Zero Data Retention approved), client details go straight through
