@@ -2,6 +2,12 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## UX Phase 4 part D: the Appearance choice, on the test site 2026-11-07 (commit b816524, api version 55, migration 0055)
+- Behind appearance_choice (access list on the test site, off on Live): "Appearance: Match my device / Light / Dark" in the member account menu and as a drop-down in the admin top bar, saved per person. Everyone starts on Light (appearance.default), even on a dark device; while the switch is off DELA follows the device as before.
+- Dark text made readable (links, outlined buttons, the current tab, labels, blue buttons, Talk); a browser check holds every text at 4.5 to 1 on nine pages.
+- Stacey's helpers report (2026-11-07): 9 of 12 passed. Fixed: step suggestions with blanks like [deadline] (now shown without Use suggestion), Check these steps reads the document's trigger and timing, the agenda finding is labeled Your message and says nothing is sent until Send, Improve my request adds no facts, Explain these findings keeps to each finding. The review card's heading in the prompt was wrong (corrected).
+- ChatGPT test: docs/tests/step-8a-appearance-chatgpt-prompt.md (freelancer, attorney, owner; each sets Light back at the end).
+
 ## UX Phase 4 part B, second half: the other eight AI helpers, on the test site 2026-11-07 (commit 2924c98, api version 54)
 - Behind ai_helpers (access list): "✦ Check these steps" and "✦ Improve this section" (document drafts), "✦ Explain these findings" (quality check), "✦ Help me describe my firm" (firm profile; only systems the attorney named), "✦ Improve my request" (Ask DELA, both sides), "✦ Help me find a fit" (Talent filters only, a real state, never a person), "✦ Draft an agenda" (gig conversation; fills the message box) and "✦ Help me write a review" (only the member's own ratings and notes; a low rating needs notes first). 1 DELA action each.
 - Code also removes sentences saying something is approved or ready to rely on, and every helper is told a suggestion is finished wording, not an instruction.

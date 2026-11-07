@@ -68,7 +68,8 @@ Tests today: 8 database test files, 84 API tests, 15 script tests and 198 browse
 - Every agent test now starts with the "How to work" block (docs/tests/AGENT-RULES.md) and says where to click at each step. The older prompts are marked "Not rewritten yet" until Claude rewrites them.
 
 ## 2. What needs testing, in this order
-- The other eight AI helpers (docs/tests/step-8a-helpers-chatgpt-prompt.md), freelancer then attorney, look only, before the usage limits test.
+- The Appearance choice (docs/tests/step-8a-appearance-chatgpt-prompt.md), freelancer, attorney, then owner.
+- Done: the other eight AI helpers, 2026-11-07, 9 of 12 passed; the two real issues fixed, one prompt error corrected. Optional re-run of its steps 2 and 7.
 - Done: the checks before a commitment, 2026-11-07, 12 of 13 passed (step 4 was a prompt error, corrected).
 - Done: standing arrangements test, 2026-11-06, 18 of 19 passed (step 11 was a prompt error, corrected).
 - The approved-version page (docs/tests/step-8a-approved-version-chatgpt-prompt.md), attorney then owner, before the usage limits test.
@@ -122,7 +123,7 @@ Things only you can provide
 - A lawyer's review of the agreement terms template and the chargeback rule, before live payments.
 
 ## 4. What we build next
-- Done: UX review parts 0 to 3 and step 7c part 2 (standing arrangements) on the test site. Phase 4 (docs/briefs/step-8a-phase-4.md, answered 2026-11-06): parts A (the approved-version page) and B (the checks before a commitment, with the freelancer helpers) are on the test site. All 14 AI helpers are on the test site (2026-11-07). Next: the Appearance choice (Match my device, Light, Dark; Light first).
+- Done: UX review parts 0 to 3 and step 7c part 2 (standing arrangements) on the test site. Phase 4 (docs/briefs/step-8a-phase-4.md, answered 2026-11-06): parts A (the approved-version page) and B (the checks before a commitment, with the freelancer helpers) are on the test site. All 14 AI helpers and the Appearance choice are on the test site (2026-11-07), so Phase 4 is built except the first ten minutes, which waits for the onboarding widget after the MVP launch.
 - Built: attorney plan usage limits (step 9b), on the test site with blocking off. Turn blocking on after the test.
 - Waiting on Stacey: the Pro trial and downgrade to Free (docs/briefs/step-9-pro-trial-downgrade.md). Plan only; not built until she answers.
 
