@@ -124,6 +124,16 @@ async function sign(page, name, version) {
     t = await waitFor(p, "Engagements (1)");
     ok(t.includes("Needs your signature"), "attorney: Projects lists the engagement waiting for their signature");
     ok((await dela(p).locator("#needs-action").innerText()).includes("the agreement needs your signature"), "Needs your action lists the agreement to sign (UX review P01)");
+    // Fix (step 8b, retest R02): Notices shows the same live list as Projects, even with no notice about it
+    await sql("delete from notifications where person_id = (select id from people where bd_member_id = 2800); select 1");
+    await dela(p).getByRole("button", { name: "Notices" }).first().click();
+    await waitFor(p, "Needs your action (1)");
+    ok((await dela(p).locator("#notices-action").innerText()).includes("the agreement needs your signature"), "Notices lists the same signature as Projects");
+    await dela(p).locator("#notices-action").getByRole("button", { name: "Open the agreement" }).click();
+    await waitFor(p, "Sign version");
+    ok(true, "the Notices button opens the agreement");
+    await p.goto(`${BASE}/page/DELA-App?uid=2800&plan=&tab=projects`);
+    await waitFor(p, "Engagements (1)");
     const heads = await dela(p).locator("h2").allTextContents();
     ok(heads.indexOf("Post a new gig") >= 0 && heads.indexOf("Post a new gig") < heads.indexOf("Your gigs") && heads.indexOf("Your gigs") < heads.indexOf("Engagements (1)"), "attorney: the Projects cards keep their order after loading (" + heads.join(", ") + ")");
     await dela(p).getByText("Filing packet help").last().click();

@@ -3114,11 +3114,9 @@
       var todoList = h("ul", { class: "list" });
       todo.appendChild(todoList);
       function todoItem(text, label, go) { todoList.appendChild(h("li", { class: "row" }, h("span", { class: "grow", text: text }), h("button", { class: "ghost small", type: "button", onclick: go }, label))); }
-      r.gigs.forEach(function (g) {
-        if (g.questions_open) todoItem(g.title + ": " + g.questions_open + (g.questions_open === 1 ? " question" : " questions") + " to answer", "Answer", function () { gigs.id = g.id; gigs.view = "questions"; draw(); });
-        if (g.status === "open" && g.proposals) todoItem(g.title + ": " + g.proposals + (g.proposals === 1 ? " proposal" : " proposals") + " to review", "Review proposals", function () { gigs.id = g.id; gigs.view = "proposals"; draw(); });
-        if (g.status === "draft") todoItem(g.title + ": a draft, not posted yet", "Finish and post", function () { gigLink(g.id, "projects"); });
-      });
+      // One definition of "needs your action", shared with Notices (step 8b, retest R02). Drafts are not action: they
+      // are listed under "Your gigs".
+      gigActionItems(r.gigs).forEach(function (x) { todoItem(x.text, x.label, x.open); });
       function todoEmpty() { if (!todoList.children.length && !todo.querySelector(".muted")) todo.appendChild(h("p", { class: "muted", style: "margin:0", text: "Nothing waits on you right now." })); else if (todoList.children.length) { var m = todo.querySelector("p.muted"); if (m) m.remove(); } }
       todoEmpty();
       el.appendChild(todo);
@@ -3146,13 +3144,34 @@
       if ((me.switches || {}).engagements) {
         var engSlot = h("div"); el.appendChild(engSlot);
         engagementsList(engSlot, "Engagements", function (list) {
-          list.filter(function (x) { return x.needs_me === "sign"; }).forEach(function (x) { todoItem(x.gig_title + ": the agreement needs your signature", "Open the agreement", function () { gigs.id = x.gig_id; gigs.view = "agreement"; draw(); }); });
+          engActionItems(list).forEach(function (x) { todoItem(x.text, x.label, x.open); });
           todoEmpty();
         });
       }
       var stSlot = h("div"); el.appendChild(stSlot); standingCard(stSlot);
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     return el;
+  }
+
+  // What needs the member now, worked out from the live work (step 8b, retest R02): Projects and Notices both use these
+  function gigActionItems(list) {
+    var out = [];
+    (list || []).forEach(function (g) {
+      if (g.questions_open) out.push({ text: g.title + ": " + g.questions_open + (g.questions_open === 1 ? " question" : " questions") + " to answer", label: "Answer", open: function () { tab = "projects"; gigs.id = g.id; gigs.view = "questions"; draw(); } });
+      if (g.status === "open" && g.proposals) out.push({ text: g.title + ": " + g.proposals + (g.proposals === 1 ? " proposal" : " proposals") + " to review", label: "Review proposals", open: function () { tab = "projects"; gigs.id = g.id; gigs.view = "proposals"; draw(); } });
+    });
+    return out;
+  }
+  function engActionItems(list) {
+    var words = { sign: ["the agreement needs your signature", "Open the agreement"], review: ["a delivery waits for your review", "Review the delivery"], pay: ["the next milestone waits for payment", "Open the payment"] };
+    return (list || []).filter(function (x) { return words[x.needs_me]; }).map(function (x) {
+      return { text: x.gig_title + ": " + words[x.needs_me][0], label: words[x.needs_me][1], open: function () { tab = me.side === "attorney" ? "projects" : "work"; gigs.id = x.gig_id; gigs.view = "agreement"; draw(); } };
+    });
+  }
+  function liveActions() {
+    var gigsP = me.side === "attorney" && (me.switches || {}).flex_gigs ? api.get("/gigs").then(function (r) { return r.ok === false ? [] : gigActionItems(r.gigs); }, function () { return []; }) : Promise.resolve([]);
+    var engP = (me.switches || {}).engagements ? api.get("/engagements").then(function (r) { return r.ok && r.on ? engActionItems(r.engagements) : []; }, function () { return []; }) : Promise.resolve([]);
+    return Promise.all([gigsP, engP]).then(function (a) { return a[0].concat(a[1]); });
   }
 
   function gigPage(el) {
@@ -7699,10 +7718,19 @@
             } }, go.label) : null), extra || null);
       }
       // "Needs your action" first, checked against each job's current state; then "Updates", one line per job (UX review N01)
-      var act = r.items.filter(function (n) { return n.action; }), upd = r.items.filter(function (n) { return !n.action; });
+      // "Needs your action" is the same live list as Projects (step 8b, retest R02); every notice is listed under Updates
+      var upd = r.items;
+      var actBox = h("div", null, h("h3", { text: "Needs your action" }), h("p", { class: "muted small", text: "Checking your work..." }));
+      nb.appendChild(actBox);
+      liveActions().then(function (items) {
+        D.clear(actBox);
+        actBox.appendChild(h("h3", { text: "Needs your action (" + items.length + ")" }));
+        if (items.length) actBox.appendChild(h("ul", { class: "list", id: "notices-action" }, items.map(function (x) {
+          return h("li", { class: "row" }, h("span", { class: "grow", text: x.text }), h("button", { class: "ghost small", type: "button", onclick: function () { closeDrawer(); x.open(); } }, x.label));
+        })));
+        else actBox.appendChild(h("p", { class: "muted small" }, "Nothing waits on you right now. ", me.side === "attorney" ? h("button", { class: "linkish", type: "button", onclick: function () { closeDrawer(); tab = "projects"; gigs.id = null; draw(); } }, "Open Projects") : null));
+      });
       if (r.items.length) {
-        nb.appendChild(h("h3", { text: "Needs your action (" + act.length + ")" }));
-        nb.appendChild(act.length ? h("ul", { class: "list", id: "notices-action" }, act.map(function (n) { return noticeLi(n); })) : h("p", { class: "muted small", text: "Nothing waits on you right now." }));
         nb.appendChild(h("h3", { text: "Updates" }));
         var seen = {}, groups = [];
         upd.forEach(function (n) {
