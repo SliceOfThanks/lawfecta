@@ -57,9 +57,9 @@ FREELANCER (log in once)
    Find: the conversation about "Send the Welcome Packet and Intake Follow-Up" and the message box "Your message" at the bottom, with "Send" next to it.
    Find: under the message box, the light purple button "✦ Draft an agenda" with "Uses 1 DELA action on Lawfecta's AI (none on your own key)."
    Do: click "✦ Draft an agenda". Wait up to 60 seconds.
-   Expect: an "AI suggestion" panel with "Message: A short agenda for your meeting.", a "Suggestion: Agenda for our meeting:" with at most three numbered points, the buttons "Use suggestion", "Edit" and "Dismiss", and the line "Nothing is sent until you click Send."
+   Expect: an "AI suggestion" panel with "Your message: A short agenda for your meeting.", a "Suggestion: Agenda for our meeting:" with at most three numbered points, the buttons "Use suggestion", "Edit" and "Dismiss", and the line "Nothing is sent until you click Send."
    Do: click "Use suggestion".
-   Expect: the agenda is now in the "Your message" box, and the message "Added to the form. Nothing is saved until you save." Do not click "Send". Clear the box afterwards.
+   Expect: the agenda is now in the "Your message" box, and the message "Added to your message. Nothing is sent until you click Send." Do not click "Send". Clear the box afterwards.
 
 3. Go to: https://www.hirelegalhelp.com/dela?tab=ask
    Find: the message box "Your message", and under it "✦ Improve my request".
@@ -87,7 +87,7 @@ ATTORNEY (log in once)
 7. On the same page:
    Find: the "Steps" section of the form, and just below the steps "✦ Check these steps".
    Do: click "✦ Check these steps". Wait up to 60 seconds.
-   Expect: an "AI suggestion" panel whose findings start "Step 1, Step:" (or another step number), some with a rewritten step and "Use suggestion". No finding moves a step marked "Attorney decides" away from the attorney. Do not save.
+   Expect: an "AI suggestion" panel whose findings start "Step 1, Step:" (or another step number). A rewritten step with "Use suggestion" is finished wording with no blanks like [deadline]; where a fact is missing, the finding says so and has no "Use suggestion". DELA does not flag what the document already says under Trigger or Timing. No finding moves a step marked "Attorney decides" away from the attorney. Do not save.
 
 8. On the same page:
    Find: the card "Quality check" on the right.
@@ -112,7 +112,7 @@ ATTORNEY (log in once)
     Expect: the search boxes hold the filters and the results update.
 
 11. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=e42a647d-3028-4c7d-86ba-443a1b96cbb8&view=agreement
-    Find: the card "Reviews" lower on the page, the heading "Your review of DELA Test Freelancer", the rating drop-downs, the box "Your review" and "✦ Help me write a review" under it.
+    Find: the card "Reviews" lower on the page (it starts "How was working with the freelancer?"), the rating drop-downs, the box "Your review" and "✦ Help me write a review" under it.
     Do: choose 1 in every rating drop-down, leave "Your review" empty, and click "✦ Help me write a review".
     Expect: the message "For a low rating, write your own notes in Your review first. DELA only tidies what you wrote." DELA writes nothing.
     Do: choose 5 in every rating drop-down, type calls made on time, logged in clio, clear notes in "Your review", and click "✦ Help me write a review". Wait up to 60 seconds.
