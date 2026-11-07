@@ -4547,7 +4547,7 @@
       el.appendChild(list);
       // Composer
       if (!r.writable) { el.appendChild(h("p", { class: "notice", text: TALK_ERR[r.why_closed] || "This conversation is closed." })); return; }
-      var ta = h("textarea", { rows: 3, style: "width:100%", "aria-label": "Your message", placeholder: "Write a message. No client information, contact details or payment outside Lawfecta." });
+      var ta = h("textarea", { rows: 3, style: "width:100%", "aria-label": "Your message", placeholder: (me.switches || {}).client_details_allowed ? "Write a message. No sensitive data, contact details or payment outside Lawfecta." : "Write a message. No client information, contact details or payment outside Lawfecta." });
       ta.value = r.draft || "";
       ta.addEventListener("blur", function () { api.post("/threads/draft", { thread_id: t.id, body: ta.value }).catch(function () {}); });
       var attach = [], attachWrap = h("div", { class: "small" });

@@ -1268,6 +1268,15 @@
           "status": "C",
           "source": "Stacey 2026-11-07 (step 9c answers)",
           "note": "Turn off once OpenAI approves Zero Data Retention (docs/RUNBOOK.md). Never shown when the member uses their own AI key."
+        },
+        {
+          "key": "data.notice_text_sensitive",
+          "label": "Page notice when client details are allowed (sensitive data rule)",
+          "value": "DELA is for operations work. Never enter sensitive data: SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords. Share a link from your own storage instead. You are responsible for what you enter.",
+          "unit": "",
+          "status": "C",
+          "source": "Stacey 2026-11-07 (step 9c answers)",
+          "note": "Shown instead of data.notice_text while the switch client_details_allowed is on for the member."
         }
       ]
     }

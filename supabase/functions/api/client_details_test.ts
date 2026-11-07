@@ -129,6 +129,17 @@ Deno.test("switch on, Ask DELA: sensitive data stopped for good; client details 
   await pool.query("update settings set value = 'true' where key = 'privacy.ai_client_details_reminder'");
 });
 
+// Fix (Live candidate check 2026-11-06, notes): the page notice above Ask DELA said "no client names, case numbers"
+// next to the new sensitive data warning. With the rule on it names the sensitive kinds instead.
+Deno.test("the page notice follows the rule", async () => {
+  await setSwitch("off");
+  const off = String((await call("GET", "/me", att.token)).body.me.notice);
+  assert(off.includes("client names"), off);
+  await setSwitch("everyone");
+  const on = String((await call("GET", "/me", att.token)).body.me.notice);
+  assert(on.includes("government ID numbers") && !on.includes("client names"), on);
+});
+
 Deno.test("switch on, public places: the profile still warns about client details", async () => {
   const r = (await call("POST", "/profile/save", att.token, { body: { first_name: "Ann", summary: "I helped my client Jane Roe with case no. 2024-CV-1234." }, version: 0 })).body;
   assertEquals([r.reason, r.rule], ["looks_like_client_info", "public"]);

@@ -164,7 +164,7 @@ async function bootstrap(ctx: Ctx): Promise<Response> {
   const agencyClient = r.me?.side === "freelancer" && r.me?.person?.id ? await rpc<Record<string, unknown> | null>(ctx, "dela_agency_client", { p_person: r.me.person.id }).catch(() => null) : null;
   const appearance = r.me?.person?.id ? await rpc<Record<string, unknown>>(ctx, "dela_appearance", { p_person: r.me.person.id }).catch(() => ({ on: false, mode: "device" })) : { on: false, mode: "device" };
   const home = r.me?.person?.id && r.me?.side ? await rpc<Record<string, unknown>>(ctx, "dela_home_counts", { p_person: r.me.person.id, p_side: r.me.side }).catch(() => null) : null;
-  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, limits: FORM_LIMITS }, commit, version: VERSION });
+  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, notice: await pageNotice(ctx, r.me), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, limits: FORM_LIMITS }, commit, version: VERSION });
 }
 
 // ---------- Member routes ----------
@@ -179,6 +179,16 @@ async function member(ctx: Ctx): Promise<Session> {
   return s;
 }
 
+// Fix (Live candidate check 2026-11-06): with the sensitive data rule on (switch client_details_allowed), the page notice
+// says what never goes in DELA (the six sensitive kinds), not the old "no client names, case numbers" wording.
+async function pageNotice(ctx: Ctx, m: Record<string, any> | null | undefined): Promise<unknown> {
+  if (m?.switches?.client_details_allowed === true) {
+    const t = await rpc<unknown>(ctx, "dela_setting", { p_key: "data.notice_text_sensitive" }).catch(() => null);
+    if (typeof t === "string" && t) return t;
+  }
+  return m?.notice ?? null;
+}
+
 async function me(ctx: Ctx) {
   const s = await member(ctx);
   const pause = await rpc<Record<string, any>>(ctx, "dela_pause_state", {});
@@ -189,7 +199,8 @@ async function me(ctx: Ctx) {
   const appearance = await rpc<Record<string, unknown>>(ctx, "dela_appearance", { p_person: s.person_id }).catch(() => ({ on: false, mode: "device" }));
   // The Home tiles' real counts (AI review 0.9.0, payments 3); null hides them if the count cannot be read
   const home = await rpc<Record<string, unknown>>(ctx, "dela_home_counts", { p_person: s.person_id, p_side: s.side }).catch(() => null);
-  return json(ctx, { me: { ...(await rpc<Record<string, unknown>>(ctx, "dela_me", { p_person: s.person_id, p_side: s.side })), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, limits: FORM_LIMITS } });
+  const m = await rpc<Record<string, unknown>>(ctx, "dela_me", { p_person: s.person_id, p_side: s.side });
+  return json(ctx, { me: { ...m, notice: await pageNotice(ctx, m), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, limits: FORM_LIMITS } });
 }
 
 async function setSide(ctx: Ctx) {
