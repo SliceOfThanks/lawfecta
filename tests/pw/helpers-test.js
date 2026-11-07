@@ -153,7 +153,8 @@ const ATT = 4420, FL = 4421, FL2 = 4422;
     await s.ctx.close();
 
     s = await open(browser, "DELA-App", ATT, "&tab=talent"); p = s.page;
-    await waitFor(p, "✦ Help me find a fit", 15000);
+    t = await waitFor(p, "✦ Help me find a fit", 15000);
+    ok(t.includes("Never enter sensitive data") && t.includes("Keep it in your own storage."), "the Talent task box has the sensitive data notice (step 8b Part C, R06)");
     await label(p, "Describe the task").fill("E-filing family law motions in Texas with Clio");
     await click(p, "✦ Help me find a fit");
     t = await waitFor(p, "These are search filters only.");

@@ -80,6 +80,10 @@ Deno.test("the disclosure: on the agency's proposal and in its agreement; never 
   assertEquals(ps.proposals[0].agency.subcontracting_note, "This agency may use vetted subcontractors from Lawfecta to complete this work.");
   const v = (await call("GET", "/agreements/get?id=" + ag, att.token)).body;
   assertEquals([v.current.version, v.current.body.subcontracting], [1, { agency: true, no_subcontractors: false }]);
+  // Step 8b Part C (retest R10): the party summary names the contracting agency, not only its lead
+  const oname = (await one("select name from organizations where id = $1", [org])).name;
+  assert(oname, "the agency has a name");
+  assertEquals([v.agency_name, v.current.body.parties.freelancer.company], [oname, oname]);
   assert(v.current.body.terms.includes("10. Subcontractors. This agency may use vetted subcontractors from Lawfecta"), v.current.body.terms.slice(-600));
   assert(!v.current.body.terms.includes("Confidentiality and no poaching"), "the attorney's agreement is not a subcontractor's");
   const plain = buildBody({ proposal: { price_cents: 50000 } }) as Record<string, any>;

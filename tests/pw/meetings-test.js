@@ -117,18 +117,25 @@ async function makeMember(bd, side, plan) {
     const slotsResp = p.waitForResponse((r) => r.url().includes("/meetings/slots"));
     await click(p, "Book a meeting");
     const slotsJson = await (await slotsResp).json();
-    t = await waitFor(p, "Times are shown in your own time zone");
-    // Fix (AI review 0.9.0, tests 4; the Track B bug where times stopped at 2:45 PM): every open time of the first day is
-    // offered once "Show more times" is opened, including the day's last time
+    t = await waitFor(p, "Times are shown in your time zone (");
+    // Step 8b Part C (R05): a date first, then that date's times, 8 at first, the time zone named, full dates for screen readers
     const bookCard = dela(p).locator(".card[aria-label='Book a meeting']");
-    while (await bookCard.getByRole("button", { name: "Show more times" }).count()) await bookCard.getByRole("button", { name: "Show more times" }).first().click();
     const perDay = await p.evaluate((slots) => {
       const out = [], seen = {};
       slots.forEach((x) => { const d = new Date(x).toDateString(); if (!(d in seen)) { seen[d] = out.length; out.push(0); } out[seen[d]]++; });
-      return out.slice(0, 14);
+      return out;
     }, (slotsJson.slots || []));
-    const shown = await bookCard.locator("div[style*='margin:10px 0']").evaluateAll((els) => els.map((e) => e.querySelectorAll("button.slot").length));
-    ok(Math.max(...perDay) > 24 && JSON.stringify(shown) === JSON.stringify(perDay), "every open time of each day is offered, past the old cut-off of 24 (" + shown.join(",") + ")");
+    ok(await bookCard.getByLabel("Date", { exact: true }).count() === 1 && await bookCard.locator("#book-times button.slot").count() === Math.min(8, perDay[0]), "one date's times, 8 at first");
+    ok(/times in [A-Z][a-z]+/.test(await bookCard.locator("#book-times").innerText()) && /\d{4}/.test(await bookCard.locator("#book-times b").innerText()), "the full date and the time zone are named above the times");
+    const aria = await bookCard.locator("#book-times button.slot").first().getAttribute("aria-label");
+    ok(/, [A-Z][a-z]+day, [A-Z][a-z]+ \d+, \d{4}$/.test(aria), "each time's name includes the full date (" + aria + ")");
+    // Fix (AI review 0.9.0, tests 4; the Track B bug where times stopped at 2:45 PM): every open time of the date is
+    // offered once "Show more times" is opened, including the day's last time
+    while (await bookCard.getByRole("button", { name: /^Show more times/ }).count()) await bookCard.getByRole("button", { name: /^Show more times/ }).first().click();
+    ok(perDay[0] > 24 && await bookCard.locator("#book-times button.slot").count() === perDay[0], "every open time of the date is offered, past the old cut-off of 24 (" + perDay[0] + ")");
+    const second = await bookCard.getByLabel("Date", { exact: true }).locator("option").nth(1).getAttribute("value");
+    await bookCard.getByLabel("Date", { exact: true }).selectOption(second);
+    ok(await bookCard.locator("#book-times button.slot").count() === Math.min(8, perDay[1]), "choosing another date shows that date's times");
     await dela(p).locator(".card[aria-label='Book a meeting'] button.slot").first().click();
     ok((await dela(p).locator("#book-summary").innerText()).includes("Selected:"), "picking a time shows what was selected before booking (UX review I03)");
     await click(p, "Review booking");
@@ -167,7 +174,7 @@ async function makeMember(bd, side, plan) {
     ok(/(Monday|Tuesday|Wednesday|Thursday|Friday|Saturday|Sunday), \w+ \d+, 20\d\d, .* (Time|Universal|Coordinated)/.test(t), "the meeting shows the full date with the year and the time zone by name (UX review I02)");
     await click(p, "Change the time");
     await waitFor(p, "Choose a new time");
-    await waitFor(p, "Times are shown in your own time zone");
+    await waitFor(p, "Times are shown in your time zone (");
     await dela(p).locator(".card[aria-label='Book a meeting'] button.slot").nth(3).click();
     await click(p, "Review the new time");
     await waitFor(p, "One update went to both of you", 10000);
@@ -187,7 +194,12 @@ async function makeMember(bd, side, plan) {
     s = await open(browser, "DELA-App", 2701, "&tab=meetings");
     p = s.page;
     await waitFor(p, "Did the meeting happen?");
+    // Step 8b Part C: no answer is chosen for the member
+    ok(await label(p, "Did the meeting happen?").inputValue() === "", "the attendance answer starts with no choice selected");
     await label(p, "Short summary").fill("We agreed I will send a proposal by Friday.");
+    await click(p, "Send");
+    await waitFor(p, "Choose what happened first.");
+    await label(p, "Did the meeting happen?").selectOption("yes");
     await click(p, "Send");
     t = await waitFor(p, "Waiting for the other person");
     ok(t.includes("One person confirmed"), "attendance waits for both");

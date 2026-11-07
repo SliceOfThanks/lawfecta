@@ -3063,6 +3063,9 @@ async function agreementGet(ctx: Ctx) {
   // Version 1: DELA fills in the facts the first time either person opens it
   const facts = await rpc<Record<string, any>>(ctx, "dela_agreement_facts", { p_person: s.person_id, p_side: s.side, p_agreement: id });
   if (!facts?.ok) return json(ctx, facts);
+  // The contracting agency by name, from the agency's proposal (step 8b Part C, retest R10)
+  const agencyName = await rpc<string | null>(ctx, "dela_agreement_agency", { p_agreement: id }).catch(() => null);
+  if (agencyName && facts.freelancer) facts.freelancer.company = agencyName;
   if (facts.version === 0) await rpc(ctx, "dela_agreement_version_add", { p_person: s.person_id, p_side: s.side, p_agreement: id, p_body: buildBody(facts), p_note: "First draft by DELA", p_base: 0 });
   const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: s.person_id, p_side: s.side, p_agreement: id });
   if (v?.ok && v.current?.body) { v.fee_lines = feeLines(v.current.body); v.money_summary = moneySummary(v.current.body, v.role); }
@@ -3079,7 +3082,7 @@ async function agreementGet(ctx: Ctx) {
     const dates = await rpc<Record<string, { planned_due_date: string | null; due_note: string }>>(ctx, "dela_milestone_dates", { p_agreement: id }).catch(() => ({}));
     for (const m of v.milestones) Object.assign(m, (dates as Record<string, unknown>)[m.id] ?? {});
   }
-  return json(ctx, { ...v, stripe_ready: !!(await stripeKey(ctx)) });
+  return json(ctx, { ...v, agency_name: agencyName, stripe_ready: !!(await stripeKey(ctx)) });
 }
 
 // A proposed change: milestones (titles, amounts in dollars, due dates, deliverables) and scope. A new version both must sign.

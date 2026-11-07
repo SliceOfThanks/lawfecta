@@ -97,6 +97,10 @@ async function rate(page, labels, n) { for (const l of labels) await label(page,
     await waitFor(p, "Pat Past (pat.past@lawfirm.example)");
     ok(true, "freelancer: asks a past client (outside Lawfecta) for a review");
     await p.goto(`${BASE}/page/DELA-App?uid=2901&plan=&tab=ai`);
+    // Step 8b Part C (R12): webhooks fold closed under "Advanced"
+    t = await waitFor(p, "Advanced: webhooks");
+    ok(!t.includes("Add an endpoint"), "webhooks are folded closed under Advanced");
+    await dela(p).locator("#ai-advanced > summary").click();
     await waitFor(p, "Add an endpoint");
     await label(p, "Endpoint address (https)").fill("https://inside.example.com/dela");
     await label(p, "A bench invitation").check();

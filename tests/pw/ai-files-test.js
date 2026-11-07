@@ -160,7 +160,7 @@ const MEMBER_CLAUDE = "sk-ant-member-browser-test-key-2222222222"; // rules-ok: 
     // ---------- Attorney: own OpenAI key ----------
     await dela(p).getByRole("button", { name: "AI settings" }).click();
     t = await waitFor(p, "Which AI DELA uses");
-    ok(t.includes("Use Lawfecta's AI") && t.includes("credits left this month") && t.includes("Credits reset on the 1st of each month"), "AI settings show the included credits and when they reset");
+    ok(t.includes("Use Lawfecta's AI") && t.includes("DELA actions left this month") && t.includes("DELA actions reset on the 1st of each month") && !t.includes("credits"), "AI settings show the included DELA actions and when they reset, one word for the allowance (step 8b Part C)");
     ok(!t.includes("Save and test") && t.includes("choose \"Use my own key\" above"), "key setup stays hidden until Use my own key is chosen (UX review AI01)");
     await dela(p).getByText("Use my own key", { exact: true }).click();
     await waitFor(p, "Your own key");

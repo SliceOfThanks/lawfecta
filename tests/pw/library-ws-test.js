@@ -145,6 +145,8 @@ const BODY = (title, extra) => JSON.stringify({ schema: 2, type: "sop", title, l
     t = await waitFor(p, "DELA suggests: SOP", 15000);
     ok(t.includes("step-by-step procedure (SOP)") && t.includes("\"Run a conflict check\"") && t.includes("Category: Client intake."), "DELA suggests the structure, the matching common process and the category");
     ok(t.includes("Never enter sensitive data"), "the sensitive data notice is beside the writing box");
+    // Step 8b Part C (R06): beside an AI box the notice says to keep it in your own storage, without "share a link"
+    ok(t.includes("Keep it in your own storage.") && !t.includes("Share a link from your own storage instead."), "the AI box notice keeps sensitive data in your own storage, with no link to share");
     await click(p, "Choose another type");
     ok(await dela(p).getByRole("button", { name: "Policy", exact: true }).count() === 1, "other types are one click away");
     await click(p, "Use this");

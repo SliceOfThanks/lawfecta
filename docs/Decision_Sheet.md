@@ -234,7 +234,7 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Item | Suggested value | Status | Where it comes from | Your decision |
 |---|---|---|---|---|
 | Remind members before client details go to DELA's AI on Lawfecta's key. Turn off once OpenAI approves Zero Data Retention (docs/RUNBOOK.md). Never shown when the member uses their own AI key. | Yes | Confirmed | Stacey 2026-11-07 (step 9c answers) | |
-| Page notice when client details are allowed (sensitive data rule). Shown instead of data.notice_text while the switch client_details_allowed is on for the member. | DELA is for operations work. Never enter sensitive data: SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords. Share a link from your own storage instead. You are responsible for what you enter. | Confirmed | Stacey 2026-11-07 (step 9c answers) | |
+| Page notice when client details are allowed (sensitive data rule). Shown instead of data.notice_text while the switch client_details_allowed is on for the member. | DELA is for operations work. Never enter sensitive data: SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords. Keep it in your own storage. To share it with someone working on a job, add a secure link to the job, never to DELA's AI. You are responsible for what you enter. | Confirmed | Stacey 2026-11-07 (step 9c answers) | |
 
 ## 14. On and off switches
 

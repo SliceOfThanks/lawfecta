@@ -134,6 +134,7 @@ const ATT = 4100, FL = 4101;
     // ---------- A change for next month; cancel and keep it ----------
     await click(p, "Request a change");
     await label(p, "New monthly price ($)").fill("1200");
+    await label(p, "Why (optional)").fill("Two more packets a week from now on.");
     await click(p, "Send the change");
     await waitFor(p, "Sent. If the other person approves at least 1 day before billing, it starts next month.");
     ok(t.includes("Cancellation takes effect at the end of the paid month. Ending sooner needs both of you to agree.") && t.includes("You pay $1,050 each month, including the $50 platform fee.") && t.includes("unused work does not carry over"), "the monthly price with the fee, the cancel rule and no rollover, on the page (UX review M01, M02)");
@@ -149,6 +150,8 @@ const ATT = 4100, FL = 4101;
     t = await waitFor(p, "A change to approve");
     // Fix (step 8b, retest R10): a change shows current and proposed side by side, and when it would start
     ok(t.includes("Now") && t.includes("Proposed") && /\$1,000[\s\S]*\$1,200/.test(t) && /From the (next month|month that starts)/.test(t), "the freelancer sees the change next to what is in force now");
+    // Step 8b Part C (retest R10): a note that disagrees with the table is flagged, and DELA does not pick one
+    ok(t.includes("Check this before approving: the note says \"Two more packets a week\", but no monthly quantity changes in the table.") && t.includes("DELA does not decide which one is meant."), "a contradictory change note is flagged for review");
     await click(p, "Approve the change");
     await waitFor(p, "Approved. It starts next month");
     await click(p, "Approve keeping it");

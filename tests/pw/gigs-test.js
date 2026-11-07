@@ -199,6 +199,7 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     p = s.page;
     t = await waitFor(p, "What DELA has learned about you");
     ok(t.includes("Prefers fixed-price work"), "the member sees what DELA learned");
+    ok(/Learned from (a proposal you sent|an invitation you sent|a question you asked on a gig|an answer you gave on a gig|a message you sent on a gig), [A-Z][a-z]{2} \d+, \d{4}\./.test(t) && t.includes("Removing a fact means DELA stops using it"), "each fact says where it came from, when, and what removing it does (step 8b Part C, R12)");
     await dela(p).locator(".row", { hasText: "Prefers fixed-price work" }).getByRole("button", { name: "Remove" }).click();
     await waitFor(p, "Removed");
     ok((await sql("select count(*)::int n from member_insights mi join people pe on pe.id = mi.person_id where pe.bd_member_id = 2601 and removed_at is null"))[0].n === 0, "and can remove it");

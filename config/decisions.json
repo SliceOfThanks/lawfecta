@@ -1272,7 +1272,7 @@
         {
           "key": "data.notice_text_sensitive",
           "label": "Page notice when client details are allowed (sensitive data rule)",
-          "value": "DELA is for operations work. Never enter sensitive data: SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords. Share a link from your own storage instead. You are responsible for what you enter.",
+          "value": "DELA is for operations work. Never enter sensitive data: SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords. Keep it in your own storage. To share it with someone working on a job, add a secure link to the job, never to DELA's AI. You are responsible for what you enter.",
           "unit": "",
           "status": "C",
           "source": "Stacey 2026-11-07 (step 9c answers)",

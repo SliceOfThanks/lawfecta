@@ -337,6 +337,9 @@
   // screen: the server still refuses anything over its limit.
   function lim(key) { var v = me && me.limits && me.limits[key]; return typeof v === "number" && v > 0 ? v : Infinity; }
   function limAttr(key) { var v = lim(key); return v === Infinity ? null : String(v); }
+  // Step 8b Part C (R06, answer 6): beside AI writing boxes the notice says to keep sensitive data in your own storage,
+  // without "share a link", because links should not go to the AI either. Upload and sharing areas keep notice().
+  function aiNotice() { return h("p", { class: "small muted", style: "margin:0 0 8px", role: "note", text: "Never enter sensitive data: " + SENSITIVE_KINDS + ". Keep it in your own storage. You are responsible for what you enter." }); }
   function notice() { return h("p", { class: "small muted", style: "margin:0 0 8px", role: "note", text: "Never enter sensitive data: " + SENSITIVE_KINDS + ". Share a link from your own storage instead. You are responsible for what you enter." }); }
 
   // ---------- Ask DELA ----------
@@ -376,7 +379,7 @@
     }
     var c = ai.credits;
     if (!c) return "";
-    return c.unlimited ? "Using Lawfecta's AI." : "Using Lawfecta's AI: " + (c.remaining === null ? c.limit : c.remaining) + " of " + c.limit + " included credits left this month.";
+    return c.unlimited ? "Using Lawfecta's AI." : "Using Lawfecta's AI: " + (c.remaining === null ? c.limit : c.remaining) + " of " + c.limit + " included DELA actions left this month.";
   }
 
   function drawChat() {
@@ -457,7 +460,7 @@
         chat.picking ? filePicker() : null);
     }
     return h("div", { class: "composer" },
-      notice(),
+      aiNotice(),
       attachRow,
       ta,
       helperButton("improve_request", "✦ Improve my request", function () { return { text: ta.value }; }, { field: function (x) { return x.field === "request" ? ta : null; }, toast: "Added to your message. Nothing is sent until you click Send." }),
@@ -533,7 +536,7 @@
     var box = h("div", { class: "problem", role: "alert" });
     function btn(label, fn, cls) { return h("button", { class: (cls || "ghost") + " small", onclick: fn }, label); }
     var fix = btn("Fix my key", function () { tab = "ai"; draw(); });
-    var once = ai.backup_credits !== false ? btn("Use Lawfecta credits this time", function () { send({ lawfecta_once: true, retry: true }); }, "blue") : null;
+    var once = ai.backup_credits !== false ? btn("Use Lawfecta's DELA actions this time", function () { send({ lawfecta_once: true, retry: true }); }, "blue") : null;
     if (pr.reason === "sensitive_data") {
       // Sensitive data never goes, so there is no "send anyway" (step 9c)
       box.appendChild(h("p", { text: pr.message || D.errorText("sensitive_data") }));
@@ -547,7 +550,7 @@
       box.appendChild(h("p", { text: "Your " + providerName(k.provider) + " key did not work: " + (KEY_PROBLEM[pr.code] || "the provider refused the request.") + " Nothing was sent with Lawfecta's key." }));
       box.appendChild(h("div", { class: "row" }, btn("Try again", function () { send({ retry: true }); }), fix, once));
     } else if (pr.reason === "ai_failed") {
-      box.appendChild(h("p", { text: "DELA's AI could not answer: " + (KEY_PROBLEM[pr.code] || "something went wrong.") + " No credits were used." }));
+      box.appendChild(h("p", { text: "DELA's AI could not answer: " + (KEY_PROBLEM[pr.code] || "something went wrong.") + " No DELA actions were used." }));
       box.appendChild(h("div", { class: "row" }, btn("Try again", function () { send({ retry: true }); })));
     } else if (pr.reason === "no_key" || pr.reason === "key_unreadable") {
       box.appendChild(h("p", { text: D.errorText(pr.reason) }));
@@ -642,7 +645,7 @@
     if (r.reason === "ai_failed" && r.source !== "lawfecta") return "Your key could not turn speech into text: " + (KEY_PROBLEM[r.code] || "the provider refused it.") + " You can type instead.";
     if (r.reason === "ai_failed") return "Speech to text did not work: " + (KEY_PROBLEM[r.code] || "something went wrong.") + " You can type instead.";
     if (r.reason === "too_long") return "That recording was too long. Keep each one under " + ((chat.ai && chat.ai.voice_max_seconds) || 120) + " seconds.";
-    if (r.reason === "no_credits_left") return "Talking uses your included AI credits, and they are used up this month. You can type instead.";
+    if (r.reason === "no_credits_left") return "Talking uses your included DELA actions, and they are used up this month. You can type instead.";
     return D.errorText(r.reason || "server_error");
   }
 
@@ -662,8 +665,8 @@
     aiEl.appendChild(h("p", { class: "muted", text: "These settings are for your " + D.SIDE[me.side] + " side only." }));
     var c = ai.credits;
     var radios = h("div", null,
-      choice("lawfecta", "Use Lawfecta's AI", c ? (c.unlimited ? "Included with your plan." : "Included with your plan: " + (c.remaining === null ? c.limit : c.remaining) + " of " + c.limit + " credits left this month. Credits reset on the 1st of each month (Pacific time).") : "Included with your plan."),
-      choice("own_key", "Use my own key", ai.byok_on ? "Your OpenAI or Claude account pays for the AI. Your included credits stay as a backup you can choose to use." : "Opens soon."));
+      choice("lawfecta", "Use Lawfecta's AI", c ? (c.unlimited ? "Included with your plan." : "Included with your plan: " + (c.remaining === null ? c.limit : c.remaining) + " of " + c.limit + " DELA actions left this month. DELA actions reset on the 1st of each month (Pacific time).") : "Included with your plan."),
+      choice("own_key", "Use my own key", ai.byok_on ? "Your OpenAI or Claude account pays for the AI. Your included DELA actions stay as a backup you can choose to use." : "Opens soon."));
     function choice(v, label, sub) {
       var r = h("input", { type: "radio", name: "dela-ai-mode", value: v, checked: ai.mode === v, disabled: v === "own_key" && !ai.byok_on });
       r.addEventListener("change", function () {
@@ -688,11 +691,11 @@
         h("div", null, "AI tasks on your key", h("b", { text: String(u.own_tasks || 0) })),
         h("div", null, "Text read and written on your key", h("b", { text: ((u.own_input_tokens || 0) + (u.own_output_tokens || 0)).toLocaleString("en-US") + " tokens" })),
         h("div", null, "AI tasks on Lawfecta's AI", h("b", { text: String(u.lawfecta_tasks || 0) })),
-        h("div", null, "Included credits used", h("b", { text: String(u.lawfecta_credits || 0) }))),
+        h("div", null, "Included DELA actions used", h("b", { text: String(u.lawfecta_credits || 0) }))),
       h("p", { class: "small muted", style: "margin-top:10px", text: "Your provider's billing page shows the exact cost of what ran on your key." })));
     aiEl.appendChild(h("div", { class: "card" }, h("h2", { text: "Talking to the AI" }),
       h("p", { text: ai.voice_on ? "Press Talk in any AI chat, say what you need, and press Stop. Your words appear in the box so you can fix them before you press Send. Recordings are turned into text and not kept." : "Talking to the AI opens soon." }),
-      ai.voice_on ? h("p", { class: "small muted", text: "Each recording can be up to " + ai.voice_max_seconds + " seconds. Claude keys cannot turn speech into text, so members on a Claude key use Lawfecta's speech to text, which uses included credits. OpenAI keys handle it themselves." }) : null));
+      ai.voice_on ? h("p", { class: "small muted", text: "Each recording can be up to " + ai.voice_max_seconds + " seconds. Claude keys cannot turn speech into text, so members on a Claude key use Lawfecta's speech to text, which uses included DELA actions. OpenAI keys handle it themselves." }) : null));
     if ((me.switches || {}).profiles) {
       aiEl.appendChild(h("div", { class: "card" }, h("h2", { text: "What DELA knows about you" }),
         h("p", { text: "DELA's AI reads your own " + D.SIDE[me.side] + " profile (headline, practice areas, where you practice, your tech tools and services) to tailor its answers, for example by naming your own tools in document steps. It never reads other members' profiles." }),
@@ -701,7 +704,12 @@
     if ((me.switches || {}).member_insights) aiEl.appendChild(insightsCard());
     if ((me.switches || {}).gig_chat) aiEl.appendChild(prefsCard());
     aiEl.appendChild(connectionsCard());
-    webhooksCard(aiEl);
+    // Webhooks are for technical setups, so they fold closed under "Advanced" (step 8b Part C, R12)
+    if ((me.switches || {}).member_webhooks) {
+      var adv = h("details", { id: "ai-advanced", style: "margin:12px 0" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "Advanced: webhooks" }));
+      aiEl.appendChild(adv);
+      webhooksCard(adv);
+    }
   }
 
   function keyCard(ai, scope, k, title, sub) {
@@ -826,7 +834,7 @@
         }).catch(function (e) { go.disabled = false; msg.textContent = D.errorText(e.message); });
       }
       go.addEventListener("click", function () { run(false); });
-      wrap.appendChild(h("div", { class: "helpbox" }, h("p", { class: "small", style: "margin:0 0 6px", text: "DELA uses only the facts you give and what your profile says. It never invents a qualification. Uses AI credits like Ask DELA." }), notes, h("div", { class: "row", style: "margin-top:6px" }, go), msg));
+      wrap.appendChild(h("div", { class: "helpbox" }, h("p", { class: "small", style: "margin:0 0 6px", text: "DELA uses only the facts you give and what your profile says. It never invents a qualification. Uses DELA actions like Ask DELA." }), notes, h("div", { class: "row", style: "margin-top:6px" }, go), msg));
     });
     wrap.appendChild(open);
     return wrap;
@@ -854,13 +862,14 @@
     profEl.appendChild(nav);
     function section(el, id, label) { el.id = id; nav.appendChild(h("button", { type: "button", onclick: function () { el.scrollIntoView({ behavior: "smooth", block: "start" }); var f = el.querySelector("input, select, textarea, button"); if (f) f.focus({ preventScroll: true }); } }, label)); return el; }
     profEl.appendChild(statusCard(st));
+    // Step 8b Part C (R09, answer 7): the firm essentials (billing, signer, notices email) come first
+    if (side === "attorney") profEl.appendChild(section(firmCard(), "sec-firm", "Firm details"));
     if (side === "freelancer") profEl.appendChild(section(availabilityCard(st), "sec-availability", "Availability"));
     if (side === "freelancer" && (me.switches || {}).meetings) profEl.appendChild(meetingAvailabilityCard());
     profEl.appendChild(section(side === "attorney" ? licenseCard() : linkedinCard(), "sec-verify", side === "attorney" ? "License verification" : "LinkedIn check"));
     profEl.appendChild(section(formCard(), "sec-profile", "Your profile"));
     if (side === "freelancer" && r.settings.documents_on) profEl.appendChild(docsCard());
     if (side === "attorney") {
-      profEl.appendChild(section(firmCard(), "sec-firm", "Firm details"));
       if ((me.switches || {}).document_standard) { var dfBox = section(h("div"), "sec-docprefs", "Document preferences"); profEl.appendChild(dfBox); docFirm().then(function (f) { firmProfileForm(dfBox, f, function () { draw(); }); }).catch(function () {}); }
       ((r.firm || {}).staff_of || []).forEach(function (o) { profEl.appendChild(firmCard(o)); });
     }
@@ -877,6 +886,13 @@
       return h("div", { class: "check" + (done ? " done" : "") }, h("i", { "aria-hidden": "true", text: done ? "✓" : "" }), h("span", { text: (prof.data.labels || {})[k] || k }));
     })));
     if (me.side === "attorney" && st.verification !== "verified") card.appendChild(h("p", { class: "small muted", style: "margin-top:8px", text: "You can use Ask DELA, documents, files and the recorder before you are verified. Posting work and hiring need a verified license." }));
+    // What the firm still needs for paid work, at the top (step 8b Part C, R09)
+    var fmiss = me.side === "attorney" ? ((((prof.data.firm || {}).eligibility) || {}).missing_for_paid_work || []) : [];
+    if (fmiss.length) {
+      var FW = { billing_address: "Billing address", signatory: "Who may sign for the firm", service_email: "Email for formal notices" };
+      card.appendChild(h("div", { class: "notice", id: "firm-missing", style: "margin-top:10px" }, h("span", { text: "Still needed before paid work: " + fmiss.map(function (k) { return FW[k] || k; }).join(", ") + ". " }),
+        h("button", { class: "linkish", type: "button", onclick: function () { var f = app.querySelector("#sec-firm"); if (f) { f.scrollIntoView({ behavior: "smooth", block: "start" }); var i = f.querySelector("input, textarea"); if (i) i.focus({ preventScroll: true }); } } }, "Go to Firm details")));
+    }
     return card;
   }
 
@@ -1037,7 +1053,11 @@
     card.appendChild(textIn("booking_link", "Booking link", { help: "A Calendly, TidyCal or similar link, if you use one.", hint: "A page where people book time with you, if you have one." }));
     card.appendChild(h("h3", { text: side === "attorney" ? "Your practice" : "What you support" }));
     var areas = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" });
-    (r.practice_areas || []).forEach(function (a) {
+    // Selected areas first, with a search box, folded until opened (step 8b Part C, R09)
+    var allAreas = (r.practice_areas || []).slice().sort(function (x, y) { return (b.practice_areas.indexOf(y) >= 0) - (b.practice_areas.indexOf(x) >= 0); });
+    var areaFind = h("input", { type: "search", "aria-label": "Find a practice area", placeholder: "Find a practice area", style: "width:100%;margin-bottom:6px" });
+    areaFind.addEventListener("input", function () { var w = areaFind.value.trim().toLowerCase(); Array.prototype.forEach.call(areas.children, function (c) { c.hidden = !!w && c.textContent.toLowerCase().indexOf(w) < 0; }); });
+    allAreas.forEach(function (a) {
       var on = b.practice_areas.indexOf(a) >= 0;
       var chip = h("button", { class: on ? "blue small" : "ghost small", "aria-pressed": String(on) }, a);
       chip.addEventListener("click", function () {
@@ -1045,14 +1065,22 @@
         if (i >= 0) prof.body.practice_areas.splice(i, 1); else if (prof.body.practice_areas.length < lim("practice_areas_max")) prof.body.practice_areas.push(a);
         prof.dirty = true;
         chip.className = i >= 0 ? "ghost small" : "blue small"; chip.setAttribute("aria-pressed", String(i < 0));
+        areaSum.textContent = "Practice areas (" + prof.body.practice_areas.length + " selected)" + (need("practice_areas") ? "" : ", optional");
       });
       areas.appendChild(chip);
     });
-    card.appendChild(field("Practice areas" + (need("practice_areas") ? "" : " (optional)"), areas));
+    var pmiss = (r.state || {}).missing || [];
+    var areaSum = h("summary", { style: "cursor:pointer;font-weight:700", text: "Practice areas (" + b.practice_areas.length + " selected)" + (need("practice_areas") ? "" : ", optional") });
+    card.appendChild(h("details", { id: "prof-areas", style: "margin:8px 0", open: pmiss.indexOf("practice_areas") >= 0 && !b.practice_areas.length },
+      areaSum, b.practice_areas.length ? h("p", { class: "small muted", style: "margin:6px 0", text: "Selected: " + b.practice_areas.join(", ") }) : null, areaFind, areas));
     if (side === "attorney") card.appendChild(textIn("jurisdictions", "Where you are licensed or practice", { list: true, required: need("jurisdictions"), placeholder: "TX, Western District of Texas", hint: "Separate them with commas." }));
-    card.appendChild(textIn("summary", "Summary", { area: true, rows: 5, required: need("summary"), ai: true, help: side === "attorney" ? "A short paragraph about your practice: what you handle, for whom, and how you like to work with support staff." : "A short paragraph about you: the work you do, for which kinds of firms, how you work and what you are known for. No client names or case details." }));
-    card.appendChild(textIn("experience", "Experience", { area: true, required: need("experience"), ai: true, help: "Your roles or kinds of work, newest first, one per line, with years. For example: " + (side === "attorney" ? "Founding attorney, Smith Family Law, 2019 to now." : "Senior paralegal, family law firm, 2019 to now.") }));
-    card.appendChild(textIn("education", "Education", { area: true, rows: 3, required: need("education"), ai: true, help: "Degrees, certificates and courses, one per line, with the school and year. For example: " + (side === "attorney" ? "J.D., University of Texas School of Law, 2012." : "Paralegal certificate, Austin Community College, 2018.") }));
+    // The biography (summary, experience, education) is folded until opened, unless something needed is missing there
+    var bioOpen = ["summary", "experience", "education"].some(function (k) { return pmiss.indexOf(k) >= 0; });
+    var bio = h("details", { id: "prof-bio", style: "margin:8px 0", open: bioOpen }, h("summary", { style: "cursor:pointer;font-weight:700", text: "Biography: summary, experience and education" + (bioOpen ? "" : (b.summary ? "" : " (not written yet)")) }));
+    card.appendChild(bio);
+    bio.appendChild(textIn("summary", "Summary", { area: true, rows: 5, required: need("summary"), ai: true, help: side === "attorney" ? "A short paragraph about your practice: what you handle, for whom, and how you like to work with support staff." : "A short paragraph about you: the work you do, for which kinds of firms, how you work and what you are known for. No client names or case details." }));
+    bio.appendChild(textIn("experience", "Experience", { area: true, required: need("experience"), ai: true, help: "Your roles or kinds of work, newest first, one per line, with years. For example: " + (side === "attorney" ? "Founding attorney, Smith Family Law, 2019 to now." : "Senior paralegal, family law firm, 2019 to now.") }));
+    bio.appendChild(textIn("education", "Education", { area: true, rows: 3, required: need("education"), ai: true, help: "Degrees, certificates and courses, one per line, with the school and year. For example: " + (side === "attorney" ? "J.D., University of Texas School of Law, 2012." : "Paralegal certificate, Austin Community College, 2018.") }));
     var none = h("input", { type: "checkbox", checked: !!b.software_none });
     none.addEventListener("change", function () { prof.body.software_none = none.checked; prof.dirty = true; });
     card.appendChild(toolsPicker(r.tech_tools || [], need("software"), r.tech_groups));
@@ -1204,7 +1232,7 @@
     }
     go.addEventListener("click", function () { run(false); });
     return h("details", { style: "margin-top:12px" }, h("summary", { style: "cursor:pointer;font-weight:700", text: me.side === "freelancer" ? "Let DELA draft your headline, summary and services" : "Let DELA draft your headline and summary" }),
-      h("p", { class: "small muted", text: "DELA uses only what you write here and in the form. It does not invent qualifications. Uses AI credits like Ask DELA." }), notes, h("div", { class: "row" }, go), msg);
+      h("p", { class: "small muted", text: "DELA uses only what you write here and in the form. It does not invent qualifications. Uses DELA actions like Ask DELA." }), notes, h("div", { class: "row" }, go), msg);
   }
 
   function docsCard() {
@@ -1298,8 +1326,8 @@
   // ---------- DELA in ChatGPT and Claude (connector) ----------
 
   var CONNECT_CAN = {
-    attorney: ["See your name, side, plan and AI credits left", "Read your profile and where your verification stands", "List and read the documents in your library", "Save new document drafts and suggest changes (you accept changes here, on the DELA website)", "Have DELA's AI draft a document, using your AI credits or your own key", "Export a document as text, a web page or a checklist"],
-    freelancer: ["See your name, side, plan and AI credits left", "Read your profile and what is missing to be match-ready"],
+    attorney: ["See your name, side, plan and DELA actions left", "Read your profile and where your verification stands", "List and read the documents in your library", "Save new document drafts and suggest changes (you accept changes here, on the DELA website)", "Have DELA's AI draft a document, using your DELA actions or your own key", "Export a document as text, a web page or a checklist"],
+    freelancer: ["See your name, side, plan and DELA actions left", "Read your profile and what is missing to be match-ready"],
   };
   var CONNECT_CANNOT = "It cannot pay, hire, sign, send messages, delete anything or see your passwords or AI keys.";
   var CONNECT_ERR = { request_expired: "This connection request ran out or was already answered. Start again from ChatGPT or Claude.", connector_off: "DELA in ChatGPT and Claude is not open for your account yet.", not_in_plan: "Your plan does not include the ChatGPT and Claude connector.", on_hold: "Some actions are paused on your account. Contact the Lawfecta Team." };
@@ -1315,6 +1343,8 @@
     box.appendChild(changes.length ? h("ul", null, changes.map(function (t) { return h("li", { text: t }); })) : h("p", { text: "Nothing. It can only read." }));
     box.appendChild(h("h2", { text: "What stays private" }));
     box.appendChild(h("p", { text: CONNECT_CANNOT }));
+    box.appendChild(h("h2", { text: "What leaves DELA" }));
+    box.appendChild(h("p", { text: "What " + who + " reads from DELA is processed by " + (who === "ChatGPT" ? "OpenAI" : who === "Claude" ? "Anthropic" : "OpenAI (ChatGPT) or Anthropic (Claude)") + " under your own account with them, and their terms apply to it. Disconnecting stops new reading right away, but it cannot recall what was already read." }));
     box.appendChild(h("h2", { text: "How to disconnect" }));
     box.appendChild(h("p", { text: "Open AI settings, find the card \"Use DELA in ChatGPT and Claude\" and click \"Disconnect\". It stops working right away." }));
   }
@@ -1332,7 +1362,7 @@
       box.appendChild(h("p", { text: "It will use your " + D.SIDE[r.side] + " side" + ((me.sides || []).length > 1 ? ". To connect your other side instead, switch sides at the top of this page first." : ".") }));
       box.appendChild(h("p", { class: "small muted", text: "After you choose, you go back to " + r.redirect_host + "." }));
       connectExplain(box, r.side, r.client_name, true);
-      box.appendChild(h("p", { class: "notice", role: "note", text: "Never enter sensitive data in DELA, and that includes what you type in ChatGPT or Claude for DELA: " + SENSITIVE_KINDS + ". Share a link from your own storage instead. You are responsible for what you enter." }));
+      box.appendChild(h("p", { class: "notice", role: "note", text: "Never enter sensitive data in DELA, and that includes what you type in ChatGPT or Claude for DELA: " + SENSITIVE_KINDS + ". Keep it in your own storage. You are responsible for what you enter." }));
       if (!r.on || !r.plan_ok) { box.appendChild(h("p", { class: "notice bad", text: CONNECT_ERR[!r.on ? "connector_off" : "not_in_plan"] })); }
       var msg = h("p", { role: "status", class: "small" });
       function decide(yes) {
@@ -1615,7 +1645,7 @@
     if (r.reason === "import_off") return "Import from Scribe is not open for your account yet.";
     if (r.reason === "image_host_not_allowed") return "DELA only fetches screenshots from Scribe's own image addresses. This one was skipped: " + (r.host || "") + ".";
     if (r.reason === "ai_failed" && r.source && r.source !== "lawfecta") return "Your own AI key did not work: " + (KEY_PROBLEM[r.code] || "the provider refused it.") + " Nothing ran on Lawfecta's AI. Open AI settings to fix it.";
-    if (r.reason === "ai_failed") return "DELA's AI could not finish: " + (KEY_PROBLEM[r.code] || "something went wrong.") + " No credits were used. Please try again.";
+    if (r.reason === "ai_failed") return "DELA's AI could not finish: " + (KEY_PROBLEM[r.code] || "something went wrong.") + " No DELA actions were used. Please try again.";
     return D.errorText(r.reason || "server_error");
   }
   function pbFail(e) {
@@ -1836,7 +1866,7 @@
       var want = h("textarea", { rows: 3, style: "width:100%", "aria-label": "What would you like to document?", placeholder: "For example: how we check for conflicts before accepting a new client" });
       libEl.appendChild(h("div", { class: "card soft lib-help", id: "lib-help" }, h("h2", { text: "Not sure where to start?" }),
         h("p", { class: "small muted", text: "Describe the process in a sentence. DELA suggests how to structure it, asks a few questions and drafts it for you. The draft is yours to edit, and it is never the working version until someone approves it." }),
-        notice(), want,
+        aiNotice(), want,
         h("div", { class: "row", style: "margin-top:8px;flex-wrap:wrap" },
           h("button", { class: "blue", type: "button", onclick: function () { DOC.flow = { what: want.value }; if (L.standard) newDocument(); else newPlaybook(); } }, "✦ Help me create a document"),
           h("button", { class: "ghost", type: "button", onclick: suggestMissing }, "What am I missing?"))));
@@ -1878,7 +1908,7 @@
           } else {
             problem.appendChild(h("div", { class: "problem" }, h("p", { text: failText(r) }),
               r.reason === "ai_failed" ? h("div", { class: "row" }, h("button", { class: "ghost small", onclick: function () { attempt++; send(); } }, "Try again"),
-                r.source !== "lawfecta" && ai.backup_credits !== false ? h("button", { class: "blue small", onclick: function () { attempt++; send({ lawfecta_once: true }); } }, "Use Lawfecta credits this time") : null) : null));
+                r.source !== "lawfecta" && ai.backup_credits !== false ? h("button", { class: "blue small", onclick: function () { attempt++; send({ lawfecta_once: true }); } }, "Use Lawfecta's DELA actions this time") : null) : null));
           }
           return;
         }
@@ -1931,7 +1961,7 @@
         h("div", { class: "row" }, go2), say));
     } }, "Upload a new file") : null;
     box.appendChild(h("h2", { text: "New document" }));
-    box.appendChild(notice());
+    box.appendChild(aiNotice());
     box.appendChild(title);
     box.appendChild(ta);
     box.appendChild(h("div", { class: "row", style: "margin-top:8px" }, mic, fileBtn, upBtn, h("span", { class: "grow" }), status));
@@ -2108,7 +2138,7 @@
     }
     btn.addEventListener("click", function () { if (ta.value.trim()) send(); });
     return h("div", { class: "card", style: "border-color:var(--blue)" }, h("h2", { text: "DELA's questions" }),
-      h("ol", null, lib.questions.map(function (q) { return h("li", { text: q }); })), notice(), ta,
+      h("ol", null, lib.questions.map(function (q) { return h("li", { text: q }); })), aiNotice(), ta,
       h("div", { class: "row", style: "margin-top:8px" }, mic, btn, h("button", { class: "ghost small", onclick: function () { lib.questions = []; drawPlaybook(); } }, "Not now"), status));
   }
 
@@ -2191,7 +2221,7 @@
     drawSteps();
     var hasDl = h("input", { type: "checkbox", checked: b.has_deadlines });
     var noteIn = h("input", { style: "width:100%", placeholder: "What you changed (shows in Versions)" });
-    area.appendChild(h("div", { class: "card" }, notice(),
+    area.appendChild(h("div", { class: "card" }, aiNotice(),
       field("title", "1. Title", "line"), field("outcome", "Outcome: what done produces", "text"),
       h("div", { class: "row" }, h("div", { class: "grow" }, field("practice_area", "2. Practice area", "line")), h("div", { class: "grow" }, field("jurisdiction", "Jurisdiction (a state, federal, or any)", "line"))),
       field("when_to_use", "3. When to use it", "text", "What starts it: a new client signs, a court notice arrives, the first of the month."),
@@ -2249,7 +2279,7 @@
         status.textContent = "";
         if (!r.ok) {
           if (r.reason === "looks_like_client_info" && confirm(ciNote(r, "This may include " + kindsText(r.kinds) + ". Send anyway? Only if it has no client information."))) { send({ confirm: true }); return; }
-          if (r.reason === "ai_failed" && r.source !== "lawfecta" && confirm(failText(r) + " Use Lawfecta credits this time?")) { attempt++; send({ once: true }); return; }
+          if (r.reason === "ai_failed" && r.source !== "lawfecta" && confirm(failText(r) + " Use Lawfecta's DELA actions this time?")) { attempt++; send({ once: true }); return; }
           attempt++;
           D.toast(app, failText(r), true);
           return;
@@ -2265,7 +2295,7 @@
     }
     btn.addEventListener("click", function () { send(); });
     area.appendChild(list);
-    area.appendChild(h("div", { class: "composer" }, notice(), ta, h("div", { class: "row", style: "margin-top:8px" }, mic, h("span", { class: "grow" }), status, btn)));
+    area.appendChild(h("div", { class: "composer" }, aiNotice(), ta, h("div", { class: "row", style: "margin-top:8px" }, mic, h("span", { class: "grow" }), status, btn)));
   }
 
   // What a suggestion would change, part by part
@@ -2601,7 +2631,7 @@
         openPlaybook(r.playbook_id, "read");
       }).catch(function (e) { btn.disabled = false; btn.textContent = "Build my document"; pbFail(e); });
     }
-    libEl.appendChild(h("div", { class: "card" }, notice(), h("label", { text: "Anything to add" }), ctx, h("div", { class: "row", style: "margin-top:10px" }, btn,
+    libEl.appendChild(h("div", { class: "card" }, aiNotice(), h("label", { text: "Anything to add" }), ctx, h("div", { class: "row", style: "margin-top:10px" }, btn,
       h("button", { class: "ghost", onclick: function () { if (confirm("Discard this import?")) api.post("/imports/discard", { id: imp.id }).then(function () { lib.importId = null; loadLibrary(); }).catch(pbFail); } }, "Discard"))));
   }
 
@@ -3339,6 +3369,31 @@
       h("thead", null, h("tr", null, h("th", { text: "" }), h("th", { text: "Now" }), h("th", { text: "Proposed" }))),
       h("tbody", null, rows.map(function (r) { return h("tr", { class: r[1] !== r[2] ? "changed" : "" }, h("td", { "data-label": "", text: r[0] }), h("td", { "data-label": "Now", text: r[1] }), h("td", { "data-label": "Proposed" }, r[1] !== r[2] ? h("b", { text: r[2] }) : r[2])); })))),
       h("p", { class: "small muted", text: starts }));
+  }
+  // Step 8b Part C (retest R10): a change note whose numbers disagree with the change itself is flagged, never resolved.
+  // For example "two more packets a week" while the table moves a monthly allowance from 10 to 12. DELA does not guess
+  // which one is meant; the person checks with the other side before approving.
+  var NUM_WORDS = { one: 1, two: 2, three: 3, four: 4, five: 5, six: 6, seven: 7, eight: 8, nine: 9, ten: 10, eleven: 11, twelve: 12, fifteen: 15, twenty: 20 };
+  function noteConflict(note, cur, prop) {
+    var text = String(note || "");
+    if (!text) return "";
+    var deltas = [];
+    var names = [];
+    ((cur || {}).tasks || []).concat((prop || {}).tasks || []).forEach(function (t) { if (names.indexOf(t.task) < 0) names.push(t.task); });
+    names.forEach(function (n) {
+      var q = function (list) { var x = (list || []).filter(function (t) { return t.task === n; })[0]; return x ? Number(x.quantity) || 0 : 0; };
+      var a = q((cur || {}).tasks), b = q((prop || {}).tasks);
+      if (a !== b) deltas.push({ task: n, from: a, to: b, d: Math.abs(b - a) });
+    });
+    var re = /\b(\d+|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|fifteen|twenty)\s+(?:more\s+|fewer\s+|less\s+|extra\s+|additional\s+)?(?:[a-z]+\s+){0,2}?(?:a|per|each)\s+(week|month)\b/gi;
+    var m, out = "";
+    while ((m = re.exec(text)) && !out) {
+      var n = /^\d+$/.test(m[1]) ? Number(m[1]) : NUM_WORDS[m[1].toLowerCase()];
+      var per = m[2].toLowerCase();
+      var fits = deltas.some(function (x) { return per === "month" ? x.d === n : x.d >= n * 4 && x.d <= n * 5; });
+      if (!fits) out = "Check this before approving: the note says \"" + m[0] + "\", but " + (deltas.length ? deltas.map(function (x) { return x.task + " goes from " + x.from + " to " + x.to + " each month"; }).join("; ") : "no monthly quantity changes in the table") + ". DELA does not decide which one is meant. Ask the other person, and approve only if the table is what you both mean.";
+    }
+    return out;
   }
   function gigActionItems(list) {
     var out = [];
@@ -4208,9 +4263,13 @@
       if (!st.on) { if (att) slot.appendChild(h("div", { class: "card" }, h("h2", { text: "Standing arrangements" }), h("span", { class: "soon", text: "Coming soon" }), h("p", { class: "small muted", text: "Hire a trusted freelancer again in one click, inside limits you both sign once." }))); return; }
       var list = st.arrangements || [];
       if (!list.length && !att) return;
-      var c = h("div", { class: "card", id: "standing-card" }, h("h2", { text: "Standing arrangements (" + list.length + ")" }), cardStatus("standing"));
-      if (!list.length) c.appendChild(h("p", { class: "muted", text: "None yet. In Talent, choose a freelancer and click \"Set up a standing arrangement\"." }));
-      list.forEach(function (a) {
+      // Ended and declined arrangements move to "Past arrangements" (step 8b Part C, R08)
+      var PAST = ["ended", "declined"];
+      var current = list.filter(function (a) { return PAST.indexOf(a.status) < 0; }), past = list.filter(function (a) { return PAST.indexOf(a.status) >= 0; });
+      var c = h("div", { class: "card", id: "standing-card" }, h("h2", { text: "Standing arrangements (" + current.length + ")" }), cardStatus("standing"));
+      if (!current.length) c.appendChild(h("p", { class: "muted", text: att ? "None active. In Talent, choose a freelancer and click \"Set up a standing arrangement\"." : "None active." }));
+      var pastBox = past.length ? h("details", { id: "standing-past", style: "margin-top:10px" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "Past arrangements (" + past.length + ")" })) : null;
+      current.concat(past).forEach(function (a) {
         var box = h("div", { class: "soft standing", style: "margin:10px 0;padding:10px 12px;border-radius:12px" });
         box.appendChild(h("div", { class: "row" }, h("b", { class: "grow", text: att ? a.freelancer_name : a.firm_name }), h("span", { class: "badge " + (a.status === "active" ? "ready" : a.status === "needs_review" || a.status === "proposed" ? "held" : "C"), text: STANDING_WORDS[a.status] || a.status })));
         box.appendChild(h("p", { class: "small", style: "margin:4px 0", text: D.money(a.price_cents) + " per job | " + D.money(a.spend_cents) + " of " + D.money(a.cap_cents) + " this month | " + a.open + " of " + a.max_open + " jobs open | until " + D.date(a.end_on) }));
@@ -4253,7 +4312,14 @@
               setTimeout(draw, 1200);
             }).catch(function (e) { go.disabled = false; cardSay("standing", standingErr(e), true); });
           });
-          box.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, pick, go));
+          // What is left, next to the button, and the cap rule (step 8b Part C, R08; answer 9: the cap counts the job price)
+          var leftC = Math.max(0, a.cap_cents - a.spend_cents), places = Math.max(0, a.max_open - a.open);
+          box.appendChild(h("p", { class: "small", style: "margin:6px 0 2px", id: "standing-left-" + a.id, text: D.money(leftC) + " left this month | " + places + (places === 1 ? " open-job place left" : " open-job places left") }));
+          box.appendChild(h("p", { class: "small muted", style: "margin:0 0 4px", text: "The cap counts the job price. Lawfecta's platform fee is added to each charge." }));
+          var why = places < 1 ? "The most jobs open at once (" + a.max_open + ") are already open." : leftC < a.price_cents ? "This month's cap has " + D.money(leftC) + " left, less than one job (" + D.money(a.price_cents) + ")." : "";
+          if (why) box.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px;gap:8px" }, h("span", { class: "small bad", text: why }),
+            a.role === "manager" ? h("button", { class: "ghost small", type: "button", onclick: function () { openLimits(); } }, "Review limits") : h("span", { class: "small muted", text: "Ask the firm's owner or a manager to review the limits." })));
+          else box.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, pick, go));
         }
         // The jobs hired from it
         if ((a.hires || []).length) box.appendChild(h("ul", { class: "list", style: "margin-top:6px" }, a.hires.map(function (x) {
@@ -4263,19 +4329,22 @@
         })));
         // Change the limits (both sign again) and end it
         var tools = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" });
-        if (att && a.role === "manager" && a.status === "active") tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+        if (att && a.role === "manager" && a.status === "active") tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { openLimits(); } }, "Change limits"));
+        function openLimits() {
+          if (box.querySelector(".limits-form")) { box.querySelector(".limits-form").scrollIntoView({ block: "nearest" }); return; }
           var pr = h("input", { type: "number", min: "0", step: "1", "aria-label": "New price per job ($)", value: String(a.price_cents / 100) }), cp = h("input", { type: "number", min: "0", step: "1", "aria-label": "New monthly spend cap ($)", value: String(a.cap_cents / 100) });
           var op = h("input", { type: "number", min: "1", max: limAttr("standing_max_open"), step: "1", "aria-label": "New most jobs open at once", value: String(a.max_open) }), sbC = signBox("New limits");
-          box.appendChild(h("div", { class: "soft", style: "margin-top:6px" }, h("p", { class: "small", text: "Once you send them, new limits pause one-click hiring until the freelancer approves them. Limits that are not allowed are refused and nothing changes." }), h("div", { class: "row", style: "flex-wrap:wrap" }, field("Price per job ($)", pr), field("Monthly spend cap ($)", cp), field("Most jobs open at once", op)),
+          box.appendChild(h("div", { class: "soft limits-form", style: "margin-top:6px" }, h("p", { class: "small", text: "Once you send them, new limits pause one-click hiring until the freelancer approves them. Limits that are not allowed are refused and nothing changes." }), h("div", { class: "row", style: "flex-wrap:wrap" }, field("Price per job ($)", pr), field("Monthly spend cap ($)", cp), field("Most jobs open at once", op)),
             field("Your full name", sbC.name), h("label", { style: "display:flex;gap:8px;font-weight:400" }, sbC.ok, h("span", { text: "I sign the new limits for the firm." })),
             h("button", { class: "blue small", type: "button", onclick: function () { act("/standing/change", { price: pr.value, cap: cp.value, max_open: Number(op.value), typed_name: sbC.name.value, consent: sbC.ok.checked }, "Sent. Hiring is paused until the freelancer approves."); } }, "Sign and send the new limits")));
-        } }, "Change limits"));
+        }
         if ((att ? a.role === "manager" : true) && ["proposed", "active", "needs_review"].indexOf(a.status) >= 0 && !(a.status === "proposed" && !att)) tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
           if (!confirm("End this standing arrangement? No new jobs can be hired from it; open jobs finish as agreed.")) return; act("/standing/end", {}, function (r) { return r.status === "ending" ? "Ending once the open jobs finish." : "Ended."; });
         } }, "End arrangement"));
         if (tools.children.length) box.appendChild(tools);
-        c.appendChild(box);
+        (PAST.indexOf(a.status) >= 0 ? pastBox : c).appendChild(box);
       });
+      if (pastBox) c.appendChild(pastBox);
       slot.appendChild(c);
     });
   }
@@ -4338,7 +4407,7 @@
     el.appendChild(h("div", { class: "card" }, h("h2", { text: "Find a freelancer" }), h("div", { class: "row", style: "flex-wrap:wrap;align-items:flex-end" },
       field("Practice area", inputs.practice_area), field("Skill", inputs.skill), field("Tech tool", inputs.tool), field("State you need", inputs.state),
       h("button", { class: "blue small", type: "button", onclick: run }, "Search")),
-      (me.switches || {}).ai_helpers ? field("Describe the task (for ✦ Help me find a fit)", task, "DELA suggests filters from it. You check them, then click Search.") : null,
+      (me.switches || {}).ai_helpers ? field("Describe the task (for ✦ Help me find a fit)", h("div", null, aiNotice(), task), "DELA suggests filters from it. You check them, then click Search.") : null,
       helperButton("find_fit", "✦ Help me find a fit", function () { return { text: task.value }; }, { field: function (x) { return inputs[x.field] || null; } })));
     el.appendChild(results);
     run();
@@ -4541,11 +4610,14 @@
     api.get("/insights").then(function (r) {
       D.clear(card);
       card.appendChild(h("h2", { text: "What DELA has learned about you" }));
-      card.appendChild(h("p", { class: "small muted", text: "DELA notes useful facts about how you work from what you send on gigs, to help you better. It never keeps client information. Remove anything you do not want it to use." }));
+      card.appendChild(h("p", { class: "small muted", text: "DELA notes useful facts about how you work from what you send on gigs, to help you better. It never keeps sensitive data. Removing a fact means DELA stops using it in its answers from now on; it does not change anything you already sent." }));
       if (!r.on) { card.appendChild(h("p", { class: "muted", text: "This is not open for your account yet." })); return; }
       if (!r.items.length) card.appendChild(h("p", { class: "muted", text: "Nothing yet." }));
+      // Where each fact came from and when (step 8b Part C, R12)
+      var FROM = { invitation: "an invitation you sent", proposal: "a proposal you sent", question: "a question you asked on a gig", answer: "an answer you gave on a gig", message: "a message you sent on a gig" };
       r.items.forEach(function (i) {
-        card.appendChild(h("div", { class: "row" }, h("span", { class: "grow", text: i.text }), h("button", { class: "ghost small", type: "button", onclick: function () {
+        card.appendChild(h("div", { class: "row insight", style: "align-items:flex-start;margin:6px 0" }, h("span", { class: "grow" }, h("span", { text: i.text }),
+          h("span", { class: "small muted", style: "display:block", text: "Learned from " + (FROM[i.source] || "what you sent on a gig") + ", " + D.date(i.created_at) + "." })), h("button", { class: "ghost small", type: "button", "aria-label": "Remove: " + i.text, onclick: function () {
           api.post("/insights/remove", { id: i.id }).then(gigOk).then(function () { D.toast(app, "Removed"); card.replaceWith(insightsCard()); }).catch(gigFail);
         } }, "Remove")));
       });
@@ -4579,6 +4651,7 @@
     api.post("/threads/open", { gig_id: gigId, freelancer: freelancer || null }).then(gigOk).then(function (r) { talk.thread = r.id; tab = "inbox"; draw(); }).catch(talkFail);
   }
   function dayLabel(iso) { return new Date(iso).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" }); }
+  function fullDay(iso) { return new Date(iso).toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" }); }
   function timeLabel(iso) { return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" }); }
   // Meetings show the full date with the year and the viewer's own time zone by name (UX review I02)
   function zoneName(iso) {
@@ -4731,10 +4804,22 @@
   }
 
   // Booking: open times grouped by day in the member's own time zone; a time is held for 10 minutes while confirming
+  // The viewer's own time zone in words ("Pacific Time"), from the browser
+  function tzName() {
+    // "Pacific Time" first; where the browser only knows an offset ("GMT+00:00"), the long name ("Coordinated Universal Time")
+    var names = ["longGeneric", "long"];
+    for (var i = 0; i < names.length; i++) {
+      try {
+        var p = new Intl.DateTimeFormat("en-US", { timeZoneName: names[i] }).formatToParts(new Date()).filter(function (x) { return x.type === "timeZoneName"; })[0];
+        if (p && p.value && p.value.indexOf("GMT") !== 0) return p.value;
+      } catch (e) { /* older browsers: try the next form */ }
+    }
+    try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "your time zone"; } catch (e2) { return "your time zone"; }
+  }
   function bookPanel(host, gigId, freelancer, rescheduleOf) {
     var panel = h("div", { class: "card", "aria-label": "Book a meeting" }, h("h2", { text: rescheduleOf ? "Choose a new time" : "Book a meeting" }), h("p", { class: "muted small", text: "Loading open times..." }));
     host.insertBefore(panel, host.children[3] || null);
-    var length = null;
+    var length = null, bookDay = null;
     function load() {
       api.get("/meetings/slots?gig=" + gigId + (freelancer ? "&freelancer=" + freelancer : "") + (length ? "&length=" + length : "") + (rescheduleOf ? "&except=" + rescheduleOf : "")).then(function (r) {
         D.clear(panel);
@@ -4744,38 +4829,44 @@
         length = r.length;
         var sel = h("select", { "aria-label": "Meeting length" }, (r.lengths || []).map(function (n) { return h("option", { value: String(n), text: n + " minutes", selected: n === r.length }); }));
         sel.addEventListener("change", function () { length = Number(sel.value); load(); });
-        panel.appendChild(h("p", { class: "small muted", text: "Times are shown in your own time zone. Meetings are free and happen in a Lawfecta meeting room. The freelancer's time zone: " + r.timezone + "." }));
+        panel.appendChild(h("p", { class: "small muted", text: "Times are shown in your time zone (" + tzName() + "). Meetings are free and happen in a Lawfecta meeting room. " + (me.side === "freelancer" ? "Your availability is set in " : "The freelancer's time zone: ") + r.timezone + "." }));
         panel.appendChild(field("Length", sel));
         if (!r.slots.length) panel.appendChild(h("p", { class: "muted", text: "No open times in the next 3 weeks for this length." }));
-        // Morning and afternoon groups, a few times first, then pick and review (UX review I03)
-        var byDay = {}, chosen = null, FIRST = 6;
-        r.slots.forEach(function (s) { var d = dayLabel(s); (byDay[d] = byDay[d] || []).push(s); });
+        // A date first, then that date's times: 8 at first, then "Show more times", with the viewer's time zone named (step 8b Part C, R05)
+        var byDay = {}, days = [], chosen = null, FIRST = 8;
+        r.slots.forEach(function (s) { var d = dayLabel(s); if (!byDay[d]) { byDay[d] = []; days.push(d); } byDay[d].push(s); });
         var summary = h("div", { class: "soft", style: "margin-top:10px", id: "book-summary" });
+        var timesEl = h("div", { id: "book-times" });
+        if (days.length) {
+          if (days.indexOf(bookDay) < 0) bookDay = days[0];
+          var daySel = h("select", { "aria-label": "Date" }, days.map(function (d) { var n = byDay[d].length; return h("option", { value: d, text: d + " (" + n + (n === 1 ? " open time)" : " open times)"), selected: d === bookDay }); }));
+          daySel.addEventListener("change", function () { bookDay = daySel.value; chosen = null; D.clear(summary); drawTimes(); });
+          panel.appendChild(field("Date", daySel));
+          panel.appendChild(timesEl);
+        }
         function pick(s, btn) {
           chosen = s;
           Array.prototype.forEach.call(panel.querySelectorAll(".slot"), function (b) { b.setAttribute("aria-pressed", "false"); b.className = "ghost slot"; });
           btn.setAttribute("aria-pressed", "true"); btn.className = "blue slot";
           D.clear(summary);
-          summary.appendChild(h("p", { style: "margin:0 0 6px", text: "Selected: " + whenLabel(s, length) }));
+          summary.appendChild(h("p", { style: "margin:0 0 6px", text: "Selected: " + whenLabel(s, length) + ", " + tzName() }));
           summary.appendChild(h("button", { class: "blue", type: "button", onclick: function () { hold(chosen); } }, rescheduleOf ? "Review the new time" : "Review booking"));
         }
-        function slotBtn(s) { var b = h("button", { class: "ghost slot", type: "button", "aria-pressed": "false", style: "min-width:96px;min-height:40px" }, timeLabel(s)); b.addEventListener("click", function () { pick(s, b); }); return b; }
-        Object.keys(byDay).slice(0, 14).forEach(function (d) {
-          var day = h("div", { style: "margin:10px 0" }, h("b", { text: d }));
-          [["Morning", function (s) { return new Date(s).getHours() < 12; }], ["Afternoon", function (s) { return new Date(s).getHours() >= 12; }]].forEach(function (part) {
-            var list = byDay[d].filter(part[1]);
-            if (!list.length) return;
-            var row = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px;margin-top:4px" }, h("span", { class: "small muted", style: "min-width:72px", text: part[0] }));
-            list.slice(0, FIRST).forEach(function (s) { row.appendChild(slotBtn(s)); });
-            if (list.length > FIRST) {
-              var more = h("button", { class: "ghost small", type: "button" }, "Show more times");
-              more.addEventListener("click", function () { more.remove(); list.slice(FIRST).forEach(function (s) { row.appendChild(slotBtn(s)); }); });
-              row.appendChild(more);
-            }
-            day.appendChild(row);
-          });
-          panel.appendChild(day);
-        });
+        function slotBtn(s) { var b = h("button", { class: "ghost slot", type: "button", "aria-pressed": "false", "aria-label": timeLabel(s) + ", " + fullDay(s), style: "min-width:96px;min-height:44px" }, timeLabel(s)); b.addEventListener("click", function () { pick(s, b); }); return b; }
+        function drawTimes() {
+          D.clear(timesEl);
+          var list = byDay[bookDay] || [];
+          timesEl.appendChild(h("p", { style: "margin:10px 0 4px" }, h("b", { text: list.length ? fullDay(list[0]) : bookDay }), h("span", { class: "small muted", text: " | " + length + " minutes | times in " + tzName() })));
+          var row = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" });
+          list.slice(0, FIRST).forEach(function (s) { row.appendChild(slotBtn(s)); });
+          if (list.length > FIRST) {
+            var more = h("button", { class: "ghost small", type: "button" }, "Show more times (" + (list.length - FIRST) + ")");
+            more.addEventListener("click", function () { more.remove(); list.slice(FIRST).forEach(function (s) { row.appendChild(slotBtn(s)); }); });
+            row.appendChild(more);
+          }
+          timesEl.appendChild(row);
+        }
+        if (days.length) drawTimes();
         panel.appendChild(summary);
       }).catch(function (e) { D.clear(panel); panel.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     }
@@ -4833,10 +4924,12 @@
     if ((m.status === "confirmed" || m.status === "completed" || m.status === "no_show") && started) {
       c.appendChild(h("p", { class: "small", text: "Attendance: " + ATTEND[m.attendance] + "." }));
       if (!m.my_followup) {
-        var met = h("select", { "aria-label": "Did the meeting happen?" }, h("option", { value: "yes", text: "We met" }), h("option", { value: "no", text: "They did not come" }));
+        var met = h("select", { "aria-label": "Did the meeting happen?" }, h("option", { value: "", text: "Choose what happened", selected: true }), h("option", { value: "yes", text: "We met" }), h("option", { value: "no", text: "They did not come" }));
         var sum = h("textarea", { rows: 3, style: "width:100%", "aria-label": "Short summary", placeholder: "What you agreed, next steps, any change to the work or price. No client information." });
         c.appendChild(h("div", { class: "helpbox" }, h("p", { style: "margin:0 0 6px", text: "Did the meeting happen? Tell DELA within " + confirmHours + " hours. DELA suggests next steps from both summaries." }), met, sum,
           h("button", { class: "blue small", type: "button", onclick: function () {
+            // Step 8b Part C: nothing is chosen for the member; they pick what happened first
+            if (!met.value) { D.toast(app, "Choose what happened first.", true); met.focus(); return; }
             api.post("/meetings/followup", { id: m.id, met: met.value === "yes", summary: sum.value }).then(function (x) {
               if (x.reason === "looks_like_client_info") { D.toast(app, ciNote(x, "This may include client information. Use placeholders instead."), true); return; }
               gigOk(x); draw(); D.toast(app, "Thank you. " + (x.both_in ? "You both answered." : "Waiting for the other person."));
@@ -5077,7 +5170,8 @@
     var open = (mv.changes || []).filter(function (c) { return c.status === "open"; })[0];
     if (open) {
       var box = h("div", { class: "soft", style: "margin-top:8px" }, h("b", { text: open.mine ? "Your change, waiting for the other person" : "A change to approve" }),
-        changeCompare(mv.terms, open, mv), open.note ? h("p", { class: "small", text: "Note: " + open.note }) : null);
+        changeCompare(mv.terms, open, mv), open.note ? h("p", { class: "small", text: "Note: " + open.note }) : null,
+        noteConflict(open.note, mv.terms, open) ? h("p", { class: "notice bad", role: "alert", id: "change-note-conflict", text: noteConflict(open.note, mv.terms, open) }) : null);
       if (!open.mine) box.appendChild(h("div", { class: "row" },
         h("button", { class: "blue small", type: "button", onclick: function () { api.post("/monthly/change/decide", { id: open.id, approve: true }).then(engOk).then(function () { cardSay("monthly", "Approved. It starts next month if approved at least 1 day before billing."); engReload(); }).catch(function (e) { cardSay("monthly", monthlyErr(e), true); }); } }, "Approve the change"),
         h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/monthly/change/decide", { id: open.id, approve: false }).then(engOk).then(function () { cardSay("monthly", "Declined. The current terms continue."); engReload(); }).catch(function (e) { cardSay("monthly", monthlyErr(e), true); }); } }, "Decline")));
@@ -5602,8 +5696,9 @@
     c.appendChild(h("div", { class: "kv" },
       h("div", null, "Client (firm)", h("b", { text: (p.client || {}).firm || "-" })),
       h("div", null, "Signs for the firm", h("b", { text: (p.client || {}).signatory || "Not set yet" })),
-      (p.freelancer || {}).company ? h("div", null, "Agency", h("b", { text: p.freelancer.company })) : null,
-      h("div", null, (p.freelancer || {}).company ? "Agency lead" : "Freelancer", h("b", { text: (p.freelancer || {}).name || "-" })),
+      // The contracting agency and its lead, named separately (step 8b Part C, retest R10)
+      r.agency_name ? h("div", null, "Agency (the contracting party)", h("b", { text: r.agency_name })) : (p.freelancer || {}).company ? h("div", null, "Freelancer's business", h("b", { text: p.freelancer.company })) : null,
+      h("div", null, r.agency_name ? "Agency lead" : "Freelancer", h("b", { text: (p.freelancer || {}).name || "-" })),
       h("div", null, b.kind === "monthly" ? "Monthly price for the work" : "Price for the work", h("b", { text: D.money(fe.total_cents) }))));
     // The subcontracting consent in one plain sentence, next to the parties (UX review E02)
     if ((b.subcontracting || {}).agency) c.appendChild(h("p", { class: "small", text: (b.subcontracting.no_subcontractors ? "No subcontractors: only the agency's own team works on this job." : "By signing, the client agrees the agency may use vetted Lawfecta subcontractors. The agency stays responsible for them.") + " Everyone working on the job is listed under \"Who's working on this\" below." }));
@@ -6395,7 +6490,7 @@
   }
 
   // Step 8b Part B (answer B8): "What would you like to document?" comes first. DELA suggests the structure in plain
-  // words (worked out in code, no credits); the person can pick another type before the questions start.
+  // words (worked out in code, no DELA actions); the person can pick another type before the questions start.
   function wsWhat(host, st) {
     var flow = DOC.flow || {};
     var ta = h("textarea", { rows: 3, style: "width:100%", "aria-label": "What would you like to document?", placeholder: "For example: how we check for conflicts before accepting a new client", value: flow.what || "" });
@@ -6424,7 +6519,7 @@
       }).catch(function (e) { next.disabled = false; pbFail(e); });
     });
     host.appendChild(h("div", { class: "card" }, h("h2", { text: "What would you like to document?" }),
-      h("p", { class: "small muted", text: "Describe it in a sentence, the way you would explain it to a new team member." }), notice(), ta,
+      h("p", { class: "small muted", text: "Describe it in a sentence, the way you would explain it to a new team member." }), aiNotice(), ta,
       h("div", { class: "row", style: "margin-top:8px;flex-wrap:wrap" }, next,
         h("button", { class: "linkish", type: "button", onclick: function () { DOC.flow = { pick: true }; newDocument(); } }, "I know which type I want")),
       out));
@@ -6502,7 +6597,7 @@
       }).catch(function (e) { go.disabled = false; status.textContent = ""; pbFail(e); });
     });
     host.appendChild(h("div", { class: "card" }, h("h2", { text: "About this process" }),
-      h("p", { class: "small muted", text: "Only the name is needed. Anything you skip shows in the quality panel, so you can add it later." }), notice(),
+      h("p", { class: "small muted", text: "Only the name is needed. Anything you skip shows in the quality panel, so you can add it later." }), aiNotice(),
       field("Process name", name), field("What starts it", trig), field("What done looks like", done), field("Which roles touch it", rolesBox), field("Which systems it uses", sysBox),
       field("Any deadline or time target", timing, "Use your own service level. For a court rule or statute, DELA adds a field for the rule's link and a date to verify it."),
       field("Steps you must personally decide or approve", att), field("What goes wrong today (optional)", wrong),
@@ -6599,7 +6694,7 @@
           card.appendChild(h("div", { class: "row" }, go, h("a", { href: "#", class: "small", style: "margin-left:12px", onclick: function (ev) {
             ev.preventDefault(); api.post("/automate/dismiss", { playbook_id: pid, dismissed: true }).then(function () { card.remove(); }).catch(gigFail);
           } }, "Dismiss")));
-          card.appendChild(h("p", { class: "small muted", text: "Each review uses " + (me.side === "attorney" ? "your" : "the") + " AI credits (or your own AI key) once for this approved version." }));
+          card.appendChild(h("p", { class: "small muted", text: "Each review uses " + (me.side === "attorney" ? "your" : "the") + " DELA actions (or your own AI key) once for this approved version." }));
         } else {
           var t = st.review.time || {};
           card.appendChild(h("p", { class: "small muted", text: "DELA reviewed version " + st.review.version + ". " + (t.estimated ? "Time saved is estimated by DELA" + (t.frequency ? " (" + (FREQ_WORDS[t.frequency] || "").toLowerCase() + ", about " + t.minutes + " minutes each time)" : "") + ". Add your own numbers for a better estimate." : "Time saved uses your answers.") }));

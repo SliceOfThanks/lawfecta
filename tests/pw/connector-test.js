@@ -83,6 +83,7 @@ async function waitFor(page, words, ms) {
     p = s.page;
     t = await waitFor(p, "Claude wants to connect to DELA");
     ok(t.includes("not open for your account yet"), "with the switch off, the approval page says the connector is not open");
+    ok(t.includes("What leaves DELA") && t.includes("processed by Anthropic") && t.includes("cannot recall what was already read"), "the Connect page says what leaves DELA (step 8b Part C, R12)");
     ok(await dela(p).getByRole("button", { name: "Approve" }).isDisabled(), "Approve is off while the connector is not open");
     await s.ctx.close();
 

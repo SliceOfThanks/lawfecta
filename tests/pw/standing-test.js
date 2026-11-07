@@ -129,13 +129,16 @@ const ATT = 4400, FL = 4401, TEAM = 4402;
     t = await waitFor(p, "Hired and paid.", 10000);
     ok(t.includes("$400 of this month's cap is left."), "hired and paid with the saved card, with the cap left");
     await p.waitForTimeout(1500);
+    t = await waitFor(p, "$400 left this month | 1 open-job place left", 10000);
+    ok(t.includes("The cap counts the job price. Lawfecta's platform fee is added to each charge."), "next to Hire again: what is left and the cap rule (step 8b Part C, R08)");
     await label(p, "Document to hire for").selectOption({ label: "Run a conflict check" });
     await click(p, "Hire again from my standing arrangement");
     await waitFor(p, "$100 of this month's cap is left.", 10000);
-    await p.waitForTimeout(1500);
-    await click(p, "Hire again from my standing arrangement");
-    t = await waitFor(p, "A gig draft was made instead", 10000);
-    ok(t.includes("Nothing was charged."), "past the limits: a draft, never a hire");
+    // Nothing left: the button is replaced by the reason and "Review limits" (the server still makes a draft, never a hire: standing_test.ts)
+    t = await waitFor(p, "$100 left this month | 0 open-job places left", 10000);
+    ok(t.includes("The most jobs open at once (2) are already open.") && await dela(p).getByRole("button", { name: "Hire again from my standing arrangement" }).count() === 0, "past the limits: the reason instead of the button");
+    await click(p, "Review limits");
+    ok(await label(p, "New monthly spend cap ($)").count() === 1, "Review limits opens the limits form");
     ok((await sql(`select count(*)::int c from standing_hires h join standing_arrangements a on a.id = h.arrangement_id where a.org_id = '${ids.org}'`))[0].c === 2, "two hires only");
     await s.ctx.close();
 
@@ -146,6 +149,14 @@ const ATT = 4400, FL = 4401, TEAM = 4402;
     await dela(p).getByRole("button", { name: "Decline this job" }).first().click();
     await waitFor(p, "Declined. The firm is refunded in full.");
     ok((await sql(`select count(*)::int c from refunds r join standing_hires h on h.agreement_id = r.agreement_id where h.status = 'declined'`))[0].c >= 1, "the refund is queued");
+    await s.ctx.close();
+
+    // ---------- An ended arrangement moves to Past arrangements ----------
+    await sql(`update standing_arrangements set status = 'ended' where org_id = '${ids.org}'; select 1`);
+    s = await open(browser, "DELA-App", ATT, "&tab=projects");
+    p = s.page;
+    t = await waitFor(p, "Past arrangements (1)", 10000);
+    ok(t.includes("Standing arrangements (0)") && !(await dela(p).locator("#standing-past").evaluate((d) => d.open)), "an ended arrangement is under Past arrangements, folded");
     await s.ctx.close();
 
     // ---------- The Lawfecta Team: the Recurring tab lists it ----------

@@ -1,0 +1,6 @@
+-- Step 8b Part C (R06, answer 6): the page notice used when client details are allowed said "Share a link from your own
+-- storage instead" on AI pages, next to AI boxes that say to keep sensitive data in your own storage. One wording for both:
+-- keep it in your own storage; share it with someone on a job only by a secure link on the job, never with DELA's AI.
+-- Changes the value only while it is still the first wording, so an owner's own edit is kept.
+update settings set value = to_jsonb('DELA is for operations work. Never enter sensitive data: SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords. Keep it in your own storage. To share it with someone working on a job, add a secure link to the job, never to DELA''s AI. You are responsible for what you enter.'::text), version = version + 1
+where key = 'data.notice_text_sensitive' and value = to_jsonb('DELA is for operations work. Never enter sensitive data: SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords. Share a link from your own storage instead. You are responsible for what you enter.'::text);

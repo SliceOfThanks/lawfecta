@@ -40,6 +40,8 @@ async function text(page) {
 const dela = (page) => page.locator(".dela-host");
 const click = (page, name) => dela(page).getByRole("button", { name: name, exact: true }).first().click();
 const label = (page, name) => dela(page).getByLabel(name, { exact: true });
+// Step 8b Part C (R09): practice areas and the biography are folded until opened, as a person would open them
+async function unfold(page, id) { const sum = page.locator(".dela-host").locator("#" + id + " > summary"); if (await sum.count() && !(await page.locator(".dela-host").locator("#" + id).evaluate((d) => d.open))) await sum.click(); }
 async function waitFor(page, words, ms) {
   const end = Date.now() + (ms || 10000);
   let t = "";
@@ -68,6 +70,13 @@ async function waitFor(page, words, ms) {
     ok(!t.includes("DELA is for operations work"), "the profile page has no client information banner (Stacey 2026-11-05)");
     ok(t.includes("Not complete") && t.includes("Firm name") && t.includes("Where you are licensed or practice"), "the attorney sees exactly what is missing");
     ok(t.includes("Posting work and hiring need a verified license"), "the page says hiring needs verification");
+    // Step 8b Part C (R09): the firm essentials come first, with what is missing at the top; long parts are folded
+    const order = await p.evaluate(() => [...document.querySelector(".dela-host").shadowRoot.querySelectorAll("#sec-firm, #sec-verify, #sec-profile")].map((e) => e.id).join(","));
+    ok(order === "sec-firm,sec-verify,sec-profile", "Firm details come before the license and the long profile (" + order + ")");
+    ok(t.includes("Still needed before paid work: Billing address, Who may sign for the firm, Email for formal notices."), "what the firm still needs is listed at the top");
+    await click(p, "Go to Firm details");
+    ok(await p.evaluate(() => document.querySelector(".dela-host").shadowRoot.activeElement.getAttribute("aria-label")) === "Firm's legal name", "Go to Firm details goes to the first firm box");
+    ok(await dela(p).locator("#prof-areas > summary").innerText() === "Practice areas (0 selected)" && await label(p, "Find a practice area").count() === 1, "practice areas are folded, with a count and a search box");
     await click(p, "Fill from my Lawfecta listing");
     await waitFor(p, "Filled");
     ok(await label(p, "First name").inputValue() === "Lia" && await label(p, "Firm name").inputValue() === "Listing Law", "the form fills from the Lawfecta listing");
@@ -77,6 +86,7 @@ async function waitFor(page, words, ms) {
     await click(p, "Fill from my Lawfecta listing");
     await waitFor(p, "Filled 1 item from your listing.");
     ok(await label(p, "City").inputValue() === "Dallas", "filling again says \"Filled 1 item\" and fills only the empty box");
+    await unfold(p, "prof-areas");
     await click(p, "Family law");
     await label(p, "Where you are licensed or practice").fill("TX");
     await click(p, "Save");
@@ -141,10 +151,12 @@ async function waitFor(page, words, ms) {
     ok(await label(p, "Service 1 name").inputValue() === "E-filing", "and a first service");
     await label(p, "First name").fill("Fran");
     await label(p, "Last name").fill("Freelancer");
+    await unfold(p, "prof-areas");
     await click(p, "Family law");
     await label(p, "Service 1 price from").fill("150");
     await label(p, "Service 1 price to").fill("400");
     // Each box explains itself behind "?", DELA can write one box, and tech tools are in groups that open (Stacey 2026-11-05)
+    await unfold(p, "prof-bio");
     await dela(p).getByRole("button", { name: "What to enter in Education" }).click();
     t = await text(p);
     ok(t.includes("Degrees, certificates and courses, one per line"), "the ? next to a box explains what to enter");
@@ -173,6 +185,7 @@ async function waitFor(page, words, ms) {
     await dela(p).getByLabel("Choose a profile photo").setInputFiles({ name: "me.png", mimeType: "image/png", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]) });
     await waitFor(p, "New photo ready. Click Save to keep it.");
     ok(await dela(p).getByRole("button", { name: "Change photo" }).count() === 1, "a new photo can be chosen on the profile page");
+    await unfold(p, "prof-bio");
     await label(p, "Experience").fill("Eight years at two family law firms.");
     await click(p, "MyCase");
     await label(p, "Other tech tools").fill("Casemark");
@@ -181,10 +194,12 @@ async function waitFor(page, words, ms) {
     await dela(p).getByLabel("LinkedIn profile address", { exact: true }).nth(1).fill("linkedin.com/in/fran-freelancer");
     await dela(p).getByText("I agree to keep attorneys' work confidential").click();
     // Client information in the summary: DELA asks first (the dialog is accepted here)
+    await unfold(p, "prof-bio");
     await label(p, "Summary").fill("I worked for client SSN 123-45-6789 on e-filing.");
     await click(p, "Save");
     await waitFor(p, "Profile saved");
     ok(true, "client information is caught before saving, and the member decides");
+    await unfold(p, "prof-bio");
     await label(p, "Summary").fill("I support solo attorneys with e-filing and discovery in Texas courts.");
     await click(p, "Save");
     t = await waitFor(p, "Waiting for a check");
