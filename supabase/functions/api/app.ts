@@ -3031,6 +3031,11 @@ async function agreementGet(ctx: Ctx) {
     if (part.ok) await rpc(ctx, "dela_checkpoints_ensure", { p_agreement: id, p_steps: part.steps.map((st, i) => ({ n: i + 1, text: st.text })).filter((_, i) => part.checkpoints.includes(i + 1)) });
     v.checkpoints = await rpc(ctx, "dela_checkpoints", { p_person: s.person_id, p_side: s.side, p_agreement: id });
   }
+  // Each milestone's signed date and, when the working date differs, the reason (step 8b, retest R01)
+  if (v?.ok && Array.isArray(v.milestones)) {
+    const dates = await rpc<Record<string, { planned_due_date: string | null; due_note: string }>>(ctx, "dela_milestone_dates", { p_agreement: id }).catch(() => ({}));
+    for (const m of v.milestones) Object.assign(m, (dates as Record<string, unknown>)[m.id] ?? {});
+  }
   return json(ctx, { ...v, stripe_ready: !!(await stripeKey(ctx)) });
 }
 

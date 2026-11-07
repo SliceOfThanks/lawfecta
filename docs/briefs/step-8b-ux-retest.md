@@ -1,7 +1,7 @@
 # Feature brief: UX retest fixes and the Library workspace
 
 Step: 8b   Spec references: ChatGPT's attorney UX retest (2026-11-06, docs/reviews/ux-retest-2026-11-07/DELA-attorney-ux-retest.txt), its Library design notes and mockup (library-design-brief.txt, library-second-pass.png), the first review's brief (docs/briefs/step-8-ux-review.md)
-Status: draft, waiting for Stacey's answers. Nothing is built yet.
+Status: answered by Stacey 2026-11-07 ("all as suggested"). Building Part A first.
 
 ## Where things stand
 ChatGPT looked at the attorney side again (look only, nothing saved). Of the 33 findings from the first review:

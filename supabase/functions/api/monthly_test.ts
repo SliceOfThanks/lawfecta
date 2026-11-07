@@ -179,6 +179,25 @@ Deno.test("month 1: paid once for the whole month, the billing day set, the unit
   assertEquals([mv.terms.status, mv.current.n, mv.current.units], ["active", 1, 4]);
 });
 
+// Fix (step 8b, retest R01): the signed dates stay when they fall inside the paid month, and no unit is due after the
+// month ends (Dec 5 2026 is a Saturday: the last unit is due Friday Dec 4, not Monday Dec 7)
+Deno.test("monthly dates: the signed dates govern, and every unit falls inside the paid month", async () => {
+  assertEquals(iso((await one("select dela_business_day_within('2026-12-05'::date, '2026-12-05'::date) d")).d), "2026-12-04");
+  assertEquals(iso((await one("select dela_business_day_within('2026-11-14'::date, '2026-12-05'::date) d")).d), "2026-11-16", "inside the month it still moves forward");
+  const pr = await one("select starts_on, ends_on, paused_days from monthly_periods where agreement_id = $1 and n = 1", [agA]);
+  const rows = (await pool.query(`select m.seq, m.due_date, m.planned_due_date, m.due_note,
+      (select nullif(e->>'due_date', '')::date from agreement_versions v, jsonb_array_elements(v.body->'milestones') e where v.agreement_id = m.agreement_id and v.version = m.from_version and (e->>'seq')::int = m.seq) signed
+    from milestones m where m.agreement_id = $1 order by m.seq`, [agA])).rows;
+  for (const r of rows) {
+    assert(iso(r.due_date) <= iso(pr.ends_on), "unit " + r.seq + " is due inside the month: " + JSON.stringify(r));
+    const inside = r.signed && iso(r.signed) >= iso(pr.starts_on) && iso(r.signed) <= iso(pr.ends_on);
+    if (inside && iso((await one("select dela_business_day($1::date) d", [iso(r.signed)])).d) === iso(r.signed)) assertEquals(iso(r.due_date), iso(r.signed), "the signed date stays");
+    if (r.signed && iso(r.due_date) !== iso(r.signed)) assert(r.due_note.length > 0, "a moved date says why");
+  }
+  const v = (await view(att, agA)).milestones;
+  assert(v.every((m: Record<string, unknown>) => "due_note" in m), "the screen gets the signed date and the reason");
+});
+
 Deno.test("a change for next month: either side proposes, the other approves; it applies only if approved in time", async () => {
   const c = (await call("POST", "/monthly/change", fl.token, { id: agA, tasks: TASKS, price: 1200, note: "More calls lately" })).body;
   assert(c.ok, JSON.stringify(c));

@@ -5376,6 +5376,14 @@
       h("div", { class: "row" }, go));
   }
 
+  // One due date everywhere (step 8b, retest R01): the signed table shows the working date of the same milestone, with the
+  // signed date and the reason when they differ
+  function dueText(m, working) {
+    var w = working || m;
+    if (!w.due_date) return m.due_date ? D.date(m.due_date) : "-";
+    var signed = w.planned_due_date || m.due_date;
+    return D.date(w.due_date) + (signed && signed !== w.due_date && w.due_note ? " (moved from " + D.date(signed) + ": " + w.due_note.charAt(0).toLowerCase() + w.due_note.slice(1) + ")" : "");
+  }
   function agreementCard(r, b) {
     var p = b.parties || {}, s = b.scope || {}, fe = b.fees || {};
     var c = h("div", { class: "card" }, h("h2", { text: "The agreement" }));
@@ -5397,12 +5405,14 @@
       } }));
     if (s.task) c.appendChild(h("p", null, h("b", { text: "The work: " }), s.task));
     if (s.included) c.appendChild(h("p", null, h("b", { text: "Included: " }), s.included));
-    c.appendChild(h("p", null, h("b", { text: "Not included: " }), s.excluded || "Not specified. Confirm with the other person before signing."));
+    // A monthly agreement's exclusions live in its monthly terms, one per task (step 8b, retest R01)
+    var monthlyEx = r.monthly && r.monthly.terms ? (r.monthly.terms.tasks || []).filter(function (x) { return x.exclusions; }).map(function (x) { return x.task + ": " + x.exclusions; }).join("; ") : "";
+    c.appendChild(h("p", null, h("b", { text: "Not included: " }), s.excluded || monthlyEx || "Not specified. Confirm with the other person before signing."));
     if (s.schedule) c.appendChild(h("p", null, h("b", { text: "Schedule: " }), s.schedule));
     var t = h("table", { class: "stack", style: "width:100%" }, h("thead", null, h("tr", null, h("th", { text: "#" }), h("th", { text: "Milestone" }), h("th", { text: "Amount" }), h("th", { text: "Due" }), h("th", { text: "Deliverables" }))),
       h("tbody", null, (b.milestones || []).map(function (m) {
         return h("tr", null, h("td", { "data-label": "#", text: String(m.seq) }), h("td", { "data-label": "Milestone", text: m.title }), h("td", { "data-label": "Amount", text: D.money(m.amount_cents) }),
-          h("td", { "data-label": "Due", text: m.due_date ? D.date(m.due_date) : "-" }), h("td", { "data-label": "Deliverables", text: m.deliverables || "" }));
+          h("td", { "data-label": "Due", text: dueText(m, (r.milestones || []).filter(function (x) { return x.seq === m.seq; })[0]) }), h("td", { "data-label": "Deliverables", text: m.deliverables || "" }));
       })));
     c.appendChild(h("h3", null, D.term("Milestones", "milestone")));
     c.appendChild(t);
@@ -5481,7 +5491,7 @@
     r.milestones.forEach(function (m) {
       var box = h("div", { class: "card", style: "padding:12px" },
         h("div", { class: "row" }, h("h3", { class: "grow", style: "margin:0", text: m.seq + ". " + m.title }), h("span", { class: "badge " + (m.status === "accepted" ? "ready" : m.status === "disputed" ? "bad" : "held"), text: MS_STATUS[m.status] || m.status })),
-        h("p", { class: "small muted", text: D.money(m.amount_cents) + (r.role === "freelancer" ? (m.payout_cents === m.amount_cents ? " (you receive all of it; you pay no platform fee)" : " (you receive " + D.money(m.payout_cents) + " after the platform fee)") : "") + (m.due_date ? " | due " + D.date(m.due_date) : "") + (m.revisions_used ? " | rounds of changes used: " + m.revisions_used + " of " + r.limits.revisions : "") }));
+        h("p", { class: "small muted", text: D.money(m.amount_cents) + (r.role === "freelancer" ? (m.payout_cents === m.amount_cents ? " (you receive all of it; you pay no platform fee)" : " (you receive " + D.money(m.payout_cents) + " after the platform fee)") : "") + (m.due_date ? " | due " + dueText(m) : "") + (m.revisions_used ? " | rounds of changes used: " + m.revisions_used + " of " + r.limits.revisions : "") }));
       if (m.deliverables) box.appendChild(h("p", { class: "small", text: "Deliverables: " + m.deliverables }));
       if (m.payout) box.appendChild(h("p", { class: "small", text: "Payout: " + D.money(m.payout.amount_cents) + ", " + (m.payout.status === "sent" ? "sent to your bank" : m.payout.status === "held" ? (m.payout.held_reason === "payout_account" ? "waiting for your payout setup (Earnings tab)" : "held") : m.payout.status === "failed" ? "did not go through. The Lawfecta Team is checking it" : "on its way") }));
       var last = (m.submissions || [])[m.submissions.length - 1];
