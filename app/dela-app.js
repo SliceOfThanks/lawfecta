@@ -440,7 +440,7 @@
       notice(),
       attachRow,
       ta,
-      helperButton("improve_request", "✦ Improve my request", function () { return { text: ta.value }; }, { field: function (x) { return x.field === "request" ? ta : null; } }),
+      helperButton("improve_request", "✦ Improve my request", function () { return { text: ta.value }; }, { field: function (x) { return x.field === "request" ? ta : null; }, toast: "Added to your message. Nothing is sent until you click Send." }),
       h("div", { class: "row", style: "margin-top:8px" },
         mic,
         mic ? h("label", { for: "dela-auto-send", class: "small", style: "margin:0;font-weight:600;display:flex;gap:6px;align-items:center" }, auto, "Send when I stop talking") : null,
@@ -3161,7 +3161,7 @@
   var HELPER_FIELD = { title: "Title", task: "The task", outcome: "What done looks like", steps: "Steps", timing: "Usual time", budget: "Budget", deadline: "Deadline", milestones: "Milestones",
     included: "Included", excluded: "Not included", schedule: "Schedule", price: "Price", quantity: "Included each month", turnaround: "Turnaround", exclusions: "Not included", days: "Days to deliver",
     qualifications: "Qualifications", message: "Note", other: "In general", step: "Step", purpose: "Purpose", scope: "Scope", request: "Your request",
-    body: "Your review", size: "Firm size", practice_areas: "Practice areas", jurisdictions: "Jurisdictions", practice_area: "Practice area", skill: "Skill", tool: "Tech tool", state: "State" };
+    body: "Your review", compose: "Your message", size: "Firm size", practice_areas: "Practice areas", jurisdictions: "Jurisdictions", practice_area: "Practice area", skill: "Skill", tool: "Tech tool", state: "State" };
   var HELPER_ERR = { helpers_off: "DELA's checks are not on for your account yet.", need_two_proposals: "Compare needs at least two proposals.", no_tasks: "Add at least one task first.",
     not_monthly: "This is not a monthly engagement.", no_credits_left: "You have used this month's DELA actions.", no_steps: "Add at least one step first.",
     nothing_to_explain: "Every check passed, so there is nothing to explain.", no_text: "Type a few words first.", ratings_first: "Choose your ratings first.",
@@ -3210,7 +3210,7 @@
       var acts = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" });
       if (f.suggestion && target) {
         var put = function () { if (target.apply) { target.apply(f); return; } target.value = f.suggestion; target.dispatchEvent(new Event("input")); target.dispatchEvent(new Event("change")); };
-        acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { put(); li.remove(); D.toast(app, "Added to the form. Nothing is saved until you save."); } }, "Use suggestion"));
+        acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { put(); li.remove(); D.toast(app, opts.toast || "Added to the form. Nothing is saved until you save."); } }, "Use suggestion"));
         acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { put(); li.remove(); if (target.focus) target.focus(); } }, "Edit"));
       }
       acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { li.remove(); } }, "Dismiss"));
@@ -4472,7 +4472,7 @@
         api.post("/threads/assist", { thread_id: t.id, mode: "draft" }).then(gigOk).then(function (y) { ta.value = y.text; D.toast(app, "DELA drafted a reply. Check it, then Send."); }).catch(talkFail);
       } }, "✦ Draft a reply") : null;
       el.appendChild(h("div", { class: "card" }, ta, h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" }, t.kind === "bench" ? null : pick, draftBtn, h("span", { class: "grow" }), send), attachWrap,
-        t.kind === "bench" ? null : helperButton("agenda", "✦ Draft an agenda", function () { return { gig_id: t.gig_id }; }, { field: function (x) { return x.field === "message" ? ta : null; } })));
+        t.kind === "bench" ? null : helperButton("agenda", "✦ Draft an agenda", function () { return { gig_id: t.gig_id }; }, { field: function (x) { return x.field === "compose" ? ta : null; }, toast: "Added to your message. Nothing is sent until you click Send." })));
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
 
@@ -6778,7 +6778,7 @@
       box.appendChild(sec("Roles", [rolesLine(d, ro)]));
       box.appendChild(sec("Before you start", [lIn(d, "before_you_start", "Before you start", ro), sectionImages(d, "before_you_start", "Before you start", ro)]));
       box.appendChild(sec("Steps", [stepsEditor(d, ro)]));
-      if (!ro) box.appendChild(helperButton("check_steps", "✦ Check these steps", function () { return { playbook_id: lib.pb.playbook.id, steps: (d.steps || []).map(function (x) { return { text: x.text, role: x.role, attorney_decides: !!x.attorney_decides }; }) }; },
+      if (!ro) box.appendChild(helperButton("check_steps", "✦ Check these steps", function () { return { playbook_id: lib.pb.playbook.id, trigger: d.trigger || "", timing: d.timing || "", steps: (d.steps || []).map(function (x) { return { text: x.text, role: x.role, attorney_decides: !!x.attorney_decides }; }) }; },
         { rowWord: "Step", apply: function (f) { if (d.steps[f.row - 1]) { d.steps[f.row - 1].text = f.suggestion; drawDocument(); } }, canApply: function (f) { return f.field === "step" && !!f.row; } }));
       box.appendChild(sec("Decision points and escalation", [decisionsEditor(d, ro)]));
       box.appendChild(sec("Timing", [tIn(d, "timing", "Timing", { rows: 2, ro: ro }), ruleFields(d, "timing_rule", ro)]));

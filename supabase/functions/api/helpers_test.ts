@@ -76,6 +76,9 @@ Deno.test("the rules in code: known fields, at most 8, no ranking or legal-corre
   assertEquals(clean("Fix the A on step 2. The document is approved."), "Fix the A on step 2.", "DELA never says something is approved");
   // Fix (Stacey's checks report, 2026-11-07): an acceptance criterion said the report was "ready to rely on"; the attorney decides that
   assertEquals(clean("A conflict report for every party. It is ready to rely on."), "A conflict report for every party.");
+  // Fix (Stacey's helpers report, 2026-11-07): step suggestions had unfilled placeholders like "[deadline or trigger]"
+  const ph = readFindings("check_steps", { findings: [{ row: 1, field: "step", problem: "No deadline.", suggestion: "Build the checklist by [deadline or trigger]." }, { row: 1, field: "step", problem: "Vague.", suggestion: "Build the checklist within 2 business days." }] }, 1);
+  assertEquals(ph.map((f) => f.suggestion), ["", "Build the checklist within 2 business days."], "a suggestion with a placeholder is not offered as finished wording");
   const f = readFindings("check_scope", { findings: [{ field: "salary", problem: "Low.", suggestion: "More" }, ...many(10)] });
   assertEquals([f.length, f[0].field, f[0].suggestion], [8, "other", ""]);
   assertEquals(readFindings("monthly_scope", { findings: [{ row: 3, field: "task", problem: "P", suggestion: "S" }] }, 2)[0].suggestion, "", "a row that does not exist gets no suggestion");

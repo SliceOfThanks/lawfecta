@@ -2629,7 +2629,10 @@ async function helperRun2(ctx: Ctx, s: Session, key: HelperKey) {
       rows = steps.length;
       if (!rows) return json(ctx, { ok: false, reason: "no_steps" });
       typed = steps.map((x) => str(x.text, 500)).join("\n");
-      prompt = "Document: " + str(pb.playbook.title, 200) + "\nSteps:\n" + steps.map((x, i) => (i + 1) + ". " + str(x.text, 500) + " (role: " + (str(x.role, 80) || "not set") + ")" + (x.attorney_decides ? " [attorney decides]" : "")).join("\n");
+      const b = normalizeDoc(pb.body);
+      prompt = "Document: " + str(pb.playbook.title, 200) + "\nTrigger: " + (str(ctx.body.trigger ?? b.trigger, 500) || "(not set)") + "\nTiming: " + (str(ctx.body.timing ?? b.timing, 500) || "(not set)") +
+        "\nBefore you start: " + ((Array.isArray(b.before_you_start) ? b.before_you_start : []).map((x: unknown) => str(x, 200)).join("; ") || "(none)") +
+        "\nDone when: " + (str(b.done_when, 500) || "(not set)") + "\nSaved in: " + (str(b.saved_in, 200) || "(not set)") + "\nSteps:\n" + steps.map((x, i) => (i + 1) + ". " + str(x.text, 500) + " (role: " + (str(x.role, 80) || "not set") + ")" + (x.attorney_decides ? " [attorney decides]" : "")).join("\n");
     } else if (key === "improve_section") {
       typed = [ctx.body.purpose, ctx.body.scope].map((x) => str(x, 2000)).join("\n");
       prompt = "Document: " + str(pb.playbook.title, 200) + "\nPurpose: " + (str(ctx.body.purpose, 2000) || "(empty)") + "\nScope: " + (str(ctx.body.scope, 2000) || "(empty)");
@@ -2686,7 +2689,7 @@ async function helperRun2(ctx: Ctx, s: Session, key: HelperKey) {
     out.note = "Nothing is sent until you click Send.";
   } else if (key === "agenda") {
     const pts = (Array.isArray(j?.points) ? j.points : []).map((t: unknown) => clean(t, 200)).filter(Boolean).slice(0, 3);
-    out.findings = pts.length ? [{ field: "message", problem: "A short agenda for your meeting.", suggestion: "Agenda for our meeting:\n" + pts.map((t: string, i: number) => (i + 1) + ". " + t).join("\n") }] : [];
+    out.findings = pts.length ? [{ field: "compose", problem: "A short agenda for your meeting.", suggestion: "Agenda for our meeting:\n" + pts.map((t: string, i: number) => (i + 1) + ". " + t).join("\n") }] : [];
     out.note = "Nothing is sent until you click Send.";
   } else if (key === "review_draft") {
     const r = clean(j?.review, 1500);

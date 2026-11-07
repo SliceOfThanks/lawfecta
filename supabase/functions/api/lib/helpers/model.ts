@@ -35,6 +35,8 @@ export const MAX_FINDINGS = 8;
 const BASE = "You help a legal operations marketplace. You check text for gaps before a commitment. You never give legal advice, never say the " +
   "work or agreement is legally correct, never invent facts, qualifications or numbers, and never rank or recommend a person. Use plain words. " +
   "A suggestion is always the finished text for that box, written as the member would write it, never an instruction about what to write. " +
+  "Use only the facts given. Never put placeholders such as [deadline] or <name> in a suggestion: when a fact is missing, leave the " +
+  "suggestion empty and say in the problem what is missing. " +
   "Answer only with JSON.";
 
 export const HELPER_SYSTEM: Record<HelperKey, string> = {
@@ -56,17 +58,18 @@ export const HELPER_SYSTEM: Record<HelperKey, string> = {
     "not cover, a missing \"leaves out\" line, an unclear schedule, and qualifications that are not tied to the work. Never invent qualifications. " +
     "JSON: {\"findings\":[{\"field\":one of price|days|included|excluded|schedule|qualifications|message|other,\"problem\":\"...\",\"suggestion\":\"\"}]}. At most 8.",
   check_steps: BASE + " Check the steps of a law firm procedure. Flag missing inputs, steps that are not one clear action starting with a verb, " +
-    "unclear handoffs between roles, and missing deadlines. Never change who decides: a step marked attorney decides stays with the attorney. " +
+    "unclear handoffs between roles, and missing deadlines. Read the whole document given (trigger, timing, before you start, done when): do not flag " +
+    "something the document already says elsewhere. Never change who decides: a step marked attorney decides stays with the attorney. " +
     "JSON: {\"findings\":[{\"row\":1,\"field\":\"step\" or \"other\",\"problem\":\"...\",\"suggestion\":\"the rewritten step text, or empty\"}]}. At most 8.",
   improve_section: BASE + " Improve the Purpose and Scope of a law firm procedure: a concise purpose (one or two sentences) and a scope with clear " +
     "boundaries (who and what it covers, and what it does not). Do not add new work. JSON: {\"findings\":[{\"field\":\"purpose\" or \"scope\",\"problem\":\"...\",\"suggestion\":\"replacement text\"}]}",
   explain_findings: BASE + " Explain, in plain words, each quality check finding of a law firm document: what it means and how to fix it. Say whether " +
-    "it blocks approval or is a suggestion, as given. Never say the document is approved or legally correct. JSON: {\"items\":[{\"id\":\"the id given\",\"explain\":\"...\"}]}",
+    "it blocks approval or is a suggestion, as given. Base each explanation only on that finding's own label and detail; do not guess. Never say the document is approved or legally correct. JSON: {\"items\":[{\"id\":\"the id given\",\"explain\":\"...\"}]}",
   describe_firm: BASE + " From a short description a lawyer wrote, fill in their firm profile: firm size (one of solo, 2-5, 6-20, 21+), practice areas, " +
     "jurisdictions, and the systems they named, grouped by the group keys given. Only use what the description says; leave a field empty when it does not say. " +
     "JSON: {\"size\":\"\",\"practice_areas\":[],\"jurisdictions\":\"\",\"systems\":{\"group key\":[\"names\"]}}",
   improve_request: BASE + " Rewrite a member's unsent request to an operations assistant so it is clear and complete: the task, the inputs, the " +
-    "output wanted and any deadline. Keep their meaning; do not add client details. List what is missing. JSON: {\"suggestion\":\"...\",\"missing\":[\"...\"]}",
+    "output wanted and any deadline. Keep their meaning and use only what the request says: do not add practice areas, tools, client details or other facts. List what is missing. JSON: {\"suggestion\":\"...\",\"missing\":[\"...\"]}",
   find_fit: BASE + " Turn a lawyer's description of a task into search filters for finding a freelancer: one practice area, one skill, one tech " +
     "tool and a two-letter US state, each only when the description supports it. Never name or pick a person. " +
     "JSON: {\"practice_area\":\"\",\"skill\":\"\",\"tool\":\"\",\"state\":\"\",\"why\":\"...\"}",
@@ -88,6 +91,7 @@ export function clean(text: unknown, n = 500): string {
 }
 
 export type Finding = { field: string; row?: number; problem: string; suggestion: string };
+export const hasPlaceholder = (t: string) => /\[[^\]]{1,60}\]|<[^>]{1,60}>|\{[^}]{1,60}\}|\b(TBD|XX+|___+)\b/.test(t);
 export function readFindings(key: HelperKey, j: any, rows = 0): Finding[] {
   const allowed = HELPER_FIELDS[key];
   const list = Array.isArray(j?.findings) ? j.findings : [];
@@ -97,6 +101,8 @@ export function readFindings(key: HelperKey, j: any, rows = 0): Finding[] {
     const problem = clean(x?.problem, 400);
     if (!problem) continue;
     const f: Finding = { field, problem, suggestion: field === "other" || field === "budget" || field === "deadline" || field === "price" ? "" : clean(x?.suggestion, 1500) };
+    // A suggestion with a blank to fill in is not finished wording, so only the problem is shown
+    if (hasPlaceholder(f.suggestion)) f.suggestion = "";
     if (ROWED.includes(key)) {
       const r = Number(x?.row);
       if (Number.isInteger(r) && r >= 1 && r <= rows) f.row = r; else f.suggestion = "";
