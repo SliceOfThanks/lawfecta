@@ -2291,7 +2291,14 @@ async function gigGet(ctx: Ctx) {
     else r.gig_part = { steps: part.steps.length, of: db.steps.length, checkpoints: part.checkpoints.length, images: part.images };
   }
   if (r?.ok) r.references = await rpc(ctx, "dela_gig_references", { p_person: s.person_id, p_side: s.side, p_gig: id }).catch(() => []);
+  // The day counts the screen names, from Settings (AI review 0.9.0, payments 6): never typed into screen code
+  if (r?.ok) r.rules = await gigRules(ctx);
   return json(ctx, r);
+}
+
+async function gigRules(ctx: Ctx) {
+  const n = async (key: string) => { const v = Number(await setting(ctx, key, "")); return Number.isFinite(v) && v > 0 ? v : null; };
+  return { extension_days: await n("gig.extension_days"), proposals_actionable_days: await n("gig.proposals_actionable_days"), availability_days: await n("profile.availability_days") };
 }
 
 async function gigInvite(ctx: Ctx) {

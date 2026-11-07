@@ -95,6 +95,12 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     await dela(p).locator(".card .card", { hasText: "Fran 2601" }).getByRole("button", { name: "Invite" }).click();
     await waitFor(p, "Invited Fran 2601");
     const gigId = (await sql("select id from gigs order by created_at desc limit 1"))[0].id;
+    // Fix (AI review 0.9.0, payments 6): the day counts on the gig come from Settings, not from screen code
+    await sql("update settings set value = '9' where key = 'gig.extension_days'; select 1");
+    await p.goto(`${BASE}/page/DELA-App?uid=2600&plan=&tab=projects&gig=${gigId}&view=details`);
+    await waitFor(p, "Close the gig", 10000);
+    ok(await dela(p).getByRole("button", { name: "Extend 9 days", exact: true }).count() === 1, "the Extend button names the days set in Settings");
+    await sql("update settings set value = '14' where key = 'gig.extension_days'; select 1");
     await s.ctx.close();
 
     // ---------- Freelancer 1 (invited) ----------

@@ -60,7 +60,7 @@ Group 1. The agency invites a bench member (log in as the test freelancer)
 
 3. In the card "Bench", under "Invite to the bench":
    Do: type stacey@lawfecta.com in "Their email on Lawfecta". Change "Agency share (%)" to 60. Type Roe Owner in "Your full name". Tick "I have read the bench agreement and I sign it for the agency." Click "Invite to the bench".
-   Expect: the message "The agency's share must be between 5% and 50% of the fee."
+   Expect: the message "The agency's share is outside the allowed range. Use a share inside the range shown with the box."
 
 4. Still there:
    Do: change "Agency share (%)" to 30. Clear the box "Your full name" so it is empty. Click "Invite to the bench".
@@ -111,7 +111,7 @@ Group 3. The agency signs and assigns milestones (log in as the test freelancer)
 
 5. On the line "Milestone 1: Draft ($300)":
    Do: type 3 in the small box and click that line's blue "Assign".
-   Expect: the message "The agency's share must be between 5% and 50% of the fee."
+   Expect: the message "The agency's share is outside the allowed range. Use a share inside the range shown with the box."
    Do: change the box to 25 and click "Assign" again.
    Expect: the message "Assigned. Waiting for them to accept the split for this job." The line now says "Assigned to Stacey Lake | split 25% to the agency / 75% to the freelancer | waiting for Stacey Lake to accept".
 

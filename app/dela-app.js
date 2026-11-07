@@ -2981,14 +2981,14 @@
     already_on_team: "That person is already on your team.", owner_stays: "The owner stays on the team.", bad_role: "Choose Manager or Member.",
     business_details_needed: "Enter the business name and the two-letter state where it is registered (for example TX).", invite_expired: "This invitation has expired. Ask the agency to send a new one.",
     keep_one_person: "Keep at least one person on the job. Add someone else first.", agreement_closed: "This engagement is closed.",
-    bad_split: "The agency's share must be between 5% and 50% of the fee.", sign_needed: "Type your full name and tick the box to sign.", tick_to_accept: "Tick the box to accept the split for this job.",
+    bad_split: "The agency's share is outside the allowed range. Use a share inside the range shown with the box.", sign_needed: "Type your full name and tick the box to sign.", tick_to_accept: "Tick the box to accept the split for this job.",
     bench_plus_needed: "Plus plan or higher required to join a bench. Upgrade your Lawfecta membership to Freelancer Plus, then sign.",
     bench_plus_needed_them: "They need Freelancer Plus or higher before they can join your bench. Their invitation stays open.",
     bench_invite_expired: "This bench invitation has expired. Ask the agency to send a new one.", waiting_for_other_side: "You already signed this version. It is waiting for the other side.",
     nothing_to_sign: "There is nothing waiting for your signature.", agency_bench_off: "The agency bench is not open for your account yet.",
     clients_only: "Only attorneys and agencies that hire can do that.", agency_not_ready: "Your agency cannot post yet. Open the Agency tab to see what is missing.",
     agency_details_missing: "Add the agency's client details on the Agency tab (who signs, billing address, email for notices) before signing.", client_details_needed: "Add who signs for the agency and the billing address.",
-    split_below_fee: "At that split the agency's share does not cover the 5% freelancer fee on this milestone. Raise the agency's share.",
+    split_below_fee: "At that split the agency's share does not cover the freelancer fee on this milestone. Raise the agency's share.",
     already_assigned: "This milestone is already assigned. Take it back first.", not_on_bench: "Choose someone who is on your bench with a signed split.",
     bench_member_inactive: "They are on the Free plan, so they cannot get new assignments until they upgrade.", no_subcontractors: "This engagement says no subcontractors, so its milestones cannot be assigned to bench members and no gig can be posted for part of it.",
     subcontracting_off: "Posting gigs for part of a job is not open for your account yet.", subcontractors_in_use: "Someone is already working on this job as a subcontractor, so No subcontractors cannot be turned on.",
@@ -3271,12 +3271,14 @@
     if (g.status === "draft") acts.appendChild(h("button", { class: "blue", type: "button", onclick: function () {
       save(function () { return api.post("/gigs/publish", { id: g.id }).then(gigOk).then(function (x) { gigs.view = "matches"; draw(); D.toast(app, "Your gig is open until " + D.dateTime(x.closes_at)); }).catch(gigFail); });
     } }, "Post the gig"));
+    // Day counts and the number of extensions come from Settings (AI review 0.9.0, payments 6)
+    var rules = r.rules || {}, extDays = rules.extension_days, extLeft = (g.max_extensions || 0) - (g.extensions || 0);
     if (g.status === "open" && g.extensions < g.max_extensions) acts.appendChild(h("button", { class: "ghost", type: "button", onclick: function () {
-      if (!confirm("Keep this gig open for 14 more days? You can extend it once.")) return;
+      if (!confirm("Keep this gig open " + (extDays ? "for " + extDays + " more days" : "longer") + "? " + (extLeft === 1 ? "You can extend it once." : "You can extend it " + extLeft + " more times."))) return;
       api.post("/gigs/extend", { id: g.id }).then(gigOk).then(function (x) { draw(); D.toast(app, "Open until " + D.dateTime(x.closes_at)); }).catch(gigFail);
-    } }, "Extend 14 days"));
+    } }, extDays ? "Extend " + extDays + " days" : "Extend"));
     if (g.status === "open" || g.status === "draft") acts.appendChild(h("button", { class: "danger", type: "button", onclick: function () {
-      if (!confirm(g.status === "draft" ? "Delete this draft gig?" : "Close this gig now? Applicants are told, and you can still choose a proposal for 7 days.")) return;
+      if (!confirm(g.status === "draft" ? "Delete this draft gig?" : "Close this gig now? Applicants are told, and you can still choose a proposal" + (rules.proposals_actionable_days ? " for " + rules.proposals_actionable_days + " days." : " for a short time."))) return;
       api.post("/gigs/close", { id: g.id, cancel: g.status === "draft" }).then(gigOk).then(function () { gigs.id = g.status === "draft" ? null : g.id; draw(); D.toast(app, "Closed"); }).catch(gigFail);
     } }, g.status === "draft" ? "Delete draft" : "Close the gig"));
     body.appendChild(acts);
@@ -3304,7 +3306,7 @@
     api.get("/gigs/matches?id=" + g.id + "&refresh=1").then(function (x) {
       D.clear(box);
       box.appendChild(h("h2", { text: "Freelancers who fit" }));
-      box.appendChild(h("p", { class: "small muted", text: "Only match-ready freelancers who confirmed their availability in the last 14 days, work in this practice area and do not exclude this state. DELA shows fewer people rather than inactive ones. Inviting someone lets them see the full document and send a proposal that does not use their monthly allowance." }));
+      box.appendChild(h("p", { class: "small muted", text: "Only match-ready freelancers who confirmed their availability" + ((r.rules || {}).availability_days ? " in the last " + r.rules.availability_days + " days" : " recently") + ", work in this practice area and do not exclude this state. DELA shows fewer people rather than inactive ones. Inviting someone lets them see the full document and send a proposal that does not use their monthly allowance." }));
       if (!x.ok) { box.appendChild(h("p", { class: "notice", text: gigErr(x) })); return; }
       if (!x.matches.length) box.appendChild(h("div", null, h("p", { class: "muted", text: "No one fits yet. Check back soon, widen the practice area or tools, or search in Talent." }),
         h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: function () { tab = "talent"; gigs.id = null; draw(); } }, "Search Talent"),
@@ -3792,7 +3794,9 @@
     api.get("/agency/bench").then(function (v) {
       D.clear(box);
       if (!v.ok || !v.on) return;
-      var lim = v.limits || { min_bps: 500, max_bps: 5000 };
+      // The allowed range comes from Settings through the api (AI review 0.9.0, payments 4)
+      var lim = v.limits || {};
+      var limText = lim.min_bps != null && lim.max_bps != null ? "Allowed: " + lim.min_bps / 100 + "% to " + lim.max_bps / 100 + "%." : "";
       var terms = function () { return h("details", null, h("summary", { text: "Read the bench agreement" }), h("p", { class: "small", style: "white-space:pre-wrap", text: v.terms })); };
       // Benches you are invited to or on
       (v.my_benches || []).forEach(function (b) {
@@ -3892,13 +3896,15 @@
       });
       // Invite someone
       var em = h("input", { type: "email", "aria-label": "Bench freelancer's email on Lawfecta", placeholder: "Their email on Lawfecta" });
-      var share = h("input", { type: "number", min: String(lim.min_bps / 100), max: String(lim.max_bps / 100), step: "0.5", value: "30", "aria-label": "Agency share (%)", style: "width:90px" });
+      var share = h("input", { type: "number", min: lim.min_bps != null ? String(lim.min_bps / 100) : null, max: lim.max_bps != null ? String(lim.max_bps / 100) : null, step: "0.5", "aria-label": "Agency share (%)", style: "width:90px" });
       var note = h("input", { "aria-label": "Note to them (optional)", placeholder: "Note to them (optional)", maxlength: "600" });
       c.appendChild(h("h3", { text: "Invite to the bench" }));
-      c.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, em, field("Agency share (%)", share), note));
+      c.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, em, field("Agency share (%)", share, limText), note));
       c.appendChild(terms());
       c.appendChild(sr.el);
       c.appendChild(h("div", { class: "row", style: "margin-top:6px" }, h("button", { class: "blue small", type: "button", onclick: function () {
+        // No starting share: the agency chooses it (AI review 0.9.0, payments 4: 30% was never a decided number)
+        if (share.value.trim() === "") { cardSay("bench", "Enter the agency's share (%) first. " + limText, true); share.focus(); return; }
         api.post("/agency/bench/invite", Object.assign({ email: em.value.trim(), agency_percent: Number(share.value), note: note.value, request_id: newId() }, sr.body())).then(gigOk).then(function (x) {
           draw(); cardSay("bench", x.duplicate ? "Already invited or on your bench" : x.plan_ok ? "Bench invitation sent" : "Bench invitation sent. They need Freelancer Plus or higher to join.");
         }).catch(cardFail("bench"));
@@ -4058,7 +4064,7 @@
       })));
       if (talentMode === "bench") { benchView(el); return el; }
     }
-    el.appendChild(h("p", { class: "muted", text: "Match-ready freelancers: verified, profile complete and availability confirmed in the last 14 days. Every conversation happens on a gig, so inviting someone needs a gig." }));
+    el.appendChild(h("p", { class: "muted", text: "Match-ready freelancers: verified, profile complete and availability confirmed recently. Every conversation happens on a gig, so inviting someone needs a gig." }));
     el.appendChild(h("p", { class: "small" }, D.term("What match-ready means", "match_ready")));
     // Visible labels on every box, and the state picked by its full name (UX review T01)
     var inputs = {};
