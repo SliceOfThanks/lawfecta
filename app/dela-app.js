@@ -150,6 +150,14 @@
     return n;
   }
 
+  // The Library's count and Home's plan read the same plan limit (step 8b, retest R11). While usage limits are not
+  // switched on, the plan's number is shown as included but not yet enforced, instead of "no cap".
+  function libLimitText(L) {
+    if (L.limit !== null && L.limit !== undefined) return L.count + " of " + L.limit + " documents";
+    var e = ent("att.playbooks_saved");
+    if (e && e.enabled && !e.unlimited && e.limit) return L.count + " documents. Your plan includes " + e.limit + "; the limit is not switched on yet.";
+    return L.count + " documents (no cap on your plan)";
+  }
   function planCard() {
     var s = sideInfo();
     var rows = (me.entitlements || []).map(function (e) {
@@ -213,6 +221,7 @@
       h("div", { class: "stats" },
         // Real counts from the server (AI review 0.9.0, payments 3); a tile is left out if its count is missing
         me.home ? stat("☰", me.home.open_gigs, "Open gigs") : null,
+        me.home && typeof me.home.draft_gigs === "number" ? stat("✎", me.home.draft_gigs, "Gig drafts") : null,
         me.home ? stat("▣", me.home.active_projects, "Active projects") : null,
         me.home ? stat("!", me.home.pending_reviews, "Deliveries to review") : null,
         draftTile()),
@@ -1647,7 +1656,7 @@
     if (!L.on) { libEl.appendChild(h("div", { class: "notice", text: D.errorText("library_off") })); return; }
     var pct = L.limit ? Math.min(100, Math.round(L.count * 100 / L.limit)) : 0;
     libEl.appendChild(h("div", { class: "card" },
-      h("div", { class: "row" }, h("b", { class: "grow", text: L.limit === null ? L.count + " documents (no cap on your plan)" : L.count + " of " + L.limit + " documents" }), h("span", { class: "badge", text: "Your role: " + ROLE_WORDS[L.role] })),
+      h("div", { class: "row" }, h("b", { class: "grow", text: libLimitText(L) }), h("span", { class: "badge", text: "Your role: " + ROLE_WORDS[L.role] })),
       L.limit !== null ? h("div", { class: "bar" }, h("span", { style: "width:" + pct + "%" + (pct >= 100 ? ";background:var(--bad)" : "") })) : null,
       h("div", { class: "row", style: "margin-top:10px" },
         can(3) ? h("button", { class: "blue", onclick: L.standard ? function () { DOC.flow = null; newDocument(); } : newPlaybook }, "New document") : null,

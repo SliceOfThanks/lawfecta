@@ -170,6 +170,10 @@ Deno.test("freelancers: matched sees the gig without milestones or playbook; inv
   // Fix (AI review 0.9.1, tests 2): Home counts the invitation for the freelancer and the open gig for the attorney
   assertEquals((await call("GET", "/me", f2.token)).body.me.home.invitations, 1, "the freelancer's Invitations tile");
   assert((await call("GET", "/me", att.token)).body.me.home.open_gigs >= 1, "the attorney's Open gigs tile");
+  // Fix (step 8b, retest R11): Open gigs counts posted gigs only; drafts have their own count
+  const hc = (await call("GET", "/me", att.token)).body.me.home;
+  const real = (await pool.query("select count(*) filter (where g.status in ('open', 'paused'))::int o, count(*) filter (where g.status = 'draft')::int d from gigs g where g.org_id = (select org_id from gigs where id = $1)", [gig])).rows[0];
+  assertEquals([hc.open_gigs, hc.draft_gigs], [real.o, real.d], "open and draft gigs counted apart");
   const v2 = (await call("GET", "/gigs/get?id=" + gig, f2.token)).body;
   assertEquals(v2.access, "invited");
   assert(v2.playbook && v2.watermark.includes("Gig "), "the full playbook, with the freelancer's name as a watermark");
