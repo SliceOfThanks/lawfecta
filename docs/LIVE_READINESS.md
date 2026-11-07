@@ -7,13 +7,13 @@ Checked by Claude on 2026-11-07. Live does not exist yet; nothing here changes t
 | Check | Result |
 | --- | --- |
 | Automatic tests (GitHub "Tests") | Passing on every recent version |
-| Every database change applied to an empty database, in order | All 55 apply cleanly (checked on a fresh copy; the one Supabase-only change, the worker schedule, is handled by the push itself) |
+| Every database change applied to an empty database, in order | All 58 apply cleanly (checked on a fresh copy; the one Supabase-only change, the worker schedule, is handled by the push itself) |
 | Switches on a new Live copy | Every switch starts Off. Live shows nothing to members until Stacey turns switches on |
 | Settings on a new Live copy | Come from the Decision Sheet (config/decisions.json); the push sets Live's own site address (lawfecta.com), its environment name and Stacey as owner |
 | The push (Release Control) | Needs Stacey's release password and a code; checks the tests passed for that exact version; applies only the database changes Live does not have yet; switches Live back by itself if a step fails; watches Live for 15 minutes |
-| Version recorded for Live | 0.9.0, the first Live candidate (Release Control on the test site) |
-| AI review of the version | Waiting: GitHub needs the ANTHROPIC_API_KEY secret (step B3 below) |
-| Security scan (GitHub) | 2 open findings (1 high, 1 medium) in the November health report: Stacey sends a screenshot (step B4), Claude fixes them |
+| Version recorded for Live | 0.9.1, the first Live candidate, with the AI review fixes (Release Control on the test site). 0.9.0 is replaced |
+| AI review of the version | Done for 0.9.0 (GitHub issue #9). Its findings are fixed or explained in version 0.9.1 |
+| Security scan (GitHub) | High finding fixed on the working branch (it closes when main is updated); Medium finding dismissed by Stacey as intended |
 
 Differences between the test site and a new Live copy that matter:
 - **Plan numbers.** On the test site the four attorney plans are linked to Brilliant Directories plan numbers by hand (Free 5, Plus 13, Pro 12, Business 14). On Live none are linked, and the freelancer plans are not linked anywhere yet. Live needs all eight linked to lawfecta.com's own plan numbers before real members come in (step C2).
@@ -26,7 +26,7 @@ Stacey types each one herself; none ever goes in chat.
 
 | Secret | Needed for | Where the value comes from |
 | --- | --- | --- |
-| BD_SHARED_SECRET | Signing in from lawfecta.com | Make a new 40-character secret for Live and type the same value into the DELA-Auth widget on lawfecta.com. Use a different one from the test site |
+| BD_SHARED_SECRET | Signing in from lawfecta.com | Make a new 40-character secret for Live and type the same value into the DELA-Auth widget on lawfecta.com. **Never** the test site's secret: with the same secret, someone who signs up on hirelegalhelp.com could sign in to Live as the lawfecta.com member who has the same number |
 | DELA_ORIGINS | Which websites may call DELA | https://lawfecta.com,https://www.lawfecta.com |
 | AI_KEY_ENCRYPTION_SECRET | Members' own AI keys | A new random value for Live (never the test site's). Changing it later makes saved member keys unreadable |
 | OPENAI_API_KEY | DELA's AI | Lawfecta's OpenAI key for Live (with zero data retention, docs/RUNBOOK.md) |
@@ -44,14 +44,16 @@ Stacey types each one herself; none ever goes in chat.
 A. Set up Live (once): docs/STACEY_CHECKLIST.md steps 11 to 15b. The Supabase project must be in a United States region.
 
 B. Before the first push:
-1. Add the secrets in section 2 to dela-live.
+1. Add the secrets in section 2 to dela-live. BD_SHARED_SECRET must be a new one, never the test site's.
+1a. Member numbers: hirelegalhelp.com and lawfecta.com number their members separately (member 687 on one site is a different person on the other). Everywhere Live asks for a member number (the GitHub variable OWNER_BD_MEMBER_ID, Live's Lawfecta Team and Live's access list), use the number from lawfecta.com's own Brilliant Directories admin > Members. Never copy a number from the test site.
+1b. Agent tests (ChatGPT and Claude) run in a separate Chrome profile that is signed in only with the test accounts on hirelegalhelp.com. In Chrome: click your profile picture at the top right > "Add" > name it "DELA tests". Never sign in to lawfecta.com's admin or Live's /dela-admin in that profile, and keep your own owner login in your normal profile.
 2. In GitHub, create the environment "live" (checklist step 14).
-3. GitHub > lawfecta > Settings > Secrets and variables > Actions > New repository secret: name ANTHROPIC_API_KEY, value an Anthropic key. Then Claude starts the AI review of version 0.9.0.
-4. Open https://github.com/SliceOfThanks/lawfecta/security/code-scanning and send Claude a screenshot of the list. Claude fixes the findings before the push.
+3. Done 2026-11-07: the ANTHROPIC_API_KEY secret is in GitHub and the AI review of 0.9.0 ran (issue #9).
+4. Done 2026-11-07: the code scanning findings are fixed (High) or dismissed (Medium). The High one disappears from the list when main is updated.
 5. Run the remaining ChatGPT tests on the test site (docs/PLAN.md, "What needs testing").
 
 C. The first push and right after (only Stacey's account and the access list can see anything):
-1. /dela-admin on the test site > Release Control: tick "I tested this version", click "Push to Live", enter the release password and the code.
+1. /dela-admin on the test site > Release Control: on version 0.9.1, tick "I tested this version", click "Push to Live", enter the release password and the code.
 2. In Live's /dela-admin > Plans: type lawfecta.com's Brilliant Directories plan number next to each of the eight DELA plans.
 3. In Live's /dela-admin > Settings: set email.sender to brevo, and alerts.sms_to to your mobile number.
 4. In Brilliant Directories on lawfecta.com: create the pages /dela and /dela-admin (logged-in members only) and the widgets DELA-Auth, DELA-App and DELA-Admin, pointing at Live's address (checklist step 17).

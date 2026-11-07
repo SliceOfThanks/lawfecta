@@ -23,7 +23,7 @@ Never paste a password, token or secret in chat. You type them only into BD, Sup
 13. Supabase > Account > Access Tokens: create a token named DELA push. Copy it once.
 14. GitHub > lawfecta > Settings > Environments: create an environment named live.
     - Secrets: SUPABASE_ACCESS_TOKEN (the token from step 13), RELEASE_CI_SECRET (make 40 letters and numbers).
-    - Variables: LIVE_PROJECT_REF (the dela-live project ID from its Supabase address), STAGING_API_URL (from Claude), OWNER_BD_MEMBER_ID (your BD member ID).
+    - Variables: LIVE_PROJECT_REF (the dela-live project ID from its Supabase address), STAGING_API_URL (from Claude), OWNER_BD_MEMBER_ID (your member ID on lawfecta.com, from lawfecta.com's own Brilliant Directories admin > Members; never the number from hirelegalhelp.com, because the two sites number their members separately).
 15. GitHub > Settings > Developer settings > Fine-grained tokens: create a token for lawfecta only, with Actions: Read and write. Put it in Supabase > DELA Staging > Secrets as GITHUB_DISPATCH_TOKEN. Also add RELEASE_CI_SECRET there (same value as step 14) and GITHUB_REPO = SliceOfThanks/lawfecta.
 
 15a. /dela-admin (Staging) > Release Control > Live setup: type the dela-live project ID (the 20 letters and numbers in its address) and click Save. Tick "I did this" for the GitHub environment once step 14 is done.
