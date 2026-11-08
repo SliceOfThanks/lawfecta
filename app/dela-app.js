@@ -3414,10 +3414,13 @@
       return { text: x.gig_title + ": " + words[x.needs_me][0], label: words[x.needs_me][1], open: function () { tab = me.side === "attorney" ? "projects" : "work"; gigs.id = x.gig_id; gigs.view = "agreement"; draw(); } };
     });
   }
+  // Fix (AI review 0.10.0, tests 5): a list that cannot load marks the result "failed", so Notices never says nothing
+  // waits when it simply could not check
   function liveActions() {
-    var gigsP = me.side === "attorney" && (me.switches || {}).flex_gigs ? api.get("/gigs").then(function (r) { return r.ok === false ? [] : gigActionItems(r.gigs); }, function () { return []; }) : Promise.resolve([]);
-    var engP = (me.switches || {}).engagements ? api.get("/engagements").then(function (r) { return r.ok && r.on ? engActionItems(r.engagements) : []; }, function () { return []; }) : Promise.resolve([]);
-    return Promise.all([gigsP, engP]).then(function (a) { return a[0].concat(a[1]); });
+    var failed = false, miss = function () { failed = true; return []; };
+    var gigsP = me.side === "attorney" && (me.switches || {}).flex_gigs ? api.get("/gigs").then(function (r) { return r.ok === false ? miss() : gigActionItems(r.gigs); }, miss) : Promise.resolve([]);
+    var engP = (me.switches || {}).engagements ? api.get("/engagements").then(function (r) { return r.ok === false ? miss() : r.on ? engActionItems(r.engagements) : []; }, miss) : Promise.resolve([]);
+    return Promise.all([gigsP, engP]).then(function (a) { var out = a[0].concat(a[1]); out.failed = failed; return out; });
   }
 
   function gigPage(el) {
@@ -8076,7 +8079,9 @@
         if (items.length) actBox.appendChild(h("ul", { class: "list", id: "notices-action" }, items.map(function (x) {
           return h("li", { class: "row" }, h("span", { class: "grow", text: x.text }), h("button", { class: "ghost small", type: "button", onclick: function () { closeDrawer(); x.open(); } }, x.label));
         })));
-        else actBox.appendChild(h("p", { class: "muted small" }, "Nothing waits on you right now. ", me.side === "attorney" ? h("button", { class: "linkish", type: "button", onclick: function () { closeDrawer(); tab = "projects"; gigs.id = null; draw(); } }, "Open Projects") : null));
+        var openWork = h("button", { class: "linkish", type: "button", onclick: function () { closeDrawer(); tab = me.side === "attorney" ? "projects" : "work"; gigs.id = null; draw(); } }, me.side === "attorney" ? "Open Projects" : "Open Work");
+        if (items.failed) actBox.appendChild(h("p", { class: "notice", id: "notices-check-failed", role: "status" }, "DELA could not check all your work just now, so something may still wait on you. ", openWork));
+        else if (!items.length) actBox.appendChild(h("p", { class: "muted small" }, "Nothing waits on you right now. ", me.side === "attorney" ? openWork : null));
       });
       if (r.items.length) {
         nb.appendChild(h("h3", { text: "Updates" }));

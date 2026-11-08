@@ -132,6 +132,13 @@ async function sign(page, name, version) {
     await dela(p).locator("#notices-action").getByRole("button", { name: "Open the agreement" }).click();
     await waitFor(p, "Sign version");
     ok(true, "the Notices button opens the agreement");
+    // Fix (AI review 0.10.0, tests 5): when the work list cannot load, Notices says it could not check, never "Nothing waits"
+    await p.route(/\/engagements(\?.*)?$/, (r) => r.fulfill({ status: 500, contentType: "application/json", body: "{}" }));
+    await dela(p).getByRole("button", { name: "Notices" }).first().click();
+    t = await waitFor(p, "DELA could not check all your work just now");
+    ok(!t.includes("Nothing waits on you right now"), "a failed check is never shown as nothing waiting");
+    await p.unroute(/\/engagements(\?.*)?$/);
+    await p.keyboard.press("Escape");
     await p.goto(`${BASE}/page/DELA-App?uid=2800&plan=&tab=projects`);
     await waitFor(p, "Engagements (1)");
     const heads = await dela(p).locator("h2").allTextContents();
