@@ -2,6 +2,10 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Test site open to every member, 2026-11-08 (Stacey: "all plans should be active and able to log in")
+- On the test site (hirelegalhelp.com, DELA Staging) only: setting access.mode is "everyone", and every switch that was "list" is now "everyone" (47). The switches that were off stay off (live_payments, bd_trial_downgrade, trials, usage_limits_enforced and others). Live (lawfecta.com) is not touched and stays closed to anyone outside its access list.
+- Pro trial check: Dry runs read BD member 689 (Trial Tester, plan 8) correctly. BD's "user_id or client_id is required" on user/transactions means no billing account (docs/handoff/bd-api-trial-check-report-2026-11-08.md). Dry run now shows what comes next (migration 0072, trial_events.next_step). Stacey made a second test member through checkout (BD 690) for a real invoice.
+
 ## UI and UX review fixes, on the test site 2026-11-08 (commit 711e5f2, screens only, no database or api change)
 - Reports saved: docs/reviews/test-reports/2026-11-08-step-10-ui-review.txt (look-only UI review, 11 of 25 steps flagged) and 2026-11-08-step-10-ux-review.txt (phone UX review, ratings 3 to 4 of 5).
 - Fixed, each with a browser check: one badge color per state everywhere (yellow needs you, blue in progress, green done, grey waiting or draft, faded grey closed, red a problem), so "Needs your signature" is yellow on Work and Earnings alike; dark text links, selected filters, box edges and placeholders readable; Ask DELA in the menu no longer looks like an AI button; Team roles line up and no "Attorney (attorney)"; no empty grey strip under the meeting times; "✦ Help me create a document" in the same blue as other main actions; Home "Verified" and "Ready" badges match the Profile; AI settings shows the same DELA actions count as the meter; plain Library footer; "Coming soon" only where a feature is really off; no "accepted 0 of 0"; "What does match-ready mean?"; nine bottom tabs scroll sideways on a phone instead of overlapping.
