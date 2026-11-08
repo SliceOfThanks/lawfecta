@@ -2,9 +2,9 @@
 // (2026-11-08, docs/handoff/bd-api-trial-check.md):
 // - members: GET /api/v2/user/get?property=subscription_id&property_value=N (pages: limit, next_page)
 // - users_meta: GET /api/v2/users_meta/get, POST /api/v2/users_meta/create, PUT /api/v2/users_meta/update
-// - invoices: POST /api/v2/user/transactions?user_id=N, user_id also in the form (BD did not read it from the form alone);
-//   the reply is { total, invoices } with invoice_details.status Paid or Unpaid and the plan in subscription_details.packageid;
-//   "No billing account for this member" means no invoices. client_id is never sent: it is a billing record number and
+// - invoices: POST /api/v2/user/transactions with user_id in the form; "user_id or client_id is required" (or the
+//   connector's "No billing account for this member") means the member has no billing account yet; the reply is { total, invoices } with invoice_details.status Paid or Unpaid and the plan in subscription_details.packageid;
+//   client_id is never sent: it is a billing record number and
 //   could return another person's invoices (Stacey's BD connector check, 2026-11-08)
 // - plan: PUT /api/v2/user/update subscription_id; areas of law: PUT /api/v2/user/update delete_categories=1, services
 // - posts: GET /api/v2/data_posts/get?property=user_id, PUT /api/v2/data_posts/update post_status (0 = Draft, not public);
@@ -118,22 +118,12 @@ export function liveBd(f: Fetch, siteUrl: string, key: string, o: { activeValue?
       return ok(true as const);
     },
     async invoices(id) {
-      const uid = String(Math.trunc(id));
-      // BD did not read user_id from the form on hirelegalhelp.com (2026-11-08): try form, JSON, multipart, then GET.
-      // All are reads. Only BD's own "user_id or client_id is required" moves on to the next way; the error, if every
-      // way fails, names each one so the Trials tab shows what BD said.
-      const path = "/api/v2/user/transactions?user_id=" + uid;
-      const tries: Array<() => ReturnType<typeof get>> = [
-        () => bdCall<unknown>(f, siteUrl, key, "POST", path, { user_id: uid }, "form"),
-        () => bdCall<unknown>(f, siteUrl, key, "POST", path, { user_id: uid }, "json"),
-        () => bdCall<unknown>(f, siteUrl, key, "POST", path, { user_id: uid }, "multipart"),
-        () => get<unknown>(path),
-      ];
-      const names = ["form", "json", "multipart", "get"];
-      let r = await tries[0](); const seen: string[] = [];
-      for (let i = 1; i < tries.length && !r.ok && /user_id or client_id is required/i.test(r.error); i++) { seen.push(names[i - 1]); r = await tries[i](); }
-      if (!r.ok && /user_id or client_id is required/i.test(r.error)) return { ok: false, error: r.error + " (tried " + [...seen, "get"].join(", ") + ")" };
-      if (!r.ok) return r.status === 404 || /No billing account for this member/i.test(r.error) ? ok([]) : fail(r);
+      // BD's spec (brilliant-directories-mcp, openapi getUserTransactions): POST, user_id in the form body. BD answers
+      // "user_id or client_id is required" when the member has no billing account, even with user_id sent; BD's own
+      // connector turns that into "No billing account for this member". This member came from BD's own search, so
+      // either answer means no invoices yet.
+      const r = await postForm<unknown>("/api/v2/user/transactions", { user_id: String(Math.trunc(id)) });
+      if (!r.ok) return r.status === 404 || /No billing account for this member|user_id or client_id is required/i.test(r.error) ? ok([]) : fail(r);
       const m = r.data as Rec | Rec[] | null;
       const rows = Array.isArray(m) ? m : m && typeof m === "object" && Array.isArray(m.invoices) ? m.invoices as Rec[] : m && typeof m === "object" && "total" in m ? [] : list(m);
       return ok(rows.map(invoice).filter((i) => i.id));

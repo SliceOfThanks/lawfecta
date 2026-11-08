@@ -32,12 +32,12 @@ Deno.test("invoices: Paid and Unpaid from invoice_details; a plan BD does not na
 });
 
 // Fix (Stacey's BD connector check, 2026-11-08): BD answered "user_id or client_id is required" to the form-only request.
-// user_id now also goes in the address; "No billing account" is no invoices, not an error; the list comes as
+// "No billing account" is no invoices, not an error; the list comes as
 // { total, invoices } with the plan in subscription_details.packageid; client_id is never sent (it is a billing record
 // number and could return another person's invoices).
-Deno.test("invoices: user_id in the address and the form, never client_id; the { total, invoices } shape; plan from subscription_details", async () => {
+Deno.test("invoices: user_id in the form, never client_id; the { total, invoices } shape; plan from subscription_details", async () => {
   const { f, calls } = fakeBd({
-    "POST /api/v2/user/transactions?user_id=11": () => ({ message: { total: 2, invoices: [
+    "POST /api/v2/user/transactions": () => ({ message: { total: 2, invoices: [
       { invoice_details: { id: "51", status: "Unpaid" }, subscription_details: { packageid: "8" } },
       { invoice_details: { id: "52", status: "Paid" }, subscription_details: { packageid: "7" } }] } }),
   });
@@ -52,27 +52,25 @@ Deno.test("invoices: BD's \"No billing account for this member\" means no invoic
   const none = (async () => Response.json({ status: "error", message: "No billing account for this member: 0 subscriptions, 0 transactions. An unknown user_id returns the same response; confirm the member with getUser." }, { status: 200 })) as typeof fetch;
   const r = await liveBd(none, "https://hirelegalhelp.com", "key").invoices(689);
   assertEquals(r.ok && r.data, []);
-  const bad = (async () => Response.json({ status: "error", message: "user_id or client_id is required" }, { status: 400 })) as typeof fetch;
+  const bad = (async () => Response.json({ status: "error", message: "Something else went wrong" }, { status: 500 })) as typeof fetch;
   const e = await liveBd(bad, "https://hirelegalhelp.com", "key").invoices(689);
-  assert(!e.ok && e.error.includes("user_id or client_id is required"));
+  assert(!e.ok && e.error.includes("Something else went wrong"), "other BD errors stay errors");
 });
 
-// Fix (second Dry run, 2026-11-08): BD still answered "user_id or client_id is required" with user_id in the form and the
-// address. The read now tries JSON, then multipart, then GET, moving on only on that exact answer.
-Deno.test("invoices: a BD that reads only JSON is reached on the second try; a BD that reads nothing names every way tried", async () => {
-  const seen: string[] = [];
-  const jsonOnly = (async (_u: string | URL | Request, init: RequestInit = {}) => {
-    const t = (init.headers as Record<string, string>)?.["content-type"] ?? (init.body instanceof FormData ? "multipart" : "none");
-    seen.push((init.method ?? "GET") + " " + t);
-    if (t === "application/json" && JSON.parse(String(init.body)).user_id === "689") return Response.json({ status: "success", message: { total: 1, invoices: [{ invoice_details: { id: "9", status: "Unpaid" }, subscription_details: { packageid: "8" } }] } });
+// Fix (second Dry run, 2026-11-08): BD answers "user_id or client_id is required" for a member with no billing account,
+// even with user_id sent (BD's own connector, brilliant-directories-mcp, says so and rewrites it). That is no invoices.
+Deno.test("invoices: BD's \"user_id or client_id is required\" for a member DELA found is no billing account, not an error", async () => {
+  const sent: string[] = [];
+  const noBilling = (async (_u: string | URL | Request, init: RequestInit = {}) => {
+    sent.push(String(init.body));
     return Response.json({ status: "error", message: "user_id or client_id is required" }, { status: 400 });
   }) as typeof fetch;
-  const r = await liveBd(jsonOnly, "https://hirelegalhelp.com", "key").invoices(689);
-  assertEquals(r.ok && r.data, [{ id: "9", plan_id: 8, paid: false, open: true }]);
-  assertEquals(seen, ["POST application/x-www-form-urlencoded", "POST application/json"]);
-  const never = (async () => Response.json({ status: "error", message: "user_id or client_id is required" }, { status: 400 })) as typeof fetch;
-  const e = await liveBd(never, "https://hirelegalhelp.com", "key").invoices(689);
-  assert(!e.ok && e.error.includes("tried form, json, multipart, get"), !e.ok ? e.error : "");
+  const r = await liveBd(noBilling, "https://hirelegalhelp.com", "key").invoices(689);
+  assertEquals(r.ok && r.data, []);
+  assertEquals(sent, ["user_id=689"], "one read, user_id in the form, as BD's spec says");
+  const denied = (async () => Response.json({ status: "error", message: "API key does not have permission" }, { status: 403 })) as typeof fetch;
+  const e = await liveBd(denied, "https://hirelegalhelp.com", "key").invoices(689);
+  assert(!e.ok && e.error.startsWith("bd_permission_needed"), "a missing permission is still an error");
 });
 
 Deno.test("search: one call per plan, every page, the plan and the signup date checked again", async () => {

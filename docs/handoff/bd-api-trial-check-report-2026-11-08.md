@@ -18,3 +18,10 @@ Saved as sent. Claude built lib/trial/bd-live.ts from it.
 - A paid invoice whose plan BD does not name counts as paid for the member's own plan, so a payer is never downgraded.
 - The BD status value for Active is not confirmed: setting trial.bd_active_value is empty, DELA leaves the status alone, and the BD admin task says to check it.
 - Post types: the setting trial.free_hidden_types must hold BD's own post type values before Live; the Dry run shows what BD calls them.
+
+## Learned from the Dry runs on Trial Tester (BD member 689), 2026-11-08
+- POST /api/v2/user/transactions with user_id in the form is right (BD's own spec in brilliant-directories-mcp, mcp/openapi/bd-api.json, getUserTransactions). BD answers "user_id or client_id is required" when the member has no billing account, even with user_id sent. BD's own connector rewrites that answer as "No billing account for this member: 0 subscriptions, 0 transactions". DELA reads either one as no invoices, because the member came from BD's own search.
+- GET on that path answers 405 Invalid Request Method.
+- The reply is { total, invoices: [{ invoice_details, subscription_details }] }; the plan is subscription_details.packageid (subscription_details is false when there is none). BD's connector removes subscription_details.password; DELA never keeps that field.
+- client_id is never used: it is a billing record number and can return another person's invoices.
+- A member added through BD's API has no billing account. To test a real unpaid invoice, the member must sign up through the site's checkout.

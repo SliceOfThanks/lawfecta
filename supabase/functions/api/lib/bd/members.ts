@@ -11,8 +11,8 @@ function base(siteUrl: string) {
   return siteUrl.replace(/\/+$/, "");
 }
 
-// as: how the fields are sent. "form" (the default, what BD's update calls take), "json" or "multipart" (some BD
-// endpoints read only one of these; the trial check's invoice read tries them in turn)
+// as: how the fields are sent. "form" is BD's own format and the default; "json" and "multipart" are kept for endpoints
+// that may need them
 export type BdBody = "form" | "json" | "multipart";
 export async function bdCall<T>(f: Fetch, siteUrl: string, key: string, method: string, path: string, form?: Record<string, string>, as: BdBody = "form"): Promise<BdResult<T>> { return await call<T>(f, siteUrl, key, method, path, form, as); }
 
