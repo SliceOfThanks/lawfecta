@@ -2,6 +2,12 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## UI and UX review fixes, on the test site 2026-11-08 (commit 711e5f2, screens only, no database or api change)
+- Reports saved: docs/reviews/test-reports/2026-11-08-step-10-ui-review.txt (look-only UI review, 11 of 25 steps flagged) and 2026-11-08-step-10-ux-review.txt (phone UX review, ratings 3 to 4 of 5).
+- Fixed, each with a browser check: one badge color per state everywhere (yellow needs you, blue in progress, green done, grey waiting or draft, faded grey closed, red a problem), so "Needs your signature" is yellow on Work and Earnings alike; dark text links, selected filters, box edges and placeholders readable; Ask DELA in the menu no longer looks like an AI button; Team roles line up and no "Attorney (attorney)"; no empty grey strip under the meeting times; "✦ Help me create a document" in the same blue as other main actions; Home "Verified" and "Ready" badges match the Profile; AI settings shows the same DELA actions count as the meter; plain Library footer; "Coming soon" only where a feature is really off; no "accepted 0 of 0"; "What does match-ready mean?"; nine bottom tabs scroll sideways on a phone instead of overlapping.
+- Still to do (in docs/PLAN.md section 3): the open gigs count, the monthly change comparison and the approved change summary, Work order, time zones, firm details before the first paid job, Notices link for undelivered messages, removed-message reason, setup gaps in approved documents, read receipts setting, file versions.
+- ChatGPT re-check: docs/tests/step-10b-ui-recheck-chatgpt-prompt.md.
+
 ## Step 8b Part A: UX retest fixes, on the test site 2026-11-07 (commit db31364, migrations 0061 to 0063)
 - Brief and Stacey's answers ("all as suggested"): docs/briefs/step-8b-ux-retest.md. Each fix has a test that fails before.
 - Monthly due dates follow the signed agreement and never fall after the paid month (the test-site engagement now reads Nov 13, 20, 27, Dec 4; a moved date says "moved from" and why); the agreement's "Not included" shows the monthly exclusions.
