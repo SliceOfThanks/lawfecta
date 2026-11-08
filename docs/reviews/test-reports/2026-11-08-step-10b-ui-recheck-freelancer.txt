@@ -1,0 +1,23 @@
+DELA freelancer UI re-check
+Date: November 8, 2026
+Site: https://www.hirelegalhelp.com
+Desktop viewport: 1440 x 1000; Light appearance.
+
+1 PASS - Account menu first line: DELA Test Freelancer.
+2 PASS - Home has a green Ready badge; rows 1, 2 and 4 offer Open your profile, Open your profile and Open Earnings; no COMING SOON in these rows.
+3 PASS - Your engagements (13) present. Needs your signature yellow; Active blue; Complete green; waiting for first payment grey; Canceled faded outline. Sent proposals (12): Sent blue and Chosen green.
+4 PASS - Earnings engagement statuses match Work. Needs your signature yellow. Milestone wording uses milestones accepted 0 of 1/2/4 or milestones set when you both sign; finished and canceled jobs omit milestone counts. No accepted 0 of 0.
+5 PASS - Book a meeting loads length (30 minutes), date (Monday, November 9, 2026), Pacific Time, and eight visible times from 9:00 AM through 10:45 AM. Show more times (23) present; no empty grey strip below it. No time selected or meeting booked.
+6 PASS - Signed out through Account menu; login page with action=loggedout confirmed.
+
+FAIL list: None.
+
+Inconsistencies and notes:
+- Freelancer navigation also shows Agency, Library, Projects and Talent, beyond the five freelancer tabs described in the supplied checklist. This may reflect the Freelancer Business (agency) plan displayed on Home.
+- The inbox already contained an unsent draft with a made-up passport number. It was not entered, changed or sent during this check.
+- Initial browser session belonged to DELA Test Attorney; signed it out before freelancer login. The user completed the freelancer reCAPTCHA.
+- Home Ready wording and green styling were verified. The Profile page was not opened, following the numbered-step scope, so direct Home/Profile parity was not independently checked.
+- No confusing application messages observed.
+- Nothing took longer than 60 seconds, excluding the user-controlled reCAPTCHA handoff.
+- No approvals, signatures, payments or other form submissions were required by the visual checks.
+- Screenshots are omitted because no step failed.

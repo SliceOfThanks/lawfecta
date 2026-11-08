@@ -31,6 +31,32 @@ Deno.test("invoices: Paid and Unpaid from invoice_details; a plan BD does not na
   assertEquals(invoice({ invoice_details: { id: "42", status: "Paid" } }), { id: "42", plan_id: 0, paid: true, open: false });
 });
 
+// Fix (Stacey's BD connector check, 2026-11-08): BD answered "user_id or client_id is required" to the form-only request.
+// user_id now also goes in the address; "No billing account" is no invoices, not an error; the list comes as
+// { total, invoices } with the plan in subscription_details.packageid; client_id is never sent (it is a billing record
+// number and could return another person's invoices).
+Deno.test("invoices: user_id in the address and the form, never client_id; the { total, invoices } shape; plan from subscription_details", async () => {
+  const { f, calls } = fakeBd({
+    "POST /api/v2/user/transactions?user_id=11": () => ({ message: { total: 2, invoices: [
+      { invoice_details: { id: "51", status: "Unpaid" }, subscription_details: { packageid: "8" } },
+      { invoice_details: { id: "52", status: "Paid" }, subscription_details: { packageid: "7" } }] } }),
+  });
+  const bd = liveBd(f, "https://hirelegalhelp.com", "key");
+  const r = await bd.invoices(11);
+  assertEquals(r.ok && r.data, [{ id: "51", plan_id: 8, paid: false, open: true }, { id: "52", plan_id: 7, paid: true, open: false }]);
+  assertEquals(calls[0].form, { user_id: "11" });
+  assert(!calls.some((c) => c.path.includes("client_id") || "client_id" in c.form), "client_id is never sent");
+});
+
+Deno.test("invoices: BD's \"No billing account for this member\" means no invoices; other errors stay errors", async () => {
+  const none = (async () => Response.json({ status: "error", message: "No billing account for this member: 0 subscriptions, 0 transactions. An unknown user_id returns the same response; confirm the member with getUser." }, { status: 200 })) as typeof fetch;
+  const r = await liveBd(none, "https://hirelegalhelp.com", "key").invoices(689);
+  assertEquals(r.ok && r.data, []);
+  const bad = (async () => Response.json({ status: "error", message: "user_id or client_id is required" }, { status: 400 })) as typeof fetch;
+  const e = await liveBd(bad, "https://hirelegalhelp.com", "key").invoices(689);
+  assert(!e.ok && e.error.includes("user_id or client_id is required"));
+});
+
 Deno.test("search: one call per plan, every page, the plan and the signup date checked again", async () => {
   let page = 0;
   const { f, calls } = fakeBd({

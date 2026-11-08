@@ -2,7 +2,10 @@
 // (2026-11-08, docs/handoff/bd-api-trial-check.md):
 // - members: GET /api/v2/user/get?property=subscription_id&property_value=N (pages: limit, next_page)
 // - users_meta: GET /api/v2/users_meta/get, POST /api/v2/users_meta/create, PUT /api/v2/users_meta/update
-// - invoices: POST /api/v2/user/transactions (invoice_details.status Paid or Unpaid); subscriptions: POST /api/v2/user/subscriptions
+// - invoices: POST /api/v2/user/transactions?user_id=N, user_id also in the form (BD did not read it from the form alone);
+//   the reply is { total, invoices } with invoice_details.status Paid or Unpaid and the plan in subscription_details.packageid;
+//   "No billing account for this member" means no invoices. client_id is never sent: it is a billing record number and
+//   could return another person's invoices (Stacey's BD connector check, 2026-11-08)
 // - plan: PUT /api/v2/user/update subscription_id; areas of law: PUT /api/v2/user/update delete_categories=1, services
 // - posts: GET /api/v2/data_posts/get?property=user_id, PUT /api/v2/data_posts/update post_status (0 = Draft, not public);
 //   multi-image groups: users_portfolio_groups, group_status
@@ -35,8 +38,9 @@ export function candidate(r: Rec): TrialCandidate {
 // which the rules count as paid for the member's own plan (never downgrade someone who paid)
 export function invoice(t: Rec): TrialInvoice {
   const d = (t.invoice_details && typeof t.invoice_details === "object" ? t.invoice_details : t) as Rec;
+  const sd = (t.subscription_details && typeof t.subscription_details === "object" ? t.subscription_details : {}) as Rec;
   const status = str(d.status).toLowerCase();
-  return { id: str(d.id ?? d.invoiceid ?? t.id ?? t.invoiceid), plan_id: Number(d.packageid ?? t.packageid ?? d.subscription_id ?? t.subscription_id) || 0, paid: status === "paid", open: status === "unpaid" };
+  return { id: str(d.id ?? d.invoiceid ?? t.id ?? t.invoiceid), plan_id: Number(sd.packageid ?? d.packageid ?? t.packageid ?? d.subscription_id ?? t.subscription_id) || 0, paid: status === "paid", open: status === "unpaid" };
 }
 
 export function post(p: Rec, group = false): TrialPost {
@@ -114,9 +118,12 @@ export function liveBd(f: Fetch, siteUrl: string, key: string, o: { activeValue?
       return ok(true as const);
     },
     async invoices(id) {
-      const r = await postForm<unknown>("/api/v2/user/transactions", { user_id: String(Math.trunc(id)) });
-      if (!r.ok) return r.status === 404 ? ok([]) : fail(r);
-      return ok(list(r.data).map(invoice).filter((i) => i.id));
+      const uid = String(Math.trunc(id));
+      const r = await postForm<unknown>("/api/v2/user/transactions?user_id=" + uid, { user_id: uid });
+      if (!r.ok) return r.status === 404 || /No billing account for this member/i.test(r.error) ? ok([]) : fail(r);
+      const m = r.data as Rec | Rec[] | null;
+      const rows = Array.isArray(m) ? m : m && typeof m === "object" && Array.isArray(m.invoices) ? m.invoices as Rec[] : m && typeof m === "object" && "total" in m ? [] : list(m);
+      return ok(rows.map(invoice).filter((i) => i.id));
     },
     async changePlan(id, plan) { const r = await put("/api/v2/user/update", { user_id: String(Math.trunc(id)), subscription_id: String(Math.trunc(plan)) }); return r.ok ? ok(true as const) : fail(r); },
     // No API: the run records these as tasks for BD admin (manualBilling)
