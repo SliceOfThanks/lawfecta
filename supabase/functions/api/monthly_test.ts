@@ -198,6 +198,16 @@ Deno.test("monthly dates: the signed dates govern, and every unit falls inside t
   assert(v.every((m: Record<string, unknown>) => "due_note" in m), "the screen gets the signed date and the reason");
 });
 
+// Fix (AI review 0.10.0, privacy 4): working out the dates again never changes an accepted or refunded unit
+Deno.test("monthly dates: accepted and refunded units keep their date", async () => {
+  const m = (await pool.query("select m.id, m.period_id, m.status, m.due_date from milestones m where m.agreement_id = $1 and m.period_id is not null and m.status <> 'canceled' order by m.seq limit 1", [agA])).rows[0];
+  assert(m, "a unit to check");
+  await pool.query("update milestones set status = 'accepted', due_date = '2001-01-01' where id = $1", [m.id]);
+  await pool.query("select dela_monthly_dates($1)", [m.period_id]);
+  assertEquals((await pool.query("select due_date::text d from milestones where id = $1", [m.id])).rows[0].d, "2001-01-01");
+  await pool.query("update milestones set status = $2, due_date = $3 where id = $1", [m.id, m.status, m.due_date]);
+});
+
 Deno.test("a change for next month: either side proposes, the other approves; it applies only if approved in time", async () => {
   const c = (await call("POST", "/monthly/change", fl.token, { id: agA, tasks: TASKS, price: 1200, note: "More calls lately" })).body;
   assert(c.ok, JSON.stringify(c));

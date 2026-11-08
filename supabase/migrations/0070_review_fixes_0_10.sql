@@ -105,3 +105,32 @@ create or replace function dela_monthly_fee_for(p_agreement uuid, p_price int) r
 $$;
 revoke all on function dela_monthly_fee_for(uuid, int) from public, anon, authenticated;
 alter function dela_monthly_fee_for(uuid, int) set search_path = public, extensions, pg_temp;
+
+-- Privacy 4: the monthly due dates never change a unit that is already accepted or refunded (0061 recalculated every
+-- unit that was not canceled). Same function otherwise.
+create or replace function dela_monthly_dates(p_period uuid) returns void language plpgsql as $$
+declare pr monthly_periods; a agreements; v_n int; v_i int := 0; m milestones; v_plan date; v_calc date; v_due date; v_last date; v_note text;
+begin
+  select * into pr from monthly_periods where id = p_period;
+  select * into a from agreements where id = pr.agreement_id;
+  select count(*) into v_n from milestones where period_id = pr.id and status <> 'canceled';
+  v_last := pr.ends_on + pr.paused_days;
+  for m in select * from milestones where period_id = pr.id and status <> 'canceled' order by seq loop
+    v_i := v_i + 1;
+    -- Accepted or refunded units keep their date: finished, paid history is never rewritten (AI review 0.10.0, privacy 4)
+    continue when m.status in ('accepted', 'refunded');
+    -- The date both people signed for this unit (month 1 only: later months are not in the signed version)
+    select nullif(e->>'due_date', '')::date into v_plan from agreement_versions v, jsonb_array_elements(v.body->'milestones') e
+      where v.agreement_id = a.id and v.version = m.from_version and (e->>'seq')::int = m.seq limit 1;
+    v_calc := case when v_i = v_n then pr.ends_on else pr.starts_on + v_i * 7 - 1 end;
+    v_due := case when v_plan is not null and v_plan >= pr.starts_on and v_plan <= pr.ends_on then v_plan else v_calc end;
+    v_due := dela_business_day_within(v_due + pr.paused_days, v_last);
+    v_note := case when v_plan is null or v_due = v_plan then ''
+      when pr.paused_days > 0 then 'Moved ' || pr.paused_days || ' days while payment was paused'
+      when v_plan < pr.starts_on or v_plan > pr.ends_on then 'The month started on ' || to_char(pr.starts_on, 'FMMon FMDD')
+      else 'Moved to a business day' end;
+    update milestones set due_date = v_due, planned_due_date = coalesce(v_plan, planned_due_date), due_note = v_note, updated_at = now() where id = m.id;
+  end loop;
+end $$;
+alter function dela_monthly_dates(uuid) set search_path = public, extensions, pg_temp;
+revoke all on function dela_monthly_dates(uuid) from public, anon, authenticated;
