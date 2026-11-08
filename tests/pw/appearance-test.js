@@ -67,12 +67,16 @@ async function lowContrast(page) {
   const browser = await chromium.launch();
   let s, p, t;
   try {
-    await sql("update feature_switches set state = 'everyone' where key in ('flex_gigs', 'engagements', 'profiles', 'talent_search', 'playbook_library', 'ai_generation', 'file_uploads', 'guided_setup', 'ai_helpers'); update feature_switches set state = 'off' where key = 'appearance_choice'");
+    await sql("update feature_switches set state = 'everyone' where key in ('flex_gigs', 'engagements', 'profiles', 'talent_search', 'playbook_library', 'ai_generation', 'file_uploads', 'guided_setup', 'ai_helpers', 'document_standard', 'library_workspace'); update feature_switches set state = 'off' where key = 'appearance_choice'");
     await sql(`insert into people (bd_member_id, display_name, email) values (${ATT}, 'Dana Dark', '${ATT}@test.invalid'), (${TEAM}, 'Tom Team', '${TEAM}@test.invalid') on conflict (bd_member_id) do nothing;
       select dela_ensure_side((select id from people where bd_member_id = ${ATT}), 'attorney', 'att_pro', 'staff_grant');
       select dela_ensure_side((select id from people where bd_member_id = ${TEAM}), 'attorney', 'att_free', 'staff_grant');
       insert into access_list (bd_member_id, channel) select x, 'access' from unnest(array[${ATT}, ${TEAM}]) x where not exists (select 1 from access_list where bd_member_id = x and channel = 'access' and revoked_at is null);
       insert into staff_roles (person_id, role) select id, 'owner' from people where bd_member_id = ${TEAM} and not exists (select 1 from staff_roles s where s.person_id = people.id and s.role = 'owner'); select 1`);
+    // One document, so the dark Library shows its cards, filters and text links (UI review 2026-11-08)
+    await sql(`insert into playbooks (org_id, title, status, current_version, completeness, request_id, created_by, doc_type, lifecycle)
+      select dela_side_org(id, 'attorney'), 'Dark check document', 'draft', 1, 50, 'dark-doc', id, 'sop', 'INT' from people where bd_member_id = ${ATT}
+      and not exists (select 1 from playbooks where request_id = 'dark-doc'); select 1`);
 
     // ---------- Off: DELA follows the device, and the menu has no choice ----------
     s = await open(browser, "DELA-App", ATT, "&tab=home", "dark"); p = s.page;
@@ -96,11 +100,29 @@ async function lowContrast(page) {
     ok(await theme(p) === "dark", "the choice stays after reloading");
 
     // ---------- Dark text is readable on the main pages ----------
-    for (const tb of ["home", "projects", "library", "talent", "delegate", "ai"]) {
+    for (const tb of ["home", "projects", "library", "talent", "delegate", "ai", "profile"]) {
       await p.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=${tb}`); await text(p); await p.waitForTimeout(800);
       const bad = await lowContrast(p);
       ok(!bad.length, "dark " + tb + ": all text at least 4.5 to 1" + (bad.length ? ":\n  " + bad.slice(0, 12).join("\n  ") : ""));
     }
+    // Fix (UI review 2026-11-08): on dark, the text links, the selected filter and the boxes stand out from their card
+    // (at least 3 to 1 for shapes); Ask DELA in the menu is a tab like the others, not an AI button
+    await p.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=library`); await waitFor(p, "Dark check document");
+    const shapes = await dela(p).locator(".dela").evaluate((root) => {
+      const rgb = (c) => (c.match(/[\d.]+/g) || []).map(Number);
+      const lum = (c) => { const [r, g, b] = rgb(c).slice(0, 3).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }); return 0.2126 * r + 0.7152 * g + 0.0722 * b; };
+      const ratio = (x, y) => { const a = lum(x), b = lum(y); return (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05); };
+      const page = getComputedStyle(root).backgroundColor;
+      const pressed = root.querySelector(".pills button[aria-pressed=true]"), plain = root.querySelector(".pills button[aria-pressed=false]");
+      const search = root.querySelector("input[type=search], input");
+      return { link: ratio(getComputedStyle(root.querySelector(".linkish")).color, page), pill: ratio(getComputedStyle(pressed).backgroundColor, getComputedStyle(plain).backgroundColor),
+        box: ratio(getComputedStyle(search).borderTopColor, page), ph: ratio(getComputedStyle(search, "::placeholder").color, getComputedStyle(search).backgroundColor),
+        nav: root.querySelector(".nav button.ai-btn") ? 1 : 0 };
+    });
+    ok(shapes.link >= 4.5, "dark Library: text links are readable (" + shapes.link.toFixed(2) + " to 1)");
+    ok(shapes.pill >= 3, "dark Library: the selected filter stands out from the others (" + shapes.pill.toFixed(2) + " to 1)");
+    ok(shapes.box >= 3 && shapes.ph >= 4.5, "dark: box edges and placeholder text are visible (" + shapes.box.toFixed(2) + ", " + shapes.ph.toFixed(2) + ")");
+    ok(shapes.nav === 0, "Ask DELA in the menu is not styled as an AI button");
     await s.ctx.close();
 
     // ---------- Match my device ----------

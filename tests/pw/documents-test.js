@@ -114,6 +114,10 @@ async function makeMember(bd, side, plan) {
     await click(p, "New document");
     t = await waitFor(p, "Your firm profile for documents");
     ok(t.includes("Team roles") && t.includes("Systems you use"), "the firm profile asks for size, roles and systems first");
+    // Fix (UI review 2026-11-08): the role boxes line up whatever the length of the role's name, and no "Attorney (attorney)"
+    const lefts = await dela(p).locator(".role-row select").evaluateAll((els) => els.map((e) => Math.round(e.getBoundingClientRect().left)));
+    ok(lefts.length > 2 && new Set(lefts).size === 1, "the Team roles boxes line up (" + [...new Set(lefts)].join(", ") + ")");
+    ok(!(await text(p)).includes("Attorney (attorney)"), "a role name does not repeat its kind");
     await click(p, "Save and continue");
     await waitFor(p, "Choose your firm size");
     ok(true, "the firm profile needs a firm size");

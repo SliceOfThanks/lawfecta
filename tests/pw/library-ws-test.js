@@ -139,6 +139,13 @@ const BODY = (title, extra) => JSON.stringify({ schema: 2, type: "sop", title, l
     await click(p, "Show as cards");
     await waitFor(p, "Your firm's processes");
 
+    // Fix (UI review 2026-11-08): the ✦ marks an AI action, but a main action keeps the same blue as every other main
+    // action; the footer says the count in plain words
+    const blues = await dela(p).locator(".dela").evaluate((root) => { const b = [...root.querySelectorAll("button")]; const bg = (t) => getComputedStyle(b.find((x) => x.textContent.trim() === t)).backgroundColor; return [bg("Create a document"), bg("✦ Help me create a document")]; });
+    ok(blues[0] === blues[1], "Help me create a document is the same blue as Create a document (" + blues.join(" / ") + ")");
+    t = await text(p);
+    ok(!t.includes("not switched on") && t.includes("Your access to this Library: Administrator"), "the Library footer has no setup wording");
+
     // ---------- What would you like to document? ----------
     await label(p, "What would you like to document?").fill("How we check for conflicts before accepting a new client");
     await click(p, "✦ Help me create a document");

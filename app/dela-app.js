@@ -143,8 +143,9 @@
 
   function nav() {
     if (!me.side) return null;
-    var n = h("nav", { class: "nav", "aria-label": "DELA sections" });
-    tabsFor().forEach(function (t) {
+    var list = tabsFor();
+    var n = h("nav", { class: "nav" + (list.length > 7 ? " many" : ""), "aria-label": "DELA sections" });
+    list.forEach(function (t) {
       n.appendChild(h("button", { "aria-current": t[0] === tab ? "page" : null, onclick: function () { tab = t[0]; draw(); } }, h("i", { "aria-hidden": "true", text: t[2] }), t[1]));
     });
     return n;
@@ -155,7 +156,7 @@
   function libLimitText(L) {
     if (L.limit !== null && L.limit !== undefined) return L.count + " of " + L.limit + " documents";
     var e = ent("att.playbooks_saved");
-    if (e && e.enabled && !e.unlimited && e.limit) return L.count + " documents. Your plan includes " + e.limit + "; the limit is not switched on yet.";
+    if (e && e.enabled && !e.unlimited && e.limit) return L.count + " documents saved. Your plan allows " + e.limit + ".";
     return L.count + " documents (no cap on your plan)";
   }
   function planCard() {
@@ -197,6 +198,7 @@
     return tile;
   }
 
+  var VER_BADGE = { not_started: "Not started", pending: "Being checked", verified: "Verified", rejected: "Not verified", expired: "Renewal needed" };
   function attorneyHome() {
     var s = sideInfo();
     var gigsEnt = ent("att.gigs_active");
@@ -225,7 +227,7 @@
         me.home ? stat("▣", me.home.active_projects, "Active projects") : null,
         me.home ? stat("!", me.home.pending_reviews, "Deliveries to review") : null,
         draftTile()),
-      h("div", { class: "card" }, h("div", { class: "row" }, h("h2", { text: "Verification" }), h("span", { class: "badge", text: s.verification_state.split("_").join(" ") })), h("p", { text: ver }),
+      h("div", { class: "card" }, h("div", { class: "row" }, h("h2", { text: "Verification" }), h("span", { class: "badge " + ({ verified: "ready", pending: "held", rejected: "bad", expired: "held" }[s.verification_state] || ""), text: VER_BADGE[s.verification_state] || s.verification_state })), h("p", { text: ver }),
         (me.switches || {}).profiles ? h("button", { class: "blue small", onclick: function () { tab = "profile"; draw(); } }, s.verification_state === "verified" ? "Open your profile" : "Set up your profile and verification") : null),
       h("h2", { style: "margin-top:22px", text: "What DELA will do for you" }),
       (me.switches || {}).playbook_library
@@ -236,7 +238,8 @@
         : soon(2, "Flex Gigs", gigsEnt ? "Post approved work with a budget range. Your plan allows " + (gigsEnt.unlimited ? "unlimited" : gigsEnt.limit) + " open at once." : "Post approved work with a budget range."),
       (me.switches || {}).talent_search ? liveRow(3, "Talent", "See available, qualified freelancers and invite them to a gig.", "Open Talent", "talent")
         : soon(3, "Talent and your bench", "See available, qualified paralegals, including people you have worked with before."),
-      soon(4, "Engagements and payments", "Sign a fixed-fee agreement and fund each milestone before work starts."),
+      (me.switches || {}).engagements ? liveRow(4, "Engagements and payments", "Sign an agreement and pay each milestone before work starts.", "Open Projects", "projects")
+        : soon(4, "Engagements and payments", "Sign a fixed-fee agreement and fund each milestone before work starts."),
       planCard());
   }
 
@@ -259,7 +262,7 @@
         h("div", { class: "eyebrow", text: "Match readiness" }),
         h("h2", { text: "Your profile, through an attorney's eyes" }),
         h("p", { text: ready }),
-        h("span", { class: "badge", style: "background:rgba(255,255,255,.15);color:#fff;border-color:rgba(255,255,255,.3)", text: s.readiness_state.split("_").join(" ") })),
+        h("span", { class: "badge " + (s.readiness_state === "match_ready" ? "ready" : "held"), text: STATE_BADGE[s.readiness_state] || s.readiness_state })),
       h("div", { class: "stats" },
         stat("✉", props ? (props.unlimited ? "No cap" : props.remaining) : 0, "Proposals left this month"),
         me.home ? stat("★", me.home.invitations, "Invitations") : null,
@@ -271,11 +274,14 @@
         : h("div", { class: "card" }, h("h2", { text: "Your match checklist" }), h("p", { class: "muted small", text: "Opening soon. These are the items attorneys need to see before DELA can match you." }),
             items.map(function (t) { return h("div", { class: "check" }, h("i", { "aria-hidden": "true" }), h("span", { text: t })); })),
       h("h2", { style: "margin-top:22px", text: "What DELA will do for you" }),
-      soon(1, "Profile Builder and Profile Audit", "Build a strong profile and see exactly what to improve."),
-      soon(2, "Services, promotions and pitches", "Publish clear services. Nothing goes live without your approval."),
+      (me.switches || {}).profiles ? liveRow(1, "Your profile", "Build a strong profile and see exactly what is still missing.", "Open your profile", "profile")
+        : soon(1, "Profile Builder and Profile Audit", "Build a strong profile and see exactly what to improve."),
+      (me.switches || {}).profiles ? liveRow(2, "Services", "List your services and prices on your profile. Promotions and pitches come in a later update.", "Open your profile", "profile")
+        : soon(2, "Services, promotions and pitches", "Publish clear services. Nothing goes live without your approval."),
       (me.switches || {}).flex_gigs ? liveRow(3, "Matches and proposals", "See gigs that fit you, with why, and send proposals with your price, what is included and your schedule.", "Open Work", "work")
         : soon(3, "Matches and proposals", "See work that fits you and send proposals with price, milestones and timeline."),
-      soon(4, "Active work and payouts", "Deliver milestones, get DELA's check, and track each payout."),
+      (me.switches || {}).engagements ? liveRow(4, "Active work and payouts", "Deliver milestones, get DELA's check, and track each payout.", "Open Earnings", "earnings")
+        : soon(4, "Active work and payouts", "Deliver milestones, get DELA's check, and track each payout."),
       planCard());
   }
 
@@ -696,7 +702,7 @@
         h("div", null, "AI tasks on your key", h("b", { text: String(u.own_tasks || 0) })),
         h("div", null, "Text read and written on your key", h("b", { text: ((u.own_input_tokens || 0) + (u.own_output_tokens || 0)).toLocaleString("en-US") + " tokens" })),
         h("div", null, "AI tasks on Lawfecta's AI", h("b", { text: String(u.lawfecta_tasks || 0) })),
-        h("div", null, "Included DELA actions used", h("b", { text: String(u.lawfecta_credits || 0) }))),
+        h("div", null, "Included DELA actions used", h("b", { text: String(ai.credits && !ai.credits.unlimited ? (ai.credits.used || 0) + (ai.credits.reserved || 0) : u.lawfecta_credits || 0) }))),
       h("p", { class: "small muted", style: "margin-top:10px", text: "Your provider's billing page shows the exact cost of what ran on your key." })));
     aiEl.appendChild(h("div", { class: "card" }, h("h2", { text: "Talking to the AI" }),
       h("p", { text: ai.voice_on ? "Press Talk in any AI chat, say what you need, and press Stop. Your words appear in the box so you can fix them before you press Send. Recordings are turned into text and not kept." : "Talking to the AI opens soon." }),
@@ -1876,7 +1882,7 @@
           h("button", { class: "blue", type: "button", onclick: function () { DOC.flow = { what: want.value }; if (L.standard) newDocument(); else newPlaybook(); } }, "✦ Help me create a document"),
           h("button", { class: "ghost", type: "button", onclick: suggestMissing }, "What am I missing?"))));
     }
-    libEl.appendChild(h("p", { class: "small muted", text: (function (x) { return x + (x.slice(-1) === "." ? "" : "."); })(libLimitText(L)) + " Your role: " + ROLE_WORDS[L.role] + "." }));
+    libEl.appendChild(h("p", { class: "small muted", text: (function (x) { return x + (x.slice(-1) === "." ? "" : "."); })(libLimitText(L)) + " Your access to this Library: " + ROLE_WORDS[L.role] + "." }));
     if (ws.scroll !== null) { var y = ws.scroll; ws.scroll = null; setTimeout(function () { window.scrollTo(0, y); }, 0); }
     if (lib.startRecord) { lib.startRecord = false; recordView(); }
   }
@@ -3173,6 +3179,12 @@
   // ---------- Step 4: Flex Gigs (attorney Projects and Talent, freelancer Work) ----------
   var gigs = { id: null, view: "details", pendingInvite: null, newFrom: null, linkTo: null };
   try { var gq = new URLSearchParams(location.search).get("gig"); if (gq && /^[0-9a-f-]{36}$/.test(gq)) gigs.id = gq; } catch (e) { /* no deep link */ }
+  // One color per meaning on every page (UI review 2026-11-08): yellow needs you, blue in progress, green done,
+  // grey waiting on someone else, faded grey closed, red a problem. The words always say the state too.
+  function gigTone(st) { return { open: "ready", paused: "held", filled: "R", closed: "off", canceled: "off" }[st] || ""; }
+  function propTone(st) { return { sent: "R", held: "held", selected: "ready", withdrawn: "off", not_selected: "off", closed: "off" }[st] || ""; }
+  function agTone(e) { return e.needs_me ? "held" : ({ active: "R", completed: "ready", canceled: "off", disputed: "bad", paused: "bad" }[e.status] || ""); }
+  function agBadge(e) { return h("span", { class: "badge " + agTone(e), text: e.needs_me === "sign" ? "Needs your signature" : AG_STATUS[e.status] || e.status }); }
   var GIG_STATUS = { draft: "Draft", open: "Open", paused: "Paused by the Lawfecta Team", closed: "Closed", filled: "Filled", canceled: "Canceled" };
   var PROP_STATUS = { draft: "Draft", sent: "Sent", held: "Being checked", withdrawn: "Withdrawn", selected: "Chosen", not_selected: "Not chosen", closed: "Closed" };
   var GIG_ERR = {
@@ -3333,7 +3345,7 @@
         list.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { gigLink(g.id, "projects"); } },
           h("span", { class: "chip", text: g.proposals ? String(g.proposals) : "0" }),
           h("div", null, h("h3", { text: g.title }), h("div", { class: "muted small", text: (g.kind === "monthly" ? "Monthly | " : "") + (g.linked_to ? "Linked to " + g.linked_to + " | " : "") + budgetText(g) + " | " + closesText(g) + " | " + g.proposals + (g.proposals === 1 ? " proposal" : " proposals") + (g.questions_open ? " | " + g.questions_open + " questions to answer" : "") })),
-          h("span", { class: "grow" }), h("span", { class: "badge " + (g.status === "open" ? "ready" : g.status === "paused" ? "held" : "C"), text: GIG_STATUS[g.status] })));
+          h("span", { class: "grow" }), h("span", { class: "badge " + gigTone(g.status), text: GIG_STATUS[g.status] })));
       });
       if (rest) list.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { gigs.listMore = true; draw(); } }, "Show " + rest + " more"));
       el.appendChild(list);
@@ -3434,7 +3446,7 @@
       el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", onclick: function () { gigs.id = null; draw(); } }, "← All gigs")));
       if (!r.ok) { el.appendChild(h("p", { class: "notice", text: r.reason === "not_found" ? GIG_NOT_YOURS : gigErr(r) })); return; }
       var g = r.gig;
-      el.appendChild(h("div", { class: "row" }, h("h1", { class: "grow", text: g.title }), h("span", { class: "badge " + (g.status === "open" ? "ready" : "C"), text: GIG_STATUS[g.status] })));
+      el.appendChild(h("div", { class: "row" }, h("h1", { class: "grow", text: g.title }), h("span", { class: "badge " + gigTone(g.status), text: GIG_STATUS[g.status] })));
       el.appendChild(h("p", { class: "muted", text: budgetText(g) + " | " + closesText(g) + (r.counts ? " | " + r.counts.proposals + (r.counts.proposals === 1 ? " proposal, " : " proposals, ") + r.counts.invited + " invited" : "") }));
       if (g.paused_by_team) el.appendChild(h("p", { class: "notice bad", text: "The Lawfecta Team paused this gig while they check it. Freelancers cannot send proposals until it opens again." }));
       if (g.kind === "monthly") el.appendChild(h("p", { class: "small", text: "Monthly gig: the budget is the monthly price. The agreement lists the work included each month." }));
@@ -3658,7 +3670,7 @@
             if (!confirm("Choose " + p.name + "'s proposal (" + D.money(p.price_cents) + ")? DELA starts a draft agreement, closes the gig and tells the others politely.")) return;
             api.post("/proposals/select", { id: p.id }).then(gigOk).then(function () { draw(); D.toast(app, "Chosen. The draft agreement is waiting for signing and funding."); }).catch(gigFail);
           } }, "Choose"));
-          else act.appendChild(h("span", { class: "badge C", text: PROP_STATUS[p.status] }));
+          else act.appendChild(h("span", { class: "badge " + propTone(p.status), text: PROP_STATUS[p.status] }));
           if ((me.switches || {}).gig_chat) act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { openThread(r.gig.id, p.person_id); } }, "Message"));
           return h("tr", null,
             h("td", { "data-label": "Freelancer" }, p.agency ? agencyOnProposal(p.agency) : null, p.agency ? h("div", { class: "small muted", text: "Sent by " + p.name }) : h("b", { text: p.name }), p.invited ? h("div", { class: "small muted", text: "Invited" }) : null, p.headline ? h("div", { class: "small", text: p.headline }) : null, (p.match_reasons || []).length ? h("div", { class: "small muted", text: p.match_reasons.join(" | ") }) : null),
@@ -4456,7 +4468,7 @@
             h("div", null, h("h3", { text: g.title }), h("div", { class: "small", text: budgetText(g) + (g.deadline ? " | due " + D.date(g.deadline) : "") + (g.closes_at && g.status === "open" ? " | closes " + D.date(g.closes_at) : "") }),
               (g.reasons || []).length ? h("div", { class: "small muted", text: "Why it fits: " + g.reasons.join(" | ") }) : null,
               g.message ? h("div", { class: "small muted", text: "Invitation: " + g.message }) : null, extra ? extra(g) : null),
-            h("span", { class: "grow" }), g.proposal_status ? h("span", { class: "badge " + (g.proposal_status === "selected" ? "ready" : "C"), text: PROP_STATUS[g.proposal_status] + (g.needs_reconfirm ? ": please confirm" : "") }) : null));
+            h("span", { class: "grow" }), g.proposal_status ? h("span", { class: "badge " + (g.needs_reconfirm ? "held" : propTone(g.proposal_status)), text: PROP_STATUS[g.proposal_status] + (g.needs_reconfirm ? ": please confirm" : "") }) : null));
         });
         el.appendChild(c);
       }
@@ -4478,7 +4490,7 @@
       el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", onclick: function () { gigs.id = null; draw(); } }, "← Work")));
       if (!r.ok) { el.appendChild(h("p", { class: "notice", text: "This gig is not available to you." })); return; }
       var g = r.gig, mine = r.my_proposal;
-      el.appendChild(h("div", { class: "row" }, h("h1", { class: "grow", text: g.title }), h("span", { class: "badge " + (g.status === "open" ? "ready" : "C"), text: GIG_STATUS[g.status] })));
+      el.appendChild(h("div", { class: "row" }, h("h1", { class: "grow", text: g.title }), h("span", { class: "badge " + gigTone(g.status), text: GIG_STATUS[g.status] })));
       if (g.firm) el.appendChild(h("p", { class: "muted", text: "Posted by " + g.firm + (g.client_kind === "agency" ? " (agency)" : "") + "." }));
       if ((me.switches || {}).reviews) el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: function () { showReviews("gig=" + g.id, "attorney", g.firm || "the " + clientWord(g)); } }, "Reviews of this " + clientWord(g))));
       if (r.invitation && r.invitation.status === "sent") el.appendChild(h("div", { class: "notice ok" }, h("p", { style: "margin:0 0 6px", text: "You are invited to send a proposal. An invited proposal does not use your monthly allowance." + (r.invitation.message ? " The attorney wrote: " + r.invitation.message : "") }),
@@ -4523,7 +4535,7 @@
   function proposalCard(r, g, mine) {
     var c = h("div", { class: "card" }, h("h2", { text: "Your proposal" }));
     if (mine && mine.status !== "draft") {
-      c.appendChild(h("p", null, h("span", { class: "badge " + (mine.status === "selected" ? "ready" : "C"), text: PROP_STATUS[mine.status] }), " ", D.money(mine.price_cents) + (mine.agency_org ? " | sent for your agency" : "") + (mine.counted ? (mine.agency_org ? " | used one of the agency's proposals" : " | used one of your proposals") : mine.invited ? " | invited, did not use your allowance" : "")));
+      c.appendChild(h("p", null, h("span", { class: "badge " + propTone(mine.status), text: PROP_STATUS[mine.status] }), " ", D.money(mine.price_cents) + (mine.agency_org ? " | sent for your agency" : "") + (mine.counted ? (mine.agency_org ? " | used one of the agency's proposals" : " | used one of your proposals") : mine.invited ? " | invited, did not use your allowance" : "")));
       c.appendChild(h("p", { class: "small", text: "Includes: " + mine.included }));
       if (mine.status === "held") c.appendChild(h("p", { class: "notice", text: "DELA is holding your proposal for a quick check by the Lawfecta Team, because it may plan contact or payment outside Lawfecta." }));
       var act = h("div", { class: "row" });
@@ -4848,12 +4860,12 @@
         // A date first, then that date's times: 8 at first, then "Show more times", with the viewer's time zone named (step 8b Part C, R05)
         var byDay = {}, days = [], chosen = null, FIRST = 8;
         r.slots.forEach(function (s) { var d = dayLabel(s); if (!byDay[d]) { byDay[d] = []; days.push(d); } byDay[d].push(s); });
-        var summary = h("div", { class: "soft", style: "margin-top:10px", id: "book-summary" });
+        var summary = h("div", { class: "soft", style: "margin-top:10px", id: "book-summary", hidden: true });
         var timesEl = h("div", { id: "book-times" });
         if (days.length) {
           if (days.indexOf(bookDay) < 0) bookDay = days[0];
           var daySel = h("select", { "aria-label": "Date" }, days.map(function (d) { var n = byDay[d].length; return h("option", { value: d, text: d + " (" + n + (n === 1 ? " open time)" : " open times)"), selected: d === bookDay }); }));
-          daySel.addEventListener("change", function () { bookDay = daySel.value; chosen = null; D.clear(summary); drawTimes(); });
+          daySel.addEventListener("change", function () { bookDay = daySel.value; chosen = null; D.clear(summary); summary.hidden = true; drawTimes(); });
           panel.appendChild(field("Date", daySel));
           panel.appendChild(timesEl);
         }
@@ -4861,7 +4873,7 @@
           chosen = s;
           Array.prototype.forEach.call(panel.querySelectorAll(".slot"), function (b) { b.setAttribute("aria-pressed", "false"); b.className = "ghost slot"; });
           btn.setAttribute("aria-pressed", "true"); btn.className = "blue slot";
-          D.clear(summary);
+          D.clear(summary); summary.hidden = false;
           summary.appendChild(h("p", { style: "margin:0 0 6px", text: "Selected: " + whenLabel(s, length) + ", " + tzName() }));
           summary.appendChild(h("button", { class: "blue", type: "button", onclick: function () { hold(chosen); } }, rescheduleOf ? "Review the new time" : "Review booking"));
         }
@@ -4910,7 +4922,7 @@
 
   function meetingCard(host, m, confirmHours) {
     var c = h("div", { class: "card" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: m.other_name + ": " + m.gig_title }),
-      h("span", { class: "badge " + (m.status === "confirmed" ? "ready" : m.status === "canceled" ? "bad" : "C"), text: MEET_STATUS[m.status] || m.status })));
+      h("span", { class: "badge " + (m.status === "confirmed" || m.status === "completed" ? "ready" : m.status === "held" ? "held" : m.status === "canceled" || m.status === "no_show" ? "off" : ""), text: MEET_STATUS[m.status] || m.status })));
     c.appendChild(h("p", { text: whenLabel(m.start_at, m.length_min) + (m.version > 1 ? " | new time" : "") }));
     var started = new Date(m.start_at).getTime() <= Date.now();
     if (m.status === "confirmed" && !started) {
@@ -5212,7 +5224,7 @@
     var a = r.agreement, cur = r.current || {}, b = cur.body || {}, att = r.role === "attorney";
     var mySigned = (r.signatures || []).some(function (s) { return s.version === a.version && s.role === r.role; });
     var theirSigned = (r.signatures || []).some(function (s) { return s.version === a.version && s.role !== r.role; });
-    host.appendChild(h("div", { class: "row" }, h("h2", { class: "grow", text: "Agreement, version " + a.version }), h("span", { class: "badge " + (a.status === "active" || a.status === "completed" ? "ready" : a.status === "canceled" || a.status === "paused" ? "bad" : "held"), text: AG_STATUS[a.status] || a.status })));
+    host.appendChild(h("div", { class: "row" }, h("h2", { class: "grow", text: "Agreement, version " + a.version }), h("span", { class: "badge " + agTone({ status: a.status }), text: AG_STATUS[a.status] || a.status })));
     if (eng.paid && att) { eng.paid = false; host.appendChild(h("p", { class: "notice ok", text: "Thank you. Stripe is confirming the payment. This page shows it as paid within a minute (a bank payment can take about 4 business days)." })); }
     if (a.status === "signing" && a.sign_by) host.appendChild(h("p", { class: "small muted", text: "Both of you sign by " + D.dateTime(a.sign_by) + ". If it is not signed by then, it closes." }));
     if (a.status === "paused") host.appendChild(h("p", { class: "notice bad", text: "A payment on this engagement is under review with the bank, so it is paused. You can still read everything and send messages. The Lawfecta Team will be in touch." }));
@@ -5981,8 +5993,8 @@
       var c = h("div", { class: "card" }, h("h2", { text: title + " (" + r.engagements.length + ")" }));
       r.engagements.forEach(function (e) {
         c.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { gigs.id = e.gig_id; gigs.view = "agreement"; tab = me.side === "attorney" ? "projects" : "work"; draw(); } },
-          h("div", null, h("h3", { text: e.gig_title }), h("div", { class: "small muted", text: (me.side === "attorney" ? "Freelancer: " : "Client: ") + (e.other_name || "") + " | " + D.money(e.total_cents) + (e.milestones ? " | milestones accepted " + e.accepted + " of " + e.milestones : " | milestones set when you both sign") + (me.side === "freelancer" && e.earned_cents ? " | paid to you " + D.money(e.earned_cents) : "") })),
-          h("span", { class: "grow" }), e.needs_me === "sign" ? h("span", { class: "badge held", text: "Needs your signature" }) : h("span", { class: "badge " + (e.status === "active" || e.status === "completed" ? "ready" : "C"), text: AG_STATUS[e.status] || e.status })));
+          h("div", null, h("h3", { text: e.gig_title }), h("div", { class: "small muted", text: (me.side === "attorney" ? "Freelancer: " : "Client: ") + (e.other_name || "") + " | " + D.money(e.total_cents) + (e.milestones ? " | milestones accepted " + e.accepted + " of " + e.milestones : (["draft", "sent", "signing"].indexOf(e.status) >= 0 ? " | milestones set when you both sign" : "")) + (me.side === "freelancer" && e.earned_cents ? " | paid to you " + D.money(e.earned_cents) : "") })),
+          h("span", { class: "grow" }), agBadge(e)));
       });
       slot.appendChild(c);
     }).catch(function () {});
@@ -6011,8 +6023,8 @@
       if (!list.length) c.appendChild(h("p", { class: "muted", text: "No engagements yet. When an attorney chooses your proposal, the agreement and its milestones show here." }));
       list.forEach(function (e) {
         c.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { gigs.id = e.gig_id; gigs.view = "agreement"; tab = "work"; draw(); } },
-          h("div", null, h("h3", { text: e.gig_title }), h("div", { class: "small muted", text: "Client: " + (e.other_name || "") + " | " + D.money(e.total_cents) + " | accepted " + e.accepted + " of " + e.milestones + " | paid to you " + D.money(e.earned_cents) })),
-          h("span", { class: "grow" }), h("span", { class: "badge " + (e.status === "active" || e.status === "completed" ? "ready" : "C"), text: e.needs_me === "sign" ? "Needs your signature" : AG_STATUS[e.status] || e.status })));
+          h("div", null, h("h3", { text: e.gig_title }), h("div", { class: "small muted", text: "Client: " + (e.other_name || "") + " | " + D.money(e.total_cents) + (e.milestones ? " | milestones accepted " + e.accepted + " of " + e.milestones : (["draft", "sent", "signing"].indexOf(e.status) >= 0 ? " | milestones set when you both sign" : "")) + " | paid to you " + D.money(e.earned_cents) })),
+          h("span", { class: "grow" }), agBadge(e)));
       });
       el.appendChild(c);
       try { var q = new URLSearchParams(location.search).get("payout"); if (q === "done") api.get("/payouts/refresh").then(function (x) { if (x.ok && x.account && x.account.status !== ((r.payout_account || {}).status)) draw(); }).catch(function () {}); } catch (e) { /* no deep link */ }
@@ -6443,8 +6455,9 @@
         who.addEventListener("change", function () { r.person_id = who.value === "email" ? "" : who.value; email.hidden = who.value !== "email"; if (who.value !== "email") r.email = ""; });
         email.addEventListener("input", function () { r.email = email.value; });
         var unassigned = !r.person_id && !r.email;
-        rolesBox.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin:4px 0" }, on, h("span", { style: "min-width:170px", text: r.name + (r.kind === "attorney" ? " (attorney)" : r.kind === "freelancer" ? " (freelancer)" : "") }), who, email,
-          saved && unassigned && r.on ? h("span", { class: "badge held", text: "No one assigned" }) : null));
+        var kindWord = r.kind === "attorney" || r.kind === "freelancer" ? r.kind : "";
+        rolesBox.appendChild(h("div", { class: "role-row" }, on, h("span", { class: "role-name", text: r.name + (kindWord && r.name.toLowerCase().indexOf(kindWord) < 0 ? " (" + kindWord + ")" : "") }), who,
+          h("div", { class: "role-extra" }, email, saved && unassigned && r.on ? h("span", { class: "badge held", text: "No one assigned" }) : null)));
       });
       var custom = h("input", { "aria-label": "Add a custom role", placeholder: "Add a custom role" });
       var kind = h("select", { "aria-label": "Custom role kind" }, h("option", { value: "staff", text: "Staff" }), h("option", { value: "attorney", text: "Attorney" }), h("option", { value: "freelancer", text: "Freelancer" }));

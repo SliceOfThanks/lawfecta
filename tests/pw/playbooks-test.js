@@ -209,7 +209,7 @@ async function makeMember(bd, side, plan) {
     await waitFor(s.page, "Document library");
     await dela(s.page).getByLabel("Library").selectOption({ index: 1 });
     t = await waitFor(s.page, "New client intake");
-    ok(t.includes("Your role: Editor"), "the editor opens the firm's library from the picker");
+    ok(t.includes("Your access to this Library: Editor"), "the editor opens the firm's library from the picker");
     ok(!t.includes("Team"), "only the administrator manages the team");
     await dela(s.page).getByText("New client intake").first().click();
     await waitFor(s.page, "Complete:");

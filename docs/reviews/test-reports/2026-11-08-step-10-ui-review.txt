@@ -1,0 +1,84 @@
+DELA VISUAL UI REVIEW
+Date: November 8, 2026
+Site: https://www.hirelegalhelp.com
+Desktop review: requested 1440 x 1000 browser viewport. Attorney light/dark and freelancer light appearance. Visual judgments, not a measured accessibility audit.
+Screenshots are supplied beside this report in the accompanying ZIP. PASS means no material visual problem identified within the specified view; it is not a functional certification.
+
+STEP RESULTS
+1 PASS - Test attorney login completed by user after a reCAPTCHA error.
+2 PASS - Light appearance selected; white cards and light background verified.
+3 PASS - Attorney Home renders cleanly; no text clipping identified.
+4 PASS - Ask DELA renders cleanly; repeated warning text is visually heavy.
+5 FAIL - Problem: primary AI action is purple while primary actions elsewhere are blue; implementation wording appears in footer | Where: Not sure where to start? / Help me create a document; document-count footer | Screenshot: step-05-library.jpg.
+6 PASS - Files table and actions remain inside their card; dense action rows and native file chooser look less polished.
+7 FAIL - Problem: Draft, Open, Canceled, Complete and Active share green status styling, weakening distinction | Where: Your gigs / Engagements | Screenshot: step-22-work.jpg corroborates the same engagement badge issue on freelancer Work; a separate attorney Projects screenshot was viewed but not saved.
+8 PASS - Agreement tables, warning, milestones and lower cards fit without visible clipping.
+9 PASS - Talent page fits; Search button sits slightly lower than adjacent input controls.
+10 FAIL - Problem: longer role labels shift selectors and badges out of alignment | Where: Your firm profile for documents / Team roles | Screenshot: step-10-profile.jpg.
+11 FAIL - Problem: conflicting usage totals: 77 included actions used, 80 in footer, 920 of 1000 remaining | Where: This month / Which AI DELA uses / footer | Screenshot: step-11-ai.jpg.
+12 PASS - Dark appearance selected and applied; dark cards and background verified after update.
+13 FAIL - Problem: verification badge is neutral while Profile uses green Verified; purple Ask DELA emphasis competes with active Home tab | Where: Verification / top navigation | Screenshot: step-13-dark-home.jpg.
+14 FAIL - Problem: burgundy text links are difficult to read against near-black background; selected filters have weak visual separation | Where: Library settings, Recordings, Recently deleted, Show as a table; category/status filters | Screenshot: step-14-dark-library.jpg.
+15 PASS - Dark agreement text and tables remain readable; no clipping identified.
+16 FAIL - Problem: faint input boundaries and placeholder text; Team roles alignment remains uneven | Where: Firm details / Your profile / Your firm profile for documents | Screenshot: step-16-dark-profile.jpg.
+17 PASS - Match my device restored; checked menu choice and light page verified.
+18 PASS - Attorney sign-out completed; logged-out login page verified.
+19 PASS - Freelancer login completed by user; test freelancer identity verified.
+20 FAIL - Problem: readiness status changes wording/style from neutral 'match ready' on Home to green 'Ready' on Profile | Where: Your profile, through an attorney's eyes versus Where your profile stands | Screenshot: step-20-freelancer-home.jpg and step-21-freelancer-profile.jpg.
+21 PASS - Freelancer profile fields and availability controls fit; inconsistent time zones noted below.
+22 FAIL - Problem: Canceled, Complete, Active and waiting-for-payment statuses share green styling | Where: Your engagements; Sent proposals also uses green for both Sent and Chosen | Screenshot: step-22-work.jpg.
+23 FAIL - Problem: Needs your signature changes from yellow on Work to green on Earnings | Where: Your engagements, same prepared jobs | Screenshot: step-22-work.jpg and step-23-earnings.jpg.
+24 FAIL - Problem: empty grey rounded strip resembles an unfinished placeholder after open times have loaded | Where: Book a meeting, below Show more times | Screenshot: step-24-booking.jpg. Booking card loaded with dates, lengths and times; no time selected and no booking submitted.
+25 PASS - Freelancer signed out; logged-out login page verified.
+
+FAIL LIST
+Steps 5, 7, 10, 11, 13, 14, 16, 20, 22, 23, 24.
+These include repeated instances of the same visual pattern, not eleven independent root causes.
+
+TOP 10 - MOST VISIBLE FIRST
+1. Dark Library text links have weak contrast. Page: Library, dark. Where: Library settings and links below document cards. Use the lighter link treatment already used by outlined buttons.
+2. Team roles columns do not align for long labels. Page: Attorney Profile, light and dark. Where: Supervising attorney and Outsourced freelancer rows. Give labels a consistent column width and align selectors/badges.
+3. Signature attention color changes between pages. Pages: Work and Earnings. Where: Needs your signature badges on the same jobs. Preserve the yellow attention treatment.
+4. Different engagement outcomes share green badges. Pages: Projects, Work and Earnings. Where: Canceled, Active, Complete, waiting for payment. Use distinct semantic treatments, retaining text labels.
+5. Dark profile fields blend into their cards. Page: Attorney Profile, dark. Where: empty Firm details fields, placeholders and Systems you use. Strengthen boundaries and placeholder contrast.
+6. Blank grey strip remains below loaded meeting times. Page: Inbox conversation. Where: booking card beneath Show more times. Remove it when empty or explain what belongs there.
+7. Purple and blue compete as primary-action colors. Pages: Library versus Files/Projects. Where: Help me create a document versus Create a document and other primary actions. Establish a clear primary and AI-action convention.
+8. Readiness/verification badges vary in wording and color. Pages: Home versus Profile, both roles. Where: verified/Verified and match ready/Ready. Standardize the same state across views.
+9. Usage totals disagree. Page: Attorney AI settings. Where: This month says 77 used, footer says 80, remaining says 920. Clarify accounting or synchronize displayed totals.
+10. Selected filters are subtle in dark appearance. Page: Library, dark. Where: All categories / All versus unselected pills. Make selection visibly stronger.
+
+CONSISTENCY NOTES
+- Work uses yellow Needs your signature; Earnings uses green for the same status.
+- Library Draft is neutral; Projects Draft is green.
+- Home attorney verified is lowercase and neutral; Profile Verified is capitalized and green.
+- Freelancer Home match ready is neutral; Profile Ready is green.
+- Library primary AI action is purple in light appearance and blue in dark; other primary actions are blue.
+- Dark Ask DELA has a persistent purple pill while another section has the active burgundy pill. This can obscure which section is selected.
+- File upload uses a native Choose Files control inside the styled interface; other upload actions use the site's outlined buttons.
+- AI usage footer uses a conventional blue underlined link in light appearance, differing from the burgundy links elsewhere.
+
+DARK APPEARANCE
+- Library burgundy text links are the clearest dark-only readability issue.
+- Profile placeholder text and field borders are faint against dark cards.
+- Library selected filter backgrounds differ only subtly from unselected controls.
+- Body text, agreement tables and key headings remained readable in the reviewed views. Contrast ratios were not measured.
+
+CONFUSING MESSAGES AND CONTENT
+- Initial login reported 'The security check was not completed successfully' and 'Invalid recaptcha response or setup'; user completed login.
+- Library footer says 'the limit is not switched on yet' and 'Your role: Administrator', exposing implementation-oriented language.
+- AI settings usage totals do not reconcile as displayed (77, 80, 920 remaining).
+- Home labels Engagements and payments / Active work and payouts as COMING SOON while existing engagement, work and earnings views are populated. This may describe forthcoming automation, but that distinction is unclear.
+- Freelancer profile meeting availability uses America/Los_Angeles while How you work says Central. These may be intentional separate settings, but the relationship is not explained.
+- Agreement test data says 'Two more welcome packets a week' while the table changes 10 to 12 each month. The UI explicitly flags this conflict; treated as successful warning behavior, not a visual failure.
+- Earnings displays 'accepted 0 of 0' for unsigned and completed prepared jobs; potentially confusing, but may reflect fixture data.
+- The Inbox contained an existing unsent fictional test draft. It was not entered or sent during this review.
+
+TIMING AND SCOPE NOTES
+- No observed page or booking-card load exceeded 60 seconds. Temporary Loading DELA and Loading open times states resolved.
+- User authentication handoffs caused pauses; these are not page-loading failures.
+- Automatic approval review blocked agent submission of the freelancer login; user completed it. This was a review-control interruption, not a site defect.
+- Reviewed the supplied routes and named disclosures. Used whole-page captures to inspect long pages, plus viewport screenshots and scrolling. Did not test every field or execute consequential workflow actions.
+- Filled only supplied test login credentials. The attachment provides a visual review with no other form-entry scenarios; unknown profile facts were not invented.
+- No profile changes saved, messages sent, bookings made, agreements signed, payments made or connector permissions granted.
+- Attorney appearance restored to Match my device. Freelancer appearance remained Light. Both test sessions were signed out.
+- A fixed header can appear mid-page in full-page captures taken after scrolling. That screenshot artifact was not counted as an overlap defect.

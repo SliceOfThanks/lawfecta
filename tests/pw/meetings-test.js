@@ -136,6 +136,7 @@ async function makeMember(bd, side, plan) {
     const second = await bookCard.getByLabel("Date", { exact: true }).locator("option").nth(1).getAttribute("value");
     await bookCard.getByLabel("Date", { exact: true }).selectOption(second);
     ok(await bookCard.locator("#book-times button.slot").count() === Math.min(8, perDay[1]), "choosing another date shows that date's times");
+    ok(!(await dela(p).locator("#book-summary").isVisible()), "no empty box under the times before a time is picked (UI review 2026-11-08)");
     await dela(p).locator(".card[aria-label='Book a meeting'] button.slot").first().click();
     ok((await dela(p).locator("#book-summary").innerText()).includes("Selected:"), "picking a time shows what was selected before booking (UX review I03)");
     await click(p, "Review booking");

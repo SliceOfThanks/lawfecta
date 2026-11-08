@@ -1,0 +1,205 @@
+DELA UX REVIEW - November 8, 2026
+Site: hirelegalhelp.com (Test site)
+Method: Browser review in the existing narrow/mobile viewport. Pages inspected through visible interface/accessibility content and scrolling. Ratings assess clarity, not legal accuracy or backend correctness. No desktop comparison performed.
+Scope: The supplied checklist defined the review pages. The user's direct request authorized form filling and approvals, superseding the document's read-only directions. Only known or clearly fictional information was entered. Contract approval received separate explicit confirmation.
+
+1 PASS - Test attorney login completed with user handling reCAPTCHA.
+
+Page: 2 - Attorney Home
+Purpose: Orient the attorney and provide routes to planning, documents and hiring.
+Next action: Ask DELA to plan a task; easy to find: yes, prominent named button.
+Rating: 3/5
+Findings: Problem: Account sidebar says Attorney Free while Home says Attorney Pro. | Where: Plan labels | Why it matters: Entitlements are uncertain. | Suggestion: Label directory and DELA plans separately and explain their relationship.
+Problem: Home reports 2 open gigs while the allowance says 9 of 10 available. | Where: Summary and plan table | Why it matters: Remaining capacity is unclear. | Suggestion: Calculate both from the same count or explain exclusions.
+Problem: Engagements and payments says COMING SOON despite existing active agreements. | Where: What DELA will do for you | Why it matters: Users may assume work is unavailable. | Suggestion: Reflect current availability.
+
+Page: 3 - Ask DELA
+Purpose: Turn an operations request into an actionable plan or process.
+Next action: Enter a task; easy to find: yes, message box and example button.
+Rating: 4/5
+Findings: Problem: Long sensitive-data warnings repeat above the message composer. | Where: Intro and composer | Why it matters: On mobile they delay reaching the task. | Suggestion: Keep a concise visible reminder with expandable details.
+
+Page: 4 - Library
+Purpose: Find and manage firm process documents by category and readiness.
+Next action: Find a document; easy to find: yes, search directly below primary actions.
+Rating: 4/5
+Findings: Problem: The long warning takes much of the initial mobile view. | Where: Above Library heading | Why it matters: Documents and filters require extra scrolling. | Suggestion: Shorten the inline reminder and disclose details on demand.
+Search for conflict returned Run a Conflict Check. Category/status controls were inspected; their individual filtering combinations were not exercised.
+
+Page: 5 - INT-01 Run a Conflict Check
+Purpose: Read the approved process, inspect its history and create a new draft when needed.
+Next action: Follow the approved steps or edit a new draft; easy to find: yes, version status and actions are explicit.
+Rating: 4/5
+Findings: Problem: Ready-to-use approved steps still contain [Add the menu path in your system]. | Where: Steps and Quality notes | Why it matters: Staff cannot follow exact navigation without additional knowledge. | Suggestion: Show unresolved setup items beside readiness and let owners complete them.
+Problem: RACI uses unexplained R, A, C and I. | Where: RACI table | Why it matters: Less experienced staff may misunderstand responsibility. | Suggestion: Add a short legend.
+Returned with the Library button.
+
+Page: 6 - Files
+Purpose: Store firm process files and access or ask DELA about them.
+Next action: Choose files or open an existing file; easy to find: yes, Add files and row actions are named.
+Rating: 4/5
+Findings: Problem: Two identically named files require upload timestamps to distinguish them. | Where: File rows | Why it matters: Users may open the wrong copy. | Suggestion: Offer a clearer duplicate/version distinction.
+No file uploaded; no source file was supplied for upload.
+
+Page: 7 - Attorney Projects
+Purpose: Track gigs, proposals, engagements and standing arrangements.
+Next action: Review proposals or open an agreement needing signature; easy to find: yes, Needs your action groups these tasks.
+Rating: 4/5
+Findings: Problem: Completed engagement says milestones are set when both parties sign. | Where: Test job: One-off finished (prepared) | Why it matters: A future-tense setup message contradicts Complete. | Suggestion: Use a completed-state summary or omit the setup text.
+
+Page: 8 - Attorney monthly agreement
+Purpose: Review the monthly scope, billing, pending change and work milestones.
+Next action: Wait for the other party or review submitted units; easy to find: yes, What happens next explains it.
+Rating: 4/5
+Findings: Problem: Change note says two more packets a week while table says 10 to 12 each month. | Where: Pending change | Why it matters: The parties may agree to different workloads. | Suggestion: Correct the note before acceptance and retain the mismatch warning.
+Problem: Every weekly milestone uses the same generic share-of-month deliverable. | Where: Milestones | Why it matters: The expected weekly allocation is unclear. | Suggestion: State the allocation or explain how variable weekly volume is accepted.
+
+Page: 9 - Talent
+Purpose: Find suitable freelancers and invite them to a gig.
+Next action: Search or inspect the freelancer profile; easy to find: yes, Find a freelancer and View profile are clear.
+Rating: 4/5
+Findings: Problem: Help control is named What does what match-ready means mean? in accessibility text. | Where: Match-ready help | Why it matters: The redundant wording is confusing for assistive technology. | Suggestion: Name it What does match-ready mean?
+
+Page: 10 - Attorney Profile and verification
+Purpose: Maintain firm details, professional verification and document defaults.
+Next action: Complete missing firm details; easy to find: yes, Firm details is a named section.
+Rating: 3/5
+Findings: Problem: Ready and verified status sits above blank firm legal name and other engagement details. | Where: Where your profile stands / Firm details | Why it matters: Users may read Ready as ready for a paid engagement. | Suggestion: Separate verification readiness from engagement setup readiness.
+Problem: Also update my Lawfecta directory listing is already checked. | Where: Profile save area | Why it matters: Saving private edits may unexpectedly change a public listing. | Suggestion: Make destination conspicuous and require an intentional choice for public updates.
+
+Page: 11 - AI settings
+Purpose: Choose the AI source and inspect usage, memory and integration settings.
+Next action: Review the current AI source and remaining allowance; easy to find: yes, first card states the choice.
+Rating: 3/5
+Findings: Problem: Included allowance shows 920 remaining of 1000 and footer 80 used, while This month says 77 actions used. | Where: Usage summaries | Why it matters: Users cannot reconcile consumption. | Suggestion: Use consistent totals or label different calculation windows.
+Problem: Read receipts are grouped under AI settings. | Where: Messages | Why it matters: Users seeking message privacy controls may not look here. | Suggestion: Put message preferences in account or messaging settings, with a cross-link if needed.
+
+Page: 12 - Notices panel
+Purpose: Gather action items and recent account/project updates.
+Next action: Open an item needing action; easy to find: yes, Needs your action appears first.
+Rating: 4/5
+Findings: Problem: Message-not-delivered notice opens Home rather than the affected conversation. | Where: Updates / A message was not delivered | Why it matters: Users cannot easily inspect or fix the problem. | Suggestion: Link to the affected thread and message context.
+Panel closed using Close notices.
+
+13 PASS - Attorney signed out; login page verified.
+14 PASS - Test freelancer login completed with user handling reCAPTCHA.
+
+Page: 15 - Freelancer Home
+Purpose: Explain match readiness, work opportunities and plan allowances.
+Next action: Open Work; easy to find: yes, directly named action.
+Rating: 3/5
+Findings: Problem: Active work and payouts says COMING SOON despite active work and an Earnings page. | Where: What DELA will do for you | Why it matters: Product availability is unclear. | Suggestion: Update the availability labels.
+Problem: Sidebar says Free while DELA plan says Freelancer Business (agency). | Where: Plan labels | Why it matters: Users may distrust the shown allowances. | Suggestion: Distinguish directory plan from DELA entitlements.
+
+Page: 16 - Freelancer Profile
+Purpose: Maintain match readiness, meeting availability and professional services.
+Next action: Confirm availability or edit profile; easy to find: yes, dedicated headings and buttons.
+Rating: 3/5
+Findings: Problem: Meetings use Los Angeles time while profile time zone is Central. | Where: Meeting availability and How you work | Why it matters: Attorneys may interpret availability incorrectly. | Suggestion: Synchronize or clearly explain the two zones and flag differences.
+Problem: Days off requires comma-separated ISO dates. | Where: Days off | Why it matters: Manual formatting invites mistakes. | Suggestion: Provide a date picker and visible date list.
+Problem: Nine mobile navigation destinations squeeze together and labels overlap. | Where: Bottom navigation | Why it matters: Destinations are difficult to read and select. | Suggestion: Keep primary destinations visible and put secondary ones in More.
+
+Page: 17 - Freelancer Work
+Purpose: Track engagements, invitations, opportunities and sent proposals.
+Next action: Open an active engagement or invitation; easy to find: partly, both are clearly labeled but invitations sit below a long engagement list.
+Rating: 3/5
+Findings: Problem: Invitations are below 13 engagements and standing arrangements. | Where: Work section order | Why it matters: A new opportunity is easy to miss. | Suggestion: Put actionable invitations near the top or add a jump link.
+Problem: Canceled and completed items remain mixed with active and signature-required work. | Where: Your engagements | Why it matters: Users must scan past finished work. | Suggestion: Provide status filtering or separate completed items.
+
+Page: 18 - Freelancer monthly agreement
+Purpose: Understand monthly obligations, approve changes and start funded units.
+Next action: Resolve the pending scope change or start the next funded unit; easy to find: yes, named approval and Start this milestone controls.
+Rating: 3/5
+Findings: Problem: Proposed change emphasizes attorney total with fee but omits proposed freelancer net payout in the comparison. | Where: A change to approve | Why it matters: Freelancer cannot assess the net increase at a glance. | Suggestion: Add proposed platform fee and net payout.
+Problem: The scope note conflicts with the monthly table. | Where: Change warning | Why it matters: Workload is ambiguous. | Suggestion: Align the note with the table before agreement.
+Problem: After approval, the comparison disappears and the message only says it starts next month if approved at least one day before billing. | Where: Monthly engagement | Why it matters: Accepted future price, volume and exact effective date are no longer readily visible. | Suggestion: Retain a scheduled-change summary with accepted terms and date.
+Approval: User explicitly confirmed $1,100/month and 12 packets/month. Clicked Approve the change. Verified the visible Approved confirmation and removal of the pending approval controls. Current month remained $1,000 and 10 packets, consistent with future effect. Evidence: agreement-approved.jpg.
+
+Page: 19 - Earnings
+Purpose: View paid earnings and set up bank payouts.
+Next action: Set up payouts with Stripe; easy to find: yes, prominent action under Payouts to your bank.
+Rating: 4/5
+Findings: Problem: Complete engagement shows accepted 0 of 0 and paid $0. | Where: Test job: One-off finished (prepared) | Why it matters: Users cannot tell whether completion is unpaid, imported test data or an accounting issue. | Suggestion: Explain completion without accepted milestones and distinguish unpaid/held/paid amounts.
+Bank setup was not opened; no bank details were available or required for this UX review.
+
+Page: 20 - Conversation
+Purpose: Communicate with the attorney about the welcome-packet gig.
+Next action: Read the template and draft a reply; easy to find: yes, attachment button and message composer are clear.
+Rating: 3/5
+Findings: Problem: Message removed has no visible reason in the thread. | Where: Messages | Why it matters: The user cannot understand the removal. | Suggestion: Provide an appropriate removal reason and next step.
+Problem: Composer restored an existing passport-like fictional draft despite the sensitive-data warning. | Where: Your message | Why it matters: Stale sensitive-looking text can be accidentally sent. | Suggestion: Flag risky restored drafts before sending. Sending validation was not tested.
+Problem: Bottom navigation labels overlap on mobile. | Where: Bottom navigation | Why it matters: Navigation is hard to scan. | Suggestion: Move secondary destinations into More.
+Replaced the existing draft with a harmless fictional QA draft; did not send it. Evidence: conversation-review.jpg.
+
+21 PASS - Freelancer signed out; login page with loggedout action verified.
+
+FAIL LIST
+No numbered navigation/login/sign-out step failed. Review steps use the requested five-line review format rather than PASS/FAIL. UX defects are recorded above and prioritized below. No failed-step screenshots are therefore required.
+
+TOP 10 FINDINGS (most important first)
+1. Freelancer mobile navigation: nine destinations overlap. Suggestion: primary tabs plus More. Pages 15-20; screenshot conversation-review.jpg.
+2. Agreement scope: weekly note conflicts with monthly table. Suggestion: reconcile text and structured terms before acceptance. Pages 8 and 18.
+3. Approved future change disappears from view. Suggestion: retain accepted amount, volume and effective date. Page 18.
+4. Freelancer time zones disagree. Suggestion: synchronize or explicitly explain meeting versus profile zones. Page 16.
+5. Approved conflict-check SOP retains blank system paths. Suggestion: surface and complete unresolved operational setup. Page 5.
+6. Home and settings usage/counts disagree. Suggestion: reconcile open-gig capacity and AI consumption numbers. Pages 2 and 11.
+7. Profile Ready status does not distinguish missing firm engagement details. Suggestion: separate verification and engagement readiness. Page 10.
+8. Public listing update is preselected for attorney profile save. Suggestion: make the public destination an intentional choice. Page 10.
+9. COMING SOON labels contradict working engagement/earnings pages. Suggestion: update labels to current product state. Pages 2 and 15.
+10. Work actions are buried among ongoing and completed engagements. Suggestion: prioritize invitations and filter status. Page 17.
+
+RATINGS TABLE
+Step | Page | Rating out of 5
+2 | Attorney Home | 3
+3 | Ask DELA | 4
+4 | Library | 4
+5 | Run a Conflict Check | 4
+6 | Files | 4
+7 | Attorney Projects | 4
+8 | Attorney monthly agreement | 4
+9 | Talent | 4
+10 | Attorney Profile and verification | 3
+11 | AI settings | 3
+12 | Notices | 4
+15 | Freelancer Home | 3
+16 | Freelancer Profile | 3
+17 | Freelancer Work | 3
+18 | Freelancer monthly agreement | 3
+19 | Earnings | 4
+20 | Conversation | 3
+
+WHAT WORKS WELL
+1. What happens next gives role-specific guidance on funded monthly work.
+2. The scope mismatch warning states the conflicting weekly/monthly values clearly.
+3. Library search finds the requested document, and status labels distinguish drafts, review and approved work.
+4. Approved document version, owner and review dates make the operational source explicit.
+5. Fee disclosures explain both attorney totals and freelancer net payouts; payout setup explains Stripe handles bank information.
+
+CONFUSING MESSAGES AND LABELS
+- Attorney Free versus Attorney Pro; Free versus Freelancer Business (agency).
+- Home: 2 open gigs versus 9 of 10 available.
+- AI settings: 77 actions used versus footer 80 used / 920 remaining.
+- COMING SOON on engagement/payment features that have working pages.
+- Complete engagement: milestones set when you both sign / accepted 0 of 0 / paid $0.
+- What does what match-ready means mean? (accessibility label).
+- Two more welcome packets a week versus 10 to 12 each month.
+- Post-approval conditional message does not repeat scheduled terms.
+- Message removed without reason.
+
+TIMING
+No observed DELA operation exceeded 60 seconds. CAPTCHA waits were user handoffs, not DELA generation time. No AI generation/check was initiated. Brief Loading states resolved on subsequent observation.
+
+FORM ENTRY AND STATE CHANGES
+- Filled both test login forms; user completed the CAPTCHAs/login handoffs.
+- Ask DELA: populated the built-in example; no message sent.
+- Library: searched conflict.
+- Talent: filled Family law, Administrative Support, Clio and a fictional task description; no invitation sent.
+- Attorney profile: filled Example Lantern Legal, a fictional QA headline and a short fictional firm description using existing profile facts. No profile save clicked.
+- Freelancer profile: filled Calendar organization, document checklists as task skills based on existing profile description. No profile save clicked.
+- Conversation: replaced an existing risky-looking fictional draft with a harmless QA draft; no message sent.
+- Accepted the specific monthly agreement change only after explicit user confirmation. Approval visibly verified.
+- Signed out both accounts.
+- Unsaved form entries were not verified as persistent. No phone numbers, URLs, professional credentials, bank information or unknown personal facts were invented. No files uploaded, payments made, invitations issued or other agreements signed.
+
+LIMITATIONS
+This is a UX review of the supplied pages in the observed mobile layout, not an exhaustive functional or security test. Some fixture inconsistencies may originate in prepared test data. No legal validity assessment was performed. Full filter combinations, file operations, AI generation, confidential-material access and payout setup were not exercised.

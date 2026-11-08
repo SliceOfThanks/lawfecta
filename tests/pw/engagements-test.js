@@ -90,6 +90,7 @@ async function sign(page, name, version) {
     let p = s.page;
     let t = await waitFor(p, "Your engagements (1)");
     ok(t.includes("Needs your signature"), "freelancer: Work lists the engagement waiting for their signature");
+    ok((await dela(p).locator(".badge", { hasText: "Needs your signature" }).first().getAttribute("class")).includes("held"), "Needs your signature is yellow on Work (UI review 2026-11-08)");
     await dela(p).getByText("Filing packet help").first().click();
     t = await waitFor(p, "Agreement, version 1");
     ok(t.includes("Example Legal") && t.includes("Fran Pays") && t.includes("$600"), "freelancer: DELA's first draft names the firm, the freelancer and the price");
@@ -116,6 +117,11 @@ async function sign(page, name, version) {
     await dela(p).getByRole("button", { name: /Earnings/ }).first().click();
     t = await waitFor(p, "Payouts to your bank");
     ok(t.includes("Not set up") && t.includes("Set up payouts with Stripe"), "freelancer: Earnings asks them to set up payouts");
+    // Fix (UI review 2026-11-08): Earnings uses the same colors as Work (waiting on the other person is grey, not green),
+    // and says "milestones accepted" the way Work does
+    ok(t.includes("Waiting for signatures") && t.includes("milestones set when you both sign") && !t.includes("accepted 0 of 0"), "Earnings: the state and the milestones in Work's words, never \"accepted 0 of 0\"" + (t.includes("Waiting for signatures") ? "" : ":\n" + t.slice(0, 1500)));
+    const cls = await dela(p).locator(".badge", { hasText: "Waiting for signatures" }).first().getAttribute("class");
+    ok(cls.trim() === "badge", "Earnings: waiting on the attorney is a grey badge (" + cls + ")");
     await s.ctx.close();
 
     // ---------- Attorney: sign and pay the first milestone ----------

@@ -264,6 +264,11 @@ async function waitFor(page, words, ms) {
     t = await waitFor(p, "You are match-ready");
     ok(t.includes("Confirm again by"), "confirming availability makes the freelancer match-ready, with the next date");
     await p.screenshot({ path: path.join(SHOTS, "profile-freelancer.png"), fullPage: true });
+    // Fix (UI review 2026-11-08): Home shows the same green "Ready" as the Profile, not a grey "match ready"
+    await p.goto(p.url().replace("tab=profile", "tab=home"));
+    await waitFor(p, "Your profile, through an attorney's eyes");
+    const hb = dela(p).locator(".hero .badge").first();
+    ok((await hb.innerText()).trim() === "Ready" && (await hb.getAttribute("class")).includes("ready"), "Home: the readiness badge says Ready in green, as on the Profile");
 
     // The listing update, when the switch is on and the box stays ticked
     await sql("update feature_switches set state = 'everyone' where key = 'bd_profile_sync'; select 1");

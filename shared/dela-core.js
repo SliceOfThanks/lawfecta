@@ -193,7 +193,7 @@
     function mark(node) {
       if (!node || !node.querySelectorAll) return;
       var list = node.matches && node.matches("button") ? [node] : node.querySelectorAll("button");
-      Array.prototype.forEach.call(list, function (b) { if ((b.textContent || "").trim().charAt(0) === "✦" && b.className.indexOf("ai-btn") < 0) b.className += " ai-btn"; });
+      Array.prototype.forEach.call(list, function (b) { if ((b.textContent || "").trim().charAt(0) === "✦" && b.className.indexOf("ai-btn") < 0 && !(b.closest && b.closest(".nav"))) b.className += " ai-btn"; });
     }
     mark(root);
     if (window.MutationObserver) new MutationObserver(function (ms) { ms.forEach(function (m) { Array.prototype.forEach.call(m.addedNodes, mark); }); }).observe(root, { childList: true, subtree: true });
@@ -203,7 +203,8 @@
 
   // A label with its help tip after it, for headings and short terms
   D.term = function (label, key, tag) {
-    var t = D.helpTip(D.HELP[key], "What does " + label.toLowerCase() + " mean?");
+    var m = /^what (.+) means$/i.exec(label); // "What match-ready means" is asked as "What does match-ready mean?" (UX review 2026-11-08)
+    var t = D.helpTip(D.HELP[key], "What does " + (m ? m[1] : label).toLowerCase() + " mean?");
     return D.h("span", { class: "term" }, D.h(tag || "span", { text: label }), t[0] ? " " : null, t[0], t[1]);
   };
 
@@ -365,7 +366,11 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
       ".problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b}.notice.ok{background:#17301f}" +
       ".msg.mine,.flow,.helpbox{border-color:#2b4a66}button.ai-btn{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}.badge.ai-label{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}" +
       // Readable text on dark (at least 4.5 to 1): links, outlined buttons, the current tab, labels and blue buttons
-      "a{color:#8cc4ff}.soon{color:#8cc4ff}button.ghost,button.mic{color:#f19ab8}.nav button[aria-current=page]{color:#f19ab8}button.blue,.btn.blue{background:#1f6fb2;border-color:#1f6fb2}"),
+      "a{color:#8cc4ff}.soon{color:#8cc4ff}button.ghost,button.mic{color:#f19ab8}.nav button[aria-current=page]{color:#f19ab8}button.blue,.btn.blue,button.ai-btn.blue{background:#1f6fb2;border-color:#1f6fb2;color:#fff}" +
+      // UI review 2026-11-08: lighter text links, clear selected filters, visible fields and placeholders on dark cards
+      ".linkish{color:#f19ab8}.pills button[aria-pressed=true]{background:#f19ab8;color:#11131b;border-color:#f19ab8}" +
+      "input,select,textarea{background:#11131b;border-color:#6b7389}input::placeholder,textarea::placeholder{color:#9aa1b2;opacity:1}" +
+      ".badge.off{color:#a7adbb;border-color:#3a3f50}"),
     ".dela *{box-sizing:border-box}",
     ".top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;background:linear-gradient(120deg,#1d1426,#3a1430);color:#fff;position:sticky;top:var(--dela-top,0px);z-index:5}",
     ".brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}.brand img{width:34px;height:34px;border-radius:50%}",
@@ -403,7 +408,7 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
     ".img-stage{position:relative;display:inline-block;margin:8px 0;max-width:100%;line-height:0}.img-canvas{display:block;max-width:100%;height:auto;cursor:crosshair;touch-action:none;border:1px solid var(--line);border-radius:10px}.img-over{position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none}.img-flagbar{background:#fff7cc;border:1px solid #f5c518;border-radius:10px;padding:8px 12px;margin:6px 0}.img-toolbar{gap:6px;flex-wrap:wrap}" +
     ".msg{max-width:80%;margin:8px 0;padding:10px 12px;border-radius:14px;background:var(--bg);border:1px solid var(--line)}.msg.mine{margin-left:auto;background:var(--bluebg);border-color:#b9d9f4}" +
     ".tool-group{border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin:6px 0;background:var(--card)}.tool-group summary{cursor:pointer;list-style:revert}" +
-    "button.ai-btn{border-color:#7a4b8c;color:#5a2d6b;background:#f7f0fa}button.ai-btn.blue{background:#5a2d6b;color:#fff;border-color:#5a2d6b}.badge.ai-label{background:#f7f0fa;color:#5a2d6b;border:1px solid #d8c2e2}" +
+    "button.ai-btn{border-color:#7a4b8c;color:#5a2d6b;background:#f7f0fa}button.ai-btn.blue{background:var(--blue);color:#fff;border-color:var(--blue)}.badge.ai-label{background:#f7f0fa;color:#5a2d6b;border:1px solid #d8c2e2}" +
     ".term .helpbox{display:block}.term .helpbox[hidden]{display:none}.help-q:focus-visible{outline:3px solid var(--blue);outline-offset:2px}" +
     ".help-q{width:22px;height:22px;min-height:0;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:12px;font-weight:700;line-height:1;cursor:pointer}.help-q:hover,.help-q[aria-expanded=true]{color:var(--ink);border-color:var(--ink)}",
     "button,.btn{font:inherit;font-weight:700;border-radius:999px;border:1.5px solid var(--brand);background:var(--brand);color:var(--brand-ink);padding:10px 20px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;line-height:1.2}",
@@ -432,6 +437,8 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
     ".nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--line);display:flex;justify-content:space-around;padding:6px 4px calc(6px + env(safe-area-inset-bottom));z-index:6}",
     // Every tab shares the width, so seven tabs fit a 290-pixel phone (Stacey's report 2026-11-06): long names wrap instead
     ".nav button{flex:1 1 0;min-width:0;background:transparent;border:0;color:var(--muted);flex-direction:column;gap:2px;font-size:13px;font-weight:600;padding:6px 2px;border-radius:12px;white-space:normal;line-height:1.15;text-align:center}@media (max-width:380px){.nav button{font-size:11px}.nav button i{font-size:18px}}.nav button i{font-style:normal;font-size:20px;line-height:1}.nav button[aria-current=page]{color:var(--brand)}",
+    // More than seven tabs (a freelancer agency has nine): the bar scrolls sideways instead of squeezing the names together (UX review 2026-11-08)
+    "@media (max-width:899px){.nav.many{overflow-x:auto;justify-content:flex-start}.nav.many button{flex:1 0 64px;min-width:64px}}",
     "@media (min-width:900px){.nav{position:static;justify-content:flex-start;gap:6px;border:0;background:transparent;padding:8px 16px;max-width:1040px;margin:0 auto}.nav button{flex:none;flex-direction:row;gap:8px;font-size:15px;padding:8px 14px}.nav button[aria-current=page]{background:var(--pink)}.dela{padding-bottom:48px}}",
     ".toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 18px;border-radius:999px;z-index:30;font-weight:700;max-width:90%}.toast.bad{background:var(--bad);color:#fff}",
     ".check{display:flex;gap:10px;align-items:flex-start;padding:6px 0}.check i{width:18px;height:18px;border-radius:50%;border:2px solid #d5aebb;flex:none;margin-top:3px;font-style:normal;font-size:12px;line-height:14px;text-align:center;color:#fff}.check.done i{background:#2f7a4f;border-color:#2f7a4f}.check.done span{color:var(--muted)}",
@@ -478,7 +485,9 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
     ".chips button{padding:0 6px;border:0;background:transparent;color:var(--muted);font-size:15px}" +
     ".problem{border:1px solid #f3b8b3;background:#fdeceb;color:var(--ink);border-radius:14px;padding:12px 14px;margin:10px 0}" +
     ".pick{max-height:260px;overflow:auto;border:1px solid var(--line);border-radius:12px;padding:6px 10px;margin:8px 0}.pick label{font-weight:400;display:flex;gap:8px;align-items:center}" +
-    ".badge.held{background:#fff3d6;color:#7a5200;border-color:#e8c97a}.badge.ready{background:#e3f3ea;color:#21613d;border-color:#b6dcc5}",
+    ".badge.held{background:#fff3d6;color:#7a5200;border-color:#e8c97a}.badge.ready{background:#e3f3ea;color:#21613d;border-color:#b6dcc5}.badge.off{background:transparent;color:var(--muted);border-color:var(--line);font-weight:600}",
+    // Team roles in the firm profile: one aligned row per role, whatever the length of its name (UI review 2026-11-08)
+    ".role-row{display:grid;grid-template-columns:22px minmax(0,230px) minmax(0,190px) minmax(0,1fr);gap:8px;align-items:center;margin:4px 0}.role-row .role-extra{display:flex;gap:8px;align-items:center;flex-wrap:wrap;min-width:0}.role-row select{width:100%}@media (max-width:640px){.role-row{grid-template-columns:22px 1fr}.role-row select,.role-row .role-extra{grid-column:2}}",
     // The plain-language Library (step 8b Part B): two columns of cards on a computer, one on a phone, same order inside
     ".lib-head>.grow{flex:1 1 260px}.lib-search{margin:14px 0 10px}.lib-find{width:100%;font-size:17px;padding:12px 14px;border-radius:12px}" +
     ".lib-filters{display:flex;flex-direction:column;gap:8px;margin-bottom:6px}.lib-group h2{font-size:18px;margin:20px 0 8px}" +

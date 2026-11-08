@@ -80,6 +80,9 @@ const ATT = 4430;
       await waitFor(p, "Signed: waiting for the first payment", 15000);
       const w = await dela(p).locator(".nav").evaluate((n) => ({ page: document.documentElement.scrollWidth, vw: window.innerWidth, tabs: n.querySelectorAll("button").length }));
       ok(w.page <= w.vw + 1, tb + " at 290 pixels (" + w.tabs + " tabs): the page does not scroll sideways (" + w.page + " > " + w.vw + ")");
+      // Fix (UX review 2026-11-08): with more than seven tabs the bar scrolls sideways, and no two tab names overlap
+      const tabs = await dela(p).locator(".nav button").evaluateAll((bs) => bs.map((b) => { const r = b.getBoundingClientRect(); return { l: r.left, r: r.right, w: b.scrollWidth, cw: b.clientWidth }; }));
+      if (tabs.length > 7) ok(tabs.every((x, i) => i === 0 || x.l >= tabs[i - 1].r - 1) && tabs.every((x) => x.r - x.l >= 63), tb + ": " + tabs.length + " tabs, each at least 64 pixels wide, none overlapping");
       const cut = await dela(p).locator(".dela").evaluate((root) => [...root.querySelectorAll(".badge")].filter((b) => b.offsetParent && b.getBoundingClientRect().right > window.innerWidth + 1).map((b) => b.textContent));
       ok(!cut.length, tb + ": no label runs off the screen" + (cut.length ? " (" + cut.join("; ") + ")" : ""));
       await s.ctx.close();

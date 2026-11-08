@@ -71,6 +71,10 @@ const ATT = 4200, TEAM = 4201;
     ok(await dela(p).locator(".usage-banner").getByText("Upgrade to Plus").count() === 1, "the yellow banner at 80% with an Upgrade button");
     t = await waitFor(p, "DELA actions: 40 of 50 this month");
     ok(true, "the meter at the bottom of DELA");
+    // Fix (UI review 2026-11-08): AI settings counts the same 40 as the meter and the "left this month" line
+    await p.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=ai`);
+    t = await waitFor(p, "Included DELA actions used");
+    ok(/Included DELA actions used\s*40\b/.test(t) && t.includes("10 of 50 DELA actions left this month"), "AI settings: 40 used and 10 of 50 left, the same as the meter");
     await p.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=usage`);
     t = await waitFor(p, "Your plan: Attorney Free");
     ok(t.includes("4 of 3 saved") && t.includes("40 of 50 this month") && t.includes("of 1 GB used") && t.includes("DELA actions reset on"), "the Usage page: three counts and the reset date");
