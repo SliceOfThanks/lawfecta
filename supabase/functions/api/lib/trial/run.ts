@@ -36,12 +36,24 @@ export async function checkMember(d: RunDeps, c: TrialCandidate): Promise<Member
     reminded: !!kept?.reminded_at, invoices: inv.data, hidden: (kept?.hidden.posts.length ?? 0) + (kept?.hidden.areas.length ?? 0),
   };
   // A downgrade that stopped halfway is finished first: the member may already be on Free, so the rules alone would skip them
-  const unfinished = !!kept?.steps.plan && !kept?.steps.email;
+  const unfinished = !!kept?.steps.plan && !kept?.steps.email && !s.plans.never.includes(c.plan_id);
   const dec = unfinished ? { action: "downgrade" as const, reason: "finishing_downgrade", ends_at: undefined } : decide(m, d.now, s);
   if (unfinished && kept?.from_plan) m.plan_id = kept.from_plan;
   const base = { action: dec.action, reason: dec.reason, ends_at: dec.ends_at ?? m.ends_at, invoice: invoiceStatus(m) };
   if (dec.action === "skip") return { user_id: c.user_id, name: nameOf(c), plan_id: c.plan_id, ...base, done: false };
   if (!live) return await log(d, c, { ...base, done: false });
+
+  // Fix (AI review 0.10.0, security 2): finishing a downgrade that stopped halfway checks again first. Stop if the member
+  // paid since, moved off Free, or is on a plan that is never changed.
+  if (unfinished) {
+    const now = await d.bd.member(c.user_id);
+    if (!now.ok) return await log(d, c, { ...base, done: false, error: "read: " + now.error });
+    const paid = m.invoices.some((i) => i.paid && s.plans.trial.includes(i.plan_id));
+    // The plan step already ran, so the member must still be on Free
+    if (paid || s.plans.never.includes(now.data.plan_id) || now.data.plan_id !== s.plans.free) {
+      return await log(d, c, { ...base, done: false, error: "changed_since_downgrade_started" });
+    }
+  }
 
   const steps: Record<string, string> = { ...(kept?.steps ?? {}) };
   const step = async (key: string, run: () => Promise<Res<unknown>>): Promise<string | null> => {
@@ -73,7 +85,10 @@ export async function checkMember(d: RunDeps, c: TrialCandidate): Promise<Member
 
 async function downgrade(d: RunDeps, c: TrialCandidate, m: TrialMember, step: (k: string, r: () => Promise<Res<unknown>>) => Promise<string | null>, nowIso: string): Promise<string | null> {
   const p = d.settings.plans;
-  const open = m.invoices.filter((i) => i.open && !i.paid && i.plan_id === m.plan_id);
+  // Fix (AI review 0.10.0, payments 1): every open unpaid bill on a trial plan (Plus and Pro) is canceled, and the
+  // subscription on each trial plan, so a member who moved from Pro to Plus is not left with an unpaid Pro bill
+  const open = m.invoices.filter((i) => i.open && !i.paid && p.trial.includes(i.plan_id));
+  const subPlans = [...new Set([m.plan_id, ...p.trial])];
   const order: Array<[string, () => Promise<Res<unknown>>]> = [
     // Re-read at the moment of the change: stop if the plan moved since, or is on the never-changed list (answer 1)
     ["plan", async () => {
@@ -82,7 +97,7 @@ async function downgrade(d: RunDeps, c: TrialCandidate, m: TrialMember, step: (k
       if (now.data.plan_id !== m.plan_id || p.never.includes(now.data.plan_id)) return { ok: false, error: "plan_changed_since_check" };
       return await d.bd.changePlan(c.user_id, p.free);
     }],
-    ["subscription", () => d.bd.cancelSubscription(c.user_id, m.plan_id)],
+    ["subscription", async () => { for (const plan of subPlans) { const r = await d.bd.cancelSubscription(c.user_id, plan); if (!r.ok) return r; } return { ok: true, data: true }; }],
     ["invoices", async () => { for (const i of open) { const r = await d.bd.cancelInvoice(i.id); if (!r.ok) return r; } return { ok: true, data: true }; }],
     ["active", () => d.bd.setActive(c.user_id)],
     ["hide", () => hide(d, c)],

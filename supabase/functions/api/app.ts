@@ -4175,6 +4175,9 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   // Run the trial check now, in the current mode (Dry run changes nothing). Owners and support only.
   "/admin/trial/run": async (c, a) => {
     await rpc(c, "dela_require_staff", { p_actor: a, p_roles: ["support"] });
+    // A run that would change BD (Live mode with the switch on) is the owner's to start (AI review 0.10.0, security 5)
+    const cfg = await rpc<TrialCfg>(c, "dela_trial_settings", {});
+    if (trialMode(cfg) === "live") await rpc(c, "dela_require_staff", { p_actor: a, p_roles: [] });
     const r = await trialRun(c, "manual");
     return { ...r, ok: !r.error };
   },
@@ -4647,11 +4650,19 @@ function trialDeps(ctx: Ctx, cfg: TrialCfg, runId: string): RunDeps {
       allowances: (cfg.allowances ?? {}) as Record<string, Allowance>, freeAreas: Number(cfg.free_areas) || 3 },
   };
 }
+// Fix (AI review 0.10.0, security 5): Live only while the switch bd_trial_downgrade is on; with it off, every run is a Dry run
+const trialMode = (cfg: TrialCfg): "live" | "dry_run" => cfg.mode === "live" && cfg.on === true ? "live" : "dry_run";
 async function trialRun(ctx: Ctx, trigger: "daily" | "manual") {
   const cfg = await rpc<TrialCfg>(ctx, "dela_trial_settings", {});
-  const mode = cfg.mode === "live" ? "live" : "dry_run";
+  const mode = trialMode(cfg);
+  // One check at a time (AI review 0.10.0, security 3): a second one skips while the first holds the lease
+  const holder = crypto.randomUUID();
+  if (!(await rpc<boolean>(ctx, "dela_trial_lock", { p_holder: holder, p_minutes: 30 }))) return { ok: false, mode, checked: 0, counts: {}, error: "another_check_running" };
+  try { return await trialRunLocked(ctx, cfg, mode, trigger); } finally { await rpc(ctx, "dela_trial_unlock", { p_holder: holder }).catch(() => null); }
+}
+async function trialRunLocked(ctx: Ctx, cfg: TrialCfg, mode: "live" | "dry_run", trigger: "daily" | "manual") {
   const runId = await rpc<string>(ctx, "dela_trial_run_start", { p_trigger: trigger, p_mode: mode });
-  const d = trialDeps(ctx, cfg, runId);
+  const d = trialDeps(ctx, { ...cfg, mode }, runId);
   const extra = ((await rpc<number[]>(ctx, "dela_trial_followups", {})) ?? []).map(Number);
   const r = await runTrial(d, extra).catch((e) => ({ checked: 0, outcomes: [] as MemberOutcome[], error: String((e as Error)?.message ?? e).slice(0, 200) }));
   const counts: Record<string, number> = {};
@@ -4682,11 +4693,15 @@ async function trialCheckOne(ctx: Ctx, bdUserId: number) {
   const bd = ctx.deps.trialBd ?? notConnected;
   const one = await bd.member(bdUserId);
   if (!one.ok) return { ok: true };
-  const mode = cfg.mode === "live" ? "live" : "dry_run";
-  const runId = await rpc<string>(ctx, "dela_trial_run_start", { p_trigger: "login", p_mode: mode });
-  const o = await checkMember(trialDeps(ctx, cfg, runId), one.data);
-  await rpc(ctx, "dela_trial_run_finish", { p_run: runId, p_checked: 1, p_counts: o.action === "skip" ? {} : { [o.action]: 1 }, p_error: o.error ?? "" });
-  await trialSummary(ctx, cfg, runId, o.action === "downgrade" && o.done ? [o] : []);
+  const mode = trialMode(cfg);
+  const holder = crypto.randomUUID();
+  if (!(await rpc<boolean>(ctx, "dela_trial_lock", { p_holder: holder, p_minutes: 5 }))) return { ok: true }; // the running check covers them
+  try {
+    const runId = await rpc<string>(ctx, "dela_trial_run_start", { p_trigger: "login", p_mode: mode });
+    const o = await checkMember(trialDeps(ctx, { ...cfg, mode }, runId), one.data);
+    await rpc(ctx, "dela_trial_run_finish", { p_run: runId, p_checked: 1, p_counts: o.action === "skip" ? {} : { [o.action]: 1 }, p_error: o.error ?? "" });
+    await trialSummary(ctx, cfg, runId, o.action === "downgrade" && o.done ? [o] : []);
+  } finally { await rpc(ctx, "dela_trial_unlock", { p_holder: holder }).catch(() => null); }
   return { ok: true };
 }
 

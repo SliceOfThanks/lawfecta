@@ -16,6 +16,7 @@ export interface TrialBd {
   invoices(userId: number): Promise<Res<TrialInvoice[]>>;
   // The downgrade steps, in the order of the developer notes
   changePlan(userId: number, planId: number): Promise<Res<true>>;
+  // Cancels the member's subscription on that plan; a plan with no subscription answers ok (nothing to cancel)
   cancelSubscription(userId: number, planId: number): Promise<Res<true>>;
   cancelInvoice(invoiceId: string): Promise<Res<true>>;
   setActive(userId: number): Promise<Res<true>>;
