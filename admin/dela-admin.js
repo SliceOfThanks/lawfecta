@@ -1018,7 +1018,7 @@
         h("tbody", null, ev.map(function (x) {
           var dry = x.mode !== "live";
           return h("tr", null, h("td", { "data-label": "Member", text: x.name }), h("td", { "data-label": "BD user ID", text: String(x.bd_user_id) }), h("td", { "data-label": "Plan", text: String(x.plan_id || "") }),
-            h("td", { "data-label": "What", text: (dry ? "Would: " : "") + (TRIAL_ACTION[x.action] || x.action) }), h("td", { "data-label": "Why", text: TRIAL_WHY[x.reason] || x.reason }),
+            h("td", { "data-label": "What" }, h("span", { text: (dry ? "Would: " : "") + (TRIAL_ACTION[x.action] || x.action) }), x.next_step ? h("div", { class: "small muted", style: "margin-top:4px", text: x.next_step }) : null), h("td", { "data-label": "Why", text: TRIAL_WHY[x.reason] || x.reason }),
             h("td", { "data-label": "Trial ends", text: x.trial_ends_at ? D.date(x.trial_ends_at) : "" }), h("td", { "data-label": "Invoice", text: { paid: "Paid", unpaid: "Unpaid", none: "None" }[x.invoice_status] || x.invoice_status }),
             h("td", { "data-label": "Result" }, h("span", { text: dry ? "Listed only" : x.done ? "Done" : "Not finished: " + x.error }),
               x.manual ? h("div", { class: "small", style: "margin-top:4px;font-weight:700", text: "To do in BD admin: " + x.manual }) : null));

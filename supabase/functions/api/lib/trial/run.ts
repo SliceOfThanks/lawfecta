@@ -19,7 +19,7 @@ export type Mailer = (kind: "ending" | "ended", c: TrialCandidate) => Promise<Re
 
 export type RunDeps = { bd: TrialBd; store: TrialStore; mail: Mailer; now: number; mode: "dry_run" | "live"; runId: string; settings: RunSettings };
 
-export type MemberOutcome = { user_id: number; name: string; plan_id: number; action: string; reason: string; ends_at: string | null; invoice: string; done: boolean; error?: string; manual?: string };
+export type MemberOutcome = { user_id: number; name: string; plan_id: number; action: string; reason: string; ends_at: string | null; invoice: string; done: boolean; error?: string; manual?: string; next_step?: string };
 
 const nameOf = (c: TrialCandidate) => [c.first_name, c.last_name].filter(Boolean).join(" ").trim() || "Member " + c.user_id;
 
@@ -41,7 +41,7 @@ export async function checkMember(d: RunDeps, c: TrialCandidate): Promise<Member
   if (unfinished && kept?.from_plan) m.plan_id = kept.from_plan;
   const base = { action: dec.action, reason: dec.reason, ends_at: dec.ends_at ?? m.ends_at, invoice: invoiceStatus(m) };
   if (dec.action === "skip") return { user_id: c.user_id, name: nameOf(c), plan_id: c.plan_id, ...base, done: false };
-  if (!live) return await log(d, c, { ...base, done: false });
+  if (!live) return await log(d, c, { ...base, done: false, next_step: dec.action === "track" ? nextStep(m, dec.ends_at!, d.now, s) : undefined });
 
   // Fix (AI review 0.10.0, security 2): finishing a downgrade that stopped halfway checks again first. Stop if the member
   // paid since, moved off Free, or is on a plan that is never changed.
@@ -167,10 +167,22 @@ async function restore(d: RunDeps, c: TrialCandidate, kept: Kept): Promise<strin
   return null;
 }
 
+// Dry run never saves the trial start in BD, so a member it would start tracking would show "start tracking" every day.
+// Say what comes next instead, from the end date it worked out (Stacey's Trials check, 2026-11-08).
+const day = (t: number) => new Date(t).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Los_Angeles" });
+export function nextStep(m: TrialMember, endsAt: string, now: number, s: RunSettings): string {
+  const after = decide({ ...m, status: "active", ends_at: endsAt, reminded: false }, now, s);
+  const ends = Date.parse(endsAt), remindAt = ends - s.reminderDays * 86400000;
+  if (after.action === "convert") return "Then: counted as paid, no move to Free.";
+  if (after.action === "downgrade") return "Then: the trial is already over, so it would move to Free on the next check unless they pay.";
+  const remind = after.action === "remind" || remindAt <= now ? "reminder email now" : "reminder email on " + day(remindAt);
+  return "Then: " + remind + "; moves to Free on " + day(ends) + " unless they pay.";
+}
+
 async function log(d: RunDeps, c: TrialCandidate, o: Omit<MemberOutcome, "user_id" | "name" | "plan_id">): Promise<MemberOutcome> {
   const out: MemberOutcome = { user_id: c.user_id, name: nameOf(c), plan_id: c.plan_id, ...o };
   await d.store.event({ run_id: d.runId, bd_user_id: c.user_id, name: out.name, plan_id: c.plan_id, trial_ends_at: o.ends_at, invoice_status: o.invoice,
-    action: o.action, reason: o.reason, mode: d.mode, done: o.done, error: o.error ?? "", manual: o.manual ?? "" });
+    action: o.action, reason: o.reason, mode: d.mode, done: o.done, error: o.error ?? "", manual: o.manual ?? "", next_step: o.next_step ?? "" });
   return out;
 }
 

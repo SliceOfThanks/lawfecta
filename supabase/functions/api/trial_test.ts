@@ -151,6 +151,9 @@ Deno.test("Dry run lists every member it would change, with the reason, and chan
   assertEquals(by, { 1: "downgrade/trial_ended_unpaid", 2: "convert/paid_pro", 4: "downgrade/plus_unpaid_at_trial_end", 5: "remind/ends_soon", 6: "track/new_pro_signup" });
   assert(ev.every((e) => e.mode === "dry_run" && !e.done));
   assertEquals(calls, [], "nothing was changed in BD");
+  // Fix (Stacey's Trials check, 2026-11-08): a member Dry run would start tracking also shows what comes next
+  const next = (await pool.query("select next_step from trial_events where run_id = $1 and bd_user_id = $2", [out.run_id, U + 6])).rows[0].next_step;
+  assertEquals(next, "Then: reminder email on Nov 24, 2026; moves to Free on Nov 26, 2026 unless they pay.");
   assertEquals(bdState.get(U + 1)!.plan_id, 8);
   const admin = (await call(deps, "GET", "/admin/trial", owner)).body;
   const a = admin.data ?? admin;
