@@ -4296,7 +4296,7 @@
       var pastBox = past.length ? h("details", { id: "standing-past", style: "margin-top:10px" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "Past arrangements (" + past.length + ")" })) : null;
       current.concat(past).forEach(function (a) {
         var box = h("div", { class: "soft standing", style: "margin:10px 0;padding:10px 12px;border-radius:12px" });
-        box.appendChild(h("div", { class: "row" }, h("b", { class: "grow", text: att ? a.freelancer_name : a.firm_name }), h("span", { class: "badge " + (a.status === "active" ? "ready" : a.status === "needs_review" || a.status === "proposed" ? "held" : "C"), text: STANDING_WORDS[a.status] || a.status })));
+        box.appendChild(h("div", { class: "row" }, h("b", { class: "grow", text: att ? a.freelancer_name : a.firm_name }), h("span", { class: "badge " + ({ active: "R", needs_review: "held", proposed: "", ending: "", ended: "off", declined: "off" }[a.status] || ""), text: STANDING_WORDS[a.status] || a.status })));
         box.appendChild(h("p", { class: "small", style: "margin:4px 0", text: D.money(a.price_cents) + " per job | " + D.money(a.spend_cents) + " of " + D.money(a.cap_cents) + " this month | " + a.open + " of " + a.max_open + " jobs open | until " + D.date(a.end_on) }));
         box.appendChild(h("p", { class: "small muted", style: "margin:4px 0", text: "Covers: " + (a.docs || []).map(function (d) { return (d.doc_id ? d.doc_id + " " : "") + d.title + " (version " + d.version + ")"; }).join("; ") }));
         if (a.review_reason) box.appendChild(h("p", { class: "notice", text: a.review_reason + " Automatic hiring is paused until you both approve." }));

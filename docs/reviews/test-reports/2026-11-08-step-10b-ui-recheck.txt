@@ -1,0 +1,27 @@
+DELA visual recheck - November 8, 2026
+PARTIAL: Freelancer checks await login.
+
+1 PASS - Test attorney already signed in; identity confirmed.
+2 PASS - Light appearance applied.
+3 PASS - Green Verified; Engagements and payments has Open Projects.
+4 PASS - Create buttons blue; footer says 13 documents, plan 50, Administrator.
+5 PASS - Engagement badges follow expected colors; gig Draft grey.
+6 PASS - Role columns align; no Attorney (attorney).
+7 PASS - 80 used matches footer; 920 left plus 80 used equals 1000.
+8 PASS - Dark appearance applied.
+9 PASS - Only Library highlighted; selected filters pink; links pink and readable.
+10 PASS - Dark fields have visible edges, darker fill, and readable sampled example text.
+11 PASS - Match my device restored and checked.
+12 PASS - Attorney signed out; login page displayed.
+13 PENDING - User reported freelancer login, but refreshed browser account menu still identifies DELA Test Attorney and shows attorney navigation. Freelancer identity not confirmed.
+14 PENDING - Requires freelancer login.
+15 PENDING - Requires freelancer login.
+16 PENDING - Requires freelancer login.
+17 PENDING - Requires freelancer login.
+18 PENDING - Requires freelancer login.
+
+FAIL list: None in completed numbered checks.
+Inconsistencies: Standing arrangement Active badge is green; engagement Active is blue. This differs from the general badge legend.
+Confusing messages: After reported freelancer login, refreshed account menu still says DELA Test Attorney; remaining checks cannot be validated in that session.
+Longer than 60 seconds: None observed.
+Notes: Desktop layout checked at temporary 1440 x 1000 viewport. No unrelated forms saved, agreements signed, messages sent, or payments made. Freelancer checks remain incomplete.

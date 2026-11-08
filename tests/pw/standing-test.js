@@ -119,6 +119,10 @@ const ATT = 4400, FL = 4401, TEAM = 4402;
     await label(p, "Accept: I agree").check();
     await click(p, "Accept");
     await waitFor(p, "Accepted. The firm can now hire you again in one click.");
+    // Fix (UI re-check 2026-11-08): an active standing arrangement is blue like an active engagement, not green
+    await p.reload(); await waitFor(p, "Standing arrangements (1)", 10000);
+    const sc = await dela(p).locator(".badge", { hasText: /^Active$/ }).last().getAttribute("class");
+    ok(/\bR\b/.test(sc), "an active standing arrangement has the blue in-progress badge (" + sc + ")");
     await s.ctx.close();
 
     // ---------- One click: hire again; past the limit, a draft instead ----------
