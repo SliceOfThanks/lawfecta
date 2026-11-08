@@ -715,6 +715,9 @@ async function runFileCheck(ctx: Ctx, id: string, recordFn = "dela_file_checked"
   }
   // Without the AI check, two different weaker signs are enough to hold the file
   if (!aiRan && !rule9c && hits.weak.length >= 2) for (const k of hits.weak) reasons.add(k);
+  // Fix (AI review 0.10.0, privacy 6): under the new rule, health and biometric words hold the file when the AI check
+  // could not run (it is the only other check for those two kinds)
+  if (!aiRan && rule9c) for (const k of reminderKinds(fc.name + "\n" + text)) reasons.add(k);
   await rpc(ctx, recordFn, {
     p_file: id, p: { ok: true, mime: sn.mime, sha256: await sha256(bytes), text, flagged: reasons.size > 0, reasons: [...reasons] },
   });
@@ -4223,9 +4226,16 @@ const ADMIN_POST: Record<string, AdminRoute> = {
     const key = need(str(c.body.key, 100)), state = need(str(c.body.state, 20));
     const r = await rpc<Record<string, any>>(c, "dela_admin_set_switch", { p_actor: a, p_key: key, p_state: state });
     // Turning on the sensitive data rule releases Files-tab files held only for client details (step 9c, question 6)
+    // Fix (AI review 0.10.0, privacy 2, security 4): each such file is checked again under the new rule first, and only
+    // for members the switch now covers; a file is released only when that check is clear
     if (key === "client_details_allowed" && state !== "off" && r && (r as any).ok !== false) {
-      const rc = await rpc<Record<string, any>>(c, "dela_files_recheck_client_details", { p_actor: a });
-      return { ...r, released: rc?.released ?? 0 };
+      const ids = (await rpc<string[]>(c, "dela_files_recheck_list", { p_actor: a })) ?? [];
+      let released = 0;
+      for (const id of ids) {
+        await runFileCheck(c, id).catch(() => null);
+        if (await rpc<boolean>(c, "dela_files_recheck_done", { p_actor: a, p_file: id })) released++;
+      }
+      return { ...r, released, rechecked: ids.length };
     }
     return r;
   },

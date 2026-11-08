@@ -166,18 +166,36 @@ Deno.test("switch on, Files tab: client details are fine; health information is 
   assertEquals(ssn.status, "held");
 });
 
+// Fix (AI review 0.10.0, privacy 6): when the AI check cannot run, health words still hold a file under the new rule
+Deno.test("switch on, Files tab, AI check down: a medical record is still held", async () => {
+  await setSwitch("everyone");
+  const key = ENV.OPENAI_API_KEY;
+  ENV.OPENAI_API_KEY = "";
+  try {
+    const r = await upload(att.token, "Visit notes.txt", "Attach the medical record before the call.");
+    assertEquals(r.status, "held", JSON.stringify(r));
+  } finally { ENV.OPENAI_API_KEY = key; }
+});
+
 Deno.test("turning the switch on releases files held only for client details, with a notice and an audit line", async () => {
   await setSwitch("off");
   const oldHeld = await upload(att.token, "Old intake.txt", "My client Jane Roe needs the checklist.");
   assertEquals(oldHeld.status, "held", "held under the old check");
   const stillSensitive = await upload(att.token, "Old ids.txt", "My client Jane Roe, SSN 123-45-6789");
   assertEquals(stillSensitive.status, "held");
+  // Fix (AI review 0.10.0, privacy 2): held only for a client name under the old check, but it also holds a medical record
+  const medical = await upload(att.token, "Old notes.txt", "My client Jane Roe. Attach the medical record before the call.");
+  assertEquals(medical.status, "held");
+  const st = async (id: string) => (await pool.query("select status from files where id = $1", [id])).rows[0].status;
+  // Fix (AI review 0.10.0, security 4): a switch setting that does not cover this member releases nothing of theirs
+  const team = (await call("POST", "/admin/switches", owner.token, { key: "client_details_allowed", state: "staff" })).body;
+  assertEquals([await st(oldHeld.file_id), await st(medical.file_id)], ["held", "held"], JSON.stringify(team));
   const r = (await call("POST", "/admin/switches", owner.token, { key: "client_details_allowed", state: "list" })).body;
   const data = r.data ?? r;
   assert(data.released >= 1, JSON.stringify(r));
-  const st = async (id: string) => (await pool.query("select status from files where id = $1", [id])).rows[0].status;
-  assertEquals([await st(oldHeld.file_id), await st(stillSensitive.file_id)], ["ready", "held"]);
+  assertEquals([await st(oldHeld.file_id), await st(stillSensitive.file_id), await st(medical.file_id)], ["ready", "held", "held"], "the file is checked again: the medical record keeps it held");
   assertEquals((await pool.query("select count(*)::int n from notifications where dedupe_key = $1", ["file_released:" + oldHeld.file_id + ":in_app"])).rows[0].n, 1);
+  assertEquals((await pool.query("select count(*)::int n from notifications where dedupe_key = $1", ["file_released:" + medical.file_id + ":in_app"])).rows[0].n, 0);
   assertEquals((await pool.query("select count(*)::int n from audit_log where action = 'file_released_client_details' and object_id = $1", [oldHeld.file_id])).rows[0].n, 1);
   // Running it again changes nothing
   const again = (await call("POST", "/admin/switches", owner.token, { key: "client_details_allowed", state: "list" })).body;
