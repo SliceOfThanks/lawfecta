@@ -1698,7 +1698,7 @@
     if (!L.on) { libEl.appendChild(h("div", { class: "notice", text: D.errorText("library_off") })); return; }
     var pct = L.limit ? Math.min(100, Math.round(L.count * 100 / L.limit)) : 0;
     libEl.appendChild(h("div", { class: "card" },
-      h("div", { class: "row" }, h("b", { class: "grow", text: libLimitText(L) }), h("span", { class: "badge", text: "Your role: " + ROLE_WORDS[L.role] })),
+      h("div", { class: "row" }, h("b", { class: "grow", text: libLimitText(L) }), h("span", { class: "badge", text: "Your access to this Library: " + ROLE_WORDS[L.role] })),
       L.limit !== null ? h("div", { class: "bar" }, h("span", { style: "width:" + pct + "%" + (pct >= 100 ? ";background:var(--bad)" : "") })) : null,
       h("div", { class: "row", style: "margin-top:10px" },
         can(3) ? h("button", { class: "blue", onclick: L.standard ? function () { DOC.flow = null; newDocument(); } : newPlaybook }, "New document") : null,
