@@ -387,7 +387,7 @@
     D.clear(chatEl);
     var head = h("div", { class: "row", style: "margin:18px 0 4px" },
       h("h1", { style: "margin:0", class: "grow", text: me.side === "attorney" ? "Ask DELA" : "Ask DELA" }),
-      h("button", { class: "ghost small", onclick: function () { chat.id = null; chat.messages = []; chat.problem = null; chat.pending = null; chat.attach = []; drawChat(); } }, "New chat"),
+      h("button", { class: "ghost small", onclick: function () { chat.id = null; chat.messages = []; chat.problem = null; chat.pending = null; chat.attach = []; chat.clientOk = null; drawChat(); } }, "New chat"),
       h("button", { class: "ghost small", onclick: function () { tab = "ai"; draw(); } }, "AI settings"));
     chatEl.appendChild(head);
     chatEl.appendChild(h("p", { class: "muted", text: me.side === "attorney"
@@ -508,16 +508,21 @@
     var p = chat.pending;
     if (!p) return;
     if (extra.retry) p.attempt += 1;
-    if (extra.confirm_no_client_info) { p.confirmed = true; chat.clientOk = chat.id || "new"; }
-    // The reminder before client details go to DELA's AI shows once per conversation (step 9c, question 2)
-    if (chat.clientOk && (chat.clientOk === chat.id || chat.clientOk === "new")) p.confirmed = true;
+    // "Send anyway" or "Continue" confirms this one message
+    if (extra.confirm_no_client_info) p.confirmed = true;
+    if (extra.remember) p.remember = true;
+    // Fix (AI review 0.10.0, security 1 and privacy 1): the reminder before client details go to DELA's AI shows once per
+    // conversation (step 9c, question 2). Only that reminder is remembered, only for this conversation's real ID, and the
+    // server then skips only that reminder: never the health and biometric one, and never the check with the switch off.
+    p.detailsOk = !!(chat.clientOk && chat.id && chat.clientOk === chat.id);
     chat.busy = true;
     chat.problem = null;
     drawChat();
     api.post("/ai/chat/send", { content: p.content, request_id: p.request_id, chat_id: chat.id, file_ids: p.file_ids, attempt: p.attempt,
-      lawfecta_once: extra.lawfecta_once === true, confirm_no_client_info: p.confirmed === true }).then(function (r) {
+      lawfecta_once: extra.lawfecta_once === true, confirm_no_client_info: p.confirmed === true, client_details_ok: p.detailsOk === true }).then(function (r) {
       chat.busy = false;
       if (r.chat_id) chat.id = r.chat_id;
+      if (r.ok && p.remember && chat.id) chat.clientOk = chat.id;
       if (!r.ok) { chat.problem = r; drawChat(); return; }
       chat.messages.push({ role: "user", content: p.content, files: p.files });
       chat.messages.push({ role: "assistant", content: r.reply.content, source: r.reply.source });
@@ -544,7 +549,7 @@
     } else if (pr.reason === "looks_like_client_info") {
       box.appendChild(h("p", { text: ciNote(pr, "This message may include " + kindsText(pr.kinds) + ". Confidential client information does not belong in DELA. Please replace names and numbers with placeholders such as [Client Name] or [Case Number].") }));
       box.appendChild(h("div", { class: "row" }, btn("Edit my message", function () { chat.problem = null; drawChat(); if (composerText) composerText.focus(); }),
-        btn(pr.rule === "ai" ? "Continue" : pr.rule ? "Send anyway" : "Send anyway, it has no client information", function () { send({ confirm_no_client_info: true }); })));
+        btn(pr.rule === "ai" ? "Continue" : pr.rule ? "Send anyway" : "Send anyway, it has no client information", function () { send({ confirm_no_client_info: true, remember: pr.rule === "ai" }); })));
     } else if (pr.reason === "ai_failed" && pr.source !== "lawfecta") {
       var k = ai.own_key || ai.firm_key || {};
       box.appendChild(h("p", { text: "Your " + providerName(k.provider) + " key did not work: " + (KEY_PROBLEM[pr.code] || "the provider refused the request.") + " Nothing was sent with Lawfecta's key." }));

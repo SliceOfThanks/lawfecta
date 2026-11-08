@@ -822,7 +822,10 @@ async function sensitive(ctx: Ctx, s: { person_id: string | null; side: string |
     return { ok: false, reason: "looks_like_client_info", kinds: details, rule: "before_signing",
       note: "This may include client details. Nobody has signed an agreement on this gig yet, so share only what the freelancer needs to decide. Send anyway?" };
   }
-  // place === "ai": a reminder before client details go to DELA's AI on Lawfecta's key, never on the member's own key
+  // place === "ai": a reminder before client details go to DELA's AI on Lawfecta's key, never on the member's own key.
+  // client_details_ok: the member already chose Continue on this reminder in this conversation (AI review 0.10.0); it
+  // skips only this reminder, never the sensitive data stop or the health and biometric reminder above.
+  if (ctx.body.client_details_ok === true) return null;
   if (await setting(ctx, "privacy.ai_client_details_reminder", "true") === "false") return null;
   const route = await rpc<Route>(ctx, "dela_ai_route", { p_person: s.person_id, p_side: s.side, p_task: o.task || "chat", p_lawfecta_once: false }).catch(() => null);
   if (route && route.ok && route.source !== "lawfecta") return null;

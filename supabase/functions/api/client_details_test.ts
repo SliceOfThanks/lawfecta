@@ -140,6 +140,18 @@ Deno.test("the page notice follows the rule", async () => {
   assert(on.includes("government ID numbers") && !on.includes("client names"), on);
 });
 
+// Fix (AI review 0.10.0, security 1): "Continue" remembered for a conversation skips only the client-details reminder
+Deno.test("a remembered Continue skips only the client-details reminder", async () => {
+  const send = (content: string) => call("POST", "/ai/chat/send", att.token, { content, request_id: crypto.randomUUID(), client_details_ok: true });
+  await setSwitch("everyone");
+  assertEquals((await send("Summarize the diagnosis in the medical records")).body.rule, "maybe_sensitive", "the health reminder still shows");
+  assertEquals((await send("Her SSN is 123-45-6789")).body.reason, "sensitive_data", "sensitive data is still stopped");
+  await setSwitch("off");
+  assertEquals((await send(CLIENT)).body.reason, "looks_like_client_info", "with the switch off, it never skips the check");
+  await setSwitch("everyone");
+  assertEquals((await send(CLIENT)).body.ok, true, "client details go after Continue in the same conversation");
+});
+
 Deno.test("switch on, public places: the profile still warns about client details", async () => {
   const r = (await call("POST", "/profile/save", att.token, { body: { first_name: "Ann", summary: "I helped my client Jane Roe with case no. 2024-CV-1234." }, version: 0 })).body;
   assertEquals([r.reason, r.rule], ["looks_like_client_info", "public"]);

@@ -148,6 +148,26 @@ async function listened(page, secs) {
     await dela(p).getByRole("button", { name: "Continue", exact: true }).click();
     await waitFor(p, "Here is a checklist");
     ok(true, "client details go after Continue");
+    // Fix (AI review 0.10.0, security 1 and privacy 1): "Continue" is remembered for this conversation only, and only for
+    // the client-details reminder. A health word still gets its reminder, and a new chat asks again.
+    const answers = () => dela(p).getByText("Here is a checklist").count();
+    const before = await answers();
+    await dela(p).getByLabel("Your message").fill("Also add a step for Jane Roe, case no. 2024-CV-9999");
+    await dela(p).getByRole("button", { name: "Send", exact: true }).click();
+    await p.waitForFunction((n) => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText.split("Here is a checklist").length - 1 > n, before, { timeout: 10000 });
+    ok(!(await text(p)).includes("They go to OpenAI"), "in the same conversation, client details are not asked about again");
+    await dela(p).getByLabel("Your message").fill("Summarize the diagnosis in the medical records");
+    await dela(p).getByRole("button", { name: "Send", exact: true }).click();
+    t = await waitFor(p, "health information");
+    ok(await dela(p).getByRole("button", { name: "Edit my message" }).count() === 1, "a health word still gets its reminder after Continue");
+    await dela(p).getByRole("button", { name: "Edit my message" }).click();
+    await dela(p).getByRole("button", { name: "New chat" }).click();
+    await dela(p).getByLabel("Your message").fill("My client Mary Major, case no. 2025-CV-0001, needs a checklist");
+    await dela(p).getByRole("button", { name: "Send", exact: true }).click();
+    t = await waitFor(p, "They go to OpenAI");
+    ok(true, "a new chat asks again");
+    await dela(p).getByRole("button", { name: "Continue", exact: true }).click();
+    await waitFor(p, "Here is a checklist");
     await dela(p).getByLabel("Your message").fill("Her passport number is X12345678");
     await dela(p).getByRole("button", { name: "Send", exact: true }).click();
     t = await waitFor(p, "a government ID number");
