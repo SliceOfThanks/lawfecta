@@ -269,6 +269,8 @@ async function waitFor(page, words, ms) {
     await waitFor(p, "Your profile, through an attorney's eyes");
     const hb = dela(p).locator(".hero .badge").first();
     ok((await hb.innerText()).trim() === "Ready" && (await hb.getAttribute("class")).includes("ready"), "Home: the readiness badge says Ready in green, as on the Profile");
+    await p.goto(p.url().replace("tab=home", "tab=profile"));
+    await waitFor(p, "You are match-ready");
 
     // The listing update, when the switch is on and the box stays ticked
     await sql("update feature_switches set state = 'everyone' where key = 'bd_profile_sync'; select 1");
