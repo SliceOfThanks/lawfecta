@@ -57,6 +57,24 @@ Deno.test("invoices: BD's \"No billing account for this member\" means no invoic
   assert(!e.ok && e.error.includes("user_id or client_id is required"));
 });
 
+// Fix (second Dry run, 2026-11-08): BD still answered "user_id or client_id is required" with user_id in the form and the
+// address. The read now tries JSON, then multipart, then GET, moving on only on that exact answer.
+Deno.test("invoices: a BD that reads only JSON is reached on the second try; a BD that reads nothing names every way tried", async () => {
+  const seen: string[] = [];
+  const jsonOnly = (async (_u: string | URL | Request, init: RequestInit = {}) => {
+    const t = (init.headers as Record<string, string>)?.["content-type"] ?? (init.body instanceof FormData ? "multipart" : "none");
+    seen.push((init.method ?? "GET") + " " + t);
+    if (t === "application/json" && JSON.parse(String(init.body)).user_id === "689") return Response.json({ status: "success", message: { total: 1, invoices: [{ invoice_details: { id: "9", status: "Unpaid" }, subscription_details: { packageid: "8" } }] } });
+    return Response.json({ status: "error", message: "user_id or client_id is required" }, { status: 400 });
+  }) as typeof fetch;
+  const r = await liveBd(jsonOnly, "https://hirelegalhelp.com", "key").invoices(689);
+  assertEquals(r.ok && r.data, [{ id: "9", plan_id: 8, paid: false, open: true }]);
+  assertEquals(seen, ["POST application/x-www-form-urlencoded", "POST application/json"]);
+  const never = (async () => Response.json({ status: "error", message: "user_id or client_id is required" }, { status: 400 })) as typeof fetch;
+  const e = await liveBd(never, "https://hirelegalhelp.com", "key").invoices(689);
+  assert(!e.ok && e.error.includes("tried form, json, multipart, get"), !e.ok ? e.error : "");
+});
+
 Deno.test("search: one call per plan, every page, the plan and the signup date checked again", async () => {
   let page = 0;
   const { f, calls } = fakeBd({

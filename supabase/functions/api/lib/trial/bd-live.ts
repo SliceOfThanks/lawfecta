@@ -119,7 +119,20 @@ export function liveBd(f: Fetch, siteUrl: string, key: string, o: { activeValue?
     },
     async invoices(id) {
       const uid = String(Math.trunc(id));
-      const r = await postForm<unknown>("/api/v2/user/transactions?user_id=" + uid, { user_id: uid });
+      // BD did not read user_id from the form on hirelegalhelp.com (2026-11-08): try form, JSON, multipart, then GET.
+      // All are reads. Only BD's own "user_id or client_id is required" moves on to the next way; the error, if every
+      // way fails, names each one so the Trials tab shows what BD said.
+      const path = "/api/v2/user/transactions?user_id=" + uid;
+      const tries: Array<() => ReturnType<typeof get>> = [
+        () => bdCall<unknown>(f, siteUrl, key, "POST", path, { user_id: uid }, "form"),
+        () => bdCall<unknown>(f, siteUrl, key, "POST", path, { user_id: uid }, "json"),
+        () => bdCall<unknown>(f, siteUrl, key, "POST", path, { user_id: uid }, "multipart"),
+        () => get<unknown>(path),
+      ];
+      const names = ["form", "json", "multipart", "get"];
+      let r = await tries[0](); const seen: string[] = [];
+      for (let i = 1; i < tries.length && !r.ok && /user_id or client_id is required/i.test(r.error); i++) { seen.push(names[i - 1]); r = await tries[i](); }
+      if (!r.ok && /user_id or client_id is required/i.test(r.error)) return { ok: false, error: r.error + " (tried " + [...seen, "get"].join(", ") + ")" };
       if (!r.ok) return r.status === 404 || /No billing account for this member/i.test(r.error) ? ok([]) : fail(r);
       const m = r.data as Rec | Rec[] | null;
       const rows = Array.isArray(m) ? m : m && typeof m === "object" && Array.isArray(m.invoices) ? m.invoices as Rec[] : m && typeof m === "object" && "total" in m ? [] : list(m);

@@ -11,18 +11,24 @@ function base(siteUrl: string) {
   return siteUrl.replace(/\/+$/, "");
 }
 
-export async function bdCall<T>(f: Fetch, siteUrl: string, key: string, method: string, path: string, form?: Record<string, string>): Promise<BdResult<T>> { return await call<T>(f, siteUrl, key, method, path, form); }
+// as: how the fields are sent. "form" (the default, what BD's update calls take), "json" or "multipart" (some BD
+// endpoints read only one of these; the trial check's invoice read tries them in turn)
+export type BdBody = "form" | "json" | "multipart";
+export async function bdCall<T>(f: Fetch, siteUrl: string, key: string, method: string, path: string, form?: Record<string, string>, as: BdBody = "form"): Promise<BdResult<T>> { return await call<T>(f, siteUrl, key, method, path, form, as); }
 
-async function call<T>(f: Fetch, siteUrl: string, key: string, method: string, path: string, form?: Record<string, string>): Promise<BdResult<T>> {
+async function call<T>(f: Fetch, siteUrl: string, key: string, method: string, path: string, form?: Record<string, string>, as: BdBody = "form"): Promise<BdResult<T>> {
   if (!key) return { ok: false, status: 0, error: "bd_api_key_missing" };
   const b = base(siteUrl);
   if (!b.startsWith("https://")) return { ok: false, status: 0, error: "bd_site_url_missing" };
-  const send = (url: string) => f(url, {
-    method,
-    headers: { "X-Api-Key": key, accept: "application/json", ...(form ? { "content-type": "application/x-www-form-urlencoded" } : {}) },
-    body: form ? new URLSearchParams(form).toString() : undefined,
-    redirect: "manual",
-  });
+  const body = (): BodyInit | undefined => {
+    if (!form) return undefined;
+    if (as === "json") return JSON.stringify(form);
+    if (as === "multipart") { const fd = new FormData(); for (const [k, v] of Object.entries(form)) fd.append(k, v); return fd; }
+    return new URLSearchParams(form).toString();
+  };
+  // multipart sets its own content type with the boundary
+  const type: Record<string, string> = !form || as === "multipart" ? {} : { "content-type": as === "json" ? "application/json" : "application/x-www-form-urlencoded" };
+  const send = (url: string) => f(url, { method, headers: { "X-Api-Key": key, accept: "application/json", ...type }, body: body(), redirect: "manual" });
   try {
     let res = await send(b + path);
     // hirelegalhelp.com moves www to the plain address; follow once on the same site, keeping the method
