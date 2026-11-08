@@ -3084,7 +3084,18 @@ async function agreementGet(ctx: Ctx) {
   if (facts.version === 0) await rpc(ctx, "dela_agreement_version_add", { p_person: s.person_id, p_side: s.side, p_agreement: id, p_body: buildBody(facts), p_note: "First draft by DELA", p_base: 0 });
   const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: s.person_id, p_side: s.side, p_agreement: id });
   if (v?.ok && v.current?.body) { v.fee_lines = feeLines(v.current.body); v.money_summary = moneySummary(v.current.body, v.role); }
-  if (v?.ok) { const mv = await rpc<Record<string, any>>(ctx, "dela_monthly_view", { p_person: s.person_id, p_side: s.side, p_agreement: id }); if (mv?.monthly) v.monthly = { ...mv, staff_owner: (s.staff ?? []).includes("owner") }; }
+  if (v?.ok) {
+    const mv = await rpc<Record<string, any>>(ctx, "dela_monthly_view", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+    if (mv?.monthly) {
+      v.monthly = { ...mv, staff_owner: (s.staff ?? []).includes("owner") };
+      // AI review 0.10.0 (payments 4, 5): the total each month with the platform fee, now and for an open change, and the
+      // change deadline, all from the server and settings
+      const total = async (price: unknown) => Number.isFinite(Number(price)) ? Number(price) + (await rpc<number>(ctx, "dela_monthly_fee_for", { p_agreement: id, p_price: Math.round(Number(price)) }) ?? 0) : null;
+      const open = (Array.isArray(mv.changes) ? mv.changes : []).find((c: Record<string, any>) => c.status === "open");
+      v.monthly.totals = { now: await total(mv.terms?.price_cents), proposed: open ? await total(open.price_cents) : null };
+      v.monthly.change_deadline_days = Number(await setting(ctx, "recurring.change_deadline_days", "1")) || 1;
+    }
+  }
   // "Attorney decides" steps of the gig's document become checkpoints the work waits at
   const gdoc = await rpc<Record<string, any> | null>(ctx, "dela_agreement_doc", { p_agreement: id }).catch(() => null);
   if (v?.ok && gdoc && isDoc(gdoc)) {

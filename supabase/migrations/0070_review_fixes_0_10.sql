@@ -95,3 +95,13 @@ create or replace function dela_trial_settings() returns jsonb language sql stab
     'sender', dela_setting_text('email.sender', 'log'), 'from_name', dela_setting_text('email.from_name', 'Lawfecta DELA'), 'from_address', dela_setting_text('email.from_address', ''))
 $$;
 alter function dela_trial_settings() set search_path = public, extensions, pg_temp;
+
+-- Payments 4: a pending monthly change shows the total each month with the platform fee, now and proposed, worked out
+-- with the same formula the renewal charges (0049, dela_monthly_renewals)
+create or replace function dela_monthly_fee_for(p_agreement uuid, p_price int) returns int language sql stable as $$
+  select greatest(round(p_price * coalesce((select (v.body->'fees'->>'attorney_bps')::int from agreements a join agreement_versions v on v.agreement_id = a.id and v.version = a.version where a.id = p_agreement),
+      dela_int_setting('fee.client_bps', 500)) / 10000.0)::int,
+    case when coalesce((dela_setting('recurring.fee_floor_each_month') #>> '{}')::boolean, true) then dela_int_setting('fees.floor_cents_per_party', 1000) else 0 end)
+$$;
+revoke all on function dela_monthly_fee_for(uuid, int) from public, anon, authenticated;
+alter function dela_monthly_fee_for(uuid, int) set search_path = public, extensions, pg_temp;

@@ -3367,9 +3367,14 @@
     var names = [], qty = function (list, name) { var x = (list || []).filter(function (t) { return t.task === name; })[0]; return x ? x.quantity + " each month" + (x.turnaround ? ", within " + x.turnaround : "") : "Not included"; };
     (cur.tasks || []).concat(prop.tasks || []).forEach(function (t) { if (names.indexOf(t.task) < 0) names.push(t.task); });
     var mode = function (m) { return m === "monthly" ? "One monthly delivery" : "Weekly units"; };
-    var rows = [["Monthly price (before the platform fee)", D.money(cur.price_cents), D.money(prop.price_cents)], ["Delivery", mode(cur.unit_mode), mode(prop.unit_mode)]]
-      .concat(names.map(function (n) { return [n, qty(cur.tasks, n), qty(prop.tasks, n)]; }));
-    var starts = mv && mv.next && mv.next.bill_on ? "From the month that starts " + D.date(mv.next.bill_on) + ", if approved at least 1 day before." : "From the next month, if approved at least 1 day before billing.";
+    var rows = [["Monthly price (before the platform fee)", D.money(cur.price_cents), D.money(prop.price_cents)]];
+    // AI review 0.10.0 (payments 4): what the attorney is charged each month, with the platform fee, from the server
+    var tot = (mv && mv.totals) || {};
+    if (tot.now !== null && tot.now !== undefined && tot.proposed !== null && tot.proposed !== undefined) rows.push(["Total each month, with the platform fee", D.money(tot.now), D.money(tot.proposed)]);
+    rows = rows.concat([["Delivery", mode(cur.unit_mode), mode(prop.unit_mode)]]).concat(names.map(function (n) { return [n, qty(cur.tasks, n), qty(prop.tasks, n)]; }));
+    // AI review 0.10.0 (payments 5): the deadline comes from the setting recurring.change_deadline_days
+    var dl = (mv && mv.change_deadline_days) || 1, dlText = dl + (dl === 1 ? " day" : " days");
+    var starts = mv && mv.next && mv.next.bill_on ? "From the month that starts " + D.date(mv.next.bill_on) + ", if approved at least " + dlText + " before." : "From the next month, if approved at least " + dlText + " before billing.";
     return h("div", null, h("div", { class: "scroll" }, h("table", { class: "stack", style: "width:100%" },
       h("thead", null, h("tr", null, h("th", { text: "" }), h("th", { text: "Now" }), h("th", { text: "Proposed" }))),
       h("tbody", null, rows.map(function (r) { return h("tr", { class: r[1] !== r[2] ? "changed" : "" }, h("td", { "data-label": "", text: r[0] }), h("td", { "data-label": "Now", text: r[1] }), h("td", { "data-label": "Proposed" }, r[1] !== r[2] ? h("b", { text: r[2] }) : r[2])); })))),

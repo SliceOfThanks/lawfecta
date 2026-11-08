@@ -201,6 +201,12 @@ Deno.test("monthly dates: the signed dates govern, and every unit falls inside t
 Deno.test("a change for next month: either side proposes, the other approves; it applies only if approved in time", async () => {
   const c = (await call("POST", "/monthly/change", fl.token, { id: agA, tasks: TASKS, price: 1200, note: "More calls lately" })).body;
   assert(c.ok, JSON.stringify(c));
+  // AI review 0.10.0 (payments 4, 5): the total each month with the platform fee, now and proposed, and the deadline
+  const g = (await call("GET", "/agreements/get?id=" + agA, att.token)).body.monthly;
+  const fee = async (p: number) => (await pool.query("select dela_monthly_fee_for($1, $2) f", [agA, p])).rows[0].f;
+  assertEquals(g.totals, { now: g.terms.price_cents + await fee(g.terms.price_cents), proposed: 120000 + await fee(120000) });
+  assert(g.totals.proposed > 120000, "the proposed total includes the fee");
+  assertEquals(g.change_deadline_days, 1);
   assertEquals((await call("POST", "/monthly/change/decide", fl.token, { id: c.id, approve: true })).body.reason, "other_side_approves");
   assertEquals((await call("POST", "/monthly/change/decide", att.token, { id: c.id, approve: true })).body.status, "approved");
   // As if approved on the billing day itself: too late for month 2 (the deadline is 1 day before), so it starts in month 3
