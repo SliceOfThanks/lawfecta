@@ -108,6 +108,7 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Who gets the daily downgrade summary email. One email on a day with at least one downgrade, listing each member's name, user ID and trial end date. None on other days (answer 8). | stacey@lawfecta.com | Confirmed | Stacey 2026-11-07 (Pro trial answers) | |
 | What comes back when a downgraded member upgrades. Suggested: everything comes back on Plus, Pro and Agency Business. If Plus allows fewer areas of law or not every post type in BD, change Plus here. | {'7': {'areas': None, 'types': ['video', 'promotion', 'article']}, '8': {'areas': None, 'types': ['video', 'promotion', 'article']}, '9': {'areas': None, 'types': ['video', 'promotion', 'article']}} per BD plan: areas shown (null = all) and post types | Suggested | Suggested by Claude 2026-11-08 | |
 | Post types hidden when a trial member moves to Free. Videos, Promotions and Community Articles are unpublished at the downgrade, never deleted (AI review 0.10.0, payments 6: a setting, not code). | video, promotion, article | Confirmed | Developer notes 2026-11-06 | |
+| BD member status value for Active (the trial check sets it after a downgrade). Empty: DELA does not change the status and the BD admin task says to check it is Active. Fill in once the value is confirmed in BD. |  | Open | Claude 2026-11-08 | |
 
 ## 5. Flex Gigs and proposals
 

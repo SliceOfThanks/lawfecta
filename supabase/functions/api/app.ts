@@ -34,6 +34,7 @@ import { AUTOMATE_SYSTEM, defaultKpis, delegatedSop, FREQUENCIES, hoursSaved, pr
 import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
 import { FORM_LIMITS } from "./lib/limits.ts";
 import { notConnected, type TrialBd, type TrialCandidate } from "./lib/trial/bd.ts";
+import { liveBd } from "./lib/trial/bd-live.ts";
 import { checkMember, runTrial, type Allowance, type MemberOutcome, type RunDeps, type TrialStore } from "./lib/trial/run.ts";
 import { trialEmail } from "./lib/trial/rules.ts";
 
@@ -4666,9 +4667,17 @@ function trialMailer(ctx: Ctx, cfg: TrialCfg) {
     return r.ok ? { ok: true as const, data: true as const } : { ok: false as const, error: r.error };
   };
 }
+// Brilliant Directories for the trial check: the endpoints Stacey's BD check confirmed (lib/trial/bd-live.ts), once
+// the BD key is set; tests pass a stand-in
+function trialBd(ctx: Ctx, cfg: TrialCfg): TrialBd {
+  if (ctx.deps.trialBd) return ctx.deps.trialBd;
+  const key = ctx.deps.env("BD_API_KEY");
+  if (!key || !String(cfg.site_url ?? "").startsWith("https://")) return notConnected;
+  return liveBd(f(ctx), String(cfg.site_url), key, { activeValue: String(cfg.bd_active_value ?? "") });
+}
 function trialDeps(ctx: Ctx, cfg: TrialCfg, runId: string): RunDeps {
   return {
-    bd: ctx.deps.trialBd ?? notConnected, store: trialStore(ctx), mail: trialMailer(ctx, cfg), now: ctx.deps.now?.() ?? Date.now(),
+    bd: trialBd(ctx, cfg), store: trialStore(ctx), mail: trialMailer(ctx, cfg), now: ctx.deps.now?.() ?? Date.now(),
     mode: cfg.mode === "live" ? "live" : "dry_run", runId,
     settings: { days: Number(cfg.days) || 7, reminderDays: Number(cfg.reminder_days) || 2, eligibleFrom: String(cfg.eligible_from ?? ""), plans: cfg.plans,
       allowances: (cfg.allowances ?? {}) as Record<string, Allowance>, freeAreas: Number(cfg.free_areas) || 3, hiddenTypes: Array.isArray(cfg.free_hidden_types) ? cfg.free_hidden_types.map(String) : undefined },
@@ -4676,8 +4685,12 @@ function trialDeps(ctx: Ctx, cfg: TrialCfg, runId: string): RunDeps {
 }
 // Fix (AI review 0.10.0, security 5): Live only while the switch bd_trial_downgrade is on; with it off, every run is a Dry run
 const trialMode = (cfg: TrialCfg): "live" | "dry_run" => cfg.mode === "live" && cfg.on === true ? "live" : "dry_run";
-async function trialRun(ctx: Ctx, trigger: "daily" | "manual") {
+async function trialCfg(ctx: Ctx): Promise<TrialCfg> {
   const cfg = await rpc<TrialCfg>(ctx, "dela_trial_settings", {});
+  return { ...cfg, bd_active_value: await setting(ctx, "trial.bd_active_value", "") };
+}
+async function trialRun(ctx: Ctx, trigger: "daily" | "manual") {
+  const cfg = await trialCfg(ctx);
   const mode = trialMode(cfg);
   // One check at a time (AI review 0.10.0, security 3): a second one skips while the first holds the lease
   const holder = crypto.randomUUID();
@@ -4701,20 +4714,24 @@ async function trialSummary(ctx: Ctx, cfg: TrialCfg, runId: string, down: Member
   const prefix = cfg.environment === "live" ? "" : "[Test site] ";
   const day = (x: string | null) => x ? new Date(x).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Los_Angeles" }) : "unknown";
   const lines = down.map((o) => `${o.name} (user ID ${o.user_id}), trial ended ${day(o.ends_at)}`);
+  // BD has no API to cancel invoices and subscriptions: the tasks for BD admin (Stacey 2026-11-08, question 2)
+  const tasks = down.map((o) => o.manual ?? "").filter(Boolean);
   const title = `${down.length} Pro trial ${down.length === 1 ? "member" : "members"} moved to Free`;
   const esc = (x: string) => x.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
   const provider = pickProvider(cfg.sender);
   await provider.send({ from: { name: cfg.from_name, email: cfg.from_address }, to: { email: String(cfg.summary_to) }, subject: prefix + title,
-    html: `<p>${esc(title)} in today's trial check:</p><ul>${lines.map((l) => "<li>" + esc(l) + "</li>").join("")}</ul><p>The run log is in the DELA admin area, Trials tab.</p>`,
-    text: title + ":\n" + lines.map((l) => "- " + l).join("\n") + "\n\nThe run log is in the DELA admin area, Trials tab.", tags: [String(cfg.environment), "trial_summary"] },
+    html: `<p>${esc(title)} in today's trial check:</p><ul>${lines.map((l) => "<li>" + esc(l) + "</li>").join("")}</ul>` +
+      (tasks.length ? `<p><b>To do in BD admin today</b> (BD has no way to do these by API):</p><ul>${tasks.map((l) => "<li>" + esc(l) + "</li>").join("")}</ul>` : "") +
+      `<p>The run log is in the DELA admin area, Trials tab.</p>`,
+    text: title + ":\n" + lines.map((l) => "- " + l).join("\n") + (tasks.length ? "\n\nTo do in BD admin today (BD has no way to do these by API):\n" + tasks.map((l) => "- " + l).join("\n") : "") + "\n\nThe run log is in the DELA admin area, Trials tab.", tags: [String(cfg.environment), "trial_summary"] },
     provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl: cfg.site_url });
 }
 // The sign-in backstop: the same check for one member, in the current mode
 async function trialCheckOne(ctx: Ctx, bdUserId: number) {
   if (!bdUserId) return { ok: true };
-  const cfg = await rpc<TrialCfg>(ctx, "dela_trial_settings", {});
+  const cfg = await trialCfg(ctx);
   if (!cfg.on) return { ok: true };
-  const bd = ctx.deps.trialBd ?? notConnected;
+  const bd = trialBd(ctx, cfg);
   const one = await bd.member(bdUserId);
   if (!one.ok) return { ok: true };
   const mode = trialMode(cfg);

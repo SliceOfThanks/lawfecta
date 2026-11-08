@@ -593,6 +593,15 @@
           "status": "C",
           "source": "Developer notes 2026-11-06",
           "note": "Videos, Promotions and Community Articles are unpublished at the downgrade, never deleted (AI review 0.10.0, payments 6: a setting, not code)."
+        },
+        {
+          "key": "trial.bd_active_value",
+          "label": "BD member status value for Active (the trial check sets it after a downgrade)",
+          "value": "",
+          "unit": "BD \"active\" field value",
+          "status": "O",
+          "source": "Claude 2026-11-08",
+          "note": "Empty: DELA does not change the status and the BD admin task says to check it is Active. Fill in once the value is confirmed in BD."
         }
       ]
     },

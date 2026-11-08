@@ -125,8 +125,9 @@ const ATT = 4200, TEAM = 4201;
     t = await waitFor(p, "Pro trial check");
     ok(t.includes("Trial downgrade mode: Dry run") && t.includes("Plans 5, 10, 11, 12, 13, 14 are never changed") && t.includes("at 2:00 AM Pacific"), "the Trials tab shows the mode and the never-changed plans");
     await dela(p).getByRole("button", { name: "Run the check now (Dry run)" }).click();
-    t = await waitFor(p, "BD not connected yet", 10000);
-    ok(t.includes("Run now") && t.includes("Dry run"), "a run on demand is logged, and says BD is not connected yet");
+    // The test server has a BD key, so the run talks to its stand-in BD and finds nobody to change
+    t = await waitFor(p, "Nothing to do", 10000);
+    ok(t.includes("Run now") && t.includes("Dry run"), "a run on demand is logged as a Dry run");
     await dela(p).getByRole("button", { name: "Switch to Live" }).click();
     t = await waitFor(p, "Trial downgrade mode: Live (lists only while the daily check is off)", 10000);
     ok((await sql("select value #>> '{}' v from settings where key = 'trial.downgrade_mode'"))[0].v === "live", "Switch to Live changes the Trial downgrade mode setting");

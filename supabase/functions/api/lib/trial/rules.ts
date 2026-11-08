@@ -63,7 +63,8 @@ export function decide(m: TrialMember, now: number, s: TrialSettings): TrialDeci
   if (!p.trial.includes(m.plan_id)) return { action: "skip", reason: "not_a_trial_plan" };
 
   // Converted only with a paid invoice for the plan they are on now (answer 7)
-  if (m.invoices.some((i) => i.paid && i.plan_id === m.plan_id)) return { action: "convert", reason: m.plan_id === p.pro ? "paid_pro" : "paid_plus" };
+  // A paid invoice whose plan BD does not name (0) counts as paid for their own plan: never downgrade someone who paid
+  if (m.invoices.some((i) => i.paid && (i.plan_id === m.plan_id || i.plan_id === 0))) return { action: "convert", reason: m.plan_id === p.pro ? "paid_pro" : "paid_plus" };
 
   const ends = m.ends_at ? Date.parse(m.ends_at) : NaN;
   if (!Number.isFinite(ends)) return { action: "skip", reason: "no_end_date" };

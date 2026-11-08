@@ -1,25 +1,25 @@
-DELA functionality test report — November 8, 2026
-Status: COMPLETE — all 19 steps passed.
+DELA functionality test report - November 8, 2026
+Status: COMPLETE - all 19 steps passed.
 
-1 PASS — Test attorney login completed.
-2 PASS — OpenAI client-details notice appeared; Continue produced intake checklist.
-3 PASS — Follow-up answered without another client-details notice.
-4 PASS — Health/biometric warning appeared despite prior consent; edited and cleared message.
-5 PASS — New chat asked for consent again; edited and cleared without continuing.
-6 PASS — Conflict search and Needs your review filter returned matching cards only; restored All.
-7 PASS — Ready document opened; Library return preserved All categories / All status.
-8 PASS — Notices showed Needs your action (4) and actionable rows; panel closed.
-9 PASS — Monthly prices $1,000/$1,100; totals $1,050/$1,155; one-day deadline and mismatch warning present.
-10 PASS — Contracting party Roe Test Agency LLC; agency lead DELA Test Freelancer.
-11 PASS — Attorney signed out; login page reached.
-12 PASS — Freelancer login completed with user assistance after reCAPTCHA error.
-13 PASS — Required placeholder verified exactly; no message typed or sent.
-14 PASS — Freelancer monthly table matched attorney view, including totals and mismatch warning.
-15 PASS — Freelancer signed out; login page reached.
-16 PASS — User logged in as Stacey Lake; owner role confirmed on admin page.
-17 PASS — Trials schedule, plan exclusions, daily check off and Dry run labels matched.
-18 PASS — Dry run added Run now / Dry run / BD not connected yet row; 0 members checked; no member changes.
-19 PASS — Owner signed out; login?action=loggedout page verified.
+1 PASS - Test attorney login completed.
+2 PASS - OpenAI client-details notice appeared; Continue produced intake checklist.
+3 PASS - Follow-up answered without another client-details notice.
+4 PASS - Health/biometric warning appeared despite prior consent; edited and cleared message.
+5 PASS - New chat asked for consent again; edited and cleared without continuing.
+6 PASS - Conflict search and Needs your review filter returned matching cards only; restored All.
+7 PASS - Ready document opened; Library return preserved All categories / All status.
+8 PASS - Notices showed Needs your action (4) and actionable rows; panel closed.
+9 PASS - Monthly prices $1,000/$1,100; totals $1,050/$1,155; one-day deadline and mismatch warning present.
+10 PASS - Contracting party Roe Test Agency LLC; agency lead DELA Test Freelancer.
+11 PASS - Attorney signed out; login page reached.
+12 PASS - Freelancer login completed with user assistance after reCAPTCHA error.
+13 PASS - Required placeholder verified exactly; no message typed or sent.
+14 PASS - Freelancer monthly table matched attorney view, including totals and mismatch warning.
+15 PASS - Freelancer signed out; login page reached.
+16 PASS - User logged in as Stacey Lake; owner role confirmed on admin page.
+17 PASS - Trials schedule, plan exclusions, daily check off and Dry run labels matched.
+18 PASS - Dry run added Run now / Dry run / BD not connected yet row; 0 members checked; no member changes.
+19 PASS - Owner signed out; login?action=loggedout page verified.
 
 FAIL list: None.
 

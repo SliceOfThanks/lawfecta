@@ -3,13 +3,15 @@
 // PUT /api/v2/user/update changes a listing. Permissions are per endpoint on the key (BD admin, API keys, Permissions):
 // a call the key may not make answers 403. Needs BD_API_KEY and the site.url setting.
 
-export type BdResult<T> = { ok: true; data: T } | { ok: false; status: number; error: string };
+export type BdResult<T> = { ok: true; data: T; next?: string } | { ok: false; status: number; error: string };
 
 type Fetch = typeof fetch;
 
 function base(siteUrl: string) {
   return siteUrl.replace(/\/+$/, "");
 }
+
+export async function bdCall<T>(f: Fetch, siteUrl: string, key: string, method: string, path: string, form?: Record<string, string>): Promise<BdResult<T>> { return await call<T>(f, siteUrl, key, method, path, form); }
 
 async function call<T>(f: Fetch, siteUrl: string, key: string, method: string, path: string, form?: Record<string, string>): Promise<BdResult<T>> {
   if (!key) return { ok: false, status: 0, error: "bd_api_key_missing" };
@@ -36,7 +38,8 @@ async function call<T>(f: Fetch, siteUrl: string, key: string, method: string, p
       const msg = out && typeof out.message === "string" ? out.message.slice(0, 160) : "";
       return { ok: false, status: res.status, error: (`bd ${res.status} ${msg}`).trim() };
     }
-    return { ok: true, data: out.message as T };
+    // Lists page with a next_page token (BD API v2 user/get and similar)
+    return { ok: true, data: out.message as T, next: typeof out.next_page === "string" && out.next_page ? out.next_page : undefined };
   } catch (e) {
     return { ok: false, status: 0, error: "bd_unreachable " + String((e as Error)?.message ?? e).slice(0, 80) };
   }

@@ -292,6 +292,18 @@ Deno.test("two checks at once: the second skips, so nothing happens twice", asyn
   bdState.delete(U + 24);
 });
 
+// BD has no API to cancel billing (Stacey's BD check, 2026-11-08): the downgrade records a task for BD admin instead
+Deno.test("with BD's manual billing, a downgrade lists the subscription and invoice to cancel in BD admin", async () => {
+  add(U + 25, 8, { dela_trial_status: "active", dela_trial_ends_at: iso(NOW - DAY) }, { invoices: [{ id: "inv-25", plan_id: 8, paid: false, open: true }] });
+  const manualDeps: Deps = { ...deps, trialBd: { ...stub, manualBilling: true } };
+  const r = (await call(manualDeps, "POST", "/admin/trial/run", owner, {})).body;
+  const ev = (await pool.query("select done, manual from trial_events where run_id = $1 and bd_user_id = $2", [(r.data ?? r).run_id, U + 25])).rows[0];
+  assertEquals(ev.done, true);
+  assert(ev.manual.includes("cancel the Plus and Pro subscription and invoice #inv-25") && ev.manual.includes("user ID " + (U + 25)) && ev.manual.includes("Active"), ev.manual);
+  assertEquals(bdState.get(U + 25)!.plan_id, 3);
+  bdState.delete(U + 25);
+});
+
 Deno.test("one trial: DELA's allowances follow the BD plan only, whatever the old trials switch says", async () => {
   const id = (await pool.query("insert into people (bd_member_id, display_name, email, trial_ends_at) values ($1, 'Old trial', 'ot@test.invalid', now() + interval '3 days') returning id", [9_200_000 + RUN])).rows[0].id;
   await pool.query("select dela_ensure_side($1, 'freelancer', 'fl_free', 'staff_grant')", [id]);

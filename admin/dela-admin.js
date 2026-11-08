@@ -967,6 +967,7 @@
   function TRIAL_STOP(e) {
     e = String(e || "");
     if (e.indexOf("bd_trial_api_not_confirmed") >= 0) return "BD is not connected yet, so nothing was checked. The run is in the list below.";
+    if (e.indexOf("bd_permission_needed") >= 0) return "BD refused the check: DELA's BD API key needs more permissions (Users, User Metadata, Single Image Posts). The run is in the list below.";
     if (e === "another_check_running") return "Another check is running. Try again in a few minutes.";
     return "The check stopped: " + e;
   }
@@ -1006,7 +1007,7 @@
           return h("tr", null, h("td", { "data-label": "Started", text: D.dateTime ? D.dateTime(x.started_at) : new Date(x.started_at).toLocaleString() }), h("td", { "data-label": "How", text: TRIAL_HOW[x.trigger] || x.trigger }),
             h("td", { "data-label": "Mode", text: x.mode === "live" ? "Live" : "Dry run" }), h("td", { "data-label": "Members checked", text: String(x.checked) }),
             h("td", { "data-label": "What it found", text: keys.length ? keys.map(function (k) { return c[k] + " " + (TRIAL_ACTION[k] || k).toLowerCase(); }).join("; ") : "Nothing to do" }),
-            h("td", { "data-label": "Problem", text: x.error ? (x.error.indexOf("bd_trial_api_not_confirmed") >= 0 ? "BD not connected yet" : x.error) : "" }));
+            h("td", { "data-label": "Problem", text: x.error ? (x.error.indexOf("bd_trial_api_not_confirmed") >= 0 ? "BD not connected yet" : x.error.indexOf("bd_permission_needed") >= 0 ? "DELA's BD key needs more permissions" : x.error) : "" }));
         })))));
       var ev = d.events || [];
       el.appendChild(h("h3", { text: "Members in the last 3 runs" }));
@@ -1018,7 +1019,8 @@
           return h("tr", null, h("td", { "data-label": "Member", text: x.name }), h("td", { "data-label": "BD user ID", text: String(x.bd_user_id) }), h("td", { "data-label": "Plan", text: String(x.plan_id || "") }),
             h("td", { "data-label": "What", text: (dry ? "Would: " : "") + (TRIAL_ACTION[x.action] || x.action) }), h("td", { "data-label": "Why", text: TRIAL_WHY[x.reason] || x.reason }),
             h("td", { "data-label": "Trial ends", text: x.trial_ends_at ? D.date(x.trial_ends_at) : "" }), h("td", { "data-label": "Invoice", text: { paid: "Paid", unpaid: "Unpaid", none: "None" }[x.invoice_status] || x.invoice_status }),
-            h("td", { "data-label": "Result", text: dry ? "Listed only" : x.done ? "Done" : "Not finished: " + x.error }));
+            h("td", { "data-label": "Result" }, h("span", { text: dry ? "Listed only" : x.done ? "Done" : "Not finished: " + x.error }),
+              x.manual ? h("div", { class: "small", style: "margin-top:4px;font-weight:700", text: "To do in BD admin: " + x.manual }) : null));
         })))));
     }).catch(fail);
   }

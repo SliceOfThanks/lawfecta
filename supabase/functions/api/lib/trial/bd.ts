@@ -8,6 +8,8 @@ export type TrialPost = { id: string; type: string; published: boolean };
 export type Res<T> = { ok: true; data: T } | { ok: false; error: string };
 
 export interface TrialBd {
+  // true when BD cannot cancel invoices and subscriptions by API: the run lists them as tasks for BD admin instead
+  manualBilling?: boolean;
   // Members on the given plans who signed up on or after the date (answer 2: DELA may search members by plan and signup date)
   search(plans: number[], signedUpSince: string): Promise<Res<TrialCandidate[]>>;
   member(userId: number): Promise<Res<TrialCandidate>>;

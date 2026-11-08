@@ -19,7 +19,7 @@ export type Mailer = (kind: "ending" | "ended", c: TrialCandidate) => Promise<Re
 
 export type RunDeps = { bd: TrialBd; store: TrialStore; mail: Mailer; now: number; mode: "dry_run" | "live"; runId: string; settings: RunSettings };
 
-export type MemberOutcome = { user_id: number; name: string; plan_id: number; action: string; reason: string; ends_at: string | null; invoice: string; done: boolean; error?: string };
+export type MemberOutcome = { user_id: number; name: string; plan_id: number; action: string; reason: string; ends_at: string | null; invoice: string; done: boolean; error?: string; manual?: string };
 
 const nameOf = (c: TrialCandidate) => [c.first_name, c.last_name].filter(Boolean).join(" ").trim() || "Member " + c.user_id;
 
@@ -80,14 +80,15 @@ export async function checkMember(d: RunDeps, c: TrialCandidate): Promise<Member
   } else if (dec.action === "restore") {
     err = await restore(d, c, kept!);
   }
-  return await log(d, c, { ...base, done: !err, error: err ?? undefined });
+  const manual = dec.action === "downgrade" && d.bd.manualBilling ? ((await d.store.member(c.user_id)) as (Kept & { manual?: string }) | null)?.manual : undefined;
+  return await log(d, c, { ...base, done: !err, error: err ?? undefined, manual });
 }
 
 async function downgrade(d: RunDeps, c: TrialCandidate, m: TrialMember, step: (k: string, r: () => Promise<Res<unknown>>) => Promise<string | null>, nowIso: string): Promise<string | null> {
   const p = d.settings.plans;
   // Fix (AI review 0.10.0, payments 1): every open unpaid bill on a trial plan (Plus and Pro) is canceled, and the
   // subscription on each trial plan, so a member who moved from Pro to Plus is not left with an unpaid Pro bill
-  const open = m.invoices.filter((i) => i.open && !i.paid && p.trial.includes(i.plan_id));
+  const open = m.invoices.filter((i) => i.open && !i.paid && (p.trial.includes(i.plan_id) || i.plan_id === 0));
   const subPlans = [...new Set([m.plan_id, ...p.trial])];
   const order: Array<[string, () => Promise<Res<unknown>>]> = [
     // Re-read at the moment of the change: stop if the plan moved since, or is on the never-changed list (answer 1)
@@ -99,6 +100,13 @@ async function downgrade(d: RunDeps, c: TrialCandidate, m: TrialMember, step: (k
     }],
     ["subscription", async () => { for (const plan of subPlans) { const r = await d.bd.cancelSubscription(c.user_id, plan); if (!r.ok) return r; } return { ok: true, data: true }; }],
     ["invoices", async () => { for (const i of open) { const r = await d.bd.cancelInvoice(i.id); if (!r.ok) return r; } return { ok: true, data: true }; }],
+    // BD has no API for these two: the run records them as tasks for BD admin (Stacey 2026-11-08, question 2)
+    ["manual", async () => {
+      if (!d.bd.manualBilling) return { ok: true, data: true };
+      const task = "In BD admin, cancel the Plus and Pro subscription" + (open.length ? " and invoice" + (open.length === 1 ? " " : "s ") + open.map((i) => "#" + i.id).join(", ") : "") + " for " + nameOf(c) + " (user ID " + c.user_id + "), and check their status is Active.";
+      await d.store.save(c.user_id, { manual: task });
+      return { ok: true, data: true };
+    }],
     ["active", () => d.bd.setActive(c.user_id)],
     ["hide", () => hide(d, c)],
     ["status", () => d.bd.setMeta(c.user_id, { dela_trial_status: "downgraded", dela_downgraded_at: nowIso })],
@@ -162,7 +170,7 @@ async function restore(d: RunDeps, c: TrialCandidate, kept: Kept): Promise<strin
 async function log(d: RunDeps, c: TrialCandidate, o: Omit<MemberOutcome, "user_id" | "name" | "plan_id">): Promise<MemberOutcome> {
   const out: MemberOutcome = { user_id: c.user_id, name: nameOf(c), plan_id: c.plan_id, ...o };
   await d.store.event({ run_id: d.runId, bd_user_id: c.user_id, name: out.name, plan_id: c.plan_id, trial_ends_at: o.ends_at, invoice_status: o.invoice,
-    action: o.action, reason: o.reason, mode: d.mode, done: o.done, error: o.error ?? "" });
+    action: o.action, reason: o.reason, mode: d.mode, done: o.done, error: o.error ?? "", manual: o.manual ?? "" });
   return out;
 }
 
