@@ -150,6 +150,11 @@ function fakeAi(u: string, opts: RequestInit): Response | null {
     // OpenAI's own rule: JSON mode is refused unless the messages mention JSON
     if (body?.response_format?.type === "json_object" && !JSON.stringify(body.messages).toLowerCase().includes("json")) return Response.json({ error: { message: "'messages' must contain the word 'json'", type: "invalid_request_error" } }, { status: 400 });
     if (system.includes("summarizing a message thread")) return Response.json({ model: body.model, choices: [{ message: { content: "The attorney asked about intake; the freelancer can start Monday." } }], usage: { prompt_tokens: 20, completion_tokens: 10 } });
+    // Step 11: the dispute AI (summary, suggested offer, the team's draft)
+    const dj = (o: unknown) => Response.json({ model: body.model, choices: [{ message: { content: JSON.stringify(o) } }], usage: { prompt_tokens: 50, completion_tokens: 30 } });
+    if (system.includes("Summarize both sides")) return dj({ summary: "The freelancer says the draft was delivered; the attorney says the exhibit list is missing.", agreed: ["The draft arrived"], open: ["The exhibit list"] });
+    if (system.includes("Suggest a fair settlement")) return dj({ release_cents: 15000, why: "The draft arrived; the exhibit list is still open." });
+    if (system.includes("draft a decision")) return dj({ summary: "Half of the final packet was delivered.", terms: ["Deliverables: petition draft; exhibit list"], release_cents: 15000, why: "One of two parts.", note: "Half to each of you." });
     if (system.includes("drafting a reply for the member")) return Response.json({ model: body.model, choices: [{ message: { content: "Thanks, Monday works for me." } }], usage: { prompt_tokens: 20, completion_tokens: 10 } });
     const pb = playbookAnswer(system, JSON.stringify(body?.messages?.at(-1) ?? ""));
     if (pb) return Response.json({ model: body.model, choices: [{ message: { content: JSON.stringify(pb) } }], usage: { prompt_tokens: 200, completion_tokens: 80 } });

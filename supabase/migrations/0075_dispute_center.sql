@@ -401,6 +401,13 @@ begin
       left join people pa on pa.id = a.attorney_person left join people pf on pf.id = a.freelancer_person
     where d.status in ('notice', 'team_review') or d.resolved_at > now() - interval '90 days'
     order by d.created_at desc limit 300) q), '[]'),
+    'paused', coalesce((select jsonb_agg(jsonb_build_object('agreement_id', a.id, 'gig_title', g.title, 'since', a.updated_at,
+        'chargeback_open', exists (select 1 from chargebacks c where c.agreement_id = a.id and c.status = 'open')) order by a.updated_at)
+      from agreements a join gigs g on g.id = a.gig_id where a.status = 'paused'), '[]'),
+    'refunds_failed', coalesce((select jsonb_agg(jsonb_build_object('id', r.id, 'amount_cents', r.amount_cents, 'reason', r.reason, 'retries', r.retries, 'gig_title', g.title, 'at', r.updated_at) order by r.updated_at)
+      from refunds r join agreements a on a.id = r.agreement_id join gigs g on g.id = a.gig_id where r.status = 'failed'), '[]'),
+    'payouts_waiting', coalesce((select jsonb_agg(jsonb_build_object('id', po.id, 'amount_cents', po.amount_cents, 'status', po.status, 'reason', po.held_reason, 'retries', po.retries, 'freelancer', pe.display_name, 'gig_title', g.title) order by po.updated_at)
+      from payouts po join people pe on pe.id = po.person_id join agreements a on a.id = po.agreement_id join gigs g on g.id = a.gig_id where po.status in ('held', 'failed')), '[]'),
     'report', (select jsonb_build_object(
       'open', count(*) filter (where status in ('notice', 'team_review')),
       'last_90_days', count(*) filter (where created_at > now() - interval '90 days'),

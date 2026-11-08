@@ -5044,6 +5044,11 @@
     say_what_to_change: "Say what needs to change.", revisions_used_up: "The included rounds of changes are used up. Propose a change order on the agreement instead.",
     say_why: "Please say why.", under_review_open_dispute: "A milestone is under review, so it cannot be canceled. Either of you can open a dispute instead.",
     keep_on_lawfecta: "Keep the work and the payment on Lawfecta. Remove the contact details or the plan to pay outside it.", export_not_available: "The export opens after the first accepted milestone.",
+    pick_category: "Choose what went wrong.", pick_wants: "Choose what you are asking for.", pick_milestone: "Choose the milestone.", milestone_not_paid: "A dispute is about a paid milestone. This one is not paid, or it is already finished.",
+    split_amount: "The amount to the freelancer must be from zero up to the milestone amount.", split_must_equal: "The two parts must add up to the milestone amount.", dispute_closed: "This dispute is closed.",
+    bad_link: "Paste a full secure link that starts with https://.", name_the_link: "Say what the link is.", too_many_links: "You added the most links allowed (20).", own_offer: "You cannot accept your own offer.",
+    offer_not_open: "That offer is no longer open. Look at the latest offer.", chargeback_open: "A bank review of a payment on this engagement is open, so the dispute waits until it ends.",
+    dispute_center_off: "The new dispute tools are not open for your account yet.", helpers_off: "DELA's AI help is not open for your account yet.", ai_unclear: "DELA could not give a clear answer. Try again.",
     freelancers_only: "Only the freelancer can do that.", changed_elsewhere: "The other person changed the agreement while you were working. Reload it, then make your change again.",
   };
   function engErr(r) {
@@ -5935,7 +5940,164 @@
     })));
   }
 
+  // Step 11 (docs/briefs/step-11-disputes.md): with the dispute center on, the card is a case view: both sides, links,
+  // settlement offers that move the money when accepted, the dates, AI help, and the team's questions and decision.
+  var DISPUTE_CAT = { not_delivered: "Not delivered", late: "Late", not_as_agreed: "Not what was agreed", quality: "Quality", not_accepted: "Payment or acceptance withheld", other: "Other" };
+  var DISPUTE_KIND = { opening: "Opened the dispute", answer: "Answer", note: "Note", question: "Question from the Lawfecta Team", reply: "Answer to the Lawfecta Team" };
+  var ROLE_WORD = { attorney: "Attorney", freelancer: "Freelancer", team: "Lawfecta Team" };
+  function dollarsToCents(v) { var n = parseFloat(String(v || "").replace(/[$,\s]/g, "")); return isFinite(n) ? Math.round(n * 100) : null; }
   function disputeCard(r) {
+    var c = h("div", { class: "card", id: "dispute-card" }, h("h2", null, D.term("Problems, disputes and canceling", "dispute")), h("p", { class: "muted small", text: "Loading..." }));
+    api.get("/disputes/case?agreement=" + r.agreement.id).then(function (cs) {
+      if (!cs || cs.ok === false || !cs.on) { var old = oldDisputeCard(r); c.replaceWith(old); return; }
+      D.clear(c);
+      c.appendChild(h("h2", null, D.term("Problems, disputes and canceling", "dispute")));
+      disputeCase(c, r, cs);
+    }).catch(function () { c.replaceWith(oldDisputeCard(r)); });
+    return c;
+  }
+  function disputeState(d) {
+    if (d.status === "withdrawn") return ["Withdrawn", "off"];
+    if (d.status === "resolved") return [d.settled_by === "offer" ? "Settled by agreement" : d.settled_by === "auto" ? "Granted: no answer" : "Decided by the Lawfecta Team", "ready"];
+    if (d.status === "team_review") return [d.question_open ? "Lawfecta Team review: question open" : "Lawfecta Team review", "R"];
+    return [d.answered_at ? "Open: settle it yourselves" : "Open: waiting for an answer", "held"];
+  }
+  function disputeCase(c, r, cs) {
+    var a = r.agreement, me = cs.role, other = me === "attorney" ? "freelancer" : "attorney";
+    var list = cs.disputes || [], open = list.filter(function (d) { return d.status === "notice" || d.status === "team_review"; })[0];
+    if (!list.length) c.appendChild(h("p", { class: "small muted", text: "Talk it through in Messages first. If you cannot agree, open a dispute: the money for that milestone stays held while you settle it. You have " + cs.notice_days + " days to settle it yourselves, then the Lawfecta Team decides. Lawfecta is not a court or an arbitrator." }));
+    list.forEach(function (d) { c.appendChild(disputeBox(d, r, cs, me, other)); });
+    if (!open && ["active", "signed", "paused"].indexOf(a.status) >= 0) c.appendChild(disputeOpenForm(r, cs, me));
+    if (r.monthly || a.status === "completed" || a.status === "canceled") return;
+    c.appendChild(cancelPart(a));
+  }
+  function disputeBox(d, r, cs, me, other) {
+    var st = disputeState(d), live = d.status === "notice" || d.status === "team_review", m = d.milestone || {};
+    var box = h("div", { class: "card", style: "margin:10px 0;padding:14px", "data-dispute": d.id },
+      h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" }, h("b", { class: "grow", text: "Dispute about milestone " + (m.seq || "") + ". " + (m.title || "") + " (" + D.money(m.amount_cents || 0) + ")" }), h("span", { class: "badge " + st[1], text: st[0] })));
+    var askedBy = ROLE_WORD[d.opened_by_role] || "";
+    var wantWords = d.wants_release_cents === null || d.wants_release_cents === undefined ? "" : " They ask for " + D.money(d.wants_release_cents) + " to the freelancer and " + D.money((m.amount_cents || 0) - d.wants_release_cents) + " back to the attorney.";
+    box.appendChild(h("p", { class: "small", text: "Opened by the " + askedBy.toLowerCase() + ": " + (DISPUTE_CAT[d.category] || "Problem") + "." + wantWords }));
+    // The dates
+    var dates = [];
+    if (d.status === "notice") {
+      if (!d.answered_at) dates.push((me === d.opened_by_role ? "The other side answers by " : "Give your side by ") + D.date(d.answer_due_at) + ".");
+      dates.push((d.answered_at ? "Settle it yourselves by " : "If there is no answer, the request is granted on ") + D.dateTime(d.notice_ends_at) + (d.answered_at ? ". After that the Lawfecta Team decides." : "."));
+    } else if (d.status === "team_review") {
+      dates.push(d.question_open ? "The Lawfecta Team asked a question. Its clock waits for the answer." : "The Lawfecta Team decides by " + D.date(d.review_due_at) + ". You can still settle it with an offer until then.");
+    } else if (d.status === "resolved") {
+      dates.push(D.money(d.release_cents || 0) + " went to the freelancer and " + D.money(d.refund_cents || 0) + " back to the attorney on " + D.date(d.resolved_at) + "." + (d.settled_by === "team" && d.resolution_note ? " The Lawfecta Team's note: " + d.resolution_note : ""));
+    }
+    dates.forEach(function (t) { box.appendChild(h("p", { class: "small", text: t })); });
+    // Both sides, in order
+    if ((d.statements || []).length) box.appendChild(h("div", { class: "dispute-thread" }, d.statements.map(function (x) {
+      return h("div", { class: "msg" + (x.mine ? " mine" : ""), style: "margin:6px 0" }, h("div", { class: "small muted", text: (x.mine ? "You" : ROLE_WORD[x.role]) + " | " + (DISPUTE_KIND[x.kind] || "") + " | " + D.dateTime(x.at) }), h("div", { text: x.body }));
+    })));
+    if ((d.evidence || []).length) box.appendChild(h("div", null, h("b", { class: "small", text: "Links" }), h("ul", { class: "small" }, d.evidence.map(function (e) {
+      return h("li", null, (e.mine ? "You: " : ROLE_WORD[e.role] + ": "), h("a", { href: e.url, target: "_blank", rel: "noopener noreferrer", text: e.label }));
+    }))));
+    // Offers
+    var offers = d.offers || [];
+    if (offers.length) box.appendChild(h("div", null, h("b", { class: "small", text: "Offers" }), offers.slice().reverse().map(function (o) {
+      var row = h("div", { class: "row small", style: "flex-wrap:wrap;gap:8px;margin:4px 0" }, h("span", { class: "grow", text: (o.mine ? "Your offer" : "The " + o.from_role + "'s offer") + ": " + D.money(o.release_cents) + " to the freelancer, " + D.money(o.refund_cents) + " back to the attorney" + (o.note ? " (" + o.note + ")" : "") }),
+        h("span", { class: "badge " + ({ open: "held", accepted: "ready" }[o.status] || "off"), text: { open: "Open", accepted: "Accepted", withdrawn: "Withdrawn", replaced: "Replaced", closed: "Closed" }[o.status] || o.status }));
+      if (live && o.status === "open" && !o.mine) row.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
+        if (!confirm("Accept this offer? " + D.money(o.release_cents) + " goes to the freelancer and " + D.money(o.refund_cents) + " back to the attorney now. This settles the dispute.")) return;
+        api.post("/disputes/offer/accept", { id: o.id }).then(engOk).then(function () { engReload("Settled. The money moves now."); }).catch(engFail);
+      } }, "Accept the offer"));
+      if (live && o.status === "open" && o.mine) row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+        api.post("/disputes/offer/withdraw", { id: o.id }).then(engOk).then(function () { engReload("Offer withdrawn."); }).catch(engFail);
+      } }, "Withdraw my offer"));
+      return row;
+    })));
+    if (!live) return box;
+    // What I can do now
+    var asked = (d.statements || []).some(function (x) { return x.kind === "question" && (x.to_role === me || x.to_role === "both"); }) && d.question_open;
+    var answering = me !== d.opened_by_role && !(d.statements || []).some(function (x) { return x.kind === "answer"; });
+    var say = h("textarea", { rows: 3, style: "width:100%", "aria-label": asked ? "Answer the Lawfecta Team" : answering ? "Your side" : "Add a note" });
+    var sayBox = h("div", { style: "margin-top:10px" }, aiNotice(), field(asked ? "Answer the Lawfecta Team" : answering ? "Your side" : "Add a note", say),
+      h("button", { class: answering || asked ? "blue small" : "ghost small", type: "button", onclick: function () {
+        api.post("/disputes/say", { id: d.id, body: say.value }).then(engOk).then(function () { engReload("Sent. Both of you can read it here."); }).catch(engFail);
+      } }, answering ? "Send my side" : "Send"));
+    box.appendChild(sayBox);
+    var amt = h("input", { inputmode: "decimal", "aria-label": "Amount to the freelancer ($)", style: "width:140px", placeholder: "0.00" });
+    var rest = h("span", { class: "small muted" });
+    function showRest() { var c2 = dollarsToCents(amt.value); rest.textContent = c2 === null ? "" : "and " + D.money(Math.max((m.amount_cents || 0) - c2, 0)) + " back to the attorney"; }
+    amt.addEventListener("input", showRest);
+    var note = h("input", { "aria-label": "Note with the offer (optional)", style: "width:100%" });
+    var aiOut = h("div");
+    box.appendChild(h("details", { style: "margin-top:10px" }, h("summary", { text: "Settle it: send an offer" }),
+      h("p", { class: "small", text: "An offer splits the " + D.money(m.amount_cents || 0) + " between the freelancer and the attorney. When the other side accepts, the dispute is settled and the money moves at once. The attorney's platform fee is not refunded." }),
+      h("div", { class: "row", style: "flex-wrap:wrap;gap:8px;align-items:center" }, field("Amount to the freelancer ($)", amt), rest), field("Note with the offer (optional)", note),
+      h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" },
+        h("button", { class: "blue small", type: "button", onclick: function () {
+          var c2 = dollarsToCents(amt.value);
+          if (c2 === null) { D.toast(app, "Type the amount to the freelancer in dollars.", true); return; }
+          api.post("/disputes/offer", { id: d.id, release_cents: c2, note: note.value }).then(engOk).then(function () { engReload("Offer sent. The other side was told."); }).catch(engFail);
+        } }, "Send the offer"),
+        h("button", { class: "ghost small", type: "button", onclick: function () { disputeAi(d, r, "suggest", aiOut, function (x) { amt.value = (x.release_cents / 100).toFixed(2); showRest(); }); } }, "✦ Suggest a fair offer"),
+        h("button", { class: "ghost small", type: "button", onclick: function () { disputeAi(d, r, "summary", aiOut); } }, "✦ Summarize both sides")),
+      aiOut));
+    var label = h("input", { "aria-label": "What the link is", style: "width:100%", placeholder: "For example: Delivery email" });
+    var url = h("input", { "aria-label": "Secure link (https://)", style: "width:100%", placeholder: "Paste a link from your own storage" });
+    box.appendChild(h("details", null, h("summary", { text: "Add a link" }),
+      h("p", { class: "small muted", text: "Share a link from your own storage. Never upload sensitive data such as ID numbers, account numbers or health information." }),
+      field("What the link is", label), field("Secure link (https://)", url),
+      h("button", { class: "ghost small", type: "button", onclick: function () {
+        api.post("/disputes/link", { id: d.id, label: label.value, url: url.value }).then(engOk).then(function () { engReload("Link added."); }).catch(engFail);
+      } }, "Add the link")));
+    if (d.mine) box.appendChild(h("button", { class: "ghost small", type: "button", style: "margin-top:8px", onclick: function () {
+      if (!confirm("Withdraw the dispute? The engagement goes on and the milestone goes back to normal.")) return;
+      api.post("/disputes/withdraw", { id: d.id }).then(engOk).then(function () { engReload("Withdrawn."); }).catch(engFail);
+    } }, "Withdraw the dispute"));
+    return box;
+  }
+  function disputeAi(d, r, kind, out, use) {
+    D.clear(out); out.appendChild(h("p", { class: "small muted", text: "DELA is reading both sides..." }));
+    api.post("/disputes/ai", { id: d.id, agreement_id: r.agreement.id, kind: kind }).then(engOk).then(function (x) {
+      D.clear(out);
+      var p = h("div", { class: "soft", style: "margin-top:8px" }, D.aiLabel());
+      if (kind === "summary") {
+        p.appendChild(h("p", { text: x.summary }));
+        if ((x.agreed || []).length) p.appendChild(h("div", { class: "small" }, h("b", { text: "You seem to agree on: " }), x.agreed.join("; ")));
+        if ((x.open || []).length) p.appendChild(h("div", { class: "small" }, h("b", { text: "Still open: " }), x.open.join("; ")));
+      } else {
+        p.appendChild(h("p", { text: "Suggested: " + D.money(x.release_cents) + " to the freelancer and " + D.money(x.refund_cents) + " back to the attorney. " + (x.why || "") }));
+        if (use) p.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { use(x); } }, "Use suggestion"));
+      }
+      p.appendChild(h("p", { class: "small muted", text: x.note + (x.credits ? " Used " + x.credits + " DELA action" + (x.credits === 1 ? "" : "s") + "." : "") }));
+      out.appendChild(p);
+    }).catch(function (e) { D.clear(out); engFail(e); });
+  }
+  function disputeOpenForm(r, cs, me) {
+    var ms = h("select", { "aria-label": "Which milestone" }, [h("option", { value: "", text: "Choose" })].concat((r.milestones || []).filter(function (m) { return ["funded", "in_progress", "submitted", "changes_requested"].indexOf(m.status) >= 0; }).map(function (m) { return h("option", { value: m.id, text: m.seq + ". " + m.title + " (" + D.money(m.amount_cents) + ")" }); })));
+    var cat = h("select", { "aria-label": "What went wrong" }, [h("option", { value: "", text: "Choose" })].concat(Object.keys(DISPUTE_CAT).filter(function (k) { return me === "freelancer" ? k !== "not_delivered" && k !== "late" && k !== "quality" : k !== "not_accepted"; }).map(function (k) { return h("option", { value: k, text: DISPUTE_CAT[k] }); })));
+    var wants = h("select", { "aria-label": "What you are asking for" }, me === "attorney"
+      ? [h("option", { value: "refund", text: "A full refund of the milestone" }), h("option", { value: "split", text: "Part back, part to the freelancer" })]
+      : [h("option", { value: "release", text: "The full milestone paid to me" }), h("option", { value: "split", text: "Part to me, part back to the attorney" })]);
+    var part = h("input", { inputmode: "decimal", "aria-label": "Amount to the freelancer ($)", style: "width:140px", placeholder: "0.00" });
+    var partField = field("Amount to the freelancer ($)", part);
+    partField.hidden = true;
+    wants.addEventListener("change", function () { partField.hidden = wants.value !== "split"; });
+    var why = h("textarea", { rows: 3, style: "width:100%", "aria-label": "What happened" });
+    return h("details", null, h("summary", { text: "Open a dispute" }),
+      h("p", { class: "small", text: "The money for that milestone stays held. The other side has " + cs.answer_days + " days to answer. If they never answer, your request is granted after " + cs.notice_days + " days. You can settle it together with an offer at any time; otherwise the Lawfecta Team decides within " + cs.team_days + " business days." }),
+      field("Milestone", ms), field("What went wrong", cat), field("What you are asking for", wants), partField, aiNotice(), field("What happened", why),
+      h("button", { class: "ghost small", type: "button", onclick: function () {
+        api.post("/disputes/open", { id: r.agreement.id, milestone_id: ms.value || null, category: cat.value, wants: wants.value, release_cents: wants.value === "split" ? dollarsToCents(part.value) : null, reason: why.value })
+          .then(engOk).then(function () { engReload("The dispute is open. The other side was asked to answer."); }).catch(engFail);
+      } }, "Open the dispute"));
+  }
+  function cancelPart(a) {
+    var reason = h("input", { "aria-label": "Why cancel", style: "width:100%" });
+    return h("details", null, h("summary", { text: "Cancel the engagement" }),
+      h("p", { class: "small", text: "Before work starts on the first milestone, the attorney is refunded in full, platform fee included. After that, a paid milestone not yet submitted is refunded, accepted milestones stay paid, and the attorney's platform fee is kept. A milestone under review cannot be canceled; open a dispute instead." }),
+      field("Why", reason), h("button", { class: "ghost small", type: "button", onclick: function () {
+        if (!confirm("Cancel this engagement? This cannot be undone.")) return;
+        api.post("/engagements/cancel", { id: a.id, reason: reason.value }).then(engOk).then(function (x) { engReload("Canceled." + (x.refunds ? " " + x.refunds + " paid milestone" + (x.refunds === 1 ? " is" : "s are") + " refunded to the attorney." : "")); }).catch(engFail);
+      } }, "Cancel the engagement"));
+  }
+  function oldDisputeCard(r) {
     var a = r.agreement, c = h("div", { class: "card" }, h("h2", null, D.term("Problems, disputes and canceling", "dispute")));
     var open = (r.disputes || []).filter(function (d) { return d.status === "notice" || d.status === "team_review"; })[0];
     (r.disputes || []).forEach(function (d) {

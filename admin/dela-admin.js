@@ -13,7 +13,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["reviews", "Reviews and bench"], ["agencies", "Agencies"], ["recurring", "Recurring"], ["trials", "Trials"], ["usage", "Usage"], ["team", "Lawfecta Team"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["disputes", "Disputes"], ["reviews", "Reviews and bench"], ["agencies", "Agencies"], ["recurring", "Recurring"], ["trials", "Trials"], ["usage", "Usage"], ["team", "Lawfecta Team"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   var current = "control";
   var mainEl = null;
   var tabsEl = null;
@@ -92,7 +92,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, trials: trialsTab, usage: usageTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, disputes: disputesTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, trials: trialsTab, usage: usageTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // ---------- Guide ----------
@@ -796,6 +796,124 @@
 
   // ---------- Payments (Step 6): money held and paid, human reviews, disputes, chargebacks ----------
   var AGW = { signing: "Waiting for signatures", signed: "Signed", active: "Active", completed: "Complete", canceled: "Canceled", paused: "Paused", draft: "Draft" };
+  // ---------- Step 11: the Disputes tab (docs/briefs/step-11-disputes.md) ----------
+  // The queue (team review first), each case with both sides, links, offers, DELA's check and an AI draft; the team asks,
+  // extends, flags for the lawyer and decides. Money tools: retry a failed refund or payout, release a held payout, lift a pause.
+  var D_CAT = { not_delivered: "Not delivered", late: "Late", not_as_agreed: "Not what was agreed", quality: "Quality", not_accepted: "Payment or acceptance withheld", other: "Other" };
+  var D_KIND = { opening: "Opened", answer: "Answer", note: "Note", question: "Our question", reply: "Answer to our question" };
+  function disputesTab() {
+    api.get("/admin/disputes").then(function (r) {
+      var d = r.data || {}, rep2 = d.report || {}, all = d.disputes || [];
+      var dollars = function (v) { var n = parseFloat(String(v || "").replace(/[$,]/g, "")); return isFinite(n) ? Math.round(n * 100) : null; };
+      var top = h("div", { class: "card" }, h("h2", { text: "Disputes" }),
+        h("p", { class: "small muted", text: "Members settle most disputes themselves with offers; unanswered ones are granted automatically. You decide the rest within " + d.team_days + " business days. Lawfecta is not a court or an arbitrator, and DELA's draft is only a suggestion." }),
+        h("div", { class: "kv" },
+          h("div", null, "Open now", h("b", { text: String(rep2.open || 0) })), h("div", null, "Last 90 days", h("b", { text: String(rep2.last_90_days || 0) })),
+          h("div", null, "Settled by offer", h("b", { text: String(rep2.by_offer || 0) })), h("div", null, "Granted, no answer", h("b", { text: String(rep2.by_auto || 0) })),
+          h("div", null, "Decided by the team", h("b", { text: String(rep2.by_team || 0) })), h("div", null, "Withdrawn", h("b", { text: String(rep2.withdrawn || 0) })),
+          h("div", null, "Released to freelancers", h("b", { text: D.money(rep2.released_cents || 0) })), h("div", null, "Refunded to attorneys", h("b", { text: D.money(rep2.refunded_cents || 0) })),
+          h("div", null, "Average days to close", h("b", { text: rep2.avg_days === null || rep2.avg_days === undefined ? "None yet" : String(rep2.avg_days) }))));
+      function caseCard(x) {
+        var m = x.milestone || {}, live = x.status === "notice" || x.status === "team_review";
+        var st = x.status === "team_review" ? (x.question_open ? "Waiting for an answer to our question" : "Ready for your decision") : x.status === "notice" ? (x.answered_at ? "Members are settling" : "Waiting for an answer") : x.status === "resolved" ? (x.settled_by === "offer" ? "Settled by offer" : x.settled_by === "auto" ? "Granted, no answer" : "Decided") : "Withdrawn";
+        var c = h("div", { class: "card", style: "margin:8px 0", "data-dispute": x.id },
+          h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" }, h("b", { class: "grow", text: x.gig_title + ", milestone " + (m.seq || "") + ". " + (m.title || "") + " (" + D.money(m.amount_cents || 0) + ")" }),
+            h("span", { class: "badge " + (x.status === "team_review" ? "held" : live ? "R" : "off"), text: st }), x.needs_lawyer ? h("span", { class: "badge bad", text: "Needs the lawyer" }) : null, x.chargeback_open ? h("span", { class: "badge bad", text: "Bank chargeback open" }) : null),
+          h("p", { class: "small", text: "Attorney: " + (x.attorney || "") + ". Freelancer: " + (x.freelancer || "") + ". Opened by the " + x.opened_by_role + " on " + D.date(x.created_at) + ": " + (D_CAT[x.category] || "Problem") + "." +
+            (x.wants_release_cents !== null && x.wants_release_cents !== undefined ? " Asks for " + D.money(x.wants_release_cents) + " to the freelancer." : "") }),
+          h("p", { class: "small muted", text: x.status === "notice" ? "Notice period ends " + D.dateTime(x.notice_ends_at) + (x.answered_at ? "." : ". No answer yet: the request is granted then unless the other side answers.") : x.status === "team_review" ? "Decide by " + D.date(x.review_due_at) + "." : x.status === "resolved" ? D.money(x.release_cents || 0) + " to the freelancer, " + D.money(x.refund_cents || 0) + " back to the attorney, " + D.date(x.resolved_at) + "." : "" }));
+        if (m.deliverables) c.appendChild(h("p", { class: "small", text: "Agreed deliverables: " + m.deliverables + (m.due_date ? " (due " + m.due_date + ")" : "") }));
+        if (x.check) c.appendChild(h("p", { class: "small", text: "DELA's milestone check: " + x.check.status + (x.check.score !== null && x.check.score !== undefined ? ", score " + x.check.score : "") + (x.check.statement ? ". Delivery note: " + x.check.statement : "") }));
+        (x.statements || []).forEach(function (s2) { c.appendChild(h("div", { class: "msg", style: "margin:6px 0" }, h("div", { class: "small muted", text: (s2.role === "team" ? "Lawfecta Team to the " + s2.to_role : "The " + s2.role) + " | " + (D_KIND[s2.kind] || s2.kind) + " | " + D.dateTime(s2.at) }), h("div", { text: s2.body }))); });
+        if ((x.evidence || []).length) c.appendChild(h("ul", { class: "small" }, x.evidence.map(function (e) { return h("li", null, "The " + e.role + ": ", h("a", { href: e.url, target: "_blank", rel: "noopener noreferrer", text: e.label })); })));
+        if ((x.offers || []).length) c.appendChild(h("ul", { class: "small" }, x.offers.map(function (o) { return h("li", { text: "The " + o.from_role + " offered " + D.money(o.release_cents) + " to the freelancer (" + o.status + ")" }); })));
+        if (!live) return c;
+        // Decide (presets, the AI draft, the note both members see)
+        var rel = h("input", { inputmode: "decimal", "aria-label": "To the freelancer ($)", style: "width:130px" }), back = h("span", { class: "small muted" });
+        var note = h("textarea", { rows: 3, style: "width:100%", "aria-label": "Decision and reasons (both members see this)" });
+        var showBack = function () { var c2 = dollars(rel.value); back.textContent = c2 === null ? "" : "and " + D.money(Math.max((m.amount_cents || 0) - c2, 0)) + " back to the attorney"; };
+        rel.addEventListener("input", showBack);
+        var set = function (cents) { rel.value = (cents / 100).toFixed(2); showBack(); };
+        var lastOffer = function (role) { var o = (x.offers || []).filter(function (y) { return y.from_role === role; }).slice(-1)[0]; return o ? o.release_cents : null; };
+        var presets = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" },
+          h("button", { class: "ghost small", type: "button", onclick: function () { set(m.amount_cents || 0); } }, "All to the freelancer"),
+          h("button", { class: "ghost small", type: "button", onclick: function () { set(0); } }, "All back to the attorney"),
+          h("button", { class: "ghost small", type: "button", onclick: function () { set(Math.round((m.amount_cents || 0) / 2)); } }, "Half each"),
+          lastOffer("attorney") !== null ? h("button", { class: "ghost small", type: "button", onclick: function () { set(lastOffer("attorney")); } }, "The attorney's last offer") : null,
+          lastOffer("freelancer") !== null ? h("button", { class: "ghost small", type: "button", onclick: function () { set(lastOffer("freelancer")); } }, "The freelancer's last offer") : null);
+        var draftOut = h("div");
+        var draftBtn = h("button", { class: "ghost small", type: "button", onclick: function () {
+          D.clear(draftOut); draftOut.appendChild(h("p", { class: "small muted", text: "DELA is drafting..." }));
+          api.post("/admin/disputes/draft", { id: x.id }).then(function (y) {
+            D.clear(draftOut);
+            if (!y.data.ok) throw new Error(y.data.reason === "ai_off" ? "Lawfecta's AI key is not set up." : y.data.reason);
+            var g = y.data;
+            draftOut.appendChild(h("div", { class: "soft", style: "margin:6px 0" }, D.aiLabel(), h("p", { text: g.summary }),
+              (g.terms || []).length ? h("ul", { class: "small" }, g.terms.map(function (t) { return h("li", { text: t }); })) : null,
+              h("p", { class: "small", text: "Suggested: " + D.money(g.release_cents) + " to the freelancer, " + D.money(g.refund_cents) + " back. " + (g.why || "") }),
+              h("button", { class: "ghost small", type: "button", onclick: function () { set(g.release_cents); note.value = g.note || ""; } }, "Use this draft"),
+              h("p", { class: "small muted", text: g.note_ai })));
+          }).catch(function (e) { D.clear(draftOut); fail(e); });
+        } }, "✦ Draft with DELA");
+        c.appendChild(h("details", { open: x.status === "team_review" && !x.question_open }, h("summary", { text: "Decide" }),
+          x.status === "notice" ? h("p", { class: "small notice", text: "The notice period is not over. You can decide after " + D.dateTime(x.notice_ends_at) + "." } ) : null,
+          presets, draftBtn, draftOut, h("div", { class: "row", style: "flex-wrap:wrap;gap:8px;align-items:center" }, h("label", null, "To the freelancer ($)", rel), back), note,
+          h("button", { class: "blue small", type: "button", onclick: function () {
+            var c2 = dollars(rel.value);
+            if (c2 === null) { fail(new Error("Type the amount to the freelancer.")); return; }
+            if (!confirm("Decide this dispute? " + D.money(c2) + " goes to the freelancer and " + D.money((m.amount_cents || 0) - c2) + " back to the attorney, through Stripe straight away.")) return;
+            api.post("/admin/disputes/resolve", { id: x.id, release_cents: c2, refund_cents: (m.amount_cents || 0) - c2, note: note.value }).then(function (y) {
+              if (!y.data.ok) throw new Error(y.data.reason === "notice_not_over" ? "The notice period is not over yet" : y.data.reason === "say_why" ? "Write the decision and reasons" : y.data.reason === "chargeback_open" ? "A bank chargeback is open on this engagement" : y.data.reason);
+              ok("Decided. Both members were told and the money moves."); disputesTab();
+            }).catch(fail);
+          } }, "Decide")));
+        // Ask a question, extend, needs the lawyer
+        var to = h("select", { "aria-label": "Ask whom" }, [["both", "Both"], ["attorney", "The attorney"], ["freelancer", "The freelancer"]].map(function (o) { return h("option", { value: o[0], text: o[1] }); }));
+        var q = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Your question" });
+        var days = h("input", { type: "number", min: "1", max: "14", value: "7", "aria-label": "More days", style: "width:80px" });
+        c.appendChild(h("details", null, h("summary", { text: "Ask a question, give more time, or flag for the lawyer" }),
+          h("label", null, "Ask whom", to), q, h("button", { class: "ghost small", type: "button", onclick: function () {
+            api.post("/admin/disputes/ask", { id: x.id, to: to.value, body: q.value }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason); ok("Asked. The decision clock waits for the answer."); disputesTab(); }).catch(fail);
+          } }, "Send the question"),
+          x.status === "notice" && !x.extended ? h("div", { class: "row", style: "margin-top:8px;gap:8px;align-items:center" }, h("label", null, "More days to settle (once)", days), h("button", { class: "ghost small", type: "button", onclick: function () {
+            api.post("/admin/disputes/extend", { id: x.id, days: Number(days.value) }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason); ok("More time given. Both members were told."); disputesTab(); }).catch(fail);
+          } }, "Give more time")) : null,
+          h("button", { class: "ghost small", type: "button", style: "margin-top:8px", onclick: function () {
+            api.post("/admin/disputes/lawyer", { id: x.id, on: !x.needs_lawyer }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason); disputesTab(); }).catch(fail);
+          } }, x.needs_lawyer ? "Clear the lawyer flag" : "Flag: needs the lawyer")));
+        return c;
+      }
+      var openC = h("div", { class: "card" }, h("h2", { text: "Open disputes (" + all.filter(function (x) { return x.status === "notice" || x.status === "team_review"; }).length + ")" }));
+      var doneC = h("div", { class: "card" }, h("h2", { text: "Closed in the last 90 days" }));
+      all.forEach(function (x) { ((x.status === "notice" || x.status === "team_review") ? openC : doneC).appendChild(caseCard(x)); });
+      if (!openC.querySelector("[data-dispute]")) openC.appendChild(h("p", { class: "muted", text: "No open disputes." }));
+      if (!doneC.querySelector("[data-dispute]")) doneC.appendChild(h("p", { class: "muted", text: "None." }));
+      // Money tools (finance)
+      var tools = h("div", { class: "card" }, h("h2", { text: "Money tools" }), h("p", { class: "small muted", text: "Failed refunds and payouts are retried every day, 3 times, then listed here. Only the finance role can use these." }));
+      (d.refunds_failed || []).forEach(function (x) {
+        tools.appendChild(h("div", { class: "row small", style: "gap:8px;flex-wrap:wrap;margin:4px 0" }, h("span", { class: "grow", text: "Refund failed: " + D.money(x.amount_cents) + ", " + x.gig_title + " (" + x.retries + " retries)" }),
+          h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/admin/money/retry", { kind: "refund", id: x.id }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason); ok("Sent to Stripe again."); disputesTab(); }).catch(fail); } }, "Retry now")));
+      });
+      (d.payouts_waiting || []).forEach(function (x) {
+        tools.appendChild(h("div", { class: "row small", style: "gap:8px;flex-wrap:wrap;margin:4px 0" }, h("span", { class: "grow", text: (x.status === "failed" ? "Payout failed: " : "Payout held: ") + D.money(x.amount_cents) + " to " + x.freelancer + ", " + x.gig_title + (x.reason === "payout_account" ? " (waiting for the freelancer's payout setup)" : x.reason ? " (" + x.reason + ")" : "") }),
+          x.status === "failed" ? h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/admin/money/retry", { kind: "payout", id: x.id }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason); ok("Sent to Stripe again."); disputesTab(); }).catch(fail); } }, "Retry now")
+            : h("button", { class: "ghost small", type: "button", onclick: function () {
+              var why = prompt("Why release this payout now?"); if (!why) return;
+              api.post("/admin/payouts/release", { id: x.id, note: why }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason === "payout_account_not_ready" ? "The freelancer's payout setup is not ready yet" : y.data.reason === "in_dispute" ? "That milestone is in dispute" : y.data.reason); ok("Released."); disputesTab(); }).catch(fail);
+            } }, "Release now")));
+      });
+      (d.paused || []).forEach(function (x) {
+        tools.appendChild(h("div", { class: "row small", style: "gap:8px;flex-wrap:wrap;margin:4px 0" }, h("span", { class: "grow", text: "Paused since " + D.date(x.since) + ": " + x.gig_title + (x.chargeback_open ? " (bank chargeback still open)" : "") }),
+          x.chargeback_open ? null : h("button", { class: "ghost small", type: "button", onclick: function () {
+            var why = prompt("Why lift the pause?"); if (!why) return;
+            api.post("/admin/engagements/unpause", { id: x.agreement_id, note: why }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason); ok("The engagement is running again. Both members were told."); disputesTab(); }).catch(fail);
+          } }, "Lift the pause")));
+      });
+      if (!(d.refunds_failed || []).length && !(d.payouts_waiting || []).length && !(d.paused || []).length) tools.appendChild(h("p", { class: "muted", text: "Nothing waiting." }));
+      body(h("div", null, top, openC, doneC, tools));
+    }).catch(fail);
+  }
+
   function payTab() {
     api.get("/admin/payments").then(function (r) {
       var d = r.data, t = d.totals || {}, sw = d.switches || {};
@@ -822,7 +940,9 @@
             h("button", { class: "blue small", type: "button", onclick: function () { api.post("/admin/submissions/decide", { id: x.id, pass: true, note: note.value }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason); ok("Sent to the attorney for review"); payTab(); }).catch(fail); } }, "Passes: send to the attorney"),
             h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/admin/submissions/decide", { id: x.id, pass: false, note: note.value }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason); ok("Sent back to the freelancer"); payTab(); }).catch(fail); } }, "Needs more work")));
       });
-      var disputes = list("Disputes", d.disputes || [], "No open disputes.", function (x) {
+      var disputes = h("div", { class: "card" }, h("h2", { text: "Disputes (" + (d.disputes || []).length + ")" }), h("p", { class: "small", text: (d.disputes || []).length ? "Open disputes are in the Disputes tab, with both sides, offers and the decision." : "No open disputes." }),
+        h("button", { class: "ghost small", type: "button", onclick: function () { go("disputes"); } }, "Open the Disputes tab"));
+      var oldDisputes = list("Disputes", d.disputes || [], "No open disputes.", function (x) {
         var rel = h("input", { type: "number", min: "0", step: "0.01", "aria-label": "To the freelancer ($)" }), ref = h("input", { type: "number", min: "0", step: "0.01", "aria-label": "Back to the attorney ($)" });
         var note = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Decision and reasons (both members see this)" });
         var cents = function (v) { return Math.round(Number(v || 0) * 100); };
