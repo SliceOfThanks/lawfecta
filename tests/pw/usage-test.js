@@ -123,12 +123,12 @@ const ATT = 4200, TEAM = 4201;
     // ---------- Step 9: the Trials tab (the Pro trial check, Dry run until the BD endpoints are connected) ----------
     await dela(p).getByRole("tab", { name: "Trials", exact: true }).click();
     t = await waitFor(p, "Pro trial check");
-    ok(t.includes("Trial downgrade mode: Dry run") && t.includes("Attorney plans (5, 12, 13, 14) and the lifetime plans (10, 11) are never changed"), "the Trials tab shows the mode and the never-changed plans");
+    ok(t.includes("Trial downgrade mode: Dry run") && t.includes("Plans 5, 10, 11, 12, 13, 14 are never changed") && t.includes("at 2:00 AM Pacific"), "the Trials tab shows the mode and the never-changed plans");
     await dela(p).getByRole("button", { name: "Run the check now (Dry run)" }).click();
     t = await waitFor(p, "BD not connected yet", 10000);
     ok(t.includes("Run now") && t.includes("Dry run"), "a run on demand is logged, and says BD is not connected yet");
     await dela(p).getByRole("button", { name: "Switch to Live" }).click();
-    t = await waitFor(p, "Trial downgrade mode: Live", 10000);
+    t = await waitFor(p, "Trial downgrade mode: Live (lists only while the daily check is off)", 10000);
     ok((await sql("select value #>> '{}' v from settings where key = 'trial.downgrade_mode'"))[0].v === "live", "Switch to Live changes the Trial downgrade mode setting");
     await dela(p).getByRole("button", { name: "Switch to Dry run" }).click();
     await waitFor(p, "Trial downgrade mode: Dry run", 10000);

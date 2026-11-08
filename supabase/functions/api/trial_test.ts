@@ -46,6 +46,9 @@ Deno.test("the two emails use the developer notes' words and button", () => {
   const a = trialEmail("ending", "Rita", "https://www.hirelegalhelp.com/", "staging");
   assertEquals([a.subject, a.button, a.url], ["[Test site] Your Pro trial ends in 2 days", "Keep Pro", "https://www.hirelegalhelp.com/account/upgrade"]);
   assert(a.text.startsWith("Hi Rita, your free week of Lawfecta Pro ends in 2 days. Keep your stronger placement in DELA Member Match"));
+  // Fix (AI review 0.10.0, payments 3): the reminder says the number of days the setting uses
+  assertEquals(trialEmail("ending", "Rita", "https://www.lawfecta.com", "live", 3).subject, "Your Pro trial ends in 3 days");
+  assertEquals(trialEmail("ending", "Rita", "https://www.lawfecta.com", "live", 1).subject, "Your Pro trial ends in 1 day");
   const b = trialEmail("ended", "Rita", "https://www.lawfecta.com", "live");
   assertEquals([b.subject, b.button], ["Your Pro trial has ended", "Upgrade to Pro"]);
   assert(b.text.includes("Your videos, promotions and extra areas of law are saved and come back as soon as you upgrade."));

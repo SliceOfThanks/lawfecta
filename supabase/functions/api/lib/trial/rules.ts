@@ -88,14 +88,16 @@ export function areasToHide(areas: string[], keep: number): { keep: string[]; hi
 }
 
 // The two emails, worded exactly as in Stacey's developer notes (2026-11-06)
-export function trialEmail(kind: "ending" | "ended", firstName: string, siteUrl: string, environment: string) {
+// days: the trial.reminder_days setting (AI review 0.10.0, payments 3); at 2 the words are exactly the developer notes'
+export function trialEmail(kind: "ending" | "ended", firstName: string, siteUrl: string, environment: string, days = 2) {
+  const inDays = days === 1 ? "1 day" : days + " days";
   const name = (firstName || "there").trim();
   const url = siteUrl.replace(/\/+$/, "") + "/account/upgrade";
   const prefix = environment === "live" ? "" : "[Test site] ";
   const t = kind === "ending"
     ? {
-      subject: "Your Pro trial ends in 2 days",
-      body: `Hi ${name}, your free week of Lawfecta Pro ends in 2 days. Keep your stronger placement in DELA Member Match, your AI growth assistant, and your services and promotions by adding a payment method today. If you do nothing, your account moves to our Free plan and your profile stays live.`,
+      subject: `Your Pro trial ends in ${inDays}`,
+      body: `Hi ${name}, your free week of Lawfecta Pro ends in ${inDays}. Keep your stronger placement in DELA Member Match, your AI growth assistant, and your services and promotions by adding a payment method today. If you do nothing, your account moves to our Free plan and your profile stays live.`,
       button: "Keep Pro",
     }
     : {

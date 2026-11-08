@@ -74,3 +74,24 @@ do $$ declare f record; begin
     execute format('alter function %s set search_path = public, extensions, pg_temp', f.sig);
   end loop;
 end $$;
+
+-- Payments 6: the post types Free loses are a setting, and the Trials tab reads the plan numbers, the run hour and the
+-- reminder days from settings instead of repeating them as text
+insert into settings (key, value, label, section, unit, status, source, note) values
+  ('trial.free_hidden_types', '["video", "promotion", "article"]', 'Post types hidden when a trial member moves to Free', 'Trials', 'BD post types', 'C', 'Developer notes 2026-11-06', 'Videos, Promotions and Community Articles are unpublished at the downgrade, never deleted (AI review 0.10.0, payments 6: a setting, not code).')
+on conflict (key) do nothing;
+
+create or replace function dela_trial_settings() returns jsonb language sql stable as $$
+  select jsonb_build_object('on', dela_switch_on('bd_trial_downgrade', null),
+    'mode', dela_setting_text('trial.downgrade_mode', 'dry_run'),
+    'days', dela_int_setting('trial.days', 7), 'reminder_days', dela_int_setting('trial.reminder_days', 2),
+    'run_hour', dela_int_setting('trial.run_hour', 2),
+    'eligible_from', dela_setting_text('trial.eligible_from', ''), 'free_areas', dela_int_setting('trial.free_areas', 3),
+    'plans', coalesce(dela_setting('trial.bd_plans'), '{"pro": 8, "free": 3, "plus": 7, "agency": 9, "trial": [7, 8], "never": [5, 10, 11, 12, 13, 14]}'),
+    'allowances', coalesce(dela_setting('trial.allowances'), '{}'),
+    'free_hidden_types', coalesce(dela_setting('trial.free_hidden_types'), '["video", "promotion", "article"]'),
+    'summary_to', dela_setting_text('trial.summary_to', ''),
+    'site_url', dela_setting_text('site.url', ''), 'environment', dela_setting_text('environment', 'staging'),
+    'sender', dela_setting_text('email.sender', 'log'), 'from_name', dela_setting_text('email.from_name', 'Lawfecta DELA'), 'from_address', dela_setting_text('email.from_address', ''))
+$$;
+alter function dela_trial_settings() set search_path = public, extensions, pg_temp;

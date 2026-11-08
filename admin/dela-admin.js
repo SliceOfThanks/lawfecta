@@ -958,11 +958,11 @@
 
   // Step 9: the Pro trial check (docs/briefs/step-9-pro-trial-downgrade.md). The mode, a run on demand, the run log and
   // every member the last 3 runs would change (Dry run) or changed (Live). Dry run changes nothing in BD or by email.
-  var TRIAL_ACTION = { track: "Start tracking the trial", remind: "Send \"Your Pro trial ends in 2 days\"", convert: "Mark converted", downgrade: "Move to Free", restore: "Bring back hidden content", error: "Could not check" };
-  var TRIAL_WHY = { new_pro_signup: "New signup on Pro", ends_soon: "Trial ends within 2 days", paid_pro: "Paid Pro invoice", paid_plus: "Paid Plus invoice", upgraded_to_agency: "Upgraded to Agency Business",
+  var TRIAL_ACTION = { track: "Start tracking the trial", remind: "Send the \"Your Pro trial ends soon\" email", convert: "Mark converted", downgrade: "Move to Free", restore: "Bring back hidden content", error: "Could not check" };
+  var TRIAL_WHY = { new_pro_signup: "New signup on Pro", ends_soon: "Trial ends soon (the reminder setting)", paid_pro: "Paid Pro invoice", paid_plus: "Paid Plus invoice", upgraded_to_agency: "Upgraded to Agency Business",
     trial_ended_unpaid: "Trial ended, Pro invoice not paid", plus_unpaid_at_trial_end: "Trial ended, moved to Plus but the Plus invoice is not paid", finishing_downgrade: "Finishing a downgrade that stopped halfway",
     upgraded_after_downgrade: "Upgraded after the downgrade", read_failed: "BD could not be read" };
-  var TRIAL_HOW = { daily: "Daily, 2:00 AM", manual: "Run now", login: "At sign-in" };
+  var TRIAL_HOW = { daily: "Daily", manual: "Run now", login: "At sign-in" };
   function trialsTab() {
     var el = h("div", { class: "card", id: "admin-trials" }, h("h2", { text: "Pro trial check" }), h("p", { class: "muted", text: "Loading..." }));
     body(el);
@@ -970,11 +970,13 @@
       var d = r.data || r, cfg = d.settings || {}, live = cfg.mode === "live", runs = d.runs || [];
       D.clear(el);
       el.appendChild(h("h2", { text: "Pro trial check" }));
-      el.appendChild(h("p", { class: "small muted", text: "Every day at 2:00 AM Pacific, DELA checks freelancers on Plus (7) or Pro (8) whose trial is active. An unpaid trial moves to Free (3); a paid invoice for the plan they are on marks them converted. Attorney plans (5, 12, 13, 14) and the lifetime plans (10, 11) are never changed. Dry run lists what it would do and changes nothing." }));
+      // The rule in words, from the settings (AI review 0.10.0, payments 6)
+      var pl = cfg.plans || {}, hour = Number(cfg.run_hour), at = hour === 0 ? "12:00 AM" : hour < 12 ? hour + ":00 AM" : hour === 12 ? "12:00 PM" : (hour - 12) + ":00 PM";
+      el.appendChild(h("p", { class: "small muted", text: "Every day at " + at + " Pacific, DELA checks freelancers on plans " + (pl.trial || []).join(" or ") + " whose trial is active. An unpaid trial moves to Free (" + pl.free + "); a paid invoice for the plan they are on marks them converted. Plans " + (pl.never || []).join(", ") + " are never changed (the attorney and lifetime plans). Dry run lists what it would do and changes nothing." }));
       var notConnected = runs.some(function (x) { return String(x.error || "").indexOf("bd_trial_api_not_confirmed") >= 0; });
       el.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;gap:8px;margin:6px 0" },
         h("span", { class: "badge " + (cfg.on ? "ready" : "C"), text: cfg.on ? "Daily check: on" : "Daily check: off (switch bd_trial_downgrade)" }),
-        h("span", { class: "badge " + (live ? "bad" : "ready"), id: "trial-mode", text: "Trial downgrade mode: " + (live ? "Live" : "Dry run") }),
+        h("span", { class: "badge " + (live ? "bad" : "ready"), id: "trial-mode", text: "Trial downgrade mode: " + (live ? "Live" : "Dry run") + (live && !cfg.on ? " (lists only while the daily check is off)" : "") }),
         notConnected ? h("span", { class: "badge held", text: "BD not connected yet: waiting for the BD check" }) : null));
       var runBtn = h("button", { class: "blue small", type: "button" }, live ? "Run the check now (Live: changes BD)" : "Run the check now (Dry run)");
       runBtn.addEventListener("click", function () {

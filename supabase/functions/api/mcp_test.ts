@@ -233,6 +233,13 @@ Deno.test("tools refuse client information, another firm's playbook and unknown 
   const ci = await tool(access, "save_playbook_draft", { title: "Intake for client SSN 123-45-6789", steps: [{ text: "Call them" }] });
   assertEquals(ci.isError, true);
   assert(ci.content[0].text.includes("client information"));
+  // Fix (AI review 0.10.0, privacy 5): with the sensitive data rule on, health words are refused, not let through
+  await pool.query("update feature_switches set state = 'everyone' where key = 'client_details_allowed'");
+  try {
+    const hw = await tool(access, "save_playbook_draft", { title: "Patient intake", steps: [{ text: "Summarize the diagnosis in the medical records" }] });
+    assertEquals(hw.isError, true, JSON.stringify(hw));
+    assert(hw.content[0].text.includes("health information"), hw.content[0].text);
+  } finally { await pool.query("update feature_switches set state = 'off' where key = 'client_details_allowed'"); }
   const otherOrg = (await pool.query("select dela_side_org($1, 'attorney') o", [other.id])).rows[0].o;
   const otherPb = (await call("POST", "/playbooks/create", other.token, { title: "Other firm's process", org_id: otherOrg, request_id: crypto.randomUUID() })).body;
   assert(otherPb.ok, JSON.stringify(otherPb));
@@ -241,7 +248,7 @@ Deno.test("tools refuse client information, another firm's playbook and unknown 
   const no = await mcp(access, "tools/call", { name: "delete_everything", arguments: {} });
   assertEquals(no.body.error.code, -32602);
   const failed = (await pool.query("select count(*)::int n from mcp_calls c join mcp_connections m on m.id = c.connection_id where m.person_id = $1 and not c.ok", [att.id])).rows[0].n;
-  assertEquals(failed, 2);
+  assertEquals(failed, 3, "the client information, the health words and the other firm's playbook");
 });
 
 Deno.test("refresh: a new token each time; the old refresh token stops working", async () => {

@@ -5,7 +5,7 @@ import { areasToHide, decide, invoiceStatus, type TrialMember, type TrialSetting
 import { HIDDEN_ON_FREE, type Res, type TrialBd, type TrialCandidate } from "./bd.ts";
 
 export type Allowance = { areas: number | null; types: string[] };   // areas: null = no limit; types: post types the plan may show
-export type RunSettings = TrialSettings & { allowances: Record<string, Allowance>; freeAreas: number };
+export type RunSettings = TrialSettings & { allowances: Record<string, Allowance>; freeAreas: number; hiddenTypes?: string[] };
 
 export type Kept = { steps: Record<string, string>; reminded_at: string | null; hidden: { posts: string[]; areas: string[] }; from_plan: number | null };
 
@@ -115,7 +115,7 @@ async function hide(d: RunDeps, c: TrialCandidate): Promise<Res<true>> {
   if (!posts.ok) return posts;
   const kept = (await d.store.member(c.user_id))?.hidden ?? { posts: [], areas: [] };
   const hiddenPosts = [...kept.posts];
-  for (const x of posts.data.filter((x) => x.published && HIDDEN_ON_FREE.includes(x.type))) {
+  for (const x of posts.data.filter((x) => x.published && (d.settings.hiddenTypes ?? HIDDEN_ON_FREE).includes(x.type))) {
     const r = await d.bd.setPublished(x.id, false);
     if (!r.ok) return r;
     if (!hiddenPosts.includes(x.id)) hiddenPosts.push(x.id);
@@ -134,7 +134,7 @@ async function hide(d: RunDeps, c: TrialCandidate): Promise<Res<true>> {
 
 // After an upgrade: bring back what the new plan allows (setting trial.allowances); anything still not allowed stays saved
 async function restore(d: RunDeps, c: TrialCandidate, kept: Kept): Promise<string | null> {
-  const allow = d.settings.allowances[String(c.plan_id)] ?? { areas: null, types: HIDDEN_ON_FREE };
+  const allow = d.settings.allowances[String(c.plan_id)] ?? { areas: null, types: d.settings.hiddenTypes ?? HIDDEN_ON_FREE };
   const posts = await d.bd.posts(c.user_id);
   if (!posts.ok) return "posts: " + posts.error;
   const stillHidden: string[] = [];

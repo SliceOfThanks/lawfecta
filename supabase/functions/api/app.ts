@@ -3759,6 +3759,9 @@ async function mcpSensitive(ctx: Ctx, w: { person_id: string; side: string }, te
   if (r.reason === "sensitive_data") throw new ToolError(String(r.message));
   if (!r.rule) throw new ToolError("This looks like it includes client information. DELA does not accept client names, case numbers or similar details.");
   if (r.rule === "public") throw new ToolError(String(r.note));
+  // Fix (AI review 0.10.0, privacy 5): ChatGPT and Claude cannot ask "are you sure?", so health and biometric words,
+  // which only get a reminder on screen, are refused here
+  if (r.rule === "maybe_sensitive") throw new ToolError("This may include health information or biometric data. That is sensitive data, which never goes in DELA. Remove it and try again; keep it in your own storage.");
 }
 
 type McpWho = { connection_id: string; person_id: string; side: "attorney" | "freelancer"; bd_member_id: number; name: string; on_hold: boolean; write_actions: boolean };
@@ -4646,7 +4649,7 @@ function trialMailer(ctx: Ctx, cfg: TrialCfg) {
   return async (kind: "ending" | "ended", c: TrialCandidate) => {
     if (!c.email) return { ok: false as const, error: "no_email" };
     const provider = pickProvider(cfg.sender);
-    const m = trialEmail(kind, c.first_name, String(cfg.site_url ?? ""), String(cfg.environment ?? "staging"));
+    const m = trialEmail(kind, c.first_name, String(cfg.site_url ?? ""), String(cfg.environment ?? "staging"), Number(cfg.reminder_days) || 2);
     const r = await provider.send({ from: { name: cfg.from_name, email: cfg.from_address }, to: { email: c.email, name: [c.first_name, c.last_name].join(" ").trim() || undefined },
       subject: m.subject, html: m.html, text: m.text, tags: [String(cfg.environment), "trial_" + kind] }, provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl: cfg.site_url });
     return r.ok ? { ok: true as const, data: true as const } : { ok: false as const, error: r.error };
@@ -4657,7 +4660,7 @@ function trialDeps(ctx: Ctx, cfg: TrialCfg, runId: string): RunDeps {
     bd: ctx.deps.trialBd ?? notConnected, store: trialStore(ctx), mail: trialMailer(ctx, cfg), now: ctx.deps.now?.() ?? Date.now(),
     mode: cfg.mode === "live" ? "live" : "dry_run", runId,
     settings: { days: Number(cfg.days) || 7, reminderDays: Number(cfg.reminder_days) || 2, eligibleFrom: String(cfg.eligible_from ?? ""), plans: cfg.plans,
-      allowances: (cfg.allowances ?? {}) as Record<string, Allowance>, freeAreas: Number(cfg.free_areas) || 3 },
+      allowances: (cfg.allowances ?? {}) as Record<string, Allowance>, freeAreas: Number(cfg.free_areas) || 3, hiddenTypes: Array.isArray(cfg.free_hidden_types) ? cfg.free_hidden_types.map(String) : undefined },
   };
 }
 // Fix (AI review 0.10.0, security 5): Live only while the switch bd_trial_downgrade is on; with it off, every run is a Dry run

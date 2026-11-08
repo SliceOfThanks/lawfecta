@@ -580,6 +580,19 @@
           "status": "R",
           "source": "Suggested by Claude 2026-11-08",
           "note": "Suggested: everything comes back on Plus, Pro and Agency Business. If Plus allows fewer areas of law or not every post type in BD, change Plus here."
+        },
+        {
+          "key": "trial.free_hidden_types",
+          "label": "Post types hidden when a trial member moves to Free",
+          "value": [
+            "video",
+            "promotion",
+            "article"
+          ],
+          "unit": "BD post types",
+          "status": "C",
+          "source": "Developer notes 2026-11-06",
+          "note": "Videos, Promotions and Community Articles are unpublished at the downgrade, never deleted (AI review 0.10.0, payments 6: a setting, not code)."
         }
       ]
     },
