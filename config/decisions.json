@@ -966,6 +966,64 @@
           "source": "C-22"
         },
         {
+          "key": "dispute.answer_days",
+          "label": "Days the other side has to answer a dispute",
+          "value": 5,
+          "unit": "calendar days",
+          "status": "C",
+          "source": "Stacey 2026-11-08 (step 11 brief)",
+          "note": "A warning goes out on the last day; if there is still no answer the opener's request is granted at the end of the notice period."
+        },
+        {
+          "key": "dispute.reminder_days",
+          "label": "Days of a dispute when both sides are reminded to settle",
+          "value": [
+            7,
+            12
+          ],
+          "unit": "days after opening",
+          "status": "C",
+          "source": "Stacey 2026-11-08 (step 11 brief)"
+        },
+        {
+          "key": "dispute.team_decision_business_days",
+          "label": "Business days for the Lawfecta Team to decide a dispute",
+          "value": 10,
+          "unit": "business days",
+          "status": "R",
+          "source": "Claude 2026-11-08 (step 11 brief)",
+          "note": "Asking a question pauses the clock until it is answered."
+        },
+        {
+          "key": "dispute.auto_grant_unanswered",
+          "label": "Grant the opener's request when the other side never answers",
+          "value": true,
+          "unit": "on or off",
+          "status": "C",
+          "source": "Stacey 2026-11-08 (step 11 brief)"
+        },
+        {
+          "key": "dispute.refund_attorney_fee",
+          "label": "Refund the attorney's platform fee when a dispute sends money back",
+          "value": false,
+          "unit": "on or off",
+          "status": "C",
+          "source": "Stacey 2026-11-08 (step 11 brief)",
+          "note": "Only the milestone amount is refunded; the freelancer fee applies only to the part released."
+        },
+        {
+          "key": "dispute.repeat_loss_hold",
+          "label": "Lost disputes that place a review hold on a member",
+          "value": {
+            "count": 3,
+            "months": 12
+          },
+          "unit": "lost disputes within months",
+          "status": "R",
+          "source": "Claude 2026-11-08 (step 11 brief)",
+          "note": "The hold blocks new engagements until the Lawfecta Team releases it."
+        },
+        {
           "key": "protection.freelancer_payment",
           "label": "Lawfecta-funded freelancer protection",
           "value": false,
@@ -1460,6 +1518,11 @@
       "key": "admin_acceptance_timeout",
       "label": "Automatic milestone acceptance after 7 silent days",
       "gate": "G-CONTRACT and G-REVIEW"
+    },
+    {
+      "key": "dispute_center",
+      "label": "Dispute case view, settlement offers and automatic outcomes (step 11)",
+      "gate": "G-CONTRACT (terms clause 6 reviewed by the lawyer)"
     },
     {
       "key": "recurring_engagements",

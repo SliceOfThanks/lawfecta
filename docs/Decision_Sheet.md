@@ -171,6 +171,12 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | After a first lost chargeback | manual reinstatement review | Confirmed | C-19 | |
 | After a second verified chargeback. Counting rules need a lawyer. | termination review | Needs a gate | C-20 | |
 | Dispute notice period | 14 calendar days | Confirmed | C-22 | |
+| Days the other side has to answer a dispute. A warning goes out on the last day; if there is still no answer the opener's request is granted at the end of the notice period. | 5 calendar days | Confirmed | Stacey 2026-11-08 (step 11 brief) | |
+| Days of a dispute when both sides are reminded to settle | 7, 12 | Confirmed | Stacey 2026-11-08 (step 11 brief) | |
+| Business days for the Lawfecta Team to decide a dispute. Asking a question pauses the clock until it is answered. | 10 business days | Suggested | Claude 2026-11-08 (step 11 brief) | |
+| Grant the opener's request when the other side never answers | Yes | Confirmed | Stacey 2026-11-08 (step 11 brief) | |
+| Refund the attorney's platform fee when a dispute sends money back. Only the milestone amount is refunded; the freelancer fee applies only to the part released. | No | Confirmed | Stacey 2026-11-08 (step 11 brief) | |
+| Lost disputes that place a review hold on a member. The hold blocks new engagements until the Lawfecta Team releases it. | {'count': 3, 'months': 12} lost disputes within months | Suggested | Claude 2026-11-08 (step 11 brief) | |
 | Lawfecta-funded freelancer protection | No | Confirmed | C-21 | |
 
 ## 9. Platform rules decided by Stacey
@@ -260,6 +266,7 @@ Every switch starts Off. In the admin area each one can be set to Off, Lawfecta 
 | Use transcripts to improve DELA | Separate opt-in and legal review |
 | Free consultation export after a verified meeting | O-08 |
 | Automatic milestone acceptance after 7 silent days | G-CONTRACT and G-REVIEW |
+| Dispute case view, settlement offers and automatic outcomes (step 11) | G-CONTRACT (terms clause 6 reviewed by the lawyer) |
 | Monthly recurring engagements | Step 6 |
 | Limited automatic repeat hiring | O-05, all hard gates |
 | Member webhooks | Step 7 |
