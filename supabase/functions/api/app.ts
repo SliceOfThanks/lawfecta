@@ -31,6 +31,7 @@ import { blocks as docBlocks, looksLikeJudgment, attorneyRoles, carryImages, ima
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
 import { clean, HELPER_SIDE, HELPER_SYSTEM, HELPERS, NOT_LEGAL, readCompare, readCriteria, readExplain, readFindings, readFirm, readFit, type HelperKey } from "./lib/helpers/model.ts";
 import { AUTOMATE_SYSTEM, defaultKpis, delegatedSop, FREQUENCIES, hoursSaved, promptFor, readKpis, readRecommendations, setupSteps, suggestBudget, timeInputs, type AllowedTool, type Frequency, type Recommendation } from "./lib/automate/model.ts";
+import { casePrompt, DISPUTE_NOTE, DRAFT_SYSTEM as DISPUTE_DRAFT_SYSTEM, readDraft, readSuggest, readSummary, SUGGEST_SYSTEM, SUMMARY_SYSTEM, type CaseFacts } from "./lib/disputes/ai.ts";
 import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
 import { FORM_LIMITS } from "./lib/limits.ts";
 import { notConnected, type TrialBd, type TrialCandidate } from "./lib/trial/bd.ts";
@@ -3486,8 +3487,75 @@ async function stripeWebhook(ctx: Ctx) {
 
 // Every day: the database closes unsigned agreements and flags long-held money; the api sends queued payouts and refunds and
 // matches each recent payment with Stripe's own record
+// ---------- Step 11: the dispute center (docs/briefs/step-11-disputes.md) ----------
+// Every member action re-checks the person's role on the agreement in SQL at the moment it runs. Text goes through the
+// client information check; links must be https. An accepted offer moves the money at once.
+async function disputeAction(ctx: Ctx, route: string) {
+  const s = await memberSide(ctx);
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "dispute_center", p_person: s.person_id })) return { ok: false, reason: "dispute_center_off" };
+  const id = uuid(ctx.body.id);
+  if (route === "POST /disputes/say") {
+    const body = str(ctx.body.body, 4000);
+    const w = await sensitive(ctx, s, body, "conversation", { signed: true });
+    if (w) return w;
+    return await rpc(ctx, "dela_dispute_say", { p_person: s.person_id, p_side: s.side, p_dispute: need(id), p_body: body, p_wants: str(ctx.body.wants, 10), p_release: int(ctx.body.release_cents) });
+  }
+  if (route === "POST /disputes/link") {
+    const label = str(ctx.body.label, 200);
+    const w = await sensitive(ctx, s, label, "conversation", { signed: true });
+    if (w) return w;
+    return await rpc(ctx, "dela_dispute_evidence_add", { p_person: s.person_id, p_side: s.side, p_dispute: need(id), p_label: label, p_url: str(ctx.body.url, 2000) });
+  }
+  if (route === "POST /disputes/offer") {
+    const note = str(ctx.body.note, 1000);
+    if (note) { const w = await sensitive(ctx, s, note, "conversation", { signed: true }); if (w) return w; }
+    return await rpc(ctx, "dela_dispute_offer", { p_person: s.person_id, p_side: s.side, p_dispute: need(id), p_release: int(ctx.body.release_cents), p_note: note });
+  }
+  if (route === "POST /disputes/offer/withdraw") return await rpc(ctx, "dela_dispute_offer_withdraw", { p_person: s.person_id, p_offer: need(id) });
+  if (route === "POST /disputes/offer/accept") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_dispute_offer_accept", { p_person: s.person_id, p_side: s.side, p_offer: need(id) });
+    if (r?.ok && !r.duplicate) { await sendPayouts(ctx); await sendRefunds(ctx); }
+    return r;
+  }
+  // AI help for members: "Summarize both sides" or "Suggest a fair offer" (DELA actions, labeled AI suggestion)
+  const kind = str(ctx.body.kind, 10) === "suggest" ? "suggest" : "summary";
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "ai_helpers", p_person: s.person_id })) return { ok: false, reason: "helpers_off" };
+  const c = await rpc<Record<string, any>>(ctx, "dela_dispute_case", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)) });
+  if (!c?.ok) return c;
+  const d = ((c.disputes ?? []) as Array<Record<string, any>>).find((x) => x.id === id);
+  if (!d || !d.milestone) return { ok: false, reason: "not_found" };
+  const facts = d as unknown as CaseFacts;
+  const credits = Number(await setting(ctx, "ai.credits.dispute_" + kind, "1")) || 1;
+  const prompt = casePrompt(facts);
+  const ai = await runAi(ctx, s, `dispute:${kind}:` + (await sha256Hex(s.person_id + ":" + prompt)).slice(0, 40), kind === "suggest" ? SUGGEST_SYSTEM : SUMMARY_SYSTEM, [{ role: "user", content: prompt }], credits);
+  if (!ai.ok) return ai;
+  const out = kind === "suggest" ? readSuggest(readJson(ai.text), Number(d.milestone.amount_cents)) : readSummary(readJson(ai.text));
+  if (!out) return { ok: false, reason: "ai_unclear" };
+  return { ok: true, kind, ...out, note: DISPUTE_NOTE, source: ai.source, credits: ai.source === "lawfecta" ? credits : 0 };
+}
+
+// The Lawfecta Team's draft decision: Lawfecta's own key, never a member's credits. A person reads, edits and decides.
+async function disputeDraft(c: Ctx, actor: string) {
+  const all = await rpc<Record<string, any>>(c, "dela_admin_disputes", { p_actor: actor });
+  const d = ((all?.disputes ?? []) as Array<Record<string, any>>).find((x) => x.id === uuid(c.body.id));
+  if (!d || !d.milestone) return { ok: false, reason: "not_found" };
+  const key = lawfectaKey(c, "openai");
+  if (!key) return { ok: false, reason: "ai_off" };
+  const model = await setting(c, "ai.model.openai", "gpt-5.4-mini");
+  try {
+    const r = await chat(f(c), "openai", key, model, DISPUTE_DRAFT_SYSTEM, [{ role: "user", content: casePrompt(d as unknown as CaseFacts) }], true);
+    await logUsage(c, { person_id: actor, side: "attorney", task: "dispute_draft", source: "lawfecta", provider: "openai", model: r.model, input_tokens: r.input_tokens, output_tokens: r.output_tokens, ok: true });
+    const out = readDraft(readJson(r.text), Number(d.milestone.amount_cents));
+    return out ? { ok: true, ...out, note_ai: DISPUTE_NOTE } : { ok: false, reason: "ai_unclear" };
+  } catch (e) {
+    return { ok: false, reason: "ai_failed", code: e instanceof AiFail ? e.code : "provider_down" };
+  }
+}
+
 async function engagementsDaily(ctx: Ctx) {
   await rpc(ctx, "dela_engagements_daily", {});
+  // Step 11: failed refunds and payouts are tried again (up to 3 times), then the team is told
+  await rpc(ctx, "dela_money_retry_failed", {}).catch(() => null);
   await sendPayouts(ctx);
   await sendRefunds(ctx);
   await sendReversals(ctx);
@@ -4148,6 +4216,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/audit": (c, a) => rpc(c, "dela_admin_audit", { p_actor: a, p_before: int(c.url.searchParams.get("before")), p_limit: 100 }),
   "/admin/jobs": (c, a) => rpc(c, "dela_admin_jobs", { p_actor: a }),
   "/admin/holds": (c, a) => rpc(c, "dela_admin_holds", { p_actor: a }),
+  "/admin/disputes": (c, a) => rpc(c, "dela_admin_disputes", { p_actor: a }),
   "/admin/releases": (c, a) => rpc(c, "dela_admin_releases", { p_actor: a }),
   "/admin/settings/history": (c, a) => rpc(c, "dela_admin_setting_history", { p_actor: a, p_key: need((c.url.searchParams.get("key") ?? "").slice(0, 100)) }),
   "/admin/plans/history": (c, a) => rpc(c, "dela_admin_plan_history", { p_actor: a, p_plan: need((c.url.searchParams.get("plan") ?? "").slice(0, 40)) }),
@@ -4211,6 +4280,21 @@ const ADMIN_POST: Record<string, AdminRoute> = {
     return await rpc(c, "dela_catalog_preview", { p_actor: a, p_file: str(c.body.file_name, 200), p_sha: await sha256Hex(text), p_rows: read.tools });
   },
   "/admin/reports/close": (c, a) => rpc(c, "dela_admin_report_close", { p_actor: a, p_report: need(uuid(c.body.id)) }),
+  "/admin/disputes/ask": (c, a) => rpc(c, "dela_admin_dispute_ask", { p_actor: a, p_dispute: need(uuid(c.body.id)), p_to: str(c.body.to, 12), p_body: str(c.body.body, 2000) }),
+  "/admin/disputes/extend": (c, a) => rpc(c, "dela_admin_dispute_extend", { p_actor: a, p_dispute: need(uuid(c.body.id)), p_days: int(c.body.days) }),
+  "/admin/disputes/lawyer": (c, a) => rpc(c, "dela_admin_dispute_lawyer", { p_actor: a, p_dispute: need(uuid(c.body.id)), p_on: c.body.on === true }),
+  "/admin/disputes/draft": (c, a) => disputeDraft(c, a),
+  "/admin/money/retry": async (c, a) => {
+    const r = await rpc<Record<string, any>>(c, "dela_admin_money_retry", { p_actor: a, p_kind: str(c.body.kind, 10), p_id: need(uuid(c.body.id)) });
+    if (r?.ok) { await sendPayouts(c); await sendRefunds(c); }
+    return r;
+  },
+  "/admin/payouts/release": async (c, a) => {
+    const r = await rpc<Record<string, any>>(c, "dela_admin_payout_release", { p_actor: a, p_payout: need(uuid(c.body.id)), p_note: str(c.body.note, 500) });
+    if (r?.ok) await sendPayouts(c);
+    return r;
+  },
+  "/admin/engagements/unpause": (c, a) => rpc(c, "dela_admin_engagement_unpause", { p_actor: a, p_agreement: need(uuid(c.body.id)), p_note: str(c.body.note, 500) }),
   "/admin/disputes/resolve": async (c, a) => {
     const r = await rpc<Record<string, any>>(c, "dela_admin_dispute_resolve", { p_actor: a, p_dispute: need(uuid(c.body.id)), p_release: int(c.body.release_cents) ?? 0, p_refund: int(c.body.refund_cents) ?? 0, p_note: str(c.body.note, 1000) });
     if (r?.ok) { await sendPayouts(c); await sendRefunds(c); }
@@ -4490,6 +4574,11 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "bd_profile_push") return await bdProfilePush(ctx, j.payload ?? {});
   if (j.kind === "gig_tick") { await rpc(ctx, "dela_gig_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "engagement_tick") { await rpc(ctx, "dela_engagement_tick", { p: j.payload ?? {} }); return { ok: true }; }
+  if (j.kind === "dispute_tick") {
+    const r = await rpc<Record<string, any>>(ctx, "dela_dispute_tick", { p: j.payload ?? {} });
+    if (r?.release_cents !== undefined) { await sendPayouts(ctx); await sendRefunds(ctx); }
+    return { ok: true };
+  }
   if (j.kind === "engagements_daily") return await engagementsDaily(ctx);
   if (j.kind === "monthly_hourly") { await rpc(ctx, "dela_standing_tick", {}).catch(() => null); return await monthlyRun(ctx); }
   if (j.kind === "bd_plan_sync") return await planSyncJob(ctx, j.payload ?? {});
@@ -4978,7 +5067,15 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /milestones/human": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_submission_human", { p_person: s.person_id, p_submission: need(uuid(ctx.body.id)) })); }
       case "POST /milestones/decide": return await milestoneDecide(ctx);
       case "POST /disputes/open": { const s = await memberSide(ctx); const r0 = str(ctx.body.reason, 2000); const w = (await sensitive(ctx, s, r0, "conversation", { signed: true })); if (w) return json(ctx, w);
+        // Step 11: with the dispute center on, a dispute says what went wrong and what the opener wants, and the timers start
+        if (ctx.body.category !== undefined && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "dispute_center", p_person: s.person_id })) {
+          return json(ctx, await rpc(ctx, "dela_dispute_start", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.id)), p_milestone: uuid(ctx.body.milestone_id),
+            p_category: str(ctx.body.category, 30), p_wants: str(ctx.body.wants, 10), p_release: int(ctx.body.release_cents), p_reason: r0 }));
+        }
         return json(ctx, await rpc(ctx, "dela_dispute_open", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.id)), p_milestone: uuid(ctx.body.milestone_id), p_reason: r0 })); }
+      case "GET /disputes/case": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_dispute_case", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.url.searchParams.get("agreement"))) })); }
+      case "POST /disputes/say": case "POST /disputes/link": case "POST /disputes/offer": case "POST /disputes/offer/withdraw": case "POST /disputes/offer/accept": case "POST /disputes/ai":
+        return json(ctx, await disputeAction(ctx, key));
       case "POST /disputes/withdraw": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_dispute_withdraw", { p_person: s.person_id, p_dispute: need(uuid(ctx.body.id)) })); }
       case "GET /deliverables/file": return await deliverableFile(ctx);
       case "POST /deliverables/save": return await deliverableSave(ctx);
