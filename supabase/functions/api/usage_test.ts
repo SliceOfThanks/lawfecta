@@ -168,6 +168,25 @@ Deno.test("plan sync: BD's plan applies; a plan set by hand is kept; a failed BD
   assertEquals((await call("POST", "/admin/usage/resync", free.token, { person_id: synced.id })).status, 403);
 });
 
+// Stacey 2026-11-08: BD plan 10 gives Freelancer Pro and plan 11 Freelancer Agency Business, next to plans 8 and 9.
+// plans.bd_plan_id holds one number per DELA plan; setting bd.plan_aliases holds the others.
+Deno.test("plan aliases: a second BD plan number gives the same DELA plan; the plan table's own number wins", async () => {
+  const seeded = (await one("select value from settings where key = 'bd.plan_aliases'")).value;
+  assertEquals(seeded, { "10": "fl_pro", "11": "fl_business" }, "Stacey's answer is in the seed");
+  const before = seeded;
+  await pool.query("update settings set value = $1 where key = 'bd.plan_aliases'", [JSON.stringify({ ...before, "913914": "fl_business", "913913": "fl_free" })]);
+  try {
+    assertEquals((await one("select (dela_plan_for_bd(913914)).code c")).c, "fl_business");
+    assertEquals((await one("select (dela_plan_for_bd(913913)).code c")).c, "att_plus", "the plan table's own number wins over an alias");
+    assertEquals((await one("select (dela_plan_for_bd(913915)).code c")).c, null, "an unknown number gives no plan");
+    const r = await rpc("dela_plan_sync_apply", { p_person: synced.id, p_bd_plan: 913914 }) as Record<string, unknown>;
+    assertEquals([r.ok, r.to], [true, "fl_business"]);
+    assertEquals((await one("select plan_code from side_profiles where person_id = $1 and side = 'freelancer'", [synced.id])).plan_code, "fl_business");
+  } finally {
+    await pool.query("update settings set value = $1 where key = 'bd.plan_aliases'", [JSON.stringify(before)]);
+  }
+});
+
 Deno.test("teardown", async () => {
   await pool.query("update plans set bd_plan_id = null where bd_plan_id = 913913");
   if (siteUrl !== null) await pool.query("update settings set value = $1 where key = 'site.url'", [JSON.stringify(siteUrl)]);

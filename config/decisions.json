@@ -539,6 +539,18 @@
           "note": "Only members on 7 or 8 with dela_trial_status active are ever changed. Never changed, even with trial data: attorney plans 5, 12, 13, 14 and the lifetime plans 10, 11 (answer 1)."
         },
         {
+          "key": "bd.plan_aliases",
+          "label": "More BD plans that give a DELA plan (BD plan number to DELA plan)",
+          "value": {
+            "10": "fl_pro",
+            "11": "fl_business"
+          },
+          "unit": "BD plan ID to DELA plan",
+          "status": "C",
+          "source": "Stacey 2026-11-08",
+          "note": "Plan 10 Pro Founding Member ($97 a year, kept while they renew) gives Freelancer Pro. Plan 11 Agency Business Lifetime ($750 once) gives Freelancer Agency Business for life, team seats included. Neither is an attorney plan; neither gets the 7-day trial or the downgrade (trial.bd_plans never). The numbers are the test site's (hirelegalhelp.com); lawfecta.com has its own numbers, set on Live before launch."
+        },
+        {
           "key": "trial.summary_to",
           "label": "Who gets the daily downgrade summary email",
           "value": "stacey@lawfecta.com",
