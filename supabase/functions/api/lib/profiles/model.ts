@@ -127,7 +127,8 @@ export type BdMap = Record<string, string>;
 const LIST_FIELDS = new Set(["software", "practice_areas", "jurisdictions", "skills"]);
 
 // Only the mapped fields leave the BD record; nothing else (BD records also hold billing data) is ever read
-export function fromBd(rec: Record<string, unknown>, map: BdMap, siteUrl: string): Partial<Profile> {
+// defaults: the site's default pictures (setting bd.default_photos), shown on a listing that has no photo; never copied
+export function fromBd(rec: Record<string, unknown>, map: BdMap, siteUrl: string, defaults: string[] = []): Partial<Profile> {
   const out: Record<string, unknown> = {};
   for (const [dela, bd] of Object.entries(map)) {
     const v = rec[bd];
@@ -137,7 +138,8 @@ export function fromBd(rec: Record<string, unknown>, map: BdMap, siteUrl: string
     if (dela === "photo_url") {
       const site = siteUrl.replace(/\/+$/, "");
       const u = /^https:\/\//i.test(t) ? t : t.startsWith("/") && site.startsWith("https://") ? site + t : "";
-      if (u) out.photo_url = u;
+      const path = (() => { try { return new URL(u).pathname.toLowerCase(); } catch { return ""; } })();
+      if (u && !defaults.some((d) => d && path === d.toLowerCase())) out.photo_url = u;
       continue;
     }
     out[dela] = LIST_FIELDS.has(dela) ? t.split(",").map((x) => x.trim()).filter(Boolean) : t;

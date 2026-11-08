@@ -1918,7 +1918,8 @@ async function profileFromDirectory(ctx: Ctx) {
     console.error("bd_read", m.error.slice(0, 120));
     return json(ctx, { ok: false, reason: m.status === 403 ? "directory_not_allowed" : m.status === 404 ? "directory_not_found" : "directory_unreachable" });
   }
-  return json(ctx, { ok: true, fields: fromBd(m.data, map, site) });
+  const defaults = await rpc<unknown>(ctx, "dela_setting", { p_key: "bd.default_photos" }).catch(() => null);
+  return json(ctx, { ok: true, fields: fromBd(m.data, map, site, Array.isArray(defaults) ? defaults.map(String) : []) });
 }
 
 async function profileSave(ctx: Ctx) {

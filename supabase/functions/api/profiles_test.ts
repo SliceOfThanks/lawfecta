@@ -136,6 +136,18 @@ Deno.test("fill from the listing: only the mapped fields leave BD; a refused key
   bdMode = "ok";
 });
 
+// Fix (PLAN, "Listing photo"): a member with no photo has the site's default logo on the listing. It is not a photo of
+// them, so DELA never copies it (setting bd.default_photos lists the site's default pictures).
+Deno.test("fill from the listing: the site's default logo is not taken as the member's photo", async () => {
+  const before = BD_RECORD.image_main_file;
+  BD_RECORD.image_main_file = "/images/Lawtica-Logo-06.png";
+  const r = (await call("GET", "/profile/from-directory", fl.token)).body;
+  BD_RECORD.image_main_file = before;
+  assertEquals(r.ok, true);
+  assertEquals(r.fields.photo_url, undefined, JSON.stringify(r.fields));
+  assertEquals(r.fields.first_name, "Fran", "the other boxes still fill");
+});
+
 let flVersion = 0;
 Deno.test("save: cleaned, money in cents, readiness, client information, older copies refused", async () => {
   const body = { first_name: " Fran ", last_name: "Lancer", headline: "Litigation paralegal", summary: "I help solo attorneys file on time.", practice_areas: ["Family law", "Family law", "Civil litigation"],
