@@ -125,6 +125,8 @@ const ATT = 4200, TEAM = 4201;
     ok((await sql(`select coalesce(sum(amount), 0)::int n from usage_bonus where person_id = '${ids.att}'`))[0].n === 25, "a double click on Grant bonus actions adds the bonus once");
 
     // ---------- Step 9: the Trials tab (the Pro trial check, Dry run until the BD endpoints are connected) ----------
+    // Fix (Stacey's Trials screenshot, 2026-11-08): an old run from before BD was connected must not keep saying "BD not connected yet"
+    await sql(`insert into trial_runs (mode, trigger, started_at, finished_at, error, checked, counts) values ('dry_run', 'manual', now() - interval '2 hours', now() - interval '2 hours', 'bd_trial_api_not_confirmed', 0, '{}'::jsonb); select 1`);
     await dela(p).getByRole("tab", { name: "Trials", exact: true }).click();
     t = await waitFor(p, "Pro trial check");
     ok(t.includes("Trial downgrade mode: Dry run") && t.includes("Plans 5, 10, 11, 12, 13, 14 are never changed") && t.includes("at 2:00 AM Pacific"), "the Trials tab shows the mode and the never-changed plans");
@@ -132,6 +134,7 @@ const ATT = 4200, TEAM = 4201;
     // The test server has a BD key, so the run talks to its stand-in BD and finds nobody to change
     t = await waitFor(p, "Nothing to do", 10000);
     ok(t.includes("Run now") && t.includes("Dry run"), "a run on demand is logged as a Dry run");
+    ok(!(await text(p)).includes("BD not connected yet: waiting for the BD check"), "after a connected run, the old not-connected run no longer shows the BD not connected label");
     await dela(p).getByRole("button", { name: "Switch to Live" }).click();
     t = await waitFor(p, "Trial downgrade mode: Live (lists only while the daily check is off)", 10000);
     ok((await sql("select value #>> '{}' v from settings where key = 'trial.downgrade_mode'"))[0].v === "live", "Switch to Live changes the Trial downgrade mode setting");

@@ -981,7 +981,8 @@
       // The rule in words, from the settings (AI review 0.10.0, payments 6)
       var pl = cfg.plans || {}, hour = Number(cfg.run_hour), at = hour === 0 ? "12:00 AM" : hour < 12 ? hour + ":00 AM" : hour === 12 ? "12:00 PM" : (hour - 12) + ":00 PM";
       el.appendChild(h("p", { class: "small muted", text: "Every day at " + at + " Pacific, DELA checks freelancers on plans " + (pl.trial || []).join(" or ") + " whose trial is active. An unpaid trial moves to Free (" + pl.free + "); a paid invoice for the plan they are on marks them converted. Plans " + (pl.never || []).join(", ") + " are never changed (the attorney and lifetime plans). Dry run lists what it would do and changes nothing." }));
-      var notConnected = runs.some(function (x) { return String(x.error || "").indexOf("bd_trial_api_not_confirmed") >= 0; });
+      // Only the latest run says whether BD is connected now; an older run from before the connection does not count (2026-11-08)
+      var notConnected = !!runs[0] && String(runs[0].error || "").indexOf("bd_trial_api_not_confirmed") >= 0;
       el.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;gap:8px;margin:6px 0" },
         h("span", { class: "badge " + (cfg.on ? "ready" : "C"), text: cfg.on ? "Daily check: on" : "Daily check: off (switch bd_trial_downgrade)" }),
         h("span", { class: "badge " + (live ? "bad" : "ready"), id: "trial-mode", text: "Trial downgrade mode: " + (live ? "Live" : "Dry run") + (live && !cfg.on ? " (lists only while the daily check is off)" : "") }),
