@@ -54,6 +54,11 @@ async function makeMember(bd, side, plan, staff) {
 const MEMBER_OPENAI = "sk-proj-member-browser-test-key-1111111111"; // rules-ok: made-up test key
 const MEMBER_CLAUDE = "sk-ant-member-browser-test-key-2222222222"; // rules-ok: made-up test key
 
+// Fix (GitHub run where the test microphone started slowly): wait until the page has been listening for 2 seconds,
+// not a fixed pause, so a slow start never gives an empty recording
+async function listened(page, secs) {
+  await page.waitForFunction((n) => { const m = /Listening\.\.\. (\d+)s/.exec(document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText); return !!m && Number(m[1]) >= n; }, secs, { timeout: 20000 });
+}
 (async () => {
   const browser = await chromium.launch({ args: ["--use-fake-ui-for-media-stream", "--use-fake-device-for-media-stream"] });
   try {
@@ -151,7 +156,7 @@ const MEMBER_CLAUDE = "sk-ant-member-browser-test-key-2222222222"; // rules-ok: 
 
     // Talking: the fake microphone records, the words land in the box
     await dela(p).getByRole("button", { name: "● Talk" }).click();
-    await p.waitForTimeout(1800);
+    await listened(p, 2);
     await dela(p).getByRole("button", { name: "■ Stop" }).click();
     await p.waitForFunction(() => document.querySelector(".dela-host").shadowRoot.querySelector("textarea").value.includes("filing a motion"), null, { timeout: 8000 });
     ok(true, "talking puts the words in the message box to check before sending");
@@ -224,7 +229,7 @@ const MEMBER_CLAUDE = "sk-ant-member-browser-test-key-2222222222"; // rules-ok: 
     await waitFor(s.page, "Claude here");
     ok(true, "the freelancer's chat runs on their Claude key");
     await dela(s.page).getByRole("button", { name: "● Talk" }).click();
-    await s.page.waitForTimeout(1500);
+    await listened(s.page, 2);
     await dela(s.page).getByRole("button", { name: "■ Stop" }).click();
     t = await waitFor(s.page, "Lawfecta's speech to text was used");
     ok(true, "talking on a Claude key says Lawfecta's speech to text was used");
