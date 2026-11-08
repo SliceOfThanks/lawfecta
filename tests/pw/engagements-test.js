@@ -304,8 +304,11 @@ async function sign(page, name, version) {
     p = s.page;
     await dela(p).getByRole("tab", { name: "Payments", exact: true }).click();
     t = await waitFor(p, "Disputes (1)");
-    ok(t.includes("The notice period") || t.includes("Notice period"), "owner: the dispute waits for its notice period");
     ok(t.includes("Paid out") && t.includes("$237"), "owner: the payout is in the totals");
+    // Step 11: the dispute itself is in the Disputes tab
+    await click(p, "Open the Disputes tab");
+    t = await waitFor(p, "Open disputes (1)");
+    ok(t.includes("Notice period ends"), "owner: the dispute waits for its notice period (Disputes tab)");
     await s.ctx.close();
     console.log("\nALL " + passed + " CHECKS PASSED");
   } catch (e) {
