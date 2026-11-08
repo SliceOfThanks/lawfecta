@@ -348,4 +348,25 @@ Deno.test("Make this monthly: from a completed one-off engagement, the same free
   assertEquals((await call("POST", "/admin/monthly/run-now", att.token, { agreement_id: agB })).status, 403, "only the Lawfecta owner runs a renewal now");
 });
 
+// Fix (step 11 plan, 2026-11-08): a dispute decision on a monthly unit refunds it from that month's payment. Before, the
+// refund looked only for a payment on the milestone itself, so nothing was refunded while the unit showed "refunded";
+// and two disputed units of one month shared one refund key, so the second refund was dropped.
+Deno.test("a dispute decision on a monthly unit refunds the unit from that month's payment, once per unit", async () => {
+  const agD = await monthlyAgreement("d", 80000);
+  await signAndPay(agD);
+  const units = (await pool.query("select id, amount_cents from milestones where agreement_id = $1 order by seq", [agD])).rows;
+  for (const u of units.slice(0, 2)) {
+    const o = (await call("POST", "/disputes/open", att.token, { id: agD, milestone_id: u.id, reason: "The weekly calls were not done" })).body;
+    assert(o.ok, JSON.stringify(o));
+    const d = await one("select id from disputes where milestone_id = $1", [u.id]);
+    await pool.query("update disputes set notice_ends_at = now() - interval '1 minute' where id = $1", [d.id]);
+    const r = await one("select dela_admin_dispute_resolve($1, $2, 0, $3, 'Not delivered') r", [team.id, d.id, u.amount_cents]);
+    assert(r.r.ok, JSON.stringify(r.r));
+  }
+  const rf = (await pool.query("select milestone_id, amount_cents from refunds where agreement_id = $1 order by amount_cents", [agD])).rows;
+  assertEquals(rf.length, 2, "one refund for each disputed unit: " + JSON.stringify(rf));
+  assertEquals(rf.map((x: { amount_cents: number }) => x.amount_cents), [units[0].amount_cents, units[1].amount_cents]);
+  assertEquals(new Set(rf.map((x: { milestone_id: string }) => x.milestone_id)).size, 2);
+});
+
 Deno.test("teardown", async () => { await pool.end(); });

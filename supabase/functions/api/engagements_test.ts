@@ -395,6 +395,13 @@ Deno.test("chargebacks pause the engagement; a lost one puts the attorney on hol
   assertEquals(h.rule, "first_lost_chargeback");
   assertEquals((await call("POST", "/agreements/sign", att.token, { id: ag, version: 2, typed_name: "Ann", consent: true })).body.reason, "on_hold");
   await pool.query("delete from holds where scope_id = $1", [att.id]);
+  // Fix (step 11 plan, 2026-11-08): a chargeback that is won or withdrawn lifts the pause, once no other chargeback on
+  // the engagement is still open. Before, the engagement stayed paused for good.
+  const ev2 = (id: string, type: string, status = "") => hook({ id, type, livemode: false, data: { object: { id: "dp_2", payment_intent: "pi_first", amount: 1000, reason: "general", status } } });
+  await ev2("evt_cb3", "charge.dispute.created");
+  assertEquals((await one("select status from agreements where id = $1", [ag])).status, "paused");
+  await ev2("evt_cb4", "charge.dispute.closed", "won");
+  assertEquals((await one("select status from agreements where id = $1", [ag])).status, "active", "a won chargeback lifts the pause");
 });
 
 Deno.test("every day: agreements not signed in time close and the attorney can choose again", async () => {
