@@ -98,6 +98,7 @@ After a step's report passes, Claude records that version for Release Control, r
 ## 3. What needs revisions or work
 
 Code and tests (Claude)
+- Disputes (step 11) are on the test site; waiting on Stacey's ChatGPT test (docs/tests/step-11-disputes-chatgpt-prompt.md). Later: a chargeback evidence pack, connector tools for disputes. Live: dispute_center stays off until the lawyer reviews terms clause 6.
 - From the two reviews of 2026-11-08 (UI review: docs/reviews/test-reports/2026-11-08-step-10-ui-review.txt; UX review on a phone: 2026-11-08-step-10-ux-review.txt). Fixed for the next version: one color per state on every page, dark links, filters and boxes, Team roles lined up, no empty box under the meeting times, the AI button in the same blue, Home badges matching the Profile, one count of DELA actions, plain Library footer, "Coming soon" only where a feature is really off, no "accepted 0 of 0", the match-ready help name, and a bottom menu that scrolls instead of squeezing when there are more than seven tabs. Still to do:
   - Home: "2 open gigs" next to "9 of 10 available". Check how each is counted and use one count.
   - The monthly change: show the freelancer's own payout before and after in the comparison, and keep the approved change (new price, new amount, start date) on the agreement until it starts.

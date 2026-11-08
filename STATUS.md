@@ -2,6 +2,15 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 11: the dispute center, on the test site 2026-11-08 (commit 8f050ae, migrations 0074 and 0075, api v73)
+- Brief and Stacey's answers: docs/briefs/step-11-disputes.md. Switch dispute_center: everyone on the test site; off on Live until the lawyer reviews terms clause 6 (G-CONTRACT).
+- Fixed first (Fix commit, tests fail before): a dispute decision on a monthly unit now refunds it from the month's payment (before, nothing was refunded); a won or withdrawn chargeback lifts the pause.
+- Built: open with what went wrong and what the opener asks for; the other side answers within 5 days; https links as evidence (no uploads, by the sensitive-data rule); settlement offers that move the money at once when accepted; an unanswered dispute is granted when the 14 days end, after warnings; reminders on days 7 and 12; team review within 10 business days with questions that pause the clock, one extension and a needs-lawyer flag; the attorney's platform fee is kept; only the disputed milestone's money is frozen; repeat-loss hold (3 in 12 months); open, withdraw and every step audited.
+- AI: members get "Summarize both sides" and "Suggest a fair offer" (DELA actions); the team gets "Draft with DELA" (Lawfecta's key). Labeled AI suggestion, no names in the prompt, never a ruling.
+- Admin: new Disputes tab (report, queue, case page, presets, decide) and money tools (retry a failed refund or payout, release a held payout, lift a pause); failed refunds and payouts retry daily 3 times, then alert.
+- Prepared on the test site: "Test job: Dispute to answer / to open / for the team (prepared)". ChatGPT test: docs/tests/step-11-disputes-chatgpt-prompt.md.
+- Not built: file uploads as evidence, a chargeback evidence pack sent to Stripe, connector (ChatGPT and Claude) tools for disputes.
+
 ## Test site open to every member, 2026-11-08 (Stacey: "all plans should be active and able to log in")
 - On the test site (hirelegalhelp.com, DELA Staging) only: setting access.mode is "everyone", and every switch that was "list" is now "everyone" (47). The switches that were off stay off (live_payments, bd_trial_downgrade, trials, usage_limits_enforced and others). Live (lawfecta.com) is not touched and stays closed to anyone outside its access list.
 - Plan mapping on the test site: the freelancer plans had no BD plan number, so a freelancer who signed up in BD got no DELA plan (the test freelancers were set by hand). Set from the trial answers: fl_free 3, fl_plus 7, fl_pro 8, fl_business 9 (attorney: att_free 5, att_plus 13, att_pro 12, att_business 14). BD plans 10 (Pro Founding Member, $97 a year while they renew) and 11 (Agency Business Lifetime, $750 once) give Freelancer Pro and Freelancer Agency Business (Stacey 2026-11-08): setting bd.plan_aliases, read by sign-in and the plan sync through dela_plan_for_bd (migration 0073). Neither gets the trial or the downgrade. Live sets its own numbers from lawfecta.com (docs/LIVE_READINESS.md section 3, C2).
