@@ -33,6 +33,9 @@ import { clean, HELPER_SIDE, HELPER_SYSTEM, HELPERS, NOT_LEGAL, readCompare, rea
 import { AUTOMATE_SYSTEM, defaultKpis, delegatedSop, FREQUENCIES, hoursSaved, promptFor, readKpis, readRecommendations, setupSteps, suggestBudget, timeInputs, type AllowedTool, type Frequency, type Recommendation } from "./lib/automate/model.ts";
 import { carryScreenshots, CHAT_SYSTEM, DRAFT_SYSTEM, FILL_SYSTEM, IMPORT_SYSTEM, MISSING_SYSTEM, playbookText, readJson, readPlaybook } from "./lib/playbooks/ai.ts";
 import { FORM_LIMITS } from "./lib/limits.ts";
+import { notConnected, type TrialBd, type TrialCandidate } from "./lib/trial/bd.ts";
+import { checkMember, runTrial, type Allowance, type MemberOutcome, type RunDeps, type TrialStore } from "./lib/trial/run.ts";
+import { trialEmail } from "./lib/trial/rules.ts";
 
 export const VERSION = "api-0.9.0";
 
@@ -43,6 +46,7 @@ export type Deps = {
   now?: () => number;
   storage?: Storage;
   resolve?: Resolver;
+  trialBd?: TrialBd; // tests pass a stand-in; until the BD check confirms the endpoints, the job uses notConnected
 };
 
 type Session = { session_id: string; person_id: string; side: string | null; staff: string[]; bd_member_id: number };
@@ -161,6 +165,10 @@ async function bootstrap(ctx: Ctx): Promise<Response> {
   if (!r?.ok) return json(ctx, { route: "denied", reason: r?.reason ?? "denied", commit });
   const pause = await rpc<Record<string, any>>(ctx, "dela_pause_state", {});
   if (pause?.pause?.all && !(r.me?.staff ?? []).length) return json(ctx, { route: "paused", message: pause.message, commit });
+  // The Pro trial backstop (developer notes): the same check for this one member when they sign in, at most once a day
+  if (r.me?.side === "freelancer" && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "bd_trial_downgrade", p_person: null }).catch(() => false) === true) {
+    await rpc(ctx, "dela_job_enqueue", { p_kind: "trial_check_one", p_payload: { bd_user_id: Number(pass.uid) }, p_run_at: new Date().toISOString(), p_idem: "trial_one:" + pass.uid + ":" + new Date().toISOString().slice(0, 10), p_person: null }).catch(() => null);
+  }
   const drafts = r.me?.side === "attorney" && r.me?.person?.id ? await rpc<number>(ctx, "dela_pb_draft_count", { p_person: r.me.person.id }).catch(() => 0) : 0;
   const agencyClient = r.me?.side === "freelancer" && r.me?.person?.id ? await rpc<Record<string, unknown> | null>(ctx, "dela_agency_client", { p_person: r.me.person.id }).catch(() => null) : null;
   const appearance = r.me?.person?.id ? await rpc<Record<string, unknown>>(ctx, "dela_appearance", { p_person: r.me.person.id }).catch(() => ({ on: false, mode: "device" })) : { on: false, mode: "device" };
@@ -4106,6 +4114,7 @@ async function mcpEndpoint(ctx: Ctx) {
 type AdminRoute = (ctx: Ctx, actor: string) => Promise<unknown>;
 
 const ADMIN_GET: Record<string, AdminRoute> = {
+  "/admin/trial": (c, a) => rpc(c, "dela_admin_trial", { p_actor: a }),
   "/admin/overview": (c, a) => rpc(c, "dela_admin_overview", { p_actor: a }),
   "/admin/settings": (c, a) => rpc(c, "dela_admin_settings", { p_actor: a }),
   "/admin/decisions": (c, a) => rpc(c, "dela_admin_decisions", { p_actor: a, p_key: c.url.searchParams.get("key") || null }),
@@ -4159,6 +4168,12 @@ const ADMIN_GET: Record<string, AdminRoute> = {
 };
 
 const ADMIN_POST: Record<string, AdminRoute> = {
+  // Run the trial check now, in the current mode (Dry run changes nothing). Owners and support only.
+  "/admin/trial/run": async (c, a) => {
+    await rpc(c, "dela_require_staff", { p_actor: a, p_roles: ["support"] });
+    const r = await trialRun(c, "manual");
+    return { ...r, ok: !r.error };
+  },
   "/admin/verify/license": (c, a) => rpc(c, "dela_admin_license_decide", { p_actor: a, p_license: need(uuid(c.body.id)), p_decision: str(c.body.decision, 20), p_identity: str(c.body.identity, 20),
     p_reason: str(c.body.reason, 500), p_note: str(c.body.note, 500), p_override: str(c.body.override, 500) }),
   "/admin/verify/linkedin": (c, a) => rpc(c, "dela_admin_linkedin_decide", { p_actor: a, p_check: need(uuid(c.body.id)), p_decision: str(c.body.decision, 20),
@@ -4357,6 +4372,7 @@ async function worker(ctx: Ctx) {
   await rpc(ctx, "dela_maybe_queue_daily", {});
   await rpc(ctx, "dela_maybe_queue_monthly", {}).catch(() => null);
   await rpc(ctx, "dela_maybe_queue_plan_sync", {}).catch(() => null);
+  await rpc(ctx, "dela_maybe_queue_trial", {}).catch(() => null);
   if (await rpc<string>(ctx, "dela_setting_text", { p_key: "environment", p_default: "staging" }) === "staging") {
     await rpc(ctx, "dela_release_expire", {});
     await checkLive(ctx);
@@ -4445,6 +4461,8 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "engagements_daily") return await engagementsDaily(ctx);
   if (j.kind === "monthly_hourly") { await rpc(ctx, "dela_standing_tick", {}).catch(() => null); return await monthlyRun(ctx); }
   if (j.kind === "bd_plan_sync") return await planSyncJob(ctx, j.payload ?? {});
+  if (j.kind === "trial_daily") return await trialRun(ctx, "daily");
+  if (j.kind === "trial_check_one") return await trialCheckOne(ctx, Number(j.payload?.bd_user_id) || 0);
   if (j.kind === "confidential_daily") return await confDaily(ctx);
   if (j.kind === "links_hourly") return { ok: true, ...(await rpc<Record<string, unknown>>(ctx, "dela_links_sweep", {}) ?? {}) };
   if (j.kind === "retention_daily") return await retentionDaily(ctx);
@@ -4596,6 +4614,78 @@ async function planResync(ctx: Ctx) {
   await rpc(ctx, "dela_plan_sync_log", { p_kind: "resync", p_checked: 1, p_changed: r.changed ? 1 : 0, p_errors: r.ok === false ? 1 : 0, p_detail: [{ person, ...r }], p_actor: s.person_id });
   return json(ctx, r.ok === false ? { ok: false, reason: r.error } : r);
 }
+// ---------- Step 9: the Pro trial check (docs/briefs/step-9-pro-trial-downgrade.md) ----------
+// Daily at 2:00 AM Pacific, once per member at sign-in as a backstop, or on demand from the admin area. Dry run lists;
+// Live changes BD, sends the two emails, and sends one summary email on a day with at least one downgrade.
+type TrialCfg = Record<string, any>;
+function trialStore(ctx: Ctx): TrialStore {
+  return {
+    member: async (id) => (await rpc<any>(ctx, "dela_trial_member", { p_user: id })) ?? null,
+    save: async (id, patch) => { await rpc(ctx, "dela_trial_member_save", { p_user: id, p: patch }); },
+    event: async (e) => { await rpc(ctx, "dela_trial_event", { p: e }); },
+  };
+}
+function trialMailer(ctx: Ctx, cfg: TrialCfg) {
+  return async (kind: "ending" | "ended", c: TrialCandidate) => {
+    if (!c.email) return { ok: false as const, error: "no_email" };
+    const provider = pickProvider(cfg.sender);
+    const m = trialEmail(kind, c.first_name, String(cfg.site_url ?? ""), String(cfg.environment ?? "staging"));
+    const r = await provider.send({ from: { name: cfg.from_name, email: cfg.from_address }, to: { email: c.email, name: [c.first_name, c.last_name].join(" ").trim() || undefined },
+      subject: m.subject, html: m.html, text: m.text, tags: [String(cfg.environment), "trial_" + kind] }, provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl: cfg.site_url });
+    return r.ok ? { ok: true as const, data: true as const } : { ok: false as const, error: r.error };
+  };
+}
+function trialDeps(ctx: Ctx, cfg: TrialCfg, runId: string): RunDeps {
+  return {
+    bd: ctx.deps.trialBd ?? notConnected, store: trialStore(ctx), mail: trialMailer(ctx, cfg), now: ctx.deps.now?.() ?? Date.now(),
+    mode: cfg.mode === "live" ? "live" : "dry_run", runId,
+    settings: { days: Number(cfg.days) || 7, reminderDays: Number(cfg.reminder_days) || 2, eligibleFrom: String(cfg.eligible_from ?? ""), plans: cfg.plans,
+      allowances: (cfg.allowances ?? {}) as Record<string, Allowance>, freeAreas: Number(cfg.free_areas) || 3 },
+  };
+}
+async function trialRun(ctx: Ctx, trigger: "daily" | "manual") {
+  const cfg = await rpc<TrialCfg>(ctx, "dela_trial_settings", {});
+  const mode = cfg.mode === "live" ? "live" : "dry_run";
+  const runId = await rpc<string>(ctx, "dela_trial_run_start", { p_trigger: trigger, p_mode: mode });
+  const d = trialDeps(ctx, cfg, runId);
+  const extra = ((await rpc<number[]>(ctx, "dela_trial_followups", {})) ?? []).map(Number);
+  const r = await runTrial(d, extra).catch((e) => ({ checked: 0, outcomes: [] as MemberOutcome[], error: String((e as Error)?.message ?? e).slice(0, 200) }));
+  const counts: Record<string, number> = {};
+  for (const o of r.outcomes) if (o.action !== "skip") counts[o.action] = (counts[o.action] ?? 0) + 1;
+  await rpc(ctx, "dela_trial_run_finish", { p_run: runId, p_checked: r.checked, p_counts: counts, p_error: r.error ?? "" });
+  await trialSummary(ctx, cfg, runId, r.outcomes.filter((o) => o.action === "downgrade" && o.done));
+  return { ok: true, run_id: runId, mode, checked: r.checked, counts, error: r.error };
+}
+// One summary email to the owner on a run that moved at least one member to Free; never one per member (answer 8)
+async function trialSummary(ctx: Ctx, cfg: TrialCfg, runId: string, down: MemberOutcome[]) {
+  if (!down.length || !cfg.summary_to || !(await rpc<boolean>(ctx, "dela_trial_summary_mark", { p_run: runId }))) return;
+  const prefix = cfg.environment === "live" ? "" : "[Test site] ";
+  const day = (x: string | null) => x ? new Date(x).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric", timeZone: "America/Los_Angeles" }) : "unknown";
+  const lines = down.map((o) => `${o.name} (user ID ${o.user_id}), trial ended ${day(o.ends_at)}`);
+  const title = `${down.length} Pro trial ${down.length === 1 ? "member" : "members"} moved to Free`;
+  const esc = (x: string) => x.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+  const provider = pickProvider(cfg.sender);
+  await provider.send({ from: { name: cfg.from_name, email: cfg.from_address }, to: { email: String(cfg.summary_to) }, subject: prefix + title,
+    html: `<p>${esc(title)} in today's trial check:</p><ul>${lines.map((l) => "<li>" + esc(l) + "</li>").join("")}</ul><p>The run log is in the DELA admin area, Trials tab.</p>`,
+    text: title + ":\n" + lines.map((l) => "- " + l).join("\n") + "\n\nThe run log is in the DELA admin area, Trials tab.", tags: [String(cfg.environment), "trial_summary"] },
+    provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl: cfg.site_url });
+}
+// The sign-in backstop: the same check for one member, in the current mode
+async function trialCheckOne(ctx: Ctx, bdUserId: number) {
+  if (!bdUserId) return { ok: true };
+  const cfg = await rpc<TrialCfg>(ctx, "dela_trial_settings", {});
+  if (!cfg.on) return { ok: true };
+  const bd = ctx.deps.trialBd ?? notConnected;
+  const one = await bd.member(bdUserId);
+  if (!one.ok) return { ok: true };
+  const mode = cfg.mode === "live" ? "live" : "dry_run";
+  const runId = await rpc<string>(ctx, "dela_trial_run_start", { p_trigger: "login", p_mode: mode });
+  const o = await checkMember(trialDeps(ctx, cfg, runId), one.data);
+  await rpc(ctx, "dela_trial_run_finish", { p_run: runId, p_checked: 1, p_counts: o.action === "skip" ? {} : { [o.action]: 1 }, p_error: o.error ?? "" });
+  await trialSummary(ctx, cfg, runId, o.action === "downgrade" && o.done ? [o] : []);
+  return { ok: true };
+}
+
 async function planSyncJob(ctx: Ctx, p: Record<string, any>) {
   const batch = (await rpc<Array<{ person_id: string; bd_member_id: number }>>(ctx, "dela_plan_sync_batch", { p_after: Number(p.after ?? 0), p_limit: 50 })) ?? [];
   const detail: Array<Record<string, unknown>> = [];

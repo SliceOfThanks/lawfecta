@@ -165,7 +165,7 @@
     });
     return h("div", { class: "card" },
       h("div", { class: "row" }, h("h2", { text: "Your DELA plan: " + (s ? s.plan_name : "") }), s && s.plan_source === "staff_grant" ? h("span", { class: "badge", text: "Set by the Lawfecta Team" }) : null),
-      me.trial && me.trial.active ? h("div", { class: "notice ok", text: "Your free trial gives you Pro features until " + D.date(me.trial.ends_at) + ". After that you keep everything you made, on your own plan." }) : null,
+      me.trial && me.trial.on && me.trial.active ? h("div", { class: "notice ok", text: "Your free trial gives you Pro features until " + D.date(me.trial.ends_at) + ". After that you keep everything you made, on your own plan." }) : null,
       h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "What you get" }), h("th", { text: "Right now" }))), h("tbody", null, rows))),
       h("p", { class: "muted small", style: "margin-top:10px", text: "Your DELA plan comes from your Lawfecta directory plan. Change or pay for it in your Lawfecta account." }));
   }

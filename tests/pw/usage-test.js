@@ -119,6 +119,19 @@ const ATT = 4200, TEAM = 4201;
     t = await waitFor(p, "includes 25 bonus");
     ok(t.includes("40 of 75"), "the bonus raises this month's limit");
     ok((await sql(`select coalesce(sum(amount), 0)::int n from usage_bonus where person_id = '${ids.att}'`))[0].n === 25, "a double click on Grant bonus actions adds the bonus once");
+
+    // ---------- Step 9: the Trials tab (the Pro trial check, Dry run until the BD endpoints are connected) ----------
+    await dela(p).getByRole("tab", { name: "Trials", exact: true }).click();
+    t = await waitFor(p, "Pro trial check");
+    ok(t.includes("Trial downgrade mode: Dry run") && t.includes("Attorney plans (5, 12, 13, 14) and the lifetime plans (10, 11) are never changed"), "the Trials tab shows the mode and the never-changed plans");
+    await dela(p).getByRole("button", { name: "Run the check now (Dry run)" }).click();
+    t = await waitFor(p, "BD not connected yet", 10000);
+    ok(t.includes("Run now") && t.includes("Dry run"), "a run on demand is logged, and says BD is not connected yet");
+    await dela(p).getByRole("button", { name: "Switch to Live" }).click();
+    t = await waitFor(p, "Trial downgrade mode: Live", 10000);
+    ok((await sql("select value #>> '{}' v from settings where key = 'trial.downgrade_mode'"))[0].v === "live", "Switch to Live changes the Trial downgrade mode setting");
+    await dela(p).getByRole("button", { name: "Switch to Dry run" }).click();
+    await waitFor(p, "Trial downgrade mode: Dry run", 10000);
     await s.ctx.close();
     console.log(passed + " browser checks passed");
   } catch (e) {

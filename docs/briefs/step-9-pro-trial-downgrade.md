@@ -1,7 +1,7 @@
 # Feature brief: Pro trial on signup and automatic downgrade to Free
 
 Step: 9 (BD plans)   Spec references: developer notes from Stacey 2026-11-06; trial settings trial.* in config/decisions.json
-Status: answered by Stacey 2026-11-07 (below). Next: the read-only BD API check, then the build.
+Status: answered by Stacey 2026-11-07. Built 2026-11-08 with a stand-in for BD (below). Next: the read-only BD API check, then Claude connects the real BD endpoints.
 
 ## Who
 New freelancers on hirelegalhelp.com (the test site), later lawfecta.com. Plans in BD (website ID 24325): Free (3), Plus (7), Pro (8), Agency Business (9), Pro Founding Member (10), Agency Business Lifetime (11). The Lawfecta Team (owner) watches the runs.
@@ -63,6 +63,16 @@ Members see every paid feature before deciding to pay. Nobody skips the trial by
 6. Yes: dry run on hirelegalhelp.com for 3 days. Each run lists every member it would downgrade or mark converted, the condition that matched, the plan, the trial end date and the invoice status, shown in the DELA admin area. After 3 clean days, switch to real changes with the admin setting "Trial downgrade mode" (Dry run or Live).
 7. A member counts as converted only when a paid invoice exists for the plan they are on. A trial member who moved to Plus (7) with the Plus invoice still unpaid at the end of day 7 goes to Free (3) too, and the unpaid Plus subscription and invoice are canceled the same way as Pro.
 8. Every run is logged in the DELA admin area. On a day with at least one downgrade, one summary email goes to stacey@lawfecta.com listing each downgraded member's name, user ID and trial end date. No email on days without downgrades, and never one email per member.
+
+## What is built (2026-11-08)
+- The rules in code (supabase/functions/api/lib/trial/rules.ts): who is tracked, reminded, converted, moved to Free or given content back, and the hard guard that never changes plans 5, 12, 13, 14, 10 or 11. The plan is checked again from BD right before it changes.
+- The run (lib/trial/run.ts): Dry run lists and changes nothing; Live does the steps in the order of the developer notes (plan to Free, cancel the subscription, cancel the unpaid invoices, make the member Active, hide videos, promotions and community articles and areas of law past the first 3, set dela_trial_status to downgraded, send "Your Pro trial has ended"). Each finished step is recorded, so a run that stops halfway is finished by the next run without repeating a step.
+- The emails with the developer notes' exact subject, words and button, sent through DELA's mail adapter (BD's email outbox). One summary email to the owner on a run that moved at least one member to Free; none on other runs.
+- The daily run at 2:00 AM Pacific behind the switch bd_trial_downgrade (off), the sign-in backstop (the same check for one freelancer when they sign in, once a day), and a "Run the check now" button.
+- The admin area, Trials tab: the mode ("Trial downgrade mode", Dry run or Live, with history), the run log, and every member the last 3 runs would change or changed, with the reason, plan, trial end date and invoice status.
+- DELA's own "trials" switch is off and no longer used by the plan logic: DELA allowances follow the BD plan only.
+- Migration 0068; tests: supabase/functions/api/trial_test.ts (10), the Trials tab in tests/pw/usage-test.js.
+- Waiting: the BD endpoints. Until they are connected, a run records "BD not connected yet" and changes nothing. One suggested setting to confirm: trial.allowances (what comes back when a downgraded member upgrades to Plus).
 
 ## Success looks like
 - A new freelancer from any signup button is on Pro (8) with dela_trial_status active and dela_trial_ends_at 7 days out.

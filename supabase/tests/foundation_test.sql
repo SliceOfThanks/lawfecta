@@ -150,7 +150,9 @@ begin
   perform t_ok((r->'me'->'trial'->>'active')::boolean, 'new registration gets a trial');
   perform t_ok((select trial_ends_at::date from people where bd_member_id = 300) = (now() - interval '2 days' + interval '7 days')::date, 'trial runs 7 days from registration');
   select e into ent from jsonb_array_elements(r->'me'->'entitlements') e where e->>'key' = 'fl.proposals';
-  perform t_ok((ent->>'limit')::int = 50, 'trial gives Pro limits');
+  -- Step 9 (Stacey 2026-11-07, answer 5): one trial, in BD. DELA's old trial no longer changes the plan DELA uses
+  perform t_ok((select pv.plan_code from plan_versions pv where pv.id = dela_effective_version((select id from people where bd_member_id = 300), 'freelancer'))
+    = (select sp.plan_code from side_profiles sp join people pe on pe.id = sp.person_id where pe.bd_member_id = 300 and sp.side = 'freelancer'), 'DELA allowances follow the BD plan only, not the old trial');
   perform dela_admin_access_grant(owner_id, 301, 'access', 'old member');
   r := dela_exchange(t_pass(301, '20', 'p-trial-2') || jsonb_build_object('registered_at', '2025-05-01T00:00:00Z'));
   perform t_ok(not (r->'me'->'trial'->>'active')::boolean, 'members who registered before the start date get no trial');

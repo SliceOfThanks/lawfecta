@@ -475,6 +475,111 @@
           "status": "C",
           "source": "Stacey, Decision Register v1.1 (2026-10-26)",
           "note": "Annual price for extra seats and whether seats add AI, storage or integration allowances are still open."
+        },
+        {
+          "key": "trial.downgrade_mode",
+          "label": "Trial downgrade mode",
+          "value": "dry_run",
+          "unit": "dry_run or live",
+          "status": "C",
+          "source": "Stacey 2026-11-07 (Pro trial answers)",
+          "note": "Dry run lists who the daily job would downgrade or mark converted and changes nothing. Switch to Live in the admin area after 3 clean days on the test site (answer 6)."
+        },
+        {
+          "key": "trial.reminder_days",
+          "label": "Days before the trial ends to send \"Your Pro trial ends in 2 days\"",
+          "value": 2,
+          "unit": "days",
+          "status": "C",
+          "source": "Developer notes 2026-11-06",
+          "note": ""
+        },
+        {
+          "key": "trial.run_hour",
+          "label": "Hour the daily trial check runs (Pacific)",
+          "value": 2,
+          "unit": "hour (0 to 23)",
+          "status": "C",
+          "source": "Developer notes 2026-11-06",
+          "note": "2:00 AM Pacific."
+        },
+        {
+          "key": "trial.free_areas",
+          "label": "Areas of law a Free member shows",
+          "value": 3,
+          "unit": "areas",
+          "status": "C",
+          "source": "Developer notes 2026-11-06",
+          "note": "Areas past the first 3 are hidden at the downgrade, never deleted."
+        },
+        {
+          "key": "trial.bd_plans",
+          "label": "BD plan IDs the trial job uses",
+          "value": {
+            "pro": 8,
+            "free": 3,
+            "plus": 7,
+            "agency": 9,
+            "trial": [
+              7,
+              8
+            ],
+            "never": [
+              5,
+              10,
+              11,
+              12,
+              13,
+              14
+            ]
+          },
+          "unit": "BD plan IDs",
+          "status": "C",
+          "source": "Stacey 2026-11-07 (Pro trial answers)",
+          "note": "Only members on 7 or 8 with dela_trial_status active are ever changed. Never changed, even with trial data: attorney plans 5, 12, 13, 14 and the lifetime plans 10, 11 (answer 1)."
+        },
+        {
+          "key": "trial.summary_to",
+          "label": "Who gets the daily downgrade summary email",
+          "value": "stacey@lawfecta.com",
+          "unit": "email",
+          "status": "C",
+          "source": "Stacey 2026-11-07 (Pro trial answers)",
+          "note": "One email on a day with at least one downgrade, listing each member's name, user ID and trial end date. None on other days (answer 8)."
+        },
+        {
+          "key": "trial.allowances",
+          "label": "What comes back when a downgraded member upgrades",
+          "value": {
+            "7": {
+              "areas": null,
+              "types": [
+                "video",
+                "promotion",
+                "article"
+              ]
+            },
+            "8": {
+              "areas": null,
+              "types": [
+                "video",
+                "promotion",
+                "article"
+              ]
+            },
+            "9": {
+              "areas": null,
+              "types": [
+                "video",
+                "promotion",
+                "article"
+              ]
+            }
+          },
+          "unit": "per BD plan: areas shown (null = all) and post types",
+          "status": "R",
+          "source": "Suggested by Claude 2026-11-08",
+          "note": "Suggested: everything comes back on Plus, Pro and Agency Business. If Plus allows fewer areas of law or not every post type in BD, change Plus here."
         }
       ]
     },
@@ -1406,6 +1511,11 @@
       "key": "library_workspace",
       "label": "The plain-language Library: cards, plain categories, \"What would you like to document?\"",
       "gate": "Stacey reviews it on computer and phone (step 8b Part B, question B10)"
+    },
+    {
+      "key": "bd_trial_downgrade",
+      "label": "The daily Pro trial check: downgrade unpaid trials to Free (BD)",
+      "gate": "Stacey's read-only BD API check done, endpoints connected, then 3 clean dry-run days"
     }
   ]
 }

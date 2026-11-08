@@ -13,7 +13,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["reviews", "Reviews and bench"], ["agencies", "Agencies"], ["recurring", "Recurring"], ["usage", "Usage"], ["team", "Lawfecta Team"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["reviews", "Reviews and bench"], ["agencies", "Agencies"], ["recurring", "Recurring"], ["trials", "Trials"], ["usage", "Usage"], ["team", "Lawfecta Team"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   var current = "control";
   var mainEl = null;
   var tabsEl = null;
@@ -92,7 +92,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, usage: usageTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, trials: trialsTab, usage: usageTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // ---------- Guide ----------
@@ -953,6 +953,64 @@
         st.appendChild(h("div", { style: "border-top:1px solid var(--line);padding:8px 0" }, h("div", { class: "row" }, h("b", { class: "grow", text: x.firm + " hires " + x.freelancer }), h("span", { class: "badge " + (x.status === "active" ? "ready" : x.status === "needs_review" ? "bad" : "C"), text: x.status })),
           h("p", { class: "small", style: "margin:4px 0", text: D.money(x.price_cents) + " per job | spend this month " + D.money(x.spend_cents) + " of " + D.money(x.cap_cents) + " | " + x.open + " of " + x.max_open + " open | jobs " + x.hires + ", declined " + x.declined + " | until " + D.date(x.end_on) })));
       });
+    }).catch(fail);
+  }
+
+  // Step 9: the Pro trial check (docs/briefs/step-9-pro-trial-downgrade.md). The mode, a run on demand, the run log and
+  // every member the last 3 runs would change (Dry run) or changed (Live). Dry run changes nothing in BD or by email.
+  var TRIAL_ACTION = { track: "Start tracking the trial", remind: "Send \"Your Pro trial ends in 2 days\"", convert: "Mark converted", downgrade: "Move to Free", restore: "Bring back hidden content", error: "Could not check" };
+  var TRIAL_WHY = { new_pro_signup: "New signup on Pro", ends_soon: "Trial ends within 2 days", paid_pro: "Paid Pro invoice", paid_plus: "Paid Plus invoice", upgraded_to_agency: "Upgraded to Agency Business",
+    trial_ended_unpaid: "Trial ended, Pro invoice not paid", plus_unpaid_at_trial_end: "Trial ended, moved to Plus but the Plus invoice is not paid", finishing_downgrade: "Finishing a downgrade that stopped halfway",
+    upgraded_after_downgrade: "Upgraded after the downgrade", read_failed: "BD could not be read" };
+  var TRIAL_HOW = { daily: "Daily, 2:00 AM", manual: "Run now", login: "At sign-in" };
+  function trialsTab() {
+    var el = h("div", { class: "card", id: "admin-trials" }, h("h2", { text: "Pro trial check" }), h("p", { class: "muted", text: "Loading..." }));
+    body(el);
+    api.get("/admin/trial").then(function (r) {
+      var d = r.data || r, cfg = d.settings || {}, live = cfg.mode === "live", runs = d.runs || [];
+      D.clear(el);
+      el.appendChild(h("h2", { text: "Pro trial check" }));
+      el.appendChild(h("p", { class: "small muted", text: "Every day at 2:00 AM Pacific, DELA checks freelancers on Plus (7) or Pro (8) whose trial is active. An unpaid trial moves to Free (3); a paid invoice for the plan they are on marks them converted. Attorney plans (5, 12, 13, 14) and the lifetime plans (10, 11) are never changed. Dry run lists what it would do and changes nothing." }));
+      var notConnected = runs.some(function (x) { return String(x.error || "").indexOf("bd_trial_api_not_confirmed") >= 0; });
+      el.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;gap:8px;margin:6px 0" },
+        h("span", { class: "badge " + (cfg.on ? "ready" : "C"), text: cfg.on ? "Daily check: on" : "Daily check: off (switch bd_trial_downgrade)" }),
+        h("span", { class: "badge " + (live ? "bad" : "ready"), id: "trial-mode", text: "Trial downgrade mode: " + (live ? "Live" : "Dry run") }),
+        notConnected ? h("span", { class: "badge held", text: "BD not connected yet: waiting for the BD check" }) : null));
+      var runBtn = h("button", { class: "blue small", type: "button" }, live ? "Run the check now (Live: changes BD)" : "Run the check now (Dry run)");
+      runBtn.addEventListener("click", function () {
+        if (live && !confirm("Live mode: this moves unpaid trial members to Free in BD and emails them. Run it now?")) return;
+        runBtn.disabled = true;
+        api.post("/admin/trial/run", {}).then(function (x) { var y = x.data || x; ok(y.error ? "The check ran but stopped: " + y.error : "Checked " + y.checked + (y.checked === 1 ? " member." : " members.")); trialsTab(); }).catch(function (e) { runBtn.disabled = false; fail(e); });
+      });
+      var modeBtn = h("button", { class: live ? "ghost small" : "danger small", type: "button" }, live ? "Switch to Dry run" : "Switch to Live");
+      modeBtn.addEventListener("click", function () {
+        if (!live && !confirm("Switch the trial check to Live? From the next run it changes plans in BD, cancels unpaid trial invoices and sends the trial emails. Do this only after 3 clean dry-run days.")) return;
+        api.post("/admin/settings", { key: "trial.downgrade_mode", value: live ? "dry_run" : "live", status: "C", reason: "Changed in the Trials tab" }).then(function (x) { var y = x.data || x; if (y.ok === false) throw new Error(y.reason || "not saved"); ok(live ? "Dry run: the check lists and changes nothing." : "Live: the next run changes BD."); trialsTab(); }).catch(fail);
+      });
+      el.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" }, runBtn, modeBtn));
+      el.appendChild(h("h3", { text: "Runs" }));
+      if (!runs.length) el.appendChild(h("p", { class: "muted", text: "No runs yet." }));
+      else el.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack", style: "width:100%" },
+        h("thead", null, h("tr", null, ["Started", "How", "Mode", "Members checked", "What it found", "Problem"].map(function (t) { return h("th", { scope: "col", text: t }); }))),
+        h("tbody", null, runs.map(function (x) {
+          var c = x.counts || {}, keys = Object.keys(c);
+          return h("tr", null, h("td", { "data-label": "Started", text: D.dateTime ? D.dateTime(x.started_at) : new Date(x.started_at).toLocaleString() }), h("td", { "data-label": "How", text: TRIAL_HOW[x.trigger] || x.trigger }),
+            h("td", { "data-label": "Mode", text: x.mode === "live" ? "Live" : "Dry run" }), h("td", { "data-label": "Members checked", text: String(x.checked) }),
+            h("td", { "data-label": "What it found", text: keys.length ? keys.map(function (k) { return c[k] + " " + (TRIAL_ACTION[k] || k).toLowerCase(); }).join("; ") : "Nothing to do" }),
+            h("td", { "data-label": "Problem", text: x.error ? (x.error.indexOf("bd_trial_api_not_confirmed") >= 0 ? "BD not connected yet" : x.error) : "" }));
+        })))));
+      var ev = d.events || [];
+      el.appendChild(h("h3", { text: "Members in the last 3 runs" }));
+      if (!ev.length) { el.appendChild(h("p", { class: "muted", text: "No member to change in the last 3 runs." })); return; }
+      el.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack", style: "width:100%", id: "trial-members" },
+        h("thead", null, h("tr", null, ["Member", "BD user ID", "Plan", "What", "Why", "Trial ends", "Invoice", "Result"].map(function (t) { return h("th", { scope: "col", text: t }); }))),
+        h("tbody", null, ev.map(function (x) {
+          var dry = x.mode !== "live";
+          return h("tr", null, h("td", { "data-label": "Member", text: x.name }), h("td", { "data-label": "BD user ID", text: String(x.bd_user_id) }), h("td", { "data-label": "Plan", text: String(x.plan_id || "") }),
+            h("td", { "data-label": "What", text: (dry ? "Would: " : "") + (TRIAL_ACTION[x.action] || x.action) }), h("td", { "data-label": "Why", text: TRIAL_WHY[x.reason] || x.reason }),
+            h("td", { "data-label": "Trial ends", text: x.trial_ends_at ? D.date(x.trial_ends_at) : "" }), h("td", { "data-label": "Invoice", text: { paid: "Paid", unpaid: "Unpaid", none: "None" }[x.invoice_status] || x.invoice_status }),
+            h("td", { "data-label": "Result", text: dry ? "Listed only" : x.done ? "Done" : "Not finished: " + x.error }));
+        })))));
     }).catch(fail);
   }
 

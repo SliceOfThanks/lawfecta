@@ -100,6 +100,13 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Buying extra proposals. Later only. | No | Confirmed | C-10 | |
 | Price of one standalone export | $9 | Open | C-28; price is a suggestion by Claude | |
 | Extra team seat on Business, per month. Annual price for extra seats and whether seats add AI, storage or integration allowances are still open. | $15 | Confirmed | Stacey, Decision Register v1.1 (2026-10-26) | |
+| Trial downgrade mode. Dry run lists who the daily job would downgrade or mark converted and changes nothing. Switch to Live in the admin area after 3 clean days on the test site (answer 6). | dry run | Confirmed | Stacey 2026-11-07 (Pro trial answers) | |
+| Days before the trial ends to send "Your Pro trial ends in 2 days" | 2 days | Confirmed | Developer notes 2026-11-06 | |
+| Hour the daily trial check runs (Pacific). 2:00 AM Pacific. | 2 hour (0 to 23) | Confirmed | Developer notes 2026-11-06 | |
+| Areas of law a Free member shows. Areas past the first 3 are hidden at the downgrade, never deleted. | 3 areas | Confirmed | Developer notes 2026-11-06 | |
+| BD plan IDs the trial job uses. Only members on 7 or 8 with dela_trial_status active are ever changed. Never changed, even with trial data: attorney plans 5, 12, 13, 14 and the lifetime plans 10, 11 (answer 1). | {'pro': 8, 'free': 3, 'plus': 7, 'agency': 9, 'trial': [7, 8], 'never': [5, 10, 11, 12, 13, 14]} BD plan IDs | Confirmed | Stacey 2026-11-07 (Pro trial answers) | |
+| Who gets the daily downgrade summary email. One email on a day with at least one downgrade, listing each member's name, user ID and trial end date. None on other days (answer 8). | stacey@lawfecta.com | Confirmed | Stacey 2026-11-07 (Pro trial answers) | |
+| What comes back when a downgraded member upgrades. Suggested: everything comes back on Plus, Pro and Agency Business. If Plus allows fewer areas of law or not every post type in BD, change Plus here. | {'7': {'areas': None, 'types': ['video', 'promotion', 'article']}, '8': {'areas': None, 'types': ['video', 'promotion', 'article']}, '9': {'areas': None, 'types': ['video', 'promotion', 'article']}} per BD plan: areas shown (null = all) and post types | Suggested | Suggested by Claude 2026-11-08 | |
 
 ## 5. Flex Gigs and proposals
 
@@ -267,3 +274,4 @@ Every switch starts Off. In the admin area each one can be set to Off, Lawfecta 
 | The Appearance choice (Match my device, Light, Dark) in the account menu | Phase 4 part D tested |
 | The client information check follows the sensitive data rule (client details allowed where the rule allows them) | Lawyer reviews the privacy policy and data handling |
 | The plain-language Library: cards, plain categories, "What would you like to document?" | Stacey reviews it on computer and phone (step 8b Part B, question B10) |
+| The daily Pro trial check: downgrade unpaid trials to Free (BD) | Stacey's read-only BD API check done, endpoints connected, then 3 clean dry-run days |
