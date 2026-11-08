@@ -963,6 +963,13 @@
     trial_ended_unpaid: "Trial ended, Pro invoice not paid", plus_unpaid_at_trial_end: "Trial ended, moved to Plus but the Plus invoice is not paid", finishing_downgrade: "Finishing a downgrade that stopped halfway",
     upgraded_after_downgrade: "Upgraded after the downgrade", read_failed: "BD could not be read" };
   var TRIAL_HOW = { daily: "Daily", manual: "Run now", login: "At sign-in" };
+  // Plain words for why a run stopped (functionality test 2026-11-08: the code name showed)
+  function TRIAL_STOP(e) {
+    e = String(e || "");
+    if (e.indexOf("bd_trial_api_not_confirmed") >= 0) return "BD is not connected yet, so nothing was checked. The run is in the list below.";
+    if (e === "another_check_running") return "Another check is running. Try again in a few minutes.";
+    return "The check stopped: " + e;
+  }
   function trialsTab() {
     var el = h("div", { class: "card", id: "admin-trials" }, h("h2", { text: "Pro trial check" }), h("p", { class: "muted", text: "Loading..." }));
     body(el);
@@ -982,7 +989,7 @@
       runBtn.addEventListener("click", function () {
         if (live && !confirm("Live mode: this moves unpaid trial members to Free in BD and emails them. Run it now?")) return;
         runBtn.disabled = true;
-        api.post("/admin/trial/run", {}).then(function (x) { var y = x.data || x; ok(y.error ? "The check ran but stopped: " + y.error : "Checked " + y.checked + (y.checked === 1 ? " member." : " members.")); trialsTab(); }).catch(function (e) { runBtn.disabled = false; fail(e); });
+        api.post("/admin/trial/run", {}).then(function (x) { var y = x.data || x; ok(y.error ? TRIAL_STOP(y.error) : "Checked " + y.checked + (y.checked === 1 ? " member." : " members.")); trialsTab(); }).catch(function (e) { runBtn.disabled = false; fail(e); });
       });
       var modeBtn = h("button", { class: live ? "ghost small" : "danger small", type: "button" }, live ? "Switch to Dry run" : "Switch to Live");
       modeBtn.addEventListener("click", function () {

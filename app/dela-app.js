@@ -428,7 +428,7 @@
       h("button", { class: "ghost small", type: "button", onclick: function () { if (composerText) { composerText.value = EXAMPLE; composerText.focus(); } } }, "Use this example")));
     chat.messages.forEach(function (m) { list.appendChild(bubble(m)); });
     if (chat.pending && chat.busy) list.appendChild(h("div", { class: "msg user", text: chat.pending.content }));
-    if (chat.busy) list.appendChild(h("div", { class: "msg assistant muted", text: "DELA is thinking..." }));
+    if (chat.busy) list.appendChild(h("div", { class: "msg assistant muted", text: "DELA is checking your message, then answering..." }));
     if (fresh) { chatEl.appendChild(composer()); if (chat.problem) chatEl.appendChild(problemBox(chat.problem)); chatEl.appendChild(list); }
     else { chatEl.appendChild(list); if (chat.problem) chatEl.appendChild(problemBox(chat.problem)); chatEl.appendChild(composer()); }
   }

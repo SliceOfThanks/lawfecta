@@ -815,7 +815,7 @@ async function sensitive(ctx: Ctx, s: { person_id: string | null; side: string |
   if (confirmed) return null;
   const remind = reminderKinds(text);
   if (remind.length) return { ok: false, reason: "looks_like_client_info", kinds: remind, rule: "maybe_sensitive",
-    note: "This may include health information or biometric data. That is sensitive data, which never goes in DELA." + SENSITIVE_LINK + " Click OK only if it is not sensitive." };
+    note: "This may include health information or biometric data. That is sensitive data, which never goes in DELA." + SENSITIVE_LINK + " Send it only if it is not sensitive." };
   const details = clientDetails(text);
   if (!details.length || place === "internal") return null;
   if (place === "public") return { ok: false, reason: "looks_like_client_info", kinds: details, rule: "public",

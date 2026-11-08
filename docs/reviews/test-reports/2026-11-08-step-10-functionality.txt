@@ -1,0 +1,40 @@
+DELA functionality test report — November 8, 2026
+Status: COMPLETE — all 19 steps passed.
+
+1 PASS — Test attorney login completed.
+2 PASS — OpenAI client-details notice appeared; Continue produced intake checklist.
+3 PASS — Follow-up answered without another client-details notice.
+4 PASS — Health/biometric warning appeared despite prior consent; edited and cleared message.
+5 PASS — New chat asked for consent again; edited and cleared without continuing.
+6 PASS — Conflict search and Needs your review filter returned matching cards only; restored All.
+7 PASS — Ready document opened; Library return preserved All categories / All status.
+8 PASS — Notices showed Needs your action (4) and actionable rows; panel closed.
+9 PASS — Monthly prices $1,000/$1,100; totals $1,050/$1,155; one-day deadline and mismatch warning present.
+10 PASS — Contracting party Roe Test Agency LLC; agency lead DELA Test Freelancer.
+11 PASS — Attorney signed out; login page reached.
+12 PASS — Freelancer login completed with user assistance after reCAPTCHA error.
+13 PASS — Required placeholder verified exactly; no message typed or sent.
+14 PASS — Freelancer monthly table matched attorney view, including totals and mismatch warning.
+15 PASS — Freelancer signed out; login page reached.
+16 PASS — User logged in as Stacey Lake; owner role confirmed on admin page.
+17 PASS — Trials schedule, plan exclusions, daily check off and Dry run labels matched.
+18 PASS — Dry run added Run now / Dry run / BD not connected yet row; 0 members checked; no member changes.
+19 PASS — Owner signed out; login?action=loggedout page verified.
+
+FAIL list: None.
+
+Confusing messages and notes:
+- Step 4 warning says “Click OK only if it is not sensitive,” but buttons are “Edit my message” and “Send anyway”; there is no OK button. Send anyway was not tested.
+- Login branding says Welcome To LawWurk while the test and DELA header use Lawfecta.
+- Freelancer login initially showed “The security check was not completed successfully.” and “Invalid recaptcha response or setup.” The user completed login.
+- Step 13 had an existing draft in the message field, so the placeholder was obscured visually. The placeholder attribute matched the required text exactly. Existing draft was left untouched.
+- DELA briefly shows the submitted message and “DELA is thinking...” before displaying a warning. This could suggest processing before the warning; actual network behavior was not inspected.
+- Earlier assistant action was blocked by automatic approval review before test submission; user explicitly confirmed fictional names/case numbers and authorized submission, then testing resumed.
+- No application operation was observed to exceed 60 seconds. Time paused for user approvals/login is excluded.
+- No contract changes, payments, signatures, document saves, live-mode switches, or hires were performed.
+
+Final owner-check notes:
+- Step 18 toast: “The check ran but stopped: bd_trial_api_not_confirmed”. This is technical wording compared with the clearer table problem “BD not connected yet”. The stopped state is expected while BD is unconnected.
+- Daily check remained off and trial downgrade mode remained Dry run after the check.
+- Owner checks completed within 60 seconds each.
+- Dry-run screenshot: DELA-trial-dry-run.jpg (supporting evidence; no FAIL screenshots required).
