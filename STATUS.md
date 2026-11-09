@@ -2,6 +2,15 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Lawfecta logo everywhere the name shows, on the test site 2026-11-09 (commit 4086ebf, api v74, no migration)
+- Stacey's choice: the round Lawfecta mark only in the top bars (the typed "LAWFECTA" is gone; the "DELA" / "DELA Admin" label stays). Also on the /security page, the browser tab icon (only when the page has none of its own), notice and trial emails (the jsDelivr copy pinned to the code version, with the words kept for mail apps that block images), the Word export page header, and the print/PDF and HTML exports.
+- Her files are in brand/ (lawfecta-mark-864.png; the white and orange wordmarks and the white icon are saved for later, not used yet).
+- Tests: supabase/functions/api/brand_test.ts; layout and security browser checks.
+- Fixed with it (0ed34bd): the disputes browser test used the agency test's members 3800 and 3801, so GitHub Tests went red from step 11 on; it now uses 4800 and 4801.
+
+## Step 12: new layout (Indy as inspiration), mockup only
+- Brief docs/briefs/step-12-layout.md, mockup https://claude.ai/artifact/JXogiAYYHhjyMp5inwYuH2 (desktop and phone, attorney, freelancer and admin, real logo). Waiting on Stacey's answers to the 8 questions; nothing built in DELA yet.
+
 ## Step 11: the dispute center, on the test site 2026-11-08 (commit 8f050ae, migrations 0074 and 0075, api v73)
 - Brief and Stacey's answers: docs/briefs/step-11-disputes.md. Switch dispute_center: everyone on the test site; off on Live until the lawyer reviews terms clause 6 (G-CONTRACT).
 - Fixed first (Fix commit, tests fail before): a dispute decision on a monthly unit now refunds it from the month's payment (before, nothing was refunded); a won or withdrawn chargeback lifts the pause.
