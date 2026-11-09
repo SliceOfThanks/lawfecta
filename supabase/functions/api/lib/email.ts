@@ -1,7 +1,16 @@
 // Builds a DELA notice email. Notices never carry confidential details: a short title, a short body and a
 // link back into DELA, where the member signs in to see the rest.
 
-export type NoticeEmail = { title: string; body: string; link: string; siteUrl: string; appPath: string; environment: string };
+export type NoticeEmail = { title: string; body: string; link: string; siteUrl: string; appPath: string; environment: string; logoUrl?: string };
+
+// The logo row at the top of every DELA email. The words stay next to the image, so the email still reads well when
+// the mail app blocks images.
+export function logoRow(logoUrl: string | undefined, label: string): string {
+  const img = logoUrl ? `<img src="${esc(logoUrl)}" width="40" height="40" alt="Lawfecta" style="display:block;border:0;border-radius:50%">` : "";
+  return `<tr><td style="padding:24px 28px 8px"><table role="presentation" cellpadding="0" cellspacing="0"><tr>` +
+    (img ? `<td style="padding-right:10px;vertical-align:middle">${img}</td>` : "") +
+    `<td style="vertical-align:middle;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#6b7280">${esc(label)}</td></tr></table></td></tr>`;
+}
 
 const esc = (s: string) => s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;").replaceAll('"', "&quot;");
 
@@ -20,7 +29,7 @@ export function buildNotice(n: NoticeEmail): { subject: string; html: string; te
   const html = `<!doctype html><html><body style="margin:0;background:#f5f3ef;font-family:Arial,Helvetica,sans-serif;color:#1f2a37">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border:1px solid #e3ded5;border-radius:12px" cellpadding="0" cellspacing="0">
-<tr><td style="padding:24px 28px 8px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#6b7280">Lawfecta DELA${prefix ? " (test site)" : ""}</td></tr>
+${logoRow(n.logoUrl, "Lawfecta DELA" + (prefix ? " (test site)" : ""))}
 <tr><td style="padding:0 28px;font-size:22px;font-weight:bold;line-height:1.3">${esc(n.title)}</td></tr>
 <tr><td style="padding:12px 28px 4px;font-size:15px;line-height:1.6">${esc(n.body).replaceAll("\n", "<br>")}</td></tr>
 <tr><td style="padding:16px 28px 28px"><a href="${esc(url)}" style="display:inline-block;background:#1f3a5f;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold">Open DELA</a></td></tr>

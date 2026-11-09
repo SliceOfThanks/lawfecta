@@ -373,8 +373,8 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
       ".badge.off{color:#a7adbb;border-color:#3a3f50}"),
     ".dela *{box-sizing:border-box}",
     ".top{display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:12px 16px;background:linear-gradient(120deg,#1d1426,#3a1430);color:#fff;position:sticky;top:var(--dela-top,0px);z-index:5}",
-    ".brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}.brand img{width:34px;height:34px;border-radius:50%}",
-    ".brand b{font-family:Georgia,'Times New Roman',serif;font-weight:500;font-size:20px;letter-spacing:.06em}.brand span{font-size:12px;font-weight:700;letter-spacing:.12em;opacity:.8;text-transform:uppercase}",
+    ".brand{display:flex;align-items:center;gap:10px;color:#fff;text-decoration:none}.brand img{width:38px;height:38px;border-radius:50%;flex:0 0 auto}",
+    ".brand span{font-size:12px;font-weight:700;letter-spacing:.12em;opacity:.8;text-transform:uppercase}",
     ".grow{flex:1}",
     ".badge{display:inline-block;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:var(--soft);color:var(--ink);border:1px solid var(--line);white-space:nowrap}",
     ".badge.stage{background:#fff3d6;color:#7a5200;border-color:#e8c97a}.badge.C{background:#e3f3ea;color:#21613d;border-color:#b6dcc5}.badge.R{background:#e5f1fc;color:#0b5fa3;border-color:#b9d9f4}.badge.O{background:#fff3d6;color:#7a5200;border-color:#e8c97a}.badge.G{background:var(--pink);color:var(--pink-ink);border-color:#efc3d2}",
@@ -495,7 +495,7 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
     ".lib-card .lib-title{margin:0 0 6px;font-size:17px;line-height:1.3;overflow-wrap:anywhere}.lib-card .lib-purpose{margin:0 0 10px;color:var(--muted);font-size:14px;line-height:1.45}" +
     ".lib-card>.row:last-child{margin-top:auto !important;padding-top:10px}.lib-help{margin-top:16px}" +
     "@media (max-width:640px){.lib-filters .pills{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}.lib-filters .pills>button{flex:0 0 auto}.lib-cards{grid-template-columns:1fr;gap:10px}.lib-card{padding:14px}.lib-head h1{font-size:24px}.lib-card .lib-title{font-size:16px}}",
-    "@media (max-width:600px){h1{font-size:24px}.wrap{padding:12px}.card{padding:16px}.hero{padding:20px}.hero h2{font-size:26px}.brand span{display:none}.top{flex-wrap:nowrap;gap:6px;padding:10px 12px}.top .bell{padding:6px 10px;font-size:13px}.top .brand{min-width:0;overflow:hidden}.brand b{font-size:16px;letter-spacing:.04em}.brand img{width:30px;height:30px}.top .badge{font-size:11px;padding:2px 8px}.bell{padding:6px 10px}.gd-terms>div{grid-template-columns:1fr;gap:2px}}",
+    "@media (max-width:600px){h1{font-size:24px}.wrap{padding:12px}.card{padding:16px}.hero{padding:20px}.hero h2{font-size:26px}.brand span{font-size:11px;letter-spacing:.08em}.top{flex-wrap:nowrap;gap:6px;padding:10px 12px}.top .bell{padding:6px 10px;font-size:13px}.top .brand{min-width:0;overflow:hidden}.brand img{width:32px;height:32px}.top .badge{font-size:11px;padding:2px 8px}.bell{padding:6px 10px}.gd-terms>div{grid-template-columns:1fr;gap:2px}}",
   ].join("");
 
   // Inter for DELA. Fonts must load at the page level to reach inside the shadow root.
@@ -522,4 +522,16 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
     "Tip: test accounts are easiest in a private window, so your own login stays separate.",
   ];
   D.asset = function (root, rel) { return (root.getAttribute("data-base") || "") + "/" + rel; };
+  // The Lawfecta logo (Stacey 2026-11-09: the round mark everywhere the name shows). Also sets the browser tab icon
+  // when the page has none of its own, so BD's site-wide icon is never replaced.
+  D.logo = function (root, size) {
+    if (!document.querySelector("link[rel~='icon']")) {
+      var l = document.createElement("link"); l.rel = "icon"; l.type = "image/png"; l.href = D.asset(root, "brand/lawfecta-mark-192.png");
+      document.head.appendChild(l);
+    }
+    var img = document.createElement("img");
+    img.src = D.asset(root, "brand/lawfecta-mark-192.png"); img.alt = "Lawfecta"; img.className = "logo";
+    if (size) { img.width = size; img.height = size; }
+    return img;
+  };
 })();

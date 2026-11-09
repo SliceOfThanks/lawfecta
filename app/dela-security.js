@@ -11,7 +11,8 @@
   var app = mounted.app;
   var shadow = mounted.shadow;
   shadow.appendChild(h("style", { text:
-    ".dela{padding-bottom:24px;min-height:0}.hero h1{color:#fff;margin:6px 0 8px}.hero .eyebrow{color:rgba(255,255,255,.85)}" +
+    ".dela{padding-bottom:24px;min-height:0}.hero h1{color:#fff;margin:6px 0 8px}.hero .eyebrow{color:rgba(255,255,255,.85);margin:0}" +
+    ".sec-brand{display:flex;align-items:center;gap:12px}.sec-brand img{width:48px;height:48px;border-radius:50%}" +
     ".sec-list{margin:6px 0 10px;padding-left:22px;display:grid;gap:6px;line-height:1.55}" +
     ".sec-toc{margin:6px 0 0;padding-left:22px;display:grid;gap:6px}" +
     ".sec-form{max-width:640px}.sec-form input,.sec-form textarea{width:100%;display:block}.sec-form textarea{min-height:140px;resize:vertical}" +
@@ -221,7 +222,7 @@
   function render(f) {
     var wrap = h("main", { class: "wrap" },
       h("div", { class: "hero navy" },
-        h("p", { class: "eyebrow", text: "Lawfecta DELA" }),
+        h("div", { class: "sec-brand" }, D.logo(root, 48), h("p", { class: "eyebrow", text: "Lawfecta DELA" })),
         h("h1", { text: "Security and your data" }),
         h("p", { text: "How DELA protects the work attorneys and freelancers share, what never belongs in DELA, and how long anything is kept." })),
       toc([

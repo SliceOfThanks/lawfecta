@@ -1,6 +1,8 @@
 // The playbook definition (Step 2 brief, "What a playbook is"), the completeness check and the export files.
 // The AI writes to this shape, the member edits it, and every export is made from it.
 import { strToU8, zipSync } from "npm:fflate@0.8.2";
+import { BRAND_HEADER_OVERRIDE, BRAND_HEADER_REF, BRAND_HEADER_REL, BRAND_HEADER_TYPES, brandHeaderFiles } from "../brand/docx.ts";
+import { htmlBrandLine } from "../brand/logo.ts";
 
 export type Step = { text: string; who: string; tool: string; minutes: number | null; decision: string; tag: "" | "keep" | "delegate" | "automate"; screenshot: string };
 export type Body = {
@@ -135,7 +137,7 @@ export function toHtml(b: Body, m: ExportMeta): string {
   }).join("\n");
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(b.title || "Playbook")}</title>
 <style>body{font-family:Arial,Helvetica,sans-serif;max-width:760px;margin:32px auto;padding:0 16px;color:#1c2230;line-height:1.55}h1{color:#8b2146}h2{border-bottom:1px solid #e6e7ec;padding-bottom:4px;margin-top:28px}footer{margin-top:40px;font-size:12px;color:#5f6675;border-top:1px solid #e6e7ec;padding-top:8px}@media print{body{margin:0}}</style></head>
-<body><h1>${esc(b.title || "Playbook")}</h1>
+<body>${htmlBrandLine()}<h1>${esc(b.title || "Playbook")}</h1>
 ${body}
 <footer>${esc(footerText(m))}</footer></body></html>`;
 }
@@ -218,7 +220,7 @@ function docxBody(b: Body, m: ExportMeta): string {
 
 export function toDocx(b: Body, m: ExportMeta): Uint8Array {
   const ns = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
-  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${ns}><w:body>${docxBody(b, m)}<w:sectPr><w:footerReference w:type="default" r:id="rIdFooter"/><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1300" w:right="1440" w:bottom="1300" w:left="1440" w:header="720" w:footer="600" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${ns}><w:body>${docxBody(b, m)}<w:sectPr>${BRAND_HEADER_REF}<w:footerReference w:type="default" r:id="rIdFooter"/><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1300" w:right="1440" w:bottom="1300" w:left="1440" w:header="720" w:footer="600" w:gutter="0"/></w:sectPr></w:body></w:document>`;
   const fld = (code: string) => `<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> ${code} </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>`;
   const footer = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr ${ns}><w:p><w:pPr><w:pStyle w:val="Footer"/><w:tabs><w:tab w:val="right" w:pos="9360"/></w:tabs></w:pPr>${run(footerText(m))}<w:r><w:tab/></w:r>${run("Page ")}${fld("PAGE")}${run(" of ")}${fld("NUMPAGES")}</w:p></w:ftr>`;
   const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
@@ -231,12 +233,13 @@ export function toDocx(b: Body, m: ExportMeta): Uint8Array {
 <w:style w:type="paragraph" w:styleId="TableText"><w:name w:val="Table Text"/><w:pPr><w:spacing w:after="40" w:line="252" w:lineRule="auto"/></w:pPr><w:rPr><w:sz w:val="20"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:rPr><w:color w:val="${GREY}"/><w:sz w:val="16"/></w:rPr></w:style></w:styles>`;
   return zipSync({
-    "[Content_Types].xml": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>`),
+    "[Content_Types].xml": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>${BRAND_HEADER_TYPES}<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>${BRAND_HEADER_OVERRIDE}</Types>`),
     "_rels/.rels": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`),
-    "word/_rels/document.xml.rels": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/></Relationships>`),
+    "word/_rels/document.xml.rels": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>${BRAND_HEADER_REL}</Relationships>`),
     "word/document.xml": strToU8(doc),
     "word/styles.xml": strToU8(styles),
     "word/footer1.xml": strToU8(footer),
+    ...brandHeaderFiles(),
   });
 }
 

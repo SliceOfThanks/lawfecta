@@ -23,7 +23,7 @@ async function open(browser, viewport) {
   await page.route("https://cdn.jsdelivr.net/**", (route) => {
     const u = new URL(route.request().url());
     const rel = u.pathname.split("@")[1].split("/").slice(1).join("/");
-    route.fulfill({ path: path.join(ROOT, rel), contentType: "application/javascript" });
+    route.fulfill({ path: path.join(ROOT, rel), contentType: rel.endsWith(".png") ? "image/png" : "application/javascript" });
   });
   await page.route("https://fonts.googleapis.com/**", (r) => r.abort());
   // uid 0: nobody is logged in to the website
@@ -97,6 +97,8 @@ async function checkFacts(page, f) {
     let { ctx, page } = await open(browser);
     let t = await text(page);
     ok(t.includes("Security and your data"), "the page opens with no login");
+    const lg = await page.evaluate(async () => { const i = document.querySelector(".dela-host").shadowRoot.querySelector(".hero .sec-brand img"); await i.decode().catch(() => null); return { alt: i.alt, nw: i.naturalWidth }; });
+    ok(lg.alt === "Lawfecta" && lg.nw === 192, "the Lawfecta logo shows above the heading (" + JSON.stringify(lg) + ")");
     for (const s of SECTIONS) ok((await dela(page).getByRole("heading", { name: s, level: 2, exact: true }).count()) === 1, "section heading: " + s);
     ok((await dela(page).getByRole("heading", { level: 1 }).count()) === 1, "one main heading");
     await checkFacts(page, facts.facts);

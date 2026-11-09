@@ -3,6 +3,8 @@
 // each type, the converter for older items, the scrub for client data and credentials, the self-check (in code, never by the
 // AI), the RACI and KPI rules, the word count, the starter library and the exports.
 import { strToU8, zipSync } from "npm:fflate@0.8.2";
+import { BRAND_HEADER_OVERRIDE, BRAND_HEADER_REF, BRAND_HEADER_REL, brandHeaderFiles } from "../brand/docx.ts";
+import { htmlBrandLine } from "../brand/logo.ts";
 import type { Body as LegacyBody } from "../playbooks/model.ts";
 import { patternCheck } from "../ai/clientcheck.ts";
 import { IMAGE_SECTIONS, type ExportImages, type ImageFacts, type ImageRef, placedImages, readRefs, stepsTakeImages } from "./images.ts";
@@ -584,7 +586,7 @@ export function docToHtml(b: DocBody, m: DocMeta, imgs?: ExportImages): string {
   }).join("\n");
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(b.title || "Document")}</title>
 <style>body{font-family:Arial,Helvetica,sans-serif;max-width:820px;margin:32px auto;padding:0 16px;color:#1c2230;line-height:1.55}h1{color:#8b2146}.h{font-size:18px;color:#8b2146;border-bottom:1px solid #e6e7ec;padding-bottom:4px;margin:26px 0 8px}table{border-collapse:collapse;width:100%;font-size:14px}td,th{border:1px solid #d9dbe1;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f1e4ea}.banner{background:#fff3d6;border:1px solid #e8c97a;padding:8px 12px;border-radius:8px;font-weight:700}figure{margin:10px 0}figure img{max-width:100%;height:auto;border:1px solid #d9dbe1}figcaption,.cap{font-style:italic;color:#5f6675;font-size:14px}footer{margin-top:40px;font-size:12px;color:#5f6675;border-top:1px solid #e6e7ec;padding-top:8px}</style></head>
-<body><h1>${esc(b.title || "Document")}</h1>${approved(m) ? "" : `<p class="banner">${DRAFT_BANNER}</p>`}
+<body>${htmlBrandLine()}<h1>${esc(b.title || "Document")}</h1>${approved(m) ? "" : `<p class="banner">${DRAFT_BANNER}</p>`}
 ${body}
 <footer>${esc(footerText(m))}</footer></body></html>`;
 }
@@ -668,7 +670,7 @@ export function docToDocx(b: DocBody, m: DocMeta, imgs?: ExportImages): Uint8Arr
   const ns = 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"';
   const media: Media[] = [];
   const bodyXml = docxBody(b, m, imgs, media);
-  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${ns} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><w:body>${bodyXml}<w:sectPr><w:footerReference w:type="default" r:id="rIdFooter"/><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1300" w:right="1440" w:bottom="1300" w:left="1440" w:header="720" w:footer="600" w:gutter="0"/></w:sectPr></w:body></w:document>`;
+  const doc = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document ${ns} xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing"><w:body>${bodyXml}<w:sectPr>${BRAND_HEADER_REF}<w:footerReference w:type="default" r:id="rIdFooter"/><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1300" w:right="1440" w:bottom="1300" w:left="1440" w:header="720" w:footer="600" w:gutter="0"/></w:sectPr></w:body></w:document>`;
   const fld = (code: string) => `<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText xml:space="preserve"> ${code} </w:instrText></w:r><w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>`;
   const footer = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:ftr ${ns}><w:p><w:pPr><w:pStyle w:val="Footer"/><w:tabs><w:tab w:val="right" w:pos="9360"/></w:tabs></w:pPr>${run(footerText(m))}<w:r><w:tab/></w:r>${run("Page ")}${fld("PAGE")}${run(" of ")}${fld("NUMPAGES")}</w:p></w:ftr>`;
   const styles = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
@@ -681,13 +683,14 @@ export function docToDocx(b: DocBody, m: DocMeta, imgs?: ExportImages): Uint8Arr
 <w:style w:type="paragraph" w:styleId="TableText"><w:name w:val="Table Text"/><w:pPr><w:spacing w:after="30" w:line="252" w:lineRule="auto"/></w:pPr><w:rPr><w:sz w:val="19"/></w:rPr></w:style>
 <w:style w:type="paragraph" w:styleId="Footer"><w:name w:val="footer"/><w:rPr><w:color w:val="${GREY}"/><w:sz w:val="16"/></w:rPr></w:style></w:styles>`;
   return zipSync({
-    "[Content_Types].xml": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/></Types>`),
+    "[Content_Types].xml": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Default Extension="png" ContentType="image/png"/><Default Extension="jpeg" ContentType="image/jpeg"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/><Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/><Override PartName="/word/footer1.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.footer+xml"/>${BRAND_HEADER_OVERRIDE}</Types>`),
     "_rels/.rels": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`),
-    "word/_rels/document.xml.rels": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>${media.map((x) => `<Relationship Id="${x.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${x.name}"/>`).join("")}</Relationships>`),
+    "word/_rels/document.xml.rels": strToU8(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rIdStyles" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/><Relationship Id="rIdFooter" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>${BRAND_HEADER_REL}${media.map((x) => `<Relationship Id="${x.rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/${x.name}"/>`).join("")}</Relationships>`),
     ...Object.fromEntries(media.map((x) => ["word/media/" + x.name, x.bytes])),
     "word/document.xml": strToU8(doc),
     "word/styles.xml": strToU8(styles),
     "word/footer1.xml": strToU8(footer),
+    ...brandHeaderFiles(),
   });
 }
 

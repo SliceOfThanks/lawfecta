@@ -1,6 +1,7 @@
 // Step 9: the Pro trial and the downgrade to Free (docs/briefs/step-9-pro-trial-downgrade.md, Stacey's answers 2026-11-07).
 // The decision for one Brilliant Directories member, worked out in code from what BD says about them. No BD calls here:
 // lib/trial/run.ts reads the member, asks decide() what to do, and carries it out (or only lists it in Dry run).
+import { logoRow } from "../email.ts";
 
 export type TrialPlans = {
   pro: number; free: number; plus: number; agency: number;
@@ -90,7 +91,7 @@ export function areasToHide(areas: string[], keep: number): { keep: string[]; hi
 
 // The two emails, worded exactly as in Stacey's developer notes (2026-11-06)
 // days: the trial.reminder_days setting (AI review 0.10.0, payments 3); at 2 the words are exactly the developer notes'
-export function trialEmail(kind: "ending" | "ended", firstName: string, siteUrl: string, environment: string, days = 2) {
+export function trialEmail(kind: "ending" | "ended", firstName: string, siteUrl: string, environment: string, days = 2, logoUrl = "") {
   const inDays = days === 1 ? "1 day" : days + " days";
   const name = (firstName || "there").trim();
   const url = siteUrl.replace(/\/+$/, "") + "/account/upgrade";
@@ -110,7 +111,8 @@ export function trialEmail(kind: "ending" | "ended", firstName: string, siteUrl:
   const html = `<!doctype html><html><body style="margin:0;background:#f5f3ef;font-family:Arial,Helvetica,sans-serif;color:#1f2a37">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border:1px solid #e3ded5;border-radius:12px" cellpadding="0" cellspacing="0">
-<tr><td style="padding:24px 28px 8px;font-size:22px;font-weight:bold;line-height:1.3">${esc(t.subject)}</td></tr>
+${logoRow(logoUrl, "Lawfecta")}
+<tr><td style="padding:0 28px 8px;font-size:22px;font-weight:bold;line-height:1.3">${esc(t.subject)}</td></tr>
 <tr><td style="padding:8px 28px 4px;font-size:15px;line-height:1.6">${esc(t.body)}</td></tr>
 <tr><td style="padding:16px 28px 28px"><a href="${esc(url)}" style="display:inline-block;background:#1f3a5f;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold">${esc(t.button)}</a></td></tr>
 </table></td></tr></table></body></html>`;

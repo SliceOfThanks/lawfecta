@@ -18,7 +18,7 @@ async function open(browser, widget, uid, query, width) {
   const page = await ctx.newPage();
   page.on("pageerror", (e) => { throw new Error("page error: " + e.message); });
   page.on("dialog", (d) => d.accept());
-  await page.route("https://cdn.jsdelivr.net/**", (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(ROOT, u.pathname.split("@")[1].split("/").slice(1).join("/")), contentType: "application/javascript" }); });
+  await page.route("https://cdn.jsdelivr.net/**", (route) => { const u = new URL(route.request().url()); const f = u.pathname.split("@")[1].split("/").slice(1).join("/"); route.fulfill({ path: path.join(ROOT, f), contentType: f.endsWith(".png") ? "image/png" : "application/javascript" }); });
   await page.route("https://fonts.googleapis.com/**", (r) => r.abort());
   await page.goto(`${BASE}/page/${widget}?uid=${uid}&plan=${query || ""}`);
   await text(page);
@@ -58,6 +58,18 @@ const ATT = 4430;
     ok(nav.sw <= nav.cw + 1, "the tab bar does not scroll sideways (" + nav.sw + " > " + nav.cw + ")");
     ok(nav.right <= nav.vw + 1, "every tab, Get set up included, is on screen (" + Math.round(nav.right) + " of " + nav.vw + ")");
     await s.ctx.close();
+
+    // ---------- The Lawfecta logo in the top bar (Stacey 2026-11-09: the round mark only, no typed name) ----------
+    for (const w of [1200, 290]) {
+      s = await open(browser, "DELA-App", ATT, "&tab=home", w); p = s.page;
+      await waitFor(p, "Get set up", 15000);
+      await dela(p).locator(".top .brand img").evaluate((i) => i.decode().catch(() => null));
+      const lg = await dela(p).locator(".top .brand").evaluate((b) => { const i = b.querySelector("img"); const r = i.getBoundingClientRect(); return { alt: i.alt, nw: i.naturalWidth, w: r.width, src: i.src, text: b.innerText, icon: (document.querySelector("link[rel~='icon']") || {}).href || "" }; });
+      ok(lg.alt === "Lawfecta" && lg.nw === 192 && lg.w >= 30, "at " + w + " px the top bar shows the round Lawfecta logo (" + JSON.stringify(lg) + ")");
+      ok(!/LAWFECTA/.test(lg.text) && /DELA/.test(lg.text), "at " + w + " px the typed name is gone and the DELA label stays (" + lg.text + ")");
+      ok(lg.icon.endsWith("/brand/lawfecta-mark-192.png"), "the browser tab icon is the Lawfecta logo");
+      await s.ctx.close();
+    }
 
     // ---------- Fix (Stacey's appearance report, 2026-11-07): nine tabs and long status labels at 290 pixels ----------
     // A freelancer agency that hires has nine bottom tabs, and a job waiting for its first payment has a long label

@@ -6,6 +6,7 @@
 import { PLAIN_GROUPS, purposeLine, suggestStructure } from "./lib/documents/cards.ts";
 import { b64url, newSessionToken, safeEqual, sessionHash, sha256Hex } from "./lib/crypto.ts";
 import { buildNotice } from "./lib/email.ts";
+import { logoUrl } from "./lib/brand/logo.ts";
 import { pickProvider } from "./lib/mail/index.ts";
 import { brevoDelivery } from "./lib/mail/brevo.ts";
 import { verifyPass } from "./lib/pass.ts";
@@ -138,6 +139,11 @@ const int = (v: unknown) => {
 function need<T>(v: T | null | undefined | "", code = "bad_request"): T {
   if (v === null || v === undefined || v === "") throw new HttpError(400, code);
   return v as T;
+}
+
+// The logo for emails, pinned to the code version this site runs
+async function codeLogo(ctx: Ctx): Promise<string> {
+  try { return logoUrl(await rpc<string | null>(ctx, "dela_setting_text", { p_key: "code_version", p_default: "main" })); } catch { return logoUrl("main"); }
 }
 
 // ---------- Sign in ----------
@@ -4619,7 +4625,7 @@ async function sendCode(ctx: Ctx, j: Record<string, any>) {
     if (p.email === true && t.to_email) {
       const provider = pickProvider(t.sender);
       const siteUrl = await rpc<string>(ctx, "dela_setting_text", { p_key: "site.url", p_default: "" });
-      const mail = buildNotice({ title: "Your DELA code: " + code, body: line, link: "/dela-admin", siteUrl, appPath: "/dela-admin", environment: t.environment });
+      const mail = buildNotice({ title: "Your DELA code: " + code, body: line, link: "/dela-admin", siteUrl, appPath: "/dela-admin", environment: t.environment, logoUrl: await codeLogo(ctx) });
       const r = await provider.send({ from: { name: t.from_name, email: t.from_address }, to: { email: t.to_email, name: t.to_name || undefined }, subject: mail.subject, html: mail.html, text: mail.text, tags: [t.environment, "release_code"] },
         provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl });
       if (r.ok) sent++; else errors.push(r.error);
@@ -4642,7 +4648,7 @@ async function sendEmail(ctx: Ctx, id: string) {
     return { ok: true };
   }
   const provider = pickProvider(n.sender);
-  const mail = buildNotice({ title: n.title, body: n.body, link: n.link, siteUrl: n.site_url, appPath: n.app_path, environment: n.environment });
+  const mail = buildNotice({ title: n.title, body: n.body, link: n.link, siteUrl: n.site_url, appPath: n.app_path, environment: n.environment, logoUrl: await codeLogo(ctx) });
   const r = await provider.send({
     from: { name: n.from_name, email: n.from_address }, to: { email: n.to_email, name: n.to_name || undefined },
     subject: mail.subject, html: mail.html, text: mail.text, tags: [n.environment, n.kind],
@@ -4750,7 +4756,7 @@ function trialMailer(ctx: Ctx, cfg: TrialCfg) {
   return async (kind: "ending" | "ended", c: TrialCandidate) => {
     if (!c.email) return { ok: false as const, error: "no_email" };
     const provider = pickProvider(cfg.sender);
-    const m = trialEmail(kind, c.first_name, String(cfg.site_url ?? ""), String(cfg.environment ?? "staging"), Number(cfg.reminder_days) || 2);
+    const m = trialEmail(kind, c.first_name, String(cfg.site_url ?? ""), String(cfg.environment ?? "staging"), Number(cfg.reminder_days) || 2, await codeLogo(ctx));
     const r = await provider.send({ from: { name: cfg.from_name, email: cfg.from_address }, to: { email: c.email, name: [c.first_name, c.last_name].join(" ").trim() || undefined },
       subject: m.subject, html: m.html, text: m.text, tags: [String(cfg.environment), "trial_" + kind] }, provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl: cfg.site_url });
     return r.ok ? { ok: true as const, data: true as const } : { ok: false as const, error: r.error };

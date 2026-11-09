@@ -42,8 +42,7 @@
   }
 
   function show(node) { D.clear(app); app.appendChild(node); }
-  function logo() { return h("img", { src: D.asset(root, "brand/lawfecta-mark-96.png"), alt: "" }); }
-  function brand() { return h("span", { class: "brand" }, logo(), h("b", { text: "LAWFECTA" }), h("span", { text: "DELA" })); }
+  function brand() { return h("span", { class: "brand" }, D.logo(root), h("span", { text: "DELA" })); }
 
   // ---------- Screens before sign in ----------
 

@@ -49,7 +49,7 @@
   }
 
   function frame() {
-    var top = h("div", { class: "top" }, h("span", { class: "brand" }, h("img", { src: D.asset(root, "brand/lawfecta-mark-96.png"), alt: "" }), h("b", { text: "LAWFECTA" }), h("span", { text: "DELA Admin" })));
+    var top = h("div", { class: "top" }, h("span", { class: "brand" }, D.logo(root), h("span", { text: "DELA Admin" })));
     top.appendChild(h("span", { class: "badge " + (me.environment === "live" ? "C" : "stage"), title: me.environment === "live" ? "Live: lawfecta.com, real members" : "Test site: hirelegalhelp.com, test data only", text: me.environment === "live" ? "Live" : "Test site" }));
     top.appendChild(h("span", { class: "grow" }));
     top.appendChild(h("span", { class: "small", style: "opacity:.85", text: me.person.name + " (" + me.staff.join(", ") + ")" }));
