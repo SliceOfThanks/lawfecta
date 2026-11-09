@@ -59,10 +59,11 @@ type Mem = TrialCandidate & { meta: Record<string, string>; invoices: TrialInvoi
 const bdState = new Map<number, Mem>();
 const calls: string[] = [];
 let failOnce = "";
+let slowMs = 0; // "two checks at once": BD answers slowly so the two runs always overlap
 const ok = <T>(data: T): Res<T> => ({ ok: true, data });
 const miss: Res<never> = { ok: false, error: "missing" };
 const stub: TrialBd = {
-  search: (plans, since) => Promise.resolve(ok([...bdState.values()].filter((m) => plans.includes(m.plan_id) && (m.signup_at ?? "") >= since).map(cand))),
+  search: async (plans, since) => { if (slowMs) await new Promise((r) => setTimeout(r, slowMs)); return ok([...bdState.values()].filter((m) => plans.includes(m.plan_id) && (m.signup_at ?? "") >= since).map(cand)); },
   member: (id) => Promise.resolve(bdState.has(id) ? ok(cand(bdState.get(id)!)) : miss),
   meta: (id) => Promise.resolve(bdState.has(id) ? ok({ ...bdState.get(id)!.meta }) : miss),
   setMeta: (id, v) => { calls.push(`meta:${id}:${Object.keys(v).join(",")}`); Object.assign(bdState.get(id)!.meta, v); return Promise.resolve(ok(true as const)); },
@@ -287,7 +288,8 @@ Deno.test("an attorney plan is never changed, even when DELA holds trial data fo
 Deno.test("two checks at once: the second skips, so nothing happens twice", async () => {
   add(U + 24, 8, { dela_trial_status: "active", dela_trial_ends_at: iso(NOW - DAY) }, { invoices: [{ id: "inv-24", plan_id: 8, paid: false, open: true }] });
   calls.length = 0;
-  const [a, b] = await Promise.all([call(deps, "POST", "/admin/trial/run", owner, {}), call(deps, "POST", "/admin/trial/run", owner, {})]);
+  slowMs = 300;
+  const [a, b] = await Promise.all([call(deps, "POST", "/admin/trial/run", owner, {}), call(deps, "POST", "/admin/trial/run", owner, {})]).finally(() => { slowMs = 0; });
   const errs = [a.body, b.body].map((x) => (x.data ?? x).error ?? "");
   assert(errs.includes("another_check_running"), JSON.stringify(errs));
   assertEquals(calls.filter((c) => c === `plan:${U + 24}:3`).length, 1, "the plan changed once");
