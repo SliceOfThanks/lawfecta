@@ -262,7 +262,7 @@
   }
 
   // ---------- The DELA guide (step 13): how many members it reaches and where they are ----------
-  var GUIDE_STEPS = { pick_task: "Pick a first task", approve_playbook: "Approve the playbook", delegate: "Hand off steps", continue_delegation: "Handing off",
+  var GUIDE_STEPS = { firm: "Tell DELA about the firm", agency_profile: "Agency profile", pick_task: "Pick a first task", approve_playbook: "Approve the playbook", delegate: "Hand off steps", continue_delegation: "Handing off",
     verify: "License check before posting", post_gig: "Post the gig", invite: "Invite freelancers", review_proposals: "Compare proposals", next_task: "Next task",
     profile: "Finish the profile", verify_linkedin: "LinkedIn check", verify_waiting: "Waiting on the LinkedIn check", availability: "Confirm availability",
     invitations: "Answer invitations", new_gigs: "New gigs that fit", first_proposal: "First proposal", teach: "Teach DELA", restricted: "On hold" };

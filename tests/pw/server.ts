@@ -153,6 +153,8 @@ function fakeAi(u: string, opts: RequestInit): Response | null {
     // Step 11: the dispute AI (summary, suggested offer, the team's draft)
     const dj = (o: unknown) => Response.json({ model: body.model, choices: [{ message: { content: JSON.stringify(o) } }], usage: { prompt_tokens: 50, completion_tokens: 30 } });
     if (system.includes("Summarize both sides")) return dj({ summary: "The freelancer says the draft was delivered; the attorney says the exhibit list is missing.", agreed: ["The draft arrived"], open: ["The exhibit list"] });
+    if (system.includes("public profile of a legal support agency")) return dj({ headline: "Family law support team for small Texas firms", summary: "We are a team of paralegals who prepare discovery responses, organize case files and draft documents for attorney review. We work in Clio and Microsoft 365 and answer within one business day.",
+      practice_areas: ["Family law"], services: [{ title: "Discovery responses", description: "Drafted and organized for attorney review", price_min_cents: 30000, price_max_cents: 90000 }], tools: ["Clio", "Microsoft 365"], states_served: ["TX"], questions: ["Which counties do you file in?"] });
     // Step 13: the DELA guide answers a typed question and may point at a button on offer
     if (system.includes("You are the DELA guide")) return dj({ text: "Start with the first one; it is quick to hand to a freelancer.", button: 1 });
     if (system.includes("Suggest a fair settlement")) return dj({ release_cents: 15000, why: "The draft arrived; the exhibit list is still open." });

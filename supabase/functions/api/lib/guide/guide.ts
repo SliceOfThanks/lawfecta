@@ -13,10 +13,28 @@ const plural = (k: number, one: string, many: string) => k + " " + (k === 1 ? on
 // Tasks that are good to hand to a freelancer first (low risk, clear steps), in order of how often firms delegate them
 const DELEGABLE = ["doc-review", "int-inquiry", "eng-onboard", "mat-open", "eng-letter", "cls-close", "bil-invoice", "adm-hire"];
 
-// Three suggestions, skipping the parts of the practice the firm already documented
-export function pickStarters(lifecycles: string[] = [], limit = 3): Array<{ id: string; title: string }> {
+// Tasks that fit a practice best come first (MVP 2026-11-09: onboard from what DELA learned about the firm)
+const BY_PRACTICE: Array<[RegExp, string[]]> = [
+  [/family|divorce|custody/i, ["int-inquiry", "doc-review", "eng-onboard"]],
+  [/estate|probate|trust|elder/i, ["eng-onboard", "eng-letter", "doc-review"]],
+  [/injury|accident|malpractice/i, ["int-inquiry", "mat-open", "doc-review"]],
+  [/immigration/i, ["eng-onboard", "doc-review", "int-inquiry"]],
+  [/litigation|civil|commercial|employment/i, ["doc-review", "mat-open", "int-inquiry"]],
+  [/real estate|business|corporate|contract/i, ["doc-review", "eng-letter", "bil-invoice"]],
+  [/criminal|defense|traffic/i, ["int-inquiry", "eng-onboard", "mat-open"]],
+  [/bankruptcy|debt/i, ["int-inquiry", "doc-review", "bil-invoice"]],
+];
+export function practiceOrder(areas: string[] = []): string[] {
+  const out: string[] = [];
+  for (const a of areas) for (const [re, ids] of BY_PRACTICE) if (re.test(String(a))) for (const id of ids) if (!out.includes(id)) out.push(id);
+  for (const id of DELEGABLE) if (!out.includes(id)) out.push(id);
+  return out;
+}
+
+// Three suggestions, the firm's practice first, skipping the parts of the practice the firm already documented
+export function pickStarters(lifecycles: string[] = [], limit = 3, areas: string[] = []): Array<{ id: string; title: string }> {
   const have = new Set(lifecycles);
-  const all = DELEGABLE.map((id) => STARTERS.find((s) => s.id === id)).filter((s): s is NonNullable<typeof s> => !!s && !s.high_risk);
+  const all = practiceOrder(areas).map((id) => STARTERS.find((s) => s.id === id)).filter((s): s is NonNullable<typeof s> => !!s && !s.high_risk);
   const fresh = all.filter((s) => !have.has(s.lifecycle));
   return (fresh.length >= limit ? fresh : [...fresh, ...all.filter((s) => !fresh.includes(s))]).slice(0, limit).map((s) => ({ id: s.id, title: s.title }));
 }
@@ -25,6 +43,7 @@ const FIELD_WORDS: Record<string, string> = {
   first_name: "your first name", last_name: "your last name", headline: "a headline", summary: "a short summary", practice_areas: "practice areas",
   skills: "skills", software: "the software you use", timezone: "your time zone", capacity_hours_week: "hours you can take on each week", rate: "your rate",
   states_excluded: "states you do not work in", experience_years: "years of experience", photo: "a photo", everything: "your profile",
+  services: "at least one service", states_served: "the states you serve",
 };
 export const fieldWords = (k: string) => FIELD_WORDS[k] ?? k.replaceAll("_", " ");
 const listWords = (xs: string[]) => xs.length <= 1 ? xs.join("") : xs.slice(0, -1).join(", ") + " and " + xs[xs.length - 1];
@@ -33,8 +52,13 @@ export function guideMessage(s: GuideState): { text: string; choices: Choice[] }
   const f = s.facts ?? {};
   if (s.side === "attorney") {
     const og = f.open_gig ?? {}, dg = f.draft_gig ?? {}, dp = f.draft_playbook ?? {}, ap = f.approved_playbook ?? {}, dl = f.delegation ?? {};
-    const tasks = (lim: number) => pickStarters(f.lifecycles ?? [], lim).map((t) => ({ id: "start_playbook", label: "Draft: " + t.title, starter: t.id }));
+    const areas = (Array.isArray(f.practice_areas) ? f.practice_areas : []).map(String).filter(Boolean);
+    const tasks = (lim: number) => pickStarters(f.lifecycles ?? [], lim, areas).map((t) => ({ id: "start_playbook", label: "Draft: " + t.title, starter: t.id }));
+    const practice = areas.length ? "Based on your " + listWords(areas.slice(0, 2).map((a) => a.toLowerCase())) + " practice, these" : "These";
     switch (s.step) {
+      case "firm":
+        return { text: "Welcome to DELA. First, tell DELA about your firm in a sentence or two: your practice areas, the states you work in and the systems you use. DELA uses it in every document and to pick the tasks worth handing off.",
+          choices: [{ id: "firm", label: "Tell DELA about my firm" }] };
       case "review_proposals":
         return { text: plural(n(og.proposals), "proposal", "proposals") + " arrived for " + q(og.title) + ". Compare them side by side and choose one.",
           choices: [{ id: "open_gig", label: "Compare the proposals", link: `/dela?tab=projects&gig=${og.id}&view=proposals` }] };
@@ -59,7 +83,7 @@ export function guideMessage(s: GuideState): { text: string; choices: Choice[] }
       case "next_task":
         return { text: "Nice work. Want to hand off another task? These are good next ones.", choices: [...tasks(2), { id: "describe_task", label: "Something else" }] };
       default:
-        return { text: "Let's take one task off your desk. Pick one and DELA drafts the playbook in a few minutes. You approve it, then DELA writes a gig so a freelancer can do the work.",
+        return { text: "Let's take one task off your desk. " + practice + " are good to hand off first. Pick one and DELA drafts the playbook in a few minutes. You approve it, then DELA writes a gig so a freelancer can do the work.",
           choices: [...tasks(3), { id: "describe_task", label: "Something else" }] };
     }
   }
@@ -70,6 +94,11 @@ export function guideMessage(s: GuideState): { text: string; choices: Choice[] }
     case "profile":
       return { text: "Attorneys only see complete profiles. You still need " + (missing.length ? listWords(missing) : "a few details") + ". DELA can draft them from what you tell it.",
         choices: [{ id: "open_tab", label: "Finish my profile", link: "/dela?tab=profile" }] };
+    case "agency_profile": {
+      const am = ((f.agency ?? {}).missing ?? []).map(String).slice(0, 3).map(fieldWords);
+      return { text: "Attorneys who hire an agency read the agency profile first. Yours still needs " + (am.length ? listWords(am) : "a few details") + ". DELA can draft it from a few lines about your agency.",
+        choices: [{ id: "open_tab", label: "Build my agency profile", link: "/dela?tab=agency" }] };
+    }
     case "verify_linkedin":
       return { text: "One step before you show up in matches: the LinkedIn check. It takes about a minute.", choices: [{ id: "open_tab", label: "Do the LinkedIn check", link: "/dela?tab=profile" }] };
     case "availability":

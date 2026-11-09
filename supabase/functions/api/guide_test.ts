@@ -93,12 +93,19 @@ Deno.test("setup: two attorneys, two freelancers and the Lawfecta Team; the guid
 
 Deno.test("attorney: pick a task, approve the playbook, hand off steps, post the gig, invite, compare proposals", async () => {
   let g = await guide(att);
+  assertEquals(g.step, "firm", "a new firm is asked about itself first");
+  assertEquals(g.choices[0].id, "firm");
+  await pool.query(`insert into firm_profiles (org_id, body) values ($1, '{"documents":{"practice_areas":["Estate planning"]}}')
+    on conflict (org_id) do update set body = firm_profiles.body || excluded.body`, [org]);
+  g = await guide(att);
   assertEquals(g.step, "pick_task");
+  assert(g.message.includes("Based on your estate planning practice"), g.message);
+  assertEquals(g.choices[0].starter, "eng-onboard", "the firm's practice comes first: " + JSON.stringify(g.choices));
   const starts = g.choices.filter((c: { id: string }) => c.id === "start_playbook");
   assertEquals(starts.length, 3, JSON.stringify(g.choices));
   assert(g.choices.some((c: { id: string }) => c.id === "describe_task"), "Something else");
   await guide(att);
-  assertEquals(Number((await one("select count(*) n from guide_events where person_id = $1 and kind = 'shown'", [att.id])).n), 1, "shown once a day per step");
+  assertEquals(Number((await one("select count(*) n from guide_events where person_id = $1 and kind = 'shown' and step = 'pick_task'", [att.id])).n), 1, "shown once a day per step");
 
   const pb = (await one("insert into playbooks (org_id, title, status, doc_type, request_id, created_by) values ($1, 'Respond to a new inquiry', 'draft', 'sop', $2, $3) returning id", [org, "gpb" + RUN, att.id])).id;
   g = await guide(att);

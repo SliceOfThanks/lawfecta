@@ -34,7 +34,7 @@ async function waitFor(page, words, ms) {
   throw new Error("FAILED: did not see \"" + words + "\". Page says:\n" + t.slice(0, 3000));
 }
 const guide = (page) => dela(page).locator("section.guide");
-const FL = 4900, ATT = 4901, OWNER_GIGS = 4902;
+const FL = 4900, ATT = 4901, OWNER_GIGS = 4902, AGENCY = 4903;
 const person = (bd) => `(select id from people where bd_member_id = ${bd})`;
 
 async function makeMember(bd, side, plan) {
@@ -47,7 +47,7 @@ async function makeMember(bd, side, plan) {
   const browser = await chromium.launch();
   let s, p, t;
   try {
-    await sql("update feature_switches set state = 'everyone' where key in ('onboarding_widget', 'gig_alerts', 'flex_gigs', 'engagements', 'profiles', 'talent_search', 'playbook_library', 'ai_generation', 'guided_setup')");
+    await sql("update feature_switches set state = 'everyone' where key in ('onboarding_widget', 'gig_alerts', 'flex_gigs', 'engagements', 'profiles', 'talent_search', 'playbook_library', 'ai_generation', 'guided_setup', 'ai_helpers')");
     await makeMember(FL, "freelancer", "fl_plus");
     await makeMember(ATT, "attorney", "att_pro");
     await makeMember(OWNER_GIGS, "attorney", "att_pro");
@@ -110,9 +110,33 @@ async function makeMember(bd, side, plan) {
     ok(w.page <= w.vw + 1, "freelancer: the guide fits a 390-pixel phone (" + w.page + " of " + w.vw + ")");
     await s.ctx.close();
 
+    // ---------- Log in as the agency owner (MVP: the agency profile with DELA's help) ----------
+    await sql("update feature_switches set state = 'everyone' where key in ('agency_team', 'agency_bench', 'agency_hiring'); select 1");
+    await makeMember(AGENCY, "freelancer", "fl_business");
+    s = await open(browser, "DELA-App", AGENCY, "&tab=agency"); p = s.page;
+    t = await waitFor(p, "Agency profile", 15000);
+    t = await waitFor(p, "Still missing:");
+    ok(t.includes("a headline") && t.includes("the states you serve"), "agency owner: the agency profile says what is missing");
+    await dela(p).getByLabel("Tell DELA about your agency").fill("Four paralegals in Austin doing family law discovery and case files for small firms. We use Clio.");
+    await dela(p).getByRole("button", { name: "✦ Let DELA draft it" }).click();
+    await waitFor(p, "DELA filled in the boxes");
+    ok((await dela(p).getByLabel("Headline").inputValue()).includes("Family law support team"), "agency owner: DELA drafts the headline and the rest");
+    await dela(p).getByRole("button", { name: "Save the agency profile" }).click();
+    t = await waitFor(p, "Complete.");
+    ok(true, "agency owner: the saved agency profile is complete");
+    await s.ctx.close();
+
     // ---------- Log in as the attorney ----------
     s = await open(browser, "DELA-App", ATT, "&tab=home"); p = s.page;
+    t = await waitFor(p, "First, tell DELA about your firm", 15000);
+    await guide(p).getByRole("button", { name: "Tell DELA about my firm" }).click();
+    t = await waitFor(p, "Your firm profile for documents", 10000);
+    ok(t.includes("Help me describe my firm"), "attorney: a new firm is asked about itself first, with DELA's help to describe it");
+    await sql(`insert into firm_profiles (org_id, body) select dela_side_org(${person(ATT)}, 'attorney'), '{"documents":{"practice_areas":["Family law"]}}'
+      on conflict (org_id) do update set body = firm_profiles.body || excluded.body; select 1`);
+    await p.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=home`);
     t = await waitFor(p, "take one task off your desk", 15000);
+    ok(t.includes("Based on your family law practice"), "attorney: the task picks name the firm's practice");
     const drafts = await guide(p).getByRole("button", { name: /^Draft: / }).count();
     ok(drafts === 3, "attorney: three tasks to start from (" + drafts + ")");
     ok(await guide(p).getByRole("button", { name: "Something else" }).isVisible(), "attorney: or something else");
@@ -120,7 +144,8 @@ async function makeMember(bd, side, plan) {
     const first = (await guide(p).getByRole("button", { name: /^Draft: / }).first().innerText()).replace("Draft: ", "");
     await guide(p).getByRole("button", { name: /^Draft: / }).first().click();
     t = await waitFor(p, "New document", 10000);
-    ok(t.includes(first) || t.includes("Your firm profile for documents"), "attorney: a task opens the new document flow for it (" + first + ")");
+    const vals = await p.evaluate(() => [...document.querySelector(".dela-host").shadowRoot.querySelectorAll("input, textarea")].map((x) => x.value).join(" | "));
+    ok(t.includes(first) || vals.includes(first) || t.includes("Your firm profile for documents"), "attorney: a task opens the new document flow for it (" + first + ")");
 
     await sql(`insert into playbooks (org_id, title, status, current_version, approved_version, completeness, doc_type, request_id, created_by)
       select dela_side_org(${person(ATT)}, 'attorney'), 'Guide test: Respond to a new inquiry', 'approved', 1, 1, 100, 'sop', 'gpw2', ${person(ATT)} where not exists (select 1 from playbooks where request_id = 'gpw2'); select 1`);

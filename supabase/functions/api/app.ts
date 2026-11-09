@@ -1987,6 +1987,38 @@ async function profileDraft(ctx: Ctx) {
     questions: (Array.isArray(out.questions) ? out.questions : []).map((q: unknown) => str(q, 200)).filter(Boolean).slice(0, 4) });
 }
 
+// MVP 2026-11-09: the agency profile attorneys see. DELA drafts it from the owner's notes (DELA actions, like the
+// freelancer draft); the owner checks and saves. No client details or sensitive data go in.
+const AGENCY_SYSTEM = "You write the public profile of a legal support agency (a team of paralegals and legal assistants) on Lawfecta, read by attorneys " +
+  "deciding whom to hire. Use only the facts in the owner's notes; never invent clients, results, credentials, prices or numbers. Plain, specific words, " +
+  "no hype, no legal advice. Answer only with JSON: {\"headline\":\"under 140 characters\",\"summary\":\"3 to 6 sentences\",\"practice_areas\":[\"...\"]," +
+  "\"services\":[{\"title\":\"...\",\"description\":\"one sentence\",\"price_min_cents\":integer or 0,\"price_max_cents\":integer or 0}],\"tools\":[\"...\"]," +
+  "\"states_served\":[\"two-letter state codes\"],\"questions\":[\"up to 3 short questions about what is still missing\"]}";
+async function agencyProfileDraft(ctx: Ctx) {
+  const s = await freelancerOnly(ctx);
+  const cur = await rpc<Record<string, any>>(ctx, "dela_agency_profile_get", { p_person: s.person_id });
+  if (!cur?.ok) return cur;
+  const notes = str(ctx.body.notes, 6000).trim();
+  if (notes.length < 20) return { ok: false, reason: "tell_us_more" };
+  const warn = await sensitive(ctx, s, notes, "public");
+  if (warn) return warn;
+  const idem = "agencydraft:" + (await sha256Hex(s.person_id + notes)).slice(0, 40);
+  const ai = await runAi(ctx, s, idem, AGENCY_SYSTEM, [{ role: "user", content: `Agency: ${cur.name}\nTeam members: ${cur.team_size}; bench: ${cur.bench_size}\nWhat the profile says now: ${JSON.stringify(cur.body).slice(0, 3000)}\n\nThe owner's notes:\n${notes}` }],
+    Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
+  if (!ai.ok) return ai;
+  const out = readJson(ai.text) as Record<string, any> | null;
+  if (!out || typeof out !== "object") return { ok: false, reason: "ai_failed", code: "bad_answer" };
+  const arr = (x: unknown, n: number, m: number) => (Array.isArray(x) ? x : []).map((v) => plainText(String(v ?? "")).slice(0, m)).filter(Boolean).slice(0, n);
+  const cents = (v: unknown) => Math.max(0, Math.round(Number(v) || 0));
+  return { ok: true, source: ai.source, draft: {
+    headline: plainText(String(out.headline ?? "")).slice(0, 160), summary: plainText(String(out.summary ?? "")).slice(0, 2000),
+    practice_areas: arr(out.practice_areas, 12, 80), tools: arr(out.tools, 20, 60),
+    states_served: [...new Set(arr(out.states_served, 60, 40).map((x) => x.trim().toUpperCase()).filter((x) => /^[A-Z]{2}$/.test(x)))],
+    services: (Array.isArray(out.services) ? out.services : []).slice(0, 10).map((v: Record<string, unknown>) => ({ title: plainText(String(v?.title ?? "")).slice(0, 120),
+      description: plainText(String(v?.description ?? "")).slice(0, 600), price_min_cents: cents(v?.price_min_cents), price_max_cents: cents(v?.price_max_cents) })).filter((v: { title: string }) => v.title.length >= 3),
+  }, questions: arr(out.questions, 3, 200) };
+}
+
 // Write or improve one box (headline, summary, experience, education) from the member's notes and what the box says now
 async function profileDraftField(ctx: Ctx, s: Session & { side: "attorney" | "freelancer" }, key: string, notes: string) {
   const guide = FIELD_GUIDE[key];
@@ -3569,7 +3601,7 @@ async function guideSay(ctx: Ctx) {
   const msg = guideMessage(st as unknown as GuideState);
   const model = await setting(ctx, "ai.model.openai", "gpt-5.4-mini");
   try {
-    const r = await chat(f(ctx), "openai", key, model, GUIDE_SYSTEM, [{ role: "user", content: guidePrompt(st as unknown as GuideState, msg, text) }], true);
+    const r = await chat(f(ctx), "openai", key, model, GUIDE_SYSTEM, [{ role: "user", content: guidePrompt(st as unknown as GuideState, msg, text) + "\n" + await memberContext(ctx, s) }], true);
     await logUsage(ctx, { person_id: s.person_id, side: s.side, task: "guide", source: "lawfecta", provider: "openai", model: r.model, input_tokens: r.input_tokens, output_tokens: r.output_tokens, ok: true });
     const out = readGuideReply(readJson(r.text), msg.choices);
     const m = await rpc<Record<string, any>>(ctx, "dela_guide_mark", { p_person: s.person_id, p_side: s.side, p: { kind: "ai_reply", step: st.step, request_id: "say:" + req } });
@@ -5011,6 +5043,12 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /proposals/send": return await proposalSend(ctx);
       case "GET /proposals/options": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_proposal_options", { p_person: s.person_id, p_gig: need(uuid(ctx.url.searchParams.get("gig"))) })); }
       case "GET /agency": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_view", { p_person: s.person_id })); }
+      case "GET /agency/profile": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_profile_get", { p_person: s.person_id })); }
+      case "POST /agency/profile": { const s = await freelancerOnly(ctx);
+        const text = [ctx.body.headline, ctx.body.summary, JSON.stringify(ctx.body.services ?? [])].map((x) => str(x, 4000)).join("\n");
+        const w = await sensitive(ctx, s, text, "public"); if (w) return json(ctx, w);
+        return json(ctx, await rpc(ctx, "dela_agency_profile_save", { p_person: s.person_id, p: ctx.body })); }
+      case "POST /agency/profile/draft": return json(ctx, await agencyProfileDraft(ctx));
       case "POST /agency/business": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_business_save", { p_person: s.person_id, p_name: str(ctx.body.name, 160), p_state: str(ctx.body.state, 10) })); }
       case "POST /agency/invite": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_invite", { p_person: s.person_id, p_email: str(ctx.body.email, 200), p_role: str(ctx.body.role, 10) })); }
       case "POST /agency/invite/cancel": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_invite_cancel", { p_person: s.person_id, p_invite: need(uuid(ctx.body.id)) })); }

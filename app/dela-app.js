@@ -220,7 +220,7 @@
         }).catch(function () { lib.guideNew = {}; tab = "library"; draw(); });
         return;
       }
-      if (c.id === "describe_task") { lib.guideNew = {}; lib.pb = null; lib.importId = null; tab = "library"; draw(); return; }
+      if (c.id === "describe_task" || c.id === "firm") { lib.guideNew = {}; lib.pb = null; lib.importId = null; tab = "library"; draw(); return; }
       var go = c.link ? noticeAction(c.link) : null;
       if (go) location.assign(go.href);
     }
@@ -3926,6 +3926,12 @@
   function agencyOnProposal(a) {
     var box = h("div", { class: "agency-box" }, h("div", null, h("span", { class: "badge agency", text: "Agency" }), " ", h("b", { text: a.name }), h("span", { class: "small muted", text: " | " + reviewsLine(a.reviews) })),
       h("div", { class: "small", style: "margin-top:4px", text: "Who will do this work:" }));
+    var ap = a.profile || {};
+    if (ap.headline || ap.summary) {
+      box.insertBefore(h("div", { class: "small", style: "margin-top:4px" }, ap.headline ? h("b", { text: ap.headline }) : null, ap.summary ? h("p", { class: "small", style: "margin:4px 0", text: ap.summary }) : null,
+        (ap.services || []).length ? h("div", { class: "small muted", text: "Services: " + ap.services.map(function (x) { return x.title; }).join(", ") }) : null,
+        ap.team_size ? h("div", { class: "small muted", text: "Team of " + ap.team_size }) : null), box.lastChild);
+    }
     (a.team || []).forEach(function (t) { box.appendChild(personLine(t)); });
     if (a.subcontracting_note) box.appendChild(h("p", { class: "small muted", style: "margin:6px 0 0", text: a.subcontracting_note }));
     return box;
@@ -4053,6 +4059,65 @@
 
   // The Agency tab: invitations, agencies you belong to, and your own agency (business details, team, seats, jobs)
   var ROLE_NAMES = { owner: "Owner", manager: "Manager", member: "Member" };
+  // MVP 2026-11-09: the agency profile attorneys read on the agency's proposals, with DELA's drafting help
+  var AP_WORDS = { headline: "a headline", summary: "a short summary", practice_areas: "practice areas", services: "at least one service", states_served: "the states you serve" };
+  function agencyProfileCard() {
+    var card = h("div", { class: "card", id: "agency-profile" }, h("h2", { text: "Agency profile" }), h("p", { class: "small muted", text: "Loading..." }));
+    api.get("/agency/profile").then(function (r) {
+      D.clear(card);
+      card.appendChild(h("h2", { text: "Agency profile" }));
+      if (!r.ok) { card.appendChild(h("p", { class: "small muted", text: r.reason === "agency_owner_only" ? "Only the agency's owner or a manager can edit the agency profile." : "The agency profile is not open yet." })); return; }
+      var b = r.body || {};
+      card.appendChild(h("p", { class: "small muted", text: "Attorneys read this on your agency's proposals. Team of " + r.team_size + (r.bench_size ? ", bench of " + r.bench_size : "") + " (counted for you)." }));
+      var miss = (r.missing || []).map(function (k) { return AP_WORDS[k] || k; });
+      card.appendChild(h("p", { class: miss.length ? "notice" : "small ok", text: miss.length ? "Still missing: " + miss.join(", ") + "." : "Complete." }));
+      var head = h("input", { "aria-label": "Headline", maxlength: "160", style: "width:100%", value: b.headline || "", placeholder: "For example: Family law support team for small firms in Texas" });
+      var sum = h("textarea", { "aria-label": "Summary", rows: 4, style: "width:100%", maxlength: "2000", value: b.summary || "" });
+      sum.value = b.summary || "";
+      var areas = h("input", { "aria-label": "Practice areas", style: "width:100%", value: (b.practice_areas || []).join(", "), placeholder: "Separated by commas" });
+      var tools = h("input", { "aria-label": "Tools you use", style: "width:100%", value: (b.tools || []).join(", "), placeholder: "Separated by commas, for example: Clio, Microsoft 365" });
+      var states = h("input", { "aria-label": "States you serve", style: "width:100%", value: (b.states_served || []).join(", "), placeholder: "Two letters each, for example: TX, OK" });
+      var svc = h("textarea", { "aria-label": "Services", rows: 4, style: "width:100%", placeholder: "One service per line, for example: Discovery responses | Drafted and organized for attorney review" });
+      svc.value = (b.services || []).map(function (x) { return x.title + (x.description ? " | " + x.description : ""); }).join("\n");
+      var notes = h("textarea", { "aria-label": "Tell DELA about your agency", rows: 3, style: "width:100%", placeholder: "A few lines: what your team does, practice areas, states, tools, how you work. No client names or details." });
+      var draftBtn = h("button", { class: "ai-btn small", type: "button" }, "✦ Let DELA draft it");
+      var qs = h("div", { "aria-live": "polite" });
+      draftBtn.addEventListener("click", function () {
+        if (notes.value.trim().length < 20) { D.toast(app, "Tell DELA a little more about your agency first.", true); notes.focus(); return; }
+        draftBtn.disabled = true;
+        api.post("/agency/profile/draft", { notes: notes.value }).then(function (x) {
+          draftBtn.disabled = false;
+          if (!x.ok) { D.toast(app, x.message || (x.reason === "tell_us_more" ? "Tell DELA a little more about your agency first." : failText(x)), true); return; }
+          var d = x.draft || {};
+          if (d.headline) head.value = d.headline;
+          if (d.summary) sum.value = d.summary;
+          if ((d.practice_areas || []).length) areas.value = d.practice_areas.join(", ");
+          if ((d.tools || []).length) tools.value = d.tools.join(", ");
+          if ((d.states_served || []).length) states.value = d.states_served.join(", ");
+          if ((d.services || []).length) svc.value = d.services.map(function (v) { return v.title + (v.description ? " | " + v.description : ""); }).join("\n");
+          D.clear(qs);
+          qs.appendChild(h("p", { class: "small", text: "DELA filled in the boxes. Check every word, then click Save the agency profile." }));
+          (x.questions || []).forEach(function (q) { qs.appendChild(h("p", { class: "small muted", text: "DELA asks: " + q })); });
+        }).catch(function () { draftBtn.disabled = false; D.toast(app, "DELA could not draft it right now. Try again in a minute.", true); });
+      });
+      var save = h("button", { class: "blue small", type: "button" }, "Save the agency profile");
+      save.addEventListener("click", function () {
+        var services = svc.value.split("\n").map(function (line) { var parts = line.split("|"); return { title: (parts[0] || "").trim(), description: parts.slice(1).join("|").trim() }; }).filter(function (x) { return x.title.length >= 3; });
+        save.disabled = true;
+        api.post("/agency/profile", { headline: head.value, summary: sum.value, practice_areas: commas(areas.value), tools: commas(tools.value), states_served: commas(states.value), services: services }).then(function (x) {
+          save.disabled = false;
+          if (!x.ok) { D.toast(app, x.message || failText(x), true); return; }
+          D.toast(app, "Saved");
+          card.replaceWith(agencyProfileCard());
+        }).catch(function () { save.disabled = false; D.toast(app, "Not saved. Try again.", true); });
+      });
+      card.appendChild(h("div", { class: "card soft" }, field("Tell DELA about your agency", notes, "DELA drafts the profile from this. It uses DELA actions, like other drafts."), h("div", { class: "row" }, draftBtn), qs));
+      [field("Headline", head), field("Summary", sum), field("Practice areas", areas), field("Services", svc, "One per line. Add a short description after a | if you like."), field("Tools you use", tools), field("States you serve", states)].forEach(function (n) { card.appendChild(n); });
+      card.appendChild(h("div", { class: "row", style: "margin-top:8px" }, save));
+    }).catch(function () { D.clear(card); card.appendChild(h("h2", { text: "Agency profile" })); card.appendChild(h("p", { class: "small muted", text: "The agency profile could not load." })); });
+    return card;
+  }
+
   function agencyView() {
     var el = h("div", null, h("h1", { text: "Agency" }), h("p", { class: "muted", text: "Loading..." }));
     api.get("/agency").then(function (v) {
@@ -4091,6 +4156,7 @@
       var manage = ag.role === "owner" || ag.role === "manager";
       el.appendChild(h("p", { class: "muted", text: ag.name + " | you are the " + ROLE_NAMES[ag.role].toLowerCase() }));
       if (!ag.active) el.appendChild(h("p", { class: "notice", text: GIG_ERR.agency_inactive }));
+      if (manage) el.appendChild(agencyProfileCard());
       // Business details, checked once by the Lawfecta Team before the agency's first gig goes live
       if (ag.role === "owner") {
         var bn = h("input", { "aria-label": "Business name", value: ag.business_name || "", maxlength: "160" });
