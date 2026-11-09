@@ -72,7 +72,9 @@
 
   function initials(name) {
     var p = String(name || "").trim().split(" ").filter(Boolean);
-    return ((p[0] || "?").charAt(0) + (p.length > 1 ? p[p.length - 1].charAt(0) : "")).toUpperCase();
+    // MVP re-test 2026-11-09: never "?" (it looked like a help button); the email's first letter, or "Me"
+    if (!p.length) { var em = String(((typeof me !== "undefined" && me && me.person) || {}).email || "").trim(); return em ? em.charAt(0).toUpperCase() : "Me"; }
+    return (p[0].charAt(0) + (p.length > 1 ? p[p.length - 1].charAt(0) : "")).toUpperCase();
   }
 
   function greeting() {
@@ -3606,11 +3608,14 @@
     if (!list.length) { out.appendChild(h("p", { style: "margin:0", text: "DELA found nothing to flag." })); return; }
     var ul = h("ul", { class: "list", style: "margin:0" });
     var applyAll = [];
+    // MVP re-test 2026-11-09: when every suggestion gives the same reason, say it once
+    var shared = list.length > 1 && list.every(function (f) { return f.problem === list[0].problem; }) ? list[0].problem : "";
+    if (shared) out.appendChild(h("p", { class: "small", style: "margin:0 0 6px", text: shared }));
     list.forEach(function (f) {
       var target = opts.field ? opts.field(f) : null;
       if (!target && opts.apply && f.suggestion && (!opts.canApply || opts.canApply(f))) target = { apply: opts.apply };
       var fname = String(f.field).indexOf("sys:") === 0 ? "Systems" : (HELPER_FIELD[f.field] || f.field);
-      var li = h("li", { style: "display:block;padding:6px 0" }, h("div", null, h("b", { text: (f.row ? (opts.rowWord || "Task") + " " + f.row + ", " : "") + fname + ": " }), h("span", { text: f.problem })));
+      var li = h("li", { style: "display:block;padding:6px 0" }, h("div", null, h("b", { text: (f.row ? (opts.rowWord || "Task") + " " + f.row + ", " : "") + fname + (shared ? "" : ": ") }), shared ? null : h("span", { text: f.problem })));
       if (f.suggestion) li.appendChild(h("div", { class: "small", style: "white-space:pre-line;margin:4px 0", text: "Suggestion: " + f.suggestion }));
       var acts = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" });
       if (f.suggestion && target) {
@@ -4069,7 +4074,7 @@
   var ROLE_NAMES = { owner: "Owner", manager: "Manager", member: "Member" };
   // MVP 2026-11-09: the agency profile attorneys read on the agency's proposals, with DELA's drafting help
   var AP_WORDS = { headline: "a headline", summary: "a short summary", practice_areas: "practice areas", services: "at least one service", states_served: "the states you serve" };
-  function agencyProfileCard() {
+  function agencyProfileCard(justSaved) {
     var card = h("div", { class: "card", id: "agency-profile" }, h("h2", { text: "Agency profile" }), h("p", { class: "small muted", text: "Loading..." }));
     api.get("/agency/profile").then(function (r) {
       D.clear(card);
@@ -4077,8 +4082,15 @@
       if (!r.ok) { card.appendChild(h("p", { class: "small muted", text: r.reason === "agency_owner_only" ? "Only the agency's owner or a manager can edit the agency profile." : "The agency profile is not open yet." })); return; }
       var b = r.body || {};
       card.appendChild(h("p", { class: "small muted", text: "Attorneys read this on your agency's proposals. Team of " + r.team_size + (r.bench_size ? ", bench of " + r.bench_size : "") + " (counted for you)." }));
-      var miss = (r.missing || []).map(function (k) { return AP_WORDS[k] || k; });
-      card.appendChild(h("p", { class: miss.length ? "notice" : "small ok", text: miss.length ? "Still missing: " + miss.join(", ") + "." : "Complete." }));
+      if (justSaved) card.appendChild(h("p", { class: "small ok", text: "Saved." }));
+      var missLine = h("p", { "aria-live": "polite" });
+      function showMissing(keys) {
+        var miss = keys.map(function (k) { return AP_WORDS[k] || k; });
+        missLine.className = miss.length ? "notice" : "small ok";
+        missLine.textContent = miss.length ? "Still missing: " + miss.join(", ") + "." : "Complete.";
+      }
+      showMissing(r.missing || []);
+      card.appendChild(missLine);
       var head = h("input", { "aria-label": "Headline", maxlength: "160", style: "width:100%", value: b.headline || "", placeholder: "For example: Family law support team for small firms in Texas" });
       var sum = h("textarea", { "aria-label": "Summary", rows: 4, style: "width:100%", maxlength: "2000", value: b.summary || "" });
       sum.value = b.summary || "";
@@ -4088,6 +4100,17 @@
       var svc = h("textarea", { "aria-label": "Services", rows: 4, style: "width:100%", placeholder: "One service per line, for example: Discovery responses | Drafted and organized for attorney review" });
       svc.value = (b.services || []).map(function (x) { return x.title + (x.description ? " | " + x.description : ""); }).join("\n");
       var notes = h("textarea", { "aria-label": "Tell DELA about your agency", rows: 3, style: "width:100%", placeholder: "A few lines: what your team does, practice areas, states, tools, how you work. No client names or details." });
+      // The same five checks as dela_agency_profile_missing, from the boxes as they are now
+      function liveMissing() {
+        var k = [];
+        if (head.value.trim().length < 10) k.push("headline");
+        if (sum.value.trim().length < 60) k.push("summary");
+        if (!commas(areas.value).length) k.push("practice_areas");
+        if (!svc.value.split("\n").some(function (l) { return (l.split("|")[0] || "").trim().length >= 3; })) k.push("services");
+        if (!commas(states.value).some(function (x) { return /^[A-Za-z]{2}$/.test(x); })) k.push("states_served");
+        showMissing(k);
+      }
+      [head, sum, areas, svc, states].forEach(function (el) { el.addEventListener("input", liveMissing); });
       var draftBtn = h("button", { class: "ai-btn small", type: "button" }, "✦ Let DELA draft it");
       var qs = h("div", { "aria-live": "polite" });
       draftBtn.addEventListener("click", function () {
@@ -4108,7 +4131,8 @@
           var empty = (x.empty || []).map(function (k) { return EMPTY_WORDS[k] || k; });
           qs.appendChild(h("p", { class: "small", text: "DELA filled in the boxes. Check every word, then click Save the agency profile." }));
           if (empty.length) qs.appendChild(h("p", { class: "notice", text: "Still empty: " + empty.join(", ") + ". Add " + (empty.length === 1 ? "it" : "them") + ", then save." }));
-          (x.questions || []).forEach(function (q) { qs.appendChild(h("p", { class: "small muted", text: "DELA asks: " + q })); });
+          if (empty.length) (x.questions || []).forEach(function (q) { qs.appendChild(h("p", { class: "small muted", text: "DELA asks: " + q })); });
+          liveMissing();
         }).catch(function () { draftBtn.disabled = false; D.toast(app, "DELA could not draft it right now. Try again in a minute.", true); });
       });
       var save = h("button", { class: "blue small", type: "button" }, "Save the agency profile");
@@ -4119,7 +4143,7 @@
           save.disabled = false;
           if (!x.ok) { D.toast(app, x.message || failText(x), true); return; }
           D.toast(app, "Saved");
-          card.replaceWith(agencyProfileCard());
+          card.replaceWith(agencyProfileCard(true));
         }).catch(function () { save.disabled = false; D.toast(app, "Not saved. Try again.", true); });
       });
       card.appendChild(h("div", { class: "card soft" }, field("Tell DELA about your agency", notes, "DELA drafts the profile from this. It uses DELA actions, like other drafts."), h("div", { class: "row" }, draftBtn), qs));

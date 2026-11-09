@@ -59,6 +59,31 @@ async function makeMember(bd, side, plan) {
     t = await waitFor(p, "Attorneys only see complete profiles", 15000);
     ok(t.includes("a headline and the software you use"), "freelancer: the guide opens with what is missing, in plain words");
     ok(await guide(p).getByRole("button", { name: "Finish my profile" }).isVisible(), "freelancer: one clear button");
+    await s.ctx.close();
+    // An account with no name: the round account button shows the email's first letter, never "?" (re-test 2026-11-09)
+    await makeMember(4904, "attorney", "att_free");
+    {
+      const ctx = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+      const pg = await ctx.newPage();
+      await pg.route("https://cdn.jsdelivr.net/**", (route) => { const u = new URL(route.request().url()); const f = u.pathname.split("@")[1].split("/").slice(1).join("/"); route.fulfill({ path: path.join(ROOT, f), contentType: f.endsWith(".png") ? "image/png" : "application/javascript" }); });
+      await pg.route("https://fonts.googleapis.com/**", (r) => r.abort());
+      // The account answer without a name, as for a member who never typed one
+      await pg.route(/\/(me|bootstrap)(\?.*)?$/, async (route) => {
+        const r = await route.fetch(); let j = await r.json();
+        const strip = (o) => { if (o && o.person) o.person.name = ""; if (o && o.me && o.me.person) o.me.person.name = ""; return o; };
+        j = strip(j); if (j && j.data) strip(j.data);
+        route.fulfill({ response: r, json: j });
+      });
+      await pg.goto(`${BASE}/page/DELA-App?uid=4904&plan=&tab=home`);
+      s = { ctx, page: pg }; p = pg;
+      await text(p);
+    }
+    const av = (await dela(p).getByRole("button", { name: "Account menu" }).innerText()).trim();
+    const em = (await sql("select email from people where bd_member_id = 4904"))[0].email || "";
+    ok(av !== "?" && av === (em.charAt(0).toUpperCase() || "Me") && !(await text(p)).includes(", there"), "no name: the account button shows the email's first letter (" + av + ") and no \", there\"");
+    await s.ctx.close();
+    s = await open(browser, "DELA-App", FL, "&tab=home"); p = s.page;
+    await waitFor(p, "Attorneys only see complete profiles", 15000);
     await Promise.all([p.waitForURL(/tab=profile/), guide(p).getByRole("button", { name: "Finish my profile" }).click()]);
     ok(true, "freelancer: Finish my profile opens the profile");
 
@@ -123,9 +148,11 @@ async function makeMember(bd, side, plan) {
     await dela(p).getByRole("button", { name: "✦ Let DELA draft it" }).click();
     await waitFor(p, "DELA filled in the boxes");
     ok((await dela(p).getByLabel("Headline").inputValue()).includes("Family law support team"), "agency owner: DELA drafts the headline and the rest");
+    t = await text(p);
+    ok(!t.includes("DELA asks:") && !t.includes("Still missing:") && t.includes("Complete."), "agency owner: with every box filled, no leftover question or missing line (re-test 2026-11-09)");
     await dela(p).getByRole("button", { name: "Save the agency profile" }).click();
-    t = await waitFor(p, "Complete.");
-    ok(true, "agency owner: the saved agency profile is complete");
+    t = await waitFor(p, "Saved.");
+    ok(t.includes("Complete."), "agency owner: the saved agency profile says Saved. and Complete.");
     await s.ctx.close();
 
     // ---------- Log in as the attorney ----------

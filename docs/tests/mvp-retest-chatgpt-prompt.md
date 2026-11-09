@@ -64,7 +64,7 @@ NEW ATTORNEY (log in once)
 12. Go to: https://www.hirelegalhelp.com/dela?tab=home
     Expect: the greeting has no ", there" at the end if the account has no name.
 13. Go to: https://www.hirelegalhelp.com/dela?tab=library
-    Do: click "New document". If the card "Your firm profile for documents" shows, type in "Describe your firm (optional)": Fictional test firm: two attorneys doing family law and estate planning in Texas; we use Clio. Then click "✦ Help me describe my firm".
+    Do: click "Create a document" (the blue button at the top right of the Library; the screen it opens is titled "New document"). If the card "Your firm profile for documents" shows, type in "Describe your firm (optional)": Fictional test firm: two attorneys doing family law and estate planning in Texas; we use Clio. Then click "✦ Help me describe my firm".
     Expect: DELA's suggestions with a blue "Use all suggestions" button. Click it; the boxes fill at once. (If the firm profile is already saved and the card does not show, write SKIPPED.)
 14. Sign out.
 

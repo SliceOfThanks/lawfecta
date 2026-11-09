@@ -1,0 +1,31 @@
+DELA retest report (www.hirelegalhelp.com), 2026-11-09
+
+TEST FREELANCER
+1. PASS - Already logged in as DELA Test Freelancer.
+2. PASS - "DELA filled in the boxes. Check every word, then click Save the agency profile." appeared. All boxes filled, "States you serve" = TX, no "Still empty" line. Summary: "Roe Test Agency LLC provides family law paralegal support for small firms. The team helps with discovery responses and case file organizing. It uses Clio." (nothing about notes or missing info).
+3. PASS - Card now says "Complete." (a separate "Saved" message was not on screen 5 seconds after the click; may have been a short toast).
+4. PASS - DELA guide no longer asks for the agency profile. It now says: "1 attorney invited you to a gig. Answer soon; an invited proposal does not use your monthly allowance." with "See my invitations".
+5. PASS - Top bar reads "DELA" in full. Signed out.
+
+TEST ATTORNEY
+6. PASS - Logged in as the test attorney.
+7. PASS - DELA's suggestions box appeared with a blue "Use all suggestions" button above them. Clicking it filled Practice area = Family law, Skill = document checklist, State you need = TX at once, and showed "Added to the filters. Check them, then click Search."
+8. PASS - Skill changed to "checklist", clicked Search: DELA Test Freelancer is listed.
+9. PASS - Agreement for "Repeat: Run a Conflict Check" shows Client (firm) Example Lantern Legal, Freelancer DELA Test Freelancer, "Your total: $315", and under Fees: price for the work $300, attorney platform fee $15, freelancer platform fee $15, freelancer receives $285. No "-" anywhere.
+10. PASS - Approved documents say "Ready to use (approved)". Signed out.
+
+NEW ATTORNEY
+11. PASS - Logged in as hello@legalstacey.com.
+12. PASS - Greeting reads "Good afternoon" with no ", there".
+13. FAIL / SKIPPED - No "New document" button on the Library page; the button is "Create a document" (screenshot: step13-library-no-new-document-button.jpg). Clicking "Create a document" opens a screen titled "New document" with "What would you like to document?". The card "Your firm profile for documents" did not show. The firm profile looks already saved (Home says "Based on your family law and estate planning practice"), so the firm profile part is SKIPPED.
+14. PASS - Signed out.
+
+FAIL LIST
+- Step 13: the Library button is labeled "Create a document", not "New document" as the test script says. Either the script or the button label needs to match.
+
+CONFUSING / WORTH A LOOK
+- Step 2: after DELA filled "States you serve" with TX, it still showed "DELA asks: Which states does the team serve?" and the red "Still missing: the states you serve." line stayed until the profile was saved.
+- Step 3: no "Saved" message was visible 5 seconds after clicking "Save the agency profile" (only "Complete."). If "Saved" is a short toast, that is fine.
+- Step 7: each of DELA's three suggestions (Practice area, Skill, State) repeats the same full reason sentence word for word. One shared reason, or a short reason per field, would read better.
+- Step 12 to 14: for an account with no name, the round button in the top bar shows "?" instead of initials. It works (opens Profile and verification, AI settings, Sign out) but looks like a help button.
+- The DELA screens are inside a shadow DOM, so the page text and the Ctrl+F hints in the script may not find their labels in some browsers or testing tools.
