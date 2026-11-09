@@ -57,36 +57,36 @@ async function makeMember(bd, side, plan) {
   try {
     await sql("update feature_switches set state = 'everyone' where key in ('flex_gigs', 'engagements', 'milestone_funding', 'milestone_check', 'ai_generation', 'ai_helpers', 'profiles', 'dispute_center', 'gig_chat')");
     await sql("update feature_switches set state = 'off' where key = 'live_payments'");
-    await makeMember(3800, "attorney", "att_pro");
-    await makeMember(3801, "freelancer", "fl_plus");
+    await makeMember(4800, "attorney", "att_pro");
+    await makeMember(4801, "freelancer", "fl_plus");
     await makeMember(1, "attorney", "att_pro");
     await sql("insert into staff_roles (person_id, role) select id, r from people, unnest(array['owner', 'finance']) r where bd_member_id = 1 and not exists (select 1 from staff_roles s where s.person_id = people.id and s.role = r)");
-    await sql(`insert into member_profiles (person_id, side, body, missing, score) select id, 'attorney', '{"firm_name":"Dispute Legal"}', '{}', 100 from people where bd_member_id = 3800;
-      insert into licenses (person_id, request_id, region, bar_number, bar_key, name_on_record, method, status) select id, 'l', 'TX', '3800', '3800', 'A', 'video', 'verified' from people where bd_member_id = 3800;
-      insert into firm_profiles (org_id, body) select dela_side_org(id, 'attorney'), '{"signatory_name":"Dee Attorney","billing_address":"1 Main St, Austin TX","service_email":"notices@example.com"}' from people where bd_member_id = 3800;
-      insert into member_profiles (person_id, side, body, missing, score, availability_confirmed_at) select id, 'freelancer', '{"first_name":"Dora","last_name":"Lance"}', '{}', 100, now() from people where bd_member_id = 3801;
-      select dela_profile_refresh(id, 'attorney') from people where bd_member_id = 3800;
-      insert into payout_accounts (person_id, provider, account_ref, status) select id, 'stripe', 'acct_disp', 'ready' from people where bd_member_id = 3801 on conflict (person_id) do update set status = 'ready'`);
-    await sql(`insert into playbooks (org_id, title, status, current_version, approved_version, completeness, request_id, created_by) select dela_side_org(id, 'attorney'), 'Filing', 'approved', 1, 1, 100, 'dp1', id from people where bd_member_id = 3800;
+    await sql(`insert into member_profiles (person_id, side, body, missing, score) select id, 'attorney', '{"firm_name":"Dispute Legal"}', '{}', 100 from people where bd_member_id = 4800;
+      insert into licenses (person_id, request_id, region, bar_number, bar_key, name_on_record, method, status) select id, 'l', 'TX', '4800', '4800', 'A', 'video', 'verified' from people where bd_member_id = 4800;
+      insert into firm_profiles (org_id, body) select dela_side_org(id, 'attorney'), '{"signatory_name":"Dee Attorney","billing_address":"1 Main St, Austin TX","service_email":"notices@example.com"}' from people where bd_member_id = 4800;
+      insert into member_profiles (person_id, side, body, missing, score, availability_confirmed_at) select id, 'freelancer', '{"first_name":"Dora","last_name":"Lance"}', '{}', 100, now() from people where bd_member_id = 4801;
+      select dela_profile_refresh(id, 'attorney') from people where bd_member_id = 4800;
+      insert into payout_accounts (person_id, provider, account_ref, status) select id, 'stripe', 'acct_disp', 'ready' from people where bd_member_id = 4801 on conflict (person_id) do update set status = 'ready'`);
+    await sql(`insert into playbooks (org_id, title, status, current_version, approved_version, completeness, request_id, created_by) select dela_side_org(id, 'attorney'), 'Filing', 'approved', 1, 1, 100, 'dp1', id from people where bd_member_id = 4800;
       insert into playbook_versions (playbook_id, version, body, created_by) select id, 1, '{"title":"Filing","steps":[{"text":"Draft the petition"}]}', created_by from playbooks where request_id = 'dp1';
       insert into gigs (org_id, created_by, playbook_id, playbook_version, title, public, budget_min_cents, budget_max_cents, status, opened_at, closes_at, request_id, milestones)
         select p.org_id, p.created_by, p.id, 1, 'Disputed packet', '{"task":"Prepare the filing packet","outcome":"A filing-ready packet"}', 30000, 80000, 'filled', now(), now() + interval '14 days', 'dpg', '[{"title":"Draft","share_pct":50},{"title":"Final"}]' from playbooks p where p.request_id = 'dp1';
       insert into proposals (gig_id, freelancer_id, status, price_cents, included, excluded, schedule, days_to_deliver, sent_at)
-        select g.id, f.id, 'selected', 60000, 'Petition draft; Exhibit list', 'Filing with the court', 'Two weeks', 14, now() from gigs g, people f where g.request_id = 'dpg' and f.bd_member_id = 3801;
+        select g.id, f.id, 'selected', 60000, 'Petition draft; Exhibit list', 'Filing with the court', 'Two weeks', 14, now() from gigs g, people f where g.request_id = 'dpg' and f.bd_member_id = 4801;
       insert into agreements (gig_id, proposal_id, attorney_org, attorney_person, freelancer_person, total_cents)
         select g.id, pr.id, g.org_id, g.created_by, pr.freelancer_id, 60000 from gigs g join proposals pr on pr.gig_id = g.id where g.request_id = 'dpg'`);
     const gigId = (await sql("select id from gigs where request_id = 'dpg'"))[0].id;
     const agId = (await sql("select id from agreements where gig_id = '" + gigId + "'"))[0].id;
     // DELA drafts version 1 when the agreement is first opened; both sign and the attorney pays, prepared in the database
-    s = await open(browser, "DELA-App", 3800, `&tab=projects&gig=${gigId}&view=agreement`); p = s.page;
+    s = await open(browser, "DELA-App", 4800, `&tab=projects&gig=${gigId}&view=agreement`); p = s.page;
     await waitFor(p, "Agreement, version 1", 15000);
     await s.ctx.close();
-    for (const [bd, side, name] of [[3801, "freelancer", "Dora Lance"], [3800, "attorney", "Dee Attorney"]]) {
+    for (const [bd, side, name] of [[4801, "freelancer", "Dora Lance"], [4800, "attorney", "Dee Attorney"]]) {
       const r = (await sql(`select dela_agreement_sign((select id from people where bd_member_id = ${bd}), '${side}', '${agId}', '{"version":1,"typed_name":"${name}","consent":true}'::jsonb) r`))[0].r;
       if (!r.ok) throw new Error("sign " + side + ": " + JSON.stringify(r));
     }
     for (let i = 0; i < 2; i++) {
-      const n = (await sql(`select dela_payment_next((select id from people where bd_member_id = 3800), 'attorney', '${agId}') r`))[0].r;
+      const n = (await sql(`select dela_payment_next((select id from people where bd_member_id = 4800), 'attorney', '${agId}') r`))[0].r;
       if (!n.ok) { await sql(`update milestones set status = 'funded', funded_at = now() where agreement_id = '${agId}' and status = 'pending'; select 1`); break; }
       await sql(`select dela_payment_result('${n.payment_id}', 'succeeded', 'pi_disp${i}', 'cus_d', 'pm_d', '')`);
       await sql(`update milestones set status = 'in_progress' where agreement_id = '${agId}' and seq = ${i + 1}; select 1`);
@@ -95,7 +95,7 @@ async function makeMember(bd, side, plan) {
     ok(ms.length === 2 && ms.every((m) => ["funded", "in_progress"].includes(m.status)), "prepared: a signed engagement with two paid milestones (" + ms.map((m) => m.status).join(", ") + ")");
 
     // ---------- Freelancer: open a dispute on milestone 1, asking for the full payment ----------
-    s = await open(browser, "DELA-App", 3801, `&tab=work&gig=${gigId}&view=agreement`); p = s.page;
+    s = await open(browser, "DELA-App", 4801, `&tab=work&gig=${gigId}&view=agreement`); p = s.page;
     await waitFor(p, "Problems, disputes and canceling", 15000);
     await dela(p).getByText("Open a dispute", { exact: true }).click();
     await label(p, "Which milestone").selectOption(ms[0].id);
@@ -115,7 +115,7 @@ async function makeMember(bd, side, plan) {
     await s.ctx.close();
 
     // ---------- Attorney: answer, add a link, accept the offer ----------
-    s = await open(browser, "DELA-App", 3800, `&tab=projects&gig=${gigId}&view=agreement`); p = s.page;
+    s = await open(browser, "DELA-App", 4800, `&tab=projects&gig=${gigId}&view=agreement`); p = s.page;
     t = await waitFor(p, "The freelancer's offer: $200 to the freelancer", 15000);
     ok(t.includes("Give your side by"), "attorney: asked to give their side by a date");
     await label(p, "Your side").fill("Only the draft arrived; the exhibit list is still missing.");
@@ -134,8 +134,8 @@ async function makeMember(bd, side, plan) {
     ok(money.refund === 10000 && money.payout === 20000, "the money: $100 refunded (the fee kept) and $200 released (" + JSON.stringify(money) + ")");
 
     // ---------- A second dispute goes to the Lawfecta Team (prepared: opened, answered, notice over) ----------
-    const d2 = (await sql(`select dela_dispute_start((select id from people where bd_member_id = 3800), 'attorney', '${agId}', '${ms[1].id}', 'not_delivered', 'refund', null, 'The final packet never arrived.') r`))[0].r;
-    await sql(`select dela_dispute_say((select id from people where bd_member_id = 3801), 'freelancer', '${d2.id}', 'It is half done; I need one more week.', 'split', 15000);
+    const d2 = (await sql(`select dela_dispute_start((select id from people where bd_member_id = 4800), 'attorney', '${agId}', '${ms[1].id}', 'not_delivered', 'refund', null, 'The final packet never arrived.') r`))[0].r;
+    await sql(`select dela_dispute_say((select id from people where bd_member_id = 4801), 'freelancer', '${d2.id}', 'It is half done; I need one more week.', 'split', 15000);
       update disputes set notice_ends_at = now() - interval '1 minute' where id = '${d2.id}'; select dela_dispute_tick(jsonb_build_object('dispute_id', '${d2.id}', 'kind', 'notice_end'))`);
     s = await open(browser, "DELA-Admin", 1, ""); p = s.page;
     await dela(p).getByRole("tab", { name: "Disputes", exact: true }).click();
@@ -153,7 +153,7 @@ async function makeMember(bd, side, plan) {
     await s.ctx.close();
 
     // ---------- Check the results: the freelancer sees the decision ----------
-    s = await open(browser, "DELA-App", 3801, `&tab=work&gig=${gigId}&view=agreement`); p = s.page;
+    s = await open(browser, "DELA-App", 4801, `&tab=work&gig=${gigId}&view=agreement`); p = s.page;
     t = await waitFor(p, "Decided by the Lawfecta Team", 15000);
     ok(t.includes("Half the final packet was delivered."), "freelancer: the team's note is shown");
     await s.ctx.close();
