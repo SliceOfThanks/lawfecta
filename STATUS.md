@@ -2,6 +2,26 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## MVP on the test site, 2026-11-09 (commit aa650fb, migration 0078, api v76)
+Stacey's MVP list, each item with where it lives and the tests that prove it (all pass: 381 API tests, 26 browser suites, GitHub Tests):
+1. Register: BD sign-up, DELA-Auth, dela_exchange, access.mode everyone (app_test, foundation-test).
+2. Attorneys use DELA: steps 1 to 13 (all suites).
+3. Delegation work from playbooks: Automate or delegate (automate_test, automate-test).
+4. Suggest freelancers: matching, Talent, Help me find a fit, bench suggestions (gigs_test, gigs-test, helpers-test).
+5. Contracts and payments: agreements, Stripe Connect in test mode (engagements_test, engagements-test).
+6. Milestones: up to 6, DELA's milestone check (engagements_test).
+7. 10%: 5% from the attorney + 5% from the freelancer, at least $10 each (Stacey kept it; engagements_test fee checks).
+8. Release per milestone: payout on acceptance (engagements_test).
+9. Agencies post gigs (agency_gigs_test). 10. Agencies add to the bench (agency_bench_test). 11. Split payments (agency_split_test).
+12. Disputes: step 11 (disputes_test, disputes-test).
+13. and 14. Proactive delegation prompts: the DELA guide (guide_test, guide-test).
+15. Freelancer profile help: profile drafting and the guide's missing list (profiles_test, profiles-test).
+16. Agency profile help: NEW today, the "Agency profile" card on the Agency tab with "Let DELA draft it"; attorneys see it on agency proposals (agency_profile_test, guide-test).
+17. Learn the firm: NEW today, the guide asks a new firm about itself first (firm profile with "Help me describe my firm"), ranks first tasks by practice area, and uses what DELA learned when answering (guide_test, guide-test).
+18. Features by plan: entitlements and limits; usage_limits_enforced turned on for everyone on the test site today (usage_test, usage-test).
+- Not proven on the test site yet: a real Stripe test-mode payment and payout. No payment has gone through Stripe there and no payout account exists; the Payments tab says whether the STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET secrets are set (docs/STRIPE_SETUP.md).
+- ChatGPT test: docs/tests/mvp-chatgpt-prompt.md (replaces the separate step 11 and step 13 runs).
+
 ## Step 13: the DELA guide, on the test site 2026-11-09 (commit c5f582a, migrations 0076 and 0077, api v75)
 - Brief and Stacey's answers: docs/briefs/step-13-dela-guide.md. Switches onboarding_widget (the guide) and gig_alerts: everyone on the test site, off on Live.
 - A chatbox at the top of the attorney and freelancer Home pages with DELA's next step already written, from real data each time:
