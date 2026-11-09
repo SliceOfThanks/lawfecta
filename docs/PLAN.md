@@ -137,6 +137,7 @@ Things only you can provide
 - A lawyer's review of the agreement terms template and the chargeback rule, before live payments.
 
 ## 4. What we build next
+- Step 13, the DELA guide (docs/briefs/step-13-dela-guide.md): built and on the test site 2026-11-09. Waiting on Stacey's ChatGPT test (docs/tests/step-13-dela-guide-chatgpt-prompt.md). Later: a connector tool for the next step.
 - Next: step 12, the new layout (docs/briefs/step-12-layout.md). Mockup done (desktop and phone); waiting on Stacey's answers, then build it behind the new_layout switch. The Lawfecta logo is already in place everywhere (2026-11-09).
 - Done: UX review parts 0 to 3 and step 7c part 2 (standing arrangements) on the test site. Phase 4 (docs/briefs/step-8a-phase-4.md, answered 2026-11-06): parts A (the approved-version page) and B (the checks before a commitment, with the freelancer helpers) are on the test site. All 14 AI helpers and the Appearance choice are on the test site (2026-11-07), so Phase 4 is built except the first ten minutes, which waits for the onboarding widget after the MVP launch.
 - Built: attorney plan usage limits (step 9b), on the test site with blocking off. Turn blocking on after the test.

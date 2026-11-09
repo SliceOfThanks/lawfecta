@@ -2,6 +2,19 @@
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 13: the DELA guide, on the test site 2026-11-09 (commit c5f582a, migrations 0076 and 0077, api v75)
+- Brief and Stacey's answers: docs/briefs/step-13-dela-guide.md. Switches onboarding_widget (the guide) and gig_alerts: everyone on the test site, off on Live.
+- A chatbox at the top of the attorney and freelancer Home pages with DELA's next step already written, from real data each time:
+  - Attorneys: pick one of three tasks (or something else), approve the playbook, hand off steps, the license check, post the gig, invite, compare proposals, then a next task.
+  - Freelancers: what is missing from the profile, the LinkedIn check, availability, invitations, new gigs that fit (with why, "Not for me"), the first proposal, Teach DELA.
+- Typed questions: free (Lawfecta's key), 20 a day (guide.ai_replies_per_day), sensitive data refused, the AI may only point at a button on offer.
+- Pause closes it for 24 hours (guide.snooze_hours), sooner when something new needs the member. While it is on it replaces the Get set up card ("See all setup steps" stays).
+- New gig alerts: when a gig is posted, freelancers with at least 2 match reasons get one alert per gig, at most 3 a day, in the guide, by email and in Notices, each on or off. Reminder emails on days 2 and 7 for unfinished first steps.
+- Admin Overview: a "DELA guide" card (members who saw it, buttons chosen, questions, pauses, alerts today, members per step).
+- Prepared on the test site: "Test job: Guide new gig (prepared)" from a made-up firm, with the alert already sent to the test freelancer. ChatGPT test: docs/tests/step-13-dela-guide-chatgpt-prompt.md.
+- Fixed on the way: meetings browser test failed late in the day; the team's "Draft with DELA" was not recorded in AI usage (0076).
+- Not built: a connector (ChatGPT and Claude) tool for the next step.
+
 ## Lawfecta logo everywhere the name shows, on the test site 2026-11-09 (commit 4086ebf, api v74, no migration)
 - Stacey's choice: the round Lawfecta mark only in the top bars (the typed "LAWFECTA" is gone; the "DELA" / "DELA Admin" label stays). Also on the /security page, the browser tab icon (only when the page has none of its own), notice and trial emails (the jsDelivr copy pinned to the code version, with the words kept for mail apps that block images), the Word export page header, and the print/PDF and HTML exports.
 - Her files are in brand/ (lawfecta-mark-864.png; the white and orange wordmarks and the white icon are saved for later, not used yet).
