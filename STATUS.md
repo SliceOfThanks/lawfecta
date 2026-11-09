@@ -21,6 +21,7 @@ Stacey's MVP list, each item with where it lives and the tests that prove it (al
 18. Features by plan: entitlements and limits; usage_limits_enforced turned on for everyone on the test site today (usage_test, usage-test).
 - Not proven on the test site yet: a real Stripe test-mode payment and payout. No payment has gone through Stripe there and no payout account exists; the Payments tab says whether the STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET secrets are set (docs/STRIPE_SETUP.md).
 - ChatGPT test: docs/tests/mvp-chatgpt-prompt.md (replaces the separate step 11 and step 13 runs).
+- Stacey's MVP run 2026-11-09: 22 PASS, 5 FAIL (docs/reviews/test-reports/2026-11-09-mvp-chatgpt.txt). Fixed in da36811 (migration 0079): "Use all suggestions" for DELA's suggestions, the agency draft takes a named city's state and never writes about missing facts, Talent's skill filter also searches services and summary, wording and the phone top bar. Step 14's "-" came from Claude's prepared dispute agreements (made-up data with no parties or fees; agreement history is append-only, so it stays). Stripe test keys are not set yet (step 24). Re-test: docs/tests/mvp-retest-chatgpt-prompt.md.
 
 ## Step 13: the DELA guide, on the test site 2026-11-09 (commit c5f582a, migrations 0076 and 0077, api v75)
 - Brief and Stacey's answers: docs/briefs/step-13-dela-guide.md. Switches onboarding_widget (the guide) and gig_alerts: everyone on the test site, off on Live.
