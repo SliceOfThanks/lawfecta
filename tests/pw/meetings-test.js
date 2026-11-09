@@ -130,12 +130,16 @@ async function makeMember(bd, side, plan) {
     const aria = await bookCard.locator("#book-times button.slot").first().getAttribute("aria-label");
     ok(/, [A-Z][a-z]+day, [A-Z][a-z]+ \d+, \d{4}$/.test(aria), "each time's name includes the full date (" + aria + ")");
     // Fix (AI review 0.9.0, tests 4; the Track B bug where times stopped at 2:45 PM): every open time of the date is
-    // offered once "Show more times" is opened, including the day's last time
+    // offered once "Show more times" is opened, including the day's last time. Fix (2026-11-09): use the date with the
+    // most open times, because late in the day the first date has only a few left and the check failed on GitHub.
+    const dateBox = bookCard.getByLabel("Date", { exact: true });
+    const busiest = perDay.indexOf(Math.max(...perDay));
+    await dateBox.selectOption(await dateBox.locator("option").nth(busiest).getAttribute("value"));
     while (await bookCard.getByRole("button", { name: /^Show more times/ }).count()) await bookCard.getByRole("button", { name: /^Show more times/ }).first().click();
-    ok(perDay[0] > 24 && await bookCard.locator("#book-times button.slot").count() === perDay[0], "every open time of the date is offered, past the old cut-off of 24 (" + perDay[0] + ")");
-    const second = await bookCard.getByLabel("Date", { exact: true }).locator("option").nth(1).getAttribute("value");
-    await bookCard.getByLabel("Date", { exact: true }).selectOption(second);
-    ok(await bookCard.locator("#book-times button.slot").count() === Math.min(8, perDay[1]), "choosing another date shows that date's times");
+    ok(perDay[busiest] > 24 && await bookCard.locator("#book-times button.slot").count() === perDay[busiest], "every open time of the date is offered, past the old cut-off of 24 (" + perDay[busiest] + ")");
+    const other = busiest === 0 ? 1 : 0;
+    await dateBox.selectOption(await dateBox.locator("option").nth(other).getAttribute("value"));
+    ok(await bookCard.locator("#book-times button.slot").count() === Math.min(8, perDay[other]), "choosing another date shows that date's times");
     ok(!(await dela(p).locator("#book-summary").isVisible()), "no empty box under the times before a time is picked (UI review 2026-11-08)");
     await dela(p).locator(".card[aria-label='Book a meeting'] button.slot").first().click();
     ok((await dela(p).locator("#book-summary").innerText()).includes("Selected:"), "picking a time shows what was selected before booking (UX review I03)");
