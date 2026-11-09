@@ -7,6 +7,7 @@ import { PLAIN_GROUPS, purposeLine, suggestStructure } from "./lib/documents/car
 import { b64url, newSessionToken, safeEqual, sessionHash, sha256Hex } from "./lib/crypto.ts";
 import { buildNotice } from "./lib/email.ts";
 import { logoUrl } from "./lib/brand/logo.ts";
+import { GUIDE_SYSTEM, guideMessage, guidePrompt, readGuideReply, type GuideState } from "./lib/guide/guide.ts";
 import { pickProvider } from "./lib/mail/index.ts";
 import { brevoDelivery } from "./lib/mail/brevo.ts";
 import { verifyPass } from "./lib/pass.ts";
@@ -3540,6 +3541,45 @@ async function disputeAction(ctx: Ctx, route: string) {
   return { ok: true, kind, ...out, note: DISPUTE_NOTE, source: ai.source, credits: ai.source === "lawfecta" ? credits : 0 };
 }
 
+// ---------- Step 13: the DELA guide on the Dashboard ----------
+async function guideGet(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const st = await rpc<Record<string, any>>(ctx, "dela_guide_state", { p_person: s.person_id, p_side: s.side });
+  if (!st?.ok || !st.on) return st;
+  const msg = guideMessage(st as unknown as GuideState);
+  const day = new Date((ctx.deps.now?.() ?? Date.now())).toISOString().slice(0, 10);
+  if (!st.paused) await rpc(ctx, "dela_guide_mark", { p_person: s.person_id, p_side: s.side, p: { kind: "shown", step: st.step, request_id: "shown:" + day + ":" + st.step } }).catch(() => null);
+  return { ok: true, on: true, side: s.side, step: st.step, paused: st.paused, message: msg.text, choices: msg.choices, prefs: st.prefs, alerts_on: st.alerts_on,
+    replies_left: st.replies_left, replies_cap: st.replies_cap, starters: st.step === "pick_task" || st.step === "next_task" };
+}
+
+// A typed question: free for the member (Lawfecta's key), capped per day, checked for sensitive data first
+async function guideSay(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const text = str(ctx.body.text, 1000).trim();
+  const req = str(ctx.body.request_id, 80);
+  if (text.length < 2 || !req) return { ok: false, reason: "bad_request" };
+  const w = await sensitive(ctx, s, text, "ai");
+  if (w) return w;
+  const st = await rpc<Record<string, any>>(ctx, "dela_guide_state", { p_person: s.person_id, p_side: s.side });
+  if (!st?.ok || !st.on) return { ok: false, reason: "guide_off" };
+  if (Number(st.replies_left) <= 0) return { ok: false, reason: "guide_cap", cap: st.replies_cap };
+  const key = lawfectaKey(ctx, "openai");
+  if (!key) return { ok: false, reason: "ai_off" };
+  const msg = guideMessage(st as unknown as GuideState);
+  const model = await setting(ctx, "ai.model.openai", "gpt-5.4-mini");
+  try {
+    const r = await chat(f(ctx), "openai", key, model, GUIDE_SYSTEM, [{ role: "user", content: guidePrompt(st as unknown as GuideState, msg, text) }], true);
+    await logUsage(ctx, { person_id: s.person_id, side: s.side, task: "guide", source: "lawfecta", provider: "openai", model: r.model, input_tokens: r.input_tokens, output_tokens: r.output_tokens, ok: true });
+    const out = readGuideReply(readJson(r.text), msg.choices);
+    const m = await rpc<Record<string, any>>(ctx, "dela_guide_mark", { p_person: s.person_id, p_side: s.side, p: { kind: "ai_reply", step: st.step, request_id: "say:" + req } });
+    if (!out) return { ok: false, reason: "ai_unclear" };
+    return { ok: true, text: out.text, choice: out.choice, replies_left: Math.max(Number(st.replies_left) - (m?.duplicate ? 0 : 1), 0) };
+  } catch (e) {
+    return { ok: false, reason: "ai_failed", code: e instanceof AiFail ? e.code : "provider_down" };
+  }
+}
+
 // The Lawfecta Team's draft decision: Lawfecta's own key, never a member's credits. A person reads, edits and decides.
 async function disputeDraft(c: Ctx, actor: string) {
   const all = await rpc<Record<string, any>>(c, "dela_admin_disputes", { p_actor: actor });
@@ -3562,6 +3602,7 @@ async function engagementsDaily(ctx: Ctx) {
   await rpc(ctx, "dela_engagements_daily", {});
   // Step 11: failed refunds and payouts are tried again (up to 3 times), then the team is told
   await rpc(ctx, "dela_money_retry_failed", {}).catch(() => null);
+  await rpc(ctx, "dela_guide_daily", {}).catch(() => null);
   await sendPayouts(ctx);
   await sendRefunds(ctx);
   await sendReversals(ctx);
@@ -4223,6 +4264,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/jobs": (c, a) => rpc(c, "dela_admin_jobs", { p_actor: a }),
   "/admin/holds": (c, a) => rpc(c, "dela_admin_holds", { p_actor: a }),
   "/admin/disputes": (c, a) => rpc(c, "dela_admin_disputes", { p_actor: a }),
+  "/admin/guide": (c, a) => rpc(c, "dela_admin_guide_report", { p_actor: a }),
   "/admin/releases": (c, a) => rpc(c, "dela_admin_releases", { p_actor: a }),
   "/admin/settings/history": (c, a) => rpc(c, "dela_admin_setting_history", { p_actor: a, p_key: need((c.url.searchParams.get("key") ?? "").slice(0, 100)) }),
   "/admin/plans/history": (c, a) => rpc(c, "dela_admin_plan_history", { p_actor: a, p_plan: need((c.url.searchParams.get("plan") ?? "").slice(0, 40)) }),
@@ -4586,6 +4628,7 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
     return { ok: true };
   }
   if (j.kind === "engagements_daily") return await engagementsDaily(ctx);
+  if (j.kind === "gig_alerts") return { ok: true, ...(await rpc<Record<string, unknown>>(ctx, "dela_gig_alerts_send", { p: j.payload ?? {} }) ?? {}) };
   if (j.kind === "monthly_hourly") { await rpc(ctx, "dela_standing_tick", {}).catch(() => null); return await monthlyRun(ctx); }
   if (j.kind === "bd_plan_sync") return await planSyncJob(ctx, j.payload ?? {});
   if (j.kind === "trial_daily") return await trialRun(ctx, "daily");
@@ -5051,6 +5094,13 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /setup": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_setup_state", { p_person: s.person_id, p_side: s.side })); }
       case "POST /setup": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_setup_mark", { p_person: s.person_id, p_side: s.side, p_step: ctx.body.step ? str(ctx.body.step, 20) : null,
         p_skip: ctx.body.skip === true, p_dismiss: typeof ctx.body.dismissed === "boolean" ? ctx.body.dismissed : null })); }
+      case "GET /guide": return json(ctx, await guideGet(ctx));
+      case "POST /guide/mark": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_guide_mark", { p_person: s.person_id, p_side: s.side,
+        p: { kind: str(ctx.body.kind, 20), step: str(ctx.body.step, 40), ref: str(ctx.body.ref, 200), request_id: str(ctx.body.request_id, 80) } })); }
+      case "POST /guide/prefs": { const s = await memberSide(ctx); const p: Record<string, boolean> = {};
+        for (const k of ["alerts_in_guide", "alerts_email", "alerts_notices"]) if (typeof ctx.body[k] === "boolean") p[k] = ctx.body[k] as boolean;
+        return json(ctx, await rpc(ctx, "dela_guide_prefs_set", { p_person: s.person_id, p_side: s.side, p })); }
+      case "POST /guide/say": return json(ctx, await guideSay(ctx));
       case "GET /automate": return await automateState(ctx);
       case "POST /automate/review": return await automateReview(ctx);
       case "POST /automate/dismiss": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_automate_dismiss", { p_person: s.person_id, p_playbook: need(uuid(ctx.body.playbook_id)), p_on: ctx.body.dismissed !== false })); }

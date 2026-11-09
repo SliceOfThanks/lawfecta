@@ -223,6 +223,11 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Low end of the hourly rate DELA uses to suggest a delegated gig's budget. Used until Lawfecta has enough hires to work out real rates for a skill. | 4000 cents an hour | Open | Claude suggestion | |
 | High end of the hourly rate DELA uses to suggest a delegated gig's budget. Used until Lawfecta has enough hires to work out real rates for a skill. | 7500 cents an hour | Open | Claude suggestion | |
 | Days after sign-up for reminder emails about unfinished setup steps (empty turns them off). For the onboarding widget, after the MVP launch. | 2, 7 | Confirmed | Stacey 2026-11-06 (step 4d answers) | |
+| Free answers a member can get from the DELA guide each day. Lawfecta's key; does not use DELA actions. The work the guide leads to counts as usual. | 20 answers a day | Suggested | Stacey 2026-11-09 (step 13 brief) | |
+| Hours the DELA guide stays closed after the member pauses it. It opens sooner when something new needs the member, such as a new gig that fits. | 24 hours | Suggested | Stacey 2026-11-09 (step 13 brief) | |
+| New gig alerts a freelancer can get each day. One alert per gig per freelancer. | 3 alerts a day | Suggested | Stacey 2026-11-09 (step 13 brief) | |
+| Match reasons a gig needs before a freelancer is alerted | 2 reasons | Suggested | Stacey 2026-11-09 (step 13 brief) | |
+| New gig alerts start on (guide, email and Notices). Each member can turn each channel off. | Yes | Suggested | Stacey 2026-11-09 (step 13 brief) | |
 
 ## 12. UX Phase 4: approved version, AI helpers, appearance
 
@@ -278,10 +283,11 @@ Every switch starts Off. In the admin area each one can be set to Off, Lawfecta 
 | In-app purchase of extra agency seats | DELA bills seats itself |
 | Automate or delegate: DELA finds steps in an approved document to automate or hand to a freelancer | Step 4d tested |
 | The Get set up screen for attorneys | Step 4d tested |
-| The onboarding widget for new attorneys and freelancers | After the MVP launch |
+| The DELA guide: a proactive chat on the Dashboard for attorneys and freelancers (step 13) | Stacey turns it on for Live |
 | Approved documents open on a read-only "Approved version" page with "Edit a new draft" | Phase 4 part A tested |
 | The Phase 4 AI helpers (checks before a commitment and writing helpers) | Phase 4 part B tested |
 | The Appearance choice (Match my device, Light, Dark) in the account menu | Phase 4 part D tested |
 | The client information check follows the sensitive data rule (client details allowed where the rule allows them) | Lawyer reviews the privacy policy and data handling |
 | The plain-language Library: cards, plain categories, "What would you like to document?" | Stacey reviews it on computer and phone (step 8b Part B, question B10) |
 | The daily Pro trial check: downgrade unpaid trials to Free (BD) | Stacey's read-only BD API check done, endpoints connected, then 3 clean dry-run days |
+| New gig alerts for freelancers in the guide, by email and in Notices (step 13) | Stacey turns it on for Live |

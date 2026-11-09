@@ -1302,6 +1302,51 @@
           "status": "C",
           "source": "Stacey 2026-11-06 (step 4d answers)",
           "note": "For the onboarding widget, after the MVP launch."
+        },
+        {
+          "key": "guide.ai_replies_per_day",
+          "label": "Free answers a member can get from the DELA guide each day",
+          "value": 20,
+          "unit": "answers a day",
+          "status": "R",
+          "source": "Stacey 2026-11-09 (step 13 brief)",
+          "note": "Lawfecta's key; does not use DELA actions. The work the guide leads to counts as usual."
+        },
+        {
+          "key": "guide.snooze_hours",
+          "label": "Hours the DELA guide stays closed after the member pauses it",
+          "value": 24,
+          "unit": "hours",
+          "status": "R",
+          "source": "Stacey 2026-11-09 (step 13 brief)",
+          "note": "It opens sooner when something new needs the member, such as a new gig that fits."
+        },
+        {
+          "key": "gig_alerts.max_per_day",
+          "label": "New gig alerts a freelancer can get each day",
+          "value": 3,
+          "unit": "alerts a day",
+          "status": "R",
+          "source": "Stacey 2026-11-09 (step 13 brief)",
+          "note": "One alert per gig per freelancer."
+        },
+        {
+          "key": "gig_alerts.min_reasons",
+          "label": "Match reasons a gig needs before a freelancer is alerted",
+          "value": 2,
+          "unit": "reasons",
+          "status": "R",
+          "source": "Stacey 2026-11-09 (step 13 brief)",
+          "note": ""
+        },
+        {
+          "key": "gig_alerts.default_on",
+          "label": "New gig alerts start on (guide, email and Notices)",
+          "value": true,
+          "unit": "on or off",
+          "status": "R",
+          "source": "Stacey 2026-11-09 (step 13 brief)",
+          "note": "Each member can turn each channel off."
         }
       ]
     },
@@ -1581,8 +1626,8 @@
     },
     {
       "key": "onboarding_widget",
-      "label": "The onboarding widget for new attorneys and freelancers",
-      "gate": "After the MVP launch"
+      "label": "The DELA guide: a proactive chat on the Dashboard for attorneys and freelancers (step 13)",
+      "gate": "Stacey turns it on for Live"
     },
     {
       "key": "approved_view",
@@ -1613,6 +1658,11 @@
       "key": "bd_trial_downgrade",
       "label": "The daily Pro trial check: downgrade unpaid trials to Free (BD)",
       "gate": "Stacey's read-only BD API check done, endpoints connected, then 3 clean dry-run days"
+    },
+    {
+      "key": "gig_alerts",
+      "label": "New gig alerts for freelancers in the guide, by email and in Notices (step 13)",
+      "gate": "Stacey turns it on for Live"
     }
   ]
 }
