@@ -106,6 +106,8 @@ async function makeMember(bd, side, plan) {
 
     s = await open(browser, "DELA-App", FL, "&tab=home", 390); p = s.page;
     await guide(p).locator(".guide-msg").first().waitFor();
+    const clip = await p.evaluate(() => { const b = document.querySelector(".dela-host").shadowRoot.querySelector(".top .brand span"); return b ? b.scrollWidth - b.clientWidth : 0; });
+    ok(clip <= 1, "freelancer: the DELA label in the top bar is not cut off on a phone (" + clip + ")");
     const w = await p.evaluate(() => ({ page: document.documentElement.scrollWidth, vw: window.innerWidth }));
     ok(w.page <= w.vw + 1, "freelancer: the guide fits a 390-pixel phone (" + w.page + " of " + w.vw + ")");
     await s.ctx.close();
@@ -132,6 +134,10 @@ async function makeMember(bd, side, plan) {
     await guide(p).getByRole("button", { name: "Tell DELA about my firm" }).click();
     t = await waitFor(p, "Your firm profile for documents", 10000);
     ok(t.includes("Help me describe my firm"), "attorney: a new firm is asked about itself first, with DELA's help to describe it");
+    await dela(p).getByLabel("Describe your firm", { exact: false }).first().fill("Two attorneys doing family law in Texas; we use Clio.");
+    await dela(p).getByRole("button", { name: "✦ Help me describe my firm" }).click();
+    await dela(p).getByRole("button", { name: "Use all suggestions" }).click();
+    ok((await dela(p).getByLabel("Practice areas", { exact: true }).first().inputValue()).includes("Family law"), "attorney: Use all suggestions fills every box in one click");
     await sql(`insert into firm_profiles (org_id, body) select dela_side_org(${person(ATT)}, 'attorney'), '{"documents":{"practice_areas":["Family law"]}}'
       on conflict (org_id) do update set body = firm_profiles.body || excluded.body; select 1`);
     await p.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=home`);

@@ -1,0 +1,35 @@
+DELA test report — complete, November 9, 2026
+1 PASS — Account menu confirmed DELA Test Freelancer.
+2 PASS — Agency guide named missing items; Build my agency profile opened Agency.
+3 PASS — Missing headline, summary, practice areas, service and states; team of 1, bench of 1.
+4 FAIL — Draft completed within 60 seconds and filled five fields, but States you serve stayed empty. Asked what states the agency serves. Screenshot: step-04-state-missing.jpg
+5 PASS — Saved message; missing items reduced to states only.
+6 PASS — Business details: Roe Test Agency LLC, TX, checked by Lawfecta Team. Team: 1 of 5 seats used; owner verified and on 3 jobs.
+7 FAIL — Guide did not move on: "Attorneys who hire an agency read the agency profile first. Yours still needs the states you serve. DELA can draft it from a few lines about your agency." Screenshot: step-07-guide.jpg
+8 PASS — Earnings opened without error; first card: Payouts to your bank.
+9 PASS — Signed out; login page opened.
+10 PASS — Account menu confirmed DELA Test Attorney.
+11 PASS — Correct guide; comparison opened two proposals, $300 and $450, with included work and schedules.
+12 PASS — Opened Test SOP: Automate or delegate (SOP Approved); review card lists 4 ideas, 1 already delegated. Library list calls approved documents "Ready to use".
+13 FAIL — AI suggested Family law, Discovery responses and TX within 60 seconds, but did not fill filters automatically. Applied each Use suggestion, then Search returned 0 freelancers. Screenshot: step-13-talent.jpg
+14 FAIL — Active agreement and $450 milestone displayed, with Problems, disputes and canceling card, but agreement totals and platform fees displayed as "-"; client/freelancer names also blank. Screenshot: step-14-fees.jpg
+15 PASS — Usage: 13 of 50 documents, 81 of 1000 DELA actions, 1 MB of 50 GB storage.
+16 PASS — Signed out; login page opened.
+17 PASS — User logged in to new attorney account; member #690.
+18 PASS — Welcome guide and Tell DELA about my firm opened Your firm profile for documents.
+19 FAIL — Suggestions returned within 60 seconds but required individual Use suggestion approvals rather than automatically filling fields. Applied size 2–5, Family law/Estate planning, Texas state courts, Clio and Microsoft 365; Save and continue displayed Saved. Screenshot: step-19-firm-profile.jpg
+20 PASS — Guide offered three Draft buttons and Something else, based on family law and estate planning.
+21 PASS — First Draft opened New document with process Respond to a new inquiry and prefilled trigger/outcome.
+22 PASS — Signed out; login page opened.
+23 PASS — User logged in; admin header confirmed Stacey Lake (owner).
+24 PASS — Payments status, verbatim: Stripe is not connected yet. Attorneys see "Payments are not set up". It needs the STRIPE_SECRET_KEY (test key) and STRIPE_WEBHOOK_SECRET secrets in Supabase.
+25 PASS — DELA guide metrics: 4 members saw it, 3 buttons chosen, 0 questions answered, 0 paused, 0 gig alerts today. Step list includes Tell DELA about the firm and Agency profile (1 member each).
+26 PASS — Disputes opened without error: 2 open, 2 in last 90 days; open and closed lists displayed.
+27 PASS — Signed out; login?action=loggedout verified.
+
+FAIL list: 4, 7, 13, 14, 19.
+Confusing messages: draft says boxes filled but state remains blank; asks for state despite Austin context (coverage was not explicitly stated in input). Summary includes meta wording "The owner notes do not include state coverage, pricing, or other tools."
+Additional confusing messages: Talent filters say "Nothing is saved until you save" although this is a search form. Library list uses "Ready to use" while document detail says "Approved". Agreement shows active paid work but blank party names and fees.
+Over 60 seconds: none observed for AI draft.
+
+Result: 22 PASS, 5 FAIL. All 27 steps completed. FAIL denotes a mismatch with the supplied expected behavior; steps 13 and 19 still worked after approving individual suggestions, and step 4 correctly avoided inventing state coverage not explicitly given. No AI operation exceeded the 60-second observation limit.

@@ -18,9 +18,10 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
     let out: unknown = { client_info: false, kinds: [] };
     if (system.includes("public profile of a legal support agency")) {
       aiSeen = String(body.messages.at(-1).content);
-      out = { headline: "Family law support team for small Texas firms", summary: "We prepare discovery responses and organize case files for attorney review.",
+      const noStates = aiSeen.includes("no states");
+      out = { headline: "Family law support team for small Texas firms", summary: "We prepare discovery responses and organize case files for attorney review. The owner notes do not include state coverage or pricing.",
         practice_areas: ["Family law"], services: [{ title: "Discovery responses", description: "For attorney review", price_min_cents: 30000, price_max_cents: 90000 }, { title: "x" }],
-        tools: ["Clio"], states_served: ["tx", "Texas"], questions: ["Which counties?"] };
+        tools: ["Clio"], states_served: noStates ? [] : ["tx", "Texas"], questions: ["Which counties?"] };
     }
     return Response.json({ model: body.model, choices: [{ message: { content: JSON.stringify(out) } }], usage: { prompt_tokens: 10, completion_tokens: 10 } });
   }
@@ -82,6 +83,10 @@ Deno.test("DELA drafts it from the owner's notes; sensitive data is refused; onl
   assert(d.ok, JSON.stringify(d));
   assertEquals(d.draft.states_served, ["TX"], "the draft is cleaned too");
   assertEquals(d.draft.services.length, 1);
+  assertEquals(d.draft.summary, "We prepare discovery responses and organize case files for attorney review.", "no sentence about the notes or what is missing");
+  assertEquals(d.empty, [], "nothing left empty");
+  const d2 = (await call("POST", "/agency/profile/draft", owner.token, { notes: "Four paralegals doing family law discovery for small firms; no states named here." })).body;
+  assertEquals(d2.empty, ["states_served"], "the screen can name the empty box");
   assert(aiSeen.includes("Team members: 1"), "DELA sees the counted team size");
   assertEquals((await call("GET", "/agency/profile", solo.token)).body.reason, "agency_owner_only");
   assertEquals((await call("POST", "/agency/profile", solo.token, { headline: "x" })).body.reason, "agency_owner_only");
@@ -105,6 +110,18 @@ Deno.test("the guide walks the agency owner to the agency profile once their own
   const pub = await rpc("dela_agency_public", { p_org: org }) as Record<string, any>;
   assertEquals(pub.headline, "Family law support");
   assert(!("missing" in pub) && !("updated_by" in pub), "only the public parts");
+});
+
+Deno.test("Talent: a skill search also finds a freelancer whose services or summary mention it (MVP test step 13)", async () => {
+  await pool.query("update feature_switches set state = 'everyone' where key = 'talent_search'");
+  const att = await member(3, "att_pro");
+  await pool.query(`update member_profiles set body = body || '{"services":[{"title":"Discovery responses","for_whom":"Family law firms"}],"skills":[]}'::jsonb,
+    availability = 'available', availability_confirmed_at = now() where person_id = $1 and side = 'freelancer'`, [owner.id]);
+  await pool.query("update side_profiles set readiness_state = 'match_ready', status = 'active' where person_id = $1 and side = 'freelancer'", [owner.id]);
+  const r = await rpc("dela_talent_search", { p_person: att.id, p: { skill: "Discovery responses" } }) as Record<string, any>;
+  assert((r.people as Array<{ person_id: string }>).some((x) => x.person_id === owner.id), JSON.stringify(r));
+  const none = await rpc("dela_talent_search", { p_person: att.id, p: { skill: "Patent prosecution" } }) as Record<string, any>;
+  assert(!(none.people as Array<{ person_id: string }>).some((x) => x.person_id === owner.id), "an unrelated skill does not match");
 });
 
 Deno.test("teardown", async () => { await pool.end(); });

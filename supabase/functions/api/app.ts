@@ -1990,8 +1990,9 @@ async function profileDraft(ctx: Ctx) {
 // MVP 2026-11-09: the agency profile attorneys see. DELA drafts it from the owner's notes (DELA actions, like the
 // freelancer draft); the owner checks and saves. No client details or sensitive data go in.
 const AGENCY_SYSTEM = "You write the public profile of a legal support agency (a team of paralegals and legal assistants) on Lawfecta, read by attorneys " +
-  "deciding whom to hire. Use only the facts in the owner's notes; never invent clients, results, credentials, prices or numbers. Plain, specific words, " +
-  "no hype, no legal advice. Answer only with JSON: {\"headline\":\"under 140 characters\",\"summary\":\"3 to 6 sentences\",\"practice_areas\":[\"...\"]," +
+  "deciding whom to hire. Use only the facts in the owner's notes; never invent clients, results, credentials, prices or numbers. A city named in the notes " +
+  "gives its state (Austin means TX). Plain, specific words, no hype, no legal advice. Never write about the notes, the owner or missing facts in the profile " +
+  "text; put anything missing only in questions. Answer only with JSON: {\"headline\":\"under 140 characters\",\"summary\":\"3 to 6 sentences\",\"practice_areas\":[\"...\"]," +
   "\"services\":[{\"title\":\"...\",\"description\":\"one sentence\",\"price_min_cents\":integer or 0,\"price_max_cents\":integer or 0}],\"tools\":[\"...\"]," +
   "\"states_served\":[\"two-letter state codes\"],\"questions\":[\"up to 3 short questions about what is still missing\"]}";
 async function agencyProfileDraft(ctx: Ctx) {
@@ -2010,13 +2011,20 @@ async function agencyProfileDraft(ctx: Ctx) {
   if (!out || typeof out !== "object") return { ok: false, reason: "ai_failed", code: "bad_answer" };
   const arr = (x: unknown, n: number, m: number) => (Array.isArray(x) ? x : []).map((v) => plainText(String(v ?? "")).slice(0, m)).filter(Boolean).slice(0, n);
   const cents = (v: unknown) => Math.max(0, Math.round(Number(v) || 0));
-  return { ok: true, source: ai.source, draft: {
-    headline: plainText(String(out.headline ?? "")).slice(0, 160), summary: plainText(String(out.summary ?? "")).slice(0, 2000),
+  const draft = {
+    headline: plainText(String(out.headline ?? "")).slice(0, 160), summary: profileOnly(plainText(String(out.summary ?? ""))).slice(0, 2000),
     practice_areas: arr(out.practice_areas, 12, 80), tools: arr(out.tools, 20, 60),
     states_served: [...new Set(arr(out.states_served, 60, 40).map((x) => x.trim().toUpperCase()).filter((x) => /^[A-Z]{2}$/.test(x)))],
     services: (Array.isArray(out.services) ? out.services : []).slice(0, 10).map((v: Record<string, unknown>) => ({ title: plainText(String(v?.title ?? "")).slice(0, 120),
       description: plainText(String(v?.description ?? "")).slice(0, 600), price_min_cents: cents(v?.price_min_cents), price_max_cents: cents(v?.price_max_cents) })).filter((v: { title: string }) => v.title.length >= 3),
-  }, questions: arr(out.questions, 3, 200) };
+  };
+  const empty = [["headline", draft.headline], ["summary", draft.summary], ["practice_areas", draft.practice_areas], ["services", draft.services], ["tools", draft.tools], ["states_served", draft.states_served]]
+    .filter(([, v]) => !(Array.isArray(v) ? v.length : String(v ?? "").trim())).map(([k]) => k);
+  return { ok: true, source: ai.source, draft, empty, questions: arr(out.questions, 3, 200) };
+}
+// MVP test 2026-11-09 (step 4): the public summary never talks about the notes or what is missing
+function profileOnly(text: string): string {
+  return text.split(/(?<=[.!?])\s+/).filter((x) => !/\b(the |these |owner'?s? )?notes?\b|\bthe owner\b|\bnot (yet )?(include|mention|say|specif)|\bmissing\b/i.test(x)).join(" ").trim();
 }
 
 // Write or improve one box (headline, summary, experience, education) from the member's notes and what the box says now

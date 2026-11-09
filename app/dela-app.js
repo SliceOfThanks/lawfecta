@@ -301,7 +301,7 @@
       expired: "Your verification needs to be renewed before your next hire.",
     }[s.verification_state] || "";
     return h("div", null,
-      h("h1", { text: greeting() + ", " + D.firstName(me.person.name) }),
+      h("h1", { text: greeting() + (String((me.person || {}).name || "").trim() ? ", " + D.firstName(me.person.name) : "") }),
       h("p", { class: "muted", text: "Make room for your highest-value work." }),
       (me.switches || {}).onboarding_widget ? guideBox() : null,
       h("div", { class: "hero" },
@@ -348,7 +348,7 @@
     }[s.readiness_state] || "";
     var items = ["Headline and summary", "Practice areas", "At least one clear service", "Relevant experience", "Software you use (or none)", "Work and jurisdiction preferences", "Current availability", "Marketplace and confidentiality agreements"];
     return h("div", null,
-      h("h1", { text: greeting() + ", " + D.firstName(me.person.name) }),
+      h("h1", { text: greeting() + (String((me.person || {}).name || "").trim() ? ", " + D.firstName(me.person.name) : "") }),
       h("p", { class: "muted", text: "Get match-ready, win work from attorneys and get paid for each milestone you deliver." }),
       (me.switches || {}).onboarding_widget ? guideBox() : null,
       h("div", { class: "hero navy" },
@@ -1869,7 +1869,7 @@
     if (p.status === "in_review") return { k: "draft", label: "Open draft", note: "Sent for approval.", go: function () { openPlaybook(p.id, "read"); } };
     return { k: "draft", label: edit ? "Continue draft" : "Open draft", go: function () { openPlaybook(p.id, "read"); } };
   }
-  var WS_WORDS = { ready: "Ready to use", draft: "Draft", review: "Needs your review" };
+  var WS_WORDS = { ready: "Ready to use (approved)", draft: "Draft", review: "Needs your review" };
   function docCard(p, L) {
     var c = cardState(p, L);
     var locked = usage.data && (usage.data.locked_ids || []).indexOf(p.id) >= 0;
@@ -3605,6 +3605,7 @@
   function helperFindings(out, list, opts) {
     if (!list.length) { out.appendChild(h("p", { style: "margin:0", text: "DELA found nothing to flag." })); return; }
     var ul = h("ul", { class: "list", style: "margin:0" });
+    var applyAll = [];
     list.forEach(function (f) {
       var target = opts.field ? opts.field(f) : null;
       if (!target && opts.apply && f.suggestion && (!opts.canApply || opts.canApply(f))) target = { apply: opts.apply };
@@ -3614,6 +3615,7 @@
       var acts = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" });
       if (f.suggestion && target) {
         var put = function () { if (target.apply) { target.apply(f); return; } target.value = f.suggestion; target.dispatchEvent(new Event("input")); target.dispatchEvent(new Event("change")); };
+        applyAll.push(function () { put(); li.remove(); });
         acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { put(); li.remove(); D.toast(app, opts.toast || "Added to the form. Nothing is saved until you save."); } }, "Use suggestion"));
         acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { put(); li.remove(); if (target.focus) target.focus(); } }, "Edit"));
       }
@@ -3621,6 +3623,12 @@
       li.appendChild(acts);
       ul.appendChild(li);
     });
+    // MVP test 2026-11-09 (steps 13 and 19): one click to use every suggestion; still the member's choice
+    if (applyAll.length > 1) {
+      out.appendChild(h("div", { class: "row", style: "margin:0 0 6px" }, h("button", { class: "blue small", type: "button", onclick: function (e) {
+        applyAll.forEach(function (fn) { fn(); }); e.target.remove(); D.toast(app, opts.toast || "Added to the form. Nothing is saved until you save.");
+      } }, "Use all suggestions")));
+    }
     out.appendChild(ul);
   }
 
@@ -4096,7 +4104,10 @@
           if ((d.states_served || []).length) states.value = d.states_served.join(", ");
           if ((d.services || []).length) svc.value = d.services.map(function (v) { return v.title + (v.description ? " | " + v.description : ""); }).join("\n");
           D.clear(qs);
+          var EMPTY_WORDS = { headline: "Headline", summary: "Summary", practice_areas: "Practice areas", services: "Services", tools: "Tools you use", states_served: "States you serve" };
+          var empty = (x.empty || []).map(function (k) { return EMPTY_WORDS[k] || k; });
           qs.appendChild(h("p", { class: "small", text: "DELA filled in the boxes. Check every word, then click Save the agency profile." }));
+          if (empty.length) qs.appendChild(h("p", { class: "notice", text: "Still empty: " + empty.join(", ") + ". Add " + (empty.length === 1 ? "it" : "them") + ", then save." }));
           (x.questions || []).forEach(function (q) { qs.appendChild(h("p", { class: "small muted", text: "DELA asks: " + q })); });
         }).catch(function () { draftBtn.disabled = false; D.toast(app, "DELA could not draft it right now. Try again in a minute.", true); });
       });
@@ -4593,7 +4604,7 @@
       field("Practice area", inputs.practice_area), field("Skill", inputs.skill), field("Tech tool", inputs.tool), field("State you need", inputs.state),
       h("button", { class: "blue small", type: "button", onclick: run }, "Search")),
       (me.switches || {}).ai_helpers ? field("Describe the task (for ✦ Help me find a fit)", h("div", null, aiNotice(), task), "DELA suggests filters from it. You check them, then click Search.") : null,
-      helperButton("find_fit", "✦ Help me find a fit", function () { return { text: task.value }; }, { field: function (x) { return inputs[x.field] || null; } })));
+      helperButton("find_fit", "✦ Help me find a fit", function () { return { text: task.value }; }, { field: function (x) { return inputs[x.field] || null; }, toast: "Added to the filters. Check them, then click Search." })));
     el.appendChild(results);
     run();
     return el;
