@@ -250,6 +250,7 @@
           stat("Switches on", d.switches_on, null, "ov_switches"),
           stat("Active holds", d.holds_active, null, "ov_holds")),
         emergencyCard(),
+        guideCard(),
         h("div", { class: "card" }, titled("h2", "Check notices", "ov_notices"),
           h("p", { class: "muted small", text: "Sends a test notice to you. Email uses the service in the email.sender setting (log means it is recorded, not sent)." }),
           h("div", { class: "row" },
@@ -258,6 +259,32 @@
         section("ov_recent", "Recent activity", "ov_recent", true, null,
           h("ul", { class: "list" }, d.recent.map(function (a) { return h("li", { class: "small" }, h("strong", { text: a.action.split("_").join(" ") }), " by " + a.actor + " ", h("span", { class: "muted", text: D.dateTime(a.at) })); })))));
     }).catch(fail);
+  }
+
+  // ---------- The DELA guide (step 13): how many members it reaches and where they are ----------
+  var GUIDE_STEPS = { pick_task: "Pick a first task", approve_playbook: "Approve the playbook", delegate: "Hand off steps", continue_delegation: "Handing off",
+    verify: "License check before posting", post_gig: "Post the gig", invite: "Invite freelancers", review_proposals: "Compare proposals", next_task: "Next task",
+    profile: "Finish the profile", verify_linkedin: "LinkedIn check", verify_waiting: "Waiting on the LinkedIn check", availability: "Confirm availability",
+    invitations: "Answer invitations", new_gigs: "New gigs that fit", first_proposal: "First proposal", teach: "Teach DELA", restricted: "On hold" };
+  function guideCard() {
+    var box = h("div", { class: "card" }, h("h2", { text: "DELA guide" }), h("p", { class: "muted small", text: "Loading..." }));
+    api.get("/admin/guide").then(function (r) {
+      var d = r.data || {};
+      D.clear(box);
+      box.appendChild(h("h2", { text: "DELA guide" }));
+      box.appendChild(h("p", { class: "muted small", text: "The proactive chat on members' Dashboards, in the last 30 days. Each member is counted once per step they reached." }));
+      box.appendChild(h("div", { class: "grid" },
+        h("div", { class: "tile col" }, h("div", { class: "muted small", text: "Members who saw it" }), h("div", { class: "stat", text: String(d.people || 0) })),
+        h("div", { class: "tile col" }, h("div", { class: "muted small", text: "Buttons chosen" }), h("div", { class: "stat", text: String(d.chose || 0) })),
+        h("div", { class: "tile col" }, h("div", { class: "muted small", text: "Questions answered" }), h("div", { class: "stat", text: String(d.ai_replies || 0) })),
+        h("div", { class: "tile col" }, h("div", { class: "muted small", text: "Paused" }), h("div", { class: "stat", text: String(d.paused || 0) })),
+        h("div", { class: "tile col" }, h("div", { class: "muted small", text: "Gig alerts sent today" }), h("div", { class: "stat", text: String(d.alerts_today || 0) }))));
+      var steps = Object.keys(d.steps || {});
+      box.appendChild(steps.length ? h("ul", { class: "list" }, steps.sort(function (a, b) { return d.steps[b] - d.steps[a]; }).map(function (k) {
+        return h("li", { class: "small" }, h("strong", { text: GUIDE_STEPS[k] || k }), ": " + d.steps[k] + (d.steps[k] === 1 ? " member" : " members"));
+      })) : h("p", { class: "muted small", text: "No member has seen the guide yet." }));
+    }).catch(function () { D.clear(box); box.appendChild(h("h2", { text: "DELA guide" })); box.appendChild(h("p", { class: "muted small", text: "Could not load the guide numbers." })); });
+    return box;
   }
 
   // ---------- Emergency pause (no push needed; members see a short message, the team keeps working) ----------

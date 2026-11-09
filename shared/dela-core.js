@@ -383,6 +383,10 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
     "h1{font-size:28px;line-height:1.2;margin:18px 0 4px;font-weight:800;letter-spacing:-.01em}h2{font-size:19px;margin:0 0 8px;font-weight:800}h3{font-size:16px;margin:0 0 6px;font-weight:700}",
     "p{margin:0 0 10px}.muted{color:var(--muted)}.small{font-size:14px}",
     ".eyebrow{font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}",
+    ".guide{border-left:4px solid var(--brand)}.guide-head{align-items:center;gap:10px}.guide-head img{width:28px;height:28px;border-radius:50%}" +
+      ".guide-msg{background:var(--pink);color:var(--ink);border-radius:4px 14px 14px 14px;padding:10px 14px;margin:10px 0 8px;max-width:680px}.guide-msg p{margin:0}" +
+      ".guide-choices{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px}.guide-me{margin:10px 0 0 auto;max-width:520px;background:var(--soft);border-radius:14px 4px 14px 14px;padding:8px 12px;width:fit-content}" +
+      ".guide-ask{margin-top:10px;gap:8px}.guide-ask input{flex:1;min-width:0}.guide-alerts{margin-top:8px}.guide-alerts summary{cursor:pointer;font-weight:600}.guide-toggle{display:inline-flex;align-items:center;gap:6px}",
     ".card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;margin:14px 0;box-shadow:var(--shadow)}",
     ".hero{border-radius:24px;padding:24px;margin:16px 0;color:#fff;background:var(--hot);box-shadow:0 14px 34px rgba(139,33,70,.25)}.hero.navy{background:var(--hero)}",
     ".hero h2{font-size:30px;line-height:1.15;margin:8px 0 10px;color:#fff}.hero p{color:rgba(255,255,255,.9);max-width:560px}",

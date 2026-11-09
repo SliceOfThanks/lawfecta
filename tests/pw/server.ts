@@ -153,6 +153,8 @@ function fakeAi(u: string, opts: RequestInit): Response | null {
     // Step 11: the dispute AI (summary, suggested offer, the team's draft)
     const dj = (o: unknown) => Response.json({ model: body.model, choices: [{ message: { content: JSON.stringify(o) } }], usage: { prompt_tokens: 50, completion_tokens: 30 } });
     if (system.includes("Summarize both sides")) return dj({ summary: "The freelancer says the draft was delivered; the attorney says the exhibit list is missing.", agreed: ["The draft arrived"], open: ["The exhibit list"] });
+    // Step 13: the DELA guide answers a typed question and may point at a button on offer
+    if (system.includes("You are the DELA guide")) return dj({ text: "Start with the first one; it is quick to hand to a freelancer.", button: 1 });
     if (system.includes("Suggest a fair settlement")) return dj({ release_cents: 15000, why: "The draft arrived; the exhibit list is still open." });
     if (system.includes("draft a decision")) return dj({ summary: "Half of the final packet was delivered.", terms: ["Deliverables: petition draft; exhibit list"], release_cents: 15000, why: "One of two parts.", note: "Half to each of you." });
     if (system.includes("drafting a reply for the member")) return Response.json({ model: body.model, choices: [{ message: { content: "Thanks, Monday works for me." } }], usage: { prompt_tokens: 20, completion_tokens: 10 } });

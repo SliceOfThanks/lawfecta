@@ -197,6 +197,98 @@
     return tile;
   }
 
+  // ---------- Step 13: the DELA guide, a proactive chat at the top of the Dashboard ----------
+  var GUIDE_ERR = {
+    guide_cap: "You used today's free guide answers. Ask DELA on its own tab, or come back tomorrow.",
+    looks_like_client_info: "That looks like client details. Leave them out and ask again.",
+    ai_off: "The guide cannot answer questions right now. The buttons above still work.",
+    ai_failed: "The guide could not answer right now. Try again in a minute.",
+    ai_unclear: "The guide could not give a clear answer. Try asking another way.",
+    guide_off: "The DELA guide is off right now.",
+  };
+  function guideBox() {
+    var box = h("section", { class: "card guide", "aria-label": "DELA guide" }, h("p", { class: "small muted", text: "DELA is getting your next step ready..." }));
+    function mark(kind, step, ref) { return api.post("/guide/mark", { kind: kind, step: step || "", ref: ref || "", request_id: newId() }).catch(function () { return null; }); }
+    function act(g, c) {
+      if (c.id === "not_for_me") { mark("gig_seen", g.step, c.gig).then(load); return; }
+      mark("chose", g.step, c.id + ":" + (c.starter || c.gig || c.link || ""));
+      if (c.id === "start_playbook") {
+        docStarters().then(function (st) {
+          var s = (st.starters || []).filter(function (x) { return x.id === c.starter; })[0];
+          lib.guideNew = s ? { type: s.type, starter: s } : {};
+          lib.pb = null; lib.importId = null; tab = "library"; draw();
+        }).catch(function () { lib.guideNew = {}; tab = "library"; draw(); });
+        return;
+      }
+      if (c.id === "describe_task") { lib.guideNew = {}; lib.pb = null; lib.importId = null; tab = "library"; draw(); return; }
+      var go = c.link ? noticeAction(c.link) : null;
+      if (go) location.assign(go.href);
+    }
+    function choiceButtons(g, list) {
+      return h("div", { class: "guide-choices" }, (list || []).map(function (c, i) {
+        return h("button", { class: (i === 0 && c.id !== "not_for_me" ? "blue" : "ghost") + " small", type: "button", onclick: function () { act(g, c); } }, c.label);
+      }));
+    }
+    function alertsRow(g) {
+      if (me.side !== "freelancer" || !g.alerts_on) return null;
+      var pr = g.prefs || {};
+      function toggle(key, label) {
+        var cb = h("input", { type: "checkbox", checked: pr[key] !== false });
+        cb.addEventListener("change", function () {
+          var body = {}; body[key] = cb.checked;
+          api.post("/guide/prefs", body).then(function (x) { if (!x.ok) { cb.checked = !cb.checked; D.toast(app, "Not saved. Try again.", true); } else D.toast(app, "Saved"); });
+        });
+        return h("label", { class: "guide-toggle" }, cb, " " + label);
+      }
+      return h("details", { class: "guide-alerts" }, h("summary", { text: "New gig alerts" }),
+        h("p", { class: "small muted", text: "When a gig that fits you is posted, DELA can tell you here, by email and in Notices. Turn off any of them." }),
+        h("div", { class: "row", style: "flex-wrap:wrap;gap:14px" }, toggle("alerts_in_guide", "In this guide"), toggle("alerts_email", "By email"), toggle("alerts_notices", "In Notices")));
+    }
+    function draw1(g) {
+      D.clear(box);
+      if (!g.ok || !g.on) { box.remove(); return; }
+      var head = h("div", { class: "row guide-head" }, D.logo(root, 28), h("strong", { class: "grow", text: "DELA guide" }));
+      if (g.paused) {
+        head.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { mark("resumed", g.step).then(load); } }, "Open the guide"));
+        box.appendChild(head);
+        box.appendChild(h("p", { class: "small muted", text: "Paused. DELA opens it again tomorrow, or sooner when something new needs you." }));
+        return;
+      }
+      head.appendChild(h("button", { class: "ghost small", type: "button", "aria-label": "Pause the guide for a day", onclick: function () { mark("paused", g.step).then(load); } }, "Pause"));
+      box.appendChild(head);
+      box.appendChild(h("div", { class: "guide-msg", "aria-live": "polite" }, h("p", { text: g.message })));
+      box.appendChild(choiceButtons(g, g.choices));
+      var log = h("div", { class: "guide-log", "aria-live": "polite" });
+      box.appendChild(log);
+      var q = h("input", { type: "text", maxlength: "1000", "aria-label": "Ask the DELA guide a question", placeholder: "Ask the DELA guide a question" });
+      var ask = h("button", { class: "ghost small", type: "button" }, "Ask");
+      var left = h("p", { class: "small muted", text: g.replies_left > 0 ? "Free answers left today: " + g.replies_left + ". They do not use your DELA actions." : GUIDE_ERR.guide_cap });
+      function send() {
+        var text = q.value.trim();
+        if (text.length < 2) { q.focus(); return; }
+        ask.disabled = true;
+        log.appendChild(h("p", { class: "guide-me", text: text }));
+        api.post("/guide/say", { text: text, request_id: newId() }).then(function (x) {
+          ask.disabled = false;
+          if (!x.ok) { log.appendChild(h("p", { class: "notice bad small", text: x.message || GUIDE_ERR[x.reason] || failText(x) })); return; }
+          q.value = "";
+          log.appendChild(h("div", { class: "guide-msg" }, h("p", { text: x.text }), x.choice ? choiceButtons(g, [x.choice]) : null));
+          left.textContent = x.replies_left > 0 ? "Free answers left today: " + x.replies_left + ". They do not use your DELA actions." : GUIDE_ERR.guide_cap;
+        }).catch(function () { ask.disabled = false; log.appendChild(h("p", { class: "notice bad small", text: GUIDE_ERR.ai_failed })); });
+      }
+      ask.addEventListener("click", send);
+      q.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); send(); } });
+      box.appendChild(h("div", { class: "row guide-ask" }, q, ask));
+      box.appendChild(left);
+      var alerts = alertsRow(g);
+      if (alerts) box.appendChild(alerts);
+      if (me.side === "attorney" && (me.switches || {}).guided_setup) box.appendChild(h("p", { class: "small" }, h("button", { class: "linkish", type: "button", onclick: function () { tab = "setup"; draw(); } }, "See all setup steps")));
+    }
+    function load() { api.get("/guide").then(draw1).catch(function () { box.remove(); }); }
+    load();
+    return box;
+  }
+
   var VER_BADGE = { not_started: "Not started", pending: "Being checked", verified: "Verified", rejected: "Not verified", expired: "Renewal needed" };
   function attorneyHome() {
     var s = sideInfo();
@@ -211,6 +303,7 @@
     return h("div", null,
       h("h1", { text: greeting() + ", " + D.firstName(me.person.name) }),
       h("p", { class: "muted", text: "Make room for your highest-value work." }),
+      (me.switches || {}).onboarding_widget ? guideBox() : null,
       h("div", { class: "hero" },
         h("div", { class: "eyebrow", text: "AI Delegation Center" }),
         h("h2", null, "Plan. Delegate.", h("br"), "Get it done."),
@@ -218,7 +311,7 @@
         (me.switches || {}).ai_generation
           ? h("button", { class: "pill-white", onclick: function () { tab = "delegate"; draw(); } }, "Ask DELA to plan a task")
           : h("button", { class: "pill-white", disabled: true, title: "Opens in the next DELA update" }, "Start a new delegation (opening soon)")),
-      (me.switches || {}).guided_setup ? setupHomeCard() : null,
+      (me.switches || {}).guided_setup && !(me.switches || {}).onboarding_widget ? setupHomeCard() : null,
       h("div", { class: "stats" },
         // Real counts from the server (AI review 0.9.0, payments 3); a tile is left out if its count is missing
         me.home ? stat("☰", me.home.open_gigs, "Open gigs") : null,
@@ -257,6 +350,7 @@
     return h("div", null,
       h("h1", { text: greeting() + ", " + D.firstName(me.person.name) }),
       h("p", { class: "muted", text: "Get match-ready, win work from attorneys and get paid for each milestone you deliver." }),
+      (me.switches || {}).onboarding_widget ? guideBox() : null,
       h("div", { class: "hero navy" },
         h("div", { class: "eyebrow", text: "Match readiness" }),
         h("h2", { text: "Your profile, through an attorney's eyes" }),
@@ -1667,7 +1761,8 @@
 
   function libraryView() {
     libEl = h("div", null, h("p", { class: "muted", text: "Loading..." }));
-    if (lib.importId) openImport(lib.importId);
+    if (lib.guideNew) { DOC.flow = lib.guideNew.type ? lib.guideNew : null; lib.guideNew = null; newDocument(); }
+    else if (lib.importId) openImport(lib.importId);
     else if (lib.pb && lib.pb.playbook) openPlaybook(lib.pb.playbook.id, lib.view);
     else loadLibrary();
     return libEl;

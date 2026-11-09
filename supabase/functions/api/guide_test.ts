@@ -136,6 +136,12 @@ Deno.test("attorney: pick a task, approve the playbook, hand off steps, post the
 });
 
 Deno.test("freelancer: profile, LinkedIn, availability, invitations, then new gigs that fit, one at a time", async () => {
+  // Other test files may turn the LinkedIn check off; this one needs it on, and puts it back after
+  const was = (await one("select value from settings where key = 'verify.freelancer_linkedin'"))?.value;
+  await pool.query("update settings set value = 'true'::jsonb where key = 'verify.freelancer_linkedin'");
+  try { await freelancerPath(); } finally { if (was !== undefined) await pool.query("update settings set value = $1::jsonb where key = 'verify.freelancer_linkedin'", [JSON.stringify(was)]); }
+});
+async function freelancerPath() {
   let g = await guide(fl);
   assertEquals(g.step, "profile");
   assert(g.choices[0].link === "/dela?tab=profile");
@@ -170,7 +176,7 @@ Deno.test("freelancer: profile, LinkedIn, availability, invitations, then new gi
   await pool.query("update gig_invitations set status = 'answered' where freelancer_id = $1", [fl.id]);
   assert((await guide(fl)).step !== "new_gigs", "with guide alerts off, new gigs are not listed in the guide");
   await call("POST", "/guide/prefs", fl.token, { alerts_in_guide: true });
-});
+}
 
 Deno.test("pause: closed for the snooze time, and opens again when something new needs the member", async () => {
   await matchReady(fl2);
