@@ -188,6 +188,8 @@ Deno.test("answered but not settled: the team reviews; questions pause the clock
   const draft = (await call("POST", "/admin/disputes/draft", team.token, { id })).body.data;
   assertEquals([draft.release_cents, draft.refund_cents], [15000, 15000], JSON.stringify(draft));
   assert(!aiSeen.includes("Disp "), "names never reach the AI");
+  // Fix (2026-11-09): the team's draft is recorded in AI usage (the usage table refused the task name before)
+  assertEquals(Number((await one(`select count(*) n from ai_usage where task = 'dispute_draft'`)).n), 1, "the team's draft is counted in AI usage");
   assertEquals((await call("POST", "/admin/disputes/resolve", team.token, { id, release_cents: 15000, refund_cents: 10000, note: "x" })).body.data.reason, "split_must_equal");
   const r = (await call("POST", "/admin/disputes/resolve", team.token, { id, release_cents: 15000, refund_cents: 15000, note: "Half was delivered." })).body.data;
   assert(r.ok, JSON.stringify(r));
