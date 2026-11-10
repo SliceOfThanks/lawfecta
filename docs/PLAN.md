@@ -2,6 +2,9 @@
 
 Last updated 2026-11-06. The one-page picture (built, in progress, next, before the MVP, after) is docs/MVP_OVERVIEW.md. Stacey's own checklist, in order, is docs/STACEY_TODO.md. Read this with STATUS.md. It shows what is done, what is being tested, what needs work, what is waiting on Stacey, and what comes next.
 
+## Next work (2026-11-10): the launch review fixes
+The MVP is on the test site. Before launch, make the 24 fixes from the launch review, in the order given in docs/HANDOFF.md (money safety, disputes, the guide, the Pro trial check, the first push to Live). Then the AI review workflow, the release record, and one ChatGPT money test once Stripe's test keys are in.
+
 ## Decisions for this plan (Stacey 2026-11-04)
 - Beta users wait for hiring. Nobody outside the test accounts uses DELA until matching, gigs, proposals, meetings and payments (Steps 4 to 6) are built and tested. Everything stays on the test site (hirelegalhelp.com) until then.
 - Meetings stay on Vectera. Branded rooms and join links run on Vectera. Automatic transcripts and off-platform monitoring are built around what Vectera allows (see Step 5).
