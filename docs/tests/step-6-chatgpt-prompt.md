@@ -47,7 +47,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
    - "Agreement, version 1"
    - a card "What happens next"
    - a card "The agreement" with the firm, who signs for the firm, your name, the price, the milestones and a "Fees" list ending "The freelancer receives"
-3. Under "The agreement", click "The terms". Expect the text to start with "DRAFT FOR LAWFECTA'S LAWYER TO REVIEW".
+3. Under "The agreement", click "The terms". Expect the text to start with "1. The parties."
 4. Click "How DELA checks each milestone (the rubric)". Expect a list per milestone, with some items marked "required".
 5. Scroll to the card "Propose changes" and click "Propose changes".
    1. In the first milestone, type 10 in "Amount ($)" and click "Send the new version". Expect a message that each milestone needs at least an amount (for example $50).

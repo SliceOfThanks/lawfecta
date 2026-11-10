@@ -97,7 +97,7 @@ async function sign(page, name, version) {
     ok(t.includes("The freelancer receives: $570"), "freelancer: the fee lines say what they receive (5% on every plan)");
     ok(t.includes("Draft") && t.includes("Final") && t.includes("$300"), "freelancer: two milestones of $300 from the proposal");
     await dela(p).getByText("The terms", { exact: true }).click();
-    ok((await text(p)).includes("DRAFT FOR LAWFECTA'S LAWYER TO REVIEW"), "freelancer: the terms are the fixed template, marked as a draft for counsel");
+    ok((await text(p)).includes("1. The parties.") && !(await text(p)).includes("DRAFT FOR LAWFECTA"), "freelancer: the terms are the fixed template, with no draft line");
     await click(p, "Propose changes");
     await waitFor(p, "Send the new version");
     await dela(p).getByLabel("Amount ($)").first().fill("10");

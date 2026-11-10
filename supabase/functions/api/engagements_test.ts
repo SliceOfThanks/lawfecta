@@ -181,7 +181,7 @@ Deno.test("agreement: DELA drafts version 1 from the facts; only the two parties
   assertEquals(r.current.version, 1);
   const body = r.current.body;
   assertEquals(body.milestones.map((m: any) => [m.title, m.amount_cents]), [["Draft", 50000], ["Final", 50000]]);
-  assert(String(body.terms).startsWith("DRAFT FOR LAWFECTA'S LAWYER"), "the fixed template, marked as a draft for counsel");
+  assert(String(body.terms).startsWith("1. The parties.") && !String(body.terms).includes("DRAFT FOR"), "the fixed template, with no draft line (Stacey 2026-11-10)");
   assertEquals(body.parties.client.firm, "Example Legal");
   assertEquals(body.parties.freelancer.name, "Fran Lance");
   assertEquals([body.fees.attorney_bps, body.fees.freelancer_bps], [500, 500], "5% each side, whatever the plan (Stacey 2026-11-05)");
@@ -192,6 +192,15 @@ Deno.test("agreement: DELA drafts version 1 from the facts; only the two parties
   assertEquals((await call("GET", "/agreements/get?id=" + ag, att.token)).body.money_summary, ["Your total: $1,050", "First payment: $550 (milestone 1 and the platform fee)", "Then $500 for milestone 2",
     "The next milestone is charged automatically after you accept the previous milestone."]);
   assertEquals(r.stripe_ready, true);
+  // Launch review fix 19: the screens name Stripe's test card only while a test key is in use, never with real payments
+  assertEquals(r.stripe_test, true, "a test key: the test-card note may show");
+  const testKey = env.STRIPE_SECRET_KEY;
+  env.STRIPE_SECRET_KEY = "sk_live_" + "x".repeat(24); // rules-ok: a made-up key for the test
+  await pool.query("update feature_switches set state = 'everyone' where key = 'live_payments'");
+  try {
+    const liveView = (await call("GET", "/agreements/get?id=" + ag, att.token)).body;
+    assertEquals([liveView.stripe_ready, liveView.stripe_test], [true, false], "real payments: no test-card note");
+  } finally { env.STRIPE_SECRET_KEY = testKey; await pool.query("update feature_switches set state = 'off' where key = 'live_payments'"); }
   assert(body.rubric[0].criteria.some((c: any) => c.text.includes("Every exhibit is labeled")), "the playbook's quality checks are in the rubric");
   assertEquals((await call("GET", "/agreements/get?id=" + ag, att.token)).body.current.version, 1, "opening it twice makes one version");
   assertEquals((await call("GET", "/agreements/get?id=" + ag, other.token)).body.reason, "not_found", "another freelancer cannot see it");

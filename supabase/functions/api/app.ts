@@ -3157,7 +3157,9 @@ async function agreementGet(ctx: Ctx) {
     const dates = await rpc<Record<string, { planned_due_date: string | null; due_note: string }>>(ctx, "dela_milestone_dates", { p_agreement: id }).catch(() => ({}));
     for (const m of v.milestones) Object.assign(m, (dates as Record<string, unknown>)[m.id] ?? {});
   }
-  return json(ctx, { ...v, agency_name: agencyName, stripe_ready: !!(await stripeKey(ctx)) });
+  const sk = await stripeKey(ctx);
+  // stripe_test: the screens name Stripe's test card only while a test key is in use, never with real payments
+  return json(ctx, { ...v, agency_name: agencyName, stripe_ready: !!sk, stripe_test: sk.includes("_test_") });
 }
 
 // A proposed change: milestones (titles, amounts in dollars, due dates, deliverables) and scope. A new version both must sign.

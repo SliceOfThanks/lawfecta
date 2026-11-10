@@ -8,9 +8,9 @@ const s = (v: unknown, max = 500) => (typeof v === "string" ? v.split("\u0000").
 // A missing amount reads "-", never "$NaN"
 const money = (c: number) => typeof c !== "number" || !isFinite(c) ? "-" : "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 });
 
-export const TERMS_TEMPLATE = `DRAFT FOR LAWFECTA'S LAWYER TO REVIEW. Not for live payments until approved.
-
-1. The parties. This agreement is between the Client named above (the firm or attorney) and the Freelancer named above. Lawfecta runs the platform and holds payments; Lawfecta is not a party to the work, does not supervise it, and is not a law firm. The Client's attorney supervises the work and remains responsible for legal judgment and anything filed or sent to a court or client.
+// Stacey 2026-11-10: these terms go live as drafted for the pilot, on her decision; no lawyer reviewed them. Agreements
+// signed earlier keep the text they were signed with.
+export const TERMS_TEMPLATE = `1. The parties. This agreement is between the Client named above (the firm or attorney) and the Freelancer named above. Lawfecta runs the platform and holds payments; Lawfecta is not a party to the work, does not supervise it, and is not a law firm. The Client's attorney supervises the work and remains responsible for legal judgment and anything filed or sent to a court or client.
 2. The work. The Freelancer will do the work described in Scope, and nothing in Excluded. Changes to price, scope or milestones need a new version of this agreement signed by both parties (a change order).
 3. Milestones and payment. Each milestone is paid by the Client through Lawfecta before work on it starts, and held until the Client accepts it. The Client agrees that Lawfecta may charge the saved payment method for each next milestone when the previous one is accepted. Platform fees are shown in Fees and are part of this agreement.
 4. Delivery and review. The Freelancer submits each milestone on Lawfecta with its deliverables and a completion statement. DELA checks it against the Rubric; a score of {pass_score} or more with every required item met passes. The Client then has {review_days} days to accept it or ask for changes with reasons. {revisions} rounds of changes are included per milestone; more need a change order. A DELA check or a human review is an administrative step, not proof that the work is legally correct.

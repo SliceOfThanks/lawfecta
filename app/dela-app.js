@@ -5260,6 +5260,8 @@
     return ENG_ERR[r.reason] || gigErr(r);
   }
   function engOk(r) { if (!r || r.ok === false) throw r || {}; return r; }
+  // Shown only while Stripe runs on a test key (the api says so); never with real payments
+  var TEST_CARD_NOTE = " Stripe is in test mode here: use Stripe's test card 4000 0000 0000 0077 (any future date, any 3 digits).";
   function engFail(e) { D.toast(app, e && e.reason ? engErr(e) : D.errorText(e && e.message ? e.message : String(e)), true); }
   function engReload(msg) { draw(); if (msg) setTimeout(function () { D.toast(app, msg); }, 300); }
 
@@ -5784,7 +5786,7 @@
               .catch(function (e) { pm.disabled = false; pm.textContent = "Pay month 1"; engFail(e); });
           });
           box.appendChild(h("div", { class: "row" }, pm));
-          box.appendChild(h("p", { class: "small muted", text: "You pay on Stripe's secure page, and that payment method is saved for each month's renewal. A bank payment takes about 4 business days; the month's tasks open only once it clears. Stripe is in test mode on the test site: use Stripe's test card 4000 0000 0000 0077 (any future date, any 3 digits)." }));
+          box.appendChild(h("p", { class: "small muted", text: "You pay on Stripe's secure page, and that payment method is saved for each month's renewal. A bank payment takes about 4 business days; the month's tasks open only once it clears." + (r.stripe_test ? TEST_CARD_NOTE : "") }));
         }
       } else if (!cur) box.appendChild(h("p", { text: "Waiting for the client to pay month 1. Do not start unpaid work." }));
       else if (nx.status === "failed") box.appendChild(h("p", { text: att ? "Month " + nx.n + "'s payment did not go through. Pay now from the Monthly engagement card below." : "Month " + nx.n + " is not paid yet, so new work is paused. Do not start month " + nx.n + "'s tasks." }));
@@ -5817,7 +5819,7 @@
           if (a.saved_payment) box.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
             api.post("/engagements/pay", { id: a.id, use_checkout: true }).then(engOk).then(function (x) { if (x.url) location.href = x.url; else engReload(); }).catch(engFail);
           } }, "Pay another way"));
-          box.appendChild(h("p", { class: "small muted", text: "You pay on Stripe's secure page. DELA never sees your card or bank details. Stripe is in test mode on the test site: use Stripe's test card 4000 0000 0000 0077 (any future date, any 3 digits)." }));
+          box.appendChild(h("p", { class: "small muted", text: "You pay on Stripe's secure page. DELA never sees your card or bank details." + (r.stripe_test ? TEST_CARD_NOTE : "") }));
         }
       } else if (open) box.appendChild(h("p", { text: "The freelancer is working on the paid milestone. You review each one when it is submitted." }));
       else box.appendChild(h("p", { text: "Nothing is due from you right now." }));
