@@ -58,17 +58,17 @@ Does not carry over:
 - Branch: `claude/step-2a-ai-keys-voice-files`. No pull requests unless Stacey asks.
 - The MVP (Stacey's 16 items, see STATUS.md) is on the test site, hirelegalhelp.com.
 - Test site database: Supabase project "Lawfecta AI" / DELA Staging, ref `ojshgsxgsypbywtqhkch`.
-- On the test site: `code_version` = `4cadd48b816ecdc0581055def8d45113b63af7a5`, api function version 78, migrations through 0079, health ok, GitHub Tests green (382 API tests, 26 browser suites).
+- On the test site: `code_version` = `0e93a9980b79866db35e978e80b1ee113c412f6e`, api function version 79, migrations through 0081, health ok (386 API tests, 26 browser suites).
 - Live (lawfecta.com) is not set up. Never touch it.
 - Stripe test keys are not set on the test site. No payment or payout has ever gone through Stripe there.
 - Pro trial check: switch `bd_trial_downgrade` = everyone, mode dry run. Dry-run day 1 was clean. Days 2 and 3 are still to look at.
-- The launch review below was approved by Stacey on 2026-11-10. None of its fixes is made yet.
+- The launch review below was approved by Stacey on 2026-11-10. Done and on the test site: item 1 (migration 0080) and item 11 (migration 0081). The rest is open.
 
 ## 2. The launch review: fixes to make, in order
 Every fix is a commit starting "Fix" with a test that fails before the fix, in the same commit. Deploy to the test site only. "Confirmed" means the finding was re-read in the code; the rest came from review agents and should be checked when fixing.
 
 ### Part 1: money safety (first)
-1. BLOCKER, confirmed. A dispute can point at any milestone, even one from another agreement or one already paid out, and money moves for it.
+1. DONE 2026-11-10 (commit b250f5c, migration 0080). BLOCKER, confirmed. A dispute can point at any milestone, even one from another agreement or one already paid out, and money moves for it.
    - `dela_dispute_open` (`supabase/migrations/0030_engagements.sql`, about line 714) stores `milestone_id` unchecked. `dela_dispute_settle_money` (`0075_dispute_center.sql`, about line 106) pays or refunds it.
    - Fix in a new migration: on open, the milestone must belong to the agreement and be paid and not yet accepted. In settle and in the offer functions, require `m.agreement_id = d.agreement_id` and status `disputed`.
    - Test (disputes_test): a milestone from another agreement, or one already paid out, is refused.
@@ -89,7 +89,7 @@ Every fix is a commit starting "Fix" with a test that fails before the fix, in t
     - New-style disputes still send the old "the team reviews after 14 days" notice: send the new wording.
 
 ### Part 3: the DELA guide and the newest features
-11. HIGH, confirmed. The guide's free-answer cap is bypassed by re-sending the same `request_id`, because `guideSay` (`app.ts` about 3600) calls the AI before the count is saved. Fix: one SQL call reserves the answer first (refuses a duplicate or over-cap request); only then call the AI. Test (guide_test): the same request id cannot get a second answer or pass the cap.
+11. DONE 2026-11-10 (commit 0e93a99, migration 0081, new function `dela_guide_reserve`). HIGH, confirmed. The guide's free-answer cap is bypassed by re-sending the same `request_id`, because `guideSay` (`app.ts` about 3600) calls the AI before the count is saved. Fix: one SQL call reserves the answer first (refuses a duplicate or over-cap request); only then call the AI. Test (guide_test): the same request id cannot get a second answer or pass the cap.
 12. MEDIUM. Reminder emails skip new attorneys: the `firm` and `agency_profile` steps are missing from the step list in `dela_guide_daily`.
 13. MEDIUM. Add indexes: `gig_matches(person_id)`, `gig_invitations(freelancer_id)`, `gigs(org_id, status)`, `gigs(playbook_id)`.
 14. MEDIUM. "Use all suggestions" also applies suggestions the member dismissed (`app/dela-app.js` `helperFindings`): track used and dismissed.
@@ -114,7 +114,7 @@ Every fix is a commit starting "Fix" with a test that fails before the fix, in t
     - Write a brief first (docs/briefs, from TEMPLATE.md): how the fee is spread over milestones in whole cents (same rule as the freelancer fee: leftover cents on the last one), the minimum per side, monthly engagements, agreements already signed (keep their old timing), refunds, disputes, the agreement text and the payment screens.
     - The setting `fees.attorney_fee_timing` now says `with_each_milestone`; no code reads it yet.
 26. On Live, set `trial.eligible_from` to the Live launch date at the first push (Stacey). Add it to docs/LIVE_READINESS.md with item 20.
-27. BD lookups from Stacey (test site): Active is status value 2 (`trial.bd_active_value` is set). Post type codes 1 (Member Listings), 2 (Area of Law) and 3 (Member Reviews) are BD built-ins that do not show in the post type list. Code 73 is in the Agency Business, Agency Business Lifetime and Attorney Business plan settings and matches no post type on the site: ask Stacey what it is before the trial check goes Live. Plus shows 10 areas of law and Community Articles only (`trial.allowances` is set).
+27. BD lookups from Stacey (test site): Active is status value 2 (`trial.bd_active_value` is set). Post type codes 1 (Member Listings), 2 (Area of Law) and 3 (Member Reviews) are BD built-ins that do not show in the post type list. Code 73 is in the `data_settings` list (post types a plan may publish) of Agency Business (9), Agency Business Lifetime (11) and Attorney Business (14) and matches no post type on the site; Stacey's BD lookup on 2026-11-10 found nothing with that ID, most likely a deleted post type. Members get nothing from it, and DELA's trial check works with post type names (video, promotion, article), so nothing in DELA depends on it. The other IDs: 7 Promotion, 13 Video, 15 Community Article, 71 Discussion, 0 a placeholder. Plus shows 10 areas of law and Community Articles only (`trial.allowances` is set).
 
 ### Order
 1. Items 1 and 11, deployed to the test site the same day.
