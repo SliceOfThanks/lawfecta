@@ -215,6 +215,24 @@ Deno.test("typed questions: free (Lawfecta's key), capped per day, sensitive dat
   await pool.query("update settings set value = '20'::jsonb where key = 'guide.ai_replies_per_day'");
 });
 
+// Launch review 2026-11-10, fix 11: the answer was counted after the AI ran, so re-sending one request id (or sending
+// several at once) got free answers past the daily cap
+Deno.test("typed questions: a re-sent request id gets no second answer, and questions sent at once cannot pass the cap", async () => {
+  await pool.query("update settings set value = '20'::jsonb where key = 'guide.ai_replies_per_day'");
+  let before = aiCalls;
+  const again = (await call("POST", "/guide/say", att.token, { text: "Which one should I pick first?", request_id: "q1" })).body;
+  assertEquals([again.ok, again.reason], [false, "already_answered"]);
+  assertEquals(aiCalls - before, 0, "the AI was not called for a request id already used");
+  const used = Number((await one("select count(*) n from guide_events where person_id = $1 and kind = 'ai_reply' and created_at > now() - interval '1 hour'", [att.id])).n);
+  await pool.query("update settings set value = to_jsonb($1::int) where key = 'guide.ai_replies_per_day'", [used + 1]);
+  before = aiCalls;
+  const many = await Promise.all([1, 2, 3, 4, 5].map((i) => call("POST", "/guide/say", att.token, { text: "Which one should I pick first?", request_id: "race" + i })));
+  assertEquals(many.filter((x) => x.body.ok).length, 1, "one answer was left, so one answer is given");
+  assertEquals(many.filter((x) => x.body.reason === "guide_cap").length, 4);
+  assertEquals(aiCalls - before, 1, "the AI ran once");
+  await pool.query("update settings set value = '20'::jsonb where key = 'guide.ai_replies_per_day'");
+});
+
 Deno.test("gig alerts: once per gig, the member's toggles, the daily cap, at least two reasons", async () => {
   await matchReady(fl);
   await pool.query("update side_profiles set readiness_state = 'match_ready' where person_id = any($1) and side = 'freelancer'", [[fl.id, fl2.id]]);

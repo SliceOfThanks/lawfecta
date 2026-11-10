@@ -206,6 +206,7 @@
     ai_off: "The guide cannot answer questions right now. The buttons above still work.",
     ai_failed: "The guide could not answer right now. Try again in a minute.",
     ai_unclear: "The guide could not give a clear answer. Try asking another way.",
+    already_answered: "That question was already sent. Type it again to ask once more.",
     guide_off: "The DELA guide is off right now.",
   };
   function guideBox() {

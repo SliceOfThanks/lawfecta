@@ -3606,15 +3606,17 @@ async function guideSay(ctx: Ctx) {
   if (Number(st.replies_left) <= 0) return { ok: false, reason: "guide_cap", cap: st.replies_cap };
   const key = lawfectaKey(ctx, "openai");
   if (!key) return { ok: false, reason: "ai_off" };
+  // The answer is reserved before the AI runs: a used request id or a full day is refused here, never after the cost
+  const got = await rpc<Record<string, any>>(ctx, "dela_guide_reserve", { p_person: s.person_id, p_side: s.side, p_step: String(st.step ?? ""), p_request: "say:" + req });
+  if (!got?.ok) return got ?? { ok: false, reason: "guide_off" };
   const msg = guideMessage(st as unknown as GuideState);
   const model = await setting(ctx, "ai.model.openai", "gpt-5.4-mini");
   try {
     const r = await chat(f(ctx), "openai", key, model, GUIDE_SYSTEM, [{ role: "user", content: guidePrompt(st as unknown as GuideState, msg, text) + "\n" + await memberContext(ctx, s) }], true);
     await logUsage(ctx, { person_id: s.person_id, side: s.side, task: "guide", source: "lawfecta", provider: "openai", model: r.model, input_tokens: r.input_tokens, output_tokens: r.output_tokens, ok: true });
     const out = readGuideReply(readJson(r.text), msg.choices);
-    const m = await rpc<Record<string, any>>(ctx, "dela_guide_mark", { p_person: s.person_id, p_side: s.side, p: { kind: "ai_reply", step: st.step, request_id: "say:" + req } });
     if (!out) return { ok: false, reason: "ai_unclear" };
-    return { ok: true, text: out.text, choice: out.choice, replies_left: Math.max(Number(st.replies_left) - (m?.duplicate ? 0 : 1), 0) };
+    return { ok: true, text: out.text, choice: out.choice, replies_left: Number(got.replies_left) };
   } catch (e) {
     return { ok: false, reason: "ai_failed", code: e instanceof AiFail ? e.code : "provider_down" };
   }
