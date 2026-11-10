@@ -247,4 +247,25 @@ Deno.test("switch off: the old one-step dispute still works and the new routes s
   await pool.query("update feature_switches set state = 'everyone' where key = 'dispute_center'");
 });
 
+// Launch review 2026-11-10, fix 1: a dispute could name any milestone (another agreement's, or one already paid out) and the
+// settlement then paid or refunded it
+Deno.test("a dispute only ever moves the money of a held milestone on its own agreement", async () => {
+  const mine = await paidEngagement("x1"), theirs = await paidEngagement("x2");
+  const old = (m: string) => call("POST", "/disputes/open", fl.token, { id: mine.ag, milestone_id: m, reason: "Pay me for this one" });
+  assertEquals((await old(theirs.m1)).body.reason, "pick_milestone", "a milestone from another agreement is refused");
+  await pool.query("update milestones set status = 'accepted', accepted_at = now() where id = $1", [mine.m2]);
+  assertEquals((await old(mine.m2)).body.reason, "milestone_not_paid", "a milestone already accepted and paid out is refused");
+  assertEquals(Number((await one("select count(*) n from disputes where agreement_id = $1", [mine.ag])).n), 0, "nothing was opened");
+  // Even if such a dispute row exists (made before this fix), no offer and no decision moves that milestone's money
+  for (const m of [theirs.m1, mine.m2]) {
+    const d = (await one("insert into disputes (agreement_id, milestone_id, opened_by, reason, notice_ends_at) values ($1, $2, $3, 'old row', now() - interval '1 day') returning id", [mine.ag, m, fl.id])).id;
+    assertEquals((await call("POST", "/disputes/offer", fl.token, { id: d, release_cents: 30000 })).body.reason, "no_milestone", "no offer on it");
+    const r = await rpc("dela_admin_dispute_resolve", { p_actor: team.id, p_dispute: d, p_release: 30000, p_refund: 0, p_note: "Pay it" }) as Record<string, unknown>;
+    assertEquals([r.ok, r.reason], [false, "milestone_not_held"], "the team's decision cannot pay it either");
+    await pool.query("update disputes set status = 'withdrawn', resolved_at = now() where id = $1", [d]);
+  }
+  assertEquals(Number((await one("select count(*) n from payouts where milestone_id in ($1, $2)", [theirs.m1, mine.m2])).n), 0, "no payout was made");
+  assertEquals((await one("select status from milestones where id = $1", [theirs.m1])).status, "funded", "the other agreement's milestone is untouched");
+});
+
 Deno.test("teardown", async () => { await pool.end(); });
