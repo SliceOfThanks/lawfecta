@@ -73,6 +73,28 @@ Report: docs/reviews/test-reports/2026-11-10-stripe-first-payment.txt. Test: doc
 - Not checked yet: whether Stripe still sends `account.updated` for v2 accounts (DELA reads the status when the freelancer returns and on "Check my payout status", so it does not depend on it).
 - From the report, still open: `site.url` has no "www" but the return from Stripe worked; "Held now" on the admin Payments tab counts made-up prepared jobs, so it is larger than "Charged" (clean up the prepared test data, section 4); the freelancer who runs an agency also sees Agency, Library and Projects tabs, so the tab list in AGENT-RULES.md is incomplete for that account; the gig link without `&view=agreement` opens the Details tab; "Check my payout status" gives no message when nothing changed.
 
+## 1c. Pilot triage (2026-11-10): Stacey wants the pilot/beta as soon as possible
+Proposed to Stacey, waiting for her choice. Recommended: open the pilot on Live with invited members and payments switched off, then turn payments on as a second step.
+
+**Stage 1, pilot without payments (critical, in this order)**
+1. Item 21: Live widget copies with no fallback to the test site or to `@main`.
+2. Item 18: the first push to Live waits for health; one practice push to a throwaway project.
+3. Item 20: no test-site plan numbers on Live (`bd.plan_aliases`, `trial.allowances`, `trial.bd_plans`, `trial.bd_active_value`), and item 26 (trial start date).
+4. Item 22: "log" email sender never marks email as sent on Live.
+5. Item 23, the part that is law: unsubscribe link and postal address on reminder and alert emails. Until built, keep `gig_alerts` and the guide's reminder emails off on Live.
+6. Item 24: LIVE_READINESS and the switch plan for the pilot. On Live for stage 1: `milestone_funding` and `engagements` payments off, `live_payments` off, member webhooks off, `bd_trial_downgrade` in dry run, access list only.
+7. Stacey's Live setup (section 4), then her ChatGPT tests for Steps 4 and 5 on the test site (gigs, proposals, messages), since those are what pilot members will use first.
+
+**Stage 2, before any real payment**
+- Items 2, 3 and 4 (double charge, double payout or refund, lost Stripe events), and item 5 (duplicate emails, jobs that retry forever).
+- Payout setup, a payout and a dispute refund proven in the Stripe sandbox (section 1b).
+- Item 19 (the test-card text) and Accounts v2 checked with live keys.
+- The lawyer's sign-off on the agreement text and the six gate items. Stacey's rule (2026-11-07): real payments only after the lawyer's review.
+- One real payment and refund by Stacey. An outside security test is recommended before payments open to more than the pilot group.
+
+**Can wait until after the pilot starts**
+Items 6, 7, 12 to 17, 25 (fee timing; agreements signed before it keep the old timing), 27, the layout (step 12), cleaning the test site's data, the remaining ChatGPT tests (6, 7, 2d, 2e) before the features they cover are opened.
+
 ## 2. The launch review: fixes to make, in order
 Every fix is a commit starting "Fix" with a test that fails before the fix, in the same commit. Deploy to the test site only. "Confirmed" means the finding was re-read in the code; the rest came from review agents and should be checked when fixing.
 
