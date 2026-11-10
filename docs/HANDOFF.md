@@ -2,6 +2,59 @@
 
 Read CLAUDE.md, STATUS.md and docs/PLAN.md first, then this file. It holds what the last chat knew that is not written elsewhere: the launch review's fix list, how to deploy to the test site, how to run the tests in a fresh session, and what is waiting on Stacey.
 
+## 0. Moving to the new chat, step by step
+
+### For Stacey
+1. Go to https://claude.ai/code and start a new session.
+2. Choose the repository SliceOfThanks/lawfecta and the branch `claude/step-2a-ai-keys-voice-files`. Use the same environment as the last chat.
+3. Paste the starter message below as the first message.
+4. Use one chat at a time for the build. Two chats on the same branch overwrite each other.
+
+Starter message:
+
+```
+Continue the Lawfecta DELA build on branch claude/step-2a-ai-keys-voice-files.
+Read these first, in order: CLAUDE.md, STATUS.md, docs/PLAN.md, docs/HANDOFF.md.
+Then do the "First hour" checklist in docs/HANDOFF.md section 0 and tell me what
+you found.
+
+The MVP is on the test site (hirelegalhelp.com). I approved the launch review
+fix plan on 2026-11-10; the 24 fixes and their order are in docs/HANDOFF.md.
+None is made yet.
+
+Start with item 1 (a dispute can point at any milestone, even one already
+paid) and item 11 (the DELA guide's free-answer cap can be bypassed). Each is
+a "Fix" commit with a test that fails before the fix. Deploy to the test site
+only. Then keep going through the list in the order HANDOFF.md gives.
+
+Also send me the one list of undecided numbers with a suggested answer each.
+```
+
+### What carries over and what does not
+Carries over, because it lives outside the chat:
+- Everything in GitHub on this branch: code, migrations, tests, briefs, test prompts, saved test reports, this file.
+- The test site and its database (settings, switches, prepared test data).
+- The layout mockup, a private page in Stacey's Claude account: https://claude.ai/artifact/JXogiAYYHhjyMp5inwYuH2
+
+Does not carry over:
+- The conversation itself. Anything not in GitHub is gone, which is why this file exists.
+- The scratch folder. The ready-to-paste test prompts with the passwords filled in were there. Rebuild a ready copy from the GitHub prompt (it says TEST_PASSWORD) and send it to Stacey as a file. Ask her for the test password if a test needs it; never write it in GitHub.
+- The local test database and the test server. Section 6 says how to set them up again.
+- The task list and the plan file. Sections 2 to 4 and section 13 replace them.
+
+### Connectors the new chat needs
+- Supabase: every deploy to the test site goes through it (section 5). Check: list projects and find ref `ojshgsxgsypbywtqhkch`.
+- GitHub: reading Tests runs, starting the "AI review" workflow. Check: read the latest "Tests" run on this branch.
+- Brevo: checking whether an email was really sent. Only needed for email work.
+- If one is missing, tell Stacey which, and that she connects it in her Claude settings under Connectors. Do not ask her for keys or codes.
+
+### First hour (for the new chat, before changing anything)
+1. Read CLAUDE.md, STATUS.md, docs/PLAN.md and this file.
+2. `git status` and `git log --oneline | head -5`: the tree is clean and this file's commit is at or near the top.
+3. Test site check through Supabase: `select value from settings where key = 'code_version'` matches section 1 (or a later commit recorded in STATUS.md), and the health address in section 5 answers `ok:true` and `worker_ok:true`.
+4. Set up the local database and run every API test and every browser suite once (section 6). All should pass before the first change. If something fails on an untouched tree, fix the setup, not the code.
+5. Tell Stacey in plain words what was found, then start item 1.
+
 ## 1. Where things stand
 - Branch: `claude/step-2a-ai-keys-voice-files`. No pull requests unless Stacey asks.
 - The MVP (Stacey's 16 items, see STATUS.md) is on the test site, hirelegalhelp.com.
@@ -118,3 +171,88 @@ Things that bit the last chat:
 - Owner: Stacey's own account (admin area).
 - Passwords are never written in GitHub. Test prompts in GitHub say TEST_PASSWORD; the ready-to-paste copy sent to Stacey in chat has them filled in. Ask her if needed.
 - Prepared data: three jobs named "Test job: Dispute ... (prepared)" (their agreements have milestones only, so parties and fees show "-"; history is append-only, so they stay), and "Test job: Guide new gig (prepared)" (gig `e2552eed-94fd-48bf-adb6-fa33bd913d9d`, made-up firm BD 999013). A normally made agreement to open in tests: gig `64ed7250-64b3-4423-a4f1-e0e890da40dc`.
+
+## 8. Stacey's decisions from the last chat (do not ask again)
+- Logo (2026-11-08): the round gradient mark only, wherever the name Lawfecta shows. Also in emails from DELA, on the Security page, in Word and PDF exports, and as the browser tab icon. The files she sent are used as they are for now.
+- DELA guide (2026-11-09): a chatbox on the Dashboard that opens with a proactive prompt. It is free for members (Lawfecta's key, with a daily cap from settings). Members can switch it and its reminders on and off. Reminders go in the guide, by email and in the Notices bell. For attorneys it goes all the way to a posted gig.
+- MVP (2026-11-09): test site, fully tested. The fee stays 5% from the attorney plus 5% from the freelancer, with the minimum per side from settings. Plan limits are enforced (`usage_limits_enforced` = everyone on the test site). Agencies get their own agency profile with DELA's help.
+- Launch review (2026-11-10): the fix plan in section 2 is approved.
+- Older decisions are in docs/briefs (each brief has her answers), config/decisions.json and the Decision Sheet.
+
+## 9. What the last chat built
+All of it is on the test site and covered by tests.
+
+**The logo (commit 4086ebf)**
+- `brand/lawfecta-mark-96/192/512/864.png` is the round mark used everywhere.
+- `shared/dela-core.js`: `D.logo(root, size)` returns the image and sets the tab icon when the page has none.
+- `app/dela-app.js` `brand()` and the admin top bar show the logo plus "DELA" or "DELA Admin".
+- `supabase/functions/api/lib/brand/logo.ts` (logo for emails and exports) and `lib/brand/docx.ts` (Word header), used by the document and playbook exports. `lib/email.ts` `logoRow`; `app.ts` `codeLogo(ctx)`.
+- Test: `supabase/functions/api/brand_test.ts`.
+
+**Step 13, the DELA guide (commits 7df7f02 and c5f582a; migrations 0076 and 0077)**
+- Brief: docs/briefs/step-13-dela-guide.md.
+- 0077: tables `guide_prefs`, `guide_events` (append-only), `gig_alerts_sent`; functions `dela_guide_state`, `dela_guide_mark`, `dela_guide_prefs`, `dela_guide_prefs_set`, `dela_gig_open_alerts`, `dela_gig_alerts_send`, `dela_guide_daily`, `dela_admin_guide_report`. Settings `guide.ai_replies_per_day`, `guide.snooze_hours`, `gig_alerts.max_per_day`, `gig_alerts.min_reasons`, `gig_alerts.default_on`. Switches `onboarding_widget` and `gig_alerts`.
+- `lib/guide/guide.ts`: `pickStarters`, `guideMessage(state)`, `GUIDE_SYSTEM`, `guidePrompt`, `readGuideReply`. Attorney steps: firm, pick_task, approve_playbook, delegate, continue_delegation, verify, post_gig, invite, review_proposals, next_task. Freelancer steps: restricted, profile, agency_profile, verify_linkedin, availability, invitations, new_gigs, first_proposal, verify_waiting, teach.
+- `app.ts`: `guideGet`, `guideSay`; routes `GET /guide`, `POST /guide/mark`, `/guide/prefs`, `/guide/say`; admin `/admin/guide`; the worker job `gig_alerts`.
+- Screens: `guideBox()` at the top of both Home pages in `app/dela-app.js`; `guideCard()` on the admin Overview.
+- Tests: `guide_test.ts`, `tests/pw/guide-test.js`. ChatGPT prompt: docs/tests/step-13-dela-guide-chatgpt-prompt.md.
+
+**MVP additions (commit aa650fb; migration 0078)**
+- 0078: table `agency_profiles`; functions `dela_agency_profile_org`, `dela_agency_profile_missing`, `dela_agency_profile_get`, `dela_agency_profile_save`, `dela_agency_public`; patches to `dela_guide_state` (the firm step, the agency_profile step, practice areas read from the firm profile) and `dela_proposals_agency` (adds the profile).
+- `app.ts`: `AGENCY_SYSTEM`, `agencyProfileDraft`; routes `GET` and `POST /agency/profile`, `POST /agency/profile/draft`.
+- Screens: `agencyProfileCard()` on the Agency tab; attorneys see the profile on agency proposals.
+- Test: `agency_profile_test.ts`.
+
+**Fixes from Stacey's two ChatGPT runs (commits da36811 and 4cadd48; migration 0079)**
+- 0079: Talent's skill filter also searches services, headline and summary.
+- `helperFindings` in `app/dela-app.js`: the "Use all suggestions" button, and a shared reason shown once.
+- The account button shows the email's first letter when there is no name; the greeting has no ", there"; approved documents say "Ready to use (approved)"; the agency card keeps "Saved." and updates its missing line as boxes are filled.
+- Reports: docs/reviews/test-reports/2026-11-09-mvp-chatgpt.txt and 2026-11-09-mvp-retest.txt. Prompts: docs/tests/mvp-chatgpt-prompt.md and mvp-retest-chatgpt-prompt.md.
+
+**Test fixes:** disputes browser test uses its own members (0ed34bd); meetings browser test picks the date with the most times (d5d2d42); the trial test's two runs always overlap (756c260).
+
+## 10. Code patterns to follow
+- AI that is free for the member: call the model on Lawfecta's key and record it with `logUsage`, under a cap from settings. `guideSay` and `agencyProfileDraft` in `app.ts` are the examples.
+- AI that counts against the plan: `runAi(ctx, s, idem, system, msgs, credits)`.
+- Never fall back to Lawfecta's key when a member's own key fails.
+- Text a member types that may reach the AI or be saved for others to read goes through `await sensitive(ctx, s, text, place)` first; it returns a refusal to send back, or null.
+- A new number (price, fee, limit, deadline) goes in config/decisions.json; then run `python3 tools/decisions.py` to regenerate the seed migration and the Decision Sheet.
+- A new feature ships behind a switch that is off on Live.
+- Screens are built with the `D.*` helpers in `shared/dela-core.js` (styles in `D.CSS`), inside a shadow root. No HTML strings from member text.
+- Tables are reached only through SQL functions called by the `api` function with the service role.
+
+## 11. Problems already solved (do not debug these again)
+- GitHub Tests were red after step 11: the disputes browser test reused the agency test's members. It has its own now.
+- The meetings browser test failed late in the UTC day. It now uses the date with the most free times.
+- "Draft with DELA" for teams was not recorded: the usage table's task list had to be widened (0076). Any new AI task name needs the same.
+- The agency draft turned "Texas" into "TE". States are accepted only as real two-letter codes.
+- The LinkedIn setting is changed by another test file, so the guide test sets it itself.
+- A playbook that already has a gig is not suggested again by the guide.
+- Step 14 of the first MVP run showed "-" for parties and fees. That came from prepared dispute agreements with milestones only, not from DELA. Use gig `64ed7250-64b3-4423-a4f1-e0e890da40dc` for agreement checks.
+- The Library button is "Create a document"; the screen it opens is titled "New document". Check every button name against the code before sending a test.
+- After a worker restart, leaving plan mode can answer "You are not in plan mode". Stacey had approved in each case; carry on.
+
+## 12. The launch date evaluation given to Stacey (2026-11-10)
+- Not ready to launch today.
+- Sound now: sign-in, sessions, the admin gate, who can see what, sensitive data rules, file handling, fee math, the ledger.
+- Not safe yet: payments and payouts (section 2, Part 1, and never run against real Stripe), disputes (Part 2), the guide's answer cap, the first push to Live, emails with no unsubscribe link or postal address, the agreement text still marked as a draft.
+- Earliest closed beta on Live with payments still in test mode: about November 24. It needs all the code fixes (about 5 to 7 working sessions), the Live setup, and Stacey's ChatGPT tests that have never been run: Steps 4, 5, 6, 7, 2d and 2e (prompts in docs/tests). Expect a round of fixes from each.
+- Earliest real money: early to mid December. It also needs a real Stripe test-mode payment, payout, refund and dispute, the lawyer's sign-off, her approval of the undecided numbers, Stripe live keys, and one real payment and refund by her. One to two weeks of beta use first is recommended.
+- Not covered by the review: no outside security firm has tested DELA (one outside penetration test is recommended before real payments), no load test, and only 6 of the 24 findings were confirmed by a second reading.
+- These dates are estimates. Update this section when they move.
+
+## 13. Open tasks carried over
+- The Pro trial check: connect the real BD endpoints after Stacey's BD check (docs/handoff/bd-api-trial-check.md and its report), read dry-run days 2 and 3, then switch to Live on the admin Trials tab.
+- The Library workspace (step 8b Part B): waiting on Stacey's look (docs/tests/step-8b-part-b-review-by-hand.md), then its ChatGPT check.
+- Leftover tests from the 0.10.0 review: the sign-in backstop, review and pay action reasons, the monthly correction, schedule wording, the Inbox hint.
+- Attorney team seats: 2027 roadmap only, feasibility review first. Do not build.
+- The layout (step 12): waiting on her 8 answers before any build.
+
+## 14. Working with Stacey (the rules that matter most in practice)
+CLAUDE.md has all of them. The ones most often needed:
+- Plain words. No long dashes. End every update with "What you need to do next", "Next steps in general", "What I'll build next".
+- Every step she does is spelled out in full with the exact link and where on the page, every time.
+- Anything in Brilliant Directories is one ready-to-paste prompt for her BD connector, in a code block. Widget code installs go by hand.
+- A ChatGPT test is one prompt: the "How to work" block from docs/tests/AGENT-RULES.md, steps written as Go to, Find, Do, Expect, grouped so each account logs in once, with earlier states prepared by Claude on the test site. Send the ready copy as a file; the GitHub copy says TEST_PASSWORD.
+- Secrets never go in chat. She enters them in Supabase herself.
+- Do a step yourself whenever a tool allows it.

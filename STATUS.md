@@ -3,7 +3,7 @@
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
 ## Launch review, 2026-11-10 (nothing fixed yet)
-A full code review before launch found 24 fixes: 1 money hole in disputes, 3 double-payment risks, 3 dispute fairness bugs, 1 free-AI loophole in the guide, and things that would break the first push to Live. Stacey approved the fix plan. The list, the order, the deploy steps and the test setup are in docs/HANDOFF.md. Start with item 1 (a dispute can point at any milestone) and item 11 (the guide's answer cap). The test site is unchanged: code_version 4cadd48, api v78, migrations through 0079.
+A full code review before launch found 24 fixes: 1 money hole in disputes, 3 double-payment risks, 3 dispute fairness bugs, 1 free-AI loophole in the guide, and things that would break the first push to Live. Stacey approved the fix plan. The list, the order, the deploy steps and the test setup are in docs/HANDOFF.md. That file is the full handoff for a new chat: how to move, what the last chat built and decided, the patterns, the solved problems, the launch date evaluation and the open tasks. Start with item 1 (a dispute can point at any milestone) and item 11 (the guide's answer cap). The test site is unchanged: code_version 4cadd48, api v78, migrations through 0079.
 
 ## MVP on the test site, 2026-11-09 (commit aa650fb, migration 0078, api v76)
 Stacey's MVP list, each item with where it lives and the tests that prove it (all pass: 381 API tests, 26 browser suites, GitHub Tests):
