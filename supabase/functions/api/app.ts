@@ -24,7 +24,7 @@ import { CHECK_PROMPT, SENSITIVE_CHECK_PROMPT, clientDetails, messageLooksSensit
 import { CONTENT_TYPES, readText, sha256, sniff } from "./lib/files/check.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { completeness, emptyBody, fileName, normalize, removesReview, toCsv, toDocx, toHtml, toMarkdown, dayIn, type Body, type ExportMeta } from "./lib/playbooks/model.ts";
-import { keyAllowed, stripe, checkoutParams, verifyStripeSignature, accountStatus } from "./lib/payments/stripe.ts";
+import { keyAllowed, stripe, stripeV2, checkoutParams, verifyStripeSignature, accountStatus, accountStatusV2, recipientAccount, onboardingLink, ACCOUNT_V2_INCLUDE, STRIPE_V2_VERSION } from "./lib/payments/stripe.ts";
 import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/webhooks/deliver.ts";
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, moneySummary, readTasks, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
@@ -3322,14 +3322,14 @@ async function payoutSetup(ctx: Ctx) {
   if (!key) return json(ctx, { ok: false, reason: "payments_not_set_up" });
   let acct = await rpc<Record<string, any>>(ctx, "dela_payout_account", { p_person: s.person_id });
   if (!acct?.account_ref) {
-    const r = await stripe(f(ctx), key, "POST", "/accounts", { type: "express", country: "US", capabilities: { transfers: { requested: "true" } }, business_type: "individual", metadata: { person_id: s.person_id } }, "acct:" + s.person_id);
-    if (!r.ok) return json(ctx, { ok: false, reason: "payment_failed", detail: r.error });
+    const r = await stripeV2(f(ctx), key, "POST", "/core/accounts", recipientAccount({ name: String(acct?.name ?? ""), personId: s.person_id }), "acctv2:" + s.person_id, await setting(ctx, "stripe.accounts_api_version", STRIPE_V2_VERSION));
+    if (!r.ok) return json(ctx, { ok: false, reason: "payout_setup_failed", detail: r.error });
     await rpc(ctx, "dela_payout_account_set", { p_person: s.person_id, p_ref: r.data.id, p_status: "pending", p_req: [] });
     acct = { account_ref: r.data.id };
   }
   const base = await siteBase(ctx);
-  const link = await stripe(f(ctx), key, "POST", "/account_links", { account: acct.account_ref, type: "account_onboarding", refresh_url: base + "/dela?tab=earnings&payout=again", return_url: base + "/dela?tab=earnings&payout=done" });
-  if (!link.ok) return json(ctx, { ok: false, reason: "payment_failed", detail: link.error });
+  const link = await stripeV2(f(ctx), key, "POST", "/core/account_links", onboardingLink(String(acct.account_ref), base + "/dela?tab=earnings&payout=done", base + "/dela?tab=earnings&payout=again"), "", await setting(ctx, "stripe.accounts_api_version", STRIPE_V2_VERSION));
+  if (!link.ok) return json(ctx, { ok: false, reason: "payout_setup_failed", detail: link.error });
   return json(ctx, { ok: true, url: link.data.url });
 }
 
@@ -3338,8 +3338,8 @@ async function payoutRefresh(ctx: Ctx) {
   const key = await stripeKey(ctx);
   const acct = await rpc<Record<string, any>>(ctx, "dela_payout_account", { p_person: s.person_id });
   if (key && acct?.account_ref) {
-    const r = await stripe(f(ctx), key, "GET", "/accounts/" + encodeURIComponent(acct.account_ref));
-    if (r.ok) { const st = accountStatus(r.data); await rpc(ctx, "dela_payout_account_set", { p_person: s.person_id, p_ref: acct.account_ref, p_status: st.status, p_req: st.requirements }); }
+    const r = await stripeV2(f(ctx), key, "GET", "/core/accounts/" + encodeURIComponent(acct.account_ref) + ACCOUNT_V2_INCLUDE, {}, "", await setting(ctx, "stripe.accounts_api_version", STRIPE_V2_VERSION));
+    if (r.ok) { const st = accountStatusV2(r.data); await rpc(ctx, "dela_payout_account_set", { p_person: s.person_id, p_ref: acct.account_ref, p_status: st.status, p_req: st.requirements }); }
   }
   await sendPayouts(ctx);
   return json(ctx, { ok: true, account: await rpc(ctx, "dela_payout_account", { p_person: s.person_id }), stripe_ready: !!key });

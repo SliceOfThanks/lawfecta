@@ -27,9 +27,8 @@ function stripeAnswer(method: string, path: string, body: URLSearchParams): [num
     return [200, { id: "pi_" + (++n), status: "succeeded", amount: Number(body.get("amount")), customer: body.get("customer"), payment_method: body.get("payment_method") }];
   }
   if (method === "POST" && path === "/checkout/sessions") return [200, { id: "cs_" + (++n), url: "https://checkout.stripe.test/c/" + n }];
-  if (method === "POST" && path === "/accounts") return [200, { id: "acct_" + (++n) }];
-  if (method === "POST" && path === "/account_links") return [200, { url: "https://connect.stripe.test/setup/" + body.get("account") }];
-  if (method === "GET" && path.startsWith("/accounts/")) return [200, { id: path.slice(10), payouts_enabled: true, charges_enabled: true, requirements: { currently_due: [], past_due: [] } }];
+  // Fix 2026-11-10 (Stacey's first Stripe run): Stripe refuses the v1 Accounts API for new Connect platforms, as the sandbox does
+  if (method === "POST" && (path === "/accounts" || path === "/account_links")) return [400, { error: { message: "Stripe no longer recommends Accounts v1 for new Connect integrations. Create connected accounts with POST /v2/core/accounts instead." } }];
   if (method === "POST" && path === "/transfers") return [200, { id: "tr_" + (++n), amount: Number(body.get("amount")) }];
   if (method === "POST" && path === "/refunds") return [200, { id: "re_" + (++n), amount: Number(body.get("amount")) }];
   if (method === "GET" && path.startsWith("/payment_intents/")) return [200, { id: path.slice(17), status: "succeeded", amount: 0 }];
@@ -37,6 +36,26 @@ function stripeAnswer(method: string, path: string, body: URLSearchParams): [num
 }
 const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
+  if (url.startsWith("https://api.stripe.com/v2/core/")) {
+    // Accounts v2: JSON bodies, a version header, the recipient configuration
+    const u = new URL(url), path = u.pathname.slice(3), method = String(init.method ?? "GET"), headers = new Headers(init.headers);
+    assert((headers.get("authorization") ?? "").startsWith("Bearer sk_test_") && (headers.get("stripe-version") ?? "") !== "", "a test key and a version on every v2 call");
+    const body = method === "POST" ? JSON.parse(String(init.body)) : {};
+    stripeCalls.push({ method, path: "v2:" + path, body: String(init.body ?? ""), idem: headers.get("idempotency-key") ?? "" });
+    if (method === "POST" && path === "/core/accounts") {
+      assert(body.configuration.recipient.capabilities.stripe_balance.stripe_transfers.requested === true && body.dashboard === "express" && body.identity.country === "us", "a recipient account: " + String(init.body));
+      return Response.json({ id: "acct_" + (++n) });
+    }
+    if (method === "POST" && path === "/core/account_links") {
+      assert(body.use_case.type === "account_onboarding" && String(body.use_case.account_onboarding.return_url).startsWith("https://"), String(init.body));
+      return Response.json({ url: "https://connect.stripe.test/setup/" + body.account });
+    }
+    if (method === "GET" && path.startsWith("/core/accounts/")) {
+      assert(u.search.includes("include=configuration.recipient"), "the capability status is asked for");
+      return Response.json({ id: path.slice(15), configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { status: "active" } } } } }, requirements: { entries: [] } });
+    }
+    return Response.json({ error: { message: "no such route" } }, { status: 404 });
+  }
   if (url.startsWith("https://api.stripe.com/v1")) {
     const u = new URL(url);
     const path = u.pathname.slice(3);
@@ -303,7 +322,7 @@ Deno.test("review: changes need a note and stop at the included rounds; acceptan
   const setup = (await call("POST", "/payouts/setup", fl.token, {})).body;
   assert(String(setup.url).startsWith("https://connect.stripe.test/setup/acct_"), JSON.stringify(setup));
   await call("POST", "/payouts/setup", fl.token, {});
-  assertEquals(stripeCalls.filter((c) => c.path === "/accounts" && c.method === "POST").length, 1, "one Stripe account per freelancer");
+  assertEquals(stripeCalls.filter((c) => c.path === "v2:/core/accounts" && c.method === "POST").length, 1, "one Stripe account per freelancer");
   const ref = (await call("GET", "/payouts/refresh", fl.token)).body;
   assertEquals(ref.account.status, "ready");
   po = await one("select status, provider_ref from payouts where milestone_id = $1", [ms[0].id]);

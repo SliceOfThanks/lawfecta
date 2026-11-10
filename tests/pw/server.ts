@@ -33,6 +33,13 @@ const sessions = new Map<string, { pid: string; amount: number }>();
 let stripeN = 0;
 export let declineNext = false;
 function fakeStripe(u: string, opts: RequestInit): Response | null {
+  if (u.startsWith("https://api.stripe.com/v2/core/")) {
+    const path2 = new URL(u).pathname.slice(3), method2 = String(opts.method ?? "GET"), j = method2 === "POST" ? JSON.parse(String(opts.body ?? "{}")) : {};
+    if (method2 === "POST" && path2 === "/core/accounts") return Response.json({ id: "acct_test_" + (++stripeN) });
+    if (method2 === "POST" && path2 === "/core/account_links") return Response.json({ url: ORIGIN + "/test/stripe/onboard?acct=" + j.account + "&back=" + encodeURIComponent(j.use_case?.account_onboarding?.return_url ?? "") });
+    if (method2 === "GET" && path2.startsWith("/core/accounts/")) return Response.json({ id: path2.slice(15), configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { status: "active" } } } } }, requirements: { entries: [] } });
+    return Response.json({ error: { message: "no such route" } }, { status: 404 });
+  }
   if (!u.startsWith("https://api.stripe.com/v1/")) return null;
   const path = new URL(u).pathname.slice(3), method = String(opts.method ?? "GET");
   const b = new URLSearchParams(String(opts.body ?? ""));
@@ -45,9 +52,6 @@ function fakeStripe(u: string, opts: RequestInit): Response | null {
     if (declineNext) { declineNext = false; return Response.json({ error: { message: "Your card was declined.", code: "card_declined" } }, { status: 402 }); }
     return Response.json({ id: "pi_test_" + (++stripeN), status: "succeeded", amount: Number(b.get("amount")) });
   }
-  if (method === "POST" && path === "/accounts") return Response.json({ id: "acct_test_" + (++stripeN) });
-  if (method === "POST" && path === "/account_links") return Response.json({ url: ORIGIN + "/test/stripe/onboard?acct=" + b.get("account") + "&back=" + encodeURIComponent(b.get("return_url") ?? "") });
-  if (method === "GET" && path.startsWith("/accounts/")) return Response.json({ id: path.slice(10), payouts_enabled: true, charges_enabled: true, requirements: { currently_due: [], past_due: [] } });
   if (method === "POST" && path === "/transfers") return Response.json({ id: "tr_test_" + (++stripeN) });
   if (method === "POST" && path === "/refunds") return Response.json({ id: "re_test_" + (++stripeN) });
   if (method === "GET" && path.startsWith("/payment_intents/")) return Response.json({ id: path.slice(17), status: "succeeded", amount: 0 });

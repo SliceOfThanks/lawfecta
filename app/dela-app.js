@@ -5234,7 +5234,7 @@
     total_too_small: "The total is below the smallest engagement.", too_long: "A due date is further out than DELA allows.", paid_milestone_fixed: "A milestone that is already paid cannot change its amount.",
     agreement_closed: "This agreement is closed.", payments_not_set_up: "Payments are not set up on this site yet, so nothing can be charged here. The Lawfecta Team is adding Stripe.", funding_off: "Milestone payments are not open for your account yet.",
     not_signed: "Both of you sign first.", previous_not_accepted: "The previous milestone needs to be accepted first.", nothing_to_pay: "Nothing is due right now.",
-    in_dispute: "A dispute is open on this engagement, so this waits until it is settled.", payment_failed: "The payment did not go through.", on_hold: "Some actions are paused on your account. Contact the Lawfecta Team.",
+    in_dispute: "A dispute is open on this engagement, so this waits until it is settled.", payment_failed: "The payment did not go through.", payout_setup_failed: "Stripe could not start payout setup right now. Nothing is wrong with your account. Please try again later, or contact the Lawfecta Team.", on_hold: "Some actions are paused on your account. Contact the Lawfecta Team.",
     not_funded: "This milestone is not paid yet. Work starts when the attorney's payment is confirmed.", statement_needed: "Write a completion statement: what you did and anything still open.",
     already_submitted: "This milestone is already submitted.", not_now: "That is not possible right now.", file_not_usable: "One of the files is not ready yet. Wait for its check to finish.",
     say_what_to_change: "Say what needs to change.", revisions_used_up: "The included rounds of changes are used up. Propose a change order on the agreement instead.",
@@ -6329,15 +6329,21 @@
   function payoutCard(acct, short) {
     var st = (acct && acct.status) || "none";
     var c = h("div", { class: "card" }, h("h2", { text: "Payouts to your bank" }));
+    var note = h("div");
     var WORDS = { none: "Not set up yet. Accepted milestones wait until you set up payouts.", pending: "Stripe needs a few more details before it can pay you.", restricted: "Stripe has paused payouts until it gets more details.", ready: "Ready. Accepted milestones are paid to your bank through Stripe." };
     c.appendChild(h("p", null, h("span", { class: "badge " + (st === "ready" ? "ready" : "held"), text: st === "ready" ? "Ready" : st === "none" ? "Not set up" : "Needs details" }), " ", WORDS[st] || ""));
     if (acct && (acct.requirements || []).length) c.appendChild(h("p", { class: "small muted", text: "Stripe still needs: " + acct.requirements.map(function (x) { return String(x).split(".").pop().split("_").join(" "); }).join(", ") }));
     if (st !== "ready") c.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
-      api.post("/payouts/setup", {}).then(engOk).then(function (x) { location.href = x.url; }).catch(engFail);
+      var btn = this; btn.disabled = true; D.clear(note);
+      api.post("/payouts/setup", {}).then(engOk).then(function (x) { location.href = x.url; }).catch(function (e) {
+        // The message stays on the card (the first Stripe run, 2026-11-10: a short message at the bottom of the screen was missed)
+        btn.disabled = false; note.appendChild(h("p", { class: "notice bad", role: "alert", text: e && e.reason ? engErr(e) : D.errorText(e && e.message ? e.message : String(e)) }));
+      });
     } }, st === "none" ? "Set up payouts with Stripe" : "Finish payout setup"));
     c.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
       api.get("/payouts/refresh").then(engOk).then(function () { engReload("Payout status updated."); }).catch(engFail);
     } }, "Check my payout status"));
+    c.appendChild(note);
     if (!short) c.appendChild(h("p", { class: "small muted", text: "You enter your bank details on Stripe's secure page. DELA never sees them." }));
     return c;
   }

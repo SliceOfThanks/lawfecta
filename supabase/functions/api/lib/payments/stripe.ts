@@ -41,6 +41,51 @@ export async function stripe(f: typeof fetch, key: string, method: "GET" | "POST
   }
 }
 
+// Accounts v2 (JSON bodies). Stripe refuses the older v1 Accounts API for new Connect platforms, so a freelancer's payout
+// account is created, onboarded and read through /v2/core. Transfers and everything else stay on v1.
+export const STRIPE_V2_VERSION = "2026-09-30.preview";
+export async function stripeV2(f: typeof fetch, key: string, method: "GET" | "POST", path: string, body: Record<string, unknown> = {}, idem = "", version = STRIPE_V2_VERSION): Promise<StripeResult> {
+  try {
+    const r = await f("https://api.stripe.com/v2" + path, {
+      method, signal: AbortSignal.timeout(20000),
+      headers: { authorization: "Bearer " + key, "stripe-version": version, ...(method === "POST" ? { "content-type": "application/json" } : {}), ...(idem ? { "idempotency-key": idem } : {}) },
+      body: method === "POST" ? JSON.stringify(body) : undefined,
+    });
+    const j = await r.json().catch(() => ({})) as Record<string, any>;
+    if (!r.ok) return { ok: false, status: r.status, error: String(j?.error?.message ?? "stripe_" + r.status).slice(0, 300), code: j?.error?.code };
+    return { ok: true, data: j };
+  } catch (e) {
+    return { ok: false, status: 0, error: String(e).slice(0, 120) };
+  }
+}
+
+// A freelancer's account: it only receives transfers from Lawfecta (the "recipient" configuration), with Stripe's Express
+// dashboard. Lawfecta pays Stripe's fees and carries losses, which is what separate charges and transfers require.
+export function recipientAccount(p: { name: string; personId: string }) {
+  return {
+    display_name: p.name.slice(0, 100) || "Lawfecta freelancer", dashboard: "express",
+    identity: { country: "us", entity_type: "individual" },
+    configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
+    defaults: { currency: "usd", locales: ["en-US"], responsibilities: { fees_collector: "application", losses_collector: "application" } },
+    metadata: { person_id: p.personId },
+    include: ["configuration.recipient", "requirements"],
+  };
+}
+export const ACCOUNT_V2_INCLUDE = "?include=configuration.recipient&include=requirements";
+export function onboardingLink(account: string, returnUrl: string, refreshUrl: string) {
+  return { account, use_case: { type: "account_onboarding", account_onboarding: { configurations: ["recipient"], return_url: returnUrl, refresh_url: refreshUrl } } };
+}
+
+// Ready means Stripe says the account can receive transfers now
+export function accountStatusV2(acct: Record<string, any>): { status: "ready" | "pending" | "restricted"; requirements: string[] } {
+  const cap = acct?.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers;
+  const due = ((acct?.requirements?.entries ?? []) as Array<Record<string, any>>).filter((e) => (e?.awaiting_action_from ?? "user") === "user")
+    .map((e) => String(e?.description ?? "")).filter(Boolean).slice(0, 20);
+  if (cap?.status === "active") return { status: "ready", requirements: [] };
+  if (cap?.status === "restricted" || cap?.status === "unsupported") return { status: "restricted", requirements: due };
+  return { status: "pending", requirements: due };
+}
+
 // The hosted Checkout page: the card or bank account is saved for the next milestones (with the attorney's consent shown on the page)
 export function checkoutParams(p: { amount: number; name: string; paymentId: string; customer: string; successUrl: string; cancelUrl: string; methods: string[]; currency: string }) {
   return {
