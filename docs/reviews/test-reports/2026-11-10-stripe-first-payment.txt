@@ -1,0 +1,40 @@
+DELA TEST REPORT: Stripe first payment
+Site: www.hirelegalhelp.com (Stripe test mode)
+Run: Tue Nov 10, 2026, 1:23 to 1:31 PM Pacific
+
+STEP RESULTS
+
+TEST FREELANCER
+1. PASS - Logged in as the test freelancer (Stacey typed the login).
+2. PASS - Earnings page: card "Payouts to your bank" shows badge "Not set up" and blue button "Set up payouts with Stripe".
+3. FAIL - Clicked "Set up payouts with Stripe" twice. Nothing happens on screen: no Stripe page, no message. The server call /api/payouts/setup returns: {"ok":false,"reason":"payment_failed","detail":"Stripe no longer recommends Accounts v1 for new Connect integrations. Create connected accounts with POST /v2/core/accounts instead..."}. Stripe rejects how DELA creates the freelancer's connected account. Onboarding could not be done.
+4. FAIL - Clicked "Check my payout status" once and waited 10 seconds. Badge still "Not set up". /api/payouts/refresh returns status "none", account_ref empty (no Stripe account exists, because step 3 failed). No grey "Needs details" sentence shown.
+5. PASS - Signed out.
+
+TEST ATTORNEY
+6. PASS - Logged in as the test attorney (Stacey typed the login).
+7. PASS - "What happens next" card shows "Pay milestone 1 ($150) and the platform fee ($15)" and blue button "Pay milestone 1". Stripe Checkout opened at checkout.stripe.com, marked Sandbox, total $165.00. Paid with test card 4000 0000 0000 0077, Link box unticked. Came back to the agreement page with the green line "Thank you. Stripe is confirming the payment."
+8. PASS - After 30 seconds, milestone 1 says "Paid: ready to start" ($150, due Nov 13, 2026). "Your payments" lists "Nov 10, 2026: $165 (includes the platform fee $15), Paid". Milestone 2 says "Not paid yet". Note: the step 8 link opens the Details tab, which has no "Milestones" heading; the Milestones card is on the "Agreement and work" tab.
+9. PASS - Signed out.
+
+OWNER, ADMIN AREA
+10. PASS - Logged in as the owner (Stacey typed the login).
+11. PASS - Payments tab, card "Money on DELA": "Stripe is connected in test mode (no real money). Live payments switch: off."
+    Tiles: Charged $165 | Held now $2,950 | Paid out $0 | Refunded $0 | Attorney fees $15 | Freelancer fees $0
+12. PASS - Signed out.
+
+FAIL LIST
+- Step 3: "Set up payouts with Stripe" fails silently. The backend creates the Connect account with Stripe's Accounts v1 API, which Stripe now refuses for new Connect integrations. It needs to move to POST /v2/core/accounts (Accounts v2). The page should also show an error message when setup fails, instead of doing nothing.
+- Step 4: Payout status stays "Not set up" (caused by step 3).
+
+CONFUSING MESSAGES AND NOTES
+- Step 3: No message at all after clicking the button. A freelancer would think the button is broken.
+- Step 4: "Check my payout status" gives no feedback (no toast saying it checked).
+- Step 8: The test link without &view=agreement opens Details, where Ctrl+F "Milestones" only finds the "Milestones (private)" form field.
+- Step 11: "Held now" shows $2,950 while "Charged" shows $165. Held is bigger than everything charged, which reads as wrong. It may include seeded test engagements; worth checking how Held is calculated.
+- Freelancer tab row: the prompt says freelancers see Home, Ask DELA, Profile, Work, Earnings. The screen also showed Agency, Library and Projects.
+- On a narrow window the "Pay milestone 1" button sits under the bottom tab bar until you scroll.
+- The Earnings page wrote to the clipboard during a click (a page script copy handler).
+
+TOOK LONGER THAN 60 SECONDS
+- None. Stripe Checkout opened in about 6 seconds and the payment showed as paid within the 30-second wait.
