@@ -58,11 +58,11 @@ Does not carry over:
 - Branch: `claude/step-2a-ai-keys-voice-files`. No pull requests unless Stacey asks.
 - The MVP (Stacey's 16 items, see STATUS.md) is on the test site, hirelegalhelp.com.
 - Test site database: Supabase project "Lawfecta AI" / DELA Staging, ref `ojshgsxgsypbywtqhkch`.
-- On the test site: `code_version` = `0e93a9980b79866db35e978e80b1ee113c412f6e`, api function version 79, migrations through 0081, health ok (386 API tests, 26 browser suites).
+- On the test site: `code_version` = `765791dfac2eb7c30f72f6c3298dd12427809848`, api function version 82, migrations through 0082, health ok (387 API tests, 26 browser suites).
 - Live (lawfecta.com) is not set up. Never touch it.
-- Stripe test keys are not set on the test site. No payment or payout has ever gone through Stripe there.
+- Stripe: Stacey made a Stripe sandbox ("DELA sandbox", acct_1UaFzpCqJgxv1pm2, test mode), connected it to Claude as a connector, and on 2026-11-10 put STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in Supabase. The sandbox has one webhook to the test site's /stripe/webhook address; it listens to every event type (DELA ignores the ones it does not use; on Live choose only the 7 in docs/STRIPE_SETUP.md). Not yet proven: no payment or payout has gone through. Next: Stacey confirms the admin Payments tab says "Stripe is connected in test mode", then run docs/tests/step-6-chatgpt-prompt.md (check its button names against the code first) and compare with Stripe through the connector (read only; never create webhooks or keys through it, since that would put a secret in chat).
 - Pro trial check: switch `bd_trial_downgrade` = everyone, mode dry run. Dry-run day 1 was clean. Days 2 and 3 are still to look at.
-- The launch review below was approved by Stacey on 2026-11-10. Done and on the test site: item 1 (migration 0080) and item 11 (migration 0081). The rest is open.
+- The launch review below was approved by Stacey on 2026-11-10. Done and on the test site: item 1 (migration 0080), item 11 (migration 0081), items 8, 9 and 10 (migration 0082, commit 765791d). The rest is open; next is Part 1 items 2 to 7.
 
 ## 2. The launch review: fixes to make, in order
 Every fix is a commit starting "Fix" with a test that fails before the fix, in the same commit. Deploy to the test site only. "Confirmed" means the finding was re-read in the code; the rest came from review agents and should be checked when fixing.
@@ -80,9 +80,9 @@ Every fix is a commit starting "Fix" with a test that fails before the fix, in t
 7. LOW. A refund whose payment has no Stripe reference waits forever with no alert: alert the team. The public contact form's per-IP limit trusts `x-forwarded-for`: use the platform's client IP.
 
 ### Part 2: disputes are fair
-8. HIGH. An answer given while a team question is open is saved as a reply, so the day-14 automatic grant still fires against the person who answered (`0075` about 233 to 243). Fix: the other side's first statement is always the answer; only the person asked clears a question.
-9. HIGH. With `dispute_center` on for one side only, the other side cannot answer and loses by default (`app.ts` about 3542). Fix: the dispute follows the opener's switch for both sides; no automatic grant unless the other side could answer.
-10. MEDIUM.
+8. DONE 2026-11-10 (migration 0082). HIGH. An answer given while a team question is open is saved as a reply, so the day-14 automatic grant still fires against the person who answered (`0075` about 233 to 243). Fix: the other side's first statement is always the answer; only the person asked clears a question.
+9. DONE 2026-11-10 (migration 0082, new function `dela_dispute_center_open`). HIGH. With `dispute_center` on for one side only, the other side cannot answer and loses by default (`app.ts` about 3542). Fix: the dispute follows the opener's switch for both sides; no automatic grant unless the other side could answer.
+10. DONE 2026-11-10 (migration 0082). MEDIUM.
     - An engagement never completes when its last milestone is settled by dispute: run the completion check in settle.
     - A former team member can still withdraw a dispute: re-check the role.
     - The review timer re-queues itself hourly while a question is open: stop, and re-arm on reply.
@@ -127,7 +127,7 @@ Every fix is a commit starting "Fix" with a test that fails before the fix, in t
 Sign-in, sessions, the admin gate, the Stripe webhook signature, the live-key guard, fee math in integer cents, the append-only ledger, file handling and 25+ member routes. No unsafe HTML in the screens. Supabase's security report shows only the by-design "no public access" notes. Background jobs all succeed.
 
 ## 3. Waiting on Stacey
-- Stripe test setup (docs/STRIPE_SETUP.md). After it: prepare one made-up job and run a test payment, payout, dispute and settlement end to end. This is the only way to prove items 2 to 4 against real Stripe.
+- Stripe test setup: done by Stacey 2026-11-10 (see section 1). Still to do: prepare one made-up job and run a test payment, payout, dispute and settlement end to end. This is the only way to prove items 2 to 4 against real Stripe.
 - The lawyer's review. The agreement text still starts "DRAFT FOR LAWFECTA'S LAWYER TO REVIEW" and clause 6 has a placeholder (`supabase/functions/api/lib/engagements/agreement.ts`, lines 11 and 18). No real payments before this.
 - The undecided numbers: done. Stacey approved all 43 on 2026-11-10 (config/decisions.json, docs/Decision_Sheet.md). Six items wait on her lawyer: the 45-day wait before a team review, automatic acceptance, the second chargeback rule, recording consent, transcript use, and Stripe live mode.
 - Her answers to the 8 layout questions (docs/briefs/step-12-layout.md). The mockup is a private page in her Claude account (6 boards).
