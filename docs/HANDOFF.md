@@ -58,7 +58,7 @@ Does not carry over:
 - Branch: `claude/step-2a-ai-keys-voice-files`. No pull requests unless Stacey asks.
 - The MVP (Stacey's 16 items, see STATUS.md) is on the test site, hirelegalhelp.com.
 - Test site database: Supabase project "Lawfecta AI" / DELA Staging, ref `ojshgsxgsypbywtqhkch`.
-- On the test site: `code_version` = `e6402b515c27a6fa750917f91020954e323f492f`, api function version 84, migrations through 0084, health ok (387 API tests, 26 browser suites).
+- On the test site: `code_version` = `e6402b515c27a6fa750917f91020954e323f492f` (the commit after it, with the draft line and test-card fix, is pushed but not yet on the site), api function version 84, migrations through 0084, health ok (387 API tests, 26 browser suites).
 - Live (lawfecta.com) is not set up. Never touch it.
 - Stripe: Stacey made a Stripe sandbox ("DELA sandbox", acct_1UaFzpCqJgxv1pm2, test mode), connected it to Claude as a connector, and on 2026-11-10 put STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in Supabase. The sandbox has one webhook to the test site's /stripe/webhook address; it listens to every event type (DELA ignores the ones it does not use; on Live choose only the 7 in docs/STRIPE_SETUP.md). Not yet proven: no payment or payout has gone through. Next: Stacey confirms the admin Payments tab says "Stripe is connected in test mode", then run docs/tests/step-6-chatgpt-prompt.md (check its button names against the code first) and compare with Stripe through the connector (read only; never create webhooks or keys through it, since that would put a secret in chat).
 - Pro trial check: switch `bd_trial_downgrade` = everyone, mode dry run. Dry-run day 1 was clean. Days 2 and 3 are still to look at.
@@ -73,27 +73,39 @@ Report: docs/reviews/test-reports/2026-11-10-stripe-first-payment.txt. Test: doc
 - Not checked yet: whether Stripe still sends `account.updated` for v2 accounts (DELA reads the status when the freelancer returns and on "Check my payout status", so it does not depend on it).
 - From the report, still open: `site.url` has no "www" but the return from Stripe worked; "Held now" on the admin Payments tab counts made-up prepared jobs, so it is larger than "Charged" (clean up the prepared test data, section 4); the freelancer who runs an agency also sees Agency, Library and Projects tabs, so the tab list in AGENT-RULES.md is incomplete for that account; the gig link without `&view=agreement` opens the Details tab; "Check my payout status" gives no message when nothing changed.
 
-## 1c. Pilot triage (2026-11-10): Stacey wants the pilot/beta as soon as possible
-Proposed to Stacey, waiting for her choice. Recommended: open the pilot on Live with invited members and payments switched off, then turn payments on as a second step.
+## 1c. THE CURRENT PLAN: pilot on lawfecta.co with live payments (Stacey's decisions, 2026-11-10)
+This replaces the two-site design (test site, then Live) and the earlier two-stage triage. Stacey approved this plan.
 
-**Stage 1, pilot without payments (critical, in this order)**
-1. Item 21: Live widget copies with no fallback to the test site or to `@main`.
-2. Item 18: the first push to Live waits for health; one practice push to a throwaway project.
-3. Item 20: no test-site plan numbers on Live (`bd.plan_aliases`, `trial.allowances`, `trial.bd_plans`, `trial.bd_active_value`), and item 26 (trial start date).
-4. Item 22: "log" email sender never marks email as sent on Live.
-5. Item 23, the part that is law: unsubscribe link and postal address on reminder and alert emails. Until built, keep `gig_alerts` and the guide's reminder emails off on Live.
-6. Item 24: LIVE_READINESS and the switch plan for the pilot. On Live for stage 1: `milestone_funding` and `engagements` payments off, `live_payments` off, member webhooks off, `bd_trial_downgrade` in dry run, access list only.
-7. Stacey's Live setup (section 4), then her ChatGPT tests for Steps 4 and 5 on the test site (gigs, proposals, messages), since those are what pilot members will use first.
+**Her decisions**
+- hirelegalhelp.com is renamed to lawfecta.co and becomes the pilot site, on its current database (Supabase `ojshgsxgsypbywtqhkch`). lawfecta.com is not part of this.
+- 10 to 50 invited members.
+- Live payments, through Lawfecta's existing live Stripe account (the one whose keys are in Brilliant Directories).
+- No test copy during the pilot: fixes go straight to pilot members after the automated tests pass. Claude recommended a separate clean pilot database with the current one kept as a test copy; she chose not to.
+- The contract goes live as drafted with the DRAFT line removed. No lawyer reviewed it. This replaces her November 7 rule (lawyer first). Done in commit after ce9890e.
+- She declined Claude acting as the test accounts with a made session. Tests go through her.
 
-**Stage 2, before any real payment**
-- Items 2, 3 and 4 (double charge, double payout or refund, lost Stripe events), and item 5 (duplicate emails, jobs that retry forever).
-- Payout setup, a payout and a dispute refund proven in the Stripe sandbox (section 1b).
-- Item 19 (the test-card text) and Accounts v2 checked with live keys.
-- The lawyer's sign-off on the agreement text and the six gate items. Stacey's rule (2026-11-07): real payments only after the lawyer's review.
-- One real payment and refund by Stacey. An outside security test is recommended before payments open to more than the pilot group.
+**Part A: before any real payment (code, in this order)**
+1. Payout setup proven in the Stripe sandbox (section 1b): apply what her re-test shows, then one full sandbox run through ChatGPT (deliver and accept milestone 1, dispute and settle milestone 2), compared with Stripe through the connector.
+2. Launch item 4, then 2, then 3, then 5 (section 2).
+3. DONE: launch item 19 (`stripe_test` from `/agreements/get`; the note shows only on a test key) and the contract's draft line.
 
-**Can wait until after the pilot starts**
-Items 6, 7, 12 to 17, 25 (fee timing; agreements signed before it keep the old timing), 27, the layout (step 12), cleaning the test site's data, the remaining ChatGPT tests (6, 7, 2d, 2e) before the features they cover are opened.
+**Part B: turn the test site into the pilot site**
+4. List what the `environment` setting changes before switching it to live: file uploads need a virus scanner outside staging (`app.ts`, the function near "virus_scan_not_set_up"), worker and admin checks, the trial emails, the "Test site" label. Give Stacey the list with a recommendation each.
+5. The new address: `DEFAULT_ORIGINS` in `app.ts`, `lib/meetings/meet.ts`, the `site.url` setting, the admin area's wording about two copies, the sign-in help text in `shared/dela-core.js`. Stacey updates the DELA_ORIGINS secret.
+6. Widgets never load code from `@main` (the part of item 21 that still applies).
+7. Items 22 and 23: no email marked sent while the sender is "log"; unsubscribe link, List-Unsubscribe header and a postal address setting on reminder and alert emails.
+8. Clear the test data: write the script, show Stacey what is kept (settings, switches, tech catalog, starter library, staff roles, her owner account) and what is removed, confirm a backup, and run it only when she approves at that moment. It cannot be undone.
+9. Switch plan: access list only; payments on after Part A and Part C; member webhooks off; trial check in dry run; gig alerts on only after step 7.
+10. With no test copy: GitHub Tests green before anything goes on the site; note the previous `code_version` and function version for a go-back; money changes at quiet hours; database changes additive; uptime monitor, backups and one restore drill before members come in.
+11. Rewrite CLAUDE.md (one site, the new address), docs/LIVE_READINESS.md and docs/PLAN.md for one site. Launch items 18 and 20 are dropped (no push between sites, same BD plan numbers).
+
+**Part C: Stacey's steps (give each in full when its turn comes)**
+- Stripe live account: turn on Connect for paying freelancers (business details; approval can take days, so start early), a new secret key for DELA, the live webhook with the 7 events, both secrets in Supabase, then the `live_payments` switch.
+- The domain change in Brilliant Directories, the DELA_ORIGINS secret, Brevo sender and domain records.
+- One small real payment, payout and refund by her before members are invited.
+- The pilot members' BD member numbers for the access list.
+
+**Later:** items 6, 7, 12 to 17, 25, 27, the layout, the remaining ChatGPT tests, an outside security test before going beyond the pilot group.
 
 ## 2. The launch review: fixes to make, in order
 Every fix is a commit starting "Fix" with a test that fails before the fix, in the same commit. Deploy to the test site only. "Confirmed" means the finding was re-read in the code; the rest came from review agents and should be checked when fixing.
