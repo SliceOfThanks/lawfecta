@@ -80,7 +80,7 @@ TEST ATTORNEY (log in once)
    Expect: you come back to the DELA agreement page with the green line "Thank you. Stripe is confirming the payment."
    If you land on a login page or an error page instead, take a screenshot, write the full address of that page, and go to step 8.
 8. Do: wait 30 seconds, then go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=64ed7250-64b3-4423-a4f1-e0e890da40dc
-   Find: the card "Milestones".
+   Find: the heading "Milestones" on the page (press Ctrl+F and type Milestones if you do not see it).
    Expect: milestone 1 says "Paid: ready to start". The card "Your payments" further down lists one payment of $165. If milestone 1 still says "Not paid yet" or "Waiting for payment", reload once after another 30 seconds and write what it says.
 9. Sign out.
 
