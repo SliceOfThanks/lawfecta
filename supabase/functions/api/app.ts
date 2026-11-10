@@ -3539,8 +3539,9 @@ async function stripeWebhook(ctx: Ctx) {
 // client information check; links must be https. An accepted offer moves the money at once.
 async function disputeAction(ctx: Ctx, route: string) {
   const s = await memberSide(ctx);
-  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "dispute_center", p_person: s.person_id })) return { ok: false, reason: "dispute_center_off" };
   const id = uuid(ctx.body.id);
+  // A dispute follows how it was opened: the other side can act on it whatever their own switch says (the role is checked in SQL)
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "dispute_center", p_person: s.person_id }) && !(id && await rpc<boolean>(ctx, "dela_dispute_center_open", { p_id: id }))) return { ok: false, reason: "dispute_center_off" };
   if (route === "POST /disputes/say") {
     const body = str(ctx.body.body, 4000);
     const w = await sensitive(ctx, s, body, "conversation", { signed: true });

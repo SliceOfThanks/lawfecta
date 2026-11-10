@@ -387,6 +387,10 @@ Deno.test("canceling before work starts refunds everything, the attorney's fee i
 
 Deno.test("chargebacks pause the engagement; a lost one puts the attorney on hold for review", async () => {
   const ev = (id: string, type: string, status = "") => hook({ id, type, livemode: false, data: { object: { id: "dp_1", payment_intent: "pi_first", amount: 35000, reason: "fraudulent", status } } });
+  // The dispute test above settled this engagement's last open milestone, which now completes it (launch review fix 10).
+  // A chargeback pauses work in progress, so this test puts the engagement back in progress first.
+  assertEquals((await one("select status from agreements where id = $1", [ag])).status, "completed", "settling the last milestone completed the engagement");
+  await pool.query("update agreements set status = 'active', completed_at = null where id = $1", [ag]);
   assertEquals((await ev("evt_cb1", "charge.dispute.created")).body.ok, true);
   assertEquals((await one("select status from agreements where id = $1", [ag])).status, "paused");
   assertEquals((await call("GET", "/admin/payments", team.token)).body.data.chargebacks.length >= 1, true);

@@ -268,4 +268,56 @@ Deno.test("a dispute only ever moves the money of a held milestone on its own ag
   assertEquals((await one("select status from milestones where id = $1", [theirs.m1])).status, "funded", "the other agreement's milestone is untouched");
 });
 
+// Launch review 2026-11-10, fixes 8 to 10: disputes are fair
+Deno.test("an answer always counts as the answer, even while the team's question is open; a note from the other side does not clear a question", async () => {
+  const e = await paidEngagement("f8");
+  const id = (await call("POST", "/disputes/open", att.token, { id: e.ag, milestone_id: e.m1, reason: "The exhibit list is missing", category: "not_delivered", wants: "refund" })).body.id;
+  const first = await one("select body from notifications where person_id = $1 and body like '%dispute was opened%' order by created_at desc limit 1", [fl.id]);
+  assert(first && !first.body.includes("talk it through in Messages") && first.body.includes("answer"), "the opening notice describes the new steps: " + JSON.stringify(first));
+  assert((await call("POST", "/admin/disputes/ask", team.token, { id, to: "freelancer", body: "Do you have the delivery email?" })).body.data.ok);
+  assertEquals((await call("POST", "/disputes/say", att.token, { id, body: "Adding a detail." })).body.kind, "note", "the opener was not asked");
+  assert((await one("select question_open_at from disputes where id = $1", [id])).question_open_at, "the question is still open");
+  assertEquals((await call("POST", "/disputes/say", fl.token, { id, body: "It was sent with the draft." })).body.kind, "answer", "the other side's first statement is the answer");
+  const d = await one("select answered_at, question_open_at from disputes where id = $1", [id]);
+  assert(d.answered_at && !d.question_open_at, "answered, and the question is closed");
+  await pool.query("update disputes set notice_ends_at = now() - interval '1 minute' where id = $1", [id]);
+  await tick(id, "notice_end");
+  assertEquals((await one("select status from disputes where id = $1", [id])).status, "team_review", "no automatic grant against someone who answered");
+  // The review timer does not re-queue itself every hour while a question is open; the reply re-arms it
+  assert((await call("POST", "/admin/disputes/ask", team.token, { id, to: "attorney", body: "Which exhibit?" })).body.data.ok);
+  const jobs = async () => Number((await one("select count(*) n from jobs where kind = 'dispute_tick' and payload->>'dispute_id' = $1 and payload->>'kind' = 'review_due'", [id])).n);
+  const before = await jobs();
+  await tick(id, "review_due");
+  assertEquals(await jobs(), before, "nothing new is queued while the question waits");
+  assertEquals((await call("POST", "/disputes/say", att.token, { id, body: "Exhibit B." })).body.kind, "reply");
+  assertEquals(await jobs(), before + 1, "the reply re-arms the review timer");
+});
+
+Deno.test("a dispute follows how it was opened: the other side can answer even when the dispute tools are off for them", async () => {
+  const e = await paidEngagement("f9");
+  const id = (await call("POST", "/disputes/open", att.token, { id: e.ag, milestone_id: e.m1, reason: "Late", category: "late", wants: "refund" })).body.id;
+  await pool.query("update feature_switches set state = 'off' where key = 'dispute_center'");
+  try {
+    assertEquals((await call("POST", "/disputes/say", fl.token, { id, body: "It was on time." })).body.kind, "answer");
+    const o = (await call("POST", "/disputes/offer", fl.token, { id, release_cents: 20000 })).body;
+    assert(o.ok, JSON.stringify(o));
+    assert((await call("POST", "/disputes/offer/accept", att.token, { id: o.id })).body.ok, "and the opener can accept the offer");
+  } finally { await pool.query("update feature_switches set state = 'everyone' where key = 'dispute_center'"); }
+});
+
+Deno.test("a dispute settled on the last open milestone completes the engagement; only someone still on the agreement can withdraw", async () => {
+  const e = await paidEngagement("f10");
+  await pool.query("update milestones set status = 'accepted', accepted_at = now() where id = $1", [e.m2]);
+  const id = (await call("POST", "/disputes/open", att.token, { id: e.ag, milestone_id: e.m1, reason: "Half done", category: "quality", wants: "split", release_cents: 10000 })).body.id;
+  const o = (await call("POST", "/disputes/offer", fl.token, { id, release_cents: 15000 })).body;
+  assert((await call("POST", "/disputes/offer/accept", att.token, { id: o.id })).body.ok);
+  const a = await one("select status, completed_at from agreements where id = $1", [e.ag]);
+  assert(a.status === "completed" && a.completed_at, "every milestone is finished, so the engagement is complete: " + a.status);
+  const e2 = await paidEngagement("f10b");
+  const d2 = (await one("insert into disputes (agreement_id, milestone_id, opened_by, reason, notice_ends_at) values ($1, $2, $3, 'left the team', now() + interval '5 days') returning id", [e2.ag, e2.m1, other.id])).id;
+  await pool.query("update milestones set status = 'disputed' where id = $1", [e2.m1]);
+  assertEquals(((await rpc("dela_dispute_withdraw", { p_person: other.id, p_dispute: d2 })) as Record<string, unknown>).reason, "not_found", "someone no longer on the agreement cannot withdraw it");
+  assertEquals((await one("select status from disputes where id = $1", [d2])).status, "notice");
+});
+
 Deno.test("teardown", async () => { await pool.end(); });
