@@ -61,9 +61,9 @@ export async function stripeV2(f: typeof fetch, key: string, method: "GET" | "PO
 
 // A freelancer's account: it only receives transfers from Lawfecta (the "recipient" configuration), with Stripe's Express
 // dashboard. Lawfecta pays Stripe's fees and carries losses, which is what separate charges and transfers require.
-export function recipientAccount(p: { name: string; personId: string }) {
+export function recipientAccount(p: { name: string; email: string; personId: string }) {
   return {
-    display_name: p.name.slice(0, 100) || "Lawfecta freelancer", dashboard: "express",
+    contact_email: p.email, display_name: p.name.slice(0, 100) || "Lawfecta freelancer", dashboard: "express",
     identity: { country: "us", entity_type: "individual" },
     configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { requested: true } } } } },
     defaults: { currency: "usd", locales: ["en-US"], responsibilities: { fees_collector: "application", losses_collector: "application" } },

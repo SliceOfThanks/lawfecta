@@ -43,7 +43,7 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
     const body = method === "POST" ? JSON.parse(String(init.body)) : {};
     stripeCalls.push({ method, path: "v2:" + path, body: String(init.body ?? ""), idem: headers.get("idempotency-key") ?? "" });
     if (method === "POST" && path === "/core/accounts") {
-      assert(body.configuration.recipient.capabilities.stripe_balance.stripe_transfers.requested === true && body.dashboard === "express" && body.identity.country === "us", "a recipient account: " + String(init.body));
+      assert(body.configuration.recipient.capabilities.stripe_balance.stripe_transfers.requested === true && body.dashboard === "express" && body.identity.country === "us" && String(body.contact_email).includes("@"), "a recipient account with a contact email: " + String(init.body));
       return Response.json({ id: "acct_" + (++n) });
     }
     if (method === "POST" && path === "/core/account_links") {
@@ -319,6 +319,10 @@ Deno.test("review: changes need a note and stop at the included rounds; acceptan
   let po = await one("select status, held_reason, amount_cents from payouts where milestone_id = $1", [ms[0].id]);
   assertEquals([po.status, po.held_reason, po.amount_cents], ["held", "payout_account", 30000 - ms[0].freelancer_fee_cents], "held until the freelancer sets up payouts");
   assertEquals((await call("POST", "/payouts/setup", att.token, {})).status, 403);
+  // Stripe needs a contact email on the account (the first sandbox run, 2026-11-10)
+  await pool.query("update people set email = '' where id = $1", [fl.id]);
+  assertEquals((await call("POST", "/payouts/setup", fl.token, {})).body.reason, "payout_email_missing");
+  await pool.query("update people set email = 'fran.test@example.com' where id = $1", [fl.id]);
   const setup = (await call("POST", "/payouts/setup", fl.token, {})).body;
   assert(String(setup.url).startsWith("https://connect.stripe.test/setup/acct_"), JSON.stringify(setup));
   await call("POST", "/payouts/setup", fl.token, {});

@@ -3322,7 +3322,9 @@ async function payoutSetup(ctx: Ctx) {
   if (!key) return json(ctx, { ok: false, reason: "payments_not_set_up" });
   let acct = await rpc<Record<string, any>>(ctx, "dela_payout_account", { p_person: s.person_id });
   if (!acct?.account_ref) {
-    const r = await stripeV2(f(ctx), key, "POST", "/core/accounts", recipientAccount({ name: String(acct?.name ?? ""), personId: s.person_id }), "acctv2:" + s.person_id, await setting(ctx, "stripe.accounts_api_version", STRIPE_V2_VERSION));
+    // Stripe needs a contact email on an account that receives transfers; it is the member's own email from the Lawfecta site
+    if (!String(acct?.email ?? "").includes("@")) return json(ctx, { ok: false, reason: "payout_email_missing" });
+    const r = await stripeV2(f(ctx), key, "POST", "/core/accounts", recipientAccount({ name: String(acct?.name ?? ""), email: String(acct.email), personId: s.person_id }), "acctv2:" + s.person_id, await setting(ctx, "stripe.accounts_api_version", STRIPE_V2_VERSION));
     if (!r.ok) return json(ctx, { ok: false, reason: "payout_setup_failed", detail: r.error });
     await rpc(ctx, "dela_payout_account_set", { p_person: s.person_id, p_ref: r.data.id, p_status: "pending", p_req: [] });
     acct = { account_ref: r.data.id };
