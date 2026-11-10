@@ -1,6 +1,6 @@
 # DELA Decision Sheet
 
-Version DS-1.1, updated 2026-11-07. Built from config/decisions.json.
+Version DS-1.1, updated 2026-11-10. Built from config/decisions.json.
 
 How to use this sheet: for each line, write Approve, or write the number you want instead. Every value can be changed later in the DELA admin area, and every change is saved with its history.
 
@@ -43,7 +43,7 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Limit | Free | Plus | Pro | Business | Status | Your decision |
 |---|---|---|---|---|---|---|
 | Proposals sent per month (per month) | 5 | 20 | 50 | No cap | Confirmed | |
-| Published services at one time | 3 | 5 | 10 | No cap | Open | |
+| Published services at one time | 3 | 5 | 10 | No cap | Confirmed | |
 | Running promotions at one time | 0 | 1 | 3 | No cap | Confirmed | |
 | Approved pitches to attorneys per month (per month) | 3 | 10 | 25 | 100 | Confirmed | |
 | Agency team seats included | 1 | 1 | 1 | 3 | Confirmed | |
@@ -57,14 +57,14 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 
 | Limit | Free | Plus | Pro | Business | Status | Your decision |
 |---|---|---|---|---|---|---|
-| Weighted AI credits per month on Lawfecta's key (per month) | 25 | 100 | 300 | 1000 | Open | |
-| Playbook exports per month (per month) | 0 | 2 | 5 | 15 | Open | |
-| Connected calendars (Google or Outlook) | 1 | 2 | 5 | 10 | Open | |
+| Weighted AI credits per month on Lawfecta's key (per month) | 25 | 100 | 300 | 1000 | Confirmed | |
+| Playbook exports per month (per month) | 0 | 2 | 5 | 15 | Confirmed | |
+| Connected calendars (Google or Outlook) | 1 | 2 | 5 | 10 | Confirmed | |
 | Webhook endpoints | 1 | 2 | 5 | 10 | Confirmed | |
-| File storage | 250 | 1000 | 5000 | 20000 | Open | |
+| File storage | 250 | 1000 | 5000 | 20000 | Confirmed | |
 | Bring your own AI key (OpenAI or Claude) | Yes | Yes | Yes | Yes | Confirmed | |
 
-- Weighted AI credits per month on Lawfecta's key: Provisional until costs are validated. Credits are weighted by AI cost; they are not a number of playbooks or conversations. Calls on the member's own key do not use credits. Attorney plans since step 9b (Stacey 2026-11-06), shown to attorneys as DELA actions: Free 50, Plus 300, Pro 1,000, Business 2,500 shared by the firm. The values here are the freelancer plans, unchanged.
+- Weighted AI credits per month on Lawfecta's key: Provisional until costs are validated. Credits are weighted by AI cost; they are not a number of playbooks or conversations. Calls on the member's own key do not use credits. Attorney plans since step 9b (Stacey 2026-11-06), shown to attorneys as DELA actions: Free 50, Plus 300, Pro 1,000, Business 2,500 shared by the firm. The values here are the freelancer plans, unchanged. Stacey 2026-11-10: approved for beta; review after one month of real AI cost.
 - Playbook exports per month: Free members still earn the consultation export and the engagement playbook, and can buy single exports.
 - File storage: Attorney plans since step 9b (Stacey 2026-11-06): Free 1,024, Plus 10,240, Pro 51,200, Business 204,800 MB, shared by the firm. The values here are the freelancer plans, unchanged.
 
@@ -73,10 +73,10 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Item | Suggested value | Status | Where it comes from | Your decision |
 |---|---|---|---|---|
 | Minimum platform fee per side, per engagement. Charged once per engagement, not per milestone. Stacey 2026-11-05: kept. The fee is always 5% of the total from each side, with $10 as the floor; at the $250 minimum engagement, 5% is $12.50. | $10 | Confirmed | C-26 | |
-| When the attorney fee is charged | engagement start | Suggested | 1A section 20 | |
-| How the freelancer fee is spread. Spread across milestones in whole cents; leftover cents go on the last milestone. | proportional rounding on last | Suggested | 1A section 9 | |
+| When the attorney fee is charged. Stacey 2026-11-10: charge the attorney's fee with each milestone payment, not at the start. The code still charges the whole fee with the first payment until launch fix 25 in docs/HANDOFF.md is built. | with each milestone | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: 1A section 20 | |
+| How the freelancer fee is spread. Spread across milestones in whole cents; leftover cents go on the last milestone. | proportional rounding on last | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: 1A section 9 | |
 | Smallest engagement allowed | $250 | Confirmed | Stacey, Decision Register v1.1 (2026-10-26) | |
-| Longest fixed-fee engagement | 90 days | Open | Decision Register v1.1, question 2 (90 days recommended) | |
+| Longest fixed-fee engagement | 90 days | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Decision Register v1.1, question 2 (90 days recommended) | |
 | Longest funded money can wait for acceptance before a Lawfecta Team review | 45 days | Needs a gate | O-02 and G-PAYMENT; suggestion by Claude, needs a payments lawyer | |
 | Hourly billing. Not part of launch. | No | Confirmed | C-12 | |
 | Payment provider | stripe connect | Confirmed | C-24 | |
@@ -91,14 +91,14 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Free trial length | 7 days | Confirmed | Stacey, Decision Register v1.1 (2026-10-26) | |
 | Which plan the trial unlocks | pro | Confirmed | Stacey, Decision Register v1.1 (2026-10-26) | |
 | When the trial starts. New registrations only, one trial per member. When it ends, trial-only extras stop and the member keeps their data and active work. | registration | Confirmed | Stacey, Decision Register v1.1 (2026-10-26) | |
-| Trials go to members who register on or after. Members who registered before this date do not get a trial. | 2026-11-01 | Open | Decision Register v1.1 says new registrations only; the start date is a suggestion by Claude | |
-| Monthly allowances reset on | calendar month | Open | O-10; suggestion by Claude | |
-| Time zone for resets and deadlines | America/Los Angeles | Open | O-10; Claude guessed Pacific time. Please confirm Lawfecta's time zone. | |
-| Do proposals to an attorney's direct invitation use the allowance?. Free answers to invitations encourage fast replies. | No | Open | O-10; suggestion by Claude | |
-| When a withdrawn proposal gives the allowance back | only if gig canceled or materially changed | Open | O-10; suggestion by Claude | |
+| Trials go to members who register on or after. Stacey 2026-11-10: on Live, set this to the Live launch date at the first push. The date here is the test site's. Members who registered before this date do not get a trial. | 2026-11-01 | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Decision Register v1.1 says new registrations only; the start date is a suggestion by Claude | |
+| Monthly allowances reset on | calendar month | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: O-10; suggestion by Claude | |
+| Time zone for resets and deadlines | America/Los Angeles | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: O-10; Claude guessed Pacific time. Please confirm Lawfecta's time zone. | |
+| Do proposals to an attorney's direct invitation use the allowance?. Free answers to invitations encourage fast replies. | No | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: O-10; suggestion by Claude | |
+| When a withdrawn proposal gives the allowance back | only if gig canceled or materially changed | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: O-10; suggestion by Claude | |
 | Buying extra AI credits | No | Confirmed | C-28 | |
 | Buying extra proposals. Later only. | No | Confirmed | C-10 | |
-| Price of one standalone export | $9 | Open | C-28; price is a suggestion by Claude | |
+| Price of one standalone export | $9 | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: C-28; price is a suggestion by Claude | |
 | Extra team seat on Business, per month. Annual price for extra seats and whether seats add AI, storage or integration allowances are still open. | $15 | Confirmed | Stacey, Decision Register v1.1 (2026-10-26) | |
 | Trial downgrade mode. Dry run lists who the daily job would downgrade or mark converted and changes nothing. Switch to Live in the admin area after 3 clean days on the test site (answer 6). | dry run | Confirmed | Stacey 2026-11-07 (Pro trial answers) | |
 | Days before the trial ends to send "Your Pro trial ends in 2 days" | 2 days | Confirmed | Developer notes 2026-11-06 | |
@@ -107,9 +107,9 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | BD plan IDs the trial job uses. Only members on 7 or 8 with dela_trial_status active are ever changed. Never changed, even with trial data: attorney plans 5, 12, 13, 14 and the lifetime plans 10, 11 (answer 1). | {'pro': 8, 'free': 3, 'plus': 7, 'agency': 9, 'trial': [7, 8], 'never': [5, 10, 11, 12, 13, 14]} BD plan IDs | Confirmed | Stacey 2026-11-07 (Pro trial answers) | |
 | More BD plans that give a DELA plan (BD plan number to DELA plan). Plan 10 Pro Founding Member ($97 a year, kept while they renew) gives Freelancer Pro. Plan 11 Agency Business Lifetime ($750 once) gives Freelancer Agency Business for life, team seats included. Neither is an attorney plan; neither gets the 7-day trial or the downgrade (trial.bd_plans never). The numbers are the test site's (hirelegalhelp.com); lawfecta.com has its own numbers, set on Live before launch. | {'10': 'fl_pro', '11': 'fl_business'} BD plan ID to DELA plan | Confirmed | Stacey 2026-11-08 | |
 | Who gets the daily downgrade summary email. One email on a day with at least one downgrade, listing each member's name, user ID and trial end date. None on other days (answer 8). | stacey@lawfecta.com | Confirmed | Stacey 2026-11-07 (Pro trial answers) | |
-| What comes back when a downgraded member upgrades. Suggested: everything comes back on Plus, Pro and Agency Business. If Plus allows fewer areas of law or not every post type in BD, change Plus here. | {'7': {'areas': None, 'types': ['video', 'promotion', 'article']}, '8': {'areas': None, 'types': ['video', 'promotion', 'article']}, '9': {'areas': None, 'types': ['video', 'promotion', 'article']}} per BD plan: areas shown (null = all) and post types | Suggested | Suggested by Claude 2026-11-08 | |
+| What comes back when a downgraded member upgrades. Stacey 2026-11-10, from the BD plan settings: Plus (7) shows 10 areas of law and Community Articles; Promotions and Videos need Pro. Pro (8) and Agency Business (9) get everything back. What Plus does not allow stays saved and hidden, and comes back on Pro. The plan numbers are the test site's. | {'7': {'areas': 10, 'types': ['article']}, '8': {'areas': None, 'types': ['video', 'promotion', 'article']}, '9': {'areas': None, 'types': ['video', 'promotion', 'article']}} per BD plan: areas shown (null = all) and post types | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Suggested by Claude 2026-11-08 | |
 | Post types hidden when a trial member moves to Free. Videos, Promotions and Community Articles are unpublished at the downgrade, never deleted (AI review 0.10.0, payments 6: a setting, not code). | video, promotion, article | Confirmed | Developer notes 2026-11-06 | |
-| BD member status value for Active (the trial check sets it after a downgrade). Empty: DELA does not change the status and the BD admin task says to check it is Active. Fill in once the value is confirmed in BD. |  | Open | Claude 2026-11-08 | |
+| BD member status value for Active (the trial check sets it after a downgrade). Stacey 2026-11-10: looked up on hirelegalhelp.com, Active is status value 2. Check the value on lawfecta.com before the trial check runs there. | 2 | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Claude 2026-11-08 | |
 
 ## 5. Flex Gigs and proposals
 
@@ -119,9 +119,9 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Attorney reminders on days | 10, 13 | Confirmed | C-11 | |
 | Extensions allowed | 1 | Confirmed | C-11 | |
 | Length of the extension | 14 days | Confirmed | C-11 | |
-| Reminders before an extended gig closes (days before) | 4, 1 | Suggested | 1A section 15 | |
+| Reminders before an extended gig closes (days before) | 4, 1 | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: 1A section 15 | |
 | Days proposals stay actionable after a gig closes | 7 days | Confirmed | C-11 | |
-| Allow more than one hire per gig by default | No | Suggested | C-11 | |
+| Allow more than one hire per gig by default | No | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: C-11 | |
 
 ## 6. Milestones, review and recurring work
 
@@ -129,9 +129,9 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 |---|---|---|---|---|
 | Passing score for the DELA milestone check | 90 out of 100 | Confirmed | C-13 | |
 | Days the attorney has to review | 7 days | Confirmed | C-13 | |
-| When the review clock starts | submission marked complete and notice delivered | Open | Decision Register v1.1, question 3 (A recommended) | |
-| Cost to the freelancer for a human review | $0 | Open | Decision Register v1.1, question 4 (B recommended: one free review per milestone) | |
-| Target days for a human review | 5 business days | Open | O-04 and O-11 | |
+| When the review clock starts | submission marked complete and notice delivered | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Decision Register v1.1, question 3 (A recommended) | |
+| Cost to the freelancer for a human review | $0 | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Decision Register v1.1, question 4 (B recommended: one free review per milestone) | |
+| Target days for a human review | 5 business days | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: O-04 and O-11 | |
 | Automatic acceptance when the attorney stays silent. Built behind the admin_acceptance_timeout switch. | switch | Needs a gate | C-13 and G-CONTRACT | |
 | Renewal reminder, days before billing | 3 days | Confirmed | C-16 | |
 | Automatic retries after a failed renewal | 2 | Confirmed | C-17 | |
@@ -146,7 +146,7 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Most jobs open at once on a standing arrangement, unless changed | 3 jobs | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 19 | |
 | Hours a freelancer has to decline a repeat hire (the attorney is refunded in full) | 24 hours | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 21 | |
 | Lowest attorney plan that can set up a standing arrangement | att plus | Confirmed | Stacey 2026-11-06 (step 7c answers), answer 25 | |
-| Weekly units in one month when the two choose Weekly units. The last unit covers the rest of the month. Units are how the month is reviewed and paid out, not a weekly cap. | 4 units | Open | Claude suggestion | |
+| Weekly units in one month when the two choose Weekly units. The last unit covers the rest of the month. Units are how the month is reviewed and paid out, not a weekly cap. | 4 units | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion | |
 | Unused monthly capacity rolls into the next month. No rollover. The monthly limit is per month. A 5-week month has the same limit and price. | No | Confirmed | Stacey 2026-11-06 (UX review answers) | |
 | Emergency stop: no renewal charges run while this is on. Set from the admin Recurring tab. Reminders and drafting still run; nothing is charged. | No | Confirmed | Brief step 7c (the emergency stop for renewals) | |
 
@@ -154,9 +154,9 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 
 | Item | Suggested value | Status | Where it comes from | Your decision |
 |---|---|---|---|---|
-| Free consultation export after a verified attended meeting | 1 per attorney and freelancer pair | Open | C-04 and O-08; the count is a suggestion by Claude | |
-| What proves a meeting happened | vectera attendance or both confirm | Open | O-08; suggestion by Claude | |
-| When a hire earns the engagement playbook | first milestone accepted | Open | C-04; suggestion by Claude to stop fake minimum-price hires | |
+| Free consultation export after a verified attended meeting | 1 per attorney and freelancer pair | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: C-04 and O-08; the count is a suggestion by Claude | |
+| What proves a meeting happened | vectera attendance or both confirm | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: O-08; suggestion by Claude | |
+| When a hire earns the engagement playbook | first milestone accepted | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: C-04; suggestion by Claude to stop fake minimum-price hires | |
 | Anonymous public share links | No | Confirmed | C-30 | |
 | Playbook marketplace commission (Phase 1C) | 15% | Confirmed | C-31 | |
 
@@ -164,19 +164,19 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 
 | Item | Suggested value | Status | Where it comes from | Your decision |
 |---|---|---|---|---|
-| Freelancers reconfirm availability every | 14 days | Suggested | 1A section 7 | |
-| Recent activity window | 30 days | Suggested | 1A section 7 | |
+| Freelancers reconfirm availability every | 14 days | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: 1A section 7 | |
+| Recent activity window | 30 days | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: 1A section 7 | |
 | When reviews publish | immediately | Confirmed | C-18 | |
-| Days a reviewer can edit a review | 14 days | Open | 1A section 24; suggestion by Claude | |
+| Days a reviewer can edit a review | 14 days | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: 1A section 24; suggestion by Claude | |
 | After a first lost chargeback | manual reinstatement review | Confirmed | C-19 | |
 | After a second verified chargeback. Counting rules need a lawyer. | termination review | Needs a gate | C-20 | |
 | Dispute notice period | 14 calendar days | Confirmed | C-22 | |
 | Days the other side has to answer a dispute. A warning goes out on the last day; if there is still no answer the opener's request is granted at the end of the notice period. | 5 calendar days | Confirmed | Stacey 2026-11-08 (step 11 brief) | |
 | Days of a dispute when both sides are reminded to settle | 7, 12 | Confirmed | Stacey 2026-11-08 (step 11 brief) | |
-| Business days for the Lawfecta Team to decide a dispute. Asking a question pauses the clock until it is answered. | 10 business days | Suggested | Claude 2026-11-08 (step 11 brief) | |
+| Business days for the Lawfecta Team to decide a dispute. Asking a question pauses the clock until it is answered. | 10 business days | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Claude 2026-11-08 (step 11 brief) | |
 | Grant the opener's request when the other side never answers | Yes | Confirmed | Stacey 2026-11-08 (step 11 brief) | |
 | Refund the attorney's platform fee when a dispute sends money back. Only the milestone amount is refunded; the freelancer fee applies only to the part released. | No | Confirmed | Stacey 2026-11-08 (step 11 brief) | |
-| Lost disputes that place a review hold on a member. The hold blocks new engagements until the Lawfecta Team releases it. | {'count': 3, 'months': 12} lost disputes within months | Suggested | Claude 2026-11-08 (step 11 brief) | |
+| Lost disputes that place a review hold on a member. The hold blocks new engagements until the Lawfecta Team releases it. | {'count': 3, 'months': 12} lost disputes within months | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Claude 2026-11-08 (step 11 brief) | |
 | Lawfecta-funded freelancer protection | No | Confirmed | C-21 | |
 
 ## 9. Platform rules decided by Stacey
@@ -192,7 +192,7 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Recording a meeting | both people consent | Needs a gate | Stacey 2026-10-25; some states require everyone's consent | |
 | Using transcripts to improve DELA | separate opt in | Needs a gate | C-02 and Stacey 2026-10-25 | |
 | Talk of taking work off the platform. No automatic penalty. | flag for lawfecta team review | Confirmed | Stacey 2026-10-25 | |
-| Who sends DELA email | bd if possible else brevo | Open | Stacey 2026-10-25; Claude is checking whether BD can be triggered from Supabase | |
+| Who sends DELA email | brevo | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-10-25; Claude is checking whether BD can be triggered from Supabase | |
 | Who can open DELA. Change to everyone when a phase launches. | access list | Confirmed | Stacey 2026-10-25 | |
 
 ## 10. Agencies
@@ -209,25 +209,25 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Fees on a split milestone (attorney work assigned to a bench member). Example: $1,000 at 30/70: the agency gets $300 minus $50 = $250, the bench member $700. | The attorney pays the usual 5% client fee. The agency pays the whole 5% freelancer-side fee from its share. The bench member gets their full share. | Confirmed | Stacey 2026-11-05 (fee answers) | |
 | Smallest agency share of a bench member's work. Never below the freelancer-side fee. | 5% | Confirmed | Stacey 2026-11-05 (fee answers) | |
 | Largest agency share of a bench member's work | 50% | Confirmed | Stacey 2026-11-05 (fee answers) | |
-| Open gigs an agency can have at once (0 means no limit). Agencies part 2c. | 0 gigs | Open | Claude suggestion: the same as Attorney Business (no limit) | |
-| Documents an agency can keep in its Library (0 means no limit). Agencies part 2c. | 0 documents | Open | Claude suggestion: the same as Attorney Business (no limit) | |
+| Open gigs an agency can have at once (0 means no limit). Agencies part 2c. | 0 gigs | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion: the same as Attorney Business (no limit) | |
+| Documents an agency can keep in its Library (0 means no limit). Agencies part 2c. | 0 documents | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion: the same as Attorney Business (no limit) | |
 | On an agency's own gig, a bench member pays no freelancer fee; the agency pays it | Yes | Confirmed | Stacey 2026-11-05 (fee answer 5) | |
-| Share of an agency gig's words found in one of its engagements that flags it as a copy. Agencies part 3. Only gigs not linked to that engagement are flagged. The flag goes to the Lawfecta Team; the gig still posts. | 0.6 share | Open | Claude suggestion | |
+| Share of an agency gig's words found in one of its engagements that flags it as a copy. Agencies part 3. Only gigs not linked to that engagement are flagged. The flag goes to the Lawfecta Team; the gig still posts. | 0.6 share | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion | |
 
 ## 11. Guided setup and Automate or delegate
 
 | Item | Suggested value | Status | Where it comes from | Your decision |
 |---|---|---|---|---|
 | Most recommendations in one Automate or delegate review. Ranked only by time saved. | 5 recommendations | Confirmed | Stacey 2026-11-06 (step 4d answers) | |
-| Credits for one Automate or delegate review (Lawfecta's key only). One review per approved version, reused until the document changes. | 2 credits | Open | Claude suggestion | |
-| Low end of the hourly rate DELA uses to suggest a delegated gig's budget. Used until Lawfecta has enough hires to work out real rates for a skill. | 4000 cents an hour | Open | Claude suggestion | |
-| High end of the hourly rate DELA uses to suggest a delegated gig's budget. Used until Lawfecta has enough hires to work out real rates for a skill. | 7500 cents an hour | Open | Claude suggestion | |
+| Credits for one Automate or delegate review (Lawfecta's key only). One review per approved version, reused until the document changes. | 2 credits | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion | |
+| Low end of the hourly rate DELA uses to suggest a delegated gig's budget. Used until Lawfecta has enough hires to work out real rates for a skill. | 4000 cents an hour | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion | |
+| High end of the hourly rate DELA uses to suggest a delegated gig's budget. Used until Lawfecta has enough hires to work out real rates for a skill. | 7500 cents an hour | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion | |
 | Days after sign-up for reminder emails about unfinished setup steps (empty turns them off). For the onboarding widget, after the MVP launch. | 2, 7 | Confirmed | Stacey 2026-11-06 (step 4d answers) | |
-| Free answers a member can get from the DELA guide each day. Lawfecta's key; does not use DELA actions. The work the guide leads to counts as usual. | 20 answers a day | Suggested | Stacey 2026-11-09 (step 13 brief) | |
-| Hours the DELA guide stays closed after the member pauses it. It opens sooner when something new needs the member, such as a new gig that fits. | 24 hours | Suggested | Stacey 2026-11-09 (step 13 brief) | |
-| New gig alerts a freelancer can get each day. One alert per gig per freelancer. | 3 alerts a day | Suggested | Stacey 2026-11-09 (step 13 brief) | |
-| Match reasons a gig needs before a freelancer is alerted | 2 reasons | Suggested | Stacey 2026-11-09 (step 13 brief) | |
-| New gig alerts start on (guide, email and Notices). Each member can turn each channel off. | Yes | Suggested | Stacey 2026-11-09 (step 13 brief) | |
+| Free answers a member can get from the DELA guide each day. Lawfecta's key; does not use DELA actions. The work the guide leads to counts as usual. | 20 answers a day | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-11-09 (step 13 brief) | |
+| Hours the DELA guide stays closed after the member pauses it. It opens sooner when something new needs the member, such as a new gig that fits. | 24 hours | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-11-09 (step 13 brief) | |
+| New gig alerts a freelancer can get each day. One alert per gig per freelancer. | 3 alerts a day | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-11-09 (step 13 brief) | |
+| Match reasons a gig needs before a freelancer is alerted | 2 reasons | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-11-09 (step 13 brief) | |
+| New gig alerts start on (guide, email and Notices). Each member can turn each channel off. | Yes | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-11-09 (step 13 brief) | |
 
 ## 12. UX Phase 4: approved version, AI helpers, appearance
 
@@ -247,7 +247,7 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | DELA actions for one run of "✦ Help me find a fit" in Talent (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 1 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
 | DELA actions for one run of "✦ Draft an agenda" for a meeting (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 1 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
 | DELA actions for one run of "✦ Help me write a review" (Lawfecta's key only). 1 for short helpers, 2 for comparing proposals and checking an agreement. No free first try. Nothing on the member's own key. | 1 credits | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
-| Most proposals compared at once by "✦ Compare these proposals". Keeps one comparison inside one DELA run. | 10 proposals | Open | Claude suggestion | |
+| Most proposals compared at once by "✦ Compare these proposals". Keeps one comparison inside one DELA run. | 10 proposals | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion | |
 | Starting appearance for every member (light, dark or device). Members change it in the account menu: Match my device, Light or Dark. The same choice in the admin area. | light | Confirmed | Stacey 2026-11-06 (Phase 4 answers) | |
 
 ## 13. Security and sensitive data

@@ -27,7 +27,6 @@ paid) and item 11 (the DELA guide's free-answer cap can be bypassed). Each is
 a "Fix" commit with a test that fails before the fix. Deploy to the test site
 only. Then keep going through the list in the order HANDOFF.md gives.
 
-Also send me the one list of undecided numbers with a suggested answer each.
 ```
 
 ### What carries over and what does not
@@ -109,6 +108,14 @@ Every fix is a commit starting "Fix" with a test that fails before the fix, in t
 23. MEDIUM. Tie the sign-in pass audience to the site (it says only "dela" for both). Add an unsubscribe link, a List-Unsubscribe header and a postal address to emails. Remove hirelegalhelp.com from the default allowed websites on Live.
 24. Docs. Update docs/LIVE_READINESS.md: 79 migrations; the switches the MVP needs (`dispute_center`, `onboarding_widget`, `gig_alerts`, `library_workspace`); the secrets list (`PUBLIC_API_URL`, `LIVE_SITE_URL`; no `STAGING_API_URL` on Live); the DELA-Security widget install. Update docs/PLAN.md.
 
+### Part 6: decisions from Stacey's answers (2026-11-10)
+25. NEW, approved by Stacey. Charge the attorney's 5% fee with each milestone payment, not all of it with the first payment.
+    - Today `dela_payment_start` (`0030_engagements.sql` about line 458) adds the whole `agreements.attorney_fee_cents` to the 'start' payment, and a cancel before the start refunds it (about line 686).
+    - Write a brief first (docs/briefs, from TEMPLATE.md): how the fee is spread over milestones in whole cents (same rule as the freelancer fee: leftover cents on the last one), the minimum per side, monthly engagements, agreements already signed (keep their old timing), refunds, disputes, the agreement text and the payment screens.
+    - The setting `fees.attorney_fee_timing` now says `with_each_milestone`; no code reads it yet.
+26. On Live, set `trial.eligible_from` to the Live launch date at the first push (Stacey). Add it to docs/LIVE_READINESS.md with item 20.
+27. BD lookups from Stacey (test site): Active is status value 2 (`trial.bd_active_value` is set). Post type codes 1 (Member Listings), 2 (Area of Law) and 3 (Member Reviews) are BD built-ins that do not show in the post type list. Code 73 is in the Agency Business, Agency Business Lifetime and Attorney Business plan settings and matches no post type on the site: ask Stacey what it is before the trial check goes Live. Plus shows 10 areas of law and Community Articles only (`trial.allowances` is set).
+
 ### Order
 1. Items 1 and 11, deployed to the test site the same day.
 2. The rest of Parts 1 and 2.
@@ -122,7 +129,7 @@ Sign-in, sessions, the admin gate, the Stripe webhook signature, the live-key gu
 ## 3. Waiting on Stacey
 - Stripe test setup (docs/STRIPE_SETUP.md). After it: prepare one made-up job and run a test payment, payout, dispute and settlement end to end. This is the only way to prove items 2 to 4 against real Stripe.
 - The lawyer's review. The agreement text still starts "DRAFT FOR LAWFECTA'S LAWYER TO REVIEW" and clause 6 has a placeholder (`supabase/functions/api/lib/engagements/agreement.ts`, lines 11 and 18). No real payments before this.
-- The undecided numbers. Claude owes her one list with a suggested answer each: AI actions per plan, the fee timing rules, the human review fee, the 90-day maximum engagement, the automate rates, the matching plan boost, agency limits, `fl.services_active`, `trial.eligible_from`.
+- The undecided numbers: done. Stacey approved all 43 on 2026-11-10 (config/decisions.json, docs/Decision_Sheet.md). Six items wait on her lawyer: the 45-day wait before a team review, automatic acceptance, the second chargeback rule, recording consent, transcript use, and Stripe live mode.
 - Her answers to the 8 layout questions (docs/briefs/step-12-layout.md). The mockup is a private page in her Claude account (6 boards).
 - Her look at the Library workspace (step 8b Part B).
 - Confirming no real members are on hirelegalhelp.com, since test-site alerts email every member there.

@@ -1,6 +1,6 @@
 {
   "sheet_version": "DS-1.1",
-  "updated": "2026-11-07",
+  "updated": "2026-11-10",
   "status_legend": {
     "C": "Confirmed. Decided by Stacey or confirmed in the plan documents.",
     "R": "Suggested. The plan documents or Claude suggest it; Stacey has not approved it yet.",
@@ -93,8 +93,8 @@
         "pro": 10,
         "business": null
       },
-      "status": "O",
-      "source": "Decision Register v1.1, question 1",
+      "status": "C",
+      "source": "Stacey 2026-11-10 (undecided numbers answers); was: Decision Register v1.1, question 1",
       "note": "Question 1: original 1/3/10 or revised 3/5/10. Revised shown (recommended)."
     },
     {
@@ -204,9 +204,9 @@
         "pro": 300,
         "business": 1000
       },
-      "status": "O",
-      "source": "Stacey, Decision Register v1.1 (2026-10-26); provisional",
-      "note": "Provisional until costs are validated. Credits are weighted by AI cost; they are not a number of playbooks or conversations. Calls on the member's own key do not use credits. Attorney plans since step 9b (Stacey 2026-11-06), shown to attorneys as DELA actions: Free 50, Plus 300, Pro 1,000, Business 2,500 shared by the firm. The values here are the freelancer plans, unchanged."
+      "status": "C",
+      "source": "Stacey 2026-11-10 (undecided numbers answers); was: Stacey, Decision Register v1.1 (2026-10-26); provisional",
+      "note": "Provisional until costs are validated. Credits are weighted by AI cost; they are not a number of playbooks or conversations. Calls on the member's own key do not use credits. Attorney plans since step 9b (Stacey 2026-11-06), shown to attorneys as DELA actions: Free 50, Plus 300, Pro 1,000, Business 2,500 shared by the firm. The values here are the freelancer plans, unchanged. Stacey 2026-11-10: approved for beta; review after one month of real AI cost."
     },
     {
       "key": "exports",
@@ -220,8 +220,8 @@
         "pro": 5,
         "business": 15
       },
-      "status": "O",
-      "source": "C-28; numbers are a suggestion by Claude",
+      "status": "C",
+      "source": "Stacey 2026-11-10 (undecided numbers answers); was: C-28; numbers are a suggestion by Claude",
       "note": "Free members still earn the consultation export and the engagement playbook, and can buy single exports."
     },
     {
@@ -236,8 +236,8 @@
         "pro": 5,
         "business": 10
       },
-      "status": "O",
-      "source": "Plan documents show 2/5/10 for paid plans. Claude suggests 1 on Free so free members avoid double bookings and stay on the platform."
+      "status": "C",
+      "source": "Stacey 2026-11-10 (undecided numbers answers); was: Plan documents show 2/5/10 for paid plans. Claude suggests 1 on Free so free members avoid double bookings and stay on the platform."
     },
     {
       "key": "webhooks.endpoints",
@@ -266,8 +266,8 @@
         "pro": 5000,
         "business": 20000
       },
-      "status": "O",
-      "source": "Suggestion by Claude",
+      "status": "C",
+      "source": "Stacey 2026-11-10 (undecided numbers answers); was: Suggestion by Claude",
       "note": "Attorney plans since step 9b (Stacey 2026-11-06): Free 1,024, Plus 10,240, Pro 51,200, Business 204,800 MB, shared by the firm. The values here are the freelancer plans, unchanged."
     },
     {
@@ -302,16 +302,17 @@
         {
           "key": "fees.attorney_fee_timing",
           "label": "When the attorney fee is charged",
-          "value": "engagement_start",
-          "status": "R",
-          "source": "1A section 20"
+          "value": "with_each_milestone",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: 1A section 20",
+          "note": "Stacey 2026-11-10: charge the attorney's fee with each milestone payment, not at the start. The code still charges the whole fee with the first payment until launch fix 25 in docs/HANDOFF.md is built."
         },
         {
           "key": "fees.freelancer_fee_allocation",
           "label": "How the freelancer fee is spread",
           "value": "proportional_rounding_on_last",
-          "status": "R",
-          "source": "1A section 9",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: 1A section 9",
           "note": "Spread across milestones in whole cents; leftover cents go on the last milestone."
         },
         {
@@ -327,8 +328,8 @@
           "label": "Longest fixed-fee engagement",
           "value": 90,
           "unit": "days",
-          "status": "O",
-          "source": "Decision Register v1.1, question 2 (90 days recommended)"
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Decision Register v1.1, question 2 (90 days recommended)"
         },
         {
           "key": "engagement.max_unreleased_days",
@@ -411,38 +412,38 @@
           "key": "trial.eligible_from",
           "label": "Trials go to members who register on or after",
           "value": "2026-11-01",
-          "status": "O",
-          "source": "Decision Register v1.1 says new registrations only; the start date is a suggestion by Claude",
-          "note": "Members who registered before this date do not get a trial."
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Decision Register v1.1 says new registrations only; the start date is a suggestion by Claude",
+          "note": "Stacey 2026-11-10: on Live, set this to the Live launch date at the first push. The date here is the test site's. Members who registered before this date do not get a trial."
         },
         {
           "key": "quota.period",
           "label": "Monthly allowances reset on",
           "value": "calendar_month",
-          "status": "O",
-          "source": "O-10; suggestion by Claude"
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: O-10; suggestion by Claude"
         },
         {
           "key": "quota.timezone",
           "label": "Time zone for resets and deadlines",
           "value": "America/Los_Angeles",
-          "status": "O",
-          "source": "O-10; Claude guessed Pacific time. Please confirm Lawfecta's time zone."
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: O-10; Claude guessed Pacific time. Please confirm Lawfecta's time zone."
         },
         {
           "key": "quota.invited_proposals_count",
           "label": "Do proposals to an attorney's direct invitation use the allowance?",
           "value": false,
-          "status": "O",
-          "source": "O-10; suggestion by Claude",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: O-10; suggestion by Claude",
           "note": "Free answers to invitations encourage fast replies."
         },
         {
           "key": "quota.withdrawn_restores",
           "label": "When a withdrawn proposal gives the allowance back",
           "value": "only_if_gig_canceled_or_materially_changed",
-          "status": "O",
-          "source": "O-10; suggestion by Claude"
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: O-10; suggestion by Claude"
         },
         {
           "key": "ai.credit_purchases",
@@ -464,8 +465,8 @@
           "label": "Price of one standalone export",
           "value": 900,
           "unit": "cents",
-          "status": "O",
-          "source": "C-28; price is a suggestion by Claude"
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: C-28; price is a suggestion by Claude"
         },
         {
           "key": "seats.extra_monthly_cents",
@@ -564,10 +565,8 @@
           "label": "What comes back when a downgraded member upgrades",
           "value": {
             "7": {
-              "areas": null,
+              "areas": 10,
               "types": [
-                "video",
-                "promotion",
                 "article"
               ]
             },
@@ -589,9 +588,9 @@
             }
           },
           "unit": "per BD plan: areas shown (null = all) and post types",
-          "status": "R",
-          "source": "Suggested by Claude 2026-11-08",
-          "note": "Suggested: everything comes back on Plus, Pro and Agency Business. If Plus allows fewer areas of law or not every post type in BD, change Plus here."
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Suggested by Claude 2026-11-08",
+          "note": "Stacey 2026-11-10, from the BD plan settings: Plus (7) shows 10 areas of law and Community Articles; Promotions and Videos need Pro. Pro (8) and Agency Business (9) get everything back. What Plus does not allow stays saved and hidden, and comes back on Pro. The plan numbers are the test site's."
         },
         {
           "key": "trial.free_hidden_types",
@@ -609,11 +608,11 @@
         {
           "key": "trial.bd_active_value",
           "label": "BD member status value for Active (the trial check sets it after a downgrade)",
-          "value": "",
+          "value": "2",
           "unit": "BD \"active\" field value",
-          "status": "O",
-          "source": "Claude 2026-11-08",
-          "note": "Empty: DELA does not change the status and the BD admin task says to check it is Active. Fill in once the value is confirmed in BD."
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Claude 2026-11-08",
+          "note": "Stacey 2026-11-10: looked up on hirelegalhelp.com, Active is status value 2. Check the value on lawfecta.com before the trial check runs there."
         }
       ]
     },
@@ -660,8 +659,8 @@
             4,
             1
           ],
-          "status": "R",
-          "source": "1A section 15"
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: 1A section 15"
         },
         {
           "key": "gig.proposals_actionable_days",
@@ -675,8 +674,8 @@
           "key": "gig.multiple_hires_default",
           "label": "Allow more than one hire per gig by default",
           "value": false,
-          "status": "R",
-          "source": "C-11"
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: C-11"
         }
       ]
     },
@@ -703,24 +702,24 @@
           "key": "milestone.clock_starts",
           "label": "When the review clock starts",
           "value": "submission_marked_complete_and_notice_delivered",
-          "status": "O",
-          "source": "Decision Register v1.1, question 3 (A recommended)"
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Decision Register v1.1, question 3 (A recommended)"
         },
         {
           "key": "milestone.human_review_fee_cents",
           "label": "Cost to the freelancer for a human review",
           "value": 0,
           "unit": "cents",
-          "status": "O",
-          "source": "Decision Register v1.1, question 4 (B recommended: one free review per milestone)"
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Decision Register v1.1, question 4 (B recommended: one free review per milestone)"
         },
         {
           "key": "milestone.human_review_days",
           "label": "Target days for a human review",
           "value": 5,
           "unit": "business days",
-          "status": "O",
-          "source": "O-04 and O-11"
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: O-04 and O-11"
         },
         {
           "key": "milestone.admin_acceptance",
@@ -842,8 +841,8 @@
           "label": "Weekly units in one month when the two choose Weekly units",
           "value": 4,
           "unit": "units",
-          "status": "O",
-          "source": "Claude suggestion",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion",
           "note": "The last unit covers the rest of the month. Units are how the month is reviewed and paid out, not a weekly cap."
         },
         {
@@ -874,22 +873,22 @@
           "label": "Free consultation export after a verified attended meeting",
           "value": 1,
           "unit": "per attorney and freelancer pair",
-          "status": "O",
-          "source": "C-04 and O-08; the count is a suggestion by Claude"
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: C-04 and O-08; the count is a suggestion by Claude"
         },
         {
           "key": "exports.consultation_proof",
           "label": "What proves a meeting happened",
           "value": "vectera_attendance_or_both_confirm",
-          "status": "O",
-          "source": "O-08; suggestion by Claude"
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: O-08; suggestion by Claude"
         },
         {
           "key": "exports.engagement_grant_after",
           "label": "When a hire earns the engagement playbook",
           "value": "first_milestone_accepted",
-          "status": "O",
-          "source": "C-04; suggestion by Claude to stop fake minimum-price hires"
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: C-04; suggestion by Claude to stop fake minimum-price hires"
         },
         {
           "key": "playbook.public_share_links",
@@ -916,16 +915,16 @@
           "label": "Freelancers reconfirm availability every",
           "value": 14,
           "unit": "days",
-          "status": "R",
-          "source": "1A section 7"
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: 1A section 7"
         },
         {
           "key": "profile.activity_lookback_days",
           "label": "Recent activity window",
           "value": 30,
           "unit": "days",
-          "status": "R",
-          "source": "1A section 7"
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: 1A section 7"
         },
         {
           "key": "reviews.publish",
@@ -939,8 +938,8 @@
           "label": "Days a reviewer can edit a review",
           "value": 14,
           "unit": "days",
-          "status": "O",
-          "source": "1A section 24; suggestion by Claude"
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: 1A section 24; suggestion by Claude"
         },
         {
           "key": "risk.first_lost_chargeback",
@@ -990,8 +989,8 @@
           "label": "Business days for the Lawfecta Team to decide a dispute",
           "value": 10,
           "unit": "business days",
-          "status": "R",
-          "source": "Claude 2026-11-08 (step 11 brief)",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Claude 2026-11-08 (step 11 brief)",
           "note": "Asking a question pauses the clock until it is answered."
         },
         {
@@ -1019,8 +1018,8 @@
             "months": 12
           },
           "unit": "lost disputes within months",
-          "status": "R",
-          "source": "Claude 2026-11-08 (step 11 brief)",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Claude 2026-11-08 (step 11 brief)",
           "note": "The hold blocks new engagements until the Lawfecta Team releases it."
         },
         {
@@ -1107,9 +1106,9 @@
         {
           "key": "email.provider",
           "label": "Who sends DELA email",
-          "value": "bd_if_possible_else_brevo",
-          "status": "O",
-          "source": "Stacey 2026-10-25; Claude is checking whether BD can be triggered from Supabase"
+          "value": "brevo",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-10-25; Claude is checking whether BD can be triggered from Supabase"
         },
         {
           "key": "access.mode",
@@ -1219,8 +1218,8 @@
           "label": "Open gigs an agency can have at once (0 means no limit)",
           "value": 0,
           "unit": "gigs",
-          "status": "O",
-          "source": "Claude suggestion: the same as Attorney Business (no limit)",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion: the same as Attorney Business (no limit)",
           "note": "Agencies part 2c."
         },
         {
@@ -1228,8 +1227,8 @@
           "label": "Documents an agency can keep in its Library (0 means no limit)",
           "value": 0,
           "unit": "documents",
-          "status": "O",
-          "source": "Claude suggestion: the same as Attorney Business (no limit)",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion: the same as Attorney Business (no limit)",
           "note": "Agencies part 2c."
         },
         {
@@ -1246,8 +1245,8 @@
           "label": "Share of an agency gig's words found in one of its engagements that flags it as a copy",
           "value": 0.6,
           "unit": "share",
-          "status": "O",
-          "source": "Claude suggestion",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion",
           "note": "Agencies part 3. Only gigs not linked to that engagement are flagged. The flag goes to the Lawfecta Team; the gig still posts."
         }
       ]
@@ -1269,8 +1268,8 @@
           "label": "Credits for one Automate or delegate review (Lawfecta's key only)",
           "value": 2,
           "unit": "credits",
-          "status": "O",
-          "source": "Claude suggestion",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion",
           "note": "One review per approved version, reused until the document changes."
         },
         {
@@ -1278,8 +1277,8 @@
           "label": "Low end of the hourly rate DELA uses to suggest a delegated gig's budget",
           "value": 4000,
           "unit": "cents an hour",
-          "status": "O",
-          "source": "Claude suggestion",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion",
           "note": "Used until Lawfecta has enough hires to work out real rates for a skill."
         },
         {
@@ -1287,8 +1286,8 @@
           "label": "High end of the hourly rate DELA uses to suggest a delegated gig's budget",
           "value": 7500,
           "unit": "cents an hour",
-          "status": "O",
-          "source": "Claude suggestion",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion",
           "note": "Used until Lawfecta has enough hires to work out real rates for a skill."
         },
         {
@@ -1308,8 +1307,8 @@
           "label": "Free answers a member can get from the DELA guide each day",
           "value": 20,
           "unit": "answers a day",
-          "status": "R",
-          "source": "Stacey 2026-11-09 (step 13 brief)",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-11-09 (step 13 brief)",
           "note": "Lawfecta's key; does not use DELA actions. The work the guide leads to counts as usual."
         },
         {
@@ -1317,8 +1316,8 @@
           "label": "Hours the DELA guide stays closed after the member pauses it",
           "value": 24,
           "unit": "hours",
-          "status": "R",
-          "source": "Stacey 2026-11-09 (step 13 brief)",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-11-09 (step 13 brief)",
           "note": "It opens sooner when something new needs the member, such as a new gig that fits."
         },
         {
@@ -1326,8 +1325,8 @@
           "label": "New gig alerts a freelancer can get each day",
           "value": 3,
           "unit": "alerts a day",
-          "status": "R",
-          "source": "Stacey 2026-11-09 (step 13 brief)",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-11-09 (step 13 brief)",
           "note": "One alert per gig per freelancer."
         },
         {
@@ -1335,8 +1334,8 @@
           "label": "Match reasons a gig needs before a freelancer is alerted",
           "value": 2,
           "unit": "reasons",
-          "status": "R",
-          "source": "Stacey 2026-11-09 (step 13 brief)",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-11-09 (step 13 brief)",
           "note": ""
         },
         {
@@ -1344,8 +1343,8 @@
           "label": "New gig alerts start on (guide, email and Notices)",
           "value": true,
           "unit": "on or off",
-          "status": "R",
-          "source": "Stacey 2026-11-09 (step 13 brief)",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-11-09 (step 13 brief)",
           "note": "Each member can turn each channel off."
         }
       ]
@@ -1484,8 +1483,8 @@
           "label": "Most proposals compared at once by \"✦ Compare these proposals\"",
           "value": 10,
           "unit": "proposals",
-          "status": "O",
-          "source": "Claude suggestion",
+          "status": "C",
+          "source": "Stacey 2026-11-10 (undecided numbers answers); was: Claude suggestion",
           "note": "Keeps one comparison inside one DELA run."
         },
         {
