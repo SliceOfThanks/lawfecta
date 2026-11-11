@@ -42,7 +42,7 @@ Changing it from "staging" to "live" is done in the database (the admin area loc
 | The yellow "Test site" label, top left | Shown | Gone | Wanted |
 | Email subjects | Start with "[Test site]" | No prefix | Wanted |
 | Text alerts to the team | Say "DELA staging" | Say "DELA live" | Wanted |
-| Confidential materials uploads | Allowed without a virus scan | Refused until a virus scanner is set up (`security.conf.scan_url`) | Keep the `confidential_materials` feature off for the pilot, or set up a scanner first. Ordinary files and document images are not affected. |
+| Confidential materials uploads | Allowed without a virus scan | Refused until a virus scanner is set up (the setting `confidential.scan_provider` set to "http", with the Supabase secrets `CONF_SCAN_URL` and `CONF_SCAN_TOKEN`) | Keep the confidential materials switch off for the pilot, or set up a scanner first. Ordinary files and document images are not affected. |
 | "Run the monthly renewal now" button (admin) | Works | Refused | Fine: it is a test tool |
 | "Reset the test site" tool (admin) | Works | Refused | Wanted: it must never run on real data |
 | Watching "Live" from the test site, release push and codes | Run every minute | Stop | Fine: there is no second site any more. The Releases tab becomes history only. |
