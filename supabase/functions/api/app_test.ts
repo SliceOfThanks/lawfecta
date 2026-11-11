@@ -252,6 +252,8 @@ Deno.test("release control: code by email and text, steps, watch, Live check", a
   const code = String(mail.body.subject).split(": ")[1];
   assertEquals(code.length, 6);
   assert(mail.body.subject.startsWith("[Test site]"));
+  const postal = (await pool.query("select value #>> '{}' v from settings where key = 'email.postal_address'")).rows[0].v;
+  assert(postal.length > 10 && String(mail.body.textContent).includes(postal), "the code email carries Lawfecta's postal address");
   assert(String(text.body.content).includes(code), "same code by text");
   assertEquals(text.body.recipient, "15555550123");
   assertEquals(text.key, "brevo-test-key");

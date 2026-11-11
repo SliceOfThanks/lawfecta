@@ -4785,7 +4785,7 @@ async function sendCode(ctx: Ctx, j: Record<string, any>) {
     if (p.email === true && t.to_email) {
       const provider = pickProvider(t.sender);
       const siteUrl = await rpc<string>(ctx, "dela_setting_text", { p_key: "site.url", p_default: "" });
-      const mail = buildNotice({ title: "Your DELA code: " + code, body: line, link: "/dela-admin", siteUrl, appPath: "/dela-admin", environment: t.environment, logoUrl: await codeLogo(ctx) });
+      const mail = buildNotice({ title: "Your DELA code: " + code, body: line, link: "/dela-admin", siteUrl, appPath: "/dela-admin", environment: t.environment, logoUrl: await codeLogo(ctx), postal: await setting(ctx, "email.postal_address", "") });
       const r = await provider.send({ from: { name: t.from_name, email: t.from_address }, to: { email: t.to_email, name: t.to_name || undefined }, subject: mail.subject, html: mail.html, text: mail.text, tags: [t.environment, "release_code"] },
         provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl });
       if (r.ok) sent++; else errors.push(r.error);
@@ -5029,11 +5029,19 @@ async function planSyncJob(ctx: Ctx, p: Record<string, any>) {
   return { ok: true };
 }
 
+// The visitor's address. Supabase's front door (Cloudflare) sets cf-connecting-ip and x-real-ip itself and overwrites
+// anything the sender put there (checked on the site 2026-11-11). x-forwarded-for can be typed by the sender, so it is
+// only the fallback for places with no front door (local runs).
+export function clientIp(req: Request): string {
+  const h = (k: string) => (req.headers.get(k) ?? "").split(",")[0].trim();
+  return (h("cf-connecting-ip") || h("x-real-ip") || h("x-forwarded-for")).slice(0, 80);
+}
+
 export async function handle(req: Request, deps: Deps): Promise<Response> {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(req, deps) });
   const url = new URL(req.url);
   const path = apiPath(url);
-  const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim().slice(0, 80);
+  const ip = clientIp(req);
   try {
     let body: Record<string, unknown> = {};
     // Speech and profile photos arrive as the file itself, not JSON; their handlers read them with their own size limits

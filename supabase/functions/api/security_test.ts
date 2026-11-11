@@ -245,4 +245,13 @@ Deno.test("the /security page: facts from settings, and the contact form (trap f
   assertEquals((await call("GET", "/admin/security", fl.token)).status, 403);
 });
 
+Deno.test("the contact form limit counts the visitor's real address, whatever the sender types in x-forwarded-for", async () => {
+  const send = async (typed: string, i: number) => (await (await handle(new Request("http://localhost/functions/v1/api/public/security/contact", {
+    method: "POST", headers: { origin: "https://lawfecta.com", "content-type": "application/json", "cf-connecting-ip": "198.51.100.44", "x-forwarded-for": typed },
+    body: JSON.stringify({ email: "sam@example.com", message: "Typed address " + i }),
+  }), deps)).json());
+  for (let i = 0; i < 5; i++) assertEquals((await send("203.0.113." + (100 + i), i)).ok, true);
+  assertEquals((await send("203.0.113.200", 6)).reason, "too_many_messages");
+});
+
 Deno.test("teardown", async () => { await pool.end(); });

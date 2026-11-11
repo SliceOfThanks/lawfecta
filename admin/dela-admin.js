@@ -103,26 +103,26 @@
     ["g_start", "Start here", "What this admin area is and how to read it", [
       { p: "DELA is the part of Lawfecta where solo attorneys hand work to freelance paralegals. This admin area is where the Lawfecta Team runs it: who can use DELA, plans and prices, which features are on, and sending new versions to members." },
       { terms: [
-        ["Two copies", "There are two copies of DELA. The test site is hirelegalhelp.com, where every new version goes first so you can try it. Live is lawfecta.com, for real members, and gets a version only when you push it. The badge at the top, next to DELA Admin, always says which one you are in."],
+        ["Two copies", "There are two copies of DELA. The test site is lawfecta.co, where every new version goes first so you can try it. Live is lawfecta.com, for real members, and gets a version only when you push it. The badge at the top, next to DELA Admin, always says which one you are in."],
         ["The ? buttons", "Click a ? next to a title or number to see what it means. Click it again to close it."],
         ["Show and Hide", "Long sections fold. Click Show to open one and Hide to close it. This browser remembers your choice."],
       ] },
       { note: "New here? Read Test site and Live, then How a version gets to Live, before you change anything." },
     ]],
-    ["g_copies", "Test site and Live", "hirelegalhelp.com for testing, lawfecta.com for members", [
+    ["g_copies", "Test site and Live", "lawfecta.co for testing, lawfecta.com for members", [
       { two: [
-        ["Test site: hirelegalhelp.com", "stage", ["Where you try every new version.", "Used by the Lawfecta Team and the people on its access list.", "Every new version runs here first, as soon as Claude finishes it.", "Claude builds and changes things here."]],
+        ["Test site: lawfecta.co", "stage", ["Where you try every new version.", "Used by the Lawfecta Team and the people on its access list.", "Every new version runs here first, as soon as Claude finishes it.", "Claude builds and changes things here."]],
         ["Live: lawfecta.com", "live", ["The real copy, on the main Lawfecta site.", "Used by real members.", "Changes only when you push a tested version.", "Claude never changes Live."]],
       ] },
       { p: "Each copy has its own database. Nothing typed on the test site ever shows up for real members. If a new version has a problem, it shows up on the test site, where nobody real is affected." },
-      { terms: [["Testers", "Testers use hirelegalhelp.com. Add them to the access list in the test site's admin area. Nobody needs to be sent between sites."]] },
+      { terms: [["Testers", "Testers use lawfecta.co. Add them to the access list in the test site's admin area. Nobody needs to be sent between sites."]] },
     ]],
     ["g_push", "How a version gets to Live", "The six steps, from Claude's build to members", [
       { flow: ["Built on the test site", "Automatic tests", "Your ChatGPT test", "You mark it tested", "Push to Live", "15 minute watch"] },
       { steps: [
         ["Built on the test site", "Claude builds the change and switches the test site to it. It appears at the top of Release Control as Ready to test."],
         ["Automatic tests", "GitHub runs every automatic test on that exact code. The step turns green only when all of them pass."],
-        ["Your ChatGPT test", "Claude gives you one test prompt. Paste it into ChatGPT and test hirelegalhelp.com with it. Send ChatGPT's report to Claude, who saves it with the version."],
+        ["Your ChatGPT test", "Claude gives you one test prompt. Paste it into ChatGPT and test lawfecta.co with it. Send ChatGPT's report to Claude, who saves it with the version."],
         ["You mark it tested", "On Release Control, tick \"I tested this version on the test site and it is ready\"."],
         ["Push to Live", "Click Push to Live, enter your release password, then the 6 digit code sent to you. The button stays grey until steps 1 to 4 are done, and says what is missing."],
         ["15 minute watch", "Release Control shows each part of the push as it happens. Live is then checked every minute for 15 minutes. If all is well, the version shows as Live now."],
@@ -1700,7 +1700,7 @@
   // Plain-language help behind every "?" on Release Control: what it is, and what it tells you
   var HELP = {
     guide: "A plain-words manual: the two copies of DELA, how a version gets to Live, what a push moves, going back, and what every tab is for.",
-    staging: "The test site, hirelegalhelp.com, is DELA's test copy. Only you and the people on its access list use it. Every new version runs here first, so problems show up here before members ever see them.",
+    staging: "The test site, lawfecta.co, is DELA's test copy. Only you and the people on its access list use it. Every new version runs here first, so problems show up here before members ever see them.",
     staging_health: "Healthy means the test site's database answers and its background helper ran in the last 10 minutes. Worker stopped means scheduled work (emails, reminders, checking Live) is not running. Tell Claude.",
     version_running: "The version this copy is running right now. On the test site it should be the version you are testing. \"code\" plus 7 letters means a build that was not recorded as a version.",
     worker: "DELA's background helper runs every minute. It sends emails and reminders, writes the daily summary and checks Live. More than 10 minutes ago means something is stuck.",
@@ -1734,7 +1734,7 @@
     ov_recent: "The latest sign ins, refusals and changes on this copy. The full list is on the Audit log tab.",
     ov_pause: "Stops all of DELA, or one part, at once, with no push. Members see a short message. The Lawfecta Team keeps working. You get an email each time it is turned on or off.",
     acc: "Who may open DELA on this copy. While DELA is in testing, only people on this list (and the Lawfecta Team) can get in. Removing someone signs them out at once.",
-    acc_add: "Add a member by their BD member ID (BD admin, Members). They can then open this copy of DELA. Use member numbers from this site only: hirelegalhelp.com and lawfecta.com number their members separately.",
+    acc_add: "Add a member by their BD member ID (BD admin, Members). They can then open this copy of DELA. Use member numbers from this site only: lawfecta.co and lawfecta.com number their members separately.",
     acc_list: "Members who may open this copy of DELA. Each line shows when they were added and why.",
     people: "Everyone who has opened DELA, with their sides (attorney, freelancer) and plans. You can give a side and plan here for testing, or place a hold.",
     plans: "The eight DELA plans, four per side. Attorneys and freelancers have separate prices, fees and limits. A change is saved as a draft and applies only when you approve it. Old versions are kept.",
@@ -1821,7 +1821,7 @@
     var s = d.here;
     var sb = tipPair("staging_health");
     var staging = h("div", { class: "card env" },
-      titled("h2", "Test site: hirelegalhelp.com", "staging", h("span", { class: "row", style: "gap:6px" }, h("span", { class: "badge " + (s.worker_ok ? "C" : "bad"), text: s.worker_ok ? "Healthy" : "Worker stopped" }), sb[0])),
+      titled("h2", "Test site: lawfecta.co", "staging", h("span", { class: "row", style: "gap:6px" }, h("span", { class: "badge " + (s.worker_ok ? "C" : "bad"), text: s.worker_ok ? "Healthy" : "Worker stopped" }), sb[0])),
       sb[1],
       h("p", { class: "muted small", style: "margin-top:6px", text: "You and your testers. Every new version goes here first." }),
       h("div", { class: "kv" }, kv("Version running", versionOf(d, s.code_version), "version_running"), kv("Worker last ran", ago(s.worker_last_run), "worker"),

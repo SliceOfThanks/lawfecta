@@ -1,7 +1,7 @@
 <?php
 /* DELA-Security: the public security page. Place this widget on the /security page. Version 1.0.0
    Anyone can open it: it needs no login and never reads who is signed in.
-   data-api-staging is the DELA Staging api address (the test site, hirelegalhelp.com).
+   data-api-staging is the DELA Staging api address (the pilot site, lawfecta.co).
    data-api stays empty on the test site. On lawfecta.com it holds the Live api address.
    data-code is the GitHub home of the DELA code. */
 ?>

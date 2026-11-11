@@ -520,9 +520,11 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
     var ids = parts.filter(function (p) { return p.indexOf("uids_") === 0; })[0];
     return ids ? ids.slice(5).split("_") : [];
   };
+  // The site's own name in the help text, so it stays right when the address changes (lawfecta.co since 2026-11-11)
+  var SITE_HOST = (typeof location !== "undefined" && location.hostname ? location.hostname : "this website").split("www.").join("");
   D.LOGIN_CONFLICT_TEXT = [
     "This browser has more than one website login saved, so DELA cannot tell which account is yours and does not sign anyone in.",
-    "To fix it: 1. Log out of the website. 2. Clear this website's cookies: in Chrome, click the icon left of the web address, then Cookies and site data, then Manage on-device site data, and delete every hirelegalhelp.com entry. In Safari or Firefox, open Settings, then Privacy, and remove the data for hirelegalhelp.com. 3. Log in again with your own account and reload this page.",
+    "To fix it: 1. Log out of the website. 2. Clear this website's cookies: in Chrome, click the icon left of the web address, then Cookies and site data, then Manage on-device site data, and delete every " + SITE_HOST + " entry. In Safari or Firefox, open Settings, then Privacy, and remove the data for " + SITE_HOST + ". 3. Log in again with your own account and reload this page.",
     "Tip: test accounts are easiest in a private window, so your own login stays separate.",
   ];
   D.asset = function (root, rel) { return (root.getAttribute("data-base") || "") + "/" + rel; };
