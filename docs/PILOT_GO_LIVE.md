@@ -23,6 +23,8 @@ On the site today (counts from 2026-11-11): 7 accounts, all made up except Stace
 
 **Not touched by the script:** files in Supabase storage (remove the test files there by hand, or leave them; nothing points at them afterwards), and everything in the Stripe sandbox.
 
+**Stacey's instructions, 2026-11-11:** clearing is not a priority and must wait for her word. When it runs: every financial record of the test accounts is cleared (agreements, milestones, payments, payouts, refunds, ledger rows, disputes, Stripe ids such as the saved card and the payout account), and she keeps one attorney test account and one freelancer test account to go on testing with: DELA Test Attorney (BD 687) and DELA Test Freelancer (BD 688), next to her own (BD 686). So the keep list is `686,687,688`. After the live Stripe key goes in, the test freelancer sets up payouts again and the test attorney pays with a real card, because the sandbox ids are gone.
+
 **Before running:** a backup exists (Supabase, the Lawfecta AI project, Database, Backups), and Stacey has said which accounts to keep. Clear BEFORE the live Stripe key goes in: the test agreements, the test attorney's saved card and the test freelancer's payout account carry sandbox ids the live account does not know.
 
 ## 2. The live Stripe key and webhook (Stacey, in Supabase)
