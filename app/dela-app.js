@@ -5979,6 +5979,7 @@
       } }));
     c.appendChild(h("h3", null, D.term("Fees", "platform_fee")));
     c.appendChild(h("ul", null, (r.fee_lines || []).map(function (l) { return h("li", { text: l }); })));
+    if (["draft", "sent", "signing"].indexOf((r.agreement || {}).status) < 0) c.appendChild(h("p", { class: "small muted", text: "These are the amounts agreed at signing. What was actually paid, refunded and paid out is listed under Payments and on each milestone." }));
     var rub = h("details", null, h("summary", { text: "Completion checklist (how DELA checks each milestone)" }),
       h("p", { class: "small muted", text: "Agreed at signing. A score of " + ((b.limits || {}).pass_score || 90) + " or more with every required item met passes, then the attorney reviews it. DELA's check is not a legal review." }));
     (b.rubric || []).forEach(function (x) {
@@ -7840,15 +7841,17 @@
     var cps = r.checkpoints || [];
     if (!cps.length) return null;
     var att = r.role === "attorney";
-    var c = h("div", { class: "card" }, h("h2", { text: "Attorney decisions" }), h("p", { class: "small muted", text: "These steps need the attorney's decision. The work waits at each one until the attorney approves it here." }));
+    // A finished engagement takes no more decisions: show what happened, with no buttons (pilot live check 2026-11-11)
+    var closed = ["completed", "canceled"].indexOf((r.agreement || {}).status) >= 0;
+    var c = h("div", { class: "card" }, h("h2", { text: "Attorney decisions" }), h("p", { class: "small muted", text: closed ? "These steps were for the attorney to decide. The engagement is closed, so nothing more is needed here." : "These steps need the attorney's decision. The work waits at each one until the attorney approves it here." }));
     cps.forEach(function (cp) {
       var note = h("input", { style: "width:100%", "aria-label": "Note for step " + cp.step_no, placeholder: att ? "A note with your decision (optional)" : "Anything the attorney should know (optional)" });
-      var st = cp.status === "approved" ? "Approved" + (cp.approved_by ? " by " + cp.approved_by : "") + (cp.approval_note ? ": " + cp.approval_note : "") : cp.status === "requested" ? "Waiting for the attorney" + (cp.requested_note ? ": " + cp.requested_note : "") : "Not reached yet";
+      var st = cp.status === "approved" ? "Approved" + (cp.approved_by ? " by " + cp.approved_by : "") + (cp.approval_note ? ": " + cp.approval_note : "") : cp.status === "requested" ? "Waiting for the attorney" + (cp.requested_note ? ": " + cp.requested_note : "") : closed ? "Not used: the engagement closed without it" : "Not reached yet";
       var row = h("div", { style: "margin:6px 0" }, h("div", { class: "row" }, h("b", { class: "grow", text: "Step " + cp.step_no + ": " + cp.text }), h("span", { class: "badge " + (cp.status === "approved" ? "ready" : cp.status === "requested" ? "held" : ""), text: st })));
-      if (!att && cp.status === "pending") row.appendChild(h("div", { class: "row" }, note, h("button", { class: "blue small", type: "button", onclick: function () {
+      if (!closed && !att && cp.status === "pending") row.appendChild(h("div", { class: "row" }, note, h("button", { class: "blue small", type: "button", onclick: function () {
         api.post("/engagements/checkpoint", { agreement_id: r.agreement.id, step_no: cp.step_no, note: note.value }).then(engOk).then(function () { engReload("The attorney was asked to decide."); }).catch(engFail);
       } }, "Ask the attorney to decide")));
-      if (att && cp.status !== "approved") row.appendChild(h("div", { class: "row" }, note, h("button", { class: "blue small", type: "button", onclick: function () {
+      if (!closed && att && cp.status !== "approved") row.appendChild(h("div", { class: "row" }, note, h("button", { class: "blue small", type: "button", onclick: function () {
         api.post("/engagements/checkpoint", { agreement_id: r.agreement.id, step_no: cp.step_no, note: note.value }).then(engOk).then(function () { engReload("Approved. The freelancer can go on."); }).catch(engFail);
       } }, "Approve this step")));
       c.appendChild(row);

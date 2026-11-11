@@ -235,7 +235,11 @@ Deno.test("gigs: SOPs and Workflows only; a workflow hands over only the freelan
   assertEquals((await one("select dela_submission_create($1, $2, '{\"statement\":\"All done now, nothing open.\",\"request_id\":\"x2\"}') r", [fl.id, ms])).r.reason, "waiting_for_attorney");
   assertEquals((await call("POST", "/engagements/checkpoint", fl.token, { agreement_id: ag, step_no: 2 })).body.duplicate, true);
   assertEquals((await call("POST", "/engagements/checkpoint", att.token, { agreement_id: ag, step_no: 2, note: "Fee approved" })).body.ok, true);
-  assertEquals((await one("select dela_submission_create($1, $2, '{\"statement\":\"All done now, nothing open.\",\"request_id\":\"x3\"}') r", [fl.id, ms])).r.ok, true);
+  assertEquals((await one("select dela_submission_create($1, $2, '{\"statement\":\"All done now, nothing open.\",\"request_id\":\"x3\"}') r", [fl.id, ms])).r.ok, true);  // A closed engagement takes no more decisions (pilot live check 2026-11-11)
+  await pool.query("update engagement_checkpoints set status = 'pending' where agreement_id = $1; update agreements set status = 'completed' where id = $1".replace(/\$1/g, "'" + ag + "'"));
+  assertEquals((await call("POST", "/engagements/checkpoint", att.token, { agreement_id: ag, step_no: 2 })).body.reason, "agreement_closed");
+  assertEquals((await call("POST", "/engagements/checkpoint", fl.token, { agreement_id: ag, step_no: 2 })).body.reason, "agreement_closed");
+  assertEquals((await one("select status from engagement_checkpoints where agreement_id = $1 and step_no = 2", [ag])).status, "pending");
 });
 
 Deno.test("older playbooks: the type check converts them, the old version stays, the owner is told and can change the type", async () => {

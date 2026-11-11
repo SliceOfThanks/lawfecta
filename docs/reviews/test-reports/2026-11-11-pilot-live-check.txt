@@ -1,0 +1,35 @@
+DELA pilot live check
+Date: November 11, 2026 (America/Los_Angeles)
+Site: https://www.lawfecta.co (Test site)
+Scope: The 13 numbered checks in READY-pilot-live-check-chatgpt-prompt.txt. PASS means the stated check passed; it is not a full-site certification.
+
+1 PASS Clicked Unsubscribe once; expected red error appeared: "This unsubscribe link did not work. Open the link from your most recent DELA email, or write to us with the form at the bottom of this page."
+2 PASS Test freelancer login completed by user after email and password were filled.
+3 PASS DELA guide had a pink bubble and "See my invitations" button. Exact message: "1 attorney invited you to a gig. Answer soon; an invited proposal does not use your monthly allowance."
+4 PASS Paid to you: $190; Payouts to your bank: Ready.
+5 PASS Email checkbox initially ticked with the exact expected wording; unticking showed Saved; reticking showed Saved; reload retained ticked email and Seen checkboxes. Exact email wording: "Email me reminders and alerts, such as new gig alerts and next-step reminders. Emails about your account, payments and signed work always arrive."
+6 PASS Freelancer signed out; redirected to /login?action=loggedout.
+7 PASS Test attorney login completed by user after email and password were filled.
+8 PASS Repeat: Run a Conflict Check agreement opened without error; expanded The terms. First 12 words: "DRAFT FOR LAWFECTA'S LAWYER TO REVIEW. Not for live payments until approved."
+9 PASS Payments and milestone statuses matched. Exact payment lines: "Nov 10, 2026: $165 (includes the platform fee $15), Paid" and "Nov 10, 2026: $150, Paid". Milestone 1 (Draft): Accepted; "Payout: $142.50, sent to your bank"; "Submission 3: Accepted | DELA's score 100 of 100". Milestone 2 (Final): Accepted; "Payout: $47.50, sent to your bank".
+10 PASS Attorney signed out; redirected to /login?action=loggedout.
+11 PASS Owner login completed by user; admin identified Stacey Lake (owner). Owner email was filled; password and reCAPTCHA completed by user.
+12 PASS Payments / Money on DELA: Charged $315; Held now $2,800; Paid out $190; Refunded $100; Attorney fees $15; Freelancer fees $10. All five expected totals matched. Page stated Stripe is in test mode and live payments switch is off.
+13 PASS Owner signed out; redirected to /login?action=loggedout.
+
+FAIL LIST
+None of the 13 specified checks failed.
+
+CONFUSING MESSAGES / OBSERVATIONS
+- The completed conflict-check engagement still shows "Attorney decisions", "Step 4: Review the recorded result and decide whether to clear or decline the matter.", "Not reached yet", and an "Approve this step" button. This conflicts with its completed status, delivery narrative saying the attorney decided to clear the matter, and Closeout stating nothing remains open. No approval was clicked.
+- The agreement's static Fees section says the freelancer fee is $15 and the freelancer receives $285, while actual payouts total $190 and admin freelancer fees total $10 after the $100 dispute refund. The dispute section explains the refund, but the static figures are not labeled as original agreement amounts.
+- Login branding reads "Welcome To LawWurk" on the Lawfecta site.
+- Freelancer navigation includes Agency, Library, Projects and Talent in addition to the tabs described in the supplied test guide; attorney navigation also includes Get set up.
+- The legacy DRAFT warning in the signed terms was expected by the supplied test instructions and was not counted as a failure.
+
+DELAYS / INTERRUPTIONS
+- No observed application loading or saving operation took longer than 60 seconds. User login and approval waits are excluded.
+- Browser control was briefly blocked by another extension popup; user dismissed it and testing resumed.
+
+FINAL STATE
+All three accounts signed out. Freelancer email reminders restored to on; Seen remained on. No payment, signature, review, deletion, release, or attorney decision was submitted. Only the expressly approved email-preference test changes were performed.
