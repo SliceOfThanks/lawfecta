@@ -24,7 +24,7 @@ import { CHECK_PROMPT, SENSITIVE_CHECK_PROMPT, clientDetails, messageLooksSensit
 import { CONTENT_TYPES, readText, sha256, sniff } from "./lib/files/check.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { completeness, emptyBody, fileName, normalize, removesReview, toCsv, toDocx, toHtml, toMarkdown, dayIn, type Body, type ExportMeta } from "./lib/playbooks/model.ts";
-import { keyAllowed, stripe, stripeV2, checkoutParams, verifyStripeSignature, accountStatus, accountStatusV2, recipientAccount, onboardingLink, ACCOUNT_V2_INCLUDE, STRIPE_V2_VERSION } from "./lib/payments/stripe.ts";
+import { keyAllowed, stripe, stripeV2, noAnswer, findCharge, checkoutParams, verifyStripeSignature, accountStatus, accountStatusV2, recipientAccount, onboardingLink, ACCOUNT_V2_INCLUDE, STRIPE_V2_VERSION } from "./lib/payments/stripe.ts";
 import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/webhooks/deliver.ts";
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, moneySummary, readTasks, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
@@ -62,9 +62,10 @@ class HttpError extends Error {
 
 const MAX_BODY = 64 * 1024;
 
-// The BD site DELA runs on (hirelegalhelp.com, BD site 24325, Stacey 2026-10-28), then lawfecta.com.
+// The BD site DELA runs on: hirelegalhelp.com (BD site 24325, Stacey 2026-10-28), renamed to lawfecta.co for the pilot
+// (Stacey 2026-11-11). Both addresses are allowed so nothing breaks at the moment of the change.
 // DELA_ORIGINS can override this list (comma separated) without a code change.
-const DEFAULT_ORIGINS = ["https://www.hirelegalhelp.com", "https://hirelegalhelp.com", "https://lawfecta.com", "https://www.lawfecta.com"];
+const DEFAULT_ORIGINS = ["https://lawfecta.co", "https://www.lawfecta.co", "https://www.hirelegalhelp.com", "https://hirelegalhelp.com", "https://lawfecta.com", "https://www.lawfecta.com"];
 
 // Supabase passes the full path (/functions/v1/api/...) or just /api/...; keep what follows "/api"
 function apiPath(url: URL): string {
@@ -3231,13 +3232,27 @@ async function monthlyTerms(ctx: Ctx) {
 
 // A month's charge with the saved payment method (the renewal, or a retry). Never Stripe's own retries: DELA's retry
 // days decide. A bank asking for the attorney's confirmation (3-D Secure) means a "Pay now" from the engagement page.
+// A charge on the saved payment method. When Stripe gives no answer, the same request is sent once more with the same
+// idempotency key: Stripe then returns the first charge's result and never charges twice.
+async function chargeSaved(ctx: Ctx, key: string, n: Record<string, any>, description: string) {
+  const params = { amount: n.amount_cents, currency: await setting(ctx, "payments.currency", "usd"), customer: n.customer, payment_method: n.payment_method,
+    off_session: "true", confirm: "true", description, metadata: { payment_id: n.payment_id }, transfer_group: "agreement_" + n.agreement_id };
+  const r = await stripe(f(ctx), key, "POST", "/payment_intents", params, n.idem_key);
+  return noAnswer(r) ? await stripe(f(ctx), key, "POST", "/payment_intents", params, n.idem_key) : r;
+}
+// Still no answer: the payment waits as "being confirmed" and the team is told. It is never marked failed here.
+async function chargeUnanswered(ctx: Ctx, n: Record<string, any>) {
+  await rpc(ctx, "dela_payment_result", { p_payment: n.payment_id, p_status: "processing", p_ref: "", p_customer: "", p_method: "", p_failure: "" });
+  await rpc(ctx, "dela_alert", { p_kind: "payments", p_title: "A charge got no answer from Stripe", p_body: "Stripe did not answer a charge on a saved payment method. DELA did not charge again. It checks Stripe's record within a day and settles the payment either way.", p_key: "unanswered:" + n.payment_id }).catch(() => null);
+}
+
 async function chargeMonth(ctx: Ctx, key: string, n: Record<string, any>): Promise<string> {
   if (!n.customer || !n.payment_method) {
     await rpc(ctx, "dela_payment_result", { p_payment: n.payment_id, p_status: "failed", p_ref: "", p_customer: "", p_method: "", p_failure: "no saved payment method" });
     return "failed";
   }
-  const r = await stripe(f(ctx), key, "POST", "/payment_intents", { amount: n.amount_cents, currency: await setting(ctx, "payments.currency", "usd"), customer: n.customer, payment_method: n.payment_method,
-    off_session: "true", confirm: "true", description: `Lawfecta: ${n.gig_title}, month ${n.period?.n}`, metadata: { payment_id: n.payment_id }, transfer_group: "agreement_" + n.agreement_id }, n.idem_key);
+  const r = await chargeSaved(ctx, key, n, `Lawfecta: ${n.gig_title}, month ${n.period?.n}`);
+  if (noAnswer(r)) { await chargeUnanswered(ctx, n); return "processing"; }
   if (r.ok) {
     await rpc(ctx, "dela_payment_ref", { p_payment: n.payment_id, p_ref: r.data.id, p_url: "", p_status: r.data.status === "processing" ? "processing" : "" });
     if (r.data.status === "succeeded") await rpc(ctx, "dela_payment_result", { p_payment: n.payment_id, p_status: "succeeded", p_ref: r.data.id, p_customer: n.customer, p_method: n.payment_method, p_failure: "" });
@@ -3288,8 +3303,9 @@ async function engagementPay(ctx: Ctx) {
 async function chargeOrCheckout(ctx: Ctx, key: string, n: Record<string, any>, forceCheckout: boolean) {
   const name = (n.monthly ? `Lawfecta: ${n.gig_title}, month ${n.period?.n}` : `Lawfecta: ${n.gig_title}, milestone ${n.milestone.seq}`) + (n.fee_cents ? " and the platform fee" : "");
   if (n.customer && n.payment_method && !forceCheckout) {
-    const r = await stripe(f(ctx), key, "POST", "/payment_intents", { amount: n.amount_cents, currency: await setting(ctx, "payments.currency", "usd"), customer: n.customer, payment_method: n.payment_method,
-      off_session: "true", confirm: "true", description: name, metadata: { payment_id: n.payment_id }, transfer_group: "agreement_" + n.agreement_id }, n.idem_key);
+    const r = await chargeSaved(ctx, key, n, name);
+    // No answer is not a failure: no second payment is made. Stripe's notice, or the daily check, settles it.
+    if (noAnswer(r)) { await chargeUnanswered(ctx, n); return { ok: true, status: "processing" }; }
     if (r.ok) {
       await rpc(ctx, "dela_payment_ref", { p_payment: n.payment_id, p_ref: r.data.id, p_url: "", p_status: r.data.status === "processing" ? "processing" : "" });
       if (r.data.status === "succeeded") await rpc(ctx, "dela_payment_result", { p_payment: n.payment_id, p_status: "succeeded", p_ref: r.data.id, p_customer: n.customer, p_method: n.payment_method, p_failure: "" });
@@ -3527,8 +3543,11 @@ async function stripeWebhook(ctx: Ctx) {
     case "payment_intent.succeeded":
     case "payment_intent.processing":
     case "payment_intent.payment_failed":
-      if (pid) await rpc(ctx, "dela_payment_result", { p_payment: pid, p_status: ev.type.endsWith("succeeded") ? "succeeded" : ev.type.endsWith("processing") ? "processing" : "failed",
-        p_ref: String(o.id ?? ""), p_customer: String(o.customer ?? ""), p_method: String(o.payment_method ?? ""), p_failure: String(o.last_payment_error?.message ?? "") });
+      if (pid) {
+        const pr = await rpc<Record<string, any>>(ctx, "dela_payment_result", { p_payment: pid, p_status: ev.type.endsWith("succeeded") ? "succeeded" : ev.type.endsWith("processing") ? "processing" : "failed",
+          p_ref: String(o.id ?? ""), p_customer: String(o.customer ?? ""), p_method: String(o.payment_method ?? ""), p_failure: String(o.last_payment_error?.message ?? "") });
+        if (pr?.double) await sendRefunds(ctx); // a second charge for a milestone already paid goes back at once
+      }
       break;
     case "account.updated": {
       const who = await rpc<string | null>(ctx, "dela_payout_account_by_ref", { p_ref: String(o.id ?? "") });
@@ -3665,6 +3684,15 @@ async function engagementsDaily(ctx: Ctx) {
   await sendReversals(ctx);
   const key = await stripeKey(ctx);
   if (key) {
+    // Charges that got no answer: Stripe's own record decides. Found and paid: it counts. No record: it failed, and the
+    // attorney can pay again. Stripe not reachable: it waits for the next day.
+    for (const p of (await rpc<Array<Record<string, any>>>(ctx, "dela_payments_unanswered", {}).catch(() => [])) ?? []) {
+      const c = await findCharge(f(ctx), key, String(p.id));
+      if (!c) continue;
+      if (c.found && c.status === "succeeded") { const pr = await rpc<Record<string, any>>(ctx, "dela_payment_result", { p_payment: p.id, p_status: "succeeded", p_ref: c.id, p_customer: c.customer, p_method: c.method, p_failure: "" }); if (pr?.double) await sendRefunds(ctx); }
+      else if (c.found && c.status === "processing") await rpc(ctx, "dela_payment_ref", { p_payment: p.id, p_ref: c.id, p_url: "", p_status: "processing" });
+      else await rpc(ctx, "dela_payment_result", { p_payment: p.id, p_status: "failed", p_ref: "", p_customer: "", p_method: "", p_failure: c.found ? "The charge did not go through" : "Stripe has no record of this charge" });
+    }
     for (const p of (await rpc<Array<Record<string, any>>>(ctx, "dela_payments_to_match", {})) ?? []) {
       const r = await stripe(f(ctx), key, "GET", "/payment_intents/" + encodeURIComponent(p.provider_ref));
       if (!r.ok) continue;

@@ -73,6 +73,6 @@ export function readSteps(text: string): Array<{ who: string; text: string }> {
 
 // Lawfecta's own links (meeting rooms, DELA, the BD sites) never count as moving off the platform
 export function withoutLawfectaLinks(text: string, roomDomain: string): string {
-  const hosts = ["lawfecta.com", "hirelegalhelp.com", roomDomain].filter(Boolean).map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+  const hosts = ["lawfecta.com", "lawfecta.co", "hirelegalhelp.com", roomDomain].filter(Boolean).map((h) => h.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
   return text.replace(new RegExp("https?://([a-z0-9-]+\\.)*(" + hosts.join("|") + ")(/[^\\s]*)?", "gi"), "");
 }

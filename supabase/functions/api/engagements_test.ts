@@ -4,7 +4,7 @@
 import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { handle, type Deps } from "./app.ts";
 import { sessionHash } from "./lib/crypto.ts";
-import { keyAllowed, stripeForm, stripeSignatureHeader, verifyStripeSignature, accountStatus, accountStatusV2 } from "./lib/payments/stripe.ts";
+import { keyAllowed, stripeForm, stripeSignatureHeader, verifyStripeSignature, accountStatus, accountStatusV2, findCharge } from "./lib/payments/stripe.ts";
 import { buildBody, feeLines, proposeMilestones, rubricFor, scoreFindings, termsText } from "./lib/engagements/agreement.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
@@ -21,10 +21,18 @@ const stripeSeen = new Map<string, unknown>();
 let decline = false;
 let checkFindings: Record<string, string> = {};
 let n = 0;
+let timeoutNext = 0; // the next charges on a saved payment method go through at Stripe, but DELA gets no answer
+const chargeByPayment = new Map<string, Record<string, unknown>>();
 function stripeAnswer(method: string, path: string, body: URLSearchParams): [number, unknown] {
   if (method === "POST" && path === "/payment_intents") {
     if (decline) return [402, { error: { message: "Your card was declined.", code: "card_declined" } }];
-    return [200, { id: "pi_" + (++n), status: "succeeded", amount: Number(body.get("amount")), customer: body.get("customer"), payment_method: body.get("payment_method") }];
+    const pi = { id: "pi_" + (++n), status: "succeeded", amount: Number(body.get("amount")), customer: body.get("customer"), payment_method: body.get("payment_method") };
+    chargeByPayment.set(String(body.get("metadata[payment_id]")), pi);
+    return [200, pi];
+  }
+  if (method === "GET" && path === "/payment_intents/search") {
+    const hit = chargeByPayment.get((String(body.get("query") ?? "").match(/'([0-9a-f-]{36})'/) ?? [])[1] ?? "");
+    return [200, { data: hit ? [hit] : [] }];
   }
   if (method === "POST" && path === "/checkout/sessions") return [200, { id: "cs_" + (++n), url: "https://checkout.stripe.test/c/" + n }];
   // Fix 2026-11-10 (Stacey's first Stripe run): Stripe refuses the v1 Accounts API for new Connect platforms, as the sandbox does
@@ -67,8 +75,9 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
     const idem = headers.get("idempotency-key") ?? "";
     stripeCalls.push({ method, path, body: String(init.body ?? u.search), idem });
     if (idem && stripeSeen.has(idem)) return Response.json(stripeSeen.get(idem));
-    const [status, out] = stripeAnswer(method, path, new URLSearchParams(String(init.body ?? "")));
+    const [status, out] = stripeAnswer(method, path, new URLSearchParams(String(init.body ?? (method === "GET" ? u.search.slice(1) : ""))));
     if (idem && status === 200) stripeSeen.set(idem, out);
+    if (timeoutNext > 0 && method === "POST" && path === "/payment_intents") { timeoutNext--; if (timeoutNext > 0) stripeSeen.delete(idem); throw new Error("The operation timed out"); }
     return Response.json(out, { status });
   }
   if (url.endsWith("/chat/completions")) {
@@ -470,6 +479,58 @@ Deno.test("a Stripe event that fails half way is processed when Stripe sends it 
   assertEquals((await ev("evt_lost1", "charge.dispute.created")).body.duplicate, true, "a third delivery of an event that worked is a duplicate");
   await ev("evt_lost2", "charge.dispute.closed", "won");
   assertEquals((await one("select status from agreements where id = $1", [ag])).status, "active", "left as it was found");
+});
+
+// Launch review 2026-11-10, fix 2: a charge that got no answer from Stripe was treated as failed and a second payment was
+// made; when the first had gone through, the attorney paid twice and the milestone was held twice
+Deno.test("no answer from Stripe never charges twice: the same charge is asked again, and a second paid charge is refunded in full", async () => {
+  const dc = await hire(fl, 60000, "dc");
+  await call("GET", "/agreements/get?id=" + dc, fl.token);
+  await call("POST", "/agreements/sign", fl.token, { id: dc, version: 1, typed_name: "Fran Freelancer", consent: true });
+  await call("POST", "/agreements/sign", att.token, { id: dc, version: 1, typed_name: "Ann Attorney", consent: true });
+  // 1. The safety net. The first payment was written off as failed, the attorney paid again, then the first one succeeds late.
+  await call("POST", "/engagements/pay", att.token, { id: dc });
+  const p1 = (await one("select id, amount_cents from payments where agreement_id = $1", [dc]));
+  await rpc("dela_payment_result", { p_payment: p1.id, p_status: "failed", p_ref: "", p_customer: "", p_method: "", p_failure: "timed out" });
+  await call("POST", "/engagements/pay", att.token, { id: dc });
+  const p2 = (await one("select id from payments where agreement_id = $1 and id <> $2", [dc, p1.id]));
+  await paid(p2.id, "pi_dc_second");
+  await paid(p1.id, "pi_dc_late");
+  const rf = await one("select amount_cents, status from refunds where payment_id = $1", [p1.id]);
+  assertEquals([rf?.amount_cents, rf?.status], [p1.amount_cents, "succeeded"], "the late first charge is refunded in full, at once");
+  assertEquals(Number((await one("select count(*) n from ledger_entries where agreement_id = $1 and kind = 'held'", [dc])).n), 1, "the milestone is held once");
+  assertEquals(Number((await one("select count(*) n from ledger_entries where agreement_id = $1 and kind = 'attorney_fee'", [dc])).n), 1, "the platform fee is taken once");
+  assert(stripeCalls.some((c) => c.path === "/refunds" && c.body.includes("pi_dc_late")), "Stripe is asked to refund the late charge");
+  // 2. A timeout on the saved payment method: asked again with the same key, Stripe returns the first charge. One charge.
+  const ms = (await pool.query("select id, seq from milestones where agreement_id = $1 order by seq", [dc])).rows;
+  await pool.query("update milestones set status = 'accepted', accepted_at = now() where id = $1", [ms[0].id]);
+  let before = stripeCalls.length;
+  timeoutNext = 1;
+  const r = (await call("POST", "/engagements/pay", att.token, { id: dc })).body;
+  assertEquals([r.ok, r.status], [true, "succeeded"], JSON.stringify(r));
+  const tries = stripeCalls.slice(before).filter((c) => c.path === "/payment_intents" && c.method === "POST");
+  assertEquals([tries.length, new Set(tries.map((c) => c.idem)).size], [2, 1], "asked twice with one idempotency key");
+  assertEquals(stripeCalls.slice(before).filter((c) => c.path === "/checkout/sessions").length, 0, "no second way to pay is offered");
+  assertEquals(Number((await one("select count(*) n from payments where milestone_id = $1", [ms[1].id])).n), 1, "one payment for the milestone");
+  // 3. Still no answer: the payment waits, nothing is marked failed, no new payment is made; Stripe's record settles it.
+  const dd = await hire(fl, 60000, "dd");
+  await call("GET", "/agreements/get?id=" + dd, fl.token);
+  await call("POST", "/agreements/sign", fl.token, { id: dd, version: 1, typed_name: "Fran Freelancer", consent: true });
+  await call("POST", "/agreements/sign", att.token, { id: dd, version: 1, typed_name: "Ann Attorney", consent: true });
+  await pool.query("update agreements set provider_customer = 'cus_1', provider_payment_method = 'pm_card_1' where id = $1", [dd]);
+  before = stripeCalls.length;
+  timeoutNext = 2;
+  const w = (await call("POST", "/engagements/pay", att.token, { id: dd })).body;
+  assertEquals([w.ok, w.status], [true, "processing"], JSON.stringify(w));
+  const wp = await one("select id, status from payments where agreement_id = $1", [dd]);
+  assertEquals(wp.status, "processing", "being confirmed, not failed");
+  assertEquals(Number((await one("select count(*) n from payments where agreement_id = $1", [dd])).n), 1, "no second payment");
+  assertEquals(stripeCalls.slice(before).filter((c) => c.path === "/checkout/sessions").length, 0);
+  await pool.query("update payments set updated_at = now() - interval '1 hour' where id = $1", [wp.id]);
+  assert(((await rpc("dela_payments_unanswered", {})) as Array<{ id: string }>).some((x) => x.id === wp.id), "listed for the daily check");
+  const found = await findCharge(fakeFetch, STRIPE_TEST, wp.id);
+  assertEquals([found?.found, found?.status], [true, "succeeded"], "Stripe's own record says it went through");
+  assertEquals((await findCharge(fakeFetch, STRIPE_TEST, crypto.randomUUID()))?.found, false, "and says so when it has no such charge");
 });
 
 Deno.test("every day: agreements not signed in time close and the attorney can choose again", async () => {

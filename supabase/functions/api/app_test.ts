@@ -94,7 +94,10 @@ Deno.test("cors falls back to the DELA BD site when DELA_ORIGINS is not set", as
   assertEquals((await req("https://www.hirelegalhelp.com")).headers.get("access-control-allow-origin"), "https://www.hirelegalhelp.com");
   assertEquals((await req("https://hirelegalhelp.com")).headers.get("access-control-allow-origin"), "https://hirelegalhelp.com");
   assertEquals((await req("https://www.lawfecta.com")).headers.get("access-control-allow-origin"), "https://www.lawfecta.com");
-  assertEquals((await req("https://evil.invalid")).headers.get("access-control-allow-origin"), "https://www.hirelegalhelp.com");
+  // The pilot's address (Stacey 2026-11-11): lawfecta.co is allowed next to the old one, and is the default
+  assertEquals((await req("https://lawfecta.co")).headers.get("access-control-allow-origin"), "https://lawfecta.co");
+  assertEquals((await req("https://www.lawfecta.co")).headers.get("access-control-allow-origin"), "https://www.lawfecta.co");
+  assertEquals((await req("https://evil.invalid")).headers.get("access-control-allow-origin"), "https://lawfecta.co");
 });
 
 let ownerSession = "";
