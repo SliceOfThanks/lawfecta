@@ -4642,9 +4642,15 @@ async function worker(ctx: Ctx) {
     await rpc(ctx, "dela_release_expire", {});
     await checkLive(ctx);
   }
-  const jobs = await rpc<Array<Record<string, any>>>(ctx, "dela_job_lease", { p_limit: 25, p_lease_seconds: 120 }) ?? [];
+  // One job is claimed at a time, each with its own 5-minute lease, so a slow job never lets the leases of the jobs
+  // behind it run out (an overlapping run would then do them a second time). A run stops taking new jobs after 50 seconds.
+  const jobs: Array<Record<string, any>> = [];
   const done: Record<string, number> = {};
-  for (const j of jobs) {
+  const startedAt = Date.now();
+  while (jobs.length < 25 && Date.now() - startedAt < 50000) {
+    const j = ((await rpc<Array<Record<string, any>>>(ctx, "dela_job_lease", { p_limit: 1, p_lease_seconds: 300 })) ?? [])[0];
+    if (!j) break;
+    jobs.push(j);
     let result: { ok: boolean; error?: string; retry?: boolean };
     if (j.kind === "send_email" && await rpc<boolean>(ctx, "dela_paused", { p_area: "email" })) {
       await rpc(ctx, "dela_job_postpone", { p_job: j.id, p_seconds: 300 });
@@ -4798,6 +4804,8 @@ async function sendEmail(ctx: Ctx, id: string) {
     return { ok: true };
   }
   const provider = pickProvider(n.sender);
+  // Only one run sends this email: a second run that overlaps finds it claimed and tries again later, when it is marked sent
+  if (!await rpc<boolean>(ctx, "dela_email_claim", { p_notification: id })) return { ok: false, retry: true, error: "email_in_progress" };
   // The unsubscribe link opens the public Security page (no login); mail apps can also stop the emails with one click
   const token = n.essential ? "" : await rpc<string>(ctx, "dela_email_unsub_token", { p_person: n.person_id }).catch(() => "");
   const unsubPage = token ? String(n.site_url).replace(/\/+$/, "") + "/security?unsubscribe=" + token : "";
@@ -4814,6 +4822,7 @@ async function sendEmail(ctx: Ctx, id: string) {
     return { ok: true };
   }
   if (!r.retry) await rpc(ctx, "dela_notification_mark", { p_notification: id, p_status: "failed", p_provider: provider.key, p_ref: "", p_error: r.error });
+  else await rpc(ctx, "dela_email_release", { p_notification: id }); // not sent: the next try may claim it at once
   return { ok: false, retry: r.retry, error: r.error };
 }
 

@@ -449,6 +449,33 @@ Deno.test("email footer: the postal address on every email; an unsubscribe link 
   } finally { await pool.query(`update settings set value = '"log"' where key = 'email.sender'`); await pool.query("delete from email_optouts"); }
 });
 
+// Launch review 2026-11-10, fix 5: two overlapping worker runs could both send the same email
+Deno.test("an email is sent by one run only: it is claimed first, and a claim that was not used is given back", async () => {
+  const owner = (await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9001, name: "Stacey" }) } })).body.session;
+  const key = "claim-test:" + crypto.randomUUID();
+  await pool.query(`select dela_notify(jsonb_build_object('person_id', dela_session_resolve($1)->>'person_id', 'kind', 'test', 'email', true, 'title', 'Claim test', 'body', 'x', 'dedupe_key', $2::text))`, [await sessionHashOf(owner), key]);
+  const id = (await pool.query("select id from notifications where dedupe_key = $1", [key + ":email"])).rows[0].id;
+  const claim = async () => (await pool.query("select dela_email_claim($1) c", [id])).rows[0].c;
+  assertEquals([await claim(), await claim()], [true, false], "the first run gets it; an overlapping run does not");
+  await pool.query("select dela_email_release($1)", [id]);
+  assertEquals(await claim(), true, "given back after a send that did not happen");
+  await pool.query("update notifications set claimed_at = now() - interval '5 minutes' where id = $1", [id]);
+  assertEquals(await claim(), true, "a claim left by a run that stopped runs out before the job is tried again");
+  // Through the worker: a run that finds the email claimed does not send it; it is sent once the claim is free
+  await pool.query(`update settings set value = '"brevo"' where key = 'email.sender'`);
+  try {
+    outbox.length = 0;
+    await call("POST", "/worker", { headers: { "x-dela-worker": WORKER } });
+    assertEquals(outbox.filter((o) => String(o.body?.subject ?? "").includes("Claim test")).length, 0, "claimed by another run: not sent by this one");
+    assertEquals((await pool.query("select status from notifications where id = $1", [id])).rows[0].status, "queued");
+    await pool.query("select dela_email_release($1)", [id]);
+    await pool.query("update jobs set run_at = now(), status = 'queued' where kind = 'send_email' and payload->>'notification_id' = $1", [id]);
+    await call("POST", "/worker", { headers: { "x-dela-worker": WORKER } });
+    await call("POST", "/worker", { headers: { "x-dela-worker": WORKER } });
+    assertEquals(outbox.filter((o) => String(o.body?.subject ?? "").includes("Claim test")).length, 1, "sent once");
+  } finally { await pool.query(`update settings set value = '"log"' where key = 'email.sender'`); }
+});
+
 Deno.test("notice emails stay on the Lawfecta site", () => {
   const base = { title: "Hi <b>", body: "Line", siteUrl: "https://lawfecta.com/", appPath: "/dela", environment: "staging" };
   assertEquals(noticeLink({ ...base, link: "https://evil.invalid" }), "https://lawfecta.com/dela");

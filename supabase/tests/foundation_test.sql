@@ -186,6 +186,11 @@ begin
   perform 1 from dela_job_lease(10, 30);
   update jobs set lease_until = now() - interval '1 second' where id = v_job;
   perform t_ok(exists (select 1 from dela_job_lease(10, 30) where id = v_job), 'a job whose worker died is picked up again');
+  -- Launch review fix 5: a job whose worker stops on every try is not picked up forever
+  update jobs set max_attempts = 2, lease_until = now() - interval '1 second' where id = v_job;
+  perform t_ok(not exists (select 1 from dela_job_lease(10, 30) where id = v_job), 'after the last allowed try, a job whose worker stopped is not picked up again');
+  perform t_ok((select status from jobs where id = v_job) = 'dead', 'it stops for good');
+  perform t_ok(exists (select 1 from audit_log where action = 'job_dead' and object_id = v_job::text), 'and that is in the audit log');
 
   -- Notifications
   r := dela_notify(jsonb_build_object('person_id', fl_id, 'kind', 'test', 'title', 'Hello', 'email', true, 'dedupe_key', 'n-1'));
