@@ -6,7 +6,7 @@ Claude already tested all of this with the real api and database: 12 api tests a
 
 Before you paste this:
 1. The logins are filled in. Passwords are not kept on GitHub: use the ready-to-paste copy Claude sent you in chat, or replace TEST_PASSWORD with the test password.
-2. Upload the tech catalog first if you have not yet (owner, https://www.hirelegalhelp.com/dela-admin, "Tech catalog" tab). Group 3 checks it.
+2. Upload the tech catalog first if you have not yet (owner, https://www.lawfecta.co/dela-admin, "Tech catalog" tab). Group 3 checks it.
 3. The Lawfecta login has reCAPTCHA, which ChatGPT cannot pass. Each time ChatGPT reaches the login page:
    1. Click "Take over".
    2. Log in with the account it names.
@@ -17,19 +17,19 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything wrong or confusing. Never type real client information; use only made-up details.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything wrong or confusing. Never type real client information; use only made-up details.
 
 Logins:
 - test attorney: stacey+dela-attorney@lawfecta.com (password TEST_PASSWORD)
 - test freelancer: stacey+dela-freelancer@lawfecta.com (password TEST_PASSWORD)
 - owner: stacey@lawfecta.com (password TEST_PASSWORD)
 
-The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 
 To sign out at the end of a group, click the initials in the top right of the DELA page, then "Sign out".
 
 1. Attorney (ask me to log in as the test attorney)
-1. Open www.hirelegalhelp.com/dela?tab=projects. Expect "Projects" with a "Post a new gig" card at the top and "Your gigs" below it.
+1. Open www.lawfecta.co/dela?tab=projects. Expect "Projects" with a "Post a new gig" card at the top and "Your gigs" below it.
 2. In the "Post a new gig" card:
    1. In "Playbook", choose "New Family Law Client Intake After Signature".
    2. Type 100 in "Budget from ($)" and 200 in "Budget to ($)".
@@ -44,7 +44,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
 10. Sign out.
 
 2. Freelancer (ask me to log in as the test freelancer)
-1. Open www.hirelegalhelp.com/dela?tab=work. Expect "Work" with a green line like "5 of 5 proposals left this month", then "Invitations (1)", "Matches", "Drafts" and "Sent proposals".
+1. Open www.lawfecta.co/dela?tab=work. Expect "Work" with a green line like "5 of 5 proposals left this month", then "Invitations (1)", "Matches", "Drafts" and "Sent proposals".
 2. Click the gig under "Invitations". Expect the public version (task, budget, deadline, steps, tools), a "The full playbook" card with a faint "Shared with ..." watermark, and no milestones.
 3. Under "Questions", type "Which intake form do you use?" and click "Ask the attorney". Expect "Question sent".
 4. Type "Can you pay me on Venmo instead?" and click "Ask the attorney". Expect a message that DELA is holding it for a check by the Lawfecta Team.
@@ -58,7 +58,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
 9. Sign out.
 
 3. Owner (ask me to log in as the owner)
-1. Open www.hirelegalhelp.com/dela-admin and click "Gigs" in the row of tabs near the top. Expect:
+1. Open www.lawfecta.co/dela-admin and click "Gigs" in the row of tabs near the top. Expect:
    - "Held for a check (1)": the Venmo question, labeled "payment outside Lawfecta"
    - "Gigs": the new gig, with its proposals and matches
    - "Proposals sent this month, by plan"
@@ -68,13 +68,13 @@ To sign out at the end of a group, click the initials in the top right of the DE
 5. Sign out.
 
 4. Check the results (two short logins)
-1. Test attorney: open www.hirelegalhelp.com/dela?tab=projects and click the gig.
+1. Test attorney: open www.lawfecta.co/dela?tab=projects and click the gig.
    1. Click "Questions" in the row of views. Expect only "Which intake form do you use?" (not the Venmo one). Type an answer and click "Answer for everyone". Expect "Answered for every applicant".
    2. Click "Proposals". Expect the proposal with the price, "Within the budget", what it includes and leaves out, the schedule and qualifications.
    3. Click "Choose" and confirm. Expect the gig to say "Filled".
    4. Click "Ask DELA" in the row of tabs and ask: "Which practice management software should a solo family law firm use?" Expect an answer that names only tools from the Lawfecta catalog.
    5. Sign out.
-2. Test freelancer: open www.hirelegalhelp.com/dela?tab=work. Under "Sent proposals" the gig shows "Chosen". Click it: the milestones "Draft" and "Final" now show. Click "Notices" in the dark top bar: expect "You were chosen for a gig". Sign out.
+2. Test freelancer: open www.lawfecta.co/dela?tab=work. Under "Sent proposals" the gig shows "Chosen". Click it: the milestones "Draft" and "Final" now show. Click "Notices" in the dark top bar: expect "You were chosen for a gig". Sign out.
 
 Final report:
 - a table of every step with PASS or FAIL

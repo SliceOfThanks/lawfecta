@@ -12,13 +12,13 @@ Each account logs in once: freelancer, then the test attorney, then the new atto
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead. For hello@legalstacey.com, use the password you chose at checkout.
 2. Each time ChatGPT reaches the login page: click "Take over", type the email named by hand (check the browser did not fill in another account), log in, hand control back and type: I'm logged in, continue.
-3. Don't use hirelegalhelp.com in other tabs while it runs.
+3. Don't use www.lawfecta.co in other tabs while it runs.
 
 Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing the DELA guide on the Lawfecta test site, www.hirelegalhelp.com. Everything here is made up; type only the made-up words in the steps.
+You are testing the DELA guide on the Lawfecta test site, www.lawfecta.co. Everything here is made up; type only the made-up words in the steps.
 
 Logins:
 - test freelancer: stacey+dela-freelancer@lawfecta.com, password TEST_PASSWORD
@@ -39,15 +39,15 @@ HOW TO WORK (read this first; it saves time and credits)
    - The DELA guide is the first card on the Home page, just under the greeting. It has a dark pink edge on its left side, the round Lawfecta logo and the bold words "DELA guide" at its top left, a "Pause" button at its top right, DELA's message in a pink speech bubble, buttons under the bubble, and a box "Ask the DELA guide a question" with an "Ask" button at the bottom.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
 Steps
 
 FREELANCER (log in once)
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer. Then click the round button with the initials at the far right of the dark top bar: the first line must say "DELA Test Freelancer". If not, stop and tell me.
-2. Go to: https://www.hirelegalhelp.com/dela?tab=home
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer. Then click the round button with the initials at the far right of the dark top bar: the first line must say "DELA Test Freelancer". If not, stop and tell me.
+2. Go to: https://www.lawfecta.co/dela?tab=home
    Find: the "DELA guide" card at the top of the page, under the greeting.
    Expect: the pink bubble says an attorney invited you to a gig, and that an invited proposal does not use your monthly allowance. Under it is a blue button "See my invitations".
 3. Do: in the same card, click "New gig alerts" (near the bottom of the card) to open it.
@@ -66,36 +66,36 @@ FREELANCER (log in once)
    Expect: a notice "A new gig fits you: Test job: Guide new gig (prepared)". Its text starts with "Why it fits: Family law; Uses Clio" and ends by saying the alerts can be turned off in the DELA guide.
    Do: click that notice's button "Open the gig".
    Expect: the Work page opens on "Test job: Guide new gig (prepared)".
-8. Go to: https://www.hirelegalhelp.com/dela?tab=home
+8. Go to: https://www.lawfecta.co/dela?tab=home
    Do: click "See my invitations" in the "DELA guide" card.
    Expect: the Work page opens with your invitation.
 9. Sign out.
 
 TEST ATTORNEY (log in once)
-10. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney. Check the first line of the round initials menu says "DELA Test Attorney".
-11. Go to: https://www.hirelegalhelp.com/dela?tab=home
+10. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney. Check the first line of the round initials menu says "DELA Test Attorney".
+11. Go to: https://www.lawfecta.co/dela?tab=home
     Find: the "DELA guide" card at the top.
     Expect: the bubble says "2 proposals arrived for" "Build document checklist from questionnaire answers" and to compare them. A blue button "Compare the proposals". The "Get set up" card is not on the page.
 12. Do: click "Compare the proposals".
     Expect: the gig "Build document checklist from questionnaire answers" opens on its proposals.
-13. Do: go back to https://www.hirelegalhelp.com/dela?tab=home. In "Ask the DELA guide a question" type: Fictional test: which proposal should I pick? Click "Ask".
+13. Do: go back to https://www.lawfecta.co/dela?tab=home. In "Ask the DELA guide a question" type: Fictional test: which proposal should I pick? Click "Ask".
     Expect: an answer in a pink bubble within 60 seconds. It does not give legal advice. If it shows a button, it is "Compare the proposals".
 14. Sign out.
 
 NEW ATTORNEY (log in once)
-15. Go to: https://www.hirelegalhelp.com/login and ask me to log in as hello@legalstacey.com.
-16. Go to: https://www.hirelegalhelp.com/dela?tab=home
+15. Go to: https://www.lawfecta.co/login and ask me to log in as hello@legalstacey.com.
+16. Go to: https://www.lawfecta.co/dela?tab=home
     Find: the "DELA guide" card at the top.
     Expect: the bubble starts "Let's take one task off your desk." Under it, three buttons that start with "Draft:" (for example "Draft: Respond to a new inquiry") and a fourth button "Something else".
 17. Do: click the button "Draft: Respond to a new inquiry" (if it is not there, click the first "Draft:" button and write which one).
     Expect: the Library opens on "New document". Because this account has no firm profile yet, it first shows the card "Your firm profile for documents". That is a PASS.
-18. Do: go back to https://www.hirelegalhelp.com/dela?tab=home and click "Something else" in the "DELA guide" card.
+18. Do: go back to https://www.lawfecta.co/dela?tab=home and click "Something else" in the "DELA guide" card.
     Expect: the Library opens on "New document" (the firm profile card first, as in step 17).
 19. Sign out.
 
 OWNER, ADMIN AREA (log in once)
-20. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the owner.
-21. Go to: https://www.hirelegalhelp.com/dela-admin
+20. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
+21. Go to: https://www.lawfecta.co/dela-admin
     Do: in the row of tabs near the top, click "Overview".
     Find: the card "DELA guide", under the "Emergency pause" card.
     Expect: tiles "Members who saw it" (3 or more), "Buttons chosen", "Questions answered" (2 or more), "Paused" (1 or more) and "Gig alerts sent today" (1 or more), then a list of steps such as "Answer invitations", "Compare proposals" and "Pick a first task" with member counts.

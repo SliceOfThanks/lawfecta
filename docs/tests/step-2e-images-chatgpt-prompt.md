@@ -16,7 +16,7 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co.
 
 Logins:
 - test attorney: stacey+dela-attorney@lawfecta.com (password TEST_PASSWORD)
@@ -35,7 +35,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds.
 
@@ -48,7 +48,7 @@ How the parts you will use look:
 
 1. Attorney (ask me to log in as the test attorney)
 
-1. Go to: https://www.hirelegalhelp.com/dela?tab=library
+1. Go to: https://www.lawfecta.co/dela?tab=library
    Do: in the first card under "Document library", click the blue "New document". Click the box "SOP". In "Process name" (the first box in the card "About this process") type Open a matter in Clio. Click the blue "Draft it with DELA" at the bottom of that card.
    Expect: within 60 seconds, the document page.
 
@@ -98,7 +98,7 @@ How the parts you will use look:
     Do: move the mouse over the third image and click its "Remove".
     Expect: a small window "Remove this image?" with "Cancel" and "Remove". Click "Remove". Expect: two images left.
     Do: drag the second image (press on it, move it up over the first image, let go).
-    Expect: the two images swap places. Go to https://www.hirelegalhelp.com/dela?tab=library, open "Open a matter in Clio" again (click its row) and check the order stayed.
+    Expect: the two images swap places. Go to https://www.lawfecta.co/dela?tab=library, open "Open a matter in Clio" again (click its row) and check the order stayed.
 
 11. Paste (ask me to do it).
     Ask me to: copy Screenshot B to the clipboard (open it, then Ctrl+C or Cmd+C), click inside the box "What to do (one action, starting with a verb)" in the "Step 2" box, and press Ctrl+V or Cmd+V. Wait until I say done.
@@ -120,24 +120,24 @@ How the parts you will use look:
     Do: click "Continue". Expect: within 60 seconds, the gig page. Do not post the gig.
 
 15. A Policy has no images.
-    Do: go to https://www.hirelegalhelp.com/dela?tab=library, click the row "Client trust account rules" (made in the first test).
+    Do: go to https://www.lawfecta.co/dela?tab=library, click the row "Client trust account rules" (made in the first test).
     Expect: no "🖼 Add image" button anywhere on the page (use Ctrl+F to search "Add image").
 
 16. A Workflow has a swimlane chart.
-    Do: go to https://www.hirelegalhelp.com/dela?tab=library and click the row "Intake to signed engagement" (made in the first test).
+    Do: go to https://www.lawfecta.co/dela?tab=library and click the row "Intake to signed engagement" (made in the first test).
     Expect: "🖼 Add image" on each stage box, and a section "Swimlane chart" (in the left column, after "Start and end points") with its own "🖼 Add image".
     Do: click the "🖼 Add image" in the "Swimlane chart" section, ask me to choose Screenshot B, type Our swimlane chart as the caption, tick the checkbox, click "Save image".
     Expect: the image under "Swimlane chart".
 
 17. A Playbook.
-    Do: go to https://www.hirelegalhelp.com/dela?tab=library and click the row "Handle an upset client".
+    Do: go to https://www.lawfecta.co/dela?tab=library and click the row "Handle an upset client".
     Expect: a "🖼 Add image" button under "Scripts and templates" and another under "Examples". You do not need to add one.
 
 18. Sign out.
 
 2. Owner (ask me to log in as the owner)
 
-1. Go to: https://www.hirelegalhelp.com/dela-admin
+1. Go to: https://www.lawfecta.co/dela-admin
    Do: in the row of tabs near the top, click "AI and files".
    Find: the card titled "Documents (Policy, Workflow, SOP, Playbook)" at the very bottom, and in it the heading "Images in documents".
    Expect: "Images in documents", "Waiting for a client-data check", "Held by DELA's check", "Items the text reader found" and "Items members blurred", with numbers. No images and no image links.
@@ -150,7 +150,7 @@ How the parts you will use look:
 
 3. Check the results (test attorney)
 
-1. Go to: https://www.hirelegalhelp.com/dela?tab=library and click the row "Open a matter in Clio".
+1. Go to: https://www.lawfecta.co/dela?tab=library and click the row "Open a matter in Clio".
    Expect: two images in "Step 1" in the order you set, one in "Step 2", each with its caption.
 2. Sign out.
 

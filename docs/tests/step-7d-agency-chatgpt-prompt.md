@@ -21,7 +21,7 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co.
 
 Logins:
 - test attorney: stacey+dela-attorney@lawfecta.com, password TEST_PASSWORD
@@ -41,7 +41,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
@@ -49,9 +49,9 @@ The messages after a click show for only a few seconds. Read the small box at th
 
 Group 1. Owner: give the plans (log in as the owner)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the owner.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-2. Go to: https://www.hirelegalhelp.com/dela-admin
+2. Go to: https://www.lawfecta.co/dela-admin
    Do: click the tab "People" in the row of tabs near the top.
    Find: the search box "Search name, email or BD member ID" at the top of the page.
    Do: type stacey+dela-freelancer@lawfecta.com and click "Search" next to it.
@@ -70,9 +70,9 @@ Group 1. Owner: give the plans (log in as the owner)
 
 Group 2. The agency owner (log in as the test freelancer)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=agency
+2. Go to: https://www.lawfecta.co/dela?tab=agency
    Expect: a new tab "◆ Agency" at the right end of the tab row, selected, with the heading "Agency" and the line "... | you are the owner".
    Expect: the cards "Business details", "Team", "Proposals" and "The agency's jobs" ("No jobs yet.").
    Expect: in the card "Team", the grey line starting "1 of 3 seats used, the owner included."
@@ -94,7 +94,7 @@ Group 2. The agency owner (log in as the test freelancer)
    Expect: the message "Invitation sent". The card lists "Stacey Lake | invited as member | open until (a date)" with an outlined "Cancel invitation".
    Expect: the grey line now says "1 of 3 seats used, the owner included, plus 1 invitation waiting."
 
-6. Go to: https://www.hirelegalhelp.com/dela?tab=work&gig=f4546812-6749-44bd-bca0-66703c824045
+6. Go to: https://www.lawfecta.co/dela?tab=work&gig=f4546812-6749-44bd-bca0-66703c824045
    Find: the title "Test job: Agency proposal" at the top, then scroll down to the card "Your proposal" at the bottom of the page.
    Expect: at the top of that card, a dropdown "Send as" showing "Roe Test Agency LLC (agency)".
    Expect: under it, "Who will do this work (required). ..." and one checkbox "DELA Test Freelancer (owner)" with a greyed-out box "Role on this job, for example Lead paralegal". Stacey Lake is not listed (she has not joined yet).
@@ -118,9 +118,9 @@ Group 2. The agency owner (log in as the test freelancer)
 
 Group 3. The attorney (log in as the test attorney)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=f4546812-6749-44bd-bca0-66703c824045
+2. Go to: https://www.lawfecta.co/dela?tab=projects&gig=f4546812-6749-44bd-bca0-66703c824045
    Find: the title "Test job: Agency proposal" and the row of round buttons under it.
    Do: click "Proposals (1)".
    Expect: the card "Compare proposals" with one row. In the column "Freelancer": a small "Agency" label, "Roe Test Agency LLC", "Who will do this work:", then "DELA Test Freelancer | Lead paralegal" with an outlined "View profile", and "Sent by DELA Test Freelancer" under it.
@@ -142,12 +142,12 @@ Group 3. The attorney (log in as the test attorney)
 Group 4. Check the results (the owner, then the test freelancer)
 
 1. Ask me to log in as the owner.
-   Go to: https://www.hirelegalhelp.com/dela?tab=agency
+   Go to: https://www.lawfecta.co/dela?tab=agency
    Expect: the card "Invitation from Roe Test Agency LLC" saying "DELA Test Freelancer invited you to join Roe Test Agency LLC as a member. You keep your own account and your own plan. ..." with a blue "Accept" and an outlined "Decline".
    Do: click "Accept".
    Expect: the message "You joined Roe Test Agency LLC", and a card "Agencies you work with" with "Roe Test Agency LLC | Member" and an outlined "Leave".
 
-2. Go to: https://www.hirelegalhelp.com/dela-admin
+2. Go to: https://www.lawfecta.co/dela-admin
    Do: click the tab "Agencies" in the row of tabs near the top (between "Reviews and bench" and "Lawfecta Team").
    Expect: the card "Agencies" with the line "Roe Test Agency LLC" and a badge "Not checked yet", and the line "Business name: Roe Test Agency LLC | State: TX | Owner: DELA Test Freelancer (...) | Active | Seats: 2 of 3 | Engagements: 1".
 
@@ -162,7 +162,7 @@ Group 4. Check the results (the owner, then the test freelancer)
    Expect: the message "Seat limit set to 5" and "Seats: 2 of 5".
 
 5. Sign out. Ask me to log in as the test freelancer.
-   Go to: https://www.hirelegalhelp.com/dela?tab=agency
+   Go to: https://www.lawfecta.co/dela?tab=agency
    Expect: in the card "Business details", "Checked by the Lawfecta Team."
    Expect: in the card "Team", the grey line starting "2 of 5 seats used, the owner included." and the line "Stacey Lake | Member | stacey@lawfecta.com | verification not finished" with a dropdown "Member" and an outlined "Remove".
 

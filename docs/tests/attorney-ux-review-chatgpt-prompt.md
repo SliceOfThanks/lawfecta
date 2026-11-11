@@ -9,13 +9,13 @@ It logs in once, as the test attorney. It takes about 45 to 60 minutes.
 Before you paste this:
 1. The password is filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.
 2. When ChatGPT reaches the login page: click "Take over", log in, hand control back and type: I'm logged in, continue.
-3. Don't use hirelegalhelp.com in other tabs while it runs.
+3. Don't use www.lawfecta.co in other tabs while it runs.
 
 Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are a senior UX and UI reviewer. You are reviewing DELA, a tool inside the Lawfecta website that helps attorneys and small law firms write down how their firm works, hand repeatable work to vetted freelance legal operations professionals, and hire and pay them safely. You are reviewing the attorney side on the test site, www.hirelegalhelp.com.
+You are a senior UX and UI reviewer. You are reviewing DELA, a tool inside the Lawfecta website that helps attorneys and small law firms write down how their firm works, hand repeatable work to vetted freelance legal operations professionals, and hire and pay them safely. You are reviewing the attorney side on the test site, www.lawfecta.co.
 
 Who uses it: solo attorneys and small firms (1 to 20 people). Many are busy, not technical, and new to delegating. They decide in seconds whether a screen is worth their time. They care about trust, money, confidentiality and not making a mistake with a client's matter.
 
@@ -35,7 +35,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. When you reach https://www.hirelegalhelp.com/login, stop and ask me to log in. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. When you reach https://www.lawfecta.co/login, stop and ask me to log in. Wait until I say I'm logged in.
 9. Never type real client information.
 
 THIS IS A LOOK-ONLY REVIEW
@@ -55,54 +55,54 @@ ON EACH PAGE, LOOK AT
 
 Steps
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-2. Home. Go to: https://www.hirelegalhelp.com/dela?tab=home
+2. Home. Go to: https://www.lawfecta.co/dela?tab=home
    Look at: the greeting, the purple box, the "Get set up" card if it shows, the row of numbers, the "Verification" card and "What DELA will do for you". Note what you would expect a first-time attorney to click first.
 
-3. Get set up. Go to: https://www.hirelegalhelp.com/dela?tab=setup
+3. Get set up. Go to: https://www.lawfecta.co/dela?tab=setup
    Look at: the six numbered cards, their "Done", "To do" or "Skipped" labels, and the "Open" and "Skip for now" buttons. In card 2 "Teach DELA about your firm", click "Open", read the form that opens inside the card without saving, then click "Close".
 
-4. Ask DELA. Go to: https://www.hirelegalhelp.com/dela?tab=delegate
+4. Ask DELA. Go to: https://www.lawfecta.co/dela?tab=delegate
    Look at: what the page offers and how it explains what DELA can do. Do not send a message.
 
-5. Library. Go to: https://www.hirelegalhelp.com/dela?tab=library
+5. Library. Go to: https://www.lawfecta.co/dela?tab=library
    Look at: the list of documents, the filters and search, the buttons to start a new document or import one, and how document types (Policy, Workflow, SOP, Playbook) and statuses are shown.
 
-6. One approved document. Go to: https://www.hirelegalhelp.com/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
+6. One approved document. Go to: https://www.lawfecta.co/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
    Look at: the title, the badges, the card "✦ Automate or delegate" near the top (its suggestions, "Time saved" lines and any "Delegated:" line), then the document itself, the quality checks, and the row of view buttons ("Draft and review", "Chat", "Suggestions", "Comments", "Activity", "Versions", "Files"). Click each view button once and look; do not change anything.
 
-7. Files. Go to: https://www.hirelegalhelp.com/dela?tab=files
+7. Files. Go to: https://www.lawfecta.co/dela?tab=files
    Look at: how uploading, folders and the client-information warning are presented.
 
-8. Projects. Go to: https://www.hirelegalhelp.com/dela?tab=projects
+8. Projects. Go to: https://www.lawfecta.co/dela?tab=projects
    Look at: the card "Post a new gig" (the "One-off" and "Monthly" choice, the document dropdown, the budget boxes; do not click "Draft the gig with DELA"), the card "Your gigs", and the list of engagements below it.
 
-9. A gig with an agency. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=c00a6abf-b3fd-461c-8ca4-4b6225d8a5bd&view=proposals
+9. A gig with an agency. Go to: https://www.lawfecta.co/dela?tab=projects&gig=c00a6abf-b3fd-461c-8ca4-4b6225d8a5bd&view=proposals
    Look at: how the agency's proposal is shown. Then click the view buttons "Details", "Matches", "Questions" and "Files" near the top, one at a time, and look at each.
 
-10. An agreement. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=6a31398c-e89f-4f58-b6ca-f5aef02639a4&view=agreement
+10. An agreement. Go to: https://www.lawfecta.co/dela?tab=projects&gig=6a31398c-e89f-4f58-b6ca-f5aef02639a4&view=agreement
     Look at: the card "What happens next", the card "The agreement" (its "Fees" list and "The terms"), "Subcontractors", "Milestones", "Who's working on this", "Confidential materials" and anything about disputes. Judge whether an attorney would understand what they are agreeing to and what they pay.
 
-11. A monthly engagement. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
+11. A monthly engagement. Go to: https://www.lawfecta.co/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
     Look at: the card "What happens next", the monthly card ("Monthly engagement" or "Monthly terms": what is included each month, the billing, and any "Request a change", "Cancel monthly engagement" or "End now by agreement" buttons), and how monthly money and cancelling are explained. It may say month 1 is not paid yet, or that payments are not set up: that is expected on the test site, so review the wording rather than the state. Do not click those buttons.
 
-12. Talent. Go to: https://www.hirelegalhelp.com/dela?tab=talent
+12. Talent. Go to: https://www.lawfecta.co/dela?tab=talent
     Look at: the search boxes, the results, and how a freelancer's fit, reviews and availability are shown. Open one freelancer's "View profile" if there is one, read it, and close it.
 
-13. Inbox and meetings. Go to: https://www.hirelegalhelp.com/dela?tab=inbox
-    Look at: the message threads and how a conversation is shown. Then go to: https://www.hirelegalhelp.com/dela?tab=meetings and look at the meetings page.
+13. Inbox and meetings. Go to: https://www.lawfecta.co/dela?tab=inbox
+    Look at: the message threads and how a conversation is shown. Then go to: https://www.lawfecta.co/dela?tab=meetings and look at the meetings page.
 
 14. Notices. Click "Notices" in the dark top bar.
     Look at: how notices read, whether each one says what to do, and how easy it is to get from a notice to the right page. Close the panel.
 
-15. Profile and verification. Go to: https://www.hirelegalhelp.com/dela?tab=profile
+15. Profile and verification. Go to: https://www.lawfecta.co/dela?tab=profile
     Look at: the profile, license verification and firm details, and how far down the page the important parts are.
 
-16. AI settings. Go to: https://www.hirelegalhelp.com/dela?tab=ai
+16. AI settings. Go to: https://www.lawfecta.co/dela?tab=ai
     Look at: how bringing your own AI key, credits and the client-information rules are explained.
 
-17. DELA in ChatGPT and Claude. Go to: https://www.hirelegalhelp.com/dela?tab=connect
+17. DELA in ChatGPT and Claude. Go to: https://www.lawfecta.co/dela?tab=connect
     Look at: whether an attorney would understand what connecting does and what stays private.
 
 18. Sign out.

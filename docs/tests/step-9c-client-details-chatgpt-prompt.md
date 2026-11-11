@@ -17,13 +17,13 @@ Not in this test (Claude's tests cover them): uploads to the Files tab (ChatGPT 
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.
 2. Each time ChatGPT reaches the login page: click "Take over", log in with the account it names, hand control back and type: I'm logged in, continue. For the owner, use your own login (stacey@lawfecta.com).
-3. Don't use hirelegalhelp.com in other tabs while it runs, and run it on its own.
+3. Don't use www.lawfecta.co in other tabs while it runs, and run it on its own.
 
 Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co.
 
 Logins:
 - test freelancer: stacey+dela-freelancer@lawfecta.com, password TEST_PASSWORD
@@ -43,7 +43,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
@@ -54,9 +54,9 @@ Steps
 
 FREELANCER (log in once)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=inbox&thread=4ad45c8e-ac59-4300-9577-48b42e50e3b4
+2. Go to: https://www.lawfecta.co/dela?tab=inbox&thread=4ad45c8e-ac59-4300-9577-48b42e50e3b4
    Find: the conversation about "Send the Welcome Packet and Intake Follow-Up", and the message box "Your message" at the bottom with "Send" next to it.
    Do: type My client Jane Roe has case no. 2024-CV-1234 (made up) in "Your message", then click "Send".
    Expect: a pop-up that starts "This may include client details. Nobody has signed an agreement on this gig yet". Write down its words, then click "Cancel". Nothing is sent: the message does not appear in the conversation.
@@ -65,7 +65,7 @@ FREELANCER (log in once)
    Do: clear the box "Your message", type Her passport number is X12345678 (made up) and click "Send".
    Expect: a message saying it looks like "a government ID number", that sensitive data cannot go in DELA, and to share a link instead. There is no pop-up and no way to send it anyway. The message does not appear in the conversation. Clear the box afterwards.
 
-4. Go to: https://www.hirelegalhelp.com/dela?tab=profile
+4. Go to: https://www.lawfecta.co/dela?tab=profile
    Find: the card titled "Your profile" near the top, and the box "Summary" in it.
    Do: add this sentence at the end of the Summary box: I helped my client Jane Roe with case no. 2024-CV-1234 (made up). Then scroll to the bottom of the "Your profile" card and click the blue button whose name starts with "Save".
    Expect: a pop-up that starts "This may include client details. Other members read this". Write down its words, click "Cancel", then remove the sentence you added. Do not save.
@@ -74,9 +74,9 @@ FREELANCER (log in once)
 
 ATTORNEY (log in once)
 
-6. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
+6. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-7. Go to: https://www.hirelegalhelp.com/dela?tab=ask
+7. Go to: https://www.lawfecta.co/dela?tab=ask
    Find: the button "New chat" near the top of the page; click it. Then find the message box "Your message" near the bottom.
    Do: type My client John Smith has case no. 2024-CV-5678 (made up). Make an intake checklist. and click "Send".
    Expect: a box that says "This includes client details. They go to OpenAI to run DELA's AI, and OpenAI may keep them up to 30 days for abuse checks. Continue?" with the buttons "Edit my message" and "Continue". The words "[Client Name]" do not appear.
@@ -92,9 +92,9 @@ ATTORNEY (log in once)
 
 OWNER (log in once)
 
-10. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the owner.
+10. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-11. Go to: https://www.hirelegalhelp.com/dela-admin
+11. Go to: https://www.lawfecta.co/dela-admin
     Do: click the tab "Switches" in the row of tabs at the top.
     Find: the row "The client information check follows the sensitive data rule (client details allowed where the rule allows them)".
     Expect: it is set to "Access list". Do not change it.

@@ -18,7 +18,7 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co.
 
 Logins:
 - test attorney: stacey+dela-attorney@lawfecta.com, password TEST_PASSWORD
@@ -38,15 +38,15 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
 Group 1. Attorney (log in as the test attorney)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=bc969483-3b96-4a7e-a3ae-cce26a1c3b0b
+2. Go to: https://www.lawfecta.co/dela?tab=projects&gig=bc969483-3b96-4a7e-a3ae-cce26a1c3b0b
    Find: the title "Test job: Confidential materials" at the top, and the row of round buttons under it ("Details", "Matches", "Questions", "Proposals (1)", "Files (0)", "Agreement and work").
    Do: click "Files (0)".
    Expect: the card "Files for this gig" with a checkbox "This job involves sensitive data (SSN, medical, financial, or ID documents)" and, under it in grey, "Sensitive documents must be shared using a link from your own storage (Google Drive, Dropbox, OneDrive, Box, ShareFile, Clio, NetDocuments). Do not upload them here."
@@ -90,9 +90,9 @@ Group 1. Attorney (log in as the test attorney)
 
 Group 2. Freelancer (log in as the test freelancer)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=work&gig=bc969483-3b96-4a7e-a3ae-cce26a1c3b0b&view=agreement
+2. Go to: https://www.lawfecta.co/dela?tab=work&gig=bc969483-3b96-4a7e-a3ae-cce26a1c3b0b&view=agreement
    Find: the card "Confidential materials" (scroll down, below "Milestones").
    Do: click "Email me a code". Ask me for the code. Type it in "6-digit code" and click "Open".
    Expect: the promise "I will keep these materials confidential, use them only for this engagement, and delete any copies when it ends." with a checkbox, and a greyed-out "Open Confidential materials".
@@ -111,7 +111,7 @@ Group 2. Freelancer (log in as the test freelancer)
 Group 3. Check the results (the test attorney, then the owner)
 
 1. Ask me to log in as the test attorney.
-   Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=bc969483-3b96-4a7e-a3ae-cce26a1c3b0b
+   Go to: https://www.lawfecta.co/dela?tab=projects&gig=bc969483-3b96-4a7e-a3ae-cce26a1c3b0b
    Do: click "Files (1)".
    Find: the card "File activity" (below "Files for this gig").
    Expect: lines showing DELA Test Freelancer "downloaded" Roe intake (made up).txt and "opened the link" Medical records folder, under "Confidential materials".
@@ -125,13 +125,13 @@ Group 3. Check the results (the test attorney, then the owner)
    Do: click "Delete now", then "Yes, delete them".
    Expect: a message starting "Deleted.", then under "Files": "This job involves sensitive data, so files cannot be uploaded here." and "No files yet."
 
-4. Go to: https://www.hirelegalhelp.com/dela?tab=files
+4. Go to: https://www.lawfecta.co/dela?tab=files
    Find: the row of round buttons above the file list ("All files", your folders, "Trash").
    Do: click "Trash".
    Expect: if the trash is empty, the text "The trash is empty." Write PASS and go on. If a file is listed: (POP-UP) click "Delete forever" on it and answer OK. Expect "Deleted forever".
 
 5. Sign out. Ask me to log in as the owner.
-   Go to: https://www.hirelegalhelp.com/dela-admin
+   Go to: https://www.lawfecta.co/dela-admin
    Do: click the tab "Security" (in the row of tabs near the top, between "Lawfecta Team" and "Holds").
    Expect: the card "Security questions from the website" and the card "Confidential materials" with counts such as "Files", "Secure links open" and "Jobs marked sensitive". No file names, messages or links appear in these counts.
 

@@ -11,14 +11,14 @@ Each account logs in once: attorney, then the owner.
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.
 2. Each time ChatGPT reaches the login page: click "Take over", log in with the account it names, hand control back and type: I'm logged in, continue. For the owner, use your own login (stacey@lawfecta.com).
-3. Don't use hirelegalhelp.com in other tabs while it runs.
+3. Don't use www.lawfecta.co in other tabs while it runs.
 4. Run it on its own, not at the same time as another test. Run it before the usage limits test, which makes most of the test attorney's documents read-only for a while.
 
 Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co.
 
 Logins:
 - test attorney: stacey+dela-attorney@lawfecta.com, password TEST_PASSWORD
@@ -37,7 +37,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
@@ -48,9 +48,9 @@ Steps
 
 ATTORNEY (log in once)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=library&pb=08160507-5b7b-41d7-acd3-a57b290d9aa5
+2. Go to: https://www.lawfecta.co/dela?tab=library&pb=08160507-5b7b-41d7-acd3-a57b290d9aa5
    Find: the title "ADM-02 Handle an upset client" at the top, with the labels "Playbook" and "Approved".
    Expect: under the title, a row of tabs whose first tab is "Approved version" (there is no "Draft and review" tab).
    Find: the card "Approved version 1", just under the tabs.
@@ -80,9 +80,9 @@ ATTORNEY (log in once)
 
 OWNER (log in once)
 
-8. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the owner.
+8. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-9. Go to: https://www.hirelegalhelp.com/dela-admin
+9. Go to: https://www.lawfecta.co/dela-admin
    Do: click the tab "Switches" in the row of tabs near the top.
    Expect: a row "Approved documents open on a read-only "Approved version" page with "Edit a new draft"" set to "Access list", and rows for "The Phase 4 AI helpers (checks before a commitment and writing helpers)" and "The Appearance choice (Match my device, Light, Dark) in the account menu" set to "Off". Do not change them.
 

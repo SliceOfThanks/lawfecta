@@ -13,7 +13,7 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are re-testing payout setup on the Lawfecta test site, www.hirelegalhelp.com. Stripe is in test mode: every detail below is a made-up test value that Stripe publishes for testing. Never type a real bank account or a real Social Security number.
+You are re-testing payout setup on the Lawfecta test site, www.lawfecta.co. Stripe is in test mode: every detail below is a made-up test value that Stripe publishes for testing. Never type a real bank account or a real Social Security number.
 
 Login (I log in for you):
 - test freelancer: stacey+dela-freelancer@lawfecta.com, password TEST_PASSWORD
@@ -31,15 +31,15 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
 Steps
 
 TEST FREELANCER (log in once)
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer.
-2. Go to: https://www.hirelegalhelp.com/dela?tab=earnings
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
+2. Go to: https://www.lawfecta.co/dela?tab=earnings
    Find: the card "Payouts to your bank".
    Expect: a badge "Not set up" and a blue button "Set up payouts with Stripe" (or a badge "Needs details" and a blue button "Finish payout setup").
 3. Do: click that blue button once and wait up to 20 seconds.
@@ -52,7 +52,7 @@ TEST FREELANCER (log in once)
    - Name: Test Freelancer. Date of birth: 01 / 01 / 1990.
    - Address: 123 Main St, Austin, TX 78701.
    - Last 4 digits of Social Security number: 0000 (if it asks for all 9: 000 00 0000).
-   - Industry: any "Consulting" or "Other business services" choice. Website: https://www.hirelegalhelp.com (or the product description: Paralegal support services).
+   - Industry: any "Consulting" or "Other business services" choice. Website: https://www.lawfecta.co (or the product description: Paralegal support services).
    - Bank account: routing number 110000000, account number 000123456789.
    - On the last page click "Agree and submit" (or "Submit").
    Expect: you come back to the DELA Earnings page. Write the full address of the page you land on.

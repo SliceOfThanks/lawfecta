@@ -12,7 +12,7 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co.
 
 Logins:
 - test attorney: stacey+dela-attorney@lawfecta.com (password TEST_PASSWORD)
@@ -31,7 +31,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds.
 
@@ -46,7 +46,7 @@ DELA now calls every Library item a "document". Note any place that still says "
 
 1. Attorney (ask me to log in as the test attorney)
 
-1. Go to: https://www.hirelegalhelp.com/dela?tab=library
+1. Go to: https://www.lawfecta.co/dela?tab=library
    Find: the heading "Document library" at the top. Below it are tables, each with a heading such as "DOC | Documents, drafting and filing" or "ENG | Engagement and onboarding".
    Expect: each table has the columns "ID", "Title", "Type", "Owner (role)", "Status", "Next review".
 
@@ -145,7 +145,7 @@ DELA now calls every Library item a "document". Note any place that still says "
     Do: scroll to the bottom of the gig page, to the card titled "Reference documents". In its dropdown choose "Client trust account rules", then click the outlined "Attach" next to it.
     Expect: "Client trust account rules" listed in that card with an outlined "Remove" button. Do not post the gig.
 
-20. Go to: https://www.hirelegalhelp.com/dela?tab=profile
+20. Go to: https://www.lawfecta.co/dela?tab=profile
     Find: the card titled "Your firm profile for documents", near the bottom of the page.
     Expect: your answers from step 6, and a small label "No one assigned" on each role nobody holds.
 
@@ -153,7 +153,7 @@ DELA now calls every Library item a "document". Note any place that still says "
 
 2. Owner (ask me to log in as the owner)
 
-1. Go to: https://www.hirelegalhelp.com/dela-admin
+1. Go to: https://www.lawfecta.co/dela-admin
    Find: the row of tabs near the top of the admin area.
    Do: click the tab "AI and files".
    Find: the card titled "Documents (Policy, Workflow, SOP, Playbook)", at the very bottom of the page.
@@ -167,7 +167,7 @@ DELA now calls every Library item a "document". Note any place that still says "
 
 3. Check the results (test attorney)
 
-1. Go to: https://www.hirelegalhelp.com/dela?tab=library
+1. Go to: https://www.lawfecta.co/dela?tab=library
    Expect: the conflict check SOP, "Client trust account rules", "Handle an upset client" and "Intake to signed engagement" in the tables with their IDs. DOC-02 and BIL-01 no longer show "Converted: check it".
 2. Sign out.
 

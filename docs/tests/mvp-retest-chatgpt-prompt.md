@@ -14,7 +14,7 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are re-testing DELA on the Lawfecta test site, www.hirelegalhelp.com. Everything here is made up.
+You are re-testing DELA on the Lawfecta test site, www.lawfecta.co. Everything here is made up.
 
 Logins (I log in for you each time):
 - test freelancer: stacey+dela-freelancer@lawfecta.com, password TEST_PASSWORD
@@ -33,37 +33,37 @@ HOW TO WORK
 Steps
 
 TEST FREELANCER (log in once)
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer.
-2. Go to: https://www.hirelegalhelp.com/dela?tab=agency
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
+2. Go to: https://www.lawfecta.co/dela?tab=agency
    Find: the card "Agency profile" near the top.
    Do: in the box "Tell DELA about your agency" type: Fictional test agency: four paralegals in Austin doing family law discovery responses and case file organizing for small firms. We use Clio.
    Do: click "✦ Let DELA draft it".
    Expect: within 60 seconds "DELA filled in the boxes...", and the box "States you serve" shows TX. If any box is still empty, a yellow line names it ("Still empty: ..."). The "Summary" box says nothing about "the notes" or what is missing.
 3. Do: click "Save the agency profile" at the bottom of the card.
    Expect: "Saved", and the card says "Complete."
-4. Go to: https://www.hirelegalhelp.com/dela?tab=home
+4. Go to: https://www.lawfecta.co/dela?tab=home
    Expect: the "DELA guide" card no longer asks for the agency profile. Write what it says now.
 5. Look at the dark top bar: next to the round logo it reads "DELA" in full (not "DEL"). Sign out.
 
 TEST ATTORNEY (log in once)
-6. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
-7. Go to: https://www.hirelegalhelp.com/dela?tab=talent
+6. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
+7. Go to: https://www.lawfecta.co/dela?tab=talent
    Do: in the box "Describe the task (for ✦ Help me find a fit)" type: Fictional test: build a document checklist for a family law case in Texas. Click "✦ Help me find a fit".
    Expect: within 60 seconds a box with DELA's suggestions and a blue button "Use all suggestions" above them.
    Do: click "Use all suggestions".
    Expect: the boxes "Practice area", "Skill" and "State you need" are filled at once, and a message says "Added to the filters. Check them, then click Search."
 8. Do: change the "Skill" box to: checklist. Click "Search".
    Expect: at least one freelancer is listed (DELA Test Freelancer, whose service is about document checklists).
-9. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=64ed7250-64b3-4423-a4f1-e0e890da40dc&view=agreement
+9. Go to: https://www.lawfecta.co/dela?tab=projects&gig=64ed7250-64b3-4423-a4f1-e0e890da40dc&view=agreement
    Expect: the agreement for "Repeat: Run a Conflict Check" shows the client firm, the freelancer's name, "Your total:" with an amount, and under "Fees" the price for the work and the platform fees as dollar amounts (no "-").
-10. Go to: https://www.hirelegalhelp.com/dela?tab=library
+10. Go to: https://www.lawfecta.co/dela?tab=library
     Expect: approved documents say "Ready to use (approved)". Sign out.
 
 NEW ATTORNEY (log in once)
-11. Go to: https://www.hirelegalhelp.com/login and ask me to log in as hello@legalstacey.com.
-12. Go to: https://www.hirelegalhelp.com/dela?tab=home
+11. Go to: https://www.lawfecta.co/login and ask me to log in as hello@legalstacey.com.
+12. Go to: https://www.lawfecta.co/dela?tab=home
     Expect: the greeting has no ", there" at the end if the account has no name.
-13. Go to: https://www.hirelegalhelp.com/dela?tab=library
+13. Go to: https://www.lawfecta.co/dela?tab=library
     Do: click "Create a document" (the blue button at the top right of the Library; the screen it opens is titled "New document"). If the card "Your firm profile for documents" shows, type in "Describe your firm (optional)": Fictional test firm: two attorneys doing family law and estate planning in Texas; we use Clio. Then click "✦ Help me describe my firm".
     Expect: DELA's suggestions with a blue "Use all suggestions" button. Click it; the boxes fill at once. (If the firm profile is already saved and the card does not show, write SKIPPED.)
 14. Sign out.

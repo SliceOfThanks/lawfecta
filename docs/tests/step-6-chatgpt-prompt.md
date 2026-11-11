@@ -30,19 +30,19 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything wrong or confusing. Never type real client information or real card numbers. Use only made-up details and Stripe's test card 4000 0000 0000 0077.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything wrong or confusing. Never type real client information or real card numbers. Use only made-up details and Stripe's test card 4000 0000 0000 0077.
 
 Logins:
 - test freelancer: stacey+dela-freelancer@lawfecta.com (password TEST_PASSWORD)
 - test attorney: stacey+dela-attorney@lawfecta.com (password TEST_PASSWORD)
 - owner: stacey@lawfecta.com (password TEST_PASSWORD)
 
-The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 
 To sign out at the end of a group, click the initials in the top right of the DELA page, then "Sign out".
 
 1. Freelancer, first visit (ask me to log in as the test freelancer)
-1. Open www.hirelegalhelp.com/dela?tab=work. Scroll to the bottom. Expect a card "Your engagements" with the gig and the label "Needs your signature".
+1. Open www.lawfecta.co/dela?tab=work. Scroll to the bottom. Expect a card "Your engagements" with the gig and the label "Needs your signature".
 2. Click the gig in that card. Expect, at the top of the page:
    - "Agreement, version 1"
    - a card "What happens next"
@@ -65,7 +65,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
 9. Sign out.
 
 2. Attorney (ask me to log in as the test attorney)
-1. Open www.hirelegalhelp.com/dela?tab=projects. Expect a card "Engagements" near the top with the gig and "Needs your signature". Click it.
+1. Open www.lawfecta.co/dela?tab=projects. Expect a card "Engagements" near the top with the gig and "Needs your signature". Click it.
 2. Expect "Agreement, version 2" and "The other person signed version 2". Check the "Fees" list shows the price and your platform fee.
 3. Sign version 1 is not offered: only version 2 can be signed. Type your name in "Your full name", tick the box, and click "Sign version 2". Expect "Signed by both of you. Pay the first milestone to start."
 4. In "What happens next", expect "Pay milestone 1 (amount) and the platform fee (amount)". Click "Pay milestone 1" once.
@@ -75,35 +75,35 @@ To sign out at the end of a group, click the initials in the top right of the DE
 8. Sign out.
 
 3. Freelancer, the work (ask me to log in as the test freelancer)
-1. Open www.hirelegalhelp.com/dela?tab=work, click the gig in "Your engagements".
+1. Open www.lawfecta.co/dela?tab=work, click the gig in "Your engagements".
 2. In the "Milestones" card, on milestone 1, click "Start this milestone". Expect "Submit this milestone".
 3. In "Completion statement", type "Not finished: half the draft is done." Click "Submit for DELA's check". Expect, within about 30 seconds, either "Did not pass DELA's check" with "DELA's check, point by point" listing what is missing, or "With the attorney for review". Note which.
 4. If it did not pass: click "Ask for a human review" and confirm. Expect "With a Lawfecta reviewer".
 5. Sign out.
 
 4. Owner (ask me to log in as the owner)
-1. Open www.hirelegalhelp.com/dela-admin and click "Payments" in the row of tabs. Expect:
+1. Open www.lawfecta.co/dela-admin and click "Payments" in the row of tabs. Expect:
    - "Money on DELA" saying Stripe is connected in test mode
    - totals, with "Charged" showing the payment from group 2
 2. If group 3 sent it to a human review: under "Milestones waiting for a human review", type a note and click "Passes: send to the attorney". Expect "Sent to the attorney for review".
 3. Sign out.
 
 5. Attorney, the review (ask me to log in as the test attorney)
-1. Open www.hirelegalhelp.com/dela?tab=projects and click the gig in "Engagements".
+1. Open www.lawfecta.co/dela?tab=projects and click the gig in "Engagements".
 2. On milestone 1, expect "With the attorney for review", the completion statement and DELA's check.
 3. Click "Ask for changes" with the note box empty. Expect "Say what needs to change."
 4. Type "Please finish the draft." and click "Ask for changes". Expect "Changes requested. Rounds left: 1."
 5. Sign out.
 
 6. Freelancer, resubmit (ask me to log in as the test freelancer)
-1. Open the engagement from "Your engagements" on www.hirelegalhelp.com/dela?tab=work.
+1. Open the engagement from "Your engagements" on www.lawfecta.co/dela?tab=work.
 2. Expect the attorney's note and "rounds of changes used: 1 of 2" on milestone 1.
 3. Tick "These files have no confidential client information", then choose a small made-up file (a Word or PDF file with placeholder text) in "Files (optional)". Expect the file name with "ready".
 4. Type "The full draft is attached. Nothing is open." in "Completion statement" and click "Submit for DELA's check". Expect "With the attorney for review" and DELA's score.
 5. Sign out.
 
 7. Attorney, accept (ask me to log in as the test attorney)
-1. Open the engagement from "Engagements" on www.hirelegalhelp.com/dela?tab=projects.
+1. Open the engagement from "Engagements" on www.lawfecta.co/dela?tab=projects.
 2. On milestone 1, click "Open" next to the file. Expect the file to open.
 3. Click "Accept and release payment" and confirm. Expect "Accepted. The payment is released and the next milestone is paid." (your saved test card pays milestone 2 straight away).
 4. Expect milestone 1 "Accepted" and milestone 2 "Paid: ready to start".
@@ -111,8 +111,8 @@ To sign out at the end of a group, click the initials in the top right of the DE
 6. Sign out.
 
 8. Check the results
-1. Test freelancer: log in, open www.hirelegalhelp.com/dela?tab=earnings. Expect "Paid to you" with milestone 1's amount after the platform fee, and on the engagement, milestone 1 "Payout: ... sent to your bank". Sign out.
-2. Owner: log in, open www.hirelegalhelp.com/dela-admin, "Payments" tab. Expect "Paid out" with the same amount, and the ledger (click "The ledger") listing the charge, the fee, held, released and paid entries. Sign out.
+1. Test freelancer: log in, open www.lawfecta.co/dela?tab=earnings. Expect "Paid to you" with milestone 1's amount after the platform fee, and on the engagement, milestone 1 "Payout: ... sent to your bank". Sign out.
+2. Owner: log in, open www.lawfecta.co/dela-admin, "Payments" tab. Expect "Paid out" with the same amount, and the ledger (click "The ledger") listing the charge, the fee, held, released and paid entries. Sign out.
 
 Final report:
 - a table of every step with PASS or FAIL

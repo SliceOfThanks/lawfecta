@@ -17,19 +17,19 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything wrong or confusing. Never type real client information; use only made-up details.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything wrong or confusing. Never type real client information; use only made-up details.
 
 Logins:
 - test freelancer: stacey+dela-freelancer@lawfecta.com (password TEST_PASSWORD)
 - test attorney: stacey+dela-attorney@lawfecta.com (password TEST_PASSWORD)
 - owner: stacey@lawfecta.com (password TEST_PASSWORD)
 
-The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 
 To sign out at the end of a group, click the initials in the top right of the DELA page, then "Sign out".
 
 1. Freelancer (ask me to log in as the test freelancer)
-1. Open www.hirelegalhelp.com/dela?tab=profile. Find the card "Your availability for meetings", below "Your availability" near the top.
+1. Open www.lawfecta.co/dela?tab=profile. Find the card "Your availability for meetings", below "Your availability" near the top.
 2. In that card:
    1. Choose your time zone in "Time zone".
    2. Tick "30 minutes" and "45 minutes".
@@ -40,7 +40,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
 4. Sign out.
 
 2. Attorney (ask me to log in as the test attorney)
-1. Open www.hirelegalhelp.com/dela?tab=projects and click the gig from the Step 4 test under "Your gigs".
+1. Open www.lawfecta.co/dela?tab=projects and click the gig from the Step 4 test under "Your gigs".
 2. Click "Matches" or "Proposals" in the row of views under the title, and click "Message" next to the test freelancer. Expect a conversation page with "Keep all work, contact and payment on Lawfecta".
 3. Type "Can you start Monday? Our template is attached." in the message box, click "Attach a file", tick a file, and click "Send". Expect the message with "Open" and the file name.
 4. Type "Or text me at 512-555-0199 and I will pay you directly" and click "Send". Expect a red note that DELA is holding it for a check by the Lawfecta Team.
@@ -55,7 +55,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
 10. Sign out.
 
 3. Owner (ask me to log in as the owner)
-1. Open www.hirelegalhelp.com/dela-admin and click "Gigs" in the row of tabs. Under "Held for a check", find the message with the phone number. Click "Do not deliver". Expect "Not delivered; the member was told".
+1. Open www.lawfecta.co/dela-admin and click "Gigs" in the row of tabs. Under "Held for a check", find the message with the phone number. Click "Do not deliver". Expect "Not delivered; the member was told".
 2. Click "Meetings and messages" in the row of tabs. Expect:
    - "The last 30 days" with counts
    - a note that Vectera is not connected yet
@@ -64,16 +64,16 @@ To sign out at the end of a group, click the initials in the top right of the DE
 3. Sign out.
 
 4. Check the results (test freelancer)
-1. Log in as the test freelancer and open www.hirelegalhelp.com/dela. Click "Inbox" in the dark top bar (expect a number on it). Click the conversation.
+1. Log in as the test freelancer and open www.lawfecta.co/dela. Click "Inbox" in the dark top bar (expect a number on it). Click the conversation.
 2. Expect the attorney's message and the file, and no message with a phone number.
 3. Click "✦ Summarize". Expect a short summary marked as reading only.
 4. Click "✦ Draft a reply". Expect a reply in the box. Change a word and click "Send".
-5. Click "Your meetings" (on the Inbox page) or open www.hirelegalhelp.com/dela?tab=meetings. On the meeting, click "Change the time", choose another time, and confirm. Expect "Moved. One update went to both of you."
+5. Click "Your meetings" (on the Inbox page) or open www.lawfecta.co/dela?tab=meetings. On the meeting, click "Change the time", choose another time, and confirm. Expect "Moved. One update went to both of you."
 6. Tick "I agree to this meeting being recorded or noted". Expect "Saved".
 7. Narrow the window to phone width: nothing runs off the side on the Inbox, the conversation and Your meetings. Widen it again.
 8. Sign out.
 
-Later, after the meeting time has passed (optional): log in as each test account, open www.hirelegalhelp.com/dela?tab=meetings, choose "We met", write a short summary and click "Send". When both have answered, expect "Both confirmed: you met" and "DELA suggests".
+Later, after the meeting time has passed (optional): log in as each test account, open www.lawfecta.co/dela?tab=meetings, choose "We met", write a short summary and click "Send". When both have answered, expect "Both confirmed: you met" and "DELA suggests".
 
 Final report:
 - a table of every step with PASS or FAIL

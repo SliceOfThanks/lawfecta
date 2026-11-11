@@ -7,16 +7,16 @@ Claude already tested all of this with the real api and database: 12 api tests a
 Before you paste this (about 5 minutes):
 1. Upload the tech catalog (one time only; the test checks DELA uses it):
    1. Download the file: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/data/tech-catalog/catalog-2026-11-05.csv (on that page, click the "Download raw file" button, the small arrow pointing down at the top right of the file box). Claude also sent it to you in chat.
-   2. In Chrome, log in as the owner (stacey@lawfecta.com) at https://www.hirelegalhelp.com/login and open https://www.hirelegalhelp.com/dela-admin
+   2. In Chrome, log in as the owner (stacey@lawfecta.com) at https://www.lawfecta.co/login and open https://www.lawfecta.co/dela-admin
    3. In the row of tabs near the top, click "Tech catalog".
    4. In the card at the top, click the file box under "Tech catalog CSV", choose catalog-2026-11-05.csv, then click "Check the file".
    5. When the preview shows, click "Confirm and replace the catalog". Expect "The catalog is replaced".
    6. Sign out: click your initials at the top right, then "Sign out".
 2. Install Claude in Chrome if you have not: open https://claude.ai/chrome in Chrome, click "Add to Chrome", then sign in with your Claude account when it asks.
-3. Open a new Chrome tab at https://www.hirelegalhelp.com/login and log in as the test attorney (stacey+dela-attorney@lawfecta.com, password in the ready-to-paste copy Claude sent you in chat).
-4. Click the Claude icon at the top right of Chrome (in the toolbar, or under the puzzle-piece icon) to open the Claude side panel. If Claude asks to allow www.hirelegalhelp.com, allow it.
+3. Open a new Chrome tab at https://www.lawfecta.co/login and log in as the test attorney (stacey+dela-attorney@lawfecta.com, password in the ready-to-paste copy Claude sent you in chat).
+4. Click the Claude icon at the top right of Chrome (in the toolbar, or under the puzzle-piece icon) to open the Claude side panel. If Claude asks to allow www.lawfecta.co, allow it.
 5. Paste everything below the line into the Claude side panel and send it.
-6. While the test runs, do not open hirelegalhelp.com in any other Chrome tab or window. A page load there switches the login for every tab, and the test's actions go out as the wrong person. A separate Chrome profile for Claude tests avoids this.
+6. While the test runs, do not open www.lawfecta.co in any other Chrome tab or window. A page load there switches the login for every tab, and the test's actions go out as the wrong person. A separate Chrome profile for Claude tests avoids this.
 7. During the test Claude asks you to do two kinds of things. Do them in the same Chrome tab, then type in the side panel: done, continue.
    - Log in as another account. Claude cannot pass the login check (reCAPTCHA).
    - Choose a file from your computer.
@@ -25,7 +25,7 @@ Paste everything below the line into the Claude side panel.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com, in my Chrome. I am logged in as the test attorney.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co, in my Chrome. I am logged in as the test attorney.
 
 Logins (I type them myself when you ask):
 - test attorney: stacey+dela-attorney@lawfecta.com
@@ -55,12 +55,12 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
 1. Attorney (I am logged in as the test attorney)
 
 1. Approve the document this test uses.
-   Go to: https://www.hirelegalhelp.com/dela?tab=library
+   Go to: https://www.lawfecta.co/dela?tab=library
    Find: the table under the heading "ENG | Engagement and onboarding", the row with ID ENG-01, "Send the welcome packet". Use only this document; the other test uses others.
    Do: click that row. On the document page, if there is a green notice near the top starting "DELA moved this...", click its outlined button "The type is right". Then, in the card titled "Quality check" (right column), click the blue "Approve".
    Expect: the status label next to the title says "Approved". If "Approve" is greyed out, report the items marked "Blocking" in that card and stop the test.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=projects
+2. Go to: https://www.lawfecta.co/dela?tab=projects
    Find: the card titled "Post a new gig" (in the middle of the page, under "Engagements" if that card is there).
    Do: in the dropdown "Document" choose "ENG-01 Send the welcome packet". Type 100 in "Budget from ($)" and 200 in "Budget to ($)". Click the blue "Draft the gig with DELA" at the bottom of the card.
    Expect: within 60 seconds, a gig page with the card "Public version". Write down the gig's title (the large bold text at the top). This is "your gig" for the rest of the test.
@@ -77,12 +77,12 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
    Expect: a message starting "Your gig is open until", the status label "Open", and the "Matches" view.
    Report: what the "Matches" view lists ("Good fit" or "Fair fit" labels and short reasons). It may say no one fits yet. There must be no percentages.
 
-6. Go to: https://www.hirelegalhelp.com/dela?tab=talent
+6. Go to: https://www.lawfecta.co/dela?tab=talent
    Find: the search card at the top ("Practice area", "Skill", "Tech tool", "State you need (two letters)", "Search"). Below it, one card per freelancer.
    Do: in the card of the test freelancer (DELA Test Freelancer), choose your gig in the dropdown, then click the blue "Invite to this gig" next to it.
    Expect: a message "Invited ..." (or "Already invited").
 
-7. Go to: https://www.hirelegalhelp.com/dela?tab=projects
+7. Go to: https://www.lawfecta.co/dela?tab=projects
    Do: in the card "Your gigs" (lower on the page), click your gig. In the row of view tabs under the title, click "Files (0)". Click the outlined "Share a file from Files", then the outlined "Share" next to any one file.
    Expect: that file listed. If there are no files, write "no files" and go on.
 
@@ -90,12 +90,12 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
 
 2. Freelancer (ask me to log in as the test freelancer)
 
-1. Go to: https://www.hirelegalhelp.com/dela?tab=profile
+1. Go to: https://www.lawfecta.co/dela?tab=profile
    Find: the card titled "Your availability for meetings" (near the top, below the card "Your availability").
    Do, in that card, from the top: in "Time zone" choose my time zone (ask me which if unsure); tick "30 minutes" and "45 minutes"; tick Monday to Saturday with 09:00 to 17:00; in "Days off" type next Wednesday's date as YYYY-MM-DD. Click the blue "Save availability" at the bottom of the card.
    Expect: "Availability saved".
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=work
+2. Go to: https://www.lawfecta.co/dela?tab=work
    Expect: at the top, a line like "5 of 5 proposals left this month"; then the cards "Your engagements", "Invitations (number)", "Matches", "Drafts", "Sent proposals".
    Do: in the card "Invitations", click your gig.
    Expect: the gig page with the public version (task, budget, deadline, steps, tools), a card titled "The work handed to you" with a faint "Shared with ..." watermark, and no milestones.
@@ -112,7 +112,7 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
    Do: type 450 in "Your total price ($)"; type Conflict check and welcome packet in "What your price includes"; type No court filings in "What it leaves out"; type Draft in 3 days, final 2 days later in "Schedule". Click the blue "Send proposal (free: invited)" twice quickly.
    Expect: one proposal, marked "Sent", with a line that it did not use your allowance. If a pop-up appears instead, stop and ask me to click OK.
 
-5. Go to: https://www.hirelegalhelp.com/dela?tab=ai
+5. Go to: https://www.lawfecta.co/dela?tab=ai
    Find: the card titled "What DELA has learned about you" (scroll down).
    Report what it lists. Do: click "Remove" on one item. Expect: it goes away.
 
@@ -120,7 +120,7 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
 
 3. Attorney again (ask me to log in as the test attorney)
 
-1. Go to: https://www.hirelegalhelp.com/dela?tab=projects and click your gig in the card "Your gigs".
+1. Go to: https://www.lawfecta.co/dela?tab=projects and click your gig in the card "Your gigs".
    Do: click the view tab "Questions".
    Expect: only "Which intake form do you use?" (not the Venmo one).
    Do: type We use our standard intake form in the answer box under it and click "Answer for everyone".
@@ -148,15 +148,15 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
 7. Do: click "Inbox" in the dark top bar.
    Expect: the conversation listed.
 
-8. Go to: https://www.hirelegalhelp.com/dela?tab=projects, click your gig, then the view tab "Proposals (1)".
+8. Go to: https://www.lawfecta.co/dela?tab=projects, click your gig, then the view tab "Proposals (1)".
    Do (POP-UP): click "Choose" at the right end of the freelancer's row.
    Expect: the gig's status label "Filled".
 
-9. Go to: https://www.hirelegalhelp.com/dela?tab=delegate (the "✦ Ask DELA" tab).
+9. Go to: https://www.lawfecta.co/dela?tab=delegate (the "✦ Ask DELA" tab).
    Do: in the message box at the bottom, type Which practice management software should a solo family law firm use? and send it.
    Expect: within 60 seconds, an answer that names only tools from the Lawfecta tech catalog (for example Clio, MyCase, PracticePanther, Smokeball, if they are in the catalog). Report the tools it named.
 
-10. Go to: https://www.hirelegalhelp.com/dela?tab=ai
+10. Go to: https://www.lawfecta.co/dela?tab=ai
     Find: the card titled "Messages".
     Expect: a setting about "Seen". Report what it says.
 
@@ -164,7 +164,7 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
 
 4. Owner (ask me to log in as the owner)
 
-1. Go to: https://www.hirelegalhelp.com/dela-admin
+1. Go to: https://www.lawfecta.co/dela-admin
    Do: in the row of tabs near the top, click "Gigs".
    Find: the card "Held for a check" at the top.
    Expect: the Venmo question labelled "payment outside Lawfecta" and the message with the phone number.
@@ -186,7 +186,7 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
 
 5. Freelancer again (ask me to log in as the test freelancer)
 
-1. Go to: https://www.hirelegalhelp.com/dela?tab=work
+1. Go to: https://www.lawfecta.co/dela?tab=work
    Expect: in the card "Sent proposals", your gig marked "Chosen". In the card "Your engagements", the gig with "Needs your signature". Do not sign it; the payments test does that later.
 
 2. Do: click "Notices" in the dark top bar.
@@ -199,7 +199,7 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
    Expect: a short summary marked as reading only.
    Do: click the outlined "✦ Draft a reply". Expect: a reply in the box at the bottom. Change one word and click "Send".
 
-5. Go to: https://www.hirelegalhelp.com/dela?tab=meetings
+5. Go to: https://www.lawfecta.co/dela?tab=meetings
    Find: the booked meeting.
    Do: tick "I agree to this meeting being recorded or noted. Nothing is recorded unless both of you agree."
    Expect: "Saved".

@@ -5,7 +5,7 @@ The track B test found five failures and several confusing items. Claude fixed t
 What was fixed:
 - **"✦ Summarize" and "✦ Draft a reply" did nothing.** OpenAI refused the request because DELA asked for a JSON answer while asking for plain text. Fixed.
 - **"Change the time" always said the time was taken.** The new time was checked against the meeting being moved. The new-time list also showed the current time. Both fixed, and choosing the same time is refused.
-- **The freelancer's question was lost.** The page had switched to the owner's login, because hirelegalhelp.com was opened as the owner in the same Chrome while the test ran. This was not a DELA error. See step 6 under "Before you paste this".
+- **The freelancer's question was lost.** The page had switched to the owner's login, because www.lawfecta.co was opened as the owner in the same Chrome while the test ran. This was not a DELA error. See step 6 under "Before you paste this".
 - **Smaller items:**
   - Meeting times stopped at 2:45 PM.
   - The freelancer saw "Where: [Add the menu path in your system]".
@@ -16,15 +16,15 @@ What was fixed:
   - DELA's AI wrote "Microsoft 365" into the qualifications and named Google Workspace.
 
 Before you paste this:
-1. Open a new Chrome tab at https://www.hirelegalhelp.com/login and log in as the test attorney (stacey+dela-attorney@lawfecta.com, password in the ready-to-paste copy Claude sent you in chat).
+1. Open a new Chrome tab at https://www.lawfecta.co/login and log in as the test attorney (stacey+dela-attorney@lawfecta.com, password in the ready-to-paste copy Claude sent you in chat).
 2. Click the Claude icon at the top right of Chrome to open the Claude side panel.
-3. Do not open hirelegalhelp.com in any other Chrome tab or window until the test is done.
+3. Do not open www.lawfecta.co in any other Chrome tab or window until the test is done.
 4. Paste everything below the line into the side panel and send it.
 5. When Claude asks you to log in as another account, do it in the same tab, then type in the side panel: done, continue.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com, in my Chrome. I am logged in as the test attorney.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co, in my Chrome. I am logged in as the test attorney.
 
 Logins (I type them myself when you ask):
 - test attorney: stacey+dela-attorney@lawfecta.com
@@ -45,22 +45,22 @@ HOW TO WORK (read this first; it saves time and credits)
 
 1. Attorney (I am logged in as the test attorney)
 
-1. Go to: https://www.hirelegalhelp.com/dela?tab=projects
+1. Go to: https://www.lawfecta.co/dela?tab=projects
    Find: the card "Post a new gig" (middle of the page).
    Do: in the dropdown "Document" choose "ENG-01 Send the welcome packet". Type 300 in "Budget from ($)" and 600 in "Budget to ($)". Click the blue "Draft the gig with DELA".
    Expect: within 60 seconds, the gig page. Write down its title.
    Do: in the card "Budget, deadline and milestones", pick a "Deadline" next month, then click the blue "Post the gig" below that card.
    Expect: the status label "Open".
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=talent
+2. Go to: https://www.lawfecta.co/dela?tab=talent
    Do: in the card of DELA Test Freelancer, choose the new gig in the dropdown and click the blue "Invite to this gig".
    Expect: "Invited DELA Test Freelancer".
 
-3. Go to: https://www.hirelegalhelp.com/dela?tab=projects
+3. Go to: https://www.lawfecta.co/dela?tab=projects
    Find: the card "Engagements" near the top.
    Expect: the engagement from the earlier test shows "milestones set when you both sign" (not "0 of 0").
 
-4. Go to: https://www.hirelegalhelp.com/dela?tab=meetings
+4. Go to: https://www.lawfecta.co/dela?tab=meetings
    Find: the booked meeting card.
    Expect: under the time, the line "The meeting room link appears here once Lawfecta's meeting service is connected."
 
@@ -68,7 +68,7 @@ HOW TO WORK (read this first; it saves time and credits)
 
 2. Freelancer (ask me to log in as the test freelancer)
 
-1. Go to: https://www.hirelegalhelp.com/dela?tab=work
+1. Go to: https://www.lawfecta.co/dela?tab=work
    Do: in the card "Invitations", click the new gig.
    Find: the card "The work handed to you".
    Expect: no line that says "Where: [Add the menu path in your system]".
@@ -87,7 +87,7 @@ HOW TO WORK (read this first; it saves time and credits)
    Do: click the outlined "✦ Draft a reply".
    Expect: within 60 seconds, a reply in the message box. You do not need to send it.
 
-5. Go to: https://www.hirelegalhelp.com/dela?tab=meetings
+5. Go to: https://www.lawfecta.co/dela?tab=meetings
    Find: the booked meeting card. Write down its day and time.
    Do: click the outlined "Change the time".
    Expect: a card "Choose a new time". On the meeting's day, the meeting's own time is not in the list. The times run to 4:30 PM (for 30 minutes), not 2:45 PM.
@@ -99,20 +99,20 @@ HOW TO WORK (read this first; it saves time and credits)
 3. Check the results (the test attorney, then the owner)
 
 1. Ask me to log in as the test attorney.
-   Go to: https://www.hirelegalhelp.com/dela?tab=projects and click the new gig in the card "Your gigs".
+   Go to: https://www.lawfecta.co/dela?tab=projects and click the new gig in the card "Your gigs".
    Do: click the view tab "Questions".
    Expect: "Which intake form do you use?". Type We use our standard intake form in the answer box and click "Answer for everyone". Expect: "Answered for every applicant".
    Expect: the grey line under the gig title says "0 proposals" or "1 proposal" (never "1 proposals").
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=meetings
+2. Go to: https://www.lawfecta.co/dela?tab=meetings
    Expect: the meeting shows the new time and "new time".
 
-3. Go to: https://www.hirelegalhelp.com/dela?tab=delegate (the "✦ Ask DELA" tab).
+3. Go to: https://www.lawfecta.co/dela?tab=delegate (the "✦ Ask DELA" tab).
    Do: type Which practice management software should a solo family law firm use? in the box at the bottom and send it.
    Expect: an answer that names only tools from the Lawfecta tech catalog, with no other product (for example no Google Workspace).
 
 4. Sign out, then ask me to log in as the owner.
-   Go to: https://www.hirelegalhelp.com/dela-admin and click the tab "Gigs".
+   Go to: https://www.lawfecta.co/dela-admin and click the tab "Gigs".
    Find: the card "Proposals sent this month, by plan".
    Expect: the plan column says "Freelancer Free" (not "fl_free").
 

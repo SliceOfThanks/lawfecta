@@ -22,7 +22,7 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co.
 
 Logins:
 - test attorney: stacey+dela-attorney@lawfecta.com, password TEST_PASSWORD
@@ -42,7 +42,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
@@ -50,14 +50,14 @@ Each account below logs in once. Do every step of a group before signing out.
 
 Group 1. The attorney (log in as the test attorney)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=c00a6abf-b3fd-461c-8ca4-4b6225d8a5bd&view=proposals
+2. Go to: https://www.lawfecta.co/dela?tab=projects&gig=c00a6abf-b3fd-461c-8ca4-4b6225d8a5bd&view=proposals
    Expect: the title "Test job: Subcontracting choice (prepared)".
    Find: the agency's proposal, in the box with the "Agency" label and "Roe Test Agency LLC", near the top.
    Expect: under "Who will do this work:", the grey line "This agency may use vetted subcontractors from Lawfecta to complete this work."
 
-3. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=c00a6abf-b3fd-461c-8ca4-4b6225d8a5bd&view=agreement
+3. Go to: https://www.lawfecta.co/dela?tab=projects&gig=c00a6abf-b3fd-461c-8ca4-4b6225d8a5bd&view=agreement
    Find: the card "Subcontractors", just below the card "The agreement" (middle of the page).
    Expect: the line "This agency may use vetted subcontractors from Lawfecta to complete this work.", a tick box "No subcontractors on this engagement" and an outlined "Save" button.
    Do: tick "No subcontractors on this engagement" and click "Save".
@@ -65,7 +65,7 @@ Group 1. The attorney (log in as the test attorney)
    Do: scroll up to the card "The agreement", click "The terms" to open it, and scroll to its end.
    Expect: the last clause starts "10. No subcontractors on this engagement."
 
-4. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=6a31398c-e89f-4f58-b6ca-f5aef02639a4&view=agreement
+4. Go to: https://www.lawfecta.co/dela?tab=projects&gig=6a31398c-e89f-4f58-b6ca-f5aef02639a4&view=agreement
    Expect: the title "Test job: Subcontracting active (prepared)".
    Find: the card "Subcontractors" (middle of the page).
    Expect: "This agency may use vetted subcontractors from Lawfecta to complete this work." and no tick box (both of you signed, so it cannot change).
@@ -79,15 +79,15 @@ Group 1. The attorney (log in as the test attorney)
 
 Group 2. The agency (log in as the test freelancer)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=work&gig=c00a6abf-b3fd-461c-8ca4-4b6225d8a5bd&view=agreement
+2. Go to: https://www.lawfecta.co/dela?tab=work&gig=c00a6abf-b3fd-461c-8ca4-4b6225d8a5bd&view=agreement
    Find: the card "Subcontractors" (middle of the page).
    Expect: "No subcontractors on this engagement: only the agency's own team works on it." and the grey line "The attorney chose this. Bench assignments and gigs for part of this job are off."
    Find: the card "Bench assignments" (scroll down).
    Expect: the line "This engagement says no subcontractors, so its milestones cannot be assigned to bench members and no gig can be posted for part of it." and no button "Post a gig for part of this job".
 
-3. Go to: https://www.hirelegalhelp.com/dela?tab=work&gig=6a31398c-e89f-4f58-b6ca-f5aef02639a4&view=agreement
+3. Go to: https://www.lawfecta.co/dela?tab=work&gig=6a31398c-e89f-4f58-b6ca-f5aef02639a4&view=agreement
    Find: the card "Bench assignments" (scroll down, below "Who's working on this").
    Do: click the outlined "Post a gig for part of this job".
    Expect: the Projects page opens. In the card "Post a new gig" (top), a line "Linked to: Test job: Subcontracting active (prepared). Whoever you hire is listed on the attorney's "Who's working on this", as your subcontractor. Share with them only what their part needs." and a button "Do not link".
@@ -101,11 +101,11 @@ Group 2. The agency (log in as the test freelancer)
    Do: in the card "Budget, deadline and milestones", type 12/31/2026 in "Deadline" (or choose that date), and type Draft on the first line and Final on the second line of "Milestones (private)". Click the blue "Post the gig" at the bottom.
    Expect: the matches view opens with the card "Your bench".
 
-5. Go to: https://www.hirelegalhelp.com/dela?tab=projects
+5. Go to: https://www.lawfecta.co/dela?tab=projects
    Find: the card "Your gigs" (below "Post a new gig").
    Expect: the new gig's grey line starts "Linked to Test job: Subcontracting active (prepared)".
 
-6. Still on https://www.hirelegalhelp.com/dela?tab=projects, in the card "Post a new gig" (top):
+6. Still on https://www.lawfecta.co/dela?tab=projects, in the card "Post a new gig" (top):
    Expect: no "Linked to" line this time.
    Do: choose "Test SOP: Agency intake" under "Document", type 300 in "Budget from ($)" and 600 in "Budget to ($)", and click the blue "Draft the gig with DELA".
    Expect: after up to 60 seconds, the gig page opens with the card "Public version" and no "Linked to" line.
@@ -121,14 +121,14 @@ Group 2. The agency (log in as the test freelancer)
 
 Group 3. The subcontractor and the Lawfecta Team (log in as the owner)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the owner.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=work&gig=3f3c6b67-df75-4681-8029-3e5bbe00d83b&view=agreement
+2. Go to: https://www.lawfecta.co/dela?tab=work&gig=3f3c6b67-df75-4681-8029-3e5bbe00d83b&view=agreement
    Expect: the title "Test gig: Linked part (prepared)", the line "Posted by Roe Test Agency LLC (agency).", and no "Linked to" line and no "Test job: Subcontracting active (prepared)" anywhere on the page.
    Find: the card "The agreement" (middle of the page). Click "The terms" to open it and scroll to its end.
    Expect: the last clause starts "11. Confidentiality and no poaching." and says the freelancer keeps everything the agency shares confidential and, for 12 months, does not take work directly from the agency's clients.
 
-3. Go to: https://www.hirelegalhelp.com/dela-admin
+3. Go to: https://www.lawfecta.co/dela-admin
    Do: in the row of tabs near the top, click "Gigs".
    Find: the card "Held for a check" (top of the page).
    Expect: an item for a gig on "Family intake packet", with the label "copies an engagement's text but is not linked to it", and the line "Gig "Family intake packet" shares ...% of its words with the engagement "Test job: Subcontracting active (prepared)" but is not linked to it." The buttons say "It is fine" and "Pause the gig".

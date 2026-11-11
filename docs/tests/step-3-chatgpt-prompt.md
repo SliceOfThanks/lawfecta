@@ -11,14 +11,14 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com. Report every step as PASS or FAIL with what you saw, and take a screenshot of anything wrong or confusing. Never type real client information. Use only made-up details.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co. Report every step as PASS or FAIL with what you saw, and take a screenshot of anything wrong or confusing. Never type real client information. Use only made-up details.
 
 Logins: test attorney stacey+dela-attorney@lawfecta.com (password TEST_PASSWORD); test freelancer stacey+dela-freelancer@lawfecta.com (password TEST_PASSWORD); owner stacey@lawfecta.com (password TEST_PASSWORD). Work email for the license check: stacey+license@lawfecta.com.
 
 The steps are grouped by login: all freelancer steps, then all attorney steps, then the owner. Log in once for each group. The last group is a short check of the results. To log out, click the initials in the top right of the DELA page, then "Sign out".
 
 1. Freelancer (log in as the test freelancer)
-1. Open www.hirelegalhelp.com/dela?tab=profile (or click "Profile" in the row of tabs under the dark top bar). Expect, from top to bottom: "Where your profile stands", "Your availability", "LinkedIn check", "Your profile" and "Profile documents".
+1. Open www.lawfecta.co/dela?tab=profile (or click "Profile" in the row of tabs under the dark top bar). Expect, from top to bottom: "Where your profile stands", "Your availability", "LinkedIn check", "Your profile" and "Profile documents".
 2. In the "Your profile" card, about halfway down, open "Let DELA draft your headline, summary and services". Type a few made-up sentences about your work and click "Draft with DELA". Expect the Headline and Summary boxes filled in, and nothing saved yet.
 3. Still in "Your profile", fill in:
    - First name and Last name, at the top of the card.
@@ -41,7 +41,7 @@ The steps are grouped by login: all freelancer steps, then all attorney steps, t
 9. Narrow the window to phone width: nothing runs off the side. Click the initials in the top right: the menu says "Profile". Click "Sign out": you land on the Lawfecta login page.
 
 2. Attorney (log in as the test attorney)
-1. Open www.hirelegalhelp.com/dela. On Home, the "Verification" card has "Set up your profile and verification". Click it. Expect "Profile and verification" with "Not complete" and a checklist.
+1. Open www.lawfecta.co/dela. On Home, the "Verification" card has "Set up your profile and verification". Click it. Expect "Profile and verification" with "Not complete" and a checklist.
 2. In the "Your profile" card, click "Fill from my Lawfecta listing" at the top of the card. Expect a message and your name filled in. Nothing else private appears.
 3. In "Your profile", fill in "Firm name", "City" and "State" (TX). Under "Practice areas", click "Family law". Type TX in "Where you are licensed or practice". Click "Save" at the bottom of the card. Expect "Profile saved" and "Waiting for a check".
 4. In the "License verification" card, click "Add a license" at its bottom:
@@ -55,14 +55,14 @@ The steps are grouped by login: all freelancer steps, then all attorney steps, t
 8. Click the initials in the top right: the menu says "Profile and verification". Click "Sign out".
 
 3. Owner (log in as the owner)
-1. Open www.hirelegalhelp.com/dela-admin and click the "Verification" tab in the row of tabs at the top.
+1. Open www.lawfecta.co/dela-admin and click the "Verification" tab in the row of tabs at the top.
 2. "Attorney licenses": find the TX license with its confirmed email. Click "Verify" without choosing how they showed it is theirs. Expect a plain message asking you to choose.
 3. Choose "The email is at the firm's own domain", type a note in "Lookup note", and click "Verify". Expect the license to leave the list.
 4. "Freelancer LinkedIn checks", below: on the freelancer's check, click "Checked" without ticking. Expect "Tick both". Tick both boxes and click "Checked".
 5. Sign out (initials in the top right, then "Sign out").
 
 4. Check the results (two quick logins)
-1. Test attorney: open www.hirelegalhelp.com/dela?tab=profile. Expect "Verified" and "Ready". Click "Projects": the hiring note is gone. Sign out.
-2. Test freelancer: open www.hirelegalhelp.com/dela?tab=profile. Expect "You are match-ready".
+1. Test attorney: open www.lawfecta.co/dela?tab=profile. Expect "Verified" and "Ready". Click "Projects": the hiring note is gone. Sign out.
+2. Test freelancer: open www.lawfecta.co/dela?tab=profile. Expect "You are match-ready".
 
 Final report: a table of every step with PASS or FAIL, then anything confusing, slow (over 30 seconds) or worded badly, with the exact text of every error message.

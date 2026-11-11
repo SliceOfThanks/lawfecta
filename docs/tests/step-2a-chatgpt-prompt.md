@@ -10,7 +10,7 @@ Paste everything below the line into ChatGPT with agent mode.
 
 ---
 
-You are testing a new part of DELA, the AI Delegation Center on the Lawfecta website (www.hirelegalhelp.com), on the Staging copy. Test it like a careful member and like someone trying to misuse it. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything that looks wrong or confusing. Never type real client information. Use only the test files described.
+You are testing a new part of DELA, the AI Delegation Center on the Lawfecta website (www.lawfecta.co), on the Staging copy. Test it like a careful member and like someone trying to misuse it. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything that looks wrong or confusing. Never type real client information. Use only the test files described.
 
 Logins:
 - Owner (Lawfecta Team): OWNER_LOGIN
@@ -20,7 +20,7 @@ Logins:
 - Freelancer's Claude key (only for Part F, optional): FREELANCER_CLAUDE_KEY
 
 Part A: Attorney, Files
-1. Log in as the test attorney. Open www.hirelegalhelp.com/dela. Expect a "Staging" badge and tabs Home, Ask DELA, Files, Projects, Talent.
+1. Log in as the test attorney. Open www.lawfecta.co/dela. Expect a "Staging" badge and tabs Home, Ask DELA, Files, Projects, Talent.
 2. Open Files. Expect a storage bar ("of 5 GB used" or similar for the plan), an "Add files" card with a short reminder not to upload client information, and a tick box that says the files have no confidential client information.
 3. Choose the process file and click Upload WITHOUT ticking the box. Expect a red message asking you to tick the box, and nothing uploaded.
 4. Tick the box and upload the process file. Within a few seconds expect it in the list as "Ready".
@@ -55,12 +55,12 @@ Part C: Attorney, own OpenAI key
 
 Part D: Misuse and access
 1. Log out and log in as the test freelancer. Expect tabs Home, Ask DELA, Profile, Work, Earnings and no Files tab.
-2. While logged in as the freelancer, open www.hirelegalhelp.com/dela?tab=files. Expect the Home page, not the attorney's files.
+2. While logged in as the freelancer, open www.lawfecta.co/dela?tab=files. Expect the Home page, not the attorney's files.
 3. If you copied a file link in Part A step 8, open it as the freelancer after it expires. Expect it not to work.
 4. In Ask DELA as the freelancer, send a question. Expect an answer, and a different set of chats from the attorney's.
 
 Part E: Owner, admin area
-1. Log in as the owner. Open www.hirelegalhelp.com/dela-admin, tab "AI and files". Expect a green or red line saying whether Lawfecta's AI key, the key lock secret and file storage are in place.
+1. Log in as the owner. Open www.lawfecta.co/dela-admin, tab "AI and files". Expect a green or red line saying whether Lawfecta's AI key, the key lock secret and file storage are in place.
 2. Expect "AI use this month" with rows for Attorney and Freelancer, "Members' own keys" (it should list no key after Part C step 7, or show provider and status only), "Recent AI problems" (the failed key test from Part C step 3), "Storage by member", "Files held for a client information check" and "Files not accepted" (the renamed program).
 3. Confirm no member key and no file contents appear anywhere on this tab.
 4. Switches tab: expect "Members add their own AI key", "Talk to the AI (microphone)" and "Attorney file uploads", set to Access list. Settings tab: expect a "Files and AI" group with the file size limit, file types, trash days and talking time.

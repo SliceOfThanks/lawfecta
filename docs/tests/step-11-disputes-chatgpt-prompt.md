@@ -12,13 +12,13 @@ Each account logs in once: freelancer, then attorney, then the owner (admin area
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.
 2. Each time ChatGPT reaches the login page: click "Take over", type the email named by hand (check the browser did not fill in another account), log in, hand control back and type: I'm logged in, continue.
-3. Don't use hirelegalhelp.com in other tabs while it runs.
+3. Don't use www.lawfecta.co in other tabs while it runs.
 
 Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing the dispute process in DELA on the Lawfecta test site, www.hirelegalhelp.com. Everything here is made up; type only the made-up words in the steps.
+You are testing the dispute process in DELA on the Lawfecta test site, www.lawfecta.co. Everything here is made up; type only the made-up words in the steps.
 
 Logins:
 - test freelancer: stacey+dela-freelancer@lawfecta.com, password TEST_PASSWORD
@@ -38,7 +38,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
@@ -47,8 +47,8 @@ Where the dispute tools are: on each job's agreement page, scroll to the bottom 
 Steps
 
 FREELANCER (log in once)
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer. Then click the round button with the initials at the far right of the dark top bar: the first line must say "DELA Test Freelancer". If not, stop and tell me.
-2. Go to: https://www.hirelegalhelp.com/dela?tab=work&gig=46a2b905-6492-4177-820a-d9d24102aadf&view=agreement
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer. Then click the round button with the initials at the far right of the dark top bar: the first line must say "DELA Test Freelancer". If not, stop and tell me.
+2. Go to: https://www.lawfecta.co/dela?tab=work&gig=46a2b905-6492-4177-820a-d9d24102aadf&view=agreement
    Find: the card "Problems, disputes and canceling" at the bottom of the page.
    Expect: a box "Dispute about milestone 1..." with a yellow label "Open: waiting for an answer", the attorney's reason, and the line "Give your side by" a date.
 3. Do: in that box, type in the "Your side" box: Fictional test: the checklist was sent by email on the due date. Click "Send my side".
@@ -64,7 +64,7 @@ FREELANCER (log in once)
    Expect: "Your offer: $300 to the freelancer, $150 back to the attorney" with a yellow "Open" label.
 8. Do: in the same offer area, click "✦ Summarize both sides".
    Expect: within 60 seconds an "AI suggestion" box with a short neutral summary and a line saying it is not legal advice.
-9. Go to: https://www.hirelegalhelp.com/dela?tab=work&gig=868796e2-adfc-46ef-a923-51d433ae53b0&view=agreement
+9. Go to: https://www.lawfecta.co/dela?tab=work&gig=868796e2-adfc-46ef-a923-51d433ae53b0&view=agreement
    Find: the card "Problems, disputes and canceling" at the bottom.
    Do: click "Open a dispute". Leave "What went wrong" on "Choose" and click "Open the dispute".
    Expect: a message asks you to choose what went wrong (or the milestone). No dispute opens.
@@ -73,27 +73,27 @@ FREELANCER (log in once)
 11. Sign out.
 
 ATTORNEY (log in once)
-12. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney. Check the first line of the account menu says "DELA Test Attorney".
-13. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=46a2b905-6492-4177-820a-d9d24102aadf&view=agreement
+12. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney. Check the first line of the account menu says "DELA Test Attorney".
+13. Go to: https://www.lawfecta.co/dela?tab=projects&gig=46a2b905-6492-4177-820a-d9d24102aadf&view=agreement
     Find: the dispute box in "Problems, disputes and canceling" at the bottom.
     Expect: the freelancer's answer, the "Delivery email" link, and "The freelancer's offer: $300 to the freelancer, $150 back to the attorney" with an "Accept the offer" button.
 14. Do: click "Accept the offer". A browser OK/Cancel box asks to confirm: click OK.
     Expect: the label becomes green "Settled by agreement" and the box says $300 went to the freelancer and $150 back to the attorney. There are no more buttons in that box.
-15. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=868796e2-adfc-46ef-a923-51d433ae53b0&view=agreement
+15. Go to: https://www.lawfecta.co/dela?tab=projects&gig=868796e2-adfc-46ef-a923-51d433ae53b0&view=agreement
     Find: the dispute box at the bottom.
     Expect: "Open: waiting for an answer", the freelancer's reason, "Give your side by" a date.
     Do: in "Your side" type: Fictional test: only half of the work matched the agreement. Click "Send my side".
     Expect: your answer shows with "Answer".
 16. Do: click "Settle it: send an offer", then "✦ Suggest a fair offer".
     Expect: within 60 seconds an "AI suggestion" with an amount to the freelancer and a "Use suggestion" button. Click "Use suggestion": the amount box fills in. Do not send the offer.
-17. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=e9a7d1d8-4497-4e05-b078-381beea30c9a&view=agreement
+17. Go to: https://www.lawfecta.co/dela?tab=projects&gig=e9a7d1d8-4497-4e05-b078-381beea30c9a&view=agreement
     Find: the dispute box at the bottom.
     Expect: a blue label "Lawfecta Team review" and a line "The Lawfecta Team decides by" a date.
 18. Sign out.
 
 OWNER, ADMIN AREA (log in once)
-19. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the owner.
-20. Go to: https://www.hirelegalhelp.com/dela-admin
+19. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
+20. Go to: https://www.lawfecta.co/dela-admin
     Do: in the row of tabs near the top, click "Disputes".
     Expect: a card "Disputes" with numbers (Open now, Settled by offer, and others), then "Open disputes", then "Closed in the last 90 days". "Test job: Dispute to answer (prepared)" is under closed, marked "Settled by offer".
 21. Find: under "Open disputes", the box "Test job: Dispute for the team (prepared), milestone 1..." with a yellow "Ready for your decision" label. It shows both sides.

@@ -5,7 +5,7 @@ Log in as the test attorney, "DELA Test Attorney", the only login this needs.
 
 ## On your computer
 
-1. Go to https://www.hirelegalhelp.com/dela?tab=library and log in as the test attorney if asked.
+1. Go to https://www.lawfecta.co/dela?tab=library and log in as the test attorney if asked.
 2. Top of the page: the heading "Library" with the line "Your firm's processes and policies, all in one place." On the right: the blue "Create a document" button, the "Import" button and the "Library settings" link.
 3. Right under the heading: the wide "Find a document" box. Type `conflict`: only "Run a Conflict Check" stays. Clear the box.
 4. Under the box: the category buttons ("All categories", "Client intake", "Client onboarding", "Documents and filing", "Billing", "Firm administration") and the status buttons ("All", "Ready to use", "Draft", "Needs your review"). Click a few.
@@ -17,7 +17,7 @@ Log in as the test attorney, "DELA Test Attorney", the only login this needs.
 
 ## On your phone
 
-10. Open the same link, https://www.hirelegalhelp.com/dela?tab=library, on your phone.
+10. Open the same link, https://www.lawfecta.co/dela?tab=library, on your phone.
 11. The cards are in one column, in the same order inside each card. The category and status buttons sit in rows you can swipe sideways.
 
 ## What to send back

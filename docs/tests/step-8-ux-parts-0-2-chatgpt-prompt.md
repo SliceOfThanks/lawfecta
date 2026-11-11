@@ -27,13 +27,13 @@ What it covers:
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.
 2. Each time ChatGPT reaches the login page: click "Take over", log in with the account it names, hand control back and type: I'm logged in, continue.
-3. Don't use hirelegalhelp.com in other tabs while it runs.
+3. Don't use www.lawfecta.co in other tabs while it runs.
 
 Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co.
 
 Logins:
 - test freelancer: stacey+dela-freelancer@lawfecta.com, password TEST_PASSWORD
@@ -52,7 +52,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
@@ -63,13 +63,13 @@ Steps
 
 FREELANCER (log in once)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=work
+2. Go to: https://www.lawfecta.co/dela?tab=work
    Find: the top of the page, under the green line about proposals left this month.
    Expect: the card "Your engagements (" with a number, sits right under that green line, above "Invitations". Wait 5 seconds and check it did not move.
 
-3. Go to: https://www.hirelegalhelp.com/dela?tab=work&gig=6a31398c-e89f-4f58-b6ca-f5aef02639a4&view=agreement
+3. Go to: https://www.lawfecta.co/dela?tab=work&gig=6a31398c-e89f-4f58-b6ca-f5aef02639a4&view=agreement
    Find: the card "The agreement", near the middle of the page.
    Expect:
    - a green box under the first lines that starts "You receive" and says "in total, after your" and "platform fee."
@@ -82,7 +82,7 @@ FREELANCER (log in once)
    Do: click the first of those buttons.
    Expect: DELA opens that page, and that notice no longer shows "New" when you open "Notices" again. Close the panel.
 
-5. Go to: https://www.hirelegalhelp.com/dela?tab=profile
+5. Go to: https://www.lawfecta.co/dela?tab=profile
    Find: the row of buttons near the top of the page, under the grey line about your profile.
    Expect: section buttons "Availability", "LinkedIn check" and "Your profile". Click "Your profile": the page scrolls to that card.
    Find: the card "Your profile", the "Headline" box near the top.
@@ -96,9 +96,9 @@ FREELANCER (log in once)
 
 ATTORNEY (log in once)
 
-7. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
+7. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-8. Go to: https://www.hirelegalhelp.com/dela?tab=projects
+8. Go to: https://www.lawfecta.co/dela?tab=projects
    Expect: the cards in this order from the top: "Post a new gig", "Needs your action", "Your gigs", then "Engagements (" with a number. Wait 5 seconds and check the order did not change.
    - "Post a new gig" is short, with a blue "Start a new gig" button (the form opens on request once you have gigs).
    - "Needs your action" lists what waits on you, each with a button such as "Review proposals", "Answer", "Finish and post" or "Open the agreement".
@@ -110,14 +110,14 @@ ATTORNEY (log in once)
    Do: if you see the choice "Monthly" above "Document", click it.
    Expect: the line now starts "The budget is the monthly price for the work." and says "Estimated total each month: $315 to $630." Leave the page without saving.
 
-10. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=6a31398c-e89f-4f58-b6ca-f5aef02639a4&view=agreement
+10. Go to: https://www.lawfecta.co/dela?tab=projects&gig=6a31398c-e89f-4f58-b6ca-f5aef02639a4&view=agreement
     Find: the card "The agreement", near the middle.
     Expect:
     - a green box with "Your total:" in bold, then "First payment:" with "(milestone 1 and the platform fee)".
     - if there is more than one milestone, a "Then" line listing the other milestones, and "The next milestone is charged automatically after you accept the previous milestone."
     - the card "Problems, disputes and canceling" lower down still has "Cancel the engagement" (this is a one-off job).
 
-11. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
+11. Go to: https://www.lawfecta.co/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
     Find: the card "Monthly engagement", near the top.
     Expect:
     - a bold line "You pay $" ... " each month, including the $" ... " platform fee." If month 1 is not paid yet, it adds "Your billing day is set when you pay month 1."
@@ -126,7 +126,7 @@ ATTORNEY (log in once)
     Then scroll to the card "Problems, disputes and canceling" near the bottom.
     Expect: there is NO "Cancel the engagement" in that card.
 
-12. Go to: https://www.hirelegalhelp.com/dela?tab=library
+12. Go to: https://www.lawfecta.co/dela?tab=library
     Expect:
     - right under the card with the document count: a search box "Search by title, ID or practice area" and the filter buttons "All", "Drafts", "In review", "Approved", "Due for review" and "More". Click "More": "Archived" (and "Trash" for an administrator) appear.
     - one table with the columns "Document", "Type", "Owner (role)", "Status", "Next review" and "Review". Each group (for example "INT | Intake and conflicts") is a shaded row inside the same table, and each document's ID sits under its title.
@@ -134,7 +134,7 @@ ATTORNEY (log in once)
     - empty Owner cells say "Not assigned" and empty Next review cells say "Not scheduled".
     - below the table, if there are imports, one line "Imports waiting for review (" that opens on click.
 
-13. Go to: https://www.hirelegalhelp.com/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
+13. Go to: https://www.lawfecta.co/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
     Find: the card "✦ Automate or delegate" near the top.
     Expect:
     - a bold line like "2 ideas | 1 already delegated".
@@ -143,47 +143,47 @@ ATTORNEY (log in once)
     Then click the view button "Comments (" under the document heading.
     Expect: if there are no comments, the card says "No comments yet. In "Draft and review", click "Comment" beside any part." with a button "Go to Draft and review". Click that button: the "Draft and review" view opens.
 
-14. Go to: https://www.hirelegalhelp.com/dela?tab=home
+14. Go to: https://www.lawfecta.co/dela?tab=home
     Find: the card whose heading starts "Your DELA plan:".
     Expect: the grey line at the bottom of it: "Your DELA plan comes from your Lawfecta directory plan. Change or pay for it in your Lawfecta account."
 
-15. Go to: https://www.hirelegalhelp.com/dela?tab=ai
+15. Go to: https://www.lawfecta.co/dela?tab=ai
     Find: the card "Which AI DELA uses", at the top.
     Expect:
     - under "Use Lawfecta's AI", the credits line ends "Credits reset on the 1st of each month (Pacific time)."
     - if "Use Lawfecta's AI" is chosen and no key is saved, a grey line says "To add your own OpenAI or Claude key, choose "Use my own key" above." and there is no "Save and test" button.
     - if a key is saved, its card shows. Do not change anything.
 
-16. Go to: https://www.hirelegalhelp.com/dela?tab=meetings
+16. Go to: https://www.lawfecta.co/dela?tab=meetings
     Expect: each meeting shows the full date with the weekday and the year (for example "Friday, November 13, 2026"), then the time and your time zone by name (for example "Pacific Standard Time"). A booked meeting shows the label "Time confirmed". A meeting without a room link says "Meeting room not connected yet."
 
-17. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=c00a6abf-b3fd-461c-8ca4-4b6225d8a5bd&view=files
+17. Go to: https://www.lawfecta.co/dela?tab=projects&gig=c00a6abf-b3fd-461c-8ca4-4b6225d8a5bd&view=files
     Find: the card "Files for this gig".
     Expect: the grey hint ends "Expiry cannot recall a copy someone already downloaded." Any shared file says "Access expires after" with a date, or "Access ended".
     Then click the view button "Matches" near the top.
     Expect: if nobody fits, the card shows the buttons "Search Talent" and "Review gig requirements". Do not click them.
 
-18. Go to: https://www.hirelegalhelp.com/dela?tab=talent
+18. Go to: https://www.lawfecta.co/dela?tab=talent
     Find: the card "Find a freelancer" at the top.
     Expect: the boxes have labels you can see: "Practice area", "Skill", "Tech tool" and "State you need". "State you need" is a list of full state names (for example "Texas"), starting with "Any state".
     Do: click "Search". If any freelancer shows, click "View profile" on the first one. (If none shows, write "no freelancers listed" and go on.)
     Expect: a window "Profile" with their name, "Verified" or "Verification not finished", and their details. Click "Close".
 
-19. Go to: https://www.hirelegalhelp.com/dela?tab=delegate
+19. Go to: https://www.lawfecta.co/dela?tab=delegate
     Do: click "New chat" at the top right.
     Expect: the message box comes right under the heading, with a card "Example: ..." and a button "Use this example" below it. Click "Use this example": the example text fills the message box. Do not send it.
 
-20. Go to: https://www.hirelegalhelp.com/dela?tab=inbox
+20. Go to: https://www.lawfecta.co/dela?tab=inbox
     Do: click the first conversation in the list.
     Expect: under the heading, "Open the gig" and a blue "Book a meeting", then "✦ AI help" and "More", which open on click. "More" holds "Report" and "Block". Do not click any of them.
 
-21. Go to: https://www.hirelegalhelp.com/dela?tab=files
+21. Go to: https://www.lawfecta.co/dela?tab=files
     Expect: a search box "Search files by name" above the list. Each file shows "Version" and when it was uploaded under its name, and a file marked "Ready" says "Available to your firm".
 
-22. Go to: https://www.hirelegalhelp.com/dela?tab=connect
+22. Go to: https://www.lawfecta.co/dela?tab=connect
     Expect: the headings "What ChatGPT or Claude can access", "What it can change", "What stays private" and "How to disconnect".
 
-23. Go to: https://www.hirelegalhelp.com/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
+23. Go to: https://www.lawfecta.co/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
     Find: the card "Quality check" on the right of the document.
     Expect: a grey line "Blocking items are required before approval. Needs attention items are suggestions. These checks look at how the document is written; they do not confirm it is legally correct." Items not passed are labeled "Required before approval" or "Suggestion".
 

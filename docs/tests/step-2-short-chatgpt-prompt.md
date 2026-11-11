@@ -26,7 +26,7 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything wrong or confusing. Never type real client information; use only made-up details.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything wrong or confusing. Never type real client information; use only made-up details.
 
 Logins:
 - test freelancer: stacey+dela-freelancer@lawfecta.com (password TEST_PASSWORD)
@@ -35,12 +35,12 @@ Logins:
 
 Own key for group 2: YOUR_OPENAI_KEY.
 
-The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 
 The steps are grouped by login. To sign out at the end of a group, click the initials in the top right of the DELA page, then "Sign out".
 
 1. Freelancer (ask me to log in as the test freelancer)
-1. Open www.hirelegalhelp.com/dela.
+1. Open www.lawfecta.co/dela.
    - Expect: a "Test site" badge in the dark top bar.
    - The row of tabs under it shows Home, Ask DELA, Profile, Work and Earnings, and no Library or Files tab.
 2. Click "Ask DELA" in that row of tabs. Type a short made-up question in the message box at the bottom of the page and click "Send".
@@ -48,7 +48,7 @@ The steps are grouped by login. To sign out at the end of a group, click the ini
 3. Sign out.
 
 2. Attorney (ask me to log in as the test attorney)
-1. Open www.hirelegalhelp.com/dela.
+1. Open www.lawfecta.co/dela.
    - Expect the tabs Home, Ask DELA, Library, Files, Projects and Talent.
    - Narrow the window to phone width: the tabs move to the bottom of the screen and nothing runs off the side. Widen it again.
 2. Click "Ask DELA". Type a question and click "Send".
@@ -75,7 +75,7 @@ The steps are grouped by login. To sign out at the end of a group, click the ini
 13. Sign out. Expect the Lawfecta login page.
 
 3. Owner (ask me to log in as the owner)
-1. Open www.hirelegalhelp.com/dela-admin and click "AI and files" in the row of tabs near the top. Expect these cards, from top to bottom (other cards, such as "Recent AI problems" and "Storage by member", sit between them):
+1. Open www.lawfecta.co/dela-admin and click "AI and files" in the row of tabs near the top. Expect these cards, from top to bottom (other cards, such as "Recent AI problems" and "Storage by member", sit between them):
    - "AI use this month"
    - "Members' own keys": none, after group 2 step 11
    - "Files not accepted": the renamed program

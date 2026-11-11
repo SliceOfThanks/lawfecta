@@ -15,13 +15,13 @@ Not in this test (Claude's browser tests cover them): double clicks on "Sign and
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.
 2. Each time ChatGPT reaches the login page: click "Take over", log in with the account it names, hand control back and type: I'm logged in, continue. For the owner, use your own login (stacey@lawfecta.com).
-3. Don't use hirelegalhelp.com in other tabs while it runs, and run it on its own.
+3. Don't use www.lawfecta.co in other tabs while it runs, and run it on its own.
 
 Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co.
 
 Logins:
 - test freelancer (runs the agency "Roe Test Agency LLC"): stacey+dela-freelancer@lawfecta.com, password TEST_PASSWORD
@@ -41,7 +41,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
@@ -52,18 +52,18 @@ Steps
 
 FREELANCER (log in once)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=home
+2. Go to: https://www.lawfecta.co/dela?tab=home
    Find: a row of four small tiles below the dark blue "Match readiness" box near the top.
    Expect: the tiles "Proposals left this month", "Invitations", "Active projects" and "Paid out", each with a number above its name. "Proposals left this month" shows "No cap" instead of a number when the plan has no monthly proposal limit (the test freelancer is on an unlimited agency plan), and that is correct. On 2026-11-07 they read Proposals left this month No cap, Invitations 1, Active projects 8 and Paid out $0 (whole dollar amounts show without cents; no payout has been sent to this test account yet). Write down what you see. A different number is a note, not a FAIL; FAIL only if a tile is missing or is blank.
 
-3. Go to: https://www.hirelegalhelp.com/dela?tab=ask
+3. Go to: https://www.lawfecta.co/dela?tab=ask
    Find: the message box "Your message" near the bottom of the page, and the small grey line just above it.
    Expect: the grey line reads "Never enter sensitive data: SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords. Share a link from your own storage instead. You are responsible for what you enter."
    Expect: the old words "Use placeholders such as [Client Name] or [Case Number]" appear nowhere on the page. Do not type anything.
 
-4. Go to: https://www.hirelegalhelp.com/dela?tab=agency
+4. Go to: https://www.lawfecta.co/dela?tab=agency
    Find: the card titled "Bench", near the bottom of the page (below "The agency's jobs"). At the bottom of that card, the heading "Invite to the bench".
    Expect: a box "Agency share (%)" that is empty, with the grey line "Allowed: 5% to 50%." just under it.
    Do: leave every box empty and click the blue "Invite to the bench" at the bottom of the card.
@@ -73,17 +73,17 @@ FREELANCER (log in once)
 
 ATTORNEY (log in once)
 
-6. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
+6. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-7. Go to: https://www.hirelegalhelp.com/dela?tab=home
+7. Go to: https://www.lawfecta.co/dela?tab=home
    Find: a row of small tiles below the dark "AI Delegation Center" box near the top.
    Expect: the tiles "Open gigs", "Active projects" and "Deliveries to review", each with a number. On 2026-11-07 they read Open gigs 6, Active projects 8 and Deliveries to review 0. A fourth tile about drafts may also show. Write down the numbers you see. A different number is a note, not a FAIL; FAIL if you see the old names "Open tasks" or "Pending reviews", or if every tile shows 0.
 
-8. Go to: https://www.hirelegalhelp.com/dela?tab=ask
+8. Go to: https://www.lawfecta.co/dela?tab=ask
    Find: the message box "Your message" near the bottom of the page, and the small grey line just above it.
    Expect: the same line as in step 3, starting "Never enter sensitive data: SSNs or ITINs". Do not type anything.
 
-9. Go to: https://www.hirelegalhelp.com/dela?tab=files
+9. Go to: https://www.lawfecta.co/dela?tab=files
    Find: the card titled "Add files" near the top of the page.
    Expect: under the heading, the same grey line starting "Never enter sensitive data: SSNs or ITINs".
    Expect: a tick box with the words "These files have no sensitive data (no SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords)." Do not tick it and do not choose a file.
@@ -92,9 +92,9 @@ ATTORNEY (log in once)
 
 OWNER (log in once)
 
-11. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the owner.
+11. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-12. Go to: https://www.hirelegalhelp.com/dela-admin
+12. Go to: https://www.lawfecta.co/dela-admin
     Do: click the tab "Overview" in the row of tabs at the top of the admin area.
     Expect: a grid of number tiles that includes "People who opened DELA", "On the access list" and "Turned away (7 days)". There is no tile named "Test site accounts".
 

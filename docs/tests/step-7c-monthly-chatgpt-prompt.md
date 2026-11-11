@@ -14,13 +14,13 @@ Payments are not set up on the test site, so nothing can be charged. The test re
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.
 2. Each time ChatGPT reaches the login page: click "Take over", log in with the account it names, hand control back and type: I'm logged in, continue. For the owner, use your own login (stacey@lawfecta.com).
-3. Don't use hirelegalhelp.com in other tabs while it runs.
+3. Don't use www.lawfecta.co in other tabs while it runs.
 
 Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co.
 
 Logins:
 - test freelancer: stacey+dela-freelancer@lawfecta.com, password TEST_PASSWORD
@@ -40,7 +40,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
@@ -51,9 +51,9 @@ Steps
 
 FREELANCER (log in once)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=work&gig=adf3da25-5d7d-4a56-bf88-8bd4cac3a22a&view=agreement
+2. Go to: https://www.lawfecta.co/dela?tab=work&gig=adf3da25-5d7d-4a56-bf88-8bd4cac3a22a&view=agreement
    Find: the card "The agreement", near the middle of the page.
    Expect:
    - "Agreement, version 2" near the top.
@@ -66,7 +66,7 @@ FREELANCER (log in once)
    Do: type DELA Test Freelancer in "Type your full name to sign", tick "I agree to sign electronically", and click "Sign version 2".
    Expect: the page says you signed version 2 and are waiting for the attorney.
 
-4. Go to: https://www.hirelegalhelp.com/dela?tab=work&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
+4. Go to: https://www.lawfecta.co/dela?tab=work&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
    Find: the card "Monthly engagement", at the top.
    Expect:
    - "This month": "Month 1:" with dates from November 6 to December 5.
@@ -85,13 +85,13 @@ FREELANCER (log in once)
 
 ATTORNEY (log in once)
 
-7. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
+7. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-8. Go to: https://www.hirelegalhelp.com/dela?tab=projects
+8. Go to: https://www.lawfecta.co/dela?tab=projects
    Find: the card "Post a new gig", at the top.
    Expect: two choices, "One-off" and "Monthly", with the hint "Monthly: the same work every month for a flat monthly price, until either of you cancels. The budget is the monthly price." Do not post anything.
 
-9. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=adf3da25-5d7d-4a56-bf88-8bd4cac3a22a&view=agreement
+9. Go to: https://www.lawfecta.co/dela?tab=projects&gig=adf3da25-5d7d-4a56-bf88-8bd4cac3a22a&view=agreement
    Find: the signing form near the top.
    Expect: the page says the freelancer signed version 2, and the form has a tick box "Charge this payment method each month on my billing day until I or the freelancer cancel."
    Do: type DELA Test Attorney in "Type your full name to sign", tick "I agree to sign electronically", leave the charge box unticked, and click "Sign version 2".
@@ -101,7 +101,7 @@ ATTORNEY (log in once)
    - a button "Pay month 1 ($1,000) and the platform fee ($50)", with text that says the day it is paid becomes your billing day.
    - a note that payments are not set up on this site yet. Do not click "Pay month 1".
 
-10. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
+10. Go to: https://www.lawfecta.co/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
     Find: the card "Monthly engagement", at the top.
     Expect:
     - a bold line "You pay $1,050 each month, including the $50 platform fee."
@@ -114,7 +114,7 @@ ATTORNEY (log in once)
 11. On the same page, scroll to the card "Problems, disputes and canceling" near the bottom.
     Expect: there is no "Cancel the engagement" in that card.
 
-12. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=e42a647d-3028-4c7d-86ba-443a1b96cbb8&view=agreement
+12. Go to: https://www.lawfecta.co/dela?tab=projects&gig=e42a647d-3028-4c7d-86ba-443a1b96cbb8&view=agreement
     Find: the card "Keep this going every month", near the bottom.
     Expect: the text "Draft a monthly agreement with the same freelancer, starting from this finished work. You both sign before anything is charged."
     Do: click "Make this monthly".
@@ -124,9 +124,9 @@ ATTORNEY (log in once)
 
 OWNER (log in once)
 
-14. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the owner.
+14. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-15. Go to: https://www.hirelegalhelp.com/dela-admin
+15. Go to: https://www.lawfecta.co/dela-admin
     Do: click the tab "Recurring" in the row of tabs near the top.
     Expect:
     - a green label "Renewal charges are running".

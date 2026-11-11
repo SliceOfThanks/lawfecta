@@ -10,7 +10,7 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing the playbook library in DELA on the Lawfecta test site (www.hirelegalhelp.com). Test it like a careful attorney and like someone trying to misuse it. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything wrong or confusing. Never type real client information.
+You are testing the playbook library in DELA on the Lawfecta test site (www.lawfecta.co). Test it like a careful attorney and like someone trying to misuse it. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything wrong or confusing. Never type real client information.
 
 Logins:
 - Owner (Lawfecta Team): OWNER_LOGIN
@@ -19,7 +19,7 @@ Logins:
 - A team member's BD member ID: TEAM_MEMBER_BD_ID
 
 Part A: Build a playbook with DELA
-1. Log in as the test attorney. Open www.hirelegalhelp.com/dela. Expect a Library tab. Open it. Expect "Playbook library", a count of playbooks, and buttons New playbook, Import from Scribe, What am I missing?, Team.
+1. Log in as the test attorney. Open www.lawfecta.co/dela. Expect a Library tab. Open it. Expect "Playbook library", a count of playbooks, and buttons New playbook, Import from Scribe, What am I missing?, Team.
 2. Click New playbook. Type: "When a new family law client signs, we run a conflict check, send the engagement letter and open the file in Clio." Click Draft it with DELA. Expect, within about 30 seconds, a playbook page with a "Complete" bar under 100%, "Still missing" in plain words, and a "DELA's questions" card.
 3. Answer the questions in your own words (or click Talk and say them). Click Fill these in. Expect the bar to rise and a new version number.
 4. Repeat until it says "Every required part is filled." Expect the Approve button to work only then. Click Approve. Expect "Approved" and a next review date about a year away.
@@ -53,6 +53,6 @@ Part E: Import from Scribe (skip if you have no Scribe export)
 4. Merge two steps, add a note on why a step matters, untick one screenshot. Click Build my playbook and confirm. Expect a playbook marked as built from Scribe, with screenshots on its steps.
 
 Part F: Owner, admin area
-1. Log in as the owner, open www.hirelegalhelp.com/dela-admin. Switches: expect "Playbook library (attorneys)" and "Import a guide from Scribe" set to Access list. Settings, group Playbooks: expect review months, guests, archived counting, trash days, image addresses.
+1. Log in as the owner, open www.lawfecta.co/dela-admin. Switches: expect "Playbook library (attorneys)" and "Import a guide from Scribe" set to Access list. Settings, group Playbooks: expect review months, guests, archived counting, trash days, image addresses.
 
 Final report: a table of every step with PASS or FAIL, then anything confusing, slow (over 30 seconds), worded badly, or unsafe, with the exact text of every error message.

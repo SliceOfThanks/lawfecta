@@ -10,7 +10,7 @@ Rules for writing test steps:
 - No phone-width checks in agent tests. Claude's browser tests cover the phone.
 - No step that asks the agent to "find" or "check" something without saying where it is.
 - Tests that can run at the same time get separate items to work on (named in the prompt), so the two agents never change the same thing.
-- Claude in Chrome uses Stacey's own Chrome and its logins. During a Claude test, nothing else in that Chrome may use hirelegalhelp.com: a page load in another tab switches the login for every tab (track B, 2026-11-05: a question went out as the owner and was lost). Best: a separate Chrome profile only for Claude tests.
+- Claude in Chrome uses Stacey's own Chrome and its logins. During a Claude test, nothing else in that Chrome may use www.lawfecta.co: a page load in another tab switches the login for every tab (track B, 2026-11-05: a question went out as the owner and was lost). Best: a separate Chrome profile only for Claude tests.
 - Claude in Chrome quietly cancels browser OK/Cancel pop-ups. Claude tests tell Claude to make the page answer OK by itself before a (POP-UP) step: it runs window.confirm = () => true and window.prompt = () => "Test" in the page. ChatGPT's browser handles these pop-ups itself.
 
 ---
@@ -28,6 +28,6 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.

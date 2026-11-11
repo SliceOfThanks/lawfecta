@@ -9,13 +9,13 @@ Each account logs in once: attorney, then freelancer, then the owner.
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.
 2. Each time ChatGPT reaches the login page: click "Take over", log in with the account it names, hand control back and type: I'm logged in, continue.
-3. Don't use hirelegalhelp.com in other tabs while it runs, and run it on its own.
+3. Don't use www.lawfecta.co in other tabs while it runs, and run it on its own.
 
 Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co.
 
 Logins:
 - test attorney: stacey+dela-attorney@lawfecta.com, password TEST_PASSWORD
@@ -35,7 +35,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
@@ -46,9 +46,9 @@ Steps
 
 ATTORNEY (log in once)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=delegate
+2. Go to: https://www.lawfecta.co/dela?tab=delegate
    Find: the page "Ask DELA". At the top right, next to the heading, the outlined "New chat" button.
    Do: click "New chat". In the white box "Your message" near the top, type: My client Mary Major, case no. 2025-CV-0001, needs an intake checklist. Then click the blue "Send" button under the box.
    Expect: a pink box saying the message includes client details that go to OpenAI, with the buttons "Edit my message" and "Continue".
@@ -69,7 +69,7 @@ ATTORNEY (log in once)
    Expect: the pink box about OpenAI shows again (a new chat asks again).
    Do: click "Edit my message", and delete the text. Do not send it.
 
-6. Go to: https://www.hirelegalhelp.com/dela?tab=library
+6. Go to: https://www.lawfecta.co/dela?tab=library
    Find: the heading "Library" at the top, the wide "Find a document" box under it, and cards below.
    Do: type conflict in "Find a document".
    Expect: only cards about a conflict check stay, for example "Run a Conflict Check".
@@ -85,7 +85,7 @@ ATTORNEY (log in once)
    Expect: a panel with "Needs your action (N)". Either a list of lines with buttons, or "Nothing waits on you right now." with "Open Projects". It never says it could not check, unless the page really failed (write it down if it does).
    Do: close the panel with its X at the top right.
 
-9. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
+9. Go to: https://www.lawfecta.co/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
    Find: the card "Monthly engagement", and in it "A change to approve" or "Your change, waiting for the other person".
    Expect, in the small table with the columns "Now" and "Proposed":
    - a row "Monthly price (before the platform fee)"
@@ -93,7 +93,7 @@ ATTORNEY (log in once)
    - a line under the table that ends "if approved at least 1 day before" or "1 day before billing"
    Expect: under "Note: Two more welcome packets a week", a red message starting "Check this before approving: the note says". Do not click "Approve the change" or "Decline".
 
-10. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=f4546812-6749-44bd-bca0-66703c824045&view=agreement
+10. Go to: https://www.lawfecta.co/dela?tab=projects&gig=f4546812-6749-44bd-bca0-66703c824045&view=agreement
     Find: the card "The agreement" near the top.
     Expect: "Agency (the contracting party)" with "Roe Test Agency LLC", then "Agency lead" with a person's name.
 
@@ -101,13 +101,13 @@ ATTORNEY (log in once)
 
 FREELANCER (log in once)
 
-12. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer.
+12. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
-13. Go to: https://www.hirelegalhelp.com/dela?tab=inbox&thread=4ad45c8e-ac59-4300-9577-48b42e50e3b4
+13. Go to: https://www.lawfecta.co/dela?tab=inbox&thread=4ad45c8e-ac59-4300-9577-48b42e50e3b4
     Find: the conversation about "Send the Welcome Packet and Intake Follow-Up", and the white message box "Your message" near the bottom of it.
     Expect: the grey hint inside the box says "Write a message. No sensitive data, contact details or payment outside Lawfecta." Do not type or send anything.
 
-14. Go to: https://www.hirelegalhelp.com/dela?tab=work&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
+14. Go to: https://www.lawfecta.co/dela?tab=work&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
     Find: the card "Monthly engagement".
     Expect: the same "Total each month, with the platform fee" row and the same red "Check this before approving" message as in step 9. Do not click "Approve the change".
 
@@ -115,9 +115,9 @@ FREELANCER (log in once)
 
 OWNER (log in once)
 
-16. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the owner (Stacey).
+16. Go to: https://www.lawfecta.co/login and ask me to log in as the owner (Stacey).
 
-17. Go to: https://www.hirelegalhelp.com/dela-admin
+17. Go to: https://www.lawfecta.co/dela-admin
     Find: the row of tabs near the top of the admin page, and the tab "Trials".
     Do: click "Trials".
     Expect: the card "Pro trial check" with:

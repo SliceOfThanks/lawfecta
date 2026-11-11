@@ -5,7 +5,7 @@ Do not give ChatGPT your release password. Part D is done by you, not ChatGPT.
 
 ---
 
-You are testing the Release Control dashboard in the DELA admin area on the Lawfecta website (www.hirelegalhelp.com). It controls when new versions go from Staging (test copy) to Live (real members). Test it like a careful owner and like someone trying to misuse it. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything that looks wrong or confusing. Do not enter real client information anywhere. Never type a password unless the step says so.
+You are testing the Release Control dashboard in the DELA admin area on the Lawfecta website (www.lawfecta.co). It controls when new versions go from Staging (test copy) to Live (real members). Test it like a careful owner and like someone trying to misuse it. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything that looks wrong or confusing. Do not enter real client information anywhere. Never type a password unless the step says so.
 
 Logins:
 - Owner (Lawfecta Team): OWNER_LOGIN
@@ -13,7 +13,7 @@ Logins:
 - Test freelancer: FREELANCER_LOGIN
 
 Part A: Owner, first look
-1. Log in as the owner. Open www.hirelegalhelp.com/dela-admin. Expect the first tab to be "Release Control" and to open by itself.
+1. Log in as the owner. Open www.lawfecta.co/dela-admin. Expect the first tab to be "Release Control" and to open by itself.
 2. Expect two cards side by side (stacked on a phone): Staging and Live. Each shows a health label, the version running, when the worker last ran, problems in the last 24 hours and paused areas. Staging should say Healthy and "Worker last ran" should be a few minutes ago at most.
 3. Expect a "Next version" card with six steps: Built on Staging, Automatic tests passed, ChatGPT report saved, You marked it tested, Pushed with your password (and code), Live and healthy. Done steps show a tick. The next step to do is highlighted.
 4. Expect three boxes under the steps: What changes for members, Database changes, Proof it works. Click "Automatic tests: passed". It should open a GitHub page that says the run succeeded.
@@ -39,10 +39,10 @@ Part B: Mistakes and misuse (owner)
 14. Make the window narrow like a phone. Nothing should need sideways scrolling except the version table, which may scroll inside its own box.
 
 Part C: Members cannot use it
-15. Log out, log in as the test attorney, open www.hirelegalhelp.com/dela-admin. Expect "Lawfecta Team only" and no Release Control data.
+15. Log out, log in as the test attorney, open www.lawfecta.co/dela-admin. Expect "Lawfecta Team only" and no Release Control data.
 16. Same for the test freelancer.
-17. As the test attorney, open www.hirelegalhelp.com/dela. Expect Attorney DELA on the Attorney Pro plan, not the "Almost there" message.
-17b. As the test freelancer, open www.hirelegalhelp.com/dela. Expect Freelancer DELA on the Freelancer Free plan.
+17. As the test attorney, open www.lawfecta.co/dela. Expect Attorney DELA on the Attorney Pro plan, not the "Almost there" message.
+17b. As the test freelancer, open www.lawfecta.co/dela. Expect Freelancer DELA on the Freelancer Free plan.
 17c. As the test attorney, look for any Guide, help tips or admin tabs in the member area. There should be none.
 
 Part D: Stacey only (do not give these to ChatGPT)

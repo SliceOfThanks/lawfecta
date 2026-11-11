@@ -7,13 +7,13 @@ Each account logs in once: attorney, then freelancer.
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.
 2. Each time ChatGPT reaches the login page: click "Take over", log in with the account it names, hand control back and type: I'm logged in, continue.
-3. Don't use hirelegalhelp.com in other tabs while it runs, and run it on its own.
+3. Don't use www.lawfecta.co in other tabs while it runs, and run it on its own.
 
 Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are reviewing DELA on the Lawfecta test site, www.hirelegalhelp.com, as an experienced UX designer. DELA helps law firms write down their processes and hire vetted legal freelancers. Your job is to judge how easy each page is to understand and use. You only look: you do not type, save, send, sign or pay anything.
+You are reviewing DELA on the Lawfecta test site, www.lawfecta.co, as an experienced UX designer. DELA helps law firms write down their processes and hire vetted legal freelancers. Your job is to judge how easy each page is to understand and use. You only look: you do not type, save, send, sign or pay anything.
 
 Logins:
 - test attorney: stacey+dela-attorney@lawfecta.com, password TEST_PASSWORD
@@ -32,7 +32,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
@@ -50,29 +50,29 @@ Steps
 
 ATTORNEY (log in once)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
-2. Review: https://www.hirelegalhelp.com/dela?tab=home (Home).
-3. Review: https://www.hirelegalhelp.com/dela?tab=delegate (Ask DELA). Do not type or send.
-4. Review: https://www.hirelegalhelp.com/dela?tab=library (Library). You may type conflict in "Find a document" and click the category and status buttons.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
+2. Review: https://www.lawfecta.co/dela?tab=home (Home).
+3. Review: https://www.lawfecta.co/dela?tab=delegate (Ask DELA). Do not type or send.
+4. Review: https://www.lawfecta.co/dela?tab=library (Library). You may type conflict in "Find a document" and click the category and status buttons.
 5. In the Library, click the blue "Open document" on the card "Run a Conflict Check", and review that document page. Then click "← Library".
-6. Review: https://www.hirelegalhelp.com/dela?tab=files (Files). Do not upload.
-7. Review: https://www.hirelegalhelp.com/dela?tab=projects (Projects).
-8. Review: https://www.hirelegalhelp.com/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement (a monthly engagement and its agreement). Do not click "Approve the change", "Decline", "Pay" or "Sign".
-9. Review: https://www.hirelegalhelp.com/dela?tab=talent (Talent). Do not invite anyone.
-10. Review: https://www.hirelegalhelp.com/dela?tab=profile (Profile and verification). Do not click "Save".
-11. Review: https://www.hirelegalhelp.com/dela?tab=ai (AI settings). Do not change any choice.
+6. Review: https://www.lawfecta.co/dela?tab=files (Files). Do not upload.
+7. Review: https://www.lawfecta.co/dela?tab=projects (Projects).
+8. Review: https://www.lawfecta.co/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement (a monthly engagement and its agreement). Do not click "Approve the change", "Decline", "Pay" or "Sign".
+9. Review: https://www.lawfecta.co/dela?tab=talent (Talent). Do not invite anyone.
+10. Review: https://www.lawfecta.co/dela?tab=profile (Profile and verification). Do not click "Save".
+11. Review: https://www.lawfecta.co/dela?tab=ai (AI settings). Do not change any choice.
 12. Click "Notices" in the dark top bar and review the panel. Close it with its X.
 13. Sign out.
 
 FREELANCER (log in once)
 
-14. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer.
-15. Review: https://www.hirelegalhelp.com/dela?tab=home (Home).
-16. Review: https://www.hirelegalhelp.com/dela?tab=profile (Profile). Do not click "Save".
-17. Review: https://www.hirelegalhelp.com/dela?tab=work (Work).
-18. Review: https://www.hirelegalhelp.com/dela?tab=work&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement (the same monthly engagement, the freelancer's side). Do not approve or sign anything.
-19. Review: https://www.hirelegalhelp.com/dela?tab=earnings (Earnings).
-20. Review: https://www.hirelegalhelp.com/dela?tab=inbox&thread=4ad45c8e-ac59-4300-9577-48b42e50e3b4 (a conversation). Do not type or send.
+14. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
+15. Review: https://www.lawfecta.co/dela?tab=home (Home).
+16. Review: https://www.lawfecta.co/dela?tab=profile (Profile). Do not click "Save".
+17. Review: https://www.lawfecta.co/dela?tab=work (Work).
+18. Review: https://www.lawfecta.co/dela?tab=work&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement (the same monthly engagement, the freelancer's side). Do not approve or sign anything.
+19. Review: https://www.lawfecta.co/dela?tab=earnings (Earnings).
+20. Review: https://www.lawfecta.co/dela?tab=inbox&thread=4ad45c8e-ac59-4300-9577-48b42e50e3b4 (a conversation). Do not type or send.
 21. Sign out.
 
 AT THE END

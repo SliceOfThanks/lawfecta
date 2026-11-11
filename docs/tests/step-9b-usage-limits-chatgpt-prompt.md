@@ -17,13 +17,13 @@ After your test, tell Claude "usage test done". Claude moves the test attorney b
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.
 2. Each time ChatGPT reaches the login page: click "Take over", log in with the account it names, hand control back and type: I'm logged in, continue. For the owner, use your own login (stacey@lawfecta.com).
-3. Don't use hirelegalhelp.com in other tabs while it runs.
+3. Don't use www.lawfecta.co in other tabs while it runs.
 
 Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co.
 
 Logins:
 - test attorney: stacey+dela-attorney@lawfecta.com, password TEST_PASSWORD
@@ -42,7 +42,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
@@ -53,9 +53,9 @@ Steps
 
 ATTORNEY (log in once)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=home
+2. Go to: https://www.lawfecta.co/dela?tab=home
    Find: the top of the page, just under the row of tabs.
    Expect: a yellow banner with "You've used 50 of 50 DELA actions this month." (and possibly "You've saved ... of 3 documents.") and an "Upgrade to Plus" button on the right. Do not click it.
    Find: the very bottom of the page.
@@ -68,29 +68,29 @@ ATTORNEY (log in once)
    - "Storage" with "... of 1 GB used"
    Below them: "DELA actions reset on" and a date on the 1st of next month, and a note that viewing, exporting and assigning documents, messaging freelancers, posting gigs, hiring and paying are never limited. A box with "🔒" says how many documents are read-only.
 
-4. Go to: https://www.hirelegalhelp.com/dela?tab=library
+4. Go to: https://www.lawfecta.co/dela?tab=library
    Expect: in the table of documents, some documents have the line "🔒 Upgrade to edit this document." under their title. Write down the title of one of them. The 3 most recently edited documents have no lock.
 
 5. Click the title you wrote down in step 4.
    Expect: at the top of the document, a box "🔒 Upgrade to edit this document. Your plan saves fewer documents, so this one is read-only. You can still view, export and assign it." with an Upgrade button. There is no "Save" button. The document text is still there to read.
 
-6. Go to: https://www.hirelegalhelp.com/dela?tab=delegate
+6. Go to: https://www.lawfecta.co/dela?tab=delegate
    Do: click "New chat" at the top right, type Test in the message box, and click "Send".
    Expect: a window "Limit reached" with "You've used this month's DELA actions. They reset on" and a date, or upgrade for more, with "Upgrade to Plus" and "Not now". Click "Not now": the window closes. No answer from DELA appears.
 
-7. Go to: https://www.hirelegalhelp.com/dela?tab=projects
+7. Go to: https://www.lawfecta.co/dela?tab=projects
    Expect: the Projects page opens as usual, with "Post a new gig", "Needs your action", "Your gigs" and "Engagements". Usage limits never block hiring. Do not post anything.
 
-8. Go to: https://www.hirelegalhelp.com/dela?tab=inbox
+8. Go to: https://www.lawfecta.co/dela?tab=inbox
    Expect: the conversations open as usual, and you can type in the message box of a conversation. Do not send.
 
 9. Sign out.
 
 OWNER (log in once)
 
-10. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the owner.
+10. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-11. Go to: https://www.hirelegalhelp.com/dela-admin
+11. Go to: https://www.lawfecta.co/dela-admin
     Do: click the tab "Usage" in the row of tabs near the top.
     Expect: a table with the columns "Attorney", "Plan", "Documents", "DELA actions", "Storage" and "AI cost this month". The grey line above it says anyone above $10 this month is flagged, and that blocking follows the switch usage_limits_enforced.
     Find: the row of the test attorney (their email is stacey+dela-attorney@lawfecta.com).

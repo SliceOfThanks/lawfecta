@@ -19,22 +19,22 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything wrong or confusing. Never type real client information; use only made-up details.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co. Report every step as PASS or FAIL with what you saw. Take a screenshot of anything wrong or confusing. Never type real client information; use only made-up details.
 
 Logins:
 - test freelancer: stacey+dela-freelancer@lawfecta.com (password TEST_PASSWORD)
 - test attorney: stacey+dela-attorney@lawfecta.com (password TEST_PASSWORD)
 - owner: stacey@lawfecta.com (password TEST_PASSWORD)
 
-The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 
 The steps are grouped by login. To sign out at the end of a group, click the initials in the top right of the DELA page, then "Sign out".
 
 The pink banner in these steps is the one that starts "DELA is for operations work. Do not enter confidential client information". It should show only on Ask DELA, the Library and the recorder page.
 
 1. Freelancer (ask me to log in as the test freelancer)
-1. Open www.hirelegalhelp.com/dela. On Home, expect no pink banner. Click "Work" in the row of tabs: no pink banner. Click "Ask DELA": the pink banner is there.
-2. Open www.hirelegalhelp.com/dela?tab=profile. Expect no pink banner at the top of the page. Scroll to the "Your profile" card.
+1. Open www.lawfecta.co/dela. On Home, expect no pink banner. Click "Work" in the row of tabs: no pink banner. Click "Ask DELA": the pink banner is there.
+2. Open www.lawfecta.co/dela?tab=profile. Expect no pink banner at the top of the page. Scroll to the "Your profile" card.
 3. Photo, at the top of the "Your profile" card:
    1. Click "Change photo" (or "Add a photo") and choose the PNG or JPG photo from Downloads.
    2. Expect "New photo ready. Click Save to keep it." and the new photo in the circle.
@@ -50,12 +50,12 @@ The pink banner in these steps is the one that starts "DELA is for operations wo
 9. Sign out.
 
 2. Attorney (ask me to log in as the test attorney)
-1. Open www.hirelegalhelp.com/dela.
+1. Open www.lawfecta.co/dela.
    - On Home, expect no pink banner.
    - In the row of four numbers near the top, "Draft playbooks" is 1 or more.
    - Under "What DELA will do for you", lower on the page, click "Open the Library" in the Playbooks row. Expect the Library with its list of playbooks (not a single playbook), and the pink banner at the top.
 2. Click "Files", "Projects" and "Talent" in the row of tabs, one at a time. Expect no pink banner on any of them. On Files, the "Add files" area still has the tick box that starts "These files have no confidential client information".
-3. Click the initials in the top right, then "AI settings". Expect no pink banner. Then open www.hirelegalhelp.com/dela?tab=profile: no pink banner, and a "?" next to the boxes.
+3. Click the initials in the top right, then "AI settings". Expect no pink banner. Then open www.lawfecta.co/dela?tab=profile: no pink banner, and a "?" next to the boxes.
 4. Upload on the New playbook page:
    1. Click "Library". In the first card at the top (the one showing how many playbooks you have), click "New playbook".
    2. Leave the description empty. Click "Upload a new file". Choose the process write-up from Downloads and click "Upload" without ticking the box. Expect a red message asking you to tick the box.
@@ -72,7 +72,7 @@ The pink banner in these steps is the one that starts "DELA is for operations wo
 7. Sign out.
 
 3. Owner (ask me to log in as the owner)
-1. Open www.hirelegalhelp.com/dela-admin and click "Settings" in the row of tabs near the top. Find the group "Process Recorder" and click "Show" on it. Expect:
+1. Open www.lawfecta.co/dela-admin and click "Settings" in the row of tabs near the top. Find the group "Process Recorder" and click "Show" on it. Expect:
    - "Longest recording per plan" reads like "Attorney Free: 20 minutes; Attorney Plus: 30 minutes; ...", with no "[object Object]"
    - "Days a recording's video is kept per plan" and "AI credits one recording uses per plan" read the same way
    - the consent wording says to record only practice runs or work with no client information

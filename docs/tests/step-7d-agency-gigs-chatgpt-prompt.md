@@ -24,7 +24,7 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co.
 
 Logins:
 - test freelancer (runs the agency "Roe Test Agency LLC"): stacey+dela-freelancer@lawfecta.com, password TEST_PASSWORD
@@ -44,7 +44,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
@@ -52,9 +52,9 @@ Each account below logs in once. Do every step of a group before signing out.
 
 Group 1. The agency (log in as the test freelancer)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=agency
+2. Go to: https://www.lawfecta.co/dela?tab=agency
    Expect: the tab row now also has "▥ Library", "▣ Projects" and "◌ Talent" after "◆ Agency".
    Find: the card titled "Posting gigs", near the top, just below the card "Business details".
    Expect: the line "Ready to post gigs from your Library (Projects tab).", three boxes "Who signs for the agency", "Billing address" and "Email for notices", and a blue "Save client details".
@@ -65,10 +65,10 @@ Group 1. The agency (log in as the test freelancer)
    Do: type Roe Owner in "Who signs for the agency", 1 Test Street, Austin TX 78701 in "Billing address", and stacey+dela-freelancer@lawfecta.com in "Email for notices". Click "Save client details".
    Expect: the line at the top of the card changes to "Client details saved".
 
-4. Go to: https://www.hirelegalhelp.com/dela?tab=library
+4. Go to: https://www.lawfecta.co/dela?tab=library
    Expect: the agency's Library lists "Test SOP: Agency intake".
 
-5. Go to: https://www.hirelegalhelp.com/dela?tab=projects
+5. Go to: https://www.lawfecta.co/dela?tab=projects
    Find: the card "Post a new gig" (top of the page).
    Expect: no message about a "verified license".
    Do:
@@ -85,10 +85,10 @@ Group 1. The agency (log in as the test freelancer)
    - the line "Stacey Lake" with "Not available right now", because her freelancer profile is not finished, and no "Invite to this gig" button for her
    - below it, the card "Freelancers who fit"
 
-7. Go to: https://www.hirelegalhelp.com/dela?tab=talent
+7. Go to: https://www.lawfecta.co/dela?tab=talent
    Expect: the "Talent" page with search boxes for "Practice area", "Skill", "Tech tool" and "State you need (two letters)".
 
-8. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=7976f867-1cff-470c-b483-b6a6b6ea38d9&view=agreement
+8. Go to: https://www.lawfecta.co/dela?tab=projects&gig=7976f867-1cff-470c-b483-b6a6b6ea38d9&view=agreement
    Find: the title "Test job: Agency own gig (prepared)", then the card "The agreement" (middle of the page) and its "Fees" list.
    Expect these four lines:
    - "Price for the work: $600"
@@ -105,9 +105,9 @@ Group 1. The agency (log in as the test freelancer)
 
 Group 2. The bench member (log in as the owner)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the owner.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=work&gig=7976f867-1cff-470c-b483-b6a6b6ea38d9
+2. Go to: https://www.lawfecta.co/dela?tab=work&gig=7976f867-1cff-470c-b483-b6a6b6ea38d9
    Expect: the title "Test job: Agency own gig (prepared)" and the line "Posted by Roe Test Agency LLC (agency)."
    Find: the card "The agreement" (scroll down).
    Expect: the same four fee lines as in Group 1 step 8, including "The freelancer receives: $600 (the full price)".
@@ -120,12 +120,12 @@ Group 2. The bench member (log in as the owner)
 
 Group 3. Check the results (log in as the test attorney; only look)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=library
+2. Go to: https://www.lawfecta.co/dela?tab=library
    Expect: the attorney's Library does not list "Test SOP: Agency intake".
 
-3. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=7976f867-1cff-470c-b483-b6a6b6ea38d9
+3. Go to: https://www.lawfecta.co/dela?tab=projects&gig=7976f867-1cff-470c-b483-b6a6b6ea38d9
    Expect: no gig details for "Test job: Agency own gig (prepared)", only a short message that it is not available.
 
 4. Sign out.

@@ -22,7 +22,7 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co.
 
 Logins:
 - test attorney: stacey+dela-attorney@lawfecta.com, password TEST_PASSWORD
@@ -41,7 +41,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
@@ -49,9 +49,9 @@ Each account below logs in once. Do every step of a group before signing out.
 
 Group 1. The attorney (log in as the test attorney)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=home
+2. Go to: https://www.lawfecta.co/dela?tab=home
    Expect: the tab row also has "✓ Get set up" at its end.
    Find: the card titled "Get set up: 5 of 6 done" (near the top of the page).
    Expect: a progress bar, a blue "Continue setting up" button and a "Dismiss" link on the right.
@@ -70,7 +70,7 @@ Group 1. The attorney (log in as the test attorney)
    Do: click "Close" in card 2.
    Expect: nowhere on this page does the word "train" appear (press Ctrl+F and type train to check).
 
-5. Go to: https://www.hirelegalhelp.com/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
+5. Go to: https://www.lawfecta.co/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
    Expect: the title "Test SOP: Automate or delegate" with an "Approved" badge.
    Find: the card titled "✦ Automate or delegate", near the top, above the document.
    Expect: the line "DELA can find steps in this playbook to automate or hand to a freelancer.", the boxes "How often does this run?" and "How long does it take each time?", a blue "✦ Find what to automate or delegate" button and a "Dismiss" link.
@@ -109,23 +109,23 @@ Group 1. The attorney (log in as the test attorney)
     Do: in the card "Budget, deadline and milestones", type Draft on the first line and Final on the second line of "Milestones (private)", then click the blue "Post the gig".
     Expect: the matches view opens.
 
-12. Go to: https://www.hirelegalhelp.com/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
+12. Go to: https://www.lawfecta.co/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
     Find: the card "✦ Automate or delegate" (top).
     Expect: the suggestions from step 6 again (no new review), and at the bottom of the card a line starting "Delegated:" with the steps, the title, "See SOP ..." and "Gig drafted.", with a "Continue" button.
 
-13. Go to: https://www.hirelegalhelp.com/dela?tab=setup
+13. Go to: https://www.lawfecta.co/dela?tab=setup
     Expect: "6 of 6 done. You are set up." and card 4 shows "Done".
 
-14. Go to: https://www.hirelegalhelp.com/dela?tab=home
+14. Go to: https://www.lawfecta.co/dela?tab=home
     Expect: no "Get set up" card on Home now.
 
 15. Sign out.
 
 Group 2. A freelancer (log in as the test freelancer; only look)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=setup
+2. Go to: https://www.lawfecta.co/dela?tab=setup
    Expect: the Home page opens instead, the tab row has no "✓ Get set up", and there is no "Get set up" card.
 
 3. Sign out.

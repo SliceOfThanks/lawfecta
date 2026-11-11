@@ -15,7 +15,7 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com. This is a re-test of a few steps. Every file and detail here is made up.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co. This is a re-test of a few steps. Every file and detail here is made up.
 
 Logins:
 - test attorney: stacey+dela-attorney@lawfecta.com, password TEST_PASSWORD
@@ -35,15 +35,15 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens. In the admin area (dela-admin), click "Sign out" at the right end of the dark top bar.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
 Group 1. Attorney (log in as the test attorney)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=bc969483-3b96-4a7e-a3ae-cce26a1c3b0b
+2. Go to: https://www.lawfecta.co/dela?tab=projects&gig=bc969483-3b96-4a7e-a3ae-cce26a1c3b0b
    Do: click "Files (0)" or "Files (1)" in the row of round buttons under the title.
    Find: the card "Files for this gig".
    Expect: the checkbox "This job involves sensitive data (SSN, medical, financial, or ID documents)" is ticked (from the first run). Untick it.
@@ -80,9 +80,9 @@ Group 1. Attorney (log in as the test attorney)
 
 Group 2. Freelancer (log in as the test freelancer)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=work&gig=bc969483-3b96-4a7e-a3ae-cce26a1c3b0b&view=agreement
+2. Go to: https://www.lawfecta.co/dela?tab=work&gig=bc969483-3b96-4a7e-a3ae-cce26a1c3b0b&view=agreement
    Find: the card "Confidential materials" (scroll down). If it asks for a code, do the same as Group 1, step 3.
    Expect: under "Files", "Roe intake (made up).txt" with "Open to you until (a date)".
    Do: click "Download" on that file.
@@ -93,7 +93,7 @@ Group 2. Freelancer (log in as the test freelancer)
 Group 3. Check the results (the test attorney, then the owner)
 
 1. Ask me to log in as the test attorney.
-   Go to: https://www.hirelegalhelp.com/dela?tab=projects&gig=bc969483-3b96-4a7e-a3ae-cce26a1c3b0b
+   Go to: https://www.lawfecta.co/dela?tab=projects&gig=bc969483-3b96-4a7e-a3ae-cce26a1c3b0b
    Do: click "Files (1)".
    Find: the card "File activity" (below "Files for this gig").
    Expect: a line showing DELA Test Freelancer "downloaded" Roe intake (made up).txt, under "Confidential materials".
@@ -104,7 +104,7 @@ Group 3. Check the results (the test attorney, then the owner)
    Expect: a message starting "Deleted.", and under "Files": "No files yet."
 
 3. Sign out. Ask me to log in as the owner.
-   Go to: https://www.hirelegalhelp.com/dela-admin
+   Go to: https://www.lawfecta.co/dela-admin
    Find: the dark bar at the very top of the page.
    Expect: a "Sign out" button at the right end of the dark bar, next to "Member view".
    Do: click "Sign out".

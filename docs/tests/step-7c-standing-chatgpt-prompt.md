@@ -16,14 +16,14 @@ Payments are not set up on the test site, so nothing is charged. Jobs hired in t
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.
 2. Each time ChatGPT reaches the login page: click "Take over", log in with the account it names, hand control back and type: I'm logged in, continue. For the owner, use your own login (stacey@lawfecta.com).
-3. Don't use hirelegalhelp.com in other tabs while it runs.
+3. Don't use www.lawfecta.co in other tabs while it runs.
 4. Run it on its own, not at the same time as another test.
 
 Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are testing DELA on the Lawfecta test site, www.hirelegalhelp.com.
+You are testing DELA on the Lawfecta test site, www.lawfecta.co.
 
 Logins:
 - test freelancer: stacey+dela-freelancer@lawfecta.com, password TEST_PASSWORD
@@ -43,7 +43,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
 7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
-8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.hirelegalhelp.com/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
+8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
@@ -54,9 +54,9 @@ Steps
 
 FREELANCER (log in once)
 
-1. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test freelancer.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
-2. Go to: https://www.hirelegalhelp.com/dela?tab=work
+2. Go to: https://www.lawfecta.co/dela?tab=work
    Find: the card "Standing arrangements (2)", in the middle of the page, just above "Invitations".
    Expect: two shaded boxes, each headed "DELA Test Attorney". One has the label "Waiting for the freelancer" and the line "$400 per job | $0 of $1,200 this month | 0 of 3 jobs open | until ...". The other has the label "Active" and "$300 per job | $300 of $700 this month | 1 of 2 jobs open | until ...". Each has a "Covers:" line with the document names.
 
@@ -75,9 +75,9 @@ FREELANCER (log in once)
 
 ATTORNEY (log in once)
 
-6. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the test attorney.
+6. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-7. Go to: https://www.hirelegalhelp.com/dela?tab=projects
+7. Go to: https://www.lawfecta.co/dela?tab=projects
    Find: the card "Standing arrangements (2)", in the lower half of the page, right under the card "Engagements".
    Expect: two shaded boxes headed "DELA Test Freelancer", both labeled "Active". The $300 box reads "$0 of $700 this month | 0 of 2 jobs open", and its job line reads "Declined, refunded".
 
@@ -97,7 +97,7 @@ ATTORNEY (log in once)
 11. In the same $300 box:
     Do: click "Open the job" on the newest job line ("Run a Conflict Check", hired in step 9).
     Expect: the job's agreement page opens, with the title "Repeat: Run a Conflict Check" near the top and the card "The agreement". Do not sign or pay anything.
-    Then go to: https://www.hirelegalhelp.com/dela?tab=projects
+    Then go to: https://www.lawfecta.co/dela?tab=projects
 
 12. In the card "Standing arrangements (2)", in the $300 box:
     Do: click "Change limits" (an outlined button at the bottom of the box).
@@ -109,7 +109,7 @@ ATTORNEY (log in once)
     Do: click "End arrangement". A browser pop-up asks "End this standing arrangement? No new jobs can be hired from it; open jobs finish as agreed." Click OK.
     Expect: the message "Ended." After the card reloads, the $400 box has the label "Ended" and no "Hire again from my standing arrangement" button.
 
-14. Go to: https://www.hirelegalhelp.com/dela?tab=talent
+14. Go to: https://www.lawfecta.co/dela?tab=talent
     Find: the card "Find a freelancer" at the top, and below it the results. Find the result "DELA Test Freelancer".
     Do: in that result, click "Set up a standing arrangement" (an outlined button in its row of buttons).
     Expect: a window "Standing arrangement with DELA Test Freelancer" with the text "Hire DELA Test Freelancer again for the same work without a new proposal each time. You both sign once. Inside these limits you hire in one click and DELA charges your saved card at once (with no saved card, the Stripe payment page opens). Anything outside them becomes a normal gig draft.", the heading "Documents covered (approved SOPs and Workflows)" with tick boxes, and the boxes "Price per job ($)", "Monthly spend cap ($)" (with the hint "Required. Hires stop at the cap each month."), "Most jobs open at once", "End date" (with "Up to 12 months."), the tick box "Let other attorneys in the firm use this arrangement", "Your full name" and the buttons "Sign and send" and "Cancel".
@@ -123,9 +123,9 @@ ATTORNEY (log in once)
 
 OWNER (log in once)
 
-17. Go to: https://www.hirelegalhelp.com/login and ask me to log in as the owner.
+17. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-18. Go to: https://www.hirelegalhelp.com/dela-admin
+18. Go to: https://www.lawfecta.co/dela-admin
     Do: click the tab "Recurring" in the row of tabs near the top.
     Find: the card "Standing arrangements", below the Recurring card.
     Expect: the grey line "Limited automatic repeat hiring. Each one names a price per job, a monthly cap, the most jobs open at once and an end date. Off on Live until counsel approves (switch auto_repeat_hiring)." Then a row "DELA Test Attorney hires DELA Test Freelancer" labeled "active" with "$300 per job | spend this month $600 of $700 | 2 of 2 open | jobs 2, declined 1 | until ...", and a row for the $400 arrangement labeled "ended".
