@@ -47,6 +47,8 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
       return Response.json({ id: "acct_" + (++n) });
     }
     if (method === "POST" && path === "/core/account_links") {
+      // Fix 2026-11-11: Stripe's sandbox refuses a "configurations" field on the link
+      if ("configurations" in body.use_case.account_onboarding) return Response.json({ error: { message: "Some fields in the request were invalid: 'use_case.account_onboarding.configurations: Unknown field.'" } }, { status: 400 });
       assert(body.use_case.type === "account_onboarding" && String(body.use_case.account_onboarding.return_url).startsWith("https://"), String(init.body));
       return Response.json({ url: "https://connect.stripe.test/setup/" + body.account });
     }

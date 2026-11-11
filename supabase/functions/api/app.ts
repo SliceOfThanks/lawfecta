@@ -3317,6 +3317,13 @@ async function checkout(ctx: Ctx, key: string, n: Record<string, any>, name: str
 }
 
 // Freelancer payouts: Stripe Express onboarding (Stripe's own form); DELA never sees bank details
+// Stripe's reason is kept for the Lawfecta Team (one alert per member and hour); the member is told the team knows
+async function payoutSetupFailed(ctx: Ctx, person: string, step: string, error: string) {
+  await rpc(ctx, "dela_alert", { p_kind: "payments", p_title: "Payout setup failed at Stripe", p_body: "A freelancer could not start payout setup. Stripe refused " + step + ": " + String(error).slice(0, 300),
+    p_key: "payoutsetup:" + person + ":" + new Date(ctx.deps.now?.() ?? Date.now()).toISOString().slice(0, 13) }).catch(() => null);
+  return { ok: false, reason: "payout_setup_failed", detail: error };
+}
+
 async function payoutSetup(ctx: Ctx) {
   const s = await memberSide(ctx);
   if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
@@ -3327,13 +3334,13 @@ async function payoutSetup(ctx: Ctx) {
     // Stripe needs a contact email on an account that receives transfers; it is the member's own email from the Lawfecta site
     if (!String(acct?.email ?? "").includes("@")) return json(ctx, { ok: false, reason: "payout_email_missing" });
     const r = await stripeV2(f(ctx), key, "POST", "/core/accounts", recipientAccount({ name: String(acct?.name ?? ""), email: String(acct.email), personId: s.person_id }), "acctv2:" + s.person_id, await setting(ctx, "stripe.accounts_api_version", STRIPE_V2_VERSION));
-    if (!r.ok) return json(ctx, { ok: false, reason: "payout_setup_failed", detail: r.error });
+    if (!r.ok) return json(ctx, await payoutSetupFailed(ctx, s.person_id, "the account", r.error));
     await rpc(ctx, "dela_payout_account_set", { p_person: s.person_id, p_ref: r.data.id, p_status: "pending", p_req: [] });
     acct = { account_ref: r.data.id };
   }
   const base = await siteBase(ctx);
   const link = await stripeV2(f(ctx), key, "POST", "/core/account_links", onboardingLink(String(acct.account_ref), base + "/dela?tab=earnings&payout=done", base + "/dela?tab=earnings&payout=again"), "", await setting(ctx, "stripe.accounts_api_version", STRIPE_V2_VERSION));
-  if (!link.ok) return json(ctx, { ok: false, reason: "payout_setup_failed", detail: link.error });
+  if (!link.ok) return json(ctx, await payoutSetupFailed(ctx, s.person_id, "the setup link", link.error));
   return json(ctx, { ok: true, url: link.data.url });
 }
 

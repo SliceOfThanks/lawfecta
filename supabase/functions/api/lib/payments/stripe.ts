@@ -73,7 +73,8 @@ export function recipientAccount(p: { name: string; email: string; personId: str
 }
 export const ACCOUNT_V2_INCLUDE = "?include=configuration.recipient&include=requirements";
 export function onboardingLink(account: string, returnUrl: string, refreshUrl: string) {
-  return { account, use_case: { type: "account_onboarding", account_onboarding: { configurations: ["recipient"], return_url: returnUrl, refresh_url: refreshUrl } } };
+  // Stripe's sandbox, 2026-11-11: "use_case.account_onboarding.configurations: Unknown field", so only the two links are sent
+  return { account, use_case: { type: "account_onboarding", account_onboarding: { return_url: returnUrl, refresh_url: refreshUrl } } };
 }
 
 // Ready means Stripe says the account can receive transfers now
