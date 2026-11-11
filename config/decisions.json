@@ -1111,6 +1111,15 @@
           "source": "Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-10-25; Claude is checking whether BD can be triggered from Supabase"
         },
         {
+          "key": "email.postal_address",
+          "label": "Postal address shown at the bottom of every DELA email",
+          "value": "Lawfecta, 967 Kendall Dr Ste A, #271, San Bernardino, CA 92407",
+          "unit": "",
+          "status": "C",
+          "source": "Stacey 2026-11-11",
+          "note": "U.S. email law asks for a postal address on reminder and alert emails. Those emails also carry an unsubscribe link; emails about the account, payments and signed work always arrive."
+        },
+        {
           "key": "access.mode",
           "label": "Who can open DELA",
           "value": "access_list",

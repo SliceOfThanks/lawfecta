@@ -1,7 +1,9 @@
 // Builds a DELA notice email. Notices never carry confidential details: a short title, a short body and a
 // link back into DELA, where the member signs in to see the rest.
 
-export type NoticeEmail = { title: string; body: string; link: string; siteUrl: string; appPath: string; environment: string; logoUrl?: string };
+// postal: Lawfecta's postal address, shown at the bottom. unsubscribeUrl: set on reminder and alert emails only (never on
+// emails about the account, payments or signed work); it opens a page that stops them with one click, no login.
+export type NoticeEmail = { title: string; body: string; link: string; siteUrl: string; appPath: string; environment: string; logoUrl?: string; postal?: string; unsubscribeUrl?: string };
 
 // The logo row at the top of every DELA email. The words stay next to the image, so the email still reads well when
 // the mail app blocks images.
@@ -25,7 +27,10 @@ export function buildNotice(n: NoticeEmail): { subject: string; html: string; te
   const prefix = n.environment === "live" ? "" : "[Test site] ";
   const subject = (prefix + n.title).slice(0, 180);
   const url = noticeLink(n);
-  const text = `${n.title}\n\n${n.body}\n\nOpen DELA: ${url}\n\nYou are getting this because you have a Lawfecta account.`;
+  const why = "You are getting this because you have a Lawfecta account.";
+  const stop = n.unsubscribeUrl ? "To stop reminder and alert emails like this one, unsubscribe here: " : "";
+  const kept = n.unsubscribeUrl ? " You will still get emails about your account, payments and signed work." : "";
+  const text = `${n.title}\n\n${n.body}\n\nOpen DELA: ${url}\n\n${why}` + (n.unsubscribeUrl ? `\n${stop}${n.unsubscribeUrl}\n${kept.trim()}` : "") + (n.postal ? `\n\n${n.postal}` : "");
   const html = `<!doctype html><html><body style="margin:0;background:#f5f3ef;font-family:Arial,Helvetica,sans-serif;color:#1f2a37">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border:1px solid #e3ded5;border-radius:12px" cellpadding="0" cellspacing="0">
@@ -34,7 +39,7 @@ ${logoRow(n.logoUrl, "Lawfecta DELA" + (prefix ? " (test site)" : ""))}
 <tr><td style="padding:12px 28px 4px;font-size:15px;line-height:1.6">${esc(n.body).replaceAll("\n", "<br>")}</td></tr>
 <tr><td style="padding:16px 28px 28px"><a href="${esc(url)}" style="display:inline-block;background:#1f3a5f;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold">Open DELA</a></td></tr>
 </table>
-<p style="font-size:12px;color:#6b7280;max-width:560px">You are getting this because you have a Lawfecta account.</p>
+<p style="font-size:12px;color:#6b7280;max-width:560px;line-height:1.5">${esc(why)}${n.unsubscribeUrl ? ` To stop reminder and alert emails like this one, <a href="${esc(n.unsubscribeUrl)}" style="color:#6b7280">unsubscribe</a>.${esc(kept)}` : ""}${n.postal ? `<br>${esc(n.postal)}` : ""}</p>
 </td></tr></table></body></html>`;
   return { subject, html, text };
 }

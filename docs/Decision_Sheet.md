@@ -193,6 +193,7 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Using transcripts to improve DELA | separate opt in | Needs a gate | C-02 and Stacey 2026-10-25 | |
 | Talk of taking work off the platform. No automatic penalty. | flag for lawfecta team review | Confirmed | Stacey 2026-10-25 | |
 | Who sends DELA email | brevo | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-10-25; Claude is checking whether BD can be triggered from Supabase | |
+| Postal address shown at the bottom of every DELA email. U.S. email law asks for a postal address on reminder and alert emails. Those emails also carry an unsubscribe link; emails about the account, payments and signed work always arrive. | Lawfecta, 967 Kendall Dr Ste A, #271, San Bernardino, CA 92407 | Confirmed | Stacey 2026-11-11 | |
 | Who can open DELA. Change to everyone when a phase launches. | access list | Confirmed | Stacey 2026-10-25 | |
 
 ## 10. Agencies

@@ -212,6 +212,28 @@ async function checkFacts(page, f) {
     ok(!t.includes("Link and file expiration"), "when the facts cannot load, the page says so and shows no numbers");
     await ctx.close();
 
+    // Pilot plan step 7: the unsubscribe link in DELA's reminder and alert emails opens this page; one click, no login
+    ({ ctx } = { ctx: await browser.newContext() });
+    page = await ctx.newPage();
+    await page.route("https://cdn.jsdelivr.net/**", (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(ROOT, u.pathname.split("@")[1].split("/").slice(1).join("/")), contentType: "application/javascript" }); });
+    await page.route("https://fonts.googleapis.com/**", (r) => r.abort());
+    await page.goto(`${BASE}/page/DELA-Security?uid=0&plan=`);
+    t = await waitFor(page, "Link and file expiration");
+    ok(!t.includes("Stop reminder and alert emails"), "without an unsubscribe link, the page shows no unsubscribe card");
+    await page.goto(`${BASE}/page/DELA-Security?uid=0&plan=&unsubscribe=${"0".repeat(48)}`);
+    t = await waitFor(page, "Stop reminder and alert emails");
+    ok(t.includes("Emails about your account, payments and signed work will still arrive."), "the unsubscribe card says what keeps arriving");
+    await dela(page).getByRole("button", { name: "Unsubscribe", exact: true }).click();
+    t = await waitFor(page, "This unsubscribe link did not work.");
+    ok(true, "a link that is not valid says so and changes nothing");
+    let posted = null;
+    await page.route("**/api/public/unsubscribe", (route) => { posted = route.request().postDataJSON(); route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ ok: true }) }); });
+    await dela(page).getByRole("button", { name: "Unsubscribe", exact: true }).click();
+    t = await waitFor(page, "Done. You will no longer get reminder and alert emails from DELA.");
+    ok(posted && posted.t === "0".repeat(48), "one click sends the token from the link; no login is asked for");
+    ok((await dela(page).getByRole("button", { name: "Unsubscribe", exact: true }).count()) === 0, "the button is gone once it is done");
+    await ctx.close();
+
     console.log("\nAll " + passed + " security page checks passed.");
   } finally {
     await browser.close();

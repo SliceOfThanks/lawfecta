@@ -411,6 +411,44 @@ Deno.test("bad requests", async () => {
   assertEquals((await call("GET", "/me", { session: ownerSession })).status, 401, "signed out");
 });
 
+// Pilot plan step 7 (launch review item 23): reminder and alert emails carry a postal address and a way to stop them
+// with no login; emails about the account, payments and signed work always arrive
+Deno.test("email footer: the postal address on every email; an unsubscribe link on reminders and alerts; unsubscribing stops only those", async () => {
+  const owner = (await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9001, name: "Stacey" }) } })).body.session;
+  await pool.query(`update settings set value = '"brevo"' where key = 'email.sender'`);
+  const notice = async (title: string, essential: boolean) => {
+    await pool.query(`select dela_notify(jsonb_build_object('person_id', dela_session_resolve($1)->>'person_id', 'kind', 'test', 'email', true, 'essential', $3::boolean,
+      'title', $2::text, 'body', 'Footer test', 'dedupe_key', 'footer-test:' || gen_random_uuid()))`, [await sessionHashOf(owner), title, essential]);
+    outbox.length = 0;
+    await call("POST", "/worker", { headers: { "x-dela-worker": WORKER } });
+    return outbox.find((o) => o.url.startsWith("https://api.brevo.com/") && String(o.body?.subject ?? "").includes(title));
+  };
+  try {
+    const alert = await notice("A new gig fits you", false);
+    assert(alert, "the alert is sent");
+    assert(String(alert.body.htmlContent).includes("967 Kendall Dr Ste A, #271, San Bernardino, CA 92407") && String(alert.body.textContent).includes("967 Kendall Dr"), "the postal address is in the email");
+    const token = (String(alert.body.htmlContent).match(/\/security\?unsubscribe=([0-9a-f]{48})"/) ?? [])[1];
+    assert(token, "the unsubscribe link opens the public Security page: " + String(alert.body.htmlContent).slice(-600));
+    assert(String(alert.body.headers?.["List-Unsubscribe"]).includes("/public/unsubscribe?t=" + token) && alert.body.headers?.["List-Unsubscribe-Post"] === "List-Unsubscribe=One-Click", "mail apps get the one-click unsubscribe");
+    const money = await notice("Milestone 1 is paid", true);
+    assert(String(money.body.htmlContent).includes("967 Kendall Dr") && !String(money.body.htmlContent).includes("unsubscribe"), "an email about a payment has the address and no unsubscribe link");
+    assertEquals(money.body.headers?.["List-Unsubscribe"], undefined);
+    // No login: the token is the proof. A wrong one changes nothing and says nothing about anyone.
+    assertEquals((await call("POST", "/public/unsubscribe", { body: { t: "0".repeat(48) } })).body.reason, "bad_link");
+    assertEquals((await call("POST", "/public/unsubscribe", { body: { t: "not a token" } })).body.reason, "bad_link");
+    assertEquals((await call("GET", "/prefs", { session: owner })).body.optional_emails, true);
+    assertEquals((await call("POST", "/public/unsubscribe", { body: { t: token } })).body.ok, true);
+    assertEquals((await call("POST", "/public/unsubscribe?t=" + token, { body: {} })).body.ok, true, "a mail app's own unsubscribe button, and a second click, also answer ok");
+    assertEquals((await call("GET", "/prefs", { session: owner })).body.optional_emails, false);
+    assertEquals(await notice("Another gig fits you", false), undefined, "no more alert emails");
+    const held = (await pool.query("select status, error from notifications where channel = 'email' and title = 'Another gig fits you'")).rows[0];
+    assertEquals([held.status, held.error], ["suppressed", "unsubscribed"]);
+    assert(await notice("Milestone 2 is paid", true), "payment emails still arrive");
+    await call("POST", "/prefs", { session: owner, body: { optional_emails: true } });
+    assert(await notice("A third gig fits you", false), "the member can turn them back on in their settings");
+  } finally { await pool.query(`update settings set value = '"log"' where key = 'email.sender'`); await pool.query("delete from email_optouts"); }
+});
+
 Deno.test("notice emails stay on the Lawfecta site", () => {
   const base = { title: "Hi <b>", body: "Line", siteUrl: "https://lawfecta.com/", appPath: "/dela", environment: "staging" };
   assertEquals(noticeLink({ ...base, link: "https://evil.invalid" }), "https://lawfecta.com/dela");

@@ -4791,11 +4791,21 @@ async function sendEmail(ctx: Ctx, id: string) {
     await rpc(ctx, "dela_notification_mark", { p_notification: id, p_status: "suppressed", p_provider: "", p_ref: "", p_error: "no_address_or_closed" });
     return { ok: true };
   }
+  // Reminder and alert emails stop for a member who unsubscribed. Emails about the account, payments and signed work
+  // ("essential") always go. The notice itself stays in DELA either way.
+  if (!n.essential && n.opted_out) {
+    await rpc(ctx, "dela_notification_mark", { p_notification: id, p_status: "suppressed", p_provider: "", p_ref: "", p_error: "unsubscribed" });
+    return { ok: true };
+  }
   const provider = pickProvider(n.sender);
-  const mail = buildNotice({ title: n.title, body: n.body, link: n.link, siteUrl: n.site_url, appPath: n.app_path, environment: n.environment, logoUrl: await codeLogo(ctx) });
+  // The unsubscribe link opens the public Security page (no login); mail apps can also stop the emails with one click
+  const token = n.essential ? "" : await rpc<string>(ctx, "dela_email_unsub_token", { p_person: n.person_id }).catch(() => "");
+  const unsubPage = token ? String(n.site_url).replace(/\/+$/, "") + "/security?unsubscribe=" + token : "";
+  const mail = buildNotice({ title: n.title, body: n.body, link: n.link, siteUrl: n.site_url, appPath: n.app_path, environment: n.environment, logoUrl: await codeLogo(ctx), postal: String(n.postal ?? ""), unsubscribeUrl: unsubPage || undefined });
   const r = await provider.send({
     from: { name: n.from_name, email: n.from_address }, to: { email: n.to_email, name: n.to_name || undefined },
     subject: mail.subject, html: mail.html, text: mail.text, tags: [n.environment, n.kind],
+    ...(token ? { headers: { "List-Unsubscribe": `<${publicBase(ctx.deps)}/public/unsubscribe?t=${token}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
   }, provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl: n.site_url });
   if (r.ok) {
     await rpc(ctx, "dela_notification_mark", { p_notification: id, p_status: "sent", p_provider: provider.key, p_ref: r.messageId, p_error: "" });
@@ -5013,7 +5023,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       // A tech catalog upload is the whole CSV, so it may be larger than other requests
       if (text.length > (path === "/admin/catalog/preview" ? 1024 * 1024 : MAX_BODY)) throw new HttpError(413, "too_large");
       if (text) {
-        if (path === "/oauth/token" && !text.trimStart().startsWith("{")) {
+        if ((path === "/oauth/token" || path === "/public/unsubscribe") && !text.trimStart().startsWith("{")) {
           // OAuth clients send the token request as a form
           body = Object.fromEntries(new URLSearchParams(text));
         } else {
@@ -5162,6 +5172,10 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /public/past-review/optout": return await pastReviewPublic(ctx, "optout");
       case "GET /public/security": return await securityFacts(ctx);
       case "POST /public/security/contact": return await securityContact(ctx);
+      // Stops reminder and alert emails: from the link in an email (the Security page posts the token) or from a mail
+      // app's own unsubscribe button (a form post with the token in the address). No login; the token is the proof.
+      case "POST /public/unsubscribe":
+        return json(ctx, await rpc(ctx, "dela_email_unsubscribe", { p_token: str(ctx.body.t, 60) || str(ctx.url.searchParams.get("t"), 60), p_source: ctx.body.t ? "page" : "mail_app" }));
       case "GET /bench": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_bench", { p_person: s.person_id, p_side: s.side })); }
       case "POST /bench/invite": return await benchInvite(ctx);
       case "POST /bench/answer": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); return json(ctx, await rpc(ctx, "dela_bench_answer", { p_person: s.person_id, p_bench: need(uuid(ctx.body.id)), p_accept: ctx.body.accept === true })); }
@@ -5270,7 +5284,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
         return json(ctx, { ok: true, on, credits }); }
       case "GET /threads/file": return await messageFile(ctx);
       case "GET /prefs": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_prefs", { p_person: s.person_id })); }
-      case "POST /prefs": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_prefs_save", { p_person: s.person_id, p: { read_receipts: ctx.body.read_receipts !== false } })); }
+      case "POST /prefs": { const s = await memberSide(ctx);
+        if (typeof ctx.body.optional_emails === "boolean") await rpc(ctx, "dela_email_optional_set", { p_person: s.person_id, p_on: ctx.body.optional_emails }); return json(ctx, await rpc(ctx, "dela_prefs_save", { p_person: s.person_id, p: { read_receipts: ctx.body.read_receipts !== false } })); }
       case "GET /insights": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_insights", { p_person: s.person_id, p_side: s.side })); }
       case "POST /insights/remove": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_insight_remove", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)) })); }
       case "GET /documents/firm": { const s = await client(ctx); return json(ctx, { ...(await rpc<Record<string, any>>(ctx, "dela_doc_firm_side", { p_person: s.person_id, p_side: s.side })), default_roles: DEFAULT_ROLES, solo_roles: SOLO_ROLES, system_groups: SYSTEM_GROUPS }); }

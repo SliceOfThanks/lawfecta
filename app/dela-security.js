@@ -237,7 +237,37 @@
       ]),
       where(f), sensitive(), expiry(f), retention(f), ai(f), access(), services(), contact());
     D.clear(app).appendChild(wrap);
+    if (unsubToken) wrap.insertBefore(unsubscribeCard(unsubToken), wrap.firstChild);
   }
+
+  // The unsubscribe link in DELA's reminder and alert emails opens this page with a private token. One click stops
+  // those emails; nobody has to log in.
+  function unsubscribeCard(token) {
+    var status = h("div", { class: "sec-status", role: "status", "aria-live": "polite" });
+    var btn = h("button", { class: "blue", type: "button" }, "Unsubscribe");
+    btn.onclick = function () {
+      btn.disabled = true;
+      api.post("/public/unsubscribe", { t: token }).then(function (r) {
+        D.clear(status);
+        if (r && r.ok) {
+          btn.remove();
+          status.appendChild(h("p", { class: "notice ok", text: "Done. You will no longer get reminder and alert emails from DELA. You will still get emails about your account, payments and signed work." }));
+        } else {
+          btn.disabled = false;
+          status.appendChild(h("p", { class: "notice bad", text: "This unsubscribe link did not work. Open the link from your most recent DELA email, or write to us with the form at the bottom of this page." }));
+        }
+      }).catch(function () {
+        btn.disabled = false; D.clear(status);
+        status.appendChild(h("p", { class: "notice bad", text: "That did not go through. Please try again in a minute." }));
+      });
+    };
+    return h("div", { class: "card", id: "sec-unsubscribe" },
+      h("h2", { text: "Stop reminder and alert emails" }),
+      h("p", { text: "Click the button to stop reminder and alert emails from DELA, such as new gig alerts and next-step reminders. Emails about your account, payments and signed work will still arrive." }),
+      h("div", { class: "row" }, btn), status);
+  }
+  var unsubToken = "";
+  try { unsubToken = new URLSearchParams(location.search).get("unsubscribe") || ""; } catch (e) { unsubToken = ""; }
 
   app.appendChild(h("main", { class: "wrap" }, h("p", { class: "muted", text: "Loading the security page..." })));
   api.get("/public/security").then(function (r) {
