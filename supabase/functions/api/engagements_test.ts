@@ -4,7 +4,7 @@
 import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { handle, type Deps } from "./app.ts";
 import { sessionHash } from "./lib/crypto.ts";
-import { keyAllowed, stripeForm, stripeSignatureHeader, verifyStripeSignature, accountStatus, accountStatusV2, findCharge, findRefund } from "./lib/payments/stripe.ts";
+import { keyAllowed, stripeForm, stripeSignatureHeader, verifyStripeSignature, accountStatus, accountStatusV2, findCharge, findRefund, findReversal } from "./lib/payments/stripe.ts";
 import { buildBody, feeLines, proposeMilestones, rubricFor, scoreFindings, termsText } from "./lib/engagements/agreement.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
@@ -23,7 +23,7 @@ let checkFindings: Record<string, string> = {};
 let n = 0;
 let timeoutNext = 0; // the next charges on a saved payment method go through at Stripe, but DELA gets no answer
 const chargeByPayment = new Map<string, Record<string, unknown>>();
-const atStripe: { transfers: Array<Record<string, any>>; refunds: Array<Record<string, any>> } = { transfers: [], refunds: [] };
+const atStripe: { transfers: Array<Record<string, any>>; refunds: Array<Record<string, any>>; reversals: Array<Record<string, any>> } = { transfers: [], refunds: [], reversals: [] };
 function stripeAnswer(method: string, path: string, body: URLSearchParams): [number, unknown] {
   if (method === "POST" && path === "/payment_intents") {
     if (decline) return [402, { error: { message: "Your card was declined.", code: "card_declined" } }];
@@ -51,6 +51,7 @@ function stripeAnswer(method: string, path: string, body: URLSearchParams): [num
   // Stripe's own record of transfers and refunds (what DELA checks before sending one a second time)
   if (method === "GET" && path === "/transfers") return [200, { data: atStripe.transfers.filter((t) => t.transfer_group === body.get("transfer_group")) }];
   if (method === "GET" && path === "/refunds") return [200, { data: atStripe.refunds.filter((r) => r.payment_intent === body.get("payment_intent")) }];
+  if (method === "GET" && /^\/transfers\/[^/]+\/reversals$/.test(path)) return [200, { data: atStripe.reversals.filter((r) => r.transfer === path.split("/")[2]) }];
   if (method === "GET" && path.startsWith("/payment_intents/")) return [200, { id: path.slice(17), status: "succeeded", amount: 0 }];
   return [404, { error: { message: "no such route" } }];
 }
@@ -570,6 +571,11 @@ Deno.test("a payout or refund that is tried again is first looked up at Stripe: 
   atStripe.refunds.push({ id: "re_lost_first", amount: 500, payment_intent: "pi_lost", status: "succeeded", metadata: { refund_id: "r-1" } });
   assertEquals(await findRefund(fakeFetch, STRIPE_TEST, "pi_lost", "r-1"), "re_lost_first", "Stripe already has this refund");
   assertEquals(await findRefund(fakeFetch, STRIPE_TEST, "pi_lost", "r-2"), "", "and has no other for this payment");
+  // And for taking money back from a transfer (an agency split already paid out)
+  atStripe.reversals.push({ id: "trr_lost_first", transfer: "tr_split", amount: 700, metadata: { reversal_id: "v-1" } });
+  assertEquals(await findReversal(fakeFetch, STRIPE_TEST, "tr_split", "v-1"), "trr_lost_first");
+  assertEquals(await findReversal(fakeFetch, STRIPE_TEST, "tr_split", "v-2"), "");
+  assertEquals(await findReversal(fakeFetch, STRIPE_TEST, "tr_other", "v-1"), "");
 });
 
 Deno.test("every day: agreements not signed in time close and the attorney can choose again", async () => {

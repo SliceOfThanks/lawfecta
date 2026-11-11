@@ -24,7 +24,7 @@ import { CHECK_PROMPT, SENSITIVE_CHECK_PROMPT, clientDetails, messageLooksSensit
 import { CONTENT_TYPES, readText, sha256, sniff } from "./lib/files/check.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { completeness, emptyBody, fileName, normalize, removesReview, toCsv, toDocx, toHtml, toMarkdown, dayIn, type Body, type ExportMeta } from "./lib/playbooks/model.ts";
-import { keyAllowed, stripe, stripeV2, noAnswer, findCharge, findTransfer, findRefund, checkoutParams, verifyStripeSignature, accountStatus, accountStatusV2, recipientAccount, onboardingLink, ACCOUNT_V2_INCLUDE, STRIPE_V2_VERSION } from "./lib/payments/stripe.ts";
+import { keyAllowed, stripe, stripeV2, noAnswer, findCharge, findTransfer, findRefund, findReversal, checkoutParams, verifyStripeSignature, accountStatus, accountStatusV2, recipientAccount, onboardingLink, ACCOUNT_V2_INCLUDE, STRIPE_V2_VERSION } from "./lib/payments/stripe.ts";
 import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/webhooks/deliver.ts";
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, moneySummary, readTasks, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
@@ -3395,7 +3395,13 @@ async function sendReversals(ctx: Ctx) {
   const key = await stripeKey(ctx);
   if (!key) return;
   for (const rv of (await rpc<Array<Record<string, any>>>(ctx, "dela_reversals_due", {})) ?? []) {
-    const r = await stripe(f(ctx), key, "POST", "/transfers/" + encodeURIComponent(String(rv.transfer_ref)) + "/reversals", { amount: rv.amount_cents, metadata: { reversal_id: rv.id } }, rv.idem_key);
+    // Stripe's own record first: a reversal it already made is recorded, never made a second time
+    const have = await findReversal(f(ctx), key, String(rv.transfer_ref), String(rv.id));
+    if (have === null) continue;
+    if (have) { await rpc(ctx, "dela_reversal_result", { p_reversal: rv.id, p_status: "succeeded", p_ref: have }); continue; }
+    const params = { amount: rv.amount_cents, metadata: { reversal_id: rv.id } };
+    let r = await stripe(f(ctx), key, "POST", "/transfers/" + encodeURIComponent(String(rv.transfer_ref)) + "/reversals", params, rv.idem_key);
+    if (noAnswer(r)) r = await stripe(f(ctx), key, "POST", "/transfers/" + encodeURIComponent(String(rv.transfer_ref)) + "/reversals", params, rv.idem_key);
     await rpc(ctx, "dela_reversal_result", { p_reversal: rv.id, p_status: r.ok ? "succeeded" : "failed", p_ref: r.ok ? r.data.id : "" });
   }
 }
@@ -3403,7 +3409,11 @@ async function sendRefunds(ctx: Ctx) {
   const key = await stripeKey(ctx);
   if (!key) return;
   for (const rf of (await rpc<Array<Record<string, any>>>(ctx, "dela_refunds_due", {})) ?? []) {
-    if (!String(rf.payment_ref).startsWith("pi_")) continue;
+    if (!String(rf.payment_ref).startsWith("pi_")) {
+      // No Stripe payment to refund against: a person has to do it, so the team is told (once per refund)
+      await rpc(ctx, "dela_alert", { p_kind: "payments", p_title: "A refund cannot be sent automatically", p_body: "A refund is waiting, but its payment has no Stripe reference. Refund it by hand in Stripe, then mark it in the admin Disputes tab (money tools).", p_key: "refundnoref:" + rf.id }).catch(() => null);
+      continue;
+    }
     if (rf.check_first) {
       const have = await findRefund(f(ctx), key, String(rf.payment_ref), String(rf.id));
       if (have === null) continue;

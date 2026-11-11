@@ -70,6 +70,14 @@ export async function findRefund(f: typeof fetch, key: string, paymentRef: strin
   return hit ? String(hit.id) : "";
 }
 
+// The same check for taking money back from a transfer (an agency split that was already paid out)
+export async function findReversal(f: typeof fetch, key: string, transferRef: string, reversalId: string): Promise<string | null> {
+  const r = await stripe(f, key, "GET", "/transfers/" + encodeURIComponent(transferRef) + "/reversals", { limit: 100 });
+  if (!r.ok) return null;
+  const hit = (Array.isArray(r.data?.data) ? r.data.data as Array<Record<string, any>> : []).find((x) => x?.metadata?.reversal_id === reversalId);
+  return hit ? String(hit.id) : "";
+}
+
 // Accounts v2 (JSON bodies). Stripe refuses the older v1 Accounts API for new Connect platforms, so a freelancer's payout
 // account is created, onboarded and read through /v2/core. Transfers and everything else stay on v1.
 export const STRIPE_V2_VERSION = "2026-09-30.preview";

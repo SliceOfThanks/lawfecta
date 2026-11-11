@@ -181,6 +181,23 @@ Deno.test("month 1: paid once for the whole month, the billing day set, the unit
 
 // Fix (step 8b, retest R01): the signed dates stay when they fall inside the paid month, and no unit is due after the
 // month ends (Dec 5 2026 is a Saturday: the last unit is due Friday Dec 4, not Monday Dec 7)
+// Launch review 2026-11-10, fix 2 for monthly engagements: a second paid charge for a month already paid
+Deno.test("a month charged twice: the second payment is refunded in full and nothing is held twice", async () => {
+  // Its own engagement, so the second charge does not show up in the other tests' counts
+  const agD = await monthlyAgreement("dbl", 100000);
+  await signAndPay(agD);
+  const first = await one("select id, period_id, amount_cents from payments where agreement_id = $1 and kind = 'period' and status = 'succeeded'", [agD]);
+  const held = async () => Number((await one("select coalesce(sum(amount_cents), 0) s from ledger_entries where agreement_id = $1 and kind = 'held'", [agD])).s);
+  const before = await held();
+  const second = (await one(`insert into payments (agreement_id, period_id, kind, amount_cents, fee_cents, status, idem_key) values ($1, $2, 'period', $3, 0, 'processing', $4) returning id`,
+    [agD, first.period_id, first.amount_cents, "pay:double:" + crypto.randomUUID()])).id;
+  const r = await rpc("dela_payment_result", { p_payment: second, p_status: "succeeded", p_ref: "pi_month_double", p_customer: "", p_method: "", p_failure: "" }) as Record<string, unknown>;
+  assertEquals([r.ok, r.double], [true, true]);
+  const rf = await one("select amount_cents, status from refunds where payment_id = $1", [second]);
+  assertEquals([rf?.amount_cents, rf?.status], [first.amount_cents, "pending"], "the whole second charge is queued to go back");
+  assertEquals(await held(), before, "nothing is held twice");
+});
+
 Deno.test("monthly dates: the signed dates govern, and every unit falls inside the paid month", async () => {
   assertEquals(iso((await one("select dela_business_day_within('2026-12-05'::date, '2026-12-05'::date) d")).d), "2026-12-04");
   assertEquals(iso((await one("select dela_business_day_within('2026-11-14'::date, '2026-12-05'::date) d")).d), "2026-11-16", "inside the month it still moves forward");
