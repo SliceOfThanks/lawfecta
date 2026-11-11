@@ -5214,6 +5214,11 @@
       var cb = h("input", { type: "checkbox", checked: r.read_receipts });
       cb.addEventListener("change", function () { api.post("/prefs", { read_receipts: cb.checked }).then(gigOk).then(function () { D.toast(app, "Saved"); }).catch(talkFail); });
       card.appendChild(h("label", { style: "display:flex;gap:8px;font-weight:400" }, cb, h("span", { text: "Show \"Seen\" when I read a message, and show me when others read mine. Turning it off turns it off both ways." })));
+      // Reminder and alert emails (the same choice as the unsubscribe link in those emails)
+      var em = h("input", { type: "checkbox", checked: r.optional_emails !== false });
+      em.addEventListener("change", function () { api.post("/prefs", { optional_emails: em.checked }).then(gigOk).then(function () { D.toast(app, "Saved"); }).catch(talkFail); });
+      card.appendChild(h("h3", { text: "Emails", style: "margin-top:14px" }));
+      card.appendChild(h("label", { style: "display:flex;gap:8px;font-weight:400" }, em, h("span", { text: "Email me reminders and alerts, such as new gig alerts and next-step reminders. Emails about your account, payments and signed work always arrive." })));
     }).catch(function () {});
     return card;
   }

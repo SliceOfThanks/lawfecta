@@ -444,7 +444,11 @@ Deno.test("email footer: the postal address on every email; an unsubscribe link 
     const held = (await pool.query("select status, error from notifications where channel = 'email' and title = 'Another gig fits you'")).rows[0];
     assertEquals([held.status, held.error], ["suppressed", "unsubscribed"]);
     assert(await notice("Milestone 2 is paid", true), "payment emails still arrive");
-    await call("POST", "/prefs", { session: owner, body: { optional_emails: true } });
+    // Each choice is saved on its own: turning emails back on leaves the read-receipt choice as it was
+    await call("POST", "/prefs", { session: owner, body: { read_receipts: false } });
+    const back = (await call("POST", "/prefs", { session: owner, body: { optional_emails: true } })).body;
+    assertEquals([back.ok, back.optional_emails, back.read_receipts], [true, true, false]);
+    await call("POST", "/prefs", { session: owner, body: { read_receipts: true } });
     assert(await notice("A third gig fits you", false), "the member can turn them back on in their settings");
   } finally { await pool.query(`update settings set value = '"log"' where key = 'email.sender'`); await pool.query("delete from email_optouts"); }
 });

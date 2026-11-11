@@ -5294,7 +5294,10 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /threads/file": return await messageFile(ctx);
       case "GET /prefs": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_prefs", { p_person: s.person_id })); }
       case "POST /prefs": { const s = await memberSide(ctx);
-        if (typeof ctx.body.optional_emails === "boolean") await rpc(ctx, "dela_email_optional_set", { p_person: s.person_id, p_on: ctx.body.optional_emails }); return json(ctx, await rpc(ctx, "dela_prefs_save", { p_person: s.person_id, p: { read_receipts: ctx.body.read_receipts !== false } })); }
+        // Each choice is saved only when it is sent, so turning one off never resets the other
+        if (typeof ctx.body.optional_emails === "boolean") await rpc(ctx, "dela_email_optional_set", { p_person: s.person_id, p_on: ctx.body.optional_emails });
+        if (typeof ctx.body.read_receipts === "boolean") await rpc(ctx, "dela_prefs_save", { p_person: s.person_id, p: { read_receipts: ctx.body.read_receipts } });
+        return json(ctx, { ok: true, ...(await rpc<Record<string, unknown>>(ctx, "dela_prefs", { p_person: s.person_id })) }); }
       case "GET /insights": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_insights", { p_person: s.person_id, p_side: s.side })); }
       case "POST /insights/remove": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_insight_remove", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)) })); }
       case "GET /documents/firm": { const s = await client(ctx); return json(ctx, { ...(await rpc<Record<string, any>>(ctx, "dela_doc_firm_side", { p_person: s.person_id, p_side: s.side })), default_roles: DEFAULT_ROLES, solo_roles: SOLO_ROLES, system_groups: SYSTEM_GROUPS }); }
