@@ -77,13 +77,28 @@ export function onboardingLink(account: string, returnUrl: string, refreshUrl: s
   return { account, use_case: { type: "account_onboarding", account_onboarding: { return_url: returnUrl, refresh_url: refreshUrl } } };
 }
 
-// Ready means Stripe says the account can receive transfers now
+// Stripe's requirement names in plain words, each once ("identity.individual.date_of_birth.day" reads "date of birth")
+const NEED_WORDS: Array<[string, string]> = [["date_of_birth", "date of birth"], ["terms_of_service", "agreeing to Stripe's terms"], ["external_account", "bank account"],
+  ["id_numbers", "ID number"], ["given_name", "name"], ["surname", "name"], ["business_url", "website or work description"], ["product_description", "website or work description"],
+  ["address", "address"], ["phone", "phone number"], ["email", "email"], ["documents", "an identity document"]];
+export function needWords(descriptions: string[]): string[] {
+  const out: string[] = [];
+  for (const d of descriptions) {
+    const hit = NEED_WORDS.find(([k]) => d.includes(k));
+    const w = hit ? hit[1] : (d.split(".").pop() ?? d).split("_").join(" ");
+    if (w && !out.includes(w)) out.push(w);
+  }
+  return out.slice(0, 12);
+}
+
+// Ready means Stripe says the account can receive transfers now. While Stripe still waits for details from the member
+// (always the case before its setup page is filled in), the account "needs details"; "restricted" is Stripe's own block.
 export function accountStatusV2(acct: Record<string, any>): { status: "ready" | "pending" | "restricted"; requirements: string[] } {
   const cap = acct?.configuration?.recipient?.capabilities?.stripe_balance?.stripe_transfers;
-  const due = ((acct?.requirements?.entries ?? []) as Array<Record<string, any>>).filter((e) => (e?.awaiting_action_from ?? "user") === "user")
-    .map((e) => String(e?.description ?? "")).filter(Boolean).slice(0, 20);
+  const due = needWords(((acct?.requirements?.entries ?? []) as Array<Record<string, any>>).filter((e) => (e?.awaiting_action_from ?? "user") === "user")
+    .map((e) => String(e?.description ?? "")).filter(Boolean));
   if (cap?.status === "active") return { status: "ready", requirements: [] };
-  if (cap?.status === "restricted" || cap?.status === "unsupported") return { status: "restricted", requirements: due };
+  if ((cap?.status === "restricted" || cap?.status === "unsupported") && !due.length) return { status: "restricted", requirements: [] };
   return { status: "pending", requirements: due };
 }
 

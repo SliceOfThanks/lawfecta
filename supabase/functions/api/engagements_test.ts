@@ -4,7 +4,7 @@
 import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { handle, type Deps } from "./app.ts";
 import { sessionHash } from "./lib/crypto.ts";
-import { keyAllowed, stripeForm, stripeSignatureHeader, verifyStripeSignature, accountStatus } from "./lib/payments/stripe.ts";
+import { keyAllowed, stripeForm, stripeSignatureHeader, verifyStripeSignature, accountStatus, accountStatusV2 } from "./lib/payments/stripe.ts";
 import { buildBody, feeLines, proposeMilestones, rubricFor, scoreFindings, termsText } from "./lib/engagements/agreement.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
@@ -440,6 +440,18 @@ Deno.test("chargebacks pause the engagement; a lost one puts the attorney on hol
   assertEquals((await one("select status from agreements where id = $1", [ag])).status, "paused");
   await ev2("evt_cb4", "charge.dispute.closed", "won");
   assertEquals((await one("select status from agreements where id = $1", [ag])).status, "active", "a won chargeback lifts the pause");
+});
+
+// Fix 2026-11-11 (the sandbox run): before Stripe's setup page is filled in, Stripe calls the account "restricted" and lists
+// what it needs in its own field names. DELA showed that as a paused account with "date, ip, day, month, year".
+Deno.test("payout account status: needs details in plain words until Stripe's page is filled in; restricted only when Stripe blocks it", () => {
+  const cap = (status: string) => ({ configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { status } } } } } });
+  const before = accountStatusV2({ ...cap("restricted"), requirements: { entries: ["external_account", "identity.attestations.terms_of_service.account.date", "identity.attestations.terms_of_service.account.ip",
+    "identity.individual.date_of_birth.day", "identity.individual.date_of_birth.month", "identity.individual.given_name", "identity.individual.surname", "identity.individual.id_numbers.us_ssn_last_4"]
+    .map((description) => ({ description, awaiting_action_from: "user" })) } });
+  assertEquals(before, { status: "pending", requirements: ["bank account", "agreeing to Stripe's terms", "date of birth", "name", "ID number"] });
+  assertEquals(accountStatusV2({ ...cap("restricted"), requirements: { entries: [{ description: "identity.individual.documents", awaiting_action_from: "stripe" }] } }).status, "restricted");
+  assertEquals(accountStatusV2({ ...cap("active"), requirements: { entries: [] } }), { status: "ready", requirements: [] });
 });
 
 Deno.test("every day: agreements not signed in time close and the attorney can choose again", async () => {
