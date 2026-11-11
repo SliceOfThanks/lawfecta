@@ -275,3 +275,14 @@ Deno.test("sides stay separate, the team sees the funnel, members do not", async
   assert(rep.people >= 2 && rep.alerts_today >= 1 && rep.steps.pick_task >= 1, JSON.stringify(rep));
   assertEquals(((await rpc("dela_guide_state", { p_person: att.id, p_side: "freelancer" })) as Record<string, any>).reason, "no_side");
 });
+
+// Launch review 2026-11-10, item 12: the reminder email skipped the two newest first steps
+Deno.test("the guide's reminder email reaches a new attorney whose next step is telling DELA about the firm", async () => {
+  const fresh = await member(8, "att_plus");
+  assertEquals((await call("GET", "/guide", fresh.token)).body.step, "firm");
+  await pool.query("update settings set value = '[1]'::jsonb where key = 'onboarding.reminder_days'");
+  await pool.query("update side_profiles set created_at = now() - interval '36 hours' where person_id = $1 and side = 'attorney'", [fresh.id]);
+  await pool.query("select dela_guide_daily()");
+  const n = await one("select title from notifications where person_id = $1 and kind = 'guide_reminder' and channel = 'email'", [fresh.id]);
+  assertEquals(n?.title, "Your first gig is a few minutes away");
+});

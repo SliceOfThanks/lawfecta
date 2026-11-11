@@ -73,7 +73,11 @@ export function liveBd(f: Fetch, siteUrl: string, key: string, o: { activeValue?
     const r = await get<unknown>("/api/v2/user/get/" + Math.trunc(id));
     if (!r.ok) return fail(r);
     const rec = list(r.data)[0];
-    return rec ? ok(rec) : { ok: false, error: "bd_member_not_found" };
+    if (!rec) return { ok: false, error: "bd_member_not_found" };
+    // BD must answer about the member that was asked for: a record for anyone else is refused, so a change or an
+    // email can never land on the wrong member (launch review 2026-11-10, item 16)
+    if (Math.trunc(Number(rec.user_id)) !== Math.trunc(id)) return { ok: false, error: "bd_wrong_member" };
+    return ok(rec);
   }
   async function metaRows(id: number): Promise<Res<Rec[]>> {
     const r = await pages(`/api/v2/users_meta/get?property[]=database&property_value[]=users_data&property[]=database_id&property_value[]=${Math.trunc(id)}`);
@@ -146,6 +150,9 @@ export function liveBd(f: Fetch, siteUrl: string, key: string, o: { activeValue?
       if (!a.ok) return a;
       const b = await pages(`/api/v2/users_portfolio_groups/get?property=user_id&property_value=${Math.trunc(id)}`);
       if (!b.ok) return b;
+      // Only this member's own posts: if BD ignores the member filter and answers with someone else's, nothing is touched
+      const mine = (p: Rec) => p.user_id === undefined || p.user_id === null || str(p.user_id) === "" || Math.trunc(Number(p.user_id)) === Math.trunc(id);
+      if (![...a.data, ...b.data].every(mine)) return { ok: false, error: "bd_wrong_member" };
       return ok([...a.data.map((p) => post(p)), ...b.data.map((p) => post(p, true))].filter((p) => p.id && p.id !== "g:"));
     },
     async setPublished(pid, on) {

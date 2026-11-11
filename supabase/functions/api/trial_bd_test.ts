@@ -105,6 +105,20 @@ Deno.test("users_meta: read only this member's dela_ keys; update a key that exi
   assertEquals(writes[1].form, { database: "users_data", database_id: "11", key: "dela_downgraded_at", value: "2026-11-08T10:00:00Z" });
 });
 
+// Launch review 2026-11-10, item 16: BD's answers were not checked against the member that was asked for
+Deno.test("a BD answer about another member is refused: nothing is read as this member's", async () => {
+  const { f } = fakeBd({
+    "GET /api/v2/user/get/11": () => [{ user_id: "12", subscription_id: "8", services: "1,2" }],
+    "GET /api/v2/data_posts/get": () => [{ post_id: "31", user_id: "11", data_type: "video", post_status: "1" }, { post_id: "32", user_id: "99", data_type: "video", post_status: "1" }],
+    "GET /api/v2/users_portfolio_groups/get": () => [],
+  });
+  const bd = liveBd(f, "https://hirelegalhelp.com", "key");
+  const areas = await bd.areas(11);
+  assertEquals([areas.ok, !areas.ok && areas.error], [false, "bd_wrong_member"], "the member record is for someone else");
+  const posts = await bd.posts(11);
+  assertEquals([posts.ok, !posts.ok && posts.error], [false, "bd_wrong_member"], "one post belongs to someone else, so none is touched");
+});
+
 Deno.test("plan, posts, areas: the confirmed update calls", async () => {
   const { f, calls } = fakeBd({
     "GET /api/v2/data_posts/get": () => [{ post_id: "31", data_type: "video", post_status: "1" }],
