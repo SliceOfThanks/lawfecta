@@ -368,7 +368,7 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
       // Readable text on dark (at least 4.5 to 1): links, outlined buttons, the current tab, labels and blue buttons
       "a{color:#8cc4ff}.soon{color:#8cc4ff}button.ghost,button.mic{color:#f19ab8}.nav button[aria-current=page]{color:#f19ab8}button.blue,.btn.blue,button.ai-btn.blue{background:#1f6fb2;border-color:#1f6fb2;color:#fff}" +
       // UI review 2026-11-08: lighter text links, clear selected filters, visible fields and placeholders on dark cards
-      ".linkish{color:#f19ab8}.pills button[aria-pressed=true]{background:#f19ab8;color:#11131b;border-color:#f19ab8}" +
+      ".linkish{color:#f19ab8}.pills button[aria-pressed=true],.pills button[aria-selected=true]{background:#f19ab8;color:#11131b;border-color:#f19ab8}" +
       "input,select,textarea{background:#11131b;border-color:#6b7389}input::placeholder,textarea::placeholder{color:#9aa1b2;opacity:1}" +
       ".badge.off{color:#a7adbb;border-color:#3a3f50}"),
     ".dela *{box-sizing:border-box}",
@@ -461,7 +461,7 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
     ".tick{width:24px;height:24px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;border:1px solid var(--line);background:var(--card)}",
     ".tick.ok{background:var(--ok);border-color:var(--ok);color:#fff}.tick.now{background:var(--blue);border-color:var(--blue);color:#fff}.tick.bad{background:var(--bad);border-color:var(--bad);color:#fff}",
     ".dot{width:12px;height:12px;border-radius:50%;flex:none;margin-top:6px;background:var(--muted)}.dot.k-push{background:var(--ok)}.dot.k-back{background:var(--blue)}.dot.k-security{background:var(--bad)}.dot.k-health{background:#d23b62}.dot.k-settings{background:var(--warn)}.dot.k-pause{background:var(--brand)}",
-    ".pills{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.pills button{background:var(--card);color:var(--ink);border:1px solid var(--line)}.pills button[aria-pressed=true]{background:var(--navy);color:#fff;border-color:var(--navy)}",
+    ".pills{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0}.pills button{background:var(--card);color:var(--ink);border:1px solid var(--line)}.pills button[aria-pressed=true],.pills button[aria-selected=true]{background:var(--navy);color:#fff;border-color:var(--navy)}",
     "button.big{padding:14px 28px;font-size:17px;font-weight:800}",
     "button.tip{width:24px;height:24px;min-width:24px;padding:0;border-radius:50%;font-size:13px;font-weight:800;line-height:1;justify-content:center;background:var(--card);color:var(--blue);border:1.5px solid var(--blue);vertical-align:middle}button.tip[aria-expanded=true]{background:var(--blue);color:#fff}",
     ".helpbox{background:var(--bluebg);border:1px solid #b9d9f4;border-radius:12px;padding:10px 12px;margin:8px 0;font-size:14px;font-weight:400;line-height:1.5;color:var(--ink);text-transform:none;letter-spacing:0}.helpbox[hidden],.secbody[hidden]{display:none}",

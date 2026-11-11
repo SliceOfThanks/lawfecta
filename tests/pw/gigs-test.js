@@ -157,6 +157,7 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     t = await waitFor(p, "Gig views", 8000).catch(() => text(p));
     await dela(p).getByRole("tab", { name: /^Questions/ }).click();
     t = await waitFor(p, "Which intake form do you use?");
+    ok(await dela(p).locator('button[role=tab][aria-pressed]').count() === 0 && await dela(p).getByRole("tab", { name: /^Questions/ }).getAttribute("aria-selected") === "true", "screen readers: the gig tabs say which one is selected and carry no button-only attribute");
     ok(!t.includes("Venmo"), "the attorney does not see the held question");
     await label(p, "Your answer").fill("The firm's own intake form, shared in Files.");
     await click(p, "Answer for everyone");

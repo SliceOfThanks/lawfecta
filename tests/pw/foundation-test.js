@@ -70,6 +70,7 @@ async function waitFor(page, words, ms) {
     s = await open(browser, "DELA-Admin", 1, "");
     let t = await text(s.page);
     ok(t.includes("Release Control") && t.includes("Live setup") && t.includes("Version history"), "the admin area opens on Release Control");
+    ok(t.includes("One site for the pilot") && t.includes("Live: second copy, not set up") && t.includes("This site: ") && !t.includes("hirelegalhelp"), "with no second copy set up, Release Control says the pilot runs on one site");
     await dela(s.page).getByRole("tab", { name: "Overview" }).click();
     t = await text(s.page);
     ok(t.includes("Overview") && t.includes("Plans not linked to BD"), "owner opens the Overview");
@@ -96,7 +97,7 @@ async function waitFor(page, words, ms) {
     // Guide: a plain manual, first section open, the rest fold open on Show
     await dela(s.page).getByRole("tab", { name: "Guide" }).click();
     t = await text(s.page);
-    ok(t.includes("Start here") && t.includes("There are two copies of DELA") && !t.includes("Moves to Live") && t.includes("On this page"), "the Guide opens on Start here with other sections folded");
+    ok(t.includes("Start here") && t.includes("The pilot runs on one site, lawfecta.co") && !t.includes("Moves to Live") && t.includes("On this page"), "the Guide opens on Start here with other sections folded");
     await dela(s.page).getByRole("button", { name: "What a push moves" }).click();
     await s.page.waitForTimeout(300);
     ok((await text(s.page)).includes("A push never copies data from the test site to Live"), "the Guide's contents link opens and shows what a push moves to Live");

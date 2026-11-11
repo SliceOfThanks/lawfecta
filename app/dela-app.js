@@ -1347,7 +1347,7 @@
     var card = h("div", { class: "card" }, h("h2", { text: "Profile documents" }),
       h("p", { class: "small muted", text: "A resume, certificates or work samples with no client information. PDF, Word, PNG or JPG, up to " + set.doc_max_mb + " MB each, " + set.docs_max + " at most. Each one stays private until you choose to show it to attorneys." }));
     var tick = h("input", { type: "checkbox", id: "dela-doc-tick" });
-    var input = h("input", { type: "file", accept: ".pdf,.docx,.png,.jpg,.jpeg", style: "display:none" });
+    var input = h("input", { type: "file", accept: ".pdf,.docx,.png,.jpg,.jpeg", style: "display:none", "aria-label": "Choose a profile document" });
     var msg = h("p", { role: "status", class: "small" });
     var up = h("button", { class: "ghost small" }, "Upload a document");
     up.addEventListener("click", function () { if (!tick.checked) { msg.textContent = D.errorText("tick_needed"); return; } input.click(); });
@@ -1660,7 +1660,7 @@
 
   function uploadCard(d) {
     var tick = h("input", { type: "checkbox", id: "dela-no-client" });
-    var input = h("input", { type: "file", multiple: true, accept: d.allowed.map(function (x) { return "." + x; }).join(",") + ",.jpeg" });
+    var input = h("input", { type: "file", multiple: true, "aria-label": "Choose files", accept: d.allowed.map(function (x) { return "." + x; }).join(",") + ",.jpeg" });
     var go = h("button", { class: "blue" }, "Upload");
     go.addEventListener("click", function () {
       if (!input.files.length) { D.toast(app, "Choose a file first.", true); return; }
@@ -1675,7 +1675,7 @@
   }
 
   function pickAndUpload(f) {
-    var input = h("input", { type: "file", accept: "." + f.ext });
+    var input = h("input", { type: "file", "aria-label": "Choose the new version of this file", accept: "." + f.ext });
     input.addEventListener("change", function () {
       if (!input.files.length) return;
       if (!confirm("Upload a new version of \"" + f.name + "\"? Confirm it has no sensitive data (" + SENSITIVE_KINDS + ").")) return;
@@ -2593,7 +2593,7 @@
 
   function startScribe() {
     var tick = h("input", { type: "checkbox", id: "dela-scribe-tick" });
-    var input = h("input", { type: "file", accept: ".html,.htm,.md,.markdown,.txt" });
+    var input = h("input", { type: "file", "aria-label": "Choose a document file", accept: ".html,.htm,.md,.markdown,.txt" });
     var status = h("div", { class: "small", role: "status" });
     var go = h("button", { class: "blue" }, "Read the guide");
     go.addEventListener("click", function () {
@@ -2959,7 +2959,7 @@
     var can = navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia && window.MediaRecorder && !/Mobi|Android|iPad|iPhone/.test(navigator.userAgent);
     var name = h("input", { "aria-label": "Process name", style: "width:100%", placeholder: "Example: File a motion and upload it to Clio" });
     var micSel = h("select", { "aria-label": "Microphone" }, h("option", { value: "", text: "Default microphone" }));
-    var meter = h("div", { class: "bar", "aria-label": "Microphone level" }, h("span", { style: "width:0%" }));
+    var meter = h("div", { class: "bar", role: "img", "aria-label": "Microphone level" }, h("span", { style: "width:0%" }));
     var consent = h("input", { type: "checkbox", id: "dela-rec-consent" });
     var start = h("button", { class: "blue big", disabled: !st.consented }, "Start recording");
     // Uploading a recording needs the same consent as recording, and sends the real answer (AI review 0.9.0, privacy 2)
@@ -2976,7 +2976,7 @@
         ds.filter(function (d) { return d.kind === "audioinput"; }).forEach(function (d, i) { micSel.appendChild(h("option", { value: d.deviceId, text: d.label || "Microphone " + (i + 1) })); });
       }).catch(function () { status.textContent = "DELA could not use a microphone. Allow the microphone for this site (the icon left of the web address), then reload. You can still record without talking, but the steps will be less clear."; });
     }
-    var upload = h("input", { type: "file", accept: "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov", style: "display:none" });
+    var upload = h("input", { type: "file", "aria-label": "Choose a video file", accept: "video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov", style: "display:none" });
     upload.addEventListener("change", function () { if (upload.files[0]) uploadRecording(upload.files[0], name.value, st, status, !!(st.consented || consent.checked)); });
     start.addEventListener("click", function () {
       if (!name.value.trim()) { D.toast(app, "Give the process a name first.", true); name.focus(); return; }
@@ -3552,7 +3552,7 @@
       if ((me.switches || {}).engagements && (g.status === "filled" || gigs.view === "agreement")) views.push(["agreement", "Agreement and work"]);
       if (gigs.view === "agreement" && !(me.switches || {}).engagements) gigs.view = "details";
       el.appendChild(h("div", { class: "pills", role: "tablist", "aria-label": "Gig views" }, views.map(function (v) {
-        return h("button", { role: "tab", "aria-selected": String(gigs.view === v[0]), "aria-pressed": String(gigs.view === v[0]), onclick: function () { gigs.view = v[0]; draw(); } }, v[1]);
+        return h("button", { role: "tab", "aria-selected": String(gigs.view === v[0]), onclick: function () { gigs.view = v[0]; draw(); } }, v[1]);
       })));
       var body = h("div");
       el.appendChild(body);
@@ -4587,7 +4587,7 @@
     var el = h("div", null, h("h1", { text: "Talent" }));
     if ((me.switches || {}).bench) {
       el.appendChild(h("div", { class: "pills", role: "tablist", "aria-label": "Talent views" }, [["search", "Search"], ["bench", "My bench"]].map(function (v) {
-        return h("button", { role: "tab", "aria-selected": String(talentMode === v[0]), "aria-pressed": String(talentMode === v[0]), onclick: function () { talentMode = v[0]; draw(); } }, v[1]);
+        return h("button", { role: "tab", "aria-selected": String(talentMode === v[0]), onclick: function () { talentMode = v[0]; draw(); } }, v[1]);
       })));
       if (talentMode === "bench") { benchView(el); return el; }
     }

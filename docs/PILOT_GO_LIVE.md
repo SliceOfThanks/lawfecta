@@ -46,7 +46,7 @@ Changing it from "staging" to "live" is done in the database (the admin area loc
 | "Run the monthly renewal now" button (admin) | Works | Refused | Fine: it is a test tool |
 | "Reset the test site" tool (admin) | Works | Refused | Wanted: it must never run on real data |
 | Watching "Live" from the test site, release push and codes | Run every minute | Stop | Fine: there is no second site any more. The Releases tab becomes history only. |
-| The admin label | "Test site: hirelegalhelp.com" | "Live: lawfecta.com, real members" | Wording to correct to lawfecta.co |
+| The admin label and Release Control | "Test mode on lawfecta.co", with a card "One site for the pilot" | "Live: lawfecta.co, real members", and Release Control says the site is Live | Done 2026-11-11: the wording names lawfecta.co and explains that the pilot runs on one site |
 | The owner's test button on an engagement (member view) | Shown | Hidden | Wanted |
 
 Do this after steps 1 to 3, so the label and the email prefix stay honest while testing.

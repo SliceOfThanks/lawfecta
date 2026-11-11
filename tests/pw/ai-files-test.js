@@ -90,6 +90,7 @@ async function listened(page, secs) {
 
     const input = dela(p).locator("input[type=file]").first();
     await input.setInputFiles({ name: "Intake steps.txt", mimeType: "text/plain", buffer: Buffer.from("Step 1. Open the intake form.\nStep 2. Run the conflict check.") });
+    ok(await dela(p).locator('input[type=file]:not([aria-label])').count() === 0, "screen readers: the file box on the Files page has a name");
     await dela(p).getByRole("button", { name: "Upload" }).click();
     await p.waitForTimeout(400);
     t = await text(p);
