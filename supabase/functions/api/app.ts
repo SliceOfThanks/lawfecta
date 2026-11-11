@@ -3515,7 +3515,9 @@ async function stripeWebhook(ctx: Ctx) {
   try { ev = JSON.parse(payload); } catch { throw new HttpError(400, "bad_json"); }
   const live = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "live_payments", p_person: null }).catch(() => false);
   if (ev.livemode === true && !live) return json(ctx, { ok: false, reason: "live_payments_off" }, 400);
-  if (await rpc<boolean>(ctx, "dela_provider_event_seen", { p_id: String(ev.id), p_type: String(ev.type) })) return json(ctx, { ok: true, duplicate: true });
+  // An event counts as handled only after its work is done (dela_provider_event_done below). If the work fails, the error
+  // goes back to Stripe, which sends the event again, and it is processed then. Every handler below is safe to run twice.
+  if (await rpc<string>(ctx, "dela_provider_event_begin", { p_id: String(ev.id), p_type: String(ev.type) }) === "done") return json(ctx, { ok: true, duplicate: true });
   const o = ev.data?.object ?? {};
   const pid = o.metadata?.payment_id ?? o.client_reference_id;
   switch (ev.type) {
@@ -3540,6 +3542,7 @@ async function stripeWebhook(ctx: Ctx) {
       await sendReversals(ctx);
       break;
   }
+  await rpc(ctx, "dela_provider_event_done", { p_id: String(ev.id) });
   return json(ctx, { ok: true });
 }
 

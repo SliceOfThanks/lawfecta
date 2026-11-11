@@ -87,7 +87,9 @@ const storage: Storage = {
   signUpload: (p) => Promise.resolve("https://storage.test/up/" + p), signDownload: (p, s) => Promise.resolve(`https://storage.test/get/${p}?exp=${s}`),
   size: () => Promise.resolve(1), read: () => Promise.reject(new Error("missing")), remove: () => Promise.resolve(), put: () => Promise.resolve(),
 };
-const deps: Deps = { rpc, env: (k) => env[k] ?? "", fetch: fakeFetch, storage };
+// One database call can be made to fail once, to act out an outage in the middle of handling a Stripe event
+let failOnce = "";
+const deps: Deps = { rpc: (fn, args) => { if (fn === failOnce) { failOnce = ""; return Promise.reject(new Error("the database was not reachable")); } return rpc(fn, args); }, env: (k) => env[k] ?? "", fetch: fakeFetch, storage };
 
 async function call(method: string, path: string, session: string, body?: unknown) {
   const res = await handle(new Request("http://localhost/functions/v1/api" + path, {
@@ -452,6 +454,22 @@ Deno.test("payout account status: needs details in plain words until Stripe's pa
   assertEquals(before, { status: "pending", requirements: ["bank account", "agreeing to Stripe's terms", "date of birth", "name", "ID number"] });
   assertEquals(accountStatusV2({ ...cap("restricted"), requirements: { entries: [{ description: "identity.individual.documents", awaiting_action_from: "stripe" }] } }).status, "restricted");
   assertEquals(accountStatusV2({ ...cap("active"), requirements: { entries: [] } }), { status: "ready", requirements: [] });
+});
+
+// Launch review 2026-11-10, fix 4: a Stripe event was marked as seen before it was processed, so when processing failed,
+// Stripe's retry was dropped as a duplicate and the event was lost for good
+Deno.test("a Stripe event that fails half way is processed when Stripe sends it again; one that worked is not processed twice", async () => {
+  const ev = (id: string, type: string, status = "") => hook({ id, type, livemode: false, data: { object: { id: "dp_lost", payment_intent: "pi_first", amount: 2000, reason: "general", status } } });
+  failOnce = "dela_chargeback_event";
+  const first = await ev("evt_lost1", "charge.dispute.created");
+  assert(first.status >= 500, "Stripe is told the event failed, so it sends it again: " + first.status);
+  assertEquals(Number((await one("select count(*) n from chargebacks where provider_ref = 'dp_lost'")).n), 0);
+  const again = await ev("evt_lost1", "charge.dispute.created");
+  assertEquals([again.status, again.body.ok, again.body.duplicate ?? false], [200, true, false], "the retry is processed");
+  assertEquals(Number((await one("select count(*) n from chargebacks where provider_ref = 'dp_lost' and status = 'open'")).n), 1, "the chargeback is recorded");
+  assertEquals((await ev("evt_lost1", "charge.dispute.created")).body.duplicate, true, "a third delivery of an event that worked is a duplicate");
+  await ev("evt_lost2", "charge.dispute.closed", "won");
+  assertEquals((await one("select status from agreements where id = $1", [ag])).status, "active", "left as it was found");
 });
 
 Deno.test("every day: agreements not signed in time close and the attorney can choose again", async () => {
