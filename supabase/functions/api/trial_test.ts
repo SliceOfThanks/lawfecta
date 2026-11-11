@@ -37,6 +37,11 @@ Deno.test("the rules: who is moved to Free, converted, reminded, tracked, and ne
   assertEquals(decide({ ...base, ends_at: iso(NOW + 4 * DAY), reminded: false }, NOW, S).action, "skip");
   // A new Pro signup with no trial data starts being tracked; an old member never gets a trial after the fact
   assertEquals(decide({ ...base, status: "", ends_at: null, signup_at: iso(NOW - DAY) }, NOW, S), { action: "track", reason: "new_pro_signup", ends_at: iso(NOW + 6 * DAY) });
+  // Launch review 2026-11-10, item 17: first seen after the trial would have ended, the member still gets the reminder
+  // period, so the "ends soon" email goes out before any downgrade
+  const late = decide({ ...base, status: "", ends_at: null, signup_at: iso(NOW - 9 * DAY) }, NOW, S);
+  assertEquals(late, { action: "track", reason: "new_pro_signup", ends_at: iso(NOW + S.reminderDays * DAY) });
+  assertEquals(decide({ ...base, status: "active", ends_at: late.ends_at!, reminded: false }, NOW + DAY, S).action, "remind", "reminded the next day, not downgraded");
   assertEquals(decide({ ...base, status: "", ends_at: null, signup_at: iso(NOW - 40 * DAY) }, NOW, S).action, "skip");
   assertEquals(decide({ ...base, status: "", ends_at: null, signup_at: iso(NOW - DAY) }, NOW, { ...S, eligibleFrom: "2026-11-25" }).reason, "signed_up_before_trials");
   assertEquals(decide({ ...base, status: "", plan_id: 3, signup_at: iso(NOW - DAY) }, NOW, S).action, "skip", "Free signups have no trial");

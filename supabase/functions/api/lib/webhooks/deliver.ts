@@ -20,6 +20,26 @@ function v4(ip: string): number[] | null {
   return p.every((x) => x >= 0 && x <= 255) ? p : null;
 }
 
+// An IPv6 address as its eight 16-bit groups, or null when it is not one. "::" and a dotted IPv4 tail are understood.
+function v6groups(s: string): number[] | null {
+  let str = s;
+  const dotted = str.match(/^(.*:)(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})$/);
+  if (dotted) {
+    const q = v4(dotted[2]);
+    if (!q) return null;
+    str = dotted[1] + ((q[0] << 8) | q[1]).toString(16) + ":" + ((q[2] << 8) | q[3]).toString(16);
+  }
+  const halves = str.split("::");
+  if (halves.length > 2) return null;
+  const part = (x: string) => (x === "" ? [] : x.split(":"));
+  const head = part(halves[0]), tail = halves.length === 2 ? part(halves[1]) : [];
+  const fill = halves.length === 2 ? 8 - head.length - tail.length : 0;
+  if (fill < 0 || (halves.length === 1 && head.length !== 8)) return null;
+  const all = [...head, ...Array(fill).fill("0"), ...tail];
+  if (all.length !== 8 || !all.every((x) => /^[0-9a-f]{1,4}$/.test(x))) return null;
+  return all.map((x) => parseInt(x, 16));
+}
+
 // Private, loopback, link-local, carrier-grade NAT, multicast, reserved and metadata addresses
 export function isPrivateIp(ip: string): boolean {
   const a = v4(ip);
@@ -28,12 +48,19 @@ export function isPrivateIp(ip: string): boolean {
     return x === 0 || x === 10 || x === 127 || (x === 100 && y >= 64 && y <= 127) || (x === 169 && y === 254) || (x === 172 && y >= 16 && y <= 31) ||
       (x === 192 && y === 168) || (x === 192 && y === 0) || (x === 198 && (y === 18 || y === 19)) || x >= 224;
   }
-  const s = ip.toLowerCase().replace(/^\[|\]$/g, "");
+  const s = ip.toLowerCase().replace(/^\[|\]$/g, "").split("%")[0];
   if (!s.includes(":")) return true; // not an address we understand
-  if (s === "::" || s === "::1") return true;
-  const mapped = s.match(/^::ffff:(\d+\.\d+\.\d+\.\d+)$/);
-  if (mapped) return isPrivateIp(mapped[1]);
-  return /^(fc|fd|fe8|fe9|fea|feb|ff)/.test(s) || s.startsWith("64:ff9b:") || s.startsWith("2001:db8");
+  // The same address can be written many ways ("::ffff:7f00:1", "0:0:0:0:0:ffff:127.0.0.1", "::0001"), so it is
+  // expanded to its eight groups first and judged by its numbers, never by how it was spelled
+  const g = v6groups(s);
+  if (!g) return true; // not an address we understand
+  if (g.slice(0, 7).every((x) => x === 0) && (g[7] === 0 || g[7] === 1)) return true; // :: and ::1
+  const tail4 = `${g[6] >> 8}.${g[6] & 255}.${g[7] >> 8}.${g[7] & 255}`;
+  if (g.slice(0, 5).every((x) => x === 0) && (g[5] === 0xffff || g[5] === 0)) return isPrivateIp(tail4); // IPv4-mapped and IPv4-compatible
+  if (g[0] === 0x64 && g[1] === 0xff9b) return true; // NAT64: reaches IPv4 addresses
+  if (g[0] === 0x2002) return true; // 6to4: carries an IPv4 address
+  if (g[0] === 0x2001 && (g[1] === 0xdb8 || g[1] === 0)) return true; // documentation, Teredo
+  return (g[0] & 0xfe00) === 0xfc00 || (g[0] & 0xffc0) === 0xfe80 || (g[0] & 0xff00) === 0xff00; // private, link-local, multicast
 }
 
 const BLOCKED_HOSTS = /(^|\.)(localhost|local|internal|intranet|lan|home|corp|localdomain|metadata|metadata\.google\.internal)$/i;

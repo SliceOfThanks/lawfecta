@@ -4643,11 +4643,11 @@ async function worker(ctx: Ctx) {
     await checkLive(ctx);
   }
   // One job is claimed at a time, each with its own 5-minute lease, so a slow job never lets the leases of the jobs
-  // behind it run out (an overlapping run would then do them a second time). A run stops taking new jobs after 50 seconds.
+  // behind it run out (an overlapping run would then do them a second time). A run stops taking new jobs after 50 seconds or 100 jobs.
   const jobs: Array<Record<string, any>> = [];
   const done: Record<string, number> = {};
   const startedAt = Date.now();
-  while (jobs.length < 25 && Date.now() - startedAt < 50000) {
+  while (jobs.length < 100 && Date.now() - startedAt < 50000) {
     const j = ((await rpc<Array<Record<string, any>>>(ctx, "dela_job_lease", { p_limit: 1, p_lease_seconds: 300 })) ?? [])[0];
     if (!j) break;
     jobs.push(j);
@@ -4919,7 +4919,7 @@ function trialMailer(ctx: Ctx, cfg: TrialCfg) {
   return async (kind: "ending" | "ended", c: TrialCandidate) => {
     if (!c.email) return { ok: false as const, error: "no_email" };
     const provider = pickProvider(cfg.sender);
-    const m = trialEmail(kind, c.first_name, String(cfg.site_url ?? ""), String(cfg.environment ?? "staging"), Number(cfg.reminder_days) || 2, await codeLogo(ctx));
+    const m = trialEmail(kind, c.first_name, String(cfg.site_url ?? ""), String(cfg.environment ?? "staging"), Number(cfg.reminder_days) || 2, await codeLogo(ctx), await setting(ctx, "email.postal_address", ""));
     const r = await provider.send({ from: { name: cfg.from_name, email: cfg.from_address }, to: { email: c.email, name: [c.first_name, c.last_name].join(" ").trim() || undefined },
       subject: m.subject, html: m.html, text: m.text, tags: [String(cfg.environment), "trial_" + kind] }, provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl: cfg.site_url });
     return r.ok ? { ok: true as const, data: true as const } : { ok: false as const, error: r.error };
@@ -5133,7 +5133,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /agency": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_view", { p_person: s.person_id })); }
       case "GET /agency/profile": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_profile_get", { p_person: s.person_id })); }
       case "POST /agency/profile": { const s = await freelancerOnly(ctx);
-        const text = [ctx.body.headline, ctx.body.summary, JSON.stringify(ctx.body.services ?? [])].map((x) => str(x, 4000)).join("\n");
+        // Everything attorneys will read is checked, the lists of practice areas, tools and states included
+        const text = [ctx.body.headline, ctx.body.summary, JSON.stringify(ctx.body.services ?? []), JSON.stringify(ctx.body.practice_areas ?? []), JSON.stringify(ctx.body.tools ?? []), JSON.stringify(ctx.body.states_served ?? [])].map((x) => str(x, 4000)).join("\n");
         const w = await sensitive(ctx, s, text, "public"); if (w) return json(ctx, w);
         return json(ctx, await rpc(ctx, "dela_agency_profile_save", { p_person: s.person_id, p: ctx.body })); }
       case "POST /agency/profile/draft": return json(ctx, await agencyProfileDraft(ctx));

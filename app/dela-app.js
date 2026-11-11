@@ -84,7 +84,7 @@
 
   function header() {
     bar = h("div", { class: "top" }, brand());
-    if (boot.staging || me.environment !== "live") bar.appendChild(h("span", { class: "badge stage", title: "You are on the test site (hirelegalhelp.com). Test data only.", text: "Test site" }));
+    if (boot.staging || me.environment !== "live") bar.appendChild(h("span", { class: "badge stage", title: "This copy of DELA is in test mode. Test data only.", text: "Test site" }));
     bar.appendChild(h("span", { class: "grow" }));
     if ((me.sides || []).length > 1) {
       var seg = h("div", { class: "seg", role: "group", "aria-label": "Switch side" });
@@ -3621,11 +3621,12 @@
       var acts = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" });
       if (f.suggestion && target) {
         var put = function () { if (target.apply) { target.apply(f); return; } target.value = f.suggestion; target.dispatchEvent(new Event("input")); target.dispatchEvent(new Event("change")); };
-        applyAll.push(function () { put(); li.remove(); });
-        acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { put(); li.remove(); D.toast(app, opts.toast || "Added to the form. Nothing is saved until you save."); } }, "Use suggestion"));
-        acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { put(); li.remove(); if (target.focus) target.focus(); } }, "Edit"));
+        // "Use all suggestions" leaves out the ones the member dismissed or already used (launch review, item 14)
+        applyAll.push(function () { if (li.dataset.done) return; li.dataset.done = "1"; put(); li.remove(); });
+        acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { li.dataset.done = "1"; put(); li.remove(); D.toast(app, opts.toast || "Added to the form. Nothing is saved until you save."); } }, "Use suggestion"));
+        acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { li.dataset.done = "1"; put(); li.remove(); if (target.focus) target.focus(); } }, "Edit"));
       }
-      acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { li.remove(); } }, "Dismiss"));
+      acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { li.dataset.done = "1"; li.remove(); } }, "Dismiss"));
       li.appendChild(acts);
       ul.appendChild(li);
     });
@@ -4099,6 +4100,11 @@
       var tools = h("input", { "aria-label": "Tools you use", style: "width:100%", value: (b.tools || []).join(", "), placeholder: "Separated by commas, for example: Clio, Microsoft 365" });
       var states = h("input", { "aria-label": "States you serve", style: "width:100%", value: (b.states_served || []).join(", "), placeholder: "Two letters each, for example: TX, OK" });
       var svc = h("textarea", { "aria-label": "Services", rows: 4, style: "width:100%", placeholder: "One service per line, for example: Discovery responses | Drafted and organized for attorney review" });
+      // Prices are not typed in this box, so they are remembered by the service's title and sent back on save
+      // (launch review, item 15: saving dropped the prices DELA had drafted)
+      var priceBy = {};
+      var keepPrices = function (list) { (list || []).forEach(function (x) { if (x && x.title && (x.price_min_cents || x.price_max_cents)) priceBy[String(x.title).trim().toLowerCase()] = { min: x.price_min_cents, max: x.price_max_cents }; }); };
+      keepPrices(b.services);
       svc.value = (b.services || []).map(function (x) { return x.title + (x.description ? " | " + x.description : ""); }).join("\n");
       var notes = h("textarea", { "aria-label": "Tell DELA about your agency", rows: 3, style: "width:100%", placeholder: "A few lines: what your team does, practice areas, states, tools, how you work. No client names or details." });
       // The same five checks as dela_agency_profile_missing, from the boxes as they are now
@@ -4126,6 +4132,7 @@
           if ((d.practice_areas || []).length) areas.value = d.practice_areas.join(", ");
           if ((d.tools || []).length) tools.value = d.tools.join(", ");
           if ((d.states_served || []).length) states.value = d.states_served.join(", ");
+          keepPrices(d.services);
           if ((d.services || []).length) svc.value = d.services.map(function (v) { return v.title + (v.description ? " | " + v.description : ""); }).join("\n");
           D.clear(qs);
           var EMPTY_WORDS = { headline: "Headline", summary: "Summary", practice_areas: "Practice areas", services: "Services", tools: "Tools you use", states_served: "States you serve" };
@@ -4138,7 +4145,12 @@
       });
       var save = h("button", { class: "blue small", type: "button" }, "Save the agency profile");
       save.addEventListener("click", function () {
-        var services = svc.value.split("\n").map(function (line) { var parts = line.split("|"); return { title: (parts[0] || "").trim(), description: parts.slice(1).join("|").trim() }; }).filter(function (x) { return x.title.length >= 3; });
+        var services = svc.value.split("\n").map(function (line) {
+          var parts = line.split("|"), title = (parts[0] || "").trim(), pr = priceBy[title.toLowerCase()];
+          var one = { title: title, description: parts.slice(1).join("|").trim() };
+          if (pr) { if (pr.min) one.price_min_cents = pr.min; if (pr.max) one.price_max_cents = pr.max; }
+          return one;
+        }).filter(function (x) { return x.title.length >= 3; });
         save.disabled = true;
         api.post("/agency/profile", { headline: head.value, summary: sum.value, practice_areas: commas(areas.value), tools: commas(tools.value), states_served: commas(states.value), services: services }).then(function (x) {
           save.disabled = false;
@@ -6348,7 +6360,13 @@
       });
     } }, st === "none" ? "Set up payouts with Stripe" : "Finish payout setup"));
     c.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-      api.get("/payouts/refresh").then(engOk).then(function () { engReload("Payout status updated."); }).catch(engFail);
+      // The card is updated in place (the payout re-test, 2026-11-11: the whole page went blank for a few seconds)
+      var chk = this; chk.disabled = true;
+      api.get("/payouts/refresh").then(engOk).then(function (x) {
+        var fresh = payoutCard(x.account, short);
+        if (c.parentNode) c.parentNode.replaceChild(fresh, c);
+        D.toast(app, (x.account || {}).status === "ready" ? "Payouts are ready." : "Checked with Stripe. Nothing has changed yet.");
+      }).catch(function (e) { chk.disabled = false; engFail(e); });
     } }, "Check my payout status"));
     c.appendChild(note);
     if (!short) c.appendChild(h("p", { class: "small muted", text: "You enter your bank details on Stripe's secure page. DELA never sees them." }));

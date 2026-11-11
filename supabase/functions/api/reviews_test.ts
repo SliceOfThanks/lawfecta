@@ -82,6 +82,9 @@ const GOOD_A = { instructions: 5, timely_review: 5, fair_changes: 4, communicati
 Deno.test("helpers: private addresses, URL checks, signatures, the safety answer and ratings", async () => {
   for (const ip of ["10.1.2.3", "127.0.0.1", "169.254.169.254", "172.20.0.1", "192.168.1.1", "100.64.0.1", "0.0.0.0", "::1", "fd00::1", "fe80::1", "::ffff:10.0.0.1"]) assert(isPrivateIp(ip), ip);
   for (const ip of ["93.184.216.34", "8.8.8.8", "2606:4700::1111"]) assert(!isPrivateIp(ip), ip);
+  // Launch review 2026-11-10, item 6: an internal address written another way got through
+  for (const ip of ["::ffff:7f00:1", "::ffff:a9fe:a9fe", "0:0:0:0:0:ffff:127.0.0.1", "0:0:0:0:0:ffff:0a00:0001", "::0001", "0:0:0:0:0:0:0:1", "::7f00:1", "64:ff9b::a9fe:a9fe", "2002:7f00:1::", "[::ffff:c0a8:101]", "fe80::1%eth0", "not:an:address"]) assert(isPrivateIp(ip), ip);
+  for (const ip of ["2606:4700:4700::1111", "::ffff:5db8:d822", "2a00:1450:4001:81b::200e"]) assert(!isPrivateIp(ip), ip);
   const r = (h: string) => Promise.resolve(DNS[h] ?? []);
   assertEquals((await checkUrl("http://hooks.example.com/x", r)).ok, false);
   assertEquals(await checkUrl("https://localhost/x", r), { ok: false, reason: "private_address" });

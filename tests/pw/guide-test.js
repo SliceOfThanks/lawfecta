@@ -153,6 +153,9 @@ async function makeMember(bd, side, plan) {
     await dela(p).getByRole("button", { name: "Save the agency profile" }).click();
     t = await waitFor(p, "Saved.");
     ok(t.includes("Complete."), "agency owner: the saved agency profile says Saved. and Complete.");
+    // Launch review item 15: the prices DELA drafted are still there after saving (the form shows only title and description)
+    const svc = (await sql("select body->'services'->0 as s from agency_profiles order by updated_at desc limit 1"))[0].s;
+    ok(svc && Number(svc.price_min_cents) === 30000 && Number(svc.price_max_cents) === 90000, "agency owner: saving keeps the prices DELA drafted: " + JSON.stringify(svc));
     await s.ctx.close();
 
     // ---------- Log in as the attorney ----------

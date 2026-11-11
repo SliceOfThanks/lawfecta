@@ -55,7 +55,10 @@ export function decide(m: TrialMember, now: number, s: TrialSettings): TrialDeci
     const ends = signup + s.days * DAY;
     // Someone who joined long before the job ran is not given a trial after the fact
     if (ends + s.days * DAY < now) return { action: "skip", reason: "signed_up_before_trials" };
-    return { action: "track", reason: "new_pro_signup", ends_at: new Date(ends).toISOString() };
+    // First seen late (the job was off, or the member was missed): the trial runs at least the reminder period from
+    // today, so the "ends soon" email always goes out before a downgrade (launch review 2026-11-10, item 17)
+    const fair = Math.max(ends, now + s.reminderDays * DAY);
+    return { action: "track", reason: "new_pro_signup", ends_at: new Date(fair).toISOString() };
   }
 
   if (m.status !== "active") return { action: "skip", reason: "unknown_status" };
@@ -91,7 +94,7 @@ export function areasToHide(areas: string[], keep: number): { keep: string[]; hi
 
 // The two emails, worded exactly as in Stacey's developer notes (2026-11-06)
 // days: the trial.reminder_days setting (AI review 0.10.0, payments 3); at 2 the words are exactly the developer notes'
-export function trialEmail(kind: "ending" | "ended", firstName: string, siteUrl: string, environment: string, days = 2, logoUrl = "") {
+export function trialEmail(kind: "ending" | "ended", firstName: string, siteUrl: string, environment: string, days = 2, logoUrl = "", postal = "") {
   const inDays = days === 1 ? "1 day" : days + " days";
   const name = (firstName || "there").trim();
   const url = siteUrl.replace(/\/+$/, "") + "/account/upgrade";
@@ -115,6 +118,8 @@ ${logoRow(logoUrl, "Lawfecta")}
 <tr><td style="padding:0 28px 8px;font-size:22px;font-weight:bold;line-height:1.3">${esc(t.subject)}</td></tr>
 <tr><td style="padding:8px 28px 4px;font-size:15px;line-height:1.6">${esc(t.body)}</td></tr>
 <tr><td style="padding:16px 28px 28px"><a href="${esc(url)}" style="display:inline-block;background:#1f3a5f;color:#ffffff;text-decoration:none;padding:12px 20px;border-radius:8px;font-weight:bold">${esc(t.button)}</a></td></tr>
-</table></td></tr></table></body></html>`;
-  return { subject: prefix + t.subject, html, text: `${t.body}\n\n${t.button}: ${url}`, button: t.button, url };
+</table>
+<p style="font-size:12px;color:#6b7280;max-width:560px;line-height:1.5">You are getting this because it is about your Lawfecta account.${postal ? "<br>" + esc(postal) : ""}</p>
+</td></tr></table></body></html>`;
+  return { subject: prefix + t.subject, html, text: `${t.body}\n\n${t.button}: ${url}` + (postal ? `\n\n${postal}` : ""), button: t.button, url };
 }
