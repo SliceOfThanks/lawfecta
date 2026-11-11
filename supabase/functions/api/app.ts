@@ -2740,7 +2740,7 @@ async function helperRun(ctx: Ctx) {
       const ms = (Array.isArray(b.milestones) ? b.milestones : []) as Array<Record<string, any>>;
       const msText = ms.map((m) => m.seq + ". " + str(m.title, 200) + " (" + hMoney(m.amount_cents) + (m.due_date ? ", due " + m.due_date : "") + "): " + (str(m.deliverables, 600) || "(no deliverables written)")).join("\n");
       if (key === "agreement_check") {
-        const f = await rpc<Record<string, any>>(ctx, "dela_agreement_facts", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+        const f = await agreementFacts(ctx, { p_person: s.person_id, p_side: s.side, p_agreement: id });
         const pr = f?.proposal ?? {};
         prompt = gigText(f?.gig ?? {}) + "\n\nThe proposal:\nIncludes: " + str(pr.included, 1500) + "\nLeaves out: " + (str(pr.excluded, 800) || "(not said)") + "\nSchedule: " + str(pr.schedule, 500) +
           "\nPrice: " + hMoney(pr.price_cents) + "\n\nThe agreement:\nIncluded: " + str(b.scope?.included, 1500) + "\nNot included: " + (str(b.scope?.excluded, 800) || "(not said)") +
@@ -3118,6 +3118,17 @@ async function stripeKey(ctx: Ctx): Promise<string> {
 }
 const siteBase = async (ctx: Ctx) => (await setting(ctx, "site.url", "")).replace(/\/+$/, "");
 
+// The facts an agreement is written from, plus how this agreement's attorney fee is charged (step 14): the timing saved on
+// the agreement (or, before signing, what the fee_per_milestone switch says) and the fees already charged on paid milestones
+async function agreementFacts(ctx: Ctx, args: { p_person: string; p_side: string; p_agreement: string }): Promise<Record<string, any>> {
+  const f = await rpc<Record<string, any>>(ctx, "dela_agreement_facts", args);
+  if (f && typeof f === "object" && f.ok !== false) {
+    const plan = await rpc<Record<string, any>>(ctx, "dela_fee_plan", { p_agreement: args.p_agreement });
+    f.fees = { ...(f.fees ?? {}), attorney_fee_timing: plan?.attorney_fee_timing ?? "at_start", paid: plan?.paid ?? [] };
+  }
+  return f;
+}
+
 async function agreementGet(ctx: Ctx) {
   const s = await memberSide(ctx);
   let id = uuid(ctx.url.searchParams.get("id"));
@@ -3126,7 +3137,7 @@ async function agreementGet(ctx: Ctx) {
   if (!id) return json(ctx, { ok: false, reason: "not_found" });
   if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "engagements", p_person: s.person_id })) return json(ctx, { ok: false, reason: "engagements_off" });
   // Version 1: DELA fills in the facts the first time either person opens it
-  const facts = await rpc<Record<string, any>>(ctx, "dela_agreement_facts", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+  const facts = await agreementFacts(ctx, { p_person: s.person_id, p_side: s.side, p_agreement: id });
   if (!facts?.ok) return json(ctx, facts);
   // The contracting agency by name, from the agency's proposal (step 8b Part C, retest R10)
   const agencyName = await rpc<string | null>(ctx, "dela_agreement_agency", { p_agreement: id }).catch(() => null);
@@ -3167,7 +3178,7 @@ async function agreementGet(ctx: Ctx) {
 async function agreementPropose(ctx: Ctx) {
   const s = await memberSide(ctx);
   const id = need(uuid(ctx.body.id));
-  const facts = await rpc<Record<string, any>>(ctx, "dela_agreement_facts", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+  const facts = await agreementFacts(ctx, { p_person: s.person_id, p_side: s.side, p_agreement: id });
   if (!facts?.ok) return json(ctx, facts);
   // A monthly agreement's units come from its monthly terms; changes after signing go through "Request a change"
   if (facts.kind === "monthly") return json(ctx, { ok: false, reason: "use_monthly_terms" });
@@ -3188,7 +3199,7 @@ async function agreementSubcontractors(ctx: Ctx) {
   const id = need(uuid(ctx.body.id));
   const r = await rpc<Record<string, any>>(ctx, "dela_agreement_subs_set", { p_person: s.person_id, p_side: s.side, p_agreement: id, p_no: ctx.body.no_subcontractors === true });
   if (!r?.ok || r.duplicate) return json(ctx, r);
-  const facts = await rpc<Record<string, any>>(ctx, "dela_agreement_facts", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+  const facts = await agreementFacts(ctx, { p_person: s.person_id, p_side: s.side, p_agreement: id });
   if (!facts?.ok) return json(ctx, facts);
   const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: s.person_id, p_side: s.side, p_agreement: id });
   const body = v?.current?.body;
@@ -3221,7 +3232,7 @@ async function monthlyTerms(ctx: Ctx) {
   const r = await rpc<Record<string, any>>(ctx, "dela_monthly_terms_save", { p_person: s.person_id, p_side: s.side, p_agreement: id,
     p: { tasks: read.tasks, unit_mode: ctx.body.unit_mode === "monthly" ? "monthly" : "weekly", ...(price ? { price_cents: price } : {}) } });
   if (!r?.ok) return json(ctx, r);
-  const facts = await rpc<Record<string, any>>(ctx, "dela_agreement_facts", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+  const facts = await agreementFacts(ctx, { p_person: s.person_id, p_side: s.side, p_agreement: id });
   if (!facts?.ok) return json(ctx, facts);
   const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: s.person_id, p_side: s.side, p_agreement: id });
   const scope = v?.current?.body?.scope;
@@ -3301,7 +3312,7 @@ async function engagementPay(ctx: Ctx) {
 }
 
 async function chargeOrCheckout(ctx: Ctx, key: string, n: Record<string, any>, forceCheckout: boolean) {
-  const name = (n.monthly ? `Lawfecta: ${n.gig_title}, month ${n.period?.n}` : `Lawfecta: ${n.gig_title}, milestone ${n.milestone.seq}`) + (n.fee_cents ? " and the platform fee" : "");
+  const name = (n.monthly ? `Lawfecta: ${n.gig_title}, month ${n.period?.n}` : `Lawfecta: ${n.gig_title}, milestone ${n.milestone.seq}`) + (n.fee_cents ? (n.fee_timing === "with_each_milestone" ? " and its Lawfecta fee" : " and the platform fee") : "");
   if (n.customer && n.payment_method && !forceCheckout) {
     const r = await chargeSaved(ctx, key, n, name);
     // No answer is not a failure: no second payment is made. Stripe's notice, or the daily check, settles it.
@@ -4871,7 +4882,7 @@ async function standingHire(ctx: Ctx) {
   if (!r?.ok || r.duplicate) return json(ctx, r);
   const ag = r.agreement_id as string, att = r.attorney_person as string;
   const fail = async (why: string) => { await rpc(ctx, "dela_standing_hire_done", { p_hire: r.hire_id, p_status: "failed", p_failure: why }); return json(ctx, { ok: false, reason: why, hire_id: r.hire_id }); };
-  const facts = await rpc<Record<string, any>>(ctx, "dela_agreement_facts", { p_person: att, p_side: "attorney", p_agreement: ag });
+  const facts = await agreementFacts(ctx, { p_person: att, p_side: "attorney", p_agreement: ag });
   if (!facts?.ok) return await fail(facts?.reason ?? "agreement_failed");
   await rpc(ctx, "dela_agreement_version_add", { p_person: att, p_side: "attorney", p_agreement: ag, p_body: buildBody(facts), p_note: "Repeat hire under a standing arrangement", p_base: 0 });
   // Both signed the arrangement once; each hire inside its limits is signed under it (answer 21)

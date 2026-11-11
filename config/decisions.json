@@ -305,7 +305,7 @@
           "value": "with_each_milestone",
           "status": "C",
           "source": "Stacey 2026-11-10 (undecided numbers answers); was: 1A section 20",
-          "note": "Stacey 2026-11-10: charge the attorney's fee with each milestone payment, not at the start. The code still charges the whole fee with the first payment until launch fix 25 in docs/HANDOFF.md is built."
+          "note": "Stacey 2026-11-10: charge the attorney's fee with each milestone payment, not at the start. Built 2026-11-11 (docs/briefs/step-14-fee-with-each-milestone.md) behind the switch fee_per_milestone, which is off. The timing is saved on each agreement when it is signed; agreements signed while the switch is off keep the fee at the start."
         },
         {
           "key": "fees.freelancer_fee_allocation",
@@ -1008,7 +1008,7 @@
           "unit": "on or off",
           "status": "C",
           "source": "Stacey 2026-11-08 (step 11 brief)",
-          "note": "Only the milestone amount is refunded; the freelancer fee applies only to the part released."
+          "note": "Only the milestone amount is refunded; the freelancer fee applies only to the part released. This is for agreements with the fee at the start. On agreements with the fee charged with each milestone payment (step 14, Stacey 2026-11-11) the refunded part takes back the same share of that milestone's fee."
         },
         {
           "key": "dispute.repeat_loss_hold",
@@ -1576,6 +1576,11 @@
       "key": "dispute_center",
       "label": "Dispute case view, settlement offers and automatic outcomes (step 11)",
       "gate": "G-CONTRACT (terms clause 6 reviewed by the lawyer)"
+    },
+    {
+      "key": "fee_per_milestone",
+      "label": "Charge the attorney's fee with each milestone payment (step 14). New agreements only; signed ones keep their terms",
+      "gate": "Stacey turns it on after the first real payments"
     },
     {
       "key": "recurring_engagements",

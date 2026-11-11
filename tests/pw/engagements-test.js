@@ -309,6 +309,30 @@ async function sign(page, name, version) {
     t = await waitFor(p, "Open disputes (1)");
     ok(t.includes("Notice period ends"), "owner: the dispute waits for its notice period (Disputes tab)");
     await s.ctx.close();
+
+    // ---------- Step 14: a new agreement with the fee charged with each milestone payment (prepared here, signed through the database) ----------
+    await sql("update feature_switches set state = 'everyone' where key = 'fee_per_milestone'");
+    const feeGig = (await sql(`insert into gigs (org_id, created_by, playbook_id, playbook_version, title, public, budget_min_cents, budget_max_cents, status, opened_at, closes_at, request_id)
+      select org_id, created_by, playbook_id, playbook_version, 'Fee with each milestone', public, budget_min_cents, budget_max_cents, 'filled', now(), now() + interval '14 days', 'pwfee14' from gigs where id = '${gigId}' returning id`))[0].id;
+    const feeProp = (await sql(`insert into proposals (gig_id, freelancer_id, status, price_cents, included, excluded, schedule, days_to_deliver, sent_at)
+      select '${feeGig}', freelancer_person, 'selected', 30000, 'Petition draft; Exhibit list', 'Filing with the court', 'Draft in a week', 10, now() from agreements where gig_id = '${gigId}' returning id`))[0].id;
+    const feeAg = (await sql(`insert into agreements (gig_id, proposal_id, attorney_org, attorney_person, freelancer_person, total_cents)
+      select '${feeGig}', '${feeProp}', attorney_org, attorney_person, freelancer_person, 30000 from agreements where gig_id = '${gigId}' returning id`))[0].id;
+    s = await open(browser, "DELA-App", 2800, `&tab=projects&gig=${feeGig}&view=agreement`);
+    p = s.page;
+    t = await waitFor(p, "Lawfecta fee");
+    ok(t.includes("Milestone 1 payment: Milestone $150.00, Lawfecta fee $7.50, Total $157.50") && t.includes("Milestone 2 payment: Milestone $150.00, Lawfecta fee $7.50, Total $157.50") && t.includes("charged with each milestone payment"), "attorney: before signing, each payment shows the milestone, the Lawfecta fee and the total");
+    await s.ctx.close();
+    for (const role of ["attorney", "freelancer"]) {
+      await sql(`select dela_agreement_sign(${role}_person, '${role}', id, '{"version":1,"typed_name":"Signed For The Test","consent":true}') from agreements where id = '${feeAg}'`);
+    }
+    s = await open(browser, "DELA-App", 2800, `&tab=projects&gig=${feeGig}&view=agreement`);
+    p = s.page;
+    t = await waitFor(p, "Pay milestone 1");
+    ok(t.includes("Milestone $150.00") && t.includes("Lawfecta fee $7.50") && t.includes("Total $157.50") && !t.includes("$165"), "attorney: the Pay card asks for $157.50 in three lines, not the whole fee at the start");
+    await p.screenshot({ path: path.join(SHOTS, "engagement-fee-per-milestone.png"), fullPage: true });
+    await s.ctx.close();
+    await sql("update feature_switches set state = 'off' where key = 'fee_per_milestone'");
     console.log("\nALL " + passed + " CHECKS PASSED");
   } catch (e) {
     console.error(e.message || e);

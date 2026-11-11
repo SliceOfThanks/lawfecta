@@ -5821,6 +5821,10 @@
       else if (due && !open) {
         var first = !a.started_at;
         var csum1 = first ? commitmentSummary(r, true) : null; if (csum1) box.appendChild(csum1);
+        if (perMilestoneFee(a)) {
+          box.appendChild(h("p", { text: "Pay milestone " + due.seq + ". Lawfecta holds the milestone amount until you accept the milestone." }));
+          box.appendChild(threeLinesList(due.amount_cents, due.attorney_fee_cents || 0));
+        } else
         box.appendChild(h("p", { text: "Pay milestone " + due.seq + " (" + D.money(due.amount_cents) + ")" + (first && typeof a.attorney_fee_cents === "number" && a.attorney_fee_cents > 0 ? " and the platform fee (" + D.money(a.attorney_fee_cents) + ")" : "") + ". Lawfecta holds it until you accept the milestone." }));
         if (!r.stripe_ready) box.appendChild(h("p", { class: "notice", text: ENG_ERR.payments_not_set_up }));
         else {
@@ -6044,7 +6048,7 @@
     r.milestones.forEach(function (m) {
       var box = h("div", { class: "card", style: "padding:12px" },
         h("div", { class: "row" }, h("h3", { class: "grow", style: "margin:0", text: m.seq + ". " + m.title }), h("span", { class: "badge " + (m.status === "accepted" ? "ready" : m.status === "disputed" ? "bad" : "held"), text: MS_STATUS[m.status] || m.status })),
-        h("p", { class: "small muted", text: D.money(m.amount_cents) + (r.role === "freelancer" ? (m.payout_cents === m.amount_cents ? " (you receive all of it; you pay no platform fee)" : " (you receive " + D.money(m.payout_cents) + " after the platform fee)") : "") + (m.due_date ? " | due " + dueText(m) : "") + (m.revisions_used ? " | rounds of changes used: " + m.revisions_used + " of " + r.limits.revisions : "") }));
+        h("p", { class: "small muted", text: (r.role === "attorney" && perMilestoneFee(r.agreement) ? threeLines(m.amount_cents, m.attorney_fee_cents || 0) : D.money(m.amount_cents)) + (r.role === "freelancer" ? (m.payout_cents === m.amount_cents ? " (you receive all of it; you pay no platform fee)" : " (you receive " + D.money(m.payout_cents) + " after the platform fee)") : "") + (m.due_date ? " | due " + dueText(m) : "") + (m.revisions_used ? " | rounds of changes used: " + m.revisions_used + " of " + r.limits.revisions : "") }));
       if (m.deliverables) box.appendChild(h("p", { class: "small", text: "Deliverables: " + m.deliverables }));
       if (m.payout) box.appendChild(h("p", { class: "small", text: "Payout: " + D.money(m.payout.amount_cents) + ", " + (m.payout.status === "sent" ? "sent to your bank" : m.payout.status === "held" ? (m.payout.held_reason === "payout_account" ? "waiting for your payout setup (Earnings tab)" : "held") : m.payout.status === "failed" ? "did not go through. The Lawfecta Team is checking it" : "on its way") }));
       var last = (m.submissions || [])[m.submissions.length - 1];
@@ -6149,11 +6153,21 @@
       field("Files (optional)", pick), list, h("div", { class: "row" }, go));
   }
 
+  // Step 14: on an agreement whose fee is charged with each milestone payment, every payment reads as three amounts
+  function money2(c) { return typeof c !== "number" || !isFinite(c) ? "-" : "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function perMilestoneFee(a) { return !!a && a.attorney_fee_timing === "with_each_milestone"; }
+  function threeLines(milestoneCents, feeCents) { return "Milestone " + money2(milestoneCents) + ", Lawfecta fee " + money2(feeCents) + ", Total " + money2(milestoneCents + feeCents); }
+  function threeLinesList(milestoneCents, feeCents) {
+    return h("ul", { class: "small fee-lines" }, h("li", { text: "Milestone " + money2(milestoneCents) }), h("li", { text: "Lawfecta fee " + money2(feeCents) }), h("li", null, h("b", { text: "Total " + money2(milestoneCents + feeCents) })));
+  }
   function paymentsCard(r) {
+    var per = perMilestoneFee(r.agreement);
     var PAY = { requires_payment: "Waiting for you", processing: "Being confirmed", succeeded: "Paid", failed: "Did not go through", canceled: "Canceled" };
     return h("div", { class: "card" }, h("h2", { text: "Your payments" }), h("ul", null, r.payments.map(function (p) {
-      return h("li", { class: "small", text: D.date(p.created_at) + ": " + D.money(p.amount_cents) + (p.fee_cents ? " (includes the platform fee " + D.money(p.fee_cents) + ")" : "") + ", " + (PAY[p.status] || p.status) + (p.failure ? " (" + p.failure + ")" : "") });
-    })));
+      return h("li", { class: "small", text: D.date(p.created_at) + ": " + (per ? threeLines(p.amount_cents - (p.fee_cents || 0), p.fee_cents || 0) : D.money(p.amount_cents) + (p.fee_cents ? " (includes the platform fee " + D.money(p.fee_cents) + ")" : "")) + ", " + (PAY[p.status] || p.status) + (p.failure ? " (" + p.failure + ")" : "") });
+    }).concat((r.refunds || []).filter(function (x) { return per || x.fee_cents; }).map(function (x) {
+      return h("li", { class: "small", text: D.date(x.created_at) + ": Refund" + (x.seq ? " for milestone " + x.seq : "") + ": Milestone amount refunded " + money2(x.amount_cents - (x.fee_cents || 0)) + ", Lawfecta fee refunded " + money2(x.fee_cents || 0) + ", Total refunded " + money2(x.amount_cents) + ", " + (x.status === "succeeded" ? "Sent" : x.status === "failed" ? "Did not go through, the team is on it" : "On its way") });
+    }))));
   }
 
   // Step 11 (docs/briefs/step-11-disputes.md): with the dispute center on, the card is a case view: both sides, links,
@@ -6243,7 +6257,7 @@
     var note = h("input", { "aria-label": "Note with the offer (optional)", style: "width:100%" });
     var aiOut = h("div");
     box.appendChild(h("details", { style: "margin-top:10px" }, h("summary", { text: "Settle it: send an offer" }),
-      h("p", { class: "small", text: "An offer splits the " + D.money(m.amount_cents || 0) + " between the freelancer and the attorney. When the other side accepts, the dispute is settled and the money moves at once. The attorney's platform fee is not refunded." }),
+      h("p", { class: "small", text: "An offer splits the " + D.money(m.amount_cents || 0) + " between the freelancer and the attorney. When the other side accepts, the dispute is settled and the money moves at once. " + (perMilestoneFee(r.agreement) ? "The attorney also gets back the same share of the Lawfecta fee paid on this milestone." : "The attorney's platform fee is not refunded.") }),
       h("div", { class: "row", style: "flex-wrap:wrap;gap:8px;align-items:center" }, field("Amount to the freelancer ($)", amt), rest), field("Note with the offer (optional)", note),
       h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" },
         h("button", { class: "blue small", type: "button", onclick: function () {
@@ -6307,7 +6321,7 @@
   function cancelPart(a) {
     var reason = h("input", { "aria-label": "Why cancel", style: "width:100%" });
     return h("details", null, h("summary", { text: "Cancel the engagement" }),
-      h("p", { class: "small", text: "Before work starts on the first milestone, the attorney is refunded in full, platform fee included. After that, a paid milestone not yet submitted is refunded, accepted milestones stay paid, and the attorney's platform fee is kept. A milestone under review cannot be canceled; open a dispute instead." }),
+      h("p", { class: "small", text: (perMilestoneFee(a) ? "A paid milestone not yet submitted is refunded together with the Lawfecta fee paid on it. Accepted milestones stay paid with their fee." : "Before work starts on the first milestone, the attorney is refunded in full, platform fee included. After that, a paid milestone not yet submitted is refunded, accepted milestones stay paid, and the attorney's platform fee is kept.") + " A milestone under review cannot be canceled; open a dispute instead." }),
       field("Why", reason), h("button", { class: "ghost small", type: "button", onclick: function () {
         if (!confirm("Cancel this engagement? This cannot be undone.")) return;
         api.post("/engagements/cancel", { id: a.id, reason: reason.value }).then(engOk).then(function (x) { engReload("Canceled." + (x.refunds ? " " + x.refunds + " paid milestone" + (x.refunds === 1 ? " is" : "s are") + " refunded to the attorney." : "")); }).catch(engFail);
@@ -6337,7 +6351,7 @@
     if (r.monthly) return c;
     var reason = h("input", { "aria-label": "Why cancel", style: "width:100%" });
     c.appendChild(h("details", null, h("summary", { text: "Cancel the engagement" }),
-      h("p", { class: "small", text: "Before work starts on the first milestone, the attorney is refunded in full, platform fee included. After that, a paid milestone not yet submitted is refunded, accepted milestones stay paid, and the attorney's platform fee is kept. A milestone under review cannot be canceled; open a dispute instead." }),
+      h("p", { class: "small", text: (perMilestoneFee((r.agreement || {})) ? "A paid milestone not yet submitted is refunded together with the Lawfecta fee paid on it. Accepted milestones stay paid with their fee." : "Before work starts on the first milestone, the attorney is refunded in full, platform fee included. After that, a paid milestone not yet submitted is refunded, accepted milestones stay paid, and the attorney's platform fee is kept.") + " A milestone under review cannot be canceled; open a dispute instead." }),
       field("Why", reason), h("button", { class: "ghost small", type: "button", onclick: function () {
         if (!confirm("Cancel this engagement? This cannot be undone.")) return;
         api.post("/engagements/cancel", { id: a.id, reason: reason.value }).then(engOk).then(function (x) { engReload("Canceled." + (x.refunds ? " " + x.refunds + " paid milestone" + (x.refunds === 1 ? " is" : "s are") + " refunded to the attorney." : "")); }).catch(engFail);

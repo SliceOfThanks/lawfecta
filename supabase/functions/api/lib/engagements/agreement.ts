@@ -34,8 +34,20 @@ export function subsClauses(sub: { agency?: boolean; no_subcontractors?: boolean
   return out;
 }
 
-export function termsText(limits: Record<string, number>, extra: string[] = []): string {
-  return [TERMS_TEMPLATE.replace("{pass_score}", String(limits.pass_score ?? 90)).replace("{review_days}", String(limits.review_days ?? 7))
+// Step 14: on an agreement whose fee is charged with each milestone payment, three sentences of the terms say so.
+// Agreements signed earlier keep the text they were signed with.
+const PER_MILESTONE_TERMS: [string, string][] = [
+  ["Platform fees are shown in Fees and are part of this agreement.",
+    "Platform fees are shown in Fees and are part of this agreement. The Client's Lawfecta fee is a percentage of each milestone, subject to a minimum that applies once per engagement, and is charged with each milestone payment."],
+  ["After that, a paid milestone not yet submitted is refunded, accepted milestones stay paid, and the Client's platform fee is kept.",
+    "After that, a paid milestone not yet submitted is refunded together with the Lawfecta fee paid on it, and accepted milestones stay paid with their fee."],
+  ["A refund returns the milestone amount; the Client's platform fee is kept.",
+    "A refund returns the refunded part of the milestone amount and the same share of the Lawfecta fee paid on that milestone."],
+];
+export function termsText(limits: Record<string, number>, extra: string[] = [], timing = "at_start"): string {
+  let template = TERMS_TEMPLATE;
+  if (timing === "with_each_milestone") for (const [from, to] of PER_MILESTONE_TERMS) template = template.split(from).join(to);
+  return [template.replace("{pass_score}", String(limits.pass_score ?? 90)).replace("{review_days}", String(limits.review_days ?? 7))
     .replace("{revisions}", String(limits.revisions ?? 2)).replace("{dispute_days}", String(limits.dispute_days ?? 14)), ...extra].join("\n");
 }
 
@@ -120,7 +132,27 @@ export function buildBody(f: Record<string, any>, milestones?: MilestoneBody[], 
   const checks = (Array.isArray(f.checks) ? f.checks : []).map((x: unknown) => s(x, 200)).filter(Boolean);
   const total = ms.reduce((a, m) => a + m.amount_cents, 0);
   const fees = f.fees ?? {};
-  const attFee = Math.max(Math.round(total * Number(fees.attorney_bps ?? 500) / 10000), Number(fees.floor_cents ?? 1000));
+  let attFee = Math.max(Math.round(total * Number(fees.attorney_bps ?? 500) / 10000), Number(fees.floor_cents ?? 1000));
+  // Step 14: the fee charged with each milestone payment. Fees already charged on paid milestones stay; what is left of
+  // the total fee is spread over the unpaid milestones by amount, rounded down, leftover cents on the last unpaid one.
+  // The database does the same sum when the agreement is signed (dela_agreement_sign).
+  const perMilestone = !isMonthly && fees.attorney_fee_timing === "with_each_milestone";
+  let milestoneFees: { seq: number; attorney_fee_cents: number; paid: boolean }[] = [];
+  if (perMilestone) {
+    const paid = new Map<number, number>((Array.isArray(fees.paid) ? fees.paid : []).map((x: any) => [Number(x.seq), Math.max(0, Math.round(Number(x.attorney_fee_cents) || 0))]));
+    const charged = [...paid.values()].reduce((a, b) => a + b, 0);
+    const unpaid = ms.filter((m) => !paid.has(m.seq));
+    const rem = Math.max(attFee - charged, 0), utot = unpaid.reduce((a, m) => a + m.amount_cents, 0);
+    let left = rem;
+    milestoneFees = ms.map((m) => {
+      if (paid.has(m.seq)) return { seq: m.seq, attorney_fee_cents: paid.get(m.seq)!, paid: true };
+      const last = unpaid[unpaid.length - 1].seq === m.seq;
+      const fee = last ? left : utot > 0 ? Math.floor(rem * m.amount_cents / utot) : 0;
+      left -= fee;
+      return { seq: m.seq, attorney_fee_cents: fee, paid: false };
+    });
+    attFee = charged + (unpaid.length ? rem : 0);
+  }
   // A bench member hired by their own agency pays no fee; the agency pays it in its client fee (Stacey's fee answer 5)
   const benchWaiver = fees.bench_waiver === true;
   const flFee = benchWaiver ? 0 : Math.min(Math.max(Math.round(total * Number(fees.freelancer_bps ?? 500) / 10000), Number(fees.floor_cents ?? 1000)), total);
@@ -133,14 +165,23 @@ export function buildBody(f: Record<string, any>, milestones?: MilestoneBody[], 
     scope: { task: s(f.gig?.public?.task, 1500), outcome: s(f.gig?.public?.outcome, 800), included, excluded, schedule: s(scope?.schedule ?? f.proposal?.schedule, 2000) },
     milestones: ms,
     fees: { attorney_bps: Number(fees.attorney_bps ?? 500), freelancer_bps: Number(fees.freelancer_bps ?? 500), floor_cents: Number(fees.floor_cents ?? 1000),
-      total_cents: total, attorney_fee_cents: attFee, freelancer_fee_cents: flFee, attorney_pays_cents: total + attFee, freelancer_receives_cents: total - flFee, bench_waiver: benchWaiver },
+      total_cents: total, attorney_fee_cents: attFee, freelancer_fee_cents: flFee, attorney_pays_cents: total + attFee, freelancer_receives_cents: total - flFee, bench_waiver: benchWaiver,
+      ...(perMilestone ? { attorney_fee_timing: "with_each_milestone", milestone_fees: milestoneFees.map((x) => ({ seq: x.seq, attorney_fee_cents: x.attorney_fee_cents })) } : {}) },
     rubric: ms.map((m, i) => ({ milestone_seq: m.seq, criteria: rubricFor(m, incList, checks, i === ms.length - 1) })),
     limits: f.limits ?? {},
     subcontracting: sub ? { agency: sub.agency === true, no_subcontractors: sub.no_subcontractors === true } : { agency: false, no_subcontractors: false },
-    terms: termsText(f.limits ?? {}, [...subsClauses(sub, clientKind), ...(isMonthly ? [monthlyClause(f.monthly)] : [])]),
+    terms: termsText(f.limits ?? {}, [...subsClauses(sub, clientKind), ...(isMonthly ? [monthlyClause(f.monthly)] : [])], perMilestone ? "with_each_milestone" : "at_start"),
     kind: isMonthly ? "monthly" : "one_off",
     monthly: isMonthly ? { price_cents: Number(f.monthly.price_cents), unit_mode: f.monthly.unit_mode === "monthly" ? "monthly" : "weekly", tasks: readTasks(f.monthly.tasks).tasks } : null,
   };
+}
+
+// Step 14, decision 5: every payment on a fee-with-each-milestone agreement reads as three amounts with these exact labels
+export const money2 = (c: unknown) => typeof c !== "number" || !isFinite(c) ? "-" : "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+export const threeLines = (milestoneCents: number, feeCents: number) => `Milestone ${money2(milestoneCents)}, Lawfecta fee ${money2(feeCents)}, Total ${money2(milestoneCents + feeCents)}`;
+function paymentLines(b: Record<string, any>): { seq: number; line: string }[] {
+  const fees = new Map<number, number>((Array.isArray(b.fees?.milestone_fees) ? b.fees.milestone_fees : []).map((x: any) => [Number(x.seq), Number(x.attorney_fee_cents) || 0]));
+  return (Array.isArray(b.milestones) ? b.milestones : []).map((m: MilestoneBody) => ({ seq: m.seq, line: threeLines(Number(m.amount_cents), fees.get(m.seq) ?? 0) }));
 }
 
 // A plain summary of what the attorney pays and the freelancer receives, shown before signing
@@ -153,6 +194,12 @@ export function feeLines(b: Record<string, any>): string[] {
       `The freelancer receives each month: ${money(fe.freelancer_receives_cents)}${fe.bench_waiver === true ? " (the full price)" : ""}`];
   }
   const who = b.parties?.client?.kind === "agency" ? "The agency" : "The attorney";
+  if (fe.attorney_fee_timing === "with_each_milestone") {
+    return [`Price for the work: ${money2(fe.total_cents)}`, `${who} also pays the Lawfecta fee: ${money2(fe.attorney_fee_cents)} in total, charged with each milestone payment`,
+      ...paymentLines(b).map((x) => `Milestone ${x.seq} payment: ${x.line}`),
+      fe.bench_waiver === true ? "The agency also pays the freelancer's platform fee, because they are on its bench. The freelancer pays no platform fee." : `The freelancer's platform fee: ${money(fe.freelancer_fee_cents)}, taken from the payouts across the milestones`,
+      `The freelancer receives: ${money(fe.freelancer_receives_cents)}${fe.bench_waiver === true ? " (the full price)" : ""}`];
+  }
   if (fe.bench_waiver === true) {
     return [`Price for the work: ${money(fe.total_cents)}`, `${who} also pays the platform fee: ${money(fe.attorney_fee_cents)} (charged once, with the first milestone)`,
       `The agency also pays the freelancer's platform fee, because they are on its bench. The freelancer pays no platform fee.`, `The freelancer receives: ${money(fe.freelancer_receives_cents)} (the full price)`];
@@ -173,6 +220,10 @@ export function moneySummary(b: Record<string, any>, role: string): string[] {
   if (!client) {
     return [`You receive ${money(fe.freelancer_receives_cents)} in total` + (Number(fe.freelancer_fee_cents) ? `, after your ${money(fe.freelancer_fee_cents)} platform fee.` : "."),
       "Each milestone is paid out after the client accepts it."];
+  }
+  if (fe.attorney_fee_timing === "with_each_milestone") {
+    return [`Your total: ${money2(Number(fe.total_cents) + Number(fe.attorney_fee_cents))}`, ...paymentLines(b).map((x) => `Payment ${x.seq}: ${x.line}`),
+      "The Lawfecta fee is charged with each milestone payment.", ...(ms.length > 1 ? ["The next milestone is charged automatically after you accept the previous milestone."] : [])];
   }
   const lines = [`Your total: ${money(fe.attorney_pays_cents ?? Number(fe.total_cents) + Number(fe.attorney_fee_cents))}`];
   if (ms.length) {

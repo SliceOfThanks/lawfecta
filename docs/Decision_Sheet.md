@@ -73,7 +73,7 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Item | Suggested value | Status | Where it comes from | Your decision |
 |---|---|---|---|---|
 | Minimum platform fee per side, per engagement. Charged once per engagement, not per milestone. Stacey 2026-11-05: kept. The fee is always 5% of the total from each side, with $10 as the floor; at the $250 minimum engagement, 5% is $12.50. | $10 | Confirmed | C-26 | |
-| When the attorney fee is charged. Stacey 2026-11-10: charge the attorney's fee with each milestone payment, not at the start. The code still charges the whole fee with the first payment until launch fix 25 in docs/HANDOFF.md is built. | with each milestone | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: 1A section 20 | |
+| When the attorney fee is charged. Stacey 2026-11-10: charge the attorney's fee with each milestone payment, not at the start. Built 2026-11-11 (docs/briefs/step-14-fee-with-each-milestone.md) behind the switch fee_per_milestone, which is off. The timing is saved on each agreement when it is signed; agreements signed while the switch is off keep the fee at the start. | with each milestone | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: 1A section 20 | |
 | How the freelancer fee is spread. Spread across milestones in whole cents; leftover cents go on the last milestone. | proportional rounding on last | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: 1A section 9 | |
 | Smallest engagement allowed | $250 | Confirmed | Stacey, Decision Register v1.1 (2026-10-26) | |
 | Longest fixed-fee engagement | 90 days | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Decision Register v1.1, question 2 (90 days recommended) | |
@@ -175,7 +175,7 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Days of a dispute when both sides are reminded to settle | 7, 12 | Confirmed | Stacey 2026-11-08 (step 11 brief) | |
 | Business days for the Lawfecta Team to decide a dispute. Asking a question pauses the clock until it is answered. | 10 business days | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Claude 2026-11-08 (step 11 brief) | |
 | Grant the opener's request when the other side never answers | Yes | Confirmed | Stacey 2026-11-08 (step 11 brief) | |
-| Refund the attorney's platform fee when a dispute sends money back. Only the milestone amount is refunded; the freelancer fee applies only to the part released. | No | Confirmed | Stacey 2026-11-08 (step 11 brief) | |
+| Refund the attorney's platform fee when a dispute sends money back. Only the milestone amount is refunded; the freelancer fee applies only to the part released. This is for agreements with the fee at the start. On agreements with the fee charged with each milestone payment (step 14, Stacey 2026-11-11) the refunded part takes back the same share of that milestone's fee. | No | Confirmed | Stacey 2026-11-08 (step 11 brief) | |
 | Lost disputes that place a review hold on a member. The hold blocks new engagements until the Lawfecta Team releases it. | {'count': 3, 'months': 12} lost disputes within months | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Claude 2026-11-08 (step 11 brief) | |
 | Lawfecta-funded freelancer protection | No | Confirmed | C-21 | |
 
@@ -273,6 +273,7 @@ Every switch starts Off. In the admin area each one can be set to Off, Lawfecta 
 | Free consultation export after a verified meeting | O-08 |
 | Automatic milestone acceptance after 7 silent days | G-CONTRACT and G-REVIEW |
 | Dispute case view, settlement offers and automatic outcomes (step 11) | G-CONTRACT (terms clause 6 reviewed by the lawyer) |
+| Charge the attorney's fee with each milestone payment (step 14). New agreements only; signed ones keep their terms | Stacey turns it on after the first real payments |
 | Monthly recurring engagements | Step 6 |
 | Limited automatic repeat hiring | O-05, all hard gates |
 | Member webhooks | Step 7 |

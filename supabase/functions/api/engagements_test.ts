@@ -588,6 +588,118 @@ Deno.test("every day: agreements not signed in time close and the attorney can c
   assertEquals([a.status, a.cancel_reason, a.ps], ["canceled", "not_signed_in_time", "sent"]);
 });
 
+// Step 14 (docs/briefs/step-14-fee-with-each-milestone.md): the attorney's fee with each milestone payment
+Deno.test("step 14: the fee rides on each milestone payment for new agreements; signed ones keep the fee at the start; refunds give back the matching share", async () => {
+  const sw = (state: string) => pool.query("update feature_switches set state = $1 where key = 'fee_per_milestone'", [state]);
+  const d = (k: number) => new Date(Date.now() + k * 86400000).toISOString().slice(0, 10);
+  const signBoth = async (id: string, version: number) => {
+    await call("POST", "/agreements/sign", att.token, { id, version, typed_name: "Ann Attorney", consent: true });
+    return (await call("POST", "/agreements/sign", fl2.token, { id, version, typed_name: "Fran Two", consent: true })).body;
+  };
+  const payNext = async (id: string, pi: string) => {
+    const r = (await call("POST", "/engagements/pay", att.token, { id })).body;
+    assert(r.ok, JSON.stringify(r));
+    const pay = await one("select id, amount_cents, fee_cents, status from payments where agreement_id = $1 order by created_at desc limit 1", [id]);
+    if (pay.status !== "succeeded") await paid(pay.id, pi);
+    return pay;
+  };
+  const fees = async (id: string) => (await pool.query("select attorney_fee_cents f from milestones where agreement_id = $1 and status <> 'canceled' order by seq", [id])).rows.map((x: any) => x.f);
+  try {
+    // An agreement signed while the switch is off keeps the fee at the start for its whole life
+    const old = await hire(fl2, 30000, "s14old");
+    await call("GET", "/agreements/get?id=" + old, att.token);
+    assertEquals((await signBoth(old, 1)).both_signed, true);
+    await sw("everyone");
+    const oldPay = await payNext(old, "pi_s14_old");
+    assertEquals([oldPay.amount_cents, oldPay.fee_cents], [16500, 1500], "signed before the change: $165 first");
+    assertEquals((await one("select attorney_fee_timing t from agreements where id = $1", [old])).t, "at_start");
+    assertEquals(await fees(old), [0, 0]);
+    const oldView = (await call("GET", "/agreements/get?id=" + old, att.token)).body;
+    assert(!JSON.stringify(oldView.fee_lines).includes("Lawfecta fee") && oldView.current.body.terms.includes("the Client's platform fee is kept"), "its text stays as signed");
+
+    // A new agreement of $150 + $150: $157.50 each time
+    const nw = await hire(fl2, 30000, "s14new");
+    const v1 = (await call("GET", "/agreements/get?id=" + nw, att.token)).body;
+    assertEquals(v1.current.body.fees.attorney_fee_timing, "with_each_milestone");
+    assertEquals(v1.current.body.fees.milestone_fees, [{ seq: 1, attorney_fee_cents: 750 }, { seq: 2, attorney_fee_cents: 750 }]);
+    assert(v1.current.body.terms.includes("is charged with each milestone payment") && v1.current.body.terms.includes("the same share of the Lawfecta fee paid on that milestone") && !v1.current.body.terms.includes("platform fee is kept"), "the terms say how the fee is charged and refunded");
+    assert(v1.fee_lines.includes("Milestone 1 payment: Milestone $150.00, Lawfecta fee $7.50, Total $157.50"), JSON.stringify(v1.fee_lines));
+    assert(v1.money_summary.includes("Payment 2: Milestone $150.00, Lawfecta fee $7.50, Total $157.50") && v1.money_summary[0] === "Your total: $315.00", JSON.stringify(v1.money_summary));
+    const both = await signBoth(nw, 1);
+    assertEquals([both.both_signed, both.attorney_fee_cents], [true, 1500]);
+    assertEquals(await fees(nw), [750, 750]);
+    const asAtt = (await call("GET", "/agreements/get?id=" + nw, att.token)).body, asFl = (await call("GET", "/agreements/get?id=" + nw, fl2.token)).body;
+    assertEquals([asAtt.agreement.attorney_fee_timing, asAtt.milestones[0].attorney_fee_cents, asFl.milestones[0].attorney_fee_cents ?? null], ["with_each_milestone", 750, null], "the freelancer does not see the client's fee");
+    const before = stripeCalls.length;
+    const p1 = await payNext(nw, "pi_s14_new1");
+    assertEquals([p1.amount_cents, p1.fee_cents], [15750, 750]);
+    assert(stripeCalls.slice(before).some((c) => c.path === "/checkout/sessions" && c.body.includes("unit_amount%5D=15750")), "Stripe is asked for $157.50");
+    assertEquals(Number((await one("select sum(amount_cents) s from ledger_entries where agreement_id = $1 and kind = 'attorney_fee'", [nw])).s), 750);
+    const receipt = await one("select body from notifications where person_id = $1 and title like 'Payment receipt: milestone 1:%s14new' order by created_at desc limit 1", [att.id]);
+    assertEquals(receipt.body, "Milestone $150.00. Lawfecta fee $7.50. Total $157.50.");
+
+    // A dispute that sends $100 of the $150 back: $5.00 of the fee goes back, Lawfecta keeps $2.50
+    const m1 = asAtt.milestones[0].id;
+    const dsp = (await call("POST", "/disputes/open", att.token, { id: nw, milestone_id: m1, reason: "Only a third of the draft was usable." })).body;
+    assertEquals(dsp.ok, true, JSON.stringify(dsp));
+    await pool.query("update disputes set notice_ends_at = now() - interval '1 minute' where id = $1", [dsp.id]);
+    await pool.query("select dela_engagement_tick($1)", [{ dispute_id: dsp.id, kind: "dispute_notice_end" }]);
+    const settled = (await call("POST", "/admin/disputes/resolve", team.token, { id: dsp.id, release_cents: 5000, refund_cents: 10000, note: "One third was delivered." })).body.data;
+    assertEquals([settled.ok, settled.fee_refund_cents], [true, 500], JSON.stringify(settled));
+    const rf = await one("select amount_cents, fee_cents, status from refunds where agreement_id = $1", [nw]);
+    assertEquals([rf.amount_cents, rf.fee_cents, rf.status], [10500, 500, "succeeded"]);
+    assert(stripeCalls.some((c) => c.path === "/refunds" && c.body.includes("pi_s14_new1") && c.body.includes("amount=10500")), "Stripe refunds $105.00");
+    assertEquals(Number((await one("select sum(amount_cents) s from ledger_entries where agreement_id = $1 and kind = 'attorney_fee'", [nw])).s), 250, "fees charged minus fees refunded");
+    assertEquals((await one("select body from notifications where person_id = $1 and title like 'Refund receipt:%s14new' order by created_at desc limit 1", [att.id])).body, "Milestone amount refunded $100.00. Lawfecta fee refunded $5.00. Total refunded $105.00.");
+    assert((await call("GET", "/agreements/get?id=" + nw, att.token)).body.refunds.some((x: any) => x.amount_cents === 10500 && x.fee_cents === 500 && x.seq === 1));
+
+    // Three uneven milestones: the fees add up exactly to 5%, leftover cents on the last
+    const three = await hire(fl2, 100100, "s14three");
+    await call("GET", "/agreements/get?id=" + three, att.token);
+    const base = { id: three, included: "Petition draft; Exhibit list", excluded: "Filing", schedule: "Two weeks" };
+    const pv = (await call("POST", "/agreements/propose", att.token, { ...base, base: 1, milestones: [{ title: "One", amount: "333", due_date: d(3) }, { title: "Two", amount: "333", due_date: d(6) }, { title: "Three", amount: "335", due_date: d(9) }] })).body;
+    assertEquals(pv.ok, true, JSON.stringify(pv));
+    assertEquals((await signBoth(three, 2)).attorney_fee_cents, 5005);
+    assertEquals(await fees(three), [1665, 1665, 1675]);
+    const t1 = await payNext(three, "pi_s14_three1");
+    assertEquals([t1.amount_cents, t1.fee_cents], [33300 + 1665, 1665]);
+
+    // A change both sign: the paid milestone's fee stays, the rest of the new total fee is spread over the unpaid ones
+    const cv = (await call("POST", "/agreements/propose", att.token, { ...base, base: 2, milestones: [{ title: "One", amount: "333", due_date: d(3) }, { title: "Two", amount: "500", due_date: d(6) }, { title: "Three", amount: "335", due_date: d(9) }] })).body;
+    assertEquals(cv.ok, true, JSON.stringify(cv));
+    const cbody = (await call("GET", "/agreements/get?id=" + three, att.token)).body.current.body;
+    assertEquals(cbody.fees.milestone_fees.map((x: any) => x.attorney_fee_cents), [1665, 2500, 1675], "the agreement text shows the same fees the database will charge");
+    assertEquals((await signBoth(three, 3)).attorney_fee_cents, 5840);
+    assertEquals(await fees(three), [1665, 2500, 1675]);
+    assertEquals((await one("select attorney_fee_timing t from agreements where id = $1", [three])).t, "with_each_milestone");
+
+    // Canceled after work started: the paid milestone not yet submitted goes back with its whole fee
+    await pool.query("update milestones set status = 'in_progress', started_at = now() where agreement_id = $1 and seq = 1", [three]);
+    const c = (await call("POST", "/engagements/cancel", att.token, { id: three, reason: "The matter closed." })).body;
+    assertEquals([c.ok, c.refunds, c.fee_refunded], [true, 1, true], JSON.stringify(c));
+    const crf = await one("select amount_cents, fee_cents from refunds where agreement_id = $1", [three]);
+    assertEquals([crf.amount_cents, crf.fee_cents], [33300 + 1665, 1665]);
+    assertEquals(Number((await one("select sum(amount_cents) s from ledger_entries where agreement_id = $1 and kind = 'attorney_fee'", [three])).s), 0);
+
+    // A small engagement pays the minimum fee once, spread over its milestones (the minimum is raised here to act it out)
+    await pool.query("update settings set value = '2000' where key = 'fees.floor_cents_per_party'");
+    const small = await hire(fl2, 30000, "s14small");
+    await call("GET", "/agreements/get?id=" + small, att.token);
+    const sv = (await call("POST", "/agreements/propose", att.token, { id: small, base: 1, included: "Petition draft", excluded: "Filing", schedule: "A week", milestones: [{ title: "One", amount: "200", due_date: d(3) }, { title: "Two", amount: "100", due_date: d(6) }] })).body;
+    assertEquals(sv.ok, true, JSON.stringify(sv));
+    assertEquals((await signBoth(small, 2)).attorney_fee_cents, 2000, "5% would be $15; the minimum here is $20, once");
+    assertEquals(await fees(small), [1333, 667]);
+    await pool.query("update settings set value = '1000' where key = 'fees.floor_cents_per_party'");
+
+    // With the switch off again, a new agreement is written the old way
+    await sw("off");
+    const off = await hire(fl2, 30000, "s14off");
+    const ov = (await call("GET", "/agreements/get?id=" + off, att.token)).body;
+    assertEquals(ov.current.body.fees.attorney_fee_timing, undefined);
+    assert(ov.fee_lines.some((l: string) => l.includes("charged once, with the first milestone")));
+  } finally { await sw("off"); await pool.query("update settings set value = '1000' where key = 'fees.floor_cents_per_party'"); }
+});
+
 Deno.test("teardown", async () => { await pool.end(); });
 
 Deno.test("fees: an agreement with no fee amounts reads \"-\", never \"$NaN\" (ChatGPT re-test 2026-11-05)", () => {
