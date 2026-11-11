@@ -356,7 +356,7 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
 
   D.CSS = [
     ":host{all:initial}",
-    ".dela{--bg:#f4f5f7;--card:#ffffff;--ink:#1c2230;--muted:#5f6675;--line:#e6e7ec;--brand:#8b2146;--brand-ink:#ffffff;--blue:#0d83dd;--pink:#fbeef2;--pink-ink:#8b2146;",
+    ".dela{--bg:#f4f5f7;--card:#ffffff;--ink:#1c2230;--muted:#5f6675;--line:#e6e7ec;--brand:#8b2146;--brand-ink:#ffffff;--blue:#0b6fbd;--pink:#fbeef2;--pink-ink:#8b2146;",
     "--navy:#1d2030;--hero:linear-gradient(135deg,#1d2030 0%,#3a1a33 45%,#8b2146 100%);--hot:linear-gradient(120deg,#3a1238 0%,#8b2146 55%,#d23b62 100%);",
     "--ok:#2f7a4f;--warn:#a46a00;--bad:#b3261e;--soft:#f1f2f6;--shadow:0 10px 30px rgba(139,33,70,.10);--okbg:#e3f3ea;--okline:#b6dcc5;--bluebg:#eef6fd;",
     "font-family:Inter,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:var(--ink);background:var(--bg);min-height:60vh;padding:0 0 88px;box-sizing:border-box;-webkit-font-smoothing:antialiased}",
