@@ -58,7 +58,7 @@ Does not carry over:
 - Branch: `claude/step-2a-ai-keys-voice-files`. No pull requests unless Stacey asks.
 - The MVP (Stacey's 16 items, see STATUS.md) is on the test site, hirelegalhelp.com.
 - Test site database: Supabase project "Lawfecta AI" / DELA Staging, ref `ojshgsxgsypbywtqhkch`.
-- On the test site: `code_version` = `317c40dbaea5d44062cbb329fe908d1c381a5873` (the api function, version 86, runs commit d484fc8; only the screens changed after it), migrations through 0084, health ok (388 API tests, 26 browser suites). This includes the contract without the draft line and the test-card note only on a test key.
+- On the test site: `code_version` = `c94985786c5a43e0a1893d726bb58e01ac2f4a88`, api function version 87, migrations through 0085, health ok (389 API tests, 26 browser suites).
 - Live (lawfecta.com) is not set up. Never touch it.
 - Stripe: Stacey made a Stripe sandbox ("DELA sandbox", acct_1UaFzpCqJgxv1pm2, test mode), connected it to Claude as a connector, and on 2026-11-10 put STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in Supabase. The sandbox has one webhook to the test site's /stripe/webhook address; it listens to every event type (DELA ignores the ones it does not use; on Live choose only the 7 in docs/STRIPE_SETUP.md). Not yet proven: no payment or payout has gone through. Next: Stacey confirms the admin Payments tab says "Stripe is connected in test mode", then run docs/tests/step-6-chatgpt-prompt.md (check its button names against the code first) and compare with Stripe through the connector (read only; never create webhooks or keys through it, since that would put a secret in chat).
 - Pro trial check: switch `bd_trial_downgrade` = everyone, mode dry run. Dry-run day 1 was clean. Days 2 and 3 are still to look at.
@@ -103,7 +103,7 @@ This replaces the two-site design (test site, then Live) and the earlier two-sta
 
 **Part A: before any real payment (code, in this order)**
 1. DONE 2026-11-11: payout setup, a payout, the next charge on the saved card and a dispute refund are proven in the Stripe sandbox (section 1b-2).
-2. Launch item 4, then 2, then 3, then 5 (section 2).
+2. Launch item 4 is DONE. Next: item 2, then 3, then 5 (section 2). Also the small ledger gap in section 1b-2.
 3. DONE: launch item 19 (`stripe_test` from `/agreements/get`; the note shows only on a test key) and the contract's draft line.
 
 **Part B: turn the test site into the pilot site**
@@ -134,7 +134,7 @@ Every fix is a commit starting "Fix" with a test that fails before the fix, in t
    - Test (disputes_test): a milestone from another agreement, or one already paid out, is refused.
 2. HIGH. A timeout on an automatic charge can charge the attorney twice (`app.ts` `chargeOrCheckout` about 3289, `chargeMonth` about 3244). Fix: treat no answer (timeout or 5xx) as "unknown" and look the payment up in Stripe before creating another. In `dela_payment_result`, a second success on an already funded milestone queues a refund and alerts the team.
 3. HIGH. The daily retry can pay out or refund twice (`dela_money_retry_failed`, `sendPayouts`, `sendRefunds`): it runs after Stripe has forgotten the idempotency key. Fix: search Stripe for a transfer or refund carrying this payout or refund id (metadata) first; re-send only if none exists.
-4. HIGH. A Stripe event is marked handled before it is processed (`app.ts` about 3507). If processing throws, Stripe's retry is dropped as a duplicate. Fix: record `processed_at` only after success; retry unprocessed events.
+4. DONE 2026-11-11 (commit c949857, migration 0085: `dela_provider_event_begin` and `dela_provider_event_done`, column `provider_events.processed_at`). HIGH. A Stripe event is marked handled before it is processed (`app.ts` about 3507). If processing throws, Stripe's retry is dropped as a duplicate. Fix: record `processed_at` only after success; retry unprocessed events.
 5. MEDIUM. Overlapping worker runs can send an email twice, and a job that always crashes retries forever (`0002_foundation_functions.sql` about 421, `app.ts` about 4584). Fix: claim one job at a time, respect `max_attempts` on expired leases, claim the email row atomically.
 6. MEDIUM. The member webhook address check misses IPv6 forms of internal addresses (`lib/webhooks/deliver.ts` about 34). Fix: normalize the address, block the mapped ranges, connect to the checked IP.
 7. LOW. A refund whose payment has no Stripe reference waits forever with no alert: alert the team. The public contact form's per-IP limit trusts `x-forwarded-for`: use the platform's client IP.
