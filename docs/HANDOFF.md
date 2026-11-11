@@ -58,7 +58,7 @@ Does not carry over:
 - Branch: `claude/step-2a-ai-keys-voice-files`. No pull requests unless Stacey asks.
 - The MVP (Stacey's 16 items, see STATUS.md) is on the test site, hirelegalhelp.com.
 - Test site database: Supabase project "Lawfecta AI" / DELA Staging, ref `ojshgsxgsypbywtqhkch`.
-- On the test site: `code_version` = `HEADSHA`, api function version 86, migrations through 0084, health ok (388 API tests, 26 browser suites). This includes the contract without the draft line and the test-card note only on a test key.
+- On the test site: `code_version` = `d484fc86885b99aab4d27772a0b468c355a2b604`, api function version 86, migrations through 0084, health ok (388 API tests, 26 browser suites). This includes the contract without the draft line and the test-card note only on a test key.
 - Live (lawfecta.com) is not set up. Never touch it.
 - Stripe: Stacey made a Stripe sandbox ("DELA sandbox", acct_1UaFzpCqJgxv1pm2, test mode), connected it to Claude as a connector, and on 2026-11-10 put STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in Supabase. The sandbox has one webhook to the test site's /stripe/webhook address; it listens to every event type (DELA ignores the ones it does not use; on Live choose only the 7 in docs/STRIPE_SETUP.md). Not yet proven: no payment or payout has gone through. Next: Stacey confirms the admin Payments tab says "Stripe is connected in test mode", then run docs/tests/step-6-chatgpt-prompt.md (check its button names against the code first) and compare with Stripe through the connector (read only; never create webhooks or keys through it, since that would put a secret in chat).
 - Pro trial check: switch `bd_trial_downgrade` = everyone, mode dry run. Dry-run day 1 was clean. Days 2 and 3 are still to look at.
