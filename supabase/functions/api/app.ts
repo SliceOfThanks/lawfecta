@@ -24,7 +24,7 @@ import { CHECK_PROMPT, SENSITIVE_CHECK_PROMPT, clientDetails, messageLooksSensit
 import { CONTENT_TYPES, readText, sha256, sniff } from "./lib/files/check.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { completeness, emptyBody, fileName, normalize, removesReview, toCsv, toDocx, toHtml, toMarkdown, dayIn, type Body, type ExportMeta } from "./lib/playbooks/model.ts";
-import { keyAllowed, stripe, stripeV2, noAnswer, findCharge, checkoutParams, verifyStripeSignature, accountStatus, accountStatusV2, recipientAccount, onboardingLink, ACCOUNT_V2_INCLUDE, STRIPE_V2_VERSION } from "./lib/payments/stripe.ts";
+import { keyAllowed, stripe, stripeV2, noAnswer, findCharge, findTransfer, findRefund, checkoutParams, verifyStripeSignature, accountStatus, accountStatusV2, recipientAccount, onboardingLink, ACCOUNT_V2_INCLUDE, STRIPE_V2_VERSION } from "./lib/payments/stripe.ts";
 import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/webhooks/deliver.ts";
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, moneySummary, readTasks, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
@@ -3377,7 +3377,16 @@ async function sendPayouts(ctx: Ctx) {
   const key = await stripeKey(ctx);
   if (!key) return;
   for (const po of (await rpc<Array<Record<string, any>>>(ctx, "dela_payouts_due", {})) ?? []) {
-    const r = await stripe(f(ctx), key, "POST", "/transfers", { amount: po.amount_cents, currency: await setting(ctx, "payments.currency", "usd"), destination: po.account_ref, transfer_group: "agreement_" + po.agreement_id, metadata: { payout_id: po.id } }, po.idem_key);
+    // A retry, or a payout that has waited: Stripe's own record is checked first, so money never goes out twice after
+    // Stripe has forgotten the idempotency key. Stripe not reachable: nothing is sent now.
+    if (po.check_first) {
+      const have = await findTransfer(f(ctx), key, String(po.agreement_id), String(po.id));
+      if (have === null) continue;
+      if (have) { await rpc(ctx, "dela_payout_result", { p_payout: po.id, p_status: "sent", p_ref: have, p_reason: "" }); continue; }
+    }
+    const params = { amount: po.amount_cents, currency: await setting(ctx, "payments.currency", "usd"), destination: po.account_ref, transfer_group: "agreement_" + po.agreement_id, metadata: { payout_id: po.id } };
+    let r = await stripe(f(ctx), key, "POST", "/transfers", params, po.idem_key);
+    if (noAnswer(r)) r = await stripe(f(ctx), key, "POST", "/transfers", params, po.idem_key); // the same key: Stripe returns the first one
     await rpc(ctx, "dela_payout_result", { p_payout: po.id, p_status: r.ok ? "sent" : "failed", p_ref: r.ok ? r.data.id : "", p_reason: r.ok ? "" : r.error });
   }
 }
@@ -3395,7 +3404,14 @@ async function sendRefunds(ctx: Ctx) {
   if (!key) return;
   for (const rf of (await rpc<Array<Record<string, any>>>(ctx, "dela_refunds_due", {})) ?? []) {
     if (!String(rf.payment_ref).startsWith("pi_")) continue;
-    const r = await stripe(f(ctx), key, "POST", "/refunds", { payment_intent: rf.payment_ref, amount: rf.amount_cents, metadata: { refund_id: rf.id } }, rf.idem_key);
+    if (rf.check_first) {
+      const have = await findRefund(f(ctx), key, String(rf.payment_ref), String(rf.id));
+      if (have === null) continue;
+      if (have) { await rpc(ctx, "dela_refund_result", { p_refund: rf.id, p_status: "succeeded", p_ref: have }); continue; }
+    }
+    const params = { payment_intent: rf.payment_ref, amount: rf.amount_cents, metadata: { refund_id: rf.id } };
+    let r = await stripe(f(ctx), key, "POST", "/refunds", params, rf.idem_key);
+    if (noAnswer(r)) r = await stripe(f(ctx), key, "POST", "/refunds", params, rf.idem_key);
     await rpc(ctx, "dela_refund_result", { p_refund: rf.id, p_status: r.ok ? "succeeded" : "failed", p_ref: r.ok ? r.data.id : "" });
   }
 }

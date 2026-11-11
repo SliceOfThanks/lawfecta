@@ -4,7 +4,7 @@
 import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { handle, type Deps } from "./app.ts";
 import { sessionHash } from "./lib/crypto.ts";
-import { keyAllowed, stripeForm, stripeSignatureHeader, verifyStripeSignature, accountStatus, accountStatusV2, findCharge } from "./lib/payments/stripe.ts";
+import { keyAllowed, stripeForm, stripeSignatureHeader, verifyStripeSignature, accountStatus, accountStatusV2, findCharge, findRefund } from "./lib/payments/stripe.ts";
 import { buildBody, feeLines, proposeMilestones, rubricFor, scoreFindings, termsText } from "./lib/engagements/agreement.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
@@ -23,6 +23,7 @@ let checkFindings: Record<string, string> = {};
 let n = 0;
 let timeoutNext = 0; // the next charges on a saved payment method go through at Stripe, but DELA gets no answer
 const chargeByPayment = new Map<string, Record<string, unknown>>();
+const atStripe: { transfers: Array<Record<string, any>>; refunds: Array<Record<string, any>> } = { transfers: [], refunds: [] };
 function stripeAnswer(method: string, path: string, body: URLSearchParams): [number, unknown] {
   if (method === "POST" && path === "/payment_intents") {
     if (decline) return [402, { error: { message: "Your card was declined.", code: "card_declined" } }];
@@ -37,8 +38,19 @@ function stripeAnswer(method: string, path: string, body: URLSearchParams): [num
   if (method === "POST" && path === "/checkout/sessions") return [200, { id: "cs_" + (++n), url: "https://checkout.stripe.test/c/" + n }];
   // Fix 2026-11-10 (Stacey's first Stripe run): Stripe refuses the v1 Accounts API for new Connect platforms, as the sandbox does
   if (method === "POST" && (path === "/accounts" || path === "/account_links")) return [400, { error: { message: "Stripe no longer recommends Accounts v1 for new Connect integrations. Create connected accounts with POST /v2/core/accounts instead." } }];
-  if (method === "POST" && path === "/transfers") return [200, { id: "tr_" + (++n), amount: Number(body.get("amount")) }];
-  if (method === "POST" && path === "/refunds") return [200, { id: "re_" + (++n), amount: Number(body.get("amount")) }];
+  if (method === "POST" && path === "/transfers") {
+    const tr = { id: "tr_" + (++n), amount: Number(body.get("amount")), transfer_group: body.get("transfer_group"), metadata: { payout_id: body.get("metadata[payout_id]") } };
+    atStripe.transfers.push(tr);
+    return [200, tr];
+  }
+  if (method === "POST" && path === "/refunds") {
+    const re = { id: "re_" + (++n), amount: Number(body.get("amount")), payment_intent: body.get("payment_intent"), status: "succeeded", metadata: { refund_id: body.get("metadata[refund_id]") } };
+    atStripe.refunds.push(re);
+    return [200, re];
+  }
+  // Stripe's own record of transfers and refunds (what DELA checks before sending one a second time)
+  if (method === "GET" && path === "/transfers") return [200, { data: atStripe.transfers.filter((t) => t.transfer_group === body.get("transfer_group")) }];
+  if (method === "GET" && path === "/refunds") return [200, { data: atStripe.refunds.filter((r) => r.payment_intent === body.get("payment_intent")) }];
   if (method === "GET" && path.startsWith("/payment_intents/")) return [200, { id: path.slice(17), status: "succeeded", amount: 0 }];
   return [404, { error: { message: "no such route" } }];
 }
@@ -531,6 +543,33 @@ Deno.test("no answer from Stripe never charges twice: the same charge is asked a
   const found = await findCharge(fakeFetch, STRIPE_TEST, wp.id);
   assertEquals([found?.found, found?.status], [true, "succeeded"], "Stripe's own record says it went through");
   assertEquals((await findCharge(fakeFetch, STRIPE_TEST, crypto.randomUUID()))?.found, false, "and says so when it has no such charge");
+});
+
+// Launch review 2026-11-10, fix 3: a failed payout or refund is tried again a day later, after Stripe has forgotten the
+// idempotency key. When the first try had in fact gone through, the money went out twice.
+Deno.test("a payout or refund that is tried again is first looked up at Stripe: money that already went out is not sent twice", async () => {
+  const m = await one("select id from milestones where agreement_id = $1 order by seq limit 1", [ag]);
+  const po = (await one(`insert into payouts (milestone_id, agreement_id, person_id, amount_cents, fee_cents, status, held_reason, idem_key, retries, updated_at)
+    values ($1, $2, $3, 1234, 0, 'failed', '', $4, 0, now() - interval '21 hours') returning id`, [m.id, ag, fl.id, "payout:lost:" + crypto.randomUUID()])).id;
+  // Stripe did make the transfer the first time; DELA never got the answer, and Stripe no longer remembers the key
+  atStripe.transfers.push({ id: "tr_lost_first", amount: 1234, transfer_group: "agreement_" + ag, metadata: { payout_id: po } });
+  await rpc("dela_money_retry_failed", {});
+  assertEquals((await one("select status, retries from payouts where id = $1", [po])).status, "pending", "the daily retry queues it again");
+  const before = stripeCalls.length;
+  await call("GET", "/payouts/refresh", fl.token);
+  const after = await one("select status, provider_ref from payouts where id = $1", [po]);
+  assertEquals([after.status, after.provider_ref], ["sent", "tr_lost_first"], "recorded with the transfer Stripe already has");
+  assertEquals(stripeCalls.slice(before).filter((c) => c.method === "POST" && c.path === "/transfers" && c.body.includes("amount=1234")).length, 0, "no second transfer is made");
+  // One that Stripe does not have is sent, once
+  const po2 = (await one(`insert into payouts (milestone_id, agreement_id, person_id, amount_cents, fee_cents, status, held_reason, idem_key, retries)
+    values ($1, $2, $3, 4321, 0, 'pending', '', $4, 1) returning id`, [m.id, ag, fl.id, "payout:new:" + crypto.randomUUID()])).id;
+  await call("GET", "/payouts/refresh", fl.token);
+  assertEquals((await one("select status from payouts where id = $1", [po2])).status, "sent");
+  assertEquals(atStripe.transfers.filter((t) => t.metadata.payout_id === po2).length, 1, "sent once");
+  // The same check for refunds
+  atStripe.refunds.push({ id: "re_lost_first", amount: 500, payment_intent: "pi_lost", status: "succeeded", metadata: { refund_id: "r-1" } });
+  assertEquals(await findRefund(fakeFetch, STRIPE_TEST, "pi_lost", "r-1"), "re_lost_first", "Stripe already has this refund");
+  assertEquals(await findRefund(fakeFetch, STRIPE_TEST, "pi_lost", "r-2"), "", "and has no other for this payment");
 });
 
 Deno.test("every day: agreements not signed in time close and the attorney can choose again", async () => {

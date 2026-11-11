@@ -313,6 +313,8 @@ Deno.test("a dispute settled on the last open milestone completes the engagement
   assert((await call("POST", "/disputes/offer/accept", att.token, { id: o.id })).body.ok);
   const a = await one("select status, completed_at from agreements where id = $1", [e.ag]);
   assert(a.status === "completed" && a.completed_at, "every milestone is finished, so the engagement is complete: " + a.status);
+  // The sandbox run of 2026-11-11: the freelancer's fee on the released part was taken but not written in the ledger
+  assertEquals(Number((await one("select coalesce(sum(amount_cents), 0) s from ledger_entries where agreement_id = $1 and kind = 'freelancer_fee'", [e.ag])).s), 1000, "half of the $20 fee, for the half that was released");
   const e2 = await paidEngagement("f10b");
   const d2 = (await one("insert into disputes (agreement_id, milestone_id, opened_by, reason, notice_ends_at) values ($1, $2, $3, 'left the team', now() + interval '5 days') returning id", [e2.ag, e2.m1, other.id])).id;
   await pool.query("update milestones set status = 'disputed' where id = $1", [e2.m1]);

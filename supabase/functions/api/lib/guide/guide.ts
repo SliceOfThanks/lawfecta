@@ -92,7 +92,7 @@ export function guideMessage(s: GuideState): { text: string; choices: Choice[] }
     case "restricted":
       return { text: "Your freelancer account is on hold, so attorneys cannot see you right now. The Lawfecta Team will email you; you can also ask them from the Inbox.", choices: [] };
     case "profile":
-      return { text: "Attorneys only see complete profiles. You still need " + (missing.length ? listWords(missing) : "a few details") + ". DELA can draft them from what you tell it.",
+      return { text: "Attorneys only see complete profiles. You still need " + (missing.length ? listWords(missing) : "a few details") + ". DELA can draft what is missing from what you tell it.",
         choices: [{ id: "open_tab", label: "Finish my profile", link: "/dela?tab=profile" }] };
     case "agency_profile": {
       const am = ((f.agency ?? {}).missing ?? []).map(String).slice(0, 3).map(fieldWords);

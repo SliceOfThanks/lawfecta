@@ -55,6 +55,21 @@ export async function findCharge(f: typeof fetch, key: string, paymentId: string
   return { found: true, id: String(pi.id), status: String(pi.status), customer: String(pi.customer ?? ""), method: String(pi.payment_method ?? "") };
 }
 
+// Before a payout or a refund is sent a second time: does Stripe already have it? DELA's own id travels in the metadata.
+// null: Stripe could not be asked (do not send). "": Stripe has none (send). Otherwise Stripe's id of the one that exists.
+export async function findTransfer(f: typeof fetch, key: string, agreementId: string, payoutId: string): Promise<string | null> {
+  const r = await stripe(f, key, "GET", "/transfers", { transfer_group: "agreement_" + agreementId, limit: 100 });
+  if (!r.ok) return null;
+  const hit = (Array.isArray(r.data?.data) ? r.data.data as Array<Record<string, any>> : []).find((x) => x?.metadata?.payout_id === payoutId);
+  return hit ? String(hit.id) : "";
+}
+export async function findRefund(f: typeof fetch, key: string, paymentRef: string, refundId: string): Promise<string | null> {
+  const r = await stripe(f, key, "GET", "/refunds", { payment_intent: paymentRef, limit: 100 });
+  if (!r.ok) return null;
+  const hit = (Array.isArray(r.data?.data) ? r.data.data as Array<Record<string, any>> : []).find((x) => x?.metadata?.refund_id === refundId && x?.status !== "failed" && x?.status !== "canceled");
+  return hit ? String(hit.id) : "";
+}
+
 // Accounts v2 (JSON bodies). Stripe refuses the older v1 Accounts API for new Connect platforms, so a freelancer's payout
 // account is created, onboarded and read through /v2/core. Transfers and everything else stay on v1.
 export const STRIPE_V2_VERSION = "2026-09-30.preview";
