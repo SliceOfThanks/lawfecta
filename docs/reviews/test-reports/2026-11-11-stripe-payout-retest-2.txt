@@ -1,0 +1,27 @@
+DELA TEST REPORT: Payout setup (test freelancer)
+Site: www.hirelegalhelp.com (Stripe test mode)
+Date: Tue Nov 10, 2026
+
+STEP RESULTS
+
+1. PASS. Login page opened; Stacey logged in as the test freelancer (reCAPTCHA).
+2. PASS. Card "Payouts to your bank" showed badge "Needs details" and blue button "Finish payout setup".
+3. PASS. Stripe page opened in test mode ("[Test] DELA sandbox", "You're using a test account with test data"). Used test phone number, test code, name Test Freelancer, website https://www.hirelegalhelp.com, test bank (routing 110000000, account 000123456789), skipped saving to Link, clicked "Agree and submit". Landed on: https://hirelegalhelp.com/dela?tab=earnings&payout=done
+4. PASS. Badge still said "Needs details" on return. Clicked "Check my payout status", waited 10 seconds, reloaded. Badge then said "Ready" with the sentence "Ready. Accepted milestones are paid to your bank through Stripe."
+5. PASS. Signed out from the initials menu. Landed on https://hirelegalhelp.com/login?action=loggedout
+
+FAIL LIST
+None.
+
+MESSAGES COPIED / CONFUSING
+- Right after returning from Stripe, the card still said "Needs details" with "Stripe still needs: website or work description, bank account, agreeing to Stripe's terms, date of birth, name, ID number", even though all of that had just been submitted. It only changed to "Ready" after clicking "Check my payout status". A freelancer coming back from Stripe will think setup failed. Suggest DELA checks the status automatically when the page loads with payout=done.
+- The "Stripe still needs" list asked for date of birth and ID number, but Stripe's test flow never asked for date of birth, address, Social Security number or industry. The status still went to "Ready", so the list overstates what is needed.
+- After clicking "Check my payout status", the whole Earnings page went blank with "Loading..." for a few seconds instead of a small message in the card.
+
+OTHER NOTES
+- The freelancer tab row shows "Home, Ask DELA, Profile, Work, Earnings, Agency, Library, Projects". The test instructions say freelancers see only Home, Ask DELA, Profile, Work, Earnings. Library and Projects are listed as attorney tabs, so check whether freelancers should see them.
+- The return URL drops the www (hirelegalhelp.com instead of www.hirelegalhelp.com). Worked fine, noting only.
+- The DELA card content was not readable by page text tools (only the Brilliant Directories sidebar text came through). Screen readers may have the same problem; worth a quick accessibility check.
+
+TOOK LONGER THAN 60 SECONDS
+Nothing. Stripe opened in under 10 seconds and each Stripe page loaded in a few seconds.

@@ -271,8 +271,7 @@ async function sign(page, name, version) {
     await p.waitForURL(/\/test\/stripe\/onboard/, { timeout: 8000 });
     ok((await p.textContent("h1")).includes("Payout setup done"), "freelancer: Stripe's own setup page (DELA never sees bank details)");
     await p.goto(`${BASE}/page/DELA-App?uid=2801&plan=&tab=earnings&payout=done`);
-    await waitFor(p, "Check my payout status");
-    await click(p, "Check my payout status");
+    // Fix 2026-11-11: back from Stripe, the card shows the new status by itself (no click on "Check my payout status")
     t = await waitFor(p, "Ready. Accepted milestones are paid");
     ok(t.includes("$237"), "freelancer: payouts ready and the first payout sent");
     // Fix (AI review 0.9.0, payments 3): Home shows the real amount paid out, not $0.00

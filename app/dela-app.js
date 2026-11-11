@@ -6393,7 +6393,29 @@
           h("span", { class: "grow" }), agBadge(e)));
       });
       el.appendChild(c);
-      try { var q = new URLSearchParams(location.search).get("payout"); if (q === "done") api.get("/payouts/refresh").then(function (x) { if (x.ok && x.account && x.account.status !== ((r.payout_account || {}).status)) draw(); }).catch(function () {}); } catch (e) { /* no deep link */ }
+      // Back from Stripe's setup page. Stripe takes a few seconds to finish its own checks (the payout re-test, 2026-11-11:
+      // the card still said "Needs details" until "Check my payout status" was clicked), so DELA asks again for a short
+      // while and says so, then shows the new status by itself.
+      try {
+        var q = new URLSearchParams(location.search).get("payout");
+        if (q === "done" || q === "again") {
+          try { history.replaceState(null, "", location.pathname + location.search.split("&payout=" + q).join("") + location.hash); } catch (e2) { /* the address stays as it is */ }
+          if ((r.payout_account || {}).status !== "ready") {
+            var wait = h("p", { class: "notice", role: "status", text: "Stripe is checking your details. This card updates by itself in a few seconds." });
+            el.insertBefore(wait, el.children[2] || null);
+            var tries = 0;
+            var again = function () {
+              tries++;
+              api.get("/payouts/refresh").then(function (x) {
+                if (x && x.ok && x.account && x.account.status === "ready") { draw(); return; }
+                if (tries < 8) setTimeout(again, 4000);
+                else wait.textContent = "Stripe has not finished yet. Click \"Check my payout status\" below in a minute.";
+              }).catch(function () { if (tries < 8) setTimeout(again, 4000); });
+            };
+            again();
+          }
+        }
+      } catch (e) { /* no deep link */ }
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     return el;
   }

@@ -31,13 +31,19 @@ const storage: Storage = {
 const WHSEC = "whsec_browser_test"; // rules-ok: a made-up test secret
 const sessions = new Map<string, { pid: string; amount: number }>();
 let stripeN = 0;
+const acctReads = new Map<string, number>();
 export let declineNext = false;
 function fakeStripe(u: string, opts: RequestInit): Response | null {
   if (u.startsWith("https://api.stripe.com/v2/core/")) {
     const path2 = new URL(u).pathname.slice(3), method2 = String(opts.method ?? "GET"), j = method2 === "POST" ? JSON.parse(String(opts.body ?? "{}")) : {};
     if (method2 === "POST" && path2 === "/core/accounts") return Response.json({ id: "acct_test_" + (++stripeN) });
     if (method2 === "POST" && path2 === "/core/account_links") return Response.json({ url: ORIGIN + "/test/stripe/onboard?acct=" + j.account + "&back=" + encodeURIComponent(j.use_case?.account_onboarding?.return_url ?? "") });
-    if (method2 === "GET" && path2.startsWith("/core/accounts/")) return Response.json({ id: path2.slice(15), configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { status: "active" } } } } }, requirements: { entries: [] } });
+    if (method2 === "GET" && path2.startsWith("/core/accounts/")) {
+      // Like Stripe: the first answer after its setup page is still "pending"; the account is active a moment later
+      const id = path2.slice(15), seen = (acctReads.get(id) ?? 0) + 1;
+      acctReads.set(id, seen);
+      return Response.json({ id, configuration: { recipient: { capabilities: { stripe_balance: { stripe_transfers: { status: seen > 1 ? "active" : "pending" } } } } }, requirements: { entries: seen > 1 ? [] : [{ description: "external_account", awaiting_action_from: "user" }] } });
+    }
     return Response.json({ error: { message: "no such route" } }, { status: 404 });
   }
   if (!u.startsWith("https://api.stripe.com/v1/")) return null;
