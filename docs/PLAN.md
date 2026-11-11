@@ -308,3 +308,17 @@ A brief with questions comes before the build, when Phase 2 starts.
 - ChatGPT test prompts: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests
 - Decision Sheet: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/Decision_Sheet.md
 - Your setup checklist (Live): https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/STACEY_CHECKLIST.md
+
+## Step 15: the compact workspace (2026-11-11, replaces step 12)
+Brief and decisions: docs/briefs/step-15-compact-workspace.md. Mockup page: https://claude.ai/artifact/9Fp5SWMoaue7YARdpvmXcL (11 boards; waiting for Stacey's approval).
+Build order after approval, all behind the switch `new_layout`:
+1. The switch (config/decisions.json, migration) and `me.profile_summary` in GET /me (score, missing details with labels, readiness, verification).
+2. The shell: `tabsFor()` returns groups; sidebar on desktop (folds, remembered with `localPref`), five-item bottom bar with a "More" sheet on phones, 56px and 52px top bars, the address follows the tab, one SVG icon set (shared/dela-core.js, app/dela-app.js `nav`, `header`, `draw`).
+3. Density and colors under `.dela.nl`: card, heading and control sizes from the specs board; `button.blue` takes the burgundy; dark values; reduced motion.
+4. Home for both sides: profile box with deep links (`&section=` in `drawProfile`), Work, one-line Ask DELA with "Pause suggestions", plan line; the hero, guide bubble and "What DELA will do for you" list are not shown.
+5. Settings (today's `tab=ai`) and a new Help page.
+6. Admin sidebar with the 25 tabs in groups.
+7. Tests: layout-test.js rewritten (320 to 1440 widths, first-screen check at 390 x 844, More, fold, keyboard, zoom), guide, foundation, profiles and appearance tests updated, a switch-off run, the accessibility check in both themes.
+8. AGENT-RULES.md and the 36 prompts that repeat its page description; one ChatGPT test; then the switch on for everyone before pilot members are invited.
+Not in this step: search, "+ New", the money chart.
+

@@ -1,7 +1,7 @@
 # Feature brief: New DELA layout (sidebar, "+ New", dashboard)
 
 Step: 12   Spec references: 00 Program Guide (two sides, always separate), step 10 UI and UX reviews
-Status: draft, mockup ready for Stacey
+Status: replaced on 2026-11-11 by docs/briefs/step-15-compact-workspace.md (Stacey's new spec). The 8 questions below are no longer open. Search, "+ New" and the money chart wait until after the pilot.
 
 Mockup (private link, Stacey can share it from the Share menu): https://claude.ai/artifact/JXogiAYYHhjyMp5inwYuH2
 
