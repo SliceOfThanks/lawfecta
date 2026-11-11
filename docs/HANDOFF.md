@@ -74,6 +74,22 @@ Report: docs/reviews/test-reports/2026-11-10-stripe-first-payment.txt. Test: doc
 - Not checked yet: whether Stripe still sends `account.updated` for v2 accounts (DELA reads the status when the freelancer returns and on "Check my payout status", so it does not depend on it).
 - From the report, still open: `site.url` has no "www" but the return from Stripe worked; "Held now" on the admin Payments tab counts made-up prepared jobs, so it is larger than "Charged" (clean up the prepared test data, section 4); the freelancer who runs an agency also sees Agency, Library and Projects tabs, so the tab list in AGENT-RULES.md is incomplete for that account; the gig link without `&view=agreement` opens the Details tab; "Check my payout status" gives no message when nothing changed.
 
+## 1b-2. The money path is proven in the Stripe sandbox (2026-11-11)
+With Stacey's yes, Claude acted as the two test accounts (sessions marked "Claude test run", all revoked afterwards) on agreement `be4b3b1e-b2d7-4f5f-b6a6-7102cef979ff`, and compared each step with Stripe through the connector:
+
+| Step | DELA | Stripe |
+|---|---|---|
+| Attorney pays milestone 1 (Stacey's ChatGPT run) | $165 charged, fee $15 | Checkout paid, webhook received |
+| Freelancer sets up payouts (Stacey's ChatGPT run) | Ready | account `acct_1UaOIZCqJg7BO9lg`, transfers active |
+| Freelancer delivers; DELA's check | 50, then 80, then 100 of 100 after the statement covered the document's quality points | |
+| Attorney accepts milestone 1 | payout $142.50 sent ($7.50 fee) | transfer `tr_1UaPfeCqJgxv1pm2ciSvbEtP`, 14250, to that account, metadata payout_id |
+| Next milestone charged to the saved card | $150 succeeded, no second fee | `pi_3UaPffCqJgxv1pm20SiHW0BL` |
+| Attorney disputes milestone 2, freelancer offers $50, attorney accepts | release $50, refund $100, engagement completed | transfer `tr_1UaPgfCqJgxv1pm2x5lMjwn1` 4750; refund `re_3UaPffCqJgxv1pm20JBnneOq` 10000 succeeded, metadata refund_id |
+
+Found while checking, not fixed yet: a dispute release writes no `freelancer_fee` row in `ledger_entries` (the $2.50 fee on the $50 release is in `payouts.fee_cents` only), so the admin "Freelancer fees" total misses fees from disputes. Add the ledger row in `dela_dispute_settle_money` with a test.
+
+Not proven in the sandbox: a declined card, a bank (ACH) payment, a chargeback, a monthly engagement, an agency split payout. The automated tests cover them with a stand-in only.
+
 ## 1c. THE CURRENT PLAN: pilot on lawfecta.co with live payments (Stacey's decisions, 2026-11-10)
 This replaces the two-site design (test site, then Live) and the earlier two-stage triage. Stacey approved this plan.
 
@@ -86,7 +102,7 @@ This replaces the two-site design (test site, then Live) and the earlier two-sta
 - She declined Claude acting as the test accounts with a made session. Tests go through her.
 
 **Part A: before any real payment (code, in this order)**
-1. Payout setup proven in the Stripe sandbox (section 1b): apply what her re-test shows, then one full sandbox run through ChatGPT (deliver and accept milestone 1, dispute and settle milestone 2), compared with Stripe through the connector.
+1. DONE 2026-11-11: payout setup, a payout, the next charge on the saved card and a dispute refund are proven in the Stripe sandbox (section 1b-2).
 2. Launch item 4, then 2, then 3, then 5 (section 2).
 3. DONE: launch item 19 (`stripe_test` from `/agreements/get`; the note shows only on a test key) and the contract's draft line.
 
@@ -101,7 +117,7 @@ This replaces the two-site design (test site, then Live) and the earlier two-sta
 11. Rewrite CLAUDE.md (one site, the new address), docs/LIVE_READINESS.md and docs/PLAN.md for one site. Launch items 18 and 20 are dropped (no push between sites, same BD plan numbers).
 
 **Part C: Stacey's steps (give each in full when its turn comes)**
-- Stripe live account: turn on Connect for paying freelancers (business details; approval can take days, so start early), a new secret key for DELA, the live webhook with the 7 events, both secrets in Supabase, then the `live_payments` switch.
+- Stripe live account: Stacey says Connect is already set up on it and its keys are in Brilliant Directories (2026-11-11). Still needed for DELA: a secret key for DELA (a new restricted or secret key, entered by her in Supabase, never copied through chat), the live webhook with the 7 events, both secrets in Supabase, then the `live_payments` switch.
 - The domain change in Brilliant Directories, the DELA_ORIGINS secret, Brevo sender and domain records.
 - One small real payment, payout and refund by her before members are invited.
 - The pilot members' BD member numbers for the access list.
