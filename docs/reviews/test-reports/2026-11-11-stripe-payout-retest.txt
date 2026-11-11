@@ -1,0 +1,21 @@
+DELA TEST REPORT - Stripe payout retest
+Site: https://www.hirelegalhelp.com (test freelancer: stacey+dela-freelancer@lawfecta.com)
+Date: 2026-11-10
+
+STEP RESULTS
+1. PASS - Login page reached; Stacey logged in as the test freelancer.
+2. PASS - Earnings page, card "Payouts to your bank" shows badge "Not set up" and blue button "Set up payouts with Stripe".
+3. FAIL - Clicked "Set up payouts with Stripe" once. No Stripe page opened within 8 seconds. Red message appeared inside the card "Payouts to your bank" (copied below). Skipped to step 5 as instructed.
+4. SKIPPED - Not run because step 3 failed (the prompt says go to step 5).
+5. PASS - Signed out from the initials menu; landed on https://hirelegalhelp.com/login?action=loggedout
+
+FAIL LIST
+- Step 3: Stripe onboarding did not start.
+
+MESSAGE COPIED WORD FOR WORD (step 3)
+"Stripe could not start payout setup right now. Nothing is wrong with your account. Please try again later, or contact the Lawfecta Team."
+
+NOTES
+- Nothing took longer than 60 seconds.
+- The error message gives the freelancer no reason or next step beyond "try again later". The page's own network log did not show the payout setup request (it likely runs inside an embedded frame), so the server error behind it needs to be checked in the DELA server logs.
+- The freelancer tab row at the bottom shows "Home, Ask DELA, Profile, Work, Earnings, Agency, Library, Projects" and more off screen. The prompt expects freelancers to see only Home, Ask DELA, Profile, Work, Earnings.
