@@ -58,7 +58,7 @@ Does not carry over:
 - Branch: `claude/step-2a-ai-keys-voice-files`. No pull requests unless Stacey asks.
 - The MVP (Stacey's 16 items, see STATUS.md) is on the test site, hirelegalhelp.com.
 - Test site database: Supabase project "Lawfecta AI" / DELA Staging, ref `ojshgsxgsypbywtqhkch`.
-- On the test site: `code_version` = `1c10633f85b61e6b16967858d8f4f6228c31f3af`, api function version 88, migrations through 0086, health ok (390 API tests, 26 browser suites).
+- On the pilot site (https://www.lawfecta.co, formerly the test site): `code_version` = `04ca28a7783bd35f5f9ee620a81c0e4ca764ff92`, api function version 89, migrations through 0087, health ok (391 API tests, 26 browser suites).
 - Live (lawfecta.com) is not set up. Never touch it.
 - Stripe: Stacey made a Stripe sandbox ("DELA sandbox", acct_1UaFzpCqJgxv1pm2, test mode), connected it to Claude as a connector, and on 2026-11-10 put STRIPE_SECRET_KEY and STRIPE_WEBHOOK_SECRET in Supabase. The sandbox has one webhook to the test site's /stripe/webhook address; it listens to every event type (DELA ignores the ones it does not use; on Live choose only the 7 in docs/STRIPE_SETUP.md). Not yet proven: no payment or payout has gone through. Next: Stacey confirms the admin Payments tab says "Stripe is connected in test mode", then run docs/tests/step-6-chatgpt-prompt.md (check its button names against the code first) and compare with Stripe through the connector (read only; never create webhooks or keys through it, since that would put a secret in chat).
 - Pro trial check: switch `bd_trial_downgrade` = everyone, mode dry run. Dry-run day 1 was clean. Days 2 and 3 are still to look at.
@@ -86,7 +86,7 @@ With Stacey's yes, Claude acted as the two test accounts (sessions marked "Claud
 | Next milestone charged to the saved card | $150 succeeded, no second fee | `pi_3UaPffCqJgxv1pm20SiHW0BL` |
 | Attorney disputes milestone 2, freelancer offers $50, attorney accepts | release $50, refund $100, engagement completed | transfer `tr_1UaPgfCqJgxv1pm2x5lMjwn1` 4750; refund `re_3UaPffCqJgxv1pm20JBnneOq` 10000 succeeded, metadata refund_id |
 
-Found while checking, not fixed yet: a dispute release writes no `freelancer_fee` row in `ledger_entries` (the $2.50 fee on the $50 release is in `payouts.fee_cents` only), so the admin "Freelancer fees" total misses fees from disputes. Add the ledger row in `dela_dispute_settle_money` with a test.
+FIXED 2026-11-11 (migration 0087; one correction row of $2.50 added to the ledger for the sandbox dispute). Was: a dispute release writes no `freelancer_fee` row in `ledger_entries` (the $2.50 fee on the $50 release is in `payouts.fee_cents` only), so the admin "Freelancer fees" total misses fees from disputes. Add the ledger row in `dela_dispute_settle_money` with a test.
 
 Not proven in the sandbox: a declined card, a bank (ACH) payment, a chargeback, a monthly engagement, an agency split payout. The automated tests cover them with a stand-in only.
 
@@ -103,7 +103,7 @@ This replaces the two-site design (test site, then Live) and the earlier two-sta
 
 **Part A: before any real payment (code, in this order)**
 1. DONE 2026-11-11: payout setup, a payout, the next charge on the saved card and a dispute refund are proven in the Stripe sandbox (section 1b-2).
-2. Launch items 4 and 2 are DONE. Next: item 3, then 5 (section 2). Also the small ledger gap in section 1b-2.
+2. Launch items 4, 2 and 3 are DONE. Next: item 5 (section 2), then the email footer (items 22 and 23). Also the small ledger gap in section 1b-2.
 3. DONE: launch item 19 (`stripe_test` from `/agreements/get`; the note shows only on a test key) and the contract's draft line.
 
 **Part B: turn the test site into the pilot site**
@@ -133,7 +133,7 @@ Every fix is a commit starting "Fix" with a test that fails before the fix, in t
    - Fix in a new migration: on open, the milestone must belong to the agreement and be paid and not yet accepted. In settle and in the offer functions, require `m.agreement_id = d.agreement_id` and status `disputed`.
    - Test (disputes_test): a milestone from another agreement, or one already paid out, is refused.
 2. DONE 2026-11-11 (commit 1c10633, migration 0086; `chargeSaved`, `chargeUnanswered`, `noAnswer`, `findCharge`, `dela_payments_unanswered`; the safety net is in `dela_payment_result`, answer field `double`). Not covered: a second paid charge for a monthly period (`dela_period_payment_result`) has no automatic refund yet; the retry with the same key and the daily check do cover monthly charges. HIGH. A timeout on an automatic charge can charge the attorney twice (`app.ts` `chargeOrCheckout` about 3289, `chargeMonth` about 3244). Fix: treat no answer (timeout or 5xx) as "unknown" and look the payment up in Stripe before creating another. In `dela_payment_result`, a second success on an already funded milestone queues a refund and alerts the team.
-3. HIGH. The daily retry can pay out or refund twice (`dela_money_retry_failed`, `sendPayouts`, `sendRefunds`): it runs after Stripe has forgotten the idempotency key. Fix: search Stripe for a transfer or refund carrying this payout or refund id (metadata) first; re-send only if none exists.
+3. DONE 2026-11-11 (commit 04ca28a, migration 0087; `findTransfer`, `findRefund`, the `check_first` field of `dela_payouts_due` and `dela_refunds_due`). Not covered: transfer reversals (`sendReversals`) have no such check yet. HIGH. The daily retry can pay out or refund twice (`dela_money_retry_failed`, `sendPayouts`, `sendRefunds`): it runs after Stripe has forgotten the idempotency key. Fix: search Stripe for a transfer or refund carrying this payout or refund id (metadata) first; re-send only if none exists.
 4. DONE 2026-11-11 (commit c949857, migration 0085: `dela_provider_event_begin` and `dela_provider_event_done`, column `provider_events.processed_at`). HIGH. A Stripe event is marked handled before it is processed (`app.ts` about 3507). If processing throws, Stripe's retry is dropped as a duplicate. Fix: record `processed_at` only after success; retry unprocessed events.
 5. MEDIUM. Overlapping worker runs can send an email twice, and a job that always crashes retries forever (`0002_foundation_functions.sql` about 421, `app.ts` about 4584). Fix: claim one job at a time, respect `max_attempts` on expired leases, claim the email row atomically.
 6. MEDIUM. The member webhook address check misses IPv6 forms of internal addresses (`lib/webhooks/deliver.ts` about 34). Fix: normalize the address, block the mapped ranges, connect to the checked IP.
