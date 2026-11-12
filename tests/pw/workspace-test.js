@@ -217,7 +217,7 @@ async function makeMember(bd, side, plan, name) {
     t = await waitFor(p, "Sign-in email");
     ok(t.includes(NEW + "@test.invalid") && t.includes("DELA never sees or stores your password"), "account: the sign-in email shows, and the card says DELA holds no password");
     const links = await inShadow(p, (root) => [...root.querySelectorAll("#set-account a")].map((a) => a.innerText.trim() + " > " + a.getAttribute("href") + " > " + a.target));
-    ok(links.join(" | ") === "Reset password by email > /login/retrieval > _blank | Google account security > https://myaccount.google.com/security > _blank" && t.includes("ask the Lawfecta Team"), "account: no link into the website's member dashboard; the password is reset by email and an email change goes through the team: " + links.join(" | "));
+    ok(links.join(" | ") === "Google account security > https://myaccount.google.com/security > _blank" && t.includes("ask the Lawfecta Team") && t.includes("1. Sign out") && t.includes("Forgot Password? Click to Reset Password"), "account: no link into the website's member dashboard; the password is reset by email and an email change goes through the team: " + links.join(" | "));
     ok(await inShadow(p, (root) => !root.querySelector("#set-account input")) && await fits(p), "account: no password or email box in DELA (the website holds them), and no sideways scrolling");
     await p.screenshot({ path: path.join(SHOTS, "workspace-account-phone.png") });
     await sql("update settings set value = '\"javascript:alert(1)\"'::jsonb where key = 'account.change_password_path'");
@@ -227,7 +227,7 @@ async function makeMember(bd, side, plan, name) {
     await sql("update settings set value = '\"/account/password\"'::jsonb where key = 'account.change_password_path'");
     await p.reload();
     await waitFor(p, "Sign-in email");
-    ok(await inShadow(p, (root) => [...root.querySelectorAll("#set-account a")].map((a) => a.innerText.trim()).join("|").startsWith("Change password|Forgot password")), "account: when the owner sets a password page, the card links to it again");
+    ok(await inShadow(p, (root) => [...root.querySelectorAll("#set-account a")].map((a) => a.innerText.trim()).join("|").startsWith("Change password")), "account: when the owner sets a password page, the card links to it again");
     await sql("update settings set value = '\"\"'::jsonb where key = 'account.change_password_path'");
     await s.ctx.close();
 
@@ -427,7 +427,7 @@ async function makeMember(bd, side, plan, name) {
       await ap.waitForFunction(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText.includes("Sign-in email"));
       const at = await ap.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText);
       const aval = await ap.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelector("#set-account .acct-val").innerText);
-      ok(aval.includes("@") && at.includes("Reset password by email") && at.includes("It changes nothing for other members."), "admin: My account shows the team member's own sign-in email and where to change it: " + aval);
+      ok(aval.includes("@") && at.includes("To set a new one: 1. Sign out") && at.includes("It changes nothing for other members."), "admin: My account shows the team member's own sign-in email and where to change it: " + aval);
       await ap.screenshot({ path: path.join(SHOTS, "workspace-admin-account.png") });
       await ctx3.close();
     }

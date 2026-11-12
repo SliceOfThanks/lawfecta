@@ -375,7 +375,10 @@ D.openTab = function (getUrl, onFail, opts) {
       [link(a.change_email, "Change email", true)]));
     card.appendChild(row("Password", "",
       [a.change_password ? "DELA cannot show your password. You type the new one on the Lawfecta website, where your password manager can fill it in."
-        : "DELA cannot show your password. To set a new one, click \"Reset password by email\". The Lawfecta website emails you a link, and you choose the new password there."].concat(
+        : a.forgot_password ? "DELA cannot show your password. To set a new one, click \"Reset password by email\". The Lawfecta website emails you a link, and you choose the new password there."
+          // The website's reset page only opens for someone who is signed out (Stacey 2026-11-12: signed in, it lands in
+          // the member dashboard), so with no page set the card gives the steps and no button.
+          : "DELA cannot show your password. To set a new one: 1. Sign out (the round button at the top right, then \"Sign out\"). 2. On the login page click \"Forgot Password? Click to Reset Password\". 3. The Lawfecta website emails you a link to choose a new password."].concat(
         a.google ? ["If you sign in with Google, Google keeps your password. Change it in your Google account."] : []),
       [link(a.change_password, "Change password", true), link(a.forgot_password, a.change_password ? "Forgot password" : "Reset password by email", !a.change_password),
         a.google ? link("https://myaccount.google.com/security", "Google account security", false) : null]));

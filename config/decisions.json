@@ -1131,10 +1131,10 @@
         {
           "key": "account.forgot_password_path",
           "label": "Page on the Lawfecta website that emails a password reset",
-          "value": "/login/retrieval",
+          "value": "",
           "unit": "",
           "status": "C",
-          "source": "Checked on www.lawfecta.co 2026-11-12",
+          "source": "Stacey 2026-11-12: for a signed-in member the page lands in the Brilliant Directories member dashboard",
           "note": "DELA's Account and security card links here."
         },
         {

@@ -70,7 +70,7 @@ TEST FREELANCER (log in once)
    Find: in that card, the row "Sign-in email".
    Expect: it shows stacey+dela-freelancer@lawfecta.com, and under it a grey line that says to ask the Lawfecta Team to change it. There is no "Change email" button.
    Find: the next row, "Password".
-   Expect: two buttons at the right: "Reset password by email" (dark red) and "Google account security" (outlined). Do NOT click them.
+   Expect: a grey line with three numbered steps that starts "To set a new one: 1. Sign out", and one outlined button at the right, "Google account security". Do NOT click it.
    Find: the cards below, in this order: "Appearance", then "Suggestions and alerts".
    Expect: "Suggestions and alerts" has an outlined button "Pause suggestions" (or "Resume suggestions"). Do NOT click it.
 8. Find: the round dark red button with initials at the far right of the top bar.
