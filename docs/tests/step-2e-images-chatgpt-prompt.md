@@ -1,6 +1,6 @@
 # ChatGPT test (track A, part 2): images in documents
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 Claude already tested all of this with the real api and database: 9 api tests, the engine tests and 33 browser checks. They cover paste and drop, the blur burned in, reordering, the block, DELA's own check holding an image, the freelancer's view, another firm's images and the phone screen. This test covers the real screens, the real text reader and Word.
 
@@ -48,17 +48,18 @@ When a step needs a file from my computer (Screenshot A or Screenshot B), stop a
 
 How the parts you will use look:
 - On a document page, the LEFT column is the document. Under the heading "Steps" each step is its own white box titled "Step 1", "Step 2" and so on. At the right end of each step box's top row are small outlined buttons: "↑", "Remove" and "🖼 Add image". Images appear inside the step box, under the box "What to do (one action, starting with a verb)".
-- The RIGHT column starts with the card titled "Quality check", with the buttons "Save", "Approve" and "Post as a Flex Gig", and "Export:" with "Word".
-- The image window is a pop-up in the middle of the screen titled "Review image". In it, from top to bottom: a row of four outlined buttons "Box", "Arrow", "Blur", "Undo"; a yellow bar (only when DELA found something) with the button "Blur all flagged" at its right end; the image; the box "Caption (what should the reader look at?)"; the checkbox "This image contains no client information, passwords or account numbers."; and at the bottom right the buttons "Cancel" (outlined) and "Save image" (blue).
+- The RIGHT column starts with the card titled "Quality check". At the bottom of that card are the dark red buttons "Save" and "Approve", and under them the line "Export:" with the outlined buttons "Word", "PDF", "Markdown", "Web page" and "Step checklist". Once a document is approved, the page shows a card whose heading starts "Approved version" with the buttons "Edit a new draft" and "Post as a Flex Gig".
+- The image window is a pop-up in the middle of the screen titled "Review image". In it, from top to bottom: a row of four outlined buttons "Box", "Arrow", "Blur", "Undo"; a yellow bar (only when DELA found something) with the button "Blur all flagged" at its right end; the image; the box "Caption (what should the reader look at?)"; the checkbox "This image contains no client information, passwords or account numbers."; and at the bottom right the buttons "Cancel" (outlined) and "Save image" (dark red).
 
 1. Attorney (ask me to log in as the test attorney)
 
 1. Go to: https://www.lawfecta.co/dela?tab=library
-   Do: in the first card under "Document library", click the blue "New document". Click the box "SOP". In "Process name" (the first box in the card "About this process") type Open a matter in Clio. Click the blue "Draft it with DELA" at the bottom of that card.
-   Expect: within 60 seconds, the document page.
+   Do: if the large heading at the top says "Library" and the page shows cards two side by side, scroll to the very bottom of the page and click the underlined words "Show as a table" (the last of the underlined links there). If the heading already says "Document library", do nothing.
+   Do: in the first card under the heading "Document library", click the dark red "New document". If the next page shows a card titled "What would you like to document?", click the underlined words "I know which type I want" under its box. Then click the box "SOP" (the first of four boxes). In "Process name" (the first box in the card "About this process") type Open a matter in Clio. Click the dark red "Draft it with DELA" at the bottom of that card.
+   Expect: within 90 seconds, the document page, with the title ending "Open a matter in Clio" and the bold notice "Draft, not approved. Do not use this as an approved procedure."
 
 2. Find: in the left column, the heading "Steps", then the box "Step 1".
-   Expect: the outlined button "🖼 Add image" at the right end of the top row of each step box, and the grey line "Tip: Take a screenshot, click a step, and paste it here." at the bottom of the "Step 1" box.
+   Expect: the outlined button "🖼 Add image" at the right end of the top row of each step box, and the grey line "Tip: Take a screenshot, click a step, and paste it here." inside the "Step 1" box, under the box "What to do (one action, starting with a verb)".
 
 3. Wrong file.
    The "🖼 Add image" file window shows only PNG and JPG files, so a wrong file is tested by dragging it in.
@@ -103,7 +104,10 @@ How the parts you will use look:
     Do: move the mouse over the third image and click its "Remove".
     Expect: a small window "Remove this image?" with "Cancel" and "Remove". Click "Remove". Expect: two images left.
     Do: drag the second image (press on it, move it up over the first image, let go).
-    Expect: the two images swap places. Go to https://www.lawfecta.co/dela?tab=library, open "Open a matter in Clio" again (click its row) and check the order stayed.
+    Expect: the two images swap places.
+    Go to: https://www.lawfecta.co/dela?tab=library
+    Do: in the table, click the row "Open a matter in Clio".
+    Expect: in the "Step 1" box, the two images are in the order you set.
 
 11. Paste (ask me to do it).
     Ask me to: copy Screenshot B to the clipboard (open it, then Ctrl+C or Cmd+C), click inside the box "What to do (one action, starting with a verb)" in the "Step 2" box, and press Ctrl+V or Cmd+V. Wait until I say done.
@@ -111,34 +115,39 @@ How the parts you will use look:
 
 12. The quality panel.
     Find: the card titled "Quality check" (right column).
-    Expect: no image item marked "Blocking". If any image item is there, report its text, click its "Fix it", tick the checkbox in the pop-up, click "Save image", and report what happened.
+    Expect: no item about images with the label "Required before approval". If an item about images is there, report its text, click the outlined button under it that starts "Fix it:", tick the checkbox in the pop-up, click "Save image", and report what happened.
 
 13. Word.
-    Do: in the "Quality check" card, after "Export:", click "Word". Open the file.
+    Do: at the bottom of the "Quality check" card, after "Export:", click the outlined "Word". Open the file.
     Expect: each image at full page width under its step, with the caption below it in grey italics. Report anything that looks wrong.
 
 14. The warning before a gig.
-    Do: in the "Quality check" card, click the blue "Approve". Then click the blue "Post as a Flex Gig" in the same card.
-    Expect: the Projects page with the card "Post a new gig"; its dropdown "Document" shows "Open a matter in Clio".
-    Do: click the blue "Draft the gig with DELA" at the bottom of that card.
-    Expect: a pop-up "Check the images" saying "The freelancer will see 3 images in this document. Check that none show client information." with the buttons "Review images" and "Continue".
+    Do: at the bottom of the "Quality check" card, click the dark red "Approve".
+    Expect: the message "Approved", the status label "Approved" next to the title, and a card whose heading starts "Approved version".
+    Do: in that card, click the outlined "Post as a Flex Gig" (to the right of the dark red "Edit a new draft").
+    Expect: the Projects page with the card "Post a new gig" at the top; its dropdown "Document" shows a line that ends "Open a matter in Clio".
+    Do: click the dark red "Draft the gig with DELA" at the bottom of that card.
+    Expect: a pop-up "Check the images" saying "The freelancer will see 3 images in this document. Check that none show client information." with the buttons "Review images" (outlined) and "Continue" (dark red).
     Do: click "Continue". Expect: within 60 seconds, the gig page. Do not post the gig.
 
 15. A Policy has no images.
-    Go to: https://www.lawfecta.co/dela?tab=library, click the row "Client trust account rules" (made in the first test).
+    Go to: https://www.lawfecta.co/dela?tab=library
+    Do: in the table, click the row "Client trust account rules" (made in the first test). If the page shows a card whose heading starts "Approved version", click the dark red "Edit a new draft" in that card first.
     Expect: no "🖼 Add image" button anywhere on the page (use Ctrl+F to search "Add image").
 
 16. A Workflow has a swimlane chart.
-    Go to: https://www.lawfecta.co/dela?tab=library and click the row "Intake to signed engagement" (made in the first test).
-    Expect: "🖼 Add image" on each stage box, and a section "Swimlane chart" (in the left column, after "Start and end points") with its own "🖼 Add image".
+    Go to: https://www.lawfecta.co/dela?tab=library
+    Do: in the table, click the row "Intake to signed engagement" (made in the first test). If the page shows a card whose heading starts "Approved version", click the dark red "Edit a new draft" in that card first.
+    Expect: "🖼 Add image" at the right end of the top row of each box titled "Stage 1", "Stage 2" and so on, and a section "Swimlane chart" (in the left column, after "Start and end points") with its own "🖼 Add image".
     Do: click the "🖼 Add image" in the "Swimlane chart" section, ask me to choose Screenshot B, type Our swimlane chart as the caption, tick the checkbox, click "Save image".
     Expect: the image under "Swimlane chart".
 
 17. A Playbook.
-    Go to: https://www.lawfecta.co/dela?tab=library and click the row "Handle an upset client".
-    Expect: a "🖼 Add image" button under "Scripts and templates" and another under "Examples". You do not need to add one.
+    Go to: https://www.lawfecta.co/dela?tab=library
+    Do: in the table, click the row "Handle an upset client". If the page shows a card whose heading starts "Approved version", click the dark red "Edit a new draft" in that card first.
+    Expect: in the left column, a "🖼 Add image" button under the heading "Scripts and templates" and another under the heading "Examples". You do not need to add one.
 
-18. Sign out.
+18. Sign out (the round button with the initials at the far right of the top bar, then "Sign out").
 
 2. Owner (ask me to log in as the owner)
 
@@ -146,16 +155,17 @@ How the parts you will use look:
    Find: the card titled "Documents (Policy, Workflow, SOP, Playbook)" at the very bottom, and in it the heading "Images in documents".
    Expect: "Images in documents", "Waiting for a client-data check", "Held by DELA's check", "Items the text reader found" and "Items members blurred", with numbers. No images and no image links.
 
-2. Do: in the menu on the left, click "Switches".
-   Find: the row whose small grey code name is "document_images".
+2. Go to: https://www.lawfecta.co/dela-admin?tab=switches ("Switches" in the left menu, under the heading "PLANS AND SETTINGS").
+   Find: the row whose small grey code name is "document_images" (press Ctrl+F and type document_images if the list is long).
    Expect: its dropdown shows "Access list".
 
-3. Sign out.
+3. Sign out (the button with the owner's name at the top right, then "Sign out").
 
 3. Check the results (test attorney)
 
-1. Go to: https://www.lawfecta.co/dela?tab=library and click the row "Open a matter in Clio".
-   Expect: two images in "Step 1" in the order you set, one in "Step 2", each with its caption.
-2. Sign out.
+1. Go to: https://www.lawfecta.co/dela?tab=library
+   Do: in the table, click the row "Open a matter in Clio".
+   Expect: the card whose heading starts "Approved version", and below it the document with two images under step 1 in the order you set and one under step 2, each with its caption.
+2. Sign out (the round button with the initials, then "Sign out").
 
 At the end: list every FAIL, every message that was confusing, and which of the four made-up details in Screenshot A the text reader did not outline.

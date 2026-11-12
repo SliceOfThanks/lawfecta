@@ -1,12 +1,12 @@
 # ChatGPT test: the Live candidate fixes you can see (versions 0.9.1 and 0.9.2)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 Claude already tested these with the real api and database: 303 api tests and all 23 browser test files, including checks that fail on the old screens. This test checks the real screens on the test site.
 
 What it covers:
 - The new sensitive data notice where people type (Ask DELA) and upload (Files), naming the six kinds of sensitive data.
-- The Home tiles showing real numbers instead of 0, on both sides.
+- The number boxes on Home ("Your work" and "Your projects") showing real numbers instead of 0, on both sides.
 - The agency's "Agency share (%)" box, which no longer starts at 30 and shows the allowed range.
 - The admin Access list, which no longer offers "Test site account", and the Overview without that tile.
 
@@ -60,29 +60,29 @@ FREELANCER (log in once)
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
 2. Go to: https://www.lawfecta.co/dela?tab=home
-   Find: a row of four small tiles below the dark blue "Match readiness" box near the top.
-   Expect: the tiles "Proposals left this month", "Invitations", "Active projects" and "Paid out", each with a number above its name. "Proposals left this month" shows "No cap" instead of a number when the plan has no monthly proposal limit (the test freelancer is on an unlimited agency plan), and that is correct. On 2026-11-07 they read Proposals left this month No cap, Invitations 1, Active projects 8 and Paid out $0 (whole dollar amounts show without cents; no payout has been sent to this test account yet). Write down what you see. A different number is a note, not a FAIL; FAIL only if a tile is missing or is blank.
+   Find: the card titled "Your work" in the left column of the page (below the card "Needs your attention" when that card shows).
+   Expect: four grey boxes in a row: "Active projects", "Invitations", "Paid out this month" (with a smaller line ending "all time" under it) and "Proposals left this month", each with a number above its name. "Proposals left this month" shows "No limit" instead of a number when the plan has no monthly proposal limit (the test freelancer is on an unlimited agency plan), and that is correct. On 2026-11-07 the numbers were Invitations 1, Active projects 8 and $0 paid out (whole dollar amounts show without cents). Write down what you see. A different number is a note, not a FAIL; FAIL only if a box is missing or is blank.
 
 3. Go to: https://www.lawfecta.co/dela?tab=ask
    Find: the message box "Your message" near the bottom of the page, and the small grey line just above it.
-   Expect: the grey line reads "Never enter sensitive data: SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords. Share a link from your own storage instead. You are responsible for what you enter."
+   Expect: the grey line reads "Never enter sensitive data: SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords. Keep it in your own storage. You are responsible for what you enter."
    Expect: the old words "Use placeholders such as [Client Name] or [Case Number]" appear nowhere on the page. Do not type anything.
 
 4. Go to: https://www.lawfecta.co/dela?tab=agency
    Find: the card titled "Bench", near the bottom of the page (below "The agency's jobs"). At the bottom of that card, the heading "Invite to the bench".
    Expect: a box "Agency share (%)" that is empty, with the grey line "Allowed: 5% to 50%." just under it.
-   Do: leave every box empty and click the blue "Invite to the bench" at the bottom of the card.
+   Do: leave every box empty and click the dark red "Invite to the bench" at the bottom of the card.
    Expect: the message "Enter the agency's share (%) first. Allowed: 5% to 50%." on the Bench card. Nothing is sent, and no new line appears in the bench list.
 
-5. Sign out.
+5. Sign out (the round button with your initials at the far right of the top bar, then "Sign out").
 
 ATTORNEY (log in once)
 
 6. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
 7. Go to: https://www.lawfecta.co/dela?tab=home
-   Find: a row of small tiles below the dark "AI Delegation Center" box near the top.
-   Expect: the tiles "Open gigs", "Active projects" and "Deliveries to review", each with a number. On 2026-11-07 they read Open gigs 6, Active projects 8 and Deliveries to review 0. A fourth tile about drafts may also show. Write down the numbers you see. A different number is a note, not a FAIL; FAIL if you see the old names "Open tasks" or "Pending reviews", or if every tile shows 0.
+   Find: the card titled "Your projects" in the left column of the page (below the card "Needs your attention" when that card shows).
+   Expect: four grey boxes in a row: "Deliveries to review", "Active projects", "Open gigs" and "Gig drafts", each with a number above its name. On 2026-11-07 they read Open gigs 6, Active projects 8 and Deliveries to review 0. Write down the numbers you see. A different number is a note, not a FAIL; FAIL if you see the old names "Open tasks" or "Pending reviews", or if every box shows 0.
 
 8. Go to: https://www.lawfecta.co/dela?tab=ask
    Find: the message box "Your message" near the bottom of the page, and the small grey line just above it.
@@ -90,23 +90,22 @@ ATTORNEY (log in once)
 
 9. Go to: https://www.lawfecta.co/dela?tab=files
    Find: the card titled "Add files" near the top of the page.
-   Expect: under the heading, the same grey line starting "Never enter sensitive data: SSNs or ITINs".
+   Expect: under the heading, a grey line that starts "Never enter sensitive data: SSNs or ITINs" and ends "Share a link from your own storage instead. You are responsible for what you enter."
    Expect: a tick box with the words "These files have no sensitive data (no SSNs or ITINs, government ID numbers, financial account numbers, health information, biometric data, or logins and passwords)." Do not tick it and do not choose a file.
 
-10. Sign out.
+10. Sign out (the round button with your initials at the far right of the top bar, then "Sign out").
 
 OWNER (log in once)
 
 11. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-12. Go to: https://www.lawfecta.co/dela-admin?tab=overview ("Overview" in the left menu, under the heading "MEMBERS") in the menu on the left at the top of the admin area.
+12. Go to: https://www.lawfecta.co/dela-admin?tab=overview
     Expect: a grid of number tiles that includes "People who opened DELA", "On the access list" and "Turned away (7 days)". There is no tile named "Test site accounts".
 
-13. On the same page:
-    Go to: https://www.lawfecta.co/dela-admin?tab=access ("Access list" in the left menu, under the heading "MEMBERS").
+13. Go to: https://www.lawfecta.co/dela-admin?tab=access
     Find: the card titled "Add someone" at the top.
     Expect: a box "BD member ID", a box "Note (for example: test attorney)" and a button "Add", and no drop-down list next to them. Do not click "Add".
     Find: below it, the section "May open DELA" with its list of people.
     Expect: there is no section named "Test site accounts" anywhere on the page.
 
-14. Sign out.
+14. Sign out (the button with the owner's name at the top right, then "Sign out").

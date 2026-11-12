@@ -1,8 +1,8 @@
 # ChatGPT test: the dispute center (step 11)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
-Tests the new dispute process on the test site (docs/briefs/step-11-disputes.md): opening a dispute, answering it, links, settlement offers that move the money at once, AI help, and the Lawfecta Team's Disputes tab. Both sides, mistakes and misuse included. Payments are in Stripe test mode; no real money moves.
+Tests the new dispute process on the test site (docs/briefs/step-11-disputes.md): opening a dispute, answering it, links, settlement offers that move the money at once, AI help, and the Lawfecta Team's Disputes page in the admin area. Both sides, mistakes and misuse included. Payments are in Stripe test mode; no real money moves.
 
 Prepared by Claude on the test site before the test (three made-up engagements between the test attorney and the test freelancer, $450 each, paid and held):
 - "Test job: Dispute to answer (prepared)": the attorney opened a dispute asking for a full refund. The freelancer has not answered.
@@ -56,59 +56,59 @@ FREELANCER (log in once)
 2. Go to: https://www.lawfecta.co/dela?tab=work&gig=46a2b905-6492-4177-820a-d9d24102aadf&view=agreement
    Find: the card "Problems, disputes and canceling" at the bottom of the page.
    Expect: a box "Dispute about milestone 1..." with a yellow label "Open: waiting for an answer", the attorney's reason, and the line "Give your side by" a date.
-3. Do: in that box, type in the "Your side" box: Fictional test: the checklist was sent by email on the due date. Click "Send my side".
-   Expect: your words appear in the box with "Answer", and the label changes to "Open: settle it yourselves".
-4. Do: click "Add a link" in the same box. In "What the link is" type: Delivery email. In "Secure link (https://)" type: http://example.com/x (no s). Click "Add the link".
+3. Do: in that box, type in the "Your side" box: Fictional test: the checklist was sent by email on the due date. Click the dark red "Send my side" under it.
+   Expect: the message "Sent. Both of you can read it here." Your words appear in the box under a grey line "You | Answer |" and the time, and the label changes to "Open: settle it yourselves".
+4. Do: click the line "Add a link" near the bottom of the same box (below the line "Settle it: send an offer") to open it. In "What the link is" type: Delivery email. In "Secure link (https://)" type: http://example.com/x (no s). Click "Add the link".
    Expect: a message says to paste a full secure link that starts with https://. Nothing is added.
 5. Do: change the link to: https://example.com/delivery-email and click "Add the link".
    Expect: "Delivery email" shows under "Links".
-6. Do: click "Settle it: send an offer". In "Amount to the freelancer ($)" type 500. Click "Send the offer".
+6. Do: click the line "Settle it: send an offer" in the same box to open it. In "Amount to the freelancer ($)" type 500. Click "Send the offer".
    Expect: a message says the amount must be from zero up to the milestone amount. No offer is sent.
 7. Do: change the amount to 300.
    Expect: next to the box it says "and $150 back to the attorney". Click "Send the offer".
-   Expect: "Your offer: $300 to the freelancer, $150 back to the attorney" with a yellow "Open" label.
-8. Do: in the same offer area, click "✦ Summarize both sides".
+   Expect: the message "Offer sent. The other side was told." Under the small heading "Offers": "Your offer: $300 to the freelancer, $150 back to the attorney" with a yellow "Open" label and an outlined "Withdraw my offer". Do not click "Withdraw my offer".
+8. Do: click the line "Settle it: send an offer" again to open it (it closed when the page reloaded), then click the outlined "✦ Summarize both sides" in it.
    Expect: within 60 seconds an "AI suggestion" box with a short neutral summary and a line saying it is not legal advice.
 9. Go to: https://www.lawfecta.co/dela?tab=work&gig=868796e2-adfc-46ef-a923-51d433ae53b0&view=agreement
    Find: the card "Problems, disputes and canceling" at the bottom.
-   Do: click "Open a dispute". Leave "What went wrong" on "Choose" and click "Open the dispute".
+   Do: click the line "Open a dispute" to open it. Leave "What went wrong" on "Choose" and click the outlined "Open the dispute" at the bottom of the form.
    Expect: a message asks you to choose what went wrong (or the milestone). No dispute opens.
 10. Do: in "Milestone" choose "1. ...". In "What went wrong" choose "Payment or acceptance withheld". In "What you are asking for" choose "The full milestone paid to me". In "What happened" type: Fictional test: the work was delivered and not accepted. Click "Open the dispute".
-    Expect: a box with "Open: waiting for an answer", "The other side answers by" a date, and a "Withdraw the dispute" button. Do not withdraw it.
+    Expect: the message "The dispute is open. The other side was asked to answer." A box with the yellow label "Open: waiting for an answer", "The other side answers by" a date, and an outlined "Withdraw the dispute" button at the bottom of the box. Do not withdraw it.
 11. Sign out.
 
 ATTORNEY (log in once)
-12. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney. Check the first line of the account menu says "DELA Test Attorney".
+12. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney. Then click the round button with the initials at the far right of the top bar: the first line must say "DELA Test Attorney". If not, stop and tell me.
 13. Go to: https://www.lawfecta.co/dela?tab=projects&gig=46a2b905-6492-4177-820a-d9d24102aadf&view=agreement
     Find: the dispute box in "Problems, disputes and canceling" at the bottom.
-    Expect: the freelancer's answer, the "Delivery email" link, and "The freelancer's offer: $300 to the freelancer, $150 back to the attorney" with an "Accept the offer" button.
+    Expect: the freelancer's answer, the "Delivery email" link, and "The freelancer's offer: $300 to the freelancer, $150 back to the attorney" with a dark red "Accept the offer" button at the right of that line.
 14. Do: click "Accept the offer". A browser OK/Cancel box asks to confirm: click OK.
-    Expect: the label becomes green "Settled by agreement" and the box says $300 went to the freelancer and $150 back to the attorney. There are no more buttons in that box.
+    Expect: the message "Settled. The money moves now." The label becomes green "Settled by agreement" and the box says "$300 went to the freelancer and $150 back to the attorney on" a date. There are no more buttons in that box.
 15. Go to: https://www.lawfecta.co/dela?tab=projects&gig=868796e2-adfc-46ef-a923-51d433ae53b0&view=agreement
     Find: the dispute box at the bottom.
     Expect: "Open: waiting for an answer", the freelancer's reason, "Give your side by" a date.
-    Do: in "Your side" type: Fictional test: only half of the work matched the agreement. Click "Send my side".
-    Expect: your answer shows with "Answer".
-16. Do: click "Settle it: send an offer", then "✦ Suggest a fair offer".
-    Expect: within 60 seconds an "AI suggestion" with an amount to the freelancer and a "Use suggestion" button. Click "Use suggestion": the amount box fills in. Do not send the offer.
+    Do: in "Your side" type: Fictional test: only half of the work matched the agreement. Click the dark red "Send my side".
+    Expect: your answer shows under a grey line "You | Answer |" and the time.
+16. Do: click the line "Settle it: send an offer" to open it, then the outlined "✦ Suggest a fair offer".
+    Expect: within 60 seconds a shaded box with the label "AI suggestion", a line that starts "Suggested:" with an amount to the freelancer, and an outlined "Use suggestion" button. Click "Use suggestion": the box "Amount to the freelancer ($)" fills in. Do not click "Send the offer".
 17. Go to: https://www.lawfecta.co/dela?tab=projects&gig=e9a7d1d8-4497-4e05-b078-381beea30c9a&view=agreement
     Find: the dispute box at the bottom.
-    Expect: a blue label "Lawfecta Team review" and a line "The Lawfecta Team decides by" a date.
+    Expect: a light blue label "Lawfecta Team review" and a line "The Lawfecta Team decides by" a date.
 18. Sign out.
 
 OWNER, ADMIN AREA (log in once)
 19. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
-20. Go to: https://www.lawfecta.co/dela-admin?tab=disputes ("Disputes" in the left menu, under the heading "PAYMENTS").
-    Expect: a card "Disputes" with numbers (Open now, Settled by offer, and others), then "Open disputes", then "Closed in the last 90 days". "Test job: Dispute to answer (prepared)" is under closed, marked "Settled by offer".
-21. Find: under "Open disputes", the box "Test job: Dispute for the team (prepared), milestone 1..." with a yellow "Ready for your decision" label. It shows both sides.
-    Do: open "Decide" in that box (if it is folded) and click "✦ Draft with DELA".
-    Expect: within 60 seconds an "AI suggestion" with a summary and a suggested split, and a "Use this draft" button.
-22. Do: click "Half each".
-    Expect: "To the freelancer ($)" shows 225.00 and the line says "and $225 back to the attorney".
-    Do: in "Decision and reasons (both members see this)" type: Fictional test: half of the log matched the agreement. Click "Decide". A browser OK/Cancel box asks to confirm: click OK.
-    Expect: a message says it is decided, and the case moves to "Closed in the last 90 days" as "Decided".
-23. Find: the card "Money tools" at the bottom of the Disputes tab.
-    Expect: a list or "Nothing waiting." No error.
+20. Go to: https://www.lawfecta.co/dela-admin?tab=disputes
+    Expect: the admin area opens on the page "Disputes" (in the left menu, "Disputes" is under the heading "PAYMENTS"). The first card is "Disputes" with numbers ("Open now", "Last 90 days", "Settled by offer" and others), then a card whose heading starts "Open disputes (", then the card "Closed in the last 90 days". "Test job: Dispute to answer (prepared)" is under closed, marked "Settled by offer".
+21. Find: in the card that starts "Open disputes (", the box "Test job: Dispute for the team (prepared), milestone 1..." with a yellow "Ready for your decision" label. It shows both sides.
+    Do: if the line "Decide" in that box is folded, click it to open it. Then click the outlined "✦ Draft with DELA" under the row of buttons "All to the freelancer", "All back to the attorney", "Half each".
+    Expect: within 60 seconds a box with the label "AI suggestion", a summary and a suggested split, and an outlined "Use this draft" button. Do not click "Use this draft".
+22. Do: click the outlined "Half each".
+    Expect: "To the freelancer ($)" shows 225.00 and next to it "and $225 back to the attorney".
+    Do: in the large box under it (its name is "Decision and reasons (both members see this)"; it has no visible label) type: Fictional test: half of the log matched the agreement. Click the dark red "Decide" under the box. A browser OK/Cancel box asks to confirm: click OK.
+    Expect: the message "Decided. Both members were told and the money moves." The case moves to "Closed in the last 90 days" with the label "Decided".
+23. Find: the card "Money tools", the last card on the Disputes page.
+    Expect: a list of rows, or "Nothing waiting." No error.
 24. Sign out: click the button with the owner's name at the top right, then "Sign out".
 
 CHECK THE RESULTS (freelancer login is not needed again; read only what the owner already saw)

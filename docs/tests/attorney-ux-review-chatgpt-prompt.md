@@ -1,11 +1,10 @@
 # ChatGPT review: the attorney side of DELA (UX and UI)
 
-> DO NOT RUN AS IT IS (2026-11-13). This test was written for the earlier layout. It reviews the old Home (the purple box, the row of numbers, "What DELA will do for you"). The new layout is tested by docs/tests/workspace-chatgpt-prompt.md. Claude rewrites this test before it is needed again.
-
+> Checked against the screens on 2026-11-13 (new layout).
 
 What this is: ChatGPT walks the attorney screens on the test site as a first-time solo attorney would, looks only (it changes nothing), and writes recommendations ranked by how much they would help.
 
-What it covers: Home and Get set up, Ask DELA, the Library and one approved document with "✦ Automate or delegate", Files, Projects (posting a gig, a gig's views, an agreement, a monthly engagement), Talent, Inbox and Meetings, Profile and verification, AI settings and the ChatGPT and Claude connection.
+What it covers: Home and Get set up, Ask DELA, the Library and one approved document with "✦ Automate or delegate", Files, Projects (posting a gig, a gig's views, an agreement, a monthly engagement), Talent, Inbox and Meetings, Profile and verification, Settings and the ChatGPT and Claude connection.
 
 It logs in once, as the test attorney. It takes about 45 to 60 minutes.
 
@@ -64,7 +63,7 @@ Steps
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
 2. Home. Go to: https://www.lawfecta.co/dela?tab=home
-   Look at: the greeting, the purple box, the "Get set up" card if it shows, the row of numbers, the "Verification" card and "What DELA will do for you". Note what you would expect a first-time attorney to click first.
+   Look at: the menu on the left, the heading that starts "Hi,", then the left column from the top: the card "Needs your attention" if it shows, the card "Your projects" with its four grey number boxes ("Deliveries to review", "Active projects", "Open gigs", "Gig drafts"), the card "Complete your profile" if it shows, the line with dots under the cards (for example "Profile complete" and "Bar license verified"), and the grey plan line at the bottom with "View plan" at its right end. Then the right column: the card "Ask DELA", with DELA's next-step line and its buttons, the box "Ask a question..." and the links "Open Ask DELA" and "Suggestion settings". Do not click the buttons in the "Ask DELA" card and do not send a question. Note what you would expect a first-time attorney to click first.
 
 3. Get set up. Go to: https://www.lawfecta.co/dela?tab=setup
    Look at: the six numbered cards, their "Done", "To do" or "Skipped" labels, and the "Open" and "Skip for now" buttons. In card 2 "Teach DELA about your firm", click "Open", read the form that opens inside the card without saving, then click "Close".
@@ -73,16 +72,16 @@ Steps
    Look at: what the page offers and how it explains what DELA can do. Do not send a message.
 
 5. Library. Go to: https://www.lawfecta.co/dela?tab=library
-   Look at: the list of documents, the filters and search, the buttons to start a new document or import one, and how document types (Policy, Workflow, SOP, Playbook) and statuses are shown.
+   Look at: the heading "Library", the buttons "Create a document" and "Import" at the top right, the search box "Find a document by name, purpose or ID", the two rows of filter buttons (the first starts "All categories", the second is "All", "Ready to use", "Draft", "Needs your review"), the document cards under their category headings (each card has a title, one purpose sentence, a status label and one button), the links at the bottom ("Recordings", "Show as a table") and the card "Not sure where to start?" near the bottom. Do not click "✦ Help me create a document" or "What am I missing?".
 
 6. One approved document. Go to: https://www.lawfecta.co/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
-   Look at: the title, the badges, the card "✦ Automate or delegate" near the top (its suggestions, "Time saved" lines and any "Delegated:" line), then the document itself, the quality checks, and the row of view buttons ("Draft and review", "Chat", "Suggestions", "Comments", "Activity", "Versions", "Files"). Click each view button once and look; do not change anything.
+   Look at: the title, the badges, the card "✦ Automate or delegate" near the top (its ideas, the "Estimated time saved:" lines and any line that starts "Delegated:"), then the row of view buttons below the document details ("Approved version" or "Draft and review" first, then "Chat", "Suggested edits (", "Comments (", "Activity", "Versions", "Files ("), the document itself, and the quality card ("Quality notes (" on an approved version, "Quality check" on a draft). Click each view button once and look; do not change anything.
 
 7. Files. Go to: https://www.lawfecta.co/dela?tab=files
    Look at: how uploading, folders and the client-information warning are presented.
 
 8. Projects. Go to: https://www.lawfecta.co/dela?tab=projects
-   Look at: the card "Post a new gig" (the "One-off" and "Monthly" choice, the document dropdown, the budget boxes; do not click "Draft the gig with DELA"), the card "Your gigs", and the list of engagements below it.
+   Look at: the card "Post a new gig" at the top. If it is short, click its dark red "Start a new gig" button to open the form. Look at the "One-off" and "Monthly" choice, the "Document" dropdown, the budget boxes and the grey fee line under them; do not click "Draft the gig with DELA". Then look at the card "Needs your action", the card "Your gigs" with its filter buttons, and the card that starts "Engagements (" below it.
 
 9. A gig with an agency. Go to: https://www.lawfecta.co/dela?tab=projects&gig=c00a6abf-b3fd-461c-8ca4-4b6225d8a5bd&view=proposals
    Look at: how the agency's proposal is shown. Then click the view buttons "Details", "Matches", "Questions" and "Files" near the top, one at a time, and look at each.
@@ -91,7 +90,7 @@ Steps
     Look at: the card "What happens next", the card "The agreement" (its "Fees" list and "The terms"), "Subcontractors", "Milestones", "Who's working on this", "Confidential materials" and anything about disputes. Judge whether an attorney would understand what they are agreeing to and what they pay.
 
 11. A monthly engagement. Go to: https://www.lawfecta.co/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
-    Look at: the card "What happens next", the monthly card ("Monthly engagement" or "Monthly terms": what is included each month, the billing, and any "Request a change", "Cancel monthly engagement" or "End now by agreement" buttons), and how monthly money and cancelling are explained. It may say month 1 is not paid yet, or that payments are not set up: that is expected on the test site, so review the wording rather than the state. Do not click those buttons.
+    Look at: the card "What happens next", the monthly card ("Monthly engagement" or "Monthly terms": what is included each month, the billing, and any "Request a change", "Review cancellation" or "Ask to end now" buttons), and how monthly money and cancelling are explained. It may say month 1 is not paid yet, or that payments are not set up: that is expected on the test site, so review the wording rather than the state. Do not click those buttons.
 
 12. Talent. Go to: https://www.lawfecta.co/dela?tab=talent
     Look at: the search boxes, the results, and how a freelancer's fit, reviews and availability are shown. Open one freelancer's "View profile" if there is one, read it, and close it.
@@ -100,16 +99,16 @@ Steps
     Look at: the message threads and how a conversation is shown. Then go to: https://www.lawfecta.co/dela?tab=meetings and look at the meetings page.
 
 14. Notices. Click the bell (Notices) at the right of the top bar.
-    Look at: how notices read, whether each one says what to do, and how easy it is to get from a notice to the right page. Close the panel.
+    Look at: the two parts of the panel, "Needs your action" and "Updates", how notices read, whether each one says what to do, and how easy it is to get from a notice to the right page. Close the panel with the outlined "Close" button at its top right.
 
 15. Profile and verification. Go to: https://www.lawfecta.co/dela?tab=profile
-    Look at: the profile, license verification and firm details, and how far down the page the important parts are.
+    Look at: the heading "Profile and verification", the row of section buttons under the grey line at the top ("Firm details", "License verification", "Your profile" and, if it shows, "Document preferences"), the cards those buttons lead to, and how far down the page the important parts are.
 
-16. AI settings. Go to: https://www.lawfecta.co/dela?tab=ai
-    Look at: how bringing your own AI key, credits and the client-information rules are explained.
+16. Settings. Go to: https://www.lawfecta.co/dela?tab=ai
+    Look at: the heading "Settings" and the cards from the top: "Account and security", "Appearance", "Suggestions and alerts" and "Emails". Then the heading "AI and messages" and the cards under it: "Which AI DELA uses", "This month", "Talking to the AI", "What DELA knows about you" and the cards below them. Judge how bringing your own AI key and the included DELA actions are explained, and whether the order of the cards makes sense. Do not click any button or tick box on this page.
 
 17. DELA in ChatGPT and Claude. Go to: https://www.lawfecta.co/dela?tab=connect
-    Look at: whether an attorney would understand what connecting does and what stays private.
+    Look at: the card "Connect DELA to ChatGPT or Claude" and its headings ("What ChatGPT or Claude can access", "What it can change", "What stays private", "What leaves DELA", "How to disconnect"). Judge whether an attorney would understand what connecting does and what stays private.
 
 18. Sign out.
 

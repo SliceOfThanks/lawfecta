@@ -1,6 +1,6 @@
 # ChatGPT test: security rules and Confidential materials (step 6d)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 Claude already tested all of this with the real api and database: 16 Confidential materials tests, 10 security tests, 28 browser checks for these screens and 93 for the /security page. This test covers the real screens on the test site.
 
@@ -58,19 +58,19 @@ Group 1. Attorney (log in as the test attorney)
    Expect: below it, a card "File activity" saying "Nobody has opened anything yet."
 
 3. Still in the card "Files for this gig":
-   Do: in the dropdown "Freelancer can open it for" (near the bottom of the card), choose "7 days". Click the outlined "Share a file from Files" next to it, then the blue "Share" next to any one file in the list that opens.
-   Expect: the message "Shared until (a date 7 days from today)", and the file listed with "Freelancer access until (that date)".
+   Do: in the dropdown "Freelancer can open it for" (near the bottom of the card), choose "7 days". Click the outlined "Share a file from Files" next to it, then the dark red "Share" next to any one file in the list that opens.
+   Expect: the message "Shared until (a date 7 days from today)", and the file listed with "Access expires after (that date) for invited freelancers and the one you hire".
    Do: click the outlined "Extend 14 days" on that file's line.
    Expect: the message "Extended to (a date 21 days from today)".
 
 4. Do: click "Agreement and work" in the row of round buttons.
-   Find: the card "Confidential materials" (scroll down, below the card "Milestones").
+   Find: the card "Confidential materials" (scroll down to the lower part of the page: it is below the card "Milestones"; a card "Your payments" may sit between them).
    Expect: the text "For your security, DELA emails you a 6-digit code before it opens this area. Once you enter it, it works for 12 hours."
-   Do: click the outlined "Email me a code". Expect "We sent a code to s***@lawfecta.com". Ask me for the code. Type it in the box "6-digit code" and click the blue "Open".
-   Expect: the card shows the headings "Files", "Secure document links", "Confidential messages" and "Who can see this".
+   Do: click the outlined "Email me a code". Expect a grey line under the buttons that starts "We sent a code to" and names an email ending in @lawfecta.com. Ask me for the code. Type it in the box "6-digit code" (next to "Email me a code") and click the dark red "Open".
+   Expect: the card shows the checkbox "This job involves sensitive data (SSN, medical, financial, or ID documents)" and, below it, the headings "Files", "Secure document links", "Confidential messages" and "Who can see this".
 
 5. In the card "Confidential materials", under the heading "Files":
-   Do: click "Choose File" and ask me to choose "Roe intake (made up).txt". In the dropdown "Freelancer can open it for", choose "30 days". Do not tick the checkbox yet. Click the blue "Upload".
+   Do: click "Choose File" and ask me to choose "Roe intake (made up).txt". In the dropdown "Freelancer can open it for", choose "30 days". Do not tick the checkbox under the file box yet. Click the dark red "Upload".
    Expect: a red message starting "Tick the box to confirm the file has no medical records".
    Do: tick "This file contains no medical records, ID documents, account numbers, logins or biometric data." and click "Upload" again.
    Expect: within 20 seconds, "Roe intake (made up).txt" listed with "Freelancer access until (a date 30 days from today)" and the buttons "Download", "Extend 14 days", "View only" and "Delete".
@@ -80,13 +80,13 @@ Group 1. Attorney (log in as the test attorney)
    Expect: the red message "This file appears to contain sensitive data like a Social Security or card number. Please share it using a secure link instead." and an outlined button "Mark this job as sensitive" under it. Do not click it.
 
 7. Under the heading "Secure document links" (below "Files"):
-   Do: type Medical records folder in the box "Label, for example Medical records folder". Type http://drive.google.com/test in the box "Paste the sharing link from your storage". Click the blue "Add link".
+   Do: type Medical records folder in the box "Label, for example Medical records folder". Type http://drive.google.com/test in the box "Paste the sharing link from your storage". Click the dark red "Add link".
    Expect: the message "Use a secure link that starts with https."
    Do: change the link to https://drive.google.com/drive/folders/made-up-test. In the dropdown "Link expires after", choose "7 days". Click "Add link".
    Expect: "Link added. It expires on (a date 7 days from today)." and the line "Medical records folder | drive.google.com, added by ..." with "Expires (that date)". The full link is not shown on the page.
 
 8. Under "Confidential messages":
-   Do: type Jane Roe called about the hearing. in the message box and click the blue "Send".
+   Do: type Jane Roe called about the hearing. in the message box under that heading and click the dark red "Send".
    Expect: "Sent" and the message listed.
    Do: type Her card is 4111 1111 1111 1111 and click "Send".
    Expect: a red message that says it looks like it contains a card number and to send only the last 4 digits.
@@ -98,8 +98,8 @@ Group 2. Freelancer (log in as the test freelancer)
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
 2. Go to: https://www.lawfecta.co/dela?tab=work&gig=bc969483-3b96-4a7e-a3ae-cce26a1c3b0b&view=agreement
-   Find: the card "Confidential materials" (scroll down, below "Milestones").
-   Do: click "Email me a code". Ask me for the code. Type it in "6-digit code" and click "Open".
+   Find: the card "Confidential materials" (scroll down to the lower part of the page, below the card "Milestones").
+   Do: click the outlined "Email me a code". Ask me for the code. Type it in "6-digit code" and click the dark red "Open".
    Expect: the promise "I will keep these materials confidential, use them only for this engagement, and delete any copies when it ends." with a checkbox, and a greyed-out "Open Confidential materials".
    Do: tick the checkbox and click "Open Confidential materials".
 
@@ -109,7 +109,7 @@ Group 2. Freelancer (log in as the test freelancer)
 
 4. Under "Files":
    Do: click the outlined "Download" on "Roe intake (made up).txt".
-   Expect: the file downloads or opens in a new tab.
+   Expect: the message "Downloading Roe intake (made up).txt" and the file downloads. The page stays open.
 
 5. Sign out.
 
@@ -121,25 +121,24 @@ Group 3. Check the results (the test attorney, then the owner)
    Find: the card "File activity" (below "Files for this gig").
    Expect: lines showing DELA Test Freelancer "downloaded" Roe intake (made up).txt and "opened the link" Medical records folder, under "Confidential materials".
 
-2. Do: click "Agreement and work". In the card "Confidential materials", click "Activity" (the small line near the bottom of the card) to open it.
+2. Do: click "Agreement and work" in the row of round buttons under the title. In the card "Confidential materials" (lower part of the page), click the line that starts "Activity (" at the bottom of the card to open it.
    Expect: the same opens and downloads, each under the freelancer's name.
 
-3. In the card "Confidential materials":
+3. In the card "Confidential materials", near its top, above the heading "Files":
    Do: tick "This job involves sensitive data (SSN, medical, financial, or ID documents)".
-   Expect: the message "Marked as sensitive: no uploads on this job, secure links only." and a note "2 files are already shared on this job. They stay until they expire. You can delete them now." (the shared Files-tab file and the confidential file) with "Delete now" and "Keep them until they expire".
+   Expect: the message "Marked as sensitive: no uploads on this job, secure links only." and a note "2 files are already shared on this job. They stay until they expire. You can delete them now." (the file shared from Files and the confidential file) with "Delete now" and "Keep them until they expire".
    Do: click "Delete now", then "Yes, delete them".
    Expect: a message starting "Deleted.", then under "Files": "This job involves sensitive data, so files cannot be uploaded here." and "No files yet."
 
 4. Go to: https://www.lawfecta.co/dela?tab=files
-   Find: the row of round buttons above the file list ("All files", your folders, "Trash").
+   Find: the row of round buttons above the file list, below the card "Add files" ("All files", your folders, "Trash", then "+ New folder").
    Do: click "Trash".
    Expect: if the trash is empty, the text "The trash is empty." Write PASS and go on. If a file is listed: (POP-UP) click "Delete forever" on it and answer OK. Expect "Deleted forever".
 
 5. Sign out. Ask me to log in as the owner.
-   Go to: https://www.lawfecta.co/dela-admin
-   Go to: https://www.lawfecta.co/dela-admin?tab=security ("Security" in the left menu, under the heading "SAFETY") (in the menu on the left near the top, between "Lawfecta Team" and "Holds").
-   Expect: the card "Security questions from the website" and the card "Confidential materials" with counts such as "Files", "Secure links open" and "Jobs marked sensitive". No file names, messages or links appear in these counts.
+   Go to: https://www.lawfecta.co/dela-admin?tab=security (this is "Security" in the left menu, under the heading "SAFETY").
+   Expect: a card whose heading starts "Security questions from the website" and, below it, the card "Confidential materials" with counts such as "Files", "Secure links open" and "Jobs marked sensitive". No file names, messages or links appear in these counts.
 
-6. Sign out.
+6. Sign out (the button with the owner's name at the top right, then "Sign out").
 
 At the end: list every FAIL, every message that was confusing, and anything that took longer than 60 seconds.

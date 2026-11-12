@@ -1,6 +1,6 @@
 # ChatGPT test: the client information check follows the sensitive data rule (step 9c)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 Claude already tested this with the real api and database: 8 new api tests (Ask DELA, the profile, the Files tab, the re-check of held files, the new kinds) and a browser check, plus all 311 api tests and all 23 browser test files. This test checks the real screens on the test site.
 
@@ -10,7 +10,7 @@ What it covers:
 - Ask DELA accepts made-up client details after one reminder, and stops a made-up government ID number with no way to send it anyway.
 - A gig conversation before any agreement is signed reminds you before client details go to the freelancer.
 - The profile, which other members read, still warns about client details.
-- The admin Switches tab shows the new switch.
+- The admin Switches page shows the new switch.
 
 It sends one Ask DELA message (1 DELA action from the test attorney's monthly allowance). Nothing else is saved or sent: every reminder in the gig conversation and the profile is answered with "Cancel". Each account logs in once: freelancer, then attorney, then the owner.
 
@@ -71,11 +71,14 @@ FREELANCER (log in once)
    Expect: a message saying it looks like "a government ID number", that sensitive data cannot go in DELA, and to share a link instead. There is no pop-up and no way to send it anyway. The message does not appear in the conversation. Clear the box afterwards.
 
 4. Go to: https://www.lawfecta.co/dela?tab=profile
-   Find: the card titled "Your profile" near the top, and the box "Summary" in it.
+   Find: the row of small buttons near the top of the Profile page, under the page heading.
+   Do: click "Your profile" in that row.
+   Expect: the page moves down to the card titled "Your profile".
+   Find: in that card, the folded line that starts "Biography: summary, experience and education". Click it to open it if it is closed. The box "Summary" is the first box under it.
    Do: add this sentence at the end of the Summary box: I helped my client Jane Roe with case no. 2024-CV-1234 (made up). Then scroll to the bottom of the "Your profile" card and click the dark red button whose name starts with "Save".
    Expect: a pop-up that starts "This may include client details. Other members read this". Write down its words, click "Cancel", then remove the sentence you added. Do not save.
 
-5. Sign out.
+5. Sign out (the round button with your initials at the far right of the top bar, then "Sign out").
 
 ATTORNEY (log in once)
 
@@ -93,14 +96,14 @@ ATTORNEY (log in once)
    Expect: a box saying it looks like "a government ID number", that sensitive data cannot go in DELA, and to share a link instead, with only the button "Edit my message" (no "Continue" and no "Send anyway").
    Do: click "Edit my message" and clear the box.
 
-9. Sign out.
+9. Sign out (the round button with your initials at the far right of the top bar, then "Sign out").
 
 OWNER (log in once)
 
 10. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-11. Go to: https://www.lawfecta.co/dela-admin?tab=switches ("Switches" in the left menu, under the heading "PLANS AND SETTINGS") in the menu on the left at the top.
-    Find: the row "The client information check follows the sensitive data rule (client details allowed where the rule allows them)".
-    Expect: it is set to "Access list". Do not change it.
+11. Go to: https://www.lawfecta.co/dela-admin?tab=switches
+    Find: in the table, the row whose bold name is "The client information check follows the sensitive data rule (client details allowed where the rule allows them)". The small grey code name under it is "client_details_allowed".
+    Expect: the dropdown at the right end of that row, in the column "State", shows "Access list". Do not change it.
 
-12. Sign out.
+12. Sign out (the button with the owner's name at the top right, then "Sign out").

@@ -1,6 +1,6 @@
 # ChatGPT test: UX review of DELA (look only)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 A look-only review of how easy DELA is to understand and use, page by page, for the attorney and the freelancer. It changes nothing. It is the review after Part C that the step 8b brief planned (question 10), so its ratings can be compared with the 2026-11-07 retest.
 
@@ -49,7 +49,7 @@ On every page a step opens, scroll from the top to the bottom once, then write t
 - Rating: 1 to 5 for how easy the page is to understand (5 = clear at a glance, 1 = confusing).
 - Findings: up to 3, each as "Problem: ... | Where: card or button name | Why it matters: ... | Suggestion: ...". Only real problems you can see. Do not suggest features the page does not need.
 
-Do not click anything that saves, sends, signs, pays, approves, declines, invites, hires or deletes. You may open folded sections, tabs and the "?" help buttons.
+Do not click anything that saves, sends, signs, pays, approves, declines, invites, hires or deletes. You may open folded sections, the tabs inside a document page and the "?" help buttons.
 
 Steps
 
@@ -58,15 +58,15 @@ ATTORNEY (log in once)
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 2. Review: https://www.lawfecta.co/dela?tab=home (Home).
 3. Review: https://www.lawfecta.co/dela?tab=delegate (Ask DELA). Do not type or send.
-4. Review: https://www.lawfecta.co/dela?tab=library (Library). You may type conflict in "Find a document" and click the category and status buttons.
-5. In the Library, click the blue "Open document" on the card "Run a Conflict Check", and review that document page. Then click "← Library".
+4. Review: https://www.lawfecta.co/dela?tab=library (Library). You may type conflict in the wide search box under the heading "Library" (its grey hint says "Find a document by name, purpose or ID") and click the two rows of round category and status buttons under it.
+5. In the Library, click the dark red "Open document" at the bottom of the card "Run a Conflict Check", and review that document page. Then click the outlined "← Library" at the top left of the document page.
 6. Review: https://www.lawfecta.co/dela?tab=files (Files). Do not upload.
 7. Review: https://www.lawfecta.co/dela?tab=projects (Projects).
 8. Review: https://www.lawfecta.co/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement (a monthly engagement and its agreement). Do not click "Approve the change", "Decline", "Pay" or "Sign".
 9. Review: https://www.lawfecta.co/dela?tab=talent (Talent). Do not invite anyone.
 10. Review: https://www.lawfecta.co/dela?tab=profile (Profile and verification). Do not click "Save".
-11. Review: https://www.lawfecta.co/dela?tab=ai (AI settings). Do not change any choice.
-12. Click the bell (Notices) at the right of the top bar and review the panel. Close it with its X.
+11. Review: https://www.lawfecta.co/dela?tab=ai (Settings). Do not change any choice and do not click any button in the card "Account and security".
+12. Click the bell (Notices) at the right of the top bar, between the "Inbox" button and the round button with your initials, and review the panel. Close it with the "Close" button at its top right.
 13. Sign out.
 
 FREELANCER (log in once)

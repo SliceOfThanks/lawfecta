@@ -1,6 +1,6 @@
 # ChatGPT test: the agency's own gigs (step 7d, part 2c)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 Claude already tested this with the real api and database: 9 agency gig tests and 39 agency browser checks. This test covers the real screens on the test site.
 
@@ -9,7 +9,7 @@ Each account logs in once. Claude prepared these on the test site before the tes
 - A prepared job, "Test job: Agency own gig (prepared)", where the agency has already chosen your proposal (stacey@lawfecta.com, "Stacey Lake", who is on its bench). Nothing is paid; signing is the last step.
 
 What it covers:
-- The agency's new Library, Projects and Talent tabs.
+- The agency's own Library, Projects and Talent pages.
 - Its client details, with a mistake on purpose.
 - Posting a gig from its SOP, and its bench shown first.
 - The fees on a bench hire: the agency pays both, and the bench member gets the full price.
@@ -60,9 +60,9 @@ Group 1. The agency (log in as the test freelancer)
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
 2. Go to: https://www.lawfecta.co/dela?tab=agency
-   Expect: the tab row now also has "▥ Library", "▣ Projects" and "◌ Talent" after "◆ Agency".
-   Find: the card titled "Posting gigs", near the top, just below the card "Business details".
-   Expect: the line "Ready to post gigs from your Library (Projects tab).", three boxes "Who signs for the agency", "Billing address" and "Email for notices", and a blue "Save client details".
+   Expect: the menu on the left has, under "Earnings", the lines "Library", "Projects" and "Talent", and under those "Profile" and "Agency". "Agency" is pink.
+   Find: the card titled "Posting gigs", the third card on the page, just below the cards "Agency profile" and "Business details".
+   Expect: the line "Ready to post gigs from your Library (Projects tab).", three boxes "Who signs for the agency", "Billing address" and "Email for notices", and a dark red "Save client details".
 
 3. In the card "Posting gigs":
    Do: leave all three boxes empty and click "Save client details".
@@ -74,36 +74,37 @@ Group 1. The agency (log in as the test freelancer)
    Expect: the agency's Library lists "Test SOP: Agency intake".
 
 5. Go to: https://www.lawfecta.co/dela?tab=projects
-   Find: the card "Post a new gig" (top of the page).
+   Find: the card "Post a new gig" (top of the page, under the heading "Projects").
    Expect: no message about a "verified license".
    Do:
-   - In the dropdown under "Document", choose "Test SOP: Agency intake".
+   - If the card shows only a dark red "Start a new gig" button at its right, click it first. The card then shows the boxes below.
+   - In the dropdown under "Document", choose the line that ends with "Test SOP: Agency intake" (a document number may stand in front of the name).
    - Type 300 in "Budget from ($)" and 900 in "Budget to ($)".
-   - Click the blue "Draft the gig with DELA".
-   Expect: DELA writes for up to 60 seconds, then the gig page opens with a "Public version" section and a box "Gig title".
+   - Click the dark red "Draft the gig with DELA".
+   Expect: DELA writes for up to 60 seconds, then the gig page opens with a card "Public version" and, in it, a box "Gig title".
 
 6. On that gig page:
-   Do: type 12/31/2026 in "Deadline" (or choose that date). Type Draft on the first line and Final on the second line of "Milestones, one per line". Click the blue "Post the gig".
+   Do: type 12/31/2026 in "Deadline" (or choose that date). Type Draft on the first line and Final on the second line of "Milestones, one per line". Click the dark red "Post the gig" at the bottom of the page.
    Expect:
-   - the matches view opens
+   - the view "Matches" opens (in the row of round buttons under the gig title, "Matches" is the chosen one)
    - a card "Your bench" with the grey line "Invite your bench first. A bench member you hire pays no platform fee; the agency pays it with its own."
    - the line "Stacey Lake" with "Not available right now", because her freelancer profile is not finished, and no "Invite to this gig" button for her
    - below it, the card "Freelancers who fit"
 
 7. Go to: https://www.lawfecta.co/dela?tab=talent
-   Expect: the "Talent" page with search boxes for "Practice area", "Skill", "Tech tool" and "State you need (two letters)".
+   Expect: the "Talent" page with the card "Find a freelancer". In it: the boxes "Practice area", "Skill" and "Tech tool", a dropdown "State you need" that shows "Any state", and a dark red "Search" button.
 
 8. Go to: https://www.lawfecta.co/dela?tab=projects&gig=7976f867-1cff-470c-b483-b6a6b6ea38d9&view=agreement
-   Find: the title "Test job: Agency own gig (prepared)", then the card "The agreement" (middle of the page) and its "Fees" list.
+   Find: the title "Test job: Agency own gig (prepared)", then the card "The agreement" (below the card "What happens next") and, lower in that card, its "Fees" list.
    Expect these four lines:
    - "Price for the work: $600"
    - "The agency also pays the platform fee: $60 (charged once, with the first milestone)"
    - "The agency also pays the freelancer's platform fee, because they are on its bench. The freelancer pays no platform fee."
    - "The freelancer receives: $600 (the full price)"
-   Expect: in the same card, "Client (firm)" shows "Roe Test Agency LLC" and "Signs for the firm" shows "Roe Owner".
+   Expect: at the top of the same card, "Client (firm)" shows "Roe Test Agency LLC" and "Signs for the firm" shows "Roe Owner".
 
-9. Scroll up to the card "What happens next" (top of the page):
-   Do: type Roe Owner in the box under "Your full name". Tick "I have read version 1 of this agreement and I sign it electronically." Click the blue "Sign version 1".
+9. Scroll up to the card "What happens next" (near the top of the page, under the heading "Agreement, version 1"):
+   Do: type Roe Owner in the box under "Your full name". Tick "I have read version 1 of this agreement and I sign it electronically." Click the dark red "Sign version 1".
    Expect: the card says "You signed version 1. Waiting for the freelancer to sign."
 
 10. Sign out.
@@ -113,13 +114,13 @@ Group 2. The bench member (log in as the owner)
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
 2. Go to: https://www.lawfecta.co/dela?tab=work&gig=7976f867-1cff-470c-b483-b6a6b6ea38d9
-   Expect: the title "Test job: Agency own gig (prepared)" and the line "Posted by Roe Test Agency LLC (agency)."
-   Find: the card "The agreement" (scroll down).
+   Expect: the title "Test job: Agency own gig (prepared)" and, under it, the line "Posted by Roe Test Agency LLC (agency)."
+   Find: the card "The agreement" (scroll down a little: it is below the card "What happens next").
    Expect: the same four fee lines as in Group 1 step 8, including "The freelancer receives: $600 (the full price)".
 
 3. Scroll up to the card "What happens next":
-   Do: type Stacey Lake in the box under "Your full name", tick "I have read version 1 of this agreement and I sign it electronically." and click the blue "Sign version 1".
-   Expect: the message "Signed by both of you. The agency pays the first milestone next." The badge at the top right changes from "Waiting for signatures" to "Signed: waiting for the first payment".
+   Do: type Stacey Lake in the box under "Your full name", tick "I have read version 1 of this agreement and I sign it electronically." and click the dark red "Sign version 1".
+   Expect: the message "Signed by both of you. The agency pays the first milestone next." The badge at the right of the heading "Agreement, version 1" changes from "Waiting for signatures" to "Signed: waiting for the first payment".
 
 4. Sign out.
 
@@ -131,7 +132,7 @@ Group 3. Check the results (log in as the test attorney; only look)
    Expect: the attorney's Library does not list "Test SOP: Agency intake".
 
 3. Go to: https://www.lawfecta.co/dela?tab=projects&gig=7976f867-1cff-470c-b483-b6a6b6ea38d9
-   Expect: no gig details for "Test job: Agency own gig (prepared)", only a short message that it is not available.
+   Expect: no gig details for "Test job: Agency own gig (prepared)". The page shows only the outlined "← All gigs" button and the message "This gig is not available to your account. It belongs to another member, or it was removed."
 
 4. Sign out.
 

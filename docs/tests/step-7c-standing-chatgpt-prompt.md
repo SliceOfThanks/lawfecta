@@ -1,6 +1,6 @@
 # ChatGPT test: standing arrangements (step 7c part 2)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked 2026-11-13 (new layout). Open point: the prepared job (step 3) could be declined only until 2026-11-07, so Claude prepares a new job from arrangement A, and arrangement B again, before this test is sent.
 
 Claude already tested this with the real api and database: 9 api tests and 8 browser checks, including the monthly cap, the most jobs open at once, declining a job with a full refund, new limits that both sign again, ending, and the Lawfecta Team's list. This test checks the real screens on the test site.
 
@@ -63,15 +63,15 @@ FREELANCER (log in once)
 
 2. Go to: https://www.lawfecta.co/dela?tab=work
    Find: the card "Standing arrangements (2)", in the middle of the page, just above "Invitations".
-   Expect: two shaded boxes, each headed "DELA Test Attorney". One has the label "Waiting for the freelancer" and the line "$400 per job | $0 of $1,200 this month | 0 of 3 jobs open | until ...". The other has the label "Active" and "$300 per job | $300 of $700 this month | 1 of 2 jobs open | until ...". Each has a "Covers:" line with the document names.
+   Expect: two shaded boxes, each headed "DELA Test Attorney". One has the label "Waiting for the freelancer" and the line "$400 per job | $0 of $1,200 this month | 0 of 3 jobs open | until ...". The other has the label "Active" and "$300 per job | $300 of $700 this month | 1 of 2 jobs open | until ...". Each has a grey "Covers:" line with the document names and their version numbers.
 
 3. In the "Active" box of the card "Standing arrangements (2)":
-   Find: the job line under the "Covers:" line: a date, then "Send the welcome packet, $300 | Waiting for payment", with the buttons "Open the job" and "Decline this job".
+   Find: the job line under the "Covers:" line: a date and a colon, then "Send the welcome packet, $300 | Waiting for payment", with the outlined buttons "Open the job" and "Decline this job" at its right.
    Do: click "Decline this job". A browser pop-up asks "Decline this job? The firm is refunded in full." Click OK.
    Expect: a message "Declined. The firm is refunded in full." After the card reloads, the job line reads "Declined, refunded" and has no "Decline this job" button. The line above reads "$0 of $700 this month | 0 of 2 jobs open".
 
 4. In the "Waiting for the freelancer" box of the same card:
-   Do: without typing anything, click the blue "Accept".
+   Do: without typing anything, click the dark red "Accept" at the bottom of that box.
    Expect: the message "Type your full name and tick the box." Nothing changes.
    Do: type Test Freelancer in the "Your full name" box, tick the box that starts "I accept this standing arrangement. Jobs inside its limits start without a new proposal; I can decline a job within 24 hours", then click "Accept".
    Expect: the message "Accepted. The firm can now hire you again in one click." After the card reloads, that box has the label "Active".
@@ -83,21 +83,20 @@ ATTORNEY (log in once)
 6. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
 7. Go to: https://www.lawfecta.co/dela?tab=projects
-   Find: the card "Standing arrangements (2)", in the lower half of the page, right under the card "Engagements".
+   Find: the card "Standing arrangements (2)", in the lower half of the page, right under the card whose heading starts "Engagements (".
    Expect: two shaded boxes headed "DELA Test Freelancer", both labeled "Active". The $300 box reads "$0 of $700 this month | 0 of 2 jobs open", and its job line reads "Declined, refunded".
 
 8. In the $300 box (it covers "Send the welcome packet" and "Run a Conflict Check"):
-   Find: the drop-down "Document to hire for" and the dark red button "Hire again from my standing arrangement" next to it.
+   Find: the line "$700 left this month | 2 open-job places left", the grey line "The cap counts the job price. Lawfecta's platform fee is added to each charge." under it, then a drop-down with the document names and the dark red button "Hire again from my standing arrangement" next to it.
    Do: choose "Send the welcome packet" in the drop-down, then click "Hire again from my standing arrangement".
-   Expect: within a few seconds, the message "Hired. The payment is not finished yet: payments are not set up on this site yet." After the card reloads, a new job line "Send the welcome packet, $300 | Waiting for payment" with "Open the job", and the line "$300 of $700 this month | 1 of 2 jobs open".
+   Expect: within a few seconds, the message "Hired. The payment is not finished yet: payments are not set up on this site yet." After the card reloads, a new job line "Send the welcome packet, $300 | Waiting for payment" with "Open the job", the line "$300 of $700 this month | 1 of 2 jobs open" and the line "$400 left this month | 1 open-job place left".
 
 9. In the same $300 box:
-   Do: choose "Run a Conflict Check" in the drop-down "Document to hire for", then click "Hire again from my standing arrangement".
+   Do: choose "Run a Conflict Check" in the drop-down next to the button, then click "Hire again from my standing arrangement".
    Expect: the same "Hired. The payment is not finished yet" message. After the card reloads: "$600 of $700 this month | 2 of 2 jobs open", and two job lines waiting for payment.
 
-10. In the same $300 box, past the limit:
-    Do: choose "Send the welcome packet" again and click "Hire again from my standing arrangement".
-    Expect: the message "This job would pass the monthly cap ($600 of $700 used). Nothing was charged. A gig draft was made instead; open it from Your gigs to post it the normal way." No new job line is added. Do not post the draft.
+10. In the same $300 box, at the limit (look only):
+    Expect: the line "$100 left this month | 0 open-job places left". The drop-down and the button "Hire again from my standing arrangement" are gone. In their place a red line "The most jobs open at once (2) are already open." and an outlined button "Review limits". Do not click "Review limits".
 
 11. In the same $300 box:
     Do: click "Open the job" on the newest job line ("Run a Conflict Check", hired in step 9).
@@ -105,19 +104,21 @@ ATTORNEY (log in once)
     Then go to: https://www.lawfecta.co/dela?tab=projects
 
 12. In the card "Standing arrangements (2)", in the $300 box:
-    Do: click "Change limits" (an outlined button at the bottom of the box).
+    Do: click "Change limits" (an outlined button at the bottom of the box, left of "End arrangement").
     Expect: a shaded form opens in the box with "Once you send them, new limits pause one-click hiring until the freelancer approves them. Limits that are not allowed are refused and nothing changes.", the boxes "Price per job ($)" (300), "Monthly spend cap ($)" (700), "Most jobs open at once" (2), "Your full name", the tick box "I sign the new limits for the firm." and the dark red button "Sign and send the new limits".
     Do: change "Price per job ($)" to 800 and leave "Monthly spend cap ($)" at 700. Type Test Attorney in "Your full name", tick "I sign the new limits for the firm.", and click "Sign and send the new limits".
     Expect: the message "The price per job cannot be more than the monthly cap." The box stays "Active". Do not send other limits.
 
 13. In the $400 box (it covers "Open a Matter in Clio"):
     Do: click "End arrangement". A browser pop-up asks "End this standing arrangement? No new jobs can be hired from it; open jobs finish as agreed." Click OK.
-    Expect: the message "Ended." After the card reloads, the $400 box has the label "Ended" and no "Hire again from my standing arrangement" button.
+    Expect: the message "Ended." After the card reloads, the card heading reads "Standing arrangements (1)" and the $400 box is no longer in the list. At the bottom of the card is a bold line "Past arrangements (1)".
+    Do: click "Past arrangements (1)".
+    Expect: it opens and shows the $400 box with the label "Ended" and no "Hire again from my standing arrangement" button.
 
 14. Go to: https://www.lawfecta.co/dela?tab=talent
-    Find: the card "Find a freelancer" at the top, and below it the results. Find the result "DELA Test Freelancer".
+    Find: the card "Find a freelancer" near the top (under the buttons "Search" and "My bench", if they show), and below it the results, which load by themselves. Find the result "DELA Test Freelancer".
     Do: in that result, click "Set up a standing arrangement" (an outlined button in its row of buttons).
-    Expect: a window "Standing arrangement with DELA Test Freelancer" with the text "Hire DELA Test Freelancer again for the same work without a new proposal each time. You both sign once. Inside these limits you hire in one click and DELA charges your saved card at once (with no saved card, the Stripe payment page opens). Anything outside them becomes a normal gig draft.", the heading "Documents covered (approved SOPs and Workflows)" with tick boxes, and the boxes "Price per job ($)", "Monthly spend cap ($)" (with the hint "Required. Hires stop at the cap each month."), "Most jobs open at once", "End date" (with "Up to 12 months."), the tick box "Let other attorneys in the firm use this arrangement", "Your full name" and the buttons "Sign and send" and "Cancel".
+    Expect: a window "Standing arrangement with DELA Test Freelancer" with the text "Hire DELA Test Freelancer again for the same work without a new proposal each time. You both sign once. Inside these limits you hire in one click and DELA charges your saved card at once (with no saved card, the Stripe payment page opens). Anything outside them becomes a normal gig draft.", the heading "Documents covered (approved SOPs and Workflows)" with tick boxes, and the boxes "Price per job ($)", "Monthly spend cap ($)" (with the hint "Required. Hires stop at the cap each month."), "Most jobs open at once", "End date" (with "Up to 12 months."), the tick box "Let other attorneys in the firm use this arrangement", the box "Your full name" (with the hint "Your typed name is your signature."), a tick box that starts "I sign this standing arrangement for the firm", and at the bottom the dark red button "Sign and send" and the outlined button "Cancel".
 
 15. In the same window:
     Do: tick the first document, type 300 in "Price per job ($)", leave "Monthly spend cap ($)" empty, and click "Sign and send".
@@ -130,8 +131,9 @@ OWNER (log in once)
 
 17. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-18. Go to: https://www.lawfecta.co/dela-admin?tab=recurring ("Recurring" in the left menu, under the heading "PAYMENTS") in the menu on the left near the top.
-    Find: the card "Standing arrangements", below the Recurring card.
+18. Go to: https://www.lawfecta.co/dela-admin?tab=recurring
+    Expect: the admin area opens on the page "Recurring" (in the left menu, "Recurring" is the last line under the heading "PAYMENTS").
+    Find: the card "Standing arrangements", the last card on the page, below the cards about monthly engagements.
     Expect: the grey line "Limited automatic repeat hiring. Each one names a price per job, a monthly cap, the most jobs open at once and an end date. Off on Live until counsel approves (switch auto_repeat_hiring)." Then a row "DELA Test Attorney hires DELA Test Freelancer" labeled "active" with "$300 per job | spend this month $600 of $700 | 2 of 2 open | jobs 2, declined 1 | until ...", and a row for the $400 arrangement labeled "ended".
 
-19. Sign out.
+19. Sign out: click the button with the owner's name and "(owner)" at the top right, then "Sign out", the last line.

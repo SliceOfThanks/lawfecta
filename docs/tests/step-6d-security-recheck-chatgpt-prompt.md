@@ -1,9 +1,9 @@
 # ChatGPT re-test: the steps that failed in the security test (step 6d)
 
-> DO NOT RUN AS IT IS (2026-11-13). This test was written for the earlier layout. In the admin area "Sign out" and "Member view" moved into the menu of the button with the owner's name at the top right. The new layout is tested by docs/tests/workspace-chatgpt-prompt.md. Claude rewrites this test before it is needed again.
+> Checked 2026-11-13 (new layout). Open point: Group 3, steps 1 and 2, log the test attorney in a second time and step 2 changes things (it ticks the sensitive box and deletes the files). One login per account would need Claude to prepare the freelancer's download on the test site first.
 
 
-The first run (2026-11-05) failed mostly because text files could not finish uploading. That is fixed. The warnings now also stay on the card instead of disappearing, the admin area has "Sign out", and amounts never show "$NaN". This re-test covers only the steps that failed.
+The first run (2026-11-05) failed mostly because text files could not finish uploading. That is fixed. The warnings now also stay on the card instead of disappearing, the admin area has "Sign out" (in the menu of the button with the owner's name), and amounts never show "$NaN". This re-test covers only the steps that failed.
 
 Before you paste this:
 1. Keep the two made-up test files on your desktop: "Roe intake (made up).txt" and "SSN test (made up).txt" (sent again with this message; also on GitHub: https://github.com/SliceOfThanks/lawfecta/tree/claude/step-2a-ai-keys-voice-files/docs/tests/files).
@@ -50,16 +50,16 @@ Group 1. Attorney (log in as the test attorney)
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
 2. Go to: https://www.lawfecta.co/dela?tab=projects&gig=bc969483-3b96-4a7e-a3ae-cce26a1c3b0b
-   Do: click "Files (0)" or "Files (1)" in the row of round buttons under the title.
-   Find: the card "Files for this gig".
+   Do: click "Files (0)" or "Files (1)" in the row of rounded buttons under the title ("Details", "Matches", "Questions", "Proposals", "Files", "Agreement and work").
+   Find: the card "Files for this gig", the first card under that row.
    Expect: the checkbox "This job involves sensitive data (SSN, medical, financial, or ID documents)" is ticked (from the first run). Untick it.
    Expect: the message "No longer marked as sensitive."
-   Do: choose "7 days" in "Freelancer can open it for", click "Share a file from Files", then the blue "Share" next to any file.
-   Expect: "Shared until (a date)" and the line "Freelancer access until (that date)".
+   Do: choose "7 days" in "Freelancer can open it for", click "Share a file from Files", then the dark red "Share" next to any file.
+   Expect: the message "Shared until (a date)" at the top of the card, and the file listed with the grey words "Access expires after (that date) for invited freelancers and the one you hire".
    Do: click "Extend 14 days" on that line. These are made-up test files, so extending is safe.
    Expect: "Extended to (a date 14 days later)".
 
-3. Do: click "Agreement and work" in the row of round buttons.
+3. Do: click "Agreement and work" in the same row of rounded buttons under the title.
    Find: the card "Confidential materials" (scroll down, below "Milestones").
    If it asks for a code: click "Email me a code", ask me for the code, type it in "6-digit code" and click "Open".
    Expect: the headings "Files", "Secure document links", "Confidential messages" and "Who can see this".
@@ -77,12 +77,12 @@ Group 1. Attorney (log in as the test attorney)
    Expect: the box near the top of the card says "Use a secure link that starts with https." and is still there after 10 seconds.
 
 7. Under "Confidential messages":
-   Do: click in the message box, type Jane Roe called about the hearing. and click the blue "Send".
+   Do: click in the message box, type Jane Roe called about the hearing. and click the dark red "Send" under the message box.
    Expect: the box near the top of the card says "Sent", and the message is listed.
    Do: type Her card is 4111 1111 1111 1111 and click "Send".
    Expect: the box near the top of the card says it looks like it contains a card number, and to send only the last 4 digits.
 
-8. Sign out.
+8. Sign out (the round button with your initials at the far right of the top bar, then "Sign out").
 
 Group 2. Freelancer (log in as the test freelancer)
 
@@ -94,25 +94,26 @@ Group 2. Freelancer (log in as the test freelancer)
    Do: click "Download" on that file.
    Expect: the file downloads or opens in a new tab.
 
-3. Sign out.
+3. Sign out (the round button with your initials at the far right of the top bar, then "Sign out").
 
 Group 3. Check the results (the test attorney, then the owner)
 
 1. Ask me to log in as the test attorney.
    Go to: https://www.lawfecta.co/dela?tab=projects&gig=bc969483-3b96-4a7e-a3ae-cce26a1c3b0b
-   Do: click "Files (1)".
-   Find: the card "File activity" (below "Files for this gig").
-   Expect: a line showing DELA Test Freelancer "downloaded" Roe intake (made up).txt, under "Confidential materials".
+   Do: click "Files (1)" in the row of rounded buttons under the title.
+   Find: the card "File activity" (below "Files for this gig"). It is a table with the columns "When", "Who", "What", "Where".
+   Expect: a row with "DELA Test Freelancer downloaded" under "Who", "Roe intake (made up).txt" under "What" and "Confidential materials" under "Where".
 
 2. Do: click "Agreement and work". In "Confidential materials", tick "This job involves sensitive data (SSN, medical, financial, or ID documents)".
    Expect: the note "2 files are already shared on this job. They stay until they expire. You can delete them now." with "Delete now" and "Keep them until they expire".
    Do: click "Delete now", then "Yes, delete them". These are made-up test files.
    Expect: a message starting "Deleted.", and under "Files": "No files yet."
 
-3. Sign out. Ask me to log in as the owner.
+3. Sign out (the round button with your initials at the far right of the top bar, then "Sign out"). Ask me to log in as the owner.
    Go to: https://www.lawfecta.co/dela-admin
-   Find: the dark bar at the very top of the page.
-   Expect: a "Sign out" button at the right end of the dark bar, next to "Member view".
+   Find: the button with the owner's name and "(owner)" at the top right of the page.
+   Do: click that button.
+   Expect: a menu with "My account", then "Appearance" with "Match my device", "Light", "Dark", then "Member view" and, last, "Sign out".
    Do: click "Sign out".
    Expect: you are logged out of the website.
 

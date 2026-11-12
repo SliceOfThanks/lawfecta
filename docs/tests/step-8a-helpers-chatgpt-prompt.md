@@ -1,6 +1,6 @@
 # ChatGPT test: the other eight AI helpers (UX Phase 4 part B, second half)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 Claude already tested this with the real api and database: 9 api tests and 24 browser checks (with a stand-in AI that tries to break the rules), plus all 296 api tests and all 22 browser test files. This test checks the real screens on the test site, with the real AI.
 
@@ -73,7 +73,7 @@ FREELANCER (log in once)
    Do: click "Use suggestion".
    Expect: the clearer request replaces your text in the message box. Do not click "Send".
 
-4. Sign out.
+4. Sign out (the round button with your initials at the far right of the top bar, then "Sign out").
 
 ATTORNEY (log in once)
 
@@ -102,22 +102,24 @@ ATTORNEY (log in once)
    Then go to: https://www.lawfecta.co/dela?tab=library (leave the draft unsaved).
 
 9. Go to: https://www.lawfecta.co/dela?tab=profile
-   Find: the heading "Document preferences" near the bottom. Click it to open it if it is closed.
-   Find: the card "Your firm profile for documents", the box "Describe your firm (optional)" and "✦ Help me describe my firm" under it.
+   Find: the row of small buttons near the top of the Profile page, under the page heading.
+   Do: click "Document preferences" in that row.
+   Expect: the page moves down to the card "Your firm profile for documents".
+   Find: in that card, near its top, the box "Describe your firm (optional)" and "✦ Help me describe my firm" under it.
    Do: type Two attorneys doing family law in Texas state courts; we use Clio and Microsoft 365 in the box, then click "✦ Help me describe my firm". Wait up to 60 seconds.
    Expect: an "AI suggestion" panel listing what it found ("Firm size", "Practice areas", "Jurisdictions", "Systems") with "Use suggestion", and the line "DELA only fills in what your description says. Check it, then save the firm profile." No system appears that the description did not name.
    Do: click "Use suggestion" on "Practice areas".
    Expect: the "Practice areas" box now holds it. Do not click "Save the firm profile".
 
 10. Go to: https://www.lawfecta.co/dela?tab=talent
-    Find: the card "Find a freelancer", the box "Describe the task (for ✦ Help me find a fit)" and "✦ Help me find a fit" under it.
+    Find: the card "Find a freelancer" at the top of the page, the box "Describe the task (for ✦ Help me find a fit)" and "✦ Help me find a fit" under it.
     Do: type E-filing family law motions in Texas using Clio, then click "✦ Help me find a fit". Wait up to 60 seconds.
     Expect: suggestions for "Practice area", "Skill", "Tech tool" and "State", and the line "These are search filters only. DELA does not pick a freelancer or promise who is available." No freelancer is named.
     Do: click "Use suggestion" on each, then click "Search".
     Expect: the search boxes hold the filters and the results update.
 
 11. Go to: https://www.lawfecta.co/dela?tab=projects&gig=e42a647d-3028-4c7d-86ba-443a1b96cbb8&view=agreement
-    Find: the card "Reviews" lower on the page (it starts "How was working with the freelancer?"), the rating drop-downs, the box "Your review" and "✦ Help me write a review" under it.
+    Find: the card "Reviews" lower on the page (its first line starts "How was working with the freelancer?"), the rating drop-downs, the box "Your review" and "✦ Help me write a review" under it.
     Do: choose 1 in every rating drop-down, leave "Your review" empty, and click "✦ Help me write a review".
     Expect: the message "For a low rating, write your own notes in Your review first. DELA only tidies what you wrote." DELA writes nothing.
     Do: choose 5 in every rating drop-down, type calls made on time, logged in clio, clear notes in "Your review", and click "✦ Help me write a review". Wait up to 60 seconds.
@@ -125,4 +127,4 @@ ATTORNEY (log in once)
     Do: click "Use suggestion".
     Expect: the draft is in "Your review". Do not click "Publish my review".
 
-12. Sign out.
+12. Sign out (the round button with your initials at the far right of the top bar, then "Sign out").

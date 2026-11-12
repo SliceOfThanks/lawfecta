@@ -1,12 +1,12 @@
 # ChatGPT test: agencies, part 1 (step 7d)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked 2026-11-13 (new layout). Open point: Group 4 makes the owner and the test freelancer log in a second time (the owner accepts the invitation that Group 2 sends, then the freelancer checks it). To keep one login per account, Claude would have to prepare the invitation on the test site before the test.
 
 Claude already tested this with the real api and database: 8 agency api tests and 14 browser checks. This test covers the real screens on the test site.
 
 What it covers:
 - The Lawfecta Team gives the test freelancer the Freelancer Business (agency) plan.
-- The test freelancer's account becomes an agency. In the Agency tab it gets business details, a team and invitations, with mistakes on purpose.
+- The test freelancer's account becomes an agency. On the Agency page it gets business details, a team and invitations, with mistakes on purpose.
 - The agency sends a proposal and names who will do the work.
 - The attorney sees the agency and the person on the proposal, chooses it, and sees "Who's working on this".
 - The owner joins the agency as a member. In the admin area, the owner checks the business details and raises the seat limit.
@@ -15,7 +15,7 @@ What it covers:
 The job used here, "Test job: Agency proposal", is a made-up open job that Claude made for this test, matched to the test freelancer. Choosing the proposal starts a draft agreement only. Nothing is paid.
 
 Before you paste this:
-1. The owner account (stacey@lawfecta.com) gets a freelancer side on the test site in Group 1, so it can be invited to the agency. Your admin area does not change. Afterwards, the owner's DELA page shows the freelancer tabs.
+1. The owner account (stacey@lawfecta.com) gets a freelancer side on the test site in Group 1, so it can be invited to the agency. Your admin area does not change. Afterwards, the owner's DELA page shows the freelancer menu.
 2. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.
 3. Each time ChatGPT reaches the login page: click "Take over", log in with the account it names, hand control back and type: I'm logged in, continue.
 
@@ -56,8 +56,8 @@ Group 1. Owner: give the plans (log in as the owner)
 
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-2. Go to: https://www.lawfecta.co/dela-admin?tab=people ("People" in the left menu, under the heading "MEMBERS") in the menu on the left near the top.
-   Find: the search box "Search name, email or BD member ID" at the top of the page.
+2. Go to: https://www.lawfecta.co/dela-admin?tab=people (this is "People" in the left menu, under the heading "MEMBERS").
+   Find: the search box "Search name, email or BD member ID" at the top of the page, under the heading "People".
    Do: type stacey+dela-freelancer@lawfecta.com and click "Search" next to it.
    Expect: one row, "DELA Test Freelancer", with "Freelancer: fl_free" in the column "Workspaces and plans".
 
@@ -70,24 +70,24 @@ Group 1. Owner: give the plans (log in as the owner)
    Do: on the row "Stacey Lake", in the dropdown "Give a workspace and plan...", choose "Freelancer Plus". Click "Give".
    Expect: "Done. It applies on their next page load." and the row says "Freelancer: fl_plus (set by team)".
 
-5. Sign out.
+5. Sign out (the button with the owner's name at the top right, then "Sign out").
 
 Group 2. The agency owner (log in as the test freelancer)
 
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
 2. Go to: https://www.lawfecta.co/dela?tab=agency
-   Expect: a new tab "◆ Agency" at the right end of the tab row, selected, with the heading "Agency" and the line "... | you are the owner".
-   Expect: the cards "Business details", "Team", "Proposals" and "The agency's jobs" ("No jobs yet.").
+   Expect: the menu on the left has a line "Agency" under "Profile", and it is pink. The page has the heading "Agency" and, under it, a grey line that ends "| you are the owner".
+   Expect: the cards "Agency profile", "Business details", "Team", "Proposals" and "The agency's jobs" ("No jobs yet."), in this order from the top. (A card "Posting gigs" may also show between "Business details" and "Team".)
    Expect: in the card "Team", the grey line starting "1 of 3 seats used, the owner included."
 
-3. In the card "Business details" (top of the page):
-   Do: type Roe Test Agency LLC in the box "Business name". Leave "State of registration" empty. Click the blue "Save business details".
+3. In the card "Business details" (the second card, below "Agency profile"):
+   Do: type Roe Test Agency LLC in the box "Business name". Leave "State of registration" empty. Click the dark red "Save business details".
    Expect: the message "Enter the business name and the two-letter state where it is registered (for example TX)."
    Do: type TX in "State of registration" and click "Save business details" again.
    Expect: "Saved. The Lawfecta Team will check it." The page now shows "Roe Test Agency LLC | you are the owner" under the heading, and the card says "Waiting for the Lawfecta Team's check."
 
-4. In the card "Team" (below "Business details"), at the bottom of the card there is a box "Their email on Lawfecta", a dropdown "Role" and a dark red button "Invite to the team".
+4. In the card "Team" (below "Business details", and below "Posting gigs" if that card shows), near the bottom of the card there is a box "Their email on Lawfecta", a dropdown "Role" and a dark red button "Invite to the team".
    Do: type stacey+dela-attorney@lawfecta.com in "Their email on Lawfecta" and click "Invite to the team".
    Expect: the message "There is no Lawfecta freelancer with that email. Ask them to join Lawfecta as a freelancer first, then invite them again."
    Do: change the email to stacey+dela-freelancer@lawfecta.com and click "Invite to the team".
@@ -111,7 +111,7 @@ Group 2. The agency owner (log in as the test freelancer)
    - "What it leaves out": Court filing.
    - "Schedule": Draft in 3 days, final 2 days after comments.
    - "Your relevant qualifications": Five years of intake work for family law firms.
-   Leave the checkbox "DELA Test Freelancer (owner)" unticked. Click the blue "Send proposal (uses 1)" at the bottom of the card.
+   Leave the checkbox "DELA Test Freelancer (owner)" unticked. Click the dark red "Send proposal (uses 1)" at the bottom of the card, to the right of "Save draft".
    Expect: the message "Choose at least one person in "Who will do this work"." Nothing is sent.
 
 8. Still in the card "Your proposal":
@@ -133,11 +133,11 @@ Group 3. The attorney (log in as the test attorney)
    Expect: a window titled "Profile" with "DELA Test Freelancer" and the line "Works with: Roe Test Agency LLC".
    Do: click "Close" at the bottom of the window.
 
-4. (POP-UP) Do: click the blue "Choose" at the right end of that row, and answer OK in the browser pop-up.
+4. (POP-UP) Do: click the dark red "Choose" at the right end of that row, and answer OK in the browser pop-up.
    Expect: the message starting "Chosen. The draft agreement is waiting for signing and funding." The row shows "Chosen".
 
 5. Do: click "Agreement and work" in the row of round buttons.
-   Find: the card "Who's working on this" (scroll down to the middle of the page: it is below the cards "The agreement" and "Propose changes", and above "Confidential materials").
+   Find: the card "Who's working on this" (scroll down: it is just below the card "The agreement" and above the card "Propose changes").
    Expect: "You hired Roe Test Agency LLC. These are the people working on it. If the agency changes them, you get a notice; nothing is needed from you." and the line "DELA Test Freelancer | Lead paralegal".
    Expect: there is no "Add to this job" or "Take off this job" button in this card.
 
@@ -147,24 +147,24 @@ Group 4. Check the results (the owner, then the test freelancer)
 
 1. Ask me to log in as the owner.
    Go to: https://www.lawfecta.co/dela?tab=agency
-   Expect: the card "Invitation from Roe Test Agency LLC" saying "DELA Test Freelancer invited you to join Roe Test Agency LLC as a member. You keep your own account and your own plan. ..." with a blue "Accept" and an outlined "Decline".
+   Expect: the card "Invitation from Roe Test Agency LLC" saying "DELA Test Freelancer invited you to join Roe Test Agency LLC as a member. You keep your own account and your own plan. ..." with a dark red "Accept" and an outlined "Decline".
    Do: click "Accept".
    Expect: the message "You joined Roe Test Agency LLC", and a card "Agencies you work with" with "Roe Test Agency LLC | Member" and an outlined "Leave".
 
-2. Go to: https://www.lawfecta.co/dela-admin?tab=agencies ("Agencies" in the left menu, under the heading "MEMBERS") in the menu on the left near the top (between "Reviews and bench" and "Lawfecta Team").
+2. Go to: https://www.lawfecta.co/dela-admin?tab=agencies (this is "Agencies" in the left menu, under the heading "MEMBERS").
    Expect: the card "Agencies" with the line "Roe Test Agency LLC" and a badge "Not checked yet", and the line "Business name: Roe Test Agency LLC | State: TX | Owner: DELA Test Freelancer (...) | Active | Seats: 2 of 3 | Engagements: 1".
 
 3. Still on that agency:
    Do: leave the box "Note (shown to the owner if the details need a change)" empty and click the outlined "Ask for a change".
    Expect: the message "Write a note saying what to change."
-   Do: click the blue "Business details are right".
+   Do: click the dark red "Business details are right".
    Expect: the message "Checked. The owner was told." and the badge now says "Checked (today's date)".
 
 4. Still on that agency, the line "Seat limit for this agency (empty for the plan's limit):":
    Do: type 5 in the small box after it and click the outlined "Save seat limit".
    Expect: the message "Seat limit set to 5" and "Seats: 2 of 5".
 
-5. Sign out. Ask me to log in as the test freelancer.
+5. Sign out (the button with the owner's name at the top right, then "Sign out"). Ask me to log in as the test freelancer.
    Go to: https://www.lawfecta.co/dela?tab=agency
    Expect: in the card "Business details", "Checked by the Lawfecta Team."
    Expect: in the card "Team", the grey line starting "2 of 5 seats used, the owner included." and the line "Stacey Lake | Member | stacey@lawfecta.com | verification not finished" with a dropdown "Member" and an outlined "Remove".
@@ -175,10 +175,10 @@ Group 4. Check the results (the owner, then the test freelancer)
    Do: click "Remove", then "Yes, remove".
    Expect: the message "Stacey Lake removed", and the line "Stacey Lake" is gone. The grey line says "1 of 5 seats used, the owner included."
 
-7. Find: the card "The agency's jobs" (bottom of the page).
+7. Find: the card "The agency's jobs" (lower on the page, below the card "Proposals").
    Expect: the line "Test job: Agency proposal" with "DELA Test Freelancer" and an outlined "Open".
    Do: click "Open".
-   Expect: the job page with the card "Who's working on this" saying "This engagement is with Roe Test Agency LLC. The attorney sees this list and gets a notice when it changes." and "DELA Test Freelancer | Lead paralegal".
+   Expect: the job page with the card "Who's working on this" (below the card "The agreement") saying "This engagement is with Roe Test Agency LLC. The attorney sees this list and gets a notice when it changes." and "DELA Test Freelancer | Lead paralegal".
 
 8. Sign out.
 

@@ -1,12 +1,12 @@
 # ChatGPT test: UI review of DELA (look only, light and dark)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 A look-only review of how DELA looks on a computer screen: layout, alignment, spacing, text that is cut off or overlapping, buttons that look different for the same job, colors and contrast, in the light and the dark appearance. Phone widths are not part of agent tests (Claude's browser tests check those).
 
 It changes one thing and puts it back: the attorney's own "Appearance" choice in the account menu (Dark for part of the test, then "Match my device" again).
 
-Each account logs in once: attorney, then freelancer.
+Each account logs in once: freelancer, then attorney.
 
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.
@@ -55,41 +55,45 @@ Scroll from the top to the bottom once. Write PASS if you see none of these, or 
 
 Steps
 
-ATTORNEY, LIGHT APPEARANCE (log in once)
-
-1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
-2. Do: click the round button with your initials at the far right of the top bar. In the menu under "Appearance", click "Light".
-   Expect: the page turns light (white cards on a light grey background).
-3. Look: https://www.lawfecta.co/dela?tab=home
-4. Look: https://www.lawfecta.co/dela?tab=delegate
-5. Look: https://www.lawfecta.co/dela?tab=library (the cards, the category and status buttons, the bottom links and the "Not sure where to start?" card)
-6. Look: https://www.lawfecta.co/dela?tab=files
-7. Look: https://www.lawfecta.co/dela?tab=projects
-8. Look: https://www.lawfecta.co/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement (do not click "Approve the change", "Decline", "Pay" or "Sign")
-9. Look: https://www.lawfecta.co/dela?tab=talent
-10. Look: https://www.lawfecta.co/dela?tab=profile (open the folded "Practice areas" and "Biography" lines; do not click "Save")
-11. Look: https://www.lawfecta.co/dela?tab=ai
-
-ATTORNEY, DARK APPEARANCE (same login)
-
-12. Do: click the round button with your initials, and under "Appearance" click "Dark".
-    Expect: the page turns dark (dark cards on a near-black background), and all text is still easy to read.
-13. Look again, in dark: https://www.lawfecta.co/dela?tab=home
-14. Look again, in dark: https://www.lawfecta.co/dela?tab=library
-15. Look again, in dark: https://www.lawfecta.co/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
-16. Look again, in dark: https://www.lawfecta.co/dela?tab=profile
-17. Do: click the round button with your initials, and under "Appearance" click "Match my device" (this puts it back).
-18. Sign out.
+For every step that starts "Go to", open that link, scroll from the top of the page to the bottom once, and report as described under "What to look for on each page".
 
 FREELANCER (log in once)
 
-19. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
-20. Look: https://www.lawfecta.co/dela?tab=home
-21. Look: https://www.lawfecta.co/dela?tab=profile (do not click "Save")
-22. Look: https://www.lawfecta.co/dela?tab=work
-23. Look: https://www.lawfecta.co/dela?tab=earnings
-24. Look: https://www.lawfecta.co/dela?tab=inbox&thread=4ad45c8e-ac59-4300-9577-48b42e50e3b4 (click the blue "Book a meeting" button near the top of the conversation and look at the booking card; do not click a time or "Review booking")
-25. Sign out.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
+2. Go to: https://www.lawfecta.co/dela?tab=home
+3. Go to: https://www.lawfecta.co/dela?tab=profile (do not click any button whose name starts with "Save")
+4. Go to: https://www.lawfecta.co/dela?tab=work
+5. Go to: https://www.lawfecta.co/dela?tab=earnings
+6. Go to: https://www.lawfecta.co/dela?tab=inbox&thread=4ad45c8e-ac59-4300-9577-48b42e50e3b4
+   Do: click the dark red "Book a meeting" button near the top of the conversation and look at the card titled "Book a meeting" that opens. Do not click a time or "Review booking".
+7. Sign out (the round button with your initials at the far right of the top bar, then "Sign out").
+
+ATTORNEY, LIGHT APPEARANCE (log in once)
+
+8. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
+9. Do: click the round button with your initials at the far right of the top bar. In the menu, under "Appearance", click "Light".
+   Expect: the page turns light (white cards on a light grey background).
+10. Go to: https://www.lawfecta.co/dela?tab=home
+11. Go to: https://www.lawfecta.co/dela?tab=delegate
+12. Go to: https://www.lawfecta.co/dela?tab=library (the cards, the category and status buttons, the underlined links at the bottom and the "Not sure where to start?" card at the very bottom)
+13. Go to: https://www.lawfecta.co/dela?tab=files
+14. Go to: https://www.lawfecta.co/dela?tab=projects
+15. Go to: https://www.lawfecta.co/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement (do not click "Approve the change", "Decline", or any button whose name starts with "Pay" or "Sign")
+16. Go to: https://www.lawfecta.co/dela?tab=talent
+17. Go to: https://www.lawfecta.co/dela?tab=profile
+    Do: in the card "Your profile", click the two folded lines that start "Practice areas (" and "Biography: summary, experience and education" to open them. Do not click any button whose name starts with "Save".
+18. Go to: https://www.lawfecta.co/dela?tab=ai (the page heading is "Settings")
+
+ATTORNEY, DARK APPEARANCE (same login)
+
+19. Do: click the round button with your initials at the far right of the top bar, and under "Appearance" click "Dark".
+    Expect: the page turns dark (dark cards on a near-black background, and the menu on the left is dark too), and all text is still easy to read.
+20. Go to, and look again in dark: https://www.lawfecta.co/dela?tab=home
+21. Go to, and look again in dark: https://www.lawfecta.co/dela?tab=library
+22. Go to, and look again in dark: https://www.lawfecta.co/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
+23. Go to, and look again in dark: https://www.lawfecta.co/dela?tab=profile
+24. Do: click the round button with your initials, and under "Appearance" click "Match my device" (this puts it back).
+25. Sign out (the round button with your initials, then "Sign out").
 
 AT THE END
 After the step lines, add:

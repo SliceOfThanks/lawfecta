@@ -1,10 +1,10 @@
 # ChatGPT test: UX retest fixes, Part A (step 8b)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 Claude already tested these with the real api and database: a test that fails before and passes after for each fix, plus all api tests and all 23 browser test files. This check looks at the real screens on the test site.
 
-What it covers (all look only; nothing is saved, sent, signed or paid):
+What it covers (all look only; nothing is saved, sent, signed or paid; the Library is shown as a table for two steps and then put back to cards):
 - The monthly engagement's due dates are the same in the agreement and in the work, inside the paid month.
 - Notices and Projects list the same things under "Needs your action"; drafts are not on that list.
 - Home counts posted gigs and gig drafts apart.
@@ -60,39 +60,44 @@ ATTORNEY (log in once)
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
 2. Go to: https://www.lawfecta.co/dela?tab=home
-   Find: the row of small tiles below the dark "AI Delegation Center" box near the top.
-   Expect: the tiles "Open gigs", "Gig drafts", "Active projects" and "Deliveries to review", each with a number. On 2026-11-07 they read Open gigs 2, Gig drafts 4, Active projects 8, Deliveries to review 0. Write down what you see; a different number is a note, not a FAIL.
+   Find: the card titled "Your projects" in the left column (it is the first card, or the second one when a card "Needs your attention" is above it).
+   Expect: four grey boxes in that card, each with a number: "Deliveries to review", "Active projects", "Open gigs" and "Gig drafts". On 2026-11-07 they read Open gigs 2, Gig drafts 4, Active projects 8, Deliveries to review 0. Write down what you see; a different number is a note, not a FAIL.
 
 3. On the same page:
    Do: click the bell (Notices) at the right of the top bar.
    Expect: a panel with the heading "Needs your action (N)" and a list of lines, each with a button (for example "Open the agreement" or "Review proposals"). Write down every line. If nothing waits, it says "Nothing waits on you right now." with "Open Projects".
-   Do: close the panel with its X at the top right. Do not click the buttons in it.
+   Do: close the panel with the "Close" button at its top right. Do not click the buttons in it.
 
 4. Go to: https://www.lawfecta.co/dela?tab=projects
-   Find: the card titled "Needs your action" near the top.
+   Find: the card titled "Needs your action" near the top (the second card, below "Post a new gig").
    Expect: the same lines you wrote down in step 3, and no line that says "a draft, not posted yet".
 
 5. Go to: https://www.lawfecta.co/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
-   Find: the card "The agreement", its "Not included:" line, and the table of milestones with a "Due" column; then lower on the page the card "Milestones".
+   Find: the card "The agreement" (the third card, below "What happens next" and "Monthly engagement"), its "Not included:" line, and the table of milestones with a "Due" column; then lower on the page the card "Milestones".
    Expect: "Not included:" names what the monthly terms leave out (not "Not specified").
    Expect: the "Due" column and the "Milestones" card show the same dates: Nov 13, 2026, Nov 20, 2026, Nov 27, 2026 and Dec 4, 2026 (any date that moved shows "moved from" and a reason).
-   Find: the card "Monthly engagement" and, in it, "A change to approve" or "Your change, waiting for the other person".
+   Find: scroll back up to the card "Monthly engagement" (the second card) and, near the bottom of it, "A change to approve" or "Your change, waiting for the other person".
    Expect: a small table with the columns "Now" and "Proposed", the monthly price in each, and a line that starts "From the". Do not click "Approve the change" or "Decline".
 
 6. Go to: https://www.lawfecta.co/dela?tab=library
-   Find: the row "Send the welcome packet" (ENG-01) in the table, and its last column "Review".
-   Expect: it says "3 quality notes" as a link. No row says "suggestions".
+   Find: the row of underlined links near the bottom of the page, below the document cards ("Recordings", "Recently deleted (N)", "Show as a table").
+   Do: click "Show as a table".
+   Expect: the page heading changes to "Document library" and the documents show in one table with the columns "Document", "Type", "Owner (role)", "Status", "Next review" and "Review".
+   Find: the row "Send the welcome packet" (ENG-01 under its title) in the table, and its last column "Review".
+   Expect: it says "3 quality notes" as underlined dark red words (it may read "3 quality notes (required)"). No row says "suggestions".
    Do: click "3 quality notes".
-   Expect: the document opens on its draft and review page, scrolled to the card "Quality check", which lists the notes.
-   Find: the menu on the left on the document page.
+   Expect: the document opens, scrolled to a card titled "Quality check" (or "Quality notes (3)" when the document is approved), which lists the notes.
+   Find: the row of tabs across the document page, under the document's title and its facts ("Document ID", "Version" and so on). This row belongs to the document; it starts with "Draft and review" or "Approved version".
    Expect: a tab "Suggested edits (N)" and no tab named "Suggestions (N)".
 
 7. On the same document:
-   Do: click the tab "Approved version", then the tab whose name starts with "Comments".
-   Expect: if there are no comments, the text "The approved version is read-only: to comment, start a new draft." and a button "Edit a new draft". There is no button "Go to Draft and review". Do not click "Edit a new draft".
+   Do: in that row of tabs, click the tab "Approved version", then the tab whose name starts with "Comments".
+   Expect: if there are no comments, a text that includes "The approved version is read-only: to comment, start a new draft." and an outlined button "Edit a new draft". There is no button "Go to Draft and review". Do not click "Edit a new draft".
+   Do: click the outlined "← Library" at the top left of the document page. Scroll to the very bottom of the Library page and click the underlined "Show as cards" (the last line on the page).
+   Expect: the Library shows cards again and its heading is "Library".
 
 8. Go to: https://www.lawfecta.co/dela?tab=projects&gig=f44fb7f3-5760-42f2-ab23-1c35e8d56e4a&view=proposals
-   Find: the table of proposals and its "Schedule" column.
+   Find: the card "Compare proposals", its table of proposals and the "Schedule" column.
    Expect: each schedule that has a number of days says "... days from signing". None says the same days twice, like "10 days (10 days)". Do not click "Choose".
 
 9. Sign out.
@@ -102,7 +107,7 @@ FREELANCER (log in once)
 10. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
 11. Go to: https://www.lawfecta.co/dela?tab=work&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
-    Find: the table of milestones in "The agreement" and the card "Milestones" lower on the page.
+    Find: the table of milestones in the card "The agreement" (scroll down: it is below "What happens next" and "Monthly engagement") and the card "Milestones" lower on the page.
     Expect: the same four dates as in step 5 in both places.
 
 12. Sign out.

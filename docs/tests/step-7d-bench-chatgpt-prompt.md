@@ -1,6 +1,6 @@
 # ChatGPT test: the agency bench and the fee split (step 7d, part 2)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked 2026-11-13 (new layout). Open point: the test freelancer and the owner each log in twice (groups 1 to 4), because the invitation, the counter-offer and the signature take turns. One login each needs Claude to prepare the invitation and the counter-offer on the test site first; the steps themselves match the screens.
 
 Claude already tested this with the real api and database: 8 bench tests, 7 split payout tests and 30 browser checks. This test covers the real screens on the test site.
 
@@ -60,7 +60,7 @@ Group 1. The agency invites a bench member (log in as the test freelancer)
 2. Go to: https://www.lawfecta.co/dela?tab=agency
    Find: the card titled "Bench", near the bottom of the page (below "The agency's jobs").
    Expect: the grey text starting "Outside freelancers you hire for your work. They never use a seat." and ending "The attorney never sees the split.", and "Nobody on your bench yet."
-   Expect: at the bottom of the card, the heading "Invite to the bench" with a box "Their email on Lawfecta", a box "Agency share (%)" (empty, with "Allowed: 5% to 50%." under it), a box "Note to them (optional)", a line "Read the bench agreement", a box "Your full name", a checkbox "I have read the bench agreement and I sign it for the agency." and a blue "Invite to the bench".
+   Expect: at the bottom of the card, the heading "Invite to the bench" with a box "Their email on Lawfecta", a box "Agency share (%)" (empty, with "Allowed: 5% to 50%." under it), a box "Note to them (optional)", a line "Read the bench agreement", a box "Your full name", a checkbox "I have read the bench agreement and I sign it for the agency." and a dark red "Invite to the bench".
    Note: the card "Team" higher up also has a box "Their email on Lawfecta". Use the one in the card "Bench".
 
 3. In the card "Bench", under "Invite to the bench":
@@ -88,9 +88,9 @@ Group 2. The bench member proposes another split (log in as the owner)
    Expect: the agreement text, including "3. Confidentiality" and "4. No poaching".
 
 3. Still in that card, near the bottom:
-   Expect: a box "Your full name", a checkbox "I have read the bench agreement and I sign it electronically.", a blue "Sign and join", the words "Or propose the agency's share (%):" with a small box, an outlined "Propose this split" and an outlined "Decline".
+   Expect: a box "Your full name", a checkbox "I have read the bench agreement and I sign it electronically.", a dark red "Sign and join", the words "Or propose the agency's share (%):" with a small box, an outlined "Propose this split" and an outlined "Decline".
    Do: type 20 in the small box after "Or propose the agency's share (%):". Type Stacey Lake in "Your full name". Tick "I have read the bench agreement and I sign it electronically." Click "Propose this split".
-   Expect: the message "Proposed and signed. Waiting for the agency." The card now says "You proposed: 20% to the agency / 80% to you. Waiting for the agency to sign." and the blue "Sign and join" is gone.
+   Expect: the message "Proposed and signed. Waiting for the agency." The card now says "You proposed: 20% to the agency / 80% to you. Waiting for the agency to sign." and the dark red "Sign and join" is gone.
 
 4. Sign out.
 
@@ -99,23 +99,23 @@ Group 3. The agency signs and assigns milestones (log in as the test freelancer)
 1. Ask me to log in as the test freelancer.
    Go to: https://www.lawfecta.co/dela?tab=agency
    Find: the card "Bench" (bottom of the page).
-   Expect: the line "Stacey Lake | Invited | they proposed 20% to the agency / 80% to the freelancer | open until ..." with a blue "Sign their split".
+   Expect: the line "Stacey Lake | Invited | they proposed 20% to the agency / 80% to the freelancer | open until ..." with a dark red "Sign their split".
 
 2. In the card "Bench":
-   Do: at the bottom of the card, type Roe Owner in "Your full name" and tick "I have read the bench agreement and I sign it for the agency." Then click the blue "Sign their split" on the line "Stacey Lake".
+   Do: at the bottom of the card, type Roe Owner in "Your full name" and tick "I have read the bench agreement and I sign it for the agency." Then click the dark red "Sign their split" on the line "Stacey Lake".
    Expect: the message "Signed. Stacey Lake joined your bench." and the line "Stacey Lake | On the bench | split 20% to the agency / 80% to the freelancer", with a small box, an outlined "Propose a new default split" and an outlined "Remove".
 
 3. Go to: https://www.lawfecta.co/dela?tab=work&gig=f4546812-6749-44bd-bca0-66703c824045&view=agreement
    Find: the card "Bench assignments" (scroll down to the middle of the page; it is below "Who's working on this" and above "Confidential materials").
-   Expect: the grey text starting "Give a milestone to someone on your bench." and two lines, "Milestone 1: Draft ($300)" and "Milestone 2: Final ($300)". Each line has a dropdown showing "Stacey Lake (bench split 20% to the agency / 80% to the freelancer)", the words "Agency share for this job (%):", a small box with the grey word "Bench split", and a blue "Assign".
+   Expect: the grey text starting "Give a milestone to someone on your bench." and two lines, "Milestone 1: Draft ($300)" and "Milestone 2: Final ($300)". Each line has a dropdown showing "Stacey Lake (bench split 20% to the agency / 80% to the freelancer)", the words "Agency share for this job (%):", a small box with the grey word "Bench split", and a dark red "Assign".
 
 4. On the line "Milestone 2: Final ($300)":
-   Do: leave the small box empty and click that line's blue "Assign".
+   Do: leave the small box empty and click that line's dark red "Assign".
    Expect: the message "Assigned. The attorney was told who is working on it." The line now says "Assigned to Stacey Lake | split 20% to the agency / 80% to the freelancer" with an outlined "Take back".
    Expect: the card "Who's working on this" (just above) now lists "Stacey Lake | Subcontractor, Milestone 2".
 
 5. On the line "Milestone 1: Draft ($300)":
-   Do: type 3 in the small box and click that line's blue "Assign".
+   Do: type 3 in the small box and click that line's dark red "Assign".
    Expect: the message "The agency's share is outside the allowed range. Use a share inside the range shown with the box."
    Do: change the box to 25 and click "Assign" again.
    Expect: the message "Assigned. Waiting for them to accept the split for this job." The line now says "Assigned to Stacey Lake | split 25% to the agency / 75% to the freelancer | waiting for Stacey Lake to accept".
@@ -127,7 +127,7 @@ Group 4. Check the results (the owner, then the test attorney)
 1. Ask me to log in as the owner.
    Go to: https://www.lawfecta.co/dela?tab=agency
    Find: the card "Your agency assignments" (scroll down).
-   Expect: a line "Test job: Agency proposal, milestone 1: Draft" with "For Roe Test Agency LLC | $300 | your share $225 | due Nov 20, 2026" and the notice "Split for this job: 25% agency / 75% you. Work cannot start until you accept.", a checkbox "I accept this split for this job.", a blue "Accept" and an outlined "Decline".
+   Expect: a line "Test job: Agency proposal, milestone 1: Draft" with "For Roe Test Agency LLC | $300 | your share $225 | due Nov 20, 2026" and the notice "Split for this job: 25% agency / 75% you. Work cannot start until you accept.", a checkbox "I accept this split for this job.", a dark red "Accept" and an outlined "Decline".
    Expect: a line "Test job: Agency proposal, milestone 2: Final" with "your share $240" and "Split 20% agency / 80% you | in progress".
    Expect: the card "On Roe Test Agency LLC's bench" with "Your split: 20% to the agency / 80% to you." and the words "you receive your full share and pay no fee".
 
@@ -137,13 +137,14 @@ Group 4. Check the results (the owner, then the test attorney)
    Do: tick "I accept this split for this job." and click "Accept".
    Expect: the message "Accepted. You can start once the milestone is funded." The line now says "Split 25% agency / 75% you | in progress".
 
-3. Go to: https://www.lawfecta.co/dela-admin?tab=agencies ("Agencies" in the left menu, under the heading "MEMBERS") in the menu on the left near the top (between "Reviews and bench" and "Lawfecta Team").
-   Find: the card "Agency benches and splits" (below the card "Agencies").
+3. Go to: https://www.lawfecta.co/dela-admin?tab=agencies
+   Expect: the admin area opens on the page "Agencies" (in the left menu, "Agencies" is the last line under the heading "MEMBERS").
+   Find: the card "Agency benches and splits" (the second card, below the card "Agencies").
    Expect: the line "Roe Test Agency LLC | Stacey Lake (stacey@lawfecta.com) | active | split 20% agency / 80% freelancer (version 2)".
-   Find: the card "Bench assignments" (below it).
+   Find: the card "Bench assignments" (the third card, below it).
    Expect: two lines for "Roe Test Agency LLC | Test job: Agency proposal": milestone 1 with "split 25% agency / 75% | accepted" and milestone 2 with "split 20% agency / 80% | accepted".
 
-4. Sign out. Ask me to log in as the test attorney.
+4. Sign out of the admin area: click the button with the owner's name and "(owner)" at the top right, then "Sign out", the last line. Ask me to log in as the test attorney.
    Go to: https://www.lawfecta.co/dela?tab=projects&gig=f4546812-6749-44bd-bca0-66703c824045&view=agreement
    Find: the card "Who's working on this" (middle of the page).
    Expect: "DELA Test Freelancer | Lead paralegal" or "DELA Test Freelancer" and a line "Stacey Lake | Subcontractor, Milestone 2, 1".

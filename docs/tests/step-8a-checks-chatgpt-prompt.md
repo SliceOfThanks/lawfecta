@@ -1,6 +1,6 @@
 # ChatGPT test: the checks before a commitment (UX Phase 4 part B)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 Claude already tested this with the real api and database: 8 api tests and 15 browser checks (with a stand-in AI that tries to rank people and break the rules), plus all the other api tests and browser test files. This test checks the real screens on the test site, with the real AI.
 
@@ -58,7 +58,7 @@ FREELANCER (log in once)
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
 2. Go to: https://www.lawfecta.co/dela?tab=work&gig=acd44c8b-ad65-4703-a738-36bdaf6123e1
-   Find: the card "Your proposal", lower on the page.
+   Find: the card "Your proposal", the last card at the bottom of the page.
    Do: type 400 in "Total price ($)", type 5 in "Days to deliver", type Prepare the filing packet in "What your price includes", and leave "What it leaves out" empty.
    Find: under "Note to the attorney (optional)", an outlined light purple button "✦ Check my proposal" with the grey line "Uses 1 DELA action on Lawfecta's AI (none on your own key)." next to it.
    Do: click "✦ Check my proposal". Wait up to 60 seconds.
@@ -67,13 +67,13 @@ FREELANCER (log in once)
    Expect: the message "Added to the form. Nothing is saved until you save." and the suggestion appears in that box. Do not send the proposal.
 
 3. Go to: https://www.lawfecta.co/dela?tab=work&gig=c00a6abf-b3fd-461c-8ca4-4b6225d8a5bd&view=agreement
-   Find: the card "The agreement".
+   Find: the card "The agreement" (below the card "What happens next").
    Expect: near the top of the card, the button "✦ Check this for me" with "Uses 2 DELA actions on Lawfecta's AI (none on your own key)."
    Do: click "✦ Check this for me". Wait up to 60 seconds.
    Expect: an "AI suggestion" panel listing what does not match between the proposal and the agreement (or "DELA found nothing to flag."), ending with the legal-correctness line. Do not sign.
 
 4. Go to: https://www.lawfecta.co/dela?tab=files
-   Expect: a card "This page is for attorneys" saying "This page is on the attorney workspace of DELA. You are signed in as a freelancer (DELA Test Freelancer)." with a "Go to Home" button (no empty "Coming soon" page). (The test freelancer runs an agency that hires, so its Projects page is its own; Files is attorney-only.)
+   Expect: a card "This page is for attorneys" saying "This page is on the attorney workspace of DELA. You are signed in as a freelancer (DELA Test Freelancer)." with a dark red "Go to Home" button (no empty "Coming soon" page). (The test freelancer runs an agency that hires, so its Projects page is its own; Files is attorney-only.)
 
 5. Sign out.
 
@@ -89,18 +89,18 @@ ATTORNEY (log in once)
    Expect: that finding disappears. Do not save or post the gig.
 
 8. Go to: https://www.lawfecta.co/dela?tab=projects&gig=f44fb7f3-5760-42f2-ab23-1c35e8d56e4a&view=proposals
-   Find: the card "Compare proposals", with a table of two proposals (DELA Test Freelancer and Sample Freelancer (prepared)).
+   Find: the card "Compare proposals" (under the row of round buttons, where "Proposals (2)" is the chosen one), with a table of two proposals (DELA Test Freelancer and Sample Freelancer (prepared)).
    Expect: under the table, the button "✦ Compare these proposals" with "Uses 2 DELA actions on Lawfecta's AI (none on your own key)."
    Do: click "✦ Compare these proposals". Wait up to 60 seconds.
    Expect: an "AI suggestion" panel with one section for each of the two freelancers, by name, each with a short summary, a "Not said: ..." line and (often) "You could ask: ...". No sentence says one proposal is better, best or recommended. At the bottom: "DELA lists the same details for every proposal and does not rank them. You choose." Do not click "Choose".
 
 9. Go to: https://www.lawfecta.co/dela?tab=projects&gig=c00a6abf-b3fd-461c-8ca4-4b6225d8a5bd&view=agreement
-   Find: the card "The agreement".
+   Find: the card "The agreement" (below the card "What happens next").
    Do: click "✦ Check this for me" near the top of the card. Wait up to 60 seconds.
    Expect: an "AI suggestion" panel like the freelancer's in step 3. If it lists findings, it may also show "Propose changes". Do not click it, and do not sign.
 
 10. Go to: https://www.lawfecta.co/dela?tab=projects&gig=64ed7250-64b3-4423-a4f1-e0e890da40dc&view=agreement
-    Find: the card "The agreement", then the "Milestones" table, and under it the button "✦ Improve acceptance criteria" (1 DELA action).
+    Find: the card "The agreement", then the "Milestones" table inside that card, and under it the button "✦ Improve acceptance criteria" (1 DELA action).
     Do: click "✦ Improve acceptance criteria". Wait up to 60 seconds.
     Expect: an "AI suggestion" panel with "Milestone 1: ..." and a clearer deliverable, the line "Using them starts a new version of the agreement. Both of you sign it before it applies.", and the buttons "Use suggestion" and "Edit".
     Do: click "Use suggestion".
@@ -108,13 +108,13 @@ ATTORNEY (log in once)
     Do: click "Cancel" at the bottom of that card. Do not click "Send the new version".
 
 11. Go to: https://www.lawfecta.co/dela?tab=projects&gig=adf3da25-5d7d-4a56-bf88-8bd4cac3a22a&view=agreement
-    Find: the card "Monthly terms" and its list of tasks; under the tasks, the button "✦ Check monthly scope" (1 DELA action), above "Save the monthly terms".
+    Find: the card "Monthly terms" (below the card "What happens next") and its list of tasks; under the tasks, the button "✦ Check monthly scope" (1 DELA action), above "Save the monthly terms".
     Do: click "✦ Check monthly scope". Wait up to 60 seconds.
     Expect: an "AI suggestion" panel whose findings start with "Task 1, ..." and the box (for example "Task 1, Turnaround:"), with "Use suggestion" where DELA can fill that box. Do not click "Save the monthly terms".
 
 12. Go to: https://www.lawfecta.co/dela?tab=work
-    Expect: a card "This page is for freelancers" saying "This page is on the freelancer workspace of DELA. You are signed in as an attorney (DELA Test Attorney)." with a "Go to Home" button.
+    Expect: a card "This page is for freelancers" saying "This page is on the freelancer workspace of DELA. You are signed in as an attorney (DELA Test Attorney)." with a dark red "Go to Home" button.
     Do: click "Go to Home".
-    Expect: the attorney Home page opens.
+    Expect: the attorney Home page opens: a heading that starts "Hi," and "Home" is pink in the menu on the left.
 
 13. Sign out.

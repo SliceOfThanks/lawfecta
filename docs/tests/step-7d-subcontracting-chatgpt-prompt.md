@@ -1,6 +1,6 @@
 # ChatGPT test: agency subcontracting (step 7d, part 3)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 Claude already tested this with the real api and database: 7 subcontracting tests and 47 agency browser checks. This test covers the real screens on the test site.
 
@@ -77,10 +77,11 @@ Group 1. The attorney (log in as the test attorney)
    Find: the card "Who's working on this" (scroll down).
    Expect: "You hired Roe Test Agency LLC.", and the line "Stacey Lake" with "Subcontractor, Test gig: Linked part (prepared)".
 
-5. Click the bell (Notices) at the right of the top bar.
-   Expect: a notice "A change in who is working on this job: Test job: Subcontracting active (prepared)". Opening it says Stacey Lake works on part of this job as the agency's subcontractor and "Nothing is needed from you."
+5. Find: the bell at the right end of the top bar, between the "Inbox" button and the round button with your initials.
+   Do: click the bell.
+   Expect: a panel titled "Notices" with a notice "A change in who is working on this job: Test job: Subcontracting active (prepared)". Opening it says Stacey Lake works on part of this job as the agency's subcontractor and "Nothing is needed from you."
 
-6. Sign out.
+6. Sign out (the round button with your initials at the far right of the top bar, then "Sign out").
 
 Group 2. The agency (log in as the test freelancer)
 
@@ -101,9 +102,9 @@ Group 2. The agency (log in as the test freelancer)
    Do:
    - In the dropdown under "Document", choose "Test SOP: Agency intake".
    - Type 300 in "Budget from ($)" and 600 in "Budget to ($)".
-   - Click the blue "Draft the gig with DELA".
+   - Click the dark red "Draft the gig with DELA" at the bottom of the card.
    Expect: DELA writes for up to 60 seconds, then the gig page opens. Near the top: "Linked to Test job: Subcontracting active (prepared). Whoever you hire is listed on the attorney's "Who's working on this", as your subcontractor."
-   Do: in the card "Budget, deadline and milestones", type 12/31/2026 in "Deadline" (or choose that date), and type Draft on the first line and Final on the second line of "Milestones (private)". Click the blue "Post the gig" at the bottom.
+   Do: in the card "Budget, deadline and milestones", type 12/31/2026 in "Deadline" (or choose that date), and type Draft on the first line and Final on the second line of "Milestones (private)". Click the dark red "Post the gig" at the bottom.
    Expect: the matches view opens with the card "Your bench".
 
 5. Go to: https://www.lawfecta.co/dela?tab=projects
@@ -111,18 +112,19 @@ Group 2. The agency (log in as the test freelancer)
    Expect: the new gig's grey line starts "Linked to Test job: Subcontracting active (prepared)".
 
 6. Still on https://www.lawfecta.co/dela?tab=projects, in the card "Post a new gig" (top):
-   Expect: no "Linked to" line this time.
-   Do: choose "Test SOP: Agency intake" under "Document", type 300 in "Budget from ($)" and 600 in "Budget to ($)", and click the blue "Draft the gig with DELA".
+   Do: if the card shows only its heading and a dark red button "Start a new gig" at the right, click "Start a new gig".
+   Expect: the card opens with the dropdown "Document" and the budget boxes, and no "Linked to" line this time.
+   Do: choose "Test SOP: Agency intake" under "Document", type 300 in "Budget from ($)" and 600 in "Budget to ($)", and click the dark red "Draft the gig with DELA".
    Expect: after up to 60 seconds, the gig page opens with the card "Public version" and no "Linked to" line.
    Do: in the card "Public version", replace what is in each box with exactly this:
    - "Title": Family intake packet
    - "The task": Prepare the family intake packet: conflict screening questionnaire, retainer letter draft, document checklist, welcome email and calendar reminders for new divorce clients.
    - "What done looks like": A ready family intake packet.
    - "Steps, one per line": Prepare the family intake packet
-   Then in the card "Budget, deadline and milestones", type 12/31/2026 in "Deadline" and Draft and Final on two lines of "Milestones (private)". Click the blue "Post the gig".
+   Then in the card "Budget, deadline and milestones", type 12/31/2026 in "Deadline" and Draft and Final on two lines of "Milestones (private)". Click the dark red "Post the gig" at the bottom.
    Expect: the gig posts as usual and the matches view opens. (This gig copies the active job's words without being linked, so the Lawfecta Team gets a flag. The agency is not told.)
 
-7. Sign out.
+7. Sign out (the round button with your initials at the far right of the top bar, then "Sign out").
 
 Group 3. The subcontractor and the Lawfecta Team (log in as the owner)
 
@@ -133,12 +135,12 @@ Group 3. The subcontractor and the Lawfecta Team (log in as the owner)
    Find: the card "The agreement" (middle of the page). Click "The terms" to open it and scroll to its end.
    Expect: the last clause starts "11. Confidentiality and no poaching." and says the freelancer keeps everything the agency shares confidential and, for 12 months, does not take work directly from the agency's clients.
 
-3. Go to: https://www.lawfecta.co/dela-admin?tab=gigs ("Gigs" in the left menu, under the heading "MARKETPLACE").
-   Find: the card "Held for a check" (top of the page).
+3. Go to: https://www.lawfecta.co/dela-admin?tab=gigs
+   Find: the first card, whose heading starts "Held for a check (" (top of the page).
    Expect: an item for a gig on "Family intake packet", with the label "copies an engagement's text but is not linked to it", and the line "Gig "Family intake packet" shares ...% of its words with the engagement "Test job: Subcontracting active (prepared)" but is not linked to it." The buttons say "It is fine" and "Pause the gig".
    Do: click the red "Pause the gig" on that item.
    Expect: the message "Gig paused; the agency was told", and the item leaves the list.
 
-4. Sign out.
+4. Sign out (the button with the owner's name at the top right of the admin area, then "Sign out").
 
 At the end: list every FAIL, every message that was confusing, and anything that took longer than 60 seconds.

@@ -1,6 +1,6 @@
 # ChatGPT test: UX review fixes, parts 0, 1 and 2 (step 8)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 Claude already tested this with the real api and database: 264 api tests and all 17 browser test files pass. This test checks the changed screens on the test site.
 
@@ -21,7 +21,7 @@ What it covers:
   - the Library "Review" column
   - the profile Save button
   - plan names
-  - AI settings
+  - Settings (the AI cards)
   - meeting dates
   - file sharing
   - "Not specified" exclusions
@@ -85,7 +85,7 @@ FREELANCER (log in once)
 4. Click the bell (Notices) at the right of the top bar.
    Expect: two headings in the panel, "Needs your action (" with a number, and "Updates". A job with several updates shows one line with "earlier updates about this job" that opens on click. Notices that point to a page have an outlined button on the right of their date, named for where it goes (for example "Open the agreement", "Open the gig", "Open Earnings"). Write down two button names you see.
    Do: click the first of those buttons.
-   Expect: DELA opens that page, and that notice no longer shows "New" when you open "Notices" again. Close the panel.
+   Expect: DELA opens that page, and that notice no longer shows "New" when you click the bell again. Close the panel with the outlined "Close" button at its top right.
 
 5. Go to: https://www.lawfecta.co/dela?tab=profile
    Find: the row of buttons near the top of the page, under the grey line about your profile.
@@ -105,15 +105,15 @@ ATTORNEY (log in once)
 
 8. Go to: https://www.lawfecta.co/dela?tab=projects
    Expect: the cards in this order from the top: "Post a new gig", "Needs your action", "Your gigs", then "Engagements (" with a number. Wait 5 seconds and check the order did not change.
-   - "Post a new gig" is short, with a blue "Start a new gig" button (the form opens on request once you have gigs).
-   - "Needs your action" lists what waits on you, each with a button such as "Review proposals", "Answer", "Finish and post" or "Open the agreement".
-   - "Your gigs" has filter buttons "Open and drafts (", "Filled (", "Closed (" and "All (", and shows at most 6 gigs with a "Show ... more" button when there are more. Click "Filled (" and then "Open and drafts (" to see the list change.
+   - "Post a new gig" is short, with a dark red "Start a new gig" button at its right (the form opens on request once you have open gigs or drafts).
+   - "Needs your action" lists what waits on you, each with an outlined button at its right such as "Review proposals", "Answer", "Open the agreement", "Review the delivery" or "Open the payment". If nothing waits, it says "Nothing waits on you right now."
+   - "Your gigs" has filter buttons "Open and drafts (", "Filled (", "Closed (" and "All (", and shows at most 6 gigs. When there are more, an outlined button under the list starts with "Show", then a number, then "more". Click "Filled (" and then "Open and drafts (" to see the list change.
 
 9. On the same page, in the card "Post a new gig":
-   Do: click "Start a new gig". Then type 300 in "Budget from ($)" and 600 in "Budget to ($)". Do not click "Draft the gig with DELA".
+   Do: click the dark red "Start a new gig" button at the right of the card (if the form with the "Document" list is already open, skip this click). Then type 300 in "Budget from ($)" and 600 in "Budget to ($)". Do not click "Draft the gig with DELA".
    Expect: a grey line under the budget boxes: "The budget covers the work. Your platform fee (5%, at least $10) is added and shown before signing. Estimated total: $315 to $630."
-   Do: if you see the choice "Monthly" above "Document", click it.
-   Expect: the line now starts "The budget is the monthly price for the work." and says "Estimated total each month: $315 to $630." Leave the page without saving.
+   Do: if you see the round choices "One-off" and "Monthly" above "Document", click "Monthly".
+   Expect: the line now starts "The budget is the monthly price for the work." and ends "Estimated total each month: $315 to $630." Leave the page without saving.
 
 10. Go to: https://www.lawfecta.co/dela?tab=projects&gig=6a31398c-e89f-4f58-b6ca-f5aef02639a4&view=agreement
     Find: the card "The agreement", near the middle.
@@ -132,12 +132,17 @@ ATTORNEY (log in once)
     Expect: there is NO "Cancel the engagement" in that card.
 
 12. Go to: https://www.lawfecta.co/dela?tab=library
-    Expect:
-    - right under the card with the document count: a search box "Search by title, ID or practice area" and the filter buttons "All", "Drafts", "In review", "Approved", "Due for review" and "More". Click "More": "Archived" (and "Trash" for an administrator) appear.
-    - one table with the columns "Document", "Type", "Owner (role)", "Status", "Next review" and "Review". Each group (for example "INT | Intake and conflicts") is a shaded row inside the same table, and each document's ID sits under its title.
-    - the "Review" cells say "Review 1 issue", "Review 2 issues", "1 suggestion", "2 suggestions" or "None". Never "blocking" or "to look at".
+    Expect: the page heading "Library" with document cards under headings.
+    Find: the row of underlined dark red links at the bottom of the page, under the last document cards.
+    Do: click "Show as a table", the last link in that row. (This only changes how the list looks on this browser.)
+    Expect: the page heading is now "Document library", and:
+    - right under the card with the document count (the card with the dark red "New document" button): a search box "Search by title, ID or practice area" and the filter buttons "All", "Drafts", "In review", "Approved", "Due for review" and "More". Click "More": "Archived" (and "Trash" for an administrator) appear.
+    - one table with the columns "Document", "Type", "Owner (role)", "Status", "Next review" and "Review". Each group is a shaded row inside the same table that starts with three capital letters and a line (for example "INT |"), and each document's ID sits under its title.
+    - the "Review" cells say "None", or underlined dark red words such as "1 quality note", "2 quality notes" or "1 quality note (required)". Never "blocking" or "to look at".
     - empty Owner cells say "Not assigned" and empty Next review cells say "Not scheduled".
     - below the table, if there are imports, one line "Imports waiting for review (" that opens on click.
+    Do: scroll to the bottom of the page and click the underlined dark red link "Show as cards".
+    Expect: the heading is "Library" again, with the document cards.
 
 13. Go to: https://www.lawfecta.co/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
     Find: the card "✦ Automate or delegate" near the top.
@@ -145,18 +150,22 @@ ATTORNEY (log in once)
     - a bold line like "2 ideas | 1 already delegated".
     - each idea says "Estimated time saved:".
     - the idea that was delegated shows a green "Gig posted" or "Gig drafted" label with a "View gig" button, and no "Delegate these steps" button.
-    Then click the view button "Comments (" under the document heading.
-    Expect: if there are no comments, the card says "No comments yet. In "Draft and review", click "Comment" beside any part." with a button "Go to Draft and review". Click that button: the "Draft and review" view opens.
+    Then click the view button that starts "Comments (" in the row of view buttons under the document details (the row starts with "Approved version" or "Draft and review").
+    Expect: if there are no comments, the card shows one of these two:
+    - "No comments yet. The approved version is read-only: to comment, start a new draft. The approved version stays in use until the new one is approved." with an outlined button "Edit a new draft". Do not click it.
+    - a line that starts "No comments yet. In" and ends "click "Comment" beside any part.", naming a view that is in the row of view buttons ("Draft and review", "New draft" or one that starts "Draft (version"), with an outlined button that starts "Go to" and names the same view. Click that button: that view opens.
 
 14. Go to: https://www.lawfecta.co/dela?tab=home
-    Find: the card whose heading starts "Your DELA plan:".
-    Expect: the grey line at the bottom of it: "Your DELA plan comes from your Lawfecta directory plan. Change or pay for it in your Lawfecta account."
+    Find: the bottom of the left column, under the cards: one grey line with your plan name, and at its right end the underlined dark red words "View plan".
+    Do: click "View plan".
+    Expect: a card opens under that line. Its heading starts "Your DELA plan:". The grey line at the bottom of it: "Your DELA plan comes from your Lawfecta directory plan. Change or pay for it in your Lawfecta account."
 
 15. Go to: https://www.lawfecta.co/dela?tab=ai
-    Find: the card "Which AI DELA uses", at the top.
+    Expect: the page heading "Settings".
+    Find: the heading "AI and messages", below the cards "Account and security", "Appearance", "Suggestions and alerts" and "Emails". The card "Which AI DELA uses" is the first card under that heading.
     Expect:
-    - under "Use Lawfecta's AI", the credits line ends "Credits reset on the 1st of each month (Pacific time)."
-    - if "Use Lawfecta's AI" is chosen and no key is saved, a grey line says "To add your own OpenAI or Claude key, choose "Use my own key" above." and there is no "Save and test" button.
+    - under "Use Lawfecta's AI", the grey line says "Included with your plan." or ends "DELA actions reset on the 1st of each month (Pacific time)."
+    - if "Use Lawfecta's AI" is chosen and no key is saved, a grey line under the card says "To add your own OpenAI or Claude key, choose "Use my own key" above." and there is no "Save and test" button.
     - if a key is saved, its card shows. Do not change anything.
 
 16. Go to: https://www.lawfecta.co/dela?tab=meetings
@@ -175,21 +184,22 @@ ATTORNEY (log in once)
     Expect: a window "Profile" with their name, "Verified" or "Verification not finished", and their details. Click "Close".
 
 19. Go to: https://www.lawfecta.co/dela?tab=delegate
-    Do: click "New chat" at the top right.
+    Do: click the outlined button "New chat" at the top right of the page, on the same line as the heading "Ask DELA".
     Expect: the message box comes right under the heading, with a card "Example: ..." and a button "Use this example" below it. Click "Use this example": the example text fills the message box. Do not send it.
 
 20. Go to: https://www.lawfecta.co/dela?tab=inbox
     Do: click the first conversation in the list.
-    Expect: under the heading, "Open the gig" and a blue "Book a meeting", then "✦ AI help" and "More", which open on click. "More" holds "Report" and "Block". Do not click any of them.
+    Expect: under the heading, "Open the gig" and a dark red "Book a meeting", then "✦ AI help" and "More", which open on click. "More" holds "Report" and "Block". Do not click any of them.
 
 21. Go to: https://www.lawfecta.co/dela?tab=files
     Expect: a search box "Search files by name" above the list. Each file shows "Version" and when it was uploaded under its name, and a file marked "Ready" says "Available to your firm".
 
 22. Go to: https://www.lawfecta.co/dela?tab=connect
-    Expect: the headings "What ChatGPT or Claude can access", "What it can change", "What stays private" and "How to disconnect".
+    Expect: one card with the heading "Connect DELA to ChatGPT or Claude" and, under it, the smaller headings "What ChatGPT or Claude can access", "What it can change", "What stays private", "What leaves DELA" and "How to disconnect".
 
 23. Go to: https://www.lawfecta.co/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
-    Find: the card "Quality check" on the right of the document.
-    Expect: a grey line "Blocking items are required before approval. Needs attention items are suggestions. These checks look at how the document is written; they do not confirm it is legally correct." Items not passed are labeled "Required before approval" or "Suggestion".
+    Find: the row of view buttons under the document details. Look at its first button.
+    Expect, if the first button is "Draft and review" (or the selected button is "New draft" or starts "Draft (version"): a card "Quality check" on the right of the document, with a grey line "Blocking items are required before approval. Needs attention items are suggestions. These checks look at how the document is written; they do not confirm it is legally correct." Items not passed are labeled "Required before approval" or "Suggestion".
+    Expect, if the first button is "Approved version" and it is selected: under the card whose heading starts "Approved version", either a card whose heading starts "Quality notes (" with a grey line that starts "What the quality check suggests for this version." and items labeled "Required before approval" or "Suggestion", or no quality card at all when every check passed. Write which of these you saw.
 
 24. Sign out.
