@@ -42,7 +42,8 @@
   }
 
   function show(node) { D.clear(app); app.appendChild(node); if (dockEl) D.clear(dockEl); }
-  function brand() { return h("span", { class: "brand" }, D.logo(root), h("span", { text: "DELA" })); }
+  // Stacey 2026-11-12: the name at the top is Lawfecta in the new layout (DELA is the assistant inside it)
+  function brand() { return h("span", { class: "brand" }, D.logo(root), h("span", { text: (me && me.side && (me.switches || {}).new_layout) ? "LAWFECTA" : "DELA" })); }
 
   // ---------- Screens before sign in ----------
 
@@ -225,7 +226,7 @@
   function sidebar(g) {
     var folded = localPref("side.folded");
     var s = h("nav", { class: "nl-side" + (folded ? " mini" : ""), "aria-label": "DELA sections" });
-    s.appendChild(h("div", { class: "nl-brand" }, D.logo(root, 32), h("b", { text: "DELA" })));
+    s.appendChild(h("div", { class: "nl-brand" }, D.logo(root, 32), h("b", { text: "LAWFECTA" })));
     g.main.forEach(function (t) { s.appendChild(navItem(t, folded)); });
     if (g.second.length) { s.appendChild(h("div", { class: "nl-sep" })); g.second.forEach(function (t) { s.appendChild(navItem(t, folded)); }); }
     if (g.account.length) { s.appendChild(h("div", { class: "nl-sep" })); g.account.forEach(function (t) { s.appendChild(navItem(t, folded)); }); }

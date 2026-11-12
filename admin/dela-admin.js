@@ -73,7 +73,7 @@
   function navList(inSheet) {
     var folded = !inSheet && pref("folded") === true, open = pref("groups") || [];
     var nav = h("nav", { class: inSheet ? "anav" : "nl-side anav" + (folded ? " mini" : ""), "aria-label": "Admin pages" });
-    if (!inSheet) nav.appendChild(h("div", { class: "nl-brand" }, D.logo(root, 32), h("b", { text: "DELA ADMIN" })));
+    if (!inSheet) nav.appendChild(h("div", { class: "nl-brand" }, D.logo(root, 32), h("b", { text: "LAWFECTA ADMIN" })));
     if (!folded) GROUPS.forEach(function (g) {
       var isOpen = !g[0] || open.indexOf(g[0]) >= 0 || g[0] === groupOf(current), gid = "ag-" + g[0].split(" ").join("-") + (inSheet ? "-s" : "");
       if (g[0]) {

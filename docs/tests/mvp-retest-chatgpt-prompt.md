@@ -58,7 +58,7 @@ TEST FREELANCER (log in once)
    Find: the card titled "Ask DELA" at the top of the right column.
    Expect: the line from DELA at the top of that card no longer asks for the agency profile. Write what it says now.
 5. Find: the top of the menu on the left, next to the round logo.
-   Expect: it reads "DELA" in full (not "DEL").
+   Expect: it reads "LAWFECTA" in full, not cut off.
    Sign out (the round button with your initials at the far right of the top bar, then "Sign out").
 
 TEST ATTORNEY (log in once)
