@@ -327,6 +327,7 @@ Build order after approval, all behind the switch `new_layout`:
 11. Done 2026-11-12 and on the site behind the switch (on for the Lawfecta Team and the two test accounts): the admin sidebar with one account button and the phone "Menu" sheet, "Payment overview", "workspace" in every text, numbers on Home that open their list, the accessibility pass, the new-layout lines in AGENT-RULES.md, and the ChatGPT test docs/tests/workspace-chatgpt-prompt.md.
 11b. Done 2026-11-13: "Needs attention" as the first card on the admin Payments page (admin/dela-admin.js `attentionCard`, `showCard`), with checks in tests/pw/workspace-test.js.
 12. Done 2026-11-13 on Stacey's yes: new_layout is on for everyone; AGENT-RULES.md and the older prompts carry the new page description. The old shell is removed one release later.
+12b. Done 2026-11-12: Stacey ran the new layout ChatGPT test, 20 of 21 passed; step 17 was a narrow browser window, no defect (docs/reviews/test-reports/2026-11-12-new-layout.txt).
 13. Done 2026-11-13: all 52 older prompts checked step by step; 26 carry an "Open point" line at the top saying what must be prepared before they are sent again (none is sent before the test data is cleared). The leftovers the check found in the screens and database texts are fixed (migration 0099).
 Not in this step: search, "+ New", the money chart, an admin date filter.
 

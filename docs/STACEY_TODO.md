@@ -6,17 +6,12 @@ Do these from top to bottom. Never paste a password, key or secret into chat. Ty
 
 Everything Claude can build without you is built. What is left needs you: a test, a yes, or a setting in Stripe or Supabase.
 
-## 1. Run the ChatGPT test of the new layout
-1. Use the file "READY-15-ChatGPT-workspace.md" that Claude sent in chat (the passwords are filled in). The copy without passwords: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/workspace-chatgpt-prompt.md
-2. Copy everything below the line "---" and paste it into ChatGPT in agent mode. Keep the browser window wide.
-3. It asks you to log in three times at https://www.lawfecta.co/login: the test freelancer, the test attorney, then you as owner. Each time click "Take over" at the top of ChatGPT's browser view, log in, tick "I'm not a robot", hand control back, and type: I'm logged in, continue.
-4. At the end ChatGPT gives you a file named DELA-test-report.txt. Send it to Claude in chat.
-It has 21 steps and only looks. Nothing is signed, paid or saved.
+## 1. The ChatGPT test of the new layout: done
+You ran it on 2026-11-12. 20 of 21 steps passed. Step 17 was marked as failed only because ChatGPT's browser window was narrow (530 px), where the admin area shows the "Menu" button, as it should. The report is saved: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/reviews/test-reports/2026-11-12-new-layout.txt
 
-## 2. Three quick checks by hand
+## 2. Two quick checks by hand
 1. On your phone, log in at https://www.lawfecta.co/login and open https://www.lawfecta.co/dela?tab=home. Scroll up and down. The bar at the bottom with "Home", "Work", "Ask DELA", "Earnings", "More" should stay on the screen the whole time. If it does not, record your screen while you scroll and send the recording.
 2. Open https://www.lawfecta.co/dela?tab=ai. The first card is "Account and security". In the row "Sign-in email" click "Change email". In the row "Password" click "Change password". Each opens a page of the Lawfecta website in a new tab. Tell Claude whether each is the right page. Do not save anything there.
-3. Open https://www.lawfecta.co/dela-admin?tab=pay. The first card is "Needs attention". Tell Claude what it lists.
 
 ## 3. Two decisions
 1. The Lawfecta website changes a member's sign-in email as soon as they save it, without confirming the new address. Is that acceptable for the pilot? (DELA cannot add a confirmation; it would be a question for Brilliant Directories support.)

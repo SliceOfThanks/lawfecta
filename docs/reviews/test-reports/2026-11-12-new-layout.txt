@@ -1,0 +1,38 @@
+DELA UI test report - 2026-11-12
+Site: https://www.lawfecta.co
+Method: Observation only, except freelancer Dark then Light. No signing, payment, sending, or saving was performed. User completed each login and reCAPTCHA manually.
+
+01 PASS - User logged in as test freelancer; DELA Test Freelancer shown.
+02 PASS - Home and Test site shown; left sidebar, pink Home, and no top tab row at desktop width.
+03 PASS - Needs your attention and Your work matched; first row: "Milestone 1: Month 1, week 1". Four summary boxes and green profile status shown; no Complete your profile card.
+04 PASS - Ask DELA card matched. Suggestion: "1 attorney invited you to a gig. Answer soon; an invited proposal does not use your monthly allowance." Button: "See my invitations". Prompt, 20 free answers, both links present; excluded words absent.
+05 PASS - Invitations shortcut opened Work at tab=work and focused "Invitations (1)".
+06 PASS - Sidebar collapsed to icons and expanded back to "Collapse sidebar". Work icon retained accessible name "Work"; hover label could not be directly tested with this browser control.
+07 PASS - Settings showed Account and security, correct freelancer email, password links, Appearance, and Suggestions and alerts in order.
+08 PASS - Account menu matched; Dark rendered dark page, text, and sidebar; Light restored.
+09 PASS - Help heading and four requested topics shown.
+10 PASS - Freelancer signed out to login?action=loggedout.
+11 PASS - User logged in as test attorney; DELA Test Attorney shown.
+12 PASS - Attorney attention rows, four Your projects boxes, and Ask DELA suggestion matched. Suggestion: "2 proposals arrived for """Build document checklist from questionnaire answers""". Compare them side by side and choose one." Button: "Compare the proposals". Desktop sidebar layout could not be verified because the browser viewport reported 530 px.
+13 PASS - Open gigs shortcut opened Projects at tab=projects and focused "Your gigs".
+14 PASS - Account and security showed stacey+dela-attorney@lawfecta.com.
+15 PASS - Attorney signed out to login?action=loggedout.
+16 PASS - User logged in as owner; Stacey Lake shown.
+17 FAIL - Admin at dela-admin showed a mobile "Menu" button rather than the requested persistent desktop left sidebar; browser viewport reported 530 px despite desktop width setting. Screenshot: step-17-fail.jpg.
+18 PASS - PAYMENTS expanded to Payments, Disputes, Recurring. Payments opened tab=pay; Needs attention (4) rows: "Stripe pays Lawfecta's balance to the bank by itself"; "Stripe holds less than DELA owes"; "Payout failed: $47.50 to DELA Test Freelancer, Fee test: Run a Conflict Check"; "Dispute waiting for the Lawfecta Team: Test job: Dispute for the team (prepared)". Payment overview contained the Stripe notice, "Stripe balance available now: minus $109.87.", "Engagements: on for everyone", All time, Current balance, and Held now.
+19 PASS - Owner menu matched; My account opened tab=account, with Account and security and stacey@lawfecta.com.
+20 PASS - Failed payout row opened tab=disputes, focused Money tools, showed "Payout failed: $47.50 to DELA Test Freelancer, Fee test: Run a Conflict Check" and Retry now. Retry not clicked.
+21 PASS - Owner signed out to login?action=loggedout.
+
+FAIL list
+- Step 17: Desktop admin sidebar not visible in the available browser viewport. This is a viewport limitation during the test, not a confirmed product defect. See step-17-fail.jpg.
+
+Confusing messages
+- None observed in the tested UI.
+
+Items taking longer than 60 seconds
+- None observed.
+
+Verification limits
+- The freelancer collapsed Work icon's hover tooltip was not directly triggered; accessible name was "Work".
+- After user handoff for the attorney and owner logins, the in-app browser reported a 530 px viewport. Setting a 1440 px viewport had no effect. Attorney and owner content was checked, but their desktop layout could not be fully assessed.

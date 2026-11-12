@@ -105,6 +105,7 @@ OWNER, ADMIN AREA (log in once)
 16. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 17. Go to: https://www.lawfecta.co/dela-admin
     Expect: a menu on the left: "Release Control" (pink), "Guide", then the headings "MEMBERS", "PLANS AND SETTINGS", "MARKETPLACE", "PAYMENTS", "SAFETY", and at the bottom "Collapse sidebar". At the top right, one button that says "Stacey Lake (owner)". There is no row of tabs across the top.
+    If your browser window is narrower than 900 px, the left menu is folded away: expect a button "Menu" at the top, and clicking it opens a panel "Admin pages" with the same names. That is a PASS. Say in the report which of the two you saw, and use the panel for the next steps.
 18. Do: in the left menu click the heading "PAYMENTS".
     Expect: three lines appear under it: "Payments", "Disputes", "Recurring".
     Do: click the line "Payments" under that heading.
