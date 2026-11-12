@@ -253,7 +253,15 @@ Deno.test("messages: only the pair, held when clear, warned when unsure, edits, 
   assertEquals((await call("POST", "/threads/edit", att.token, { id: mid, body: "Wednesday" })).body.reason, "edit_time_over");
   assertEquals((await call("POST", "/threads/remove", att.token, { id: mid })).body.ok, true);
   const shown = (await call("GET", "/threads/get?id=" + thread, fl.token)).body.messages.find((m: any) => m.id === mid);
-  assertEquals([shown.status, shown.body], ["removed", ""], "the other person sees Message removed");
+  assertEquals([shown.status, shown.body, shown.removed_why], ["removed", "", "sender"], "the other person sees that the sender removed it");
+  // UX review 2026-11-08: a held message the team does not deliver is marked as removed by the team, and the notice
+  // "A message was not delivered" opens that conversation
+  const heldMsg = await one("select id from messages where thread_id = $1 and status = 'held' order by created_at limit 1", [thread]);
+  const flagRow = await one("select id from conduct_flags where object_type = 'message' and object_id = $1", [heldMsg.id]);
+  const teamId = (await one("select person_id from staff_roles limit 1")).person_id;
+  await pool.query("select dela_admin_conduct_decide($1, $2, false, 'Off platform')", [teamId, flagRow.id]);
+  assertEquals((await one("select status || ':' || removed_why s from messages where id = $1", [heldMsg.id])).s, "removed:team");
+  assertEquals((await one("select link from notifications where title = 'A message was not delivered' and person_id = $1 order by created_at desc limit 1", [fl.id])).link, "/dela?tab=inbox&thread=" + thread);
   assert((await one("select body from messages where id = $1", [mid])).body.includes("Tuesday"), "the record stays for the team");
   // DELA in the thread
   const s = (await call("POST", "/threads/assist", att.token, { thread_id: thread, mode: "summarize" })).body;

@@ -74,10 +74,21 @@ async function makeMember(bd, side, plan) {
     const gigId = (await sql("select id from gigs where request_id = 'mtg'"))[0].id;
 
     // ---------- Freelancer: availability for meetings ----------
+    await sql(`update member_profiles set body = body || '{"timezone":"Eastern"}' where person_id = (select id from people where bd_member_id = 2701) and side = 'freelancer'; select 1`);
     let s = await open(browser, "DELA-App", 2701, "&tab=profile");
     let p = s.page;
     await waitFor(p, "Your availability for meetings");
     await label(p, "Time zone for meetings").selectOption("America/Chicago");
+    // UX review 2026-11-08: the profile's own time zone differs, so the card says so; days off can be picked from a calendar
+    let tzText = await waitFor(p, "Your profile says your time zone is Eastern");
+    ok(tzText.includes("Meeting times use the one chosen here (America/Chicago)."), "availability: a different time zone on the profile is pointed out");
+    await label(p, "Time zone for meetings").selectOption("America/New_York");
+    await p.waitForTimeout(200);
+    ok(!(await text(p)).includes("Your profile says your time zone is"), "availability: the note goes when the two time zones match");
+    await label(p, "Time zone for meetings").selectOption("America/Chicago");
+    await label(p, "Pick a day off").fill("2026-12-24");
+    await click(p, "Add day off");
+    ok((await label(p, "Days off").inputValue()).includes("2026-12-24"), "availability: a day off picked from the calendar is added to the list");
     await label(p, "Saturday").check();
     await label(p, "Sunday").check();
     await click(p, "Save availability");

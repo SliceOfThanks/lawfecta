@@ -1,5 +1,7 @@
 # DELA MVP overview
 
+**Note of 2026-11-13.** This page was written on 2026-11-05 for a test site and a separate Live site. Since 2026-11-10 the pilot runs on one site, https://www.lawfecta.co. For where things stand today read STATUS.md; for what is left for Stacey, in order, read docs/STACEY_TODO.md; for the go-live steps read docs/PILOT_GO_LIVE.md. Built since this page was written: disputes (step 11), the DELA guide (step 13), the fee charged with each milestone (step 14, proven in Stripe's test mode), and the compact workspace (step 15: sidebar, phone bar, Account and security, the admin sidebar and "Needs attention").
+
 Written 2026-11-05. This is the whole picture in one place: what is built, what is in progress, what is next, what must be done before the MVP (beta) launch, and what waits until after it. Detail by step is in STATUS.md, and the working plan is docs/PLAN.md.
 
 Links on GitHub start with https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/ (written below as "GitHub:" and the file path).

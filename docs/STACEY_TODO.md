@@ -1,109 +1,56 @@
 # Stacey's to-do list, in order
 
-Last updated 2026-11-04. Do these from top to bottom. Each one says where to go, what to click and what to have ready. Never paste a password, key or secret into chat. Type them only into BD, Google, Supabase, GitHub or ChatGPT on your own computer.
+Last updated 2026-11-13. This replaces the list of 2026-11-04 (that one was written for two sites and the old address). The pilot runs on one site, https://www.lawfecta.co, for 10 to 50 invited members.
 
-Already done: the Brevo key, Lawfecta's OpenAI key and the key lock secret in Supabase; US only for licenses; practice areas and tech tools on profiles.
+Do these from top to bottom. Never paste a password, key or secret into chat. Type them only into Brilliant Directories, Stripe, Google or Supabase.
 
-## 1. Logging in during ChatGPT tests (reCAPTCHA)
-The Lawfecta login uses Google reCAPTCHA, which BD does not let you turn off, and which blocks ChatGPT's agent even when it ticks the box. So you do the logins yourself, inside ChatGPT's browser. Every test is grouped by login, so this happens about three times per test (freelancer, attorney, owner).
+Everything Claude can build without you is built. What is left needs you: a test, a yes, or a setting in Stripe or Supabase.
 
-Each time ChatGPT reaches the login page:
-1. In the ChatGPT agent window, click "Take over" (top of its browser view).
-2. On https://www.hirelegalhelp.com/login, type the email and password for the account the test names (they are in the ready copy Claude sent you), tick "I'm not a robot", and click "Login Now".
-3. When the DELA page or your account page shows, click "Finish" or "Hand back to ChatGPT" (the wording varies), and type: I'm logged in, continue.
-4. When the test says to sign out, ChatGPT clicks the initials in the top right of the DELA page, then "Sign out". The next group starts at the login page again.
+## 1. Run the ChatGPT test of the new layout
+1. Use the file "READY-15-ChatGPT-workspace.md" that Claude sent in chat (the passwords are filled in). The copy without passwords: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/workspace-chatgpt-prompt.md
+2. Copy everything below the line "---" and paste it into ChatGPT in agent mode. Keep the browser window wide.
+3. It asks you to log in three times at https://www.lawfecta.co/login: the test freelancer, the test attorney, then you as owner. Each time click "Take over" at the top of ChatGPT's browser view, log in, tick "I'm not a robot", hand control back, and type: I'm logged in, continue.
+4. At the end ChatGPT gives you a file named DELA-test-report.txt. Send it to Claude in chat.
+It has 21 steps and only looks. Nothing is signed, paid or saved.
 
-## 2. Run the ChatGPT tests, in this order
-For each test:
-1. Use the ready-to-paste copy Claude sent you in chat (logins and passwords filled in). The GitHub copy has everything except the passwords.
-2. Fill in any part still in capitals (for example YOUR_OPENAI_KEY).
-3. Paste everything below the line into ChatGPT in agent mode.
-4. Send Claude the report in this chat.
-Claude fixes anything that fails, then tells you which part to run again.
+## 2. Three quick checks by hand
+1. On your phone, log in at https://www.lawfecta.co/login and open https://www.lawfecta.co/dela?tab=home. Scroll up and down. The bar at the bottom with "Home", "Work", "Ask DELA", "Earnings", "More" should stay on the screen the whole time. If it does not, record your screen while you scroll and send the recording.
+2. Open https://www.lawfecta.co/dela?tab=ai. The first card is "Account and security". In the row "Sign-in email" click "Change email". In the row "Password" click "Change password". Each opens a page of the Lawfecta website in a new tab. Tell Claude whether each is the right page. Do not save anything there.
+3. Open https://www.lawfecta.co/dela-admin?tab=pay. The first card is "Needs attention". Tell Claude what it lists.
 
-### 2a. Step 3: profiles and verification
-- Status 2026-11-05: ChatGPT ran out of credits partway. Most of it passed, and Claude fixed the two problems it found. Finish the rest by hand (about 10 minutes): https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-3-finish-by-hand.md
-- Test: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-3-chatgpt-prompt.md
-- Have ready:
-  - the logins are filled in: test attorney stacey+dela-attorney@lawfecta.com, test freelancer stacey+dela-freelancer@lawfecta.com, owner stacey@lawfecta.com (passwords only in the copies Claude sends you in chat, never on GitHub)
-  - the work email for the license check is hello@lawwurk.com: have that inbox open
-  - a short resume as a PDF with no client information
-  - any program file renamed to end in .pdf
-- During the test, ChatGPT asks you to open that work email and click the button in it while logged in as the test attorney.
+## 3. Two decisions
+1. The Lawfecta website changes a member's sign-in email as soon as they save it, without confirming the new address. Is that acceptable for the pilot? (DELA cannot add a confirmation; it would be a question for Brilliant Directories support.)
+2. Say "turn the new layout on for everyone" when you are happy with it. Until then only you and the two test accounts see it.
 
-### 2b. Short screens test (Ask DELA, Files, library, exports, your own AI key): passed 2026-11-05 (34 of 36); 7 fixes, short recheck by hand
-- Test: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2-short-chatgpt-prompt.md
-- Have ready:
-  - a short process write-up as a Word file or PDF, with no client information
-  - a program file renamed to end in .pdf
-  - your own OpenAI key from https://platform.openai.com/api-keys
-- Type the key only into ChatGPT on your own computer.
-- After the test, delete that key at https://platform.openai.com/api-keys (click the key, then Revoke), or make a new one.
+## 4. Clear the test money data (cannot be undone)
+What it does and what it keeps: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/PILOT_GO_LIVE.md (section 1). Your account and the two test accounts stay (BD members 686, 687, 688); every test job, agreement, payment, payout, refund and dispute goes.
+1. Check that a backup exists: open https://supabase.com/dashboard/project/ojshgsxgsypbywtqhkch/database/backups (Supabase, the project "Lawfecta AI", "Database" in the left menu, then "Backups"). There should be one from today or yesterday.
+2. Tell Claude in chat: "A backup exists. Clear the test data now." Claude runs it and reports the counts.
+Do this before step 5: the test jobs carry ids from Stripe's test mode that the live account does not know.
 
-### 2c. DELA in Claude and ChatGPT (the connector): passed 2026-11-05
-- Test: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2b-connector-test.md
-- Claude: open https://claude.ai/settings/connectors, click "Add custom connector", name it Lawfecta DELA, and paste this address: https://ojshgsxgsypbywtqhkch.supabase.co/functions/v1/api/mcp
-- ChatGPT: Settings, then Apps and Connectors, then Create. If there is no Create button, turn on Developer mode under Advanced settings first.
-- Log in to https://www.hirelegalhelp.com as the test attorney first, in the same browser.
+## 5. Stripe: the live account
+The full steps with pictures of where to click: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/STRIPE_SETUP.md and https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/PILOT_GO_LIVE.md (section 2). In short:
+1. In Stripe (https://dashboard.stripe.com), with "Test mode" switched OFF: open Settings (the gear, top right), then "Payouts" under "Business", then "Payout schedule", and choose "Manual". DELA holds each paid milestone on Lawfecta's Stripe balance until the attorney accepts it; with automatic payouts that money leaves for the bank and the freelancer's payout fails.
+2. Still in Stripe, live mode: "Developers", then "API keys", then "Create restricted key" (or use the secret key). Copy it.
+3. In Supabase: https://supabase.com/dashboard/project/ojshgsxgsypbywtqhkch/functions/secrets ("Edge Functions", then "Secrets"). Edit the secret named STRIPE_SECRET_KEY and paste the live key. Save.
+4. In Stripe, live mode: "Developers", then "Webhooks", then "Add endpoint". The address is https://ojshgsxgsypbywtqhkch.supabase.co/functions/v1/api/stripe/webhook and the seven events are listed in docs/STRIPE_SETUP.md. After saving, click "Reveal" under "Signing secret" and copy it.
+5. In Supabase, the same Secrets page: edit STRIPE_WEBHOOK_SECRET and paste the signing secret. Save.
+6. Tell Claude: "The live Stripe key and webhook are in." Claude turns off the switch that charges the fee with each milestone (your decision of 2026-11-11), checks the connection, and tells you when to turn on "live_payments" in the admin area: https://www.lawfecta.co/dela-admin?tab=switches, the row "live_payments".
 
-### 2d. Process Recorder check on a real computer
-- Test: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/tests/step-2-recorder-chatgpt-prompt.md
-- Direct link to the recorder: https://www.hirelegalhelp.com/dela?tab=record
-- Use Chrome first, then Edge, then Firefox. Use a practice process with no client information on screen.
+## 6. Three small real payments
+With your own card, on a small made-up job between your two test accounts: one payment, one payout, one refund. Claude gives you the exact steps when step 5 is done, and compares each with Stripe.
 
-## 3. Answers Claude needs from you
-1. Scribe add-on: answer the 6 questions, or reply "use suggestions": https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-2s-scribe-import-plus.md
-2. One real Scribe guide with no client information:
-   1. In Scribe, open the guide and click Share, then Export.
-   2. Download it as HTML, then as Markdown, then as Word.
-   3. Attach the three files in this chat.
-3. Settings to confirm (reply "use suggestions" or give your numbers):
-   - Playbooks per plan. Suggested: Free 10, Plus 40, Pro 90, Business 140.
-   - AI credits per task. Today: chat 1, chat with files 2, talking 1, playbook draft 3.
-   - Process Recorder. Today: longest recording per plan, days videos are kept, and credits per recording, as set in the admin area.
-   - DELA in ChatGPT and Claude. Today: on every plan; posting or sending from ChatGPT and Claude is off.
-   - Profile documents. Today: 10 per freelancer, 10 MB each.
-   - License re-check every 12 months, with 30 days to catch up.
-   - A booking link for the 10 minute license video call (TidyCal or Calendly). Until then the Lawfecta Team emails the attorney.
-   You can see and change every setting at https://www.hirelegalhelp.com/dela-admin, Settings tab.
+## 7. Mark the site as live
+Tell Claude: "Mark the site live." What changes is listed in docs/PILOT_GO_LIVE.md, section 4 (the yellow "Test site" label goes, emails lose "[Test site]").
 
-## 4. Let DELA put practice areas on the directory listing (about 2 minutes)
-1. Log in to the hirelegalhelp.com BD admin.
-2. In the admin search box, type: API, then open the API keys page.
-3. Open the key DELA uses and click Permissions.
-4. Turn on list_professions and the services list (top categories and sub categories). Save.
-5. Tell Claude: done.
+## 8. Before members are invited
+1. Backups: on the Supabase Backups page from step 4, daily backups should be listed. Claude does one restore drill with you (docs/RUNBOOK.md).
+2. An uptime monitor on https://ojshgsxgsypbywtqhkch.supabase.co/functions/v1/api/health (any free monitor; Claude can suggest one and what to enter).
+3. Add each pilot member: https://www.lawfecta.co/dela-admin?tab=access, the page "Access list", the box "BD member ID" near the top, then the button "Add" beside it. A member's ID is in the Brilliant Directories admin under Members.
+4. One fuller ChatGPT test of what a pilot member does. Claude sends it after step 4.
 
-## 5. Ask Vectera the meeting questions
-1. Open the 11 questions: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/research/vectera-meetings-evaluation.md
-2. Email them to Vectera's sales or support team (from https://www.vectera.com, Contact).
-3. Paste their answers in this chat.
-
-## 6. GitHub safety settings (about 10 minutes; skip any you already did)
-1. Security:
-   1. Open https://github.com/SliceOfThanks/lawfecta/settings/security_analysis
-   2. Turn on Dependabot alerts, Dependabot security updates, and Secret scanning with Push protection.
-   3. Leave CodeQL default setup off.
-2. Pull requests:
-   1. Open https://github.com/SliceOfThanks/lawfecta/settings
-   2. Under Pull Requests, tick "Allow auto-merge" and "Automatically delete head branches".
-3. Rule for main:
-   1. Open https://github.com/SliceOfThanks/lawfecta/settings/rules and click New ruleset, then New branch ruleset.
-   2. Name it main protection. Target: the default branch.
-   3. Tick "Require a pull request before merging" (0 approvals) and "Require status checks to pass". Add the check tests.
-   4. Add nobody under bypass. Set it to Active and save.
-4. AI review key:
-   1. Make a key just for this at https://console.anthropic.com (API Keys), and set a monthly spend limit there (suggested 50 dollars).
-   2. Open https://github.com/SliceOfThanks/lawfecta/settings/secrets/actions, click New repository secret, name it ANTHROPIC_API_KEY, and paste the key.
-5. Tell Claude: GitHub done.
-
-## 7. Later (not now)
-- Before Step 6 (payments): a Stripe account in test mode. Claude sends the steps then.
-- Before the beta (after Steps 4 to 6), set up Live (lawfecta.com). Steps: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/STACEY_CHECKLIST.md, Part C.
-  - Supabase organization Lawfecta Live, upgraded to Pro.
-  - The Live secrets.
-  - The GitHub environment named live.
-- A Chrome Web Store developer account in your name, only if we build the recorder's Chrome extension.
-
-## Where things stand
-The full plan: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/PLAN.md
+## Later, not needed for the pilot
+- The Brilliant Directories key permission for practice area categories.
+- A real Scribe export to confirm the Scribe importer.
+- Vectera's API access for meeting rooms.
+- GitHub settings for auto-merge and the main branch rule.

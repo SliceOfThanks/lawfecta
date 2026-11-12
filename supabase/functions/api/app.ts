@@ -3188,6 +3188,13 @@ async function agreementGet(ctx: Ctx) {
       const total = async (price: unknown) => Number.isFinite(Number(price)) ? Number(price) + (await rpc<number>(ctx, "dela_monthly_fee_for", { p_agreement: id, p_price: Math.round(Number(price)) }) ?? 0) : null;
       const open = (Array.isArray(mv.changes) ? mv.changes : []).find((c: Record<string, any>) => c.status === "open");
       v.monthly.totals = { now: await total(mv.terms?.price_cents), proposed: open ? await total(open.price_cents) : null };
+      // UX review 2026-11-08: the freelancer sees what they receive each month, now and with the change, by the same
+      // formula the monthly periods use
+      if (v.role === "freelancer") {
+        const gets = async (price: unknown) => Number.isFinite(Number(price)) ? Number(price) - (await rpc<number>(ctx, "dela_monthly_freelancer_fee_for", { p_agreement: id, p_price: Math.round(Number(price)) }) ?? 0) : null;
+        v.monthly.totals.receives_now = await gets(mv.terms?.price_cents);
+        v.monthly.totals.receives_proposed = open ? await gets(open.price_cents) : null;
+      }
       v.monthly.change_deadline_days = Number(await setting(ctx, "recurring.change_deadline_days", "1")) || 1;
     }
   }

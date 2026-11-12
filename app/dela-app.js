@@ -4087,7 +4087,8 @@
     var rows = [["Monthly price (before the platform fee)", D.money(cur.price_cents), D.money(prop.price_cents)]];
     // AI review 0.10.0 (payments 4): what the attorney is charged each month, with the platform fee, from the server
     var tot = (mv && mv.totals) || {};
-    if (tot.now !== null && tot.now !== undefined && tot.proposed !== null && tot.proposed !== undefined) rows.push(["Total each month, with the platform fee", D.money(tot.now), D.money(tot.proposed)]);
+    if (tot.receives_now !== null && tot.receives_now !== undefined && tot.receives_proposed !== null && tot.receives_proposed !== undefined) rows.push(["You receive each month, after your platform fee", D.money(tot.receives_now), D.money(tot.receives_proposed)]);
+    else if (tot.now !== null && tot.now !== undefined && tot.proposed !== null && tot.proposed !== undefined) rows.push(["Total each month, with the platform fee", D.money(tot.now), D.money(tot.proposed)]);
     rows = rows.concat([["Delivery", mode(cur.unit_mode), mode(prop.unit_mode)]]).concat(names.map(function (n) { return [n, qty(cur.tasks, n), qty(prop.tasks, n)]; }));
     // AI review 0.10.0 (payments 5): the deadline comes from the setting recurring.change_deadline_days
     var dl = (mv && mv.change_deadline_days) || 1, dlText = dl + (dl === 1 ? " day" : " days");
@@ -5566,7 +5567,8 @@
       var lastMine = null;
       r.messages.forEach(function (m) {
         var box = h("div", { class: "msg" + (m.mine ? " mine" : "") });
-        if (m.status === "removed") box.appendChild(h("p", { class: "muted small", text: "Message removed" }));
+        // Who removed it (UX review 2026-11-08). Older removed messages carry no reason and keep the short line.
+        if (m.status === "removed") box.appendChild(h("p", { class: "muted small", text: m.removed_why === "team" ? "Message removed by the Lawfecta Team: it looked like a plan to work or pay outside Lawfecta." : m.removed_why === "sender" ? (m.mine ? "You removed this message." : "The sender removed this message.") : "Message removed" }));
         else {
           box.appendChild(h("p", { style: "margin:0;white-space:pre-wrap", text: m.body }));
           (m.attachments || []).forEach(function (a) {
@@ -5799,6 +5801,18 @@
       if (guess && tzList.indexOf(guess) < 0) tzList = tzList.concat([guess]);
       var tz = h("select", { "aria-label": "Time zone for meetings" }, tzList.map(function (z) { return h("option", { value: z, text: z.split("/").pop().split("_").join(" ") + " (" + z + ")", selected: z === (r.saved ? a.timezone : guess || a.timezone) }); }));
       card.appendChild(field("Time zone", tz));
+      // UX review 2026-11-08: the profile has its own time zone ("How you work"). When the two differ, say so here.
+      var tzNote = h("p", { class: "small notice", id: "tz-differs", hidden: true });
+      card.appendChild(tzNote);
+      var profTz = null, tzCheck = function () {
+        // The profile names a US zone; meetings use a city's zone. They agree when the city is in the named zone.
+        var ZONE_OF = { "America/New_York": "Eastern", "America/Detroit": "Eastern", "America/Chicago": "Central", "America/Denver": "Mountain", "America/Phoenix": "Mountain", "America/Boise": "Mountain", "America/Los_Angeles": "Pacific", "America/Anchorage": "Alaska", "Pacific/Honolulu": "Hawaii" };
+        var differs = !!profTz && profTz !== "Outside the US" && !!ZONE_OF[tz.value] && ZONE_OF[tz.value] !== profTz;
+        tzNote.hidden = !differs;
+        if (differs) { D.clear(tzNote); tzNote.appendChild(h("span", { text: "Your profile says your time zone is " + profTz + ", under \"How you work\". Meeting times use the one chosen here (" + tz.value + "). " })); tzNote.appendChild(h("button", { class: "linkish", type: "button", onclick: function () { goProfile("sec-profile"); } }, "Open my profile")); }
+      };
+      tz.addEventListener("change", tzCheck);
+      if ((me.switches || {}).profiles) api.get("/profile").then(function (pr) { profTz = ((pr || {}).body || {}).timezone || null; tzCheck(); }).catch(function () {});
       var lens = h("div", { class: "row" });
       var lenBoxes = (r.allowed_lengths || [15, 30, 45]).map(function (n) {
         var cb = h("input", { type: "checkbox", checked: (a.lengths || []).indexOf(n) >= 0, "aria-label": n + " minutes" });
@@ -5815,7 +5829,14 @@
         return [d[0], on, from, to];
       });
       var off = h("input", { type: "text", style: "width:100%", "aria-label": "Days off", placeholder: "For example 2026-11-26, 2026-12-24", value: (a.days_off || []).join(", ") });
-      card.appendChild(field("Days off", off, "Dates as YYYY-MM-DD, separated by commas."));
+      card.appendChild(field("Days off", off, "Dates as YYYY-MM-DD, separated by commas. Or pick a date below and click Add."));
+      var pick = h("input", { type: "date", "aria-label": "Pick a day off" });
+      card.appendChild(h("div", { class: "row", style: "margin-top:6px" }, pick, h("button", { class: "ghost small", type: "button", onclick: function () {
+        if (!pick.value) { pick.focus(); return; }
+        var list = off.value.split(",").map(function (x) { return x.trim(); }).filter(Boolean);
+        if (list.indexOf(pick.value) < 0) list.push(pick.value);
+        off.value = list.sort().join(", "); pick.value = "";
+      } }, "Add day off")));
       var save = h("button", { class: "blue", type: "button" }, "Save availability");
       save.addEventListener("click", function () {
         var hours = {};
@@ -7036,11 +7057,15 @@
       if (!r.ok || !r.on || !(r.engagements || []).length) return;
       if (onLoad) onLoad(r.engagements);
       var c = h("div", { class: "card" }, h("h2", { text: title + " (" + r.engagements.length + ")" }));
-      r.engagements.forEach(function (e) {
-        c.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { gigs.id = e.gig_id; gigs.view = "agreement"; tab = me.side === "attorney" ? "projects" : "work"; draw(); } },
+      // UX review 2026-11-08: on a long list, finished and canceled engagements fold away under the ones still running
+      var isPast = function (e) { return e.status === "completed" || e.status === "canceled"; };
+      var past = r.engagements.filter(isPast), fold = past.length > 3 ? h("details", { class: "eng-past" }, h("summary", { text: "Finished and canceled (" + past.length + ")" })) : null;
+      r.engagements.filter(function (e) { return !fold || !isPast(e); }).concat(fold ? past : []).forEach(function (e) {
+        (fold && isPast(e) ? fold : c).appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { gigs.id = e.gig_id; gigs.view = "agreement"; tab = me.side === "attorney" ? "projects" : "work"; draw(); } },
           h("div", null, h("h3", { text: e.gig_title }), h("div", { class: "small muted", text: (me.side === "attorney" ? "Freelancer: " : "Client: ") + (e.other_name || "") + " | " + D.money(e.total_cents) + (e.milestones ? " | milestones accepted " + e.accepted + " of " + e.milestones : (["draft", "sent", "signing"].indexOf(e.status) >= 0 ? " | milestones set when you both sign" : "")) + (me.side === "freelancer" && e.earned_cents ? " | paid to you " + D.money(e.earned_cents) : "") })),
           h("span", { class: "grow" }), agBadge(e)));
       });
+      if (fold) c.appendChild(fold);
       slot.appendChild(c);
     }).catch(function () {});
   }

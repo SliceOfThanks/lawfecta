@@ -151,7 +151,8 @@ const ATT = 4100, FL = 4101;
     // Fix (step 8b, retest R10): a change shows current and proposed side by side, and when it would start
     ok(t.includes("Now") && t.includes("Proposed") && /\$1,000[\s\S]*\$1,200/.test(t) && /From the (next month|month that starts)/.test(t), "the freelancer sees the change next to what is in force now");
     // AI review 0.10.0 (payments 4): the total each month with the platform fee, now and proposed
-    ok(t.includes("Total each month, with the platform fee") && /\$1,0\d0[\s\S]*\$1,2\d0/.test(t), "the change shows the total with the fee, now and proposed");
+    // UX review 2026-11-08: the freelancer's row is what they receive, now and proposed (the attorney's row is the total with the fee)
+    ok(t.includes("You receive each month, after your platform fee") && /\$950[\s\S]*\$1,140/.test(t) && !t.includes("Total each month, with the platform fee"), "the change shows the freelancer what they receive, now and proposed");
     // Step 8b Part C (retest R10): a note that disagrees with the table is flagged, and DELA does not pick one
     ok(t.includes("Check this before approving: the note says \"Two more packets a week\", but no monthly quantity changes in the table.") && t.includes("DELA does not decide which one is meant."), "a contradictory change note is flagged for review");
     await click(p, "Approve the change");

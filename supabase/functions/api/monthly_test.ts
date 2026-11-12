@@ -232,6 +232,12 @@ Deno.test("a change for next month: either side proposes, the other approves; it
   const g = (await call("GET", "/agreements/get?id=" + agA, att.token)).body.monthly;
   const fee = async (p: number) => (await pool.query("select dela_monthly_fee_for($1, $2) f", [agA, p])).rows[0].f;
   assertEquals(g.totals, { now: g.terms.price_cents + await fee(g.terms.price_cents), proposed: 120000 + await fee(120000) });
+  // UX review 2026-11-08: the freelancer sees what they receive each month, now and with the change
+  const gf = (await call("GET", "/agreements/get?id=" + agA, fl.token)).body.monthly;
+  const ffee = async (p: number) => (await pool.query("select dela_monthly_freelancer_fee_for($1, $2) f", [agA, p])).rows[0].f;
+  assertEquals([gf.totals.receives_now, gf.totals.receives_proposed], [gf.terms.price_cents - await ffee(gf.terms.price_cents), 120000 - await ffee(120000)]);
+  assertEquals(await ffee(120000), 6000, "5% of $1,200");
+  assertEquals(g.totals.receives_now, undefined, "the attorney's view carries no freelancer payout");
   assert(g.totals.proposed > 120000, "the proposed total includes the fee");
   assertEquals(g.change_deadline_days, 1);
   assertEquals((await call("POST", "/monthly/change/decide", fl.token, { id: c.id, approve: true })).body.reason, "other_side_approves");
