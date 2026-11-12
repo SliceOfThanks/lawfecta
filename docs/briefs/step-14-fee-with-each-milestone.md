@@ -58,7 +58,7 @@ Freelancers and agencies see no change. Their 5% already comes off each mileston
 - How it helps: fewer support questions and disputes, and the fee is clear and visible.
 
 ### Decision 6: pilot timing
-- The pilot starts with the switch `fee_per_milestone` off, so the first real payments use the fee at the start, as proven in the Stripe sandbox.
+- Changed 2026-11-12 (Stacey): the pilot starts with the switch `fee_per_milestone` ON. The fee with each milestone passed the ChatGPT test and the sandbox refund and dispute run, so the first real payments test what members will use.
 - Build and test this change in the Stripe sandbox during the pilot.
 - Stacey turns `fee_per_milestone` on one to two weeks after the first real payments, once every check in "Success looks like" passes in the sandbox.
 - Agreements signed during the pilot before the switch is on stay `at_start` for their whole life (Decision 1).

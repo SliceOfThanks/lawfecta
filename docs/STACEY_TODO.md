@@ -17,20 +17,15 @@ You ran it on 2026-11-12. 20 of 21 steps passed. Step 17 was marked as failed on
 1. Answered 2026-11-12: the website changing a sign-in email without confirming the new address is fine for the pilot. A confirmation step is on the 2027 roadmap. Sign-in, email and password all run through the Lawfecta website (Brilliant Directories); DELA only opens those pages.
 2. Done 2026-11-13: the new layout is on for everyone. To go back, tell Claude "turn the new layout off".
 
-## 4. Clear the test money data (cannot be undone)
-Stacey 2026-11-12: only the test money is removed, so test data does not mix with real payments. What goes: the 5 test agreements that had money (with their 7 milestones, 7 payments, 3 payouts, 3 refunds, 24 ledger lines and 4 disputes), the 1 test payout account and the 46 stored Stripe test events. What stays: all 7 accounts, plans, profiles, documents, files, all 27 gigs, proposals, messages, meetings, notices and the 12 agreements that never had money. After it, every money total in the admin area is zero. Script: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/tools/pilot_clear_money.sql (tried on a local copy on 2026-11-12).
-1. Check that a backup exists: open https://supabase.com/dashboard/project/ojshgsxgsypbywtqhkch/database/backups (Supabase, the project "Lawfecta AI", "Database" in the left menu, then "Backups"). There should be one from today or yesterday.
-2. Tell Claude in chat: "A backup exists. Clear the test money now." Claude runs it and reports the counts.
-Do this before step 5: the test jobs carry ids from Stripe's test mode that the live account does not know.
+## 4. Clear the test money: done
+You ran it on 2026-11-12 (Supabase SQL Editor). Checked afterwards: agreements 17 to 12, milestones 22 to 15; payments, payouts, refunds, ledger lines, disputes, payout accounts and stored Stripe events are all 0. Accounts (7), gigs (27), proposals (19), documents (17), files (16) and meetings (8) are unchanged.
 
 ## 5. Stripe: the live account
-The full steps with pictures of where to click: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/STRIPE_SETUP.md and https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/PILOT_GO_LIVE.md (section 2). In short:
-1. In Stripe (https://dashboard.stripe.com), with "Test mode" switched OFF: open Settings (the gear, top right), then "Payouts" under "Business", then "Payout schedule", and choose "Manual". DELA holds each paid milestone on Lawfecta's Stripe balance until the attorney accepts it; with automatic payouts that money leaves for the bank and the freelancer's payout fails.
-2. Still in Stripe, live mode: "Developers", then "API keys", then "Create restricted key" (or use the secret key). Copy it.
-3. In Supabase: https://supabase.com/dashboard/project/ojshgsxgsypbywtqhkch/functions/secrets ("Edge Functions", then "Secrets"). Edit the secret named STRIPE_SECRET_KEY and paste the live key. Save.
-4. In Stripe, live mode: "Developers", then "Webhooks", then "Add endpoint". The address is https://ojshgsxgsypbywtqhkch.supabase.co/functions/v1/api/stripe/webhook and the seven events are listed in docs/STRIPE_SETUP.md. After saving, click "Reveal" under "Signing secret" and copy it.
-5. In Supabase, the same Secrets page: edit STRIPE_WEBHOOK_SECRET and paste the signing secret. Save.
-6. Tell Claude: "The live Stripe key and webhook are in." Claude turns off the switch that charges the fee with each milestone (your decision of 2026-11-11), checks the connection, and tells you when to turn on "live_payments" in the admin area: https://www.lawfecta.co/dela-admin?tab=switches, the row "live_payments".
+Done 2026-11-12: payout schedule set to Manual; a new full-access key from the Stripe account "DELA" is in Supabase as STRIPE_SECRET_KEY; the webhook is added and its signing secret is in Supabase as STRIPE_WEBHOOK_SECRET. The key in Brilliant Directories was not touched.
+Left to do:
+1. Turn on live payments: open https://www.lawfecta.co/dela-admin?tab=switches (the page "Switches"), find the row "live_payments", and set it to "everyone". Until then DELA refuses to use the live key.
+2. Open https://www.lawfecta.co/dela-admin?tab=pay. Tell Claude what the first card "Needs attention" lists and what the card "Payment overview" says about the Stripe balance.
+The switch that charges the fee with each milestone stays on (your decision of 2026-11-10; it passed the sandbox tests).
 
 ## 6. Three small real payments
 With your own card, on a small made-up job between your two test accounts: one payment, one payout, one refund. Claude gives you the exact steps when step 5 is done, and compares each with Stripe.
