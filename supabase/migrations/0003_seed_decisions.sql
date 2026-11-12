@@ -204,6 +204,7 @@ insert into feature_switches (key, label, gate) values ('consultation_export_gra
 insert into feature_switches (key, label, gate) values ('admin_acceptance_timeout', 'Automatic milestone acceptance after 7 silent days', 'G-CONTRACT and G-REVIEW') on conflict (key) do nothing;
 insert into feature_switches (key, label, gate) values ('dispute_center', 'Dispute case view, settlement offers and automatic outcomes (step 11)', 'G-CONTRACT (terms clause 6 reviewed by the lawyer)') on conflict (key) do nothing;
 insert into feature_switches (key, label, gate) values ('fee_per_milestone', 'Charge the attorney''s fee with each milestone payment (step 14). New agreements only; signed ones keep their terms', 'Stacey turns it on after the first real payments') on conflict (key) do nothing;
+insert into feature_switches (key, label, gate) values ('new_layout', 'The compact workspace: sidebar, phone bottom bar with More, compact Home (step 15)', 'Stacey approves it on the site') on conflict (key) do nothing;
 insert into feature_switches (key, label, gate) values ('recurring_engagements', 'Monthly recurring engagements', 'Step 6') on conflict (key) do nothing;
 insert into feature_switches (key, label, gate) values ('auto_repeat_hiring', 'Limited automatic repeat hiring', 'O-05, all hard gates') on conflict (key) do nothing;
 insert into feature_switches (key, label, gate) values ('member_webhooks', 'Member webhooks', 'Step 7') on conflict (key) do nothing;

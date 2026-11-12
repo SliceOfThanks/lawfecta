@@ -47,6 +47,7 @@
   // ---------- Screens before sign in ----------
 
   function frame(title, body, actions) {
+    app.classList.remove("nl");
     return h("div", null,
       h("div", { class: "top" }, brand()),
       h("div", { class: "wrap" }, h("div", { class: "card", style: "max-width:560px;margin:40px auto;text-align:center" },
@@ -128,19 +129,203 @@
   app.addEventListener("click", function (e) {
     if (menu && !menu.contains(e.target) && !(e.target.classList && e.target.classList.contains("avatar"))) closeMenu();
   });
-  app.addEventListener("keydown", function (e) { if (e.key === "Escape") { closeMenu(); closeDrawer(); } });
+  app.addEventListener("keydown", function (e) { if (e.key === "Escape") { closeMenu(); closeDrawer(); closeMore(true); } });
 
   function toggleMenu() {
     if (menu) { closeMenu(); return; }
     menu = h("div", { class: "menu", role: "menu" },
       h("div", { class: "small muted", style: "padding:8px 12px", text: me.person.name }),
       me.side && (me.switches || {}).profiles ? h("button", { role: "menuitem", onclick: function () { tab = "profile"; draw(); } }, me.side === "attorney" ? "Profile and verification" : "Profile") : null,
-      me.side ? h("button", { role: "menuitem", onclick: function () { tab = "ai"; draw(); } }, "AI settings") : null,
+      me.side ? h("button", { role: "menuitem", onclick: function () { tab = "ai"; draw(); } }, NL() ? "Settings" : "AI settings") : null,
       (me.staff || []).length ? h("a", { href: "/dela-admin", role: "menuitem" }, "Admin area") : null,
       appearanceItems(),
       h("button", { role: "menuitem", onclick: signOut }, "Sign out"));
     bar.appendChild(menu);
   }
+
+  // ---------- Step 15: the compact workspace (docs/briefs/step-15-compact-workspace.md), switch new_layout ----------
+  // A left sidebar on desktop, five labeled items at the bottom of a phone (the fifth opens "More"), a slim top bar.
+  // The page names and ?tab= links are the same as before; with the switch off none of this is used.
+  function NL() { return !!(me && me.side && (me.switches || {}).new_layout); }
+  var ICONS = {
+    home: [["path", "M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"]],
+    work: [["path", "M3 8h18v11H3z"], ["path", "M9 8V5h6v3"]],
+    ask: [["path", "M12 3l2.2 6.8L21 12l-6.8 2.2L12 21l-2.2-6.8L3 12l6.8-2.2z"]],
+    earnings: [["path", "M12 3v18"], ["path", "M16 7.5C16 5.8 14.2 5 12 5s-4 1-4 3 2 2.6 4 3 4 1 4 3-1.8 3-4 3-4-.8-4-2.5"]],
+    profile: [["circle", 12, 8, 4], ["path", "M4 21c0-4 3.6-6 8-6s8 2 8 6"]],
+    agency: [["path", "M4 21V5l8-2v18"], ["path", "M12 9l8 2v10"], ["path", "M2 21h20"]],
+    settings: [["path", "M4 6h16M4 12h16M4 18h16"], ["circle", 16, 6, 2], ["circle", 8, 12, 2], ["circle", 14, 18, 2]],
+    help: [["circle", 12, 12, 9], ["path", "M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.7.4-1 .9-1 1.7"], ["path", "M12 17h.01"]],
+    projects: [["path", "M3 6h6l2 2h10v11H3z"]],
+    library: [["path", "M5 4h13v16H5z"], ["path", "M9 4v16"]],
+    talent: [["circle", 11, 11, 6], ["path", "M20 20l-4.5-4.5"]],
+    files: [["path", "M6 3h8l4 4v14H6z"], ["path", "M14 3v4h4"]],
+    check: [["path", "M4 12l5 5L20 6"]],
+    inbox: [["path", "M3 6h18v12H3z"], ["path", "M3 7l9 6 9-6"]],
+    bell: [["path", "M6 16v-5a6 6 0 0 1 12 0v5l2 2H4z"], ["path", "M10 20a2 2 0 0 0 4 0"]],
+    more: [["circle", 5, 12, 1], ["circle", 12, 12, 1], ["circle", 19, 12, 1]],
+    chev: [["path", "M9 6l6 6-6 6"]],
+    collapse: [["path", "M15 6l-6 6 6 6"]],
+    expand: [["path", "M4 5v14"], ["path", "M10 6l6 6-6 6"]],
+    close: [["path", "M6 6l12 12M18 6L6 18"]],
+    send: [["path", "M4 12l16-8-6 16-3-6z"]],
+    swap: [["path", "M7 7h11l-3-3M17 17H6l3 3"]],
+    out: [["path", "M10 4H5v16h5"], ["path", "M14 8l4 4-4 4M18 12H9"]],
+  };
+  var SVG_NS = "http://www.w3.org/2000/svg"; // rules-ok: the SVG namespace name, not a web address DELA calls
+  function icon(name) {
+    var svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 24 24"); svg.setAttribute("class", "ic"); svg.setAttribute("aria-hidden", "true");
+    (ICONS[name] || ICONS.chev).forEach(function (part) {
+      var el = document.createElementNS(SVG_NS, part[0]);
+      if (part[0] === "path") el.setAttribute("d", part[1]);
+      else { el.setAttribute("cx", part[1]); el.setAttribute("cy", part[2]); el.setAttribute("r", part[3]); }
+      svg.appendChild(el);
+    });
+    return svg;
+  }
+  var ICON_FOR = { home: "home", delegate: "ask", ask: "ask", library: "library", files: "files", projects: "projects", talent: "talent", setup: "check", profile: "profile", work: "work", earnings: "earnings", agency: "agency", ai: "settings", help: "help" };
+  var PAGE_NAMES = { inbox: "Inbox", meetings: "Meetings", usage: "Usage", connect: "Connect", record: "Record a process", ai: "Settings", help: "Help", profile: "Profile" };
+  var WORKSPACE = { attorney: "Attorney workspace", freelancer: "Freelancer workspace" };
+  // "Get set up" leaves the attorney's menu once it is finished or dismissed (Stacey 2026-11-11); it stays reachable from Help
+  var setupDone = null;
+  function navGroups() {
+    var have = {};
+    tabsFor().forEach(function (t) { have[t[0]] = t; });
+    var sw = me.switches || {};
+    var pick = function (keys) { return keys.filter(function (k) { return have[k]; }).map(function (k) { return have[k]; }); };
+    var att = me.side === "attorney";
+    if (att && sw.guided_setup && setupDone === null) {
+      setupDone = false;
+      api.get("/setup").then(function (r) { if (r && (r.finished || r.dismissed)) { setupDone = true; if (tab !== "setup") draw(); } }).catch(function () {});
+    }
+    var main = att ? pick(["home", "projects", "delegate", "library"]) : pick(["home", "work", "ask", "earnings"]);
+    var second = att ? pick(["talent", "files"].concat(setupDone ? [] : ["setup"])) : pick(["library", "projects", "talent"]);
+    while (main.length < 4 && second.length) main.push(second.shift());
+    var account = [];
+    if (sw.profiles) account.push(["profile", "Profile"]);
+    if (have.agency) account.push(have.agency);
+    return { main: main, second: second, account: account, foot: [["ai", "Settings"], ["help", "Help"]] };
+  }
+  function pageTitle(g) {
+    var all = g.main.concat(g.second, g.account, g.foot), hit = all.filter(function (t) { return t[0] === tab; })[0];
+    return hit ? hit[1] : PAGE_NAMES[tab] || "DELA";
+  }
+  function goTab(key) { closeMore(); tab = key; if (key === "inbox") talk.thread = null; draw(); }
+  function navItem(t, folded) {
+    return h("button", { class: "nl-item", type: "button", "aria-current": t[0] === tab ? "page" : null, "aria-label": folded ? t[1] : null, "data-tip": t[1], onclick: function () { goTab(t[0]); } },
+      icon(ICON_FOR[t[0]] || "chev"), h("span", { class: "lbl", text: t[1] }));
+  }
+  function sidebar(g) {
+    var folded = localPref("side.folded");
+    var s = h("nav", { class: "nl-side" + (folded ? " mini" : ""), "aria-label": "DELA sections" });
+    s.appendChild(h("div", { class: "nl-brand" }, D.logo(root, 32), h("b", { text: "DELA" })));
+    g.main.forEach(function (t) { s.appendChild(navItem(t, folded)); });
+    if (g.second.length) { s.appendChild(h("div", { class: "nl-sep" })); g.second.forEach(function (t) { s.appendChild(navItem(t, folded)); }); }
+    if (g.account.length) { s.appendChild(h("div", { class: "nl-sep" })); g.account.forEach(function (t) { s.appendChild(navItem(t, folded)); }); }
+    s.appendChild(h("div", { class: "nl-grow" }));
+    s.appendChild(h("div", { class: "nl-sep" }));
+    g.foot.forEach(function (t) { s.appendChild(navItem(t, folded)); });
+    var word = folded ? "Expand sidebar" : "Collapse sidebar";
+    s.appendChild(h("button", { class: "nl-item nl-fold", type: "button", "aria-label": folded ? word : null, "aria-expanded": String(!folded), "data-tip": word, onclick: function () { localPref("side.folded", !folded); draw(); } },
+      icon(folded ? "expand" : "collapse"), h("span", { class: "lbl", text: word })));
+    return s;
+  }
+  var moreOpen = null;
+  function closeMore(returnFocus) {
+    if (!moreOpen) return;
+    moreOpen.scrim.remove(); moreOpen.sheet.remove(); moreOpen = null;
+    app.classList.remove("sheet");
+    var b = app.querySelector(".nl-bar button[aria-haspopup]");
+    if (b) { b.setAttribute("aria-expanded", "false"); if (returnFocus) b.focus(); }
+  }
+  // The More sheet: the page behind stays as it was, dimmed. It closes with its X, a tap outside, Escape, or More again.
+  function openMore(g) {
+    if (moreOpen) { closeMore(true); return; }
+    var head = h("b", { tabindex: "-1", text: WORKSPACE[me.side] || "DELA" });
+    var sheet = h("div", { class: "nl-sheet", role: "dialog", "aria-modal": "true", "aria-label": "More" }, h("div", { class: "nl-grab", "aria-hidden": "true" }),
+      h("div", { class: "nl-sheethead" }, head, h("button", { class: "nl-x", type: "button", "aria-label": "Close menu", onclick: function () { closeMore(true); } }, icon("close"))));
+    var lists = [g.second, g.account, g.foot].filter(function (l) { return l.length; });
+    lists.forEach(function (l, i) { if (i) sheet.appendChild(h("div", { class: "nl-sep" })); l.forEach(function (t) { sheet.appendChild(navItem(t)); }); });
+    var other = (me.sides || []).filter(function (x) { return x.side !== me.side; })[0];
+    if (other) {
+      sheet.appendChild(h("div", { class: "nl-sep" }));
+      sheet.appendChild(h("button", { class: "nl-item", type: "button", onclick: function () { closeMore(); switchSide(other.side); } }, icon("swap"), h("span", { class: "lbl", text: "Switch to " + other.side + " workspace" })));
+    }
+    sheet.appendChild(h("div", { class: "nl-sep" }));
+    sheet.appendChild(h("button", { class: "nl-item", type: "button", onclick: function () { closeMore(); signOut(); } }, icon("out"), h("span", { class: "lbl", text: "Sign out" })));
+    var sc = h("div", { class: "nl-scrim", "aria-hidden": "true", onclick: function () { closeMore(true); } });
+    app.appendChild(sc); app.appendChild(sheet);
+    app.classList.add("sheet");
+    moreOpen = { scrim: sc, sheet: sheet };
+    var b = app.querySelector(".nl-bar button[aria-haspopup]");
+    if (b) b.setAttribute("aria-expanded", "true");
+    head.focus();
+  }
+  function bottomBar(g) {
+    var n = h("nav", { class: "nl-bar", "aria-label": "DELA sections" });
+    g.main.forEach(function (t) {
+      n.appendChild(h("button", { type: "button", "aria-current": t[0] === tab ? "page" : null, onclick: function () { goTab(t[0]); } }, icon(ICON_FOR[t[0]] || "chev"), h("span", { text: t[1] })));
+    });
+    var inMore = g.second.concat(g.account, g.foot).some(function (t) { return t[0] === tab; });
+    n.appendChild(h("button", { type: "button", "aria-haspopup": "dialog", "aria-expanded": "false", "aria-current": inMore ? "page" : null, onclick: function () { openMore(g); } }, icon("more"), h("span", { text: "More" })));
+    return n;
+  }
+  function headerNew(g) {
+    bar = h("div", { class: "top" }, brand(), h("span", { class: "where", text: pageTitle(g) }));
+    if (boot.staging || me.environment !== "live") bar.appendChild(h("span", { class: "badge stage", title: "This copy of DELA is in test mode. Test data only.", text: "Test site" }));
+    bar.appendChild(h("span", { class: "grow" }));
+    if ((me.sides || []).length > 1) {
+      var seg = h("div", { class: "seg nl-seg", role: "group", "aria-label": "Switch workspace" });
+      me.sides.forEach(function (s) { seg.appendChild(h("button", { "aria-pressed": String(s.side === me.side), onclick: function () { switchSide(s.side); } }, D.SIDE[s.side])); });
+      bar.appendChild(seg);
+    }
+    if ((me.switches || {}).gig_chat) {
+      var inbox = h("button", { class: "bell", type: "button", "aria-label": "Inbox", onclick: function () { goTab("inbox"); } }, icon("inbox"), h("span", { class: "lbl", text: "Inbox" }));
+      api.get("/threads").then(function (r) {
+        var n = (r.threads || []).reduce(function (a, t) { return a + (t.unread || 0); }, 0);
+        if (n) { inbox.appendChild(h("b", { text: String(n) })); inbox.setAttribute("aria-label", "Inbox, " + n + " unread"); }
+      }).catch(function () {});
+      bar.appendChild(inbox);
+    }
+    var bell = h("button", { class: "bell icon", type: "button", "aria-label": me.unread > 0 ? "Notices, " + me.unread + " unread" : "Notices", onclick: openNotices }, icon("bell"));
+    if (me.unread > 0) bell.appendChild(h("b", { text: String(me.unread) }));
+    bar.appendChild(bell);
+    bar.appendChild(h("button", { class: "avatar", "aria-label": "Account menu", "aria-haspopup": "true", onclick: toggleMenu, text: initials(me.person.name) }));
+    return bar;
+  }
+  // The address follows the page, so a reload stays where the member was
+  function syncAddress() {
+    try {
+      var u = new URL(location.href);
+      if (u.searchParams.get("tab") === tab) return;
+      u.searchParams.set("tab", tab);
+      ["gig", "view", "pb", "thread", "meeting"].forEach(function (k) { u.searchParams.delete(k); });
+      history.replaceState(null, "", u.pathname + u.search + u.hash);
+    } catch (e) { /* the address stays as it was */ }
+  }
+  // On a phone the bottom bar steps aside while the member types, so it never covers the box or its Send button
+  app.addEventListener("focusin", function (e) {
+    var t = e.target && e.target.tagName;
+    if (NL() && (t === "INPUT" || t === "TEXTAREA") && e.target.type !== "checkbox" && e.target.type !== "radio" && e.target.type !== "file" && window.innerWidth < 900) app.classList.add("kb");
+  });
+  app.addEventListener("focusout", function () { setTimeout(function () { var a = app.getRootNode().activeElement, t = a && a.tagName; if (t !== "INPUT" && t !== "TEXTAREA") app.classList.remove("kb"); }, 60); });
+  function shellNew(main) {
+    var g = navGroups();
+    syncAddress();
+    var side = sidebar(g);
+    sideEl = side;
+    setTimeout(fitSidebar, 0);
+    return h("div", { class: "nl-frame" }, side, h("div", { class: "nl-main" }, headerNew(g), main), bottomBar(g));
+  }
+  // The sidebar is as tall as the part of the window below it, so Settings, Help and Collapse sidebar are always in view
+  var sideEl = null;
+  function fitSidebar() {
+    if (!sideEl || !sideEl.isConnected || window.innerWidth < 900) return;
+    sideEl.style.height = Math.max(320, window.innerHeight - Math.max(sideEl.getBoundingClientRect().top, 0)) + "px";
+  }
+  window.addEventListener("scroll", fitSidebar, { passive: true });
+  window.addEventListener("resize", fitSidebar);
 
   function nav() {
     if (!me.side) return null;
@@ -209,6 +394,229 @@
     already_answered: "That question was already sent. Type it again to ask once more.",
     guide_off: "The DELA guide is off right now.",
   };
+  // ---------- Step 15: Home in the compact workspace ----------
+  // One profile box (what is missing, and what still stands between the member and invitations), what needs attention,
+  // work, and Ask DELA as one line. Every number comes from me.home (dela_home_counts); nothing is estimated.
+  var profileJump = null;
+  var SECTION_FOR = { practice_areas: "prof-areas", summary: "prof-bio", experience: "prof-bio" };
+  function goProfile(section) { profileJump = section || null; tab = "profile"; draw(); }
+  function openGig(id, view) { tab = me.side === "attorney" ? "projects" : "work"; gigs.id = id; gigs.view = view || "agreement"; draw(); }
+  function shortDate(iso) { return iso ? D.date(iso) : ""; }
+  function hrow(o) {
+    var kids = [o.dot ? h("span", { class: "hdot" + (o.dot === "done" ? " done" : o.dot === "warn" ? " warn" : ""), "aria-hidden": "true" }) : null,
+      h("span", { class: "what" }, h("b", { text: o.title }), o.sub ? h("span", { class: "sub", text: o.sub }) : null),
+      o.badge ? h("span", { class: "badge " + (o.tone || "held"), text: o.badge }) : null,
+      o.act ? h("span", { class: "act", text: o.act }) : null,
+      o.go ? icon("chev") : null];
+    return o.go ? h("button", { class: "hrow", type: "button", onclick: o.go }, kids) : h("div", { class: "hrow" }, kids);
+  }
+  function hcard(title, badge) {
+    var c = h("section", { class: "card" });
+    c.appendChild(h("div", { class: "hhead" }, h("h2", { text: title }), badge || null));
+    return c;
+  }
+  // The two checks that stand between a complete profile and invitations, with their real states
+  function eligibilityRows(pf) {
+    var rows = [], v = pf.verification, ready = pf.readiness;
+    if (v && v !== "not_required") {
+      rows.push(v === "verified" ? hrow({ dot: "done", title: "LinkedIn check", badge: "Verified", tone: "ready" })
+        : v === "pending" ? hrow({ dot: "warn", title: "LinkedIn check", sub: "The Lawfecta Team is checking it. Nothing more is needed from you.", badge: "Being checked" })
+        : hrow({ dot: "open", title: "LinkedIn check", sub: v === "not_started" ? "The Lawfecta Team checks that the profile is yours." : "It was not approved. You can send it again.", badge: v === "not_started" ? "Not started" : "Not approved", go: function () { goProfile("sec-verify"); } }));
+    }
+    var due = pf.availability_due_at, stale = ready === "availability_stale" || (!pf.availability_confirmed_at && pf.availability !== "unavailable");
+    rows.push(pf.availability === "unavailable" ? hrow({ dot: "warn", title: "Availability", sub: "You said you are not taking new work.", badge: "Not taking work", go: function () { goProfile("sec-availability"); } })
+      : !pf.availability_confirmed_at ? hrow({ dot: "open", title: "Availability", sub: "Confirmed every " + (pf.availability_days || 14) + " days.", badge: "Not confirmed yet", go: function () { goProfile("sec-availability"); } })
+      : stale ? hrow({ dot: "warn", title: "Availability", sub: "Last confirmed " + shortDate(pf.availability_confirmed_at) + ".", badge: "Out of date", go: function () { goProfile("sec-availability"); } })
+      : hrow({ dot: "done", title: "Availability", badge: "Until " + shortDate(due), tone: "ready", go: function () { goProfile("sec-availability"); } }));
+    return rows;
+  }
+  function profileBox(hm) {
+    var pf = hm.profile || {}, att = me.side === "attorney";
+    if (pf.ok === false || !pf.readiness) return null;
+    var miss = (pf.missing || []).filter(function (k) { return k !== "everything"; }), labels = pf.missing_labels || [];
+    var required = hm.required || 0, none = (pf.missing || []).indexOf("everything") >= 0;
+    var done = none ? 0 : Math.max(required - miss.length, 0);
+    if (pf.readiness === "incomplete") {
+      var c = hcard("Complete your profile", h("span", { class: "badge pink", text: done + " of " + required + " complete" }));
+      var body = h("div", { class: "hgap" });
+      c.appendChild(body);
+      body.appendChild(h("div", { class: "hbar", role: "img", "aria-label": done + " of " + required + " profile details complete" }, h("span", { style: "width:" + (required ? Math.round(done * 100 / required) : 0) + "%" })));
+      if (miss.length) {
+        var list = h("div", { class: "hl hneed" });
+        miss.forEach(function (k, i) { list.appendChild(hrow({ dot: "open", title: labels[none ? i + 1 : i] || k, go: function () { goProfile(SECTION_FOR[k] || "sec-profile"); } })); });
+        body.appendChild(list);
+      } else if (none) body.appendChild(h("p", { class: "hsub", text: "Your profile is not started yet." }));
+      if (!att) {
+        body.appendChild(h("p", { class: "hmini", text: "Before attorneys can invite you" }));
+        body.appendChild(h("div", { class: "hl" }, eligibilityRows(pf)));
+      }
+      var acts = h("div", { class: "hacts" }, h("button", { class: "blue", type: "button", onclick: function () { goProfile(miss.length ? SECTION_FOR[miss[0]] || "sec-profile" : "sec-profile"); } }, "Continue setup"));
+      if (miss.length > 1) {
+        var more = h("button", { class: "linkish hmore", type: "button", "aria-expanded": "false" }, "View remaining requirements");
+        more.addEventListener("click", function () { var open = c.classList.toggle("hall"); more.setAttribute("aria-expanded", String(open)); more.textContent = open ? "Show fewer" : "View remaining requirements"; });
+        acts.appendChild(more);
+      }
+      body.appendChild(acts);
+      return c;
+    }
+    if (att || pf.readiness === "match_ready") return null;
+    // The profile is complete, but something still stops invitations: say which, and offer the one action there is
+    var title = pf.readiness === "verification_pending" ? "Almost ready for invitations" : pf.readiness === "availability_stale" ? "Your availability is out of date" : pf.readiness === "unavailable" ? "You are not taking new work" : "Your account is paused";
+    var b = hcard(title), inner = h("div", { class: "hgap" });
+    b.appendChild(inner);
+    if (pf.readiness === "restricted") { inner.appendChild(h("p", { text: "Attorneys cannot invite you while your account is paused. Contact the Lawfecta Team." })); return b; }
+    if (pf.readiness === "availability_stale") inner.appendChild(h("p", { text: "Attorneys cannot invite you until you confirm it again. Work you already have is not affected." }));
+    inner.appendChild(h("div", { class: "hl" }, [hrow({ dot: "done", title: "Profile", badge: required + " of " + required + " complete", tone: "ready" })].concat(eligibilityRows(pf))));
+    if (pf.readiness === "availability_stale" || pf.readiness === "unavailable") inner.appendChild(h("div", { class: "hacts" }, h("button", { class: "blue", type: "button", onclick: function () { goProfile("sec-availability"); } }, pf.readiness === "unavailable" ? "Change availability" : "Confirm availability")));
+    else if (pf.verification === "pending") inner.appendChild(h("p", { class: "hsub", text: "Invitations start when the check is done." }));
+    return b;
+  }
+  function attentionRows(hm) {
+    var att = me.side === "attorney", rows = [];
+    (hm.attention || []).forEach(function (x) {
+      if (x.kind === "review") rows.push(hrow({ title: "Review milestone " + x.seq, sub: x.gig_title + ". Delivered " + shortDate(x.delivered_at) + (x.review_due_at ? ". Review by " + shortDate(x.review_due_at) : "") + ".", act: "Review delivery", go: function () { openGig(x.gig_id); } }));
+      else if (x.kind === "pay") rows.push(hrow({ title: x.first ? "Pay milestone " + (x.seq || 1) + " to start the work" : "The payment for milestone " + x.seq + " did not go through", sub: x.gig_title + ".", act: "Pay milestone", go: function () { openGig(x.gig_id); } }));
+      else if (x.kind === "sign") rows.push(hrow({ title: "Agreement to sign", sub: x.gig_title + (x.sign_by ? ". Sign by " + shortDate(x.sign_by) : "") + ".", act: "Review and sign", go: function () { openGig(x.gig_id); } }));
+      else if (x.kind === "proposals") rows.push(hrow({ title: x.n + (x.n === 1 ? " proposal to review" : " proposals to compare"), sub: "Gig: " + x.gig_title + ".", act: x.n === 1 ? "View proposal" : "Compare proposals", go: function () { openGig(x.gig_id, "proposals"); } }));
+      else if (x.kind === "milestone") rows.push(hrow({ title: "Milestone " + x.seq + ": " + x.title, sub: x.gig_title + (x.client ? ", " + x.client : "") + (x.due_date ? ". Due " + shortDate(x.due_date) : "") + ". " + D.money(x.amount_cents) + " paid, held by Lawfecta" + (x.status === "changes_requested" ? ". Changes requested" : "") + ".", act: "View milestone", go: function () { openGig(x.gig_id); } }));
+      else if (x.kind === "invitation") rows.push(hrow({ title: "Invitation: " + x.gig_title, sub: "Answering does not use your monthly proposals.", act: "View invitation", go: function () { openGig(x.gig_id, "details"); } }));
+    });
+    var pf = hm.profile || {};
+    if (att && ((hm.firm || {}).missing_for_paid_work || []).length) rows.push(hrow({ title: "Firm details missing", sub: "Needed before you can sign an agreement and pay.", act: "Add details", go: function () { goProfile("sec-firm"); } }));
+    if (att && pf.verification && pf.verification !== "verified" && pf.verification !== "not_required" && pf.verification !== "pending") rows.push(hrow({ title: "Bar license not verified yet", sub: "Needed before you can post a gig.", act: "Verify license", go: function () { goProfile("sec-verify"); } }));
+    if (!att && pf.readiness === "match_ready" && pf.availability_due_at && Date.parse(pf.availability_due_at) - Date.now() < 3 * 86400000) rows.push(hrow({ title: "Availability: confirm by " + shortDate(pf.availability_due_at), sub: "You said: " + (pf.availability === "limited" ? "some hours only" : "available for new work") + ".", act: "Confirm availability", go: function () { goProfile("sec-availability"); } }));
+    return rows;
+  }
+  function hstat(n, label, small, go) { return h("button", { class: "hstat", type: "button", onclick: go }, h("b", { text: String(n) }), h("span", { text: label }), small ? h("small", { text: small }) : null); }
+  var ENG_BADGE = { signing: ["Waiting for signatures", "held"], signed: ["Waiting for the first payment", "held"], active: ["In progress", "ready"], paused: ["Paused", "held"], disputed: ["In dispute", "bad"] };
+  function workBox(hm) {
+    var att = me.side === "attorney", pf = hm.profile || {}, go = function () { tab = att ? "projects" : "work"; gigs.id = null; draw(); };
+    var ready = att || pf.readiness === "match_ready", busy = (hm.active_projects || 0) + (hm.invitations || 0) > 0;
+    var alerts = !att && (me.switches || {}).gig_alerts && (me.switches || {}).onboarding_widget ? h("button", { class: "linkish", type: "button", onclick: function () { tab = "ai"; settingsJump = "set-alerts"; draw(); } }, "Manage alerts") : null;
+    if (!att && !ready && !busy) {
+      var w = hcard("Work opportunities", alerts ? h("span", { style: "margin-left:auto" }, alerts) : null);
+      w.appendChild(h("p", { text: pf.readiness === "incomplete" ? "Invitations start when the steps above are done." : pf.readiness === "verification_pending" ? "Invitations start when the LinkedIn check is done." : "Invitations start again once the step above is done." }));
+      return w;
+    }
+    var c = hcard(att ? "Your projects" : "Your work", alerts ? h("span", { style: "margin-left:auto" }, alerts) : null), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    var tiles = h("div", { class: "hstats" });
+    if (att) {
+      tiles.appendChild(hstat(hm.pending_reviews || 0, "Deliveries to review", null, go));
+      tiles.appendChild(hstat(hm.active_projects || 0, "Active projects", null, go));
+      tiles.appendChild(hstat(hm.open_gigs || 0, "Open gigs", null, go));
+      tiles.appendChild(hstat(hm.draft_gigs || 0, "Gig drafts", null, go));
+    } else {
+      var pr = ent("fl.proposals");
+      tiles.appendChild(hstat(hm.active_projects || 0, "Active projects", null, go));
+      tiles.appendChild(hstat(hm.invitations || 0, "Invitations", null, go));
+      tiles.appendChild(hstat(D.money(hm.paid_out_month_cents || 0), "Paid out this month", D.money(hm.paid_out_cents || 0) + " all time", function () { tab = "earnings"; draw(); }));
+      if (pr) tiles.appendChild(hstat(pr.limit === null || pr.limit === undefined ? "No limit" : Math.max((pr.limit || 0) - (pr.used || 0), 0), "Proposals left this month", null, go));
+    }
+    inner.appendChild(tiles);
+    if ((hm.projects || []).length) {
+      inner.appendChild(h("div", { class: "hl" }, hm.projects.map(function (x) {
+        var nx = x.next, b = x.awaiting_review ? ["Awaiting your review", "held"] : ENG_BADGE[x.status] || [x.status, ""];
+        var sub = (x.other_name || "") + (nx ? ". Milestone " + nx.seq + (nx.due_date ? " due " + shortDate(nx.due_date) : "") : "") + ".";
+        return hrow({ title: x.gig_title, sub: sub, badge: b[0], tone: b[1], go: function () { openGig(x.gig_id); } });
+      })));
+    } else inner.appendChild(h("p", { class: "hsub", text: att ? "No active projects yet. Post a gig from Projects, or ask DELA to plan a task." : "No active projects yet." }));
+    return c;
+  }
+  function statusLine(hm) {
+    var pf = hm.profile || {}, att = me.side === "attorney", parts = [];
+    if (pf.ok === false || !pf.readiness || pf.readiness === "incomplete") return null;
+    var part = function (text, warn, go) { return h("span", { class: "hpart" + (warn ? " warn" : "") }, h("span", { class: "hdot" + (warn ? " warn" : " done"), "aria-hidden": "true" }), go ? h("button", { class: "linkish", type: "button", onclick: go }, text) : text); };
+    parts.push(part("Profile complete"));
+    if (att) parts.push(pf.verification === "verified" ? part("Bar license verified") : pf.verification === "pending" ? part("Bar license: being checked", true) : part("Bar license not verified", true, function () { goProfile("sec-verify"); }));
+    else {
+      if (pf.readiness !== "match_ready") return null;
+      if (pf.verification === "verified") parts.push(part("LinkedIn verified"));
+      parts.push(part((pf.availability === "limited" ? "Some hours only" : "Available") + " until " + shortDate(pf.availability_due_at)));
+    }
+    var line = h("div", { class: "hstatus" }, parts);
+    if (!att) line.appendChild(h("span", { class: "hsub", style: "margin-left:auto", text: "Attorneys can invite you." }));
+    return line;
+  }
+  function planLine() {
+    var s = sideInfo() || {}, pr = me.side === "freelancer" ? ent("fl.proposals") : null;
+    var box = h("div", null);
+    var plan = h("div", { hidden: true });
+    var btn = h("button", { class: "linkish", type: "button", "aria-expanded": "false" }, "View plan");
+    btn.addEventListener("click", function () { plan.hidden = !plan.hidden; btn.setAttribute("aria-expanded", String(!plan.hidden)); if (!plan.hidden && !plan.firstChild) plan.appendChild(planCard()); });
+    box.appendChild(h("div", { class: "hline" }, h("span", { class: "hsub", text: (s.plan_name || "Your plan") + "." + (pr && pr.limit ? " " + Math.max(pr.limit - (pr.used || 0), 0) + " proposals left this month." : "") }), h("span", { style: "margin-left:auto" }, btn)));
+    box.appendChild(plan);
+    return box;
+  }
+  // Ask DELA on Home: one line. A longer talk continues on the Ask DELA page. The free answers here are the guide's
+  // (Lawfecta's key, a daily number); they are separate from the DELA actions the Ask DELA page uses.
+  function askBox() {
+    var att = me.side === "attorney", sw = me.switches || {};
+    var c = hcard("Ask DELA"), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    var openAsk = sw.ai_generation ? h("button", { class: "linkish", type: "button", onclick: function () { goTab(att ? "delegate" : "ask"); } }, "Open Ask DELA") : null;
+    if (!sw.onboarding_widget) { if (openAsk) inner.appendChild(openAsk); else return null; return c; }
+    inner.appendChild(h("p", { class: "hsub", text: "DELA is getting ready..." }));
+    function mark(kind, step) { return api.post("/guide/mark", { kind: kind, step: step || "", ref: "", request_id: newId() }).catch(function () { return null; }); }
+    function drawAsk(g) {
+      D.clear(inner);
+      if (!g || !g.ok || !g.on) { if (openAsk) inner.appendChild(openAsk); else c.remove(); return; }
+      if (!g.paused && g.message) {
+        var first = (g.choices || []).filter(function (x) { return x.id !== "not_for_me" && x.link; })[0];
+        inner.appendChild(h("p", { class: "hsub hsuggest", "aria-live": "polite", text: g.message }));
+        if (first) inner.appendChild(h("div", null, h("button", { class: "ghost small", type: "button", onclick: function () { mark("chose", g.step); var go = noticeAction(first.link); if (go) location.assign(go.href); } }, first.label)));
+      }
+      var q = h("input", { type: "text", maxlength: "1000", "aria-label": "Ask DELA a question", placeholder: "Ask a question..." });
+      var send = h("button", { class: "send", type: "button", "aria-label": "Send" }, icon("send"));
+      var answer = h("div", { "aria-live": "polite" });
+      var leftText = function (n) { return n > 0 ? n + " free " + (n === 1 ? "answer" : "answers") + " remaining today." : GUIDE_ERR.guide_cap; };
+      var left = h("p", { class: "hsub hleft", text: leftText(g.replies_left) });
+      function ask() {
+        var text = q.value.trim();
+        if (text.length < 2) { q.focus(); return; }
+        send.disabled = true;
+        api.post("/guide/say", { text: text, request_id: newId() }).then(function (x) {
+          send.disabled = false;
+          D.clear(answer);
+          if (!x.ok) { answer.appendChild(h("p", { class: "notice bad small", text: x.message || GUIDE_ERR[x.reason] || failText(x) })); return; }
+          q.value = "";
+          answer.appendChild(h("div", { class: "hanswer" }, h("p", { style: "margin:0", text: x.text })));
+          left.textContent = leftText(x.replies_left);
+        }).catch(function () { send.disabled = false; D.clear(answer); answer.appendChild(h("p", { class: "notice bad small", text: GUIDE_ERR.ai_failed })); });
+      }
+      send.addEventListener("click", ask);
+      q.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); ask(); } });
+      if (g.replies_left > 0) { inner.appendChild(answer); inner.appendChild(h("div", { class: "hask" }, q, send)); }
+      inner.appendChild(left);
+      if (att && sw.ai_generation) loadUsage().then(function (u) { if (u && u.actions && u.actions.limit !== null) left.parentNode && inner.insertBefore(h("p", { class: "hsub", text: "Planning a task uses DELA actions: " + u.actions.used + " of " + u.actions.limit + " used this month." }), left.nextSibling); });
+      var links = h("div", { class: "hacts" });
+      if (openAsk) { openAsk.textContent = att ? "Plan a task to hand off" : "Open Ask DELA"; links.appendChild(openAsk); }
+      links.appendChild(h("button", { class: "linkish", type: "button", onclick: function () { mark(g.paused ? "resumed" : "paused", g.step).then(load); } }, g.paused ? "Resume suggestions" : "Pause suggestions"));
+      inner.appendChild(links);
+    }
+    function load() { api.get("/guide").then(drawAsk).catch(function () { drawAsk(null); }); }
+    load();
+    return c;
+  }
+  function homeNew() {
+    var hm = me.home || {}, att = me.side === "attorney", fn = D.firstName(me.person.name);
+    var el = h("div", null, h("h1", { text: fn && fn !== "there" ? "Hi, " + fn : "Hi" }));
+    var left = h("div", { class: "hstack" });
+    var pb = profileBox(hm), rows = attentionRows(hm);
+    var attention = rows.length ? hcard("Needs your attention", h("span", { class: "badge pink", text: String(rows.length) })) : null;
+    if (attention) attention.appendChild(h("div", { class: "hl" }, rows));
+    // A member with work in hand sees what needs them first; a new member sees the profile box first
+    if (attention && (!pb || (hm.profile || {}).readiness !== "incomplete")) { left.appendChild(attention); if (pb) left.appendChild(pb); }
+    else { if (pb) left.appendChild(pb); if (attention) left.appendChild(attention); }
+    left.appendChild(workBox(hm));
+    var st = statusLine(hm);
+    if (st) left.appendChild(st);
+    left.appendChild(planLine());
+    var ask = askBox();
+    el.appendChild(h("div", { class: "hcols" + (localPref("side.folded") ? " capped" : "") }, left, ask));
+    return el;
+  }
+
   function guideBox() {
     var box = h("section", { class: "card guide", "aria-label": "DELA guide" }, h("p", { class: "small muted", text: "DELA is getting your next step ready..." }));
     function mark(kind, step, ref) { return api.post("/guide/mark", { kind: kind, step: step || "", ref: ref || "", request_id: newId() }).catch(function () { return null; }); }
@@ -759,6 +1167,63 @@
   // ---------- AI settings ----------
 
   var aiEl = null;
+  // ---------- Step 15: Settings additions and the Help page ----------
+  var settingsJump = null;
+  function settingsTop() {
+    var box = h("div", null), sw = me.switches || {}, ap = me.appearance || {};
+    if (ap.on) {
+      var card = h("div", { class: "card", id: "set-appearance" }, h("h2", { text: "Appearance" }), h("p", { class: "small muted", text: "How DELA looks for you, on every device you sign in on." }));
+      var group = h("div", { class: "pills", role: "group", "aria-label": "Appearance" });
+      [["device", "Match my device"], ["light", "Light"], ["dark", "Dark"]].forEach(function (o) {
+        group.appendChild(h("button", { type: "button", "aria-pressed": String(ap.mode === o[0]), onclick: function () {
+          api.post("/me/appearance", { mode: o[0] }).then(function (x) { if (!x.ok) throw x; me.appearance = { on: true, mode: x.mode }; applyTheme(); D.toast(app, "Appearance: " + o[1]); draw(); })
+            .catch(function (e) { D.toast(app, D.errorText(e && (e.reason || e.message)), true); });
+        } }, o[1]));
+      });
+      card.appendChild(group);
+      box.appendChild(card);
+    }
+    if (sw.onboarding_widget) {
+      var sug = h("div", { class: "card", id: "set-alerts" }, h("h2", { text: "Suggestions and alerts" }), h("p", { class: "small muted", text: "Loading..." }));
+      box.appendChild(sug);
+      var load = function () {
+        api.get("/guide").then(function (g) {
+          D.clear(sug);
+          sug.appendChild(h("h2", { text: "Suggestions and alerts" }));
+          if (!g.ok || !g.on) { sug.appendChild(h("p", { class: "small muted", text: "Nothing to set here yet." })); return; }
+          sug.appendChild(h("p", { class: "small", text: g.paused ? "DELA's suggestions on Home are paused. They come back tomorrow, or sooner when something new needs you." : "DELA suggests your next step on Home. Pausing hides the suggestions for a day." }));
+          sug.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/guide/mark", { kind: g.paused ? "resumed" : "paused", step: g.step || "", ref: "", request_id: newId() }).then(load).catch(function () {}); } }, g.paused ? "Resume suggestions" : "Pause suggestions"));
+          if (me.side === "freelancer" && g.alerts_on) {
+            var pr = g.prefs || {};
+            var toggle = function (key, label) {
+              var cb = h("input", { type: "checkbox", checked: pr[key] !== false });
+              cb.addEventListener("change", function () { var body = {}; body[key] = cb.checked; api.post("/guide/prefs", body).then(function (x) { if (!x.ok) { cb.checked = !cb.checked; D.toast(app, "Not saved. Try again.", true); } else D.toast(app, "Saved"); }); });
+              return h("label", { class: "guide-toggle" }, cb, " " + label);
+            };
+            sug.appendChild(h("h3", { style: "margin-top:14px", text: "New gig alerts" }));
+            sug.appendChild(h("p", { class: "small muted", text: "When a gig that fits you is posted, DELA can tell you on Home, by email and in Notices. Turn off any of them." }));
+            sug.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;gap:14px" }, toggle("alerts_in_guide", "On Home"), toggle("alerts_email", "By email"), toggle("alerts_notices", "In Notices")));
+          }
+          if (settingsJump === "set-alerts") { settingsJump = null; sug.scrollIntoView({ block: "start" }); }
+        }).catch(function () { D.clear(sug); sug.appendChild(h("h2", { text: "Suggestions and alerts" })); sug.appendChild(h("p", { class: "notice bad small", text: "These settings could not load. Reload the page to try again." })); });
+      };
+      load();
+    }
+    return box;
+  }
+  function helpView() {
+    var sw = me.switches || {}, att = me.side === "attorney";
+    var el = h("div", null, h("h1", { text: "Help" }));
+    var list = h("div", { class: "hl" });
+    if (sw.ai_generation) list.appendChild(hrow({ title: "Ask DELA", sub: "Ask how something in DELA works, or get help with a task.", go: function () { goTab(att ? "delegate" : "ask"); } }));
+    if (att && sw.guided_setup) list.appendChild(hrow({ title: "See all setup steps", sub: "The six steps of getting set up, with what is done and what is left.", go: function () { goTab("setup"); } }));
+    if (sw.profiles) list.appendChild(hrow({ title: "Your profile", sub: att ? "Firm details, license verification and your profile." : "Your profile, the LinkedIn check and your availability.", go: function () { goProfile(null); } }));
+    list.appendChild(h("a", { class: "hrow", href: "/security#contact", style: "text-decoration:none" }, h("span", { class: "what" }, h("b", { text: "Contact the Lawfecta Team" }), h("span", { class: "sub", text: "Opens the contact form on the Security page." })), icon("chev")));
+    list.appendChild(h("a", { class: "hrow", href: "/security", style: "text-decoration:none" }, h("span", { class: "what" }, h("b", { text: "How DELA keeps your information safe" }), h("span", { class: "sub", text: "The Security page." })), icon("chev")));
+    el.appendChild(h("div", { class: "card" }, list));
+    return el;
+  }
+
   function aiSettingsView() {
     aiEl = h("div", null, h("p", { class: "muted", text: "Loading..." }));
     loadAi();
@@ -768,8 +1233,9 @@
 
   function drawAi(ai) {
     D.clear(aiEl);
-    aiEl.appendChild(h("h1", { text: "AI settings" }));
-    aiEl.appendChild(h("p", { class: "muted", text: "These settings are for your " + D.SIDE[me.side] + " side only." }));
+    aiEl.appendChild(h("h1", { text: NL() ? "Settings" : "AI settings" }));
+    aiEl.appendChild(h("p", { class: "muted", text: "These settings are for your " + D.SIDE[me.side] + (NL() ? " workspace only." : " side only.") }));
+    if (NL()) { aiEl.appendChild(settingsTop()); aiEl.appendChild(h("h2", { style: "margin-top:20px", text: "AI and messages" })); }
     var c = ai.credits;
     var radios = h("div", null,
       choice("lawfecta", "Use Lawfecta's AI", c ? (c.unlimited ? "Included with your plan." : "Included with your plan: " + (c.remaining === null ? c.limit : c.remaining) + " of " + c.limit + " DELA actions left this month. DELA actions reset on the 1st of each month (Pacific time).") : "Included with your plan."),
@@ -981,6 +1447,12 @@
       ((r.firm || {}).staff_of || []).forEach(function (o) { profEl.appendChild(firmCard(o)); });
     }
     profileReviewsCard(profEl);
+    // Step 15: Home links open the part of the profile they name
+    if (profileJump) {
+      var target = profEl.querySelector("#" + profileJump);
+      profileJump = null;
+      if (target) setTimeout(function () { if (target.tagName === "DETAILS") target.open = true; target.scrollIntoView({ block: "start" }); var f = target.querySelector("input, select, textarea, button, summary"); if (f) f.focus({ preventScroll: true }); }, 60);
+    }
   }
 
   function statusCard(st) {
@@ -8323,7 +8795,8 @@
     if (me.on_hold) main.appendChild(h("div", { class: "notice bad", role: "alert", text: "Some actions are paused on your account. Contact the Lawfecta Team." }));
     if (!me.side) main.appendChild(noSide());
     else if (tab === "usage" && me.side === "attorney") main.appendChild(usageView());
-    else if (tab === "home") main.appendChild(me.side === "attorney" ? attorneyHome() : freelancerHome());
+    else if (tab === "home") main.appendChild(NL() ? homeNew() : me.side === "attorney" ? attorneyHome() : freelancerHome());
+    else if (tab === "help" && NL()) main.appendChild(helpView());
     else if (tab === "ai") main.appendChild(aiSettingsView());
     else if ((tab === "delegate" || tab === "ask") && (me.switches || {}).ai_generation) main.appendChild(chatView());
     else if (tab === "files" && me.side === "attorney" && (me.switches || {}).file_uploads) main.appendChild(filesView());
@@ -8346,7 +8819,9 @@
     else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1] + (me.side === "attorney" && (tab === "projects" || tab === "talent") && (sideInfo() || {}).verification_state !== "verified" ? " Posting work and hiring need a verified license: open Profile and verification from your account menu." : "")));
     else { tab = "home"; main.appendChild(me.side === "attorney" ? attorneyHome() : freelancerHome()); }
     if (me.side === "attorney") { usageBanner(main); usageMeter(main); }
-    show(h("div", null, header(), nav(), main));
+    closeMore();
+    app.classList.toggle("nl", NL());
+    show(NL() ? shellNew(main) : h("div", null, header(), nav(), main));
   }
 
   function refresh() {

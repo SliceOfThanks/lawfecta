@@ -274,6 +274,7 @@ Every switch starts Off. In the admin area each one can be set to Off, Lawfecta 
 | Automatic milestone acceptance after 7 silent days | G-CONTRACT and G-REVIEW |
 | Dispute case view, settlement offers and automatic outcomes (step 11) | G-CONTRACT (terms clause 6 reviewed by the lawyer) |
 | Charge the attorney's fee with each milestone payment (step 14). New agreements only; signed ones keep their terms | Stacey turns it on after the first real payments |
+| The compact workspace: sidebar, phone bottom bar with More, compact Home (step 15) | Stacey approves it on the site |
 | Monthly recurring engagements | Step 6 |
 | Limited automatic repeat hiring | O-05, all hard gates |
 | Member webhooks | Step 7 |

@@ -182,7 +182,7 @@ async function bootstrap(ctx: Ctx): Promise<Response> {
   const drafts = r.me?.side === "attorney" && r.me?.person?.id ? await rpc<number>(ctx, "dela_pb_draft_count", { p_person: r.me.person.id }).catch(() => 0) : 0;
   const agencyClient = r.me?.side === "freelancer" && r.me?.person?.id ? await rpc<Record<string, unknown> | null>(ctx, "dela_agency_client", { p_person: r.me.person.id }).catch(() => null) : null;
   const appearance = r.me?.person?.id ? await rpc<Record<string, unknown>>(ctx, "dela_appearance", { p_person: r.me.person.id }).catch(() => ({ on: false, mode: "device" })) : { on: false, mode: "device" };
-  const home = r.me?.person?.id && r.me?.side ? await rpc<Record<string, unknown>>(ctx, "dela_home_counts", { p_person: r.me.person.id, p_side: r.me.side }).catch(() => null) : null;
+  const home = r.me?.person?.id && r.me?.side ? await homeCounts(ctx, r.me.person.id, r.me.side) : null;
   return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, notice: await pageNotice(ctx, r.me), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, limits: FORM_LIMITS }, commit, version: VERSION });
 }
 
@@ -217,7 +217,7 @@ async function me(ctx: Ctx) {
   // How DELA looks for this person (UX review Phase 4 part D): their choice, or the starting setting
   const appearance = await rpc<Record<string, unknown>>(ctx, "dela_appearance", { p_person: s.person_id }).catch(() => ({ on: false, mode: "device" }));
   // The Home tiles' real counts (AI review 0.9.0, payments 3); null hides them if the count cannot be read
-  const home = await rpc<Record<string, unknown>>(ctx, "dela_home_counts", { p_person: s.person_id, p_side: s.side }).catch(() => null);
+  const home = s.side ? await homeCounts(ctx, s.person_id, s.side) : null;
   const m = await rpc<Record<string, unknown>>(ctx, "dela_me", { p_person: s.person_id, p_side: s.side });
   return json(ctx, { me: { ...m, notice: await pageNotice(ctx, m), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, limits: FORM_LIMITS } });
 }
@@ -1900,6 +1900,13 @@ const verifyHash = (t: string) => sha256Hex("dela-verify:" + t);
 async function requiredFor(ctx: Ctx, side: Side): Promise<string[]> {
   const r = await rpc<unknown>(ctx, "dela_setting", { p_key: "profile.required." + side });
   return Array.isArray(r) ? r.map(String) : [];
+}
+
+// Home's counts and, for the compact workspace (step 15), the member's profile status with plain labels for what is missing
+async function homeCounts(ctx: Ctx, person: string, side: string): Promise<Record<string, unknown> | null> {
+  const home = await rpc<Record<string, any>>(ctx, "dela_home_counts", { p_person: person, p_side: side }).catch(() => null);
+  if (home && home.profile && home.profile.ok !== false) home.profile = labelState(home.profile);
+  return home;
 }
 
 function labelState(st: Record<string, any> | null) {

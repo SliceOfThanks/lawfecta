@@ -1583,6 +1583,11 @@
       "gate": "Stacey turns it on after the first real payments"
     },
     {
+      "key": "new_layout",
+      "label": "The compact workspace: sidebar, phone bottom bar with More, compact Home (step 15)",
+      "gate": "Stacey approves it on the site"
+    },
+    {
       "key": "recurring_engagements",
       "label": "Monthly recurring engagements",
       "gate": "Step 6"

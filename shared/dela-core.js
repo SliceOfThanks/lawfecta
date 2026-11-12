@@ -500,6 +500,64 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
     ".lib-card>.row:last-child{margin-top:auto !important;padding-top:10px}.lib-help{margin-top:16px}" +
     "@media (max-width:640px){.lib-filters .pills{flex-wrap:nowrap;overflow-x:auto;padding-bottom:4px;-webkit-overflow-scrolling:touch}.lib-filters .pills>button{flex:0 0 auto}.lib-cards{grid-template-columns:1fr;gap:10px}.lib-card{padding:14px}.lib-head h1{font-size:24px}.lib-card .lib-title{font-size:16px}}",
     "@media (max-width:600px){h1{font-size:24px}.wrap{padding:12px}.card{padding:16px}.hero{padding:20px}.hero h2{font-size:26px}.brand span{font-size:11px;letter-spacing:.08em}.top{flex-wrap:nowrap;gap:6px;padding:10px 12px}.top .bell{padding:6px 10px;font-size:13px}.top .brand{flex:0 0 auto;gap:6px}.brand img{width:32px;height:32px}.top .badge{font-size:10px;padding:2px 6px;white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}.bell{padding:6px 10px}.gd-terms>div{grid-template-columns:1fr;gap:2px}}",
+    // Step 15, the compact workspace (switch new_layout): everything here applies only while .dela has the class "nl".
+    // Colors come from the same variables as the rest, so light and dark follow the Appearance choice.
+    ".dela.nl{padding:0;font-size:15px;--shadow:none}.nl-frame{display:flex;min-height:70vh}.nl-side{display:none}.nl-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;padding-bottom:calc(84px + env(safe-area-inset-bottom))}" +
+    ".dela.nl svg.ic{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none}" +
+    ".dela.nl .top{background:var(--card);color:var(--ink);border-bottom:1px solid var(--line);padding:0 8px 0 14px;min-height:52px;gap:6px;flex-wrap:nowrap}" +
+    ".dela.nl .top .where{font-size:16px;font-weight:700;display:none}.dela.nl .top .brand span{color:var(--ink);font-size:13px;letter-spacing:.14em}.dela.nl .top .brand img{width:28px;height:28px}" +
+    ".dela.nl .top .bell{background:transparent;border:1px solid transparent;color:var(--ink);border-radius:8px;min-width:44px;height:44px;padding:0 10px;display:inline-flex;align-items:center;justify-content:center;gap:8px;position:relative;font-size:14px;font-weight:600}" +
+    ".dela.nl .top .bell .lbl{display:none}.dela.nl .top .bell b{position:absolute;top:4px;right:2px;background:var(--brand);color:#fff}.dela.nl .avatar{background:var(--brand);flex:none}" +
+    ".dela.nl .top .seg{border-color:var(--line)}.dela.nl .top .seg button{color:var(--ink)}.dela.nl .top .seg button[aria-pressed=true]{background:var(--pink);color:var(--pink-ink)}" +
+    ".dela.nl .wrap{max-width:1120px;width:100%;margin:0;padding:14px 16px}.dela.nl h1{font-size:22px;margin:4px 0 10px}.dela.nl h2{font-size:17px;font-weight:700}" +
+    ".dela.nl .card{border-radius:12px;padding:14px 16px;margin:12px 0;box-shadow:none}.dela.nl .soft{border-radius:10px}.dela.nl .notice{border-radius:10px}" +
+    ".dela.nl button.blue,.dela.nl .btn.blue{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}" +
+    ".dela.nl button.blue,.dela.nl button.ghost,.dela.nl .btn{border-radius:8px}.dela.nl button.ghost{border-color:var(--line)}.dela.nl button.ghost.danger{border-color:var(--bad)}" +
+    ".dela.nl button:focus-visible,.dela.nl a:focus-visible,.dela.nl input:focus-visible,.dela.nl select:focus-visible,.dela.nl textarea:focus-visible{outline:2px solid var(--ink);outline-offset:2px}" +
+    // The menu items, shared by the sidebar and the More sheet
+    ".nl-item{display:flex;align-items:center;gap:12px;min-height:44px;padding:0 12px;border:0;border-radius:8px;background:transparent;color:var(--muted);font:inherit;font-size:15px;font-weight:500;text-align:left;width:100%;position:relative;cursor:pointer}" +
+    ".nl-item:hover{background:var(--soft);color:var(--ink)}.nl-item[aria-current=page]{background:var(--pink);color:var(--pink-ink);font-weight:700}" +
+    ".nl-item[aria-current=page]::before{content:'';position:absolute;left:0;top:8px;bottom:8px;width:3px;border-radius:3px;background:var(--pink-ink)}" +
+    ".nl-item .cnt{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--brand);color:#fff;font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}" +
+    ".nl-sep{height:1px;background:var(--line);margin:8px 6px;flex:none}.nl-grow{flex:1 1 auto}" +
+    ".nl-brand{display:flex;align-items:center;gap:10px;padding:4px 8px 14px}.nl-brand img{width:32px;height:32px;border-radius:50%}.nl-brand b{font-size:15px;letter-spacing:.14em}" +
+    // Phones: five labeled items at the bottom; the fifth opens the More sheet
+    ".nl-bar{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}" +
+    ".nl-bar button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:64px;padding:0 2px;border:0;border-radius:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:500;position:relative;cursor:pointer;min-width:0}" +
+    ".nl-bar button[aria-current=page],.nl-bar button[aria-expanded=true]{color:var(--pink-ink);font-weight:700}" +
+    ".nl-bar button[aria-current=page]::before,.nl-bar button[aria-expanded=true]::before{content:'';position:absolute;top:0;left:22%;right:22%;height:3px;border-radius:0 0 3px 3px;background:var(--pink-ink)}" +
+    "@media (max-width:340px){.nl-bar button{font-size:11px}.dela.nl .top .brand span{display:none}}" +
+    ".dela.nl.kb .nl-bar{display:none}.dela.nl.kb .nl-main{padding-bottom:16px}" +
+    ".nl-scrim{position:fixed;inset:0;background:rgba(12,14,20,.55);z-index:2147483000}.dela.nl.sheet .nl-bar{z-index:2147483002}" +
+    ".nl-sheet{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom));background:var(--card);border:1px solid var(--line);border-bottom:0;border-radius:16px 16px 0 0;padding:8px 12px 12px;z-index:2147483001;max-height:calc(100% - 150px);overflow-y:auto;display:flex;flex-direction:column;gap:2px}" +
+    ".nl-sheet .nl-item{min-height:48px;color:var(--ink);font-size:16px}.nl-grab{width:36px;height:4px;border-radius:2px;background:var(--line);align-self:center;margin:4px 0 8px}" +
+    ".nl-sheethead{display:flex;align-items:center;gap:8px;padding:0 0 6px 12px}.nl-sheethead b{font-size:16px;flex:1 1 auto}.nl-x{width:44px;height:44px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer}" +
+    // Home in the compact workspace
+    ".hcols{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}.hcols .card{margin:0}.hstack{display:flex;flex-direction:column;gap:12px}" +
+    ".hhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}.hhead h2{margin:0}.hgap{display:flex;flex-direction:column;gap:10px}" +
+    ".hl{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}" +
+    ".hrow{display:flex;align-items:center;gap:12px;min-height:44px;padding:8px 14px;border:0;border-top:1px solid var(--line);border-radius:0;background:transparent;color:var(--ink);font:inherit;font-weight:400;text-align:left;width:100%;cursor:pointer}" +
+    ".hrow:first-child{border-top:0}.hrow:hover{background:var(--soft)}div.hrow{cursor:default}div.hrow:hover{background:transparent}.hrow .what{flex:1 1 auto;min-width:0}.hrow .what b{display:block;font-weight:600}.hrow .sub,.hsub{font-size:13px;color:var(--muted)}" +
+    ".hrow .act{color:var(--pink-ink);font-weight:600;font-size:14px;white-space:nowrap}.hrow svg.ic{color:var(--muted);width:18px;height:18px}" +
+    ".hrow .badge{white-space:nowrap}@media (max-width:899px){.hrow{flex-wrap:wrap}.hrow .what{flex:1 1 0;min-width:55%}.hrow .badge{order:5}.hrow .act{order:6;flex-basis:100%}.hrow .act+svg.ic{order:4}}" +
+    ".hdot{width:10px;height:10px;border-radius:50%;flex:none;border:2px solid var(--muted)}.hdot.done{border-color:var(--ok);background:var(--ok)}.hdot.warn{border-color:var(--warn)}" +
+    ".badge.pink{background:var(--pink);color:var(--pink-ink);border-color:transparent}a.hrow{box-sizing:border-box}.hneed .hrow:nth-child(n+2){display:none}.hall .hneed .hrow{display:flex}.dela.nl .top .nl-seg{display:none}.dela.nl .linkish{min-height:0}.hmini{font-size:13px;font-weight:700;margin:2px 0 0}.hbar{height:6px;border-radius:3px;background:var(--soft);overflow:hidden}.hbar span{display:block;height:100%;border-radius:3px;background:var(--brand)}" +
+    ".hacts{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap}.hacts .blue{flex:1 1 100%;justify-content:center;text-align:center}" +
+    ".hstats{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.hstat{display:block;text-align:left;background:var(--soft);border:1px solid transparent;border-radius:10px;padding:10px 12px;color:var(--ink);font:inherit;font-weight:400;cursor:pointer;width:100%}" +
+    ".hstat:hover{border-color:var(--line)}.hstat b{display:block;font-size:20px;line-height:1.2}.hstat span{display:block;font-size:13px;color:var(--muted)}.hstat small{display:block;font-size:12px;color:var(--muted)}" +
+    ".hstatus{display:flex;align-items:center;gap:6px 16px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}.hpart{display:inline-flex;align-items:center;gap:8px;font-size:14px}.hpart.warn{color:var(--warn);font-weight:600}" +
+    ".hask{display:flex;align-items:center;gap:8px;border:1.5px solid var(--line);border-radius:10px;padding:4px 4px 4px 12px;background:var(--card)}.hask input{flex:1 1 auto;min-width:0;border:0;outline:0;background:transparent;color:var(--ink);font:inherit;font-size:16px;height:40px;padding:0;margin:0}" +
+    ".hask:focus-within{border-color:var(--pink-ink)}.hask .send{width:40px;height:40px;min-height:0;border-radius:8px;border:0;background:var(--brand);color:#fff;display:inline-flex;align-items:center;justify-content:center;padding:0;flex:none}" +
+    ".hanswer{background:var(--soft);border-radius:10px;padding:10px 12px;font-size:15px;max-height:220px;overflow-y:auto}.hline{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}" +
+    "@media (prefers-reduced-motion:reduce){.dela.nl *{transition:none !important;animation:none !important}}" +
+    // Desktop: the sidebar replaces the bottom bar
+    "@media (min-width:900px){.nl-side{display:flex;flex-direction:column;gap:2px;width:232px;flex:none;position:sticky;top:var(--dela-top,0px);align-self:flex-start;height:calc(100vh - var(--dela-top,0px));overflow-y:auto;background:var(--card);border-right:1px solid var(--line);padding:12px 10px;box-sizing:border-box}" +
+    ".nl-side .nl-item{min-height:40px}.nl-side.mini{width:64px;align-items:center;overflow:visible}.nl-side.mini .nl-item{width:44px;padding:0;justify-content:center}.nl-side.mini .lbl,.nl-side.mini .cnt,.nl-side.mini .nl-brand b,.nl-side.mini .nl-brand .badge{display:none}.nl-side.mini .nl-brand{padding:4px 0 14px}" +
+    ".nl-side.mini .nl-item:hover::after,.nl-side.mini .nl-item:focus-visible::after{content:attr(data-tip);position:absolute;left:54px;top:50%;transform:translateY(-50%);background:var(--ink);color:var(--card);font-size:13px;font-weight:600;padding:6px 10px;border-radius:6px;white-space:nowrap;z-index:20}" +
+    ".nl-side.mini .nl-fold{border:1px solid var(--line)}.nl-bar{display:none}.nl-main{padding-bottom:40px}.dela.nl .top{min-height:56px;padding:0 24px;gap:10px}.dela.nl .top .where{display:block}.dela.nl .top .brand{display:none}" +
+    ".dela.nl .top .bell{border-color:var(--line);height:38px}.dela.nl .top .bell .lbl{display:inline}.dela.nl .top .bell.icon{border-color:transparent}.dela.nl .top .bell b{top:-6px;right:-6px}.dela.nl .top .bell.icon b{top:2px;right:2px}" +
+    ".dela.nl .wrap{padding:22px 28px}.dela.nl h1{font-size:24px;margin:2px 0 14px}.dela.nl .card{padding:18px 20px;margin:16px 0}.hcols{grid-template-columns:minmax(0,1fr) 320px;gap:16px}.hcols.capped{grid-template-columns:minmax(0,760px) 320px}.hstack{gap:16px}" +
+    ".hneed .hrow:nth-child(-n+3){display:flex}.dela.nl .top .nl-seg{display:inline-flex}.hstats{grid-template-columns:repeat(4,minmax(0,1fr))}.hacts .blue{flex:none}.hask input{font-size:15px;height:36px}.hask .send{width:36px;height:36px}}",
   ].join("");
 
   // Inter for DELA. Fonts must load at the page level to reach inside the shadow root.
