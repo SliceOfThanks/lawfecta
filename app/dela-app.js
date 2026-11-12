@@ -4101,7 +4101,7 @@
   }
   // A monthly change shown next to what is in force now (step 8b, retest R10): each task's quantity, the price and the
   // way units are delivered, current and proposed side by side, and when it would start
-  function changeCompare(cur, prop, mv) {
+  function changeCompare(cur, prop, mv, approved) {
     cur = cur || {};
     var names = [], qty = function (list, name) { var x = (list || []).filter(function (t) { return t.task === name; })[0]; return x ? x.quantity + " each month" + (x.turnaround ? ", within " + x.turnaround : "") : "Not included"; };
     (cur.tasks || []).concat(prop.tasks || []).forEach(function (t) { if (names.indexOf(t.task) < 0) names.push(t.task); });
@@ -4115,8 +4115,9 @@
     // AI review 0.10.0 (payments 5): the deadline comes from the setting recurring.change_deadline_days
     var dl = (mv && mv.change_deadline_days) || 1, dlText = dl + (dl === 1 ? " day" : " days");
     var starts = mv && mv.next && mv.next.bill_on ? "From the month that starts " + D.date(mv.next.bill_on) + ", if approved at least " + dlText + " before." : "From the next month, if approved at least " + dlText + " before billing.";
+    if (approved) starts = mv && mv.next && mv.next.bill_on ? "It starts with the month that begins " + D.date(mv.next.bill_on) + "." : "It starts with the next month.";
     return h("div", null, h("div", { class: "scroll" }, h("table", { class: "stack", style: "width:100%" },
-      h("thead", null, h("tr", null, h("th", { text: "" }), h("th", { text: "Now" }), h("th", { text: "Proposed" }))),
+      h("thead", null, h("tr", null, h("th", { text: "" }), h("th", { text: "Now" }), h("th", { text: approved ? "From next month" : "Proposed" }))),
       h("tbody", null, rows.map(function (r) { return h("tr", { class: r[1] !== r[2] ? "changed" : "" }, h("td", { "data-label": "", text: r[0] }), h("td", { "data-label": "Now", text: r[1] }), h("td", { "data-label": "Proposed" }, r[1] !== r[2] ? h("b", { text: r[2] }) : r[2])); })))),
       h("p", { class: "small muted", text: starts }));
   }
@@ -6103,6 +6104,9 @@
         h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/monthly/change/decide", { id: open.id, approve: false }).then(engOk).then(function () { cardSay("monthly", "Declined. The current terms continue."); engReload(); }).catch(function (e) { cardSay("monthly", monthlyErr(e), true); }); } }, "Decline")));
       card.appendChild(box);
     }
+    // UX review 2026-11-08: a change both people approved stays in view until the month it starts with
+    var coming = (mv.changes || []).filter(function (c) { return c.status === "approved"; })[0];
+    if (coming) card.appendChild(h("div", { class: "soft", id: "change-approved", style: "margin-top:8px" }, h("b", { text: "Approved change, not started yet" }), changeCompare(mv.terms, coming, mv, true)));
     var chHost = h("div");
     card.appendChild(h("div", { class: "row", style: "margin-top:8px" }, h("button", { class: "ghost small", type: "button", onclick: function () {
       D.clear(chHost);

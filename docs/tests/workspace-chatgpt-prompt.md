@@ -55,6 +55,7 @@ TEST FREELANCER (log in once)
    Expect: it says "Profile complete", "LinkedIn verified" and "Available until" with a date, and at its right "Attorneys can invite you."
 4. Find: the card titled "Ask DELA", at the top of the right column.
    Expect: a box that says "Ask a question...", a dark red square button with a paper plane to its right, a grey line that ends "free answers remaining today.", and two underlined links: "Open Ask DELA" and "Suggestion settings".
+   Expect: at the top of the card, under the heading, one line from DELA about the next step, with a dark red button under it (for example "See my invitations"). Write that line and the button's name.
    Expect: the words "Pause suggestions" and "Finish my profile" are NOT in this card.
 5. Find: the card "Your work" again.
    Do: click the grey box "Invitations".
@@ -91,6 +92,8 @@ TEST ATTORNEY (log in once)
     Expect: rows with "Pay milestone" or "Review and sign" at their right end.
     Find: the card "Your projects" below it.
     Expect: four grey boxes with numbers: "Deliveries to review", "Active projects", "Open gigs", "Gig drafts".
+    Find: the card "Ask DELA" at the top of the right column.
+    Expect: under the heading, one line from DELA about the next step, with at least one dark red button under it. Write that line and the button's name. Do NOT click the button.
 13. Do: in the card "Your projects", click the grey box "Open gigs".
     Expect: the top bar says "Projects", the address ends with tab=projects, and the page has moved to a card titled "Your gigs".
 14. Go to: https://www.lawfecta.co/dela?tab=ai
@@ -123,4 +126,4 @@ OWNER, ADMIN AREA (log in once)
 21. Do: click "Stacey Lake (owner)" at the top right, then "Sign out".
     Expect: you are signed out of the website.
 
-Report as described in "How to work", line 10. For steps 3, 12 and 18 include the words you were asked to write down.
+Report as described in "How to work", line 10. For steps 3, 4, 12 and 18 include the words you were asked to write down.

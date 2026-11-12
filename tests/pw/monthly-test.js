@@ -157,6 +157,9 @@ const ATT = 4100, FL = 4101;
     ok(t.includes("Check this before approving: the note says \"Two more packets a week\", but no monthly quantity changes in the table.") && t.includes("DELA does not decide which one is meant."), "a contradictory change note is flagged for review");
     await click(p, "Approve the change");
     await waitFor(p, "Approved. It starts next month");
+    // UX review 2026-11-08: the approved change stays in view until the month it starts with
+    t = await waitFor(p, "Approved change, not started yet");
+    ok(t.includes("From next month") && /It starts with (the month that begins|the next month)/.test(t) && /\$1,000[\s\S]*\$1,200/.test(t), "an approved change stays on the agreement, with the current terms next to it, until it starts");
     await click(p, "Approve keeping it");
     await waitFor(p, "The engagement continues.");
     ok((await sql(`select cancel_effective from monthly_terms where agreement_id = '${ag}'`))[0].cancel_effective === null, "undoing the cancellation needed the other side");
