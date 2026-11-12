@@ -1,6 +1,7 @@
 # ChatGPT test: re-check of the UI review fixes (light and dark)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> DO NOT RUN AS IT IS (2026-11-13). This test was written for the earlier layout. It checks parts of the old Home ("What DELA will do for you", the tab row) that the new layout no longer has. The new layout is tested by docs/tests/workspace-chatgpt-prompt.md. Claude rewrites this test before it is needed again.
+
 
 A short check of the fixes from the UI review of 2026-11-08 (docs/reviews/test-reports/2026-11-08-step-10-ui-review.txt). It looks only. It changes one thing and puts it back: the attorney's own "Appearance" choice (Dark for part of the test, then "Match my device" again).
 

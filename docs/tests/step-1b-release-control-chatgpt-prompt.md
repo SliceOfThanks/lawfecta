@@ -1,6 +1,7 @@
 # ChatGPT test prompt: DELA 0.2.0 (Release Control, help tips and Guide)
 
-> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+> DO NOT RUN AS IT IS (2026-11-13). This test was written for the earlier layout. It walks the admin area's old row of tabs. The new layout is tested by docs/tests/workspace-chatgpt-prompt.md. Claude rewrites this test before it is needed again.
+
 
 Paste everything below the line into ChatGPT with browsing or agent mode. The website address is already filled in. Fill in the three test logins first (OWNER_LOGIN, ATTORNEY_LOGIN, FREELANCER_LOGIN).
 Do not give ChatGPT your release password. Part D is done by you, not ChatGPT.

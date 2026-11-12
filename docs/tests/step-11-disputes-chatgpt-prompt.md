@@ -98,8 +98,7 @@ ATTORNEY (log in once)
 
 OWNER, ADMIN AREA (log in once)
 19. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
-20. Go to: https://www.lawfecta.co/dela-admin
-    Do: in the menu on the left near the top, click "Disputes".
+20. Go to: https://www.lawfecta.co/dela-admin?tab=disputes ("Disputes" in the left menu, under the heading "PAYMENTS").
     Expect: a card "Disputes" with numbers (Open now, Settled by offer, and others), then "Open disputes", then "Closed in the last 90 days". "Test job: Dispute to answer (prepared)" is under closed, marked "Settled by offer".
 21. Find: under "Open disputes", the box "Test job: Dispute for the team (prepared), milestone 1..." with a yellow "Ready for your decision" label. It shows both sides.
     Do: open "Decide" in that box (if it is folded) and click "✦ Draft with DELA".
@@ -110,7 +109,7 @@ OWNER, ADMIN AREA (log in once)
     Expect: a message says it is decided, and the case moves to "Closed in the last 90 days" as "Decided".
 23. Find: the card "Money tools" at the bottom of the Disputes tab.
     Expect: a list or "Nothing waiting." No error.
-24. Sign out (the "Sign out" button at the top right).
+24. Sign out: click the button with the owner's name at the top right, then "Sign out".
 
 CHECK THE RESULTS (freelancer login is not needed again; read only what the owner already saw)
 25. In your report, list for each prepared job what you saw at the end: "Dispute to answer" settled by agreement ($300 / $150), "Dispute to open" open and answered, "Dispute for the team" decided half each.

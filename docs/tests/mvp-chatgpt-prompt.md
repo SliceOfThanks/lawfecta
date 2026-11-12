@@ -48,8 +48,8 @@ Steps
 TEST FREELANCER, WHO RUNS AN AGENCY (log in once)
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer. Then click the round button with the initials at the far right of the top bar: the first line must say "DELA Test Freelancer". If not, stop and tell me.
 2. Go to: https://www.lawfecta.co/dela?tab=home
-   Find: the "DELA guide" card at the top.
-   Expect: the bubble says attorneys who hire an agency read the agency profile first, and names what it still needs. A dark red button "Build my agency profile".
+   Find: the card "Ask DELA" at the top of the right column.
+   Expect: under the heading, a line of text says attorneys who hire an agency read the agency profile first, and names what it still needs. Under it, a dark red button "Build my agency profile".
    Do: click "Build my agency profile".
    Expect: the Agency page opens.
 3. Find: the card "Agency profile" near the top of the Agency page.
@@ -62,7 +62,7 @@ TEST FREELANCER, WHO RUNS AN AGENCY (log in once)
 6. Find: further down the Agency page, the cards "Business details" and "Team".
    Expect: both are there. Write what each says in one line.
 7. Go to: https://www.lawfecta.co/dela?tab=home
-   Expect: the "DELA guide" card has moved on to the next step (for example invitations or new gigs). Write what the bubble says.
+   Expect: the "Ask DELA" card (on Home, at the right; on a narrow window, below the other cards) has moved on to the next step (for example invitations or new gigs). Write the line of text at the top of that card.
 8. Go to: https://www.lawfecta.co/dela?tab=earnings
    Expect: the Earnings page opens with no error. Write the heading of the first card.
 9. Sign out.
@@ -70,7 +70,7 @@ TEST FREELANCER, WHO RUNS AN AGENCY (log in once)
 TEST ATTORNEY (log in once)
 10. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney. Check the first line of the round initials menu says "DELA Test Attorney".
 11. Go to: https://www.lawfecta.co/dela?tab=home
-    Expect: the "DELA guide" card says proposals arrived for "Build document checklist from questionnaire answers", with a dark red button "Compare the proposals".
+    Expect: the "Ask DELA" card (on Home, at the right; on a narrow window, below the other cards) says proposals arrived for "Build document checklist from questionnaire answers", with a dark red button "Compare the proposals".
     Do: click "Compare the proposals".
     Expect: that gig opens on its proposals, each with a price and what it includes.
 12. Go to: https://www.lawfecta.co/dela?tab=library
@@ -89,7 +89,7 @@ TEST ATTORNEY (log in once)
 NEW ATTORNEY (log in once)
 17. Go to: https://www.lawfecta.co/login and ask me to log in as hello@legalstacey.com.
 18. Go to: https://www.lawfecta.co/dela?tab=home
-    Expect: the "DELA guide" card starts "Welcome to DELA. First, tell DELA about your firm", with a dark red button "Tell DELA about my firm".
+    Expect: the "Ask DELA" card (on Home, at the right; on a narrow window, below the other cards) starts "Welcome to DELA. First, tell DELA about your firm", with a dark red button "Tell DELA about my firm".
     Do: click "Tell DELA about my firm".
     Expect: the Library opens on the card "Your firm profile for documents".
 19. Do: in the box "Describe your firm (optional)" type: Fictional test firm: two attorneys doing family law and estate planning in Texas state courts; we use Clio and Microsoft 365.
@@ -98,22 +98,22 @@ NEW ATTORNEY (log in once)
     Do: click "Save and continue" at the bottom of the card.
     Expect: a "Saved" message.
 20. Go to: https://www.lawfecta.co/dela?tab=home
-    Expect: the "DELA guide" bubble now says "Let's take one task off your desk. Based on your family law ... practice, these are good to hand off first." with three buttons that start with "Draft:" and a fourth, "Something else".
+    Expect: the line of text at the top of the "Ask DELA" card now says "Let's take one task off your desk. Based on your family law ... practice, these are good to hand off first." with three buttons that start with "Draft:" and a fourth, "Something else".
 21. Do: click the first "Draft:" button.
     Expect: the Library opens on "New document" for that task.
 22. Sign out.
 
 OWNER, ADMIN AREA (log in once)
 23. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
-24. Go to: https://www.lawfecta.co/dela-admin
-    Do: in the menu on the left near the top, click "Payments".
-    Expect: a line near the top that starts "Stripe is connected in test mode" OR "Stripe is not connected yet". Copy that line word for word into your report.
-25. Do: click the "Overview" tab.
-    Find: the card "DELA guide".
+24. Go to: https://www.lawfecta.co/dela-admin?tab=pay ("Payments" in the left menu, under the heading "PAYMENTS").
+    Find: the second card on the page, "Payment overview" (the first card is "Needs attention").
+    Expect: a line in it that starts "Stripe is connected in test mode" OR "Stripe is not connected yet". Copy that line word for word into your report.
+25. Go to: https://www.lawfecta.co/dela-admin?tab=overview ("Overview" in the left menu, under the heading "MEMBERS").
+    Find: the card "DELA guide" on the Overview page (scroll down).
     Expect: tiles with numbers, and a list of steps that includes "Tell DELA about the firm" and "Agency profile".
-26. Do: click the "Disputes" tab.
+26. Go to: https://www.lawfecta.co/dela-admin?tab=disputes ("Disputes" in the left menu, under the heading "PAYMENTS").
     Expect: the Disputes page opens with numbers and lists, no error.
-27. Sign out.
+27. Sign out: click the button with the owner's name at the top right, then "Sign out".
 
 AT THE END
 Report one line per step (PASS or FAIL and a few words), the FAIL list, any confusing message, and anything that took longer than 60 seconds. Put it all in DELA-test-report.txt.

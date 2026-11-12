@@ -137,7 +137,7 @@ Group 3. Check the results (the test attorney, then the owner)
 
 5. Sign out. Ask me to log in as the owner.
    Go to: https://www.lawfecta.co/dela-admin
-   Do: click the tab "Security" (in the menu on the left near the top, between "Lawfecta Team" and "Holds").
+   Go to: https://www.lawfecta.co/dela-admin?tab=security ("Security" in the left menu, under the heading "SAFETY") (in the menu on the left near the top, between "Lawfecta Team" and "Holds").
    Expect: the card "Security questions from the website" and the card "Confidential materials" with counts such as "Files", "Secure links open" and "Jobs marked sensitive". No file names, messages or links appear in these counts.
 
 6. Sign out.

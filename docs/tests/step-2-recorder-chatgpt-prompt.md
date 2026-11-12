@@ -25,7 +25,7 @@ Before you start:
 3. When the browser asks what to share, first choose one window. Expect "DELA needs your entire screen". Click "Start recording" again and choose "Entire Screen".
 4. Do the practice task in Word and the browser, talking through each step. In Chrome and Edge, a small control window stays on top of Word: try "Pause" and "Resume" there.
 5. Click "Stop and save" in the control window, or "Stop sharing" in the browser's bar. Expect "Uploading", then "Analyzing", and "You can leave this page".
-6. Within a few minutes, expect a notice "Your recording is ready to review". Click "Notices" in the top bar to see it, and check your email too.
+6. Within a few minutes, expect a notice "Your recording is ready to review". Click the bell (Notices) at the right of the top bar to see it, and check your email too.
 7. Review the recording:
    1. Open https://www.lawfecta.co/dela?tab=library. In the "Recordings" card, the second card from the top, click "Review" on your recording.
    2. Check the steps, the screenshots, "You may want to add these", and "What you said".

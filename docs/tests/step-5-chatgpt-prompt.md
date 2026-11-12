@@ -53,7 +53,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
 6. Click one time and confirm. Expect "Your meetings" with the meeting marked "Booked", and a note that the meeting room link appears once Lawfecta's meeting service is connected (or when the room opens).
 7. Click "Add to my calendar (.ics)". Expect a calendar file to download. Open it and check the time.
 8. Click "Inbox" in the top bar. Expect the conversation listed.
-9. Click the initials in the top right, then "AI settings". Find the "Messages" card and check the "Seen" setting is there.
+9. Click the initials in the top right, then "Settings". Find the "Messages" card and check the "Seen" setting is there.
 10. Sign out.
 
 3. Owner (ask me to log in as the owner)

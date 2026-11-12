@@ -130,8 +130,7 @@ OWNER (log in once)
 
 17. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-18. Go to: https://www.lawfecta.co/dela-admin
-    Do: click the tab "Recurring" in the menu on the left near the top.
+18. Go to: https://www.lawfecta.co/dela-admin?tab=recurring ("Recurring" in the left menu, under the heading "PAYMENTS") in the menu on the left near the top.
     Find: the card "Standing arrangements", below the Recurring card.
     Expect: the grey line "Limited automatic repeat hiring. Each one names a price per job, a monthly cap, the most jobs open at once and an end date. Off on Live until counsel approves (switch auto_repeat_hiring)." Then a row "DELA Test Attorney hires DELA Test Freelancer" labeled "active" with "$300 per job | spend this month $600 of $700 | 2 of 2 open | jobs 2, declined 1 | until ...", and a row for the $400 arrangement labeled "ended".
 

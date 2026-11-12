@@ -1,6 +1,7 @@
 # ChatGPT review: the attorney side of DELA (UX and UI)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> DO NOT RUN AS IT IS (2026-11-13). This test was written for the earlier layout. It reviews the old Home (the purple box, the row of numbers, "What DELA will do for you"). The new layout is tested by docs/tests/workspace-chatgpt-prompt.md. Claude rewrites this test before it is needed again.
+
 
 What this is: ChatGPT walks the attorney screens on the test site as a first-time solo attorney would, looks only (it changes nothing), and writes recommendations ranked by how much they would help.
 
@@ -98,7 +99,7 @@ Steps
 13. Inbox and meetings. Go to: https://www.lawfecta.co/dela?tab=inbox
     Look at: the message threads and how a conversation is shown. Then go to: https://www.lawfecta.co/dela?tab=meetings and look at the meetings page.
 
-14. Notices. Click "Notices" in the top bar.
+14. Notices. Click the bell (Notices) at the right of the top bar.
     Look at: how notices read, whether each one says what to do, and how easy it is to get from a notice to the right page. Close the panel.
 
 15. Profile and verification. Go to: https://www.lawfecta.co/dela?tab=profile

@@ -86,7 +86,7 @@ ATTORNEY (log in once)
    Expect: you are back on the Library, with the same buttons chosen.
 
 8. On the same page:
-   Do: click "Notices" in the top bar.
+   Do: click the bell (Notices) at the right of the top bar.
    Expect: a panel with "Needs your action (N)". Either a list of lines with buttons, or "Nothing waits on you right now." with "Open Projects". It never says it could not check, unless the page really failed (write it down if it does).
    Do: close the panel with its X at the top right.
 

@@ -418,6 +418,14 @@ async function makeMember(bd, side, plan, name) {
     const amenu = await inShadow(p, (root) => [...root.querySelectorAll(".nl-side .nl-item")].map((b) => b.innerText.trim()).slice(0, 4));
     ok(amenu.join(",") === "Home,Projects,Ask DELA,Library", "attorney: the four main pages: " + amenu.join(", "));
     ok(t.includes("Deliveries to review") && t.includes("Open gigs") && t.includes("Gig drafts"), "attorney: the project numbers are on Home");
+    // DELA's next step for the attorney shows in the Ask DELA card with its button (it does not repeat a profile card)
+    t = await waitFor(p, "Tell DELA about my firm");
+    ok(t.includes("tell DELA about your firm") && !t.includes("Pause suggestions"), "attorney: DELA's next step (tell DELA about your firm) is in the Ask DELA card");
+    await dela(p).getByRole("button", { name: "Tell DELA about my firm" }).click();
+    await p.waitForFunction(() => new URL(location.href).searchParams.get("tab") === "library", null, { timeout: 8000 });
+    ok(true, "attorney: the suggestion's button opens the Library to start");
+    await dela(p).getByRole("button", { name: "Home", exact: true }).click();
+    await waitFor(p, "Your projects");
     await dela(p).getByRole("button", { name: /Open gigs/ }).first().click();
     await p.waitForFunction(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.activeElement && r.activeElement.tagName === "H2" && r.activeElement.textContent.indexOf("Your gigs") === 0; }, null, { timeout: 8000 });
     ok(p.url().includes("tab=projects"), "attorney: the Open gigs number opens Projects at Your gigs");

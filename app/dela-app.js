@@ -673,15 +673,20 @@
     var openAsk = sw.ai_generation ? h("button", { class: "linkish", type: "button", onclick: function () { goTab(att ? "delegate" : "ask"); } }, "Open Ask DELA") : null;
     if (!sw.onboarding_widget) { if (openAsk) inner.appendChild(openAsk); else return null; return c; }
     inner.appendChild(h("p", { class: "hsub", text: "DELA is getting ready..." }));
-    function mark(kind, step) { return api.post("/guide/mark", { kind: kind, step: step || "", ref: "", request_id: newId() }).catch(function () { return null; }); }
+    function mark(kind, step, ref) { return api.post("/guide/mark", { kind: kind, step: step || "", ref: ref || "", request_id: newId() }).catch(function () { return null; }); }
     function drawAsk(g) {
       D.clear(inner);
       if (!g || !g.ok || !g.on) { if (openAsk) inner.appendChild(openAsk); else c.remove(); return; }
-      // Setup advice lives in the profile card, not here. Only a new gig that fits the member is announced in this card.
-      var gigChoice = (g.choices || []).filter(function (x) { return x.gig && x.id !== "not_for_me" && x.link; })[0];
-      if (!g.paused && g.message && gigChoice) {
+      // DELA's next step for this member, with its buttons (tell DELA about the firm, tasks to hand off, compare the
+      // proposals, a new gig that fits). One thing is left out: advice that only repeats the profile card on this page
+      // (every button would open the Profile page while that card is showing).
+      var acts = (g.choices || []).filter(function (x) { return x.id !== "not_for_me"; });
+      var repeatsProfile = homeHasProfileCard && acts.length > 0 && acts.every(function (x) { return x.link && x.link.indexOf("tab=profile") >= 0; });
+      if (!g.paused && g.message && !repeatsProfile) {
         inner.appendChild(h("p", { class: "hsub hsuggest", "aria-live": "polite", text: g.message }));
-        inner.appendChild(h("div", null, h("button", { class: "ghost small", type: "button", onclick: function () { mark("chose", g.step); var go = noticeAction(gigChoice.link); if (go) location.assign(go.href); } }, gigChoice.label)));
+        if ((g.choices || []).length) inner.appendChild(h("div", { class: "hacts hsteps" }, g.choices.map(function (c, i) {
+          return h("button", { class: (i === 0 && c.id !== "not_for_me" ? "blue" : "ghost") + " small", type: "button", onclick: function () { guideAct(g, c, mark, load); } }, c.label);
+        })));
       }
       var q = h("input", { type: "text", maxlength: "1000", "aria-label": "Ask DELA a question", placeholder: "Ask a question..." });
       var send = h("button", { class: "send", type: "button", "aria-label": "Send" }, icon("send"));
@@ -721,7 +726,23 @@
     load();
     return c;
   }
-  var homeHelpBtn = null;
+  var homeHelpBtn = null, homeHasProfileCard = false;
+  // What a guide button does, the same on the old Home card and in the Ask DELA card of the new Home
+  function guideAct(g, c, mark, load) {
+    if (c.id === "not_for_me") { mark("gig_seen", g.step, c.gig).then(load); return; }
+    mark("chose", g.step, c.id + ":" + (c.starter || c.gig || c.link || ""));
+    if (c.id === "start_playbook") {
+      docStarters().then(function (st) {
+        var s = (st.starters || []).filter(function (x) { return x.id === c.starter; })[0];
+        lib.guideNew = s ? { type: s.type, starter: s } : {};
+        lib.pb = null; lib.importId = null; tab = "library"; draw();
+      }).catch(function () { lib.guideNew = {}; tab = "library"; draw(); });
+      return;
+    }
+    if (c.id === "describe_task" || c.id === "firm") { lib.guideNew = {}; lib.pb = null; lib.importId = null; tab = "library"; draw(); return; }
+    var go = c.link ? noticeAction(c.link) : null;
+    if (go) location.assign(go.href);
+  }
   function homeNew() {
     var hm = me.home || {}, att = me.side === "attorney", fn = D.firstName(me.person.name);
     var el = h("div", null, h("h1", { text: fn && fn !== "there" ? "Hi, " + fn : "Hi" }));
@@ -729,6 +750,7 @@
     homeAsk = null;
     var pb = profileBox(hm), rows = attentionRows(hm);
     homeHelpBtn = pb && pb.helpBtn ? pb.helpBtn : null;
+    homeHasProfileCard = !!pb;
     var attention = rows.length ? hcard("Needs your attention", h("span", { class: "badge pink", text: String(rows.length) })) : null;
     if (attention) attention.appendChild(h("div", { class: "hl" }, rows));
     // Commitments first: what needs the member, then their work, then the profile. With no work in hand and nothing

@@ -64,7 +64,7 @@ ATTORNEY (log in once)
    Expect: the tiles "Open gigs", "Gig drafts", "Active projects" and "Deliveries to review", each with a number. On 2026-11-07 they read Open gigs 2, Gig drafts 4, Active projects 8, Deliveries to review 0. Write down what you see; a different number is a note, not a FAIL.
 
 3. On the same page:
-   Do: click "Notices" in the dark bar at the top.
+   Do: click the bell (Notices) at the right of the top bar.
    Expect: a panel with the heading "Needs your action (N)" and a list of lines, each with a button (for example "Open the agreement" or "Review proposals"). Write down every line. If nothing waits, it says "Nothing waits on you right now." with "Open Projects".
    Do: close the panel with its X at the top right. Do not click the buttons in it.
 

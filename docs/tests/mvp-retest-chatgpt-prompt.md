@@ -44,7 +44,7 @@ TEST FREELANCER (log in once)
 3. Do: click "Save the agency profile" at the bottom of the card.
    Expect: "Saved", and the card says "Complete."
 4. Go to: https://www.lawfecta.co/dela?tab=home
-   Expect: the "DELA guide" card no longer asks for the agency profile. Write what it says now.
+   Expect: the "Ask DELA" card (on Home, at the right; on a narrow window, below the other cards) no longer asks for the agency profile. Write what it says now.
 5. Look at the top bar: next to the round logo it reads "DELA" in full (not "DEL"). Sign out.
 
 TEST ATTORNEY (log in once)

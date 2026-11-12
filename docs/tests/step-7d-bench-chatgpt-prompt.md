@@ -137,8 +137,7 @@ Group 4. Check the results (the owner, then the test attorney)
    Do: tick "I accept this split for this job." and click "Accept".
    Expect: the message "Accepted. You can start once the milestone is funded." The line now says "Split 25% agency / 75% you | in progress".
 
-3. Go to: https://www.lawfecta.co/dela-admin
-   Do: click the tab "Agencies" in the menu on the left near the top (between "Reviews and bench" and "Lawfecta Team").
+3. Go to: https://www.lawfecta.co/dela-admin?tab=agencies ("Agencies" in the left menu, under the heading "MEMBERS") in the menu on the left near the top (between "Reviews and bench" and "Lawfecta Team").
    Find: the card "Agency benches and splits" (below the card "Agencies").
    Expect: the line "Roe Test Agency LLC | Stacey Lake (stacey@lawfecta.com) | active | split 20% agency / 80% freelancer (version 2)".
    Find: the card "Bench assignments" (below it).
@@ -150,7 +149,7 @@ Group 4. Check the results (the owner, then the test attorney)
    Expect: "DELA Test Freelancer | Lead paralegal" or "DELA Test Freelancer" and a line "Stacey Lake | Subcontractor, Milestone 2, 1".
    Expect: there is no card "Bench assignments" on this page, and no percentages such as 20%, 25%, 75% or 80% anywhere in the card "Who's working on this".
 
-5. Do: click the "Notices" button in the dark bar at the top right.
+5. Do: click the bell (Notices) at the right of the top bar.
    Expect: a notice "A change in who is working on this job: Test job: Agency proposal" saying Stacey Lake "now works on milestone 2 as the agency's subcontractor" and "Nothing is needed from you."
 
 6. Sign out.

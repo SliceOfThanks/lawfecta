@@ -1,6 +1,7 @@
 # ChatGPT test: the 2026-11-05 fixes (profile page, banner, library, Word export, admin settings)
 
-> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+> DO NOT RUN AS IT IS (2026-11-13). This test was written for the earlier layout. It checks parts of the old Home ("What DELA will do for you") that the new layout no longer has. The new layout is tested by docs/tests/workspace-chatgpt-prompt.md. Claude rewrites this test before it is needed again.
+
 
 > **Not rewritten yet (2026-11-05).** Claude rewrites this in the step-by-step style (link, card, where on the page, exact button) before you run it, with the "How to work" block from docs/tests/AGENT-RULES.md. Ask Claude for the new copy first.
 
@@ -57,7 +58,7 @@ The pink banner in these steps is the one that starts "DELA is for operations wo
    - In the row of four numbers near the top, "Draft playbooks" is 1 or more.
    - Under "What DELA will do for you", lower on the page, click "Open the Library" in the Playbooks row. Expect the Library with its list of playbooks (not a single playbook), and the pink banner at the top.
 2. Click "Files", "Projects" and "Talent" in the menu on the left, one at a time. Expect no pink banner on any of them. On Files, the "Add files" area still has the tick box that starts "These files have no confidential client information".
-3. Click the initials in the top right, then "AI settings". Expect no pink banner. Then open www.lawfecta.co/dela?tab=profile: no pink banner, and a "?" next to the boxes.
+3. Click the initials in the top right, then "Settings". Expect no pink banner. Then open www.lawfecta.co/dela?tab=profile: no pink banner, and a "?" next to the boxes.
 4. Upload on the New playbook page:
    1. Click "Library". In the first card at the top (the one showing how many playbooks you have), click "New playbook".
    2. Leave the description empty. Click "Upload a new file". Choose the process write-up from Downloads and click "Upload" without ticking the box. Expect a red message asking you to tick the box.

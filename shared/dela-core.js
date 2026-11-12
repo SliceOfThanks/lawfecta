@@ -584,6 +584,7 @@ D.openTab = function (getUrl, onFail, opts) {
     ".acct-val{font-size:16px;overflow-wrap:anywhere}.acct-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.acct .btn{text-decoration:none}.dela .acct a.btn.ghost{background:transparent;color:var(--pink-ink);border:1px solid var(--line)}@media (max-width:600px){.acct-acts{flex:1 1 100%}.acct-acts .btn{flex:1 1 auto;text-align:center;min-height:44px;display:inline-flex;align-items:center;justify-content:center}}" +
     ".dela .top.atop{flex-wrap:wrap;row-gap:6px}@media (max-width:600px){.dela .top.atop .grow{flex-basis:100%;height:0}.dela .top.atop>.small{flex:1 1 100%}}" +
     ".hrow svg.ic{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex:none;color:var(--muted)}" +
+    ".hacts.hsteps .blue,.hacts.hsteps .ghost{flex:0 1 auto;text-align:left}.hsuggest{color:var(--ink);font-size:14px}" +
     // Card headings sit on their own tinted band, edge to edge, so a heading is easy to tell from the content under it
     // (Stacey 2026-11-13). The band is the card's first heading, or the first row that holds it.
     ".dela.nl .card>h2:first-child,.dela.nl .card>.hhead:first-child,.dela.nl .card>.row:first-child:has(>h2),.dela.nl .card>.row:first-child:has(>h3){margin:-14px -16px 12px;padding:10px 16px;background:var(--head);border-bottom:1px solid var(--line);border-radius:11px 11px 0 0}" +

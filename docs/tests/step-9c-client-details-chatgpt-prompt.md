@@ -99,8 +99,7 @@ OWNER (log in once)
 
 10. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-11. Go to: https://www.lawfecta.co/dela-admin
-    Do: click the tab "Switches" in the menu on the left at the top.
+11. Go to: https://www.lawfecta.co/dela-admin?tab=switches ("Switches" in the left menu, under the heading "PLANS AND SETTINGS") in the menu on the left at the top.
     Find: the row "The client information check follows the sensitive data rule (client details allowed where the rule allows them)".
     Expect: it is set to "Access list". Do not change it.
 

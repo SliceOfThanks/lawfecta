@@ -99,12 +99,11 @@ OWNER (log in once)
 
 11. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-12. Go to: https://www.lawfecta.co/dela-admin
-    Do: click the tab "Overview" in the menu on the left at the top of the admin area.
+12. Go to: https://www.lawfecta.co/dela-admin?tab=overview ("Overview" in the left menu, under the heading "MEMBERS") in the menu on the left at the top of the admin area.
     Expect: a grid of number tiles that includes "People who opened DELA", "On the access list" and "Turned away (7 days)". There is no tile named "Test site accounts".
 
 13. On the same page:
-    Do: click the tab "Access list".
+    Go to: https://www.lawfecta.co/dela-admin?tab=access ("Access list" in the left menu, under the heading "MEMBERS").
     Find: the card titled "Add someone" at the top.
     Expect: a box "BD member ID", a box "Note (for example: test attorney)" and a button "Add", and no drop-down list next to them. Do not click "Add".
     Find: below it, the section "May open DELA" with its list of people.

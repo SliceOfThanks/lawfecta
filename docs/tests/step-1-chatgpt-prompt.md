@@ -1,6 +1,7 @@
 # ChatGPT test prompt: DELA Step 1 (Foundation)
 
-> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+> DO NOT RUN AS IT IS (2026-11-13). This test was written for the earlier layout. It lists the admin area's old row of tabs. The new layout is tested by docs/tests/workspace-chatgpt-prompt.md. Claude rewrites this test before it is needed again.
+
 
 Paste everything below the line into ChatGPT with browsing or agent mode. Fill in the three test logins first.
 

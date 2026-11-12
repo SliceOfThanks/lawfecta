@@ -1,6 +1,7 @@
 # ChatGPT test: screens, uploads and your own AI key (Steps 2a and 2)
 
-> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+> DO NOT RUN AS IT IS (2026-11-13). This test was written for the earlier layout. It checks the old row of tabs in the member area, including on a phone. The new layout is tested by docs/tests/workspace-chatgpt-prompt.md. Claude rewrites this test before it is needed again.
+
 
 > **Not rewritten yet (2026-11-05).** Claude rewrites this in the step-by-step style (link, card, where on the page, exact button) before you run it, with the "How to work" block from docs/tests/AGENT-RULES.md. Ask Claude for the new copy first.
 
@@ -68,12 +69,12 @@ The steps are grouped by login. To sign out at the end of a group, click the ini
 8. Click "Library". In the first card at the top (the one showing how many playbooks you have), click "New playbook":
    1. Choose "Use a file I uploaded", pick the file, and click "Draft it with DELA".
    2. Expect a playbook page with DELA's questions.
-9. Open your own key settings: click the initials in the top right, then "AI settings".
+9. Open your own key settings: click the initials in the top right, then "Settings".
    1. In the "Your own key" card, keep "OpenAI", paste YOUR_OPENAI_KEY into the "Your key" box, and click "Save and test".
    2. Expect "Key saved" and "ending" with 4 characters. The full key must appear nowhere on the page, even after you reload it.
 10. Click "Ask DELA", ask a question, and send. Expect "Answered with your own key".
-11. Back in "AI settings", in the "Your own key" card, click "Remove" and confirm. Expect "Use Lawfecta's AI" chosen again in the "Which AI DELA uses" card at the top.
-12. Click "Notices" in the top bar. Expect a panel on the right with a "Close" button in its top-right corner. Click "Close": it closes. Open it again and click the dimmed page to the left: it closes.
+11. Back in "Settings", in the "Your own key" card, click "Remove" and confirm. Expect "Use Lawfecta's AI" chosen again in the "Which AI DELA uses" card at the top.
+12. Click the bell (Notices) at the right of the top bar. Expect a panel on the right with a "Close" button in its top-right corner. Click "Close": it closes. Open it again and click the dimmed page to the left: it closes.
 13. Sign out. Expect the Lawfecta login page.
 
 3. Owner (ask me to log in as the owner)

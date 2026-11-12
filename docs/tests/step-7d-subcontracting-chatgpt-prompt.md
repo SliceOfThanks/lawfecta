@@ -77,7 +77,7 @@ Group 1. The attorney (log in as the test attorney)
    Find: the card "Who's working on this" (scroll down).
    Expect: "You hired Roe Test Agency LLC.", and the line "Stacey Lake" with "Subcontractor, Test gig: Linked part (prepared)".
 
-5. Click "Notices" in the top bar.
+5. Click the bell (Notices) at the right of the top bar.
    Expect: a notice "A change in who is working on this job: Test job: Subcontracting active (prepared)". Opening it says Stacey Lake works on part of this job as the agency's subcontractor and "Nothing is needed from you."
 
 6. Sign out.
@@ -133,8 +133,7 @@ Group 3. The subcontractor and the Lawfecta Team (log in as the owner)
    Find: the card "The agreement" (middle of the page). Click "The terms" to open it and scroll to its end.
    Expect: the last clause starts "11. Confidentiality and no poaching." and says the freelancer keeps everything the agency shares confidential and, for 12 months, does not take work directly from the agency's clients.
 
-3. Go to: https://www.lawfecta.co/dela-admin
-   Do: in the menu on the left near the top, click "Gigs".
+3. Go to: https://www.lawfecta.co/dela-admin?tab=gigs ("Gigs" in the left menu, under the heading "MARKETPLACE").
    Find: the card "Held for a check" (top of the page).
    Expect: an item for a gig on "Family intake packet", with the label "copies an engagement's text but is not linked to it", and the line "Gig "Family intake packet" shares ...% of its words with the engagement "Test job: Subcontracting active (prepared)" but is not linked to it." The buttons say "It is fine" and "Pause the gig".
    Do: click the red "Pause the gig" on that item.

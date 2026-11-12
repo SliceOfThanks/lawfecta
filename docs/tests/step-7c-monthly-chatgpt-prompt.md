@@ -131,8 +131,7 @@ OWNER (log in once)
 
 14. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-15. Go to: https://www.lawfecta.co/dela-admin
-    Do: click the tab "Recurring" in the menu on the left near the top.
+15. Go to: https://www.lawfecta.co/dela-admin?tab=recurring ("Recurring" in the left menu, under the heading "PAYMENTS") in the menu on the left near the top.
     Expect:
     - a green label "Renewal charges are running".
     - "Test job: Monthly running (prepared)" listed with the label "Running", "$1,000 a month" and "months paid: 1". ("next charge" appears only once month 2 is drafted, 3 days before billing.)

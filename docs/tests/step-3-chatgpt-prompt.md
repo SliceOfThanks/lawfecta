@@ -39,7 +39,7 @@ The steps are grouped by login: all freelancer steps, then all attorney steps, t
    - Upload the renamed program: expect "Not accepted".
    - Click "Show to attorneys" on the resume.
 7. In the "Your availability" card near the top, click "Available for new work". Expect the date and "Confirm again by".
-8. Click "Notices" in the top bar. Expect the panel on the right with a "Close" button in its top-right corner. Click "Close": it closes. Open it again and click the dimmed page to the left: it closes.
+8. Click the bell (Notices) at the right of the top bar. Expect the panel on the right with a "Close" button in its top-right corner. Click "Close": it closes. Open it again and click the dimmed page to the left: it closes.
 9. Narrow the window to phone width: nothing runs off the side. Click the initials in the top right: the menu says "Profile". Click "Sign out": you land on the Lawfecta login page.
 
 2. Attorney (log in as the test attorney)
@@ -57,7 +57,7 @@ The steps are grouped by login: all freelancer steps, then all attorney steps, t
 8. Click the initials in the top right: the menu says "Profile and verification". Click "Sign out".
 
 3. Owner (log in as the owner)
-1. Open www.lawfecta.co/dela-admin and click the "Verification" tab in the menu on the left at the top.
+1. Open www.lawfecta.co/dela-admin and go to https://www.lawfecta.co/dela-admin?tab=verify ("Verification" in the left menu, under the heading "MARKETPLACE") in the menu on the left at the top.
 2. "Attorney licenses": find the TX license with its confirmed email. Click "Verify" without choosing how they showed it is theirs. Expect a plain message asking you to choose.
 3. Choose "The email is at the firm's own domain", type a note in "Lookup note", and click "Verify". Expect the license to leave the list.
 4. "Freelancer LinkedIn checks", below: on the freelancer's check, click "Checked" without ticking. Expect "Tick both". Tick both boxes and click "Checked".

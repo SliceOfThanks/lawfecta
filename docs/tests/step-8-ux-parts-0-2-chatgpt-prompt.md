@@ -82,7 +82,7 @@ FREELANCER (log in once)
    - the line "Price for the work".
    - "Not included:" followed by either the excluded work or "Not specified. Confirm with the other person before signing."
 
-4. Click "Notices" in the top bar.
+4. Click the bell (Notices) at the right of the top bar.
    Expect: two headings in the panel, "Needs your action (" with a number, and "Updates". A job with several updates shows one line with "earlier updates about this job" that opens on click. Notices that point to a page have an outlined button on the right of their date, named for where it goes (for example "Open the agreement", "Open the gig", "Open Earnings"). Write down two button names you see.
    Do: click the first of those buttons.
    Expect: DELA opens that page, and that notice no longer shows "New" when you open "Notices" again. Close the panel.

@@ -85,7 +85,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
 
 4. Owner (ask me to log in as the owner)
 1. Open www.lawfecta.co/dela-admin and click "Payments" in the menu on the left. Expect:
-   - "Money on DELA" saying Stripe is connected in test mode
+   - "Payment overview" saying Stripe is connected in test mode
    - totals, with "Charged" showing the payment from group 2
 2. If group 3 sent it to a human review: under "Milestones waiting for a human review", type a note and click "Passes: send to the attorney". Expect "Sent to the attorney for review".
 3. Sign out.

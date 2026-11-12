@@ -125,25 +125,24 @@ How the parts you will use look:
     Do: click "Continue". Expect: within 60 seconds, the gig page. Do not post the gig.
 
 15. A Policy has no images.
-    Do: go to https://www.lawfecta.co/dela?tab=library, click the row "Client trust account rules" (made in the first test).
+    Go to: https://www.lawfecta.co/dela?tab=library, click the row "Client trust account rules" (made in the first test).
     Expect: no "🖼 Add image" button anywhere on the page (use Ctrl+F to search "Add image").
 
 16. A Workflow has a swimlane chart.
-    Do: go to https://www.lawfecta.co/dela?tab=library and click the row "Intake to signed engagement" (made in the first test).
+    Go to: https://www.lawfecta.co/dela?tab=library and click the row "Intake to signed engagement" (made in the first test).
     Expect: "🖼 Add image" on each stage box, and a section "Swimlane chart" (in the left column, after "Start and end points") with its own "🖼 Add image".
     Do: click the "🖼 Add image" in the "Swimlane chart" section, ask me to choose Screenshot B, type Our swimlane chart as the caption, tick the checkbox, click "Save image".
     Expect: the image under "Swimlane chart".
 
 17. A Playbook.
-    Do: go to https://www.lawfecta.co/dela?tab=library and click the row "Handle an upset client".
+    Go to: https://www.lawfecta.co/dela?tab=library and click the row "Handle an upset client".
     Expect: a "🖼 Add image" button under "Scripts and templates" and another under "Examples". You do not need to add one.
 
 18. Sign out.
 
 2. Owner (ask me to log in as the owner)
 
-1. Go to: https://www.lawfecta.co/dela-admin
-   Do: in the menu on the left near the top, click "AI and files".
+1. Go to: https://www.lawfecta.co/dela-admin?tab=aifiles ("AI and files" in the left menu, under the heading "PLANS AND SETTINGS").
    Find: the card titled "Documents (Policy, Workflow, SOP, Playbook)" at the very bottom, and in it the heading "Images in documents".
    Expect: "Images in documents", "Waiting for a client-data check", "Held by DELA's check", "Items the text reader found" and "Items members blurred", with numbers. No images and no image links.
 

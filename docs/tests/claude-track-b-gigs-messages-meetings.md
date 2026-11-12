@@ -166,18 +166,17 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
 
 4. Owner (ask me to log in as the owner)
 
-1. Go to: https://www.lawfecta.co/dela-admin
-   Do: in the menu on the left near the top, click "Gigs".
+1. Go to: https://www.lawfecta.co/dela-admin?tab=gigs ("Gigs" in the left menu, under the heading "MARKETPLACE").
    Find: the card "Held for a check" at the top.
    Expect: the Venmo question labelled "payment outside Lawfecta" and the message with the phone number.
    Do: click the red "Do not deliver" on each of them.
    Expect: "Not delivered; the member was told" each time.
    Expect, lower on the page: the card "Gigs" listing your gig with its proposals and matches, and "Proposals sent this month, by plan".
 
-2. Do: click the tab "Meetings and messages".
+2. Go to: https://www.lawfecta.co/dela-admin?tab=meet ("Meetings and messages" in the left menu, under the heading "MARKETPLACE").
    Expect: "The last 30 days" with counts, a note that Vectera is not connected yet, "Upcoming meetings" with the meeting marked "Waiting for Vectera", and "Reports".
 
-3. Do: click the tab "Tech catalog".
+3. Go to: https://www.lawfecta.co/dela-admin?tab=catalog ("Tech catalog" in the left menu, under the heading "PLANS AND SETTINGS").
    Expect: "Tools in the catalog now" with the tools listed.
    Do (POP-UP): click "Pause" on the first tool.
    Expect: that tool shows "Paused".
@@ -191,7 +190,7 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
 1. Go to: https://www.lawfecta.co/dela?tab=work
    Expect: in the card "Sent proposals", your gig marked "Chosen". In the card "Your engagements", the gig with "Needs your signature". Do not sign it; the payments test does that later.
 
-2. Do: click "Notices" in the top bar.
+2. Do: click the bell (Notices) at the right of the top bar.
    Expect: a notice that you were chosen for a gig. Close the Notices panel with its "Close" button at the top.
 
 3. Do: click "Inbox" in the top bar (it shows a number), then click the conversation.

@@ -91,9 +91,8 @@ TEST ATTORNEY (log in once)
 
 OWNER, ADMIN AREA (log in once)
 10. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
-11. Go to: https://www.lawfecta.co/dela-admin
-    Do: in the menu on the left near the top, click "Payments".
-    Find: the card "Money on DELA" at the top.
+11. Go to: https://www.lawfecta.co/dela-admin?tab=pay ("Payments" in the left menu, under the heading "PAYMENTS").
+    Find: the card "Payment overview", the second card on the page, under the card "Needs attention".
     Expect: "Stripe is connected in test mode (no real money)", the tile "Charged" shows $165, and the tile "Attorney fees" shows $15. Write the number in every tile.
 12. Sign out.
 

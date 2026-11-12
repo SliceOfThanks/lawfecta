@@ -56,8 +56,7 @@ Group 1. Owner: give the plans (log in as the owner)
 
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-2. Go to: https://www.lawfecta.co/dela-admin
-   Do: click the tab "People" in the menu on the left near the top.
+2. Go to: https://www.lawfecta.co/dela-admin?tab=people ("People" in the left menu, under the heading "MEMBERS") in the menu on the left near the top.
    Find: the search box "Search name, email or BD member ID" at the top of the page.
    Do: type stacey+dela-freelancer@lawfecta.com and click "Search" next to it.
    Expect: one row, "DELA Test Freelancer", with "Freelancer: fl_free" in the column "Workspaces and plans".
@@ -152,8 +151,7 @@ Group 4. Check the results (the owner, then the test freelancer)
    Do: click "Accept".
    Expect: the message "You joined Roe Test Agency LLC", and a card "Agencies you work with" with "Roe Test Agency LLC | Member" and an outlined "Leave".
 
-2. Go to: https://www.lawfecta.co/dela-admin
-   Do: click the tab "Agencies" in the menu on the left near the top (between "Reviews and bench" and "Lawfecta Team").
+2. Go to: https://www.lawfecta.co/dela-admin?tab=agencies ("Agencies" in the left menu, under the heading "MEMBERS") in the menu on the left near the top (between "Reviews and bench" and "Lawfecta Team").
    Expect: the card "Agencies" with the line "Roe Test Agency LLC" and a badge "Not checked yet", and the line "Business name: Roe Test Agency LLC | State: TX | Owner: DELA Test Freelancer (...) | Active | Seats: 2 of 3 | Engagements: 1".
 
 3. Still on that agency:

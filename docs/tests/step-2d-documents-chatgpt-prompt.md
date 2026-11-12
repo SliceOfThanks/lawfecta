@@ -160,7 +160,7 @@ DELA now calls every Library item a "document". Note any place that still says "
 
 1. Go to: https://www.lawfecta.co/dela-admin
    Find: the menu on the left near the top of the admin area.
-   Do: click the tab "AI and files".
+   Go to: https://www.lawfecta.co/dela-admin?tab=aifiles ("AI and files" in the left menu, under the heading "PLANS AND SETTINGS").
    Find: the card titled "Documents (Policy, Workflow, SOP, Playbook)", at the very bottom of the page.
    Expect: counts by type ("SOP", "Workflow", "Playbook", "Policy"), "Older playbooks waiting to convert" (0), "Converted", "Converted, not yet checked by the owner", "Blocked (missing A, attorney flag or image check)", and a table of recent conversions.
 

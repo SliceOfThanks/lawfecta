@@ -114,7 +114,7 @@ HOW TO WORK (read this first; it saves time and credits)
    Expect: an answer that names only tools from the Lawfecta tech catalog, with no other product (for example no Google Workspace).
 
 4. Sign out, then ask me to log in as the owner.
-   Go to: https://www.lawfecta.co/dela-admin and click the tab "Gigs".
+   Go to: https://www.lawfecta.co/dela-admin and go to https://www.lawfecta.co/dela-admin?tab=gigs ("Gigs" in the left menu, under the heading "MARKETPLACE").
    Find: the card "Proposals sent this month, by plan".
    Expect: the plan column says "Freelancer Free" (not "fl_free").
 

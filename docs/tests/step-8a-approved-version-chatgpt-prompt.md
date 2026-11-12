@@ -87,11 +87,10 @@ OWNER (log in once)
 
 8. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-9. Go to: https://www.lawfecta.co/dela-admin
-   Do: click the tab "Switches" in the menu on the left near the top.
+9. Go to: https://www.lawfecta.co/dela-admin?tab=switches ("Switches" in the left menu, under the heading "PLANS AND SETTINGS") in the menu on the left near the top.
    Expect: a row "Approved documents open on a read-only "Approved version" page with "Edit a new draft"" set to "Access list", and rows for "The Phase 4 AI helpers (checks before a commitment and writing helpers)" and "The Appearance choice (Match my device, Light, Dark) in the account menu" set to "Off". Do not change them.
 
-10. Do: click the tab "Settings" in the menu on the left near the top.
+10. Go to: https://www.lawfecta.co/dela-admin?tab=settings ("Settings" in the left menu, under the heading "PLANS AND SETTINGS") in the menu on the left near the top.
     Find: the section "UX Phase 4: approved version, AI helpers, appearance", near the bottom. Click its heading to open it if it is closed.
     Expect: 16 settings, including "DELA actions for one run of "✦ Check the scope" on a gig draft (Lawfecta's key only)" with 1, "DELA actions for one run of "✦ Compare these proposals" (Lawfecta's key only)" with 2, and "Starting appearance for every member (light, dark or device)" with "light". Do not change anything.
 

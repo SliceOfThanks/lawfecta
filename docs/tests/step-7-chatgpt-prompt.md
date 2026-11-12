@@ -51,7 +51,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
    2. Change the text to "Clear instructions and quick feedback on every draft." and click "Publish my review". Expect "Review published" and your review shown under "Your review of the attorney".
 4. Open www.lawfecta.co/dela?tab=profile. Scroll to the "Your reviews" card at the bottom.
 5. Under "Ask a past client for a review", type a made-up name and an email address you can open (for example stacey+pastclient@lawfecta.com), and click "Send the request". Expect the request listed as "Sent".
-6. Click the initials in the top right, then "AI settings". Scroll to the "Webhooks" card at the bottom.
+6. Click the initials in the top right, then "Settings". Scroll to the "Webhooks" card at the bottom.
    1. In "Add an endpoint", type https://10.0.0.1/dela, tick "A bench invitation" and click "Add the endpoint". Expect a message that the address points inside a private network.
    2. Replace it with the webhook.site address I gave you, keep "A bench invitation" and also tick "A new review about you", and click "Add the endpoint". Expect "Your signing secret" with a long value. Click "Close".
    3. Click "Send a test". Expect "Test notice delivered (200)". (I can check webhook.site shows it.)

@@ -53,17 +53,17 @@ NO LOGIN
 TEST FREELANCER (log in once)
 2. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 3. Go to: https://www.lawfecta.co/dela?tab=home
-   Find: the card "DELA guide" at the top, under the greeting.
-   Expect: a message in a pink bubble and at least one button under it. Write the message word for word.
+   Find: the card "Ask DELA" at the top of the right column.
+   Expect: under the heading, a line of text from DELA and at least one button under it, then the box "Ask a question...". Write the line of text word for word.
 4. Go to: https://www.lawfecta.co/dela?tab=earnings
    Find: the two tiles under the heading "Earnings", then the card "Payouts to your bank".
    Expect: the tile "Paid to you" shows $190. The card "Payouts to your bank" shows the badge "Ready".
 5. Go to: https://www.lawfecta.co/dela?tab=ai
-   Find: the card "Messages" (scroll down; it is one of the last cards), and in it the small heading "Emails".
-   Expect: under "Emails", a ticked box with the words "Email me reminders and alerts, such as new gig alerts and next-step reminders. Emails about your account, payments and signed work always arrive."
-   Do: click the box to untick it. Expect "Saved" in the small box at the bottom of the screen.
+   Find: the card "Emails" (the fourth card on the page, after "Account and security", "Appearance" and "Suggestions and alerts").
+   Expect: a ticked box with the words "Email me reminders and alerts, such as new gig alerts and next-step reminders.", and under it the line "Reminder and alert emails are on."
+   Do: click the box to untick it. Expect "Saved" in the small box at the bottom of the screen, and the line now starts "Reminder and alert emails are off since".
    Do: click the box again to tick it. Expect "Saved" again.
-   Do: reload the page and find the same box. Expect it is ticked, and the box above it (about "Seen") is as it was before.
+   Do: reload the page and find the same box. Expect it is ticked and the line says "Reminder and alert emails are on."
 6. Sign out.
 
 TEST ATTORNEY (log in once)
@@ -80,9 +80,8 @@ TEST ATTORNEY (log in once)
 
 OWNER, ADMIN AREA (log in once)
 11. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
-12. Go to: https://www.lawfecta.co/dela-admin
-    Do: in the menu on the left near the top, click "Payments".
-    Find: the card "Money on DELA" at the top.
+12. Go to: https://www.lawfecta.co/dela-admin?tab=pay ("Payments" in the left menu, under the heading "PAYMENTS").
+    Find: the card "Payment overview", the second card on the page, under the card "Needs attention".
     Expect: Charged $315, Paid out $190, Refunded $100, Attorney fees $15, Freelancer fees $10. Write the number in every tile.
 13. Sign out.
 

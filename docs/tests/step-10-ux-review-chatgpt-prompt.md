@@ -66,7 +66,7 @@ ATTORNEY (log in once)
 9. Review: https://www.lawfecta.co/dela?tab=talent (Talent). Do not invite anyone.
 10. Review: https://www.lawfecta.co/dela?tab=profile (Profile and verification). Do not click "Save".
 11. Review: https://www.lawfecta.co/dela?tab=ai (AI settings). Do not change any choice.
-12. Click "Notices" in the top bar and review the panel. Close it with its X.
+12. Click the bell (Notices) at the right of the top bar and review the panel. Close it with its X.
 13. Sign out.
 
 FREELANCER (log in once)

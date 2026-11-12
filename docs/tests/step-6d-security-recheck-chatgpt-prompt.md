@@ -1,6 +1,7 @@
 # ChatGPT re-test: the steps that failed in the security test (step 6d)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> DO NOT RUN AS IT IS (2026-11-13). This test was written for the earlier layout. In the admin area "Sign out" and "Member view" moved into the menu of the button with the owner's name at the top right. The new layout is tested by docs/tests/workspace-chatgpt-prompt.md. Claude rewrites this test before it is needed again.
+
 
 The first run (2026-11-05) failed mostly because text files could not finish uploading. That is fixed. The warnings now also stay on the card instead of disappearing, the admin area has "Sign out", and amounts never show "$NaN". This re-test covers only the steps that failed.
 

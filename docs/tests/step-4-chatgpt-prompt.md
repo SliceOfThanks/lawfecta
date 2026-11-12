@@ -55,7 +55,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
    2. Fill in "Your total price ($)" with 450, "What your price includes", "What it leaves out" and "Schedule".
    3. Click "Send proposal (free: invited)" twice quickly. Expect one proposal, marked "Sent", and a line that it did not use your allowance.
 6. Click "Files for this gig" "Open" on the shared file, if there is one. Expect it to open.
-7. Click the initials in the top right, then "AI settings". Scroll to "What DELA has learned about you". Report what it lists, then click "Remove" on one item.
+7. Click the initials in the top right, then "Settings". Scroll to "What DELA has learned about you". Report what it lists, then click "Remove" on one item.
 8. Narrow the window to phone width: nothing runs off the side on Work and on the gig page. Widen it again.
 9. Sign out.
 
@@ -76,7 +76,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
    3. Click "Choose" and confirm. Expect the gig to say "Filled".
    4. Click "Ask DELA" in the menu on the left and ask: "Which practice management software should a solo family law firm use?" Expect an answer that names only tools from the Lawfecta catalog.
    5. Sign out.
-2. Test freelancer: open www.lawfecta.co/dela?tab=work. Under "Sent proposals" the gig shows "Chosen". Click it: the milestones "Draft" and "Final" now show. Click "Notices" in the top bar: expect "You were chosen for a gig". Sign out.
+2. Test freelancer: open www.lawfecta.co/dela?tab=work. Under "Sent proposals" the gig shows "Chosen". Click it: the milestones "Draft" and "Final" now show. Click the bell (Notices) at the right of the top bar: expect "You were chosen for a gig". Sign out.
 
 Final report:
 - a table of every step with PASS or FAIL

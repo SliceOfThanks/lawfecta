@@ -95,8 +95,7 @@ OWNER (log in once)
 
 10. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-11. Go to: https://www.lawfecta.co/dela-admin
-    Do: click the tab "Usage" in the menu on the left near the top.
+11. Go to: https://www.lawfecta.co/dela-admin?tab=usage ("Usage" in the left menu, under the heading "PLANS AND SETTINGS") in the menu on the left near the top.
     Expect: a table with the columns "Attorney", "Plan", "Documents", "DELA actions", "Storage" and "AI cost this month". The grey line above it says anyone above $10 this month is flagged, and that blocking follows the switch usage_limits_enforced.
     Find: the row of the test attorney (their email is stacey+dela-attorney@lawfecta.com).
     Expect: "Attorney Free (set by the team)", documents "... of 3", DELA actions "50 of 50", and an AI cost in dollars.
