@@ -1,5 +1,7 @@
 # Step 8b Part B: your look at the new Library (computer and phone)
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 This is your own look (answer B10), before any ChatGPT check. It changes nothing unless you click "Use this" and then "Draft it with DELA" (you do not need to).
 Log in as the test attorney, "DELA Test Attorney", the only login this needs.
 

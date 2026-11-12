@@ -1,5 +1,7 @@
 # ChatGPT test: Step 4, Flex Gigs, matching, proposals and the tech catalog
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 > **Replaced (2026-11-05).** Use the Claude test docs/tests/claude-track-b-gigs-messages-meetings.md instead. It covers Steps 4 and 5 step by step, with where to click.
 
 Claude already tested all of this with the real api and database: 12 api tests and 28 browser checks for gigs (both sides, mistakes and misuse), 7 tests and admin checks for the tech catalog. It also checked on the test site that the test attorney can post and the test freelancer is match-ready. This test covers the real screens in a real browser.
@@ -38,7 +40,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
 4. Scroll to the "Budget, deadline and milestones" card. Set "Deadline" to a date next month. In "Milestones (private)" type "Draft" and "Final" on two lines. Click "Post the gig" at the bottom. Expect a red message that the smallest gig budget is $250.
 5. Change "Budget from ($)" to 300 and "Budget to ($)" to 600. Click "Post the gig" again. Expect "Your gig is open until" and the "Matches" view.
 6. Report what the "Matches" view shows: names with a "Good fit" or "Fair fit" label and short reasons (for example "Family law" or "Uses Clio"). Expect no percentages. It may say no one fits yet; that is fine.
-7. Click "Talent" in the row of tabs. Expect a search card with "Practice area", "Skill", "Tech tool" and "State" and a list of freelancers below. Find the test freelancer (DELA Test Freelancer or Fran) and, in their card, choose the new gig and click "Invite to this gig". Expect "Invited".
+7. Click "Talent" in the menu on the left. Expect a search card with "Practice area", "Skill", "Tech tool" and "State" and a list of freelancers below. Find the test freelancer (DELA Test Freelancer or Fran) and, in their card, choose the new gig and click "Invite to this gig". Expect "Invited".
 8. Click "Projects", then the gig under "Your gigs". Click "Files" in the row of views under the title, then "Share a file from Files", and "Share" on any file. Expect it in the list.
 9. Click "Library", open "New Family Law Client Intake After Signature" and check that its top card has a "Post as a Flex Gig" button. You do not need to click it.
 10. Sign out.
@@ -58,13 +60,13 @@ To sign out at the end of a group, click the initials in the top right of the DE
 9. Sign out.
 
 3. Owner (ask me to log in as the owner)
-1. Open www.lawfecta.co/dela-admin and click "Gigs" in the row of tabs near the top. Expect:
+1. Open www.lawfecta.co/dela-admin and click "Gigs" in the menu on the left near the top. Expect:
    - "Held for a check (1)": the Venmo question, labeled "payment outside Lawfecta"
    - "Gigs": the new gig, with its proposals and matches
    - "Proposals sent this month, by plan"
 2. On the held question, click "Do not deliver". Expect "Not delivered; the member was told".
 3. In "Gigs", click "Pause" on the gig and give a reason. Expect "Paused". Click "Resume". Expect it open again.
-4. Click "Tech catalog" in the row of tabs. Expect "Tools in the catalog now" with the tools listed. Click "Pause" on one tool, give a reason, then "Resume".
+4. Click "Tech catalog" in the menu on the left. Expect "Tools in the catalog now" with the tools listed. Click "Pause" on one tool, give a reason, then "Resume".
 5. Sign out.
 
 4. Check the results (two short logins)
@@ -72,9 +74,9 @@ To sign out at the end of a group, click the initials in the top right of the DE
    1. Click "Questions" in the row of views. Expect only "Which intake form do you use?" (not the Venmo one). Type an answer and click "Answer for everyone". Expect "Answered for every applicant".
    2. Click "Proposals". Expect the proposal with the price, "Within the budget", what it includes and leaves out, the schedule and qualifications.
    3. Click "Choose" and confirm. Expect the gig to say "Filled".
-   4. Click "Ask DELA" in the row of tabs and ask: "Which practice management software should a solo family law firm use?" Expect an answer that names only tools from the Lawfecta catalog.
+   4. Click "Ask DELA" in the menu on the left and ask: "Which practice management software should a solo family law firm use?" Expect an answer that names only tools from the Lawfecta catalog.
    5. Sign out.
-2. Test freelancer: open www.lawfecta.co/dela?tab=work. Under "Sent proposals" the gig shows "Chosen". Click it: the milestones "Draft" and "Final" now show. Click "Notices" in the dark top bar: expect "You were chosen for a gig". Sign out.
+2. Test freelancer: open www.lawfecta.co/dela?tab=work. Under "Sent proposals" the gig shows "Chosen". Click it: the milestones "Draft" and "Final" now show. Click "Notices" in the top bar: expect "You were chosen for a gig". Sign out.
 
 Final report:
 - a table of every step with PASS or FAIL

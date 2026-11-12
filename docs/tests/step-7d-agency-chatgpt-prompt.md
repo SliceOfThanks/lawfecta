@@ -1,5 +1,7 @@
 # ChatGPT test: agencies, part 1 (step 7d)
 
+> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+
 Claude already tested this with the real api and database: 8 agency api tests and 14 browser checks. This test covers the real screens on the test site.
 
 What it covers:
@@ -35,12 +37,15 @@ HOW TO WORK (read this first; it saves time and credits)
 4. If you cannot see it after scrolling to that heading: press Ctrl+F (Cmd+F on a Mac), type the name without the quotes, press Enter, and use the highlighted match. If it is still not there, take one screenshot, write FAIL for that step with what you saw, and go on to the next step. Never try more than this one other way.
 5. When a step says DELA is writing or checking, wait up to 60 seconds without clicking anything else.
 6. What every DELA page looks like:
-   - A dark bar across the very top: the Lawfecta logo and a small yellow "Test site" label on the left; on the right, an "Inbox" button, a "Notices" button and a round button with your initials.
-   - Just under the dark bar, a row of tabs. Attorneys see "⌂ Home", "✦ Ask DELA", "▥ Library", "▤ Files", "▣ Projects", "◌ Talent". Freelancers see "⌂ Home", "✦ Ask DELA", "☺ Profile", "▣ Work", "$ Earnings".
+   - A menu down the left side of the page, with a small picture and a name on each line. Freelancers see "Home", "Work", "Ask DELA", "Earnings", then "Profile" (and "Agency" on some accounts), and at the bottom "Settings", "Help" and "Collapse sidebar". Attorneys see "Home", "Projects", "Ask DELA", "Library", then "Talent", "Files", "Get set up", "Profile", and at the bottom "Settings", "Help" and "Collapse sidebar". The page you are on is pink with a dark red line at its left.
+   - A light bar across the top of the page, to the right of the menu: the page name and a small yellow "Test site" label on the left; on the right an "Inbox" button, a bell (Notices) and a round dark red button with your initials.
+   - There is no row of tabs across the top.
    - The page is made of white boxes called cards. Each card has a bold heading at its top left. Steps say "in the card titled ...".
-   - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
+   - Dark red buttons are the main actions. Outlined buttons and underlined dark red words are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
-7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
+   - The admin area (https://www.lawfecta.co/dela-admin) has the same kind of menu on the left: "Release Control" and "Guide", then five headings in capital letters that open and close when clicked: "MEMBERS", "PLANS AND SETTINGS", "MARKETPLACE", "PAYMENTS", "SAFETY". At the top right is one button with the owner's name and "(owner)".
+   - Some steps were written for the earlier layout. Read them this way: "tab" or "row of tabs" means a line in the menu on the left; a name with a symbol in front (for example "⌂ Home") is the same name without the symbol; "dark red button" means the dark red main button; "AI settings" means "Settings". In the admin area a "tab" is a line in the left menu under its heading: MEMBERS (Overview, Access list, People, Lawfecta Team, Agencies), PLANS AND SETTINGS (Plans, Settings, Switches, AI and files, Tech catalog, Trials, Usage), MARKETPLACE (Verification, Gigs, Meetings and messages, Reviews and bench), PAYMENTS (Payments, Disputes, Recurring), SAFETY (Security, Holds, Audit log, Jobs). Click the heading first if its lines are not showing.
+7. To sign out of the member area: click the round button with your initials at the far right of the top bar, then click "Sign out", the last line in the menu that opens. To sign out of the admin area: click the button with the owner's name at the top right, then "Sign out", the last line.
 8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
@@ -52,7 +57,7 @@ Group 1. Owner: give the plans (log in as the owner)
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
 2. Go to: https://www.lawfecta.co/dela-admin
-   Do: click the tab "People" in the row of tabs near the top.
+   Do: click the tab "People" in the menu on the left near the top.
    Find: the search box "Search name, email or BD member ID" at the top of the page.
    Do: type stacey+dela-freelancer@lawfecta.com and click "Search" next to it.
    Expect: one row, "DELA Test Freelancer", with "Freelancer: fl_free" in the column "Workspaces and plans".
@@ -83,7 +88,7 @@ Group 2. The agency owner (log in as the test freelancer)
    Do: type TX in "State of registration" and click "Save business details" again.
    Expect: "Saved. The Lawfecta Team will check it." The page now shows "Roe Test Agency LLC | you are the owner" under the heading, and the card says "Waiting for the Lawfecta Team's check."
 
-4. In the card "Team" (below "Business details"), at the bottom of the card there is a box "Their email on Lawfecta", a dropdown "Role" and a blue button "Invite to the team".
+4. In the card "Team" (below "Business details"), at the bottom of the card there is a box "Their email on Lawfecta", a dropdown "Role" and a dark red button "Invite to the team".
    Do: type stacey+dela-attorney@lawfecta.com in "Their email on Lawfecta" and click "Invite to the team".
    Expect: the message "There is no Lawfecta freelancer with that email. Ask them to join Lawfecta as a freelancer first, then invite them again."
    Do: change the email to stacey+dela-freelancer@lawfecta.com and click "Invite to the team".
@@ -148,7 +153,7 @@ Group 4. Check the results (the owner, then the test freelancer)
    Expect: the message "You joined Roe Test Agency LLC", and a card "Agencies you work with" with "Roe Test Agency LLC | Member" and an outlined "Leave".
 
 2. Go to: https://www.lawfecta.co/dela-admin
-   Do: click the tab "Agencies" in the row of tabs near the top (between "Reviews and bench" and "Lawfecta Team").
+   Do: click the tab "Agencies" in the menu on the left near the top (between "Reviews and bench" and "Lawfecta Team").
    Expect: the card "Agencies" with the line "Roe Test Agency LLC" and a badge "Not checked yet", and the line "Business name: Roe Test Agency LLC | State: TX | Owner: DELA Test Freelancer (...) | Active | Seats: 2 of 3 | Engagements: 1".
 
 3. Still on that agency:

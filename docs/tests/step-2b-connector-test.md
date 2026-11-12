@@ -1,5 +1,7 @@
 # Test: DELA in Claude and ChatGPT (Step 2b)
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 Claude already tested this on the test site with the official connector library and real calls: finding DELA, sign in, approval, the tools (who am I, list playbooks) and disconnect. What is left needs your own Claude and ChatGPT accounts, because the connector is added inside them. You do this test yourself, by hand (not with ChatGPT's agent).
 
 Connector address (copy exactly): https://ojshgsxgsypbywtqhkch.supabase.co/functions/v1/api/mcp
@@ -42,9 +44,9 @@ Log in as the test attorney: open https://www.lawfecta.co/login and log in with 
 
 ## 2. Owner
 Log in as the owner: open https://www.lawfecta.co/login and log in with stacey@lawfecta.com (password TEST_PASSWORD).
-1. Open https://www.lawfecta.co/dela-admin and click "AI and files" in the row of tabs near the top. Scroll to the last card at the bottom, "ChatGPT and Claude connections".
+1. Open https://www.lawfecta.co/dela-admin and click "AI and files" in the menu on the left near the top. Scroll to the last card at the bottom, "ChatGPT and Claude connections".
    - Expect: no connection still active (both were disconnected), and the tools that were used. No token or chat text appears.
-2. Click "Overview" in the same row of tabs. In the "Emergency pause" card, there is a button "ChatGPT and Claude connector". Do not press it unless you want to test it. If you do, press it again to turn it back on.
+2. Click "Overview" in the same menu on the left. In the "Emergency pause" card, there is a button "ChatGPT and Claude connector". Do not press it unless you want to test it. If you do, press it again to turn it back on.
 3. Sign out: click the initials in the top right, then "Sign out".
 
 ## Report

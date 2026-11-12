@@ -1,5 +1,7 @@
 # ChatGPT test: Step 7, reviews, the bench and webhooks
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 > **Not rewritten yet (2026-11-05).** Claude rewrites this in the step-by-step style (link, card, where on the page, exact button) before you run it, with the "How to work" block from docs/tests/AGENT-RULES.md. Ask Claude for the new copy first.
 
 Claude already tested all of this with the real api and database: 9 api tests and 21 browser checks. They cover both sides, mistakes and misuse:
@@ -61,7 +63,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
 3. Type a short thank you in "Your public response" and click "Post the response". Expect it under the review as "Response: ...".
 4. Write a negative review of the freelancer: ratings of 2, "No" for hiring again, and the text "The packet came in two days late and needed a lot of fixing." Click "Publish my review". Expect it published (not held).
 5. Under "Your bench", type a short note and click "Invite to my bench". Expect "Your bench invitation is waiting for their answer."
-6. Click "Talent" in the row of tabs, then "My bench" at the top. Expect the freelancer with "Invitation sent".
+6. Click "Talent" in the menu on the left, then "My bench" at the top. Expect the freelancer with "Invitation sent".
 7. Sign out.
 
 3. Freelancer again (ask me to log in as the test freelancer)
@@ -72,7 +74,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
 5. Sign out.
 
 4. Owner (ask me to log in as the owner)
-1. Open www.lawfecta.co/dela-admin and click "Reviews and bench" in the row of tabs. Expect counts at the top and "Reported reviews (1)".
+1. Open www.lawfecta.co/dela-admin and click "Reviews and bench" in the menu on the left. Expect counts at the top and "Reported reviews (1)".
 2. In the report, type "An honest negative opinion stays up." in the reason box and click "Keep it up". Expect "Kept up; both were told".
 3. Sign out.
 

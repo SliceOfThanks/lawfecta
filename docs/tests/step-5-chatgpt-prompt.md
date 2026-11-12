@@ -1,5 +1,7 @@
 # ChatGPT test: Step 5, messages, booking and meetings
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 > **Replaced (2026-11-05).** Use the Claude test docs/tests/claude-track-b-gigs-messages-meetings.md instead. It covers Steps 4 and 5 step by step, with where to click.
 
 Claude already tested all of this with the real api and database: 10 api tests and 17 browser checks (both sides, two people booking the same time, reschedule, late cancel, held messages, edits, blocking, attachments, the phone screen). This test covers the real screens.
@@ -36,7 +38,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
    3. Tick Monday to Saturday, with 09:00 to 17:00.
    4. In "Days off", type a date next week as YYYY-MM-DD.
    5. Click "Save availability". Expect "Availability saved".
-3. Look at the dark top bar: expect an "Inbox" button next to "Notices".
+3. Look at the top bar: expect an "Inbox" button next to "Notices".
 4. Sign out.
 
 2. Attorney (ask me to log in as the test attorney)
@@ -50,13 +52,13 @@ To sign out at the end of a group, click the initials in the top right of the DE
    - nothing in the next 12 hours
 6. Click one time and confirm. Expect "Your meetings" with the meeting marked "Booked", and a note that the meeting room link appears once Lawfecta's meeting service is connected (or when the room opens).
 7. Click "Add to my calendar (.ics)". Expect a calendar file to download. Open it and check the time.
-8. Click "Inbox" in the dark top bar. Expect the conversation listed.
+8. Click "Inbox" in the top bar. Expect the conversation listed.
 9. Click the initials in the top right, then "AI settings". Find the "Messages" card and check the "Seen" setting is there.
 10. Sign out.
 
 3. Owner (ask me to log in as the owner)
-1. Open www.lawfecta.co/dela-admin and click "Gigs" in the row of tabs. Under "Held for a check", find the message with the phone number. Click "Do not deliver". Expect "Not delivered; the member was told".
-2. Click "Meetings and messages" in the row of tabs. Expect:
+1. Open www.lawfecta.co/dela-admin and click "Gigs" in the menu on the left. Under "Held for a check", find the message with the phone number. Click "Do not deliver". Expect "Not delivered; the member was told".
+2. Click "Meetings and messages" in the menu on the left. Expect:
    - "The last 30 days" with counts
    - a note that Vectera is not connected yet
    - "Upcoming meetings" with the meeting and "Waiting for Vectera"
@@ -64,7 +66,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
 3. Sign out.
 
 4. Check the results (test freelancer)
-1. Log in as the test freelancer and open www.lawfecta.co/dela. Click "Inbox" in the dark top bar (expect a number on it). Click the conversation.
+1. Log in as the test freelancer and open www.lawfecta.co/dela. Click "Inbox" in the top bar (expect a number on it). Click the conversation.
 2. Expect the attorney's message and the file, and no message with a phone number.
 3. Click "✦ Summarize". Expect a short summary marked as reading only.
 4. Click "✦ Draft a reply". Expect a reply in the box. Change a word and click "Send".

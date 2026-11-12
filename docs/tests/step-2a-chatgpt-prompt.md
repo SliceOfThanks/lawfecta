@@ -1,5 +1,7 @@
 # ChatGPT test prompt: DELA Step 2a (your own AI key, talking to the AI, attorney files)
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 Before you paste this:
 1. The two Supabase secrets in STATUS.md must be in place (AI_KEY_ENCRYPTION_SECRET and OPENAI_API_KEY). Without them the AI answers "still being set up", and Part C cannot be done.
 2. Fill in the three test logins below (OWNER_LOGIN, ATTORNEY_LOGIN, FREELANCER_LOGIN).

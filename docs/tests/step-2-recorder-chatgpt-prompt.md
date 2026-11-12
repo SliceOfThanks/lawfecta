@@ -1,5 +1,7 @@
 # ChatGPT test: DELA Process Recorder (beta)
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 > **Not rewritten yet (2026-11-05).** Claude rewrites this in the step-by-step style (link, card, where on the page, exact button) before you run it, with the "How to work" block from docs/tests/AGENT-RULES.md. Ask Claude for the new copy first.
 
 Before you start:
@@ -23,7 +25,7 @@ Before you start:
 3. When the browser asks what to share, first choose one window. Expect "DELA needs your entire screen". Click "Start recording" again and choose "Entire Screen".
 4. Do the practice task in Word and the browser, talking through each step. In Chrome and Edge, a small control window stays on top of Word: try "Pause" and "Resume" there.
 5. Click "Stop and save" in the control window, or "Stop sharing" in the browser's bar. Expect "Uploading", then "Analyzing", and "You can leave this page".
-6. Within a few minutes, expect a notice "Your recording is ready to review". Click "Notices" in the dark top bar to see it, and check your email too.
+6. Within a few minutes, expect a notice "Your recording is ready to review". Click "Notices" in the top bar to see it, and check your email too.
 7. Review the recording:
    1. Open https://www.lawfecta.co/dela?tab=library. In the "Recordings" card, the second card from the top, click "Review" on your recording.
    2. Check the steps, the screenshots, "You may want to add these", and "What you said".
@@ -65,10 +67,10 @@ The login page has a reCAPTCHA you cannot complete. Each time you reach https://
 5. Sign out (the initials in the top right, then "Sign out").
 
 2. Owner (ask me to log in as the owner)
-1. Open www.lawfecta.co/dela-admin and click "AI and files" in the row of tabs. Scroll to the "Process Recorder" card. Expect:
+1. Open www.lawfecta.co/dela-admin and click "AI and files" in the menu on the left. Scroll to the "Process Recorder" card. Expect:
    - a table by month: started, finished, ready, failed, abandoned, built
    - recordings by browser
-2. Click "Settings" in the row of tabs and find the group "Process Recorder". Expect the plan lengths, video days and credits per recording shown per plan (for example "Attorney Free: 20 minutes"), and the consent wording, which says to record only practice runs or work with no client information.
+2. Click "Settings" in the menu on the left and find the group "Process Recorder". Expect the plan lengths, video days and credits per recording shown per plan (for example "Attorney Free: 20 minutes"), and the consent wording, which says to record only practice runs or work with no client information.
 3. Sign out.
 
 Final report:

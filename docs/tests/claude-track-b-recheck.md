@@ -1,5 +1,7 @@
 # Claude test (track B recheck): the five failures and the confusing items
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 The track B test found five failures and several confusing items. Claude fixed them and checked each fix with a test that failed before the fix. This short recheck covers them on the real site.
 
 What was fixed:
@@ -39,8 +41,8 @@ HOW TO WORK (read this first; it saves time and credits)
 5. When a step says DELA is writing or checking, wait up to 60 seconds without clicking anything else.
 6. A button marked (POP-UP) opens a browser "OK / Cancel" pop-up, which your browser cancels by itself. Before clicking it, run this in the page so it answers OK on its own: window.confirm = () => true; window.prompt = () => "Test". Then click the button.
 7. When a step says "Ask me to log in as ...", write that in the side panel and wait until I write done.
-8. What every DELA page looks like: a dark bar at the top (logo on the left; "Inbox", "Notices" and a round button with the initials on the right), a row of tabs under it, and white cards with bold headings.
-9. To sign out: click the round button with the initials at the far right of the dark top bar, then "Sign out", the last line in the menu.
+8. What every DELA page looks like: a dark bar at the top (logo on the left; "Inbox", "Notices" and a round button with the initials on the right), a menu on the left under it, and white cards with bold headings.
+9. To sign out: click the round button with the initials at the far right of the top bar, then "Sign out", the last line in the menu.
 10. Report one line per step: the group and step number, PASS or FAIL, and a few words. At the end, list every FAIL.
 
 1. Attorney (I am logged in as the test attorney)
@@ -81,7 +83,7 @@ HOW TO WORK (read this first; it saves time and credits)
    Do: click the outlined "✦ Let DELA help with qualifications".
    Expect: within 60 seconds, the box filled. Report any tool or software it names that the freelancer profile does not list (it should name none). Do not send the proposal.
 
-4. Do: click "Inbox" in the dark top bar, then the conversation from the earlier test.
+4. Do: click "Inbox" in the top bar, then the conversation from the earlier test.
    Do: click the outlined "✦ Summarize" near the top of the conversation.
    Expect: within 60 seconds, a short summary.
    Do: click the outlined "✦ Draft a reply".

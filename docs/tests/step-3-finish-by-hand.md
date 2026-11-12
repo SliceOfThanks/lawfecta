@@ -1,5 +1,7 @@
 # Step 3: finish by hand (about 10 minutes)
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 ChatGPT ran out of credits partway. These are the steps still to check. Do them yourself in your browser, and tell Claude what you saw at each one. Passwords are in the copy Claude sent you in chat (TEST_PASSWORD here).
 
 Logins:

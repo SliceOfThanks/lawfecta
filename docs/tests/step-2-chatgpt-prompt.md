@@ -1,5 +1,7 @@
 # ChatGPT test prompt: DELA Step 2 (playbook library and Import from Scribe)
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 Before you paste this:
 1. The two Supabase secrets from Step 2a must be in place (AI_KEY_ENCRYPTION_SECRET and OPENAI_API_KEY), or DELA's AI answers "still being set up".
 2. Fill in the logins below. TEAM_MEMBER_BD_ID is the BD member ID of the test freelancer or another test account that has opened DELA once.

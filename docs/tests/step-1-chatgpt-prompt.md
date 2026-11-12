@@ -1,5 +1,7 @@
 # ChatGPT test prompt: DELA Step 1 (Foundation)
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 Paste everything below the line into ChatGPT with browsing or agent mode. Fill in the three test logins first.
 
 ---

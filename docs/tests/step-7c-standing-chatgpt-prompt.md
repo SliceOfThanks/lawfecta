@@ -1,5 +1,7 @@
 # ChatGPT test: standing arrangements (step 7c part 2)
 
+> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+
 Claude already tested this with the real api and database: 9 api tests and 8 browser checks, including the monthly cap, the most jobs open at once, declining a job with a full refund, new limits that both sign again, ending, and the Lawfecta Team's list. This test checks the real screens on the test site.
 
 Standing arrangements are on for the test accounts only. On Live (lawfecta.com) they stay off until counsel approves.
@@ -37,12 +39,15 @@ HOW TO WORK (read this first; it saves time and credits)
 4. If you cannot see it after scrolling to that heading: press Ctrl+F (Cmd+F on a Mac), type the name without the quotes, press Enter, and use the highlighted match. If it is still not there, take one screenshot, write FAIL for that step with what you saw, and go on to the next step. Never try more than this one other way.
 5. When a step says DELA is writing or checking, wait up to 60 seconds without clicking anything else.
 6. What every DELA page looks like:
-   - A dark bar across the very top: the Lawfecta logo and a small yellow "Test site" label on the left; on the right, an "Inbox" button, a "Notices" button and a round button with your initials.
-   - Just under the dark bar, a row of tabs. Attorneys see "⌂ Home", "✦ Ask DELA", "▥ Library", "▤ Files", "▣ Projects", "◌ Talent". Freelancers see "⌂ Home", "✦ Ask DELA", "☺ Profile", "▣ Work", "$ Earnings".
+   - A menu down the left side of the page, with a small picture and a name on each line. Freelancers see "Home", "Work", "Ask DELA", "Earnings", then "Profile" (and "Agency" on some accounts), and at the bottom "Settings", "Help" and "Collapse sidebar". Attorneys see "Home", "Projects", "Ask DELA", "Library", then "Talent", "Files", "Get set up", "Profile", and at the bottom "Settings", "Help" and "Collapse sidebar". The page you are on is pink with a dark red line at its left.
+   - A light bar across the top of the page, to the right of the menu: the page name and a small yellow "Test site" label on the left; on the right an "Inbox" button, a bell (Notices) and a round dark red button with your initials.
+   - There is no row of tabs across the top.
    - The page is made of white boxes called cards. Each card has a bold heading at its top left. Steps say "in the card titled ...".
-   - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
+   - Dark red buttons are the main actions. Outlined buttons and underlined dark red words are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
-7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
+   - The admin area (https://www.lawfecta.co/dela-admin) has the same kind of menu on the left: "Release Control" and "Guide", then five headings in capital letters that open and close when clicked: "MEMBERS", "PLANS AND SETTINGS", "MARKETPLACE", "PAYMENTS", "SAFETY". At the top right is one button with the owner's name and "(owner)".
+   - Some steps were written for the earlier layout. Read them this way: "tab" or "row of tabs" means a line in the menu on the left; a name with a symbol in front (for example "⌂ Home") is the same name without the symbol; "dark red button" means the dark red main button; "AI settings" means "Settings". In the admin area a "tab" is a line in the left menu under its heading: MEMBERS (Overview, Access list, People, Lawfecta Team, Agencies), PLANS AND SETTINGS (Plans, Settings, Switches, AI and files, Tech catalog, Trials, Usage), MARKETPLACE (Verification, Gigs, Meetings and messages, Reviews and bench), PAYMENTS (Payments, Disputes, Recurring), SAFETY (Security, Holds, Audit log, Jobs). Click the heading first if its lines are not showing.
+7. To sign out of the member area: click the round button with your initials at the far right of the top bar, then click "Sign out", the last line in the menu that opens. To sign out of the admin area: click the button with the owner's name at the top right, then "Sign out", the last line.
 8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
@@ -82,7 +87,7 @@ ATTORNEY (log in once)
    Expect: two shaded boxes headed "DELA Test Freelancer", both labeled "Active". The $300 box reads "$0 of $700 this month | 0 of 2 jobs open", and its job line reads "Declined, refunded".
 
 8. In the $300 box (it covers "Send the welcome packet" and "Run a Conflict Check"):
-   Find: the drop-down "Document to hire for" and the blue button "Hire again from my standing arrangement" next to it.
+   Find: the drop-down "Document to hire for" and the dark red button "Hire again from my standing arrangement" next to it.
    Do: choose "Send the welcome packet" in the drop-down, then click "Hire again from my standing arrangement".
    Expect: within a few seconds, the message "Hired. The payment is not finished yet: payments are not set up on this site yet." After the card reloads, a new job line "Send the welcome packet, $300 | Waiting for payment" with "Open the job", and the line "$300 of $700 this month | 1 of 2 jobs open".
 
@@ -101,7 +106,7 @@ ATTORNEY (log in once)
 
 12. In the card "Standing arrangements (2)", in the $300 box:
     Do: click "Change limits" (an outlined button at the bottom of the box).
-    Expect: a shaded form opens in the box with "Once you send them, new limits pause one-click hiring until the freelancer approves them. Limits that are not allowed are refused and nothing changes.", the boxes "Price per job ($)" (300), "Monthly spend cap ($)" (700), "Most jobs open at once" (2), "Your full name", the tick box "I sign the new limits for the firm." and the blue button "Sign and send the new limits".
+    Expect: a shaded form opens in the box with "Once you send them, new limits pause one-click hiring until the freelancer approves them. Limits that are not allowed are refused and nothing changes.", the boxes "Price per job ($)" (300), "Monthly spend cap ($)" (700), "Most jobs open at once" (2), "Your full name", the tick box "I sign the new limits for the firm." and the dark red button "Sign and send the new limits".
     Do: change "Price per job ($)" to 800 and leave "Monthly spend cap ($)" at 700. Type Test Attorney in "Your full name", tick "I sign the new limits for the firm.", and click "Sign and send the new limits".
     Expect: the message "The price per job cannot be more than the monthly cap." The box stays "Active". Do not send other limits.
 
@@ -126,7 +131,7 @@ OWNER (log in once)
 17. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
 18. Go to: https://www.lawfecta.co/dela-admin
-    Do: click the tab "Recurring" in the row of tabs near the top.
+    Do: click the tab "Recurring" in the menu on the left near the top.
     Find: the card "Standing arrangements", below the Recurring card.
     Expect: the grey line "Limited automatic repeat hiring. Each one names a price per job, a monthly cap, the most jobs open at once and an end date. Off on Live until counsel approves (switch auto_repeat_hiring)." Then a row "DELA Test Attorney hires DELA Test Freelancer" labeled "active" with "$300 per job | spend this month $600 of $700 | 2 of 2 open | jobs 2, declined 1 | until ...", and a row for the $400 arrangement labeled "ended".
 

@@ -1,5 +1,7 @@
 # Claude test (track B): gigs, proposals, messages and meetings (Steps 4 and 5)
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 This replaces the separate Step 4 and Step 5 ChatGPT tests. Claude runs it in your own Chrome with the Claude in Chrome extension, at the same time as ChatGPT runs track A (documents and images). The two tracks use different documents and gigs, so they do not get in each other's way.
 
 Claude already tested all of this with the real api and database: 12 api tests and 28 browser checks for gigs, 10 api tests and 17 browser checks for messages and meetings, both sides, mistakes and misuse. This test covers the real screens.
@@ -8,7 +10,7 @@ Before you paste this (about 5 minutes):
 1. Upload the tech catalog (one time only; the test checks DELA uses it):
    1. Download the file: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/data/tech-catalog/catalog-2026-11-05.csv (on that page, click the "Download raw file" button, the small arrow pointing down at the top right of the file box). Claude also sent it to you in chat.
    2. In Chrome, log in as the owner (stacey@lawfecta.com) at https://www.lawfecta.co/login and open https://www.lawfecta.co/dela-admin
-   3. In the row of tabs near the top, click "Tech catalog".
+   3. In the menu on the left near the top, click "Tech catalog".
    4. In the card at the top, click the file box under "Tech catalog CSV", choose catalog-2026-11-05.csv, then click "Check the file".
    5. When the preview shows, click "Confirm and replace the catalog". Expect "The catalog is replaced".
    6. Sign out: click your initials at the top right, then "Sign out".
@@ -42,11 +44,11 @@ HOW TO WORK (read this first; it saves time and credits)
 7. When a step says "Ask me to log in as ...", write that in the side panel and wait until I write done. The login page has a check you cannot pass.
 8. What every DELA page looks like:
    - A dark bar across the very top: the Lawfecta logo and a small yellow "Test site" label on the left; on the right, an "Inbox" button, a "Notices" button and a round button with the person's initials.
-   - Just under the dark bar, a row of tabs. Attorneys see "⌂ Home", "✦ Ask DELA", "▥ Library", "▤ Files", "▣ Projects", "◌ Talent". Freelancers see "⌂ Home", "✦ Ask DELA", "☺ Profile", "▣ Work", "$ Earnings".
+   - Just under the dark bar, a menu on the left. Attorneys see "⌂ Home", "✦ Ask DELA", "▥ Library", "▤ Files", "▣ Projects", "◌ Talent". Freelancers see "⌂ Home", "✦ Ask DELA", "☺ Profile", "▣ Work", "$ Earnings".
    - The page is made of white boxes called cards. Each card has a bold heading at its top left. Steps say "in the card titled ...".
    - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
    - Messages after a click appear for a few seconds in a small box at the bottom of the screen.
-9. To sign out: click the round button with the initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
+9. To sign out: click the round button with the initials at the far right of the top bar, then click "Sign out", the last line in the menu that opens.
 10. Never type real client information. Use only the made-up details in the steps.
 11. Report one line per step: the group and step number, PASS or FAIL, and a few words. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds.
 
@@ -145,7 +147,7 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
 6. Do: on that meeting, click the outlined "Add to my calendar (.ics)".
    Expect: a calendar file downloads. Report its name.
 
-7. Do: click "Inbox" in the dark top bar.
+7. Do: click "Inbox" in the top bar.
    Expect: the conversation listed.
 
 8. Go to: https://www.lawfecta.co/dela?tab=projects, click your gig, then the view tab "Proposals (1)".
@@ -165,7 +167,7 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
 4. Owner (ask me to log in as the owner)
 
 1. Go to: https://www.lawfecta.co/dela-admin
-   Do: in the row of tabs near the top, click "Gigs".
+   Do: in the menu on the left near the top, click "Gigs".
    Find: the card "Held for a check" at the top.
    Expect: the Venmo question labelled "payment outside Lawfecta" and the message with the phone number.
    Do: click the red "Do not deliver" on each of them.
@@ -189,10 +191,10 @@ A gig page looks like this: a small outlined "← All gigs" at the top left; the
 1. Go to: https://www.lawfecta.co/dela?tab=work
    Expect: in the card "Sent proposals", your gig marked "Chosen". In the card "Your engagements", the gig with "Needs your signature". Do not sign it; the payments test does that later.
 
-2. Do: click "Notices" in the dark top bar.
+2. Do: click "Notices" in the top bar.
    Expect: a notice that you were chosen for a gig. Close the Notices panel with its "Close" button at the top.
 
-3. Do: click "Inbox" in the dark top bar (it shows a number), then click the conversation.
+3. Do: click "Inbox" in the top bar (it shows a number), then click the conversation.
    Expect: the attorney's message with the file, and no message with a phone number.
 
 4. Do: click the outlined "✦ Summarize" near the top of the conversation.

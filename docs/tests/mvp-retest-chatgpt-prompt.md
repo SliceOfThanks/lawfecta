@@ -1,5 +1,7 @@
 # ChatGPT re-test: the 5 MVP fails (2026-11-09)
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 Checks the fixes for the MVP test's failed steps 4, 7, 13, 14 and 19, and the wording fixes. Short: three logins, 14 steps.
 
 Notes on what changed:
@@ -26,7 +28,7 @@ HOW TO WORK
 2. When a step says "Go to", type that link into the address bar and press Enter.
 3. Every button and box is named in quotes, exactly as the screen writes it, with where it is. If you cannot see it after scrolling to that heading, press Ctrl+F (Cmd+F on a Mac), type the name and use the match. If it is still not there, take one screenshot, write FAIL with what you saw, and go on.
 4. When DELA is writing, wait up to 60 seconds.
-5. To sign out: click the round button with your initials at the far right of the dark top bar, then "Sign out".
+5. To sign out: click the round button with your initials at the far right of the top bar, then "Sign out".
 6. At the login page, stop and ask me to log in, naming the account.
 7. Report one line per step: number, PASS or FAIL, a few words. Screenshots only for FAILs. Put the report in a text file named DELA-retest-report.txt and give me the link.
 
@@ -43,13 +45,13 @@ TEST FREELANCER (log in once)
    Expect: "Saved", and the card says "Complete."
 4. Go to: https://www.lawfecta.co/dela?tab=home
    Expect: the "DELA guide" card no longer asks for the agency profile. Write what it says now.
-5. Look at the dark top bar: next to the round logo it reads "DELA" in full (not "DEL"). Sign out.
+5. Look at the top bar: next to the round logo it reads "DELA" in full (not "DEL"). Sign out.
 
 TEST ATTORNEY (log in once)
 6. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 7. Go to: https://www.lawfecta.co/dela?tab=talent
    Do: in the box "Describe the task (for ✦ Help me find a fit)" type: Fictional test: build a document checklist for a family law case in Texas. Click "✦ Help me find a fit".
-   Expect: within 60 seconds a box with DELA's suggestions and a blue button "Use all suggestions" above them.
+   Expect: within 60 seconds a box with DELA's suggestions and a dark red button "Use all suggestions" above them.
    Do: click "Use all suggestions".
    Expect: the boxes "Practice area", "Skill" and "State you need" are filled at once, and a message says "Added to the filters. Check them, then click Search."
 8. Do: change the "Skill" box to: checklist. Click "Search".
@@ -64,7 +66,7 @@ NEW ATTORNEY (log in once)
 12. Go to: https://www.lawfecta.co/dela?tab=home
     Expect: the greeting has no ", there" at the end if the account has no name.
 13. Go to: https://www.lawfecta.co/dela?tab=library
-    Do: click "Create a document" (the blue button at the top right of the Library; the screen it opens is titled "New document"). If the card "Your firm profile for documents" shows, type in "Describe your firm (optional)": Fictional test firm: two attorneys doing family law and estate planning in Texas; we use Clio. Then click "✦ Help me describe my firm".
+    Do: click "Create a document" (the dark red button at the top right of the Library; the screen it opens is titled "New document"). If the card "Your firm profile for documents" shows, type in "Describe your firm (optional)": Fictional test firm: two attorneys doing family law and estate planning in Texas; we use Clio. Then click "✦ Help me describe my firm".
     Expect: DELA's suggestions with a blue "Use all suggestions" button. Click it; the boxes fill at once. (If the firm profile is already saved and the card does not show, write SKIPPED.)
 14. Sign out.
 

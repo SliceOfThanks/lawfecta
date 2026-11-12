@@ -2,7 +2,7 @@
 
 Step 15. Looking only: nothing is signed, paid, sent or changed, except the light and dark choice on the test freelancer, which is put back. Three logins, 21 steps, on a desktop-size browser window.
 
-What Claude prepared: the new layout is switched on for the Lawfecta Team and for the two test accounts (DELA Test Freelancer and DELA Test Attorney). No other member sees it. The test freelancer has a complete profile and several test jobs; the test attorney has test jobs waiting for a signature or a payment.
+What Claude prepared: the new layout is on for everyone since 2026-11-13. The test freelancer has a complete profile and several test jobs; the test attorney has test jobs waiting for a signature or a payment.
 
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD.

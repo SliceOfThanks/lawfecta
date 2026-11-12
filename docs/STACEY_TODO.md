@@ -20,7 +20,7 @@ It has 21 steps and only looks. Nothing is signed, paid or saved.
 
 ## 3. Two decisions
 1. The Lawfecta website changes a member's sign-in email as soon as they save it, without confirming the new address. Is that acceptable for the pilot? (DELA cannot add a confirmation; it would be a question for Brilliant Directories support.)
-2. Say "turn the new layout on for everyone" when you are happy with it. Until then only you and the two test accounts see it.
+2. Done 2026-11-13: the new layout is on for everyone. To go back, tell Claude "turn the new layout off".
 
 ## 4. Clear the test money data (cannot be undone)
 What it does and what it keeps: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/PILOT_GO_LIVE.md (section 1). Your account and the two test accounts stay (BD members 686, 687, 688); every test job, agreement, payment, payout, refund and dispute goes.

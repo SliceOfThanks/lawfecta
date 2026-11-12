@@ -1,5 +1,7 @@
 # ChatGPT review: the attorney side of DELA (UX and UI)
 
+> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+
 What this is: ChatGPT walks the attorney screens on the test site as a first-time solo attorney would, looks only (it changes nothing), and writes recommendations ranked by how much they would help.
 
 What it covers: Home and Get set up, Ask DELA, the Library and one approved document with "✦ Automate or delegate", Files, Projects (posting a gig, a gig's views, an agreement, a monthly engagement), Talent, Inbox and Meetings, Profile and verification, AI settings and the ChatGPT and Claude connection.
@@ -29,12 +31,15 @@ HOW TO WORK (read this first; it saves time and credits)
 4. If you cannot see it after scrolling to that heading: press Ctrl+F (Cmd+F on a Mac), type the name without the quotes, press Enter, and use the highlighted match. If it is still not there, take one screenshot, note "could not find" for that step with what you saw, and go on to the next step. Never try more than this one other way.
 5. When a step says DELA is writing or checking, wait up to 60 seconds without clicking anything else.
 6. What every DELA page looks like:
-   - A dark bar across the very top: the Lawfecta logo and a small yellow "Test site" label on the left; on the right, an "Inbox" button, a "Notices" button and a round button with your initials.
-   - Just under the dark bar, a row of tabs: "⌂ Home", "✦ Ask DELA", "▥ Library", "▤ Files", "▣ Projects", "◌ Talent" and "✓ Get set up".
+   - A menu down the left side of the page, with a small picture and a name on each line. Freelancers see "Home", "Work", "Ask DELA", "Earnings", then "Profile" (and "Agency" on some accounts), and at the bottom "Settings", "Help" and "Collapse sidebar". Attorneys see "Home", "Projects", "Ask DELA", "Library", then "Talent", "Files", "Get set up", "Profile", and at the bottom "Settings", "Help" and "Collapse sidebar". The page you are on is pink with a dark red line at its left.
+   - A light bar across the top of the page, to the right of the menu: the page name and a small yellow "Test site" label on the left; on the right an "Inbox" button, a bell (Notices) and a round dark red button with your initials.
+   - There is no row of tabs across the top.
    - The page is made of white boxes called cards. Each card has a bold heading at its top left. Steps say "in the card titled ...".
-   - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
+   - Dark red buttons are the main actions. Outlined buttons and underlined dark red words are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
-7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
+   - The admin area (https://www.lawfecta.co/dela-admin) has the same kind of menu on the left: "Release Control" and "Guide", then five headings in capital letters that open and close when clicked: "MEMBERS", "PLANS AND SETTINGS", "MARKETPLACE", "PAYMENTS", "SAFETY". At the top right is one button with the owner's name and "(owner)".
+   - Some steps were written for the earlier layout. Read them this way: "tab" or "row of tabs" means a line in the menu on the left; a name with a symbol in front (for example "⌂ Home") is the same name without the symbol; "dark red button" means the dark red main button; "AI settings" means "Settings". In the admin area a "tab" is a line in the left menu under its heading: MEMBERS (Overview, Access list, People, Lawfecta Team, Agencies), PLANS AND SETTINGS (Plans, Settings, Switches, AI and files, Tech catalog, Trials, Usage), MARKETPLACE (Verification, Gigs, Meetings and messages, Reviews and bench), PAYMENTS (Payments, Disputes, Recurring), SAFETY (Security, Holds, Audit log, Jobs). Click the heading first if its lines are not showing.
+7. To sign out of the member area: click the round button with your initials at the far right of the top bar, then click "Sign out", the last line in the menu that opens. To sign out of the admin area: click the button with the owner's name at the top right, then "Sign out", the last line.
 8. The login page has a reCAPTCHA you cannot complete. When you reach https://www.lawfecta.co/login, stop and ask me to log in. Wait until I say I'm logged in.
 9. Never type real client information.
 
@@ -93,7 +98,7 @@ Steps
 13. Inbox and meetings. Go to: https://www.lawfecta.co/dela?tab=inbox
     Look at: the message threads and how a conversation is shown. Then go to: https://www.lawfecta.co/dela?tab=meetings and look at the meetings page.
 
-14. Notices. Click "Notices" in the dark top bar.
+14. Notices. Click "Notices" in the top bar.
     Look at: how notices read, whether each one says what to do, and how easy it is to get from a notice to the right page. Close the panel.
 
 15. Profile and verification. Go to: https://www.lawfecta.co/dela?tab=profile

@@ -1,5 +1,7 @@
 # ChatGPT test: Step 3, profiles and verification (both sides)
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 Claude already tested on the test site: the profile page loads, "Fill from my Lawfecta listing" reads only the name and the fields DELA uses, saving works, and the listing update. This test covers the screens, both sides and misuse.
 
 Before you paste this:
@@ -18,7 +20,7 @@ Logins: test attorney stacey+dela-attorney@lawfecta.com (password TEST_PASSWORD)
 The steps are grouped by login: all freelancer steps, then all attorney steps, then the owner. Log in once for each group. The last group is a short check of the results. To log out, click the initials in the top right of the DELA page, then "Sign out".
 
 1. Freelancer (log in as the test freelancer)
-1. Open www.lawfecta.co/dela?tab=profile (or click "Profile" in the row of tabs under the dark top bar). Expect, from top to bottom: "Where your profile stands", "Your availability", "LinkedIn check", "Your profile" and "Profile documents".
+1. Open www.lawfecta.co/dela?tab=profile (or click "Profile" in the menu on the left under the top bar). Expect, from top to bottom: "Where your profile stands", "Your availability", "LinkedIn check", "Your profile" and "Profile documents".
 2. In the "Your profile" card, about halfway down, open "Let DELA draft your headline, summary and services". Type a few made-up sentences about your work and click "Draft with DELA". Expect the Headline and Summary boxes filled in, and nothing saved yet.
 3. Still in "Your profile", fill in:
    - First name and Last name, at the top of the card.
@@ -37,7 +39,7 @@ The steps are grouped by login: all freelancer steps, then all attorney steps, t
    - Upload the renamed program: expect "Not accepted".
    - Click "Show to attorneys" on the resume.
 7. In the "Your availability" card near the top, click "Available for new work". Expect the date and "Confirm again by".
-8. Click "Notices" in the dark top bar. Expect the panel on the right with a "Close" button in its top-right corner. Click "Close": it closes. Open it again and click the dimmed page to the left: it closes.
+8. Click "Notices" in the top bar. Expect the panel on the right with a "Close" button in its top-right corner. Click "Close": it closes. Open it again and click the dimmed page to the left: it closes.
 9. Narrow the window to phone width: nothing runs off the side. Click the initials in the top right: the menu says "Profile". Click "Sign out": you land on the Lawfecta login page.
 
 2. Attorney (log in as the test attorney)
@@ -51,11 +53,11 @@ The steps are grouped by login: all freelancer steps, then all attorney steps, t
    4. Ask me to open that email and click its button while logged in as the test attorney. Expect "Email confirmed".
 5. On the license, click "Ask for a video call instead". Expect "Video call requested".
 6. Scroll to the "Firm details" card at the bottom. Fill in "Billing address", "Who may sign for the firm" and "Email for formal notices". Click "Save firm details". Expect "Firm details saved".
-7. Click "Projects" in the row of tabs. Expect a note that posting work and hiring need a verified license.
+7. Click "Projects" in the menu on the left. Expect a note that posting work and hiring need a verified license.
 8. Click the initials in the top right: the menu says "Profile and verification". Click "Sign out".
 
 3. Owner (log in as the owner)
-1. Open www.lawfecta.co/dela-admin and click the "Verification" tab in the row of tabs at the top.
+1. Open www.lawfecta.co/dela-admin and click the "Verification" tab in the menu on the left at the top.
 2. "Attorney licenses": find the TX license with its confirmed email. Click "Verify" without choosing how they showed it is theirs. Expect a plain message asking you to choose.
 3. Choose "The email is at the firm's own domain", type a note in "Lookup note", and click "Verify". Expect the license to leave the list.
 4. "Freelancer LinkedIn checks", below: on the freelancer's check, click "Checked" without ticking. Expect "Tick both". Tick both boxes and click "Checked".

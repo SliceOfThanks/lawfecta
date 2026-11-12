@@ -1,5 +1,7 @@
 # ChatGPT test: the 2026-11-05 fixes (profile page, banner, library, Word export, admin settings)
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 > **Not rewritten yet (2026-11-05).** Claude rewrites this in the step-by-step style (link, card, where on the page, exact button) before you run it, with the "How to work" block from docs/tests/AGENT-RULES.md. Ask Claude for the new copy first.
 
 This checks the fixes from your recheck and recorder check. The live screen recording itself stays by hand (Part A of the recorder check), because ChatGPT's browser cannot share a real screen.
@@ -33,7 +35,7 @@ The steps are grouped by login. To sign out at the end of a group, click the ini
 The pink banner in these steps is the one that starts "DELA is for operations work. Do not enter confidential client information". It should show only on Ask DELA, the Library and the recorder page.
 
 1. Freelancer (ask me to log in as the test freelancer)
-1. Open www.lawfecta.co/dela. On Home, expect no pink banner. Click "Work" in the row of tabs: no pink banner. Click "Ask DELA": the pink banner is there.
+1. Open www.lawfecta.co/dela. On Home, expect no pink banner. Click "Work" in the menu on the left: no pink banner. Click "Ask DELA": the pink banner is there.
 2. Open www.lawfecta.co/dela?tab=profile. Expect no pink banner at the top of the page. Scroll to the "Your profile" card.
 3. Photo, at the top of the "Your profile" card:
    1. Click "Change photo" (or "Add a photo") and choose the PNG or JPG photo from Downloads.
@@ -54,7 +56,7 @@ The pink banner in these steps is the one that starts "DELA is for operations wo
    - On Home, expect no pink banner.
    - In the row of four numbers near the top, "Draft playbooks" is 1 or more.
    - Under "What DELA will do for you", lower on the page, click "Open the Library" in the Playbooks row. Expect the Library with its list of playbooks (not a single playbook), and the pink banner at the top.
-2. Click "Files", "Projects" and "Talent" in the row of tabs, one at a time. Expect no pink banner on any of them. On Files, the "Add files" area still has the tick box that starts "These files have no confidential client information".
+2. Click "Files", "Projects" and "Talent" in the menu on the left, one at a time. Expect no pink banner on any of them. On Files, the "Add files" area still has the tick box that starts "These files have no confidential client information".
 3. Click the initials in the top right, then "AI settings". Expect no pink banner. Then open www.lawfecta.co/dela?tab=profile: no pink banner, and a "?" next to the boxes.
 4. Upload on the New playbook page:
    1. Click "Library". In the first card at the top (the one showing how many playbooks you have), click "New playbook".
@@ -72,7 +74,7 @@ The pink banner in these steps is the one that starts "DELA is for operations wo
 7. Sign out.
 
 3. Owner (ask me to log in as the owner)
-1. Open www.lawfecta.co/dela-admin and click "Settings" in the row of tabs near the top. Find the group "Process Recorder" and click "Show" on it. Expect:
+1. Open www.lawfecta.co/dela-admin and click "Settings" in the menu on the left near the top. Find the group "Process Recorder" and click "Show" on it. Expect:
    - "Longest recording per plan" reads like "Attorney Free: 20 minutes; Attorney Plus: 30 minutes; ...", with no "[object Object]"
    - "Days a recording's video is kept per plan" and "AI credits one recording uses per plan" read the same way
    - the consent wording says to record only practice runs or work with no client information

@@ -1,5 +1,7 @@
 # ChatGPT test: screens, uploads and your own AI key (Steps 2a and 2)
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 > **Not rewritten yet (2026-11-05).** Claude rewrites this in the step-by-step style (link, card, where on the page, exact button) before you run it, with the "How to work" block from docs/tests/AGENT-RULES.md. Ask Claude for the new copy first.
 
 Claude already tested these on the test site with the real AI:
@@ -41,9 +43,9 @@ The steps are grouped by login. To sign out at the end of a group, click the ini
 
 1. Freelancer (ask me to log in as the test freelancer)
 1. Open www.lawfecta.co/dela.
-   - Expect: a "Test site" badge in the dark top bar.
-   - The row of tabs under it shows Home, Ask DELA, Profile, Work and Earnings, and no Library or Files tab.
-2. Click "Ask DELA" in that row of tabs. Type a short made-up question in the message box at the bottom of the page and click "Send".
+   - Expect: a "Test site" badge in the top bar.
+   - The menu on the left under it shows Home, Ask DELA, Profile, Work and Earnings, and no Library or Files tab.
+2. Click "Ask DELA" in that menu on the left. Type a short made-up question in the message box at the bottom of the page and click "Send".
    - Expect an answer within 30 seconds, with "Answered with Lawfecta's AI" under it.
 3. Sign out.
 
@@ -54,11 +56,11 @@ The steps are grouped by login. To sign out at the end of a group, click the ini
 2. Click "Ask DELA". Type a question and click "Send".
    - Expect an answer within 30 seconds, with "Answered with Lawfecta's AI".
    - Then click "● Talk" next to the message box, allow the microphone, say a sentence, and click "■ Stop". Expect your words in the message box, not sent yet.
-3. Click "Library" in the row of tabs. Scroll past the first two cards (the playbook count and "Recordings") to the list of playbooks, and click "New Family Law Client Intake After Signature".
+3. Click "Library" in the menu on the left. Scroll past the first two cards (the playbook count and "Recordings") to the list of playbooks, and click "New Family Law Client Intake After Signature".
    - At the top of the playbook there is a row of views: Read, Edit, Chat, Suggestions, Comments, Activity, Versions, Files and Export. Click each one.
    - Report any view that is empty, broken or confusing.
 4. In the "Export" view, click "Word (.docx)", then "PDF". Open both files. Expect the title, numbered steps, and a footer with the version and date.
-5. Click "Files" in the row of tabs. In the "Add files" area at the top:
+5. Click "Files" in the menu on the left. In the "Add files" area at the top:
    1. Choose the process write-up and click "Upload" without ticking the box that starts "These files have no confidential client information". Expect a red message.
    2. Tick that box and upload again. Expect the file in the list below with "Ready".
 6. Upload the renamed program file (tick the box). Expect "Not accepted".
@@ -71,11 +73,11 @@ The steps are grouped by login. To sign out at the end of a group, click the ini
    2. Expect "Key saved" and "ending" with 4 characters. The full key must appear nowhere on the page, even after you reload it.
 10. Click "Ask DELA", ask a question, and send. Expect "Answered with your own key".
 11. Back in "AI settings", in the "Your own key" card, click "Remove" and confirm. Expect "Use Lawfecta's AI" chosen again in the "Which AI DELA uses" card at the top.
-12. Click "Notices" in the dark top bar. Expect a panel on the right with a "Close" button in its top-right corner. Click "Close": it closes. Open it again and click the dimmed page to the left: it closes.
+12. Click "Notices" in the top bar. Expect a panel on the right with a "Close" button in its top-right corner. Click "Close": it closes. Open it again and click the dimmed page to the left: it closes.
 13. Sign out. Expect the Lawfecta login page.
 
 3. Owner (ask me to log in as the owner)
-1. Open www.lawfecta.co/dela-admin and click "AI and files" in the row of tabs near the top. Expect these cards, from top to bottom (other cards, such as "Recent AI problems" and "Storage by member", sit between them):
+1. Open www.lawfecta.co/dela-admin and click "AI and files" in the menu on the left near the top. Expect these cards, from top to bottom (other cards, such as "Recent AI problems" and "Storage by member", sit between them):
    - "AI use this month"
    - "Members' own keys": none, after group 2 step 11
    - "Files not accepted": the renamed program

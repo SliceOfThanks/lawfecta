@@ -1,5 +1,7 @@
 # ChatGPT test: Step 6, agreements, payments, delivery and payouts
 
+> Layout note, 2026-11-13: this test was written for the earlier layout and its page description is out of date. DELA now has the menu on the left on every page. Claude rewrites this test before it is run again.
+
 > **Not rewritten yet (2026-11-05).** Claude rewrites this in the step-by-step style (link, card, where on the page, exact button) before you run it, with the "How to work" block from docs/tests/AGENT-RULES.md. Ask Claude for the new copy first.
 
 Claude already tested all of this with the real api and database, using a stand-in for Stripe: 13 api tests and 35 browser checks. They cover both sides, mistakes and misuse:
@@ -54,7 +56,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
    2. Change the amounts so they add up to the same price (for example 40% and 60%). Change the first title to "First draft". Type a note, for example "Smaller first step".
    3. Click "Send the new version". Expect "Agreement, version 2" with your amounts.
 6. In "What happens next", type your name in "Your full name", tick "I have read version 2 of this agreement and I sign it electronically", and click "Sign version 2". Expect "You signed version 2. Waiting for the attorney to sign."
-7. Click "Earnings" in the row of tabs. Expect "Payouts to your bank" marked "Not set up", with "Set up payouts with Stripe".
+7. Click "Earnings" in the menu on the left. Expect "Payouts to your bank" marked "Not set up", with "Set up payouts with Stripe".
 8. Click "Set up payouts with Stripe". Expect Stripe's own page. Fill it in with Stripe's test details:
    - phone 000 000 0000 and code 000000 if asked
    - any made-up name and a date of birth over 18
@@ -82,7 +84,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
 5. Sign out.
 
 4. Owner (ask me to log in as the owner)
-1. Open www.lawfecta.co/dela-admin and click "Payments" in the row of tabs. Expect:
+1. Open www.lawfecta.co/dela-admin and click "Payments" in the menu on the left. Expect:
    - "Money on DELA" saying Stripe is connected in test mode
    - totals, with "Charged" showing the payment from group 2
 2. If group 3 sent it to a human review: under "Milestones waiting for a human review", type a note and click "Passes: send to the attorney". Expect "Sent to the attorney for review".

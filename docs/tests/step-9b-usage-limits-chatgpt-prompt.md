@@ -1,5 +1,7 @@
 # ChatGPT test: attorney plan usage limits (step 9b)
 
+> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+
 Claude already tested this with the real api and database: 8 api tests and 13 browser checks. This test checks the real screens on the test site.
 
 Run it after the UX check and the monthly test, not at the same time: it changes the test attorney's plan for a while.
@@ -36,12 +38,15 @@ HOW TO WORK (read this first; it saves time and credits)
 4. If you cannot see it after scrolling to that heading: press Ctrl+F (Cmd+F on a Mac), type the name without the quotes, press Enter, and use the highlighted match. If it is still not there, take one screenshot, write FAIL for that step with what you saw, and go on to the next step. Never try more than this one other way.
 5. When a step says DELA is writing or checking, wait up to 60 seconds without clicking anything else.
 6. What every DELA page looks like:
-   - A dark bar across the very top: the Lawfecta logo and a small yellow "Test site" label on the left; on the right, an "Inbox" button, a "Notices" button and a round button with your initials.
-   - Just under the dark bar, a row of tabs. Attorneys see "⌂ Home", "✦ Ask DELA", "▥ Library", "▤ Files", "▣ Projects", "◌ Talent". Freelancers see "⌂ Home", "✦ Ask DELA", "☺ Profile", "▣ Work", "$ Earnings".
+   - A menu down the left side of the page, with a small picture and a name on each line. Freelancers see "Home", "Work", "Ask DELA", "Earnings", then "Profile" (and "Agency" on some accounts), and at the bottom "Settings", "Help" and "Collapse sidebar". Attorneys see "Home", "Projects", "Ask DELA", "Library", then "Talent", "Files", "Get set up", "Profile", and at the bottom "Settings", "Help" and "Collapse sidebar". The page you are on is pink with a dark red line at its left.
+   - A light bar across the top of the page, to the right of the menu: the page name and a small yellow "Test site" label on the left; on the right an "Inbox" button, a bell (Notices) and a round dark red button with your initials.
+   - There is no row of tabs across the top.
    - The page is made of white boxes called cards. Each card has a bold heading at its top left. Steps say "in the card titled ...".
-   - Blue buttons are the main actions. Outlined buttons (white with a dark pink border) are the other actions. Grey text is a hint.
+   - Dark red buttons are the main actions. Outlined buttons and underlined dark red words are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small box at the bottom of the screen.
-7. To sign out: click the round button with your initials at the far right of the dark top bar, then click "Sign out", the last line in the menu that opens.
+   - The admin area (https://www.lawfecta.co/dela-admin) has the same kind of menu on the left: "Release Control" and "Guide", then five headings in capital letters that open and close when clicked: "MEMBERS", "PLANS AND SETTINGS", "MARKETPLACE", "PAYMENTS", "SAFETY". At the top right is one button with the owner's name and "(owner)".
+   - Some steps were written for the earlier layout. Read them this way: "tab" or "row of tabs" means a line in the menu on the left; a name with a symbol in front (for example "⌂ Home") is the same name without the symbol; "dark red button" means the dark red main button; "AI settings" means "Settings". In the admin area a "tab" is a line in the left menu under its heading: MEMBERS (Overview, Access list, People, Lawfecta Team, Agencies), PLANS AND SETTINGS (Plans, Settings, Switches, AI and files, Tech catalog, Trials, Usage), MARKETPLACE (Verification, Gigs, Meetings and messages, Reviews and bench), PAYMENTS (Payments, Disputes, Recurring), SAFETY (Security, Holds, Audit log, Jobs). Click the heading first if its lines are not showing.
+7. To sign out of the member area: click the round button with your initials at the far right of the top bar, then click "Sign out", the last line in the menu that opens. To sign out of the admin area: click the button with the owner's name at the top right, then "Sign out", the last line.
 8. The login page has a reCAPTCHA you cannot complete. Each time you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I'm logged in.
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
@@ -56,7 +61,7 @@ ATTORNEY (log in once)
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
 2. Go to: https://www.lawfecta.co/dela?tab=home
-   Find: the top of the page, just under the row of tabs.
+   Find: the top of the page, just under the menu on the left.
    Expect: a yellow banner with "You've used 50 of 50 DELA actions this month." (and possibly "You've saved ... of 3 documents.") and an "Upgrade to Plus" button on the right. Do not click it.
    Find: the very bottom of the page.
    Expect: a small line "DELA actions: 50 of 50 this month".
@@ -91,7 +96,7 @@ OWNER (log in once)
 10. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
 11. Go to: https://www.lawfecta.co/dela-admin
-    Do: click the tab "Usage" in the row of tabs near the top.
+    Do: click the tab "Usage" in the menu on the left near the top.
     Expect: a table with the columns "Attorney", "Plan", "Documents", "DELA actions", "Storage" and "AI cost this month". The grey line above it says anyone above $10 this month is flagged, and that blocking follows the switch usage_limits_enforced.
     Find: the row of the test attorney (their email is stacey+dela-attorney@lawfecta.com).
     Expect: "Attorney Free (set by the team)", documents "... of 3", DELA actions "50 of 50", and an AI cost in dollars.
