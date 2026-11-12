@@ -8,6 +8,8 @@
 -- Without the first line the script stops and changes nothing.
 --
 -- REMOVED:
+--   0. Every agreement with a milestone marked as paid or further along, even when no payment row exists (prepared test
+--      states), because the admin area counts those as money held.
 --   1. Every agreement that has a money record (a payment, payout, refund, ledger line, dispute, chargeback or payout
 --      reversal), with everything that belongs to that agreement: its versions and signatures, milestones and
 --      deliveries, monthly terms and periods, disputes, confidential materials, reviews, and all its money records.
@@ -33,7 +35,9 @@ begin
     where exists (select 1 from payments x where x.agreement_id = a.id) or exists (select 1 from payouts x where x.agreement_id = a.id)
        or exists (select 1 from refunds x where x.agreement_id = a.id) or exists (select 1 from ledger_entries x where x.agreement_id = a.id)
        or exists (select 1 from disputes x where x.agreement_id = a.id) or exists (select 1 from chargebacks x where x.agreement_id = a.id)
-       or exists (select 1 from payout_reversals x where x.agreement_id = a.id);
+       or exists (select 1 from payout_reversals x where x.agreement_id = a.id)
+       -- a prepared test agreement whose milestone says it is paid although no payment exists: it would show as money held
+       or exists (select 1 from milestones x where x.agreement_id = a.id and x.status not in ('pending', 'canceled'));
   -- every money row goes, whether or not its agreement was found above
   insert into doomed select 'payments', id::text from payments on conflict do nothing;
   insert into doomed select 'payouts', id::text from payouts on conflict do nothing;
