@@ -65,6 +65,8 @@
       });
       top.appendChild(look);
     }
+    // My account: the team member's own sign-in email and where to change it and the password, without leaving the admin area
+    top.appendChild(h("button", { class: "btn small ghost", type: "button", style: "color:#fff;border-color:rgba(255,255,255,.45);background:transparent", onclick: function () { go("account"); } }, "My account"));
     top.appendChild(h("a", { class: "btn small ghost", href: "/dela", style: "color:#fff;border-color:rgba(255,255,255,.45);background:transparent" }, "Member view"));
     // Sign out ends the DELA session, then logs out of Lawfecta too, the same as in the member area
     top.appendChild(h("button", { class: "btn small ghost", type: "button", style: "color:#fff;border-color:rgba(255,255,255,.45);background:transparent", onclick: function () {
@@ -92,7 +94,15 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, disputes: disputesTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, trials: trialsTab, usage: usageTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ account: accountTab, control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, disputes: disputesTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, trials: trialsTab, usage: usageTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+  }
+
+  // ---------- My account ----------
+  // The signed-in team member's own account only. Other people's accounts are managed on the People tab and on the website.
+  function accountTab() {
+    body(h("div", { style: "max-width:760px" }, h("h1", { text: "My account" }),
+      h("p", { class: "muted", text: "Signed in as " + me.person.name + " (" + me.staff.join(", ") + "). This page is about your own sign-in. It changes nothing for other members." }),
+      D.accountCard(me)));
   }
 
   // ---------- Guide ----------

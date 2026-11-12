@@ -1,6 +1,6 @@
 {
   "sheet_version": "DS-1.1",
-  "updated": "2026-11-10",
+  "updated": "2026-11-12",
   "status_legend": {
     "C": "Confirmed. Decided by Stacey or confirmed in the plan documents.",
     "R": "Suggested. The plan documents or Claude suggest it; Stacey has not approved it yet.",
@@ -1109,6 +1109,42 @@
           "value": "brevo",
           "status": "C",
           "source": "Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-10-25; Claude is checking whether BD can be triggered from Supabase"
+        },
+        {
+          "key": "account.change_email_path",
+          "label": "Page on the Lawfecta website where a member changes the email they sign in with",
+          "value": "/account/contact",
+          "unit": "",
+          "status": "R",
+          "source": "Claude 2026-11-12, from Brilliant Directories' member dashboard (Contact Details); Stacey confirms the page opens",
+          "note": "DELA's Account and security card links here. Sign-in belongs to the Lawfecta website; DELA never stores a password."
+        },
+        {
+          "key": "account.change_password_path",
+          "label": "Page on the Lawfecta website where a member changes their password",
+          "value": "/account/password",
+          "unit": "",
+          "status": "R",
+          "source": "Claude 2026-11-12, from Brilliant Directories' member dashboard (Password); Stacey confirms the page opens",
+          "note": "DELA's Account and security card links here."
+        },
+        {
+          "key": "account.forgot_password_path",
+          "label": "Page on the Lawfecta website that emails a password reset",
+          "value": "/login/retrieval",
+          "unit": "",
+          "status": "C",
+          "source": "Checked on www.lawfecta.co 2026-11-12",
+          "note": "DELA's Account and security card links here."
+        },
+        {
+          "key": "account.google_sign_in",
+          "label": "The Lawfecta login page offers Sign in with Google",
+          "value": true,
+          "unit": "",
+          "status": "C",
+          "source": "Checked on www.lawfecta.co/login 2026-11-12",
+          "note": "When true, the Account and security card says where a Google member manages their password."
         },
         {
           "key": "email.postal_address",

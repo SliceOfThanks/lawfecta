@@ -352,7 +352,31 @@ D.openTab = function (getUrl, onFail, opts) {
   }).catch(function (e) { if (w) w.close(); if (onFail) onFail(e); });
 };
 // How DELA looks: "device" follows the computer or phone, "light" and "dark" are fixed
-D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode === "light" || mode === "dark" ? mode : "auto"); };
+// Account and security, the same card in the member area and the admin area. Sign-in belongs to the Lawfecta website
+  // (email and password, or Google), so DELA shows the email it was given at the last sign-in and opens the website's own
+  // pages for changes. DELA never holds a password, so nothing here can show or store one.
+  D.accountCard = function (me) {
+    var h = D.h, a = (me && me.account) || {}, em = String(((me && me.person) || {}).email || "").trim();
+    function link(href, text, main) { return href ? h("a", { class: "btn small " + (main ? "blue" : "ghost"), href: href, target: "_blank", rel: "noopener" }, text) : null; }
+    function row(label, value, lines, acts) {
+      return h("div", { class: "acct-row" }, h("div", { class: "acct-what" }, h("b", { text: label }), value ? h("span", { class: "acct-val", text: value }) : null,
+        lines.map(function (x) { return h("span", { class: "small muted", text: x }); })), h("div", { class: "acct-acts" }, acts));
+    }
+    var card = h("div", { class: "card acct", id: "set-account" }, h("h2", { text: "Account and security" }),
+      h("p", { class: "small muted", text: "You sign in to DELA with your Lawfecta website account. DELA never sees or stores your password. Your email and password are changed on the Lawfecta website; each button here opens the right page in a new tab." }));
+    card.appendChild(row("Sign-in email", em || "Not known yet. Sign out and sign in again.",
+      ["This is the address your Lawfecta account had when you last signed in. DELA sends your emails to it.",
+        "Your current address stays in use until you save a new one on the Lawfecta website. After that, sign out and sign in again and DELA shows the new address."],
+      [link(a.change_email, "Change email", true)]));
+    card.appendChild(row("Password", "",
+      ["DELA cannot show your password. You type the new one on the Lawfecta website, where your password manager can fill it in."].concat(
+        a.google ? ["If you sign in with Google, Google keeps your password. Change it in your Google account."] : []),
+      [link(a.change_password, "Change password", true), link(a.forgot_password, "Forgot password", false),
+        a.google ? link("https://myaccount.google.com/security", "Google account security", false) : null]));
+    return card;
+  };
+
+  D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode === "light" || mode === "dark" ? mode : "auto"); };
 
   D.CSS = [
     ":host{all:initial}",
@@ -365,6 +389,8 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
     D.darkCss(".dela{--bg:#11131b;--card:#1a1d28;--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c;--brand:#c2416f;--pink:#2a1622;--pink-ink:#f19ab8;--soft:#222634;--shadow:none;--okbg:#17301f;--okline:#2b5a3b;--bluebg:#132233}" +
       ".problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b}.notice.ok{background:#17301f}" +
       ".msg.mine,.flow,.helpbox{border-color:#2b4a66}button.ai-btn{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}.badge.ai-label{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}" +
+      // Waiting and done badges are quiet on dark: a deep tint with light text, not a bright chip
+      ".badge.held{background:#3a2f12;color:#f0c668;border-color:#5c4a1c}.badge.ready{background:#17301f;color:#7fd3a3;border-color:#2b5a3b}" +
       // Readable text on dark (at least 4.5 to 1): links, outlined buttons, the current tab, labels and blue buttons
       "a{color:#8cc4ff}.soon{color:#8cc4ff}button.ghost,button.mic{color:#f19ab8}.nav button[aria-current=page]{color:#f19ab8}button.blue,.btn.blue,button.ai-btn.blue{background:#1f6fb2;border-color:#1f6fb2;color:#fff}" +
       // UI review 2026-11-08: lighter text links, clear selected filters, visible fields and placeholders on dark cards
@@ -529,17 +555,17 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
     "@media (max-width:340px){.nl-bar button{font-size:11px}.dela.nl .top .brand span{display:none}}" +
     ".dela.nl.kb .nl-bar{display:none}.dela.nl.kb .nl-main{padding-bottom:16px}" +
     ".nl-scrim{position:fixed;inset:0;background:rgba(12,14,20,.55);z-index:2147483000}.dela.nl.sheet .nl-bar{z-index:2147483002}" +
-    ".nl-sheet{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom));background:var(--card);border:1px solid var(--line);border-bottom:0;border-radius:16px 16px 0 0;padding:8px 12px 12px;z-index:2147483001;max-height:calc(100% - 150px);overflow-y:auto;display:flex;flex-direction:column;gap:2px}" +
+    ".nl-sheet{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom));background:var(--card);border:1px solid var(--line);border-bottom:0;border-radius:16px 16px 0 0;padding:8px 12px 12px;z-index:2147483001;max-height:calc(100% - 150px);max-height:calc(100dvh - 130px - env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:2px}" +
     ".nl-sheet .nl-item{min-height:48px;color:var(--ink);font-size:16px}.nl-grab{width:36px;height:4px;border-radius:2px;background:var(--line);align-self:center;margin:4px 0 8px}" +
     ".nl-sheethead{display:flex;align-items:center;gap:8px;padding:0 0 6px 12px}.nl-sheethead b{font-size:16px;flex:1 1 auto}.nl-x{width:44px;height:44px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer}" +
     // Home in the compact workspace
-    ".hcols{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}.hcols .card{margin:0}.hstack{display:flex;flex-direction:column;gap:12px}" +
+    ".hcols{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;align-items:start}.hcols .card,.dela.nl .hcols .card{margin:0}.hstack{display:flex;flex-direction:column;gap:12px}" +
     ".hhead{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}.hhead h2{margin:0}.hgap{display:flex;flex-direction:column;gap:10px}" +
     ".hl{display:flex;flex-direction:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}" +
     ".hrow{display:flex;align-items:center;gap:12px;min-height:44px;padding:8px 14px;border:0;border-top:1px solid var(--line);border-radius:0;background:transparent;color:var(--ink);font:inherit;font-weight:400;text-align:left;width:100%;cursor:pointer}" +
     ".hrow:first-child{border-top:0}.hrow:hover{background:var(--soft)}div.hrow{cursor:default}div.hrow:hover{background:transparent}.hrow .what{flex:1 1 auto;min-width:0}.hrow .what b{display:block;font-weight:600}.hrow .sub,.hsub{font-size:13px;color:var(--muted)}" +
     ".hrow .act{color:var(--pink-ink);font-weight:600;font-size:14px;white-space:nowrap}.hrow svg.ic{color:var(--muted);width:18px;height:18px}" +
-    ".hrow .badge{white-space:nowrap}@media (max-width:899px){.hrow{flex-wrap:wrap}.hrow .what{flex:1 1 0;min-width:55%}.hrow .badge{order:5}.hrow .act{order:6;flex-basis:100%}.hrow .act+svg.ic{order:4}}" +
+    ".hrow .badge{white-space:nowrap}@media (max-width:899px){.hrow{flex-wrap:wrap}.hrow .what{flex:1 1 0;min-width:55%}.hrow .badge{order:5}.hrow .act{order:6;flex-basis:100%}.hrow .act+svg.ic{order:4}.helig .hrow .sub{display:none}.helig .hrow{padding:6px 14px;gap:4px 12px}.helig .hrow .act{flex-basis:auto;margin-left:auto}}" +
     ".hdot{width:10px;height:10px;border-radius:50%;flex:none;border:2px solid var(--muted)}.hdot.done{border-color:var(--ok);background:var(--ok)}.hdot.warn{border-color:var(--warn)}" +
     ".badge.pink{background:var(--pink);color:var(--pink-ink);border-color:transparent}a.hrow{box-sizing:border-box}.hneed .hrow:nth-child(n+2){display:none}.hall .hneed .hrow{display:flex}.dela.nl .top .nl-seg{display:none}.dela.nl .linkish{min-height:0}.hmini{font-size:13px;font-weight:700;margin:2px 0 0}.hbar{height:6px;border-radius:3px;background:var(--soft);overflow:hidden}.hbar span{display:block;height:100%;border-radius:3px;background:var(--brand)}" +
     ".hacts{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap}.hacts .blue{flex:1 1 100%;justify-content:center;text-align:center}" +
@@ -550,13 +576,22 @@ D.setTheme = function (app, mode) { if (app) app.setAttribute("data-theme", mode
     ".hask:focus-within{border-color:var(--pink-ink)}.hask .send{width:40px;height:40px;min-height:0;border-radius:8px;border:0;background:var(--brand);color:#fff;display:inline-flex;align-items:center;justify-content:center;padding:0;flex:none}" +
     ".hanswer{background:var(--soft);border-radius:10px;padding:10px 12px;font-size:15px;max-height:220px;overflow-y:auto}.hline{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}" +
     "@media (prefers-reduced-motion:reduce){.dela.nl *{transition:none !important;animation:none !important}}" +
+    // Account and security: a label and its explanation on the left, its actions on the right; stacked on a phone
+    ".acct-row{display:flex;gap:10px 16px;align-items:flex-start;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line)}.acct-what{flex:1 1 280px;min-width:0;display:flex;flex-direction:column;gap:3px}" +
+    ".acct-val{font-size:16px;overflow-wrap:anywhere}.acct-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.acct .btn{text-decoration:none}.dela .acct a.btn.ghost{background:transparent;color:var(--pink-ink);border:1px solid var(--line)}@media (max-width:600px){.acct-acts{flex:1 1 100%}.acct-acts .btn{flex:1 1 auto;text-align:center;min-height:44px;display:inline-flex;align-items:center;justify-content:center}}" +
+    // The holder for a trapped phone bar: no size or color of its own
+    ".dela.docked{min-height:0;padding:0;background:transparent}" +
+    // While More is open it is the one marked item; the page's own item goes quiet until the sheet closes
+    ".dela.nl.sheet .nl-bar button[aria-current=page]:not([aria-expanded=true]){color:var(--muted);font-weight:500}.dela.nl.sheet .nl-bar button[aria-current=page]:not([aria-expanded=true])::before{display:none}" +
+    // One input surface for Ask DELA in both themes: the box draws the edge, the field inside has none
+    ".dela .hask input,.dela .hask input:focus{border:0 !important;background:transparent !important;box-shadow:none !important;outline:0 !important}" +
     // Desktop: the sidebar replaces the bottom bar
     "@media (min-width:900px){.nl-side{display:flex;flex-direction:column;gap:2px;width:232px;flex:none;position:sticky;top:var(--dela-top,0px);align-self:flex-start;height:calc(100vh - var(--dela-top,0px));overflow-y:auto;background:var(--card);border-right:1px solid var(--line);padding:12px 10px;box-sizing:border-box}" +
     ".nl-side .nl-item{min-height:40px}.nl-side.mini{width:64px;align-items:center;overflow:visible}.nl-side.mini .nl-item{width:44px;padding:0;justify-content:center}.nl-side.mini .lbl,.nl-side.mini .cnt,.nl-side.mini .nl-brand b,.nl-side.mini .nl-brand .badge{display:none}.nl-side.mini .nl-brand{padding:4px 0 14px}" +
     ".nl-side.mini .nl-item:hover::after,.nl-side.mini .nl-item:focus-visible::after{content:attr(data-tip);position:absolute;left:54px;top:50%;transform:translateY(-50%);background:var(--ink);color:var(--card);font-size:13px;font-weight:600;padding:6px 10px;border-radius:6px;white-space:nowrap;z-index:20}" +
     ".nl-side.mini .nl-fold{border:1px solid var(--line)}.nl-bar{display:none}.nl-main{padding-bottom:40px}.dela.nl .top{min-height:56px;padding:0 24px;gap:10px}.dela.nl .top .where{display:block}.dela.nl .top .brand{display:none}" +
     ".dela.nl .top .bell{border-color:var(--line);height:38px}.dela.nl .top .bell .lbl{display:inline}.dela.nl .top .bell.icon{border-color:transparent}.dela.nl .top .bell b{top:-6px;right:-6px}.dela.nl .top .bell.icon b{top:2px;right:2px}" +
-    ".dela.nl .wrap{padding:22px 28px}.dela.nl h1{font-size:24px;margin:2px 0 14px}.dela.nl .card{padding:18px 20px;margin:16px 0}.hcols{grid-template-columns:minmax(0,1fr) 320px;gap:16px}.hcols.capped{grid-template-columns:minmax(0,760px) 320px}.hstack{gap:16px}" +
+    ".dela.nl .wrap{padding:22px 28px}.dela.nl h1{font-size:24px;margin:2px 0 14px}.dela.nl .card{padding:18px 20px;margin:16px 0}.hcols{grid-template-columns:minmax(0,1fr) 320px;gap:20px}.hcols.capped{grid-template-columns:minmax(0,760px) 320px}.hstack{gap:20px}" +
     ".hneed .hrow:nth-child(-n+3){display:flex}.dela.nl .top .nl-seg{display:inline-flex}.hstats{grid-template-columns:repeat(4,minmax(0,1fr))}.hacts .blue{flex:none}.hask input{font-size:15px;height:36px}.hask .send{width:36px;height:36px}}",
   ].join("");
 

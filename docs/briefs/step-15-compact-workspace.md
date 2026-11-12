@@ -174,3 +174,36 @@ More sheet behavior (written on a note, built later): the page behind stays as i
 - Not changing: eligibility rules, the LinkedIn check, the 14-day availability rule, charging, payouts, admin money actions and permissions.
 
 
+
+
+## Revision 3: Stacey's review of part 1 on the site (2026-11-12)
+
+Stacey sent a list after using part 1 on her phone and desktop: keep the phone menu on screen, give every role a place to see their sign-in email and change email and password, put work before setup on Home, make the profile card accurate, and stop Ask DELA repeating setup advice.
+
+### What was checked first, and what each problem was
+| Problem | Cause | Kind |
+|---|---|---|
+| Phone menu shows at the end of the page | Not reproduced. The bar is fixed to the window in the code, in the local tests at every scroll position, and a fixed box on the real www.lawfecta.co/dela page stays on the window edge (checked 2026-11-12 with a phone-sized browser; no box around DELA is moved or filtered). A full-page screenshot draws a fixed bar once, at the end, which looks the same. Hardened anyway. | Layout, unconfirmed |
+| "Back to top" square on More | The website's own `.scrollup` button (fixed, bottom 30px, right 30px, above everything). | Host page |
+| No place for email or password | Sign-in belongs to the Lawfecta website (Brilliant Directories). DELA gets the email in the sign-in pass and stores no password. Nothing in DELA showed the email or linked to the website's pages. The login page offers a password and "Sign in with Google". | Missing navigation |
+| "0 of 12 complete" with only two rows | A profile never saved reports "everything" as missing; Home had no list for that case. The 12 are the setting profile.required.freelancer: first name, last name, headline, summary, practice areas, services, experience, software, time zone, capacity, LinkedIn address, the conduct acknowledgment. The LinkedIn check and availability are not among them. | Inconsistent state |
+| Active work next to "0 of 12" on Stacey's account | Two test jobs prepared in the database on 2026-11-06 for her account, which has no profile. A real member can also have work in hand with an incomplete profile after a required detail is added later. Legitimate; Home must not contradict itself. | Data |
+| Agreement to sign under the setup card | Home put the profile card first whenever the profile was incomplete. | Ordering rule |
+| Ask DELA repeats setup advice | The guide's next-step message and its first button ("Finish my profile") were shown inside the Ask DELA card. | Duplicate content |
+
+### What was built
+- **Phone bar.** Still fixed to the window. DELA now measures where the bar really is after every draw, scroll and resize; if it is not on the window's bottom edge (a host page that traps fixed boxes), the bar, the More sheet and its shade move to DELA's own holder on the page body. Tested by trapping it on purpose. The website's "back to top" square is hidden under 900px on the DELA page.
+- **Keyboard rule.** While a text box has focus on a phone the bar is hidden; it returns when typing ends, and when the on-screen keyboard closes with the box still in focus (visual viewport).
+- **More.** A modal: the page behind cannot scroll or be used (inert), the place on the page is kept, focus goes to the heading and back to More, Tab stays inside, Escape, the X, a tap outside and More all close it. The bottom bar stays usable: More is the one marked item while open, and another destination closes the sheet and goes there. The sheet scrolls inside itself.
+- **Account and security.** One shared card (`D.accountCard`): sign-in email, "Change email", "Change password", "Forgot password", and the Google note with a link to Google's security page. Reached from the account menu ("Account and security"), Settings (first card, so also phone More, Settings), and the admin top bar ("My account"). The page addresses are settings (account.change_email_path, account.change_password_path, account.forgot_password_path, account.google_sign_in; migration 0095); only a path on this site is accepted.
+- **Home order.** Needs your attention, then Your work, then the profile card, when anything waits or work is in hand; the profile card leads otherwise. Attention is ranked: a failed payment, then the nearest real deadline.
+- **Profile card.** "N of 12 details complete" from saved data, the next detail (three on desktop), "View all N remaining details", "Continue setup", "Help me complete my profile" (asks DELA in the Home card). Under "Also needed before new invitations": "Verification: LinkedIn check" (Not submitted with "Submit LinkedIn profile", Review pending, Verified, Action needed with "Send it again") and "Availability" with its state and next date. With work in hand it adds "Work you already have is not affected."
+- **Ask DELA on Home.** Heading, one input, send, the free answers line (and DELA actions for attorneys), "Open Ask DELA", "Suggestion settings". No setup paragraph, no second profile button. Pausing suggestions lives in Settings. Only a new gig alert is still announced in the card. One answer at a time, capped in height.
+- **Look.** Section gaps 20px on desktop without the doubled margin, one input surface for Ask DELA in dark, quieter waiting and done badges in dark.
+
+### Not possible without the website (Brilliant Directories), and open questions
+1. **Verified email change.** The spec asks that a new address is verified before it replaces the old one, with pending, expired and canceled states, and a notice to the old address. Brilliant Directories changes the address when the member saves the Contact Details form; DELA found no verification step in its help pages. DELA therefore shows no pending state. Stacey decides: accept the website's behavior for the pilot, or ask Brilliant Directories support whether email-change verification can be turned on.
+2. **Email verified or not.** The sign-in pass carries no "verified" flag, so DELA does not show one.
+3. **Password or Google.** DELA cannot tell which way a member signs in, so the card explains both.
+4. **The two page addresses** /account/contact and /account/password are the Brilliant Directories defaults; signed out, every /account page redirects to the login, so Claude could not open them. Stacey clicks each button once; if one is wrong, the setting is corrected (no new code).
+5. **The phone menu report.** If the bar still shows only at the end of the page on her phone after this version, a screen recording of scrolling will show what the page does.

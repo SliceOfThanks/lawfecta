@@ -47,17 +47,23 @@ async function makeMember(bd, side, plan, name) {
 
 (async () => {
   const browser = await chromium.launch();
-  let s, p, t;
+  let s, p, t, restore = null;
   try {
     await sql("update feature_switches set state = 'everyone' where key in ('onboarding_widget', 'gig_alerts', 'flex_gigs', 'engagements', 'profiles', 'talent_search', 'playbook_library', 'ai_generation', 'gig_chat', 'appearance_choice')");
     await sql("update feature_switches set state = 'off' where key = 'new_layout'");
+    // The LinkedIn check is part of what this suite shows; an earlier suite may have turned the requirement off
+    const liBefore = (await sql("select value::text v from settings where key = 'verify.freelancer_linkedin'"))[0].v;
+    await sql("update settings set value = 'true'::jsonb where key = 'verify.freelancer_linkedin'");
+    restore = () => sql("update settings set value = '" + liBefore + "'::jsonb where key = 'verify.freelancer_linkedin'");
     await makeMember(NEW, "freelancer", "fl_free", "Nia Newcomer");
     await makeMember(ATT, "attorney", "att_pro", "Ada Attorney");
     await makeMember(READY, "freelancer", "fl_plus", "Rae Ready");
     await sql(`insert into member_profiles (person_id, side, body, missing, score) values (${person(NEW)}, 'freelancer', '{"first_name":"Nia","last_name":"Newcomer"}', '{headline,summary,practice_areas,services,experience}', 58)
       on conflict (person_id, side) do update set missing = '{headline,summary,practice_areas,services,experience}', score = 58; select dela_profile_refresh(${person(NEW)}, 'freelancer')`);
     await sql(`insert into member_profiles (person_id, side, body, missing, score, availability, availability_confirmed_at) values (${person(READY)}, 'freelancer', '{"first_name":"Rae","last_name":"Ready"}', '{}', 100, 'available', now())
-      on conflict (person_id, side) do update set missing = '{}', score = 100, availability = 'available', availability_confirmed_at = now(); select dela_profile_refresh(${person(READY)}, 'freelancer')`);
+      on conflict (person_id, side) do update set missing = '{}', score = 100, availability = 'available', availability_confirmed_at = now();
+      insert into linkedin_checks (person_id, url, status) select ${person(READY)}, 'https://www.linkedin.com/in/rae-ready', 'verified' where not exists (select 1 from linkedin_checks where person_id = ${person(READY)});
+      select dela_profile_refresh(${person(READY)}, 'freelancer')`);
 
     // ---------- With the switch off DELA looks as before ----------
     s = await open(browser, NEW, "&tab=home", 1280, 900);
@@ -69,7 +75,9 @@ async function makeMember(bd, side, plan, name) {
     s = await open(browser, NEW, "&tab=home", 390, 844);
     p = s.page;
     t = await waitFor(p, "Complete your profile");
-    ok(t.includes("7 of 12 complete") && t.includes("Before attorneys can invite you") && t.includes("Continue setup") && !t.includes("What DELA will do for you"), "phone: the profile box counts what is complete and names the checks before invitations");
+    ok(t.includes("7 of 12 details complete") && t.includes("Also needed before new invitations") && t.includes("Verification: LinkedIn check") && t.includes("Continue setup") && !t.includes("What DELA will do for you"), "phone: the profile box counts the details and keeps verification and availability apart");
+    ok(t.includes("Not submitted") && t.includes("Submit LinkedIn profile"), "phone: the LinkedIn check shows its real state and the one action there is");
+    ok(!t.includes("Pause suggestions") && !t.includes("Finish my profile") && !t.includes("not started yet"), "phone: Ask DELA on Home has no setup advice, no second profile button and no Pause link");
     ok(t.includes("Availability") && t.includes("Not confirmed yet"), "phone: availability shows as its own requirement, with its real state");
     const bar = await inShadow(p, (root) => [...root.querySelectorAll(".nl-bar button")].map((b) => b.innerText.trim()));
     ok(JSON.stringify(bar) === JSON.stringify(["Home", "Work", "Ask DELA", "Earnings", "More"]), "phone: five labeled items at the bottom: " + bar.join(", "));
@@ -85,16 +93,24 @@ async function makeMember(bd, side, plan, name) {
     // One requirement by default; the rest on request
     const shown = () => inShadow(p, (root) => [...root.querySelectorAll(".hneed .hrow")].filter((x) => x.offsetParent !== null).length);
     ok(await shown() === 1, "phone: one remaining requirement shows by default");
-    await dela(p).getByRole("button", { name: "View remaining requirements" }).click();
-    ok(await shown() === 5, "phone: View remaining requirements shows all five");
+    await dela(p).getByRole("button", { name: "View all 5 remaining details" }).click();
+    ok(await shown() === 5, "phone: View all 5 remaining details shows all five");
     // More: opens over the page, names the workspace, closes with Escape, focus returns
     const more = dela(p).getByRole("button", { name: "More", exact: true });
     await more.click();
     t = await waitFor(p, "Freelancer workspace");
     ok(t.includes("Settings") && t.includes("Help") && t.includes("Sign out") && t.includes("Complete your profile"), "phone: More lists the other pages and the page behind is still there");
     ok(await more.getAttribute("aria-expanded") === "true" && await dela(p).getByRole("button", { name: "Close menu" }).count() === 1, "phone: More shows as open and has a close button");
+    // The sheet is a modal: the page behind cannot scroll or be used, More is the one marked item, the place is kept
+    const modal = await inShadow(p, (root) => ({ lock: document.documentElement.style.overflow, inert: root.querySelector(".nl-main").hasAttribute("inert"),
+      homeColor: getComputedStyle(root.querySelector(".nl-bar button[aria-current=page]")).color, moreColor: getComputedStyle(root.querySelector(".nl-bar button[aria-expanded=true]")).color,
+      focus: root.activeElement && root.activeElement.innerText.trim(), sheetBottom: root.querySelector(".nl-sheet").getBoundingClientRect().bottom, barTop: root.querySelector(".nl-bar").getBoundingClientRect().top }));
+    ok(modal.lock === "hidden" && modal.inert, "phone: with More open the page behind cannot scroll and cannot be used");
+    ok(modal.homeColor !== modal.moreColor, "phone: with More open, More is the one marked item (Home goes quiet)");
+    ok(modal.focus === "Freelancer workspace" && Math.abs(modal.sheetBottom - modal.barTop) <= 1, "phone: focus is on the sheet's heading and the sheet sits on the bar");
     await p.keyboard.press("Escape");
     ok(await inShadow(p, (root) => !root.querySelector(".nl-sheet") && root.activeElement && root.activeElement.innerText.trim() === "More"), "phone: Escape closes More and focus returns to it");
+    ok(await inShadow(p, (root) => document.documentElement.style.overflow !== "hidden" && !root.querySelector(".nl-main").hasAttribute("inert")), "phone: after closing, the page scrolls and works again");
     await more.click();
     await dela(p).getByRole("button", { name: "Help", exact: true }).click();
     t = await waitFor(p, "Contact the Lawfecta Team");
@@ -102,15 +118,15 @@ async function makeMember(bd, side, plan, name) {
     // A requirement row opens its part of the profile
     await dela(p).getByRole("button", { name: "Home", exact: true }).click();
     await waitFor(p, "Complete your profile");
-    await dela(p).getByRole("button", { name: "LinkedIn check" }).click().catch(() => null);
-    t = await text(p);
-    if (!t.includes("Profile sections")) { await dela(p).getByRole("button", { name: "Continue setup" }).click(); }
+    await dela(p).getByRole("button", { name: "Submit LinkedIn profile" }).click();
     await waitFor(p, "Your profile");
     ok(p.url().includes("tab=profile"), "phone: a requirement opens the Profile page");
+    await p.waitForTimeout(400);
+    ok(await inShadow(p, (root) => getComputedStyle(root.querySelector(".nl-bar")).display !== "none"), "phone: opening a profile section does not hide the bar (no keyboard came up)");
     // Typing: the bottom bar steps aside
     await dela(p).getByRole("button", { name: "Home", exact: true }).click();
     await waitFor(p, "free answer");
-    await dela(p).getByLabel("Ask DELA a question").focus();
+    await dela(p).getByLabel("Ask DELA a question").click();
     ok(await inShadow(p, (root) => root.querySelector(".dela").classList.contains("kb") && getComputedStyle(root.querySelector(".nl-bar")).display === "none"), "phone: while typing to Ask DELA the bottom bar is hidden");
     await dela(p).getByLabel("Ask DELA a question").blur();
     await p.waitForTimeout(200);
@@ -120,6 +136,67 @@ async function makeMember(bd, side, plan, name) {
     await p.waitForTimeout(200);
     ok(await inShadow(p, (root) => { const last = [...root.querySelectorAll(".nl-main .wrap > *")].pop().getBoundingClientRect(); return last.bottom <= root.querySelector(".nl-bar").getBoundingClientRect().top + 1; }), "phone: the last thing on the page is above the bottom bar");
     for (const w of [320, 375, 414, 768]) { await p.setViewportSize({ width: w, height: 844 }); await p.waitForTimeout(200); ok(await fits(p), "no sideways scrolling at " + w + " pixels"); }
+    // Stacey 2026-11-12: the bar stays on the bottom edge of the window at every scroll position, on a long page, at
+    // every phone width and in landscape; More keeps the place
+    await dela(p).getByRole("button", { name: "More", exact: true }).click().catch(() => null);
+    await p.keyboard.press("Escape");
+    const barAt = () => inShadow(p, (root) => { const r = root.querySelector(".nl-bar").getBoundingClientRect(); return { bottom: Math.round(r.bottom), top: Math.round(r.top), vh: window.innerHeight, y: Math.round(window.scrollY), max: document.documentElement.scrollHeight - window.innerHeight }; });
+    for (const size of [[320, 640], [375, 667], [390, 844], [414, 896], [844, 390]]) {
+      await p.setViewportSize({ width: size[0], height: size[1] });
+      await p.goto(`${BASE}/page/DELA-App?uid=${NEW}&plan=&tab=profile`);
+      await waitFor(p, "Your profile");
+      const seen = [];
+      for (const part of [0, 0.5, 1]) {
+        await p.evaluate((f) => window.scrollTo(0, Math.round((document.documentElement.scrollHeight - window.innerHeight) * f)), part);
+        await p.waitForTimeout(150);
+        seen.push(await barAt());
+      }
+      ok(seen[2].max > 300 && seen.every((b) => b.bottom === b.vh && b.top >= b.vh - 80), "the bar is on the bottom edge at the top, middle and end of a long page at " + size.join(" x ") + ": " + JSON.stringify(seen.map((b) => [b.y, b.bottom])));
+      ok(await inShadow(p, (root) => { const last = [...root.querySelectorAll(".nl-main .wrap > *")].pop().getBoundingClientRect(); return last.bottom <= root.querySelector(".nl-bar").getBoundingClientRect().top + 1; }), "the end of the page is above the bar at " + size.join(" x "));
+    }
+    await p.setViewportSize({ width: 390, height: 844 });
+    await p.evaluate(() => window.scrollTo(0, 500));
+    await p.waitForTimeout(150);
+    await dela(p).getByRole("button", { name: "More", exact: true }).click();
+    await waitFor(p, "Freelancer workspace");
+    await dela(p).getByRole("button", { name: "Close menu" }).click();
+    ok(await p.evaluate(() => Math.round(window.scrollY)) === 500, "More opens and closes without losing the place on the page");
+    await p.screenshot({ path: path.join(SHOTS, "workspace-phone-halfway.png") });
+    // The site's own "back to top" square is hidden on a phone (it sat on More)
+    ok(await p.evaluate(() => { const d = document.createElement("a"); d.className = "scrollup"; d.style.display = "block"; document.body.appendChild(d); const v = getComputedStyle(d).display; d.remove(); return v; }) === "none", "phone: the website's back to top square is hidden, so nothing sits on More");
+    // A host page that traps "fixed" (a moved box around DELA): the bar is found off the edge and moves to DELA's own
+    // holder on the page body, where it is on the bottom edge again, and More still works there
+    await p.evaluate(() => { document.querySelector("#dela-app").style.transform = "translateZ(0)"; window.scrollTo(0, 0); });
+    await p.evaluate(() => window.scrollTo(0, 300));
+    await p.waitForTimeout(400);
+    const docked = await p.evaluate(() => { const d = document.querySelector(".dela-dock"); if (!d) return null; const r = d.shadowRoot.querySelector(".nl-bar").getBoundingClientRect(); return { bottom: Math.round(r.bottom), vh: window.innerHeight, inPage: !!document.querySelector("#dela-app .dela-host").shadowRoot.querySelector(".nl-bar") }; });
+    ok(docked && docked.bottom === docked.vh && !docked.inPage, "a trapped bar moves to its own holder and is on the bottom edge again: " + JSON.stringify(docked));
+    await p.locator(".dela-dock").getByRole("button", { name: "More", exact: true }).click();
+    ok(await p.locator(".dela-dock").getByRole("dialog", { name: "More" }).isVisible(), "trapped: More opens from the holder");
+    await p.keyboard.press("Escape");
+    ok(await p.locator(".dela-dock").getByRole("dialog", { name: "More" }).count() === 0, "trapped: Escape closes it");
+    await p.locator(".dela-dock").getByRole("button", { name: "Earnings", exact: true }).click();
+    await waitFor(p, "Earnings");
+    ok(p.url().includes("tab=earnings") && await p.evaluate(() => document.querySelector(".dela-dock").shadowRoot.querySelectorAll(".nl-bar").length) === 1, "trapped: the bar still changes pages, and there is one bar");
+    await s.ctx.close();
+
+    // ---------- Account and security ----------
+    s = await open(browser, NEW, "&tab=home", 390, 844);
+    p = s.page;
+    await waitFor(p, "Complete your profile");
+    await dela(p).getByRole("button", { name: "Account menu" }).click();
+    await dela(p).getByRole("menuitem", { name: "Account and security" }).click();
+    t = await waitFor(p, "Sign-in email");
+    ok(t.includes(NEW + "@test.invalid") && t.includes("DELA never sees or stores your password"), "account: the sign-in email shows, and the card says DELA holds no password");
+    const links = await inShadow(p, (root) => [...root.querySelectorAll("#set-account a")].map((a) => a.innerText.trim() + " > " + a.getAttribute("href") + " > " + a.target));
+    ok(links.join(" | ") === "Change email > /account/contact > _blank | Change password > /account/password > _blank | Forgot password > /login/retrieval > _blank | Google account security > https://myaccount.google.com/security > _blank", "account: Change email, Change password, Forgot password and the Google link open the right pages: " + links.join(" | "));
+    ok(await inShadow(p, (root) => !root.querySelector("#set-account input")) && await fits(p), "account: no password or email box in DELA (the website holds them), and no sideways scrolling");
+    await p.screenshot({ path: path.join(SHOTS, "workspace-account-phone.png") });
+    await sql("update settings set value = '\"javascript:alert(1)\"'::jsonb where key = 'account.change_password_path'");
+    await p.reload();
+    await waitFor(p, "Sign-in email");
+    ok(await inShadow(p, (root) => ![...root.querySelectorAll("#set-account a")].some((a) => a.innerText.trim() === "Change password")), "account: a page address that is not a path on this site is left out");
+    await sql("update settings set value = '\"/account/password\"'::jsonb where key = 'account.change_password_path'");
     await s.ctx.close();
 
     // ---------- The same freelancer on a desktop ----------
@@ -147,6 +224,8 @@ async function makeMember(bd, side, plan, name) {
     await dela(p).getByRole("button", { name: "Settings", exact: true }).click();
     t = await waitFor(p, "Suggestions and alerts");
     ok(t.includes("Appearance") && t.includes("Pause suggestions") && t.includes("New gig alerts"), "Settings holds Appearance, Pause suggestions and the gig alert choices");
+    ok(t.indexOf("Account and security") >= 0 && t.indexOf("Account and security") < t.indexOf("Appearance"), "Settings starts with Account and security");
+    await p.screenshot({ path: path.join(SHOTS, "workspace-account-desktop.png") });
     await dela(p).getByRole("group", { name: "Appearance" }).getByRole("button", { name: "Dark" }).click();
     await p.waitForTimeout(500);
     ok(await inShadow(p, (root) => getComputedStyle(root.querySelector(".nl-side")).backgroundColor) === "rgb(26, 29, 40)", "dark: the sidebar follows the Appearance choice");
@@ -167,6 +246,56 @@ async function makeMember(bd, side, plan, name) {
     ok(t.includes("Confirm availability") && !t.includes("Attorneys can invite you."), "availability out of date: Home says so, offers Confirm availability, and no longer says they can be invited");
     await s.ctx.close();
 
+    // ---------- Work in hand and a profile never saved: commitments first, and the twelve details are named ----------
+    await makeMember(5103, "freelancer", "fl_free", "Wes Working");
+    s = await open(browser, 5103, "&tab=home", 1280, 900);
+    p = s.page;
+    t = await waitFor(p, "Complete your profile");
+    ok(t.includes("0 of 12 details complete") && t.includes("View all 12 remaining details") && t.includes("First name"), "never-saved profile: 0 of 12, with the twelve details listed");
+    ok(t.indexOf("Complete your profile") < t.indexOf("Work opportunities"), "no work in hand: the profile card leads");
+    await s.ctx.close();
+    const ctx2 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+    p = await ctx2.newPage();
+    await p.route("https://cdn.jsdelivr.net/**", (route) => { const u = new URL(route.request().url()); const f = u.pathname.split("@")[1].split("/").slice(1).join("/"); route.fulfill({ path: path.join(ROOT, f) }); });
+    await p.route("https://fonts.googleapis.com/**", (r) => r.abort());
+    // The same member with an agreement to sign and a milestone due sooner (the server's own shapes, added to its answer)
+    await p.route("**/api/**", async (route) => {
+      const res = await route.fetch();
+      let j; try { j = await res.json(); } catch (e) { return route.fulfill({ response: res }); }
+      if (j && j.me && j.me.home) {
+        j.me.home.active_projects = 2;
+        j.me.home.attention = [{ kind: "sign", gig_id: "00000000-0000-0000-0000-000000000001", gig_title: "Prepared job", sign_by: "2026-12-20T00:00:00Z" },
+          { kind: "milestone", gig_id: "00000000-0000-0000-0000-000000000002", gig_title: "Sooner job", seq: 1, title: "Draft", due_date: "2026-12-01", amount_cents: 15000, status: "funded" }];
+        j.me.home.projects = [{ gig_id: "00000000-0000-0000-0000-000000000001", gig_title: "Prepared job", status: "signing", other_name: "Example Legal" }];
+      }
+      return route.fulfill({ response: res, json: j });
+    });
+    await p.goto(`${BASE}/page/DELA-App?uid=5103&plan=&tab=home`);
+    t = await waitFor(p, "Needs your attention");
+    ok(t.indexOf("Needs your attention") < t.indexOf("Your work") && t.indexOf("Your work") < t.indexOf("Complete your profile"), "work in hand: Needs your attention, then Your work, then the profile card");
+    ok(t.indexOf("Milestone 1: Draft") < t.indexOf("Agreement to sign") && t.includes("Review and sign") && t.includes("View milestone"), "attention is ranked by the nearest deadline, with specific actions");
+    ok(t.includes("Work you already have is not affected.") && !t.includes("Invitations start when"), "work in hand with an incomplete profile: no contradicting message");
+    await p.screenshot({ path: path.join(SHOTS, "workspace-desktop-work-first.png") });
+    await ctx2.close();
+
+    // ---------- The Lawfecta Team: My account in the admin area ----------
+    await sql(`insert into people (bd_member_id, display_name, email) values (5104, 'Tess Team', 'tess@test.invalid') on conflict (bd_member_id) do nothing;
+      insert into staff_roles (person_id, role) select id, 'owner' from people where bd_member_id = 5104 and not exists (select 1 from staff_roles s where s.person_id = people.id); select 1`);
+    {
+      const ctx3 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+      const ap = await ctx3.newPage();
+      await ap.route("https://cdn.jsdelivr.net/**", (route) => { const u = new URL(route.request().url()); const f = u.pathname.split("@")[1].split("/").slice(1).join("/"); route.fulfill({ path: path.join(ROOT, f) }); });
+      await ap.route("https://fonts.googleapis.com/**", (r) => r.abort());
+      await ap.goto(`${BASE}/page/DELA-Admin?uid=5104&plan=`);
+      await ap.locator(".dela-host").getByRole("button", { name: "My account" }).click({ timeout: 15000 });
+      await ap.waitForFunction(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText.includes("Sign-in email"));
+      const at = await ap.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText);
+      const aval = await ap.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelector("#set-account .acct-val").innerText);
+      ok(aval.includes("@") && at.includes("Change password") && at.includes("It changes nothing for other members."), "admin: My account shows the team member's own sign-in email and where to change it: " + aval);
+      await ap.screenshot({ path: path.join(SHOTS, "workspace-admin-account.png") });
+      await ctx3.close();
+    }
+
     // ---------- The attorney ----------
     s = await open(browser, ATT, "&tab=home", 1280, 900);
     p = s.page;
@@ -186,6 +315,7 @@ async function makeMember(bd, side, plan, name) {
     process.exitCode = 1;
   } finally {
     await sql("update feature_switches set state = 'off' where key = 'new_layout'").catch(() => null);
+    if (restore) await restore().catch(() => null);
     await browser.close();
   }
 })();

@@ -1,6 +1,6 @@
 # DELA Decision Sheet
 
-Version DS-1.1, updated 2026-11-10. Built from config/decisions.json.
+Version DS-1.1, updated 2026-11-12. Built from config/decisions.json.
 
 How to use this sheet: for each line, write Approve, or write the number you want instead. Every value can be changed later in the DELA admin area, and every change is saved with its history.
 
@@ -193,6 +193,10 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Using transcripts to improve DELA | separate opt in | Needs a gate | C-02 and Stacey 2026-10-25 | |
 | Talk of taking work off the platform. No automatic penalty. | flag for lawfecta team review | Confirmed | Stacey 2026-10-25 | |
 | Who sends DELA email | brevo | Confirmed | Stacey 2026-11-10 (undecided numbers answers); was: Stacey 2026-10-25; Claude is checking whether BD can be triggered from Supabase | |
+| Page on the Lawfecta website where a member changes the email they sign in with. DELA's Account and security card links here. Sign-in belongs to the Lawfecta website; DELA never stores a password. | /account/contact | Suggested | Claude 2026-11-12, from Brilliant Directories' member dashboard (Contact Details); Stacey confirms the page opens | |
+| Page on the Lawfecta website where a member changes their password. DELA's Account and security card links here. | /account/password | Suggested | Claude 2026-11-12, from Brilliant Directories' member dashboard (Password); Stacey confirms the page opens | |
+| Page on the Lawfecta website that emails a password reset. DELA's Account and security card links here. | /login/retrieval | Confirmed | Checked on www.lawfecta.co 2026-11-12 | |
+| The Lawfecta login page offers Sign in with Google. When true, the Account and security card says where a Google member manages their password. | Yes | Confirmed | Checked on www.lawfecta.co/login 2026-11-12 | |
 | Postal address shown at the bottom of every DELA email. U.S. email law asks for a postal address on reminder and alert emails. Those emails also carry an unsubscribe link; emails about the account, payments and signed work always arrive. | Lawfecta, 967 Kendall Dr Ste A, #271, San Bernardino, CA 92407 | Confirmed | Stacey 2026-11-11 | |
 | Who can open DELA. Change to everyone when a phase launches. | access list | Confirmed | Stacey 2026-10-25 | |
 

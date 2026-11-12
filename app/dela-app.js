@@ -41,7 +41,7 @@
     return f;
   }
 
-  function show(node) { D.clear(app); app.appendChild(node); }
+  function show(node) { D.clear(app); app.appendChild(node); if (dockEl) D.clear(dockEl); }
   function brand() { return h("span", { class: "brand" }, D.logo(root), h("span", { text: "DELA" })); }
 
   // ---------- Screens before sign in ----------
@@ -136,6 +136,7 @@
     menu = h("div", { class: "menu", role: "menu" },
       h("div", { class: "small muted", style: "padding:8px 12px", text: me.person.name }),
       me.side && (me.switches || {}).profiles ? h("button", { role: "menuitem", onclick: function () { tab = "profile"; draw(); } }, me.side === "attorney" ? "Profile and verification" : "Profile") : null,
+      me.side ? h("button", { role: "menuitem", onclick: function () { tab = "ai"; settingsJump = "set-account"; draw(); } }, "Account and security") : null,
       me.side ? h("button", { role: "menuitem", onclick: function () { tab = "ai"; draw(); } }, NL() ? "Settings" : "AI settings") : null,
       (me.staff || []).length ? h("a", { href: "/dela-admin", role: "menuitem" }, "Admin area") : null,
       appearanceItems(),
@@ -231,15 +232,64 @@
       icon(folded ? "expand" : "collapse"), h("span", { class: "lbl", text: word })));
     return s;
   }
+  // The phone bar has to sit on the bottom edge of the window at every scroll position. "Fixed" does that unless a box
+  // around DELA on the host page is moved or filtered, which makes "fixed" mean "fixed to that box" (the bar then shows
+  // only at the end of the page). DELA checks where the bar really is; if it is not on the window's edge, the bar, the
+  // More sheet and its shade move to DELA's own holder directly on the page body, where nothing can trap them.
+  var dockEl = null, trapped = false, barEl = null;
+  function syncDock() {
+    if (!dockEl) return;
+    dockEl.setAttribute("data-theme", app.getAttribute("data-theme") || "auto");
+    ["kb", "sheet"].forEach(function (c) { dockEl.classList.toggle(c, app.classList.contains(c)); });
+  }
+  function dock() {
+    if (dockEl && dockEl.isConnected) return dockEl;
+    var host = h("div", { class: "dela-host dela-dock" });
+    document.body.appendChild(host);
+    var sh = host.attachShadow ? host.attachShadow({ mode: "open" }) : host;
+    sh.appendChild(h("style", { text: D.CSS }));
+    dockEl = h("div", { class: "dela nl docked" });
+    sh.appendChild(dockEl);
+    syncDock();
+    return dockEl;
+  }
+  if (window.MutationObserver) new MutationObserver(syncDock).observe(app, { attributes: true, attributeFilter: ["class", "data-theme"] });
+  function layer() { return trapped ? dock() : app; }
+  function checkBar() {
+    if (trapped || !barEl || !barEl.isConnected || window.innerWidth >= 900 || app.classList.contains("kb")) return;
+    var r = barEl.getBoundingClientRect();
+    if (!r.height) return;
+    var off = Math.min(Math.abs(r.bottom - window.innerHeight), Math.abs(r.bottom - document.documentElement.clientHeight));
+    if (off <= 8) return;
+    trapped = true;
+    dock().appendChild(barEl);
+    if (moreOpen) { dockEl.appendChild(moreOpen.scrim); dockEl.appendChild(moreOpen.sheet); }
+    syncDock();
+  }
+  window.addEventListener("scroll", checkBar, { passive: true });
+  window.addEventListener("resize", checkBar);
+  // The Lawfecta site's own "back to top" square sits where More is. On a phone the menu is always in reach, so it is hidden.
+  function siteFix() {
+    if (document.getElementById("dela-site-fix")) return;
+    document.head.appendChild(h("style", { id: "dela-site-fix", text: "@media (max-width:899px){.scrollup{display:none !important}}" }));
+  }
   var moreOpen = null;
+  function moreButton() { return barEl ? barEl.querySelector("button[aria-haspopup]") : null; }
+  function moreKey(e) { if (e.key === "Escape" && moreOpen) { e.preventDefault(); closeMore(true); } }
   function closeMore(returnFocus) {
     if (!moreOpen) return;
-    moreOpen.scrim.remove(); moreOpen.sheet.remove(); moreOpen = null;
+    moreOpen.scrim.remove(); moreOpen.sheet.remove();
+    document.documentElement.style.overflow = moreOpen.overflow;
+    moreOpen.behind.forEach(function (n) { n.removeAttribute("inert"); n.removeAttribute("aria-hidden"); });
+    document.removeEventListener("keydown", moreKey);
+    moreOpen = null;
     app.classList.remove("sheet");
-    var b = app.querySelector(".nl-bar button[aria-haspopup]");
+    var b = moreButton();
     if (b) { b.setAttribute("aria-expanded", "false"); if (returnFocus) b.focus(); }
   }
-  // The More sheet: the page behind stays as it was, dimmed. It closes with its X, a tap outside, Escape, or More again.
+  // The More sheet is a modal: the page behind stays where it was, dimmed, and cannot be scrolled or used. It closes with
+  // its X, a tap outside, Escape, or More again; focus goes into the sheet and back to More. The bottom bar stays in use:
+  // More shows as the open item, and tapping another destination closes the sheet and goes there.
   function openMore(g) {
     if (moreOpen) { closeMore(true); return; }
     var head = h("b", { tabindex: "-1", text: WORKSPACE[me.side] || "DELA" });
@@ -255,10 +305,22 @@
     sheet.appendChild(h("div", { class: "nl-sep" }));
     sheet.appendChild(h("button", { class: "nl-item", type: "button", onclick: function () { closeMore(); signOut(); } }, icon("out"), h("span", { class: "lbl", text: "Sign out" })));
     var sc = h("div", { class: "nl-scrim", "aria-hidden": "true", onclick: function () { closeMore(true); } });
-    app.appendChild(sc); app.appendChild(sheet);
+    sc.addEventListener("touchmove", function (e) { e.preventDefault(); }, { passive: false });
+    // Tab stays inside the sheet
+    sheet.addEventListener("keydown", function (e) {
+      if (e.key !== "Tab") return;
+      var f = sheet.querySelectorAll("button"), first = f[0], last = f[f.length - 1], at = sheet.getRootNode().activeElement;
+      if (e.shiftKey && (at === first || at === head)) { e.preventDefault(); last.focus(); }
+      else if (!e.shiftKey && at === last) { e.preventDefault(); first.focus(); }
+    });
+    var behind = [].slice.call(app.querySelectorAll(".nl-main, .nl-side"));
+    behind.forEach(function (n) { n.setAttribute("inert", ""); n.setAttribute("aria-hidden", "true"); });
+    layer().appendChild(sc); layer().appendChild(sheet);
+    moreOpen = { scrim: sc, sheet: sheet, behind: behind, overflow: document.documentElement.style.overflow };
+    document.documentElement.style.overflow = "hidden";
+    document.addEventListener("keydown", moreKey);
     app.classList.add("sheet");
-    moreOpen = { scrim: sc, sheet: sheet };
-    var b = app.querySelector(".nl-bar button[aria-haspopup]");
+    var b = moreButton();
     if (b) b.setAttribute("aria-expanded", "true");
     head.focus();
   }
@@ -307,16 +369,41 @@
   // On a phone the bottom bar steps aside while the member types, so it never covers the box or its Send button
   app.addEventListener("focusin", function (e) {
     var t = e.target && e.target.tagName;
+    // Only when the member tapped into the box. DELA itself moving focus to a box (opening a profile section) brings up
+    // no keyboard, so the bar stays.
+    var lab = tapEl && tapEl.closest ? tapEl.closest("label") : null;
+    if (Date.now() - lastTap > 900 || !(tapEl === e.target || (lab && (lab.contains(e.target) || (lab.htmlFor && lab.htmlFor === e.target.id))))) return;
     if (NL() && (t === "INPUT" || t === "TEXTAREA") && e.target.type !== "checkbox" && e.target.type !== "radio" && e.target.type !== "file" && window.innerWidth < 900) app.classList.add("kb");
   });
+  var lastTap = 0, tapEl = null;
+  app.addEventListener("pointerdown", function (e) { lastTap = Date.now(); tapEl = e.composedPath ? e.composedPath()[0] : e.target; }, true);
   app.addEventListener("focusout", function () { setTimeout(function () { var a = app.getRootNode().activeElement, t = a && a.tagName; if (t !== "INPUT" && t !== "TEXTAREA") app.classList.remove("kb"); }, 60); });
+  // Keyboard rule: while the member types on a phone the bar is hidden, so the box and its button stay in view. It comes
+  // back when typing ends, and also when the on-screen keyboard is closed while the box still has focus.
+  if (window.visualViewport) {
+    var kbSeen = false;
+    window.visualViewport.addEventListener("resize", function () {
+      if (!NL() || window.innerWidth >= 900) return;
+      var small = window.visualViewport.height < window.innerHeight - 140;
+      if (small) { kbSeen = true; app.classList.add("kb"); }
+      else if (kbSeen) { kbSeen = false; app.classList.remove("kb"); }
+    });
+  }
   function shellNew(main) {
     var g = navGroups();
     syncAddress();
     var side = sidebar(g);
     sideEl = side;
     setTimeout(fitSidebar, 0);
-    return h("div", { class: "nl-frame" }, side, h("div", { class: "nl-main" }, headerNew(g), main), bottomBar(g));
+    barEl = bottomBar(g);
+    siteFix();
+    return h("div", { class: "nl-frame" }, side, h("div", { class: "nl-main" }, headerNew(g), main), barEl);
+  }
+  // After the page is drawn: a trapped bar goes to the holder; a free one is checked now and on every scroll
+  function placeBar() {
+    if (!NL()) { barEl = null; return; }
+    if (trapped && barEl) dock().appendChild(barEl);
+    else { checkBar(); setTimeout(checkBar, 250); }
   }
   // The sidebar is as tall as the part of the window below it, so Settings, Help and Collapse sidebar are always in view
   var sideEl = null;
@@ -415,48 +502,58 @@
     c.appendChild(h("div", { class: "hhead" }, h("h2", { text: title }), badge || null));
     return c;
   }
-  // The two checks that stand between a complete profile and invitations, with their real states
-  function eligibilityRows(pf) {
-    var rows = [], v = pf.verification, ready = pf.readiness;
-    if (v && v !== "not_required") {
-      rows.push(v === "verified" ? hrow({ dot: "done", title: "LinkedIn check", badge: "Verified", tone: "ready" })
-        : v === "pending" ? hrow({ dot: "warn", title: "LinkedIn check", sub: "The Lawfecta Team is checking it. Nothing more is needed from you.", badge: "Being checked" })
-        : hrow({ dot: "open", title: "LinkedIn check", sub: v === "not_started" ? "The Lawfecta Team checks that the profile is yours." : "It was not approved. You can send it again.", badge: v === "not_started" ? "Not started" : "Not approved", go: function () { goProfile("sec-verify"); } }));
-    }
-    var due = pf.availability_due_at, stale = ready === "availability_stale" || (!pf.availability_confirmed_at && pf.availability !== "unavailable");
-    rows.push(pf.availability === "unavailable" ? hrow({ dot: "warn", title: "Availability", sub: "You said you are not taking new work.", badge: "Not taking work", go: function () { goProfile("sec-availability"); } })
-      : !pf.availability_confirmed_at ? hrow({ dot: "open", title: "Availability", sub: "Confirmed every " + (pf.availability_days || 14) + " days.", badge: "Not confirmed yet", go: function () { goProfile("sec-availability"); } })
-      : stale ? hrow({ dot: "warn", title: "Availability", sub: "Last confirmed " + shortDate(pf.availability_confirmed_at) + ".", badge: "Out of date", go: function () { goProfile("sec-availability"); } })
-      : hrow({ dot: "done", title: "Availability", badge: "Until " + shortDate(due), tone: "ready", go: function () { goProfile("sec-availability"); } }));
-    return rows;
+  // What stands between a complete profile and invitations, kept apart from the profile details: the LinkedIn check
+  // (the member submits it, the Lawfecta Team reviews it by hand) and availability (confirmed again every few days)
+  function verifyRow(pf) {
+    var v = pf.verification, go = function () { goProfile("sec-verify"); };
+    if (!v || v === "not_required") return null;
+    return v === "verified" ? hrow({ dot: "done", title: "Verification: LinkedIn check", badge: "Verified", tone: "ready" })
+      : v === "pending" ? hrow({ dot: "warn", title: "Verification: LinkedIn check", sub: "The Lawfecta Team is reviewing it. Nothing more is needed from you.", badge: "Review pending" })
+      : v === "not_started" ? hrow({ dot: "open", title: "Verification: LinkedIn check", sub: "The Lawfecta Team reviews it by hand.", badge: "Not submitted", act: "Submit LinkedIn profile", go: go })
+      : hrow({ dot: "warn", title: "Verification: LinkedIn check", sub: "It was not approved. You can send it again.", badge: "Action needed", act: "Send it again", go: go });
   }
+  function availabilityRow(pf) {
+    var due = pf.availability_due_at, go = function () { goProfile("sec-availability"); };
+    var stale = pf.readiness === "availability_stale" || (!pf.availability_confirmed_at && pf.availability !== "unavailable");
+    return pf.availability === "unavailable" ? hrow({ dot: "warn", title: "Availability", sub: "You said you are not taking new work.", badge: "Not taking work", act: "Change availability", go: go })
+      : !pf.availability_confirmed_at ? hrow({ dot: "open", title: "Availability", sub: "You confirm it every " + (pf.availability_days || 14) + " days.", badge: "Not confirmed yet", act: "Confirm availability", go: go })
+      : stale ? hrow({ dot: "warn", title: "Availability", sub: "Last confirmed " + shortDate(pf.availability_confirmed_at) + ".", badge: "Out of date", act: "Confirm availability", go: go })
+      : hrow({ dot: "done", title: "Availability", sub: "Confirm again by " + shortDate(due) + ".", badge: pf.availability === "limited" ? "Some hours only" : "Available", tone: "ready", go: go });
+  }
+  function eligibilityRows(pf) { return [verifyRow(pf), availabilityRow(pf)].filter(Boolean); }
+  var homeAsk = null;
   function profileBox(hm) {
     var pf = hm.profile || {}, att = me.side === "attorney";
     if (pf.ok === false || !pf.readiness) return null;
-    var miss = (pf.missing || []).filter(function (k) { return k !== "everything"; }), labels = pf.missing_labels || [];
-    var required = hm.required || 0, none = (pf.missing || []).indexOf("everything") >= 0;
-    var done = none ? 0 : Math.max(required - miss.length, 0);
+    var miss = pf.missing || [], labels = pf.missing_labels || [];
+    var required = hm.required || 0, done = Math.max(required - miss.length, 0), busy = (hm.active_projects || 0) > 0;
     if (pf.readiness === "incomplete") {
-      var c = hcard("Complete your profile", h("span", { class: "badge pink", text: done + " of " + required + " complete" }));
+      var c = hcard("Complete your profile", h("span", { class: "badge pink", text: done + " of " + required + " details complete" }));
       var body = h("div", { class: "hgap" });
       c.appendChild(body);
       body.appendChild(h("div", { class: "hbar", role: "img", "aria-label": done + " of " + required + " profile details complete" }, h("span", { style: "width:" + (required ? Math.round(done * 100 / required) : 0) + "%" })));
       if (miss.length) {
         var list = h("div", { class: "hl hneed" });
-        miss.forEach(function (k, i) { list.appendChild(hrow({ dot: "open", title: labels[none ? i + 1 : i] || k, go: function () { goProfile(SECTION_FOR[k] || "sec-profile"); } })); });
+        miss.forEach(function (k, i) { list.appendChild(hrow({ dot: "open", title: labels[i] || k, go: function () { goProfile(SECTION_FOR[k] || "sec-profile"); } })); });
         body.appendChild(list);
-      } else if (none) body.appendChild(h("p", { class: "hsub", text: "Your profile is not started yet." }));
-      if (!att) {
-        body.appendChild(h("p", { class: "hmini", text: "Before attorneys can invite you" }));
-        body.appendChild(h("div", { class: "hl" }, eligibilityRows(pf)));
       }
       var acts = h("div", { class: "hacts" }, h("button", { class: "blue", type: "button", onclick: function () { goProfile(miss.length ? SECTION_FOR[miss[0]] || "sec-profile" : "sec-profile"); } }, "Continue setup"));
       if (miss.length > 1) {
-        var more = h("button", { class: "linkish hmore", type: "button", "aria-expanded": "false" }, "View remaining requirements");
-        more.addEventListener("click", function () { var open = c.classList.toggle("hall"); more.setAttribute("aria-expanded", String(open)); more.textContent = open ? "Show fewer" : "View remaining requirements"; });
+        var word = "View all " + miss.length + " remaining details";
+        var more = h("button", { class: "linkish hmore", type: "button", "aria-expanded": "false" }, word);
+        more.addEventListener("click", function () { var open = c.classList.toggle("hall"); more.setAttribute("aria-expanded", String(open)); more.textContent = open ? "Show fewer" : word; });
         acts.appendChild(more);
       }
+      var help = h("button", { class: "linkish", type: "button", hidden: true, onclick: function () { if (homeAsk) homeAsk("Help me complete my profile. What should I add next?"); } }, "Help me complete my profile");
+      c.helpBtn = help;
+      acts.appendChild(help);
       body.appendChild(acts);
+      if (!att) {
+        // Not profile details: a check the Lawfecta Team does, and a confirmation that repeats
+        body.appendChild(h("p", { class: "hmini", text: "Also needed before new invitations" }));
+        body.appendChild(h("div", { class: "hl helig" }, eligibilityRows(pf)));
+        if (busy) body.appendChild(h("p", { class: "hsub", text: "Work you already have is not affected." }));
+      }
       return c;
     }
     if (att || pf.readiness === "match_ready") return null;
@@ -466,14 +563,18 @@
     b.appendChild(inner);
     if (pf.readiness === "restricted") { inner.appendChild(h("p", { text: "Attorneys cannot invite you while your account is paused. Contact the Lawfecta Team." })); return b; }
     if (pf.readiness === "availability_stale") inner.appendChild(h("p", { text: "Attorneys cannot invite you until you confirm it again. Work you already have is not affected." }));
-    inner.appendChild(h("div", { class: "hl" }, [hrow({ dot: "done", title: "Profile", badge: required + " of " + required + " complete", tone: "ready" })].concat(eligibilityRows(pf))));
+    inner.appendChild(h("div", { class: "hl" }, [hrow({ dot: "done", title: "Profile", badge: required + " of " + required + " details complete", tone: "ready" })].concat(eligibilityRows(pf))));
     if (pf.readiness === "availability_stale" || pf.readiness === "unavailable") inner.appendChild(h("div", { class: "hacts" }, h("button", { class: "blue", type: "button", onclick: function () { goProfile("sec-availability"); } }, pf.readiness === "unavailable" ? "Change availability" : "Confirm availability")));
-    else if (pf.verification === "pending") inner.appendChild(h("p", { class: "hsub", text: "Invitations start when the check is done." }));
+    else if (pf.verification === "pending") inner.appendChild(h("p", { class: "hsub", text: "Invitations start when the review is done." }));
     return b;
   }
   function attentionRows(hm) {
     var att = me.side === "attorney", rows = [];
-    (hm.attention || []).forEach(function (x) {
+    var when = function (x) { var d = x.review_due_at || x.sign_by || x.due_date; return d ? Date.parse(d) : Infinity; };
+    var urgent = function (x) { return x.kind === "pay" && !x.first ? 0 : 1; };
+    (hm.attention || []).map(function (x, i) { return [x, i]; }).sort(function (a, b) {
+      return urgent(a[0]) - urgent(b[0]) || (when(a[0]) === when(b[0]) ? 0 : when(a[0]) < when(b[0]) ? -1 : 1) || a[1] - b[1];
+    }).map(function (p) { return p[0]; }).forEach(function (x) {
       if (x.kind === "review") rows.push(hrow({ title: "Review milestone " + x.seq, sub: x.gig_title + ". Delivered " + shortDate(x.delivered_at) + (x.review_due_at ? ". Review by " + shortDate(x.review_due_at) : "") + ".", act: "Review delivery", go: function () { openGig(x.gig_id); } }));
       else if (x.kind === "pay") rows.push(hrow({ title: x.first ? "Pay milestone " + (x.seq || 1) + " to start the work" : "The payment for milestone " + x.seq + " did not go through", sub: x.gig_title + ".", act: "Pay milestone", go: function () { openGig(x.gig_id); } }));
       else if (x.kind === "sign") rows.push(hrow({ title: "Agreement to sign", sub: x.gig_title + (x.sign_by ? ". Sign by " + shortDate(x.sign_by) : "") + ".", act: "Review and sign", go: function () { openGig(x.gig_id); } }));
@@ -495,7 +596,7 @@
     var alerts = !att && (me.switches || {}).gig_alerts && (me.switches || {}).onboarding_widget ? h("button", { class: "linkish", type: "button", onclick: function () { tab = "ai"; settingsJump = "set-alerts"; draw(); } }, "Manage alerts") : null;
     if (!att && !ready && !busy) {
       var w = hcard("Work opportunities", alerts ? h("span", { style: "margin-left:auto" }, alerts) : null);
-      w.appendChild(h("p", { text: pf.readiness === "incomplete" ? "Invitations start when the steps above are done." : pf.readiness === "verification_pending" ? "Invitations start when the LinkedIn check is done." : "Invitations start again once the step above is done." }));
+      w.appendChild(h("p", { text: pf.readiness === "incomplete" ? "Invitations start when your profile, the LinkedIn check and your availability are in place." : pf.readiness === "verification_pending" ? "Invitations start when the LinkedIn check is done." : "Invitations start again once the step above is done." }));
       return w;
     }
     var c = hcard(att ? "Your projects" : "Your work", alerts ? h("span", { style: "margin-left:auto" }, alerts) : null), inner = h("div", { class: "hgap" });
@@ -561,10 +662,11 @@
     function drawAsk(g) {
       D.clear(inner);
       if (!g || !g.ok || !g.on) { if (openAsk) inner.appendChild(openAsk); else c.remove(); return; }
-      if (!g.paused && g.message) {
-        var first = (g.choices || []).filter(function (x) { return x.id !== "not_for_me" && x.link; })[0];
+      // Setup advice lives in the profile card, not here. Only a new gig that fits the member is announced in this card.
+      var gigChoice = (g.choices || []).filter(function (x) { return x.gig && x.id !== "not_for_me" && x.link; })[0];
+      if (!g.paused && g.message && gigChoice) {
         inner.appendChild(h("p", { class: "hsub hsuggest", "aria-live": "polite", text: g.message }));
-        if (first) inner.appendChild(h("div", null, h("button", { class: "ghost small", type: "button", onclick: function () { mark("chose", g.step); var go = noticeAction(first.link); if (go) location.assign(go.href); } }, first.label)));
+        inner.appendChild(h("div", null, h("button", { class: "ghost small", type: "button", onclick: function () { mark("chose", g.step); var go = noticeAction(gigChoice.link); if (go) location.assign(go.href); } }, gigChoice.label)));
       }
       var q = h("input", { type: "text", maxlength: "1000", "aria-label": "Ask DELA a question", placeholder: "Ask a question..." });
       var send = h("button", { class: "send", type: "button", "aria-label": "Send" }, icon("send"));
@@ -573,6 +675,7 @@
       var left = h("p", { class: "hsub hleft", text: leftText(g.replies_left) });
       function ask() {
         var text = q.value.trim();
+        D.clear(answer);
         if (text.length < 2) { q.focus(); return; }
         send.disabled = true;
         api.post("/guide/say", { text: text, request_id: newId() }).then(function (x) {
@@ -586,29 +689,39 @@
       }
       send.addEventListener("click", ask);
       q.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); ask(); } });
-      if (g.replies_left > 0) { inner.appendChild(answer); inner.appendChild(h("div", { class: "hask" }, q, send)); }
+      if (g.replies_left > 0) {
+        inner.appendChild(h("div", { class: "hask" }, q, send)); inner.appendChild(answer);
+        homeAsk = function (text) { q.value = text; ask(); c.scrollIntoView({ block: "nearest" }); };
+        var hb = homeHelpBtn; if (hb) hb.hidden = false;
+      }
       inner.appendChild(left);
       if (att && sw.ai_generation) loadUsage().then(function (u) { if (u && u.actions && u.actions.limit !== null) left.parentNode && inner.insertBefore(h("p", { class: "hsub", text: "Planning a task uses DELA actions: " + u.actions.used + " of " + u.actions.limit + " used this month." }), left.nextSibling); });
       var links = h("div", { class: "hacts" });
-      if (openAsk) { openAsk.textContent = att ? "Plan a task to hand off" : "Open Ask DELA"; links.appendChild(openAsk); }
-      links.appendChild(h("button", { class: "linkish", type: "button", onclick: function () { mark(g.paused ? "resumed" : "paused", g.step).then(load); } }, g.paused ? "Resume suggestions" : "Pause suggestions"));
+      if (openAsk) links.appendChild(openAsk);
+      // Pausing suggestions is a preference: it lives on the Settings page, under "Suggestions and alerts"
+      links.appendChild(h("button", { class: "linkish", type: "button", onclick: function () { tab = "ai"; settingsJump = "set-alerts"; draw(); } }, g.paused ? "Suggestions are paused" : "Suggestion settings"));
       inner.appendChild(links);
     }
     function load() { api.get("/guide").then(drawAsk).catch(function () { drawAsk(null); }); }
     load();
     return c;
   }
+  var homeHelpBtn = null;
   function homeNew() {
     var hm = me.home || {}, att = me.side === "attorney", fn = D.firstName(me.person.name);
     var el = h("div", null, h("h1", { text: fn && fn !== "there" ? "Hi, " + fn : "Hi" }));
     var left = h("div", { class: "hstack" });
+    homeAsk = null;
     var pb = profileBox(hm), rows = attentionRows(hm);
+    homeHelpBtn = pb && pb.helpBtn ? pb.helpBtn : null;
     var attention = rows.length ? hcard("Needs your attention", h("span", { class: "badge pink", text: String(rows.length) })) : null;
     if (attention) attention.appendChild(h("div", { class: "hl" }, rows));
-    // A member with work in hand sees what needs them first; a new member sees the profile box first
-    if (attention && (!pb || (hm.profile || {}).readiness !== "incomplete")) { left.appendChild(attention); if (pb) left.appendChild(pb); }
-    else { if (pb) left.appendChild(pb); if (attention) left.appendChild(attention); }
-    left.appendChild(workBox(hm));
+    // Commitments first: what needs the member, then their work, then the profile. With no work in hand and nothing
+    // waiting, the profile card leads.
+    var busy = (hm.active_projects || 0) + (hm.invitations || 0) > 0;
+    if (attention) left.appendChild(attention);
+    if (attention || busy) { left.appendChild(workBox(hm)); if (pb) left.appendChild(pb); }
+    else { if (pb) left.appendChild(pb); left.appendChild(workBox(hm)); }
     var st = statusLine(hm);
     if (st) left.appendChild(st);
     left.appendChild(planLine());
@@ -1171,6 +1284,9 @@
   var settingsJump = null;
   function settingsTop() {
     var box = h("div", null), sw = me.switches || {}, ap = me.appearance || {};
+    var acct = D.accountCard(me);
+    box.appendChild(acct);
+    if (settingsJump === "set-account") { settingsJump = null; setTimeout(function () { acct.scrollIntoView({ block: "start" }); var hd = acct.querySelector("h2"); if (hd) { hd.setAttribute("tabindex", "-1"); hd.focus({ preventScroll: true }); } }, 60); }
     if (ap.on) {
       var card = h("div", { class: "card", id: "set-appearance" }, h("h2", { text: "Appearance" }), h("p", { class: "small muted", text: "How DELA looks for you, on every device you sign in on." }));
       var group = h("div", { class: "pills", role: "group", "aria-label": "Appearance" });
@@ -1236,6 +1352,7 @@
     aiEl.appendChild(h("h1", { text: NL() ? "Settings" : "AI settings" }));
     aiEl.appendChild(h("p", { class: "muted", text: "These settings are for your " + D.SIDE[me.side] + (NL() ? " workspace only." : " side only.") }));
     if (NL()) { aiEl.appendChild(settingsTop()); aiEl.appendChild(h("h2", { style: "margin-top:20px", text: "AI and messages" })); }
+    else { aiEl.appendChild(D.accountCard(me)); if (settingsJump === "set-account") settingsJump = null; }
     var c = ai.credits;
     var radios = h("div", null,
       choice("lawfecta", "Use Lawfecta's AI", c ? (c.unlimited ? "Included with your plan." : "Included with your plan: " + (c.remaining === null ? c.limit : c.remaining) + " of " + c.limit + " DELA actions left this month. DELA actions reset on the 1st of each month (Pacific time).") : "Included with your plan."),
@@ -8825,6 +8942,7 @@
     closeMore();
     app.classList.toggle("nl", NL());
     show(NL() ? shellNew(main) : h("div", null, header(), nav(), main));
+    placeBar();
   }
 
   function refresh() {

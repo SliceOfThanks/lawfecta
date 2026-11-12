@@ -183,7 +183,7 @@ async function bootstrap(ctx: Ctx): Promise<Response> {
   const agencyClient = r.me?.side === "freelancer" && r.me?.person?.id ? await rpc<Record<string, unknown> | null>(ctx, "dela_agency_client", { p_person: r.me.person.id }).catch(() => null) : null;
   const appearance = r.me?.person?.id ? await rpc<Record<string, unknown>>(ctx, "dela_appearance", { p_person: r.me.person.id }).catch(() => ({ on: false, mode: "device" })) : { on: false, mode: "device" };
   const home = r.me?.person?.id && r.me?.side ? await homeCounts(ctx, r.me.person.id, r.me.side) : null;
-  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, notice: await pageNotice(ctx, r.me), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, limits: FORM_LIMITS }, commit, version: VERSION });
+  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, notice: await pageNotice(ctx, r.me), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, account: await accountLinks(ctx), limits: FORM_LIMITS }, commit, version: VERSION });
 }
 
 // ---------- Member routes ----------
@@ -219,7 +219,7 @@ async function me(ctx: Ctx) {
   // The Home tiles' real counts (AI review 0.9.0, payments 3); null hides them if the count cannot be read
   const home = s.side ? await homeCounts(ctx, s.person_id, s.side) : null;
   const m = await rpc<Record<string, unknown>>(ctx, "dela_me", { p_person: s.person_id, p_side: s.side });
-  return json(ctx, { me: { ...m, notice: await pageNotice(ctx, m), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, limits: FORM_LIMITS } });
+  return json(ctx, { me: { ...m, notice: await pageNotice(ctx, m), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, account: await accountLinks(ctx), limits: FORM_LIMITS } });
 }
 
 async function setSide(ctx: Ctx) {
@@ -1905,8 +1905,24 @@ async function requiredFor(ctx: Ctx, side: Side): Promise<string[]> {
 // Home's counts and, for the compact workspace (step 15), the member's profile status with plain labels for what is missing
 async function homeCounts(ctx: Ctx, person: string, side: string): Promise<Record<string, unknown> | null> {
   const home = await rpc<Record<string, any>>(ctx, "dela_home_counts", { p_person: person, p_side: side }).catch(() => null);
-  if (home && home.profile && home.profile.ok !== false) home.profile = labelState(home.profile);
+  if (home && home.profile && home.profile.ok !== false) {
+    // A profile that was never saved reports "everything" as missing. Home lists the real required details instead
+    // (the setting profile.required.<side>), so "0 of 12 complete" comes with the twelve things it counts.
+    if (Array.isArray(home.profile.missing) && home.profile.missing.includes("everything")) {
+      const req = await rpc<unknown>(ctx, "dela_setting", { p_key: "profile.required." + side }).catch(() => null);
+      if (Array.isArray(req) && req.length) home.profile = { ...home.profile, missing: req.map(String), not_started: true };
+    }
+    home.profile = labelState(home.profile);
+  }
   return home;
+}
+
+// Account and security: sign-in belongs to the Lawfecta website, so DELA shows where its own pages are. A page address
+// must be a path on this site (it starts with one slash); anything else is left out.
+async function accountLinks(ctx: Ctx): Promise<Record<string, unknown>> {
+  const path = async (key: string) => { const v = String(await setting(ctx, key, "")).trim(); return /^\/[A-Za-z0-9][A-Za-z0-9\/_.?=&-]*$/.test(v) ? v : ""; };
+  return { change_email: await path("account.change_email_path"), change_password: await path("account.change_password_path"), forgot_password: await path("account.forgot_password_path"),
+    google: String(await setting(ctx, "account.google_sign_in", "false")) === "true" };
 }
 
 function labelState(st: Record<string, any> | null) {
