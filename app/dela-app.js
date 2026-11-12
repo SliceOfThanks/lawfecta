@@ -1334,12 +1334,15 @@
             sug.appendChild(h("h3", { style: "margin-top:14px", text: "New gig alerts" }));
             sug.appendChild(h("p", { class: "small muted", text: "When a gig that fits you is posted, DELA can tell you on Home, by email and in Notices. Turn off any of them." }));
             sug.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;gap:14px" }, toggle("alerts_in_guide", "On Home"), toggle("alerts_email", "By email"), toggle("alerts_notices", "In Notices")));
+            // The email choice below wins: with reminder and alert emails off, no gig alert is emailed
+            sug.appendChild(h("p", { class: "small notice", id: "alerts-email-note", hidden: emailsOff !== true, text: "Reminder and alert emails are off, so gig alerts are not emailed. Turn them on in the card \"Emails\" below." }));
           }
           if (settingsJump === "set-alerts") { settingsJump = null; sug.scrollIntoView({ block: "start" }); }
         }).catch(function () { D.clear(sug); sug.appendChild(h("h2", { text: "Suggestions and alerts" })); sug.appendChild(h("p", { class: "notice bad small", text: "These settings could not load. Reload the page to try again." })); });
       };
       load();
     }
+    box.appendChild(emailsCard());
     return box;
   }
   function helpView() {
@@ -1407,6 +1410,7 @@
         h("button", { class: "ghost small", onclick: function () { tab = "profile"; draw(); } }, "Open your profile")));
     }
     if ((me.switches || {}).member_insights) aiEl.appendChild(insightsCard());
+    if (!NL()) aiEl.appendChild(emailsCard());
     if ((me.switches || {}).gig_chat) aiEl.appendChild(prefsCard());
     aiEl.appendChild(connectionsCard());
     // Webhooks are for technical setups, so they fold closed under "Advanced" (step 8b Part C, R12)
@@ -5828,14 +5832,44 @@
     var card = h("div", { class: "card" }, h("h2", { text: "Messages" }));
     api.get("/prefs").then(function (r) {
       var cb = h("input", { type: "checkbox", checked: r.read_receipts });
-      cb.addEventListener("change", function () { api.post("/prefs", { read_receipts: cb.checked }).then(gigOk).then(function () { D.toast(app, "Saved"); }).catch(talkFail); });
+      cb.addEventListener("change", function () { api.post("/prefs", { read_receipts: cb.checked }).then(gigOk).then(function () { D.toast(app, "Saved"); }).catch(function (e) { cb.checked = !cb.checked; talkFail(e); }); });
       card.appendChild(h("label", { style: "display:flex;gap:8px;font-weight:400" }, cb, h("span", { text: "Show \"Seen\" when I read a message, and show me when others read mine. Turning it off turns it off both ways." })));
-      // Reminder and alert emails (the same choice as the unsubscribe link in those emails)
-      var em = h("input", { type: "checkbox", checked: r.optional_emails !== false });
-      em.addEventListener("change", function () { api.post("/prefs", { optional_emails: em.checked }).then(gigOk).then(function () { D.toast(app, "Saved"); }).catch(talkFail); });
-      card.appendChild(h("h3", { text: "Emails", style: "margin-top:14px" }));
-      card.appendChild(h("label", { style: "display:flex;gap:8px;font-weight:400" }, em, h("span", { text: "Email me reminders and alerts, such as new gig alerts and next-step reminders. Emails about your account, payments and signed work always arrive." })));
     }).catch(function () {});
+    return card;
+  }
+  // Emails (2026-11-13): reminder and alert emails on or off, the same choice as the unsubscribe link in those emails.
+  // Always on the Settings page, whatever else is switched on. Emails about the account, payments and signed work are
+  // not part of this choice; they always arrive.
+  var emailsOff = null;
+  function emailsCard() {
+    var card = h("div", { class: "card", id: "set-emails" }, h("h2", { text: "Emails" }), h("p", { class: "small muted", text: "Loading..." }));
+    function paint(r) {
+      D.clear(card);
+      emailsOff = r.optional_emails === false;
+      card.appendChild(h("h2", { text: "Emails" }));
+      var em = h("input", { type: "checkbox", checked: !emailsOff });
+      var state = h("p", { class: "small", role: "status", style: "margin:8px 0 0" });
+      var say = function (x) {
+        state.textContent = x.optional_emails === false
+          ? "Reminder and alert emails are off" + (x.emails_off_since ? " since " + D.date(x.emails_off_since) : "") + (x.emails_off_from === "email_link" ? ", turned off from the link in an email." : ".")
+          : "Reminder and alert emails are on.";
+      };
+      em.addEventListener("change", function () {
+        var want = em.checked;
+        em.disabled = true;
+        api.post("/prefs", { optional_emails: want }).then(function (x) {
+          em.disabled = false;
+          if (!x || x.ok === false) throw x || {};
+          emailsOff = x.optional_emails === false; say(x); D.toast(app, "Saved");
+          var note = app.querySelector("#alerts-email-note"); if (note) note.hidden = !emailsOff;
+        }).catch(function () { em.disabled = false; em.checked = !want; D.toast(app, "Not saved. Try again.", true); });
+      });
+      card.appendChild(h("label", { style: "display:flex;gap:8px;font-weight:400" }, em, h("span", { text: "Email me reminders and alerts, such as new gig alerts and next-step reminders." })));
+      card.appendChild(h("p", { class: "small muted", style: "margin:6px 0 0", text: "Emails about your account, payments and signed work always arrive. They go to your sign-in email, shown under \"Account and security\" at the top of this page." }));
+      card.appendChild(state);
+      say(r);
+    }
+    api.get("/prefs").then(paint).catch(function () { D.clear(card); card.appendChild(h("h2", { text: "Emails" })); card.appendChild(h("p", { class: "notice bad small", text: "This setting could not load. Reload the page to try again." })); });
     return card;
   }
 

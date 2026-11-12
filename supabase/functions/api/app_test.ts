@@ -441,7 +441,8 @@ Deno.test("email footer: the postal address on every email; an unsubscribe link 
     assertEquals((await call("GET", "/prefs", { session: owner })).body.optional_emails, true);
     assertEquals((await call("POST", "/public/unsubscribe", { body: { t: token } })).body.ok, true);
     assertEquals((await call("POST", "/public/unsubscribe?t=" + token, { body: {} })).body.ok, true, "a mail app's own unsubscribe button, and a second click, also answer ok");
-    assertEquals((await call("GET", "/prefs", { session: owner })).body.optional_emails, false);
+    const offNow = (await call("GET", "/prefs", { session: owner })).body;
+    assertEquals([offNow.optional_emails, offNow.emails_off_from, typeof offNow.emails_off_since], [false, "email_link", "string"], "Settings can say since when and how the emails were turned off");
     assertEquals(await notice("Another gig fits you", false), undefined, "no more alert emails");
     const held = (await pool.query("select status, error from notifications where channel = 'email' and title = 'Another gig fits you'")).rows[0];
     assertEquals([held.status, held.error], ["suppressed", "unsubscribed"]);
@@ -450,6 +451,10 @@ Deno.test("email footer: the postal address on every email; an unsubscribe link 
     await call("POST", "/prefs", { session: owner, body: { read_receipts: false } });
     const back = (await call("POST", "/prefs", { session: owner, body: { optional_emails: true } })).body;
     assertEquals([back.ok, back.optional_emails, back.read_receipts], [true, true, false]);
+    assertEquals([back.emails_off_since, back.emails_off_from], [null, null]);
+    const offHere = (await call("POST", "/prefs", { session: owner, body: { optional_emails: false } })).body;
+    assertEquals([offHere.optional_emails, offHere.emails_off_from], [false, "settings"]);
+    await call("POST", "/prefs", { session: owner, body: { optional_emails: true } });
     await call("POST", "/prefs", { session: owner, body: { read_receipts: true } });
     assert(await notice("A third gig fits you", false), "the member can turn them back on in their settings");
   } finally { await pool.query(`update settings set value = '"log"' where key = 'email.sender'`); await pool.query("delete from email_optouts"); }

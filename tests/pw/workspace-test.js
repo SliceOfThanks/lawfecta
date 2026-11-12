@@ -240,6 +240,27 @@ async function makeMember(bd, side, plan, name) {
     t = await waitFor(p, "Suggestions and alerts");
     ok(t.includes("Appearance") && t.includes("Pause suggestions") && t.includes("New gig alerts"), "Settings holds Appearance, Pause suggestions and the gig alert choices");
     ok(t.indexOf("Account and security") >= 0 && t.indexOf("Account and security") < t.indexOf("Appearance"), "Settings starts with Account and security");
+    // Emails: always on Settings (the gig chat switch is turned off here to prove it), the choice is kept, a failed save goes back
+    await sql("update feature_switches set state = 'off' where key = 'gig_chat'");
+    await p.reload();
+    t = await waitFor(p, "Reminder and alert emails are on.");
+    ok(t.indexOf("Suggestions and alerts") < t.indexOf("Emails\n") && !t.includes("Show \"Seen\""), "Settings has the Emails card after Suggestions and alerts, also with messages switched off");
+    const emailBox = dela(p).getByLabel("Email me reminders and alerts, such as new gig alerts and next-step reminders.");
+    await emailBox.uncheck();
+    t = await waitFor(p, "Reminder and alert emails are off since");
+    ok(t.includes("Reminder and alert emails are off, so gig alerts are not emailed."), "Emails off: the gig alert choices say that alerts are not emailed");
+    await p.reload();
+    await waitFor(p, "Reminder and alert emails are off since");
+    ok(!(await dela(p).getByLabel("Email me reminders and alerts, such as new gig alerts and next-step reminders.").isChecked()), "Emails off is kept after a reload");
+    await p.route("**/api/prefs", (route) => route.request().method() === "POST" ? route.abort() : route.continue());
+    await dela(p).getByLabel("Email me reminders and alerts, such as new gig alerts and next-step reminders.").check().catch(() => null);
+    await p.waitForTimeout(600);
+    ok(!(await dela(p).getByLabel("Email me reminders and alerts, such as new gig alerts and next-step reminders.").isChecked()) && (await text(p)).includes("Reminder and alert emails are off since"), "a save that fails puts the box back");
+    await p.unroute("**/api/prefs");
+    await dela(p).getByLabel("Email me reminders and alerts, such as new gig alerts and next-step reminders.").check();
+    t = await waitFor(p, "Reminder and alert emails are on.");
+    ok(!t.includes("so gig alerts are not emailed"), "Emails on again: the note under the gig alert choices is gone");
+    await sql("update feature_switches set state = 'everyone' where key = 'gig_chat'");
     await p.screenshot({ path: path.join(SHOTS, "workspace-account-desktop.png") });
     await dela(p).getByRole("group", { name: "Appearance" }).getByRole("button", { name: "Dark" }).click();
     await p.waitForTimeout(500);

@@ -252,6 +252,7 @@
         if (r && r.ok) {
           btn.remove();
           status.appendChild(h("p", { class: "notice ok", text: "Done. You will no longer get reminder and alert emails from DELA. You will still get emails about your account, payments and signed work." }));
+          status.appendChild(h("p", { class: "small", text: "To get them again, sign in to DELA and open Settings, then the card \"Emails\": " }, h("a", { href: "/dela?tab=ai", text: "open Settings" }), "."));
         } else {
           btn.disabled = false;
           status.appendChild(h("p", { class: "notice bad", text: "This unsubscribe link did not work. Open the link from your most recent DELA email, or write to us with the form at the bottom of this page." }));
