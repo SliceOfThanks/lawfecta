@@ -4,6 +4,12 @@ Starting a new session? Read docs/SESSION_HANDOFF.md first (written 2026-11-12, 
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## First local session (2026-11-12, on Stacey's Mac)
+- Repository cloned into her Google Drive folder "Code - DELA", branch claude/step-2a-ai-keys-voice-files. Python 3.9, Node 24, npm install done (Deno 2.9.6 and Playwright with Chromium). Rules check and decisions check pass. Supabase connector signed in to "Lawfecta AI"; health "ok", environment "live", code_version 37ddf80.
+- Missing on her Mac: GitHub push login (no `gh`, no saved GitHub password; commits stay local until she signs in), and Postgres 16 with `psql` (no tests can run, so nothing is released until it is installed).
+- Site at the start of the session: 7 accounts (no self sign-up yet), 0 payments, 0 Stripe events.
+- Open item 1: ChatGPT check for the Subscription page written (docs/tests/subscription-chatgpt-prompt.md; her ready copy is in ~/Documents/Lawfecta DELA for Stacey, outside the repository). AGENT-RULES.md no longer mentions the "Test site" label, which went away when the site went live.
+
 ## THE PLAN NOW (Stacey 2026-11-10): pilot on lawfecta.co with live payments
 hirelegalhelp.com is renamed to lawfecta.co and becomes the pilot site on its current database, for 10 to 50 invited members, with live payments through Lawfecta's existing Stripe account. No test copy during the pilot. The contract goes live as drafted with the DRAFT line removed; no lawyer reviewed it (her decision, replacing the November 7 rule). The work, in order, is in docs/HANDOFF.md section 1c. The two-site rules in CLAUDE.md are to be rewritten for one site as part of that work.
 
