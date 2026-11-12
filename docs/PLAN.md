@@ -320,5 +320,6 @@ Build order after approval, all behind the switch `new_layout`:
 6. Admin sidebar with the 25 tabs in groups.
 7. Tests: layout-test.js rewritten (320 to 1440 widths, first-screen check at 390 x 844, More, fold, keyboard, zoom), guide, foundation, profiles and appearance tests updated, a switch-off run, the accessibility check in both themes.
 8. AGENT-RULES.md and the 36 prompts that repeat its page description; one ChatGPT test; then the switch on for everyone before pilot members are invited.
-Not in this step: search, "+ New", the money chart.
+9. From revision 2 of the mockups (behavior changes, each with tests): "Paid out this month" next to the all-time total (dela_home_counts, calendar month, Pacific); "Get set up" leaves the attorney menu when finished or dismissed; number tiles open filtered lists; an admin account button and admin groups that stay open; "side" renamed "workspace" in every text members read; Inbox with its count in the phone top bar; the eligibility block (LinkedIn check and Availability, with their real states) on Home.
+Not in this step: search, "+ New", the money chart, an admin date filter.
 
