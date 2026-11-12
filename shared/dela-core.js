@@ -378,10 +378,17 @@ D.openTab = function (getUrl, onFail, opts) {
         : a.forgot_password ? "DELA cannot show your password. To set a new one, click \"Reset password by email\". The Lawfecta website emails you a link, and you choose the new password there."
           // The website's reset page only opens for someone who is signed out (Stacey 2026-11-12: signed in, it lands in
           // the member dashboard), so with no page set the card gives the steps and no button.
-          : "DELA cannot show your password. To set a new one: 1. Sign out (the round button at the top right, then \"Sign out\"). 2. On the login page click \"Forgot Password? Click to Reset Password\". 3. The Lawfecta website emails you a link to choose a new password."].concat(
+          : "DELA cannot show your password. To set a new one:"].concat(
         a.google ? ["If you sign in with Google, Google keeps your password. Change it in your Google account."] : []),
       [link(a.change_password, "Change password", true), link(a.forgot_password, a.change_password ? "Forgot password" : "Reset password by email", !a.change_password),
         a.google ? link("https://myaccount.google.com/security", "Google account security", false) : null]));
+    if (!a.change_password && !a.forgot_password) {
+      var pw = card.querySelectorAll(".acct-what")[1], steps = h("ol", { class: "small muted", style: "margin:4px 0 4px 18px;padding:0" },
+        h("li", { text: "Sign out (the round button at the top right, then \"Sign out\")." }),
+        h("li", { text: "On the login page click \"Forgot Password? Click to Reset Password\"." }),
+        h("li", { text: "The Lawfecta website emails you a link to choose a new password." }));
+      if (pw) pw.insertBefore(steps, pw.children[2] || null);
+    }
     return card;
   };
 
@@ -461,6 +468,7 @@ D.openTab = function (getUrl, onFail, opts) {
     "label{display:block;font-size:14px;font-weight:700;margin:10px 0 4px}",
     ".row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}",
     ".seg{display:inline-flex;border:1px solid rgba(255,255,255,.35);border-radius:999px;overflow:hidden}.seg button{border:0;border-radius:999px;background:transparent;color:#fff;font-weight:700;padding:6px 14px;font-size:14px}.seg button[aria-pressed=true]{background:#fff;color:var(--brand)}",
+    ".sub-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:12px 0}.sub-plan{border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;background:var(--card)}.sub-plan.current{border:2px solid var(--pink-ink);background:var(--pink)}.sub-mine{align-self:flex-start}.sub-price{font-size:17px;font-weight:700;margin:0}.sub-feats{margin:6px 0;padding-left:18px;font-size:13px;flex:1 1 auto}.sub-feats li{margin:2px 0}.sub-plan .btn{align-self:flex-start;margin-top:auto}.limit-banner{background:#fff7d6;border-color:#e6c84f;color:#3d2f00}",
     ".sw-table thead th{background:var(--head,var(--pink));color:var(--ink)}.sw-band th{background:var(--head,var(--pink));color:var(--ink);padding:12px 10px;border-top:2px solid var(--line)}.sw-name{display:block;font-size:16px;font-weight:700}.sw-about{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-top:2px}.sw-table tr[hidden]{display:none}",
     "table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:700}",
     ".scroll{overflow-x:auto}",

@@ -217,7 +217,7 @@ async function makeMember(bd, side, plan, name) {
     t = await waitFor(p, "Sign-in email");
     ok(t.includes(NEW + "@test.invalid") && t.includes("DELA never sees or stores your password"), "account: the sign-in email shows, and the card says DELA holds no password");
     const links = await inShadow(p, (root) => [...root.querySelectorAll("#set-account a")].map((a) => a.innerText.trim() + " > " + a.getAttribute("href") + " > " + a.target));
-    ok(links.join(" | ") === "Google account security > https://myaccount.google.com/security > _blank" && t.includes("ask the Lawfecta Team") && t.includes("1. Sign out") && t.includes("Forgot Password? Click to Reset Password"), "account: no link into the website's member dashboard; the password is reset by email and an email change goes through the team: " + links.join(" | "));
+    ok(links.join(" | ") === "Google account security > https://myaccount.google.com/security > _blank" && t.includes("ask the Lawfecta Team") && t.includes("To set a new one:") && t.includes("Forgot Password? Click to Reset Password") && await inShadow(p, (root) => root.querySelectorAll("#set-account ol li").length === 3), "account: no link into the website's member dashboard; the password is reset by email and an email change goes through the team: " + links.join(" | "));
     ok(await inShadow(p, (root) => !root.querySelector("#set-account input")) && await fits(p), "account: no password or email box in DELA (the website holds them), and no sideways scrolling");
     await p.screenshot({ path: path.join(SHOTS, "workspace-account-phone.png") });
     await sql("update settings set value = '\"javascript:alert(1)\"'::jsonb where key = 'account.change_password_path'");
@@ -238,7 +238,7 @@ async function makeMember(bd, side, plan, name) {
     const side = await inShadow(p, (root) => ({ shown: getComputedStyle(root.querySelector(".nl-side")).display !== "none", bar: getComputedStyle(root.querySelector(".nl-bar")).display,
       items: [...root.querySelectorAll(".nl-side .nl-item")].map((b) => b.innerText.trim()), current: root.querySelector(".nl-side [aria-current=page]").innerText.trim(),
       weight: getComputedStyle(root.querySelector(".nl-side [aria-current=page]")).fontWeight, three: [...root.querySelectorAll(".hneed .hrow")].filter((x) => x.offsetParent !== null).length }));
-    ok(side.shown && side.bar === "none" && side.items.filter((x) => x !== "Agency").join(",") === "Home,Work,Ask DELA,Earnings,Profile,Settings,Help,Collapse sidebar", "desktop: the sidebar lists the pages in order: " + side.items.join(", "));
+    ok(side.shown && side.bar === "none" && side.items.filter((x) => x !== "Agency").join(",") === "Home,Work,Ask DELA,Earnings,Profile,Subscription,Settings,Help,Collapse sidebar", "desktop: the sidebar lists the pages in order: " + side.items.join(", "));
     ok(side.current === "Home" && Number(side.weight) >= 700, "desktop: the current page is marked by more than color (bold, with aria-current)");
     ok(side.three === 3, "desktop: the next three requirements show");
     ok(await inShadow(p, (root) => { const b = [...root.querySelectorAll("button.blue")].find((x) => x.innerText.trim() === "Continue setup"); return getComputedStyle(b).backgroundColor; }) === "rgb(139, 33, 70)", "desktop: the main button is burgundy");
@@ -339,6 +339,35 @@ async function makeMember(bd, side, plan, name) {
     ok(await p.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelectorAll(".hero").length) === 0 && t.includes("Your work"), "an unknown page address shows the new Home, not the old one");
     ok(t.includes("Work you already have is not affected.") && !t.includes("Invitations start when"), "work in hand with an incomplete profile: no contradicting message");
     await p.screenshot({ path: path.join(SHOTS, "workspace-desktop-work-first.png") });
+    // Step 16 (Stacey 2026-11-12): "Subscription" under Profile shows the plan, what it allows, usage, and every plan of
+    // the workspace with the member's own one marked and a button to move up or down; a banner after login when near a limit
+    await dela(p).getByRole("button", { name: "Subscription", exact: true }).click();
+    t = await waitFor(p, "All freelancer plans");
+    ok(p.url().includes("tab=subscription") && t.includes("Your current plan: Freelancer") && t.includes("Your usage") && t.includes("What your plan allows"), "Subscription: the plan, the usage and what the plan allows");
+    const plans = await inShadow(p, (root) => ({ boxes: root.querySelectorAll(".sub-plan").length, mine: [...root.querySelectorAll(".sub-plan.current")].map((x) => x.innerText).join("|"),
+      links: [...root.querySelectorAll(".sub-plan a")].map((a) => a.innerText.trim() + " > " + a.getAttribute("href") + " > " + a.target),
+      order: [...root.querySelectorAll(".nl-side .nl-item .lbl")].map((x) => x.textContent) }));
+    ok(plans.boxes === 4 && plans.mine.includes("Your current plan") && plans.links.length === 3 && plans.links.every((l) => l.endsWith("> /account/upgrade > _blank") && (l.startsWith("Upgrade to ") || l.startsWith("Downgrade to "))), "Subscription: four plans, the member's own marked, and a button to the website on each other one: " + plans.links.join(" | "));
+    ok(plans.order.indexOf("Subscription") === plans.order.indexOf("Profile") + 1, "Subscription sits right under Profile in the menu: " + plans.order.join(", "));
+    ok(await fits(p), "Subscription: no sideways scrolling");
+    await p.screenshot({ path: path.join(SHOTS, "workspace-subscription.png"), fullPage: true });
+    ok(await inShadow(p, (root) => !root.querySelector(".limit-banner")), "no limit banner while nothing is near a limit");
+    await sql("insert into quota_usage (person_id, side, feature_key, period_start, used) select id, 'freelancer', 'ai.runs', dela_period_start('month'), 100000 from people where bd_member_id = 5103 on conflict (person_id, side, feature_key, period_start) do update set used = 100000");
+    await p.goto(`${BASE}/page/DELA-App?uid=5103&plan=&tab=home`);
+    await waitFor(p, "You have reached a limit of your plan");
+    ok(await inShadow(p, (root) => { const b = root.querySelector(".limit-banner"); return b && root.querySelector(".wrap").firstElementChild === b && [...b.querySelectorAll("button")].map((x) => x.innerText.trim()).join("|") === "View subscription|Dismiss"; }), "near a limit: a banner at the top after login, with View subscription and Dismiss");
+    await dela(p).getByRole("button", { name: "Dismiss" }).click();
+    await dela(p).getByRole("button", { name: "Work", exact: true }).click();
+    await p.waitForTimeout(600);
+    ok(await inShadow(p, (root) => !root.querySelector(".limit-banner")), "Dismiss hides the banner for the rest of this login");
+    await dela(p).getByRole("button", { name: "Subscription", exact: true }).click();
+    t = await waitFor(p, "Limit reached");
+    ok(t.includes("You are close to one limit"), "Subscription marks the limit that is reached");
+    await p.evaluate(() => sessionStorage.removeItem("dela.limitbanner.off"));
+    await p.goto(`${BASE}/page/DELA-App?uid=5103&plan=&tab=home`);
+    await waitFor(p, "You have reached a limit of your plan");
+    ok(true, "at the next login the banner shows again");
+    await sql("delete from quota_usage where feature_key = 'ai.runs' and used = 100000");
     await ctx2.close();
 
     // ---------- The Lawfecta Team: My account in the admin area ----------
@@ -427,7 +456,7 @@ async function makeMember(bd, side, plan, name) {
       await ap.waitForFunction(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText.includes("Sign-in email"));
       const at = await ap.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText);
       const aval = await ap.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelector("#set-account .acct-val").innerText);
-      ok(aval.includes("@") && at.includes("To set a new one: 1. Sign out") && at.includes("It changes nothing for other members."), "admin: My account shows the team member's own sign-in email and where to change it: " + aval);
+      ok(aval.includes("@") && at.includes("To set a new one:") && at.includes("It changes nothing for other members."), "admin: My account shows the team member's own sign-in email and where to change it: " + aval);
       await ap.screenshot({ path: path.join(SHOTS, "workspace-admin-account.png") });
       await ctx3.close();
     }

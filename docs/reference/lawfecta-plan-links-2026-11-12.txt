@@ -1,0 +1,61 @@
+LAWFECTA (www.lawfecta.co) - PLAN SIGN-UP LINKS AND UPGRADE/DOWNGRADE OPTIONS
+Updated November 12, 2026
+
+All plans send members to /dela after login and after sign-up.
+
+
+FREELANCER PLANS
+
+Free
+Sign-up link: https://www.lawfecta.co/checkout/free
+Can switch to: Plus, Pro, Agency Business
+
+Plus
+Sign-up link: https://www.lawfecta.co/checkout/plus
+Can switch to: Free, Pro, Agency Business
+
+Pro
+Sign-up link: https://www.lawfecta.co/checkout/pro
+Can switch to: Free, Plus, Agency Business
+
+Agency Business
+Sign-up link: https://www.lawfecta.co/checkout/agency-business
+Can switch to: Free, Plus, Pro
+
+Pro Founding Member
+Sign-up link: https://www.lawfecta.co/checkout/pro-founding-member
+Can switch to: Free, Plus, Pro, Agency Business
+
+Agency Business Lifetime
+Sign-up link: https://www.lawfecta.co/checkout/agency-business-lifetime
+Can switch to: None
+
+
+ATTORNEY PLANS
+
+Attorney Free
+Sign-up link: https://www.lawfecta.co/checkout/attorney-free
+Can switch to: Attorney Plus, Attorney Pro, Attorney Business
+
+Attorney Plus
+Sign-up link: https://www.lawfecta.co/checkout/attorney-plus
+Can switch to: Attorney Free, Attorney Pro, Attorney Business
+
+Attorney Pro
+Sign-up link: https://www.lawfecta.co/checkout/attorney-pro
+Can switch to: Attorney Free, Attorney Plus, Attorney Business
+
+Attorney Business
+Sign-up link: https://www.lawfecta.co/checkout/attorney-business
+Can switch to: Attorney Free, Attorney Plus, Attorney Pro
+
+
+OTHER PLANS (sign-ups turned off)
+
+Claim Listing
+Sign-up link: https://www.lawfecta.co/checkout/claim-listing
+Can switch to: Free, Plus, Pro, Agency Business
+
+Admin - Blog Author
+Sign-up link: https://www.lawfecta.co/checkout/admin-blog-author
+Can switch to: None

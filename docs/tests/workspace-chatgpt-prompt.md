@@ -28,7 +28,7 @@ HOW TO WORK (read this first; it saves time and credits)
 4. If you cannot see it after scrolling to that heading: press Ctrl+F (Cmd+F on a Mac), type the name without the quotes, press Enter, and use the highlighted match. If it is still not there, take one screenshot, write FAIL for that step with what you saw, and go on to the next step. Never try more than this one other way.
 5. When a step says DELA is writing or checking, wait up to 60 seconds without clicking anything else.
 6. What every DELA page looks like in the new layout:
-   - A menu down the left side of the page, with a small picture and a name on each line. Freelancers see "Home", "Work", "Ask DELA", "Earnings", then "Profile" (and "Agency" on some accounts), and at the bottom "Settings", "Help" and "Collapse sidebar". Attorneys see "Home", "Projects", "Ask DELA", "Library", then "Talent", "Files", "Get set up", "Profile", and at the bottom "Settings", "Help" and "Collapse sidebar". The page you are on is pink with a dark red line at its left.
+   - A menu down the left side of the page, with a small picture and a name on each line. Freelancers see "Home", "Work", "Ask DELA", "Earnings", then "Profile" and "Subscription" (and "Agency" on some accounts), and at the bottom "Settings", "Help" and "Collapse sidebar". Attorneys see "Home", "Projects", "Ask DELA", "Library", then "Talent", "Files", "Get set up", "Profile", "Subscription", and at the bottom "Settings", "Help" and "Collapse sidebar". The page you are on is pink with a dark red line at its left.
    - A light bar across the top of the page, to the right of the menu: the page name and a small yellow "Test site" label on the left; on the right an "Inbox" button, a bell (Notices) and a round dark red button with your initials.
    - There is no row of tabs across the top.
    - The page is made of white boxes called cards. Each card has a bold heading at its top left. Steps say "in the card titled ...".
@@ -70,7 +70,7 @@ TEST FREELANCER (log in once)
    Find: in that card, the row "Sign-in email".
    Expect: it shows stacey+dela-freelancer@lawfecta.com, and under it a grey line that says to ask the Lawfecta Team to change it. There is no "Change email" button.
    Find: the next row, "Password".
-   Expect: a grey line with three numbered steps that starts "To set a new one: 1. Sign out", and one outlined button at the right, "Google account security". Do NOT click it.
+   Expect: the grey line "DELA cannot show your password. To set a new one:" with three numbered steps under it, and one outlined button at the right, "Google account security". Do NOT click it.
    Find: the cards below, in this order: "Appearance", then "Suggestions and alerts".
    Expect: "Suggestions and alerts" has an outlined button "Pause suggestions" (or "Resume suggestions"). Do NOT click it.
 8. Find: the round dark red button with initials at the far right of the top bar.

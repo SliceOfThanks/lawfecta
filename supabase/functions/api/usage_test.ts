@@ -67,6 +67,16 @@ Deno.test("setup", async () => {
   await pool.query("update side_profiles set org_id = $1 where person_id = $2 and side = 'attorney'", [firm, staffer.id]);
 });
 
+Deno.test("the Subscription page data: the member's plan, and the four plans of their workspace with price, fee and allowances (step 16)", async () => {
+  const r = (await call("GET", "/subscription", free.token)).body;
+  assertEquals([r.ok, r.side, r.plan_code, r.warn_pct, r.upgrade_url], [true, "attorney", "att_free", 80, "/account/upgrade"], JSON.stringify(r).slice(0, 300));
+  assertEquals(r.plans.map((p: any) => p.code), ["att_free", "att_plus", "att_pro", "att_business"]);
+  assertEquals(r.plans.filter((p: any) => p.current).map((p: any) => p.code), ["att_free"]);
+  const plus = r.plans[1];
+  assert(plus.rank === 1 && plus.monthly_cents > 0 && plus.fee_bps > 0 && plus.features.some((f: any) => f.key === "ai.runs" && f.enabled), JSON.stringify(plus).slice(0, 300));
+  assertEquals((await call("GET", "/subscription", "")).status, 401);
+});
+
 Deno.test("the new numbers: Free 3 documents, 50 credits, 1 GB; Business unlimited documents, 2,500 credits, 200 GB", async () => {
   const u = (await call("GET", "/usage", free.token)).body;
   assertEquals([u.playbooks.limit, u.actions.limit, u.storage.limit_bytes], [3, 50, 1024 * 1048576], JSON.stringify(u));
