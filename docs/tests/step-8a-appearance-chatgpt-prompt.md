@@ -1,6 +1,6 @@
 # ChatGPT test: the Appearance choice (UX Phase 4 part D)
 
-> DO NOT RUN AS IT IS (2026-11-13). This test was written for the earlier layout. In the admin area the Appearance choice moved from a drop-down in the top bar into the menu of the button with the owner's name at the top right. The new layout is tested by docs/tests/workspace-chatgpt-prompt.md. Claude rewrites this test before it is needed again.
+> Checked against the screens on 2026-11-13 (new layout).
 
 
 Claude already tested this with the real api and database: 3 api tests and 20 browser checks, including a contrast check of every piece of text on nine member and admin pages in Dark, plus all 299 api tests and all 23 browser test files. This test checks the real screens on the test site.
@@ -54,21 +54,21 @@ FREELANCER (log in once)
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
 2. Go to: https://www.lawfecta.co/dela?tab=home
-   Expect: DELA is light: a light grey page with white cards.
-   Do: click the round button with your initials at the far right of the top bar.
-   Expect: the menu shows "Appearance" in grey, then "Match my device", "✓ Light" and "Dark", above "Sign out".
+   Expect: DELA is light: a light page with white cards, a light menu on the left and a light bar at the top.
+   Do: click the round dark red button with your initials at the far right of the top bar.
+   Expect: the menu that opens shows, from the top: the name, "Profile", "Account and security", "Settings", then the grey word "Appearance" with "Match my device", "✓ Light" and "Dark" under it, and last "Sign out".
    Do: click "Dark".
-   Expect: the message "Appearance: Dark", and DELA turns dark at once (a near-black page with dark cards and light text).
+   Expect: the message "Appearance: Dark" at the bottom of the screen, and DELA turns dark at once: a near-black page with dark cards and light text, and the menu on the left and the top bar are dark too.
 
 3. Go to: https://www.lawfecta.co/dela?tab=work
-   Expect: the Work page is still dark (the choice stays when you open another page). Scroll down the page: all text, buttons and links are easy to read.
+   Expect: the Work page is still dark (the choice stays when you open another page). Scroll down the page: all text, buttons and links are easy to read, and so are the names in the menu on the left.
 
 4. Go to: https://www.lawfecta.co/dela?tab=earnings
    Expect: still dark, and easy to read.
-   Do: open the menu (your initials) and click "Light".
+   Do: click the round button with your initials at the far right of the top bar, then click "Light".
    Expect: "Appearance: Light" and DELA is light again.
 
-5. Sign out.
+5. Sign out (the round button with the initials, then "Sign out", the last line).
 
 ATTORNEY (log in once)
 
@@ -76,29 +76,37 @@ ATTORNEY (log in once)
 
 7. Go to: https://www.lawfecta.co/dela?tab=projects
    Expect: DELA is light (each person's choice is their own; the freelancer's Dark did not carry over).
-   Do: open the menu (your initials) and click "Dark".
+   Do: click the round button with your initials at the far right of the top bar, then click "Dark".
    Expect: DELA turns dark. Scroll down the Projects page: all cards, buttons and labels are easy to read.
 
 8. Go to: https://www.lawfecta.co/dela?tab=library
-   Expect: still dark and easy to read, including the table of documents and the outlined buttons.
-   Do: open the menu and click "Match my device".
+   Expect: still dark and easy to read, including the list of documents (cards or a table) and the outlined buttons.
+   Do: click the round button with your initials, then click "Match my device".
    Expect: "Appearance: Match my device", and DELA follows this browser's own setting (light or dark). Write down which one it shows.
-   Do: open the menu and click "Light".
-   Expect: DELA is light again.
+   Do: click the round button with your initials, then click "Light".
+   Expect: "Appearance: Light" and DELA is light again.
 
-9. Sign out.
+9. Sign out (the round button with the initials, then "Sign out").
 
 OWNER (log in once)
 
 10. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
 11. Go to: https://www.lawfecta.co/dela-admin
-    Find: in the dark bar at the top, a drop-down "Light" (its name is Appearance), just left of "Member view".
-    Do: choose "Dark" in it.
-    Expect: the message "Appearance saved" and the admin area turns dark. Click the tabs "Overview" and "Switches": both easy to read.
-    Find: on the Switches tab, the row "The Appearance choice (Match my device, Light, Dark) in the account menu".
-    Expect: it is set to "Access list". Do not change it.
-    Do: choose "Light" in the Appearance drop-down.
-    Expect: "Appearance saved" and the admin area is light again.
+    Find: the button "Stacey Lake (owner)" at the top right of the page.
+    Do: click it.
+    Expect: a menu with "My account", then the grey word "Appearance" with "Match my device", "✓ Light" and "Dark", then "Member view" and "Sign out".
+    Do: click "Dark".
+    Expect: the message "Appearance: Dark" and the admin area turns dark, with the menu on the left dark too.
 
-12. Sign out.
+12. Go to: https://www.lawfecta.co/dela-admin?tab=overview ("Overview" in the left menu, under the heading "MEMBERS").
+    Expect: the page is dark and easy to read.
+
+13. Go to: https://www.lawfecta.co/dela-admin?tab=switches ("Switches" in the left menu, under the heading "PLANS AND SETTINGS").
+    Expect: the page is dark and easy to read.
+    Find: in the table, the row "The Appearance choice (Match my device, Light, Dark) in the account menu" (its small grey code name is appearance_choice; press Ctrl+F and type appearance_choice if the list is long).
+    Expect: the drop-down in its "State" column shows "Access list" or "Everyone". Write which one. Do not change it.
+    Do: click "Stacey Lake (owner)" at the top right, then click "Light".
+    Expect: "Appearance: Light" and the admin area is light again.
+
+14. Sign out: click "Stacey Lake (owner)" at the top right, then "Sign out", the last line.

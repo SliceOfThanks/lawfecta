@@ -1,6 +1,6 @@
 # ChatGPT test: the DELA MVP (2026-11-09)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 One test across the MVP on the test site: the DELA guide on both sides, the new agency profile with DELA's help, DELA learning about a new firm first, delegation suggestions from a playbook, finding freelancers, agreements with milestones and fees, disputes, plan limits, and the owner's checks. Payments stay in Stripe test mode; no real money moves.
 
@@ -53,19 +53,19 @@ TEST FREELANCER, WHO RUNS AN AGENCY (log in once)
    Do: click "Build my agency profile".
    Expect: the Agency page opens.
 3. Find: the card "Agency profile" near the top of the Agency page.
-   Expect: a yellow line "Still missing:" with items such as "a headline" and "the states you serve", and a line with the team size.
+   Expect: under the heading, a grey line that says "Team of" with a number, and a notice line that starts "Still missing:" with items such as a headline and the states you serve.
 4. Do: in the box "Tell DELA about your agency" (inside the "Agency profile" card) type: Fictional test agency: four paralegals in Austin doing family law discovery responses and case file organizing for small firms. We use Clio.
-   Do: click "✦ Let DELA draft it".
+   Do: click "✦ Let DELA draft it", the button under that box.
    Expect: within 60 seconds the line "DELA filled in the boxes. Check every word, then click Save the agency profile." and the boxes "Headline", "Summary", "Practice areas", "Services", "Tools you use" and "States you serve" are filled.
-5. Do: click "Save the agency profile" at the bottom of the card.
-   Expect: a "Saved" message, and the card now says "Complete." (or names fewer missing items).
+5. Do: click the dark red "Save the agency profile" at the bottom of the card.
+   Expect: the line "Saved." near the top of the card, and the card now says "Complete." (or names fewer missing items after "Still missing:").
 6. Find: further down the Agency page, the cards "Business details" and "Team".
    Expect: both are there. Write what each says in one line.
 7. Go to: https://www.lawfecta.co/dela?tab=home
    Expect: the "Ask DELA" card (on Home, at the right; on a narrow window, below the other cards) has moved on to the next step (for example invitations or new gigs). Write the line of text at the top of that card.
 8. Go to: https://www.lawfecta.co/dela?tab=earnings
    Expect: the Earnings page opens with no error. Write the heading of the first card.
-9. Sign out.
+9. Sign out (the round button with the initials at the far right of the top bar, then "Sign out").
 
 TEST ATTORNEY (log in once)
 10. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney. Check the first line of the round initials menu says "DELA Test Attorney".
@@ -74,17 +74,20 @@ TEST ATTORNEY (log in once)
     Do: click "Compare the proposals".
     Expect: that gig opens on its proposals, each with a price and what it includes.
 12. Go to: https://www.lawfecta.co/dela?tab=library
-    Do: open any document whose status says "Approved" (click its title).
-    Find: the card "✦ Automate or delegate" on the document page (scroll down).
+    Do: if the large heading at the top says "Library" and the page shows cards two side by side, scroll to the very bottom of the page and click the underlined words "Show as a table" (the last of the underlined links there). If the heading already says "Document library", do nothing.
+    Do: in the table, click the first row whose "Type" column says "SOP" or "Workflow" and whose "Status" column says "Approved".
+    Find: the card "✦ Automate or delegate" on the document page, near the top, above the card whose heading starts "Approved version".
     Expect: the card is there, offering to find steps to automate or hand to a freelancer. If it shows a review already, write how many suggestions it lists.
 13. Go to: https://www.lawfecta.co/dela?tab=talent
-    Do: in the box "Describe the task (for ✦ Help me find a fit)" type: Fictional test: draft discovery responses for a family law case in Texas. Click "✦ Help me find a fit".
-    Expect: within 60 seconds DELA fills in the search filters (for example practice area and state). Then click "Search" and write how many freelancers are listed.
+    Find: the card "Find a freelancer" at the top of the page.
+    Do: in the box "Describe the task (for ✦ Help me find a fit)" in that card, type: Fictional test: draft discovery responses for a family law case in Texas. Click "✦ Help me find a fit" under the box.
+    Expect: within 60 seconds a grey panel with the label "AI suggestion" opens under the button, listing filters (for example "Practice area" and "State") each with a "Suggestion:" line.
+    Do: click the dark red "Use all suggestions" in that panel (if there is only one suggestion, click its "Use suggestion"). Then click the dark red "Search" in the same card and write how many freelancers are listed below it.
 14. Go to: https://www.lawfecta.co/dela?tab=projects&gig=868796e2-adfc-46ef-a923-51d433ae53b0&view=agreement
-    Expect: the signed agreement for "Test job: Dispute to open (prepared)" with its milestones, each with an amount, and the platform fee shown. At the bottom, the card "Problems, disputes and canceling".
+    Expect: the heading "Agreement, version" with a number, for "Test job: Dispute to open (prepared)". In the card "The agreement": a table under "Milestones" with an amount for each, and the platform fee under "Fees". Near the bottom of the page, the card "Problems, disputes and canceling".
 15. Go to: https://www.lawfecta.co/dela?tab=usage
     Expect: the "Usage" page lists this plan's limits (for example saved documents and DELA actions) with how much is used.
-16. Sign out.
+16. Sign out (the round button with the initials, then "Sign out").
 
 NEW ATTORNEY (log in once)
 17. Go to: https://www.lawfecta.co/login and ask me to log in as hello@legalstacey.com.
@@ -94,14 +97,16 @@ NEW ATTORNEY (log in once)
     Expect: the Library opens on the card "Your firm profile for documents".
 19. Do: in the box "Describe your firm (optional)" type: Fictional test firm: two attorneys doing family law and estate planning in Texas state courts; we use Clio and Microsoft 365.
     Do: click "✦ Help me describe my firm".
-    Expect: within 60 seconds DELA fills in "Firm size", "Practice areas" and "Jurisdictions" (and some systems).
-    Do: click "Save and continue" at the bottom of the card.
+    Expect: within 60 seconds a grey panel with the label "AI suggestion" opens under the button, with suggestions for "Firm size", "Practice areas" and "Jurisdictions" (and some systems).
+    Do: click the dark red "Use all suggestions" in that panel.
+    Expect: the boxes "Firm size", "Practice areas" and "Jurisdictions" in the card are filled.
+    Do: click the dark red "Save and continue" at the bottom of the card.
     Expect: a "Saved" message.
 20. Go to: https://www.lawfecta.co/dela?tab=home
     Expect: the line of text at the top of the "Ask DELA" card now says "Let's take one task off your desk. Based on your family law ... practice, these are good to hand off first." with three buttons that start with "Draft:" and a fourth, "Something else".
 21. Do: click the first "Draft:" button.
     Expect: the Library opens on "New document" for that task.
-22. Sign out.
+22. Sign out (the round button with the initials, then "Sign out").
 
 OWNER, ADMIN AREA (log in once)
 23. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
@@ -109,7 +114,7 @@ OWNER, ADMIN AREA (log in once)
     Find: the second card on the page, "Payment overview" (the first card is "Needs attention").
     Expect: a line in it that starts "Stripe is connected in test mode" OR "Stripe is not connected yet". Copy that line word for word into your report.
 25. Go to: https://www.lawfecta.co/dela-admin?tab=overview ("Overview" in the left menu, under the heading "MEMBERS").
-    Find: the card "DELA guide" on the Overview page (scroll down).
+    Find: the card titled "DELA guide" on the Overview page (scroll down).
     Expect: tiles with numbers, and a list of steps that includes "Tell DELA about the firm" and "Agency profile".
 26. Go to: https://www.lawfecta.co/dela-admin?tab=disputes ("Disputes" in the left menu, under the heading "PAYMENTS").
     Expect: the Disputes page opens with numbers and lists, no error.

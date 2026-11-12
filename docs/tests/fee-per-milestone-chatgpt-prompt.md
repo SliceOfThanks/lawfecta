@@ -1,6 +1,6 @@
 # ChatGPT test: the Lawfecta fee charged with each milestone payment (2026-11-11)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked 2026-11-13 (new layout). Open point: steps 2 to 10 need a fee test job that nobody has signed or paid. "Fee test: Run a Conflict Check" was used by the run of 2026-11-11, so Claude prepares a new unsigned job, puts its link in steps 2, 6 and 10, and updates the tile amounts in step 14 before this is sent again.
 
 Step 14 in Stripe's test mode (the "DELA sandbox"): no real money moves. Three logins, 14 steps. The freelancer signs, the attorney signs and pays milestone 1, the owner checks the totals.
 
@@ -56,17 +56,17 @@ TEST FREELANCER (log in once)
    - "Milestone 1 payment: Milestone $150.00, Lawfecta fee $7.50, Total $157.50"
    - "Milestone 2 payment: Milestone $150.00, Lawfecta fee $7.50, Total $157.50"
    - "The freelancer receives: $285"
-3. Find: the card "What happens next" at the top of the same page.
+3. Find: the card "What happens next", the first card on the same page, under the heading "Agreement, version 1".
    Do: in the box "Your full name" type: Test Freelancer
    Do: tick the box next to "I have read version 1 of this agreement and I sign it electronically."
    Do: click the dark red button "Sign version 1" once.
    Expect: the message "Signed. Waiting for the other signature."
-4. Sign out.
+4. Sign out (the round button with the initials at the far right of the top bar, then "Sign out").
 
 TEST ATTORNEY (log in once)
 5. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 6. Go to: https://www.lawfecta.co/dela?tab=projects&gig=86768616-59bd-4c6d-8eb6-aea6ee31f879&view=agreement
-   Find: the card "What happens next" at the top, and in it the grey box "What you are agreeing to".
+   Find: the card "What happens next", the first card under the heading "Agreement, version 1", and in it the grey box "What you are agreeing to".
    Expect: these lines in the grey box. Write each line word for word.
    - "Your total: $315.00"
    - "Payment 1: Milestone $150.00, Lawfecta fee $7.50, Total $157.50"
@@ -98,14 +98,14 @@ TEST ATTORNEY (log in once)
 11. Go to: https://www.lawfecta.co/dela?tab=projects&gig=64ed7250-64b3-4423-a4f1-e0e890da40dc&view=agreement
     Find: the card "Your payments" (scroll down, or press Ctrl+F and type Your payments).
     Expect: this older job is unchanged: one line with "$165 (includes the platform fee $15), Paid" and one line with "$150, Paid". The words "Lawfecta fee" must not appear in this card.
-12. Sign out.
+12. Sign out (the round button with the initials, then "Sign out").
 
 OWNER, ADMIN AREA (log in once)
 13. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 14. Go to: https://www.lawfecta.co/dela-admin?tab=pay ("Payments" in the left menu, under the heading "PAYMENTS").
     Find: the card "Payment overview", the second card on the page, under the card "Needs attention".
-    Expect: "Stripe is connected in test mode (no real money)". The tile "Charged" shows $472.50 (it was $315). The tile "Attorney fees" shows $22.50 (it was $15). The tile "Held now" shows $2,950 (it was $2,800). "Paid out" is still $190, "Refunded" still $100, "Freelancer fees" still $10. Write the number in every tile.
-    Do: sign out.
+    Expect: "Stripe is connected in test mode (no real money)". Under the small heading "All time": "Charged" shows $472.50 (it was $315), "Attorney fees" shows $22.50 (it was $15), "Paid out" is still $190, "Refunded" still $100, "Freelancer fees" still $10. Under the small heading "Current balance": "Held now" shows $2,950 (it was $2,800). Write every number.
+    Do: sign out (the button with the owner's name at the top right, then "Sign out").
 
 AT THE END
 Write the report as rule 10 says: one line per step, then the FAIL list, confusing messages, and anything slower than 60 seconds. Say which account is logged in at the end (it should be none). Put it all in DELA-test-report.txt and give me the download link.

@@ -2,7 +2,7 @@
 
 > Checked against the screens on 2026-11-13 (new layout).
 
-Claude already tested this with the real api and database: 8 new api tests (Ask DELA, the profile, the Files tab, the re-check of held files, the new kinds) and a browser check, plus all 311 api tests and all 23 browser test files. This test checks the real screens on the test site.
+Claude already tested this with the real api and database: 8 new api tests (Ask DELA, the profile, the Files page, the re-check of held files, the new kinds) and a browser check, plus all 311 api tests and all 23 browser test files. This test checks the real screens on the test site.
 
 The new rule is on for the test accounts only (switch client_details_allowed, access list). It stays off on Live until the lawyer's privacy review.
 
@@ -14,7 +14,7 @@ What it covers:
 
 It sends one Ask DELA message (1 DELA action from the test attorney's monthly allowance). Nothing else is saved or sent: every reminder in the gig conversation and the profile is answered with "Cancel". Each account logs in once: freelancer, then attorney, then the owner.
 
-Not in this test (Claude's tests cover them): uploads to the Files tab (ChatGPT cannot pick a file from your computer), a conversation after signing, the connector, and the release of held files.
+Not in this test (Claude's tests cover them): uploads to the Files page (ChatGPT cannot pick a file from your computer), a conversation after signing, the connector, and the release of held files.
 
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD instead.

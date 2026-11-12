@@ -1,9 +1,8 @@
 # ChatGPT test: the DELA guide (step 13)
 
-> DO NOT RUN AS IT IS (2026-11-13). This test was written for the earlier layout. The DELA guide card on Home was replaced: DELA's next step and its buttons are now at the top of the card "Ask DELA" on Home, the question box is "Ask a question..." with a send button, and "Pause suggestions" and the gig alert choices are on the Settings page under "Suggestions and alerts". The new layout is tested by docs/tests/workspace-chatgpt-prompt.md. Claude rewrites this test before it is needed again.
+> Checked against the screens on 2026-11-13 (new layout).
 
-
-Tests the new DELA guide on the test site (docs/briefs/step-13-dela-guide.md): the chatbox at the top of the Home page that already has DELA's next step written in it, its buttons, typed questions, pausing, and new gig alerts for freelancers (in the guide, by email and in Notices, each on or off). Then the owner's numbers.
+Tests the DELA guide on the test site (docs/briefs/step-13-dela-guide.md). It now lives in two places: the card "Ask DELA" on Home (DELA's next step with its buttons, and a box for typed questions) and the Settings page under "Suggestions and alerts" (pausing, and new gig alerts for freelancers: on Home, by email and in Notices, each on or off). Then the owner's numbers.
 
 Prepared by Claude on the test site before the test:
 - "Test job: Guide new gig (prepared)": a made-up gig from a made-up firm that fits the test freelancer (Family law, Uses Clio). DELA already sent the test freelancer the new gig alert, so it is in their Notices (and an email went to stacey+dela-freelancer@lawfecta.com).
@@ -52,59 +51,73 @@ HOW TO WORK (read this first; it saves time and credits)
 Steps
 
 FREELANCER (log in once)
-1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer. Then click the round button with the initials at the far right of the top bar: the first line must say "DELA Test Freelancer". If not, stop and tell me.
+1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer. Then click the round button with the initials at the far right of the top bar: the first line must say "DELA Test Freelancer". If not, stop and tell me. Click the round button again to close the menu.
 2. Go to: https://www.lawfecta.co/dela?tab=home
-   Find: the "Ask DELA" card (on Home, at the right; on a narrow window, below the other cards) at the top of the page, under the greeting.
-   Expect: the pink bubble says an attorney invited you to a gig, and that an invited proposal does not use your monthly allowance. Under it is a dark red button "See my invitations".
-3. Do: in the same card, click "New gig alerts" (near the bottom of the card) to open it.
-   Expect: three ticked boxes: "In this guide", "By email", "In Notices".
-   Do: untick "By email".
+   Find: the card titled "Ask DELA", at the top of the right column.
+   Expect: under the heading, one line from DELA that says an attorney invited you to a gig and ends "an invited proposal does not use your monthly allowance." Under it a dark red button "See my invitations".
+   Expect: below that, a box that says "Ask a question...", a dark red square button with a paper plane to its right, a grey line that ends "free answers remaining today.", and two underlined links: "Open Ask DELA" and "Suggestion settings". Write the number in the grey line.
+3. Do: in the box "Ask a question..." type: Fictional test: how do invitations work? Then click the dark red square button with the paper plane.
+   Expect: within 60 seconds DELA's answer shows in a shaded box under the question box, the question box is empty again, and the number in the grey line "free answers remaining today." is one lower than in step 2.
+4. Do: in the same box type: My client's SSN is 123-45-6789 and click the paper plane button.
+   Expect: no answer from DELA. A red message under the box says this is sensitive data (or looks like client details) and must not go in DELA. Write the message.
+5. Do: in the same card, click the underlined link "Suggestion settings" at the bottom.
+   Expect: the top bar says "Settings", the address ends with tab=ai, and the page has moved to the card "Suggestions and alerts" (the third card, after "Account and security" and "Appearance").
+   Expect: in that card, the line "DELA suggests your next step on Home. Pausing hides the suggestions for a day.", an outlined button "Pause suggestions", then the small heading "New gig alerts" with three ticked boxes: "On Home", "By email", "In Notices".
+6. Do: in the card "Suggestions and alerts", untick "By email".
    Expect: a message "Saved" at the bottom of the screen.
-   Do: tick "By email" again. Expect "Saved" again.
-4. Do: in the box "Ask the DELA guide a question" type: Fictional test: how do invitations work? Click "Ask".
-   Expect: within 60 seconds your question shows on the right, DELA's answer in a pink bubble under it, and the grey line under the box says "Free answers left today:" with a number, and "They do not use your DELA actions."
-5. Do: in the same box type: My client's SSN is 123-45-6789 and click "Ask".
-   Expect: no answer from DELA. A red message says this is sensitive data (or looks like client details) and must not go in DELA.
-6. Do: click "Pause" at the top right of the "Ask DELA" card (on Home, at the right; on a narrow window, below the other cards).
-   Expect: the card shrinks to one line: "Paused. DELA opens it again tomorrow, or sooner when something new needs you." and an "Open the guide" button.
-   Do: click "Open the guide". Expect: DELA's message and buttons are back.
-7. Do: click the bell (Notices) at the right of the top bar.
-   Expect: a notice "A new gig fits you: Test job: Guide new gig (prepared)". Its text starts with "Why it fits: Family law; Uses Clio" and ends by saying the alerts can be turned off in the DELA guide.
-   Do: click that notice's button "Open the gig".
-   Expect: the Work page opens on "Test job: Guide new gig (prepared)".
+   Do: tick "By email" again.
+   Expect: "Saved" again.
+7. Do: in the same card, click the outlined button "Pause suggestions".
+   Expect: the button now reads "Resume suggestions" and the line above it says "DELA's suggestions on Home are paused. They come back tomorrow, or sooner when something new needs you."
 8. Go to: https://www.lawfecta.co/dela?tab=home
-   Do: click "See my invitations" in the "Ask DELA" card (on Home, at the right; on a narrow window, below the other cards).
-   Expect: the Work page opens with your invitation.
-9. Sign out.
+   Find: the card "Ask DELA", at the top of the right column.
+   Expect: DELA's next-step line and the button "See my invitations" are gone. The box "Ask a question..." is still there. The second link at the bottom of the card now reads "Suggestions are paused".
+   Do: click "Suggestions are paused".
+   Expect: the Settings page opens at the card "Suggestions and alerts".
+   Do: click the outlined button "Resume suggestions".
+   Expect: the button reads "Pause suggestions" again.
+9. Do: click the bell (Notices) at the right of the top bar.
+   Find: in the panel, under the heading "Updates".
+   Expect: a notice "A new gig fits you: Test job: Guide new gig (prepared)". Its text starts with "Why it fits: Family law; Uses Clio" and its last sentence says where to turn these alerts off. Write that last sentence.
+   Do: click that notice's outlined button "Open the gig".
+   Expect: the Work page opens on "Test job: Guide new gig (prepared)".
+10. Go to: https://www.lawfecta.co/dela?tab=home
+    Find: the card "Ask DELA", at the top of the right column.
+    Expect: DELA's line about the invitation and the dark red button "See my invitations" are back.
+    Do: click "See my invitations".
+    Expect: the top bar says "Work", the address has tab=work, and the page shows a card whose heading starts "Invitations (" with your invitation in it.
+11. Sign out.
 
 TEST ATTORNEY (log in once)
-10. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney. Check the first line of the round initials menu says "DELA Test Attorney".
-11. Go to: https://www.lawfecta.co/dela?tab=home
-    Find: the "Ask DELA" card (on Home, at the right; on a narrow window, below the other cards) at the top.
-    Expect: the bubble says "2 proposals arrived for" "Build document checklist from questionnaire answers" and to compare them. A dark red button "Compare the proposals". The "Get set up" card is not on the page.
-12. Do: click "Compare the proposals".
-    Expect: the gig "Build document checklist from questionnaire answers" opens on its proposals.
-13. Do: go back to https://www.lawfecta.co/dela?tab=home. In "Ask the DELA guide a question" type: Fictional test: which proposal should I pick? Click "Ask".
-    Expect: an answer in a pink bubble within 60 seconds. It does not give legal advice. If it shows a button, it is "Compare the proposals".
-14. Sign out.
+12. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney. Then click the round button with the initials at the far right of the top bar: the first line must say "DELA Test Attorney". If not, stop and tell me. Click the round button again to close the menu.
+13. Go to: https://www.lawfecta.co/dela?tab=home
+    Find: the card titled "Ask DELA", at the top of the right column.
+    Expect: under the heading, one line from DELA that starts "2 proposals arrived for", names the gig Build document checklist from questionnaire answers, and ends "Compare them side by side and choose one." Under it a dark red button "Compare the proposals".
+14. Do: click "Compare the proposals".
+    Expect: the top bar says "Projects" and the gig "Build document checklist from questionnaire answers" opens with the view button that starts "Proposals (" selected.
+15. Go to: https://www.lawfecta.co/dela?tab=home
+    Do: in the card "Ask DELA", in the box "Ask a question..." type: Fictional test: which proposal should I pick? Then click the dark red square button with the paper plane.
+    Expect: an answer in a shaded box under the question box within 60 seconds. It does not give legal advice.
+16. Sign out.
 
 NEW ATTORNEY (log in once)
-15. Go to: https://www.lawfecta.co/login and ask me to log in as hello@legalstacey.com.
-16. Go to: https://www.lawfecta.co/dela?tab=home
-    Find: the "Ask DELA" card (on Home, at the right; on a narrow window, below the other cards) at the top.
-    Expect: the bubble starts "Let's take one task off your desk." Under it, three buttons that start with "Draft:" (for example "Draft: Respond to a new inquiry") and a fourth button "Something else".
-17. Do: click the button "Draft: Respond to a new inquiry" (if it is not there, click the first "Draft:" button and write which one).
-    Expect: the Library opens on "New document". Because this account has no firm profile yet, it first shows the card "Your firm profile for documents". That is a PASS.
-18. Do: go back to https://www.lawfecta.co/dela?tab=home and click "Something else" in the "Ask DELA" card (on Home, at the right; on a narrow window, below the other cards).
-    Expect: the Library opens on "New document" (the firm profile card first, as in step 17).
-19. Sign out.
+17. Go to: https://www.lawfecta.co/login and ask me to log in as hello@legalstacey.com.
+18. Go to: https://www.lawfecta.co/dela?tab=home
+    Find: the card titled "Ask DELA", at the top of the right column.
+    Expect: under the heading, a line from DELA that starts "Let's take one task off your desk." Under it, three buttons that start with "Draft:" (for example "Draft: Respond to a new inquiry"; the first one is dark red, the others outlined) and a fourth button "Something else".
+19. Do: click the button "Draft: Respond to a new inquiry" (if it is not there, click the first "Draft:" button and write which one).
+    Expect: the top bar says "Library" and the page heading is "New document". Because this account has no firm profile yet, it first shows the card "Your firm profile for documents". That is a PASS. Do not save anything.
+20. Go to: https://www.lawfecta.co/dela?tab=home
+    Do: in the card "Ask DELA", click "Something else".
+    Expect: the Library opens on "New document" (the card "Your firm profile for documents" first, as in step 19). Do not save anything.
+21. Sign out.
 
 OWNER, ADMIN AREA (log in once)
-20. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
-21. Go to: https://www.lawfecta.co/dela-admin?tab=overview ("Overview" in the left menu, under the heading "MEMBERS").
-    Find: the card "Ask DELA" (on Home, at the right), under the "Emergency pause" card.
-    Expect: tiles "Members who saw it" (3 or more), "Buttons chosen", "Questions answered" (2 or more), "Paused" (1 or more) and "Gig alerts sent today" (1 or more), then a list of steps such as "Answer invitations", "Compare proposals" and "Pick a first task" with member counts.
-22. Sign out.
+22. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
+23. Go to: https://www.lawfecta.co/dela-admin?tab=overview
+    Expect: the admin area opens on the page "Overview" (in the left menu, "Overview" is the first line under the heading "MEMBERS").
+    Find: the card "DELA guide", under the card "Emergency pause", below the row of number boxes.
+    Expect: five boxes with numbers: "Members who saw it" (3 or more), "Buttons chosen", "Questions answered" (2 or more), "Paused" (1 or more) and "Gig alerts sent today" (1 or more). Under them a list of steps such as "Answer invitations", "Compare proposals" and "Pick a first task" with member counts.
+24. Sign out: click the button with the owner's name and "(owner)" at the top right, then "Sign out".
 
-AT THE END
-Report one line per step (PASS or FAIL and a few words), the FAIL list, any confusing message, and anything that took longer than 60 seconds. Put it all in DELA-test-report.txt.
+Report as described in "How to work", line 10. For steps 2, 4 and 9 include the words you were asked to write down.

@@ -1,6 +1,6 @@
 # ChatGPT test: re-check of the UI review fixes (light and dark)
 
-> DO NOT RUN AS IT IS (2026-11-13). This test was written for the earlier layout. It checks parts of the old Home ("What DELA will do for you", the tab row) that the new layout no longer has. The new layout is tested by docs/tests/workspace-chatgpt-prompt.md. Claude rewrites this test before it is needed again.
+> Checked 2026-11-13 (new layout). Open point: the badge color list above the steps (yellow, blue, green, grey, faded grey) and the counts in steps 4, 7 and 15 (13 documents, 1000 actions, 13 engagements) are as they were on 2026-11-08; they depend on the test site's data and were not checked against the code.
 
 
 A short check of the fixes from the UI review of 2026-11-08 (docs/reviews/test-reports/2026-11-08-step-10-ui-review.txt). It looks only. It changes one thing and puts it back: the attorney's own "Appearance" choice (Dark for part of the test, then "Match my device" again).
@@ -56,26 +56,28 @@ ATTORNEY (log in once)
 2. Do: click the round button with your initials at the far right of the top bar. In the menu under "Appearance", click "Light".
    Expect: the page turns light.
 3. Go to: https://www.lawfecta.co/dela?tab=home
-   Find: the card titled "Verification", about a third of the way down, left.
-   Expect: a green badge "Verified" (capital V) next to the heading. Further down, under "What DELA will do for you", row 4 "Engagements and payments" has an "Open Projects" button, not "COMING SOON".
+   Find: the line with green dots in the left column, below the card "Your projects".
+   Expect: it says "Profile complete" and "Bar license verified", each with a green dot in front. Nothing on the page says "COMING SOON". (The old "Verification" card and the list "What DELA will do for you" are no longer on Home.)
 4. Go to: https://www.lawfecta.co/dela?tab=library
    Find: the card "Not sure where to start?" near the bottom.
-   Expect: the "✦ Help me create a document" button is the same blue as the "Create a document" button at the top right. Under the card, the grey line reads like "13 documents saved. Your plan allows 50. Your access to this Library: Administrator." and does not say "not switched on".
+   Expect: the "✦ Help me create a document" button is the same dark red as the "Create a document" button at the top of the page, to the right of the heading "Library". Under the card, the grey line reads like "13 documents saved. Your plan allows 50. Your access to this Library: Administrator." and does not say "not switched on".
 5. Go to: https://www.lawfecta.co/dela?tab=projects
-   Find: the card "Engagements", near the top.
-   Expect: badges follow the colors above: "Active" blue, "Complete" green, "Canceled" faded grey, "Needs your signature" yellow. Gig badges: "Draft" grey, not green.
+   Find: the card whose heading starts "Engagements (", in the lower part of the page, below the card "Your gigs".
+   Expect: badges follow the colors above: "Active" blue, "Complete" green, "Canceled" faded grey, "Needs your signature" yellow.
+   Find: the card "Your gigs", just above it.
+   Expect: gig badges: "Draft" grey, not green.
 6. Go to: https://www.lawfecta.co/dela?tab=profile
    Find: the card "Your firm profile for documents", near the bottom, then the "Team roles" heading in it.
    Expect: the role names, the "Nobody yet" boxes and the "No one assigned" labels each line up in straight columns, also for "Supervising attorney" and "Outsourced freelancer". No row reads "Attorney (attorney)".
 7. Go to: https://www.lawfecta.co/dela?tab=ai
-   Find: the card "This month", the second card.
-   Expect: "Included DELA actions used" shows the same number as the blue link at the very bottom of the page ("DELA actions: N of 1000 this month"), and the first card's "N of 1000 DELA actions left this month" adds up with it to 1000.
+   Find: the heading "AI and messages" about halfway down the page, then the card "Which AI DELA uses" under it, then the card "This month" further down.
+   Expect: in "This month", "Included DELA actions used" shows the same number as the small underlined line at the very bottom of the page ("DELA actions: N of 1000 this month"). In "Which AI DELA uses", the grey line under "Use Lawfecta's AI" says "N of 1000 DELA actions left this month", and the two numbers add up to 1000.
 8. Do: click the round button with your initials, and under "Appearance" click "Dark".
    Expect: the page turns dark.
 9. Go to: https://www.lawfecta.co/dela?tab=library
-   Expect: the tab row at the top shows "✦ Ask DELA" like the other tabs (no purple pill around it); only "▥ Library" is highlighted. The selected filters "All categories" and "All" are clearly highlighted (light pink fill). Near the bottom, the links "Library settings", "Recordings", "Recently deleted" and "Show as a table" are light pink and easy to read.
+   Expect: in the menu on the left, "Ask DELA" looks like the other lines (no purple pill around it); only "Library" is highlighted. The selected filters "All categories" and "All" (the first round button in each of the two rows under the search box) are clearly highlighted (light pink fill). The link "Library settings" at the top of the page (right of "Create a document" and "Import") and, near the bottom, the links "Recordings", "Recently deleted (N)" and "Show as a table" are light pink and easy to read.
 10. Go to: https://www.lawfecta.co/dela?tab=profile
-    Find: the card "Firm details", near the top.
+    Find: the card "Firm details", near the top (the second card, below "Where your profile stands").
     Expect: each empty box (for example "Firm's legal name") has a clearly visible edge and a darker fill than its card, and grey example text in boxes is easy to read.
 11. Do: click the round button with your initials, and under "Appearance" click "Match my device" (this puts it back).
 12. Sign out.
@@ -83,16 +85,19 @@ ATTORNEY (log in once)
 FREELANCER (log in once)
 13. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 14. Go to: https://www.lawfecta.co/dela?tab=home
-    Find: the dark card "Your profile, through an attorney's eyes" at the top.
-    Expect: a green "Ready" badge (the same word and color as on the Profile page). Under "What DELA will do for you", rows 1, 2 and 4 have buttons ("Open your profile", "Open your profile", "Open Earnings"), not "COMING SOON".
+    Find: the line with green dots in the left column, below the card "Your work".
+    Expect: it says "Profile complete", "LinkedIn verified" and "Available until" with a date, and at its right "Attorneys can invite you." Nothing on the page says "COMING SOON". (The old dark card "Your profile, through an attorney's eyes" and the list "What DELA will do for you" are no longer on Home.)
+    Go to: https://www.lawfecta.co/dela?tab=profile
+    Find: the first card, "Where your profile stands".
+    Expect: a green "Ready" badge at the right of that heading.
 15. Go to: https://www.lawfecta.co/dela?tab=work
-    Find: the card "Your engagements (13)" at the top, then "Sent proposals" at the bottom.
+    Find: the card "Your engagements (13)" near the top, then the card whose heading starts "Sent proposals (" near the bottom.
     Expect: badge colors as listed above. "Needs your signature" is yellow. "Sent" is blue and "Chosen" is green.
 16. Go to: https://www.lawfecta.co/dela?tab=earnings
     Find: the card "Your engagements".
     Expect: the same badge colors as on Work for the same jobs ("Needs your signature" yellow). No line says "accepted 0 of 0": lines say "milestones accepted N of N", "milestones set when you both sign", or nothing about milestones for finished or canceled jobs.
 17. Go to: https://www.lawfecta.co/dela?tab=inbox&thread=4ad45c8e-ac59-4300-9577-48b42e50e3b4
-    Do: click the blue "Book a meeting" button near the top of the conversation.
+    Do: click the dark red "Book a meeting" button near the top of the conversation, to the right of the outlined "Open the gig".
     Expect: the booking card shows the date, length and times. There is no empty grey strip under "Show more times". Do not click a time.
 18. Sign out.
 

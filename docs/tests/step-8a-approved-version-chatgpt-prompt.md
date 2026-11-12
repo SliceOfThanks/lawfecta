@@ -1,6 +1,6 @@
 # ChatGPT test: the approved-version page (UX Phase 4 part A)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked 2026-11-13 (new layout). Open point: steps 2 to 6 need "Handle an upset client" (ADM-02) approved at version 1 with no draft open. If this test already ran once, its draft (version 2) is still there, so Claude puts the document back before the test is sent again.
 
 Claude already tested this with the real api and database: 5 api tests and 12 browser checks, plus all 287 api tests and all 20 browser test files. This test checks the real screens on the test site.
 
@@ -57,9 +57,9 @@ ATTORNEY (log in once)
 
 2. Go to: https://www.lawfecta.co/dela?tab=library&pb=08160507-5b7b-41d7-acd3-a57b290d9aa5
    Find: the title "ADM-02 Handle an upset client" at the top, with the labels "Playbook" and "Approved".
-   Expect: under the title, a menu on the left whose first tab is "Approved version" (there is no "Draft and review" tab).
-   Find: the card "Approved version 1", just under the tabs.
-   Expect: the lines "Document ID" (ADM-02), "Version" (1), "Approved" (Nov 5, 2026 by DELA Test Attorney), "Owner (role)", "Last reviewed" and "Next review"; the grey line "This is the version in use: new gigs, standing arrangements and exports use it."; a blue "Edit a new draft" button; and "Export the approved version:" with the buttons "Word", "PDF", "Markdown", "Web page" and "Step checklist".
+   Expect: under the title, a row of view buttons whose first button is "Approved version" (there is no "Draft and review" button), then "Chat", "Suggested edits (", "Comments (", "Activity", "Versions" and "Files (".
+   Find: the card "Approved version 1", just under that row of view buttons.
+   Expect: the lines "Document ID" (ADM-02), "Version" (1), "Approved" (Nov 5, 2026 by DELA Test Attorney), "Owner (role)", "Last reviewed" and "Next review"; the grey line "This is the version in use: new gigs, standing arrangements and exports use it."; a dark red "Edit a new draft" button; and "Export the approved version:" with the buttons "Word", "PDF", "Markdown", "Web page" and "Step checklist".
    Find: the card below it.
    Expect: the playbook's text to read, with headings, and no text boxes and no "Save" button anywhere on the page.
 
@@ -69,14 +69,14 @@ ATTORNEY (log in once)
 
 4. In the same card:
    Do: click "Edit a new draft".
-   Expect: the tabs now read "Approved version", "New draft", and the rest. A shaded note near the top says "New draft. Your first save makes version 2 as a draft; the approved version 1 stays in use until the draft is approved." The form with text boxes opens, with the card "Quality check" on the right.
-   Do: in the card "Quality check" on the right, click the blue "Save" (it is near the bottom of that card, before "Send for review"). Do not change any text first.
-   Expect: within a few seconds, the tabs read "Approved version", "Draft (version 2)", and the rest. Near the top, a bold note "Draft, not approved. Do not use this as an approved procedure. The approved version 1 stays in use until this one is approved." with an outlined button "View the approved version".
+   Expect: the row of view buttons now starts "Approved version", "New draft", and then the rest. A shaded note near the top says "New draft. Your first save makes version 2 as a draft; the approved version 1 stays in use until the draft is approved." The form with text boxes opens, with the card "Quality check" on the right.
+   Do: in the card "Quality check" on the right, click the dark red "Save" (it is near the bottom of that card, under the list of checks; if "Send for review" shows, "Save" is just before it). Do not change any text first.
+   Expect: within a few seconds, the row of view buttons starts "Approved version", "Draft (version 2)", and then the rest. Near the top, a bold note "Draft, not approved. Do not use this as an approved procedure. The approved version 1 stays in use until this one is approved." with an outlined button "View the approved version".
    Find: in the card "Quality check", the line that starts "Export".
    Expect: it reads "Export this draft (marked DRAFT on every page):". Do not click it.
 
 5. Do: click "View the approved version" in the bold note near the top.
-   Expect: the card "Approved version 1" again, with a shaded note "A draft (version 2) is in progress. This approved version stays in use until the draft is approved." and a blue "Open the draft" button. There is no "Edit a new draft" button.
+   Expect: the card "Approved version 1" again, with a shaded note "A draft (version 2) is in progress. This approved version stays in use until the draft is approved." and a dark red "Open the draft" button. There is no "Edit a new draft" button.
 
 6. Do: click "Open the draft".
    Expect: the draft page with the bold "Draft, not approved" note and the card "Quality check" on the right.
@@ -87,11 +87,14 @@ OWNER (log in once)
 
 8. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
 
-9. Go to: https://www.lawfecta.co/dela-admin?tab=switches ("Switches" in the left menu, under the heading "PLANS AND SETTINGS") in the menu on the left near the top.
-   Expect: a row "Approved documents open on a read-only "Approved version" page with "Edit a new draft"" set to "Access list", and rows for "The Phase 4 AI helpers (checks before a commitment and writing helpers)" and "The Appearance choice (Match my device, Light, Dark) in the account menu" set to "Off". Do not change them.
+9. Go to: https://www.lawfecta.co/dela-admin?tab=switches
+   Expect: the admin area opens on the page "Switches" (in the left menu, "Switches" is under the heading "PLANS AND SETTINGS"): one table with the columns "Switch", "Before it goes on" and "State".
+   Find: in that table, the rows "Approved documents open on a read-only "Approved version" page with "Edit a new draft"", "The Phase 4 AI helpers (checks before a commitment and writing helpers)" and "The Appearance choice (Match my device, Light, Dark) in the account menu" (press Ctrl+F and type Phase 4 if you do not see them).
+   Expect: each of the three rows has a drop-down in the "State" column that shows "Off", "Lawfecta Team only", "Access list" or "Everyone". The first row is not "Off". Write what each of the three shows. Do not change them.
 
-10. Go to: https://www.lawfecta.co/dela-admin?tab=settings ("Settings" in the left menu, under the heading "PLANS AND SETTINGS") in the menu on the left near the top.
+10. Go to: https://www.lawfecta.co/dela-admin?tab=settings
+    Expect: the admin area opens on the page "Settings" (in the left menu, "Settings" is under the heading "PLANS AND SETTINGS").
     Find: the section "UX Phase 4: approved version, AI helpers, appearance", near the bottom. Click its heading to open it if it is closed.
-    Expect: 16 settings, including "DELA actions for one run of "✦ Check the scope" on a gig draft (Lawfecta's key only)" with 1, "DELA actions for one run of "✦ Compare these proposals" (Lawfecta's key only)" with 2, and "Starting appearance for every member (light, dark or device)" with "light". Do not change anything.
+    Expect: a label next to the heading with the number of settings (16 or more), and in the section "DELA actions for one run of "✦ Check the scope" on a gig draft (Lawfecta's key only)" with 1, "DELA actions for one run of "✦ Compare these proposals" (Lawfecta's key only)" with 2, and "Starting appearance for every member (light, dark or device)" with "light". Do not change anything.
 
-11. Sign out.
+11. Sign out: click the button with the owner's name and "(owner)" at the top right, then "Sign out".

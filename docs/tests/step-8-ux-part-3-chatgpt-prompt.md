@@ -1,6 +1,6 @@
 # ChatGPT test: UX review part 3, shared patterns (step 8)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 Claude already tested this with the real api and database: 273 api tests and all 18 browser test files pass. This test checks the changed screens on the test site.
 
@@ -53,46 +53,47 @@ FREELANCER (log in once)
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
 2. Go to: https://www.lawfecta.co/dela?tab=work
-   Find: the green line about proposals left this month, near the top.
+   Find: the green line about proposals left this month, right under the heading "Work".
    Expect: a small round "?" at the end of the line.
    Do: press Tab until the "?" is highlighted (or click it), then press Enter.
-   Expect: a blue note opens under the line: "How many proposals you can send this month on your plan. It resets on the 1st. Proposals to gigs you were invited to do not count."
+   Expect: a shaded note opens under the line: "How many proposals you can send this month on your plan. It resets on the 1st. Proposals to gigs you were invited to do not count."
    Do: press Escape.
    Expect: the note closes.
-   Find: the card "Matches (", lower down.
-   Expect: if it says "No matches right now", there is a button "Open my profile and availability".
+   Find: the card whose heading starts "Matches (", lower down, below the card whose heading starts "Invitations (".
+   Expect: if it says "No matches right now", there is an outlined button "Open my profile and availability" under that line.
 
 3. Go to: https://www.lawfecta.co/dela?tab=profile
-   Find: the card "Your profile", the "Headline" box near the top, and the "?" next to its label.
+   Find: the card "Your profile" (scroll down, below the cards about availability and the LinkedIn check), the "Headline" box near the top of it, and the small round "?" next to its label.
    Do: click the "?".
    Expect: a note explaining what to write. Press Escape: it closes.
-   Expect: every button that uses DELA's AI (for example "✦ Write with DELA") looks the same: a light purple outline. Do not click it.
+   Find: the buttons "✦ Write with DELA" under the boxes in that card.
+   Expect: they all look the same. Write whether their outline is light purple or dark pink. Do not click them.
 
-4. Sign out.
+4. Sign out (the round button with the initials at the far right of the top bar, then "Sign out").
 
 ATTORNEY (log in once)
 
 5. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
 6. Go to: https://www.lawfecta.co/dela?tab=projects&gig=c00a6abf-b3fd-461c-8ca4-4b6225d8a5bd&view=agreement
-   Find: the signing form near the top (the box "Type your full name to sign"), if the agreement still waits for your signature.
+   Find: the card "What happens next" (the first card, near the top) and in it the signing form (the box "Your full name"), if the agreement still waits for your signature.
    Expect: above the name box, a shaded box "What you are agreeing to" with what you pay ("Your total: ..."), how many days you have to review each milestone and the rounds of changes, the cancellation rule, a line about the agency's subcontractors, and "Keep all work, messages and payment on Lawfecta." Do not sign.
-   Find: the card "The agreement".
-   Expect: "Agency" and "Agency lead" in the first lines, and a sentence starting "By signing, the client agrees the agency may use vetted Lawfecta subcontractors." Right under the agreement's cards, the card "Who's working on this".
+   Find: the card "The agreement", below "What happens next".
+   Expect: "Agency (the contracting party)" and "Agency lead" in the first lines, and a sentence starting "By signing, the client agrees the agency may use vetted Lawfecta subcontractors." Right under the agreement's cards, the card "Who's working on this".
    Expect: the headings "Milestones" and "Fees" each have a "?" that explains the word. Click one, read it, press Escape.
 
 7. Go to: https://www.lawfecta.co/dela?tab=projects&gig=e50f0026-e436-43e8-b668-70d9b7e00de6&view=agreement
-   Find: the card "Monthly engagement".
+   Find: the card "Monthly engagement" (the second card, below "What happens next").
    Expect: "Next billing" has a "?". Click it: it explains the billing day. Press Escape.
    Find: the card "Problems, disputes and canceling" near the bottom.
    Expect: its heading has a "?" that explains a dispute and says it is not a court or arbitration.
 
 8. Go to: https://www.lawfecta.co/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
-   Find: the card "Quality check" on the right.
+   Find: the card "Quality check" at the top of the right column. If the page shows a card whose heading starts "Approved version" instead, click the button in the row under the title that says "New draft" or starts "Draft (version" if there is one; if there is none, write "approved, no draft" and go on.
    Expect: its heading has a "?" that explains R, A, C and I. If any item is not passed, its button reads "Fix it: " followed by the name of the check (not just "Fix it"). Do not click it.
 
 9. Go to: https://www.lawfecta.co/dela?tab=inbox
-   Do: click the first conversation, then click "✦ AI help" under the heading to open it (do not click the buttons inside it).
+   Do: click the first conversation in the list. Then, in the row of buttons under the grey line near the top (it starts with the outlined "Open the gig"), click the words "✦ AI help" to open it (do not click the buttons inside it).
    Expect: "✦ Summarize" and "✦ What we agreed" look like the other AI buttons (light purple outline).
 
-10. Sign out.
+10. Sign out (the round button with the initials, then "Sign out").

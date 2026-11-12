@@ -1,6 +1,6 @@
 # ChatGPT live check on www.lawfecta.co (2026-11-11)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 A short check of what changed on 2026-11-10 and 2026-11-11, on the new address. Three logins and one page with no login, 13 steps. Stripe is still in test mode, so no real money moves, and this test moves no money at all: it only looks, and switches one email setting off and on again.
 
@@ -56,11 +56,11 @@ TEST FREELANCER (log in once)
    Find: the card "Ask DELA" at the top of the right column.
    Expect: under the heading, a line of text from DELA and at least one button under it, then the box "Ask a question...". Write the line of text word for word.
 4. Go to: https://www.lawfecta.co/dela?tab=earnings
-   Find: the two tiles under the heading "Earnings", then the card "Payouts to your bank".
-   Expect: the tile "Paid to you" shows $190. The card "Payouts to your bank" shows the badge "Ready".
+   Find: the two boxes under the heading "Earnings" ("Paid to you" and "Engagements"), then the card "Payouts to your bank" right below them.
+   Expect: the box "Paid to you" shows $190. The card "Payouts to your bank" shows the label "Ready".
 5. Go to: https://www.lawfecta.co/dela?tab=ai
    Find: the card "Emails" (the fourth card on the page, after "Account and security", "Appearance" and "Suggestions and alerts").
-   Expect: a ticked box with the words "Email me reminders and alerts, such as new gig alerts and next-step reminders.", and under it the line "Reminder and alert emails are on."
+   Expect: a ticked box with the words "Email me reminders and alerts, such as new gig alerts and next-step reminders.", a grey line under it that starts "Emails about your account, payments and signed work always arrive.", and at the bottom of the card the line "Reminder and alert emails are on."
    Do: click the box to untick it. Expect "Saved" in the small box at the bottom of the screen, and the line now starts "Reminder and alert emails are off since".
    Do: click the box again to tick it. Expect "Saved" again.
    Do: reload the page and find the same box. Expect it is ticked and the line says "Reminder and alert emails are on."
@@ -74,16 +74,17 @@ TEST ATTORNEY (log in once)
    Expect: write the first 12 words of the terms. (This agreement was signed before 2026-11-11, so it may still start with the words DRAFT FOR LAWFECTA'S LAWYER TO REVIEW. That is expected for this one; new agreements start with "1. The parties.")
 9. Find: on the same page, the card "Your payments" (scroll down, or press Ctrl+F and type Your payments).
    Expect: two payments, $165 and $150. Write each line word for word.
-   Find: the heading "Milestones" on the same page.
-   Expect: write what each of the two milestones says about its status.
+   Find: the card "Milestones" on the same page, right above "Your payments" (the one with a box for each milestone).
+   Expect: each of the two milestones has a label at the right of its title. Write both labels.
 10. Sign out.
 
 OWNER, ADMIN AREA (log in once)
 11. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
-12. Go to: https://www.lawfecta.co/dela-admin?tab=pay ("Payments" in the left menu, under the heading "PAYMENTS").
-    Find: the card "Payment overview", the second card on the page, under the card "Needs attention".
-    Expect: Charged $315, Paid out $190, Refunded $100, Attorney fees $15, Freelancer fees $10. Write the number in every tile.
-13. Sign out.
+12. Go to: https://www.lawfecta.co/dela-admin?tab=pay
+    Expect: the admin area opens on the page "Payments" (in the left menu, "Payments" is under the heading "PAYMENTS").
+    Find: the card "Payment overview", the second card on the page, under the card whose heading starts "Needs attention (". In it, the small heading "All time".
+    Expect: under "All time", the boxes "Charged" $315, "Paid out" $190, "Refunded" $100, "Attorney fees" $15, "Freelancer fees" $10. Write the number in every box, and the number in "Held now" under "Current balance".
+13. Sign out: click the button with the owner's name and "(owner)" at the top right, then "Sign out".
 
 AT THE END
 Report one line per step (PASS or FAIL and a few words), the FAIL list, any confusing message, and anything that took longer than 60 seconds. Put it all in DELA-test-report.txt.

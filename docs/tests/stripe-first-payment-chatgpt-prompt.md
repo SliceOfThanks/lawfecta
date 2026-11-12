@@ -1,6 +1,6 @@
 # ChatGPT test: the first real Stripe test-mode payment (2026-11-10)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked against the screens on 2026-11-13 (new layout).
 
 The first payment and payout through Stripe on the test site. Stripe is in test mode (the "DELA sandbox"), so no real money moves. Three logins, 12 steps.
 
@@ -50,8 +50,8 @@ Steps
 TEST FREELANCER (log in once)
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 2. Go to: https://www.lawfecta.co/dela?tab=earnings
-   Find: the card "Payouts to your bank".
-   Expect: a badge "Not set up" and a dark red button "Set up payouts with Stripe".
+   Find: the card "Payouts to your bank", near the top of the page, under the two boxes "Paid to you" and "Engagements".
+   Expect: a label "Not set up" and a dark red button "Set up payouts with Stripe".
 3. Do: click "Set up payouts with Stripe".
    Expect: Stripe's own page opens (the address starts with connect.stripe.com), marked as test mode.
    Do: fill in Stripe's pages with these test values, clicking "Continue" or "Submit" on each page. If Stripe offers a button "Use test phone number", "Use test code", "Use test document" or "Use test account", click it.
@@ -66,15 +66,15 @@ TEST FREELANCER (log in once)
    - On the last page click "Agree and submit" (or "Submit").
    Expect: you come back to the DELA Earnings page.
 4. Find: the card "Payouts to your bank" on the Earnings page.
-   Do: if the badge does not say "Ready", click "Check my payout status" once and wait 10 seconds.
-   Expect: the badge "Ready". If it says "Needs details", write the grey sentence next to the badge word for word.
+   Do: if the label does not say "Ready", click the outlined "Check my payout status" in that card once and wait 10 seconds.
+   Expect: the label "Ready". If it says "Needs details", write the sentence next to the label word for word, and the grey line that starts "Stripe still needs:" if there is one.
 5. Sign out.
 
 TEST ATTORNEY (log in once)
 6. Go to: https://www.lawfecta.co/login and ask me to log in as the test attorney.
 7. Go to: https://www.lawfecta.co/dela?tab=projects&gig=64ed7250-64b3-4423-a4f1-e0e890da40dc&view=agreement
-   Find: the card "What happens next" near the top.
-   Expect: the line "Pay milestone 1 ($150) and the platform fee ($15)" and a dark red button "Pay milestone 1".
+   Find: the card "What happens next" near the top, under the heading that starts "Agreement, version".
+   Expect: a line that starts "Pay milestone 1 ($150) and the platform fee ($15)" and a dark red button "Pay milestone 1".
    Do: click "Pay milestone 1" once.
    Expect: Stripe's Checkout page opens (the address starts with checkout.stripe.com) with a total of $165.00.
    Do: pay with these test values, then click "Pay".
@@ -84,17 +84,18 @@ TEST ATTORNEY (log in once)
    - If Stripe offers to save your details for faster checkout (Link), leave that box unticked.
    Expect: you come back to the DELA agreement page with the green line "Thank you. Your payment is confirmed." or "Thank you. Stripe is confirming the payment." (either one is right)
    If you land on a login page or an error page instead, take a screenshot, write the full address of that page, and go to step 8.
-8. Do: wait 30 seconds, then go to: https://www.lawfecta.co/dela?tab=projects&gig=64ed7250-64b3-4423-a4f1-e0e890da40dc
-   Find: the heading "Milestones" on the page (press Ctrl+F and type Milestones if you do not see it).
-   Expect: milestone 1 says "Paid: ready to start". The card "Your payments" further down lists one payment of $165. If milestone 1 still says "Not paid yet" or "Waiting for payment", reload once after another 30 seconds and write what it says.
+8. Do: wait 30 seconds, then go to: https://www.lawfecta.co/dela?tab=projects&gig=64ed7250-64b3-4423-a4f1-e0e890da40dc&view=agreement
+   Find: the card "Milestones", in the middle of the page, below the card "The agreement" (the table inside "The agreement" has the same small heading; use the card with a box for each milestone).
+   Expect: milestone 1 has the label "Paid: ready to start". The card "Your payments" right below it lists one payment that starts with a date and says "$165 (includes the platform fee $15), Paid". If milestone 1 still says "Not paid yet" or "Waiting for payment", reload once after another 30 seconds and write what it says.
 9. Sign out.
 
 OWNER, ADMIN AREA (log in once)
 10. Go to: https://www.lawfecta.co/login and ask me to log in as the owner.
-11. Go to: https://www.lawfecta.co/dela-admin?tab=pay ("Payments" in the left menu, under the heading "PAYMENTS").
-    Find: the card "Payment overview", the second card on the page, under the card "Needs attention".
-    Expect: "Stripe is connected in test mode (no real money)", the tile "Charged" shows $165, and the tile "Attorney fees" shows $15. Write the number in every tile.
-12. Sign out.
+11. Go to: https://www.lawfecta.co/dela-admin?tab=pay
+    Expect: the admin area opens on the page "Payments" (in the left menu, "Payments" is under the heading "PAYMENTS").
+    Find: the card "Payment overview", the second card on the page, under the card whose heading starts "Needs attention (".
+    Expect: a grey line that starts "Stripe is connected in test mode (no real money)". Under the small heading "All time", the box "Charged" shows $165 and the box "Attorney fees" shows $15. Write the number in every box under "All time" ("Charged", "Paid out", "Refunded", "Attorney fees", "Freelancer fees") and in "Held now" under "Current balance".
+12. Sign out: click the button with the owner's name and "(owner)" at the top right, then "Sign out".
 
 AT THE END
 Report one line per step (PASS or FAIL and a few words), the FAIL list, any confusing message, and anything that took longer than 60 seconds. Put it all in DELA-test-report.txt.
