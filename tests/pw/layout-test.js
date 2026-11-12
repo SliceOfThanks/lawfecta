@@ -102,8 +102,8 @@ const ATT = 4430;
 
     // ---------- An attorney on a freelancer page ----------
     s = await open(browser, "DELA-App", ATT, "&tab=work"); p = s.page;
-    t = await waitFor(p, "freelancer side", 15000);
-    ok(t.includes("This page is on the freelancer side of DELA. You are signed in as an attorney") && !t.includes("COMING SOON") && !t.includes("Coming soon"), "the attorney is told it is the freelancer side");
+    t = await waitFor(p, "freelancer workspace", 15000);
+    ok(t.includes("This page is on the freelancer workspace of DELA. You are signed in as an attorney") && !t.includes("COMING SOON") && !t.includes("Coming soon"), "the attorney is told it is the freelancer side");
     await click(p, "Go to Home");
     await waitFor(p, "Projects");
     ok(!p.url().includes("tab=work"), "Go to Home also clears the freelancer page from the address bar (" + p.url() + ")");

@@ -69,6 +69,18 @@ async function makeMember(bd, side, plan, name) {
     s = await open(browser, NEW, "&tab=home", 1280, 900);
     ok(await inShadow(s.page, (root) => !!root.querySelector("nav.nav") && !root.querySelector(".nl-frame") && !root.querySelector(".dela").classList.contains("nl")), "switch off: the old tab row, no sidebar");
     await s.ctx.close();
+    await sql(`insert into people (bd_member_id, display_name, email) values (5104, 'Tess Team', 'tess@test.invalid') on conflict (bd_member_id) do nothing;
+      insert into staff_roles (person_id, role) select id, 'owner' from people where bd_member_id = 5104 and not exists (select 1 from staff_roles s where s.person_id = people.id); select 1`);
+    {
+      const c0 = await browser.newContext({ viewport: { width: 1280, height: 900 } });
+      const a0 = await c0.newPage();
+      await a0.route("https://cdn.jsdelivr.net/**", (route) => { const u = new URL(route.request().url()); const f = u.pathname.split("@")[1].split("/").slice(1).join("/"); route.fulfill({ path: path.join(ROOT, f) }); });
+      await a0.route("https://fonts.googleapis.com/**", (r) => r.abort());
+      await a0.goto(`${BASE}/page/DELA-Admin?uid=5104&plan=`);
+      await a0.locator(".dela-host").getByRole("tab", { name: "Payments" }).waitFor({ timeout: 15000 });
+      ok(await a0.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.querySelectorAll("[role=tab]").length === 25 && !r.querySelector(".nl-frame"); }), "switch off: the admin area keeps its row of 25 tabs");
+      await c0.close();
+    }
     await sql("update feature_switches set state = 'everyone' where key = 'new_layout'");
 
     // ---------- A new freelancer on a phone (390 x 844) ----------
@@ -240,6 +252,12 @@ async function makeMember(bd, side, plan, name) {
     t = await waitFor(p, "Your work");
     ok(t.includes("Profile complete") && t.includes("Attorneys can invite you.") && !t.includes("Complete your profile"), "ready freelancer: the profile box is gone; one status line says they can be invited");
     ok(t.includes("Paid out this month") && t.includes("all time") && t.includes("Proposals left this month"), "ready freelancer: Paid out shows this month and all time");
+    // A number opens the list it counts
+    await dela(p).getByRole("button", { name: /Invitations/ }).first().click();
+    await p.waitForFunction(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.activeElement && r.activeElement.tagName === "H2" && r.activeElement.textContent.indexOf("Invitations") === 0; }, null, { timeout: 8000 });
+    ok(p.url().includes("tab=work"), "ready freelancer: the Invitations number opens Work at the Invitations list");
+    await dela(p).getByRole("button", { name: "Home", exact: true }).click();
+    await waitFor(p, "Your work");
     await sql(`update member_profiles set availability_confirmed_at = now() - interval '20 days' where person_id = ${person(READY)} and side = 'freelancer'; select dela_profile_refresh(${person(READY)}, 'freelancer')`);
     await p.reload();
     t = await waitFor(p, "Your availability is out of date");
@@ -287,7 +305,46 @@ async function makeMember(bd, side, plan, name) {
       await ap.route("https://cdn.jsdelivr.net/**", (route) => { const u = new URL(route.request().url()); const f = u.pathname.split("@")[1].split("/").slice(1).join("/"); route.fulfill({ path: path.join(ROOT, f) }); });
       await ap.route("https://fonts.googleapis.com/**", (r) => r.abort());
       await ap.goto(`${BASE}/page/DELA-Admin?uid=5104&plan=`);
-      await ap.locator(".dela-host").getByRole("button", { name: "My account" }).click({ timeout: 15000 });
+      const ah = ap.locator(".dela-host");
+      const atext = () => ap.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText);
+      const ain = (fn) => ap.evaluate((f) => (new Function("root", "return (" + f + ")(root)"))(document.querySelector(".dela-host").shadowRoot), fn.toString());
+      await ah.getByRole("button", { name: "Release Control" }).waitFor({ timeout: 15000 });
+      // The sidebar: two pages on top, five groups that open and close, the current page marked
+      const groups = await ain((root) => [...root.querySelectorAll(".nl-side .nl-group")].map((b) => b.innerText.trim().toUpperCase() + ":" + b.getAttribute("aria-expanded")));
+      ok(groups.join(",") === "MEMBERS:false,PLANS AND SETTINGS:false,MARKETPLACE:false,PAYMENTS:false,SAFETY:false", "admin: the sidebar has the five groups, closed at first: " + groups.join(","));
+      ok(await ain((root) => root.querySelector(".nl-side [aria-current=page]").innerText.trim()) === "Release Control" && await ain((root) => !root.querySelector("[role=tab]")), "admin: Release Control is the current page and the old tab row is gone");
+      await ah.getByRole("button", { name: "Payments", exact: true }).click();
+      await ah.getByRole("button", { name: "Safety", exact: true }).click();
+      ok(await ain((root) => [...root.querySelectorAll(".nl-side .nl-group[aria-expanded=true]")].length) === 2, "admin: more than one group can be open");
+      await ah.locator(".nl-side .nl-items:not([hidden])").getByRole("button", { name: "Payments", exact: true }).click();
+      await ap.waitForFunction(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText.includes("Payment overview"));
+      let pt = await atext();
+      ok(ap.url().includes("tab=pay") && pt.includes("All time") && pt.includes("Current balance") && pt.includes("Engagements: on for everyone") && !pt.includes("milestone_funding"), "admin: Payments is Payment overview, with All time, Current balance and plain words for the switches");
+      await ap.reload();
+      await ap.waitForFunction(() => { const h = document.querySelector(".dela-host"); return h && h.shadowRoot && h.shadowRoot.querySelector(".dela") && h.shadowRoot.querySelector(".dela").innerText.includes("Payment overview"); });
+      ok(await ain((root) => root.querySelector(".nl-side [aria-current=page]").innerText.trim()) === "Payments" && await ain((root) => [...root.querySelectorAll(".nl-side .nl-group[aria-expanded=true]")].map((b) => b.innerText.trim().toUpperCase()).join(",")) === "PAYMENTS,SAFETY", "admin: after a reload the page, and the open groups, are as they were");
+      ok(await ap.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "admin: no sideways scrolling at 1280");
+      await ap.screenshot({ path: path.join(SHOTS, "workspace-admin-desktop.png") });
+      // One account button: My account, Appearance, Member view, Sign out; Escape closes it and focus returns
+      await ah.locator(".acctbtn").click();
+      const items = await ain((root) => [...root.querySelectorAll(".menu [role^=menuitem]")].map((b) => b.innerText.replace("\u2713", "").trim()));
+      ok(items.join(",") === "My account,Match my device,Light,Dark,Member view,Sign out", "admin: the account button holds My account, Appearance, Member view and Sign out: " + items.join(","));
+      await ap.keyboard.press("Escape");
+      ok(await ain((root) => !root.querySelector(".menu") && root.activeElement.classList.contains("acctbtn")), "admin: Escape closes the account menu and focus returns to its button");
+      // A phone: the Menu button opens the same list
+      await ap.setViewportSize({ width: 390, height: 844 });
+      await ap.waitForTimeout(300);
+      ok(await ap.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1) && await ain((root) => getComputedStyle(root.querySelector(".aside-slot")).display === "none"), "admin on a phone: no sideways scrolling, the sidebar is put away");
+      await ah.getByRole("button", { name: "Menu", exact: true }).click();
+      ok(await ah.getByRole("dialog", { name: "Admin pages" }).isVisible() && await ain((root) => root.activeElement.innerText.trim() === "Admin pages" && document.documentElement.style.overflow === "hidden"), "admin on a phone: Menu opens the page list, focus moves in, the page behind is locked");
+      await ap.screenshot({ path: path.join(SHOTS, "workspace-admin-phone-menu.png") });
+      await ah.getByRole("dialog", { name: "Admin pages" }).getByRole("button", { name: "Disputes", exact: true }).click();
+      await ap.waitForFunction(() => new URL(location.href).searchParams.get("tab") === "disputes");
+      ok(await ain((root) => !root.querySelector(".nl-sheet") && document.documentElement.style.overflow !== "hidden"), "admin on a phone: choosing a page closes the list and opens the page");
+      for (const w of [320, 1440]) { await ap.setViewportSize({ width: w, height: 844 }); await ap.waitForTimeout(200); ok(await ap.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "admin: no sideways scrolling at " + w + " pixels"); }
+      await ap.setViewportSize({ width: 1280, height: 900 });
+      await ah.locator(".acctbtn").click();
+      await ah.getByRole("menuitem", { name: "My account" }).click();
       await ap.waitForFunction(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText.includes("Sign-in email"));
       const at = await ap.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText);
       const aval = await ap.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelector("#set-account .acct-val").innerText);
@@ -303,6 +360,11 @@ async function makeMember(bd, side, plan, name) {
     const amenu = await inShadow(p, (root) => [...root.querySelectorAll(".nl-side .nl-item")].map((b) => b.innerText.trim()).slice(0, 4));
     ok(amenu.join(",") === "Home,Projects,Ask DELA,Library", "attorney: the four main pages: " + amenu.join(", "));
     ok(t.includes("Deliveries to review") && t.includes("Open gigs") && t.includes("Gig drafts"), "attorney: the project numbers are on Home");
+    await dela(p).getByRole("button", { name: /Open gigs/ }).first().click();
+    await p.waitForFunction(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.activeElement && r.activeElement.tagName === "H2" && r.activeElement.textContent.indexOf("Your gigs") === 0; }, null, { timeout: 8000 });
+    ok(p.url().includes("tab=projects"), "attorney: the Open gigs number opens Projects at Your gigs");
+    await dela(p).getByRole("button", { name: "Home", exact: true }).click();
+    await waitFor(p, "Your projects");
     await p.setViewportSize({ width: 390, height: 844 });
     await p.waitForTimeout(300);
     const abar = await inShadow(p, (root) => [...root.querySelectorAll(".nl-bar button")].map((b) => b.innerText.trim()));

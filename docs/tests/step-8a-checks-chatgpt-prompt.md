@@ -68,7 +68,7 @@ FREELANCER (log in once)
    Expect: an "AI suggestion" panel listing what does not match between the proposal and the agreement (or "DELA found nothing to flag."), ending with the legal-correctness line. Do not sign.
 
 4. Go to: https://www.lawfecta.co/dela?tab=files
-   Expect: a card "This page is for attorneys" saying "This page is on the attorney side of DELA. You are signed in as a freelancer (DELA Test Freelancer)." with a "Go to Home" button (no empty "Coming soon" page). (The test freelancer runs an agency that hires, so its Projects page is its own; Files is attorney-only.)
+   Expect: a card "This page is for attorneys" saying "This page is on the attorney workspace of DELA. You are signed in as a freelancer (DELA Test Freelancer)." with a "Go to Home" button (no empty "Coming soon" page). (The test freelancer runs an agency that hires, so its Projects page is its own; Files is attorney-only.)
 
 5. Sign out.
 
@@ -108,7 +108,7 @@ ATTORNEY (log in once)
     Expect: an "AI suggestion" panel whose findings start with "Task 1, ..." and the box (for example "Task 1, Turnaround:"), with "Use suggestion" where DELA can fill that box. Do not click "Save the monthly terms".
 
 12. Go to: https://www.lawfecta.co/dela?tab=work
-    Expect: a card "This page is for freelancers" saying "This page is on the freelancer side of DELA. You are signed in as an attorney (DELA Test Attorney)." with a "Go to Home" button.
+    Expect: a card "This page is for freelancers" saying "This page is on the freelancer workspace of DELA. You are signed in as an attorney (DELA Test Attorney)." with a "Go to Home" button.
     Do: click "Go to Home".
     Expect: the attorney Home page opens.
 

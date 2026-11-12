@@ -48,7 +48,156 @@
     return;
   }
 
+  // ---------- Step 15: the admin area in the compact workspace (switch new_layout) ----------
+  // The 25 pages sit in a sidebar, in groups that open and close; one account button holds My account, Appearance,
+  // Member view and Sign out; on a phone a "Menu" button opens the same list. With the switch off the tab row below is used.
+  var NLA = !!((me.switches || {}).new_layout);
+  var GROUPS = [["", ["control", "guide"]], ["Members", ["overview", "access", "people", "team", "agencies"]], ["Plans and settings", ["plans", "settings", "switches", "aifiles", "catalog", "trials", "usage"]],
+    ["Marketplace", ["verify", "gigs", "meet", "reviews"]], ["Payments", ["pay", "disputes", "recurring"]], ["Safety", ["security", "holds", "audit", "jobs"]]];
+  var LABEL = { account: "My account" };
+  TABS.forEach(function (x) { LABEL[x[0]] = x[1]; });
+  function pref(key, val) {
+    try {
+      if (val === undefined) return JSON.parse(localStorage.getItem("dela.admin." + key) || "null");
+      localStorage.setItem("dela.admin." + key, JSON.stringify(val));
+    } catch (e) { /* the browser keeps no choices: the defaults apply */ }
+    return val === undefined ? null : val;
+  }
+  var sideSlot = null, whereEl = null, topEl = null, acctMenu = null, navSheet = null;
+  function svg(d) {
+    var NS = "http://www.w3.org/2000/svg", s = document.createElementNS(NS, "svg"), pth = document.createElementNS(NS, "path");
+    s.setAttribute("viewBox", "0 0 24 24"); s.setAttribute("class", "ic"); s.setAttribute("aria-hidden", "true"); pth.setAttribute("d", d); s.appendChild(pth);
+    return s;
+  }
+  function groupOf(tab) { var g = GROUPS.filter(function (x) { return x[1].indexOf(tab) >= 0; })[0]; return g ? g[0] : ""; }
+  function navList(inSheet) {
+    var folded = !inSheet && pref("folded") === true, open = pref("groups") || [];
+    var nav = h("nav", { class: inSheet ? "anav" : "nl-side anav" + (folded ? " mini" : ""), "aria-label": "Admin pages" });
+    if (!inSheet) nav.appendChild(h("div", { class: "nl-brand" }, D.logo(root, 32), h("b", { text: "DELA ADMIN" })));
+    if (!folded) GROUPS.forEach(function (g) {
+      var isOpen = !g[0] || open.indexOf(g[0]) >= 0 || g[0] === groupOf(current), gid = "ag-" + g[0].split(" ").join("-") + (inSheet ? "-s" : "");
+      if (g[0]) {
+        nav.appendChild(h("button", { class: "nl-group", type: "button", "aria-expanded": String(isOpen), "aria-controls": gid, onclick: function () {
+          var now = (pref("groups") || []).filter(function (x) { return x !== g[0]; });
+          if (!isOpen) now.push(g[0]);
+          pref("groups", now);
+          // The group that holds the page in view stays open
+          if (isOpen && g[0] === groupOf(current)) return;
+          redrawNav(g[0]);
+        } }, h("span", { text: g[0] }), svg(isOpen ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6")));
+      }
+      var box = h("div", { class: "nl-items", id: gid, hidden: !isOpen });
+      g[1].forEach(function (k) {
+        box.appendChild(h("button", { class: "nl-item", type: "button", "aria-current": k === current ? "page" : null, onclick: function () { closeNavSheet(); go(k); } }, h("span", { class: "lbl", text: LABEL[k] })));
+      });
+      nav.appendChild(box);
+    });
+    if (!inSheet) {
+      nav.appendChild(h("div", { class: "nl-grow" }));
+      var word = folded ? "Expand sidebar" : "Collapse sidebar";
+      nav.appendChild(h("button", { class: "nl-item nl-fold", type: "button", "aria-label": folded ? word : null, "aria-expanded": String(!folded), title: folded ? word : null, onclick: function () { pref("folded", !folded); redrawNav(); var b = sideSlot.querySelector(".nl-fold"); if (b) b.focus(); } },
+        svg(folded ? "M9 6l6 6-6 6" : "M15 6l-6 6 6 6"), h("span", { class: "lbl", text: word })));
+    }
+    return nav;
+  }
+  function fitNav() {
+    var s = sideSlot && sideSlot.firstChild;
+    if (!s || window.innerWidth < 900) return;
+    s.style.height = Math.max(320, window.innerHeight - Math.max(s.getBoundingClientRect().top, 0)) + "px";
+  }
+  function redrawNav(focusGroup) {
+    if (!sideSlot) return;
+    D.clear(sideSlot); sideSlot.appendChild(navList(false)); fitNav();
+    if (whereEl) whereEl.textContent = LABEL[current] || "";
+    if (navSheet) { var old = navSheet.sheet.querySelector(".anav"); if (old) old.replaceWith(navList(true)); }
+    if (focusGroup) {
+      var where = navSheet ? navSheet.sheet : sideSlot;
+      var b = [].filter.call(where.querySelectorAll(".nl-group"), function (x) { return x.textContent === focusGroup; })[0];
+      if (b) b.focus();
+    }
+  }
+  function closeAcct(back) {
+    if (!acctMenu) return;
+    acctMenu.remove(); acctMenu = null;
+    var b = topEl && topEl.querySelector(".acctbtn");
+    if (b) { b.setAttribute("aria-expanded", "false"); if (back) b.focus(); }
+  }
+  function openAcct() {
+    if (acctMenu) { closeAcct(true); return; }
+    var ap = me.appearance || {};
+    acctMenu = h("div", { class: "menu", role: "menu" },
+      h("div", { class: "small muted", style: "padding:8px 12px", text: me.person.name + " (" + me.staff.join(", ") + ")" }),
+      h("button", { role: "menuitem", type: "button", onclick: function () { closeAcct(); go("account"); } }, "My account"),
+      ap.on ? [h("div", { class: "small muted", style: "padding:8px 12px 2px", text: "Appearance" })].concat([["device", "Match my device"], ["light", "Light"], ["dark", "Dark"]].map(function (o) {
+        return h("button", { role: "menuitemradio", type: "button", "aria-checked": String(ap.mode === o[0]), onclick: function () {
+          api.post("/me/appearance", { mode: o[0] }).then(function (x) { if (!x.ok) throw x; me.appearance = { on: true, mode: x.mode }; D.setTheme(app, x.mode); closeAcct(true); ok("Appearance: " + o[1]); })
+            .catch(function (e) { fail(new Error((e && (e.reason || e.message)) || "error")); });
+        } }, (ap.mode === o[0] ? "\u2713 " : "") + o[1]);
+      })) : null,
+      h("a", { role: "menuitem", href: "/dela" }, "Member view"),
+      h("button", { role: "menuitem", type: "button", onclick: function () { api.signOut().then(function () { location.href = root.getAttribute("data-logout-url") || "/logout"; }); } }, "Sign out"));
+    topEl.appendChild(acctMenu);
+    topEl.querySelector(".acctbtn").setAttribute("aria-expanded", "true");
+    var first = acctMenu.querySelector("button");
+    if (first) first.focus();
+  }
+  function closeNavSheet(back) {
+    if (!navSheet) return;
+    navSheet.scrim.remove(); navSheet.sheet.remove();
+    document.documentElement.style.overflow = navSheet.overflow;
+    navSheet.behind.forEach(function (n) { n.removeAttribute("inert"); });
+    navSheet = null;
+    var b = topEl && topEl.querySelector(".amenu");
+    if (b) { b.setAttribute("aria-expanded", "false"); if (back) b.focus(); }
+  }
+  function openNavSheet() {
+    if (navSheet) { closeNavSheet(true); return; }
+    var head = h("b", { tabindex: "-1", text: "Admin pages" });
+    var sheet = h("div", { class: "nl-sheet full", role: "dialog", "aria-modal": "true", "aria-label": "Admin pages" },
+      h("div", { class: "nl-sheethead" }, head, h("button", { class: "nl-x", type: "button", "aria-label": "Close menu", onclick: function () { closeNavSheet(true); } }, svg("M6 6l12 12M18 6L6 18"))), navList(true));
+    var sc = h("div", { class: "nl-scrim", "aria-hidden": "true", onclick: function () { closeNavSheet(true); } });
+    sheet.addEventListener("keydown", function (e) {
+      if (e.key !== "Tab") return;
+      var f = sheet.querySelectorAll("button:not([hidden])"), list = [].filter.call(f, function (x) { return x.offsetParent !== null; }), at = sheet.getRootNode().activeElement;
+      if (e.shiftKey && (at === list[0] || at === head)) { e.preventDefault(); list[list.length - 1].focus(); }
+      else if (!e.shiftKey && at === list[list.length - 1]) { e.preventDefault(); list[0].focus(); }
+    });
+    var behind = [].slice.call(app.querySelectorAll(".nl-main"));
+    behind.forEach(function (n) { n.setAttribute("inert", ""); });
+    app.appendChild(sc); app.appendChild(sheet);
+    navSheet = { scrim: sc, sheet: sheet, behind: behind, overflow: document.documentElement.style.overflow };
+    document.documentElement.style.overflow = "hidden";
+    topEl.querySelector(".amenu").setAttribute("aria-expanded", "true");
+    head.focus();
+  }
+  function frameNew() {
+    D.setTheme(app, (me.appearance || {}).mode);
+    app.classList.add("nl");
+    whereEl = h("span", { class: "where", text: LABEL[current] || "" });
+    topEl = h("div", { class: "top" },
+      h("button", { class: "ghost small amenu", type: "button", "aria-haspopup": "dialog", "aria-expanded": "false", onclick: openNavSheet }, "Menu"),
+      whereEl,
+      h("span", { class: "badge " + (me.environment === "live" ? "C" : "stage"), title: me.environment === "live" ? "Live: lawfecta.co, real members" : "Test mode on lawfecta.co: test data only", text: me.environment === "live" ? "Live" : "Test site" }),
+      h("span", { class: "grow" }),
+      h("button", { class: "ghost small acctbtn", type: "button", "aria-haspopup": "true", "aria-expanded": "false", onclick: openAcct }, me.person.name + " (" + me.staff.join(", ") + ")"));
+    sideSlot = h("div", { class: "aside-slot" });
+    mainEl = h("div", { class: "wrap awide" });
+    tabsEl = null;
+    D.clear(app);
+    app.appendChild(h("div", { class: "nl-frame" }, sideSlot, h("div", { class: "nl-main" }, topEl, mainEl)));
+    redrawNav();
+    app.addEventListener("keydown", function (e) { if (e.key === "Escape") { closeAcct(true); closeNavSheet(true); } });
+    app.addEventListener("click", function (e) { if (acctMenu && !(e.target.closest && (e.target.closest(".menu") || e.target.closest(".acctbtn")))) closeAcct(); });
+    window.addEventListener("scroll", fitNav, { passive: true });
+    window.addEventListener("resize", fitNav);
+  }
+  // The address follows the page, so a reload stays there and a link can open a page
+  function syncAddress() {
+    try { var u = new URL(location.href); if (u.searchParams.get("tab") === current) return; u.searchParams.set("tab", current); window.history.replaceState(null, "", u.pathname + u.search + u.hash); } catch (e) { /* the address stays */ }
+  }
+
   function frame() {
+    if (NLA) { frameNew(); return; }
     // "atop": the admin bar holds more buttons than the member bar, so on a narrow screen it wraps onto a second line
     var top = h("div", { class: "top atop" }, h("span", { class: "brand" }, D.logo(root), h("span", { text: "DELA Admin" })));
     top.appendChild(h("span", { class: "badge " + (me.environment === "live" ? "C" : "stage"), title: me.environment === "live" ? "Live: lawfecta.co, real members" : "Test mode on lawfecta.co: test data only", text: me.environment === "live" ? "Live" : "Test site" }));
@@ -83,6 +232,7 @@
   }
 
   function drawTabs() {
+    if (NLA) { redrawNav(); syncAddress(); return; }
     D.clear(tabsEl);
     TABS.forEach(function (t) {
       tabsEl.appendChild(h("button", { role: "tab", "aria-selected": String(t[0] === current), onclick: function () { go(t[0]); } }, t[1]));
@@ -185,8 +335,8 @@
         ["Guide", "This page."],
         ["Overview", "A quick picture of this copy: people using it, who was turned away, open decisions, paused parts, the emergency pause and a test notice button."],
         ["Access list", "Who may open DELA while it is not open to everyone, added by BD member ID. The second list holds test accounts that Live sends to the test site."],
-        ["People", "Everyone who has opened DELA, with their side (attorney or freelancer) and plan. Give someone a plan for testing, or place a hold."],
-        ["Plans", "The eight plans, four per side, with price, fee and limits. Changes start as a draft and apply only when you approve them."],
+        ["People", "Everyone who has opened DELA, with their workspace (attorney or freelancer) and plan. Give someone a plan for testing, or place a hold."],
+        ["Plans", "The eight plans, four per workspace, with price, fee and limits. Changes start as a draft and apply only when you approve them."],
         ["Settings", "Every business number (fees, minimums, deadlines, limits), grouped by topic. Each change keeps the old value, records why, and can be undone."],
         ["Switches", "Features stay off until you switch them on: Lawfecta Team only first, then Access list, then Everyone."],
         ["Lawfecta Team", "The people who run DELA and their roles: owner, reviewer, support, finance."],
@@ -383,9 +533,9 @@
         pageHead("People", "people"),
         h("div", { class: "row" }, qIn, h("button", { onclick: function () { people(qIn.value); } }, "Search")),
         h("div", { class: "card scroll" }, h("table", null,
-          h("thead", null, h("tr", null, h("th", { text: "Person" }), h("th", { text: "Sides and plans" }), h("th", { text: "Flags" }), h("th", { text: "Actions" }))),
+          h("thead", null, h("tr", null, h("th", { text: "Person" }), h("th", { text: "Workspaces and plans" }), h("th", { text: "Flags" }), h("th", { text: "Actions" }))),
           h("tbody", null, rows.map(function (p) {
-            var sides = p.sides.length ? p.sides.map(function (s) { return h("div", { text: D.SIDE[s.side] + ": " + s.plan_code + (s.plan_source === "staff_grant" ? " (set by team)" : "") }); }) : h("span", { class: "muted", text: "No side yet" });
+            var sides = p.sides.length ? p.sides.map(function (s) { return h("div", { text: D.SIDE[s.side] + ": " + s.plan_code + (s.plan_source === "staff_grant" ? " (set by team)" : "") }); }) : h("span", { class: "muted", text: "No workspace yet" });
             var flags = [p.staff.length ? "Team: " + p.staff.join(", ") : "", p.access ? "Access list" : "", p.staging_tester ? "Test site tester" : "", p.status !== "active" ? p.status : ""].filter(Boolean).join(" | ");
             return h("tr", null,
               h("td", null, h("strong", { text: p.name || "(no name)" }), h("div", { class: "muted small", text: "BD " + p.bd_member_id + (p.email ? " | " + p.email : "") }), h("div", { class: "muted small", text: "Last seen " + D.dateTime(p.last_seen_at) })),
@@ -401,7 +551,7 @@
   }
 
   function sideForm(p, plansData) {
-    var sel = h("select", { "aria-label": "Plan to give" }, h("option", { value: "", text: "Give a side and plan..." }),
+    var sel = h("select", { "aria-label": "Plan to give" }, h("option", { value: "", text: "Give a workspace and plan..." }),
       plansData.map(function (pl) { return h("option", { value: pl.side + ":" + pl.code, text: pl.name }); }));
     var wrap = h("div", { class: "row" }, sel, h("button", { class: "small", onclick: function () {
       if (!sel.value) return;
@@ -970,14 +1120,21 @@
   function payTab() {
     api.get("/admin/payments").then(function (r) {
       var d = r.data, t = d.totals || {}, sw = d.switches || {};
-      var top = h("div", { class: "card" }, titled("h2", "Money on DELA", "pay"),
+      var STATE_WORD = { off: "off", staff: "on for the Lawfecta Team", list: "on for the access list", everyone: "on for everyone" };
+      var SW_WORD = { engagements: "Engagements", milestone_funding: "Paying milestones", milestone_check: "DELA's milestone check", engagement_export: "Agreement export" };
+      var top = h("div", { class: "card" }, titled("h2", NLA ? "Payment overview" : "Money on DELA", "pay"),
         stripeWarnings(d),
         h("p", { class: d.stripe_ready ? "small muted" : "notice", text: d.stripe_ready ? "Stripe is connected in " + (d.mode === "live" ? "LIVE mode (real money)" : "test mode (no real money)") + ". Live payments switch: " + (d.live_payments || "off") + "." : "Stripe is not connected yet. Attorneys see \"Payments are not set up\". It needs the STRIPE_SECRET_KEY (test key) and STRIPE_WEBHOOK_SECRET secrets in Supabase." }),
-        h("p", { class: "small muted", text: ["engagements", "milestone_funding", "milestone_check", "engagement_export"].map(function (k) { return k + ": " + (sw[k] || "off"); }).join(" | ") }),
+        h("ul", { class: "small muted", style: "margin:6px 0 10px;padding-left:18px" }, ["engagements", "milestone_funding", "milestone_check", "engagement_export"].map(function (k) { return h("li", { text: SW_WORD[k] + ": " + (STATE_WORD[sw[k] || "off"] || sw[k]) }); })),
+        h("h3", { style: "margin:10px 0 2px", text: "All time" }),
+        h("p", { class: "small muted", style: "margin:0 0 6px", text: "Every payment, payout, refund and fee since DELA started. There is no date filter yet." }),
         h("div", { class: "kv" },
-          h("div", null, "Charged", h("b", { text: D.money(t.charged || 0) })), h("div", null, "Held now", h("b", { text: D.money(t.held_now || 0) })),
-          h("div", null, "Paid out", h("b", { text: D.money(t.paid_out || 0) })), h("div", null, "Refunded", h("b", { text: D.money(t.refunded || 0) })),
-          h("div", null, "Attorney fees", h("b", { text: D.money(t.attorney_fees || 0) })), h("div", null, "Freelancer fees", h("b", { text: D.money(t.freelancer_fees || 0) }))));
+          h("div", null, "Charged", h("b", { text: D.money(t.charged || 0) })), h("div", null, "Paid out", h("b", { text: D.money(t.paid_out || 0) })),
+          h("div", null, "Refunded", h("b", { text: D.money(t.refunded || 0) })), h("div", null, "Attorney fees", h("b", { text: D.money(t.attorney_fees || 0) })),
+          h("div", null, "Freelancer fees", h("b", { text: D.money(t.freelancer_fees || 0) }))),
+        h("h3", { style: "margin:12px 0 2px", text: "Current balance" }),
+        h("p", { class: "small muted", style: "margin:0 0 6px", text: "Milestones that are paid and not yet accepted, refunded or released." }),
+        h("div", { class: "kv" }, h("div", null, "Held now", h("b", { text: D.money(t.held_now || 0) }))));
       function list(title, items, empty, row) {
         var c = h("div", { class: "card" }, h("h2", { text: title + " (" + items.length + ")" }));
         if (!items.length) c.appendChild(h("p", { class: "muted", text: empty }));
@@ -1498,7 +1655,7 @@
             h("button", { class: "danger small", onclick: function () { decide("not_verified"); } }, "Not verified"))));
       });
       var ready = h("div", { class: "card" }, h("h2", { text: "Profiles by state" }), d.readiness.length ? h("div", { class: "scroll" }, h("table", null,
-        h("thead", null, h("tr", null, ["Side", "Where it stands", "Members"].map(function (x) { return h("th", { text: x }); }))),
+        h("thead", null, h("tr", null, ["Workspace", "Where it stands", "Members"].map(function (x) { return h("th", { text: x }); }))),
         h("tbody", null, d.readiness.map(function (x) { return h("tr", null, h("td", { text: D.SIDE[x.side] || x.side }), h("td", { text: READY[x.state] || x.state }), h("td", { text: String(x.count) })); })))) : h("p", { class: "muted", text: "No profiles yet." }),
         h("p", { class: "small muted", text: "Target time to answer a request: " + d.target_days + " business days." }));
       body(h("div", null, pageHead("Verification", "verify"), lic, li, ready));
@@ -1520,12 +1677,12 @@
       body(h("div", null, pageHead("AI and files", "aifiles"),
         missing.length ? h("div", { class: "notice bad" }, missing.map(function (t) { return h("p", { style: "margin:4px 0", text: t }); })) : h("div", { class: "notice ok", text: "Lawfecta's AI key, the key lock secret and file storage are all in place." }),
         h("div", { class: "card" }, titled("h2", "AI use this month", "ai_usage"),
-          table(["Side", "Plan", "Where it ran", "What", "Calls", "Failed", "Credits", "Tokens in / out"], d.usage.map(function (u) {
+          table(["Workspace", "Plan", "Where it ran", "What", "Calls", "Failed", "Credits", "Tokens in / out"], d.usage.map(function (u) {
             return h("tr", null, h("td", { text: D.SIDE[u.side] || u.side }), h("td", { text: u.plan || "" }), h("td", { text: SOURCE[u.source] || u.source }), h("td", { text: TASK[u.task] || u.task }),
               h("td", { text: String(u.calls) }), h("td", { text: String(u.failed) }), h("td", { text: String(u.credits) }), h("td", { text: u.input_tokens + " / " + u.output_tokens }));
           }), "No AI use yet this month.")),
         h("div", { class: "card" }, titled("h2", "Members' own keys", "ai_keys"),
-          table(["BD member", "Name", "Side", "Key", "Status", "Added"], d.keys.map(function (k) {
+          table(["BD member", "Name", "Workspace", "Key", "Status", "Added"], d.keys.map(function (k) {
             return h("tr", null, h("td", { text: String(k.bd_member_id) }), h("td", { text: k.name }), h("td", { text: k.scope === "org" ? "Firm key" : (D.SIDE[k.side] || k.side) }),
               h("td", { text: k.provider === "openai" ? "OpenAI" : "Claude" }),
               h("td", null, h("span", { class: "badge " + (k.status === "failed" ? "bad" : "C"), text: k.status === "failed" ? "Not working since " + D.date(k.failed_since) + " (" + (k.error || "").split("_").join(" ") + ")" : "Working" })),
@@ -1611,7 +1768,7 @@
       titled("h2", "ChatGPT and Claude connections", "ai_connector").forEach(function (n) { if (n) card.appendChild(n); });
       if (!d.connections.length) card.appendChild(h("p", { class: "muted", text: "Nobody has connected ChatGPT or Claude yet." }));
       else card.appendChild(h("div", { class: "scroll" }, h("table", null,
-        h("thead", null, h("tr", null, ["Member", "Side", "App", "Connected", "Last used", "Calls (30 days)", "Failed", ""].map(function (x) { return h("th", { text: x }); }))),
+        h("thead", null, h("tr", null, ["Member", "Workspace", "App", "Connected", "Last used", "Calls (30 days)", "Failed", ""].map(function (x) { return h("th", { text: x }); }))),
         h("tbody", null, d.connections.map(function (c) {
           return h("tr", null, h("td", { text: c.name + " (" + c.bd_member_id + ")" }), h("td", { text: D.SIDE[c.side] || c.side }), h("td", { text: c.client_name }),
             h("td", { text: D.date(c.created_at) }), h("td", { text: D.date(c.last_used_at) }), h("td", { text: String(c.calls_30d) }), h("td", { text: String(c.errors_30d) }),
@@ -1763,8 +1920,8 @@
     acc: "Who may open DELA on this copy. While DELA is in testing, only people on this list (and the Lawfecta Team) can get in. Removing someone signs them out at once.",
     acc_add: "Add a member by their BD member ID (BD admin, Members). They can then open this copy of DELA. Use member numbers from this site only: every Brilliant Directories site numbers its members separately.",
     acc_list: "Members who may open this copy of DELA. Each line shows when they were added and why.",
-    people: "Everyone who has opened DELA, with their sides (attorney, freelancer) and plans. You can give a side and plan here for testing, or place a hold.",
-    plans: "The eight DELA plans, four per side. Attorneys and freelancers have separate prices, fees and limits. A change is saved as a draft and applies only when you approve it. Old versions are kept.",
+    people: "Everyone who has opened DELA, with their workspaces (attorney, freelancer) and plans. You can give a workspace and plan here for testing, or place a hold.",
+    plans: "The eight DELA plans, four per workspace. Attorneys and freelancers have separate prices, fees and limits. A change is saved as a draft and applies only when you approve it. Old versions are kept.",
     plans_side: "Each column is a plan. Rows show the price, the platform fee this side pays, the BD plan it is linked to, how many members are on it, and every limit. 'No cap' means unlimited.",
     plan_limits: "How much of each feature this plan includes. Empty means no cap. Untick to leave a feature out of the plan.",
     plan_history: "Earlier approved versions of this plan. Restore brings one back as a new version (needs your release password), so nothing is lost.",
@@ -1785,7 +1942,7 @@
     gigs: "Flex Gigs on DELA. Open gigs with their proposals and matches, proposals sent this month by plan, and messages DELA held because they may plan work, contact or payment outside Lawfecta (against the terms). Deliver a held message if it is fine, or keep it from being delivered (the member is told). Pause a gig to stop new proposals while you check it.",
     catalog: "The Lawfecta tech catalog. Upload one CSV with every tool (the columns are in docs/templates/tech-catalog-guide.md on GitHub). A new upload replaces the whole list: DELA shows what will be added, changed and removed, and nothing changes until you click Confirm. Every earlier version is kept. DELA's AI recommends only active tools from this list. Pause a tool to stop recommending it until the next upload.",
     aifiles: "How members use DELA's AI and files. You see counts, key status and file names, never a member's key and never what a file says.",
-    ai_usage: "Every AI call this month by side and plan. Lawfecta's key uses members' included credits; a member's own key or a firm key costs Lawfecta nothing. Tokens are the provider's measure of how much text was read and written.",
+    ai_usage: "Every AI call this month by workspace and plan. Lawfecta's key uses members' included credits; a member's own key or a firm key costs Lawfecta nothing. Tokens are the provider's measure of how much text was read and written.",
     ai_keys: "Members who added their own OpenAI or Claude key. Only the provider and whether it works are shown. Not working means the provider refused the key or it ran out of credit; the member is reminded after a few days.",
     ai_errors: "The last 50 AI calls that failed and why, in the provider's words: bad key, no credit, provider down, rate limited.",
     ai_storage: "File storage used by each attorney's firm against their plan's allowance. Files in the trash count until the trash empties.",
@@ -1998,7 +2155,7 @@
     var nt = tipPair("next");
     var pt = tipPair("push");
     return h("div", { class: "card" },
-      h("div", { class: "row" }, h("div", { class: "grow" }, h("div", { class: "eyebrow", style: "color:var(--brand)" }, "Next version ", nt[0]), h("h2", { style: "font-size:24px;margin:2px 0 0", text: x.version })),
+      h("div", { class: "row" }, h("div", { class: "grow" }, h("div", { class: "eyebrow", style: "color:var(--pink-ink)" }, "Next version ", nt[0]), h("h2", { style: "font-size:24px;margin:2px 0 0", text: x.version })),
         h("span", { class: "badge " + (x.status === "live" ? "C" : x.status === "failed" ? "bad" : x.status === "tested" ? "G" : "O"), text: x.watching ? "Live, being watched" : RELEASE_STATUS[x.status] || x.status })),
       nt[1],
       stepper(d, x),
@@ -2036,7 +2193,7 @@
             h("td", null, h("span", { class: "badge " + badge, text: x.watching ? "Live, being watched" : x.watch_result === "went_back" ? "Went back by itself" : RELEASE_STATUS[x.status] || x.status }),
               h("div", { class: "muted small", text: x.live_at ? "Live " + D.dateTime(x.live_at) : "Added " + D.dateTime(x.created_at) })),
             h("td", { class: "small", text: x.notes }),
-            h("td", { class: "small" }, target ? h("span", { style: "font-weight:700;color:" + (compat.ok ? "var(--ok)" : "var(--bad)"), text: compat.ok ? "Safe to go back" : "Blocked: a newer version changed the database in a way this version cannot work with (" + (compat.blocking || []).join(", ") + ")" }) : h("span", { class: "muted", text: x.status === "live" ? "This is Live now" : "" })),
+            h("td", { class: "small" }, target ? h("span", { class: compat.ok ? "oktxt" : null, style: compat.ok ? null : "font-weight:700;color:var(--bad)", text: compat.ok ? "Safe to go back" : "Blocked: a newer version changed the database in a way this version cannot work with (" + (compat.blocking || []).join(", ") + ")" }) : h("span", { class: "muted", text: x.status === "live" ? "This is Live now" : "" })),
             h("td", null, isOwner && target && compat.ok ? h("button", { class: "ghost small", disabled: busy || !!ctl.flow, onclick: function () { ctl.flow = { id: x.id, action: "rollback", stage: "password" }; drawControl(); } }, "Go back to this") : null,
               x.deploy_log ? h("details", null, h("summary", { class: "small", text: "Log" }), h("pre", { class: "small", style: "white-space:pre-wrap;max-width:320px", text: x.deploy_log })) : null));
         })))) : h("p", { class: "muted", text: "No versions yet." })]);
@@ -2171,6 +2328,10 @@
       resetCard()));
   }
 
+  // A link can open a page (the address carries ?tab= in the compact workspace)
+  var startTab = "control";
+  try { var wanted = new URLSearchParams(location.search).get("tab"); if (NLA && wanted && LABEL[wanted]) startTab = wanted; } catch (e) { /* the first page */ }
+  current = startTab;
   frame();
-  go("control");
+  go(startTab);
 })();

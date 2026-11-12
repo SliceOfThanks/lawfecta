@@ -55,15 +55,15 @@ Group 1. Owner: give the plans (log in as the owner)
    Do: click the tab "People" in the row of tabs near the top.
    Find: the search box "Search name, email or BD member ID" at the top of the page.
    Do: type stacey+dela-freelancer@lawfecta.com and click "Search" next to it.
-   Expect: one row, "DELA Test Freelancer", with "Freelancer: fl_free" in the column "Sides and plans".
+   Expect: one row, "DELA Test Freelancer", with "Freelancer: fl_free" in the column "Workspaces and plans".
 
 3. On that row, in the column "Actions":
-   Do: in the dropdown "Give a side and plan...", choose "Freelancer Business (agency)". Click "Give" next to it.
+   Do: in the dropdown "Give a workspace and plan...", choose "Freelancer Business (agency)". Click "Give" next to it.
    Expect: the message "Done. It applies on their next page load." and the row now says "Freelancer: fl_business (set by team)".
 
 4. Find: the same search box at the top.
    Do: type stacey@lawfecta.com and click "Search".
-   Do: on the row "Stacey Lake", in the dropdown "Give a side and plan...", choose "Freelancer Plus". Click "Give".
+   Do: on the row "Stacey Lake", in the dropdown "Give a workspace and plan...", choose "Freelancer Plus". Click "Give".
    Expect: "Done. It applies on their next page load." and the row says "Freelancer: fl_plus (set by team)".
 
 5. Sign out.

@@ -107,7 +107,7 @@ async function waitFor(page, words, ms) {
     s = await open(browser, 2400, "tab=connect&req=" + encodeURIComponent(si.req));
     p = s.page;
     t = await waitFor(p, "Claude wants to connect to DELA");
-    ok(t.includes("It will use your Attorney side") && t.includes("you go back to claude.ai"), "the page names the side and where the member goes back to");
+    ok(t.includes("It will use your Attorney workspace") && t.includes("you go back to claude.ai"), "the page names the workspace and where the member goes back to");
     ok(t.includes("List and read the documents") && t.includes("It cannot pay, hire, sign"), "the page lists what the app can and cannot do");
     ok(t.includes("Never enter sensitive data in DELA, and that includes what you type in ChatGPT or Claude") && t.includes("logins and passwords"), "the sensitive data notice is on the approval page");
     await p.screenshot({ path: path.join(SHOTS, "connector-approve.png"), fullPage: true });
@@ -126,7 +126,7 @@ async function waitFor(page, words, ms) {
     s = await open(browser, 2400, "tab=ai");
     p = s.page;
     t = await waitFor(p, "Connected now");
-    await waitFor(p, "Attorney side, connected");
+    await waitFor(p, "Attorney workspace, connected");
     ok(true, "AI settings lists the connected app");
     await click(p, "Disconnect");
     await waitFor(p, "Nothing connected yet");
@@ -153,7 +153,7 @@ async function waitFor(page, words, ms) {
     s = await open(browser, 2401, "tab=connect&req=" + encodeURIComponent(si.req));
     p = s.page;
     t = await waitFor(p, "Claude wants to connect to DELA");
-    ok(t.includes("Freelancer side") && t.includes("See your name, side, plan") && !t.includes("documents"), "the freelancer page lists only what the freelancer side can do");
+    ok(t.includes("Freelancer workspace") && t.includes("See your name, workspace, plan") && !t.includes("documents"), "the freelancer page lists only what the freelancer side can do");
     await Promise.all([p.waitForURL(/claude\.ai/), click(p, "Approve")]);
     const ft = await (await fetch(API + "/oauth/token", { method: "POST", headers: { "content-type": "application/json" },
       body: JSON.stringify({ grant_type: "authorization_code", code: new URL(p.url()).searchParams.get("code"), redirect_uri: REDIRECT, client_id: si.client, code_verifier: si.verifier }) })).json();

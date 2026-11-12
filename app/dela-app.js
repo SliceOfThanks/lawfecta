@@ -88,7 +88,7 @@
     if (boot.staging || me.environment !== "live") bar.appendChild(h("span", { class: "badge stage", title: "This copy of DELA is in test mode. Test data only.", text: "Test site" }));
     bar.appendChild(h("span", { class: "grow" }));
     if ((me.sides || []).length > 1) {
-      var seg = h("div", { class: "seg", role: "group", "aria-label": "Switch side" });
+      var seg = h("div", { class: "seg", role: "group", "aria-label": "Switch workspace" });
       me.sides.forEach(function (s) {
         seg.appendChild(h("button", { "aria-pressed": String(s.side === me.side), onclick: function () { switchSide(s.side); } }, D.SIDE[s.side]));
       });
@@ -588,6 +588,21 @@
     if (!att && pf.readiness === "match_ready" && pf.availability_due_at && Date.parse(pf.availability_due_at) - Date.now() < 3 * 86400000) rows.push(hrow({ title: "Availability: confirm by " + shortDate(pf.availability_due_at), sub: "You said: " + (pf.availability === "limited" ? "some hours only" : "available for new work") + ".", act: "Confirm availability", go: function () { goProfile("sec-availability"); } }));
     return rows;
   }
+  // A number on Home opens its page at the list the number counts: the page opens, the list's card comes into view and
+  // its heading takes focus (lists load a moment after the page, so the card is looked for briefly).
+  function openList(toTab, heading, listFilter) {
+    tab = toTab; gigs.id = null;
+    if (listFilter) { gigs.listFilter = listFilter; gigs.listMore = false; }
+    draw();
+    var tries = 0, timer = setInterval(function () {
+      var hd = [].filter.call(app.querySelectorAll(".nl-main h2, .wrap h2"), function (x) { return x.textContent.indexOf(heading) === 0; })[0];
+      if (hd || ++tries > 25 || tab !== toTab) clearInterval(timer);
+      if (!hd) return;
+      hd.setAttribute("tabindex", "-1");
+      (hd.closest(".card") || hd).scrollIntoView({ block: "start" });
+      hd.focus({ preventScroll: true });
+    }, 200);
+  }
   function hstat(n, label, small, go) { return h("button", { class: "hstat", type: "button", onclick: go }, h("b", { text: String(n) }), h("span", { text: label }), small ? h("small", { text: small }) : null); }
   var ENG_BADGE = { signing: ["Waiting for signatures", "held"], signed: ["Waiting for the first payment", "held"], active: ["In progress", "ready"], paused: ["Paused", "held"], disputed: ["In dispute", "bad"] };
   function workBox(hm) {
@@ -603,16 +618,16 @@
     c.appendChild(inner);
     var tiles = h("div", { class: "hstats" });
     if (att) {
-      tiles.appendChild(hstat(hm.pending_reviews || 0, "Deliveries to review", null, go));
-      tiles.appendChild(hstat(hm.active_projects || 0, "Active projects", null, go));
-      tiles.appendChild(hstat(hm.open_gigs || 0, "Open gigs", null, go));
-      tiles.appendChild(hstat(hm.draft_gigs || 0, "Gig drafts", null, go));
+      tiles.appendChild(hstat(hm.pending_reviews || 0, "Deliveries to review", null, function () { openList("projects", "Engagements"); }));
+      tiles.appendChild(hstat(hm.active_projects || 0, "Active projects", null, function () { openList("projects", "Engagements"); }));
+      tiles.appendChild(hstat(hm.open_gigs || 0, "Open gigs", null, function () { openList("projects", "Your gigs", "active"); }));
+      tiles.appendChild(hstat(hm.draft_gigs || 0, "Gig drafts", null, function () { openList("projects", "Your gigs", "active"); }));
     } else {
       var pr = ent("fl.proposals");
-      tiles.appendChild(hstat(hm.active_projects || 0, "Active projects", null, go));
-      tiles.appendChild(hstat(hm.invitations || 0, "Invitations", null, go));
+      tiles.appendChild(hstat(hm.active_projects || 0, "Active projects", null, function () { openList("work", "Your engagements"); }));
+      tiles.appendChild(hstat(hm.invitations || 0, "Invitations", null, function () { openList("work", "Invitations"); }));
       tiles.appendChild(hstat(D.money(hm.paid_out_month_cents || 0), "Paid out this month", D.money(hm.paid_out_cents || 0) + " all time", function () { tab = "earnings"; draw(); }));
-      if (pr) tiles.appendChild(hstat(pr.limit === null || pr.limit === undefined ? "No limit" : Math.max((pr.limit || 0) - (pr.used || 0), 0), "Proposals left this month", null, go));
+      if (pr) tiles.appendChild(hstat(pr.limit === null || pr.limit === undefined ? "No limit" : Math.max((pr.limit || 0) - (pr.used || 0), 0), "Proposals left this month", null, function () { openList("work", "Sent proposals"); }));
     }
     inner.appendChild(tiles);
     if ((hm.projects || []).length) {
@@ -1350,7 +1365,7 @@
   function drawAi(ai) {
     D.clear(aiEl);
     aiEl.appendChild(h("h1", { text: NL() ? "Settings" : "AI settings" }));
-    aiEl.appendChild(h("p", { class: "muted", text: "These settings are for your " + D.SIDE[me.side] + (NL() ? " workspace only." : " side only.") }));
+    aiEl.appendChild(h("p", { class: "muted", text: "These settings are for your " + D.SIDE[me.side] + " workspace only." }));
     if (NL()) { aiEl.appendChild(settingsTop()); aiEl.appendChild(h("h2", { style: "margin-top:20px", text: "AI and messages" })); }
     else { aiEl.appendChild(D.accountCard(me)); if (settingsJump === "set-account") settingsJump = null; }
     var c = ai.credits;
@@ -2022,8 +2037,8 @@
   // ---------- DELA in ChatGPT and Claude (connector) ----------
 
   var CONNECT_CAN = {
-    attorney: ["See your name, side, plan and DELA actions left", "Read your profile and where your verification stands", "List and read the documents in your library", "Save new document drafts and suggest changes (you accept changes here, on the DELA website)", "Have DELA's AI draft a document, using your DELA actions or your own key", "Export a document as text, a web page or a checklist"],
-    freelancer: ["See your name, side, plan and DELA actions left", "Read your profile and what is missing to be match-ready"],
+    attorney: ["See your name, workspace, plan and DELA actions left", "Read your profile and where your verification stands", "List and read the documents in your library", "Save new document drafts and suggest changes (you accept changes here, on the DELA website)", "Have DELA's AI draft a document, using your DELA actions or your own key", "Export a document as text, a web page or a checklist"],
+    freelancer: ["See your name, workspace, plan and DELA actions left", "Read your profile and what is missing to be match-ready"],
   };
   var CONNECT_CANNOT = "It cannot pay, hire, sign, send messages, delete anything or see your passwords or AI keys.";
   var CONNECT_ERR = { request_expired: "This connection request ran out or was already answered. Start again from ChatGPT or Claude.", connector_off: "DELA in ChatGPT and Claude is not open for your account yet.", not_in_plan: "Your plan does not include the ChatGPT and Claude connector.", on_hold: "Some actions are paused on your account. Contact the Lawfecta Team." };
@@ -2055,7 +2070,7 @@
       D.clear(box);
       if (!r.ok) { box.appendChild(h("h1", { text: "Connect DELA" })); box.appendChild(h("p", { class: "notice bad", text: CONNECT_ERR[r.reason] || D.errorText(r.reason) })); return; }
       box.appendChild(h("h1", { text: r.client_name + " wants to connect to DELA" }));
-      box.appendChild(h("p", { text: "It will use your " + D.SIDE[r.side] + " side" + ((me.sides || []).length > 1 ? ". To connect your other side instead, switch sides at the top of this page first." : ".") }));
+      box.appendChild(h("p", { text: "It will use your " + D.SIDE[r.side] + " workspace" + ((me.sides || []).length > 1 ? ". To connect your other workspace instead, switch workspaces at the top of this page first." : ".") }));
       box.appendChild(h("p", { class: "small muted", text: "After you choose, you go back to " + r.redirect_host + "." }));
       connectExplain(box, r.side, r.client_name, true);
       box.appendChild(h("p", { class: "notice", role: "note", text: "Never enter sensitive data in DELA, and that includes what you type in ChatGPT or Claude for DELA: " + SENSITIVE_KINDS + ". Keep it in your own storage. You are responsible for what you enter." }));
@@ -2084,7 +2099,7 @@
       D.clear(card);
       card.appendChild(h("h2", { text: "Use DELA in ChatGPT and Claude" }));
       if (!r.on && !r.connections.length) { card.appendChild(h("p", { text: "Opens soon. You will be able to read and draft your DELA documents from ChatGPT or Claude." })); return; }
-      card.appendChild(h("p", { text: me.side === "attorney" ? "Read your documents, save drafts and suggest changes from ChatGPT or Claude. Changes wait for you here before they count." : "Connect ChatGPT or Claude to your DELA freelancer side. More freelancer tools come in a later update." }));
+      card.appendChild(h("p", { text: me.side === "attorney" ? "Read your documents, save drafts and suggest changes from ChatGPT or Claude. Changes wait for you here before they count." : "Connect ChatGPT or Claude to your DELA freelancer workspace. More freelancer tools come in a later update." }));
       var addr = h("input", { type: "text", readonly: true, value: r.url, "aria-label": "DELA connector address", style: "width:100%" });
       card.appendChild(h("label", { text: "DELA connector address" }));
       card.appendChild(h("div", { class: "row" }, addr, h("button", { class: "ghost small", onclick: function () {
@@ -2100,7 +2115,7 @@
       card.appendChild(h("h3", { text: "Connected now" }));
       if (!r.connections.length) card.appendChild(h("p", { class: "muted small", text: "Nothing connected yet." }));
       else card.appendChild(h("ul", { class: "list" }, r.connections.map(function (c) {
-        return h("li", { class: "row" }, h("span", { class: "grow" }, h("b", { text: c.client_name }), h("span", { class: "small muted", text: " " + D.SIDE[c.side] + " side, connected " + D.date(c.created_at) + ", last used " + D.date(c.last_used_at) })),
+        return h("li", { class: "row" }, h("span", { class: "grow" }, h("b", { text: c.client_name }), h("span", { class: "small muted", text: " " + D.SIDE[c.side] + " workspace, connected " + D.date(c.created_at) + ", last used " + D.date(c.last_used_at) })),
           h("button", { class: "danger small", onclick: function () {
             if (!confirm("Disconnect " + c.client_name + "? It stops working with DELA right away. You can connect it again later.")) return;
             api.post("/connections/disconnect", { id: c.id }).then(function (x) { if (x.ok === false) throw new Error(x.reason); D.toast(app, "Disconnected"); card.replaceWith(connectionsCard()); }).catch(err);
@@ -6085,7 +6100,7 @@
     virus_scan_not_set_up: "Uploads are off until the virus scanner is set up.", sensitive_job: "This job is marked as involving sensitive data, so files cannot be uploaded. Use a secure document link instead.",
     share_expired: "Access to this file has ended.", view_only: "This file is view only.", pdf_protected: "This PDF is password protected, so DELA cannot show it. Ask for an unprotected copy.",
     link_expired: "This link has expired.", link_not_https: "Use a secure link that starts with https.", link_has_login: "Remove the user name or password from the link.",
-    bad_link: "That does not look like a link.", too_many_links: "This job has the most links allowed. Remove one first.", not_allowed: "Only the attorney's side can do that.",
+    bad_link: "That does not look like a link.", too_many_links: "This job has the most links allowed. Remove one first.", not_allowed: "Only the attorney can do that.",
     hiring_attorney_only: "Only the hiring attorney can add or remove people.", not_in_firm: "That person is not in your firm.", no_open_dispute: "There is no open dispute.",
     empty_message: "Write a message first.", not_found: "That is no longer here."
   };
@@ -8993,7 +9008,7 @@
     loadUsage(true).then(function (u) {
       D.clear(el);
       el.appendChild(h("h1", { text: "Usage" }));
-      if (!u) { el.appendChild(h("p", { class: "notice", text: "Usage is shown for the attorney side." })); return; }
+      if (!u) { el.appendChild(h("p", { class: "notice", text: "Usage is shown for the attorney workspace." })); return; }
       var card = h("div", { class: "card", id: "usage-card" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Your plan: " + u.plan }), upgradeButton(u)));
       usageLines(u).forEach(function (l) {
         var p = usagePct(l.used, l.limit);
@@ -9036,10 +9051,10 @@
     var hasOther = (me.sides || []).some(function (x) { return x.side === other; });
     var who = ((me.person || {}).name ? " (" + me.person.name + ")" : "");
     return h("div", { class: "card", id: "wrong-side" }, h("h2", { text: "This page is for " + other + "s" }),
-      h("p", { text: "This page is on the " + other + " side of DELA. You are signed in as " + (me.side === "attorney" ? "an attorney" : "a freelancer") + who + "." +
-        (hasOther ? " Switch sides to open it." : " To use it, sign out and sign in with your " + other + " account.") }),
+      h("p", { text: "This page is on the " + other + " workspace of DELA. You are signed in as " + (me.side === "attorney" ? "an attorney" : "a freelancer") + who + "." +
+        (hasOther ? " Switch workspaces to open it." : " To use it, sign out and sign in with your " + other + " account.") }),
       h("div", { class: "row", style: "flex-wrap:wrap" },
-        hasOther ? h("button", { class: "blue small", type: "button", onclick: function () { switchSide(other); } }, "Switch to the " + other + " side") : null,
+        hasOther ? h("button", { class: "blue small", type: "button", onclick: function () { switchSide(other); } }, "Switch to the " + other + " workspace") : null,
         h("button", { class: hasOther ? "ghost small" : "blue small", type: "button", onclick: function () {
           // The address bar stops pointing at the other side's page
           try { var u = new URL(location.href); u.searchParams.delete("tab"); history.replaceState(null, "", u.toString()); } catch (e) { /* older browsers keep the address */ }

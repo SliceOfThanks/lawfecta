@@ -230,7 +230,7 @@
       locked_setting: "That setting can only be changed at setup.",
       bad_value: "That value is not allowed.",
       not_a_draft: "That plan version is not a draft.",
-      bad_plan: "That plan does not fit this side.",
+      bad_plan: "That plan does not fit this workspace.",
       signed_out: "Your sign in ended. Refresh the page.",
       // AI and files (Step 2a)
       ai_off: "DELA's AI is not open for your account yet.",
@@ -273,7 +273,7 @@
       server_error: "Something went wrong. Please try again.",
       // Profiles and verification (Step 3)
       profiles_off: "Profiles open soon.",
-      no_side: "Choose your DELA side first.",
+      no_side: "Choose your DELA workspace first.",
       changed_elsewhere: "Your profile was changed in another tab or window. Refresh the page to see the latest, then make your change again.",
       looks_like_client_info: "This looks like it may include client information. Take it out, or tick that it is not client information.",
       verification_off: "Verification opens soon.",
@@ -389,6 +389,7 @@ D.openTab = function (getUrl, onFail, opts) {
     D.darkCss(".dela{--bg:#11131b;--card:#1a1d28;--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c;--brand:#c2416f;--pink:#2a1622;--pink-ink:#f19ab8;--soft:#222634;--shadow:none;--okbg:#17301f;--okline:#2b5a3b;--bluebg:#132233}" +
       ".problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b}.notice.ok{background:#17301f}" +
       ".msg.mine,.flow,.helpbox{border-color:#2b4a66}button.ai-btn{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}.badge.ai-label{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}" +
+      ".oktxt{color:#7fd3a3}" +
       // Waiting and done badges are quiet on dark: a deep tint with light text, not a bright chip
       ".badge.held{background:#3a2f12;color:#f0c668;border-color:#5c4a1c}.badge.ready{background:#17301f;color:#7fd3a3;border-color:#2b5a3b}" +
       // Readable text on dark (at least 4.5 to 1): links, outlined buttons, the current tab, labels and blue buttons
@@ -576,10 +577,17 @@ D.openTab = function (getUrl, onFail, opts) {
     ".hask:focus-within{border-color:var(--pink-ink)}.hask .send{width:40px;height:40px;min-height:0;border-radius:8px;border:0;background:var(--brand);color:#fff;display:inline-flex;align-items:center;justify-content:center;padding:0;flex:none}" +
     ".hanswer{background:var(--soft);border-radius:10px;padding:10px 12px;font-size:15px;max-height:220px;overflow-y:auto}.hline{display:flex;align-items:center;gap:8px 10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px}" +
     "@media (prefers-reduced-motion:reduce){.dela.nl *{transition:none !important;animation:none !important}}" +
+    ".oktxt{color:var(--ok);font-weight:700}" +
     // Account and security: a label and its explanation on the left, its actions on the right; stacked on a phone
     ".acct-row{display:flex;gap:10px 16px;align-items:flex-start;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line)}.acct-what{flex:1 1 280px;min-width:0;display:flex;flex-direction:column;gap:3px}" +
     ".acct-val{font-size:16px;overflow-wrap:anywhere}.acct-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.acct .btn{text-decoration:none}.dela .acct a.btn.ghost{background:transparent;color:var(--pink-ink);border:1px solid var(--line)}@media (max-width:600px){.acct-acts{flex:1 1 100%}.acct-acts .btn{flex:1 1 auto;text-align:center;min-height:44px;display:inline-flex;align-items:center;justify-content:center}}" +
     ".dela .top.atop{flex-wrap:wrap;row-gap:6px}@media (max-width:600px){.dela .top.atop .grow{flex-basis:100%;height:0}.dela .top.atop>.small{flex:1 1 100%}}" +
+    // The admin area in the compact workspace: groups in the sidebar, the account button, the "Menu" sheet on a phone
+    ".aside-slot{display:none}.anav .nl-items{display:flex;flex-direction:column;gap:2px}.anav .nl-items[hidden]{display:none}.anav .nl-item{min-height:40px}" +
+    ".nl-group{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-height:40px;margin-top:6px;padding:0 12px;border:0;border-radius:8px;background:transparent;color:var(--ink);font:inherit;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;text-align:left}" +
+    ".nl-group:hover{background:var(--soft)}.nl-group svg.ic{width:16px;height:16px;color:var(--muted)}.dela.nl .top .amenu,.dela.nl .top .acctbtn{color:var(--ink);border:1px solid var(--line);background:transparent;border-radius:8px;font-weight:600}.dela.nl .menu a{color:var(--ink);text-decoration:none}.dela.nl .top .amenu{min-height:40px}.dela.nl .top .acctbtn{min-height:40px;max-width:60vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}" +
+    ".nl-sheet.full{bottom:0;max-height:88%;max-height:88dvh;padding-bottom:calc(12px + env(safe-area-inset-bottom))}.dela.nl .wrap.awide{max-width:none}.dela.nl .top{position:relative}" +
+    "@media (min-width:900px){.aside-slot{display:block;flex:none;align-self:flex-start;position:sticky;top:var(--dela-top,0px)}.aside-slot .nl-side{position:static}.dela.nl .top .amenu{display:none}.nl-side.anav.mini .nl-brand b{display:none}}" +
     // The holder for a trapped phone bar: no size or color of its own
     ".dela.docked{min-height:0;padding:0;background:transparent}" +
     // While More is open it is the one marked item; the page's own item goes quiet until the sheet closes

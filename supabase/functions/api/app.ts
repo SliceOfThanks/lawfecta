@@ -4062,8 +4062,8 @@ const PB_FIELDS = {
 };
 
 function mcpTools(side: string) {
-  const who = { name: "lawfecta_whoami", title: "Who am I in DELA", description: "Shows the Lawfecta member and DELA side this connection uses, their plan and AI credits left.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } };
-  const prof = { name: "get_my_profile", title: "My DELA profile", description: "Shows the member's DELA profile on this side, where it stands (" + (side === "attorney" ? "license verification" : "match-ready, availability and the LinkedIn check") + ") and exactly what is missing.",
+  const who = { name: "lawfecta_whoami", title: "Who am I in DELA", description: "Shows the Lawfecta member and DELA workspace this connection uses, their plan and AI credits left.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } };
+  const prof = { name: "get_my_profile", title: "My DELA profile", description: "Shows the member's DELA profile in this workspace, where it stands (" + (side === "attorney" ? "license verification" : "match-ready, availability and the LinkedIn check") + ") and exactly what is missing.",
     inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } };
   const mine = { name: "list_my_gig_work", title: "My matches, invitations and proposals", description: "Lists the freelancer's Flex Gig matches (with why each fits), invitations, open gigs, saved proposal drafts and sent proposals, and how many proposals are left this month.",
     inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } };
@@ -4078,7 +4078,7 @@ function mcpTools(side: string) {
       inputSchema: { type: "object", properties: { thread_id: { type: "string" }, body: { type: "string" } }, required: ["thread_id", "body"] }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
     { name: "list_my_meetings", title: "My meetings", description: "Lists the member's meetings on gigs: time (UTC), length, status and whether attendance is confirmed.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
     // Step 6, both sides: engagements to read; signing, paying, submitting and accepting stay on the website
-    { name: "list_my_reviews", title: "My reviews", description: "Shows the reviews other members wrote about this member on this side (from completed Lawfecta engagements), with the averages once there are enough. Writing a review happens on the DELA website.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
+    { name: "list_my_reviews", title: "My reviews", description: "Shows the reviews other members wrote about this member in this workspace (from completed Lawfecta engagements), with the averages once there are enough. Writing a review happens on the DELA website.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
     { name: "list_my_bench", title: "My bench", description: "Attorneys: the freelancers on their trusted bench (and the firm bench), with availability and reviews. Freelancers: the benches they are on and open invitations. Inviting and accepting happen on the DELA website.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
     { name: "list_my_engagements", title: "My engagements", description: "Lists the member's engagements (signed or waiting for signatures): the other person, the price, how many milestones are accepted and whether their signature is needed.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
     { name: "list_my_recurring_work", title: "My monthly engagements and standing arrangements", description: "Lists the member's monthly engagements and standing arrangements (price, monthly cap and spend, jobs open, end date, status). Read only: renewing, hiring, cancelling and approving happen on the DELA website.", inputSchema: { type: "object", properties: {} }, annotations: { readOnlyHint: true } },
@@ -4254,7 +4254,7 @@ Where it stands: ${words[st?.readiness] ?? st?.readiness ?? "unknown"}. ${ver}.`
       (st?.missing_labels?.length ? "\nStill missing: " + st.missing_labels.join(", ") + "." : "") + "\nThe member edits the profile and verification on the DELA website, Profile.",
       data: { readiness: st?.readiness, verification: st?.verification, missing: st?.missing_labels ?? [], profile: b } };
   }
-  if (w.side !== "attorney") throw new ToolError("This tool is for the attorney side.");
+  if (w.side !== "attorney") throw new ToolError("This tool is for the attorney workspace.");
   if (w.on_hold && name !== "list_documents" && name !== "get_document") throw new ToolError("Some actions are paused on this account. Contact the Lawfecta Team.");
   if (name === "list_documents") {
     const r = await rpc<Record<string, any>>(ctx, "dela_pb_list", { p_person: w.person_id, p_org: org });
@@ -4366,7 +4366,7 @@ async function mcpEndpoint(ctx: Ctx) {
   const w = await rpc<Record<string, any>>(ctx, "dela_mcp_resolve", { p_access_hash: await mcpHash(auth.slice(7).trim()) });
   if (!w?.ok) {
     if (w?.reason === "invalid_token") return mcpUnauthorized(ctx);
-    const words: Record<string, string> = { paused: "DELA's connector is paused for a moment.", connector_off: "DELA in ChatGPT and Claude is not open for this account yet.", not_in_plan: "This plan does not include the ChatGPT and Claude connector.", rate_limited: "Too many requests. Wait a minute and try again.", no_side: "This DELA side is no longer on the account." };
+    const words: Record<string, string> = { paused: "DELA's connector is paused for a moment.", connector_off: "DELA in ChatGPT and Claude is not open for this account yet.", not_in_plan: "This plan does not include the ChatGPT and Claude connector.", rate_limited: "Too many requests. Wait a minute and try again.", no_side: "This DELA workspace is no longer on the account." };
     return json(ctx, { jsonrpc: "2.0", id: (ctx.body as any)?.id ?? null, error: { code: -32001, message: words[w?.reason] ?? "DELA refused this request." } }, w?.reason === "rate_limited" ? 429 : 403);
   }
   const who = w as unknown as McpWho;
