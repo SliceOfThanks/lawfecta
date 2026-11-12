@@ -79,6 +79,9 @@ async function makeMember(bd, side, plan, name) {
       await a0.goto(`${BASE}/page/DELA-Admin?uid=5104&plan=`);
       await a0.locator(".dela-host").getByRole("tab", { name: "Payments" }).waitFor({ timeout: 15000 });
       ok(await a0.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.querySelectorAll("[role=tab]").length === 25 && !r.querySelector(".nl-frame"); }), "switch off: the admin area keeps its row of 25 tabs");
+      await a0.locator(".dela-host").getByRole("tab", { name: "Payments" }).click();
+      await a0.waitForFunction(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText.includes("Needs attention ("));
+      ok(await a0.evaluate(() => { const t = document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText; return t.indexOf("Needs attention (") < t.indexOf("Money on DELA"); }), "switch off: Needs attention is on the Payments tab in the old layout too");
       await c0.close();
     }
     await sql("update feature_switches set state = 'everyone' where key = 'new_layout'");
@@ -320,6 +323,40 @@ async function makeMember(bd, side, plan, name) {
       await ap.waitForFunction(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText.includes("Payment overview"));
       let pt = await atext();
       ok(ap.url().includes("tab=pay") && pt.includes("All time") && pt.includes("Current balance") && pt.includes("Engagements: on for everyone") && !pt.includes("milestone_funding"), "admin: Payments is Payment overview, with All time, Current balance and plain words for the switches");
+      ok(pt.includes("Needs attention (") && pt.indexOf("Needs attention (") < pt.indexOf("Payment overview"), "admin: Needs attention is the first card on Payments");
+      // Needs attention, with the server's answers set for the test: nothing waiting, then one of each kind
+      let waiting = null;
+      await ap.route("**/api/admin/**", async (route) => {
+        const res = await route.fetch();
+        if (!waiting) return route.fulfill({ response: res });
+        let j; try { j = await res.json(); } catch (e) { return route.fulfill({ response: res }); }
+        const u = route.request().url();
+        if (u.includes("/admin/payments") && j.data) Object.assign(j.data, waiting.pay, { totals: Object.assign({}, j.data.totals, waiting.totals || {}) });
+        if (u.includes("/admin/disputes") && j.data) Object.assign(j.data, waiting.disp);
+        return route.fulfill({ response: res, json: j });
+      });
+      const none = { payouts_held: [], disputes: [], chargebacks: [], human_reviews: [], overdue_reviews: [], stripe_account: { payout_interval: "manual", available_cents: 50000 } };
+      waiting = { pay: none, totals: { held_now: 0 }, disp: { payouts_waiting: [], refunds_failed: [], paused: [] } };
+      await ap.reload();
+      await ap.waitForFunction(() => { const h = document.querySelector(".dela-host"); return h && h.shadowRoot && h.shadowRoot.querySelector(".dela") && h.shadowRoot.querySelector(".dela").innerText.includes("Needs attention (0)"); });
+      ok((await atext()).includes("Nothing needs you right now."), "admin: with nothing waiting, Needs attention says so");
+      waiting = { pay: Object.assign({}, none, { stripe_account: { payout_interval: "daily", available_cents: -10987 }, disputes: [{ id: "d1", gig_title: "Sample dispute job", status: "team_review", milestone: "Draft", milestone_amount_cents: 15000 }, { id: "d2", gig_title: "Still talking", status: "notice" }],
+        human_reviews: [{ id: "h1", gig_title: "A", milestone: "One", seq: 1, score: 50, findings: [], statement: "", created_at: "2026-11-12T00:00:00Z" }] }), totals: { held_now: 45000 },
+        disp: { payouts_waiting: [{ id: "p1", status: "failed", amount_cents: 4750, freelancer: "DELA Test Freelancer", gig_title: "Fee test: Run a Conflict Check", reason: "You have insufficient available funds in your Stripe account." }], refunds_failed: [{ id: "r1", amount_cents: 10000, gig_title: "Sample refund job", retries: 3 }], paused: [] } };
+      await ap.reload();
+      await ap.waitForFunction(() => { const h = document.querySelector(".dela-host"); return h && h.shadowRoot && h.shadowRoot.querySelector(".dela") && h.shadowRoot.querySelector(".dela").innerText.includes("Needs attention (6)"); });
+      const arows = await ain((root) => [...root.querySelectorAll("#pay-attention .hrow")].map((b) => b.querySelector("b").innerText.trim() + " > " + b.querySelector(".act").innerText.trim()));
+      ok(arows.join(" | ") === ["Stripe pays Lawfecta's balance to the bank by itself > See the notice", "Stripe holds less than DELA owes > See the notice", "Payout failed: $47.50 to DELA Test Freelancer, Fee test: Run a Conflict Check > View held payout",
+        "Refund failed: $100, Sample refund job > View failed refund", "Dispute waiting for the Lawfecta Team: Sample dispute job > Review dispute", "1 milestone waiting for a human review > Review milestones"].join(" | "), "admin: Needs attention lists what waits, most urgent first, each with its action: " + arows.join(" | "));
+      ok((await atext()).includes("Stripe said: You have insufficient available funds in your Stripe account."), "admin: a failed payout shows Stripe's reason");
+      await ap.screenshot({ path: path.join(SHOTS, "workspace-admin-attention.png") });
+      await ah.getByRole("button", { name: /Payout failed/ }).click();
+      await ap.waitForFunction(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.activeElement && r.activeElement.tagName === "H2" && r.activeElement.textContent.indexOf("Money tools") === 0; }, null, { timeout: 8000 });
+      ok(ap.url().includes("tab=disputes") && (await atext()).includes("Payout failed: $47.50 to DELA Test Freelancer"), "admin: View held payout opens Disputes at Money tools, where Retry is");
+      waiting = null;
+      await ap.unroute("**/api/admin/**");
+      await ah.locator(".nl-side .nl-items:not([hidden])").getByRole("button", { name: "Payments", exact: true }).click();
+      await ap.waitForFunction(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText.includes("Payment overview"));
       await ap.reload();
       await ap.waitForFunction(() => { const h = document.querySelector(".dela-host"); return h && h.shadowRoot && h.shadowRoot.querySelector(".dela") && h.shadowRoot.querySelector(".dela").innerText.includes("Payment overview"); });
       ok(await ain((root) => root.querySelector(".nl-side [aria-current=page]").innerText.trim()) === "Payments" && await ain((root) => [...root.querySelectorAll(".nl-side .nl-group[aria-expanded=true]")].map((b) => b.innerText.trim().toUpperCase()).join(",")) === "PAYMENTS,SAFETY", "admin: after a reload the page, and the open groups, are as they were");

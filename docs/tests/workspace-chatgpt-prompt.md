@@ -1,6 +1,6 @@
 # ChatGPT test: the compact workspace, the new DELA layout (2026-11-12)
 
-Step 15. Looking only: nothing is signed, paid, sent or changed, except the light and dark choice on the test freelancer, which is put back. Three logins, 20 steps, on a desktop-size browser window.
+Step 15. Looking only: nothing is signed, paid, sent or changed, except the light and dark choice on the test freelancer, which is put back. Three logins, 21 steps, on a desktop-size browser window.
 
 What Claude prepared: the new layout is switched on for the Lawfecta Team and for the two test accounts (DELA Test Freelancer and DELA Test Attorney). No other member sees it. The test freelancer has a complete profile and several test jobs; the test attorney has test jobs waiting for a signature or a payment.
 
@@ -105,7 +105,10 @@ OWNER, ADMIN AREA (log in once)
 18. Do: in the left menu click the heading "PAYMENTS".
     Expect: three lines appear under it: "Payments", "Disputes", "Recurring".
     Do: click the line "Payments" under that heading.
-    Expect: the address ends with tab=pay. The first card is titled "Payment overview".
+    Expect: the address ends with tab=pay. The first card on the page has a heading that starts "Needs attention (" with a number.
+    Find: inside that first card.
+    Expect: a list of rows, each with dark red words at its right end. One row starts "Stripe pays Lawfecta's balance to the bank by itself" and ends "See the notice". One row starts "Payout failed: $47.50 to DELA Test Freelancer" and ends "View held payout". Write the heading of every row in this card.
+    Find: the second card, titled "Payment overview".
     Find: inside "Payment overview", near its top.
     Expect: a red notice that starts "Stripe sends Lawfecta's balance to the bank by itself". Under it a line that starts "Stripe balance available now:". Write that whole line.
     Expect: a short list that starts "Engagements: on for everyone" (plain words, no underscores), then the small headings "All time" and "Current balance". Under "Current balance" there is one box, "Held now".
@@ -113,7 +116,11 @@ OWNER, ADMIN AREA (log in once)
     Expect: a menu with "My account", then "Appearance" with "Match my device", "Light", "Dark", then "Member view" and "Sign out".
     Do: click "My account".
     Expect: a page headed "My account" with the card "Account and security". The row "Sign-in email" shows stacey@lawfecta.com. Do NOT click any button in the card.
-20. Do: click "Stacey Lake (owner)" at the top right, then "Sign out".
+20. Go to: https://www.lawfecta.co/dela-admin?tab=pay
+    Find: the first card, "Needs attention", the row that starts "Payout failed: $47.50".
+    Do: click that row.
+    Expect: the page changes to Disputes (the address ends with tab=disputes) and moves to a card titled "Money tools" with a line that starts "Payout failed: $47.50 to DELA Test Freelancer" and an outlined button "Retry now" at its right. Do NOT click "Retry now".
+21. Do: click "Stacey Lake (owner)" at the top right, then "Sign out".
     Expect: you are signed out of the website.
 
 Report as described in "How to work", line 10. For steps 3, 12 and 18 include the words you were asked to write down.

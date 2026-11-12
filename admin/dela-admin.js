@@ -250,6 +250,8 @@
 
   // Stripe's own settings that can break a payout (sandbox run 2026-11-12): money held for milestones sits on Lawfecta's
   // Stripe balance. If Stripe sends the balance to the bank by itself, a later payout to a freelancer fails.
+  // A balance can be below zero (refunds went out after the balance was paid to the bank): write it with the word minus
+  function bal(c) { return c < 0 ? "minus " + D.money(-c) : D.money(c); }
   function stripeWarnings(d) {
     var s = d.stripe_account, t = d.totals || {}, box = h("div", null);
     if (!s) return box;
@@ -257,7 +259,7 @@
     if (s.payout_interval && s.payout_interval !== "manual") box.appendChild(h("p", { class: "notice bad", text: "Stripe sends Lawfecta's balance to the bank by itself, " + (words[s.payout_interval] || s.payout_interval) + ". Money held for milestones leaves Stripe before it is released, and a payout to a freelancer then fails. In Stripe, set the payout schedule to Manual, and move only Lawfecta's own fees to the bank." }));
     if (typeof s.available_cents === "number") {
       var short = s.available_cents < (t.held_now || 0);
-      box.appendChild(h("p", { class: short ? "notice bad" : "small muted", text: "Stripe balance available now: " + D.money(s.available_cents) + ". Held for milestones in DELA: " + D.money(t.held_now || 0) + "." + (short ? " Stripe holds less than DELA owes. Payouts and releases can fail until the balance covers it." : "") }));
+      box.appendChild(h("p", { class: short ? "notice bad" : "small muted", text: "Stripe balance available now: " + bal(s.available_cents) + ". Held for milestones in DELA: " + D.money(t.held_now || 0) + "." + (short ? " Stripe holds less than DELA owes. Payouts and releases can fail until the balance covers it." : "") }));
     }
     return box;
   }
@@ -1117,8 +1119,52 @@
     }).catch(fail);
   }
 
+  // Bring a card into view by its heading and put focus there (lists load a moment after the page opens)
+  function showCard(heading, tab) {
+    if (tab && tab !== current) go(tab);
+    var tries = 0, timer = setInterval(function () {
+      var hd = [].filter.call(mainEl.querySelectorAll("h2, .notice.bad"), function (x) { return x.textContent.indexOf(heading) === 0; })[0];
+      if (hd || ++tries > 25 || (tab && current !== tab)) clearInterval(timer);
+      if (!hd) return;
+      hd.setAttribute("tabindex", "-1");
+      (hd.closest(".card") && hd.tagName === "H2" ? hd.closest(".card") : hd).scrollIntoView({ block: "start" });
+      hd.focus({ preventScroll: true });
+    }, 200);
+  }
+  // "Needs attention" on the Payments page (Stacey's review of the mockups, board 5; built 2026-11-13): everything about
+  // money that waits on the Lawfecta Team, most urgent first, each with one action that names where it goes. It uses what
+  // the Payments page loads, plus the Disputes page's failed refunds, waiting payouts and paused engagements (dd; null
+  // when that could not be read). No new numbers.
+  function attentionCard(d, dd) {
+    var rows = [], s = d.stripe_account, t = d.totals || {};
+    var add = function (title, sub, act, fn) { rows.push({ title: title, sub: sub, act: act, fn: fn }); };
+    var notice = function () { showCard("Stripe sends Lawfecta's balance"); }, tools = function () { showCard("Money tools", "disputes"); };
+    if (s && s.payout_interval && s.payout_interval !== "manual") add("Stripe pays Lawfecta's balance to the bank by itself", "Held milestone money can leave Stripe before it is released. Set the payout schedule to Manual in Stripe.", "See the notice", notice);
+    if (s && typeof s.available_cents === "number" && s.available_cents < (t.held_now || 0)) add("Stripe holds less than DELA owes", bal(s.available_cents) + " available at Stripe, " + D.money(t.held_now || 0) + " held for milestones.", "See the notice", function () { showCard("Stripe balance available now"); });
+    var payouts = dd ? (dd.payouts_waiting || []) : (d.payouts_held || []);
+    payouts.forEach(function (x) {
+      var why = x.reason === "payout_account" ? "Waiting for the freelancer's payout setup." : x.reason ? "Stripe said: " + x.reason : "";
+      add((x.status === "failed" ? "Payout failed: " : x.status === "held" ? "Payout held: " : "Payout not sent: ") + D.money(x.amount_cents) + " to " + x.freelancer + (x.gig_title ? ", " + x.gig_title : ""), why, "View held payout", tools);
+    });
+    ((dd || {}).refunds_failed || []).forEach(function (x) { add("Refund failed: " + D.money(x.amount_cents) + ", " + x.gig_title, "Retried " + (x.retries || 0) + (x.retries === 1 ? " time." : " times."), "View failed refund", tools); });
+    (d.disputes || []).filter(function (x) { return x.status === "team_review"; }).forEach(function (x) { add("Dispute waiting for the Lawfecta Team: " + x.gig_title, x.milestone ? "Milestone: " + x.milestone + (x.milestone_amount_cents ? ", " + D.money(x.milestone_amount_cents) : "") + "." : "", "Review dispute", function () { showCard("Disputes", "disputes"); }); });
+    (d.chargebacks || []).forEach(function (x) { add("Bank chargeback open: " + D.money(x.amount_cents), x.reason || "", "View chargeback", function () { showCard("Chargebacks"); }); });
+    var hr = (d.human_reviews || []).length, od = (d.overdue_reviews || []).length;
+    if (hr) add(hr + (hr === 1 ? " milestone waiting for a human review" : " milestones waiting for a human review"), "A freelancer asked for a person to check DELA's result.", "Review milestones", function () { showCard("Milestones waiting for a human review"); });
+    if (od) add(od + (od === 1 ? " review is past the attorney's deadline" : " reviews are past the attorney's deadline"), "The attorney has not accepted or asked for changes in time.", "View overdue reviews", function () { showCard("Reviews past their deadline"); });
+    ((dd || {}).paused || []).forEach(function (x) { add("Engagement paused: " + x.gig_title, "Paused since " + D.date(x.since) + (x.chargeback_open ? ". The bank chargeback is still open." : "."), "View paused engagement", tools); });
+    var card = h("div", { class: "card", id: "pay-attention" }, h("h2", { text: "Needs attention (" + rows.length + ")" }));
+    if (!rows.length) card.appendChild(h("p", { class: "muted", style: "margin:0", text: "Nothing needs you right now." }));
+    else card.appendChild(h("div", { class: "hl" }, rows.map(function (x) {
+      return h("button", { class: "hrow", type: "button", onclick: x.fn }, h("span", { class: "what" }, h("b", { text: x.title }), x.sub ? h("span", { class: "sub", text: x.sub }) : null), h("span", { class: "act", text: x.act }), svg("M9 6l6 6-6 6"));
+    })));
+    if (!dd) card.appendChild(h("p", { class: "small muted", style: "margin:8px 0 0", text: "Failed refunds and paused engagements could not be checked just now. They are on the Disputes page." }));
+    return card;
+  }
+
   function payTab() {
-    api.get("/admin/payments").then(function (r) {
+    Promise.all([api.get("/admin/payments"), api.get("/admin/disputes").then(function (x) { return x.data || null; }).catch(function () { return null; })]).then(function (both) {
+      var r = both[0], dd = both[1];
       var d = r.data, t = d.totals || {}, sw = d.switches || {};
       var STATE_WORD = { off: "off", staff: "on for the Lawfecta Team", list: "on for the access list", everyone: "on for everyone" };
       var SW_WORD = { engagements: "Engagements", milestone_funding: "Paying milestones", milestone_check: "DELA's milestone check", engagement_export: "Agreement export" };
@@ -1192,7 +1238,7 @@
         })))));
       var led = h("details", { class: "card" }, h("summary", { text: "The ledger (latest 50 entries, never edited)" }),
         h("ul", null, (d.ledger || []).map(function (l) { return h("li", { class: "small", text: D.dateTime(l.created_at) + " | " + l.gig_title + " | " + l.kind.split("_").join(" ") + " " + D.money(l.amount_cents) + (l.note ? " | " + l.note : "") }); })));
-      body(h("div", null, pageHead("Payments", "pay"), top, human, disputes, cbs, waiting, held, late, long, eng, led));
+      body(h("div", null, pageHead("Payments", "pay"), attentionCard(d, dd), top, human, disputes, cbs, waiting, held, late, long, eng, led));
     }).catch(fail);
   }
 
