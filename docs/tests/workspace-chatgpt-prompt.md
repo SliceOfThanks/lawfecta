@@ -68,9 +68,9 @@ TEST FREELANCER (log in once)
 7. Go to: https://www.lawfecta.co/dela?tab=ai
    Expect: the page heading "Settings". The first card is titled "Account and security".
    Find: in that card, the row "Sign-in email".
-   Expect: it shows stacey+dela-freelancer@lawfecta.com, and at the right a dark red button "Change email". Do NOT click it.
+   Expect: it shows stacey+dela-freelancer@lawfecta.com, and under it a grey line that says to ask the Lawfecta Team to change it. There is no "Change email" button.
    Find: the next row, "Password".
-   Expect: three buttons at the right: "Change password" (dark red), "Forgot password" and "Google account security" (outlined). Do NOT click them.
+   Expect: two buttons at the right: "Reset password by email" (dark red) and "Google account security" (outlined). Do NOT click them.
    Find: the cards below, in this order: "Appearance", then "Suggestions and alerts".
    Expect: "Suggestions and alerts" has an outlined button "Pause suggestions" (or "Resume suggestions"). Do NOT click it.
 8. Find: the round dark red button with initials at the far right of the top bar.

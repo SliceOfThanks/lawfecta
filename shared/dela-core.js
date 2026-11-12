@@ -363,16 +363,21 @@ D.openTab = function (getUrl, onFail, opts) {
       return h("div", { class: "acct-row" }, h("div", { class: "acct-what" }, h("b", { text: label }), value ? h("span", { class: "acct-val", text: value }) : null,
         lines.map(function (x) { return h("span", { class: "small muted", text: x }); })), h("div", { class: "acct-acts" }, acts));
     }
+    // Stacey 2026-11-12: the website's own "change email" and "change password" pages open the whole Brilliant
+    // Directories member dashboard, which members should not be sent into. So by default (both page settings empty) the
+    // card offers the website's password reset by email, and an email change goes through the Lawfecta Team.
     var card = h("div", { class: "card acct", id: "set-account" }, h("h2", { text: "Account and security" }),
-      h("p", { class: "small muted", text: "You sign in to DELA with your Lawfecta website account. DELA never sees or stores your password. Your email and password are changed on the Lawfecta website; each button here opens the right page in a new tab." }));
+      h("p", { class: "small muted", text: "You sign in to DELA with your Lawfecta website account. DELA never sees or stores your password." }));
     card.appendChild(row("Sign-in email", em || "Not known yet. Sign out and sign in again.",
       ["This is the address your Lawfecta account had when you last signed in. DELA sends your emails to it.",
-        "Your current address stays in use until you save a new one on the Lawfecta website. After that, sign out and sign in again and DELA shows the new address."],
+        a.change_email ? "Your current address stays in use until you save a new one on the Lawfecta website. After that, sign out and sign in again and DELA shows the new address."
+          : "To change it, ask the Lawfecta Team: open Help in the menu, then \"Contact the Lawfecta Team\". Your current address stays in use until the team confirms the change."],
       [link(a.change_email, "Change email", true)]));
     card.appendChild(row("Password", "",
-      ["DELA cannot show your password. You type the new one on the Lawfecta website, where your password manager can fill it in."].concat(
+      [a.change_password ? "DELA cannot show your password. You type the new one on the Lawfecta website, where your password manager can fill it in."
+        : "DELA cannot show your password. To set a new one, click \"Reset password by email\". The Lawfecta website emails you a link, and you choose the new password there."].concat(
         a.google ? ["If you sign in with Google, Google keeps your password. Change it in your Google account."] : []),
-      [link(a.change_password, "Change password", true), link(a.forgot_password, "Forgot password", false),
+      [link(a.change_password, "Change password", true), link(a.forgot_password, a.change_password ? "Forgot password" : "Reset password by email", !a.change_password),
         a.google ? link("https://myaccount.google.com/security", "Google account security", false) : null]));
     return card;
   };

@@ -1113,19 +1113,19 @@
         {
           "key": "account.change_email_path",
           "label": "Page on the Lawfecta website where a member changes the email they sign in with",
-          "value": "/account/contact",
+          "value": "",
           "unit": "",
-          "status": "R",
-          "source": "Claude 2026-11-12, from Brilliant Directories' member dashboard (Contact Details); Stacey confirms the page opens",
+          "status": "C",
+          "source": "Stacey 2026-11-12: the page opens the whole Brilliant Directories member dashboard, which members should not be sent into",
           "note": "DELA's Account and security card links here. Sign-in belongs to the Lawfecta website; DELA never stores a password."
         },
         {
           "key": "account.change_password_path",
           "label": "Page on the Lawfecta website where a member changes their password",
-          "value": "/account/password",
+          "value": "",
           "unit": "",
-          "status": "R",
-          "source": "Claude 2026-11-12, from Brilliant Directories' member dashboard (Password); Stacey confirms the page opens",
+          "status": "C",
+          "source": "Stacey 2026-11-12: the page opens the whole Brilliant Directories member dashboard, which members should not be sent into",
           "note": "DELA's Account and security card links here."
         },
         {
