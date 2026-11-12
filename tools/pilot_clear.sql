@@ -1,3 +1,5 @@
+-- DO NOT RUN AS IT IS. Stacey 2026-11-12: only financial records are to be removed; all other test data stays as
+-- reference. This script removes much more (people, organizations, gigs) and is being replaced.
 -- Clears the made-up test data from the pilot database before real members come in (pilot plan, step 8).
 -- IT CANNOT BE UNDONE. Run it only when Stacey has said yes at that moment, after a backup is confirmed.
 --

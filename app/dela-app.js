@@ -260,19 +260,46 @@
   }
   if (window.MutationObserver) new MutationObserver(syncDock).observe(app, { attributes: true, attributeFilter: ["class", "data-theme"] });
   function layer() { return trapped ? dock() : app; }
+  // Where the part of the window the member can see ends. On phones the browser's own bars can cover the end of the
+  // window, so the visual viewport is asked when the page is not zoomed.
+  function visibleBottom() {
+    var vv = window.visualViewport;
+    return vv && Math.abs((vv.scale || 1) - 1) < 0.01 ? vv.offsetTop + vv.height : window.innerHeight;
+  }
+  var lift = 0;
+  function setLift(px) {
+    lift = px;
+    [app, dockEl].forEach(function (el) { if (el) el.style.setProperty("--lift", px + "px"); });
+  }
   function checkBar() {
-    if (trapped || !barEl || !barEl.isConnected || window.innerWidth >= 900 || app.classList.contains("kb")) return;
+    if (!barEl || !barEl.isConnected || window.innerWidth >= 900 || app.classList.contains("kb")) return;
     var r = barEl.getBoundingClientRect();
     if (!r.height) return;
-    var off = Math.min(Math.abs(r.bottom - window.innerHeight), Math.abs(r.bottom - document.documentElement.clientHeight));
-    if (off <= 8) return;
-    trapped = true;
-    dock().appendChild(barEl);
-    if (moreOpen) { dockEl.appendChild(moreOpen.scrim); dockEl.appendChild(moreOpen.sheet); }
-    syncDock();
+    // Where the bar would be without the lift DELA may have given it
+    var base = r.bottom + lift;
+    var off = Math.min(Math.abs(base - window.innerHeight), Math.abs(base - document.documentElement.clientHeight));
+    if (off > 8) {
+      if (trapped) return;
+      trapped = true;
+      dock().appendChild(barEl);
+      if (moreOpen) { dockEl.appendChild(moreOpen.scrim); dockEl.appendChild(moreOpen.sheet); }
+      syncDock();
+      setLift(0);
+      setTimeout(checkBar, 60);
+      return;
+    }
+    // On the window's edge, but the browser's own bar covers it: lift it into view
+    var d = base - visibleBottom();
+    var want = d > 2 && d < 140 ? Math.round(d) : 0;
+    if (want !== lift) setLift(want);
   }
-  window.addEventListener("scroll", checkBar, { passive: true });
+  // Checked on every scroll (of the page or of a box inside it), on every size change, and on a slow clock, because a
+  // host page can start trapping the bar at any time (Stacey 2026-11-12: on her phone the bar showed only after
+  // scrolling to the end and back)
+  document.addEventListener("scroll", checkBar, { passive: true, capture: true });
   window.addEventListener("resize", checkBar);
+  if (window.visualViewport) { window.visualViewport.addEventListener("resize", checkBar); window.visualViewport.addEventListener("scroll", checkBar); }
+  setInterval(checkBar, 1200);
   // The Lawfecta site's own "back to top" square sits where More is. On a phone the menu is always in reach, so it is hidden.
   function siteFix() {
     if (document.getElementById("dela-site-fix")) return;
@@ -408,7 +435,7 @@
   function placeBar() {
     if (!NL()) { barEl = null; return; }
     if (trapped && barEl) dock().appendChild(barEl);
-    else { checkBar(); setTimeout(checkBar, 250); }
+    else { checkBar(); setTimeout(checkBar, 250); setTimeout(checkBar, 800); }
   }
   // The sidebar is as tall as the part of the window below it, so Settings, Help and Collapse sidebar are always in view
   var sideEl = null;

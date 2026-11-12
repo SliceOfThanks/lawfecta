@@ -179,6 +179,19 @@ async function makeMember(bd, side, plan, name) {
     await p.screenshot({ path: path.join(SHOTS, "workspace-phone-halfway.png") });
     // The site's own "back to top" square is hidden on a phone (it sat on More)
     ok(await p.evaluate(() => { const d = document.createElement("a"); d.className = "scrollup"; d.style.display = "block"; document.body.appendChild(d); const v = getComputedStyle(d).display; d.remove(); return v; }) === "none", "phone: the website's back to top square is hidden, so nothing sits on More");
+    // Stacey 2026-11-12, on her phone: the bar was missing when the page first loaded and showed only after scrolling
+    // to the end and back. A page that starts trapping the bar after DELA has drawn, with no scrolling at all, still
+    // gets its bar back on the bottom edge.
+    {
+      const s2 = await open(browser, NEW, "&tab=profile", 390, 844);
+      await waitFor(s2.page, "Your profile");
+      await s2.page.waitForTimeout(1000);
+      await s2.page.evaluate(() => { document.querySelector("#dela-app").style.transform = "translateZ(0)"; });
+      await s2.page.waitForTimeout(2000);
+      const late = await s2.page.evaluate(() => { const d = document.querySelector(".dela-dock"); if (!d) return null; const r = d.shadowRoot.querySelector(".nl-bar").getBoundingClientRect(); return { bottom: Math.round(r.bottom), vh: window.innerHeight, y: Math.round(window.scrollY) }; });
+      ok(late && late.bottom === late.vh && late.y === 0, "a bar trapped after the page loaded is back on the bottom edge without any scrolling: " + JSON.stringify(late));
+      await s2.ctx.close();
+    }
     // A host page that traps "fixed" (a moved box around DELA): the bar is found off the edge and moves to DELA's own
     // holder on the page body, where it is on the bottom edge again, and More still works there
     await p.evaluate(() => { document.querySelector("#dela-app").style.transform = "translateZ(0)"; window.scrollTo(0, 0); });

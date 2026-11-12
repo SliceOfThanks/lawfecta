@@ -231,6 +231,9 @@ Each step also adds its tools to DELA in ChatGPT and Claude.
 - A one-screen "Get set up" sequence for attorneys: profile, teach DELA about the firm, first playbook, automate or delegate, first gig.
 - Brief: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/briefs/step-4d-guided-setup-delegate-automate.md
 
+### 2027: confirm a new sign-in email (roadmap only)
+- Stacey 2026-11-12: for the pilot it is fine that the Lawfecta website (Brilliant Directories) changes a sign-in email without confirming the new address. In 2027: get a confirmation step, done through Brilliant Directories (their setting or a request to their support), because sign-in, email and password all run through BD and DELA follows what BD does.
+
 ### 2027: attorney team seats (roadmap only)
 - docs/briefs/roadmap-2027-attorney-team-seats.md. First task in 2027: a feasibility review of BD Sub Accounts and seat billing, with a written estimate. No build before then.
 

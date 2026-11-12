@@ -551,14 +551,14 @@ D.openTab = function (getUrl, onFail, opts) {
     ".nl-sep{height:1px;background:var(--line);margin:8px 6px;flex:none}.nl-grow{flex:1 1 auto}" +
     ".nl-brand{display:flex;align-items:center;gap:10px;padding:4px 8px 14px}.nl-brand img{width:32px;height:32px;border-radius:50%}.nl-brand b{font-size:15px;letter-spacing:.14em}" +
     // Phones: five labeled items at the bottom; the fifth opens the More sheet
-    ".nl-bar{position:fixed;left:0;right:0;bottom:0;display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}" +
+    ".nl-bar{position:fixed;left:0;right:0;bottom:var(--lift,0px);display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom);z-index:6}" +
     ".nl-bar button{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;height:64px;padding:0 2px;border:0;border-radius:0;background:transparent;color:var(--muted);font:inherit;font-size:12px;font-weight:500;position:relative;cursor:pointer;min-width:0}" +
     ".nl-bar button[aria-current=page],.nl-bar button[aria-expanded=true]{color:var(--pink-ink);font-weight:700}" +
     ".nl-bar button[aria-current=page]::before,.nl-bar button[aria-expanded=true]::before{content:'';position:absolute;top:0;left:22%;right:22%;height:3px;border-radius:0 0 3px 3px;background:var(--pink-ink)}" +
     "@media (max-width:340px){.nl-bar button{font-size:11px}.dela.nl .top .brand span{display:none}}" +
     ".dela.nl.kb .nl-bar{display:none}.dela.nl.kb .nl-main{padding-bottom:16px}" +
     ".nl-scrim{position:fixed;inset:0;background:rgba(12,14,20,.55);z-index:2147483000}.dela.nl.sheet .nl-bar{z-index:2147483002}" +
-    ".nl-sheet{position:fixed;left:0;right:0;bottom:calc(64px + env(safe-area-inset-bottom));background:var(--card);border:1px solid var(--line);border-bottom:0;border-radius:16px 16px 0 0;padding:8px 12px 12px;z-index:2147483001;max-height:calc(100% - 150px);max-height:calc(100dvh - 130px - env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:2px}" +
+    ".nl-sheet{position:fixed;left:0;right:0;bottom:calc(64px + var(--lift,0px) + env(safe-area-inset-bottom));background:var(--card);border:1px solid var(--line);border-bottom:0;border-radius:16px 16px 0 0;padding:8px 12px 12px;z-index:2147483001;max-height:calc(100% - 150px);max-height:calc(100dvh - 130px - env(safe-area-inset-bottom));overflow-y:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:2px}" +
     ".nl-sheet .nl-item{min-height:48px;color:var(--ink);font-size:16px}.nl-grab{width:36px;height:4px;border-radius:2px;background:var(--line);align-self:center;margin:4px 0 8px}" +
     ".nl-sheethead{display:flex;align-items:center;gap:8px;padding:0 0 6px 12px}.nl-sheethead b{font-size:16px;flex:1 1 auto}.nl-x{width:44px;height:44px;border:1px solid var(--line);border-radius:8px;background:transparent;color:var(--ink);display:inline-flex;align-items:center;justify-content:center;padding:0;cursor:pointer}" +
     // Home in the compact workspace

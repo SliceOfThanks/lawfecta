@@ -26,3 +26,5 @@ Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; mee
 Step 7b Part 1 starts now (Stacey 2026-10-27): Partnero on the current BD site, keyed by BD member ID, with credit banked for DELA. Part 2 (DELA payments, credit ledger, Refer and earn cards) follows payments in Step 6, because rewards are paid on money that has cleared. Part 1b (Partnero webhook into a DELA credit ledger) can go on Staging any time after Stacey answers.
 
 Step 2b builds the connection once (sign in, permissions, limits, audit). After that, every later step adds its own tools to it (profiles in 3, gigs and proposals in 4, booking in 5, and so on), tested in the same ChatGPT prompt as the rest of that step.
+
+2027 (Stacey 2026-11-12): a confirmation step when a member changes their sign-in email, done through Brilliant Directories, which owns sign-in, email and password. Fine without it for the pilot.
