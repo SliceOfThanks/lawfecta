@@ -1,6 +1,26 @@
 # Session handoff (written 2026-11-12, after go-live)
 
-Read this first in a new session, then CLAUDE.md, STATUS.md and docs/PLAN.md. This file says where things stand, how to work, and what is open. Older background is in docs/HANDOFF.md.
+Read this first in a new session, then CLAUDE.md, STATUS.md and docs/PLAN.md. Start with section 0: this project is now worked on locally, never in a cloud session. This file says where things stand, how to work, and what is open. Older background is in docs/HANDOFF.md.
+
+## 0. This project is worked on LOCALLY from now on (Stacey 2026-11-12)
+Stacey's instruction: use Claude Code on her own computer only, never a cloud session. Do not start, suggest or hand work to a cloud or remote session, a scheduled cloud task, or a remote agent. If a tool offers one, do not use it.
+
+The earlier sessions ran in a cloud container, so parts of this file describe that container. Where they differ, this section wins.
+
+**What a local session needs on her computer.** Check each one at the start and say plainly what is missing; I could not check her computer from the cloud session.
+- The repository cloned, on the branch `claude/step-2a-ai-keys-voice-files`, pulled to the newest commit. Git must be able to push to SliceOfThanks/lawfecta (her own GitHub login or the `gh` tool).
+- Python 3 (the rules check and the decisions tool; a hook in `.claude/settings.json` runs `tools/rules_check.py` after every edit).
+- Node.js with `npm install` run once in the repository (it brings Deno and Playwright as test tools; Playwright also needs its browser: `npx playwright install chromium`).
+- For the tests only: Postgres 16 reachable as PGHOST, PGPORT, PGUSER (the scripts default to 127.0.0.1, port 55432, user postgres), with the `psql` command. Without it, code can still be edited and released, but nothing can be tested first; do not release untested code.
+- The Supabase connector, set up in her local Claude Code and signed in to the project "Lawfecta AI" (ref ojshgsxgsypbywtqhkch). Every release and every check of the live site goes through it. Without it, a release is not possible; say so and stop.
+- Optional: the Stripe connector (read only) and a GitHub connector or the `gh` tool.
+
+**What is different from the cloud notes below.**
+- Section 6 names a user `pgrun` and a data folder under /home/pgrun. Those exist only in the old container. Locally, start Postgres the way her computer does it and set PGHOST, PGPORT and PGUSER to match.
+- The old container could not reach cdn.jsdelivr.net or the Supabase function address. Her computer can, so the health address and the script files can also be checked with a browser or curl. The release steps in section 5 still fetch the files from inside the database; keep doing that, because the hash check depends on it.
+- Files for her (a test prompt with the password filled in, a SQL file to paste) are saved in a folder on her computer that is NOT inside the repository, so the test password never reaches GitHub. Tell her the full path.
+- The commit trailer's session line is only for sessions that have a link; leave it out when there is none.
+- Secrets still never go in chat, GitHub or files. She types them into Supabase herself.
 
 ## 1. The one-paragraph state
 DELA is LIVE on https://www.lawfecta.co (one site, one database, the pilot). The setting `environment` is "live", live payments are on, Stripe is connected in live mode, the test money was cleared, and members can sign up by themselves at https://www.lawfecta.co/join. No real member has signed up or paid yet. The last thing built and released is step 16: the "Subscription" page and the limit banner. Stacey has not yet looked at that page on the site.
@@ -55,7 +75,7 @@ Migrations are additive. To change wording inside existing SQL functions, use th
 - API tests: the `npx deno test -A ...` line in `.github/workflows/tests.yml` (400 tests at handoff).
 - Browser suites (27, in the order listed in the workflow): `pkill -f tests/pw/server.ts; tools/dbtest.sh; (nohup npx deno run -A tests/pw/server.ts > server.log 2>&1 &); sleep 12; SHOTS=<dir> node tests/pw/<name>-test.js`. The server serves local files in place of jsDelivr. `tests/pw/workspace-test.js` (113 checks) covers the new layout, the account card, the admin sidebar, the Switches page, Subscription and the banner.
 - The scratchpad helpers (`fullrun.sh`, `t2.sh`) lived in the old session's scratchpad and are gone in a new one; rebuild them from the commands above.
-- This cloud environment ("lawfecta") can reach www.lawfecta.co but NOT cdn.jsdelivr.net or the Supabase function address. Check those from inside the database with `net.http_get`.
+- The old cloud container could reach www.lawfecta.co but not cdn.jsdelivr.net or the Supabase function address, which is why checks went through the database with `net.http_get`. A local session can reach all three directly (see section 0).
 
 ## 7. What was done in the last session (newest first)
 - Step 16: "Subscription" menu item under "Profile" (/dela?tab=subscription): current plan with price and platform fee, usage bars with "Nearing the limit" and "Limit reached", what the plan allows, the four plans of the workspace with "Your current plan" and "Upgrade to" or "Downgrade to" buttons that open /account/upgrade in a new tab. A yellow banner after login when any limit is at or above 80%, with "View subscription" and "Dismiss" (back at the next login). Migration 0102, route GET /subscription, functions `subscriptionView`, `limitBanner`, `quotaLines` in app/dela-app.js.
