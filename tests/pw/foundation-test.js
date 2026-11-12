@@ -177,6 +177,25 @@ async function waitFor(page, words, ms) {
     await s.page.waitForTimeout(300);
     rows = await sql("select state from feature_switches where key = 'ai_generation'");
     ok(rows[0].state === "staff", "owner turns a switch on for the Lawfecta Team only");
+    // Stacey 2026-11-12: sections A to Z with a shaded heading and a line saying what each is for, switches A to Z
+    // inside a section, and a search box
+    const sw = await s.page.evaluate(() => {
+      const root = document.querySelector(".dela-host").shadowRoot;
+      const bands = [...root.querySelectorAll("tr.sw-band")];
+      const names = bands.map((b) => b.querySelector(".sw-name").textContent).filter((n) => n !== "Other");
+      const firstRows = []; let el = bands[0].nextElementSibling;
+      while (el && !el.classList.contains("sw-band")) { firstRows.push(el.querySelector("strong").textContent.toLowerCase()); el = el.nextElementSibling; }
+      return { names, sortedNames: names.slice().sort((x, y) => x.toLowerCase() < y.toLowerCase() ? -1 : 1), firstRows, sortedRows: firstRows.slice().sort(),
+        about: bands.every((b) => b.querySelector(".sw-about").textContent.length > 20), bg: getComputedStyle(bands[0].querySelector("th")).backgroundColor, card: getComputedStyle(root.querySelector(".card")).backgroundColor };
+    });
+    ok(sw.names.length >= 6 && JSON.stringify(sw.names) === JSON.stringify(sw.sortedNames) && sw.firstRows.length > 1 && JSON.stringify(sw.firstRows) === JSON.stringify(sw.sortedRows), "Switches: sections are A to Z and so are the switches inside one: " + sw.names.join(", "));
+    ok(sw.about && sw.bg !== sw.card, "Switches: every section heading says what it is for and has its own background");
+    await dela(s.page).getByLabel("Find a switch").fill("stripe");
+    await s.page.waitForTimeout(200);
+    t = await text(s.page);
+    ok(t.includes("Real money through Stripe") && !t.includes("Member webhooks") && t.includes("switches shown"), "Switches: the search box narrows the list");
+    await s.page.screenshot({ path: path.join(SHOTS, "admin-switches.png"), fullPage: true });
+    await dela(s.page).getByLabel("Find a switch").fill("");
     await dela(s.page).getByRole("tab", { name: "Audit log" }).click();
     t = await text(s.page);
     ok(t.includes("switch changed") && t.includes("plan approved") && t.includes("setting changed"), "every change is in the audit log");

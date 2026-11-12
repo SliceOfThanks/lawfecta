@@ -391,7 +391,7 @@ D.openTab = function (getUrl, onFail, opts) {
       ".problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b}.notice.ok{background:#17301f}" +
       ".msg.mine,.flow,.helpbox{border-color:#2b4a66}button.ai-btn{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}.badge.ai-label{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}" +
       ".oktxt{color:#7fd3a3}" +
-      ".dela{--head:#232838}" +
+      ".dela{--head:var(--pink)}" +
       // Waiting and done badges are quiet on dark: a deep tint with light text, not a bright chip
       ".badge.held{background:#3a2f12;color:#f0c668;border-color:#5c4a1c}.badge.ready{background:#17301f;color:#7fd3a3;border-color:#2b5a3b}" +
       // Readable text on dark (at least 4.5 to 1): links, outlined buttons, the current tab, labels and blue buttons
@@ -453,6 +453,7 @@ D.openTab = function (getUrl, onFail, opts) {
     "label{display:block;font-size:14px;font-weight:700;margin:10px 0 4px}",
     ".row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}",
     ".seg{display:inline-flex;border:1px solid rgba(255,255,255,.35);border-radius:999px;overflow:hidden}.seg button{border:0;border-radius:999px;background:transparent;color:#fff;font-weight:700;padding:6px 14px;font-size:14px}.seg button[aria-pressed=true]{background:#fff;color:var(--brand)}",
+    ".sw-table thead th{background:var(--head,var(--pink));color:var(--ink)}.sw-band th{background:var(--head,var(--pink));color:var(--ink);padding:12px 10px;border-top:2px solid var(--line)}.sw-name{display:block;font-size:16px;font-weight:700}.sw-about{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-top:2px}.sw-table tr[hidden]{display:none}",
     "table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:10px 8px;border-bottom:1px solid var(--line);vertical-align:top}th{color:var(--muted);font-weight:700}",
     ".scroll{overflow-x:auto}",
     ".tabs{display:flex;gap:4px;padding:8px 16px;background:var(--card);border-bottom:1px solid var(--line);overflow-x:auto}.tabs button{background:transparent;color:var(--ink);border-color:transparent;font-weight:700;white-space:nowrap}.tabs button[aria-selected=true]{background:var(--pink);color:var(--pink-ink);border-color:transparent}",
@@ -589,7 +590,7 @@ D.openTab = function (getUrl, onFail, opts) {
     // Card headings sit on their own tinted band, edge to edge, so a heading is easy to tell from the content under it
     // (Stacey 2026-11-13). The band is the card's first heading, or the first row that holds it.
     ".dela.nl .card>h2:first-child,.dela.nl .card>.hhead:first-child,.dela.nl .card>.row:first-child:has(>h2),.dela.nl .card>.row:first-child:has(>h3){margin:-14px -16px 12px;padding:10px 16px;background:var(--head);border-bottom:1px solid var(--line);border-radius:11px 11px 0 0}" +
-    ".dela.nl .card>.hhead:first-child h2,.dela.nl .card>.row:first-child:has(>h2) h2{margin:0}.dela{--head:#eef0f5}" +
+    ".dela.nl .card>.hhead:first-child h2,.dela.nl .card>.row:first-child:has(>h2) h2{margin:0}.dela{--head:var(--pink)}" +
     "@media (min-width:900px){.dela.nl .card>h2:first-child,.dela.nl .card>.hhead:first-child,.dela.nl .card>.row:first-child:has(>h2),.dela.nl .card>.row:first-child:has(>h3){margin:-18px -20px 14px;padding:11px 20px}}" +
     // The admin area in the compact workspace: groups in the sidebar, the account button, the "Menu" sheet on a phone
     ".aside-slot{display:none}.anav .nl-items{display:flex;flex-direction:column;gap:2px}.anav .nl-items[hidden]{display:none}.anav .nl-item{min-height:40px}" +

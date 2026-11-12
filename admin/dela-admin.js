@@ -804,21 +804,76 @@
 
   // ---------- Switches ----------
 
+  // Stacey 2026-11-12: the page was one long unsorted list. Now: sections A to Z, each with a shaded heading and a line
+  // saying what it is for, switches A to Z inside, a search box and an on/off filter. A switch whose key is not listed
+  // here shows under "Other".
+  var SWITCH_GROUPS = [
+    ["Accounts, profiles and plans", "Who members are and what their plan gives them: profiles, the checks of attorneys and freelancers, the link to the Lawfecta directory, trials and usage limits.",
+      ["profiles", "profile_documents", "attorney_verification", "freelancer_verification", "bd_profile_sync", "bd_trial_downgrade", "trials", "usage_limits_enforced", "member_webhooks"]],
+    ["Agencies", "Freelancer agencies: their team, their bench of freelancers, their own gigs and handing work to subcontractors.",
+      ["agency_team", "agency_bench", "agency_hiring", "agency_subcontracting", "agency_extra_seats"]],
+    ["DELA's AI", "What DELA's AI may do for members: answers and drafts, talking, their own AI key, the connection to ChatGPT and Claude, and suggestions on Home.",
+      ["ai_generation", "ai_helpers", "byok", "voice_input", "mcp_connector", "member_insights", "tech_catalog", "onboarding_widget"]],
+    ["Documents and files", "The attorney's Library and Files: document types, images, the recorder, imports, and client information rules.",
+      ["playbook_library", "document_standard", "document_images", "document_conversion", "approved_view", "library_workspace", "recorder", "scribe_import", "file_uploads", "automate_delegate", "confidential_materials", "client_details_allowed"]],
+    ["Gigs and hiring", "Posting work and finding people: gigs, proposals, Talent, gig alerts, the bench and reviews.",
+      ["flex_gigs", "public_gigs", "talent_search", "gig_alerts", "bench", "bench_suggestions", "reviews", "past_client_reviews", "multiple_hires"]],
+    ["Layout and look", "How DELA looks: the menu layout, light and dark, and the Get set up page.",
+      ["new_layout", "appearance_choice", "guided_setup"]],
+    ["Messages and meetings", "Talking inside a gig: messages, DELA's help in a conversation, booking, recording and the check for plans to work outside Lawfecta.",
+      ["gig_chat", "chat_assistant", "meetings", "meeting_recording", "calendar_sync", "transcript_training_use", "conduct_review"]],
+    ["Payments and agreements", "Money and contracts: agreements, milestone payments and payouts through Stripe, fees, monthly work, disputes and exports. Change these with care.",
+      ["live_payments", "milestone_funding", "engagements", "fee_per_milestone", "recurring_engagements", "auto_repeat_hiring", "admin_acceptance_timeout", "milestone_check", "dispute_center", "engagement_export", "consultation_export_grant"]]
+  ];
+  function switchName(s) { return String(s.label || s.key).split(" (step ").map(function (part, i) { return i === 0 ? part : part.slice(part.indexOf(")") + 1); }).join(""); }
   function switches() {
     api.get("/admin/switches").then(function (r) {
       var label = { off: "Off", staff: "Lawfecta Team only", list: "Access list", everyone: "Everyone" };
+      var known = {}, groups = SWITCH_GROUPS.map(function (g) { g[2].forEach(function (k) { known[k] = 1; }); return { name: g[0], about: g[1], keys: g[2], rows: [] }; });
+      var other = { name: "Other", about: "Switches that are not sorted into a section yet.", keys: [], rows: [] };
+      var find = h("input", { type: "search", placeholder: "Find a switch", "aria-label": "Find a switch", style: "max-width:320px" });
+      var show = h("select", { "aria-label": "Show", style: "max-width:200px" }, h("option", { value: "", text: "Show all" }), h("option", { value: "on", text: "Only switched on" }), h("option", { value: "off", text: "Only switched off" }));
+      var count = h("p", { class: "muted small", role: "status", style: "margin:0" });
+      var tbody = h("tbody");
+      r.data.forEach(function (s) {
+        var g = groups.filter(function (x) { return x.keys.indexOf(s.key) >= 0; })[0] || other;
+        var sel = h("select", { "aria-label": s.label, disabled: !isOwner }, ["off", "staff", "list", "everyone"].map(function (k) { return h("option", { value: k, text: label[k] }); }));
+        sel.value = s.state;
+        sel.addEventListener("change", function () {
+          if (s.key === "live_payments" && sel.value !== "off" && !confirm("Turning this on lets real money move through Stripe for these people. A payments lawyer review is recommended first. Continue?")) { sel.value = s.state; return; }
+          api.post("/admin/switches", { key: s.key, state: sel.value }).then(check).then(function () { ok(s.label + ": " + label[sel.value]); s.state = sel.value; filter(); }).catch(function (e) { sel.value = s.state; fail(e); });
+        });
+        var name = switchName(s);
+        g.rows.push({ s: s, name: name, tr: h("tr", null, h("td", null, h("strong", { text: name }), h("div", { class: "muted small", text: s.key })), h("td", { class: "small", text: s.gate }), h("td", null, sel)) });
+      });
+      if (other.rows.length) groups.push(other);
+      groups.forEach(function (g) {
+        if (!g.rows.length) return;
+        g.rows.sort(function (a, b) { return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1; });
+        g.band = h("tr", { class: "band sw-band" }, h("th", { colspan: "3", scope: "colgroup", title: g.about }, h("span", { class: "sw-name", text: g.name }), h("span", { class: "sw-about", text: g.about })));
+        tbody.appendChild(g.band);
+        g.rows.forEach(function (x) { tbody.appendChild(x.tr); });
+      });
+      function filter() {
+        var q = find.value.trim().toLowerCase(), want = show.value, n = 0, all = 0;
+        groups.forEach(function (g) {
+          if (!g.band) return;
+          var seen = 0;
+          g.rows.forEach(function (x) {
+            all++;
+            var hit = (!q || (x.name + " " + x.s.key + " " + g.name).toLowerCase().indexOf(q) >= 0) && (!want || (want === "off") === (x.s.state === "off"));
+            x.tr.hidden = !hit; if (hit) { seen++; n++; }
+          });
+          g.band.hidden = !seen;
+        });
+        count.textContent = n === all ? all + " switches" : n + " of " + all + " switches shown";
+      }
+      find.addEventListener("input", filter); show.addEventListener("change", filter);
       body(h("div", null, pageHead("Switches", "switches"),
-        h("p", { class: "muted", text: "Features that are built stay off until you turn them on. Try a feature with Lawfecta Team only first, then the access list, then everyone." }),
-        h("div", { class: "card scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "Switch" }), h("th", { text: "Before it goes on" }), h("th", { text: "State" }))),
-          h("tbody", null, r.data.map(function (s) {
-            var sel = h("select", { "aria-label": s.label, disabled: !isOwner }, ["off", "staff", "list", "everyone"].map(function (k) { return h("option", { value: k, text: label[k] }); }));
-            sel.value = s.state;
-            sel.addEventListener("change", function () {
-              if (s.key === "live_payments" && sel.value !== "off" && !confirm("Turning this on lets real money move through Stripe for these people. A payments lawyer review is recommended first. Continue?")) { sel.value = s.state; return; }
-              api.post("/admin/switches", { key: s.key, state: sel.value }).then(check).then(function () { ok(s.label + ": " + label[sel.value]); s.state = sel.value; }).catch(function (e) { sel.value = s.state; fail(e); });
-            });
-            return h("tr", null, h("td", null, h("strong", { text: s.label }), h("div", { class: "muted small", text: s.key })), h("td", { class: "small", text: s.gate }), h("td", null, sel));
-          }))))));
+        h("p", { class: "muted", text: "Features that are built stay off until you turn them on. Try a feature with Lawfecta Team only first, then the access list, then everyone. Sections and switches are in A to Z order." }),
+        h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:10px" }, find, show, count),
+        h("div", { class: "card scroll" }, h("table", { class: "sw-table" }, h("thead", null, h("tr", null, h("th", { text: "Switch" }), h("th", { text: "Before it goes on" }), h("th", { text: "State" }))), tbody))));
+      filter();
     }).catch(fail);
   }
 
