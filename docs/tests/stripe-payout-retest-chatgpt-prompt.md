@@ -1,6 +1,6 @@
 # ChatGPT re-test: payout setup with Stripe (2026-11-10)
 
-> Layout note, 2026-11-13: DELA now has the menu on the left on every page (the compact workspace). The page description in "How to work" below is current. Steps written before that date may still name the old places (a row of tabs, a blue button, buttons in a dark top bar); line 6 of "How to work" says how to read them. Claude checks every step against the screen again before this test is next sent.
+> Checked 2026-11-13 (new layout). Open point: step 3 walks through Stripe's own pages, which are not in the DELA code and could not be checked.
 
 Checks the fix for the first Stripe run: "Set up payouts with Stripe" did nothing. One login, 5 steps. Stripe is in test mode, so no real money moves.
 
@@ -45,7 +45,7 @@ Steps
 TEST FREELANCER (log in once)
 1. Go to: https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 2. Go to: https://www.lawfecta.co/dela?tab=earnings
-   Find: the card "Payouts to your bank".
+   Find: the card "Payouts to your bank", the first card on the page, under the heading "Earnings".
    Expect: a badge "Not set up" and a dark red button "Set up payouts with Stripe" (or a badge "Needs details" and a dark red button "Finish payout setup").
 3. Do: click that dark red button once and wait up to 20 seconds.
    Expect: Stripe's own page opens, marked as test mode or sandbox.
@@ -62,9 +62,9 @@ TEST FREELANCER (log in once)
    - On the last page click "Agree and submit" (or "Submit").
    Expect: you come back to the DELA Earnings page. Write the full address of the page you land on.
 4. Find: the card "Payouts to your bank" on the Earnings page.
-   Do: if the badge does not say "Ready", click "Check my payout status" once, wait 10 seconds, and reload the page.
+   Do: if the badge does not say "Ready", click the outlined "Check my payout status" in that card once, wait 10 seconds, and reload the page.
    Expect: the badge "Ready". If it says "Needs details", copy the grey sentence next to the badge and any line that starts "Stripe still needs:" word for word.
-5. Sign out.
+5. Sign out (the round button with the initials at the far right of the top bar, then "Sign out").
 
 AT THE END
 Report one line per step (PASS or FAIL and a few words), the FAIL list, any message you copied, and anything that took longer than 60 seconds. Put it all in DELA-test-report.txt.
