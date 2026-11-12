@@ -45,6 +45,8 @@ Stripe Connect is already set up on Lawfecta's live account. DELA needs its own 
 One payment, one payout, one refund, each compared with Stripe and the admin Payments tab.
 
 ## 4. Mark the site as live (the `environment` setting)
+**DONE 2026-11-12, 20:40 UTC**, on Stacey's approval: `environment` is "live" (settings_history and audit log carry it), `confidential_materials` is off until a scanner is set up. Section 3 (three small real transactions) was skipped by her decision; check the first real payment against Stripe.
+
 Changing it from "staging" to "live" is done in the database (the admin area locks this setting). What changes:
 
 | What | Today (test) | After (live) | Recommendation |

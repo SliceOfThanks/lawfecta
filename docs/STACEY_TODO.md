@@ -20,18 +20,14 @@ You ran it on 2026-11-12. 20 of 21 steps passed. Step 17 was marked as failed on
 ## 4. Clear the test money: done
 You ran it on 2026-11-12 (Supabase SQL Editor). Checked afterwards: agreements 17 to 12, milestones 22 to 15; payments, payouts, refunds, ledger lines, disputes, payout accounts and stored Stripe events are all 0. Accounts (7), gigs (27), proposals (19), documents (17), files (16) and meetings (8) are unchanged.
 
-## 5. Stripe: the live account
-Done 2026-11-12: payout schedule set to Manual; a new full-access key from the Stripe account "DELA" is in Supabase as STRIPE_SECRET_KEY; the webhook is added and its signing secret is in Supabase as STRIPE_WEBHOOK_SECRET. The key in Brilliant Directories was not touched.
-Left to do:
-1. Turn on live payments: open https://www.lawfecta.co/dela-admin?tab=switches (the page "Switches"), find the row "live_payments", and set it to "everyone". Until then DELA refuses to use the live key.
-2. Open https://www.lawfecta.co/dela-admin?tab=pay. Tell Claude what the first card "Needs attention" lists and what the card "Payment overview" says about the Stripe balance.
-The switch that charges the fee with each milestone stays on (your decision of 2026-11-10; it passed the sandbox tests).
+## 5. Stripe: the live account: done
+Done 2026-11-12: payout schedule Manual, the live key and the webhook signing secret are in Supabase, "live_payments" is on for everyone, and the Payments page says "Stripe is connected in LIVE mode (real money)" with every total at $0.
 
-## 6. Three small real payments
-With your own card, on a small made-up job between your two test accounts: one payment, one payout, one refund. Claude gives you the exact steps when step 5 is done, and compares each with Stripe.
+## 6. Real test payments: skipped
+Your decision of 2026-11-12: "if staging payments worked we are fine". The first real payment by a member is therefore the first proof of the live key and the webhook. When it happens, tell Claude "The first real payment happened" and Claude compares it with Stripe.
 
-## 7. Mark the site as live
-Tell Claude: "Mark the site live." What changes is listed in docs/PILOT_GO_LIVE.md, section 4 (the yellow "Test site" label goes, emails lose "[Test site]").
+## 7. Mark the site live: done
+Done 2026-11-12. The yellow "Test site" label is gone and emails no longer start with "[Test site]". The switch for confidential materials is off, because Live refuses those uploads until a virus scanner is set up.
 
 ## 8. Before members are invited
 1. Backups: on the Supabase Backups page from step 4, daily backups should be listed. Claude does one restore drill with you (docs/RUNBOOK.md).
