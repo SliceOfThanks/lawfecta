@@ -60,7 +60,7 @@ Group 1. The attorney (log in as the test attorney)
    Find: the menu on the left, the second group of lines ("Talent", "Files", "Get set up").
    Expect: the line "Get set up" is there, under "Files".
    Do: click "Get set up" in the left menu.
-   Expect: the address ends with tab=setup, the top bar says "Get set up", and the page "Get set up" shows the small line "5 of 6 done." with the grey line "Six steps to your first gig. Each one opens here. Skip any step and come back to it later." and six numbered cards: "Your profile and verification", "Teach DELA about your firm", "Your first playbook", "✦ Find what to automate or delegate", "Post your first gig", "Invite freelancers". Card 4 shows "To do"; the other five show "Done".
+   Expect: the address ends with tab=setup, the top bar says "Get set up", and the page "Get set up" shows the small line "5 of 6 done." with the grey line "Six steps to your first gig. Each one opens here. Skip any step and come back to it later." and six numbered cards: "Your profile and verification", "Teach DELA about your firm", "Your first document", "✦ Find what to automate or delegate", "Post your first gig", "Invite freelancers". Card 4 shows "To do"; the other five show "Done".
 
 3. On the same page, in card 4 "✦ Find what to automate or delegate":
    Do: click the outlined "Skip for now".
@@ -77,7 +77,7 @@ Group 1. The attorney (log in as the test attorney)
 5. Go to: https://www.lawfecta.co/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
    Expect: the title "Test SOP: Automate or delegate" with an "Approved" badge.
    Find: the card titled "✦ Automate or delegate", near the top, above the document.
-   Expect: the line "DELA can find steps in this playbook to automate or hand to a freelancer.", the boxes "How often does this run?" and "How long does it take each time?", a dark red "✦ Find what to automate or delegate" button and a "Dismiss" link to its right.
+   Expect: the line "DELA can find steps in this document to automate or hand to a freelancer.", the boxes "How often does this run?" and "How long does it take each time?", a dark red "✦ Find what to automate or delegate" button and a "Dismiss" link to its right.
 
 6. In that card:
    Do: choose "Weekly" in "How often does this run?", type 60 in "How long does it take each time?", and click the dark red "✦ Find what to automate or delegate".

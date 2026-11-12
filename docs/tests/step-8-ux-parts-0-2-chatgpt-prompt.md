@@ -199,7 +199,7 @@ ATTORNEY (log in once)
 
 23. Go to: https://www.lawfecta.co/dela?tab=library&pb=8b835621-3ddd-4b64-baa8-e6fcf2b8707e
     Find: the row of view buttons under the document details. Look at its first button.
-    Expect, if the first button is "Draft and review" (or the selected button is "New draft" or starts "Draft (version"): a card "Quality check" on the right of the document, with a grey line "Blocking items are required before approval. Needs attention items are suggestions. These checks look at how the document is written; they do not confirm it is legally correct." Items not passed are labeled "Required before approval" or "Suggestion".
+    Expect, if the first button is "Draft and review" (or the selected button is "New draft" or starts "Draft (version"): a card "Quality check" on the right of the document, with a grey line "Items marked "Required before approval" must be fixed first. Items marked "Suggestion" are optional. These checks look at how the document is written; they do not confirm it is legally correct." Items not passed are labeled "Required before approval" or "Suggestion".
     Expect, if the first button is "Approved version" and it is selected: under the card whose heading starts "Approved version", either a card whose heading starts "Quality notes (" with a grey line that starts "What the quality check suggests for this version." and items labeled "Required before approval" or "Suggestion", or no quality card at all when every check passed. Write which of these you saw.
 
 24. Sign out.

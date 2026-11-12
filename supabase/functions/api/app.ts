@@ -2620,11 +2620,22 @@ async function availSave(ctx: Ctx) {
     hours: ctx.body.hours && typeof ctx.body.hours === "object" ? ctx.body.hours : {}, days_off: Array.isArray(ctx.body.days_off) ? ctx.body.days_off.slice(0, 120) : [] } }));
 }
 
+// The meeting numbers the screens name, read from settings so the words always match the rules the database applies
+async function meetingRules(ctx: Ctx) {
+  const n = async (k: string, d: number) => Number(await setting(ctx, k, String(d))) || d;
+  return { min_notice_hours: await n("meeting.min_notice_hours", 12), buffer_minutes: await n("meeting.buffer_minutes", 15),
+    window_days: await n("meeting.window_days", 21), late_cancel_hours: await n("meeting.late_cancel_hours", 2) };
+}
+async function withMeetingRules(ctx: Ctx, r: any) {
+  if (r && typeof r === "object" && r.ok !== false) r.rules = await meetingRules(ctx);
+  return r;
+}
+
 async function meetingSlots(ctx: Ctx) {
   const s = await memberSide(ctx);
   const q = ctx.url.searchParams;
-  return json(ctx, await rpc(ctx, "dela_meeting_slots", { p_person: s.person_id, p_side: s.side, p_gig: need(uuid(q.get("gig"))), p_freelancer: uuid(q.get("freelancer")),
-    p_length: int(q.get("length")) ?? (Number(await setting(ctx, "meeting.default_length", "30")) || 30), p_except: uuid(q.get("except")) }));
+  return json(ctx, await withMeetingRules(ctx, await rpc(ctx, "dela_meeting_slots", { p_person: s.person_id, p_side: s.side, p_gig: need(uuid(q.get("gig"))), p_freelancer: uuid(q.get("freelancer")),
+    p_length: int(q.get("length")) ?? (Number(await setting(ctx, "meeting.default_length", "30")) || 30), p_except: uuid(q.get("except")) })));
 }
 
 async function meetingHold(ctx: Ctx) {
@@ -4363,7 +4374,7 @@ Where it stands: ${words[st?.readiness] ?? st?.readiness ?? "unknown"}. ${ver}.`
   throw new ToolError("Unknown tool.");
 }
 const D_TEXT: Record<string, string> = {
-  ai_off: "DELA's AI is not open for this account yet.", no_key: "The member chose their own AI key but none is saved. Add one in DELA, AI settings.",
+  ai_off: "DELA's AI is not open for this account yet.", no_key: "The member chose their own AI key but none is saved. Add one in DELA, Settings.",
   no_credits_left: "This month's DELA AI credits are used up. Add your own AI key in DELA, or upgrade.", ai_not_set_up: "DELA's AI is still being set up.", paused: "DELA's AI is paused right now.",
 };
 
@@ -5270,7 +5281,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /webhooks/resend": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_webhook_resend", { p_person: s.person_id, p_side: s.side, p_delivery: need(uuid(ctx.body.delivery_id)) })); }
       case "GET /work": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); return json(ctx, await rpc(ctx, "dela_work", { p_person: s.person_id })); }
       case "GET /talent": return await talent(ctx);
-      case "GET /availability": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_avail_get", { p_person: s.person_id })); }
+      case "GET /availability": { const s = await memberSide(ctx); return json(ctx, await withMeetingRules(ctx, await rpc(ctx, "dela_avail_get", { p_person: s.person_id }))); }
       case "POST /availability": return await availSave(ctx);
       case "GET /engagements": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_engagements", { p_person: s.person_id, p_side: s.side })); }
       case "GET /agreements/get": return await agreementGet(ctx);
@@ -5337,7 +5348,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /deliverables/file": return await deliverableFile(ctx);
       case "POST /deliverables/save": return await deliverableSave(ctx);
       case "POST /stripe/webhook": return await stripeWebhook(ctx);
-      case "GET /meetings": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_meetings", { p_person: s.person_id, p_side: s.side, p_gig: uuid(ctx.url.searchParams.get("gig")), p_meeting: uuid(ctx.url.searchParams.get("id")) })); }
+      case "GET /meetings": { const s = await memberSide(ctx); return json(ctx, await withMeetingRules(ctx, await rpc(ctx, "dela_meetings", { p_person: s.person_id, p_side: s.side, p_gig: uuid(ctx.url.searchParams.get("gig")), p_meeting: uuid(ctx.url.searchParams.get("id")) }))); }
       case "GET /meetings/slots": return await meetingSlots(ctx);
       case "POST /meetings/hold": return await meetingHold(ctx);
       case "POST /meetings/confirm": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_meeting_confirm", { p_person: s.person_id, p_meeting: need(uuid(ctx.body.id)) })); }

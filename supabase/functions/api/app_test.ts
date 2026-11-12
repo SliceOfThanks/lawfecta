@@ -497,6 +497,16 @@ Deno.test("notice emails stay on the Lawfecta site", () => {
   assert(m.html.includes("Hi &lt;b&gt;"));
 });
 
+Deno.test("texts the database writes say page and Settings, not tab, AI settings or Dashboard (0099)", async () => {
+  const r = await pool.query(`select p.proname from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public' and p.prokind = 'f'
+      and (p.prosrc ~ '(Agency|Earnings|Files|Work|Gigs|Payments|Disputes|Security|People|Projects|Library|Talent|Recurring|Jobs|Verification|Release Control) tab'
+        or p.prosrc like '%AI settings%' or p.prosrc like '%on your Dashboard%')`);
+  assertEquals(r.rows.map((x: any) => x.proname), []);
+  const g = await pool.query(`select count(*)::int n from pg_proc where prosrc like '%then Settings, then "Suggestions and alerts"%'`);
+  assert(g.rows[0].n >= 1, "the gig alert text says where to turn alerts off");
+});
+
 Deno.test("teardown", async () => {
   await pool.end();
   assertEquals(sent.length, 0);

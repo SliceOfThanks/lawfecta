@@ -316,6 +316,10 @@ async function makeMember(bd, side, plan, name) {
     t = await waitFor(p, "Needs your attention");
     ok(t.indexOf("Needs your attention") < t.indexOf("Your work") && t.indexOf("Your work") < t.indexOf("Complete your profile"), "work in hand: Needs your attention, then Your work, then the profile card");
     ok(t.indexOf("Milestone 1: Draft") < t.indexOf("Agreement to sign") && t.includes("Review and sign") && t.includes("View milestone"), "attention is ranked by the nearest deadline, with specific actions");
+    // A page address DELA does not know lands on the new Home, never on the old one (found in the prompt check, 2026-11-13)
+    await p.goto(`${BASE}/page/DELA-App?uid=5103&plan=&tab=nosuchpage`);
+    t = await waitFor(p, "Needs your attention");
+    ok(await p.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelectorAll(".hero").length) === 0 && t.includes("Your work"), "an unknown page address shows the new Home, not the old one");
     ok(t.includes("Work you already have is not affected.") && !t.includes("Invitations start when"), "work in hand with an incomplete profile: no contradicting message");
     await p.screenshot({ path: path.join(SHOTS, "workspace-desktop-work-first.png") });
     await ctx2.close();

@@ -62,7 +62,7 @@ Group 1. The agency (log in as the test freelancer)
 2. Go to: https://www.lawfecta.co/dela?tab=agency
    Expect: the menu on the left has, under "Earnings", the lines "Library", "Projects" and "Talent", and under those "Profile" and "Agency". "Agency" is pink.
    Find: the card titled "Posting gigs", the third card on the page, just below the cards "Agency profile" and "Business details".
-   Expect: the line "Ready to post gigs from your Library (Projects tab).", three boxes "Who signs for the agency", "Billing address" and "Email for notices", and a dark red "Save client details".
+   Expect: the line "Ready to post gigs from your Library (Projects page).", three boxes "Who signs for the agency", "Billing address" and "Email for notices", and a dark red "Save client details".
 
 3. In the card "Posting gigs":
    Do: leave all three boxes empty and click "Save client details".

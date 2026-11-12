@@ -181,6 +181,7 @@
     sensitive: "Social Security and ID numbers, financial account numbers, health information, biometric data, and logins or passwords. Never upload them to DELA; link to your own storage.",
     confidential: "A private area on an engagement for client files and secure links, open only to the attorney and the hired freelancer, after signing and the first payment.",
     subcontractors: "Vetted Lawfecta freelancers an agency brings onto a job. The agency stays responsible for them, and everyone is listed under Who's working on this.",
+    quality_check: "Checks DELA runs on how a document is written. Items marked Required before approval block export, approval and gigs until fixed. Items marked Suggestion do not block anything.",
     raci: "Who does each step: R does the work, A is accountable and approves (exactly one per step), C is consulted, I is kept informed.",
     doc_types: "Policy: a rule the firm follows. Workflow: steps across roles. SOP: one task, step by step. Playbook: how to handle a situation that needs judgment.",
     next_review: "The date the document should be checked again: 12 months after approval, or 3 months for high-risk documents about trust money, conflicts or deadlines.",

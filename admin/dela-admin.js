@@ -265,7 +265,7 @@
   }
 
   // ---------- My account ----------
-  // The signed-in team member's own account only. Other people's accounts are managed on the People tab and on the website.
+  // The signed-in team member's own account only. Other people's accounts are managed on the People page and on the website.
   function accountTab() {
     body(h("div", { style: "max-width:760px" }, h("h1", { text: "My account" }),
       h("p", { class: "muted", text: "Signed in as " + me.person.name + " (" + me.staff.join(", ") + "). This page is about your own sign-in. It changes nothing for other members." }),
@@ -325,13 +325,13 @@
     ]],
     ["g_wrong", "When something goes wrong", "Pause, alerts and where to look", [
       { terms: [
-        ["Emergency pause", "On the Live Overview tab, pause all of DELA or one part (for example payments or AI help) in one click, with no push. Members see a short message. The Lawfecta Team keeps access. Turn it off the same way."],
+        ["Emergency pause", "On the Live Overview page, pause all of DELA or one part (for example payments or AI help) in one click, with no push. Members see a short message. The Lawfecta Team keeps access. Turn it off the same way."],
         ["Alerts", "You get an email (and a text, once texts are set up) when Live fails 3 health checks in a row, when a push fails, when DELA goes back by itself, and after 5 wrong release passwords."],
-        ["Problems count", "Problems, last 24 hours on Release Control should be 0. If not, open the Jobs tab to see what failed and tell Claude."],
+        ["Problems count", "Problems, last 24 hours on Release Control should be 0. If not, open the Jobs page to see what failed and tell Claude."],
       ] },
       { note: "When in doubt, pause first, then tell Claude. A pause is safe and quick to undo." },
     ]],
-    ["g_tabs", "Every tab", "What each tab at the top is for", [
+    ["g_tabs", "Every page", "What each page in the menu is for", [
       { terms: [
         ["Release Control", "Where versions go from the test site to Live: both copies, the next version and its steps, Push to Live, history, activity and one-time setup."],
         ["Guide", "This page."],
@@ -424,7 +424,7 @@
           stat("On the access list", d.access_list, null, "ov_access"),
           stat("Turned away (7 days)", d.denied_7d, "Not on the access list", "ov_denied"),
           stat("Decisions to make", (dec.O || 0) + (dec.R || 0), (dec.O || 0) + " open, " + (dec.R || 0) + " suggested, " + (dec.G || 0) + " need a gate", "ov_decisions"),
-          stat("Plans not linked to BD", d.unmapped_plans, "Link them on the Plans tab", "ov_unmapped"),
+          stat("Plans not linked to BD", d.unmapped_plans, "Link them on the Plans page", "ov_unmapped"),
           stat("Switches on", d.switches_on, null, "ov_switches"),
           stat("Active holds", d.holds_active, null, "ov_holds")),
         emergencyCard(),
@@ -450,7 +450,7 @@
       var d = r.data || {};
       D.clear(box);
       box.appendChild(h("h2", { text: "DELA guide" }));
-      box.appendChild(h("p", { class: "muted small", text: "The proactive chat on members' Dashboards, in the last 30 days. Each member is counted once per step they reached." }));
+      box.appendChild(h("p", { class: "muted small", text: "The proactive chat on members' Home pages, in the last 30 days. Each member is counted once per step they reached." }));
       box.appendChild(h("div", { class: "grid" },
         h("div", { class: "tile col" }, h("div", { class: "muted small", text: "Members who saw it" }), h("div", { class: "stat", text: String(d.people || 0) })),
         h("div", { class: "tile col" }, h("div", { class: "muted small", text: "Buttons chosen" }), h("div", { class: "stat", text: String(d.chose || 0) })),
@@ -644,7 +644,7 @@
         h("label", { text: "Monthly price (dollars)" }), monthly,
         h("label", { text: "Yearly price (dollars)" }), annual,
         h("label", null, "Platform fee this side pays (percent of the project price) ", tipPair("plan_fee")[0]), fee,
-        h("p", { class: "muted small", text: "The minimum fee per side is a separate setting (fees.floor_cents_per_party), on the Settings tab." }),
+        h("p", { class: "muted small", text: "The minimum fee per side is a separate setting (fees.floor_cents_per_party), on the Settings page." }),
         h("label", { text: "Note" }), note),
       h("div", { class: "card scroll" }, titled("h2", "Limits", "plan_limits"), h("p", { class: "muted small", text: "Leave a limit empty for no cap. Untick to leave it out of the plan." }),
         h("table", null, h("thead", null, h("tr", null, h("th", { text: "Limit" }), h("th", { text: "Included" }), h("th", { text: "Amount" }))), h("tbody", null, rows))),
@@ -847,7 +847,7 @@
   function holds() {
     api.get("/admin/holds").then(function (r) {
       body(h("div", null, pageHead("Holds", "holds"),
-        h("p", { class: "muted", text: "A hold pauses new actions for a person (new allowances, and later hiring and payments). Their records stay readable. Place one from the People tab." }),
+        h("p", { class: "muted", text: "A hold pauses new actions for a person (new allowances, and later hiring and payments). Their records stay readable. Place one from the People page." }),
         r.data.length ? h("div", { class: "card scroll" }, h("table", null, h("tbody", null, r.data.map(function (x) {
           return h("tr", null, h("td", null, h("strong", { text: x.name || x.scope_id }), h("div", { class: "muted small", text: "BD " + (x.bd_member_id || "") })), h("td", { text: x.reason }), h("td", { text: x.severity }), h("td", { text: D.dateTime(x.created_at) }),
             h("td", null, h("button", { class: "ghost small", onclick: function () {
@@ -1001,7 +1001,7 @@
 
   // ---------- Payments (Step 6): money held and paid, human reviews, disputes, chargebacks ----------
   var AGW = { signing: "Waiting for signatures", signed: "Signed", active: "Active", completed: "Complete", canceled: "Canceled", paused: "Paused", draft: "Draft" };
-  // ---------- Step 11: the Disputes tab (docs/briefs/step-11-disputes.md) ----------
+  // ---------- Step 11: the Disputes page (docs/briefs/step-11-disputes.md) ----------
   // The queue (team review first), each case with both sides, links, offers, DELA's check and an AI draft; the team asks,
   // extends, flags for the lawyer and decides. Money tools: retry a failed refund or payout, release a held payout, lift a pause.
   var D_CAT = { not_delivered: "Not delivered", late: "Late", not_as_agreed: "Not what was agreed", quality: "Quality", not_accepted: "Payment or acceptance withheld", other: "Other" };
@@ -1197,8 +1197,8 @@
             h("button", { class: "blue small", type: "button", onclick: function () { api.post("/admin/submissions/decide", { id: x.id, pass: true, note: note.value }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason); ok("Sent to the attorney for review"); payTab(); }).catch(fail); } }, "Passes: send to the attorney"),
             h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/admin/submissions/decide", { id: x.id, pass: false, note: note.value }).then(function (y) { if (!y.data.ok) throw new Error(y.data.reason); ok("Sent back to the freelancer"); payTab(); }).catch(fail); } }, "Needs more work")));
       });
-      var disputes = h("div", { class: "card" }, h("h2", { text: "Disputes (" + (d.disputes || []).length + ")" }), h("p", { class: "small", text: (d.disputes || []).length ? "Open disputes are in the Disputes tab, with both sides, offers and the decision." : "No open disputes." }),
-        h("button", { class: "ghost small", type: "button", onclick: function () { go("disputes"); } }, "Open the Disputes tab"));
+      var disputes = h("div", { class: "card" }, h("h2", { text: "Disputes (" + (d.disputes || []).length + ")" }), h("p", { class: "small", text: (d.disputes || []).length ? "Open disputes are in the Disputes page, with both sides, offers and the decision." : "No open disputes." }),
+        h("button", { class: "ghost small", type: "button", onclick: function () { go("disputes"); } }, "Open the Disputes page"));
       var oldDisputes = list("Disputes", d.disputes || [], "No open disputes.", function (x) {
         var rel = h("input", { type: "number", min: "0", step: "0.01", "aria-label": "To the freelancer ($)" }), ref = h("input", { type: "number", min: "0", step: "0.01", "aria-label": "Back to the attorney ($)" });
         var note = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Decision and reasons (both members see this)" });
@@ -1373,7 +1373,7 @@
       var modeBtn = h("button", { class: live ? "ghost small" : "danger small", type: "button" }, live ? "Switch to Dry run" : "Switch to Live");
       modeBtn.addEventListener("click", function () {
         if (!live && !confirm("Switch the trial check to Live? From the next run it changes plans in BD, cancels unpaid trial invoices and sends the trial emails. Do this only after 3 clean dry-run days.")) return;
-        api.post("/admin/settings", { key: "trial.downgrade_mode", value: live ? "dry_run" : "live", status: "C", reason: "Changed in the Trials tab" }).then(function (x) { var y = x.data || x; if (y.ok === false) throw new Error(y.reason || "not saved"); ok(live ? "Dry run: the check lists and changes nothing." : "Live: the next run changes BD."); trialsTab(); }).catch(fail);
+        api.post("/admin/settings", { key: "trial.downgrade_mode", value: live ? "dry_run" : "live", status: "C", reason: "Changed in the Trials page" }).then(function (x) { var y = x.data || x; if (y.ok === false) throw new Error(y.reason || "not saved"); ok(live ? "Dry run: the check lists and changes nothing." : "Live: the next run changes BD."); trialsTab(); }).catch(fail);
       });
       el.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" }, runBtn, modeBtn));
       el.appendChild(h("h3", { text: "Runs" }));
@@ -1929,12 +1929,12 @@
   }
   // Plain-language help behind every "?" on Release Control: what it is, and what it tells you
   var HELP = {
-    guide: "A plain-words manual: the two copies of DELA, how a version gets to Live, what a push moves, going back, and what every tab is for.",
+    guide: "A plain-words manual: the two copies of DELA, how a version gets to Live, what a push moves, going back, and what every page is for.",
     staging: "This site, while it is in test mode. Only you and the people on its access list use it. Every new version runs here first.",
     staging_health: "Healthy means the test site's database answers and its background helper ran in the last 10 minutes. Worker stopped means scheduled work (emails, reminders, checking Live) is not running. Tell Claude.",
     version_running: "The version this copy is running right now. On the test site it should be the version you are testing. \"code\" plus 7 letters means a build that was not recorded as a version.",
     worker: "DELA's background helper runs every minute. It sends emails and reminders, writes the daily summary and checks Live. More than 10 minutes ago means something is stuck.",
-    problems: "Emails that failed for good, plus background jobs that gave up after all their retries, in the last 24 hours. 0 is the goal. Any other number: open the Jobs tab to see what failed, or ask Claude.",
+    problems: "Emails that failed for good, plus background jobs that gave up after all their retries, in the last 24 hours. 0 is the goal. Any other number: open the Jobs page to see what failed, or ask Claude.",
     paused: "Parts of DELA switched off with the emergency pause, for example AI help or payouts. None is normal.",
     live: "Live is a second copy for real members, used when DELA runs as two copies. It changes only when you push a tested version from this page. During the pilot there is one site and this card stays empty.",
     live_health: "Healthy: Live answered normally. Not healthy: 3 checks in a row failed, and you were alerted. Waiting for your first push: Live exists but has no DELA code yet. Not set up yet: the Live project ID is not entered (see Live setup).",
@@ -1957,11 +1957,11 @@
     ov_access: "Members you have let into DELA. Everyone else sees a 'not open yet' message. The Lawfecta Team can always get in.",
     ov_denied: "Members who tried to open DELA in the last 7 days but are not on the access list. A rising number can mean word is spreading before you open DELA.",
     ov_decisions: "Business numbers still marked Open or Suggested in Settings. Open: no decision yet. Suggested: Claude's suggestion waiting for your yes. Needs a gate: only switch on after a check, such as a lawyer review.",
-    ov_unmapped: "DELA plans not yet linked to a BD membership plan. Until linked, members only get those plans if you give them one on the People tab. Linking happens at launch.",
+    ov_unmapped: "DELA plans not yet linked to a BD membership plan. Until linked, members only get those plans if you give them one on the People page. Linking happens at launch.",
     ov_switches: "Features turned on for anyone (team only, access list, or everyone). Built features stay off until you switch them on.",
     ov_holds: "People with an active hold: their new actions are paused while you check something. Their records stay readable.",
     ov_notices: "Sends a test notice to you, to check that in-app notices and emails work. Email goes through the service named in the email.sender setting.",
-    ov_recent: "The latest sign ins, refusals and changes on this copy. The full list is on the Audit log tab.",
+    ov_recent: "The latest sign ins, refusals and changes on this copy. The full list is on the Audit log page.",
     ov_pause: "Stops all of DELA, or one part, at once, with no push. Members see a short message. The Lawfecta Team keeps working. You get an email each time it is turned on or off.",
     acc: "Who may open DELA on this copy. While DELA is in testing, only people on this list (and the Lawfecta Team) can get in. Removing someone signs them out at once.",
     acc_add: "Add a member by their BD member ID (BD admin, Members). They can then open this copy of DELA. Use member numbers from this site only: every Brilliant Directories site numbers its members separately.",
@@ -2359,7 +2359,7 @@
     var livePaused = (d.live || {}).paused && d.live.paused.length ? d.live.paused.join(", ") : "";
     var pauseNote = section("pause", "Emergency pause on Live", "pause", !!livePaused, h("span", { class: "badge " + (livePaused ? "bad" : "C"), text: livePaused ? "Paused: " + livePaused : "Nothing paused" }), [
       h("p", { class: "small", style: "margin-top:8px", text: "Paused on Live now: " + (livePaused || "nothing") + "." }),
-      h("p", { class: "muted small", text: "To pause Live, open the Live admin area, Overview tab, Emergency pause. It works at once, with no push." })]);
+      h("p", { class: "muted small", text: "To pause Live, open the Live admin area, Overview page, Emergency pause. It works at once, with no push." })]);
     body(h("div", null,
       h("h1", { text: "Release Control" }),
       h("p", { class: "muted", text: "Everything between the test site and Live in one place. Only you can push or go back, with your release password" + (d.settings.email_code ? " and a code sent to you." : ".") }),

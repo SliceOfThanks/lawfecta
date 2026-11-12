@@ -93,7 +93,7 @@ async function makeMember(bd, side, plan) {
     const noteBtn = dela(p).locator("tr", { hasText: oldId }).first().getByRole("button", { name: /quality note/ });
     ok(await noteBtn.count() === 1 && /quality notes?/.test(await noteBtn.innerText()) && !t.includes(" suggestions"), "the Review column counts quality notes, not suggestions (" + (await noteBtn.innerText().catch(() => "none")) + ")");
     await noteBtn.click();
-    await waitFor(p, "Blocking items are required before approval");
+    await waitFor(p, "must be fixed first");
     ok(await p.evaluate(() => { const q = document.querySelector(".dela-host").shadowRoot.querySelector("#quality-check"); const r = q && q.getBoundingClientRect(); return !!r && r.top < innerHeight && r.bottom > 0; }), "the count opens the document at its quality check");
     ok(!(await text(p)).includes("Suggestions ("), "the AI-proposed edits tab is called Suggested edits");
     await click(p, "← Library");

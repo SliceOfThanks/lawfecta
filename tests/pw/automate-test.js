@@ -69,7 +69,7 @@ const DOC = (title) => JSON.stringify({ schema: 2, type: "sop", title, lifecycle
 
     // ---------- The hint card, the two boxes, the checked suggestions ----------
     s = await open(browser, ATT, `&tab=library&pb=${pb}`);
-    t = await waitFor(s.page, "DELA can find steps in this playbook to automate or hand to a freelancer.");
+    t = await waitFor(s.page, "DELA can find steps in this document to automate or hand to a freelancer.");
     ok(t.includes("✦ Find what to automate or delegate") && t.includes("Dismiss"), "the hint card above an approved SOP, with the button and Dismiss");
     await label(s.page, "How often does this run?").selectOption("weekly");
     await label(s.page, "How long does it take each time?").fill("60");
@@ -112,14 +112,14 @@ const DOC = (title) => JSON.stringify({ schema: 2, type: "sop", title, lifecycle
     ok(recRow.includes("Gig drafted") && recRow.includes("View gig") && !recRow.includes("Delegate these steps"), "a suggestion already delegated shows its gig, not a new idea (UX review D02)");
     ok((await dela(s.page).locator("#automate-summary").innerText()).includes("1 already delegated"), "the summary line counts what is already delegated");
     await s.page.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=library&pb=${pb2}`);
-    await waitFor(s.page, "DELA can find steps in this playbook");
+    await waitFor(s.page, "DELA can find steps in this document");
     await dela(s.page).locator("#automate-card").getByText("Dismiss", { exact: true }).click();
     await s.page.waitForTimeout(500);
-    ok(!(await text(s.page)).includes("DELA can find steps in this playbook"), "Dismiss hides the hint");
+    ok(!(await text(s.page)).includes("DELA can find steps in this document"), "Dismiss hides the hint");
     await s.page.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=library&pb=${pb2}`);
     await waitFor(s.page, "Close a matter");
     await s.page.waitForTimeout(800);
-    ok(!(await text(s.page)).includes("DELA can find steps in this playbook"), "and it stays hidden");
+    ok(!(await text(s.page)).includes("DELA can find steps in this document"), "and it stays hidden");
 
     // ---------- Get set up ----------
     await s.page.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=home`);
