@@ -92,6 +92,25 @@ FIXED 2026-11-11 (migration 0087; one correction row of $2.50 added to the ledge
 
 Not proven in the sandbox: a declined card, a bank (ACH) payment, a chargeback, a monthly engagement, an agency split payout. The automated tests cover them with a stand-in only.
 
+## 1b-3. Fee with each milestone: refund and dispute run in the Stripe sandbox (2026-11-12)
+With Stacey's yes ("keep building, run the refund and dispute test"), Claude acted as the two test accounts (sessions marked "Claude test run 2026-11-12", both revoked afterwards) on the fee test job, agreement `4e8146ff-ca3b-4496-be40-86f7e05e4465` (two $150 milestones, fee $7.50 with each), and compared each step with Stripe through the read-only connector:
+
+| Step | DELA | Stripe |
+|---|---|---|
+| Milestone 1 paid in Stacey's ChatGPT run | $157.50, fee $7.50 | `pi_3Ual1iCqJgxv1pm211iExlIB` |
+| Freelancer starts milestone 1; attorney disputes it (quality, wants a refund); freelancer offers to keep $50; attorney accepts | release $50, refund $105.00 of which fee $5.00; ledger: refund -10500, attorney_fee -500, freelancer_fee 250 | refund `re_3Ual1iCqJgxv1pm21miqLqzJ`, 10500, succeeded, metadata refund_id |
+| Payout of the released part | $47.50 ($50 less $2.50), status FAILED | no transfer; the platform balance was $0 (see below) |
+| Attorney pays milestone 2 (not charged by itself after a dispute) | $157.50 on the saved card, fee $7.50 | `pi_3UamgGCqJgxv1pm20wyz7Twf` |
+| Attorney cancels with milestone 2 paid and not delivered | refund $157.50 of which fee $7.50; engagement canceled | refund `re_3UamgGCqJgxv1pm207sg3mYm`, 15750, succeeded |
+| Lawfecta's fee kept on this job | $2.50 (7.50 - 5.00 + 7.50 - 7.50) | |
+
+What the run found:
+1. **Stripe paid the held money out to the bank.** The sandbox account has automatic daily payouts: `po_1Uam3hCqJgxv1pm2qynGALRn`, $170.69, swept the whole balance on 2026-11-12, so the available balance was $0 and went to -$105.00 with the refund. The $47.50 transfer to the freelancer was refused. On the live account the same would happen to every milestone held longer than a day. **Before real payments: the Stripe payout schedule must be Manual** (docs/PILOT_GO_LIVE.md, step 2). The admin Payments page now reads Stripe's payout schedule and balance and warns (commit after b8f59cc). The failed $47.50 payout stays in the Disputes tab's money tools with "Retry"; it cannot go through in the sandbox while the balance is negative (-$109.87 after the run).
+2. **Stripe keeps its own processing fee on a refund.** The fully refunded $157.50 charge cost Lawfecta $4.87. Stacey should know this is the cost of every full refund.
+3. FIXED (migration 0096): a failed payout kept no reason; it now keeps Stripe's words, shown next to "Retry".
+4. FIXED (migration 0096): after a dispute settles a milestone, the next one is not charged by itself, and the attorney's Home did not list it. Home now lists "Pay milestone N to start the work" for it. The agreement page already showed the Pay card.
+5. Not a defect: Stripe refunds went through with a zero balance (the balance goes negative).
+
 ## 1c. THE CURRENT PLAN: pilot on lawfecta.co with live payments (Stacey's decisions, 2026-11-10)
 This replaces the two-site design (test site, then Live) and the earlier two-stage triage. Stacey approved this plan.
 

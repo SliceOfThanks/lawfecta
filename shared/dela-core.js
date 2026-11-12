@@ -579,6 +579,7 @@ D.openTab = function (getUrl, onFail, opts) {
     // Account and security: a label and its explanation on the left, its actions on the right; stacked on a phone
     ".acct-row{display:flex;gap:10px 16px;align-items:flex-start;flex-wrap:wrap;padding:12px 0;border-top:1px solid var(--line)}.acct-what{flex:1 1 280px;min-width:0;display:flex;flex-direction:column;gap:3px}" +
     ".acct-val{font-size:16px;overflow-wrap:anywhere}.acct-acts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.acct .btn{text-decoration:none}.dela .acct a.btn.ghost{background:transparent;color:var(--pink-ink);border:1px solid var(--line)}@media (max-width:600px){.acct-acts{flex:1 1 100%}.acct-acts .btn{flex:1 1 auto;text-align:center;min-height:44px;display:inline-flex;align-items:center;justify-content:center}}" +
+    ".dela .top.atop{flex-wrap:wrap;row-gap:6px}@media (max-width:600px){.dela .top.atop .grow{flex-basis:100%;height:0}.dela .top.atop>.small{flex:1 1 100%}}" +
     // The holder for a trapped phone bar: no size or color of its own
     ".dela.docked{min-height:0;padding:0;background:transparent}" +
     // While More is open it is the one marked item; the page's own item goes quiet until the sheet closes

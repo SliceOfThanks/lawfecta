@@ -33,6 +33,8 @@ Stripe Connect is already set up on Lawfecta's live account. DELA needs its own 
 - a webhook to `https://ojshgsxgsypbywtqhkch.supabase.co/functions/v1/api/stripe/webhook` with the 7 events in docs/STRIPE_SETUP.md, its signing secret saved as `STRIPE_WEBHOOK_SECRET`
 - then the `live_payments` switch turned on in the admin area. Until it is on, DELA refuses a live key and says "Stripe is not connected yet".
 
+**Also in step 2, before any real payment: set Stripe's payout schedule to Manual.** DELA holds each paid milestone on Lawfecta's Stripe balance until the attorney accepts it. With Stripe's usual automatic daily payout, that money goes to Lawfecta's bank the next day, and the later payout to the freelancer fails (seen in the sandbox on 2026-11-12, docs/HANDOFF.md section 1b-3). In the live Stripe account: Settings, then "Payouts" (under Business or Balances), "Payout schedule", choose "Manual". After that Stacey sends only Lawfecta's own fees to the bank, by hand. The admin Payments page (https://www.lawfecta.co/dela-admin, "Payments" tab, top of the page) shows a red notice while the schedule is not Manual, and shows Stripe's available balance next to the money DELA holds. Stripe also keeps its processing fee when a payment is refunded (about $4.87 on $157.50).
+
 ## 3. Three small real transactions (Stacey)
 One payment, one payout, one refund, each compared with Stripe and the admin Payments tab.
 

@@ -3134,6 +3134,17 @@ async function securityContact(ctx: Ctx) {
 // ---------- Step 6: agreements, signing, milestone funding, delivery, payouts, refunds, disputes ----------
 // Money moves only through the payments adapter (Stripe), in test mode until the live_payments switch is on.
 
+// What the Lawfecta Team must know about the Stripe account itself (sandbox run 2026-11-12): milestone money is held on
+// Lawfecta's Stripe balance until it is released. If Stripe pays that balance out to the bank by itself, a later payout
+// to a freelancer fails. So the admin Payments page shows Stripe's payout schedule and the balance. Read only.
+async function stripeAccountFacts(ctx: Ctx): Promise<Record<string, unknown> | null> {
+  const key = await stripeKey(ctx);
+  if (!key) return null;
+  const [acct, bal] = await Promise.all([stripe(f(ctx), key, "GET", "/account"), stripe(f(ctx), key, "GET", "/balance")]);
+  const sum = (list: unknown) => Array.isArray(list) ? list.filter((x: any) => x?.currency === "usd").reduce((n: number, x: any) => n + (Number(x?.amount) || 0), 0) : null;
+  return { payout_interval: acct.ok ? String(acct.data?.settings?.payouts?.schedule?.interval ?? "") : "", available_cents: bal.ok ? sum(bal.data?.available) : null, pending_cents: bal.ok ? sum(bal.data?.pending) : null };
+}
+
 async function stripeKey(ctx: Ctx): Promise<string> {
   const key = ctx.deps.env("STRIPE_SECRET_KEY");
   const live = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "live_payments", p_person: null }).catch(() => false);
@@ -4429,7 +4440,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/agencies/bench": (c, a) => rpc(c, "dela_admin_agency_bench", { p_actor: a }),
   "/admin/agencies/assignments": (c, a) => rpc(c, "dela_admin_assignments", { p_actor: a }),
   "/admin/confidential/review": (c, a) => rpc(c, "dela_conf_reviewer", { p_actor: a, p_agreement: need(uuid(c.url.searchParams.get("agreement"))), p_file: null }),
-  "/admin/payments": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_payments", { p_actor: a })), stripe_ready: !!(await stripeKey(c)), mode: c.deps.env("STRIPE_SECRET_KEY").includes("_live_") ? "live" : "test" }),
+  "/admin/payments": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_payments", { p_actor: a })), stripe_ready: !!(await stripeKey(c)), mode: c.deps.env("STRIPE_SECRET_KEY").includes("_live_") ? "live" : "test", stripe_account: await stripeAccountFacts(c) }),
   "/admin/meetings": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_meetings", { p_actor: a })), provider_ready: !!c.deps.env("VECTERA_API_KEY") }),
   "/admin/verify": async (c, a) => {
     const d = await rpc<Record<string, any>>(c, "dela_admin_verify", { p_actor: a });

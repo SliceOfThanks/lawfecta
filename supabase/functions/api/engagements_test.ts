@@ -53,6 +53,9 @@ function stripeAnswer(method: string, path: string, body: URLSearchParams): [num
   if (method === "GET" && path === "/refunds") return [200, { data: atStripe.refunds.filter((r) => r.payment_intent === body.get("payment_intent")) }];
   if (method === "GET" && /^\/transfers\/[^/]+\/reversals$/.test(path)) return [200, { data: atStripe.reversals.filter((r) => r.transfer === path.split("/")[2]) }];
   if (method === "GET" && path.startsWith("/payment_intents/")) return [200, { id: path.slice(17), status: "succeeded", amount: 0 }];
+  // The account's own settings and balance, shown to the Lawfecta Team on the admin Payments page
+  if (method === "GET" && path === "/account") return [200, { id: "acct_test", settings: { payouts: { schedule: { interval: "daily" } } } }];
+  if (method === "GET" && path === "/balance") return [200, { available: [{ amount: -10500, currency: "usd" }], pending: [{ amount: 0, currency: "usd" }] }];
   return [404, { error: { message: "no such route" } }];
 }
 const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
@@ -331,6 +334,8 @@ Deno.test("delivery: start, submit, DELA's check scores in code, a failed check 
   assertEquals((await call("POST", "/milestones/human", fl.token, { id: failed.id })).body.ok, true);
   const admin = (await call("GET", "/admin/payments", team.token)).body.data;
   assert(admin.human_reviews.some((h: any) => h.id === failed.id));
+  // Sandbox run 2026-11-12: the admin page is told Stripe's payout schedule and balance, so an automatic payout of held money is seen
+  assertEquals([admin.stripe_account?.payout_interval, admin.stripe_account?.available_cents], ["daily", -10500]);
   assertEquals((await call("GET", "/admin/payments", fl.token)).status, 403);
   assertEquals((await call("POST", "/admin/submissions/decide", team.token, { id: failed.id, pass: true })).body.data.reason, "say_why");
   assertEquals((await call("POST", "/admin/submissions/decide", team.token, { id: failed.id, pass: true, note: "The petition is there; DELA missed it." })).body.data.ok, true);
@@ -659,6 +664,15 @@ Deno.test("step 14: the fee rides on each milestone payment for new agreements; 
     assertEquals(Number((await one("select sum(amount_cents) s from ledger_entries where agreement_id = $1 and kind = 'attorney_fee'", [nw])).s), 250, "fees charged minus fees refunded");
     assertEquals((await one("select body from notifications where person_id = $1 and title like 'Refund receipt:%s14new' order by created_at desc limit 1", [att.id])).body, "Milestone amount refunded $100.00. Lawfecta fee refunded $5.00. Total refunded $105.00.");
     assert((await call("GET", "/agreements/get?id=" + nw, att.token)).body.refunds.some((x: any) => x.amount_cents === 10500 && x.fee_cents === 500 && x.seq === 1));
+    // Sandbox run 2026-11-12: after a dispute settles a milestone the next one is not charged by itself, so the attorney's
+    // Home lists it to pay; and a payout Stripe refuses keeps Stripe's reason for the Lawfecta Team
+    const attn = (await call("GET", "/me", att.token)).body.me.home.attention;
+    assert(attn.some((x: any) => x.kind === "pay" && x.seq === 2 && x.first === false && String(x.gig_title).includes("s14new")), "Home asks the attorney to pay milestone 2: " + JSON.stringify(attn));
+    const po = await one("insert into payouts (milestone_id, agreement_id, person_id, amount_cents, idem_key) select milestone_id, agreement_id, person_id, 0, 'payout:reason-test' from payouts where agreement_id = $1 limit 1 returning id", [nw]);
+    await pool.query("select dela_payout_result($1, 'failed', '', 'You have insufficient available funds in your Stripe account.')", [po.id]);
+    assertEquals((await one("select status || ': ' || held_reason s from payouts where id = $1", [po.id])).s, "failed: You have insufficient available funds in your Stripe account.");
+    await pool.query("select dela_payout_result($1, 'sent', 'tr_reason_test', '')", [po.id]);
+    assertEquals((await one("select held_reason from payouts where id = $1", [po.id])).held_reason, "", "the reason clears when the payout goes through");
 
     // Three uneven milestones: the fees add up exactly to 5%, leftover cents on the last
     const three = await hire(fl2, 100100, "s14three");

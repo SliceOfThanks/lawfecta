@@ -49,7 +49,8 @@
   }
 
   function frame() {
-    var top = h("div", { class: "top" }, h("span", { class: "brand" }, D.logo(root), h("span", { text: "DELA Admin" })));
+    // "atop": the admin bar holds more buttons than the member bar, so on a narrow screen it wraps onto a second line
+    var top = h("div", { class: "top atop" }, h("span", { class: "brand" }, D.logo(root), h("span", { text: "DELA Admin" })));
     top.appendChild(h("span", { class: "badge " + (me.environment === "live" ? "C" : "stage"), title: me.environment === "live" ? "Live: lawfecta.co, real members" : "Test mode on lawfecta.co: test data only", text: me.environment === "live" ? "Live" : "Test site" }));
     top.appendChild(h("span", { class: "grow" }));
     top.appendChild(h("span", { class: "small", style: "opacity:.85", text: me.person.name + " (" + me.staff.join(", ") + ")" }));
@@ -95,6 +96,20 @@
     drawTabs();
     loading();
     ({ account: accountTab, control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, disputes: disputesTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, trials: trialsTab, usage: usageTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+  }
+
+  // Stripe's own settings that can break a payout (sandbox run 2026-11-12): money held for milestones sits on Lawfecta's
+  // Stripe balance. If Stripe sends the balance to the bank by itself, a later payout to a freelancer fails.
+  function stripeWarnings(d) {
+    var s = d.stripe_account, t = d.totals || {}, box = h("div", null);
+    if (!s) return box;
+    var words = { daily: "every day", weekly: "every week", monthly: "every month" };
+    if (s.payout_interval && s.payout_interval !== "manual") box.appendChild(h("p", { class: "notice bad", text: "Stripe sends Lawfecta's balance to the bank by itself, " + (words[s.payout_interval] || s.payout_interval) + ". Money held for milestones leaves Stripe before it is released, and a payout to a freelancer then fails. In Stripe, set the payout schedule to Manual, and move only Lawfecta's own fees to the bank." }));
+    if (typeof s.available_cents === "number") {
+      var short = s.available_cents < (t.held_now || 0);
+      box.appendChild(h("p", { class: short ? "notice bad" : "small muted", text: "Stripe balance available now: " + D.money(s.available_cents) + ". Held for milestones in DELA: " + D.money(t.held_now || 0) + "." + (short ? " Stripe holds less than DELA owes. Payouts and releases can fail until the balance covers it." : "") }));
+    }
+    return box;
   }
 
   // ---------- My account ----------
@@ -956,6 +971,7 @@
     api.get("/admin/payments").then(function (r) {
       var d = r.data, t = d.totals || {}, sw = d.switches || {};
       var top = h("div", { class: "card" }, titled("h2", "Money on DELA", "pay"),
+        stripeWarnings(d),
         h("p", { class: d.stripe_ready ? "small muted" : "notice", text: d.stripe_ready ? "Stripe is connected in " + (d.mode === "live" ? "LIVE mode (real money)" : "test mode (no real money)") + ". Live payments switch: " + (d.live_payments || "off") + "." : "Stripe is not connected yet. Attorneys see \"Payments are not set up\". It needs the STRIPE_SECRET_KEY (test key) and STRIPE_WEBHOOK_SECRET secrets in Supabase." }),
         h("p", { class: "small muted", text: ["engagements", "milestone_funding", "milestone_check", "engagement_export"].map(function (k) { return k + ": " + (sw[k] || "off"); }).join(" | ") }),
         h("div", { class: "kv" },
