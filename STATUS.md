@@ -1,5 +1,7 @@
 # Build status (read this first in a new session)
 
+Starting a new session? Read docs/SESSION_HANDOFF.md first (written 2026-11-12, after go-live): the state of the live site, how to release, the open items and the traps.
+
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
 ## THE PLAN NOW (Stacey 2026-11-10): pilot on lawfecta.co with live payments
@@ -17,7 +19,7 @@ Stacey asked for it in chat (docs/briefs/step-16-subscription.md). Built: a menu
 - She ran the clearing a second time (tools/pilot_clear_money.sql, extended): two prepared agreements whose milestones were marked paid without a payment showed $1,450 as held; they are gone. Agreements 10, every money table 0.
 - She decided NOT to run real test payments ("if staging payments worked we are fine"). So the live key and the webhook signing secret are unproven until the first real payment: check that one against Stripe (payments row, ledger lines, one provider_events row) as soon as it happens.
 - confidential_materials is OFF: on Live, confidential uploads are refused until a virus scanner is set up (confidential.scan_provider, CONF_SCAN_URL, CONF_SCAN_TOKEN). Turn it on only after that.
-- Also today: the Switches page is in sections A to Z with search; card and table headings are the menu's berry pink (her words); code_version 23aa3e3.
+- Also today: the Switches page is in sections A to Z with search; card and table headings are the menu's berry pink (her words); code_version 23aa3e3 at that time; see the section above for the newest.
 - Later the same day: "Change email" and "Change password" opened the Brilliant Directories member dashboard (/account/contact, /account/password), which members should not be sent into (Stacey). Migration 0100 empties both page settings; the Account and security card now offers "Reset password by email" (/login/retrieval) and sends an email change through the Lawfecta Team. Site: commit 1df6beb, migrations through 0100. She still has to confirm that /login/retrieval opens a clean page while signed in.
 - Sign-up: she wants pilot users to sign up themselves. The setting access.mode is "everyone", so any website member with a linked plan gets into DELA without the access list. Each plan has its own sign-up page at www.lawfecta.co/checkout/<BD plan number> (3, 5, 7, 8, 9, 12, 13, 14; checked 2026-11-12). The public page www.lawfecta.co/join was the old LawWurk page when first checked; later the same day it shows "Join Lawfecta" with all eight plans under "For attorneys" and "For freelancers", each linking to its checkout page (checked signed out). It can be shared.
 - Later still: "Reset password by email" also landed in the dashboard, because /login/retrieval only shows to someone signed out. Migration 0101 empties that page setting too; the card now gives three steps (sign out, then "Forgot Password? Click to Reset Password" on the login page) and no website button.
