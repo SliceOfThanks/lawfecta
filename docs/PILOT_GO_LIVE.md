@@ -3,6 +3,8 @@
 The pilot runs on https://www.lawfecta.co (formerly hirelegalhelp.com), on the database it already had. Each step below that changes the site for good needs Stacey's yes at that moment.
 
 ## 1. Clear the test data (cannot be undone)
+**Changed 2026-11-12 (Stacey): only the test money is cleared.** Use `tools/pilot_clear_money.sql`; `tools/pilot_clear.sql` (described below) removes far more and is marked do not run. The money script removes every agreement that has a money record with everything belonging to it, all payments, payouts, refunds, ledger lines, disputes, payout accounts and stored Stripe events, and the saved test card on what remains. Accounts, plans, profiles, documents, files, gigs, proposals, messages and agreements without money stay. It checks every link between tables at the end and rolls back if one is broken. Local trial 2026-11-12 (after the engagements, disputes and monthly browser suites): agreements 6 to 3, payments 7 to 0, payouts 3 to 0, refunds 1 to 0, ledger 45 to 0, disputes 3 to 0, payout accounts 2 to 0, milestones 18 to 2; gigs 6, proposals 6, people 35 and documents 6 unchanged. On the site it would remove 5 of 17 agreements and 7 of 22 milestones (read-only count, 2026-11-12). Not run on the site.
+
 Script: `tools/pilot_clear.sql`. Tried on a local copy on 2026-11-11: it refuses to run without its safety line, clears the work and money rows, and keeps the setup and the named accounts. It has NOT been run on the site.
 
 On the site today (counts from 2026-11-11): 7 accounts, all made up except Stacey's.

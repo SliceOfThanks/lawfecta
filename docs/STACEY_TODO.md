@@ -18,9 +18,9 @@ You ran it on 2026-11-12. 20 of 21 steps passed. Step 17 was marked as failed on
 2. Done 2026-11-13: the new layout is on for everyone. To go back, tell Claude "turn the new layout off".
 
 ## 4. Clear the test money data (cannot be undone)
-Stacey 2026-11-12: only the financial records are removed. All other test data stays as reference (accounts, profiles, documents, gigs, messages). The script is being rewritten for that; do not run the older one. Nothing is cleared until Claude has shown you exactly what goes and you say yes.
+Stacey 2026-11-12: only the test money is removed, so test data does not mix with real payments. What goes: the 5 test agreements that had money (with their 7 milestones, 7 payments, 3 payouts, 3 refunds, 24 ledger lines and 4 disputes), the 1 test payout account and the 46 stored Stripe test events. What stays: all 7 accounts, plans, profiles, documents, files, all 27 gigs, proposals, messages, meetings, notices and the 12 agreements that never had money. After it, every money total in the admin area is zero. Script: https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/tools/pilot_clear_money.sql (tried on a local copy on 2026-11-12).
 1. Check that a backup exists: open https://supabase.com/dashboard/project/ojshgsxgsypbywtqhkch/database/backups (Supabase, the project "Lawfecta AI", "Database" in the left menu, then "Backups"). There should be one from today or yesterday.
-2. Tell Claude in chat: "A backup exists. Clear the test data now." Claude runs it and reports the counts.
+2. Tell Claude in chat: "A backup exists. Clear the test money now." Claude runs it and reports the counts.
 Do this before step 5: the test jobs carry ids from Stripe's test mode that the live account does not know.
 
 ## 5. Stripe: the live account

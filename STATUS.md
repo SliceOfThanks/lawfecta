@@ -11,7 +11,9 @@ Stacey's review of part 1 is built (docs/briefs/step-15-compact-workspace.md, "R
 ## Stacey's answers and the phone bar (2026-11-12, later)
 - Phone bar: on her phone it was missing on first load and showed only after scrolling to the end and back. Fixed: the bar now checks its place on every scroll (of the page or a box inside it), every size change and on a slow clock, moves to its own holder when a page traps it at any time, and lifts itself when the browser's own bar covers it (app/dela-app.js `checkBar`, `visibleBottom`, `setLift`; test in tests/pw/workspace-test.js). She must confirm on her phone.
 - Email change without confirmation: fine for the pilot; a confirmation step through Brilliant Directories is on the 2027 roadmap (docs/PLAN.md, docs/ROADMAP.md).
-- Clearing: she wants ONLY financial records removed and all other test data kept as reference. tools/pilot_clear.sql removes far more and is marked DO NOT RUN. A financials-only script must be written, tried on the local copy, and shown to her (what goes, what stays) before anything runs on the site.
+- Clearing: she wants only the test money removed ("I don't want test data to obscure real financial intake and processing"). New script tools/pilot_clear_money.sql, tried on the local copy; tools/pilot_clear.sql is marked DO NOT RUN. On the site it would remove 5 of 17 agreements with their money. NOT run; it needs her words "A backup exists. Clear the test money now."
+- The name at the top reads LAWFECTA in the new layout (her words); the phone bar now shows on first load on her phone (she confirmed). Site: commit 7c9750f.
+- She wants everything live today: the order is in docs/STACEY_TODO.md sections 4 to 8.
 - "Account and security" card: she sent a picture of it (looks right) but has not yet said where "Change email" and "Change password" land.
 
 ## The new layout ChatGPT test passed (Stacey's run, 2026-11-12)
