@@ -176,6 +176,13 @@ Deno.test("helpers: Stripe form encoding, signatures, live keys, the rubric and 
   assertEquals(scoreFindings(req, { findings: [{ id: "c1", met: "unknown" }, { id: "q", met: "yes" }] }, 10).passed, false, "unknown never counts as met, and a required item must be met");
   assertEquals(scoreFindings(req, "nonsense", 0).findings.map((f) => f.met), ["unknown", "unknown"]);
   assert(termsText({ pass_score: 85 }).includes("score of 85 or more"));
+  // Fee test report 2026-11-11: every placeholder is filled in (clause 6 names the dispute days twice), and the note to
+  // a lawyer is gone from the terms (Stacey 2026-11-12)
+  for (const timing of ["at_start", "with_each_milestone"]) {
+    const terms = termsText({ dispute_days: 14 }, [], timing);
+    assert(!terms.includes("{") && !terms.includes("["), "no unfilled placeholder and no bracketed note (" + timing + ")");
+    assertEquals(terms.split("14 days").length - 1, 2, "clause 6 says 14 days twice (" + timing + ")");
+  }
   const b = buildBody({ proposal: { price_cents: 50000 }, fees: { attorney_bps: 350, freelancer_bps: 400, floor_cents: 1000 } }) as any;
   assertEquals([b.fees.attorney_fee_cents, b.fees.freelancer_fee_cents, b.fees.attorney_pays_cents, b.fees.freelancer_receives_cents], [1750, 2000, 51750, 48000]);
   const small = buildBody({ proposal: { price_cents: 20000 }, fees: { attorney_bps: 300, freelancer_bps: 300, floor_cents: 1000 } }) as any;

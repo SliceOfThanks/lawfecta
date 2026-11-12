@@ -9,13 +9,14 @@ const s = (v: unknown, max = 500) => (typeof v === "string" ? v.split("\u0000").
 const money = (c: number) => typeof c !== "number" || !isFinite(c) ? "-" : "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: c % 100 ? 2 : 0, maximumFractionDigits: 2 });
 
 // Stacey 2026-11-10: these terms go live as drafted for the pilot, on her decision; no lawyer reviewed them. Agreements
-// signed earlier keep the text they were signed with.
+// signed earlier keep the text they were signed with. Stacey 2026-11-12: the bracketed note to a lawyer at the end of clause 6
+// is removed for new agreements.
 export const TERMS_TEMPLATE = `1. The parties. This agreement is between the Client named above (the firm or attorney) and the Freelancer named above. Lawfecta runs the platform and holds payments; Lawfecta is not a party to the work, does not supervise it, and is not a law firm. The Client's attorney supervises the work and remains responsible for legal judgment and anything filed or sent to a court or client.
 2. The work. The Freelancer will do the work described in Scope, and nothing in Excluded. Changes to price, scope or milestones need a new version of this agreement signed by both parties (a change order).
 3. Milestones and payment. Each milestone is paid by the Client through Lawfecta before work on it starts, and held until the Client accepts it. The Client agrees that Lawfecta may charge the saved payment method for each next milestone when the previous one is accepted. Platform fees are shown in Fees and are part of this agreement.
 4. Delivery and review. The Freelancer submits each milestone on Lawfecta with its deliverables and a completion statement. DELA checks it against the Rubric; a score of {pass_score} or more with every required item met passes. The Client then has {review_days} days to accept it or ask for changes with reasons. {revisions} rounds of changes are included per milestone; more need a change order. A DELA check or a human review is an administrative step, not proof that the work is legally correct.
 5. Cancellation and refunds. Before work starts on the first milestone, either party may cancel and the Client is refunded in full, including the Client's platform fee. After that, a paid milestone not yet submitted is refunded, accepted milestones stay paid, and the Client's platform fee is kept. A milestone under review cannot be refunded by cancellation; either party may open a dispute.
-6. Disputes. Either party may open a dispute on Lawfecta about a paid milestone, saying what went wrong and what they ask for. The money for that milestone stays held. The other party answers on Lawfecta within the time shown there. For {dispute_days} days the parties try to settle it, and either may send an offer that splits the milestone amount; when the other party accepts it, the dispute is settled and the money is released and refunded as agreed. If the other party does not answer, the request is granted when the {dispute_days} days end. Otherwise the Lawfecta Team reviews it and decides how the held money is released or refunded under this agreement. A refund returns the milestone amount; the Client's platform fee is kept. This review is not arbitration, and Lawfecta does not choose a court or an arbitrator. [Fallback dispute, notice and deadline language to be supplied by counsel.]
+6. Disputes. Either party may open a dispute on Lawfecta about a paid milestone, saying what went wrong and what they ask for. The money for that milestone stays held. The other party answers on Lawfecta within the time shown there. For {dispute_days} days the parties try to settle it, and either may send an offer that splits the milestone amount; when the other party accepts it, the dispute is settled and the money is released and refunded as agreed. If the other party does not answer, the request is granted when the {dispute_days} days end. Otherwise the Lawfecta Team reviews it and decides how the held money is released or refunded under this agreement. A refund returns the milestone amount; the Client's platform fee is kept. This review is not arbitration, and Lawfecta does not choose a court or an arbitrator.
 7. Confidentiality and data. The Freelancer keeps all of the Client's information confidential, uses it only for this work, and does not enter confidential client information into DELA. Both parties keep all work, messages and payment on Lawfecta.
 8. Independent contractor. The Freelancer is an independent contractor, not an employee of the Client or of Lawfecta.
 9. Signing. The parties sign electronically on Lawfecta. Each signature records the signer's typed name, the time, the version of this agreement and its fingerprint (hash).`;
@@ -47,8 +48,10 @@ const PER_MILESTONE_TERMS: [string, string][] = [
 export function termsText(limits: Record<string, number>, extra: string[] = [], timing = "at_start"): string {
   let template = TERMS_TEMPLATE;
   if (timing === "with_each_milestone") for (const [from, to] of PER_MILESTONE_TERMS) template = template.split(from).join(to);
-  return [template.replace("{pass_score}", String(limits.pass_score ?? 90)).replace("{review_days}", String(limits.review_days ?? 7))
-    .replace("{revisions}", String(limits.revisions ?? 2)).replace("{dispute_days}", String(limits.dispute_days ?? 14)), ...extra].join("\n");
+  // Every occurrence is filled in: clause 6 names the dispute days twice
+  const fill: Record<string, number> = { pass_score: limits.pass_score ?? 90, review_days: limits.review_days ?? 7, revisions: limits.revisions ?? 2, dispute_days: limits.dispute_days ?? 14 };
+  for (const k of Object.keys(fill)) template = template.split("{" + k + "}").join(String(fill[k]));
+  return [template, ...extra].join("\n");
 }
 
 const addDays = (d: Date, n: number) => new Date(d.getTime() + n * 86400000).toISOString().slice(0, 10);

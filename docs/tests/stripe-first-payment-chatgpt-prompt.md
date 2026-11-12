@@ -77,7 +77,7 @@ TEST ATTORNEY (log in once)
    - Card number: 4000 0000 0000 0077. Expiry: 12 / 34. CVC: 123.
    - Name on card: Test Attorney. Country: United States. ZIP: 78701.
    - If Stripe offers to save your details for faster checkout (Link), leave that box unticked.
-   Expect: you come back to the DELA agreement page with the green line "Thank you. Stripe is confirming the payment."
+   Expect: you come back to the DELA agreement page with the green line "Thank you. Your payment is confirmed." or "Thank you. Stripe is confirming the payment." (either one is right)
    If you land on a login page or an error page instead, take a screenshot, write the full address of that page, and go to step 8.
 8. Do: wait 30 seconds, then go to: https://www.lawfecta.co/dela?tab=projects&gig=64ed7250-64b3-4423-a4f1-e0e890da40dc
    Find: the heading "Milestones" on the page (press Ctrl+F and type Milestones if you do not see it).

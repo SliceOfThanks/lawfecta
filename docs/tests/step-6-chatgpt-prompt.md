@@ -70,7 +70,7 @@ To sign out at the end of a group, click the initials in the top right of the DE
 3. Sign version 1 is not offered: only version 2 can be signed. Type your name in "Your full name", tick the box, and click "Sign version 2". Expect "Signed by both of you. Pay the first milestone to start."
 4. In "What happens next", expect "Pay milestone 1 (amount) and the platform fee (amount)". Click "Pay milestone 1" once.
 5. Expect Stripe's Checkout page with the milestone and the fee together. Pay with card 4000 0000 0000 0077, any future date, any 3 digits and any ZIP. Do not use a real card.
-6. Expect to come back to DELA with "Stripe is confirming the payment". Within a minute (reload the page), milestone 1 shows "Paid: ready to start" and the badge "Active". The card "Your payments" lists the payment as "Paid".
+6. Expect to come back to DELA with "Your payment is confirmed" or "Stripe is confirming the payment" (either one is right). Within a minute (reload the page), milestone 1 shows "Paid: ready to start" and the badge "Active". The card "Your payments" lists the payment as "Paid".
 7. Scroll to "Problems, disputes and canceling". Open "Cancel the engagement" and read the refund rule. Do not cancel.
 8. Sign out.
 

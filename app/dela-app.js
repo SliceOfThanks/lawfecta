@@ -5916,8 +5916,11 @@
     var a = r.agreement, cur = r.current || {}, b = cur.body || {}, att = r.role === "attorney";
     var mySigned = (r.signatures || []).some(function (s) { return s.version === a.version && s.role === r.role; });
     var theirSigned = (r.signatures || []).some(function (s) { return s.version === a.version && s.role !== r.role; });
-    host.appendChild(h("div", { class: "row" }, h("h2", { class: "grow", text: "Agreement, version " + a.version }), h("span", { class: "badge " + agTone({ status: a.status }), text: AG_STATUS[a.status] || a.status })));
-    if (eng.paid && att) { eng.paid = false; host.appendChild(h("p", { class: "notice ok", text: "Thank you. Stripe is confirming the payment. This page shows it as paid within a minute (a bank payment can take about 4 business days)." })); }
+    host.appendChild(h("div", { class: "row" }, h("h2", { class: "grow", style: "flex:1 1 auto", text: "Agreement, version " + a.version }), h("span", { class: "badge " + agTone({ status: a.status }), text: AG_STATUS[a.status] || a.status })));
+    if (eng.paid && att) { eng.paid = false;
+      // Already confirmed when the newest payment is paid (fee test report 2026-11-11): say so, do not say "confirming"
+      var newest = (r.payments || []).slice().sort(function (x, y) { return String(y.created_at).localeCompare(String(x.created_at)); })[0];
+      host.appendChild(h("p", { class: "notice ok", text: newest && newest.status === "succeeded" ? "Thank you. Your payment is confirmed." : "Thank you. Stripe is confirming the payment. This page shows it as paid within a minute (a bank payment can take about 4 business days)." })); }
     if (a.status === "signing" && a.sign_by) host.appendChild(h("p", { class: "small muted", text: "Both of you sign by " + D.dateTime(a.sign_by) + ". If it is not signed by then, it closes." }));
     if (a.status === "paused") host.appendChild(h("p", { class: "notice bad", text: "A payment on this engagement is under review with the bank, so it is paused. You can still read everything and send messages. The Lawfecta Team will be in touch." }));
     if (a.status === "canceled") host.appendChild(h("p", { class: "notice", text: "This engagement was canceled" + (a.cancel_reason ? ": " + (a.cancel_reason === "not_signed_in_time" ? "it was not signed in time" : a.cancel_reason) : "") + "." }));

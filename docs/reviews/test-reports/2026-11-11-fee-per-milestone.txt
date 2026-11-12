@@ -1,0 +1,84 @@
+DELA fee-per-milestone browser test report
+Date: November 11, 2026
+Site: https://www.lawfecta.co
+Result: 14 PASS, 0 FAIL against the numbered test expectations.
+
+1. PASS - User logged in as the test freelancer; freelancer account verified.
+2. PASS - "Fee test: Run a Conflict Check" opened with "Agreement, version 1". Fees transcribed below.
+3. PASS - Entered Test Freelancer, checked electronic signing, and clicked Sign version 1 once after user approval. Observed "Signed. Waiting for the other signature." and "You signed version 1. Waiting for the attorney to sign."
+4. PASS - Freelancer signed out before attorney login; logged-out login form verified. See execution note below.
+5. PASS - User logged in as the test attorney; attorney account verified.
+6. PASS - All four required attorney summary lines matched exactly; transcribed below.
+7. PASS - Expanded The terms. Terms start "1. The parties."; no DRAFT appeared in the terms. Clauses 3, 5 and 6 contain all required fee/refund phrases. Additional unresolved wording noted below.
+8. PASS - Entered Test Attorney, checked electronic signing, and clicked Sign version 1 once after user approval. Observed "Signed by both of you. Pay the first milestone to start." The next-action card showed the required payment instruction, Milestone $150.00, Lawfecta fee $7.50 and Total $157.50; $165 did not appear in that card.
+9. PASS - Stripe Checkout opened at checkout.stripe.com with Sandbox label and $157.50 total. Supplied test card ending 0077, expiry 12 / 34, CVC 123, Test Attorney, United States, ZIP 78701 and attorney test email were entered. Link saving was unchecked before submission. Submitted once after user approval. Returned to the agreement with paid=1 and "Thank you. Stripe is confirming the payment."
+10. PASS - Waited 30 seconds, then navigated to the specified agreement URL. Milestone 1: "Paid: ready to start"; milestone 2: "Not paid yet". Both displayed Milestone $150.00, Lawfecta fee $7.50, Total $157.50. Your payments line transcribed below. No extra reload was needed.
+11. PASS - Older job's Your payments card retained "Nov 10, 2026: $165 (includes the platform fee $15), Paid" and "Nov 10, 2026: $150, Paid". "Lawfecta fee" did not appear in that card.
+12. PASS - Attorney signed out; logged-out login form verified.
+13. PASS - User logged in as owner; admin identified Stacey Lake (owner).
+14. PASS - Opened Payments in DELA Admin. Test mode and all six expected totals matched; transcribed below. Signed out and verified https://www.lawfecta.co/login?action=loggedout with the Member Login form.
+
+STEP 2: FEES, WORD FOR WORD
+Price for the work: $300.00
+The attorney also pays the Lawfecta fee: $15.00 in total, charged with each milestone payment
+Milestone 1 payment: Milestone $150.00, Lawfecta fee $7.50, Total $157.50
+Milestone 2 payment: Milestone $150.00, Lawfecta fee $7.50, Total $157.50
+The freelancer's platform fee: $15, taken from the payouts across the milestones
+The freelancer receives: $285
+
+STEP 6: ATTORNEY SUMMARY, WORD FOR WORD
+Your total: $315.00
+Payment 1: Milestone $150.00, Lawfecta fee $7.50, Total $157.50
+Payment 2: Milestone $150.00, Lawfecta fee $7.50, Total $157.50
+The Lawfecta fee is charged with each milestone payment.
+
+STEP 7: REQUIRED PHRASES VERIFIED
+Clause 3: "is charged with each milestone payment"
+Clause 5: "is refunded together with the Lawfecta fee paid on it"
+Clause 6: "the same share of the Lawfecta fee paid on that milestone"
+
+STEP 8: NEXT PAYMENT INSTRUCTION
+Pay milestone 1. Lawfecta holds the milestone amount until you accept the milestone.
+Milestone $150.00
+Lawfecta fee $7.50
+Total $157.50
+
+STEP 9: CHECKOUT TOTAL
+$157.50
+Return URL: https://www.lawfecta.co/dela?tab=projects&gig=86768616-59bd-4c6d-8eb6-aea6ee31f879&view=agreement&paid=1
+Confirmation text: "Thank you. Stripe is confirming the payment. This page shows it as paid within a minute (a bank payment can take about 4 business days)."
+
+STEP 10: YOUR PAYMENTS, WORD FOR WORD
+Nov 11, 2026: Milestone $150.00, Lawfecta fee $7.50, Total $157.50, Paid
+
+STEP 14: ADMIN TOTALS
+Stripe is connected in test mode (no real money). Live payments switch: off.
+Charged: $472.50
+Held now: $2,950
+Paid out: $190
+Refunded: $100
+Attorney fees: $22.50
+Freelancer fees: $10
+
+FAIL LIST
+None against the numbered test expectations.
+
+CONFUSING MESSAGES AND ADDITIONAL OBSERVATIONS
+- Clause 6 contains an unresolved variable: "If the other party does not answer, the request is granted when the {dispute_days} days end."
+- Clause 6 also contains: "[Fallback dispute, notice and deadline language to be supplied by counsel.]"
+- Stripe's "Save my information with Link for faster checkout" was selected by default after choosing card payment. It was explicitly unchecked and verified as unchecked before submission.
+- The payment return message said Stripe was still confirming while the page already showed Active and the first milestone as paid. The refreshed page consistently showed the paid status.
+
+EXECUTION NOTES
+- User performed all three account logins and reCAPTCHAs.
+- User explicitly approved each signature at its signing step and the test payment before submission.
+- During freelancer sign-out, the agent navigated to login before the sign-out flow finished; login still identified the freelancer. The visible Logout link was then used, and the logged-out form was verified. This was an execution sequencing issue, not a demonstrated application failure.
+- One attempt to uncheck Link using the accessibility control did not change its checked state; the semantic checkbox control successfully unchecked it before payment.
+- Only fictitious test card values were entered. Stripe visibly identified the checkout as Sandbox; the admin page confirmed test mode and live payments off.
+
+ANYTHING LONGER THAN 60 SECONDS
+- No observed individual agreement generation, signing, payment processing or admin-loading operation exceeded 60 seconds.
+- The overall test spanned multiple turns because it waited for user logins and action approvals. Those waits are not application processing times.
+
+FINAL ACCOUNT STATE
+None logged in. Owner sign-out verified by the logged-out Member Login form at https://www.lawfecta.co/login?action=loggedout.

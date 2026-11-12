@@ -161,7 +161,19 @@ async function sign(page, name, version) {
     ok((await p.textContent("h1")).includes("28000 cents: paid"), "attorney: Stripe's Checkout charges milestone 1 and the fee together ($280)");
     await p.goto(`${BASE}/page/DELA-App?uid=2800&plan=&tab=projects&gig=${gigId}&view=agreement&paid=1`);
     t = await waitFor(p, "Paid: ready to start");
-    ok(t.includes("Stripe is confirming the payment") && t.includes("Active"), "attorney: back from Stripe, the milestone is paid and the engagement active");
+    ok(t.includes("Thank you. Your payment is confirmed.") && !t.includes("Stripe is confirming") && t.includes("Active"), "attorney: back from Stripe with the milestone already paid, the notice says the payment is confirmed");
+    // Fee test report 2026-11-11 (phone screenshots): the status badge does not sit on the heading at phone widths
+    for (const w of [320, 390]) {
+      await p.setViewportSize({ width: w, height: 800 });
+      const over = await p.evaluate(() => {
+        const root = document.querySelector(".dela-host").shadowRoot;
+        const h2 = Array.from(root.querySelectorAll("h2")).find((x) => x.textContent.indexOf("Agreement, version") === 0);
+        const r = document.createRange(); r.selectNodeContents(h2); const a = r.getBoundingClientRect(), b = h2.parentNode.querySelector(".badge").getBoundingClientRect();
+        return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      });
+      ok(!over, "attorney: at " + w + "px the agreement heading and its status badge do not overlap");
+    }
+    await p.setViewportSize({ width: 1280, height: 800 });
     ok(t.includes("$280 (includes the platform fee $30), Paid"), "attorney: their payments list");
     await s.ctx.close();
 
