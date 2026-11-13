@@ -470,7 +470,7 @@
   function planCard() {
     var s = sideInfo();
     var rows = (me.entitlements || []).map(function (e) {
-      return h("tr", null, h("td", { text: e.label }), h("td", { text: D.limitText(e) }));
+      return h("tr", null, h("td", { text: D.featLabel(e) }), h("td", { text: D.limitText(e) }));
     });
     return h("div", { class: "card" },
       h("div", { class: "row" }, h("h2", { text: "Your DELA plan: " + (s ? s.plan_name : "") }), s && s.plan_source === "staff_grant" ? h("span", { class: "badge", text: "Set by the Lawfecta Team" }) : null),
@@ -9318,7 +9318,7 @@
       if (e.kind !== "quota" || !e.enabled || e.unlimited || !(e.limit > 0) || e.unit === "MB" || e.unit === "seats") return;
       if (att && u && (e.key === "ai.runs" || e.key === "att.playbooks_saved")) return;
       var used = (e.used || 0) + (e.reserved || 0);
-      lines.push({ key: e.key, label: e.label, used: used, limit: e.limit, text: used + " of " + e.limit + (e.period === "month" ? " this month" : "") + (e.shared ? ", shared by your firm" : "") });
+      lines.push({ key: e.key, label: e.key === "ai.runs" ? "DELA actions this month" : e.label, used: used, limit: e.limit, text: used + " of " + e.limit + (e.period === "month" ? " this month" : "") + (e.shared ? ", shared by your firm" : "") });
     });
     return lines;
   }
