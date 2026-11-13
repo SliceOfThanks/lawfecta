@@ -5695,7 +5695,7 @@
   // The search (step 17 lists, step 22 layout from mockup 02): one keyword box, then five filters that each work on
   // their own (category, specialty, task, software, state); DELA's help as an accordion whose suggestions are chips the
   // attorney checks before anything is searched; then the count, the filters in use, the sort order and the cards.
-  var talentSort = "relevant", talentMarks = {}, talentLoaded = 0;
+  var talentSort = "relevant", talentMarks = {}, talentLoaded = 0, talentPage = 0;
   var talentHelp = { open: false, text: "", chips: null, note: "", error: "" };
   var FIT_WORD = { practice_area: "Practice area", skill: "Skill", tool: "Software", state: "State" };
   function talentForm(form, results, idx, live) {
@@ -5790,7 +5790,7 @@
     // keep: coming back from a profile, show as many freelancers as were loaded before (up to what one request may ask for)
     function run(keep) {
       talentQ.category = chain.leaf || chain.sub || chain.top; talentQ.q = box.input.value.trim(); talentQ.state = state.value; talentQ.bookmarked = onlyBm.checked ? "1" : "";
-      var want = keep === true && talentLoaded > 10 ? Math.min(50, talentLoaded) : 0;
+      var want = keep === true && talentPage && talentLoaded > talentPage ? Math.min(50, talentLoaded) : 0;
       if (keep !== true) talentLoaded = 0;
       D.clear(results); results.appendChild(h("p", { class: "muted", text: "Searching..." }));
       live.textContent = "Searching...";
@@ -5800,7 +5800,7 @@
         // Only gigs that still take proposals: posted, not paused by the Lawfecta Team, closing date not passed
         var now = Date.now();
         last = { x: rs[0], gigs: rs[1].ok ? rs[1].gigs.filter(function (g) { return g.status === "open" && !g.paused_by_team && (!g.closes_at || new Date(g.closes_at).getTime() > now); }) : [] };
-        if (rs[0] && rs[0].ok) { talentLoaded = (rs[0].people || []).length; var n = typeof rs[0].total === "number" ? rs[0].total : talentLoaded; live.textContent = n + (n === 1 ? " freelancer found" : " freelancers found"); }
+        if (rs[0] && rs[0].ok) { if (!want && rs[0].limit) talentPage = rs[0].limit; talentLoaded = (rs[0].people || []).length; var n = typeof rs[0].total === "number" ? rs[0].total : talentLoaded; live.textContent = n + (n === 1 ? " freelancer found" : " freelancers found"); }
         else live.textContent = "The search did not work.";
         show();
       }).catch(function (e) {
@@ -5930,7 +5930,7 @@
               x.available_now ? null : h("span", { class: "badge held", text: "Not taking new work right now" })),
             facts ? h("p", { class: "small muted", style: "margin:6px 0 0", text: facts }) : null),
           h("div", { class: "tp-head-acts" },
-            h("div", { class: "row", id: "tp-bookmark", style: "gap:8px;flex-wrap:wrap;justify-content:flex-end" }, canHire() ? bookmarkButton(x.person_id, x.name) : null, msgBtn),
+            h("div", { class: "row tp-top-acts", style: "gap:8px;flex-wrap:wrap;justify-content:flex-end" }, canHire() ? h("span", { id: "tp-bookmark", class: "row", style: "gap:8px;flex-wrap:wrap;align-items:center" }, bookmarkButton(x.person_id, x.name)) : null, msgBtn),
             h("div", { class: "talent-acts tp-invite" }, h("label", { class: "talent-gig" }, h("span", { class: "talent-gig-word", text: "Invite for gig:" }), inv.gigSel), inv.invite))),
         !mine.length ? h("p", { class: "notice", style: "margin:12px 0 0" }, "You have no posted gig that is open for proposals, so there is nothing to invite this freelancer to yet. You can still send a message. ",
           h("a", { href: "#", onclick: function (e) { e.preventDefault(); talentPerson = null; talentAddress(null); goTab("projects"); }, text: "Post a gig in Projects" }), ".") : null,
