@@ -6,6 +6,12 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## WEBSITE DOWN since about 3:00 PM Pacific, 2026-11-13 (not DELA)
+- www.lawfecta.co returns a LiteSpeed 404 on every address except the bare home address: /home, /login, /dela, /account/..., /admin and /api/v2. www.lawfecta.com on the same server works. DELA's api health is "ok".
+- It began right after Stacey activated the Bookmarks add-on in the Brilliant Directories add-ons menu. "Refresh Site Cache" did not fix it. She sent a support ticket to Brilliant Directories.
+- Claude made no changes to the website that day (reads only: pages, menu items, favorites widgets). The BD connector cannot reach the site while the API is 404.
+- When it is back: check that /dela loads code_version 3c3bf6d, and give Stacey the "Bookmarks" menu prompt again without the cache refresh line.
+
 ## ChatGPT checks 1 to 3 done; bookmark button, room note, freelancer storage in whole GB: ON THE SITE (2026-11-13)
 - Site: code_version f2b953b (browser code; the api function is unchanged at version 120), migrations through 0123, health "ok". GitHub Tests passed on that commit (run 43519580017).
 - Stacey ran ChatGPT checks 1, 2 and 3: 50 of 52 steps passed, and both failures were not defects (one step ran before the release, one was a misread that her screenshot settled). Details: docs/tests/reports/2026-11-13-chatgpt-checks.md.
