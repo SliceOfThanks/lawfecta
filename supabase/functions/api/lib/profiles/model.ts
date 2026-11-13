@@ -14,6 +14,8 @@ export type Profile = {
   practice_areas: string[]; jurisdictions: string[]; software: string[]; software_none: boolean; skills: string[];
   services: Service[]; timezone: string; hours: string; capacity_hours_week: number | null; states_excluded: string[];
   acknowledged: boolean; photo_url: string; photo_file: string;
+  // Step 17: the website categories a freelancer works in, as keys (s<service_id>); the database keeps only active ones
+  categories: string[];
 };
 
 export const PRACTICE_AREAS = [
@@ -91,6 +93,8 @@ export function normalize(raw: unknown): Profile {
     acknowledged: r.acknowledged === true, photo_url: web(r.photo_url).startsWith("https://") ? web(r.photo_url) : "",
     // A photo uploaded on the DELA profile page: only a path DELA itself made (profiles/<person>/photo-<id>.png or .jpg)
     photo_file: typeof r.photo_file === "string" && PHOTO_PATH.test(r.photo_file) ? r.photo_file : "",
+    categories: (Array.isArray(r.categories) ? r.categories : []).filter((x): x is string => typeof x === "string" && /^s[0-9]{1,9}$/.test(x))
+      .filter((x, i, a) => a.indexOf(x) === i).slice(0, 100),
   };
 }
 

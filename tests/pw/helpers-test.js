@@ -159,7 +159,9 @@ const ATT = 4420, FL = 4421, FL2 = 4422;
     await click(p, "✦ Help me find a fit");
     t = await waitFor(p, "These are search filters only.");
     for (let i = 0; i < 4; i++) await dela(p).locator('[data-helper="find_fit"]').getByRole("button", { name: "Use suggestion", exact: true }).first().click();
-    ok((await label(p, "Practice area").inputValue()) === "Family law" && (await label(p, "State you need").inputValue()) === "TX", "Help me find a fit fills the search filters");
+    // Step 17: "Family law" and "Clio" are categories, so they pick Paralegal Services, Family Law, Clio; "E-filing" goes into the search box
+    ok((await label(p, "Specialty").inputValue()) === "s308" && (await label(p, "Task, case type or software").inputValue()) === "s331" &&
+      (await label(p, "Search roles, specialties, tasks and software").inputValue()) === "E-filing" && (await label(p, "State you need").inputValue()) === "TX", "Help me find a fit fills the search filters");
     await s.ctx.close();
 
     s = await open(browser, "DELA-App", ATT, "&tab=delegate"); p = s.page;

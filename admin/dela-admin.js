@@ -1696,8 +1696,39 @@
               h("td", { "data-label": "Tools", text: String(v.rows) }), h("td", { "data-label": "Changes", text: v.added + " new, " + v.changed + " changed, " + v.removed + " removed" }),
               h("td", { "data-label": "State" }, h("span", { class: "badge " + (v.state === "active" ? "ready" : "C"), text: { active: "In use", replaced: "Replaced", preview: "Not confirmed" }[v.state] || v.state })));
           })))) : h("p", { class: "muted", text: "No uploads yet." }));
-      body(h("div", null, pageHead("Tech catalog", "catalog"), up, listCard, hist));
+      var cats = h("div", { class: "card", id: "website-categories" }, h("h2", { text: "Website categories" }), h("p", { class: "muted", text: "Loading..." }));
+      body(h("div", null, pageHead("Tech catalog", "catalog"), cats, up, listCard, hist));
+      categoriesCard(cats);
     }).catch(fail);
+  }
+  // Step 17: DELA's copy of the website's member categories, used by Talent search and the freelancer Profile page
+  var CAT_ERR = { not_allowed: "The website refused: the API key may not read categories. In Brilliant Directories, Developer Hub, edit the DELA API key's permissions and allow list_professions and list_services.",
+    no_top_categories: "The website answered with no categories, so DELA kept its last copy." };
+  function categoriesCard(card) {
+    api.get("/admin/categories").then(check).then(function (d) {
+      D.clear(card);
+      card.appendChild(h("h2", { text: "Website categories" }));
+      card.appendChild(h("p", { class: "muted", text: "Talent search and the freelancer Profile page use the member categories of the Lawfecta website. DELA copies them every day and keeps the last good copy if the website does not answer. Change the categories on the website, then click Refresh now." }));
+      card.appendChild(h("p", null, h("strong", { text: d.tops + " categories, " + d.subs + " specialties, " + d.subsubs + " tasks, case types and software." }), " " + d.freelancers + (d.freelancers === 1 ? " freelancer has" : " freelancers have") + " picked categories."));
+      card.appendChild(h("p", { class: "small muted", text: "Copied again when older than " + d.refresh_hours + " hours. Freelancers' categories " + (d.push ? "are also written to their website listing when they save." : "stay in DELA; they are not written to the website listing (setting bd.push_categories).") }));
+      var last = d.syncs || [];
+      if (last.length) card.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack" }, h("thead", null, h("tr", null, ["When", "Started by", "Result"].map(function (x) { return h("th", { text: x }); }))),
+        h("tbody", null, last.map(function (s) {
+          return h("tr", null, h("td", { "data-label": "When", text: D.dateTime(s.at) }), h("td", { "data-label": "Started by", text: { daily: "Daily copy", team: "Lawfecta Team", first_use: "First use", stale: "Copy was old", job: "Job" }[s.source] || s.source }),
+            h("td", { "data-label": "Result" }, s.ok ? h("span", { class: "badge ready", text: "Copied: " + s.tops + " categories, " + s.subs + " below them" }) : h("span", { class: "badge bad", text: CAT_ERR[s.error] || ("Not copied: " + s.error) })));
+        })))));
+      else card.appendChild(h("p", { class: "muted", text: "Not copied yet." }));
+      var btn = h("button", { class: "small", type: "button" }, "Refresh now");
+      btn.addEventListener("click", function () {
+        btn.disabled = true; btn.textContent = "Copying...";
+        api.post("/admin/categories/refresh", {}).then(function (r) {
+          var x = r && r.data;
+          if (x && x.ok) ok("Copied " + x.tops + " categories and " + x.subs + " below them."); else D.toast(app, CAT_ERR[(x && (x.error || x.reason))] || ("Not copied: " + ((x && (x.error || x.reason)) || "no answer") + "."), true);
+          categoriesCard(card);
+        }).catch(function (e) { fail(e); categoriesCard(card); });
+      });
+      card.appendChild(h("div", { class: "row", style: "margin-top:8px" }, btn));
+    }).catch(function (e) { D.clear(card); card.appendChild(h("h2", { text: "Website categories" })); card.appendChild(h("p", { class: "notice", text: D.errorText(e.message) })); });
   }
 
   function verifyTab() {

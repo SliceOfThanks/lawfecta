@@ -12,7 +12,7 @@ import { pickProvider } from "./lib/mail/index.ts";
 import { brevoDelivery } from "./lib/mail/brevo.ts";
 import { verifyPass } from "./lib/pass.ts";
 import { sendSms } from "./lib/sms/brevo.ts";
-import { bdCategories, bdFields, bdMember, bdMember as bdMember_, bdUpdate, shapeOf } from "./lib/bd/members.ts";
+import { bdCategories, bdFields, bdList, bdMember, bdMember as bdMember_, bdUpdate, shapeOf } from "./lib/bd/members.ts";
 import { meetingIcs, NEXT_STEPS_SYSTEM, readSteps, THREAD_SYSTEM, threadPrompt, vecteraRoom, withoutLawfectaLinks } from "./lib/meetings/meet.ts";
 import { conductRules, GIG_SYSTEM, gigPrompt, normalizeMilestones, normalizePublic, PROPOSAL_SYSTEM, publicFromPlaybook, readReview, REVIEW_SYSTEM, toCents } from "./lib/gigs/model.ts";
 import { asksAboutTools, CATALOG_RULES, catalogText, rankForMember, readCatalog, type Tool } from "./lib/catalog/csv.ts";
@@ -1958,13 +1958,21 @@ async function profileFromDirectory(ctx: Ctx) {
     return json(ctx, { ok: false, reason: m.status === 403 ? "directory_not_allowed" : m.status === 404 ? "directory_not_found" : "directory_unreachable" });
   }
   const defaults = await rpc<unknown>(ctx, "dela_setting", { p_key: "bd.default_photos" }).catch(() => null);
-  return json(ctx, { ok: true, fields: fromBd(m.data, map, site, Array.isArray(defaults) ? defaults.map(String) : []) });
+  const fields: Record<string, unknown> = fromBd(m.data, map, site, Array.isArray(defaults) ? defaults.map(String) : []);
+  // Step 17: the sub categories on the listing, offered as the freelancer's categories (only ones DELA knows)
+  const svc = String((m.data as Record<string, unknown>).services ?? "").split(",").map((x) => x.trim()).filter((x) => /^[0-9]{1,9}$/.test(x)).map((x) => "s" + x);
+  if (s.side === "freelancer" && svc.length) {
+    const keep = (await rpc<string[]>(ctx, "dela_categories_clean", { p_keys: svc })) ?? [];
+    if (keep.length) fields.categories = keep;
+  }
+  return json(ctx, { ok: true, fields });
 }
 
 async function profileSave(ctx: Ctx) {
   const s = await memberSide(ctx);
   const body = normalizeProfile(ctx.body.body);
   if (body.photo_file && !body.photo_file.startsWith("profiles/" + s.person_id + "/")) body.photo_file = "";
+  body.categories = s.side === "freelancer" && body.categories.length ? (await rpc<string[]>(ctx, "dela_categories_clean", { p_keys: body.categories })) ?? [] : [];
   const warn = (await sensitive(ctx, s, [body.headline, body.summary, body.experience, ...body.services.map((x) => x.title + " " + x.for_whom)].join("\n"), "public"));
   if (warn) return json(ctx, warn);
   const rd = readiness(body, await requiredFor(ctx, s.side));
@@ -2105,6 +2113,11 @@ async function bdProfilePush(ctx: Ctx, p: Record<string, any>) {
   if (!x?.ok || !x.on) return { ok: true };
   const pb = normalizeProfile(x.body);
   const fields = toBd(pb, (x.map ?? {}) as BdMap);
+  // Step 17: the categories go to the listing only when the setting bd.push_categories is on
+  if (side === "freelancer" && pb.categories.length) {
+    const c = await rpc<Record<string, any>>(ctx, "dela_categories_bd", { p_keys: pb.categories });
+    if (c?.on && c.profession_id) { fields.profession_id = String(c.profession_id); fields.services = String(c.services ?? ""); }
+  }
   // A photo changed on the DELA page goes to the listing only once the BD photo field is confirmed (setting bd.photo_push)
   if (pb.photo_file && await setting(ctx, "bd.photo_push", "false") === "true") {
     const key = await setting(ctx, "bd.photo_field", "profile_photo");
@@ -2609,7 +2622,39 @@ async function gigFile(ctx: Ctx) {
 async function talent(ctx: Ctx) {
   const s = await client(ctx);
   const q = ctx.url.searchParams;
-  return json(ctx, await rpc(ctx, "dela_talent_search", { p_person: s.person_id, p: { practice_area: str(q.get("practice_area"), 80), skill: str(q.get("skill"), 80), tool: str(q.get("tool"), 80), state: str(q.get("state"), 2) } }));
+  const cat = str(q.get("category"), 12);
+  return json(ctx, await rpc(ctx, "dela_talent_search", { p_person: s.person_id, p: { practice_area: str(q.get("practice_area"), 80), skill: str(q.get("skill"), 80), tool: str(q.get("tool"), 80), state: str(q.get("state"), 2),
+    category: /^[ps][0-9]{1,9}$/.test(cat) ? cat : "", q: str(q.get("q"), 80) } }));
+}
+
+// ---------- Step 17: the website's categories (docs/briefs/step-17-talent-categories.md) ----------
+// DELA keeps a copy (bd_categories). The copy is refreshed by a daily job, by the team's "Refresh now", and at once the first
+// time a member needs the lists and there is no copy yet. A stale copy is still served while a job refreshes it.
+async function categoriesSync(ctx: Ctx, source: string) {
+  const site = await setting(ctx, "site.url", ""), key = ctx.deps.env("BD_API_KEY"), ff = f(ctx);
+  const tops = await bdList(ff, site, key, "/api/v2/list_professions/get");
+  const subs = tops.ok ? await bdList(ff, site, key, "/api/v2/list_services/get") : tops;
+  if (!tops.ok || !subs.ok) {
+    const e = !tops.ok ? tops : subs as { status: number; error: string };
+    console.error("bd_categories", e.error.slice(0, 120));
+    return await rpc<Record<string, any>>(ctx, "dela_categories_sync", { p: { source, error: e.status === 403 ? "not_allowed" : e.error.slice(0, 200) } });
+  }
+  const n = (v: unknown) => String(v ?? "").trim();
+  return await rpc<Record<string, any>>(ctx, "dela_categories_sync", { p: { source,
+    tops: tops.data.map((x) => ({ id: n(x.profession_id), name: n(x.name), slug: n(x.filename), sort: Number(x.sort_order) || 0 })),
+    subs: subs.data.map((x) => ({ id: n(x.service_id), top: n(x.profession_id), parent: n(x.master_id) || "0", name: n(x.name), slug: n(x.filename), sort: Number(x.sort_order) || 0 })) } });
+}
+
+async function categories(ctx: Ctx) {
+  await memberSide(ctx);
+  let r = await rpc<Record<string, any>>(ctx, "dela_categories", {});
+  if (r?.empty) {
+    await categoriesSync(ctx, "first_use");
+    r = await rpc<Record<string, any>>(ctx, "dela_categories", {});
+  } else if (r?.stale) {
+    await rpc(ctx, "dela_job_enqueue", { p_kind: "categories_sync", p_payload: { source: "stale" }, p_run_at: new Date().toISOString(), p_idem: "categories_sync:" + new Date().toISOString().slice(0, 13), p_person: null });
+  }
+  return json(ctx, r);
 }
 
 // ---------- Step 5: availability, booking, meetings, follow-ups, messages ----------
@@ -4478,9 +4523,17 @@ const ADMIN_GET: Record<string, AdminRoute> = {
     };
   },
   "/admin/ai-files": async (c, a) => ({ ...(await rpc<Record<string, unknown>>(c, "dela_admin_ai_files", { p_actor: a })), ready: aiReady(c.deps) }),
+  "/admin/categories": (c, a) => rpc(c, "dela_admin_categories", { p_actor: a }),
 };
 
 const ADMIN_POST: Record<string, AdminRoute> = {
+  // Step 17: copy the website's categories now. Owners and support.
+  "/admin/categories/refresh": async (c, a) => {
+    await rpc(c, "dela_require_staff", { p_actor: a, p_roles: ["support"] });
+    const r = await categoriesSync(c, "team");
+    await rpc(c, "dela_audit", { p_actor_type: "staff", p_actor: a, p_action: "categories_refreshed", p_object_type: "setting", p_object_id: "bd_categories", p_detail: { ok: r?.ok === true, reason: r?.reason ?? "" } }).catch(() => null);
+    return r;
+  },
   // Run the trial check now, in the current mode (Dry run changes nothing). Owners and support only.
   "/admin/trial/run": async (c, a) => {
     await rpc(c, "dela_require_staff", { p_actor: a, p_roles: ["support"] });
@@ -4800,6 +4853,7 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "email_delivery_check") return await deliveryCheck(ctx, j.payload ?? {});
   if (j.kind === "profiles_daily") { await rpc(ctx, "dela_profiles_daily", {}); return { ok: true }; }
   if (j.kind === "bd_profile_push") return await bdProfilePush(ctx, j.payload ?? {});
+  if (j.kind === "categories_sync") { const r = await categoriesSync(ctx, String(j.payload?.source ?? "job").slice(0, 20)); return r?.ok ? { ok: true } : { ok: true, error: String(r?.reason ?? "not_synced") }; }
   if (j.kind === "gig_tick") { await rpc(ctx, "dela_gig_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "engagement_tick") { await rpc(ctx, "dela_engagement_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "dispute_tick") {
@@ -5283,6 +5337,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /webhooks/resend": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_webhook_resend", { p_person: s.person_id, p_side: s.side, p_delivery: need(uuid(ctx.body.delivery_id)) })); }
       case "GET /work": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); return json(ctx, await rpc(ctx, "dela_work", { p_person: s.person_id })); }
       case "GET /talent": return await talent(ctx);
+      case "GET /categories": return await categories(ctx);
       case "GET /availability": { const s = await memberSide(ctx); return json(ctx, await withMeetingRules(ctx, await rpc(ctx, "dela_avail_get", { p_person: s.person_id }))); }
       case "POST /availability": return await availSave(ctx);
       case "GET /engagements": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_engagements", { p_person: s.person_id, p_side: s.side })); }

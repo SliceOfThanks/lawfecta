@@ -1546,6 +1546,70 @@
   var STATE_BADGE = { incomplete: "Not complete", verification_pending: "Waiting for a check", match_ready: "Ready", availability_stale: "Availability out of date", unavailable: "Not taking work", restricted: "Paused" };
   var LIC_WORDS = { pending: "Waiting for the Lawfecta Team", needs_more: "We need a little more", verified: "Verified", not_verified: "Not verified", expired: "Check out of date" };
 
+  // Step 17: the website categories a freelancer works in, picked by search or by browsing category, then specialty
+  function profileCats() {
+    if (!Array.isArray(prof.body.categories)) prof.body.categories = [];
+    var sum = h("summary", { style: "cursor:pointer;font-weight:700", text: "Lawfecta categories (" + prof.body.categories.length + " picked)" });
+    var body = h("div", null, h("p", { class: "small muted", text: "Loading the categories..." }));
+    var wrap = h("details", { id: "prof-cats", style: "margin:8px 0", open: !prof.body.categories.length }, sum,
+      h("p", { class: "small muted", style: "margin:6px 0", text: "Attorneys search Talent by these categories. Pick the specialties, tasks and software you work in. You show up under each one you pick and under the specialty and category above it." }), body);
+    loadCats().then(function (idx) {
+      D.clear(body);
+      if (!idx.ok || !idx.tops.length) { body.appendChild(h("p", { class: "notice", text: "The categories could not be loaded right now. Reload the page to try again." })); return; }
+      var picked = h("div", { class: "cat-picked", "aria-live": "polite" }), leafBox = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px;margin:6px 0" });
+      var topSel = h("select", { "aria-label": "Category to browse" }), subSel = h("select", { "aria-label": "Specialty to browse" });
+      function mine() { return prof.body.categories.filter(function (k) { return idx.byKey[k]; }); }
+      function toggle(k) {
+        var i = prof.body.categories.indexOf(k);
+        if (i >= 0) prof.body.categories.splice(i, 1);
+        else if (mine().length >= idx.max) { D.toast(app, "You can pick up to " + idx.max + " categories. Remove one first.", true); return; }
+        else prof.body.categories.push(k);
+        prof.dirty = true; drawPicked();
+      }
+      function drawPicked() {
+        D.clear(picked);
+        var list = mine();
+        sum.textContent = "Lawfecta categories (" + list.length + " of " + idx.max + " picked)";
+        if (!list.length) picked.appendChild(h("span", { class: "small muted", text: "None picked yet." }));
+        list.forEach(function (k) {
+          picked.appendChild(h("span", { class: "cat-chip", title: catPathText(idx, k) }, h("span", { text: idx.path(k).slice(1).join(" › ") }),
+            h("button", { type: "button", "aria-label": "Remove " + idx.byKey[k].name, onclick: function () { toggle(k); } }, "×")));
+        });
+        drawLeaf();
+      }
+      function browseTop() {
+        D.clear(subSel); subSel.appendChild(h("option", { value: "", text: topSel.value ? "Choose a specialty" : "Choose a category first" }));
+        (idx.kids[topSel.value] || []).forEach(function (c) { subSel.appendChild(h("option", { value: c.key, text: c.name })); });
+        subSel.disabled = !topSel.value; drawLeaf();
+      }
+      function drawLeaf() {
+        D.clear(leafBox);
+        var s = idx.byKey[subSel.value];
+        if (!s) return;
+        [s].concat(idx.kids[s.key] || []).forEach(function (c) {
+          var on = prof.body.categories.indexOf(c.key) >= 0;
+          leafBox.appendChild(h("button", { class: on ? "blue small" : "ghost small", type: "button", "aria-pressed": String(on), onclick: function () { toggle(c.key); } }, c === s ? "All of " + c.name : c.name));
+        });
+      }
+      topSel.appendChild(h("option", { value: "", text: "Choose a category" }));
+      idx.tops.forEach(function (c) { topSel.appendChild(h("option", { value: c.key, text: c.name })); });
+      topSel.addEventListener("change", browseTop);
+      subSel.addEventListener("change", drawLeaf);
+      var box = catSearchBox(idx, { label: "Find a category", placeholder: "For example: discovery, medical chronology, Clio", onPick: function (c) {
+        if (c.level === 1) { topSel.value = c.key; browseTop(); D.toast(app, "Now choose a specialty under " + c.name + "."); return; }
+        if (prof.body.categories.indexOf(c.key) >= 0) { D.toast(app, c.name + " is already picked."); return; }
+        toggle(c.key);
+      } });
+      body.appendChild(field("Find a category", box.el, "Type a few letters, then pick from the list."));
+      body.appendChild(h("p", { class: "small", style: "margin:10px 0 0;font-weight:700", text: "Or browse" }));
+      body.appendChild(h("div", { class: "cat-browse" }, field("Category", topSel), field("Specialty", subSel)));
+      body.appendChild(leafBox);
+      body.appendChild(h("p", { class: "small", style: "margin:10px 0 0;font-weight:700", text: "Your categories" }));
+      body.appendChild(picked);
+      browseTop(); drawPicked();
+    });
+    return wrap;
+  }
   function profileView() {
     profEl = h("div", null, h("p", { class: "muted", text: "Loading..." }));
     var confirmTok = "";
@@ -1845,6 +1909,7 @@
     var areaSum = h("summary", { style: "cursor:pointer;font-weight:700", text: "Practice areas (" + b.practice_areas.length + " selected)" + (need("practice_areas") ? "" : ", optional") });
     card.appendChild(h("details", { id: "prof-areas", style: "margin:8px 0", open: pmiss.indexOf("practice_areas") >= 0 && !b.practice_areas.length },
       areaSum, b.practice_areas.length ? h("p", { class: "small muted", style: "margin:6px 0", text: "Selected: " + b.practice_areas.join(", ") }) : null, areaFind, areas));
+    if (side === "freelancer") card.appendChild(profileCats());
     if (side === "attorney") card.appendChild(textIn("jurisdictions", "Where you are licensed or practice", { list: true, required: need("jurisdictions"), placeholder: "TX, Western District of Texas", hint: "Separate them with commas." }));
     // The biography (summary, experience, education) is folded until opened, unless something needed is missing there
     var bioOpen = ["summary", "experience", "education"].some(function (k) { return pmiss.indexOf(k) >= 0; });
@@ -5091,7 +5156,7 @@
   }
 
   // ---------- Attorney: Talent ----------
-  var talentQ = { practice_area: "", skill: "", tool: "", state: "" };
+  var talentQ = { category: "", q: "", state: "" };
   var talentMode = "search";
   try { if (new URLSearchParams(location.search).get("view") === "bench") talentMode = "bench"; } catch (e) { /* no deep link */ }
   // ---------- Step 7c part 2: standing arrangements (limited automatic repeat hiring) ----------
@@ -5250,6 +5315,74 @@
   }
 
   var US_STATES = [["AL","Alabama"],["AK","Alaska"],["AZ","Arizona"],["AR","Arkansas"],["CA","California"],["CO","Colorado"],["CT","Connecticut"],["DE","Delaware"],["DC","District of Columbia"],["FL","Florida"],["GA","Georgia"],["HI","Hawaii"],["ID","Idaho"],["IL","Illinois"],["IN","Indiana"],["IA","Iowa"],["KS","Kansas"],["KY","Kentucky"],["LA","Louisiana"],["ME","Maine"],["MD","Maryland"],["MA","Massachusetts"],["MI","Michigan"],["MN","Minnesota"],["MS","Mississippi"],["MO","Missouri"],["MT","Montana"],["NE","Nebraska"],["NV","Nevada"],["NH","New Hampshire"],["NJ","New Jersey"],["NM","New Mexico"],["NY","New York"],["NC","North Carolina"],["ND","North Dakota"],["OH","Ohio"],["OK","Oklahoma"],["OR","Oregon"],["PA","Pennsylvania"],["RI","Rhode Island"],["SC","South Carolina"],["SD","South Dakota"],["TN","Tennessee"],["TX","Texas"],["UT","Utah"],["VT","Vermont"],["VA","Virginia"],["WA","Washington"],["WV","West Virginia"],["WI","Wisconsin"],["WY","Wyoming"]];
+
+  // ---------- Step 17: the website's categories (docs/briefs/step-17-talent-categories.md) ----------
+  // One copy per page load: top categories, their specialties and the sub subs under those, in the website's order.
+  var catsP = null;
+  function loadCats(fresh) {
+    if (!catsP || fresh) catsP = api.get("/categories").then(function (r) {
+      var idx = { ok: !!(r && r.ok), tops: [], byKey: {}, kids: {}, all: [], max: (r && r.max) || 25 };
+      if (!idx.ok) { idx.path = function () { return []; }; idx.find = function () { return []; }; idx.exact = function () { return null; }; return idx; }
+      (r.tops || []).forEach(function (x) { var c = { key: x[0], name: x[1], top: x[0], parent: null, level: 1 }; idx.byKey[c.key] = c; idx.tops.push(c); idx.all.push(c); });
+      (r.subs || []).forEach(function (x) { idx.byKey[x[0]] = { key: x[0], top: x[1], parent: x[2], name: x[3], level: x[2] ? 3 : 2 }; });
+      (r.subs || []).forEach(function (x) { var c = idx.byKey[x[0]], up = c.parent || c.top; (idx.kids[up] = idx.kids[up] || []).push(c); idx.all.push(c); });
+      idx.path = function (k) {
+        var out = [], c = idx.byKey[k], n = 0;
+        while (c && n++ < 6) { out.unshift(c.name); c = c.level === 1 ? null : idx.byKey[c.parent || c.top]; }
+        return out;
+      };
+      // Suggestions for typed words: every word must appear in the category or the ones above it; names that start with
+      // the words come first, then names that hold them, then the rest
+      idx.find = function (w, n) {
+        w = String(w || "").toLowerCase().trim();
+        if (!w) return [];
+        var words = w.split(" ").filter(Boolean), hits = [];
+        idx.all.forEach(function (c) {
+          var name = c.name.toLowerCase(), full = idx.path(c.key).join(" ").toLowerCase();
+          if (!words.every(function (x) { return full.indexOf(x) >= 0; })) return;
+          hits.push({ c: c, rank: name.indexOf(w) === 0 ? 0 : name.indexOf(w) >= 0 ? 1 : words.every(function (x) { return name.indexOf(x) >= 0; }) ? 2 : 3 });
+        });
+        hits.sort(function (a, b) { return a.rank - b.rank || a.c.level - b.c.level || a.c.name.localeCompare(b.c.name); });
+        return hits.slice(0, n || 8).map(function (x) { return x.c; });
+      };
+      idx.exact = function (w) { w = String(w || "").toLowerCase().trim(); return idx.all.filter(function (c) { return c.name.toLowerCase() === w; })[0] || null; };
+      return idx;
+    }).catch(function () { return { ok: false, tops: [], byKey: {}, kids: {}, all: [], max: 25, path: function () { return []; }, find: function () { return []; }, exact: function () { return null; } }; });
+    return catsP;
+  }
+  function catPathText(idx, k) { return idx.path ? idx.path(k).join(" › ") : ""; }
+  // A search box with a list of matching categories under it. Arrow keys move, Enter picks (or searches the words), Escape closes.
+  function catSearchBox(idx, o) {
+    var input = h("input", { type: "search", "aria-label": o.label, placeholder: o.placeholder, autocomplete: "off", role: "combobox", "aria-expanded": "false", "aria-autocomplete": "list", style: "width:100%", value: o.value || "" });
+    var listId = "cat-list-" + Math.random().toString(36).slice(2, 8);
+    var list = h("ul", { id: listId, role: "listbox", class: "cat-suggest", hidden: true, "aria-label": o.label + " suggestions" });
+    input.setAttribute("aria-controls", listId);
+    var items = [], at = -1;
+    function close() { list.hidden = true; input.setAttribute("aria-expanded", "false"); at = -1; input.removeAttribute("aria-activedescendant"); }
+    function mark() { items.forEach(function (li, i) { li.setAttribute("aria-selected", String(i === at)); }); if (at >= 0) input.setAttribute("aria-activedescendant", items[at].id); }
+    function pick(c) { close(); input.value = o.keepText ? input.value : ""; o.onPick(c); }
+    function show() {
+      D.clear(list); items = []; at = -1;
+      var found = idx.find(input.value, 8);
+      if (!found.length) { close(); return; }
+      found.forEach(function (c, i) {
+        var li = h("li", { id: listId + "-" + i, role: "option", "aria-selected": "false", "data-key": c.key }, h("b", { text: c.name }), c.level > 1 ? h("span", { class: "small muted", text: " " + idx.path(c.key).slice(0, -1).join(" › ") }) : h("span", { class: "small muted", text: " Category" }));
+        li.addEventListener("mousedown", function (e) { e.preventDefault(); pick(c); });
+        items.push(li); list.appendChild(li);
+      });
+      list.hidden = false; input.setAttribute("aria-expanded", "true");
+    }
+    input.addEventListener("input", show);
+    input.addEventListener("blur", function () { setTimeout(close, 150); });
+    input.addEventListener("keydown", function (e) {
+      if (e.key === "ArrowDown" && items.length) { e.preventDefault(); if (list.hidden) show(); at = Math.min(at + 1, items.length - 1); mark(); }
+      else if (e.key === "ArrowUp" && items.length) { e.preventDefault(); at = Math.max(at - 1, 0); mark(); }
+      else if (e.key === "Escape") close();
+      else if (e.key === "Enter") { e.preventDefault(); if (!list.hidden && at >= 0) pick(idx.byKey[items[at].getAttribute("data-key")]); else { close(); if (o.onEnter) o.onEnter(input.value.trim()); } }
+    });
+    return { el: h("div", { class: "cat-search" }, input, list), input: input, close: close };
+  }
+
   function talentView() {
     var el = h("div", null, h("h1", { text: "Talent" }));
     if ((me.switches || {}).bench) {
@@ -5260,58 +5393,109 @@
     }
     el.appendChild(h("p", { class: "muted", text: "Match-ready freelancers: verified, profile complete and availability confirmed recently. Every conversation happens on a gig, so inviting someone needs a gig." }));
     el.appendChild(h("p", { class: "small" }, D.term("What match-ready means", "match_ready")));
-    // Visible labels on every box, and the state picked by its full name (UX review T01)
-    var inputs = {};
-    [["practice_area", "Practice area", "For example: Family law"], ["skill", "Skill", "For example: E-filing"], ["tool", "Tech tool", "For example: Clio"]].forEach(function (x) {
-      inputs[x[0]] = h("input", { "aria-label": x[1], placeholder: x[2], value: talentQ[x[0]] });
-    });
-    inputs.state = h("select", { "aria-label": "State you need" }, [h("option", { value: "", text: "Any state" })].concat(US_STATES.map(function (st) {
+    var results = h("div"), form = h("div", { class: "card", id: "talent-find" }, h("h2", { text: "Find a freelancer" }), h("p", { class: "muted", text: "Loading the categories..." }));
+    el.appendChild(form);
+    el.appendChild(results);
+    loadCats().then(function (idx) { talentForm(form, results, idx); });
+    return el;
+  }
+  // The search: words with category suggestions, three lists that narrow each other, the state (step 17)
+  function talentForm(form, results, idx) {
+    D.clear(form);
+    form.appendChild(h("h2", { text: "Find a freelancer" }));
+    var chain = { top: "", sub: "", leaf: "" };
+    (function () { var c = idx.byKey[talentQ.category]; if (!c) { talentQ.category = ""; return; }
+      if (c.level === 1) chain.top = c.key; else if (c.level === 2) { chain.top = c.top; chain.sub = c.key; } else { chain.top = c.top; chain.sub = c.parent; chain.leaf = c.key; } })();
+    var state = h("select", { "aria-label": "State you need" }, [h("option", { value: "", text: "Any state" })].concat(US_STATES.map(function (st) {
       return h("option", { value: st[0], text: st[1], selected: talentQ.state === st[0] });
     })));
-    var results = h("div");
+    var topSel = h("select", { "aria-label": "Category" }), subSel = h("select", { "aria-label": "Specialty" }), leafSel = h("select", { "aria-label": "Task, case type or software" });
+    function fill(sel, any, list, cur) {
+      D.clear(sel); sel.appendChild(h("option", { value: "", text: any }));
+      (list || []).forEach(function (c) { sel.appendChild(h("option", { value: c.key, text: c.name, selected: c.key === cur })); });
+      sel.disabled = !(list || []).length;
+    }
+    function draw3() {
+      fill(topSel, "Any category", idx.tops, chain.top);
+      fill(subSel, chain.top ? "Any specialty" : "Choose a category first", chain.top ? (idx.kids[chain.top] || []).filter(function (c) { return c.level === 2; }) : [], chain.sub);
+      fill(leafSel, chain.sub ? "Any task, case type or software" : "Choose a specialty first", chain.sub ? idx.kids[chain.sub] : [], chain.leaf);
+      if (chain.sub && !(idx.kids[chain.sub] || []).length) leafSel.options[0].text = "Nothing more specific";
+    }
+    function setCat(c) {
+      chain = { top: "", sub: "", leaf: "" };
+      if (c) { if (c.level === 1) chain.top = c.key; else if (c.level === 2) { chain.top = c.top; chain.sub = c.key; } else { chain.top = c.top; chain.sub = c.parent; chain.leaf = c.key; } }
+      draw3();
+    }
+    topSel.addEventListener("change", function () { chain = { top: topSel.value, sub: "", leaf: "" }; draw3(); run(); });
+    subSel.addEventListener("change", function () { chain.sub = subSel.value; chain.leaf = ""; draw3(); run(); });
+    leafSel.addEventListener("change", function () { chain.leaf = leafSel.value; run(); });
+    state.addEventListener("change", function () { run(); });
+    var box = catSearchBox(idx, { label: "Search roles, specialties, tasks and software", placeholder: "For example: medical chronology, discovery, Clio", value: talentQ.q,
+      onPick: function (c) { setCat(c); run(); }, onEnter: function () { run(); } });
     function run() {
-      Object.keys(inputs).forEach(function (k) { talentQ[k] = inputs[k].value.trim(); });
+      talentQ.category = chain.leaf || chain.sub || chain.top; talentQ.q = box.input.value.trim(); talentQ.state = state.value;
+      clear.hidden = !(talentQ.category || talentQ.q || talentQ.state);
       D.clear(results); results.appendChild(h("p", { class: "muted", text: "Searching..." }));
       var qs = Object.keys(talentQ).filter(function (k) { return talentQ[k]; }).map(function (k) { return k + "=" + encodeURIComponent(talentQ[k]); }).join("&");
       Promise.all([api.get("/talent?" + qs), api.get("/gigs")]).then(function (rs) {
-        var x = rs[0], mine = rs[1].ok ? rs[1].gigs.filter(function (g) { return g.status === "open"; }) : [];
-        D.clear(results);
-        if (!x.ok) { results.appendChild(h("p", { class: "notice", text: gigErr(x) })); return; }
-        if (!x.people.length) results.appendChild(h("p", { class: "muted", text: "No match-ready freelancers fit this search yet." }));
-        x.people.forEach(function (p) {
-          var act = h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" });
-          act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { profileModal(p.person_id); } }, "View profile"));
-          if (mine.length) {
-            var sel = h("select", { "aria-label": "Gig to invite " + p.name + " to" }, mine.map(function (g) { return h("option", { value: g.id, text: g.title }); }));
-            act.appendChild(sel);
-            act.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
-              api.post("/gigs/invite", { gig_id: sel.value, person_id: p.person_id }).then(gigOk).then(function (y) { D.toast(app, y.duplicate ? "Already invited" : "Invited " + p.name); }).catch(gigFail);
-            } }, "Invite to this gig"));
-          }
-          act.appendChild(h("button", { class: mine.length ? "ghost small" : "blue small", type: "button", onclick: function () {
-            gigs.pendingInvite = { person_id: p.person_id, name: p.name }; gigs.id = null; tab = "projects"; draw();
-          } }, "Create a gig from an SOP or Workflow"));
-          if ((me.switches || {}).bench) act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-            api.post("/bench/invite", { freelancer: p.person_id, request_id: newId() }).then(engOk).then(function (y) { D.toast(app, y.duplicate ? p.name + " is already on your bench or invited" : "Bench invitation sent to " + p.name); }).catch(revFail);
-          } }, "Invite to my bench"));
-          if ((me.switches || {}).auto_repeat_hiring && me.side === "attorney") act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { standingSetup(p.person_id, p.name); } }, "Set up a standing arrangement"));
-          var rb = reviewsButton(p.person_id, "freelancer", p.name);
-          if (rb) act.appendChild(rb);
-          results.appendChild(h("div", { class: "card", style: "margin:8px 0" }, h("b", { text: p.name }), p.headline ? h("div", { class: "small", text: p.headline }) : null,
-            h("div", { class: "small muted", text: [(p.practice_areas || []).join(", "), (p.software || []).length ? "Uses " + p.software.slice(0, 5).join(", ") : "", p.capacity_hours_week ? p.capacity_hours_week + " hours a week" : "", p.timezone || ""].filter(Boolean).join(" | ") }),
-            p.summary ? h("p", { class: "small", text: p.summary }) : null, act));
-        });
+        talentResults(results, rs[0], rs[1].ok ? rs[1].gigs.filter(function (g) { return g.status === "open"; }) : [], idx);
       }).catch(function (e) { D.clear(results); results.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     }
+    var clear = h("button", { class: "ghost small", type: "button", hidden: true, onclick: function () { box.input.value = ""; state.value = ""; setCat(null); run(); } }, "Clear the search");
+    form.appendChild(h("div", { class: "row", style: "align-items:flex-end;gap:8px;flex-wrap:wrap" },
+      h("div", { class: "grow", style: "min-width:260px" }, field("Search roles, specialties, tasks and software", box.el, "Pick a suggestion to search that category, or press Enter to search the words.")),
+      h("button", { class: "blue small", type: "button", style: "margin-bottom:8px", onclick: function () { box.close(); run(); } }, "Search")));
+    if (!idx.ok || !idx.tops.length) form.appendChild(h("p", { class: "notice", text: "The categories could not be loaded right now. You can still search by words and state." }));
+    else form.appendChild(h("div", { class: "talent-cats" }, field("Category", topSel), field("Specialty", subSel), field("Task, case type or software", leafSel), field("State you need", state)));
+    if (!idx.ok || !idx.tops.length) form.appendChild(field("State you need", state));
+    form.appendChild(clear);
+    draw3();
     var task = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Describe the task", placeholder: "For example: e-filing family law motions in Texas, using Clio" });
-    el.appendChild(h("div", { class: "card" }, h("h2", { text: "Find a freelancer" }), h("div", { class: "row", style: "flex-wrap:wrap;align-items:flex-end" },
-      field("Practice area", inputs.practice_area), field("Skill", inputs.skill), field("Tech tool", inputs.tool), field("State you need", inputs.state),
-      h("button", { class: "blue small", type: "button", onclick: run }, "Search")),
-      (me.switches || {}).ai_helpers ? field("Describe the task (for ✦ Help me find a fit)", h("div", null, aiNotice(), task), "DELA suggests filters from it. You check them, then click Search.") : null,
-      helperButton("find_fit", "✦ Help me find a fit", function () { return { text: task.value }; }, { field: function (x) { return inputs[x.field] || null; }, toast: "Added to the filters. Check them, then click Search." })));
-    el.appendChild(results);
+    if ((me.switches || {}).ai_helpers) form.appendChild(field("Describe the task (for ✦ Help me find a fit)", h("div", null, aiNotice(), task), "DELA suggests filters from it. You check them, then click Search."));
+    // A suggestion that names a category picks it; other words go into the search box; a state picks the state
+    form.appendChild(helperButton("find_fit", "✦ Help me find a fit", function () { return { text: task.value }; }, { field: function (x) {
+      if (x.field === "state") return state;
+      if (["practice_area", "skill", "tool"].indexOf(x.field) < 0) return null;
+      return { apply: function (f) {
+        var c = idx.exact(f.suggestion);
+        if (c) setCat(c);
+        else box.input.value = (box.input.value ? box.input.value + " " : "") + f.suggestion;
+      } };
+    }, toast: "Added to the filters. Check them, then click Search." }));
     run();
-    return el;
+  }
+  // One card per freelancer, with the categories they work in under their headline
+  function talentResults(results, x, mine, idx) {
+    D.clear(results);
+    if (!x.ok) { results.appendChild(h("p", { class: "notice", text: x.reason === "category_gone" ? "That category is no longer on the Lawfecta website. Choose another one." : gigErr(x) })); return; }
+    results.appendChild(h("p", { class: "small muted", role: "status", text: x.people.length ? x.people.length + (x.people.length === 1 ? " freelancer fits" : " freelancers fit") + " this search." : "No match-ready freelancers fit this search yet. Try a broader category or fewer words." }));
+    x.people.forEach(function (p) {
+      var act = h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" });
+      act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { profileModal(p.person_id); } }, "View profile"));
+      if (mine.length) {
+        var sel = h("select", { "aria-label": "Gig to invite " + p.name + " to" }, mine.map(function (g) { return h("option", { value: g.id, text: g.title }); }));
+        act.appendChild(sel);
+        act.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
+          api.post("/gigs/invite", { gig_id: sel.value, person_id: p.person_id }).then(gigOk).then(function (y) { D.toast(app, y.duplicate ? "Already invited" : "Invited " + p.name); }).catch(gigFail);
+        } }, "Invite to this gig"));
+      }
+      act.appendChild(h("button", { class: mine.length ? "ghost small" : "blue small", type: "button", onclick: function () {
+        gigs.pendingInvite = { person_id: p.person_id, name: p.name }; gigs.id = null; tab = "projects"; draw();
+      } }, "Create a gig from an SOP or Workflow"));
+      if ((me.switches || {}).bench) act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+        api.post("/bench/invite", { freelancer: p.person_id, request_id: newId() }).then(engOk).then(function (y) { D.toast(app, y.duplicate ? p.name + " is already on your bench or invited" : "Bench invitation sent to " + p.name); }).catch(revFail);
+      } }, "Invite to my bench"));
+      if ((me.switches || {}).auto_repeat_hiring && me.side === "attorney") act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { standingSetup(p.person_id, p.name); } }, "Set up a standing arrangement"));
+      var rb = reviewsButton(p.person_id, "freelancer", p.name);
+      if (rb) act.appendChild(rb);
+      // Grouped by top category: "Paralegal Services: Discovery Support, Clio"
+      var groups = {}, order = [];
+      (p.categories || []).forEach(function (k) { var c = idx.byKey[k]; if (!c) return; var top = idx.byKey[c.top]; var g = top ? top.name : ""; if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(c.name); });
+      var catLine = order.length ? h("div", { class: "small cat-line", text: order.slice(0, 3).map(function (g) { return (g ? g + ": " : "") + groups[g].slice(0, 6).join(", "); }).join(" | ") }) : null;
+      results.appendChild(h("div", { class: "card", style: "margin:8px 0" }, h("b", { text: p.name }), p.headline ? h("div", { class: "small", text: p.headline }) : null, catLine,
+        h("div", { class: "small muted", text: [(p.practice_areas || []).join(", "), (p.software || []).length ? "Uses " + p.software.slice(0, 5).join(", ") : "", p.capacity_hours_week ? p.capacity_hours_week + " hours a week" : "", p.timezone || ""].filter(Boolean).join(" | ") }),
+        p.summary ? h("p", { class: "small", text: p.summary }) : null, act));
+    });
   }
 
   // ---------- Freelancer: Work ----------

@@ -69,6 +69,21 @@ export async function bdCategories(f: Fetch, siteUrl: string, key: string): Prom
   return await call<unknown>(f, siteUrl, key, "GET", "/api/v2/list_professions/tree");
 }
 
+// Every row of a BD list (list_professions, list_services), page by page with BD's next_page token. A page that fails
+// fails the whole list, so a half list is never taken for the whole one.
+export async function bdList(f: Fetch, siteUrl: string, key: string, path: string, maxPages = 60): Promise<BdResult<Array<Record<string, unknown>>>> {
+  const rows: Array<Record<string, unknown>> = [];
+  let page = "";
+  for (let i = 0; i < maxPages; i++) {
+    const r = await call<unknown>(f, siteUrl, key, "GET", path + "?limit=100" + (page ? "&page=" + encodeURIComponent(page) : ""));
+    if (!r.ok) return r;
+    if (Array.isArray(r.data)) for (const x of r.data) if (x && typeof x === "object") rows.push(x as Record<string, unknown>);
+    if (!r.next || r.next === page) return { ok: true, data: rows };
+    page = r.next;
+  }
+  return { ok: false, status: 0, error: "bd_too_many_pages" };
+}
+
 export async function bdUpdate(f: Fetch, siteUrl: string, key: string, userId: number, fields: Record<string, string>): Promise<BdResult<unknown>> {
   return await call<unknown>(f, siteUrl, key, "PUT", "/api/v2/user/update", { ...fields, user_id: String(Math.trunc(userId)) });
 }

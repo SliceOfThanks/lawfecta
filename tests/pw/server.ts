@@ -197,6 +197,14 @@ const deps = {
     // The Lawfecta listing (BD API): reads give a sample listing, updates are recorded for the test
     if (u.includes("/api/v2/user/get/")) return Response.json({ status: "success", message: [{ user_id: Number(u.split("/").pop()), first_name: "Lia", last_name: "Listing", company: "Listing Law", city: "Dallas", state_code: "TX", website: "listinglaw.com", about_me: "From the directory.", image_main_file: "/pictures/lia.jpg", card_info: "4111111111111111" }] });
     if (u.endsWith("/api/v2/user/update")) { lastBdUpdate = String(opts.body ?? ""); return Response.json({ status: "success", message: {} }); }
+    // The website's categories (step 17): two top categories, specialties and sub subs, as BD lists them
+    if (u.includes("/api/v2/list_professions/get")) return Response.json({ status: "success", message: [
+      { profession_id: "39", name: "Legal Nurse & Medical Records", filename: "legal-nurse" }, { profession_id: "40", name: "Paralegal Services", filename: "paralegal-services" }] });
+    if (u.includes("/api/v2/list_services/get")) return Response.json({ status: "success", message: [
+      { service_id: "267", profession_id: "39", master_id: "0", name: "Medical Malpractice Review" }, { service_id: "275", profession_id: "39", master_id: "267", name: "Medical Chronology Creation" },
+      { service_id: "308", profession_id: "40", master_id: "0", name: "Family Law" }, { service_id: "327", profession_id: "40", master_id: "308", name: "Discovery Support" },
+      { service_id: "331", profession_id: "40", master_id: "308", name: "Clio" }, { service_id: "309", profession_id: "40", master_id: "0", name: "Civil Litigation" },
+      { service_id: "354", profession_id: "40", master_id: "309", name: "Relativity" }] });
     if (u.startsWith("https://images.scribehow.com/")) return new Response(PNG, { headers: { "content-type": "image/png" } });
     if (u.startsWith("https://hooks.example.com/")) {
       const hd = new Headers((url instanceof Request ? url.headers : opts.headers) ?? {});
