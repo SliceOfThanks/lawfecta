@@ -52,3 +52,69 @@ What they say:
 What changed in DELA: the connection in supabase/functions/api/lib/meetings/meet.ts was written before these pages could be read and used the wrong header and field names. It now follows the reference: one room per meeting named "lawfecta-" plus 20 characters of the meeting number, public access "should_knock", then a host link for the attorney and an always-join link for the freelancer. The setting meeting.vectera_api_base is https://www.vectera.com (migration 0115). Not yet proven against the real service: that needs the token.
 
 Still open from the 11 questions above: 2 (a room with only guests: the two private links are meant to cover this, to be proven), 3, 4 (recordings and transcriptions are in the API; the exact fields and whether chat is included are not confirmed), 5 (no meeting-ended webhook found), 6, 7, 8 (nothing found), 9, 10, 11.
+
+## GoBrunch compared (2026-11-13, Stacey: "evaluate if gobrunch would be better - i have a lifetime plan there with api access")
+
+Read in a browser on Stacey's Mac: https://gobrunch.com/plans, the knowledge base at https://knowledgebase.gobrunch.com/ (Zapier, iFrame embedding, recording, secret keys, live captions), and GoBrunch's page on Zapier.
+
+What GoBrunch's pages say:
+- What it is: virtual spaces with rooms and seats, for webinars, classes, co-working and communities. "One Single Link Forever for your Meetings."
+- API: the pricing page lists "API" and "Custom Subdomain" under Enterprise only. No API reference is published. The only programmatic piece documented is a "User Key" and "Password Key" made on https://gobrunch.com/myaccount for Zapier, whose single action is "Register to Space" (register a person for an event). The Zapier article says meetings are not supported by it. Nothing documented creates a room, a private link or a key from a server.
+- Private rooms: a room can be set Private with a "secret key" typed by hand in Room Settings. Attendees type the key to enter. No per-person links.
+- Embedding: a room can sit in an iFrame on your own site, only with a custom subdomain that matches the site's main domain; screen sharing may not work in every browser inside the frame.
+- Recording: an organizer or moderator starts it by hand from the room's menu; it records their browser tab; not available in Safari; downloaded by hand or shared by link. Nothing about automatic recording, transcripts or fetching recordings from a server.
+- Captions: the article tells each person to turn on their own browser's Live Caption. No transcript is produced.
+- Outside note takers: nothing found.
+
+Against DELA's needs:
+| Need | Vectera | GoBrunch |
+|---|---|---|
+| DELA makes a private room for each booking | Yes, documented (POST /meetingRooms) | Not documented |
+| A private link for each of the two people | Yes, documented (POST /permissions) | No; one room link plus a typed secret key |
+| Two people meet with nobody from Lawfecta present | Likely (host link for the attorney); to prove | Recording and moderation need an organizer or moderator |
+| Lawfecta's own address | Business plan | Custom subdomain: Enterprise on the pricing page; Stacey's lifetime plan may differ |
+| Recording | Local and cloud; in the API | By hand, by a moderator, tab recording |
+| Transcript or notes | AI notes on the Business plan; transcriptions in the API | None; browser captions only |
+| DELA fetches the transcript | Possibly (transcriptions in the API; no "ready" webhook) | No |
+| Cost | A monthly plan per host, plus the API plan | Already paid (lifetime) |
+
+Verdict: GoBrunch is not a better fit for DELA's meetings. It is built for standing rooms that a host runs, and nothing published lets DELA create a private room per booking or get a transcript. Its strength for Lawfecta would be something else: community rooms, webinars, office hours or training, where one standing room and a host are what you want. Unknown: what "API access" on Stacey's lifetime plan covers. If GoBrunch has unpublished API documentation for her plan that creates rooms and keys, this verdict should be looked at again.
+
+## VideoSDK compared (2026-11-13, Stacey: "i also have this as a lifetime deal, see it would work better: https://www.videosdk.live/")
+
+Read in a browser on Stacey's Mac: the API reference at https://docs.videosdk.live/api-reference/realtime-communication/ (introduction, Create a Room, Fetch a Post Transcription & Summary, Webhook Verification), the Prebuilt overview, and https://www.videosdk.live/pricing.
+
+What VideoSDK's pages say:
+- What it is: video calling built to be put inside another app. No Lawfecta staff, hosts or seats involved.
+- A room: POST https://api.videosdk.live/v2/rooms. Options: a webhook address with the events wanted; "autoCloseConfig" (end the session after N minutes and, if wanted, allow only one session per room); "autoStartConfig" (start recording by itself, with transcription and a summary written to a prompt we give).
+- Who gets in: our server signs a token per person with our API key and secret (permissions allow_join or ask_join, and it can be tied to one room and one participant). No public link that a stranger could use.
+- The meeting screen: a ready-made one ("Prebuilt") that is embedded in our own page, or our own screen built on their SDK. Up to 50 people in a room.
+- Recording: cloud recording, started by itself or by API; can be stored in our own S3, Azure or GCP bucket; recording encryption listed.
+- Transcript and summary: after the call (and live if wanted). GET /ai/v1/post-transcriptions/{id} returns links to the transcript as txt, json, srt, vtt and to the summary. 100+ languages.
+- Webhooks: session-started, session-ended, participant-joined, participant-left, recording-*, transcription-started, transcription-stopped, each signed (RSA-SHA256, header videosdk-signature, public key published).
+- Price on the public page: pay as you go. Video HD $0.004 per participant minute, recording $0.015 per recorded minute, transcription after the call $0.004 per minute, summary $0.005 per request, storage $0.003 per stored minute per month. Data kept 3 days (free) or 7 days (pay as you go). Security certifications (SOC 2 Type 2, ISO 27001, HIPAA, GDPR) are listed as add-ons. What Stacey's lifetime deal includes is not on any public page.
+
+Against DELA's needs:
+| Need | Vectera | VideoSDK |
+|---|---|---|
+| DELA makes a private room for each booking | Yes | Yes |
+| Each person gets in privately | A private link per person | A signed token per person, tied to the room; no link to pass around |
+| Two people meet with nobody from Lawfecta present | Likely; to prove | Yes, by design |
+| On Lawfecta's own address | Needs their Business plan and a custom domain | The meeting sits inside a DELA page, so it is on Lawfecta's address already |
+| Recording only when both people consented | A person must start it | DELA starts it by API, only when both ticked consent |
+| Transcript and summary | AI notes on the Business plan; fetching to confirm | Yes, documented, fetched by API |
+| DELA is told when the meeting ends and the transcript is ready | No such webhook found | Yes, signed webhooks |
+| Attendance proof (who joined, when) | Sessions in the API | participant-joined and participant-left webhooks |
+| Catch off-platform payment talk | Only if transcripts can be fetched | Possible: the transcript reaches DELA |
+| An outside note taker (Happy Scribe, a personal one) | Nothing found | Not needed for the transcript; nothing found about outside bots joining |
+| Cost | Monthly plan plus API access, to ask | Lifetime deal already held; what it covers to check |
+| Work to build | Small (done, unproven) | Larger: a meeting page inside DELA, tokens, webhooks, storing transcripts |
+
+Verdict: VideoSDK fits DELA's meetings better than Vectera and far better than GoBrunch. It answers "yes" in its own documentation to the things Vectera could not confirm: no host, automatic recording and transcript, and telling DELA when they are ready.
+
+To settle before building:
+1. What the lifetime deal includes: minutes per month, recording, transcription, summaries, storage, how many calls at once. This is on Stacey's VideoSDK dashboard or deal page.
+2. Data is kept 3 to 7 days on the public plans, so DELA must copy transcripts (and recordings, if kept at all) to its own storage. Transcripts of attorney and freelancer calls may contain client matters, so the sensitive-data rule and retention need Stacey's decision.
+3. The security certifications are add-ons on the public page; ask what applies to the lifetime deal.
+4. The meeting screen loads VideoSDK's script inside a DELA page. The version must be pinned, and the Brilliant Directories page must allow camera and microphone.
+5. "Meetings stay on Vectera" is Stacey's decision of 2026-11-04 (docs/PLAN.md). Changing provider is her decision.
