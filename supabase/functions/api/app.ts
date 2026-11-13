@@ -4913,6 +4913,7 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   },
   // Opening a transcript is itself an action: it is written to the meeting's events and the audit log each time
   "/admin/transcripts/open": (c, a) => rpc(c, "dela_admin_transcript_open", { p_actor: a, p_meeting: need(uuid(c.body.meeting_id)) }),
+  "/admin/meeting-reports/close": (c, a) => rpc(c, "dela_admin_meeting_report_close", { p_actor: a, p_report: need(uuid(c.body.id)), p_note: str(c.body.note, 600) }),
   "/admin/transcripts/decide": (c, a) => rpc(c, "dela_admin_transcript_decide", { p_actor: a, p_meeting: need(uuid(c.body.meeting_id)), p_action: str(c.body.action, 20), p_note: str(c.body.note, 600) }),
   "/admin/firm-logos/remove": async (c, a) => {
     const r = await rpc<Record<string, any>>(c, "dela_admin_firm_logo_remove", { p_actor: a, p_org: need(uuid(c.body.org_id)), p_reason: str(c.body.reason, 300) });
@@ -5793,6 +5794,9 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
         return json(ctx, r); }
       case "GET /meetings/room-state": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_room_state", { p_person: s.person_id, p_side: s.side, p_meeting: need(uuid(ctx.url.searchParams.get("id"))) })); }
       case "POST /meetings/transcript/stop": { const s = await memberSide(ctx); return json(ctx, await transcriptStopNow(ctx, s, need(uuid(ctx.body.id)))); }
+      case "POST /meetings/report": { const s = await memberSide(ctx); const why = str(ctx.body.reason, 1000);
+        if (why) { const w = await sensitive(ctx, s, why, "conversation"); if (w) return json(ctx, w); }
+        return json(ctx, await rpc(ctx, "dela_meeting_report", { p_person: s.person_id, p_side: s.side, p_meeting: need(uuid(ctx.body.id)), p_reason: why })); }
       case "GET /meetings/transcript": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_transcript_read", { p_person: s.person_id, p_side: s.side, p_meeting: need(uuid(ctx.url.searchParams.get("id"))) })); }
       case "POST /meetings/transcript/delete": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_transcript_delete", { p_person: s.person_id, p_side: s.side, p_meeting: need(uuid(ctx.body.id)) })); }
       case "POST /meetings/followup": return await meetingFollowup(ctx);

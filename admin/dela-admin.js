@@ -1022,14 +1022,22 @@
     api.get("/admin/transcripts").then(check).then(function (d) {
       D.clear(card);
       card.appendChild(h("h2", { text: "Meeting transcripts flagged by DELA's AI" }));
-      card.appendChild(h("p", { class: "muted", text: "DELA's AI reads each transcript once and flags talk about paying or working outside Lawfecta. Nothing happens to a member by itself: you decide. Opening a transcript is written to the meeting's record each time, with your name. Transcripts that were not flagged or reported cannot be opened." }));
+      card.appendChild(h("p", { class: "muted", text: "DELA's AI reads each transcript once and flags talk about paying or working outside Lawfecta. Meetings that a member reported are listed here too. Nothing happens to a member by itself: you decide. Opening a transcript is written to the meeting's record each time, with your name. Transcripts that were not flagged or reported cannot be opened." }));
       var list = d.flags || [];
-      if (!list.length) { card.appendChild(h("p", { class: "muted", text: "No transcript has been flagged." })); return; }
+      if (!list.length) { card.appendChild(h("p", { class: "muted", text: "No transcript has been flagged." })); card.appendChild(h("p", { class: "muted", text: "No meeting has been reported." })); return; }
       list.forEach(function (x) {
         var box = h("div", { class: "soft", style: "margin:8px 0;padding:10px 12px;border-radius:12px" },
           h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("b", { class: "grow", text: x.attorney + " and " + x.freelancer + ": " + x.title }),
-            h("span", { class: "badge " + (x.state === "open" ? "held" : x.state === "confirmed" ? "bad" : "ready"), text: { open: "To review", cleared: "No problem found", confirmed: "Confirmed" }[x.state] || x.state })),
-          h("p", { class: "small muted", style: "margin:4px 0", text: "Meeting of " + D.dateTime(x.start_at) + ". Flagged for: " + ((x.kinds || []).map(function (k) { return TR_KIND[k] || k; }).join(", ") || "talk outside Lawfecta") + "." }),
+            h("span", { class: "badge " + (x.state === "open" ? "held" : x.state === "confirmed" ? "bad" : "ready"), text: x.flagged ? ({ open: "To review", cleared: "No problem found", confirmed: "Confirmed" }[x.state] || x.state) : x.state === "open" ? "Reported" : "Report closed" })),
+          h("p", { class: "small muted", style: "margin:4px 0", text: "Meeting of " + D.dateTime(x.start_at) + "." + (x.flagged ? " Flagged for: " + ((x.kinds || []).map(function (k) { return TR_KIND[k] || k; }).join(", ") || "talk outside Lawfecta") + "." : "") }),
+          (x.reports || []).map(function (rp) {
+            return h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin:4px 0" }, h("span", { class: "grow", text: rp.by + " reported on " + D.dateTime(rp.at) + ": \"" + rp.reason + "\"" + (rp.status === "closed" ? " (closed" + (rp.close_note ? ": " + rp.close_note : "") + ")" : "") }),
+              rp.status === "open" ? h("button", { class: "ghost small", type: "button", onclick: function () {
+                var note = prompt("A short note on what you did about this report. It is kept with the report.");
+                if (note === null) return;
+                api.post("/admin/meeting-reports/close", { id: rp.id, note: note }).then(check).then(function () { ok("Report closed"); transcriptFlagsCard(card); }).catch(fail);
+              } }, "Close report") : null);
+          }),
           x.note ? h("p", { style: "margin:4px 0", text: "Passage: \"" + x.note + "\"" }) : null,
           x.decision_note ? h("p", { class: "small muted", style: "margin:4px 0", text: "Decision note: " + x.decision_note }) : null);
         var out = h("div", { hidden: true, style: "white-space:pre-wrap;max-height:360px;overflow:auto;border:1px solid #e6e7ec;border-radius:8px;padding:10px;margin-top:8px;background:#fff", tabindex: "0", "aria-label": "Transcript text" });
@@ -1038,8 +1046,8 @@
           if (!confirm("Open this transcript? Your name and the time are written to the meeting's record.")) return;
           api.post("/admin/transcripts/open", { meeting_id: x.meeting_id }).then(check).then(function (r) { out.textContent = r.text; out.hidden = false; }).catch(fail);
         } }, "Open transcript"));
-        else acts.appendChild(h("span", { class: "small muted", text: "The transcript text is no longer kept (deleted by a member or after its keeping time)." }));
-        if (x.state === "open") {
+        else acts.appendChild(h("span", { class: "small muted", text: x.flagged ? "The transcript text is no longer kept (deleted by a member or after its keeping time)." : "This meeting has no transcript text (it was not transcribed, or the text is no longer kept)." }));
+        if (x.flagged && x.state === "open") {
           var decide = function (action, word) { return h("button", { class: "ghost small", type: "button", onclick: function () {
             var note = prompt("A short note on your decision (" + word + "). It is kept with the flag.");
             if (note === null) return;

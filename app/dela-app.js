@@ -6843,6 +6843,18 @@
       else if (tr.status === "stopped") tb.appendChild(h("p", { class: "small muted", style: "margin:6px 0 0", text: "The transcript is being prepared. It shows here a few minutes after the meeting." }));
       c.appendChild(tb);
     }
+    // Step 27: either person can report the meeting to the Lawfecta Team, with a reason
+    if (m.status === "confirmed" || m.status === "completed" || m.status === "no_show") {
+      c.appendChild(h("p", { style: "margin:8px 0 0" }, h("button", { class: "linkish small", type: "button", onclick: function () {
+        var why = prompt("Tell the Lawfecta Team what happened in or around this meeting. They read your report and may read the meeting's transcript. The other person is not told who reported.");
+        if (why === null) return;
+        if (!why.trim()) { D.toast(app, "Write what happened first.", true); return; }
+        api.post("/meetings/report", { id: m.id, reason: why }).then(function (x) {
+          if (x.reason === "looks_like_client_info") { D.toast(app, ciNote(x, "This may include client information. Use placeholders instead."), true); return; }
+          gigOk(x); D.toast(app, x.duplicate ? "You already reported this meeting. The Lawfecta Team has it." : "Reported. The Lawfecta Team will look at it.");
+        }).catch(talkFail);
+      } }, "Report this meeting")));
+    }
     // Step 24: an introductory call leads back to its conversation and, for the attorney, on to a gig for this freelancer
     if (m.intro_thread) {
       c.appendChild(h("p", { class: "small muted", text: "An introductory call before any gig. Nobody is hired by it." }));

@@ -345,6 +345,17 @@ Deno.test("transcripts: only with both people's agreement, stopped by either, ke
   // A transcript that was neither flagged nor reported cannot be opened by the team
   await pool.query("update meeting_transcripts set flag_state = 'none' where meeting_id = $1", [meeting]);
   assertEquals((await call("POST", "/admin/transcripts/open", team.token, { meeting_id: meeting })).body.data.reason, "no_reason_to_open");
+  // Step 27: a report of the meeting is the other ground for the team to open its transcript
+  assertEquals((await call("POST", "/meetings/report", other.token, { id: meeting, reason: "x" })).body.reason, "not_found", "only the two people can report it");
+  assertEquals((await call("POST", "/meetings/report", fl.token, { id: meeting, reason: "  " })).body.reason, "reason_needed");
+  assertEquals((await call("POST", "/meetings/report", fl.token, { id: meeting, reason: "They asked me to bill them outside the site." })).body.ok, true);
+  assertEquals((await call("POST", "/meetings/report", fl.token, { id: meeting, reason: "Again." })).body.duplicate, true, "one open report per person and meeting");
+  const listed = ((await call("GET", "/admin/transcripts", team.token)).body.data.flags as Array<Record<string, any>>).find((x) => x.meeting_id === meeting)!;
+  assertEquals([listed.flagged, listed.state, listed.reports.length, listed.reports[0].by, listed.reports[0].status], [false, "open", 1, "The freelancer", "open"], JSON.stringify(listed));
+  assert((await call("POST", "/admin/transcripts/open", team.token, { meeting_id: meeting })).body.data.text.includes("Venmo"), "a reported meeting's transcript can be opened");
+  assertEquals((await one("select detail->>'why' w from meeting_events where meeting_id = $1 and action = 'transcript_opened_by_team' order by id desc limit 1", [meeting])).w, "reported");
+  assertEquals((await call("POST", "/admin/meeting-reports/close", team.token, { id: listed.reports[0].id, note: "Spoke to both." })).body.data.ok, true);
+  assertEquals(((await call("GET", "/admin/transcripts", team.token)).body.data.flags as Array<Record<string, any>>).find((x) => x.meeting_id === meeting)!.state, "cleared");
   // Either person deletes the text early, for both; the summary stays
   assertEquals((await call("POST", "/meetings/transcript/delete", other.token, { id: meeting })).body.reason, "not_found");
   assertEquals((await call("POST", "/meetings/transcript/delete", att.token, { id: meeting })).body.ok, true);

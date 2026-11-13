@@ -47,7 +47,7 @@ meetings.provider ("videosdk"; "vectera" brings the old connection back), meetin
 ## Still open
 - A member can delete a transcript that the AI flagged before the team reads it. The flagged passage is kept with the flag. Is that right, or should a flagged transcript be kept until the team decides?
 - VideoSDK's free plan transcribes one meeting at a time; pay as you go allows ten. Two meetings at the same hour need pay as you go.
-- "A member reports the meeting": today a member can report a conversation (the existing "Report" in a conversation). There is no separate "Report this meeting" button yet.
+- "A member reports the meeting": built as step 27. Each meeting card has "Report this meeting" (a reason is required; one open report per person and meeting). Reported meetings show in the same admin card as flagged transcripts, and a report lets the team open that meeting's transcript. The other person is not told who reported, and nothing happens to them by itself.
 - Exact colors on the meeting screen would need our own screen built on VideoSDK's toolkit, not the ready-made one.
 
 ## Success looks like
