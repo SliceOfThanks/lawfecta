@@ -2188,10 +2188,51 @@
     api.post("/profile/docs/action", { id: id, action: action }).then(function (x) { if (x.ok === false) throw new Error(x.reason); loadProfile(); }).catch(err);
   }
 
+  // Step 21: who the client is, for the freelancer: the attorney's picture and name, the firm's logo and name
+  function clientCard(c, heading) {
+    if (!c || (!c.name && !c.firm_name)) return null;
+    var who = c.name || c.firm_name;
+    var pic = c.photo_url ? h("img", { class: "talent-photo client-photo", src: c.photo_url, alt: "Picture of " + who }) : h("span", { class: "talent-photo client-photo none", "aria-hidden": "true", text: String(who).slice(0, 1).toUpperCase() });
+    return h("div", { class: "card client-card" }, h("h2", { text: heading || "Who you are working with" }),
+      h("div", { class: "row", style: "gap:12px;flex-wrap:wrap;align-items:center" }, pic,
+        h("div", { class: "grow" }, h("b", { text: who }), c.verified ? h("span", { class: "talent-ver", style: "margin-left:8px", text: "✓ Verified" }) : null,
+          h("div", { class: "small muted", text: c.kind === "agency" ? "Agency" : "Attorney" })),
+        c.firm_name && c.firm_name !== who || c.logo_url ? h("div", { class: "row", style: "gap:8px;align-items:center" },
+          c.logo_url ? h("img", { class: "firm-logo", src: c.logo_url, alt: "Logo of " + (c.firm_name || who) }) : null,
+          c.firm_name ? h("span", { text: c.firm_name }) : null) : null));
+  }
   function firmCard(other) {
     var fm = other ? { body: other.body, may_edit: true, role: "manager" } : prof.data.firm || {}, b = fm.body || {}, el = other ? {} : fm.eligibility || {};
     var card = h("div", { class: "card" }, h("h2", { text: other ? "Firm details for " + other.name + " (you are firm staff)" : "Firm details" }),
       h("p", { class: "small muted", text: "Needed before your first paid engagement: the billing address, who may sign for the firm, and an email for formal notices." }));
+    // Step 21: the firm's logo. Freelancers see it next to the firm's name. It saves as soon as it is chosen, and only
+    // this row is redrawn, so nothing typed elsewhere on the page is lost.
+    var logoUrl = other ? other.logo_url : fm.logo_url, orgQ = other ? "?org=" + encodeURIComponent(other.org_id) : "";
+    var logoRow = h("div", { class: "row firm-logo-row", style: "margin:8px 0;gap:12px" });
+    var setLogo = function (url) { logoUrl = url; if (other) other.logo_url = url; else fm.logo_url = url; drawLogo(""); };
+    function drawLogo(problem) {
+      D.clear(logoRow);
+      var logoIn = h("input", { type: "file", accept: "image/png,image/jpeg,.png,.jpg,.jpeg", style: "display:none", "aria-label": "Choose a firm logo" });
+      var logoMsg = h("span", { class: "small muted", role: "status", text: problem || (logoUrl ? "Your firm's logo. Freelancers see it next to your firm's name on gigs, conversations and engagements." : "No logo yet. Freelancers see your firm's name only.") });
+      logoIn.addEventListener("change", function () {
+        if (!logoIn.files.length) return;
+        logoMsg.textContent = "Uploading...";
+        api.raw("/firm/logo" + orgQ, logoIn.files[0], logoIn.files[0].type || "image/jpeg").then(function (x) {
+          if (!x.ok) { drawLogo(D.errorText(x.reason)); return; }
+          setLogo(x.logo_url); D.toast(app, "Logo saved. Nothing else to click.");
+        }).catch(function (e) { drawLogo(D.errorText(e.message)); });
+      });
+      logoRow.appendChild(logoUrl ? h("img", { class: "firm-logo big", src: logoUrl, alt: "Firm logo" }) : h("span", { class: "firm-logo big none", "aria-hidden": "true", text: "Logo" }));
+      logoRow.appendChild(h("div", null, fm.may_edit ? h("div", { class: "row", style: "gap:6px;flex-wrap:wrap" },
+        h("button", { class: "ghost small", type: "button", onclick: function () { logoIn.click(); } }, logoUrl ? "Change logo" : "Add a logo"),
+        logoUrl ? h("button", { class: "ghost small", type: "button", onclick: function () {
+          api.post("/firm/logo/remove", { org_id: other ? other.org_id : "" }).then(function (x) { if (x.ok === false) throw new Error(x.reason); setLogo(""); D.toast(app, "Logo removed"); }).catch(function (e) { drawLogo(D.errorText(e.message)); });
+        } }, "Remove logo") : null) : null,
+        h("div", null, logoMsg), fm.may_edit ? h("div", { class: "small muted", text: "PNG or JPG. A square or wide logo on a plain background works best." }) : null));
+      logoRow.appendChild(logoIn);
+    }
+    drawLogo("");
+    card.appendChild(logoRow);
     var miss = el.missing_for_paid_work || [];
     var MISS = { billing_address: "Billing address", signatory: "Who may sign for the firm", service_email: "Email for formal notices" };
     if (miss.length) card.appendChild(h("p", { class: "small", text: "Still needed for paid work: " + miss.map(function (k) { return MISS[k] || k; }).join(", ") + "." }));
@@ -6006,6 +6047,7 @@
         h("button", { class: "ghost small", type: "button", onclick: function () { if (!confirm("Decline this invitation?")) return; api.post("/gigs/decline", { gig_id: g.id }).then(gigOk).then(function () { gigs.id = null; draw(); D.toast(app, "Declined"); }).catch(gigFail); } }, "Decline")));
       if (((mine && mine.status === "selected") || r.access === "hired") && (me.switches || {}).engagements) { var engBox = h("div", { id: "engagement" }); el.appendChild(engBox); engagementPanel(engBox, g.id); }
       el.appendChild(h("div", { class: "card" }, publicBlock(g)));
+      var cc = clientCard(r.client, r.access === "hired" ? "Who you are working with" : "Who posted this gig"); if (cc) el.appendChild(cc);
       if ((r.access === "invited" || r.access === "applicant" || r.access === "hired") && ((me.switches || {}).gig_chat || (me.switches || {}).meetings)) {
         el.appendChild(h("div", { class: "row" },
           (me.switches || {}).gig_chat ? h("button", { class: "blue small", type: "button", onclick: function () { openThread(g.id, null); } }, "Message the " + clientWord(g)) : null,
@@ -6232,6 +6274,7 @@
       if (!r.ok) { el.appendChild(h("p", { class: "notice", text: "This conversation is not available to you." })); return; }
       var t = r.thread;
       el.appendChild(h("h1", { text: t.other_name }));
+      var tcc = clientCard(r.client, "Who you are talking with"); if (tcc) el.appendChild(tcc);
       var noGig = t.kind === "bench" || t.kind === "intro";
       el.appendChild(h("p", { class: "muted", text: t.kind === "intro" ? (r.role === "attorney" ? "A conversation before any gig. Messages only: files and meetings come with a gig. Nobody is hired here. Keep all work, contact and payment on Lawfecta." : "An attorney wrote to you before posting a gig. Messages only; nobody is hired here. Keep all work, contact and payment on Lawfecta.") : t.kind === "bench" ? t.gig_title + ": your ongoing bench conversation. It shares no files and is not a contract; new work goes through a gig. Keep all work, contact and payment on Lawfecta." : "About the gig \"" + t.gig_title + "\". Keep all work, contact and payment on Lawfecta." }));
       var tools = h("div", { class: "row", style: "flex-wrap:wrap" });
@@ -6825,6 +6868,7 @@
     host.appendChild(nextStep(r, mySigned, theirSigned));
     if (r.monthly && (a.status === "draft" || a.status === "signing" || a.status === "sent")) host.appendChild(monthlyTermsCard(r));
     if (r.monthly && !(a.status === "draft" || a.status === "signing" || a.status === "sent")) host.appendChild(monthlyCard(r));
+    if (!att) { var ecc = clientCard(r.client); if (ecc) host.appendChild(ecc); }
     host.appendChild(agreementCard(r, b));
     // Who is on the job comes right under the agreement and its subcontracting terms (UX review E02)
     var sc = subsCard(r, b); if (sc) host.appendChild(sc);

@@ -111,6 +111,9 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     await dela(p).locator(".work", { hasText: "Client intake for a family law firm" }).first().click();
     t = await waitFor(p, "The work handed to you");
     ok(t.includes("Shared with") && t.includes("Run the conflict check"), "an invited freelancer reads the full playbook, watermarked");
+    // Step 21: the freelancer sees who posted the gig (no picture or logo set here: the initial and the names)
+    const who = await p.evaluate(() => { const c = document.querySelector(".dela-host").shadowRoot.querySelector(".client-card"); return c ? c.innerText : ""; });
+    ok(who.includes("Who posted this gig") && who.includes("Ann Attorney") && who.includes("Verified") && who.includes("Example Legal"), "the gig shows who posted it: the attorney, verified, and the firm: " + who);
     ok(!t.includes("Final") && t.includes("Milestones are set after hiring"), "no milestones before hiring");
     await label(p, "Your question").fill("Which intake form do you use?");
     await click(p, "Ask the attorney");

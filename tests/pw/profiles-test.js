@@ -76,6 +76,13 @@ async function waitFor(page, words, ms) {
     ok(t.includes("Still needed before paid work: Billing address, Who may sign for the firm, Email for formal notices."), "what the firm still needs is listed at the top");
     await click(p, "Go to Firm details");
     ok(await p.evaluate(() => document.querySelector(".dela-host").shadowRoot.activeElement.getAttribute("aria-label")) === "Firm's legal name", "Go to Firm details goes to the first firm box");
+    // Step 21: the firm's logo is uploaded in Firm details and saves at once
+    ok((await text(p)).includes("No logo yet. Freelancers see your firm's name only."), "Firm details say there is no logo yet");
+    await dela(p).getByLabel("Choose a firm logo").setInputFiles({ name: "logo.png", mimeType: "image/png", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]) });
+    await waitFor(p, "Logo saved. Nothing else to click.");
+    await waitFor(p, "Your firm's logo. Freelancers see it next to your firm's name");
+    ok(await dela(p).getByRole("button", { name: "Change logo", exact: true }).count() === 1 && await dela(p).getByRole("button", { name: "Remove logo", exact: true }).count() === 1 && await dela(p).getByAltText("Firm logo").count() === 1, "the logo shows, with Change logo and Remove logo");
+    ok(/^firms\/[0-9a-f-]{36}\/logo-[0-9a-f-]{36}\.png$/.test((await sql(`select fp.body->>'logo_file' f from firm_profiles fp join side_profiles sp on sp.org_id = fp.org_id and sp.side = 'attorney' join people pe on pe.id = sp.person_id where pe.bd_member_id = 2500`))[0].f), "the logo is saved with the firm, without a Save click");
     ok(await dela(p).locator("#prof-areas > summary").innerText() === "Practice areas (0 selected)" && await label(p, "Find a practice area").count() === 1, "practice areas are folded, with a count and a search box");
     await click(p, "Fill from my Lawfecta listing");
     await waitFor(p, "Filled");

@@ -184,6 +184,48 @@ Deno.test("freelancers: matched sees the gig without milestones or playbook; inv
   assertEquals(n, 1, "the invited freelancer is told");
 });
 
+// Step 21 (Stacey 2026-11-13): the firm's logo, and the attorney's picture and the firm's logo for the freelancer
+Deno.test("firm logo: uploaded by the firm, kept when the details are saved; a freelancer sees who posted the gig", async () => {
+  const up = async (bytes: Uint8Array, who: M) => {
+    const res = await handle(new Request("http://localhost/functions/v1/api/firm/logo", { method: "POST", headers: { origin: "https://lawfecta.com", "x-dela-session": who.token, "content-type": "image/png" }, body: new Blob([bytes as BlobPart]) }), deps);
+    return { status: res.status, body: await res.json() };
+  };
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+  assertEquals((await up(png, f1)).status, 403, "a freelancer cannot set a firm's logo");
+  assertEquals((await up(new TextEncoder().encode("MZ not a logo"), att)).body.reason, "not_an_image", "the contents are checked, not the name");
+  const before = (await call("GET", "/gigs/get?id=" + gig, f1.token)).body;
+  assertEquals(before.client.name, "Ann Attorney", JSON.stringify(before.client));
+  assertEquals(before.client.firm_name, "Example Legal");
+  assertEquals(before.client.verified, true);
+  assertEquals(before.client.logo_url, "", "no logo yet: the name only");
+  assertEquals(before.client.photo_url, "", "no picture yet: the screen shows an initial");
+  const r = await up(png, att);
+  assertEquals(r.body.ok, true, JSON.stringify(r.body));
+  const org = (await pool.query("select org_id from side_profiles where person_id = $1 and side = 'attorney'", [att.id])).rows[0].org_id;
+  assert(r.body.logo_url.includes("firms/" + org + "/logo-"), r.body.logo_url);
+  // Saving the firm's details does not lose the logo, and the form cannot set a path
+  const saved = (await call("POST", "/firm/save", att.token, { body: { legal_name: "Example Legal", billing_address: "1 Main St", signatory_name: "Ann Attorney", service_email: "notices@example.com", logo_file: "firms/x/logo-y.png" } })).body;
+  assertEquals(saved.ok, true, JSON.stringify(saved));
+  const prof = (await call("GET", "/profile", att.token)).body;
+  assert(prof.firm.logo_url.includes("firms/" + org + "/logo-"), "the Profile page gets a private link to the logo: " + prof.firm.logo_url);
+  // The attorney chooses a ready-made picture; the freelancer sees it with the logo
+  const avWas = (await pool.query("select value from settings where key = 'profile.avatars'")).rows[0].value;
+  await pool.query("update settings set value = $1 where key = 'profile.avatars'", [JSON.stringify({ base: "https://www.example.com/a/", files: ["one.png"] })]);
+  await pool.query("update member_profiles set body = body || '{\"avatar\":\"one.png\"}' where person_id = $1 and side = 'attorney'", [att.id]);
+  const v = (await call("GET", "/gigs/get?id=" + gig, f1.token)).body;
+  assert(v.client.logo_url.includes("firms/" + org + "/logo-") && v.client.photo_url === "https://www.example.com/a/one.png", JSON.stringify(v.client));
+  assert(!("logo_file" in v.client) && !("photo_file" in v.client) && !("avatar" in v.client), "file paths never leave the server");
+  assertEquals((await call("GET", "/gigs/get?id=" + gig, att.token)).body.client, undefined, "the attorney's own view is unchanged");
+  assertEquals((await call("GET", "/gigs/get?id=" + gig, f3.token)).body.client, undefined, "a freelancer who cannot see the gig learns nothing about the client");
+  // Another firm cannot touch this firm's logo
+  const other = await handle(new Request("http://localhost/functions/v1/api/firm/logo?org=" + org, { method: "POST", headers: { origin: "https://lawfecta.com", "x-dela-session": att2.token, "content-type": "image/png" }, body: new Blob([png as BlobPart]) }), deps);
+  assertEquals((await other.json()).reason, "firm_staff_only");
+  assertEquals((await call("POST", "/firm/logo/remove", att.token, {})).body.ok, true);
+  assertEquals((await call("GET", "/gigs/get?id=" + gig, f1.token)).body.client.logo_url, "", "a removed logo is gone for the freelancer too");
+  await pool.query("update member_profiles set body = body - 'avatar' where person_id = $1 and side = 'attorney'", [att.id]);
+  await pool.query("update settings set value = $1 where key = 'profile.avatars'", [JSON.stringify(avWas)]);
+});
+
 Deno.test("questions: answered publicly; off-platform plans are held for the team", async () => {
   const q = (await call("POST", "/gigs/questions/ask", f1.token, { gig_id: gig, question: "Which court forms do you use?", request_id: "q1" })).body;
   assertEquals([q.ok, q.held], [true, false]);

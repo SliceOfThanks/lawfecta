@@ -1943,6 +1943,8 @@ async function profileGet(ctx: Ctx) {
   // Which boxes Save copies to the directory listing (UX review R02): the fields in the listing map, named as on the form
   const map = (await rpc<Record<string, string> | null>(ctx, "dela_setting", { p_key: "bd.profile_map" }).catch(() => null)) ?? {};
   const directory_fields = Object.keys(map && typeof map === "object" ? map : {}).filter((k) => map[k] && LABELS[k]).map((k) => LABELS[k].replace(" (or tick none)", ""));
+  if (r.firm && typeof r.firm === "object") r.firm.logo_url = await logoLink(ctx, r.firm.body?.logo_file, 86400);
+  if (r.firm && Array.isArray(r.firm.staff_of)) for (const o of r.firm.staff_of as Array<Record<string, any>>) o.logo_url = await logoLink(ctx, o.body?.logo_file, 86400);
   return json(ctx, { ...r, body, photo_view_url, avatars: await avatarSet(ctx), directory_fields, state: labelState(r.state), labels: LABELS, practice_areas: PRACTICE_AREAS, tech_tools: TECH_TOOLS, tech_groups: TECH_GROUPS, timezones: TIMEZONES });
 }
 
@@ -1997,6 +1999,49 @@ async function profilePhoto(ctx: Ctx) {
   const path = `profiles/${s.person_id}/photo-${crypto.randomUUID()}.${png ? "png" : "jpg"}`;
   await storageOf(ctx).put(path, bytes, png ? "image/png" : "image/jpeg");
   return json(ctx, { ok: true, photo_file: path, url: await storageOf(ctx).signDownload(path, 86400) });
+}
+
+// Step 21: the firm's logo. The owner or firm staff upload it on the Profile page; it is saved at once.
+const LOGO_PATH = /^firms\/[0-9a-f-]{36}\/logo-[0-9a-f-]{36}\.(png|jpg)$/;
+async function logoLink(ctx: Ctx, file: unknown, seconds: number): Promise<string> {
+  const f = String(file ?? "");
+  return f && LOGO_PATH.test(f) && ctx.deps.storage ? await ctx.deps.storage.signDownload(f, seconds).catch(() => "") : "";
+}
+async function firmLogo(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const org = uuid(ctx.url.searchParams.get("org"));
+  const may = await rpc<Record<string, any>>(ctx, "dela_firm_logo_check", { p_person: s.person_id, p_org: org });
+  if (!may?.ok) return json(ctx, may);
+  const max = (Number(await setting(ctx, "profile.photo_max_kb", "3072")) || 3072) * 1024;
+  const bytes = new Uint8Array(await ctx.req.arrayBuffer());
+  if (!bytes.length) return json(ctx, { ok: false, reason: "bad_request" });
+  if (bytes.length > max) return json(ctx, { ok: false, reason: "photo_too_big", max_kb: max / 1024 });
+  const png = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
+  const jpg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
+  if (!png && !jpg) return json(ctx, { ok: false, reason: "not_an_image" });
+  const path = `firms/${may.org_id}/logo-${crypto.randomUUID()}.${png ? "png" : "jpg"}`;
+  await storageOf(ctx).put(path, bytes, png ? "image/png" : "image/jpeg");
+  const r = await rpc<Record<string, any>>(ctx, "dela_firm_logo_set", { p_person: s.person_id, p_org: may.org_id, p_path: path });
+  if (!r?.ok) { await storageOf(ctx).remove([path]).catch(() => {}); return json(ctx, r); }
+  // The logo it replaces is no longer shown anywhere
+  if (r.old && LOGO_PATH.test(String(r.old))) await storageOf(ctx).remove([String(r.old)]).catch(() => {});
+  return json(ctx, { ok: true, logo_url: await logoLink(ctx, path, 86400) });
+}
+async function firmLogoRemove(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_firm_logo_set", { p_person: s.person_id, p_org: uuid(ctx.body.org_id), p_path: "" });
+  if (r?.ok && r.old && LOGO_PATH.test(String(r.old)) && ctx.deps.storage) await ctx.deps.storage.remove([String(r.old)]).catch(() => {});
+  return json(ctx, r?.ok ? { ok: true } : r);
+}
+// Who the client is, for a screen a freelancer reads (the screen's own access check has already passed): the attorney's
+// name and picture, the firm's name and logo. Private file paths become links for an hour and never leave the server.
+async function clientFace(ctx: Ctx, fn: string, args: Record<string, unknown>): Promise<Record<string, any> | null> {
+  const c = await rpc<Record<string, any> | null>(ctx, fn, args).catch(() => null);
+  if (!c || typeof c !== "object") return null;
+  const logo_url = await logoLink(ctx, c.logo_file, 3600);
+  delete c.logo_file;
+  await withPhotos(ctx, [c]);
+  return { ...c, logo_url };
 }
 
 // DELA drafts a headline, summary and services from the member's notes; nothing is saved until they save the form
@@ -2473,6 +2518,8 @@ async function gigGet(ctx: Ctx) {
   if (r?.ok) r.references = await rpc(ctx, "dela_gig_references", { p_person: s.person_id, p_side: s.side, p_gig: id }).catch(() => []);
   // The day counts the screen names, from Settings (AI review 0.9.0, payments 6): never typed into screen code
   if (r?.ok) r.rules = await gigRules(ctx);
+  // Step 21: a freelancer sees who posted the gig
+  if (r?.ok && s.side === "freelancer") r.client = await clientFace(ctx, "dela_client_face_gig", { p_gig: id });
   return json(ctx, r);
 }
 
@@ -3409,6 +3456,8 @@ async function agreementGet(ctx: Ctx) {
   }
   const sk = await stripeKey(ctx);
   // stripe_test: the screens name Stripe's test card only while a test key is in use, never with real payments
+  // Step 21: the freelancer sees who the client is, with picture and logo
+  if (v?.ok && v.role === "freelancer") v.client = await clientFace(ctx, "dela_client_face_agreement", { p_agreement: id });
   return json(ctx, { ...v, agency_name: agencyName, stripe_ready: !!sk, stripe_test: sk.includes("_test_") });
 }
 
@@ -5315,7 +5364,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
   try {
     let body: Record<string, unknown> = {};
     // Speech and profile photos arrive as the file itself, not JSON; their handlers read them with their own size limits
-    if (req.method === "POST" && path !== "/ai/transcribe" && path !== "/profile/photo" && path !== "/stripe/webhook") {
+    if (req.method === "POST" && path !== "/ai/transcribe" && path !== "/profile/photo" && path !== "/firm/logo" && path !== "/stripe/webhook") {
       const text = await req.text();
       // A tech catalog upload is the whole CSV, so it may be larger than other requests
       if (text.length > (path === "/admin/catalog/preview" ? 1024 * 1024 : MAX_BODY)) throw new HttpError(413, "too_large");
@@ -5593,7 +5642,10 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /meetings/ics": return await meetingIcsFile(ctx);
       case "GET /threads": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_threads", { p_person: s.person_id, p_side: s.side })); }
       case "POST /threads/open": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_open", { p_person: s.person_id, p_side: s.side, p_gig: need(uuid(ctx.body.gig_id)), p_freelancer: uuid(ctx.body.freelancer) })); }
-      case "GET /threads/get": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_get", { p_person: s.person_id, p_side: s.side, p_thread: need(uuid(ctx.url.searchParams.get("id"))) })); }
+      case "GET /threads/get": { const s = await memberSide(ctx); const tid = need(uuid(ctx.url.searchParams.get("id")));
+        const r = await rpc<Record<string, any>>(ctx, "dela_thread_get", { p_person: s.person_id, p_side: s.side, p_thread: tid });
+        if (r?.ok && s.side === "freelancer") r.client = await clientFace(ctx, "dela_client_face_thread", { p_thread: tid });
+        return json(ctx, r); }
       case "POST /threads/send": return await messageSend(ctx);
       case "POST /threads/edit": { const s = await memberSide(ctx); const b = str(ctx.body.body, 8000).trim(); if (!b) throw new HttpError(400, "bad_request"); const w = await sensitive(ctx, s, b, "conversation", { signed: (await rpc<boolean>(ctx, "dela_thread_signed", { p_thread: uuid(ctx.body.thread_id) ?? uuid(ctx.body.id) }).catch(() => false)) === true }); if (w) return json(ctx, w);
         if (conductRules(withoutLawfectaLinks(b, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com"))).length) return json(ctx, { ok: false, reason: "edit_needs_check" });
@@ -5721,6 +5773,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /profile/availability": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); const r = await rpc<Record<string, any>>(ctx, "dela_profile_availability", { p_person: s.person_id, p_state: str(ctx.body.state, 20) }); return json(ctx, r?.state ? { ...r, state: labelState(r.state) } : r); }
       case "POST /profile/docs/start": return await profileDocStart(ctx);
       case "POST /profile/docs/action": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_profile_doc_action", { p_person: s.person_id, p_file: uuid(ctx.body.id), p_action: str(ctx.body.action, 20) })); }
+      case "POST /firm/logo": return await firmLogo(ctx);
+      case "POST /firm/logo/remove": return await firmLogoRemove(ctx);
       case "POST /firm/save": { const s = await attorney(ctx); const b = ctx.body.body && typeof ctx.body.body === "object" ? ctx.body.body as Record<string, unknown> : {};
         const clean: Record<string, string> = {};
         for (const k of ["legal_name", "website", "billing_address", "signatory_name", "signatory_title", "service_email", "phone"]) clean[k] = str(b[k], k === "billing_address" ? 400 : 200).trim();
