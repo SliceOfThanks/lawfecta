@@ -6,6 +6,14 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## ChatGPT checks 1 to 3 done; bookmark button, room note, freelancer storage in whole GB: ON THE SITE (2026-11-13)
+- Site: code_version f2b953b (browser code; the api function is unchanged at version 120), migrations through 0123, health "ok". GitHub Tests passed on that commit (run 43519580017).
+- Stacey ran ChatGPT checks 1, 2 and 3: 50 of 52 steps passed, and both failures were not defects (one step ran before the release, one was a misread that her screenshot settled). Details: docs/tests/reports/2026-11-13-chatgpt-checks.md.
+- Bookmark button (Stacey): no sentence beside it; it turns pink with "★ Bookmarked" and back. A problem still shows its sentence.
+- A just-booked meeting says "Your meeting room is being set up." in place of "Meeting room not connected yet" (found by check 3).
+- Freelancer storage (Stacey: "YES"): Pro 5,120 MB and Business 20,480 MB, so the page reads "5 GB" and "20 GB". New approved plan versions (version 2 of fl_pro and fl_business), history kept.
+- Bookmarks and the website: DELA writes the website's own bookmark rows (users_favorite, dataType 10, featureId 1). The website's own page for a member's bookmarked members is /account/favorite-members (widget "Bootstrap Theme - Account - Favorites Controller"); it lists rows of dataType 10 whose member is active and does not look at "checked". The member dashboard menu on lawfecta.co has no link to it. Open: Stacey looks at that page once (docs/PILOT_CHECKS.md 3.2).
+
 ## "Meetings" in the menu, the quick-view Meetings page, join 10 minutes before, grey heading bands, pictures in more lists: ON THE SITE (2026-11-13)
 - Site: code_version a801cb7, api function version 120, migrations through 0122, health "ok". GitHub Tests passed on that commit (run 43513746238).
 - "Meetings" is a menu item for attorneys and freelancers in the new layout (left menu; phone menu). The old bottom bar (switch new_layout off) keeps its seven items, because an eighth scrolled sideways on a narrow phone; there, meetings are reached from "Your meetings" in the Inbox.
