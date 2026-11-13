@@ -150,7 +150,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 
 21. Find: at the right of the header, the button "☆ Bookmark".
     Do: click it once.
-    Expect: ONE of these two. Write in your report which one you saw, word for word. (a) The button reads "★ Bookmarked" and beside it "Saved to your bookmarks. DELA Test Freelancer is not told." (b) A sentence beside the button that starts "The Lawfecta website did not let DELA use its bookmarks" or "The Lawfecta website's bookmarks could not be reached". Both are a PASS for this step; (b) tells the Lawfecta Team a permission is missing.
+    Expect: ONE of these two. Write in your report which one you saw, word for word. (a) The button reads "★ Bookmarked" on a light pink background, with no sentence beside it. (b) A sentence beside the button that starts "The Lawfecta website did not let DELA use its bookmarks" or "The Lawfecta website's bookmarks could not be reached". Both are a PASS for this step; (b) tells the Lawfecta Team a permission is missing.
 
 22. Find: at the right of the header, "Invite for gig:".
     Do: in the list choose "Build document checklist from questionnaire answers". Click "Invite to this gig".
@@ -175,7 +175,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
     Do: tick it.
     Expect: if step 21 ended with (a): "1 freelancer found", DELA Test Freelancer, with a small grey label "Bookmarked", and a chip "Bookmarked" next to the heading. If step 21 ended with (b): a notice starting "Your bookmarks could not be read, so nothing is shown." with a button "Try again". Write which one you saw.
     Do: untick the box. Then, only if step 21 ended with (a): click "View profile" on the DELA Test Freelancer card and click the button "★ Bookmarked".
-    Expect: the button reads "☆ Bookmark" again and beside it "Bookmark removed."
+    Expect: the button reads "☆ Bookmark" again, with a white background and no sentence beside it.
 
 Sign out (rule 7).
 

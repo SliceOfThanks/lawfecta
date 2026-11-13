@@ -5575,7 +5575,8 @@
           if (!r.ok) { say.textContent = D.errorText(r.reason); return; }
           if (r.bookmarked) bm.set[person] = true; else delete bm.set[person];
           bm.ok = true; paint(!!r.bookmarked);
-          say.textContent = r.bookmarked ? "Saved to your bookmarks. " + name + " is not told." : "Bookmark removed.";
+          // Stacey 2026-11-13: no sentence beside the button; the button itself turns on ("★ Bookmarked", pink) and off.
+          // A problem still shows its sentence here.
         }).catch(function (e) { b.disabled = false; say.textContent = D.errorText(e.message); });
       });
     });

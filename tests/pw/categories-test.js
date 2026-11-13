@@ -304,7 +304,9 @@ const SEARCH = "Search roles, specialties, tasks and software";
     // Bookmarks: saved through the website's bookmark system, privately
     const bmBtn = dela(p).locator("#tp-bookmark").getByRole("button");
     await dela(p).locator("#tp-bookmark").getByRole("button", { name: "Bookmark Fern Family" }).click();
-    await waitFor(p, "Saved to your bookmarks. Fern Family is not told.");
+    // Stacey 2026-11-13: the button turns on and off by itself; no sentence appears beside it
+    await waitFor(p, "★ Bookmarked");
+    ok(!(await text(p)).includes("Saved to your bookmarks") && (await dela(p).locator("#tp-bookmark [role=status]").innerText()).trim() === "", "bookmarking shows no sentence beside the button");
     ok(await bmBtn.getAttribute("aria-pressed") === "true" && (await bmBtn.innerText()).includes("Bookmarked"), "the Bookmark button saves the freelancer and shows it is on");
     await click(p, "Send message");
     t = await waitFor(p, "A conversation before any gig.");
