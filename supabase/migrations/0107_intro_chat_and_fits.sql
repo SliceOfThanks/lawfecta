@@ -88,6 +88,12 @@ begin
   end if;
 end $mig$;
 
+-- Hours a week from a profile, whatever shape an old or hand-made profile has (a number, text, or nothing)
+create or replace function dela_fit_hours(p_body jsonb) returns int language sql immutable set search_path = public, extensions, pg_temp as $$
+  select case when (p_body->>'capacity_hours_week') ~ '^[0-9]{1,3}$' then (p_body->>'capacity_hours_week')::int else 0 end
+$$;
+revoke all on function dela_fit_hours(jsonb) from public, anon, authenticated;
+
 -- The freelancers who fit a document, before any gig: the same points as gig matching (practice area, the tools its
 -- steps name, hours free, active this week), for a member of the firm that owns the document.
 create or replace function dela_playbook_fits(p_person uuid, p_playbook uuid) returns jsonb language plpgsql stable set search_path = public, extensions, pg_temp as $$
@@ -108,19 +114,19 @@ begin
         coalesce(nullif(trim(coalesce(mp.body->>'first_name', '') || ' ' || coalesce(mp.body->>'last_name', '')), ''), pe.display_name) as name, mp.body->>'headline' as headline,
         mp.body->>'photo_file' as photo_file, mp.body->>'avatar' as avatar, sp.verification_state as verification, mp.body->'capacity_hours_week' as cap, mp.body->>'timezone' as tz,
         least(100, (case when v_area <> '' then 30 else 15 end)
-          + least(30, 10 * (select count(*) from jsonb_array_elements_text(coalesce(mp.body->'software', '[]')) s where lower(s) = any(v_tools)))::int
-          + least(15, coalesce((mp.body->>'capacity_hours_week')::int, 0) * 15 / 20)
+          + least(30, 10 * (select count(*) from jsonb_array_elements_text(case when jsonb_typeof(mp.body->'software') = 'array' then mp.body->'software' else '[]' end) s where lower(s) = any(v_tools)))::int
+          + least(15, dela_fit_hours(mp.body) * 15 / 20)
           + case when pe.last_seen_at > now() - interval '7 days' then 5 else 0 end) as fit,
         array_remove(array[
           nullif(v_area, ''),
-          (select case when count(*) > 0 then 'Uses ' || string_agg(s, ' and ') end from (select s from jsonb_array_elements_text(coalesce(mp.body->'software', '[]')) s where lower(s) = any(v_tools) limit 3) t),
-          case when coalesce((mp.body->>'capacity_hours_week')::int, 0) > 0 then (mp.body->>'capacity_hours_week') || ' hours a week free' end,
+          (select case when count(*) > 0 then 'Uses ' || string_agg(s, ' and ') end from (select s from jsonb_array_elements_text(case when jsonb_typeof(mp.body->'software') = 'array' then mp.body->'software' else '[]' end) s where lower(s) = any(v_tools) limit 3) t),
+          case when dela_fit_hours(mp.body) > 0 then dela_fit_hours(mp.body)::text || ' hours a week free' end,
           case when pe.last_seen_at > now() - interval '7 days' then 'Active this week' end], null) as reasons
       from side_profiles sp join member_profiles mp on mp.person_id = sp.person_id and mp.side = 'freelancer' join people pe on pe.id = sp.person_id
       where sp.side = 'freelancer' and sp.status = 'active' and sp.readiness_state = 'match_ready' and sp.person_id <> p_person and not dela_has_hold(sp.person_id)
         and mp.availability <> 'unavailable' and mp.availability_confirmed_at > now() - make_interval(days => v_days)
         and (v_area = '' or mp.body->'practice_areas' ? v_area)
-        and (v_state = '' or not exists (select 1 from jsonb_array_elements_text(coalesce(mp.body->'states_excluded', '[]')) s where upper(s) = v_state))
+        and (v_state = '' or not exists (select 1 from jsonb_array_elements_text(case when jsonb_typeof(mp.body->'states_excluded') = 'array' then mp.body->'states_excluded' else '[]' end) s where upper(s) = v_state))
     ) c where c.fit >= v_fair order by c.fit desc, c.boost desc limit 5) x));
 end $$;
 revoke all on function dela_playbook_fits(uuid, uuid) from public, anon, authenticated;

@@ -304,6 +304,12 @@ Deno.test("the freelancers who fit a document: the firm's own documents only, sc
   const fam = (r.people as Array<Record<string, any>>).find((p) => p.person_id === fFamily.id)!;
   assert(fam && fam.reasons.includes("Family law") && fam.reasons.includes("Uses Clio") && !("photo_file" in fam) && !("avatar" in fam), JSON.stringify(fam));
   assert(!(r.people as Array<Record<string, any>>).some((p) => p.person_id === fNurse.id), "a freelancer outside the practice area is not suggested");
+  // An old or hand-made profile with odd shapes (hours as text, software not a list) must not break the suggestions for everyone
+  await pool.query(`update member_profiles set body = body || '{"capacity_hours_week":"about 12.5","software":"Clio","states_excluded":null}'::jsonb where person_id = $1 and side = 'freelancer'`, [fNone.id]);
+  const odd = (await call("GET", "/playbooks/fits?id=" + pb, att.token)).body;
+  assertEquals(odd.ok, true, "an odd profile does not break the list: " + JSON.stringify(odd).slice(0, 200));
+  assert((odd.people as Array<Record<string, any>>).some((p) => p.person_id === fFamily.id));
+  await pool.query(`update member_profiles set body = body || '{"capacity_hours_week":10,"software":["Clio"],"states_excluded":[]}'::jsonb where person_id = $1 and side = 'freelancer'`, [fNone.id]);
   // A state the freelancer does not work in takes them out
   await pool.query(`update member_profiles set body = body || '{"states_excluded":["TX"]}'::jsonb where person_id = $1 and side = 'freelancer'`, [fFamily.id]);
   assert(!((await call("GET", "/playbooks/fits?id=" + pb, att.token)).body.people as Array<Record<string, any>>).some((p) => p.person_id === fFamily.id), "the document's state is respected");

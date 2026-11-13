@@ -8440,7 +8440,8 @@
     var card = h("div", { class: "card", id: "fits-card" }, h("h2", { text: "Freelancers who fit this work" }), h("p", { class: "muted", text: "Looking..." }));
     api.get("/playbooks/fits?id=" + encodeURIComponent(pid)).then(function (r) {
       card.removeChild(card.lastChild);
-      if (!r.ok || r.on === false) { card.remove(); return; }
+      if (r.on === false) { card.remove(); return; }
+      if (!r.ok) { card.appendChild(h("p", { class: "muted", role: "status", text: "The suggestions could not be loaded for this document (" + (r.reason || "no answer") + ")." })); return; }
       card.appendChild(h("p", { class: "small muted", text: "DELA matched this document's practice area and the tools its steps name with match-ready freelancers. Start a chat to ask about fit, or turn the document into a gig and invite them. Nobody is hired here." }));
       if (!r.people.length) { card.appendChild(h("p", { class: "muted", text: "No match-ready freelancer fits this document yet. Search Talent for a wider look." })); card.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { goTab("talent"); } }, "Search Talent")); return; }
       r.people.forEach(function (p) {
@@ -8451,7 +8452,7 @@
             talentTrust(p), (p.reasons || []).length ? h("div", { class: "small muted", text: "Why: " + p.reasons.join(", ") }) : null),
           h("button", { class: "ghost small", type: "button", onclick: function () { tab = "talent"; openTalentProfile(p.person_id); } }, "View profile"), me.side === "attorney" ? chat : null));
       });
-    }).catch(function () { card.remove(); });
+    }).catch(function (e) { D.clear(card); card.appendChild(h("h2", { text: "Freelancers who fit this work" })); card.appendChild(h("p", { class: "muted", role: "status", text: "The suggestions could not be loaded right now (" + D.errorText(e && e.message) + "). Search Talent instead." })); });
     return card;
   }
   function automateCard(pid) {
