@@ -6816,6 +6816,15 @@
             : (me.switches || {}).profiles ? h("button", { class: "ghost small", type: "button", onclick: function () { goTab("profile"); } }, "Open my Profile") : null));
       }
       upcoming.forEach(function (m) { el.appendChild(meetingCard(el, m, r.confirm_hours)); });
+      // A meeting that just ended stays in view for the time people have to say whether it happened (and to read its
+      // transcript and next steps); older ones go into the fold
+      var keep = (r.confirm_hours || 48) * 3600000;
+      var waiting = past.filter(function (m) { return (m.status === "confirmed" || m.status === "completed" || m.status === "no_show") && (!m.my_followup || new Date(m.end_at).getTime() > now - keep); });
+      past = past.filter(function (m) { return waiting.indexOf(m) < 0; });
+      if (waiting.length) {
+        el.appendChild(h("h2", { id: "meetings-waiting", style: "margin:16px 0 6px", text: "Just ended (" + waiting.length + ")" }));
+        waiting.forEach(function (m) { el.appendChild(meetingCard(el, m, r.confirm_hours)); });
+      }
       if (past.length) {
         var fold = h("details", { id: "meetings-past", style: "margin-top:16px" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "Past and canceled (" + past.length + ")" }));
         past.forEach(function (m) { fold.appendChild(meetingCard(el, m, r.confirm_hours)); });
