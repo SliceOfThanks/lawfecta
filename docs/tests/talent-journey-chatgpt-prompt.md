@@ -9,7 +9,7 @@ What is on the site (checked 2026-11-13):
 - The test freelancer (BD 688, "DELA Test Freelancer") is verified, match-ready, has no reviews, no categories yet, and a ready-made picture.
 - Talent lists 16 freelancers: the test freelancer and fifteen sample freelancers. Their availability lapses on 2026-11-27; after that the counts in this test are wrong.
 - The approved document "Open a Matter in Clio" is a Family law SOP that uses Clio.
-- Not in this test: uploading a firm logo (an agent cannot choose a file from your computer) and "Book a call" (not built).
+- Not in this test: uploading a firm logo (an agent cannot choose a file from your computer), and booking a call before a gig (it would put a real meeting on both test calendars; Stacey checks it by hand).
 
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD.
@@ -80,7 +80,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 
 7. Go to: https://www.lawfecta.co/dela?tab=talent
    Find: the top of the page, above the first card.
-   Expect: the sentence "Find verified legal professionals who are ready to take on new work.", an underlined control "What does match-ready mean?" with a small circled "i", and the sentence "You can message a freelancer before hiring. A posted gig is required to invite a freelancer to submit a proposal."
+   Expect: the sentence "Find verified legal professionals who are ready to take on new work.", an underlined control "What does match-ready mean?" with a small circled "i", and the sentence "You can message a freelancer and book an introductory call before hiring. A posted gig is required to invite a freelancer to submit a proposal."
 
 8. Find: the control "What does match-ready mean?" at the top of the page.
    Do: click it once.
@@ -138,7 +138,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 18. Find: the card for "DELA Test Freelancer" in the list (use Ctrl+F for the name).
     Expect: its round picture is a drawing on a light pink circle, not a drawing floating on white.
     Do: click "View profile" on that card.
-    Expect: a full page, not a pop-up: at the top a button "← Back to Talent search"; the heading "DELA Test Freelancer", "✓ Verified", "No reviews yet"; on the right of the header "☆ Bookmark" and "Send message", and under them "Invite for gig:" with a list and "Invite to this gig"; then five tabs "Overview", "Services", "Experience and qualifications", "Portfolio", "Reviews". The address in the browser contains person=. On "Overview", two columns: on the left "Professional summary", "Primary services", "Software expertise"; on the right "Quick facts" and "Verification" with a line "What does verified mean?". No phone number, email address or website address anywhere on the page. Nothing reads "Not provided" or "Not given".
+    Expect: a full page, not a pop-up: at the top a button "← Back to Talent search"; the heading "DELA Test Freelancer", "✓ Verified", "No reviews yet"; on the right of the header "☆ Bookmark", "Send message" and "Book a call", and under them "Invite for gig:" with a list and "Invite to this gig"; then five tabs "Overview", "Services", "Experience and qualifications", "Portfolio", "Reviews". The address in the browser contains person=. On "Overview", two columns: on the left "Professional summary", "Primary services", "Software expertise"; on the right "Quick facts" and "Verification" with a line "What does verified mean?". No phone number, email address or website address anywhere on the page. Nothing reads "Not provided" or "Not given".
 
 19. Do: press the browser's own Back button (the arrow at the top left of the browser window), not the button on the page.
     Expect: the Talent page again, with all 16 freelancers still loaded ("Showing 16 of 16 freelancers.").
@@ -160,7 +160,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
     Do: click "Back to Talent search".
 
 23. Do: click "View profile" on the DELA Test Freelancer card, then click "Send message" at the right of the header.
-    Expect: a conversation page with the heading "DELA Test Freelancer" and the sentence "A conversation before any gig. Messages only: files and meetings come with a gig. Nobody is hired here." Buttons "View profile" and "Create a gig for DELA Test Freelancer". There is no button "Book a meeting" and no button "Open the gig". Do not type or send a message.
+    Expect: a conversation page with the heading "DELA Test Freelancer" and the sentence "A conversation before any gig. Messages and an introductory call only: files come with a gig. Nobody is hired here." Buttons "View profile", "Create a gig for DELA Test Freelancer" and "Book a call". There is no button "Book a meeting" and no button "Open the gig". Do not type or send a message, and do not click "Book a call".
     Do: click "Create a gig for DELA Test Freelancer".
     Expect: the Projects page with a notice near the top: "You are creating a gig for DELA Test Freelancer. Post it, and the invitation to DELA Test Freelancer opens next." and the link "Not for a specific freelancer". Do NOT post a gig.
     Do: click "Not for a specific freelancer".
