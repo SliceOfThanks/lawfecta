@@ -326,7 +326,6 @@ const SEARCH = "Search roles, specialties, tasks and software";
     t = await waitFor(p, "It hires nobody, costs nothing and creates no gig.");
     await dela(p).locator("#book-panel .slot").first().waitFor({ timeout: 10000 });
     await dela(p).locator("#book-panel .slot").first().click();
-    p.once("dialog", (d) => d.accept());
     await dela(p).locator("#book-panel").getByRole("button", { name: "Review booking", exact: true }).click();
     t = await waitFor(p, "Fern Family: Introductory call", 15000);
     const callRow = (await sql(`select m.status, m.gig_id, (m.intro_thread is not null) t from meetings m where m.attorney_person = (select id from people where bd_member_id = ${ATT}) and m.freelancer_person = (select id from people where bd_member_id = ${FL2}) order by m.created_at desc limit 1`))[0];
