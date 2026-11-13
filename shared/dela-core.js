@@ -529,7 +529,7 @@ D.openTab = function (getUrl, onFail, opts) {
     ".talent-cost{border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--card);white-space:nowrap}.dela .cat-chip button{min-width:24px;min-height:24px}" +
     ".fit-row .talent-photo{width:48px;height:48px;font-size:20px}" +
     ".client-card .client-photo{width:56px;height:56px;font-size:22px}.client-card .talent-ver{border-right:0;padding-right:0}.client-card h2{margin-top:0}" +
-    ".firm-logo{width:44px;height:44px;object-fit:contain;border-radius:8px;border:1px solid var(--line);background:#fff}.firm-logo.big{width:72px;height:72px}.firm-logo.none{display:flex;align-items:center;justify-content:center;color:var(--muted);font-size:12px;border-style:dashed}" +
+    ".firm-logo{width:44px;height:44px;object-fit:contain;border-radius:8px;border:1px solid var(--line);background:#fff}.firm-logo.big{width:72px;height:72px}.firm-logo.none{display:flex;align-items:center;justify-content:center;background:transparent;color:var(--ink);font-size:12px;border-style:dashed}" +
     ".tp-two{display:grid;grid-template-columns:minmax(0,2fr) minmax(220px,1fr);gap:14px;align-items:start}.tp-two .card{margin:0 0 12px}@media (max-width:860px){.tp-two{grid-template-columns:1fr}}" +
     ".tp-lines{margin:0;padding-left:18px}.tp-lines li{margin:6px 0}@media (max-width:720px){.tp-photo{width:56px;height:56px;font-size:22px}}" +
     ".cat-picked{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.cat-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 12px;border-radius:999px;background:var(--pink);border:1px solid var(--line);font-size:13px}" +
