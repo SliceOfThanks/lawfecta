@@ -134,7 +134,7 @@ const SEARCH = "Search roles, specialties, tasks and software";
     // ---------- The Lawfecta Team: the Website categories card ----------
     s = await open(browser, "DELA-Admin", TEAM, "&tab=catalog"); p = s.page;
     t = await waitFor(p, "Website categories", 15000);
-    t = await waitFor(p, "2 categories, 4 specialties, 3 tasks, case types and software.", 10000);
+    t = await waitFor(p, "2 categories, 3 specialties, 4 tasks, case types and software.", 10000);
     ok(t.includes("3 freelancers have picked categories.") && t.includes("First use"), "the card counts the copy and says what started it");
     await click(p, "Refresh now");
     t = await waitFor(p, "Copied 2 categories and 7 below them.", 10000);
