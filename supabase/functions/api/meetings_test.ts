@@ -11,7 +11,14 @@ import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
 
 const LAWFECTA = "sk-lawfecta" + "M".repeat(40); // rules-ok: a made-up test key
 const WORKER = "test-worker-secret-meetings-0123456789ab";
-let vecteraKey = "";
+let vecteraKey = "", videosdkKey = "", videosdkSecret = "";
+// VideoSDK's stand-in signs its reports with a key pair made for this test run and publishes the public half the way
+// VideoSDK does (the older "RSA PUBLIC KEY" form)
+const hookKeys = await crypto.subtle.generateKey({ name: "RSASSA-PKCS1-v1_5", modulusLength: 2048, publicExponent: new Uint8Array([1, 0, 1]), hash: "SHA-256" }, true, ["sign", "verify"]);
+const hookPkcs1 = new Uint8Array(await crypto.subtle.exportKey("spki", hookKeys.publicKey)).slice(24);
+const hookPem = "\n-----BEGIN RSA PUBLIC KEY-----\n" + btoa(String.fromCharCode(...hookPkcs1)).replace(/(.{64})/g, "$1\n") + "\n-----END RSA PUBLIC KEY-----\n";
+const hookSign = async (raw: string) => btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("RSASSA-PKCS1-v1_5", hookKeys.privateKey, new TextEncoder().encode(raw)))));
+const videosdkCalls: Array<{ url: string; auth: string; body: string }> = [];
 const vecteraCalls: string[] = [];
 
 const vecteraRoomDirect = (k: string) => vecteraRoom(fakeFetch, "https://www.vectera.com", k, "lawfecta-test", new Date().toISOString());
@@ -25,6 +32,15 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
     const b = JSON.parse(String(init.body));
     if (url.endsWith("/api/v2/meetingRooms")) return Response.json({ id: "0123456789abcdef0123456789abcdef", key: b.preferredKey, url: "https://meet.lawfecta.com/" + b.preferredKey }, { status: 201 });
     return Response.json({ id: "perm", meetingRoomId: b.meetingRoomId, accessLevel: b.accessLevel, accessKey: "k", url: "https://meet.lawfecta.com/r/room-1?k=" + (b.accessLevel === "is_host" ? "host" : "guest") }, { status: 201 });
+  }
+  if (url === "https://api.videosdk.live/v2/public/rsa-public-key") return Response.json({ publicKey: hookPem });
+  if (url === "https://api.videosdk.live/v2/rooms") {
+    const auth = String((init.headers as Record<string, string>)?.authorization ?? "");
+    videosdkCalls.push({ url, auth, body: String(init.body) });
+    // The token is three parts signed with the secret; the stand-in checks who it names, as VideoSDK would
+    const claims = JSON.parse(atob(auth.split(".")[1].replace(/-/g, "+").replace(/_/g, "/")));
+    if (claims.apikey !== "vsdk-test-key" || auth.split(".").length !== 3) return new Response("{}", { status: 401 });
+    return Response.json({ roomId: "abcd-efgh-ijkl", webhook: JSON.parse(String(init.body)).webhook });
   }
   if (url.endsWith("/chat/completions")) {
     const body = JSON.parse(String(init.body));
@@ -45,7 +61,7 @@ const storage: Storage = {
   signUpload: (p) => Promise.resolve("https://storage.test/up/" + p), signDownload: (p, s) => Promise.resolve(`https://storage.test/get/${p}?exp=${s}`),
   size: () => Promise.resolve(1), read: () => Promise.reject(new Error("missing")), remove: () => Promise.resolve(), put: () => Promise.resolve(),
 };
-const deps: Deps = { rpc, env: (k) => ({ OPENAI_API_KEY: LAWFECTA, DELA_ORIGINS: "https://lawfecta.com", VECTERA_API_KEY: vecteraKey } as Record<string, string>)[k] ?? "", fetch: fakeFetch, storage };
+const deps: Deps = { rpc, env: (k) => ({ OPENAI_API_KEY: LAWFECTA, DELA_ORIGINS: "https://lawfecta.com", VECTERA_API_KEY: vecteraKey, VIDEOSDK_API_KEY: videosdkKey, VIDEOSDK_SECRET: videosdkSecret } as Record<string, string>)[k] ?? "", fetch: fakeFetch, storage };
 
 async function call(method: string, path: string, session: string, body?: unknown) {
   const res = await handle(new Request("http://localhost/functions/v1/api" + path, {
@@ -160,6 +176,8 @@ Deno.test("booking: two at once for the same time, one wins; confirm once; remin
 });
 
 Deno.test("the room: waits for Vectera without a key; with it, each person gets their own link only near the meeting time", async () => {
+  // Vectera is the earlier provider; it still works when Settings names it
+  await pool.query("update settings set value = '\"vectera\"' where key = 'meetings.provider'");
   await worker(1);
   assertEquals((await one("select room_status from meetings where id = $1", [meeting])).room_status, "waiting_for_provider");
   vecteraKey = "vectera-test-key";
@@ -184,6 +202,69 @@ Deno.test("the room: waits for Vectera without a key; with it, each person gets 
   const bad = await vecteraRoomDirect("wrong");
   assertEquals([bad.status, bad.error], ["failed", "vectera_401"]);
   vecteraKey = "";
+  await pool.query("update settings set value = '\"videosdk\"' where key = 'meetings.provider'");
+});
+
+// Step 25 (Stacey 2026-11-13: "Just use VideoSDK"): the room is made on VideoSDK and joined inside DELA
+Deno.test("VideoSDK: a room per meeting, joined inside DELA by the two people only, and signed reports of who joined", async () => {
+  const requeue = async () => {
+    await pool.query("update meetings set room_status = 'pending', room_ref = '', room_url_attorney = '', room_url_freelancer = '' where id = $1", [meeting]);
+    await pool.query("update jobs set status = 'queued', attempts = 0 where kind = 'meeting_tick' and payload->>'meeting_id' = $1 and payload->>'kind' = 'room'", [meeting]);
+  };
+  await pool.query("update meetings set start_at = now() + interval '2 days', end_at = now() + interval '2 days 30 minutes', attendance = 'unverified' where id = $1", [meeting]);
+  await requeue(); await worker(1);
+  assertEquals((await one("select room_status, provider from meetings where id = $1", [meeting])), { room_status: "waiting_for_provider", provider: "videosdk" }, "no keys: the meeting waits for the meeting service");
+  assertEquals((await call("GET", "/admin/meetings", team.token)).body.data.provider_ready, false);
+  videosdkKey = "vsdk-test-key"; videosdkSecret = "vsdk-test-secret";
+  await requeue(); await worker(1);
+  const row = await one("select room_status, room_ref, room_url_attorney, provider from meetings where id = $1", [meeting]);
+  assertEquals(row, { room_status: "ready", room_ref: "abcd-efgh-ijkl", room_url_attorney: "dela:join", provider: "videosdk" });
+  // What went to VideoSDK: a signed token with no prefix, the address to report to, and nothing about the gig or the people
+  assertEquals(videosdkCalls.length, 1);
+  const sent = JSON.parse(videosdkCalls[0].body);
+  assert(/\/functions\/v1\/api\/videosdk\/webhook\?k=[0-9a-f]{40}$/.test(sent.webhook.endPoint), sent.webhook.endPoint);
+  assertEquals(sent.webhook.events, ["session-started", "session-ended", "participant-joined", "participant-left"]);
+  assertEquals(Object.keys(sent), ["webhook"], "only the report address is sent");
+  assert(!/^(Bearer|Token|Basic) /.test(videosdkCalls[0].auth), "the token has no prefix");
+  assertEquals((await call("GET", "/admin/meetings", team.token)).body.data.provider, "videosdk");
+  assertEquals((await call("GET", "/admin/meetings", team.token)).body.data.provider_ready, true);
+  // Joining: not before the room opens
+  assertEquals((await call("GET", "/meetings/join?id=" + meeting, fl.token)).body.reason, "room_not_open", "the room is closed until shortly before the meeting");
+  await pool.query("update meetings set start_at = now() + interval '5 minutes', end_at = now() + interval '35 minutes' where id = $1", [meeting]);
+  const mine = (await call("GET", "/meetings?id=" + meeting, fl.token)).body.meetings[0];
+  assertEquals(mine.join_url, "dela:join", "the meeting card gets the mark that the room opens inside DELA");
+  const jf = (await call("GET", "/meetings/join?id=" + meeting, fl.token)).body;
+  const ja = (await call("GET", "/meetings/join?id=" + meeting, att.token)).body;
+  assertEquals([jf.ok, jf.room, jf.api_key, jf.role, jf.script], [true, "abcd-efgh-ijkl", "vsdk-test-key", "freelancer", "https://sdk.videosdk.live/rtc-js-prebuilt/0.3.43/rtc-js-prebuilt.js"], JSON.stringify(jf));
+  assert(jf.participant.startsWith("fl-") && ja.participant.startsWith("att-") && jf.participant !== ja.participant && jf.name && ja.name, "each person joins under their own name and number");
+  assert(!JSON.stringify(jf).includes("vsdk-test-secret"), "the secret never leaves the server");
+  assertEquals((await call("GET", "/meetings/join?id=" + meeting, other.token)).body.reason, "not_found", "nobody else gets the room");
+  // Reports from VideoSDK: the address key and the signature must both be right
+  const hookUrl = new URL(sent.webhook.endPoint);
+  const hook = async (body: Record<string, unknown>, o: { k?: string; sig?: string } = {}) => {
+    const raw = JSON.stringify(body);
+    const res = await handle(new Request("http://localhost/functions/v1/api/videosdk/webhook?k=" + (o.k ?? hookUrl.searchParams.get("k")), { method: "POST", headers: { "content-type": "application/json", "videosdk-signature": o.sig ?? await hookSign(raw) }, body: raw }), deps);
+    return { status: res.status, body: await res.json() };
+  };
+  const joined = (pid: string) => ({ webhookType: "participant-joined", data: { meetingId: "abcd-efgh-ijkl", sessionId: "s1", participantId: pid, participantName: "X" } });
+  assertEquals((await hook(joined(jf.participant), { k: "0".repeat(40) })).status, 400, "a wrong address key is refused");
+  assertEquals((await hook(joined(jf.participant), { sig: await hookSign("something else") })).status, 400, "a wrong signature is refused");
+  assertEquals((await hook({ webhookType: "session-started", data: { meetingId: "abcd-efgh-ijkl", sessionId: "s1", start: new Date().toISOString() } })).body.ok, true);
+  assertEquals((await hook(joined(jf.participant))).body.meeting, meeting);
+  assertEquals((await one("select attendance from meetings where id = $1", [meeting])).attendance, "unverified", "one person in the room is not yet evidence that they met");
+  assertEquals((await hook(joined("stranger"))).body.ok, true);
+  assertEquals((await one("select attendance from meetings where id = $1", [meeting])).attendance, "unverified", "an unknown participant does not count");
+  await hook(joined(ja.participant));
+  assertEquals((await one("select attendance from meetings where id = $1", [meeting])).attendance, "evidence_received", "both people joined: attendance has evidence");
+  assertEquals((await hook({ webhookType: "participant-joined", data: { meetingId: "no-such-room", participantId: "x" } })).body.ignored, true, "a room DELA does not know is ignored");
+  assertEquals((await hook({ webhookType: "recording-started", data: { meetingId: "abcd-efgh-ijkl" } })).body.ignored, true, "reports DELA did not ask for are ignored");
+  const evs = (await pool.query("select action, actor from meeting_events where meeting_id = $1 and action like 'room_%' order by id", [meeting])).rows as Array<Record<string, any>>;
+  assertEquals(evs.map((e) => e.action), ["room_session_started", "room_participant_joined", "room_participant_joined", "room_participant_joined"]);
+  assertEquals([evs[1].actor, evs[2].actor, evs[3].actor], [fl.id, null, att.id], "the record says who joined");
+  // The earlier secret gone: reports are refused, rooms wait again
+  videosdkSecret = "";
+  assertEquals((await hook(joined(jf.participant))).status, 400);
+  videosdkKey = "";
 });
 
 Deno.test("consent, reschedule once with one update, and a late cancel", async () => {

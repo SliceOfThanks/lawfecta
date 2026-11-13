@@ -49,6 +49,63 @@ export async function vecteraRoom(f: typeof fetch, base: string, key: string, ro
   }
 }
 
+// VideoSDK (Stacey 2026-11-13): written from VideoSDK's API reference (https://docs.videosdk.live/api-reference/realtime-communication/,
+// read 2026-11-13). Server requests carry a short-lived token signed with the API key's secret (HS256), passed in the
+// Authorization header with no prefix. POST /v2/rooms makes a room and names the address VideoSDK reports to (session
+// started and ended, a person joined or left). The meeting itself happens inside a DELA page, so there is no link to
+// pass around: the room number is given only to the two people, inside the join window. Nothing about the gig or the
+// people is sent when the room is made. Without both VIDEOSDK_API_KEY and VIDEOSDK_SECRET the meeting waits for the provider.
+const b64url = (bytes: Uint8Array) => btoa(String.fromCharCode(...bytes)).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+export async function videosdkToken(apiKey: string, secret: string, claims: Record<string, unknown>, seconds: number): Promise<string> {
+  const te = new TextEncoder(), now = Math.floor(Date.now() / 1000);
+  const head = b64url(te.encode(JSON.stringify({ alg: "HS256", typ: "JWT" })));
+  const body = b64url(te.encode(JSON.stringify({ apikey: apiKey, ...claims, iat: now, exp: now + seconds })));
+  const key = await crypto.subtle.importKey("raw", te.encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  return head + "." + body + "." + b64url(new Uint8Array(await crypto.subtle.sign("HMAC", key, te.encode(head + "." + body))));
+}
+export const VIDEOSDK_EVENTS = ["session-started", "session-ended", "participant-joined", "participant-left"];
+export async function videosdkRoom(f: typeof fetch, base: string, apiKey: string, secret: string, webhookUrl: string): Promise<Room> {
+  if (!apiKey || !secret) return { status: "waiting_for_provider" };
+  try {
+    const token = await videosdkToken(apiKey, secret, { permissions: ["allow_join"], version: 2, roles: ["crawler"] }, 120);
+    const r = await f(base.replace(/\/+$/, "") + "/v2/rooms", { method: "POST", headers: { "content-type": "application/json", authorization: token },
+      body: JSON.stringify({ webhook: { endPoint: webhookUrl, events: VIDEOSDK_EVENTS } }), signal: AbortSignal.timeout(15000) });
+    if (!r.ok) return { status: "failed", error: "videosdk_" + r.status };
+    const j = await r.json() as Record<string, any>;
+    const room = String(j.roomId ?? "");
+    if (!/^[A-Za-z0-9_-]{4,80}$/.test(room)) return { status: "failed", error: "videosdk_no_room" };
+    // "dela:join" marks a room that is joined inside DELA; the screen asks the API for the room at that moment
+    return { status: "ready", ref: room, attorney_url: "dela:join", freelancer_url: "dela:join" };
+  } catch (e) {
+    return { status: "failed", error: String(e instanceof Error ? e.message : e).slice(0, 80) };
+  }
+}
+// VideoSDK signs each report (header videosdk-signature, RSA-SHA256 over the body) with the key it publishes at
+// /v2/public/rsa-public-key, in the older "RSA PUBLIC KEY" form, which is wrapped here into the form the runtime reads.
+function derLen(n: number): number[] { return n < 128 ? [n] : n < 256 ? [0x81, n] : [0x82, n >> 8, n & 255]; }
+export function rsaPkcs1ToSpki(pkcs1: Uint8Array): Uint8Array {
+  const alg = [0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86, 0xf7, 0x0d, 0x01, 0x01, 0x01, 0x05, 0x00];
+  const bits = [0x03, ...derLen(pkcs1.length + 1), 0x00, ...pkcs1];
+  return new Uint8Array([0x30, ...derLen(alg.length + bits.length), ...alg, ...bits]);
+}
+const fromB64 = (s: string) => Uint8Array.from(atob(s.replace(/\s+/g, "")), (c) => c.charCodeAt(0));
+export async function videosdkVerify(f: typeof fetch, base: string, raw: string, signature: string): Promise<boolean> {
+  try {
+    if (!signature) return false;
+    const r = await f(base.replace(/\/+$/, "") + "/v2/public/rsa-public-key", { signal: AbortSignal.timeout(10000) });
+    if (!r.ok) return false;
+    const text = await r.text();
+    let pem = text; try { pem = String(JSON.parse(text).publicKey ?? text); } catch { /* plain text */ }
+    const pkcs1 = /BEGIN RSA PUBLIC KEY/.test(pem), der = fromB64(pem.replace(/-----[A-Z ]+-----/g, ""));
+    const key = await crypto.subtle.importKey("spki", (pkcs1 ? rsaPkcs1ToSpki(der) : der) as BufferSource, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["verify"]);
+    const sig = fromB64(signature) as BufferSource, te = new TextEncoder();
+    if (await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, sig, te.encode(raw))) return true;
+    // Their sample signs the body as re-written JSON, so that form is accepted too
+    let again = ""; try { again = JSON.stringify(JSON.parse(raw)); } catch { return false; }
+    return again !== raw && await crypto.subtle.verify("RSASSA-PKCS1-v1_5", key, sig, te.encode(again));
+  } catch { return false; }
+}
+
 // ---------- DELA in a thread ----------
 export const THREAD_SYSTEM: Record<string, string> = {
   summarize: `You are DELA, the assistant inside Lawfecta, summarizing a message thread between an attorney and a legal operations freelancer about one gig.

@@ -4,7 +4,7 @@
 // Sign in: the DELA-Auth widget in BD signs a one-use pass; POST /bootstrap swaps it for a DELA session token.
 // Every other member route sends that token in the x-dela-session header and is checked again on every call.
 import { PLAIN_GROUPS, purposeLine, suggestStructure } from "./lib/documents/cards.ts";
-import { b64url, newSessionToken, safeEqual, sessionHash, sha256Hex } from "./lib/crypto.ts";
+import { b64url, hmacHex, newSessionToken, safeEqual, sessionHash, sha256Hex } from "./lib/crypto.ts";
 import { buildNotice } from "./lib/email.ts";
 import { logoUrl } from "./lib/brand/logo.ts";
 import { GUIDE_SYSTEM, guideMessage, guidePrompt, readGuideReply, type GuideState } from "./lib/guide/guide.ts";
@@ -13,7 +13,7 @@ import { brevoDelivery } from "./lib/mail/brevo.ts";
 import { verifyPass } from "./lib/pass.ts";
 import { sendSms } from "./lib/sms/brevo.ts";
 import { type BdResult, bdCall, bdCategories, bdFields, bdList, bdMember, bdMember as bdMember_, bdUpdate, shapeOf } from "./lib/bd/members.ts";
-import { meetingIcs, NEXT_STEPS_SYSTEM, readSteps, THREAD_SYSTEM, threadPrompt, vecteraRoom, withoutLawfectaLinks } from "./lib/meetings/meet.ts";
+import { meetingIcs, NEXT_STEPS_SYSTEM, readSteps, THREAD_SYSTEM, threadPrompt, vecteraRoom, videosdkRoom, videosdkVerify, withoutLawfectaLinks } from "./lib/meetings/meet.ts";
 import { conductRules, GIG_SYSTEM, gigPrompt, normalizeMilestones, normalizePublic, PROPOSAL_SYSTEM, publicFromPlaybook, readReview, REVIEW_SYSTEM, toCents } from "./lib/gigs/model.ts";
 import { asksAboutTools, CATALOG_RULES, catalogText, rankForMember, readCatalog, type Tool } from "./lib/catalog/csv.ts";
 import { aiContext, fromBd, LABELS, normalize as normalizeProfile, PRACTICE_AREAS, PROFILE_SYSTEM, profileText, readiness, FIELD_GUIDE, FIELD_SYSTEM, TECH_GROUPS, TECH_TOOLS, TIMEZONES, toBd, type BdMap, type Side } from "./lib/profiles/model.ts";
@@ -2889,14 +2889,54 @@ async function meetingHold(ctx: Ctx) {
   return json(ctx, await rpc(ctx, "dela_meeting_hold", { p_person: s.person_id, p_side: s.side, p }));
 }
 
-// The meeting room is made by the provider adapter (Vectera); until its key is set the meeting waits for the provider
+// The meeting room is made by the provider adapter named in Settings (meetings.provider: VideoSDK since 2026-11-13,
+// Vectera before); until its keys are set the meeting waits for the provider
+async function meetingProvider(ctx: Ctx): Promise<string> { return (await setting(ctx, "meetings.provider", "videosdk")) === "vectera" ? "vectera" : "videosdk"; }
+function providerReady(ctx: Ctx, provider: string): boolean {
+  return provider === "vectera" ? !!ctx.deps.env("VECTERA_API_KEY") : !!ctx.deps.env("VIDEOSDK_API_KEY") && !!ctx.deps.env("VIDEOSDK_SECRET");
+}
+// The address VideoSDK reports to. The last part is a value only DELA and VideoSDK know (made from the secret), so a
+// stranger who learns the address of the function still cannot post reports; the signature is checked as well.
+async function videosdkHookKey(ctx: Ctx): Promise<string> { return (await hmacHex(ctx.deps.env("VIDEOSDK_SECRET"), "dela-videosdk-webhook")).slice(0, 40); }
+async function videosdkHookUrl(ctx: Ctx): Promise<string> {
+  const base = (ctx.deps.env("SUPABASE_URL") || ctx.url.origin).replace(/\/+$/, "");
+  return base + "/functions/v1/api/videosdk/webhook?k=" + await videosdkHookKey(ctx);
+}
 async function meetingRoom(ctx: Ctx, id: string) {
   const m = await rpc<Record<string, any>>(ctx, "dela_meeting_for_job", { p_meeting: id });
   if (!m || m.status !== "confirmed" || m.room_status === "ready") return { ok: true };
-  const room = await vecteraRoom(f(ctx), await setting(ctx, "meeting.vectera_api_base", "https://www.vectera.com"), ctx.deps.env("VECTERA_API_KEY"), "lawfecta-" + String(id).replace(/-/g, "").slice(0, 20), m.start_at);
-  await rpc(ctx, "dela_meeting_room", { p_meeting: id, p_status: room.status, p_ref: room.ref ?? null, p_att: room.attorney_url ?? null, p_free: room.freelancer_url ?? null });
-  if (room.status === "failed") return { ok: false, retry: true, error: room.error };
+  const provider = await meetingProvider(ctx);
+  const room = provider === "vectera"
+    ? await vecteraRoom(f(ctx), await setting(ctx, "meeting.vectera_api_base", "https://www.vectera.com"), ctx.deps.env("VECTERA_API_KEY"), "lawfecta-" + String(id).replace(/-/g, "").slice(0, 20), m.start_at)
+    : await videosdkRoom(f(ctx), await setting(ctx, "meeting.videosdk_api_base", "https://api.videosdk.live"), ctx.deps.env("VIDEOSDK_API_KEY"), ctx.deps.env("VIDEOSDK_SECRET"), providerReady(ctx, provider) ? await videosdkHookUrl(ctx) : "");
+  await rpc(ctx, "dela_meeting_room_set", { p_meeting: id, p_provider: provider, p_status: room.status, p_ref: room.ref ?? null, p_att: room.attorney_url ?? null, p_free: room.freelancer_url ?? null });
+  if (room.status === "failed") { console.error("meeting_room", provider, room.error); return { ok: false, retry: true, error: room.error }; }
   return { ok: true };
+}
+// Joining inside DELA (VideoSDK): the room number and what the meeting screen needs, only for the two people of the
+// meeting and only while the room is open. The API key named here is the public half; the secret never leaves the server.
+async function meetingJoin(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_meeting_join", { p_person: s.person_id, p_side: s.side, p_meeting: need(uuid(ctx.url.searchParams.get("id"))) });
+  if (!r?.ok) return json(ctx, r);
+  const apiKey = ctx.deps.env("VIDEOSDK_API_KEY");
+  if (!apiKey) return json(ctx, { ok: false, reason: "room_not_open" });
+  const script = await setting(ctx, "meeting.videosdk_prebuilt_url", "");
+  if (!/^https:\/\/sdk\.videosdk\.live\/rtc-js-prebuilt\/\d+\.\d+\.\d+\/rtc-js-prebuilt\.js$/.test(script)) return json(ctx, { ok: false, reason: "room_not_open" });
+  return json(ctx, { ...r, api_key: apiKey, script });
+}
+// What VideoSDK reports about a room: checked twice (the address key and VideoSDK's signature), then kept with the meeting
+async function videosdkWebhook(ctx: Ctx) {
+  const raw = await ctx.req.text();
+  if (raw.length > 64 * 1024) throw new HttpError(413, "too_large");
+  const secret = ctx.deps.env("VIDEOSDK_SECRET");
+  if (!secret || ctx.url.searchParams.get("k") !== await videosdkHookKey(ctx)) return json(ctx, { ok: false, reason: "bad_signature" }, 400);
+  if (!await videosdkVerify(f(ctx), await setting(ctx, "meeting.videosdk_api_base", "https://api.videosdk.live"), raw, ctx.req.headers.get("videosdk-signature") ?? "")) return json(ctx, { ok: false, reason: "bad_signature" }, 400);
+  let ev: Record<string, any>;
+  try { ev = JSON.parse(raw); } catch { throw new HttpError(400, "bad_json"); }
+  const d = ev?.data && typeof ev.data === "object" ? ev.data as Record<string, unknown> : {};
+  const p = { participantId: str(d.participantId, 80), sessionId: str(d.sessionId, 80), reason: str(d.reason, 80), start: str(d.start, 40), end: str(d.end, 40) };
+  return json(ctx, await rpc(ctx, "dela_meeting_provider_event", { p_room: str(d.meetingId, 80), p_type: str(ev?.webhookType, 60), p }));
 }
 
 async function meetingIcsFile(ctx: Ctx) {
@@ -4704,7 +4744,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/agencies/assignments": (c, a) => rpc(c, "dela_admin_assignments", { p_actor: a }),
   "/admin/confidential/review": (c, a) => rpc(c, "dela_conf_reviewer", { p_actor: a, p_agreement: need(uuid(c.url.searchParams.get("agreement"))), p_file: null }),
   "/admin/payments": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_payments", { p_actor: a })), stripe_ready: !!(await stripeKey(c)), mode: c.deps.env("STRIPE_SECRET_KEY").includes("_live_") ? "live" : "test", stripe_account: await stripeAccountFacts(c) }),
-  "/admin/meetings": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_meetings", { p_actor: a })), provider_ready: !!c.deps.env("VECTERA_API_KEY") }),
+  "/admin/meetings": async (c, a) => ({ ...(await rpc<Record<string, any>>(c, "dela_admin_meetings", { p_actor: a })), provider: await meetingProvider(c), provider_ready: providerReady(c, await meetingProvider(c)) }),
   "/admin/verify": async (c, a) => {
     const d = await rpc<Record<string, any>>(c, "dela_admin_verify", { p_actor: a });
     for (const l of (d?.licenses ?? []) as Array<Record<string, any>>) if (l.method === "email" && !l.email_confirmed_at) l.email_delivery = await rpc(c, "dela_license_delivery", { p_license: l.id });
@@ -5374,7 +5414,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
   try {
     let body: Record<string, unknown> = {};
     // Speech and profile photos arrive as the file itself, not JSON; their handlers read them with their own size limits
-    if (req.method === "POST" && path !== "/ai/transcribe" && path !== "/profile/photo" && path !== "/firm/logo" && path !== "/stripe/webhook") {
+    if (req.method === "POST" && path !== "/ai/transcribe" && path !== "/profile/photo" && path !== "/firm/logo" && path !== "/stripe/webhook" && path !== "/videosdk/webhook") {
       const text = await req.text();
       // A tech catalog upload is the whole CSV, so it may be larger than other requests
       if (text.length > (path === "/admin/catalog/preview" ? 1024 * 1024 : MAX_BODY)) throw new HttpError(413, "too_large");
@@ -5642,6 +5682,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /deliverables/file": return await deliverableFile(ctx);
       case "POST /deliverables/save": return await deliverableSave(ctx);
       case "POST /stripe/webhook": return await stripeWebhook(ctx);
+      case "POST /videosdk/webhook": return await videosdkWebhook(ctx);
+      case "GET /meetings/join": return await meetingJoin(ctx);
       case "GET /meetings": { const s = await memberSide(ctx); return json(ctx, await withMeetingRules(ctx, await rpc(ctx, "dela_meetings", { p_person: s.person_id, p_side: s.side, p_gig: uuid(ctx.url.searchParams.get("gig")), p_meeting: uuid(ctx.url.searchParams.get("id")) }))); }
       case "GET /meetings/slots": return await meetingSlots(ctx);
       case "POST /meetings/hold": return await meetingHold(ctx);

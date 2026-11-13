@@ -955,7 +955,7 @@
   var LIC_ID = { bar_email: "The email matches the state bar record", firm_domain: "The email is at the firm's own domain", video: "We had the video call" };
   var READY = { incomplete: "Not complete", verification_pending: "Waiting for a check", match_ready: "Ready", availability_stale: "Availability out of date", unavailable: "Not taking work", restricted: "Paused", not_applicable: "Not used" };
   // ---------- Meetings and messages (Step 5) ----------
-  var ROOM_WORDS = { pending: "Being made", ready: "Ready", failed: "Could not be made (retrying)", waiting_for_provider: "Waiting for Vectera" };
+  var ROOM_WORDS = { pending: "Being made", ready: "Ready", failed: "Could not be made (retrying)", waiting_for_provider: "Waiting for the meeting service" };
   function meetTab() {
     api.get("/admin/meetings").then(function (r) {
       var d = r.data, c = d.counts || {};
@@ -965,7 +965,9 @@
           h("div", null, "Canceled", h("b", { text: String(c.canceled_30d || 0) })), h("div", null, "Late cancels", h("b", { text: String(c.late_30d || 0) })),
           h("div", null, "Did not happen", h("b", { text: String(c.no_show_30d || 0) })), h("div", null, "Messages", h("b", { text: String(c.messages_30d || 0) })),
           h("div", null, "Conversations", h("b", { text: String(c.threads || 0) }))),
-        h("p", { class: d.provider_ready ? "small muted" : "notice", text: d.provider_ready ? "Vectera is connected: DELA makes a meeting room for each booking." : "Vectera is not connected yet, so meetings show \"Waiting for Vectera\" instead of a join link. It needs Vectera's API plan and the VECTERA_API_KEY secret in Supabase." }));
+        h("p", { class: d.provider_ready ? "small muted" : "notice", text: d.provider === "vectera"
+          ? (d.provider_ready ? "Vectera is connected: DELA makes a meeting room for each booking." : "Vectera is not connected yet, so meetings show \"Waiting for the meeting service\" instead of a join link. It needs the VECTERA_API_KEY secret in Supabase.")
+          : (d.provider_ready ? "VideoSDK is connected: DELA makes a meeting room for each booking, and the meeting happens inside DELA." : "VideoSDK is not connected yet, so meetings show \"Waiting for the meeting service\" instead of a join button. It needs two secrets in Supabase: VIDEOSDK_API_KEY and VIDEOSDK_SECRET.") }));
       var up = h("div", { class: "card" }, h("h2", { text: "Upcoming meetings (" + d.upcoming.length + ")" }));
       if (!d.upcoming.length) up.appendChild(h("p", { class: "muted", text: "None booked." }));
       else up.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack" }, h("thead", null, h("tr", null, ["When", "Gig", "Attorney", "Freelancer", "Room"].map(function (t) { return h("th", { text: t }); }))),

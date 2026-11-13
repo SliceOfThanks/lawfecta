@@ -226,7 +226,7 @@ async function makeMember(bd, side, plan) {
     p = s.page;
     await dela(p).getByRole("tab", { name: "Meetings and messages" }).click();
     t = await waitFor(p, "The last 30 days");
-    ok(t.includes("Vectera is not connected yet") && t.includes("Meetings booked"), "the team sees the counts and that Vectera is not connected");
+    ok(t.includes("VideoSDK is not connected yet") && t.includes("VIDEOSDK_API_KEY") && t.includes("Meetings booked"), "the team sees the counts and that the meeting service is not connected");
     await dela(p).getByRole("tab", { name: "Gigs" }).click();
     t = await waitFor(p, "Held for a check");
     ok(t.includes("512-555-0199"), "the held message waits in the Gigs tab for a decision");

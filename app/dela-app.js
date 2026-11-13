@@ -6650,6 +6650,71 @@
     load();
   }
 
+  // Step 25: the meeting room, inside the page. The ready-made meeting screen (VideoSDK, one exact version named in
+  // Settings) is loaded only when a member joins. It needs a place in the page itself, outside DELA's own enclosed
+  // area, so a full-window layer is added to the page and taken away again on leaving. Camera and microphone are asked
+  // for by the browser at that moment. In-call chat, recording, whiteboard and polls are off: messages stay in DELA,
+  // where they are read for off-platform talk, and nothing is recorded.
+  var meetingRoomOpen = false;
+  function closeMeetingRoom() {
+    var layer = document.getElementById("dela-meeting-layer");
+    if (layer && layer.parentNode) layer.parentNode.removeChild(layer);
+    document.documentElement.style.overflow = "";
+    meetingRoomOpen = false;
+    draw();
+  }
+  function openMeetingRoom(m, btn) {
+    if (meetingRoomOpen) return;
+    if (btn) { btn.disabled = true; btn.textContent = "Opening the room..."; }
+    var fail = function (text) { if (btn) { btn.disabled = false; btn.textContent = "Join the meeting"; } D.toast(app, text, true); };
+    api.get("/meetings/join?id=" + m.id).then(function (r) {
+      if (!r.ok) { fail(r.reason === "room_not_open" ? "The room is not open right now. It opens shortly before the meeting and closes 30 minutes after it." : talkErr(r)); return; }
+      meetingRoomOpen = true;
+      var layer = document.createElement("div");
+      layer.id = "dela-meeting-layer";
+      layer.setAttribute("role", "dialog"); layer.setAttribute("aria-modal", "true"); layer.setAttribute("aria-label", "Meeting room: " + (m.other_name || "") + ", " + (r.title || "meeting"));
+      layer.style.cssText = "position:fixed;inset:0;z-index:2147483000;background:#0f1320;display:flex;flex-direction:column";
+      var bar = document.createElement("div");
+      bar.style.cssText = "display:flex;align-items:center;gap:12px;padding:8px 14px;background:#192031;color:#fff;font:600 15px/1.3 system-ui,sans-serif";
+      var title = document.createElement("span"); title.style.cssText = "flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
+      title.textContent = "Lawfecta meeting: " + (m.other_name || "") + (r.title ? " | " + r.title : "");
+      var note = document.createElement("span"); note.style.cssText = "font-weight:400;font-size:13px;opacity:.85"; note.textContent = "Keep all work, contact and payment on Lawfecta.";
+      var leave = document.createElement("button"); leave.type = "button"; leave.textContent = "Leave and go back to DELA";
+      leave.style.cssText = "background:#fff;color:#192031;border:0;border-radius:8px;padding:10px 14px;font:700 14px system-ui,sans-serif;cursor:pointer;min-height:44px";
+      leave.addEventListener("click", closeMeetingRoom);
+      bar.appendChild(title); bar.appendChild(note); bar.appendChild(leave);
+      var room = document.createElement("div"); room.id = "dela-meeting-room"; room.style.cssText = "flex:1 1 auto;min-height:0;position:relative";
+      var wait = document.createElement("p"); wait.style.cssText = "color:#fff;font:15px system-ui,sans-serif;padding:24px"; wait.textContent = "Loading the meeting room...";
+      room.appendChild(wait);
+      layer.appendChild(bar); layer.appendChild(room);
+      document.body.appendChild(layer);
+      document.documentElement.style.overflow = "hidden";
+      leave.focus();
+      var start = function () {
+        try {
+          if (wait.parentNode) wait.parentNode.removeChild(wait);
+          new window.VideoSDKMeeting().init({
+            name: r.name, meetingId: r.room, apiKey: r.api_key, participantId: r.participant, containerId: "dela-meeting-room",
+            micEnabled: true, webcamEnabled: true, participantCanToggleSelfWebcam: true, participantCanToggleSelfMic: true, participantCanLeave: true,
+            chatEnabled: false, screenShareEnabled: true, whiteboardEnabled: false, raiseHandEnabled: false, pollEnabled: false,
+            participantTabPanelEnabled: true, moreOptionsEnabled: false, maxResolution: "hd", joinWithoutUserInteraction: false,
+            recording: { enabled: false, autoStart: false }, livestream: { enabled: false, autoStart: false },
+            joinScreen: { visible: true, title: "Lawfecta meeting", meetingUrl: "" },
+            permissions: { askToJoin: false, toggleParticipantWebcam: false, toggleParticipantMic: false, toggleParticipantMode: false, toggleParticipantScreenshare: false,
+              removeParticipant: false, endMeeting: false, drawOnWhiteboard: false, toggleWhiteboard: false, toggleRecording: false, toggleLivestream: false, canCreatePoll: false, changeLayout: true, pin: true },
+            leftScreen: { actionButton: { label: "Back to DELA", href: location.href } }
+          });
+        } catch (e) { closeMeetingRoom(); D.toast(app, "The meeting room could not start. Reload the page and try again.", true); }
+      };
+      if (window.VideoSDKMeeting) { start(); return; }
+      var sc = document.createElement("script");
+      sc.src = r.script; sc.async = true;
+      sc.addEventListener("load", start);
+      sc.addEventListener("error", function () { closeMeetingRoom(); D.toast(app, "The meeting room could not be loaded. Check your connection and try again.", true); });
+      document.head.appendChild(sc);
+    }).catch(function (e) { fail(D.errorText(e.message)); });
+  }
+
   // Meetings: upcoming and past, the join link near the time, consent, the calendar file, reschedule, cancel and the follow-up
   function meetingsView() {
     var el = h("div", null, h("h1", { text: "Your meetings" }), h("p", { class: "muted", text: "Loading..." }));
@@ -6689,7 +6754,11 @@
           api.post("/meetings/cancel", { id: m.id, reason: why }).then(gigOk).then(function (x) { draw(); D.toast(app, x.late ? "Canceled (late)" : "Canceled"); }).catch(talkFail);
         } }, "Cancel")));
     }
-    if (m.status === "confirmed" && started && m.join_url) c.appendChild(h("a", { class: "btn blue", href: m.join_url, target: "_blank", rel: "noopener" }, "Join the meeting"));
+    // Step 25: a room on VideoSDK opens inside this page (join_url is "dela:join"); an older room opens its own link
+    if (m.status === "confirmed" && started && m.join_url) {
+      if (m.join_url.indexOf("dela:") === 0) { var jb = h("button", { class: "blue", type: "button" }, "Join the meeting"); jb.addEventListener("click", function () { openMeetingRoom(m, jb); }); c.appendChild(jb); }
+      else c.appendChild(h("a", { class: "btn blue", href: m.join_url, target: "_blank", rel: "noopener" }, "Join the meeting"));
+    }
     // Step 24: an introductory call leads back to its conversation and, for the attorney, on to a gig for this freelancer
     if (m.intro_thread) {
       c.appendChild(h("p", { class: "small muted", text: "An introductory call before any gig. Nobody is hired by it." }));

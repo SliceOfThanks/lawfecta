@@ -1077,9 +1077,9 @@
         {
           "key": "meetings.provider",
           "label": "Online meetings",
-          "value": "vectera",
+          "value": "videosdk",
           "status": "C",
-          "source": "Stacey 2026-10-25"
+          "source": "Stacey 2026-11-13 (was Vectera, 2026-10-25)"
         },
         {
           "key": "meetings.recording_consent",

@@ -34,7 +34,8 @@ Stacey types each one herself; none ever goes in chat.
 | BD_API_KEY | Plan sync and directory listing updates | lawfecta.com's Brilliant Directories API key |
 | BREVO_API_KEY | Email and release codes | Brevo |
 | STRIPE_SECRET_KEY, STRIPE_WEBHOOK_SECRET | Payments | Stripe **test** keys first; live keys only when live payments are approved |
-| VECTERA_API_KEY | Meeting rooms | Vectera |
+| VIDEOSDK_API_KEY, VIDEOSDK_SECRET | Meeting rooms (since 2026-11-13) | VideoSDK dashboard, API Keys |
+| VECTERA_API_KEY | Meeting rooms, only if meetings.provider is set back to vectera | Vectera |
 | CONF_SCAN_URL, CONF_SCAN_TOKEN | Virus scanning of Confidential materials | The scanner chosen in section 4 |
 | STAGING_API_URL | The push reports back to the test site | Claude gives it |
 | RELEASE_CI_SECRET | The test site reads Live's health | The same value as in the GitHub environment |
