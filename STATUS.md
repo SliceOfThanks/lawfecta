@@ -4,6 +4,13 @@ Starting a new session? Read docs/SESSION_HANDOFF.md first (written 2026-11-12, 
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 23: an introductory call before a gig: ON THE SITE (2026-11-13)
+- Site: code_version 58e6e9d, api function version 114, migrations through 0113, health "ok". GitHub Tests passed on that commit (run 43484606307).
+- Brief with five open questions: docs/briefs/step-23-intro-calls.md. "Book a call" on the freelancer profile (next to "Send message") and in a conversation before a gig, for the attorney who started it. The call belongs to that conversation (meetings.intro_thread; meetings.gig_id may be empty). Same open times, Lawfecta room, consent, reminders, move and cancel as a gig meeting. One upcoming call per conversation; daily limit intro.max_new_per_day; setting intro.calls_on turns it off. It shows in "Your meetings" as "NAME: Introductory call".
+- Checked on the server after release: the setting is on, the meeting lists still answer for the test attorney and the test freelancer, the test freelancer has meeting availability, the sample freelancers have none (so they cannot be booked until they get availability).
+- Not checked: a real booking on the site in a browser, and the Vectera room for a call with no gig (the room title is "Lawfecta: Introductory call").
+- The Talent journey ChatGPT prompt does not cover "Book a call" yet, and its step 18 and step 23 now see one more button ("Book a call") and a changed sentence in the conversation.
+
 ## Steps 21 and 22: firm logo and client card; Talent and profile revised to mockup 02: ON THE SITE (2026-11-13)
 - Site: code_version c9bd839, api function version 113, migrations through 0112, health "ok". GitHub Tests passed on that commit (run 43474909309; the recorder check "Ready for review" failed once and passed on the rerun, as it has before).
 - Step 21 (docs/briefs/step-21-firm-logo-client-face.md): firm logo in "Firm details" (saves at once; owner and firm staff); freelancers see one card with the attorney's picture, name, "Verified" and the firm's logo and name on the gig page, in a conversation and on the engagement. List rows still show names only. The gig page now shows the attorney's own name (question 1 in the brief).

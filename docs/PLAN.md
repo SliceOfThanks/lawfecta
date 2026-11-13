@@ -2,6 +2,9 @@
 
 Last updated 2026-11-06. The one-page picture (built, in progress, next, before the MVP, after) is docs/MVP_OVERVIEW.md. Stacey's own checklist, in order, is docs/STACEY_TODO.md. Read this with STATUS.md. It shows what is done, what is being tested, what needs work, what is waiting on Stacey, and what comes next.
 
+## Newest (2026-11-13): step 23 is on the site
+"Book a call" before a gig is released (STATUS.md, top section). Needs work: bring the Talent journey ChatGPT prompt in line (one more button on the profile, a changed sentence in the conversation, a booking step). Waiting on Stacey: the five questions in docs/briefs/step-23-intro-calls.md and a first real booking on the site.
+
 ## Newest (2026-11-13): steps 21 and 22 are on the site
 The firm logo with the client card for freelancers (step 21) and the Talent and profile revision to mockup 02 (step 22) are released (STATUS.md, top section). Needs work: rewrite the Talent journey ChatGPT prompt for the new labels; "Book a call" before a gig. Waiting on Stacey: the questions in docs/briefs/step-21-firm-logo-client-face.md and docs/briefs/step-22-talent-mockup-02.md, and her look at Talent, a profile and "Firm details".
 
