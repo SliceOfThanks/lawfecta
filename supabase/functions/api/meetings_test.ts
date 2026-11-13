@@ -19,8 +19,11 @@ const hookPkcs1 = new Uint8Array(await crypto.subtle.exportKey("spki", hookKeys.
 const hookPem = "\n-----BEGIN RSA PUBLIC KEY-----\n" + btoa(String.fromCharCode(...hookPkcs1)).replace(/(.{64})/g, "$1\n") + "\n-----END RSA PUBLIC KEY-----\n";
 const hookSign = async (raw: string) => btoa(String.fromCharCode(...new Uint8Array(await crypto.subtle.sign("RSASSA-PKCS1-v1_5", hookKeys.privateKey, new TextEncoder().encode(raw)))));
 const videosdkCalls: Array<{ url: string; auth: string; body: string }> = [];
+const transcriptCalls: string[] = [];
+let transcriptReady = false, transcriptText = "";
 const vecteraCalls: string[] = [];
 
+const hmac = async (secret: string) => { const k = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]); return [...new Uint8Array(await crypto.subtle.sign("HMAC", k, new TextEncoder().encode("dela-videosdk-webhook")))].map((b) => b.toString(16).padStart(2, "0")).join("").slice(0, 40); };
 const vecteraRoomDirect = (k: string) => vecteraRoom(fakeFetch, "https://www.vectera.com", k, "lawfecta-test", new Date().toISOString());
 const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
@@ -34,6 +37,14 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
     return Response.json({ id: "perm", meetingRoomId: b.meetingRoomId, accessLevel: b.accessLevel, accessKey: "k", url: "https://meet.lawfecta.com/r/room-1?k=" + (b.accessLevel === "is_host" ? "host" : "guest") }, { status: 201 });
   }
   if (url === "https://api.videosdk.live/v2/public/rsa-public-key") return Response.json({ publicKey: hookPem });
+  // VideoSDK's live transcription: start and end by room, then the text as a file
+  if (url.startsWith("https://api.videosdk.live/ai/v1/realtime-transcriptions")) {
+    transcriptCalls.push((init.method ?? "GET") + " " + url.split("/realtime-transcriptions")[1] + " " + String(init.body ?? ""));
+    if (url.endsWith("/start")) return Response.json({ id: "tr-1", status: "running" });
+    if (url.endsWith("/end")) return Response.json({ id: "tr-1", status: "completed" });
+    return Response.json(transcriptReady ? { id: "tr-1", status: "completed", transcriptionFilePaths: { txt: "https://cdn.videosdk.live/transcriptions/tr-1.txt" } } : { id: "tr-1", status: "running" });
+  }
+  if (url === "https://cdn.videosdk.live/transcriptions/tr-1.txt") return new Response(transcriptText);
   if (url === "https://api.videosdk.live/v2/rooms") {
     const auth = String((init.headers as Record<string, string>)?.authorization ?? "");
     videosdkCalls.push({ url, auth, body: String(init.body) });
@@ -50,6 +61,8 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
     let out: unknown = "";
     if (body.response_format && system.includes("legal operations tool")) out = { client_info: false, kinds: [] };
     else if (system.includes("You review messages members send")) out = /privately/i.test(user) ? { off_platform: true, kinds: ["off_platform"], insights: [] } : { off_platform: false, kinds: [], insights: ["Replies quickly"] };
+    else if (system.includes("You read the transcript of one meeting")) out = { summary: "They agreed the intake checklist and a start date.\nThe freelancer sends a proposal.", next_steps: ["Freelancer sends a proposal", "Attorney shares the intake form in DELA"],
+      off_platform: /venmo/i.test(user), kinds: /venmo/i.test(user) ? ["payment_outside"] : [], quote: /venmo/i.test(user) ? "you can just pay me on Venmo" : "" };
     else if (system.includes("suggesting next steps after a meeting")) out = { steps: [{ who: "freelancer", text: "Send a proposal" }, { who: "attorney", text: "Update the gig budget" }] };
     else if (system.includes("drafting a reply for the member")) return Response.json({ model: body.model, choices: [{ message: { content: "Thanks, Monday works for me." } }], usage: { prompt_tokens: 5, completion_tokens: 5 } });
     else if (system.includes("summarizing a message thread")) return Response.json({ model: body.model, choices: [{ message: { content: "The attorney needs intake help; the freelancer can start Monday." } }], usage: { prompt_tokens: 5, completion_tokens: 5 } });
@@ -72,7 +85,7 @@ async function call(method: string, path: string, session: string, body?: unknow
 const one = async (q: string, a: unknown[] = []) => (await pool.query(q, a)).rows[0];
 async function worker(times = 2) {
   for (let i = 0; i < times; i++) {
-    await pool.query("update jobs set run_at = now() where status in ('queued', 'delayed') and kind = 'meeting_tick' and payload->>'kind' = 'room'");
+    await pool.query("update jobs set run_at = now() where status in ('queued', 'delayed') and kind = 'meeting_tick' and payload->>'kind' in ('room', 'transcript', 'transcript_expire')");
     await handle(new Request("http://localhost/functions/v1/api/worker", { method: "POST", headers: { "x-dela-worker": WORKER } }), deps);
   }
 }
@@ -265,6 +278,88 @@ Deno.test("VideoSDK: a room per meeting, joined inside DELA by the two people on
   videosdkSecret = "";
   assertEquals((await hook(joined(jf.participant))).status, 400);
   videosdkKey = "";
+});
+
+// Step 25 part 2 (Stacey's answers of 2026-11-13): text only, both agree, either stops, 90 days, the AI reads once, the team opens only flagged ones
+Deno.test("transcripts: only with both people's agreement, stopped by either, kept 90 days, read once by DELA's AI, opened by the team only when flagged", async () => {
+  videosdkKey = "vsdk-test-key"; videosdkSecret = "vsdk-test-secret";
+  await pool.query("update meetings set consent_attorney_at = null, consent_freelancer_at = null, start_at = now() - interval '5 minutes', end_at = now() + interval '25 minutes' where id = $1", [meeting]);
+  await pool.query("update feature_switches set state = 'everyone' where key = 'ai_generation'");
+  const key = (await hmac("vsdk-test-secret"));
+  const hook = async (body: Record<string, unknown>) => {
+    const raw = JSON.stringify(body);
+    return await (await handle(new Request("http://localhost/functions/v1/api/videosdk/webhook?k=" + key, { method: "POST", headers: { "content-type": "application/json", "videosdk-signature": await hookSign(raw) }, body: raw }), deps)).json();
+  };
+  const state = async (who: M) => (await call("GET", "/meetings/room-state?id=" + meeting, who.token)).body;
+  const row = () => one("select status, provider_ref, body is not null has_body, flag_state, summary, delete_after from meeting_transcripts where meeting_id = $1", [meeting]);
+  const jf = (await call("GET", "/meetings/join?id=" + meeting, fl.token)).body, ja = (await call("GET", "/meetings/join?id=" + meeting, att.token)).body;
+  assertEquals([jf.transcript_on, jf.transcript_days, typeof jf.logo], [true, 90, "string"], "the meeting screen learns that transcripts are offered, for how long they are kept, and the logo to show");
+  // Both in the room, nobody agreed: nothing is transcribed
+  await hook({ webhookType: "session-started", data: { meetingId: "abcd-efgh-ijkl", sessionId: "s2" } });
+  await hook({ webhookType: "participant-joined", data: { meetingId: "abcd-efgh-ijkl", sessionId: "s2", participantId: ja.participant } });
+  await hook({ webhookType: "participant-joined", data: { meetingId: "abcd-efgh-ijkl", sessionId: "s2", participantId: jf.participant } });
+  assertEquals([(await state(att)).transcript, transcriptCalls.length], ["none", 0], "no agreement, no transcript");
+  // One agrees: still nothing. Both agree: it starts, once.
+  assertEquals((await call("POST", "/meetings/consent", att.token, { id: meeting, consent: true })).body.ok, true);
+  assertEquals([(await state(att)).transcript, (await state(att)).my_consent, (await state(att)).both_consent, transcriptCalls.length], ["none", true, false, 0], "one person's agreement is not enough");
+  assertEquals((await call("POST", "/meetings/consent", fl.token, { id: meeting, consent: true })).body.ok, true);
+  assertEquals([(await state(fl)).transcript, (await row()).provider_ref], ["running", "tr-1"], "both agreed while in the room: the transcript starts");
+  assertEquals(transcriptCalls.filter((c) => c.startsWith("POST /start")).length, 1);
+  assert(transcriptCalls[0].includes('"roomId":"abcd-efgh-ijkl"') && !/name|email|title/i.test(transcriptCalls[0]), "only the room is named to VideoSDK: " + transcriptCalls[0]);
+  await call("POST", "/meetings/consent", fl.token, { id: meeting, consent: true });
+  assertEquals(transcriptCalls.filter((c) => c.startsWith("POST /start")).length, 1, "agreeing twice does not start it twice");
+  assertEquals((await state(other)).reason, "not_found", "nobody else sees the room's state");
+  assertEquals((await call("POST", "/meetings/transcript/stop", other.token, { id: meeting })).body.reason, "not_found", "nobody else can stop it");
+  // Either person stops it for the rest of the call
+  assertEquals((await call("POST", "/meetings/transcript/stop", fl.token, { id: meeting })).body.was_running, true);
+  assertEquals([(await state(att)).transcript, transcriptCalls.filter((c) => c.startsWith("POST /end")).length], ["stopped", 1]);
+  await call("POST", "/meetings/consent", att.token, { id: meeting, consent: true });
+  assertEquals(transcriptCalls.filter((c) => c.startsWith("POST /start")).length, 1, "a stopped transcript does not start again in the same meeting");
+  // After the session: the text is fetched when VideoSDK has it, kept 90 days, and DELA's AI reads it once
+  await hook({ webhookType: "session-ended", data: { meetingId: "abcd-efgh-ijkl", sessionId: "s2" } });
+  await worker(1);
+  assertEquals((await row()).status, "stopped", "not ready at VideoSDK yet: the job tries again later");
+  transcriptReady = true; transcriptText = "Attorney: Can you start Monday?\nFreelancer: Yes. And you can just pay me on Venmo to skip the fees.";
+  await pool.query("update jobs set status = 'queued', attempts = 0 where kind = 'meeting_tick' and payload->>'kind' = 'transcript' and payload->>'meeting_id' = $1", [meeting]);
+  await worker(1);
+  const kept = await row();
+  assertEquals([kept.status, kept.has_body, kept.flag_state], ["collected", true, "open"], JSON.stringify(kept));
+  assert(kept.summary.includes("intake checklist"), "DELA's AI wrote the summary");
+  const days = (new Date(kept.delete_after).getTime() - Date.now()) / 86400000;
+  assert(days > 89 && days < 91, "kept until 90 days after the meeting ends: " + days);
+  // Both people read it on the meeting card; they never see the team's flag
+  const card = ((await call("GET", "/meetings?id=" + meeting, fl.token)).body.meetings as Array<Record<string, any>>)[0].transcript;
+  assertEquals([card.status, card.has_text, card.steps.length, "flag_state" in card, "body" in card], ["collected", true, 2, false, false], JSON.stringify(card));
+  assert((await call("GET", "/meetings/transcript?id=" + meeting, att.token)).body.text.includes("Can you start Monday?"));
+  assertEquals((await call("GET", "/meetings/transcript?id=" + meeting, other.token)).body.reason, "not_found", "nobody else reads it");
+  // The team: sees the flag with the passage, and each opening is recorded
+  assertEquals((await call("GET", "/admin/transcripts", att.token)).status, 403);
+  const flags = (await call("GET", "/admin/transcripts", team.token)).body.data.flags as Array<Record<string, any>>;
+  assertEquals([flags.length, flags[0].state, flags[0].kinds.includes("payment_outside"), flags[0].note], [1, "open", true, "you can just pay me on Venmo"]);
+  assertEquals((await call("POST", "/admin/transcripts/open", att.token, { meeting_id: meeting })).status, 403);
+  assert((await call("POST", "/admin/transcripts/open", team.token, { meeting_id: meeting })).body.data.text.includes("Venmo"));
+  await call("POST", "/admin/transcripts/open", team.token, { meeting_id: meeting });
+  assertEquals((await one("select count(*)::int n from meeting_events where meeting_id = $1 and action = 'transcript_opened_by_team' and actor = $2", [meeting, team.id])).n, 2, "every opening is written to the meeting's events, with who");
+  assertEquals((await call("POST", "/admin/transcripts/decide", team.token, { meeting_id: meeting, action: "confirmed", note: "Spoke to both." })).body.data.ok, true);
+  assertEquals((await one("select count(*)::int n from holds")).n, (await one("select count(*)::int n from holds")).n, "a flag by itself changes nothing for a member");
+  // A transcript that was neither flagged nor reported cannot be opened by the team
+  await pool.query("update meeting_transcripts set flag_state = 'none' where meeting_id = $1", [meeting]);
+  assertEquals((await call("POST", "/admin/transcripts/open", team.token, { meeting_id: meeting })).body.data.reason, "no_reason_to_open");
+  // Either person deletes the text early, for both; the summary stays
+  assertEquals((await call("POST", "/meetings/transcript/delete", other.token, { id: meeting })).body.reason, "not_found");
+  assertEquals((await call("POST", "/meetings/transcript/delete", att.token, { id: meeting })).body.ok, true);
+  const after = ((await call("GET", "/meetings?id=" + meeting, fl.token)).body.meetings as Array<Record<string, any>>)[0].transcript;
+  assertEquals([after.status, after.has_text, after.summary.includes("intake checklist")], ["deleted", false, true], "deleted for both; the summary and next steps stay");
+  assertEquals((await call("GET", "/meetings/transcript?id=" + meeting, fl.token)).body.reason, "no_transcript");
+  // The 90 days: the text goes by itself when the time is over, not before
+  await pool.query("update meeting_transcripts set body = 'x', status = 'collected', deleted_at = null, delete_after = now() + interval '1 day' where meeting_id = $1", [meeting]);
+  assertEquals((await one("select dela_transcript_delete(null, '', $1) r", [meeting])).r.skipped, true, "not before its time");
+  await pool.query("update meeting_transcripts set delete_after = now() - interval '1 minute' where meeting_id = $1", [meeting]);
+  assertEquals((await one("select dela_transcript_delete(null, '', $1) r", [meeting])).r.ok, true);
+  assertEquals((await row()).has_body, false, "after its keeping time the text is gone");
+  // Leave the shared test meeting as the later tests expect it: nobody agreed, and in the future
+  await pool.query("update meetings set consent_attorney_at = null, consent_freelancer_at = null, start_at = now() + interval '2 days', end_at = now() + interval '2 days 30 minutes' where id = $1", [meeting]);
+  videosdkKey = ""; videosdkSecret = "";
 });
 
 Deno.test("consent, reschedule once with one update, and a late cancel", async () => {

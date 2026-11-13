@@ -6660,8 +6660,11 @@
   // area, so a full-window layer is added to the page and taken away again on leaving. Camera and microphone are asked
   // for by the browser at that moment. In-call chat, recording, whiteboard and polls are off: messages stay in DELA,
   // where they are read for off-platform talk, and nothing is recorded.
-  var meetingRoomOpen = false;
+  var meetingRoomOpen = false, meetingRoomTimer = null;
+  var TRANSCRIBE_LABEL = "Transcribe this meeting (no video or audio is kept)";
+  var TRANSCRIBE_AI = "DELA's AI reads the transcript to write a summary and next steps, and to check for payment talk outside Lawfecta.";
   function closeMeetingRoom() {
+    if (meetingRoomTimer) { clearInterval(meetingRoomTimer); meetingRoomTimer = null; }
     var layer = document.getElementById("dela-meeting-layer");
     if (layer && layer.parentNode) layer.parentNode.removeChild(layer);
     document.documentElement.style.overflow = "";
@@ -6672,38 +6675,56 @@
     if (meetingRoomOpen) return;
     if (btn) { btn.disabled = true; btn.textContent = "Opening the room..."; }
     var fail = function (text) { if (btn) { btn.disabled = false; btn.textContent = "Join the meeting"; } D.toast(app, text, true); };
-    api.get("/meetings/join?id=" + m.id).then(function (r) {
+    var mk = function (tag, css, text) { var e = document.createElement(tag); if (css) e.style.cssText = css; if (text) e.textContent = text; return e; };
+    Promise.all([api.get("/meetings/join?id=" + m.id), api.get("/meetings/room-state?id=" + m.id)]).then(function (rs) {
+      var r = rs[0], st = rs[1].ok ? rs[1] : { my_consent: false, both_consent: false, transcript: "none" };
       if (!r.ok) { fail(r.reason === "room_not_open" ? "The room is not open right now. It opens shortly before the meeting and closes 30 minutes after it." : talkErr(r)); return; }
       meetingRoomOpen = true;
-      var layer = document.createElement("div");
+      var FONT = "system-ui,-apple-system,Segoe UI,sans-serif";
+      var layer = mk("div", "position:fixed;inset:0;z-index:2147483000;background:#0f1320;display:flex;flex-direction:column;font-family:" + FONT);
       layer.id = "dela-meeting-layer";
       layer.setAttribute("role", "dialog"); layer.setAttribute("aria-modal", "true"); layer.setAttribute("aria-label", "Meeting room: " + (m.other_name || "") + ", " + (r.title || "meeting"));
-      layer.style.cssText = "position:fixed;inset:0;z-index:2147483000;background:#0f1320;display:flex;flex-direction:column";
-      var bar = document.createElement("div");
-      bar.style.cssText = "display:flex;align-items:center;gap:12px;padding:8px 14px;background:#192031;color:#fff;font:600 15px/1.3 system-ui,sans-serif";
-      var title = document.createElement("span"); title.style.cssText = "flex:1 1 auto;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap";
-      title.textContent = "Lawfecta meeting: " + (m.other_name || "") + (r.title ? " | " + r.title : "");
-      var note = document.createElement("span"); note.style.cssText = "font-weight:400;font-size:13px;opacity:.85"; note.textContent = "Keep all work, contact and payment on Lawfecta.";
-      var leave = document.createElement("button"); leave.type = "button"; leave.textContent = "Leave and go back to DELA";
-      leave.style.cssText = "background:#fff;color:#192031;border:0;border-radius:8px;padding:10px 14px;font:700 14px system-ui,sans-serif;cursor:pointer;min-height:44px";
+      // The top bar: what this is, the two reminders, whether a transcript is running, and the ways out
+      var bar = mk("div", "display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px;padding:8px 14px;background:#192031;color:#fff");
+      var words = mk("div", "flex:1 1 260px;min-width:0");
+      words.appendChild(mk("div", "font:700 15px/1.3 " + FONT + ";overflow:hidden;text-overflow:ellipsis;white-space:nowrap", "Lawfecta meeting: " + (m.other_name || "") + (r.title ? " | " + r.title : "")));
+      words.appendChild(mk("div", "font:400 13px/1.35 " + FONT + ";opacity:.9", "Keep all work, contact and payment on Lawfecta."));
+      words.appendChild(mk("div", "font:400 13px/1.35 " + FONT + ";opacity:.9", "To share links or files, use your DELA messages."));
+      var trState = mk("span", "font:700 13px/1.3 " + FONT + ";padding:6px 10px;border-radius:999px;background:#2a3350;color:#fff");
+      trState.id = "dela-transcript-state"; trState.setAttribute("role", "status");
+      var BTN = "border:0;border-radius:8px;padding:10px 14px;font:700 14px " + FONT + ";cursor:pointer;min-height:44px";
+      var stopBtn = mk("button", BTN + ";background:#fbeef2;color:#8b2146", "Stop transcript"); stopBtn.type = "button"; stopBtn.hidden = true;
+      var leave = mk("button", BTN + ";background:#fff;color:#192031", "Leave and go back to DELA"); leave.type = "button";
       leave.addEventListener("click", closeMeetingRoom);
-      bar.appendChild(title); bar.appendChild(note); bar.appendChild(leave);
-      var room = document.createElement("div"); room.id = "dela-meeting-room"; room.style.cssText = "flex:1 1 auto;min-height:0;position:relative";
-      var wait = document.createElement("p"); wait.style.cssText = "color:#fff;font:15px system-ui,sans-serif;padding:24px"; wait.textContent = "Loading the meeting room...";
-      room.appendChild(wait);
+      bar.appendChild(words); bar.appendChild(trState); bar.appendChild(stopBtn); bar.appendChild(leave);
+      var room = mk("div", "flex:1 1 auto;min-height:0;position:relative;overflow:auto"); room.id = "dela-meeting-room";
       layer.appendChild(bar); layer.appendChild(room);
       document.body.appendChild(layer);
       document.documentElement.style.overflow = "hidden";
-      leave.focus();
+      function paint(x) {
+        var on = x.transcript === "running" || x.transcript === "starting";
+        trState.textContent = on ? "This meeting is being transcribed" : "This meeting is not being transcribed";
+        trState.style.background = on ? "#21613d" : "#2a3350";
+        stopBtn.hidden = !on;
+      }
+      paint(st);
+      var poll = function () { api.get("/meetings/room-state?id=" + m.id).then(function (x) { if (x.ok && meetingRoomOpen) paint(x); }).catch(function () {}); };
+      stopBtn.addEventListener("click", function () {
+        stopBtn.disabled = true;
+        api.post("/meetings/transcript/stop", { id: m.id }).then(function () { stopBtn.disabled = false; poll(); }).catch(function () { stopBtn.disabled = false; });
+      });
+      // Before the camera check: each person says whether this meeting may be transcribed
       var start = function () {
+        while (room.firstChild) room.removeChild(room.firstChild);
+        meetingRoomTimer = setInterval(poll, 10000);
         try {
-          if (wait.parentNode) wait.parentNode.removeChild(wait);
           new window.VideoSDKMeeting().init({
             name: r.name, meetingId: r.room, apiKey: r.api_key, participantId: r.participant, containerId: "dela-meeting-room",
             micEnabled: true, webcamEnabled: true, participantCanToggleSelfWebcam: true, participantCanToggleSelfMic: true, participantCanLeave: true,
             chatEnabled: false, screenShareEnabled: true, whiteboardEnabled: false, raiseHandEnabled: false, pollEnabled: false,
             participantTabPanelEnabled: true, moreOptionsEnabled: false, maxResolution: "hd", joinWithoutUserInteraction: false,
             recording: { enabled: false, autoStart: false }, livestream: { enabled: false, autoStart: false },
+            branding: { enabled: true, logoURL: r.logo || "", name: "Lawfecta", poweredBy: false }, theme: "LIGHT",
             joinScreen: { visible: true, title: "Lawfecta meeting", meetingUrl: "" },
             permissions: { askToJoin: false, toggleParticipantWebcam: false, toggleParticipantMic: false, toggleParticipantMode: false, toggleParticipantScreenshare: false,
               removeParticipant: false, endMeeting: false, drawOnWhiteboard: false, toggleWhiteboard: false, toggleRecording: false, toggleLivestream: false, canCreatePoll: false, changeLayout: true, pin: true },
@@ -6711,12 +6732,37 @@
           });
         } catch (e) { closeMeetingRoom(); D.toast(app, "The meeting room could not start. Reload the page and try again.", true); }
       };
-      if (window.VideoSDKMeeting) { start(); return; }
-      var sc = document.createElement("script");
-      sc.src = r.script; sc.async = true;
-      sc.addEventListener("load", start);
-      sc.addEventListener("error", function () { closeMeetingRoom(); D.toast(app, "The meeting room could not be loaded. Check your connection and try again.", true); });
-      document.head.appendChild(sc);
+      var load = function () {
+        room.appendChild(mk("p", "color:#fff;font:15px " + FONT + ";padding:24px", "Loading the meeting room..."));
+        if (window.VideoSDKMeeting) { start(); return; }
+        var sc = document.createElement("script");
+        sc.src = r.script; sc.async = true;
+        sc.addEventListener("load", start);
+        sc.addEventListener("error", function () { closeMeetingRoom(); D.toast(app, "The meeting room could not be loaded. Check your connection and try again.", true); });
+        document.head.appendChild(sc);
+      };
+      if (!r.transcript_on) { leave.focus(); load(); return; }
+      var panel = mk("div", "max-width:560px;margin:6vh auto;background:#fff;color:#1c2230;border-radius:14px;padding:22px 24px;font:15px/1.5 " + FONT);
+      panel.id = "dela-meeting-consent";
+      panel.appendChild(mk("h2", "margin:0 0 8px;font:700 20px/1.3 " + FONT, "Before you join"));
+      var lab = mk("label", "display:flex;gap:10px;align-items:flex-start;font-weight:700;cursor:pointer;margin:10px 0 6px");
+      var box = document.createElement("input"); box.type = "checkbox"; box.id = "dela-transcribe-box"; box.checked = st.my_consent === true; box.style.cssText = "width:22px;height:22px;flex:0 0 auto;margin-top:1px";
+      lab.appendChild(box); lab.appendChild(mk("span", "", TRANSCRIBE_LABEL));
+      panel.appendChild(lab);
+      panel.appendChild(mk("p", "margin:0 0 6px", TRANSCRIBE_AI));
+      panel.appendChild(mk("p", "margin:0 0 6px;color:#5f6675", "The meeting is transcribed only when both of you tick this box. If either of you leaves it unticked, nothing is transcribed. Either of you can press \"Stop transcript\" at any time. The transcript is deleted 90 days after the meeting; the summary and next steps stay with the meeting.".replace("90 days", (r.transcript_days || 90) + " days")));
+      var go = mk("button", BTN + ";background:#8b2146;color:#fff;margin-top:8px", "Continue to the camera and microphone check"); go.type = "button";
+      var say = mk("p", "margin:8px 0 0;color:#b53b39"); say.setAttribute("role", "alert");
+      go.addEventListener("click", function () {
+        go.disabled = true; say.textContent = "";
+        api.post("/meetings/consent", { id: m.id, consent: box.checked }).then(function (x) {
+          if (x.ok === false) { go.disabled = false; say.textContent = "Your choice could not be saved. Try again."; return; }
+          poll(); load();
+        }).catch(function () { go.disabled = false; say.textContent = "Your choice could not be saved. Check your connection and try again."; });
+      });
+      panel.appendChild(go); panel.appendChild(say);
+      room.appendChild(panel);
+      box.focus();
     }).catch(function (e) { fail(D.errorText(e.message)); });
   }
 
@@ -6745,7 +6791,7 @@
       else c.appendChild(h("p", { class: "small muted", text: "The room opens at " + timeLabel(m.join_opens_at) + " on " + dayLabel(m.join_opens_at) + "." }));
       var consent = h("input", { type: "checkbox", checked: m.my_consent });
       consent.addEventListener("change", function () { api.post("/meetings/consent", { id: m.id, consent: consent.checked }).then(gigOk).then(function () { D.toast(app, consent.checked ? "Saved. Nothing is recorded unless you both agree." : "Saved"); }).catch(talkFail); });
-      c.appendChild(h("label", { style: "display:flex;gap:8px;font-weight:400;margin-top:8px" }, consent, h("span", { text: "I agree to this meeting being recorded or noted. Nothing is recorded unless both of you agree." + (m.both_consent ? " You both agreed." : "") })));
+      c.appendChild(h("label", { style: "display:flex;gap:8px;font-weight:400;margin-top:8px" }, consent, h("span", { text: TRANSCRIBE_LABEL + ". " + TRANSCRIBE_AI + " Nothing is transcribed unless both of you tick this." + (m.both_consent ? " You both agreed." : "") })));
       c.appendChild(h("div", { class: "row", style: "margin-top:8px;flex-wrap:wrap" },
         h("button", { class: "ghost small", type: "button", onclick: function () {
           api.get("/meetings/ics?id=" + m.id).then(gigOk).then(function (x) {
@@ -6763,6 +6809,37 @@
     if (m.status === "confirmed" && started && m.join_url) {
       if (m.join_url.indexOf("dela:") === 0) { var jb = h("button", { class: "blue", type: "button" }, "Join the meeting"); jb.addEventListener("click", function () { openMeetingRoom(m, jb); }); c.appendChild(jb); }
       else c.appendChild(h("a", { class: "btn blue", href: m.join_url, target: "_blank", rel: "noopener" }, "Join the meeting"));
+    }
+    // Step 25 part 2: the transcript of this meeting, for the two people only
+    var tr = m.transcript;
+    if (tr && tr.status !== "starting" && tr.status !== "running" && tr.status !== "failed") {
+      var tb = h("div", { class: "soft", id: "transcript-" + m.id, style: "margin-top:10px;padding:10px 12px;border-radius:12px" }, h("h3", { style: "margin:0 0 4px", text: "Transcript" }));
+      if (tr.summary) { tb.appendChild(h("p", { class: "small muted", style: "margin:0", text: "Summary by DELA's AI" })); lineList(tr.summary).forEach(function (l) { tb.appendChild(h("p", { style: "margin:4px 0", text: l })); }); }
+      if ((tr.steps || []).length) { tb.appendChild(h("p", { class: "small muted", style: "margin:6px 0 0", text: "Next steps" })); tb.appendChild(h("ul", { class: "tp-lines" }, tr.steps.map(function (x) { return h("li", { text: x }); }))); }
+      if (tr.has_text) {
+        var trOut = h("div", { hidden: true, style: "white-space:pre-wrap;max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:8px;padding:10px;margin-top:8px;background:var(--card)", tabindex: "0", "aria-label": "Transcript text" });
+        var trMsg = h("span", { class: "small muted", role: "status" });
+        var readB = h("button", { class: "ghost small", type: "button" }, "Read the transcript");
+        readB.addEventListener("click", function () {
+          if (!trOut.hidden) { trOut.hidden = true; readB.textContent = "Read the transcript"; return; }
+          trMsg.textContent = "Loading...";
+          api.get("/meetings/transcript?id=" + m.id).then(function (x) {
+            trMsg.textContent = "";
+            if (!x.ok) { trMsg.textContent = "The transcript is no longer kept."; return; }
+            trOut.textContent = x.text; trOut.hidden = false; readB.textContent = "Hide the transcript";
+          }).catch(function (e) { trMsg.textContent = D.errorText(e.message); });
+        });
+        tb.appendChild(h("p", { class: "small muted", style: "margin:6px 0", text: "Text only: no video or audio was kept. Both of you can read it." + (tr.delete_after ? " It is deleted on " + D.date(tr.delete_after) + "." : "") }));
+        tb.appendChild(h("div", { class: "row", style: "gap:6px;flex-wrap:wrap;align-items:center" }, readB,
+          h("button", { class: "danger small", type: "button", onclick: function () {
+            if (!confirm("Delete this transcript for both of you? The summary and next steps stay. This cannot be undone.")) return;
+            api.post("/meetings/transcript/delete", { id: m.id }).then(gigOk).then(function () { draw(); D.toast(app, "Transcript deleted for both of you"); }).catch(talkFail);
+          } }, "Delete transcript"), trMsg));
+        tb.appendChild(trOut);
+      } else if (tr.status === "deleted") tb.appendChild(h("p", { class: "small muted", style: "margin:6px 0 0", text: "The transcript text was deleted" + (tr.deleted_at ? " on " + D.date(tr.deleted_at) : "") + "." + (tr.summary ? " The summary and next steps stay with the meeting." : "") }));
+      else if (tr.status === "empty") tb.appendChild(h("p", { class: "small muted", style: "margin:6px 0 0", text: "Nothing was said that could be written down, so there is no transcript." }));
+      else if (tr.status === "stopped") tb.appendChild(h("p", { class: "small muted", style: "margin:6px 0 0", text: "The transcript is being prepared. It shows here a few minutes after the meeting." }));
+      c.appendChild(tb);
     }
     // Step 24: an introductory call leads back to its conversation and, for the attorney, on to a gig for this freelancer
     if (m.intro_thread) {

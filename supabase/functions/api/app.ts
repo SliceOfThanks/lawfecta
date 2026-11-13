@@ -13,7 +13,7 @@ import { brevoDelivery } from "./lib/mail/brevo.ts";
 import { verifyPass } from "./lib/pass.ts";
 import { sendSms } from "./lib/sms/brevo.ts";
 import { type BdResult, bdCall, bdCategories, bdFields, bdList, bdMember, bdMember as bdMember_, bdUpdate, shapeOf } from "./lib/bd/members.ts";
-import { meetingIcs, NEXT_STEPS_SYSTEM, readSteps, THREAD_SYSTEM, threadPrompt, vecteraRoom, videosdkRoom, videosdkVerify, withoutLawfectaLinks } from "./lib/meetings/meet.ts";
+import { meetingIcs, NEXT_STEPS_SYSTEM, readSteps, THREAD_SYSTEM, threadPrompt, vecteraRoom, videosdkRoom, videosdkVerify, videosdkTranscriptStart, videosdkTranscriptStop, videosdkTranscriptText, TRANSCRIPT_SYSTEM, readTranscriptAi, withoutLawfectaLinks } from "./lib/meetings/meet.ts";
 import { conductRules, GIG_SYSTEM, gigPrompt, normalizeMilestones, normalizePublic, PROPOSAL_SYSTEM, publicFromPlaybook, readReview, REVIEW_SYSTEM, toCents } from "./lib/gigs/model.ts";
 import { asksAboutTools, CATALOG_RULES, catalogText, rankForMember, readCatalog, type Tool } from "./lib/catalog/csv.ts";
 import { aiContext, fromBd, LABELS, normalize as normalizeProfile, PRACTICE_AREAS, PROFILE_SYSTEM, profileText, readiness, FIELD_GUIDE, FIELD_SYSTEM, TECH_GROUPS, TECH_TOOLS, TIMEZONES, toBd, type BdMap, type Side } from "./lib/profiles/model.ts";
@@ -2929,7 +2929,8 @@ async function meetingJoin(ctx: Ctx) {
   if (!apiKey) return json(ctx, { ok: false, reason: "room_not_open" });
   const script = await setting(ctx, "meeting.videosdk_prebuilt_url", "");
   if (!/^https:\/\/sdk\.videosdk\.live\/rtc-js-prebuilt\/\d+\.\d+\.\d+\/rtc-js-prebuilt\.js$/.test(script)) return json(ctx, { ok: false, reason: "room_not_open" });
-  return json(ctx, { ...r, api_key: apiKey, script });
+  return json(ctx, { ...r, api_key: apiKey, script, logo: await codeLogo(ctx), transcript_on: (await setting(ctx, "meeting.transcript_on", "false")) === "true",
+    transcript_days: Number(await setting(ctx, "meeting.transcript_days", "")) || null });
 }
 // What VideoSDK reports about a room: checked twice (the address key and VideoSDK's signature), then kept with the meeting
 async function videosdkWebhook(ctx: Ctx) {
@@ -2942,7 +2943,70 @@ async function videosdkWebhook(ctx: Ctx) {
   try { ev = JSON.parse(raw); } catch { throw new HttpError(400, "bad_json"); }
   const d = ev?.data && typeof ev.data === "object" ? ev.data as Record<string, unknown> : {};
   const p = { participantId: str(d.participantId, 80), sessionId: str(d.sessionId, 80), reason: str(d.reason, 80), start: str(d.start, 40), end: str(d.end, 40) };
-  return json(ctx, await rpc(ctx, "dela_meeting_provider_event", { p_room: str(d.meetingId, 80), p_type: str(ev?.webhookType, 60), p }));
+  const type = str(ev?.webhookType, 60);
+  const r = await rpc<Record<string, any>>(ctx, "dela_meeting_provider_event", { p_room: str(d.meetingId, 80), p_type: type, p });
+  // Part 2: with both people in the room and both agreed, the transcript starts; when the session ends it is collected
+  if (r?.meeting && (type === "participant-joined" || type === "session-started")) await transcriptStart(ctx, String(r.meeting)).catch(() => null);
+  if (r?.meeting && type === "session-ended") await transcriptCollectSoon(ctx, String(r.meeting), 90).catch(() => null);
+  return json(ctx, r);
+}
+// ---------- Transcripts (step 25 part 2): text only, both people agree first, either can stop, kept for a set time ----------
+const videosdkKeys = (ctx: Ctx) => ({ key: ctx.deps.env("VIDEOSDK_API_KEY"), secret: ctx.deps.env("VIDEOSDK_SECRET") });
+async function transcriptStart(ctx: Ctx, meeting: string): Promise<void> {
+  const k = videosdkKeys(ctx);
+  if (!k.key || !k.secret) return;
+  const r = await rpc<Record<string, any>>(ctx, "dela_transcript_reserve", { p_meeting: meeting });
+  if (!r?.ok) return;
+  const st = await videosdkTranscriptStart(f(ctx), k.key, k.secret, String(r.room), await videosdkHookUrl(ctx));
+  if (!st.ok) console.error("transcript_start", st.error);
+  await rpc(ctx, "dela_transcript_started", { p_meeting: meeting, p_ref: st.ref, p_ok: st.ok });
+}
+async function transcriptCollectSoon(ctx: Ctx, meeting: string, seconds: number): Promise<void> {
+  await rpc(ctx, "dela_job_enqueue", { p_kind: "meeting_tick", p_payload: { meeting_id: meeting, kind: "transcript" }, p_run_at: new Date(Date.now() + seconds * 1000).toISOString(), p_idem: "meettr:" + meeting, p_person: null });
+}
+// The worker: stop anything still running, fetch the text, keep it, then DELA's AI reads it once
+async function transcriptCollect(ctx: Ctx, meeting: string): Promise<{ ok: boolean; retry?: boolean; error?: string }> {
+  const k = videosdkKeys(ctx);
+  let t = await rpc<Record<string, any> | null>(ctx, "dela_transcript_for_job", { p_meeting: meeting });
+  if (!t || ["deleted", "empty", "failed"].includes(String(t.status))) return { ok: true };
+  if (t.status === "starting" || t.status === "running") {
+    const st = await rpc<Record<string, any>>(ctx, "dela_transcript_stop", { p_person: null, p_side: "", p_meeting: meeting });
+    if (st?.was_running && k.key) await videosdkTranscriptStop(f(ctx), k.key, k.secret, String(st.room));
+  }
+  if (!t.has_body) {
+    if (!k.key || !k.secret) return { ok: false, retry: true, error: "no_keys" };
+    const got = await videosdkTranscriptText(f(ctx), k.key, k.secret, String(t.provider_ref));
+    if (got.state === "wait") return { ok: false, retry: true, error: "transcript_not_ready" };
+    const kept = await rpc<Record<string, any>>(ctx, "dela_transcript_store", { p_meeting: meeting, p_body: got.state === "ready" ? got.text : "" });
+    if (!kept?.ok || kept.empty) return { ok: true };
+    t = await rpc<Record<string, any> | null>(ctx, "dela_transcript_for_job", { p_meeting: meeting });
+  }
+  if (!t || t.ai_done || !t.body) return { ok: true };
+  // DELA's rules first, then DELA's AI on Lawfecta's own key; the members' DELA actions are not used
+  const text = String(t.body), kinds = conductRules(text);
+  let summary = "", steps: string[] = [], quote = "";
+  const key = lawfectaKey(ctx, "openai");
+  if (key && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "ai_generation", p_person: null }).catch(() => false)) {
+    const model = await setting(ctx, "ai.model.openai", "gpt-5.4-mini");
+    try {
+      const r = await chat(f(ctx), "openai", key, model, TRANSCRIPT_SYSTEM, [{ role: "user", content: "Meeting: " + String(t.title) + "\n\nTranscript:\n" + text.slice(0, 60000) }], true);
+      const a = readTranscriptAi(r.text);
+      summary = a.summary; steps = a.steps; quote = a.quote;
+      if (a.off) for (const x of a.kinds.length ? a.kinds : ["off_platform"]) if (kinds.indexOf(x) < 0) kinds.push(x);
+      await logUsage(ctx, { person_id: t.attorney_person, side: "attorney", task: "meeting_transcript", source: "lawfecta", provider: "openai", model: r.model, input_tokens: r.input_tokens, output_tokens: r.output_tokens, ok: true });
+    } catch (e) {
+      await logUsage(ctx, { person_id: t.attorney_person, side: "attorney", task: "meeting_transcript", source: "lawfecta", provider: "openai", model, ok: false, error: e instanceof AiFail ? e.code : "provider_down" });
+      if (!kinds.length) return { ok: false, retry: true, error: "ai_down" };
+    }
+  }
+  await rpc(ctx, "dela_transcript_ai_save", { p_meeting: meeting, p_summary: summary, p_steps: steps, p_flag: kinds.length > 0, p_kinds: kinds, p_note: quote });
+  return { ok: true };
+}
+async function transcriptStopNow(ctx: Ctx, s: Session, meeting: string) {
+  const st = await rpc<Record<string, any>>(ctx, "dela_transcript_stop", { p_person: s.person_id, p_side: s.side, p_meeting: meeting });
+  const k = videosdkKeys(ctx);
+  if (st?.ok && st.was_running && k.key) { await videosdkTranscriptStop(f(ctx), k.key, k.secret, String(st.room)); await transcriptCollectSoon(ctx, meeting, 60).catch(() => null); }
+  return st;
 }
 
 async function meetingIcsFile(ctx: Ctx) {
@@ -4773,6 +4837,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   },
   "/admin/ai-files": async (c, a) => ({ ...(await rpc<Record<string, unknown>>(c, "dela_admin_ai_files", { p_actor: a })), ready: aiReady(c.deps) }),
   "/admin/categories": (c, a) => rpc(c, "dela_admin_categories", { p_actor: a }),
+  "/admin/transcripts": (c, a) => rpc(c, "dela_admin_transcript_flags", { p_actor: a }),
   // Step 26: every firm logo, for the Lawfecta Team; the file path stays on the server
   "/admin/firm-logos": async (c, a) => {
     const r = await rpc<Record<string, any>>(c, "dela_admin_firm_logos", { p_actor: a });
@@ -4846,6 +4911,9 @@ const ADMIN_POST: Record<string, AdminRoute> = {
     const r = await rpc<Record<string, any>>(c, "dela_admin_submission_decide", { p_actor: a, p_submission: need(uuid(c.body.id)), p_pass: c.body.pass === true, p_note: str(c.body.note, 1000) });
     return r;
   },
+  // Opening a transcript is itself an action: it is written to the meeting's events and the audit log each time
+  "/admin/transcripts/open": (c, a) => rpc(c, "dela_admin_transcript_open", { p_actor: a, p_meeting: need(uuid(c.body.meeting_id)) }),
+  "/admin/transcripts/decide": (c, a) => rpc(c, "dela_admin_transcript_decide", { p_actor: a, p_meeting: need(uuid(c.body.meeting_id)), p_action: str(c.body.action, 20), p_note: str(c.body.note, 600) }),
   "/admin/firm-logos/remove": async (c, a) => {
     const r = await rpc<Record<string, any>>(c, "dela_admin_firm_logo_remove", { p_actor: a, p_org: need(uuid(c.body.org_id)), p_reason: str(c.body.reason, 300) });
     if (r?.ok && r.old && LOGO_PATH.test(String(r.old)) && c.deps.storage) await c.deps.storage.remove([String(r.old)]).catch(() => {});
@@ -5149,6 +5217,8 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "bench_daily") { await rpc(ctx, "dela_bench_daily", {}); return { ok: true }; }
   if (j.kind === "meeting_tick") {
     if (j.payload?.kind === "room") return await meetingRoom(ctx, String(j.payload.meeting_id));
+    if (j.payload?.kind === "transcript") return await transcriptCollect(ctx, String(j.payload.meeting_id));
+    if (j.payload?.kind === "transcript_expire") { await rpc(ctx, "dela_transcript_delete", { p_person: null, p_side: "", p_meeting: String(j.payload.meeting_id) }); return { ok: true }; }
     await rpc(ctx, "dela_meeting_tick", { p: j.payload ?? {} });
     return { ok: true };
   }
@@ -5707,12 +5777,24 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /meetings": { const s = await memberSide(ctx);
         const r = await rpc<Record<string, any>>(ctx, "dela_meetings", { p_person: s.person_id, p_side: s.side, p_gig: uuid(ctx.url.searchParams.get("gig")), p_meeting: uuid(ctx.url.searchParams.get("id")) });
         if (r?.ok) await withFaces(ctx, r.meetings);
+        if (r?.ok && Array.isArray(r.meetings) && r.meetings.length) {
+          const cards: Record<string, any> = await rpc<Record<string, any>>(ctx, "dela_transcript_cards", { p_meetings: r.meetings.map((m: Record<string, any>) => m.id) }).catch(() => null) ?? {};
+          for (const m of r.meetings as Array<Record<string, any>>) if (cards[m.id]) m.transcript = cards[m.id];
+        }
         return json(ctx, await withMeetingRules(ctx, r)); }
       case "GET /meetings/slots": return await meetingSlots(ctx);
       case "POST /meetings/hold": return await meetingHold(ctx);
       case "POST /meetings/confirm": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_meeting_confirm", { p_person: s.person_id, p_meeting: need(uuid(ctx.body.id)) })); }
       case "POST /meetings/cancel": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_meeting_cancel", { p_person: s.person_id, p_side: s.side, p_meeting: need(uuid(ctx.body.id)), p_reason: str(ctx.body.reason, 500) })); }
-      case "POST /meetings/consent": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_meeting_consent", { p_person: s.person_id, p_side: s.side, p_meeting: need(uuid(ctx.body.id)), p_consent: ctx.body.consent === true })); }
+      case "POST /meetings/consent": { const s = await memberSide(ctx); const mid = need(uuid(ctx.body.id));
+        const r = await rpc<Record<string, any>>(ctx, "dela_meeting_consent", { p_person: s.person_id, p_side: s.side, p_meeting: mid, p_consent: ctx.body.consent === true });
+        if (r?.ok && ctx.body.consent === true) await transcriptStart(ctx, mid).catch(() => null);
+        if (r?.ok && ctx.body.consent !== true) await transcriptStopNow(ctx, s, mid).catch(() => null);
+        return json(ctx, r); }
+      case "GET /meetings/room-state": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_room_state", { p_person: s.person_id, p_side: s.side, p_meeting: need(uuid(ctx.url.searchParams.get("id"))) })); }
+      case "POST /meetings/transcript/stop": { const s = await memberSide(ctx); return json(ctx, await transcriptStopNow(ctx, s, need(uuid(ctx.body.id)))); }
+      case "GET /meetings/transcript": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_transcript_read", { p_person: s.person_id, p_side: s.side, p_meeting: need(uuid(ctx.url.searchParams.get("id"))) })); }
+      case "POST /meetings/transcript/delete": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_transcript_delete", { p_person: s.person_id, p_side: s.side, p_meeting: need(uuid(ctx.body.id)) })); }
       case "POST /meetings/followup": return await meetingFollowup(ctx);
       case "GET /meetings/ics": return await meetingIcsFile(ctx);
       case "GET /threads": { const s = await memberSide(ctx); const r = await rpc<Record<string, any>>(ctx, "dela_threads", { p_person: s.person_id, p_side: s.side }); if (r?.ok) await withFaces(ctx, r.threads); return json(ctx, r); }

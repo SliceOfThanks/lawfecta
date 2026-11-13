@@ -1009,8 +1009,48 @@
       });
       var pat = h("div", { class: "card" }, h("h2", { text: "Repeated late cancels or no-shows" }),
         d.patterns.length ? h("ul", null, d.patterns.map(function (x) { return h("li", { text: x.name + " (" + x.bd_member_id + "): " + x.late + " late cancels, " + x.no_shows + " did not happen" }); })) : h("p", { class: "muted", text: "Nobody right now." }));
-      body(h("div", null, pageHead("Meetings and messages", "meet"), top, up, reps, pat));
+      var trc = h("div", { class: "card", id: "transcript-flags" }, h("h2", { text: "Meeting transcripts flagged by DELA's AI" }), h("p", { class: "muted", text: "Loading..." }));
+      transcriptFlagsCard(trc);
+      body(h("div", null, pageHead("Meetings and messages", "meet"), top, up, trc, reps, pat));
     }).catch(fail);
+  }
+
+  // Step 25 part 2: transcripts DELA's AI flagged for talk about paying or working outside Lawfecta. A transcript can
+  // be opened only when it was flagged or a member reported the conversation, and every opening is recorded.
+  var TR_KIND = { contact_details: "Contact details to continue elsewhere", payment_outside: "Paying outside Lawfecta", off_platform: "Working outside Lawfecta" };
+  function transcriptFlagsCard(card) {
+    api.get("/admin/transcripts").then(check).then(function (d) {
+      D.clear(card);
+      card.appendChild(h("h2", { text: "Meeting transcripts flagged by DELA's AI" }));
+      card.appendChild(h("p", { class: "muted", text: "DELA's AI reads each transcript once and flags talk about paying or working outside Lawfecta. Nothing happens to a member by itself: you decide. Opening a transcript is written to the meeting's record each time, with your name. Transcripts that were not flagged or reported cannot be opened." }));
+      var list = d.flags || [];
+      if (!list.length) { card.appendChild(h("p", { class: "muted", text: "No transcript has been flagged." })); return; }
+      list.forEach(function (x) {
+        var box = h("div", { class: "soft", style: "margin:8px 0;padding:10px 12px;border-radius:12px" },
+          h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("b", { class: "grow", text: x.attorney + " and " + x.freelancer + ": " + x.title }),
+            h("span", { class: "badge " + (x.state === "open" ? "held" : x.state === "confirmed" ? "bad" : "ready"), text: { open: "To review", cleared: "No problem found", confirmed: "Confirmed" }[x.state] || x.state })),
+          h("p", { class: "small muted", style: "margin:4px 0", text: "Meeting of " + D.dateTime(x.start_at) + ". Flagged for: " + ((x.kinds || []).map(function (k) { return TR_KIND[k] || k; }).join(", ") || "talk outside Lawfecta") + "." }),
+          x.note ? h("p", { style: "margin:4px 0", text: "Passage: \"" + x.note + "\"" }) : null,
+          x.decision_note ? h("p", { class: "small muted", style: "margin:4px 0", text: "Decision note: " + x.decision_note }) : null);
+        var out = h("div", { hidden: true, style: "white-space:pre-wrap;max-height:360px;overflow:auto;border:1px solid #e6e7ec;border-radius:8px;padding:10px;margin-top:8px;background:#fff", tabindex: "0", "aria-label": "Transcript text" });
+        var acts = h("div", { class: "row", style: "gap:6px;flex-wrap:wrap;margin-top:6px" });
+        if (x.has_text) acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+          if (!confirm("Open this transcript? Your name and the time are written to the meeting's record.")) return;
+          api.post("/admin/transcripts/open", { meeting_id: x.meeting_id }).then(check).then(function (r) { out.textContent = r.text; out.hidden = false; }).catch(fail);
+        } }, "Open transcript"));
+        else acts.appendChild(h("span", { class: "small muted", text: "The transcript text is no longer kept (deleted by a member or after its keeping time)." }));
+        if (x.state === "open") {
+          var decide = function (action, word) { return h("button", { class: "ghost small", type: "button", onclick: function () {
+            var note = prompt("A short note on your decision (" + word + "). It is kept with the flag.");
+            if (note === null) return;
+            api.post("/admin/transcripts/decide", { meeting_id: x.meeting_id, action: action, note: note }).then(check).then(function () { ok("Saved"); transcriptFlagsCard(card); }).catch(fail);
+          } }, word); };
+          acts.appendChild(decide("cleared", "No problem found")); acts.appendChild(decide("confirmed", "Confirmed"));
+        }
+        box.appendChild(acts); box.appendChild(out);
+        card.appendChild(box);
+      });
+    }).catch(function (e) { D.clear(card); card.appendChild(h("h2", { text: "Meeting transcripts flagged by DELA's AI" })); card.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
 
   // ---------- Reviews and bench (Step 7): held reviews, reports, appeals, past-client reviews, paused webhooks ----------

@@ -1,7 +1,7 @@
 # Feature brief: meetings on VideoSDK, inside DELA
 
 Step: 25   Spec references: Stacey 2026-11-13 ("Just use VideoSDK - best option even if paid"); replaces "Online meetings: Vectera" (2026-10-25, 2026-11-04). Comparison: docs/research/vectera-meetings-evaluation.md.
-Status: part 1 built with the defaults below; part 2 waits for answers
+Status: part 1 on the site; part 2 built to Stacey's answers of 2026-11-13 (below)
 
 ## Who
 Attorneys and freelancers who have a meeting on a gig or an introductory call. The Lawfecta Team sees the state in the admin area.
@@ -34,12 +34,21 @@ VideoSDK is made to sit inside another app: a room per booking, no host, and rep
 ## Settings and switches it uses
 meetings.provider ("videosdk"; "vectera" brings the old connection back), meeting.videosdk_api_base, meeting.videosdk_prebuilt_url, meeting.join_early_minutes, the meetings switch. Secrets Stacey enters in Supabase: VIDEOSDK_API_KEY, VIDEOSDK_SECRET. No prices or limits are set in DELA.
 
-## Questions to make it better
-1. Recording: should meetings be recorded at all when both people consent, or only transcribed (audio to text, no video kept)?
-2. Transcripts may hold client matters. How long should DELA keep a transcript, and who may read it: both people, or only the Lawfecta Team for safety checks?
-3. Should DELA's AI read transcripts to suggest next steps and to flag talk about paying outside Lawfecta? Members would be told before they consent.
-4. Should the meeting screen carry Lawfecta's logo and colors (VideoSDK allows branding)?
-5. Is in-call chat off the right choice, or should it be on with a notice?
+## Stacey's answers (2026-11-13) and how part 2 follows them
+1. Transcribe only. No video or audio file is kept. Built with VideoSDK's live transcription, which writes text during the call and records nothing.
+   - Each person is asked before the camera and microphone check, in DELA's own "Before you join" panel (VideoSDK's own check screen cannot hold our tick box): "Transcribe this meeting (no video or audio is kept)".
+   - It is transcribed only when both ticked. The top bar says "This meeting is being transcribed" or "This meeting is not being transcribed".
+   - "Stop transcript" in the top bar, for both people, ends it for the rest of the call. Taking back the tick does the same.
+2. The full transcript is deleted 90 days after the meeting ends (setting meeting.transcript_days). The summary and next steps stay with the meeting. Both people read the transcript and the summary on the meeting card; either can press "Delete transcript", which deletes the text for both. The Lawfecta Team can open a transcript only after the AI flagged it or a member reported the conversation, and each opening is written to the meeting's events with who and when.
+3. DELA's AI reads each transcript once, after the meeting ends, on Lawfecta's own AI key (no member's DELA actions are used). It writes a short summary and next steps for both people, and flags talk about paying or working outside Lawfecta. A flag goes to the admin area, "Meetings and messages", card "Meeting transcripts flagged by DELA's AI". Nothing happens to a member by itself. The consent text carries the line "DELA's AI reads the transcript to write a summary and next steps, and to check for payment talk outside Lawfecta."
+4. The meeting screen shows the Lawfecta logo and name and hides VideoSDK's own mark. VideoSDK's ready-made screen offers a light or dark look, not custom colors; the light look is used.
+5. In-call chat stays off. The top bar has the second line "To share links or files, use your DELA messages."
+
+## Still open
+- A member can delete a transcript that the AI flagged before the team reads it. The flagged passage is kept with the flag. Is that right, or should a flagged transcript be kept until the team decides?
+- VideoSDK's free plan transcribes one meeting at a time; pay as you go allows ten. Two meetings at the same hour need pay as you go.
+- "A member reports the meeting": today a member can report a conversation (the existing "Report" in a conversation). There is no separate "Report this meeting" button yet.
+- Exact colors on the meeting screen would need our own screen built on VideoSDK's toolkit, not the ready-made one.
 
 ## Success looks like
 - Attorney and freelancer: at the meeting time, "Join the meeting" opens the room inside DELA; both see and hear each other; screen sharing works; "Leave and go back to DELA" returns to the meeting card.
