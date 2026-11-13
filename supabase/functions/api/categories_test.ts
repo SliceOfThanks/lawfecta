@@ -349,6 +349,7 @@ Deno.test("a call before a gig: booked by the attorney in the conversation, same
     assertEquals([m?.gig_title, m?.intro_thread, m?.gig_id, m?.status], ["Introductory call", th, null, "confirmed"], "the list shows the call to " + who.id);
   }
   assertEquals((await one("select count(*)::int n from notifications where person_id = $1 and title = 'Meeting booked: Introductory call' and channel = 'in_app'", [fFamily.id])).n, 1, "the freelancer is told");
+  assertEquals((await one("select body b from notifications where person_id = $1 and title = 'Meeting booked: Introductory call' and channel = 'in_app'", [fFamily.id])).b.startsWith("A 30-minute introductory call is booked."), true, "the notice reads naturally for a call with no gig");
   assertEquals((await call("GET", "/meetings?id=" + h.id, fNurse.token)).body.meetings.length, 0, "nobody else sees it");
   // Step 26: the Inbox and the meeting card carry the other person's picture as a link; file paths never leave
   const avBefore = (await one("select value v from settings where key = 'profile.avatars'")).v;

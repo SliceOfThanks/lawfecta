@@ -36,17 +36,23 @@ Done 2026-11-12. The yellow "Test site" label is gone and emails no longer start
 4. One fuller ChatGPT test of what a pilot member does. Claude sends it after step 4.
 
 ## 9. Checks for what was built on 2026-11-13
-Everything here is on the site. Do them in this order.
-1. Talent, by hand. Log in as the test attorney and open https://www.lawfecta.co/dela?tab=talent. In the "Find a freelancer" card, set the "Software" list (fourth in the row of five) to "Clio": the heading should read "9 freelancers found". Press "Reset". Scroll to the bottom of the list and press "Load more freelancers": the line should read "Showing 16 of 16 freelancers."
-2. A call before a gig, by hand. On the same page press "View profile" on the "DELA Test Freelancer" card. At the right of the header press "Book a call". On the card "Book an introductory call" pick a time under "Date", press "Review booking", press OK on the pop-up. The meeting should open, headed "DELA Test Freelancer: Introductory call". Press "Open the conversation": a green-edged line should say "An introductory call is booked for" with the time. Go back with "Open the meeting" and press "Cancel" when you are done.
+Everything here is on the site. Do them in this order. The running list of what still has to be seen working for real is docs/PILOT_CHECKS.md (https://github.com/SliceOfThanks/lawfecta/blob/claude/step-2a-ai-keys-voice-files/docs/PILOT_CHECKS.md).
+
+1. The three ChatGPT checks. The files are in the folder "Lawfecta DELA for Stacey" in your Documents, numbered in the order to run them. For each one: open a new ChatGPT chat in agent mode, paste the whole file, log in when it asks, and paste the report back to Claude as text. Do not use www.lawfecta.co in other tabs while one runs.
+   - 1-talent-journey-chatgpt-prompt-READY.txt (run by 2026-11-19, when a test gig closes)
+   - 2-subscription-chatgpt-prompt-READY.txt
+   - 3-meetings-calls-chatgpt-prompt-READY.txt (run by 2026-11-16, when the prepared test meeting's room closes)
+2. Talent, by hand. Log in as the test attorney and open https://www.lawfecta.co/dela?tab=talent. In the "Find a freelancer" card, set the "Software" list (fourth in the row of five) to "Clio": the heading should read "9 freelancers found". Press "Reset". Scroll to the bottom of the list and press "Load more freelancers": the line should read "Showing 16 of 16 freelancers."
 3. The firm logo, by hand. Open https://www.lawfecta.co/dela?tab=profile as the test attorney. At the top of the "Firm details" card press "Add a logo" and choose a PNG or JPG. You should see "Logo saved. Nothing else to click."
-4. The Talent ChatGPT check: paste the file talent-journey-chatgpt-prompt-READY-2.txt from the folder "Lawfecta DELA for Stacey" in your Documents into a new ChatGPT agent chat. Run it before 2026-11-19 (a test gig closes that day). Paste the report back to Claude.
-5. The Subscription ChatGPT check: the file subscription-chatgpt-prompt-READY-3.txt from the same folder, in a new ChatGPT agent chat. Paste the report back to Claude.
-6. Questions waiting for you, each in its brief on GitHub (https://github.com/SliceOfThanks/lawfecta/tree/claude/step-2a-ai-keys-voice-files/docs/briefs): step-21-firm-logo-client-face.md, step-22-talent-mockup-02.md, step-23-intro-calls.md.
+4. A meeting with two people, by hand, when you have time (not done on 2026-11-13). One normal Chrome window as the test attorney and one Incognito window as the test freelancer, both at https://www.lawfecta.co/dela?tab=meetings. On the card that ends "Introductory call" press "Join the meeting". In the panel "Before you join" tick "Transcribe this meeting (no video or audio is kept)", press "Continue to the camera and microphone check", allow the camera and microphone, and join. Stay in together for a minute and talk. Press "Leave and go back to DELA" in both. About five minutes later reload the page and look for a "Transcript" box on the card. Then tell Claude "check the reports". If the room has closed (after 2026-11-16), tell Claude "prepare a test meeting" first.
+5. VideoSDK, two small things in your VideoSDK account (https://app.videosdk.live):
+   - Limit the key to your website: left menu "API Keys", the globe icon in the "Action" column of your key's row, type lawfecta, press "ADD". Do this after step 4 works.
+   - Add credit before pilot members book: left menu "Billing", button "Add fund". The account had $20 of free credit on 2026-11-13.
+6. Questions waiting for you, each in its brief on GitHub (https://github.com/SliceOfThanks/lawfecta/tree/claude/step-2a-ai-keys-voice-files/docs/briefs): step-21-firm-logo-client-face.md, step-22-talent-mockup-02.md, step-23-intro-calls.md, step-25-videosdk-meetings.md (the part "Still open").
 7. Before real members arrive: tell Claude "take the sample freelancers out". They also drop out of Talent by themselves on 2026-11-27.
 
 ## Later, not needed for the pilot
 - The Brilliant Directories key permission for practice area categories.
 - A real Scribe export to confirm the Scribe importer.
-- Vectera's API access for meeting rooms.
+- Meetings moved to VideoSDK on 2026-11-13; Vectera is no longer needed.
 - GitHub settings for auto-merge and the main branch rule.

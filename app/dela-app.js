@@ -792,6 +792,25 @@
     // waiting, the profile card leads.
     var busy = (hm.active_projects || 0) + (hm.invitations || 0) > 0;
     if (attention) left.appendChild(attention);
+    // The next meeting, with the way into the room when it is open (meetings and introductory calls)
+    if ((me.switches || {}).meetings) {
+      var nextSlot = h("div", { id: "home-next-meeting" });
+      left.appendChild(nextSlot);
+      api.get("/meetings").then(function (r) {
+        if (!r.ok || !nextSlot.parentNode) return;
+        var now = Date.now();
+        var m = (r.meetings || []).filter(function (x) { return x.status === "confirmed" && new Date(x.end_at).getTime() > now; }).sort(function (x, y) { return String(x.start_at).localeCompare(String(y.start_at)); })[0];
+        if (!m) return;
+        var card = hcard("Your next meeting");
+        var acts = h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" });
+        if (m.join_url && String(m.join_url).indexOf("dela:") === 0) { var jb = h("button", { class: "blue small", type: "button" }, "Join the meeting"); jb.addEventListener("click", function () { openMeetingRoom(m, jb); }); acts.appendChild(jb); }
+        else if (m.join_url) acts.appendChild(h("a", { class: "btn blue", href: m.join_url, target: "_blank", rel: "noopener" }, "Join the meeting"));
+        acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { talk.meeting = m.id; tab = "meetings"; draw(); } }, "Open the meeting"));
+        card.appendChild(h("div", { class: "row", style: "gap:10px;align-items:center;flex-wrap:wrap" }, smallFace(m),
+          h("div", { class: "grow" }, h("b", { text: m.other_name + ": " + m.gig_title }), h("div", { class: "small muted", text: whenLabel(m.start_at, m.length_min) + ", " + tzName() + (m.join_url ? "" : m.room_status === "ready" ? ". The room opens " + (new Date(m.join_opens_at).getTime() > now ? "at " + timeLabel(m.join_opens_at) + " on " + dayLabel(m.join_opens_at) : "soon") + "." : "") })), acts));
+        nextSlot.appendChild(card);
+      }).catch(function () {});
+    }
     if (attention || busy) { left.appendChild(workBox(hm)); if (pb) left.appendChild(pb); }
     else { if (pb) left.appendChild(pb); left.appendChild(workBox(hm)); }
     var st = statusLine(hm);

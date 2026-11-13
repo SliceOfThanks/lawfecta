@@ -30,6 +30,8 @@ How to read the "State" column:
 | 1.16 | VideoSDK's key is limited to the Lawfecta website and meetings still load | After adding the website on VideoSDK's "API Keys" page (globe icon), a call still opens | Not yet | Stacey's step. Do it after 1.3 works, so a failure has one cause. |
 | 1.17 | Reminders and the "Did your meeting happen?" notice reach both people by email | Both receive them at the right times | Not yet | |
 | 1.18 | "Report this meeting" reaches the team | The report shows in the admin area with the reason | Not yet | |
+| 1.19 | Home shows the next meeting with "Join the meeting" when the room is open | The card "Your next meeting" on Home, and the button opens the room | Not yet | Released after 2026-11-13. |
+| 1.20 | Notices about an introductory call read naturally | The notice says "A 30-minute introductory call is booked." | Not yet | |
 
 ## 2. Calls before a gig
 
