@@ -2,6 +2,9 @@
 
 Last updated 2026-11-06. The one-page picture (built, in progress, next, before the MVP, after) is docs/MVP_OVERVIEW.md. Stacey's own checklist, in order, is docs/STACEY_TODO.md. Read this with STATUS.md. It shows what is done, what is being tested, what needs work, what is waiting on Stacey, and what comes next.
 
+## Newest (2026-11-13): steps 21 and 22 are on the site
+The firm logo with the client card for freelancers (step 21) and the Talent and profile revision to mockup 02 (step 22) are released (STATUS.md, top section). Needs work: rewrite the Talent journey ChatGPT prompt for the new labels; "Book a call" before a gig. Waiting on Stacey: the questions in docs/briefs/step-21-firm-logo-client-face.md and docs/briefs/step-22-talent-mockup-02.md, and her look at Talent, a profile and "Firm details".
+
 ## Newest (2026-11-13): step 20 is on the site, with five sample freelancers
 Talent "Load more" (10 at a time) and the match-ready progress card are released (STATUS.md, top section). Fifteen sample freelancers are listed in Talent for testing (five website members and ten DELA-only); remove them before real members arrive (tools/demo_freelancers_remove.sql). Needs testing: Stacey's two ChatGPT checks in docs/tests/RUN-NEXT.md and her own look at Talent. Waiting on Stacey: the decisions in docs/briefs/step-20-match-ready.md (should categories or a photo be required, the 14-day availability window).
 

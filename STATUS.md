@@ -4,6 +4,16 @@ Starting a new session? Read docs/SESSION_HANDOFF.md first (written 2026-11-12, 
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Steps 21 and 22: firm logo and client card; Talent and profile revised to mockup 02: ON THE SITE (2026-11-13)
+- Site: code_version c9bd839, api function version 113, migrations through 0112, health "ok". GitHub Tests passed on that commit (run 43474909309; the recorder check "Ready for review" failed once and passed on the rerun, as it has before).
+- Step 21 (docs/briefs/step-21-firm-logo-client-face.md): firm logo in "Firm details" (saves at once; owner and firm staff); freelancers see one card with the attorney's picture, name, "Verified" and the firm's logo and name on the gig page, in a conversation and on the engagement. List rows still show names only. The gig page now shows the attorney's own name (question 1 in the brief).
+- Step 22 (docs/briefs/step-22-talent-mockup-02.md): Stacey chose mockup 02 of her annotated package as the base. Five independent filters with Software; every typed word matched in any order; match-ready help (hover, focus, click, Escape; in place on a phone); DELA accordion with suggestion chips and "Apply filters & search"; result cards with the actions in a right column, no star without reviews; profile header actions on the right, two-column Overview, promotions inside Services, empty items left out; the browser's Back button returns to the same results. axe-core rules pass on Talent and the profile; 320 wide fits.
+- Not built: "Book a call" before a gig (a booking needs a gig today; needs a server change and Stacey's rules); sorting by text match; a screen-reader pass by a person; zoom to 400%.
+- Pictures sit on a light pink circle (Stacey 2026-11-13: see-through ready-made pictures looked like floating heads).
+- Checked on the server after release: Software "Clio" alone finds 9 of the 16 sample freelancers; "clio family" and "family clio" both find 4.
+- The Talent journey ChatGPT prompt (docs/tests/talent-journey-chatgpt-prompt.md) names the old filter labels and must be rewritten before Stacey runs it.
+- Verified on the server only; nobody has looked at these screens on the site in a browser.
+
 ## Profile picture: "Save my picture" next to the picture: ON THE SITE (2026-11-13)
 - Then the Talent line (run 43464073424): the "Match-ready" card on a freelancer's Profile page says "Attorneys can see you in Talent now." or "Attorneys cannot see you in Talent yet." with the reasons. Site: code_version 7462ba2 (browser code only).
 - Site: code_version d847227 (browser code only; api function version 112 and migrations through 0110 are unchanged), health "ok". GitHub Tests passed on that commit (run 43461156406).
