@@ -171,7 +171,7 @@
   // Words members meet on many screens, each checked against what DELA really does (2026-11-06)
   D.HELP = {
     verified: "The Lawfecta Team checked this person: an attorney's bar license, or a freelancer's identity and LinkedIn profile. It does not rate the quality of their work.",
-    match_ready: "Verified, profile complete and availability confirmed in the last 14 days. Only match-ready freelancers show in Talent and gig matches.",
+    match_ready: "A freelancer is match-ready when three things are true: every required profile item is filled, the Lawfecta Team's check has passed, and they confirmed in the last 14 days that they can take work. Only match-ready freelancers show in Talent and gig matches.",
     bench: "Freelancers an agency hires for its own clients' work under a signed bench agreement. They never use a team seat, and the attorney never sees the agency's share.",
     platform_fee: "Lawfecta's fee on each engagement: a percentage of the price, with a minimum. The client's fee is added to what they pay; the freelancer's fee comes out of their payouts.",
     milestone: "A portion of work with its own price, due date and review. Funds are released after acceptance.",
@@ -509,6 +509,9 @@ D.openTab = function (getUrl, onFail, opts) {
     ".sub-here{font-weight:700;color:var(--pink-ink);margin:auto 0 0}.sub-plan button{align-self:flex-start;margin-top:auto;min-height:40px}" +
     "@media (max-width:720px){.sub-tabs{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}.dela .sub-tabs button{border-radius:8px;border-bottom:0;padding:10px 2px;font-size:14px}.dela .sub-tabs button[aria-selected=true]{background:var(--brand);color:var(--brand-ink)}" +
     ".st-full{display:none}.st-short{display:inline}.sub-plan button,.subp .btn{width:100%;justify-content:center}.subp .tp-facts div{flex-direction:column;gap:2px}.subp .tp-facts dd{text-align:left}}" +
+    // Step 20: the progress to match-ready on the Profile page
+    ".ready-bar{height:14px;margin:12px 0 8px}.ready-what{margin:6px 0 4px}.ready-group{font-size:15px;margin:14px 0 2px}.ready-list{list-style:none;margin:0;padding:0}.ready-list .check{align-items:center}.ready-list .linkish{white-space:nowrap}" +
+    ".sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}" +
     ".fit-row .talent-photo{width:48px;height:48px;font-size:20px}" +
     ".tp-two{display:grid;grid-template-columns:minmax(0,2fr) minmax(220px,1fr);gap:14px;align-items:start}.tp-two .card{margin:0 0 12px}@media (max-width:860px){.tp-two{grid-template-columns:1fr}}" +
     ".tp-lines{margin:0;padding-left:18px}.tp-lines li{margin:6px 0}@media (max-width:720px){.tp-photo{width:56px;height:56px;font-size:22px}}" +

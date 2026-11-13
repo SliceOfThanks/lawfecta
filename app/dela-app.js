@@ -1712,15 +1712,49 @@
     }
   }
 
+  // Step 20 (Stacey 2026-11-13): what "match-ready" means, said in three parts, with one progress bar toward it.
+  // A freelancer is match-ready when (1) every required profile item is filled, (2) the Lawfecta Team's check has
+  // passed, and (3) availability was confirmed in the last days the setting names and is not "Not taking new work".
+  // An attorney is ready to post and hire with parts 1 and 2. Every step counts the same on the bar.
+  function readinessSteps(st) {
+    var req = prof.data.required || [], miss = st.missing || [], att = me.side === "attorney", labels = prof.data.labels || {};
+    var all = miss.indexOf("everything") >= 0;
+    var steps = req.map(function (k) { return { group: "profile", label: (labels[k] || k).replace(" (or tick none)", ""), done: !all && miss.indexOf(k) < 0, jump: SECTION_FOR[k] || "sec-profile", doWord: "Add it" }; });
+    var ver = st.verification;
+    if (ver !== "not_required") steps.push({ group: "check", label: att ? "Bar license verified by the Lawfecta Team" : "LinkedIn check passed by the Lawfecta Team", done: ver === "verified", jump: "sec-verify",
+      doWord: ver === "pending" ? "" : att ? "Start the license check" : "Start the LinkedIn check",
+      note: ver === "pending" ? "Being checked by the Lawfecta Team. Nothing for you to do right now." : ver === "rejected" ? "The last check did not pass. Open it to see why and try again." : ver === "expired" ? "The check is out of date. Renew it." : "" });
+    if (!att) {
+      var fresh = !!st.availability_confirmed_at && (!st.availability_due_at || new Date(st.availability_due_at).getTime() > Date.now());
+      steps.push({ group: "avail", label: "Availability confirmed in the last " + (st.availability_days || 14) + " days", done: fresh && st.availability !== "unavailable", jump: "sec-availability", doWord: "Confirm it",
+        note: st.availability === "unavailable" ? "You are marked \"Not taking new work\", so attorneys do not see you." : st.availability_confirmed_at && !fresh ? "Your last confirmation is older than " + (st.availability_days || 14) + " days." : fresh ? "Good until " + D.date(st.availability_due_at) + "." : "" });
+    }
+    return steps;
+  }
   function statusCard(st) {
-    var req = prof.data.required || [], miss = st.missing || [];
-    var card = h("div", { class: "card" },
-      h("div", { class: "row" }, h("h2", { class: "grow", text: "Where your profile stands" }), h("span", { class: "badge " + (st.readiness === "match_ready" ? "ready" : "held"), text: STATE_BADGE[st.readiness] || st.readiness })),
-      h("p", { text: (READY_WORDS[me.side] || {})[st.readiness] || "" }));
-    card.appendChild(h("div", null, req.map(function (k) {
-      var done = miss.indexOf(k) < 0 && miss.indexOf("everything") < 0;
-      return h("div", { class: "check" + (done ? " done" : "") }, h("i", { "aria-hidden": "true", text: done ? "✓" : "" }), h("span", { text: (prof.data.labels || {})[k] || k }));
-    })));
+    var att = me.side === "attorney", steps = readinessSteps(st), done = steps.filter(function (s) { return s.done; }).length, total = steps.length;
+    var pct = total ? Math.round(done * 100 / total) : 0, ready = st.readiness === "match_ready", paused = st.readiness === "restricted";
+    var goal = att ? "Ready to post and hire" : "Match-ready";
+    var jump = function (id) { var el = app.querySelector("#" + id); if (!el) return; if (el.tagName === "DETAILS") el.open = true; el.scrollIntoView({ behavior: "smooth", block: "start" }); var f = el.querySelector("input, select, textarea, button"); if (f) f.focus({ preventScroll: true }); };
+    var card = h("div", { class: "card", id: "ready-card" },
+      h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("h2", { class: "grow", style: "margin:0", text: goal + ": " + done + " of " + total + " steps done" }), h("span", { class: "badge " + (ready ? "ready" : "held"), text: STATE_BADGE[st.readiness] || st.readiness })),
+      h("div", { class: "bar ready-bar", role: "progressbar", "aria-label": "Progress to " + goal.toLowerCase(), "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(pct), "aria-valuetext": done + " of " + total + " steps done" }, h("span", { style: "width:" + pct + "%" + (ready ? ";background:#21613d" : "") })),
+      h("p", { id: "ready-say", text: paused ? (READY_WORDS[me.side] || {}).restricted : ready ? (READY_WORDS[me.side] || {}).match_ready : total - done === 1 ? "One step to go." : (total - done) + " steps to go." }));
+    card.appendChild(h("details", { class: "ready-what" }, h("summary", { style: "cursor:pointer;font-weight:700", text: att ? "What \"ready to post and hire\" means" : "What \"match-ready\" means" }),
+      h("p", { class: "small", text: att ? "You can post gigs, contact freelancers and hire when two things are true: every required profile item is filled, and the Lawfecta Team has verified your bar license. Until then you can still use Ask DELA, documents, files and the recorder."
+        : "Attorneys can find you on Talent, see you in gig matches and invite you only while you are match-ready. That takes three things: every required profile item is filled, the Lawfecta Team's check has passed, and you confirmed in the last " + (st.availability_days || 14) + " days that you can take work. If any one lapses, you drop out of Talent until it is fixed. Work you already have is not affected." })));
+    var GROUPS = att ? [["profile", "1. Your profile"], ["check", "2. The Lawfecta Team's check"]] : [["profile", "1. Your profile"], ["check", "2. The Lawfecta Team's check"], ["avail", "3. Your availability"]];
+    GROUPS.forEach(function (g) {
+      var list = steps.filter(function (s) { return s.group === g[0]; });
+      if (!list.length) return;
+      var d = list.filter(function (s) { return s.done; }).length;
+      card.appendChild(h("h3", { class: "ready-group", text: g[1] + " (" + d + " of " + list.length + ")" }));
+      card.appendChild(h("ul", { class: "ready-list" }, list.map(function (s) {
+        return h("li", { class: "check" + (s.done ? " done" : "") }, h("i", { "aria-hidden": "true", text: s.done ? "✓" : "" }),
+          h("span", { class: "grow" }, h("span", { text: s.label }), h("span", { class: "sr", text: s.done ? " (done)" : " (not done yet)" }), s.note ? h("span", { class: "small muted", text: " " + s.note }) : null),
+          !s.done && s.doWord ? h("button", { class: "linkish small", type: "button", "aria-label": s.doWord + ": " + s.label, onclick: function () { jump(s.jump); } }, s.doWord) : null);
+      })));
+    });
     if (me.side === "attorney" && st.verification !== "verified") card.appendChild(h("p", { class: "small muted", style: "margin-top:8px", text: "You can use Ask DELA, documents, files and the recorder before you are verified. Posting work and hiring need a verified license." }));
     // What the firm still needs for paid work, at the top (step 8b Part C, R09)
     var fmiss = me.side === "attorney" ? ((((prof.data.firm || {}).eligibility) || {}).missing_for_paid_work || []) : [];

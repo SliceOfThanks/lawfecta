@@ -76,6 +76,15 @@ const SEARCH = "Search roles, specialties, tasks and software";
     t = await waitFor(p, "Lawfecta categories", 15000);
     t = await waitFor(p, "None picked yet.", 10000);
     ok(t.includes("Attorneys search Talent by these categories."), "the Profile page explains what the categories are for");
+    // Step 20: what match-ready means, and one progress bar toward it (this freelancer has filled in nothing yet)
+    const bar = await p.evaluate(() => { const b = document.querySelector(".dela-host").shadowRoot.querySelector("#ready-card [role=progressbar]"); return b ? b.getAttribute("aria-valuenow") + " | " + b.getAttribute("aria-valuetext") : ""; });
+    ok(/^Match-ready: 0 of \d+ steps done/m.test(t) && /^0 \| 0 of \d+ steps done$/.test(bar) && t.includes("steps to go."), "the Profile page counts the steps to match-ready on one progress bar: " + bar);
+    ok(t.includes("1. Your profile (0 of") && t.includes("3. Your availability (0 of 1)") && t.includes("Availability confirmed in the last 14 days") && !t.includes("2. The Lawfecta Team's check"), "the steps are grouped: the profile items, then availability (the check is left out when it is not required)");
+    await dela(p).locator("#ready-card summary").click();
+    ok((await text(p)).includes("That takes three things: every required profile item is filled, the Lawfecta Team's check has passed, and you confirmed in the last 14 days that you can take work."), "match-ready is defined in plain words on the page");
+    await dela(p).locator("#ready-card").getByRole("button", { name: /^Add it: / }).first().click();
+    await p.waitForTimeout(700);
+    ok(await p.evaluate(() => { const a = document.querySelector(".dela-host").shadowRoot.activeElement; return !!a && ["INPUT", "TEXTAREA", "SELECT", "BUTTON", "SUMMARY"].includes(a.tagName) && !a.closest("#ready-card"); }), "a step that is not done has a link that jumps to where it is filled in");
     await label(p, "Find a category").fill("discov");
     await dela(p).locator(".cat-suggest li").first().waitFor({ timeout: 5000 });
     const opt = await dela(p).locator(".cat-suggest li").first().innerText();
