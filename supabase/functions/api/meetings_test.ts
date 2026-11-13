@@ -228,6 +228,18 @@ Deno.test("VideoSDK: a room per meeting, joined inside DELA by the two people on
   await requeue(); await worker(1);
   assertEquals((await one("select room_status, provider from meetings where id = $1", [meeting])), { room_status: "waiting_for_provider", provider: "videosdk" }, "no keys: the meeting waits for the meeting service");
   assertEquals((await call("GET", "/admin/meetings", team.token)).body.data.provider_ready, false);
+  // Keys the meeting service refuses: the room is marked as not made, and the owners hear about it once per meeting
+  videosdkKey = "a-wrong-key"; videosdkSecret = "vsdk-test-secret";
+  await requeue(); await worker(1);
+  assertEquals((await one("select room_status from meetings where id = $1", [meeting])).room_status, "failed");
+  const alertCount = async () => (await one("select count(*)::int n from notifications where kind = 'meetings' and title = 'A meeting room could not be made' and channel = 'in_app'")).n;
+  const alerts1 = await alertCount();
+  assert(alerts1 >= 1, "the owners are told that the room could not be made");
+  const alertBody = (await one("select body from notifications where kind = 'meetings' and title = 'A meeting room could not be made' limit 1")).body;
+  assert(alertBody.includes("videosdk_401") && !alertBody.includes("vsdk-test-secret") && !alertBody.includes("a-wrong-key"), "the alert names the answer and no key: " + alertBody);
+  await requeue(); await worker(1);
+  assertEquals(await alertCount(), alerts1, "trying again does not alert again for the same meeting");
+  videosdkCalls.length = 0;
   videosdkKey = "vsdk-test-key"; videosdkSecret = "vsdk-test-secret";
   await requeue(); await worker(1);
   const row = await one("select room_status, room_ref, room_url_attorney, provider from meetings where id = $1", [meeting]);

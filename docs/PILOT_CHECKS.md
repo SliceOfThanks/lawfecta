@@ -26,7 +26,7 @@ How to read the "State" column:
 | 1.12 | Screen sharing works in the room | One person shares, the other sees it | Not yet | |
 | 1.13 | The room works on a phone | Camera, sound and "Leave and go back to DELA" on iPhone and Android | Not yet | |
 | 1.14 | Two meetings at the same hour both get transcribed | Both show a transcript | Not yet | VideoSDK's Free plan transcribes one meeting at a time; pay as you go allows ten. |
-| 1.15 | What happens when VideoSDK credit runs out | Unknown; to learn before it happens to a member | Not yet | The account had $20 of credit on 2026-11-13. Add credit before members book. |
+| 1.15 | What happens when VideoSDK credit runs out | The owners get the alert "A meeting room could not be made" (in DELA and by email), and the meeting card says the room could not be set up yet | Not yet | Built 2026-11-13: one alert per meeting, with VideoSDK's answer; DELA keeps trying. Not seen for real. The account had $20 of credit on 2026-11-13. Add credit before members book. |
 | 1.16 | VideoSDK's key is limited to the Lawfecta website and meetings still load | After adding the website on VideoSDK's "API Keys" page (globe icon), a call still opens | Not yet | Stacey's step. Do it after 1.3 works, so a failure has one cause. |
 | 1.17 | Reminders and the "Did your meeting happen?" notice reach both people by email | Both receive them at the right times | Not yet | |
 | 1.18 | "Report this meeting" reaches the team | The report shows in the admin area with the reason | Not yet | |

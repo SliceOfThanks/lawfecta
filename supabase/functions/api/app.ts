@@ -2916,7 +2916,16 @@ async function meetingRoom(ctx: Ctx, id: string) {
     ? await vecteraRoom(f(ctx), await setting(ctx, "meeting.vectera_api_base", "https://www.vectera.com"), ctx.deps.env("VECTERA_API_KEY"), "lawfecta-" + String(id).replace(/-/g, "").slice(0, 20), m.start_at)
     : await videosdkRoom(f(ctx), await setting(ctx, "meeting.videosdk_api_base", "https://api.videosdk.live"), ctx.deps.env("VIDEOSDK_API_KEY"), ctx.deps.env("VIDEOSDK_SECRET"), providerReady(ctx, provider) ? await videosdkHookUrl(ctx) : "");
   await rpc(ctx, "dela_meeting_room_set", { p_meeting: id, p_provider: provider, p_status: room.status, p_ref: room.ref ?? null, p_att: room.attorney_url ?? null, p_free: room.freelancer_url ?? null });
-  if (room.status === "failed") { console.error("meeting_room", provider, room.error); return { ok: false, retry: true, error: room.error }; }
+  if (room.status === "failed") {
+    console.error("meeting_room", provider, room.error);
+    // The team hears once per meeting that its room could not be made (for example the meeting service refused the keys
+    // or the account ran out of credit). DELA keeps trying; the two people see that the room is not ready.
+    await rpc(ctx, "dela_alert", { p_kind: "meetings", p_title: "A meeting room could not be made",
+      p_body: "DELA could not make the room for a meeting that starts " + String(m.start_at).slice(0, 16).replace("T", " ") + " UTC. The meeting service (" + provider + ") answered: " + String(room.error ?? "no answer").slice(0, 80) +
+        ". DELA keeps trying. An answer with 401 means the keys are refused; 402 or 403 often means the account needs credit or a plan. See the admin area, Meetings and messages.",
+      p_key: "room_failed:" + id }).catch((e) => console.error("meeting_room_alert", String(e).slice(0, 120)));
+    return { ok: false, retry: true, error: room.error };
+  }
   return { ok: true };
 }
 // Joining inside DELA (VideoSDK): the room number and what the meeting screen needs, only for the two people of the
