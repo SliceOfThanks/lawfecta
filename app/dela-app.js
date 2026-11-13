@@ -1882,10 +1882,10 @@
     // The ready-made pictures: one compact, folded group of choices (arrow keys move, Space or Enter picks)
     if (av.files.length) {
       var grid = h("div", { class: "av-grid", role: "radiogroup", "aria-label": "Ready-made pictures" });
-      var avName = function (f) { return f.replace(/\.[a-z]+$/i, "").replace(/^[0-9]+-+/, "").split("-").join(" "); };
+      var avName = function (f, i) { return "Ready-made picture " + (i + 1) + " of " + av.files.length; };
       var opts = av.files.map(function (f, i) {
         var on = b.avatar === f && !b.photo_file;
-        var o = h("button", { type: "button", class: "av-opt", role: "radio", "aria-checked": String(on), "aria-label": avName(f), title: avName(f), tabindex: on || (!b.avatar && i === 0) ? "0" : "-1" },
+        var o = h("button", { type: "button", class: "av-opt", role: "radio", "aria-checked": String(on), "aria-label": avName(f, i), title: avName(f, i), tabindex: on || (!b.avatar && i === 0) ? "0" : "-1" },
           h("img", { src: av.base + f, alt: "", loading: "lazy", width: "44", height: "44" }));
         o.addEventListener("click", function () { prof.body.avatar = f; prof.body.photo_file = ""; prof.photoPreview = ""; prof.dirty = true; prof.avatarsOpen = true; drawProfile(); D.toast(app, "Picture chosen. Click Save to keep it."); });
         o.addEventListener("keydown", function (e) {
