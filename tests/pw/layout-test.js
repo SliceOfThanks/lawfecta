@@ -54,7 +54,7 @@ const ATT = 4430;
     await waitFor(p, "Get set up", 15000);
     const nav = await dela(p).locator(".nav").evaluate((n) => ({ sw: n.scrollWidth, cw: n.clientWidth, right: Math.max(...[...n.querySelectorAll("button")].map((b) => b.getBoundingClientRect().right)), count: n.querySelectorAll("button").length, vw: window.innerWidth, page: document.documentElement.scrollWidth }));
     ok(nav.page <= nav.vw + 1, "the page does not scroll sideways (" + nav.page + " > " + nav.vw + ")");
-    ok(nav.count === 7, "seven attorney tabs (" + nav.count + ")");
+    ok(nav.count === 8, "eight attorney tabs, Meetings included (" + nav.count + ")");
     ok(nav.sw <= nav.cw + 1, "the tab bar does not scroll sideways (" + nav.sw + " > " + nav.cw + ")");
     ok(nav.right <= nav.vw + 1, "every tab, Get set up included, is on screen (" + Math.round(nav.right) + " of " + nav.vw + ")");
     await s.ctx.close();
