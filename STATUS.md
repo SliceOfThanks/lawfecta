@@ -5,6 +5,7 @@ Starting a new session? Read docs/SESSION_HANDOFF.md first (written 2026-11-12, 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
 ## Profile picture: "Save my picture" next to the picture: ON THE SITE (2026-11-13)
+- Then the Talent line (run 43464073424): the "Match-ready" card on a freelancer's Profile page says "Attorneys can see you in Talent now." or "Attorneys cannot see you in Talent yet." with the reasons. Site: code_version 7462ba2 (browser code only).
 - Site: code_version d847227 (browser code only; api function version 112 and migrations through 0110 are unchanged), health "ok". GitHub Tests passed on that commit (run 43461156406).
 - Stacey 2026-11-13: the pop-up after choosing a ready-made picture did not say where to click. Now a line under the picture says it is not saved yet, with a "Save my picture" button that saves the whole profile; the pop-up names that button; the saved message is "Profile saved, with your picture."
 - Her picture not showing in Talent was not a fault: she saved it on her own account (BD 686), whose freelancer profile is incomplete and so not listed. To build: a plain line on the Profile page saying when a profile is not shown in Talent and why.
