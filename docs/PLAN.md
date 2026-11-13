@@ -2,6 +2,9 @@
 
 Last updated 2026-11-06. The one-page picture (built, in progress, next, before the MVP, after) is docs/MVP_OVERVIEW.md. Stacey's own checklist, in order, is docs/STACEY_TODO.md. Read this with STATUS.md. It shows what is done, what is being tested, what needs work, what is waiting on Stacey, and what comes next.
 
+## Newest (2026-11-13): step 17 is on the site
+Talent search by the website's categories and the category picker on the freelancer Profile page are released (STATUS.md, top section). Needs testing: Stacey's look at Talent and Profile, then one ChatGPT check for both workspaces; the second Subscription run. Waiting on Stacey: the three step 17 questions in docs/briefs/step-17-talent-categories.md, the test jobs that ask for payment, PHP on her Mac.
+
 ## Next work (2026-11-10): the launch review fixes
 The MVP is on the test site. Before launch, make the 24 fixes from the launch review, in the order given in docs/HANDOFF.md (money safety, disputes, the guide, the Pro trial check, the first push to Live). Then the AI review workflow, the release record, and one ChatGPT money test once Stripe's test keys are in.
 

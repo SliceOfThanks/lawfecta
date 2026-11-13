@@ -22,6 +22,9 @@ The earlier sessions ran in a cloud container, so parts of this file describe th
 - The commit trailer's session line is only for sessions that have a link; leave it out when there is none.
 - Secrets still never go in chat, GitHub or files. She types them into Supabase herself.
 
+## 0b. Newer than this file (2026-11-13)
+Since this handoff was written: step 17 (Talent by the website's categories) and Subscription fixes were released from Stacey's Mac. Site: code_version a9d91da, api version 106, migrations through 0103. Her Mac has git push (gh), Python, Node, Postgres.app 16 (test server on port 55432, started by tools/local_tests.sh) and no PHP, so browser suites run on GitHub only. STATUS.md has the details.
+
 ## 1. The one-paragraph state
 DELA is LIVE on https://www.lawfecta.co (one site, one database, the pilot). The setting `environment` is "live", live payments are on, Stripe is connected in live mode, the test money was cleared, and members can sign up by themselves at https://www.lawfecta.co/join. No real member has signed up or paid yet. The last thing built and released is step 16: the "Subscription" page and the limit banner. Stacey has not yet looked at that page on the site.
 

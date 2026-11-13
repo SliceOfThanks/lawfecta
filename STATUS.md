@@ -4,6 +4,15 @@ Starting a new session? Read docs/SESSION_HANDOFF.md first (written 2026-11-12, 
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Talent search by the website's categories (step 17) and Subscription fixes: ON THE SITE (2026-11-13, 01:52 UTC)
+- Site: code_version a9d91da, api function version 106, migrations through 0103, health "ok". GitHub Tests passed on that commit (run 43346833198). The first copy of the website's categories ran at once: 10 categories, 306 specialties, 1227 tasks, case types and software.
+- Stacey's request (docs/briefs/step-17-talent-categories.md): Talent has one search box that suggests categories with their path, three lists that narrow each other ("Category", "Specialty", "Task, case type or software"), "State you need" and "Clear the search". A category finds everyone in it and below it. Freelancers pick their categories on the Profile page under "Lawfecta categories" (up to profile.categories_max, 25). Admin, Tech catalog page: the "Website categories" card with "Refresh now". DELA copies the categories daily and keeps the last good copy when the website does not answer.
+- Open with Stacey (defaults in use): writing a freelancer's categories to their website listing (bd.push_categories, off); whether categories are required to be match-ready (no); categories on gigs (not built).
+- No freelancer has picked categories yet, so a category search finds nobody until they do. The test freelancer (BD 688) has none.
+- Subscription, from Stacey's pictures and her ChatGPT run (docs/reviews/test-reports/2026-11-12-subscription.txt): Downgrade buttons outlined, storage in whole GB, the allowance table shows allowances under "Your plan allows", the AI allowance is called "DELA actions". The prompt (docs/tests/subscription-chatgpt-prompt.md) opens every page by its link; her second ready copy is ~/Documents/Lawfecta DELA for Stacey/subscription-chatgpt-prompt-READY-2.txt. Not run again yet.
+- Verified on the server only (health, the copy, the script files on jsDelivr). Nobody has looked at the new Talent page on the site in a browser yet.
+- Local testing: tools/local_tests.sh runs the database and API tests on her Mac (Postgres.app 16 on port 55432). PHP is missing there, so the browser suites run only on GitHub (about 10 minutes a round). tests/pw/categories-test.js runs last and puts back the switches it changes.
+
 ## First local session (2026-11-12, on Stacey's Mac)
 - Repository cloned into her Google Drive folder "Code - DELA", branch claude/step-2a-ai-keys-voice-files. Python 3.9, Node 24, npm install done (Deno 2.9.6 and Playwright with Chromium). Rules check and decisions check pass. Supabase connector signed in to "Lawfecta AI"; health "ok", environment "live", code_version 37ddf80.
 - Missing on her Mac: GitHub push login (no `gh`, no saved GitHub password; commits stay local until she signs in), and Postgres 16 with `psql` (no tests can run, so nothing is released until it is installed).
