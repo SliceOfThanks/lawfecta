@@ -2658,6 +2658,36 @@ async function bookmarkSet(ctx: Ctx) {
   }
   return json(ctx, { ok: true, bookmarked: false, duplicate: !mine.length });
 }
+// Step 19 (docs/briefs/step-19-subscription-redesign.md): what the Lawfecta website's billing holds for THIS member:
+// their membership (cycle, amount, next due date, status) and their invoices. Membership billing belongs to the website;
+// DELA only reads it for the member it belongs to, never by a billing record number, and passes on no admin notes.
+function billCents(v: unknown): number | null { const n = Number(String(v ?? "").replace(/[^0-9.\-]/g, "")); return Number.isFinite(n) && String(v ?? "").trim() !== "" ? Math.round(n * 100) : null; }
+function billDate(v: unknown): string { const t = String(v ?? "").slice(0, 10); return /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(t) && !t.startsWith("0000") ? t : ""; }
+async function subscriptionBilling(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const site = await setting(ctx, "site.url", ""), key = ctx.deps.env("BD_API_KEY");
+  const r = await bdCall<unknown>(f(ctx), site, key, "POST", "/api/v2/user/transactions", { user_id: String(Math.trunc(s.bd_member_id)) });
+  if (!r.ok) {
+    if (r.status === 404 || /No billing account for this member|user_id or client_id is required/i.test(r.error)) return json(ctx, { ok: true, has_account: false, membership: null, invoices: [] });
+    console.error("bd_billing", r.error.slice(0, 120));
+    return json(ctx, { ok: false, reason: r.status === 403 || r.status === 401 ? "billing_not_allowed" : "billing_unreachable" });
+  }
+  const m = r.data as Record<string, unknown> | unknown[] | null;
+  const rows = (Array.isArray(m) ? m : m && Array.isArray((m as Record<string, unknown>).invoices) ? (m as Record<string, unknown>).invoices as unknown[] : []) as Array<Record<string, any>>;
+  const invoices = rows.map((x) => {
+    const d = (x?.invoice_details ?? x ?? {}) as Record<string, any>;
+    const items = Array.isArray(d.items) ? d.items : [];
+    return { number: String(d.invoicenum || d.id || "").slice(0, 40), date: billDate(d.date), due: billDate(d.duedate), paid: billDate(d.datepaid), total_cents: billCents(d.total),
+      status: String(d.status ?? "").slice(0, 30), what: String(items[0]?.description ?? "").replace(/<[^>]*>/g, "").slice(0, 160) };
+  }).filter((x) => x.date || x.number).sort((a, b) => (a.date < b.date ? 1 : -1)).slice(0, 24);
+  // The membership: the newest subscription attached to an invoice
+  const subs = rows.map((x) => x?.subscription_details).filter((x) => x && typeof x === "object") as Array<Record<string, any>>;
+  subs.sort((a, b) => (String(a.nextduedate ?? "") < String(b.nextduedate ?? "") ? 1 : -1));
+  const active = subs.find((x) => String(x.domainstatus ?? "").toLowerCase() === "active") ?? subs[0] ?? null;
+  const membership = active ? { status: String(active.domainstatus ?? "").slice(0, 30), cycle: String(active.billingcycle ?? "").slice(0, 30), amount_cents: billCents(active.amount), next_due: billDate(active.nextduedate),
+    started: billDate(active.regdate), plan_id: Number(active.packageid) || null } : null;
+  return json(ctx, { ok: true, has_account: rows.length > 0, membership, invoices });
+}
 async function engagementPeople(ctx: Ctx) {
   const s = await memberSide(ctx);
   const r = await rpc<Record<string, any>>(ctx, "dela_engagement_people", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.url.searchParams.get("agreement"))) });
@@ -5336,7 +5366,14 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /admin/standing": { const s = await staff(ctx); return json(ctx, await rpc(ctx, "dela_admin_standing", { p_actor: s.person_id })); }
       case "GET /usage": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_usage", { p_person: s.person_id, p_side: s.side })); }
       // Step 16: the member's plan and the plans of their workspace, for the Subscription page (read only)
-      case "GET /subscription": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_subscription", { p_person: s.person_id, p_side: s.side })); }
+      case "GET /subscription": {
+        const s = await memberSide(ctx);
+        const r = await rpc<Record<string, any>>(ctx, "dela_subscription", { p_person: s.person_id, p_side: s.side });
+        // Step 19: exporting from the member's own library counts against the plan only when this setting says so
+        if (r?.ok) r.exports_counted = await setting(ctx, "exports.own_library_counts", "false") === "true";
+        return json(ctx, r);
+      }
+      case "GET /subscription/billing": return await subscriptionBilling(ctx);
       case "GET /admin/usage": { const s = await staff(ctx); return json(ctx, await rpc(ctx, "dela_admin_usage", { p_actor: s.person_id })); }
       case "POST /admin/usage/bonus": { const s = await staff(ctx); return json(ctx, await rpc(ctx, "dela_admin_usage_bonus", { p_actor: s.person_id, p_person: need(uuid(ctx.body.person_id)), p_amount: int(ctx.body.amount), p_note: str(ctx.body.note, 500), p_request: str(ctx.body.request_id, 80) })); }
       case "POST /admin/usage/resync": return await planResync(ctx);

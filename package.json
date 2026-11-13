@@ -4,6 +4,7 @@
   "description": "Test tools only. DELA itself has no build step.",
   "devDependencies": {
     "@anthropic-ai/sdk": "0.133.0",
+    "axe-core": "4.10.2",
     "deno": "2.9.6",
     "playwright": "1.63.0"
   }

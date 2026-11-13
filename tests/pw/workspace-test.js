@@ -5,6 +5,7 @@
 //   node tests/pw/workspace-test.js   (with tests/pw/server.ts running)
 const { chromium } = require("playwright");
 const path = require("path");
+const fs = require("fs");
 
 const BASE = "http://127.0.0.1:8787";
 const ROOT = path.join(__dirname, "..", "..");
@@ -341,20 +342,80 @@ async function makeMember(bd, side, plan, name) {
     await p.screenshot({ path: path.join(SHOTS, "workspace-desktop-work-first.png") });
     // Step 16 (Stacey 2026-11-12): "Subscription" under Profile shows the plan, what it allows, usage, and every plan of
     // the workspace with the member's own one marked and a button to move up or down; a banner after login when near a limit
+    // Automated accessibility rules (axe-core 4.10.2: WCAG 2.0, 2.1 and 2.2, levels A and AA) on one part of the page.
+    // It finds what a tool can find; keyboard and reading-order checks are the steps around it.
+    const axeSrc = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+    const axe = async (page, sel, what) => {
+      if (!(await page.evaluate(() => !!window.axe))) await page.addScriptTag({ content: axeSrc });
+      const v = await page.evaluate(async (s) => {
+        const r = await window.axe.run({ include: [[".dela-host", s]] }, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } });
+        return r.violations.map((x) => x.id + " (" + x.impact + "): " + x.nodes.slice(0, 3).map((n) => n.target.join(" ") + " [" + (n.failureSummary || "").split("\n").slice(1, 3).join("; ").slice(0, 160) + "]").join(" || "));
+      }, sel);
+      ok(v.length === 0, "accessibility rules pass on " + what + (v.length ? ": " + v.join(" ### ") : ""));
+    };
     await dela(p).getByRole("button", { name: "Subscription", exact: true }).click();
-    t = await waitFor(p, "All freelancer plans");
-    ok(p.url().includes("tab=subscription") && t.includes("Your current plan: Freelancer") && t.includes("Your usage") && t.includes("What your plan allows"), "Subscription: the plan, the usage and what the plan allows");
+    // Step 19 (Stacey 2026-11-12): four areas as tabs; real billing from the website, never a guess; a review before a plan change
+    t = await waitFor(p, "What you are billed");
+    const subTabs = await dela(p).getByRole("tab").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
+    ok(p.url().includes("tab=subscription") && subTabs.join("|") === "My Subscription|Usage & Limits|Compare Plans|Billing & History", "Subscription: four areas as tabs: " + subTabs.join("|"));
+    ok(t.includes("YOUR CURRENT PLAN") || t.includes("Your current plan"), "Subscription: the current plan leads the page");
+    ok(t.includes("Freelancer Free") && t.includes("✓ Current plan") && t.includes("Published price") && t.includes("No paid membership on record") && t.includes("No renewal date on record") && t.includes("DELA never estimates them"), "My Subscription: the published price is told apart from what the member is billed, and no renewal date is invented");
+    await axe(p, ".subp", "My Subscription");
+    // Usage and limits, reached with the keyboard
+    await dela(p).getByRole("tab", { name: "My Subscription" }).focus();
+    await p.keyboard.press("ArrowRight");
+    t = await waitFor(p, "Your plan usage");
+    const meters = await inShadow(p, (root) => [...root.querySelectorAll("#sub-usage [role=meter]")].map((m) => m.getAttribute("aria-label") + ": " + m.getAttribute("aria-valuetext")));
+    ok(await dela(p).getByRole("tab", { name: "Usage & Limits" }).getAttribute("aria-selected") === "true" && meters.length > 0 && meters.every((m) => /remaining/.test(m)), "Usage: the arrow keys move between tabs; every meter says what is used and what remains: " + meters.join(" | "));
+    ok(t.includes("Monthly allowances (start again on") && t.includes("Account and capacity limits (these do not reset)") && t.includes("At the limit"), "Usage: monthly allowances apart from capacity limits, each with what happens at the limit");
+    const allows = await inShadow(p, (root) => root.querySelector("#sub-usage").innerText + root.querySelector("#sub-allows").innerText);
+    ok(allows.includes("Exporting your own documents is not limited and is not counted.") && !/exports per month/i.test(allows), "Usage: exports are not shown as limited while they are not counted (the old page said both)");
+    ok(!allows.includes("Weighted AI credits") && allows.includes("DELA actions") && !/\d\.\d\d+ GB/.test(allows) && !/\d of \d+ (available|left)/.test(allows.split("What your plan allows")[1] || "1 of 1 left"), "Usage: DELA actions by name, storage in whole GB, and the allowance table shows allowances, not what is left");
+    await axe(p, ".subp", "Usage and limits");
+    // Compare plans
+    await dela(p).getByRole("tab", { name: "Compare Plans" }).click();
+    t = await waitFor(p, "Full feature comparison");
     const plans = await inShadow(p, (root) => ({ boxes: root.querySelectorAll(".sub-plan").length, mine: [...root.querySelectorAll(".sub-plan.current")].map((x) => x.innerText).join("|"),
-      links: [...root.querySelectorAll(".sub-plan a")].map((a) => a.innerText.trim() + " > " + a.getAttribute("href") + " > " + a.target),
+      acts: [...root.querySelectorAll(".sub-plan button")].map((a) => a.innerText.trim()), heads: [...root.querySelectorAll("#sub-full thead th")].map((x) => x.innerText.trim()), rowHeads: root.querySelectorAll("#sub-full tbody th[scope=row]").length,
       order: [...root.querySelectorAll(".nl-side .nl-item .lbl")].map((x) => x.textContent) }));
-    ok(plans.boxes === 4 && plans.mine.includes("Your current plan") && plans.links.length === 3 && plans.links.every((l) => l.endsWith("> /account/upgrade > _blank") && (l.startsWith("Upgrade to ") || l.startsWith("Downgrade to "))), "Subscription: four plans, the member's own marked, and a button to the website on each other one: " + plans.links.join(" | "));
-    // Stacey's pictures of 2026-11-12: Downgrade looked like a main button, storage read "51.2 GB", the AI allowance had its internal name
-    const look = await inShadow(p, (root) => ({ down: [...root.querySelectorAll(".sub-plan a")].slice(0, 1).map((a) => { const was = a.className; a.className = "btn small ghost"; const c = getComputedStyle(a).backgroundColor; a.className = was; return c; }), words: root.querySelector("#sub-plans").innerText + root.querySelector("#sub-current").innerText }));
-    ok(look.down.length > 0 && look.down.every((c) => c === "rgba(0, 0, 0, 0)" || c === "transparent"), "Subscription: Downgrade buttons are outlined, not filled: " + look.down.join(","));
-    ok(!look.words.includes("Weighted AI credits") && look.words.includes("DELA actions a month") && !/\d\.\d\d+ GB/.test(look.words) && !/\d of \d+ (available|left)/.test(look.words.split("What your plan allows")[1] || "1 of 1 left"), "Subscription: DELA actions by name, storage in whole GB, and the allowance table shows allowances, not what is left: " + look.words.slice(-900));
+    ok(plans.boxes === 4 && plans.mine.includes("Your current plan") && plans.mine.includes("You are on this plan") && plans.acts.length === 3 && plans.acts.every((l) => l.startsWith("Upgrade to ") || l.startsWith("Downgrade to ")), "Compare: four plans, the member's own marked in words, and one action on each other one: " + plans.acts.join(" | "));
+    ok(plans.heads.join("|") === "Feature|Free (your plan)|Plus|Pro|Business (agency)" && plans.rowHeads >= 5, "Compare: one full comparison table with a heading on every row and column: " + plans.heads.join("|"));
+    const look = await inShadow(p, (root) => ({ down: [...root.querySelectorAll(".sub-plan button")].slice(0, 1).map((a) => { const was = a.className; a.className = "small ghost"; const c = getComputedStyle(a).backgroundColor; a.className = was; return c; }), words: root.querySelector("#sub-plans").innerText }));
+    ok(look.down.length > 0 && look.down.every((c) => c === "rgba(0, 0, 0, 0)" || c === "transparent"), "Compare: Downgrade buttons are outlined, not filled: " + look.down.join(","));
+    ok(!look.words.includes("Weighted AI credits") && look.words.includes("DELA actions a month") && !/\d\.\d\d+ GB/.test(look.words) && !/exports per month/i.test(look.words), "Compare: plain feature names, whole GB, no export limit shown");
+    await dela(p).getByRole("radio", { name: "Annual" }).click();
+    t = await waitFor(p, "paid once a year");
+    ok(await dela(p).getByRole("radio", { name: "Annual" }).getAttribute("aria-checked") === "true" && /a year/.test(t), "Compare: the Annual choice shows the yearly price and what that is a month");
+    await axe(p, ".subp", "Compare plans");
+    // The review before a plan change: nothing is changed or charged from DELA
+    await dela(p).getByRole("button", { name: "Upgrade to Plus" }).click();
+    const dlg = dela(p).getByRole("dialog");
+    await dlg.waitFor();
+    const dt = await dlg.innerText();
+    const cont = await inShadow(p, (root) => { const a = root.querySelector(".dela-modal a.btn"); return a ? a.innerText.trim() + " > " + a.getAttribute("href") + " > " + a.target : ""; });
+    ok(dt.includes("Review your plan change") && dt.includes("Upgrade from Freelancer Free to Freelancer Plus.") && dt.includes("Published price") && dt.includes("Platform fee on jobs") && dt.includes("Nothing is charged by continuing from here."), "Plan change: a review with what changes, and where the charge is shown");
+    ok(cont === "Continue to the Lawfecta website > /account/upgrade > _blank", "Plan change: the website opens in a new tab only from the review: " + cont);
+    await axe(p, ".dela-modal", "the plan change review");
+    await dlg.getByRole("button", { name: "Cancel" }).click();
+    ok(await dela(p).getByRole("dialog").count() === 0 && await p.evaluate(() => document.querySelector(".dela-host").shadowRoot.activeElement.innerText.trim()) === "Upgrade to Plus", "Plan change: Cancel closes the review and puts the keyboard back on the button");
+    // Billing and history: only what the website has on record
+    await dela(p).getByRole("tab", { name: "Billing & History" }).click();
+    t = await waitFor(p, "Your membership billing");
+    ok(t.includes("The Lawfecta website has no paid membership and no invoices on record for your account.") && t.includes("DELA never charges your card for a membership.") && t.includes("Manage your membership"), "Billing: no membership on record is said plainly, with where to manage and whom to ask");
+    await axe(p, ".subp", "Billing and history");
     ok(plans.order.indexOf("Subscription") === plans.order.indexOf("Profile") + 1, "Subscription sits right under Profile in the menu: " + plans.order.join(", "));
     ok(await fits(p), "Subscription: no sideways scrolling");
     await p.screenshot({ path: path.join(SHOTS, "workspace-subscription.png"), fullPage: true });
+    // A phone 320 wide: the four areas are four buttons with short names, nothing is cut off sideways
+    const vp = p.viewportSize();
+    await p.setViewportSize({ width: 320, height: 720 });
+    await p.waitForTimeout(400);
+    const phone = await inShadow(p, (root) => ({ short: [...root.querySelectorAll(".sub-tabs .st-short")].map((x) => getComputedStyle(x).display !== "none" ? x.textContent : "").join("|"), tall: [...root.querySelectorAll(".sub-tabs button")].every((b) => b.getBoundingClientRect().height >= 40) }));
+    ok(phone.short === "Plan|Usage|Compare|Billing" && phone.tall && await fits(p), "Subscription on a 320 wide phone: short tab names, touch-size tabs, no sideways scrolling: " + phone.short);
+    for (const name of ["Compare Plans", "Usage & Limits", "My Subscription"]) { await dela(p).getByRole("tab", { name }).click(); await p.waitForTimeout(250); ok(await fits(p), "320 wide, " + name + ": no sideways scrolling"); }
+    await p.screenshot({ path: path.join(SHOTS, "workspace-subscription-phone.png"), fullPage: true });
+    await p.setViewportSize(vp);
+    await p.waitForTimeout(300);
     ok(await inShadow(p, (root) => !root.querySelector(".limit-banner")), "no limit banner while nothing is near a limit");
     await sql("insert into quota_usage (person_id, side, feature_key, period_start, used) select id, 'freelancer', 'ai.runs', dela_period_start('month'), 100000 from people where bd_member_id = 5103 on conflict (person_id, side, feature_key, period_start) do update set used = 100000");
     await p.goto(`${BASE}/page/DELA-App?uid=5103&plan=&tab=home`);

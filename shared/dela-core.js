@@ -223,6 +223,7 @@
   D.errorText = function (code) {
     var map = {
       forbidden: "Only the Lawfecta Team owner can do that.",
+      billing_not_allowed: "The Lawfecta website did not let DELA read your billing. The Lawfecta Team has been asked to allow it.", billing_unreachable: "The Lawfecta website's billing could not be reached just now.",
       bookmarks_off: "Bookmarks are not turned on.", bookmarks_unreachable: "The Lawfecta website's bookmarks could not be reached just now. Try again in a minute.", bookmarks_not_allowed: "The Lawfecta website did not let DELA use its bookmarks. The Lawfecta Team has been asked to allow it.",
       needs_completed_gig: "This opens after you have completed a gig with this freelancer. Canceled, refunded or disputed gigs do not count.",
       sensitive_data: "This looks like sensitive data (a Social Security number or ITIN, a government ID number, an account or card number, or a password). Sensitive data never goes in DELA. Keep it in your own storage and share a link instead.",
@@ -498,6 +499,16 @@ D.openTab = function (getUrl, onFail, opts) {
     ".av-box{margin:6px 0 10px}.av-grid{display:grid;grid-template-columns:repeat(auto-fill,52px);gap:6px;max-height:190px;overflow:auto;padding:4px}.dela .av-opt{width:52px;height:52px;min-height:0;padding:2px;border-radius:50%;border:2px solid transparent;background:transparent;line-height:0}" +
     ".av-opt img{width:44px;height:44px;border-radius:50%}.dela .av-opt[aria-checked=true]{border-color:var(--pink-ink);box-shadow:0 0 0 2px var(--pink)}.dela .av-opt:focus-visible{outline:2px solid var(--pink-ink);outline-offset:2px}" +
     ".talent-bm{display:inline-flex;align-items:center;gap:6px;margin:4px 0 8px;cursor:pointer}.talent-marked{font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}.dela .bm-btn[aria-pressed=true]{border-color:var(--pink-ink);background:var(--pink)}" +
+    // Step 19: the Subscription page (four areas as tabs; on a phone the tabs become four equal buttons with short names)
+    ".sub-tabs{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0;border-bottom:1px solid var(--line)}.dela .sub-tabs button{background:transparent;border:0;border-bottom:3px solid transparent;border-radius:8px 8px 0 0;color:var(--muted);font-weight:700;padding:10px 14px;min-height:44px}" +
+    ".dela .sub-tabs button[aria-selected=true]{color:var(--pink-ink);border-bottom-color:var(--pink-ink);background:var(--pink)}.dela .sub-tabs button:focus-visible,.dela .sub-cycle button:focus-visible{outline:2px solid var(--pink-ink);outline-offset:2px}.st-short{display:none}" +
+    ".sub-panel:focus-visible{outline:2px solid var(--pink-ink);outline-offset:4px}.sub-panel .card{margin:10px 0}.sub-hero{background:var(--pink)}.sub-eyebrow{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--pink-ink);margin:0 0 4px}" +
+    ".sub-group{font-size:15px;margin:16px 0 4px;padding:8px 10px;background:var(--pink);border-radius:8px}.sub-line{padding:10px 0;border-top:1px solid var(--line)}.sub-group + .sub-line{border-top:0}" +
+    ".sub-table{width:100%;border-collapse:collapse}.sub-table caption{text-align:left;padding:0 0 6px}.sub-table th,.sub-table td{text-align:left;padding:8px 10px;border-top:1px solid var(--line);vertical-align:top}.sub-table thead th{border-top:0;white-space:nowrap}.sub-table tbody th{font-weight:600}" +
+    ".sub-cycle{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px;margin:6px 0}.dela .sub-cycle button{background:transparent;border:0;border-radius:999px;color:var(--ink);font-weight:700;padding:6px 16px;min-height:36px}.dela .sub-cycle button[aria-checked=true]{background:var(--brand);color:var(--brand-ink)}" +
+    ".sub-here{font-weight:700;color:var(--pink-ink);margin:auto 0 0}.sub-plan button{align-self:flex-start;margin-top:auto;min-height:40px}" +
+    "@media (max-width:720px){.sub-tabs{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:12px;padding:4px;gap:4px}.dela .sub-tabs button{border-radius:8px;border-bottom:0;padding:10px 2px;font-size:14px}.dela .sub-tabs button[aria-selected=true]{background:var(--brand);color:var(--brand-ink)}" +
+    ".st-full{display:none}.st-short{display:inline}.sub-plan button,.subp .btn{width:100%;justify-content:center}.subp .tp-facts div{flex-direction:column;gap:2px}.subp .tp-facts dd{text-align:left}}" +
     ".fit-row .talent-photo{width:48px;height:48px;font-size:20px}" +
     ".tp-two{display:grid;grid-template-columns:minmax(0,2fr) minmax(220px,1fr);gap:14px;align-items:start}.tp-two .card{margin:0 0 12px}@media (max-width:860px){.tp-two{grid-template-columns:1fr}}" +
     ".tp-lines{margin:0;padding-left:18px}.tp-lines li{margin:6px 0}@media (max-width:720px){.tp-photo{width:56px;height:56px;font-size:22px}}" +

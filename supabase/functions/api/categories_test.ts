@@ -26,10 +26,20 @@ const SUBS = [
 // The website's bookmark table (users_favorite), as its API reference shows it: camelCase fields, values as text
 const favs: Array<Record<string, string>> = [];
 let favSeq = 910000, favs403 = false;
+let billing: "none" | "some" | "refuse" = "none";
 const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
   const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
   calls.push(url.pathname + url.search);
   if (url.hostname !== "bd.test") return new Response("{}", { status: 404 });
+  // The website's billing for one member (step 19): nothing on record, or a membership with invoices
+  if (url.pathname === "/api/v2/user/transactions") {
+    if (billing === "refuse") return Response.json({ status: "error", message: "API Key does not have permission" }, { status: 403 });
+    if (billing === "none") return Response.json({ status: "error", message: "user_id or client_id is required" }, { status: 400 });
+    const sub = { id: "9", userid: "1", packageid: "12", regdate: "2026-01-05", nextduedate: "2026-12-05", billingcycle: "Monthly", amount: "49.00", domainstatus: "Active", notes: "internal: gave a discount" };
+    return Response.json({ status: "success", message: { total: 2, invoices: [
+      { invoice_details: { id: "501", invoicenum: "", date: "2026-10-05", duedate: "2026-10-05", datepaid: "2026-10-05 10:00:00", total: "49.00", status: "Paid", notes: "admin only: card ending 4242", items: [{ description: "Attorney Pro (10/05/2026 - 11/04/2026)", amount: "49.00" }] }, subscription_details: sub },
+      { invoice_details: { id: "502", invoicenum: "INV-502", date: "2026-11-05", duedate: "2026-11-05", datepaid: "0000-00-00 00:00:00", total: "49.00", status: "Unpaid", notes: "", items: [{ description: "Attorney Pro (11/05/2026 - 12/04/2026)", amount: "49.00" }] }, subscription_details: sub }] } });
+  }
   if (url.pathname.startsWith("/api/v2/users_favorite/")) {
     if (favs403) return Response.json({ status: "error", message: "API Key does not have permission" }, { status: 403 });
     const form = new URLSearchParams(String(init.body ?? ""));
@@ -359,6 +369,25 @@ Deno.test("bookmarks live in the website's own bookmark table: save, list, filte
   await pool.query(`update settings set value = jsonb_set(value, '{on}', 'false') where key = 'bd.bookmarks'`);
   assertEquals([(await call("GET", "/bookmarks", att.token)).body.on, (await call("POST", "/bookmarks/set", att.token, { person: fFamily.id })).body.reason], [false, "bookmarks_off"], "the setting turns bookmarks off");
   await pool.query(`update settings set value = jsonb_set(value, '{on}', 'true') where key = 'bd.bookmarks'`);
+});
+
+Deno.test("subscription: what the member is billed comes from the website's records for that member only, and is never guessed", async () => {
+  const sub = (await call("GET", "/subscription", att.token)).body;
+  assertEquals([sub.ok, sub.exports_counted, sub.plan_source], [true, false, "staff_grant"], "exporting the member's own documents is not counted unless the setting says so");
+  // Nothing on record: said as such, no dates or amounts
+  assertEquals((await call("GET", "/subscription/billing", att.token)).body, { ok: true, has_account: false, membership: null, invoices: [] });
+  billing = "some";
+  const b = (await call("GET", "/subscription/billing", att.token)).body;
+  assertEquals(b.membership, { status: "Active", cycle: "Monthly", amount_cents: 4900, next_due: "2026-12-05", started: "2026-01-05", plan_id: 12 });
+  assertEquals(b.invoices.map((x: any) => [x.number, x.date, x.status, x.total_cents, x.paid, x.due]), [["INV-502", "2026-11-05", "Unpaid", 4900, "", "2026-11-05"], ["501", "2026-10-05", "Paid", 4900, "2026-10-05", "2026-10-05"]], "newest first; an unpaid invoice has no paid date");
+  assert(!/admin only|4242|internal: gave|notes/.test(JSON.stringify(b)), "the website's admin notes never reach the member");
+  // Asked with the member's own website number, never with a billing record number
+  const asked = calls.filter((c) => c.startsWith("/api/v2/user/transactions"));
+  assert(asked.length > 0);
+  billing = "refuse";
+  assertEquals((await call("GET", "/subscription/billing", att.token)).body, { ok: false, reason: "billing_not_allowed" });
+  billing = "none";
+  assertEquals((await call("GET", "/subscription/billing", "ds_test_nobody")).status, 401);
 });
 
 Deno.test("the website refuses or answers with nothing: the lists stay as they were", async () => {

@@ -9748,7 +9748,7 @@
       if (e.kind !== "quota" || !e.enabled || e.unlimited || !(e.limit > 0) || e.unit === "MB" || e.unit === "seats") return;
       if (att && u && (e.key === "ai.runs" || e.key === "att.playbooks_saved")) return;
       var used = (e.used || 0) + (e.reserved || 0);
-      lines.push({ key: e.key, label: e.key === "ai.runs" ? "DELA actions this month" : e.label, used: used, limit: e.limit, text: used + " of " + e.limit + (e.period === "month" ? " this month" : "") + (e.shared ? ", shared by your firm" : "") });
+      lines.push({ key: e.key, period: e.period, label: e.key === "ai.runs" ? "DELA actions this month" : e.label, used: used, limit: e.limit, text: used + " of " + e.limit + (e.period === "month" ? " this month" : "") + (e.shared ? ", shared by your firm" : "") });
     });
     return lines;
   }
@@ -9790,61 +9790,221 @@
       var words = (full ? "You have reached a limit of your plan: " : "You are close to a limit of your plan: ") + near.map(function (l) { return l.label + ", " + l.text; }).join("; ") + ".";
       var bar = h("div", { class: "notice warn usage-banner limit-banner", role: "status", style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap" },
         h("span", { class: "grow", text: words }),
-        h("button", { class: "small", type: "button", onclick: function () { goTab("subscription"); } }, "View subscription"),
+        h("button", { class: "small", type: "button", onclick: function () { subTab = "usage"; goTab("subscription"); } }, "View subscription"),
         h("button", { class: "ghost small", type: "button", onclick: function () { bannerHidden = true; bannerOff(true); bar.remove(); } }, "Dismiss"));
       host.insertBefore(bar, host.firstChild);
     });
   }
+  // Step 19 (docs/briefs/step-19-subscription-redesign.md): four areas on one page, as tabs. My Subscription, Usage and
+  // limits, Compare plans, Billing and history. Published prices are the plan's list prices; what the member is actually
+  // billed comes from the Lawfecta website's billing, and is never guessed. A plan change is reviewed here and made on
+  // the website, which shows the exact charge before anything is paid.
+  var subTab = "plan", subCycle = "month";
+  var SUB_TABS = [["plan", "My Subscription", "Plan"], ["usage", "Usage & Limits", "Usage"], ["compare", "Compare Plans", "Compare"], ["billing", "Billing & History", "Billing"]];
+  // What reaching a limit means, in the member's words
+  function limitMeans(key) {
+    if (key === "actions" || key === "ai.runs") return "At the limit, DELA's AI stops until the reset date. Actions on your own AI key do not count.";
+    if (key === "playbooks" || key === "att.playbooks_saved") return "At the limit, new documents cannot be saved. The ones you have stay, and you can still view, export and assign them.";
+    if (key === "storage" || key === "storage.mb") return "At the limit, new uploads are refused until you delete files or move to a plan with more space.";
+    if (key === "att.gigs_active") return "This counts gigs that are open at the same time, not how many you post in a month. Close or fill one to post another.";
+    if (key === "exports") return "At the limit, exports stop until the reset date.";
+    return "At the limit, adding another is refused until you remove one or change plan.";
+  }
+  function cyclePrice(p) {
+    if (!p.monthly_cents && !p.annual_cents) return { big: "No charge", small: "" };
+    if (subCycle === "year") return p.annual_cents ? { big: D.money(p.annual_cents) + " a year", small: "About " + D.money(Math.round(p.annual_cents / 12)) + " a month, paid once a year" } : { big: D.money(p.monthly_cents) + " a month", small: "No annual price for this plan" };
+    return { big: D.money(p.monthly_cents) + " a month", small: p.annual_cents ? "or " + D.money(p.annual_cents) + " a year" : "" };
+  }
+  function planCell(f) { return !f.enabled ? "Not included" : f.kind !== "quota" ? "Included" : f.unlimited ? "No cap" : f.unit === "MB" ? D.mbText(f.limit) : String(f.limit) + (f.period === "month" ? " a month" : ""); }
+  // The review before a plan change: what changes, what it means, and where the charge is shown. Nothing is changed here.
+  function planChangeReview(r, cur, p, opener) {
+    var up = cur ? p.rank > cur.rank : true, m = modal("Review your plan change");
+    var close = function () { m.close(); if (opener && opener.focus) opener.focus(); };
+    var feats = function (pl) { var o = {}; (pl.features || []).forEach(function (f) { o[f.key] = f; }); return o; };
+    var a = cur ? feats(cur) : {}, b = feats(p), rows = [];
+    Object.keys(b).forEach(function (k) {
+      if (k === "exports" && !r.exports_counted) return;
+      var from = a[k] ? planCell(a[k]) : "Not included", to = planCell(b[k]);
+      if (from !== to) rows.push([D.featLabel(b[k]), from, to]);
+    });
+    var was = subCycle, priceOf = function (pl) { var c = cyclePrice(pl); return c.big; };
+    m.body.appendChild(h("p", { id: "pcr-what", text: (up ? "Upgrade" : "Downgrade") + " from " + (cur ? cur.name : r.plan_name) + " to " + p.name + "." }));
+    m.body.appendChild(h("div", { class: "scroll" }, h("table", { class: "sub-table" }, h("caption", { class: "small muted", text: "What changes" }),
+      h("thead", null, h("tr", null, h("th", { scope: "col", text: "Item" }), h("th", { scope: "col", text: "Now" }), h("th", { scope: "col", text: "After the change" }))),
+      h("tbody", null, [["Published price", cur ? priceOf(cur) : "Not a standard plan", priceOf(p)], ["Platform fee on jobs", cur ? (cur.fee_bps / 100) + "%" : "See your agreement", (p.fee_bps / 100) + "%"]].concat(rows).map(function (x) {
+        return h("tr", null, h("th", { scope: "row", text: x[0] }), h("td", { text: x[1] }), h("td", { text: x[2] }));
+      })))));
+    if (!up) m.body.appendChild(h("p", { class: "notice", text: me.side === "attorney" ? "On a lower plan, documents above its limit become read-only. Nothing is deleted: you can still view, export and assign them. Open gigs, engagements and payments are not affected." : "On a lower plan, anything above a lower limit stays, but you cannot add more until you are under it. Engagements and payouts are not affected." }));
+    m.body.appendChild(h("p", { class: "small", text: "Memberships are billed by the Lawfecta website, not by DELA. The website shows the date the change starts, the exact charge and any credit for unused time before you confirm there. Nothing is charged by continuing from here." }));
+    if (r.plan_source === "staff_grant") m.body.appendChild(h("p", { class: "notice", text: "Your DELA plan was set by the Lawfecta Team. Changing your website membership may not change it. To change this plan, contact the Lawfecta Team from Help." }));
+    m.body.appendChild(h("p", { class: "small muted", text: "After you finish on the website, come back and reload this page to see your plan." }));
+    var go = h("a", { class: "btn blue", href: r.upgrade_url || "/account/upgrade", target: "_blank", rel: "noopener", onclick: function () { setTimeout(close, 0); } }, "Continue to the Lawfecta website");
+    m.foot.appendChild(go);
+    m.foot.appendChild(h("button", { class: "ghost", type: "button", onclick: close }, "Cancel"));
+    subCycle = was;
+    setTimeout(function () { go.focus(); }, 0);
+  }
   function subscriptionView() {
-    var el = h("div", null, h("h1", { text: "Subscription" }), h("p", { class: "muted", text: "Loading..." }));
-    Promise.all([api.get("/subscription"), loadUsage(true)]).then(function (rs) {
-      var r = rs[0], u = rs[1];
-      D.clear(el);
-      el.appendChild(h("h1", { text: "Subscription" }));
-      if (!r || !r.ok) { el.appendChild(h("p", { class: "notice", text: "Your plan could not be shown right now. Reload the page, or contact the Lawfecta Team from Help." })); return; }
-      var warn = r.warn_pct || 80, cur = (r.plans || []).filter(function (p) { return p.current; })[0], lines = quotaLines(u), near = nearLines(u, warn);
-      el.appendChild(h("p", { class: "muted", text: "Your " + (me.side === "attorney" ? "Attorney" : "Freelancer") + " workspace plan, what it allows, what you have used, and the other plans you can move to." }));
-      // 1. The plan the member is on
-      var card = h("div", { class: "card", id: "sub-current" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Your current plan: " + r.plan_name }),
-        r.plan_source === "staff_grant" ? h("span", { class: "badge", text: "Set by the Lawfecta Team" }) : null));
-      if (cur) card.appendChild(h("p", { class: "small", text: priceText(cur) + ". Platform fee on jobs: " + (cur.fee_bps / 100) + "%." }));
-      if (me.trial && me.trial.on && me.trial.active) card.appendChild(h("div", { class: "notice ok", text: "Your free trial gives you Pro features until " + D.date(me.trial.ends_at) + ". After that you keep everything you made, on your own plan." }));
-      if (near.length) card.appendChild(h("p", { class: "notice warn", id: "sub-near", role: "status", text: (near.length === 1 ? "You are close to one limit: " : "You are close to " + near.length + " limits: ") + near.map(function (l) { return l.label; }).join(", ") + ". A higher plan gives you more." }));
-      card.appendChild(h("h3", { text: "Your usage" }));
-      if (!lines.length) card.appendChild(h("p", { class: "small muted", text: "Nothing on your plan is counted against a limit." }));
-      lines.forEach(function (l) {
-        var p = usagePct(l.used, l.limit), isNear = l.limit && p >= warn;
-        card.appendChild(h("div", { class: "sub-line", style: "margin:14px 0" }, h("div", { class: "row" }, h("b", { class: "grow", text: l.label }),
-          isNear ? h("span", { class: "badge " + (p >= 100 ? "bad" : "held"), text: p >= 100 ? "Limit reached" : "Nearing the limit" }) : null, h("span", { class: "small", text: l.text })),
-          l.limit ? h("div", { class: "bar", role: "progressbar", "aria-label": l.label, "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(p) }, h("span", { style: "width:" + p + "%" + (p >= 100 ? ";background:var(--bad)" : isNear ? ";background:#d9a400" : "") })) : null));
+    var el = h("div", { class: "subp" }, h("h1", { text: "Subscription" }), h("p", { class: "muted", text: "Your plan, what you have used, the other plans, and your billing, in one place." }), h("p", { class: "muted", role: "status", text: "Loading..." }));
+    Promise.all([api.get("/subscription"), loadUsage(true), api.get("/subscription/billing").catch(function () { return { ok: false, reason: "billing_unreachable" }; })]).then(function (rs) {
+      var r = rs[0], u = rs[1], bill = rs[2] || { ok: false };
+      el.removeChild(el.lastChild);
+      if (!r || !r.ok) { el.appendChild(h("p", { class: "notice", role: "alert", text: "Your plan could not be shown right now. Reload the page, or contact the Lawfecta Team from Help." })); return; }
+      var warn = r.warn_pct || 80, cur = (r.plans || []).filter(function (p) { return p.current; })[0];
+      var lines = quotaLines(u).filter(function (l) { return r.exports_counted || l.key !== "exports"; });
+      var near = lines.filter(function (l) { return l.limit && usagePct(l.used, l.limit) >= warn; });
+      var staff = r.plan_source === "staff_grant", upgradeUrl = r.upgrade_url || "/account/upgrade";
+      // ----- Tabs -----
+      var panel = h("div", { class: "sub-panel", role: "tabpanel", id: "sub-panel", tabindex: "0" });
+      var bar = h("div", { class: "sub-tabs", role: "tablist", "aria-label": "Subscription sections" });
+      var btns = SUB_TABS.map(function (tb, i) {
+        var bt = h("button", { type: "button", role: "tab", id: "sub-tab-" + tb[0], "aria-controls": "sub-panel", "aria-label": tb[1], "aria-selected": String(subTab === tb[0]), tabindex: subTab === tb[0] ? "0" : "-1" },
+          h("span", { class: "st-full", text: tb[1] }), h("span", { class: "st-short", "aria-hidden": "true", text: tb[2] }));
+        bt.addEventListener("click", function () { pick(i, false); });
+        bt.addEventListener("keydown", function (e) {
+          var to = e.key === "ArrowRight" ? (i + 1) % SUB_TABS.length : e.key === "ArrowLeft" ? (i + SUB_TABS.length - 1) % SUB_TABS.length : e.key === "Home" ? 0 : e.key === "End" ? SUB_TABS.length - 1 : -1;
+          if (to >= 0) { e.preventDefault(); pick(to, true); }
+        });
+        bar.appendChild(bt); return bt;
       });
-      card.appendChild(h("p", { class: "small muted", text: "Monthly limits start again on " + D.date(r.resets_on) + "." + (me.side === "attorney" ? " Actions on your own AI key do not count. Viewing, exporting and assigning documents, messaging freelancers, posting gigs, hiring and paying are never limited." : "") }));
-      card.appendChild(h("h3", { text: "What your plan allows" }));
-      card.appendChild(h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "What you get" }), h("th", { text: "Your plan allows" }))),
-        h("tbody", null, (me.entitlements || []).map(function (e) { return h("tr", null, h("td", { text: D.featLabel(e) }), h("td", { text: allowText(e) })); })))));
-      el.appendChild(card);
-      // 2. Every plan of this workspace, the member's own one marked
-      var listed = !!cur, all = h("div", { class: "card", id: "sub-plans" }, h("h2", { text: "All " + (me.side === "attorney" ? "attorney" : "freelancer") + " plans" }),
-        h("p", { class: "small muted", text: "Changing plan and paying happen on the Lawfecta website. A button below opens that page in a new tab; choose the plan there. The price shown on the website is the one charged. When you come back, reload this page to see your new plan." }));
-      if (!listed) all.appendChild(h("p", { class: "notice", text: "Your plan, " + r.plan_name + ", is not one of the standard plans below. To change it, contact the Lawfecta Team from Help." }));
-      var grid = h("div", { class: "sub-grid" });
-      (r.plans || []).forEach(function (p) {
-        var up = cur ? p.rank > cur.rank : true, feats = (p.features || []).filter(function (f) { return f.enabled; });
-        var box = h("div", { class: "sub-plan" + (p.current ? " current" : ""), "aria-current": p.current ? "true" : null },
-          p.current ? h("span", { class: "badge ready sub-mine", text: "Your current plan" }) : null,
-          h("h3", { style: "margin:0", text: shortPlan(p.name) }), h("p", { class: "sub-price", text: priceText(p) }),
-          h("p", { class: "small muted", style: "margin:0", text: "Platform fee on jobs: " + (p.fee_bps / 100) + "%" }),
-          h("ul", { class: "sub-feats" }, feats.map(function (f) { return h("li", { text: planFeatureText(f) }); })));
-        if (!p.current && listed) {
-          box.appendChild(h("a", { class: "btn small " + (up ? "blue" : "ghost"), href: r.upgrade_url || "/account/upgrade", target: "_blank", rel: "noopener" }, (up ? "Upgrade to " : "Downgrade to ") + shortPlan(p.name)));
-          if (!up && me.side === "attorney") box.appendChild(h("p", { class: "small muted", style: "margin:6px 0 0", text: "On a lower plan, documents above its limit become read-only. You can still view, export and assign them." }));
+      function pick(i, focus) {
+        subTab = SUB_TABS[i][0];
+        btns.forEach(function (bt, k) { bt.setAttribute("aria-selected", String(k === i)); bt.setAttribute("tabindex", k === i ? "0" : "-1"); });
+        if (focus) btns[i].focus();
+        panel.setAttribute("aria-labelledby", "sub-tab-" + subTab);
+        D.clear(panel); AREAS[subTab]();
+      }
+      function go(name) { pick(SUB_TABS.map(function (x) { return x[0]; }).indexOf(name), true); }
+      function facts(list) { return h("dl", { class: "tp-facts" }, list.map(function (x) { return h("div", null, h("dt", { text: x[0] }), h("dd", null, x[1])); })); }
+      function manageLink(cls) { return h("a", { class: "btn small " + (cls || "blue"), href: upgradeUrl, target: "_blank", rel: "noopener" }, "Manage subscription on the Lawfecta website"); }
+      // What the website's billing says, in one line; never a guess
+      function billedText() {
+        if (!bill.ok) return "Could not be loaded just now";
+        var mb = bill.membership;
+        if (!mb) return "No paid membership on record";
+        return (mb.amount_cents !== null ? D.money(mb.amount_cents) : "Amount not given") + (mb.cycle ? ", billed " + String(mb.cycle).toLowerCase() : "") + (mb.status ? " (" + String(mb.status).toLowerCase() + ")" : "");
+      }
+      function usageRow(l) {
+        var p = usagePct(l.used, l.limit), isNear = l.limit && p >= warn, left = l.limit ? Math.max(0, l.limit - l.used) : null;
+        var bytes = l.key === "storage", remain = left === null ? "No limit on your plan" : bytes ? gbText(left) + " remaining" : left + " remaining";
+        return h("div", { class: "sub-line" }, h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("b", { class: "grow", text: l.label }),
+            isNear ? h("span", { class: "badge " + (p >= 100 ? "bad" : "held"), text: p >= 100 ? "Limit reached" : "Nearing the limit" }) : null, h("span", { text: l.text })),
+          l.limit ? h("div", { class: "bar", role: "meter", "aria-label": l.label, "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(p), "aria-valuetext": l.text + ", " + remain },
+            h("span", { style: "width:" + p + "%" + (p >= 100 ? ";background:var(--bad)" : isNear ? ";background:#d9a400" : "") })) : null,
+          h("div", { class: "row small muted", style: "gap:8px;flex-wrap:wrap" }, h("span", { class: "grow", text: limitMeans(l.key) }), h("span", { text: remain })));
+      }
+      var AREAS = {
+        plan: function () {
+          var c = h("section", { class: "card sub-hero", id: "sub-current", "aria-label": "Your current plan" },
+            h("p", { class: "sub-eyebrow", text: "Your current plan" }),
+            h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;align-items:center" }, h("h2", { style: "margin:0", text: r.plan_name }), h("span", { class: "badge ready", text: "✓ Current plan" }),
+              staff ? h("span", { class: "badge", text: "Set by the Lawfecta Team" }) : null));
+          c.appendChild(facts([
+            ["Published price", cur ? priceText(cur) : "Not one of the standard plans"],
+            ["Platform fee on jobs", cur ? (cur.fee_bps / 100) + "%" : "See your agreements"],
+            ["What you are billed", billedText()],
+            ["Next renewal", bill.ok && bill.membership && bill.membership.next_due ? D.date(bill.membership.next_due) : bill.ok ? "No renewal date on record" : "Could not be loaded just now"]]));
+          c.appendChild(h("p", { class: "small muted", text: "The published price is the plan's list price. What you are billed and the renewal date come from the Lawfecta website's billing for your account; DELA never estimates them." }));
+          if (staff) c.appendChild(h("p", { class: "notice", id: "sub-staff", text: "The Lawfecta Team set this plan on your DELA account. It can differ from your website membership, and you are billed only what \"What you are billed\" shows. To change a plan the team set, contact the Lawfecta Team from Help." }));
+          if (me.trial && me.trial.on && me.trial.active) c.appendChild(h("div", { class: "notice ok", text: "Your free trial gives you Pro features until " + D.date(me.trial.ends_at) + ". After that you keep everything you made, on your own plan." }));
+          c.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:8px" }, manageLink("blue"), h("button", { class: "ghost small", type: "button", onclick: function () { go("billing"); } }, "View billing history")));
+          panel.appendChild(c);
+          var s = h("section", { class: "card", id: "sub-summary" }, h("h2", { text: "Your usage at a glance" }));
+          if (near.length) s.appendChild(h("p", { class: "notice warn", id: "sub-near", role: "status", text: (near.length === 1 ? "You are close to one limit: " : "You are close to " + near.length + " limits: ") + near.map(function (l) { return l.label; }).join(", ") + "." }));
+          else s.appendChild(h("p", { class: "muted", text: lines.length ? "Nothing is near a limit." : "Nothing on your plan is counted against a limit." }));
+          lines.filter(function (l) { return l.key === "actions" || l.key === "ai.runs"; }).slice(0, 1).forEach(function (l) { s.appendChild(usageRow(l)); });
+          s.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("button", { class: "ghost small", type: "button", onclick: function () { go("usage"); } }, "See all usage and limits"),
+            h("button", { class: "ghost small", type: "button", onclick: function () { go("compare"); } }, "Compare plans")));
+          panel.appendChild(s);
+        },
+        usage: function () {
+          var monthly = lines.filter(function (l) { return l.key === "actions" || l.period === "month"; }), rest = lines.filter(function (l) { return monthly.indexOf(l) < 0; });
+          var c = h("section", { class: "card", id: "sub-usage" }, h("h2", { text: "Your plan usage" }));
+          if (!lines.length) c.appendChild(h("p", { class: "muted", text: "Nothing on your plan is counted against a limit." }));
+          if (monthly.length) { c.appendChild(h("h3", { class: "sub-group", text: "Monthly allowances (start again on " + D.date(r.resets_on) + ")" })); monthly.forEach(function (l) { c.appendChild(usageRow(l)); }); }
+          if (rest.length) { c.appendChild(h("h3", { class: "sub-group", text: "Account and capacity limits (these do not reset)" })); rest.forEach(function (l) { c.appendChild(usageRow(l)); }); }
+          if (!r.exports_counted) c.appendChild(h("p", { class: "small", id: "sub-exports", text: "Exporting your own documents is not limited and is not counted." }));
+          c.appendChild(h("p", { class: "small muted", text: (me.side === "attorney" ? "Viewing and assigning documents, messaging freelancers, hiring and paying are never limited. " : "") + "Posting a gig is limited only by how many are open at the same time." }));
+          panel.appendChild(c);
+          var a = h("section", { class: "card", id: "sub-allows" }, h("h2", { text: "What your plan allows" }));
+          a.appendChild(h("div", { class: "scroll" }, h("table", { class: "sub-table" }, h("caption", { class: "small muted", text: "Everything on " + r.plan_name }),
+            h("thead", null, h("tr", null, h("th", { scope: "col", text: "What you get" }), h("th", { scope: "col", text: "Your plan allows" }))),
+            h("tbody", null, (me.entitlements || []).filter(function (e) { return r.exports_counted || e.key !== "exports"; }).map(function (e) { return h("tr", null, h("th", { scope: "row", text: D.featLabel(e) }), h("td", { text: allowText(e) })); })))));
+          panel.appendChild(a);
+        },
+        compare: function () {
+          var listed = !!cur, all = h("section", { class: "card", id: "sub-plans" }, h("h2", { text: "Compare " + (me.side === "attorney" ? "attorney" : "freelancer") + " plans" }),
+            h("p", { class: "small muted", text: "These are the published prices. A plan change is reviewed here and made on the Lawfecta website, which shows the exact charge before you pay." }));
+          var cyc = h("div", { class: "sub-cycle", role: "radiogroup", "aria-label": "Show prices by" }, [["month", "Monthly"], ["year", "Annual"]].map(function (x) {
+            var bt = h("button", { type: "button", role: "radio", "aria-checked": String(subCycle === x[0]) }, x[1]);
+            bt.addEventListener("click", function () { subCycle = x[0]; D.clear(panel); AREAS.compare(); var again = panel.querySelector(".sub-cycle [aria-checked=true]"); if (again) again.focus(); });
+            return bt;
+          }));
+          all.appendChild(cyc);
+          if (!listed) all.appendChild(h("p", { class: "notice", text: "Your plan, " + r.plan_name + ", is not one of the standard plans below. To change it, contact the Lawfecta Team from Help." }));
+          var grid = h("div", { class: "sub-grid" });
+          (r.plans || []).forEach(function (p) {
+            var up = cur ? p.rank > cur.rank : true, pr = cyclePrice(p), feats = (p.features || []).filter(function (f) { return f.enabled && (r.exports_counted || f.key !== "exports"); });
+            var box = h("div", { class: "sub-plan" + (p.current ? " current" : ""), "aria-current": p.current ? "true" : null },
+              h("div", { class: "row", style: "gap:6px;flex-wrap:wrap;align-items:center" }, h("h3", { style: "margin:0", text: shortPlan(p.name) }), p.current ? h("span", { class: "badge ready sub-mine", text: "✓ Your current plan" }) : null),
+              h("p", { class: "sub-price", text: pr.big }), pr.small ? h("p", { class: "small muted", style: "margin:0", text: pr.small }) : null,
+              h("p", { class: "small muted", style: "margin:0", text: "Platform fee on jobs: " + (p.fee_bps / 100) + "%" }),
+              h("ul", { class: "sub-feats" }, feats.map(function (f) { return h("li", { text: planFeatureText(f) }); })));
+            if (p.current) box.appendChild(h("p", { class: "sub-here small", text: "You are on this plan" }));
+            else if (listed) {
+              var bt = h("button", { class: "small " + (up ? "blue" : "ghost"), type: "button" }, (up ? "Upgrade to " : "Downgrade to ") + shortPlan(p.name));
+              bt.addEventListener("click", function () { planChangeReview(r, cur, p, bt); });
+              box.appendChild(bt);
+            }
+            grid.appendChild(box);
+          });
+          all.appendChild(grid);
+          panel.appendChild(all);
+          // The full comparison: one table, every feature, every plan
+          var keys = [], label = {};
+          (r.plans || []).forEach(function (p) { (p.features || []).forEach(function (f) { if (!r.exports_counted && f.key === "exports") return; if (!label[f.key]) { label[f.key] = D.featLabel(f); keys.push(f.key); } }); });
+          var cell = function (p, k) { var f = (p.features || []).filter(function (x) { return x.key === k; })[0]; return f ? planCell(f) : "Not included"; };
+          var full = h("section", { class: "card", id: "sub-full" }, h("h2", { text: "Full feature comparison" }),
+            h("div", { class: "scroll" }, h("table", { class: "sub-table" }, h("caption", { class: "small muted", text: "Every " + (me.side === "attorney" ? "attorney" : "freelancer") + " plan, feature by feature" }),
+              h("thead", null, h("tr", null, [h("th", { scope: "col", text: "Feature" })].concat((r.plans || []).map(function (p) { return h("th", { scope: "col", text: shortPlan(p.name) + (p.current ? " (your plan)" : "") }); })))),
+              h("tbody", null, [
+                h("tr", null, [h("th", { scope: "row", text: "Price a month" })].concat((r.plans || []).map(function (p) { return h("td", { text: p.monthly_cents ? D.money(p.monthly_cents) : "No charge" }); }))),
+                h("tr", null, [h("th", { scope: "row", text: "Price a year" })].concat((r.plans || []).map(function (p) { return h("td", { text: p.annual_cents ? D.money(p.annual_cents) : p.monthly_cents ? "Monthly only" : "No charge" }); }))),
+                h("tr", null, [h("th", { scope: "row", text: "Platform fee on jobs" })].concat((r.plans || []).map(function (p) { return h("td", { text: (p.fee_bps / 100) + "%" }); })))
+              ].concat(keys.map(function (k) { return h("tr", null, [h("th", { scope: "row", text: label[k] })].concat((r.plans || []).map(function (p) { return h("td", { text: cell(p, k) }); }))); }))))),
+            h("p", { class: "small muted", text: "Need something these plans do not cover? Contact the Lawfecta Team from Help." }));
+          panel.appendChild(full);
+        },
+        billing: function () {
+          var c = h("section", { class: "card", id: "sub-billing" }, h("h2", { text: "Your membership billing" }),
+            h("p", { class: "small muted", text: "Memberships are billed by the Lawfecta website. This is what the website has on record for your account. DELA never charges your card for a membership." }));
+          if (!bill.ok) c.appendChild(h("p", { class: "notice", role: "alert", text: "Your billing details could not be loaded just now. Try again in a minute, or open the Lawfecta website." }));
+          else if (!bill.membership && !(bill.invoices || []).length) c.appendChild(h("p", { id: "sub-nobill", text: "The Lawfecta website has no paid membership and no invoices on record for your account." + (staff ? " Your plan was set by the Lawfecta Team, so nothing is billed for it here." : "") }));
+          else {
+            var mb = bill.membership;
+            if (mb) c.appendChild(facts([["Status", mb.status || "Not given"], ["Billing interval", mb.cycle || "Not given"], ["Amount", mb.amount_cents !== null ? D.money(mb.amount_cents) : "Not given"],
+              ["Next renewal", mb.next_due ? D.date(mb.next_due) : "No renewal date on record"], ["Member since", mb.started ? D.date(mb.started) : "Not given"]]));
+            c.appendChild(h("h3", { text: "Invoices" }));
+            if (!(bill.invoices || []).length) c.appendChild(h("p", { class: "muted", text: "No invoices on record." }));
+            else c.appendChild(h("div", { class: "scroll" }, h("table", { class: "sub-table" }, h("caption", { class: "small muted", text: "Your most recent invoices from the Lawfecta website" }),
+              h("thead", null, h("tr", null, ["Date", "Invoice", "For", "Amount", "Status"].map(function (x) { return h("th", { scope: "col", text: x }); }))),
+              h("tbody", null, bill.invoices.map(function (iv) { return h("tr", null, h("td", { text: iv.date ? D.date(iv.date) : "" }), h("td", { text: iv.number }), h("td", { text: iv.what }), h("td", { text: iv.total_cents !== null ? D.money(iv.total_cents) : "" }),
+                h("td", { text: iv.status + (iv.paid ? " on " + D.date(iv.paid) : iv.due && iv.status.toLowerCase() === "unpaid" ? ", due " + D.date(iv.due) : "") })); })))));
+          }
+          panel.appendChild(c);
+          var mng = h("section", { class: "card", id: "sub-manage" }, h("h2", { text: "Manage your membership" }),
+            h("p", { class: "small", text: "Changing plan, changing your card and renewing happen on the Lawfecta website. It opens in a new tab; when you come back, reload this page." }),
+            h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, manageLink("blue"), h("button", { class: "ghost small", type: "button", onclick: function () { go("compare"); } }, "Compare plans first"),
+              h("button", { class: "ghost small", type: "button", onclick: function () { goTab("help"); } }, "Contact the Lawfecta Team")),
+            h("p", { class: "small muted", text: "To cancel your membership or ask about a charge, contact the Lawfecta Team: open Help in the menu, then \"Contact the Lawfecta Team\"." }));
+          panel.appendChild(mng);
         }
-        grid.appendChild(box);
-      });
-      all.appendChild(grid);
-      all.appendChild(h("p", { class: "small muted", text: "To cancel your membership, contact the Lawfecta Team: open Help in the menu, then \"Contact the Lawfecta Team\"." }));
-      el.appendChild(all);
-    }).catch(function () { D.clear(el); el.appendChild(h("h1", { text: "Subscription" })); el.appendChild(h("p", { class: "notice bad", text: "Your plan could not be loaded. Reload the page." })); });
+      };
+      if (!SUB_TABS.some(function (x) { return x[0] === subTab; })) subTab = "plan";
+      el.appendChild(bar); el.appendChild(panel);
+      panel.setAttribute("aria-labelledby", "sub-tab-" + subTab);
+      AREAS[subTab]();
+    }).catch(function () { el.removeChild(el.lastChild); el.appendChild(h("p", { class: "notice bad", role: "alert", text: "Your plan could not be loaded. Reload the page." })); });
     return el;
   }
   function usageView() {
