@@ -434,6 +434,18 @@ Deno.test("messages: only the pair, held when clear, warned when unsure, edits, 
   assertEquals([warned.ok, warned.warned, warned.held], [true, true, false], "unsure: sent with a reminder");
   const okLink = (await call("POST", "/threads/send", fl.token, { thread_id: thread, body: "Joining at https://meet.lawfecta.com/r/room-1 now", request_id: "m5" })).body;
   assertEquals(okLink.held, false, "Lawfecta's own meeting links are fine");
+  // A saved draft is flagged before sending (UX review 2026-11-08): the same rules as sending, nothing recorded
+  const flagsBefore = (await one("select count(*)::int n from conduct_flags")).n;
+  const d1 = (await call("POST", "/threads/draft", fl.token, { thread_id: thread, body: "Text me at 512-555-0199 and pay me directly" })).body;
+  assertEquals([d1.ok, d1.flag?.kind], [true, "hold"], "a draft that would be held says so: " + JSON.stringify(d1));
+  const d2 = (await call("POST", "/threads/draft", fl.token, { thread_id: thread, body: "Her SSN is 123-45-6789" })).body;
+  assert(d2.ok && (d2.flag?.kind === "stop" || d2.flag?.kind === "ask") && d2.flag.kinds.length > 0, "a draft with an SSN is flagged: " + JSON.stringify(d2));
+  const d3 = (await call("POST", "/threads/draft", fl.token, { thread_id: thread, body: "I can start Monday." })).body;
+  assertEquals([d3.ok, d3.flag], [true, null], "an ordinary draft has no flag");
+  const d4 = (await call("POST", "/threads/draft", other.token, { thread_id: thread, body: "Text me at 512-555-0199 and pay me directly" })).body;
+  assert(!d4.ok && d4.flag === undefined, "a stranger to the conversation gets no draft and no flag: " + JSON.stringify(d4));
+  assertEquals((await one("select count(*)::int n from conduct_flags")).n, flagsBefore, "checking a draft flags nobody");
+  await call("POST", "/threads/draft", fl.token, { thread_id: thread, body: "" });
   const seenByAtt = (await call("GET", "/threads/get?id=" + thread, att.token)).body;
   assert(!seenByAtt.messages.some((m: any) => m.body.includes("512-555")), "the attorney never sees the held message");
   const ft = (await call("GET", "/threads/get?id=" + thread, fl.token)).body;

@@ -3035,6 +3035,24 @@ async function meetingFollowup(ctx: Ctx) {
 
 // A message: client information check, then the off-platform check. Clear cases (DELA's rules) are held for the team;
 // when only DELA's AI is unsure, the message goes with a reminder of the terms to the sender, and the team can see it.
+// Saving a draft also says whether it would be stopped, asked about or held when sent, so the member can fix it before
+// sending (UX review 2026-11-08: "a saved draft that looks sensitive should be flagged before sending"). The same rules
+// as sending, by pattern only: no AI, nothing recorded, no conduct flag, and only for a member of the conversation
+// (dela_thread_draft refuses anyone else). Sending still runs every check again.
+async function threadDraft(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const thread = need(uuid(ctx.body.thread_id));
+  const body = str(ctx.body.body, 8000);
+  const r = await rpc<Record<string, any>>(ctx, "dela_thread_draft", { p_person: s.person_id, p_side: s.side, p_thread: thread, p_body: body });
+  if (!r?.ok || !body.trim()) return json(ctx, r);
+  const signed = await rpc<boolean>(ctx, "dela_thread_signed", { p_thread: thread }).catch(() => false);
+  const warn = await sensitive({ ...ctx, body: {} } as Ctx, s, body, "conversation", { signed: signed === true }) as Record<string, any> | null;
+  let flag: Record<string, unknown> | null = null;
+  if (warn?.reason === "sensitive_data") flag = { kind: "stop", kinds: warn.kinds, note: warn.message };
+  else if (warn) flag = { kind: "ask", kinds: warn.kinds, note: warn.note ?? "" };
+  else if (conductRules(withoutLawfectaLinks(body, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com"))).length) flag = { kind: "hold", kinds: [], note: "" };
+  return json(ctx, { ...r, flag });
+}
 async function messageSend(ctx: Ctx) {
   const s = await memberSide(ctx);
   const thread = need(uuid(ctx.body.thread_id));
@@ -5816,7 +5834,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
         if (conductRules(withoutLawfectaLinks(b, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com"))).length) return json(ctx, { ok: false, reason: "edit_needs_check" });
         return json(ctx, await rpc(ctx, "dela_message_edit", { p_person: s.person_id, p_msg: need(uuid(ctx.body.id)), p_body: b })); }
       case "POST /threads/remove": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_message_remove", { p_person: s.person_id, p_msg: need(uuid(ctx.body.id)) })); }
-      case "POST /threads/draft": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_draft", { p_person: s.person_id, p_side: s.side, p_thread: need(uuid(ctx.body.thread_id)), p_body: str(ctx.body.body, 8000) })); }
+      case "POST /threads/draft": return await threadDraft(ctx);
       case "POST /threads/report": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_report", { p_person: s.person_id, p_side: s.side, p_thread: need(uuid(ctx.body.thread_id)), p_msg: uuid(ctx.body.message_id), p_reason: str(ctx.body.reason, 1000) })); }
       case "POST /threads/block": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_block", { p_person: s.person_id, p_side: s.side, p_thread: need(uuid(ctx.body.thread_id)), p_block: ctx.body.block !== false })); }
       case "POST /threads/assist": return await threadAssist(ctx);

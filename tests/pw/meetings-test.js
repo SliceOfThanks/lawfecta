@@ -112,6 +112,18 @@ async function makeMember(bd, side, plan) {
     await click(p, "Send");
     t = await waitFor(p, "Can you start Monday?");
     ok(t.includes("Open Intake template.docx"), "the message shows with its attachment");
+    // A saved draft is flagged before sending (UX review 2026-11-08): the warning shows when the box is left and goes
+    // when the text changes; nothing is sent
+    await label(p, "Your message").fill("Text me at 512-555-0199 and pay me directly");
+    await label(p, "Your message").blur();
+    t = await waitFor(p, "Before you send: this draft looks like it plans contact or payment outside Lawfecta.");
+    ok(await dela(p).locator("#thread-draft-flag").isVisible() && !t.includes("Being checked by the Lawfecta Team"), "a draft that would be held is flagged under the box before anything is sent");
+    await label(p, "Your message").fill("I can start Monday.");
+    await label(p, "Your message").blur();
+    await p.waitForTimeout(800);
+    ok(!(await dela(p).locator("#thread-draft-flag").isVisible()), "an ordinary draft has no warning");
+    await label(p, "Your message").fill("");
+    await label(p, "Your message").blur();
     // Fix (Stacey's ChatGPT check of step 9c, step 3): with the new rule on, sensitive data in a conversation is refused
     // in words that stay under the message box (a toast faded before it was read)
     await sql("update feature_switches set state = 'everyone' where key = 'client_details_allowed'; select 1");

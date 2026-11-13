@@ -6560,7 +6560,23 @@
       if (!r.writable) { el.appendChild(h("p", { class: "notice", text: TALK_ERR[r.why_closed] || "This conversation is closed." })); return; }
       var ta = h("textarea", { rows: 3, style: "width:100%", "aria-label": "Your message", placeholder: (me.switches || {}).client_details_allowed ? "Write a message. No sensitive data, contact details or payment outside Lawfecta." : "Write a message. No client information, contact details or payment outside Lawfecta." });
       ta.value = r.draft || "";
-      ta.addEventListener("blur", function () { api.post("/threads/draft", { thread_id: t.id, body: ta.value }).catch(function () {}); });
+      // A saved draft is checked by the same rules as a sent message, and the result stays under the box until the text
+      // changes (UX review 2026-11-08). It is a warning only: Send still checks again.
+      var draftFlag = h("p", { class: "notice", role: "status", id: "thread-draft-flag" });
+      draftFlag.hidden = true;
+      function showDraftFlag(f) {
+        if (!f || !ta.value.trim() || !sayEl.hidden) { draftFlag.hidden = true; return; }
+        var what = f.kinds && f.kinds.length ? " (" + kindsText(f.kinds) + ")" : "";
+        draftFlag.textContent = f.kind === "stop" ? "Before you send: this draft looks like it has sensitive data" + what + ". DELA will not send it. Take that part out."
+          : f.kind === "hold" ? "Before you send: this draft looks like it plans contact or payment outside Lawfecta. A message like this is held for the Lawfecta Team to check. Keep everything on Lawfecta."
+          : "Before you send: this draft may include client information" + what + ". DELA will ask you to confirm when you click Send.";
+        draftFlag.className = f.kind === "ask" ? "notice" : "notice bad";
+        draftFlag.hidden = false;
+      }
+      function saveDraft() { api.post("/threads/draft", { thread_id: t.id, body: ta.value }).then(function (x) { showDraftFlag(x && x.flag); }).catch(function () {}); }
+      ta.addEventListener("blur", saveDraft);
+      ta.addEventListener("input", function () { draftFlag.hidden = true; });
+      if (ta.value.trim()) saveDraft();
       var attach = [], attachWrap = h("div", { class: "small" });
       var pick = h("button", { class: "ghost small", type: "button" }, "Attach a file");
       pick.addEventListener("click", function () {
@@ -6587,7 +6603,7 @@
           send.disabled = false;
           // Sensitive data is refused in words that stay under the box until the message changes (Stacey's ChatGPT check
           // 2026-11-07, step 3: a toast faded before it was read)
-          if (x.reason === "sensitive_data") { sayEl.textContent = x.message || D.errorText("sensitive_data"); sayEl.hidden = false; ta.focus(); return; }
+          if (x.reason === "sensitive_data") { sayEl.textContent = x.message || D.errorText("sensitive_data"); sayEl.hidden = false; draftFlag.hidden = true; ta.focus(); return; }
           sayEl.hidden = true;
           if (x.reason === "looks_like_client_info") { if (confirm(ciNote(x, "This may include client information (" + kindsText(x.kinds) + "). Click OK only if it is not."))) doSend(true); return; }
           gigOk(x);
@@ -6600,7 +6616,7 @@
       var draftBtn = (me.switches || {}).chat_assistant ? h("button", { class: "ghost small ai-btn", type: "button", onclick: function () {
         api.post("/threads/assist", { thread_id: t.id, mode: "draft" }).then(gigOk).then(function (y) { ta.value = y.text; D.toast(app, "DELA drafted a reply. Check it, then Send."); }).catch(talkFail);
       } }, "✦ Draft a reply") : null;
-      el.appendChild(h("div", { class: "card" }, ta, sayEl, h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" }, noGig ? null : pick, draftBtn, h("span", { class: "grow" }), send), attachWrap,
+      el.appendChild(h("div", { class: "card" }, ta, draftFlag, sayEl, h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" }, noGig ? null : pick, draftBtn, h("span", { class: "grow" }), send), attachWrap,
         noGig ? null : helperButton("agenda", "✦ Draft an agenda", function () { return { gig_id: t.gig_id }; }, { field: function (x) { return x.field === "compose" ? ta : null; }, toast: "Added to your message. Nothing is sent until you click Send." })));
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
