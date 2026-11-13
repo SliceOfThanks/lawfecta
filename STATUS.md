@@ -6,6 +6,14 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## New colors, "Your next meeting" on Home, notice wording: ON THE SITE (2026-11-13)
+- Site: code_version 5bc9b64 (browser code and migration 0120; the api function is unchanged at version 119), health "ok". GitHub Tests passed on that commit (run 43506056961), including the contrast checks.
+- Colors (Stacey 2026-11-13, not the menu): page #F5F5F7, text #0B1220, secondary text #475569, card border #DCE3EA, meeting card heading band #EAF1F8; buttons #8B2146 and white cards as before. The side menu, the phone's bottom bar and its sheet keep their colors. Asked: should other cards get the heading band too? No answer yet.
+- Home: card "Your next meeting" with "Join the meeting" while the room is open, and "Open the meeting".
+- Notices for a meeting with no gig say "introductory call" (migration 0120); gig meeting notices unchanged.
+- docs/PILOT_CHECKS.md started (Stacey 2026-11-13): the running list of what must be seen working for real in the pilot. The two-person meeting and the transcript are on it as "Not yet"; Stacey chose not to test them on 2026-11-13.
+- docs/STACEY_TODO.md section 9 is current.
+
 ## Step 25 part 2 (transcripts) and step 26 (team logo take-down, pictures in lists): ON THE SITE (2026-11-13)
 - Site: code_version ee087f0, api function version 118, migrations through 0118, health "ok". GitHub Tests passed on that commit (run 43500038072).
 - Transcripts, to Stacey's five answers of 2026-11-13 (docs/briefs/step-25-videosdk-meetings.md): text only through VideoSDK's live transcription (no video or audio kept); "Before you join" panel with the tick box; transcribed only when both ticked; top bar status and "Stop transcript"; kept meeting.transcript_days (90) after the meeting, deletable early by either person for both; DELA's AI reads it once on Lawfecta's key (summary, next steps, off-platform flag); the team opens a transcript only when flagged or reported, and each opening is a meeting event; Lawfecta logo on the meeting screen; second top-bar line about DELA messages.
