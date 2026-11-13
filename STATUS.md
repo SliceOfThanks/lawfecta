@@ -2,6 +2,8 @@
 
 Starting a new session? Read docs/SESSION_HANDOFF.md first (written 2026-11-12, after go-live): the state of the live site, how to release, the open items and the traps.
 
+What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.md (a running list; keep it current).
+
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
 ## Step 25 part 2 (transcripts) and step 26 (team logo take-down, pictures in lists): ON THE SITE (2026-11-13)

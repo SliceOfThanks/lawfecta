@@ -3,6 +3,7 @@
 Read docs/specs/00 (Program Guide) and the spec for the current phase before building. They are the source of truth for scope.
 Read STATUS.md first in every new session. It says what is built, what is live and what is waiting on Stacey.
 Then read docs/PLAN.md, the plan for what needs testing, what needs work and what comes next. Keep it up to date at the end of each step.
+docs/PILOT_CHECKS.md lists what still has to be seen working for real during the pilot (Stacey 2026-11-13). Add a line with every release that leaves something only real use can prove, and fill in the state and date when Stacey or a member reports a result.
 config/decisions.json holds every approved or proposed business number. Never hard-code a price, fee, limit or deadline in code; read it from settings.
 
 ## Owner

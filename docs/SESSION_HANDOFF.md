@@ -116,6 +116,7 @@ Migrations are additive. To change wording inside existing SQL functions, use th
 - STATUS.md: the running record, newest sections at the top.
 - docs/PLAN.md: what is done, what needs testing, what is next.
 - docs/STACEY_TODO.md: her checklist with full steps.
+- docs/PILOT_CHECKS.md: the running list of things that must be seen working for real during the pilot.
 - docs/PILOT_GO_LIVE.md: clearing, Stripe, marking live, with dates.
 - docs/STRIPE_SETUP.md, docs/RUNBOOK.md, docs/MVP_OVERVIEW.md, docs/ROADMAP.md.
 - docs/reviews/test-reports/: her ChatGPT reports.
