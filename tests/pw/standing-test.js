@@ -105,7 +105,10 @@ const ATT = 4400, FL = 4401, TEAM = 4402;
     await label(p, "Standing arrangement: I agree").check();
     // Fix (AI review 0.9.0, payments 1): a double click on Sign and send makes one arrangement
     await dela(p).getByRole("button", { name: "Sign and send", exact: true }).first().dblclick();
-    await waitFor(p, "Sent to Rita Repeat to accept.");
+    // Step 18: sent from Projects, the page redraws at once; the confirmation must still be readable and the new
+    // arrangement must be in the list without a reload (the confirmation was wiped by the redraw before the fix in ec29906)
+    t = await waitFor(p, "Sent to Rita Repeat to accept.");
+    await waitFor(p, "Standing arrangements (1)");
     await p.waitForTimeout(800);
     ok((await sql("select count(*)::int n from standing_arrangements"))[0].n === 1, "a double click on Sign and send makes one arrangement");
     await p.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=projects`);
