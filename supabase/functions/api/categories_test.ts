@@ -27,6 +27,17 @@ const fakeFetch = (async (input: string | URL | Request) => {
   const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
   calls.push(url.pathname + url.search);
   if (url.hostname !== "bd.test") return new Response("{}", { status: 404 });
+  // The website's posts of one member (step 18 part 2): a live promotion, an expired one, a draft, another post type, another member's
+  if (url.pathname === "/api/v2/data_posts/get") {
+    if (site === "refuse") return Response.json({ status: "error", message: "API Key does not have permission" }, { status: 403 });
+    const uid = url.searchParams.get("property_value");
+    return Response.json({ status: "success", message: [
+      { post_id: "1", data_id: "7", user_id: uid, post_status: "1", post_title: "New client discount", post_content: "<p>10% off the first fixed-fee project.</p><p>Ask in your invitation&nbsp;note.</p><script>x()</script>", post_promo: "FIRST10", post_expire_date: "20991231" },
+      { post_id: "2", data_id: "7", user_id: uid, post_status: "1", post_title: "Old offer", post_content: "", post_promo: "", post_expire_date: "20200101" },
+      { post_id: "3", data_id: "7", user_id: uid, post_status: "0", post_title: "Draft offer", post_content: "", post_promo: "", post_expire_date: "" },
+      { post_id: "4", data_id: "14", user_id: uid, post_status: "1", post_title: "A blog article", post_content: "", post_promo: "", post_expire_date: "" },
+      { post_id: "5", data_id: "7", user_id: "999999", post_status: "1", post_title: "Someone else's offer", post_content: "", post_promo: "", post_expire_date: "" }] });
+  }
   if (site === "refuse") return Response.json({ status: "error", message: "API Key does not have permission" }, { status: 403 });
   if (url.pathname === "/api/v2/list_professions/get") return Response.json({ status: "success", message: site === "empty" ? [] : TOPS });
   if (url.pathname === "/api/v2/list_services/get") {
@@ -151,6 +162,42 @@ Deno.test("Talent: a category finds everyone in it and below it; free words also
   assertEquals((await t("category=s99999")).body.reason, "category_gone", "a category that is not on the website is said so");
   assertEquals(ids(await t("category=drop%20table")).length, all.length, "a key that is not a category key is ignored");
   assertEquals((await call("GET", "/talent?category=p39", fNurse.token)).status, 403, "freelancers do not search Talent");
+});
+
+Deno.test("the full profile: what the page shows, never contact details; shown samples for members who hire; promotions from the website", async () => {
+  await pool.query(`update member_profiles set body = body || $2::jsonb where person_id = $1 and side = 'freelancer'`, [fNurse.id, JSON.stringify({ summary: "I review records.", experience: "Nurse reviewer, 2019 to now", education: "RN",
+    services: [{ title: "Medical chronology", for_whom: "PI firms", price_from_cents: 25000, price_to_cents: null, unit: "fixed" }], timezone: "Central", capacity_hours_week: 15,
+    phone: "512-555-0100", website: "https://nurse.example.com", linkedin: "https://www.linkedin.com/in/nurse", booking_link: "https://cal.example.com/nurse" })]);
+  const org = (await one("select dela_side_org($1, 'freelancer') o", [fNurse.id])).o;
+  const mk = async (name: string, shown: boolean, status = "ready") => (await one(`insert into files (org_id, group_id, version, is_current, name, ext, size_bytes, storage_path, status, check_state, uploaded_by, side, request_id, no_client_info_ticked_at, purpose, shown)
+    values ($1, gen_random_uuid(), 1, true, $2, 'pdf', 2048, 'profiles/docs/' || gen_random_uuid(), $4, 'clear', $3, 'freelancer', gen_random_uuid()::text, now(), 'profile', $5) returning id`, [org, name, fNurse.id, status, shown])).id;
+  const shown = await mk("Sample chronology.pdf", true), hidden = await mk("Private resume.pdf", false);
+  const r = (await call("GET", "/freelancers/profile?person=" + fNurse.id, att.token)).body;
+  assertEquals(r.ok, true, JSON.stringify(r));
+  assertEquals([r.name.startsWith("F "), r.education, r.timezone, r.capacity_hours_week, r.services[0].price_from_cents, r.categories, r.reviews.count], [true, "RN", "Central", 15, 25000, ["s275"], 0]);
+  const raw = JSON.stringify(r);
+  assert(!/512-555|nurse\.example|linkedin|cal\.example|bd_member_id|photo_file|storage_path/.test(raw), "no phone, website, LinkedIn, booking link, website member number or storage path: " + raw.slice(0, 300));
+  assertEquals([r.samples_allowed, r.samples.map((f: any) => f.name)], [true, ["Sample chronology.pdf"]], "only the documents marked as shown");
+  assertEquals(r.promotions, [{ title: "New client discount", text: "10% off the first fixed-fee project.\nAsk in your invitation note.", code: "FIRST10", ends: "2099-12-31" }], "live, unexpired promotions of this member only, as plain text");
+  assertEquals(r.promotions_ok, true);
+  // Another freelancer sees the profile without the samples; the freelancer sees their own
+  const other = (await call("GET", "/freelancers/profile?person=" + fNurse.id, fFamily.token)).body;
+  assertEquals([other.ok, other.samples_allowed, other.samples], [true, false, []]);
+  assertEquals((await call("GET", "/freelancers/profile?person=" + fNurse.id, fNurse.token)).body.samples.length, 1);
+  // Opening a sample: shown ones only, for members who hire, with an audit line
+  const d = (await call("GET", `/freelancers/doc?person=${fNurse.id}&file=${shown}`, att.token)).body;
+  assert(d.ok && String(d.url).startsWith("https://storage.test/get/profiles/docs/"), JSON.stringify(d));
+  assertEquals((await call("GET", `/freelancers/doc?person=${fNurse.id}&file=${hidden}`, att.token)).body.reason, "not_found", "a private document stays private");
+  assertEquals((await call("GET", `/freelancers/doc?person=${fNurse.id}&file=${shown}`, fFamily.token)).body.reason, "not_found", "another freelancer cannot open it");
+  assertEquals((await call("GET", `/freelancers/doc?person=${fFamily.id}&file=${shown}`, att.token)).body.reason, "not_found", "a file cannot be reached through someone else's profile");
+  assert(await one("select 1 x from audit_log where action = 'profile_sample_opened' and actor_id = $1 and object_id = $2", [att.id, shown]), "opening a sample is in the audit log");
+  // The website does not answer: the profile still opens, without promotions
+  site = "refuse";
+  const noBd = (await call("GET", "/freelancers/profile?person=" + fNurse.id, att.token)).body;
+  assertEquals([noBd.ok, noBd.promotions, noBd.promotions_ok], [true, [], false]);
+  site = "ok";
+  assertEquals((await call("GET", "/freelancers/profile?person=" + att.id, att.token)).body.reason, "not_found", "an attorney has no freelancer profile");
+  assertEquals((await call("GET", "/freelancers/profile?person=" + fNurse.id, "ds_test_nobody")).status, 401);
 });
 
 Deno.test("the website refuses or answers with nothing: the lists stay as they were", async () => {

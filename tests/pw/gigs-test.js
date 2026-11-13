@@ -182,12 +182,14 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     s = await open(browser, "DELA-App", 2600, "&tab=talent");
     p = s.page;
     t = await waitFor(p, "Fran 2601");
-    ok(t.includes("Gig to invite for") && t.includes("Invite to this gig") && !t.includes("Create a gig from an SOP or Workflow") && !t.includes("@test.invalid"), "Talent lists match-ready freelancers with the invite control and no contact details");
+    ok(t.includes("Invite for gig:") && t.includes("Invite to this gig") && !t.includes("Create a gig from an SOP or Workflow") && !t.includes("@test.invalid"), "Talent lists match-ready freelancers with the invite control and no contact details");
     ok(await dela(p).getByLabel("State you need", { exact: true }).locator("option", { hasText: "Texas" }).count() === 1 && t.includes("Specialty") && t.includes("Task, case type or software"), "Talent boxes have visible labels and the state has full names (UX review T01, step 17 lists)");
     await dela(p).getByRole("button", { name: "View profile", exact: true }).first().click();
-    await dela(p).getByRole("dialog").locator("h3").first().waitFor({ timeout: 8000 });
-    ok((await dela(p).getByRole("dialog").innerText()).includes("Verified"), "View profile opens the freelancer's profile from Talent");
-    await dela(p).getByRole("dialog").getByRole("button", { name: "Close", exact: true }).click();
+    t = await waitFor(p, "← Back to Talent search");
+    t = await waitFor(p, "Quick facts");
+    ok(t.includes("Verification") && p.url().includes("person=") && await dela(p).getByRole("dialog").count() === 0, "View profile opens the freelancer's full profile page from Talent, not a pop-up");
+    await click(p, "← Back to Talent search");
+    await waitFor(p, "Fran 2601");
     await s.ctx.close();
 
     // ---------- Freelancer 1: chosen; insights ----------

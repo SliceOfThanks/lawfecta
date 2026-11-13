@@ -75,7 +75,7 @@ export async function bdList(f: Fetch, siteUrl: string, key: string, path: strin
   const rows: Array<Record<string, unknown>> = [];
   let page = "";
   for (let i = 0; i < maxPages; i++) {
-    const r = await call<unknown>(f, siteUrl, key, "GET", path + "?limit=100" + (page ? "&page=" + encodeURIComponent(page) : ""));
+    const r = await call<unknown>(f, siteUrl, key, "GET", path + (path.includes("?") ? "&" : "?") + "limit=100" + (page ? "&page=" + encodeURIComponent(page) : ""));
     if (!r.ok) return r;
     if (Array.isArray(r.data)) for (const x of r.data) if (x && typeof x === "object") rows.push(x as Record<string, unknown>);
     if (!r.next || r.next === page) return { ok: true, data: rows };

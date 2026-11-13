@@ -2560,6 +2560,43 @@ async function freelancerCard(ctx: Ctx) {
   if (r?.ok) await withPhotos(ctx, [r]);
   return json(ctx, r);
 }
+// Step 18 part 2: the full profile page. Promotions are the freelancer's live posts of the website's Promotion post type
+// (setting bd.promotions_data_id); only the title, the text, the code and the end date are passed on.
+function htmlToText(html: unknown, max: number) {
+  return String(html ?? "").replace(/<(script|style)[^>]*>[\s\S]*?<\/\1\s*>/gi, "").replace(/<\s*(br|\/p|\/li|\/div)\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#39;|&rsquo;/g, "'").replace(/&quot;/g, '"')
+    .replace(/&lt;/g, "<").replace(/&gt;/g, ">").split("\n").map((x) => x.trim()).filter(Boolean).join("\n").slice(0, max);
+}
+async function bdPromotions(ctx: Ctx, bdMemberId: number): Promise<{ ok: boolean; list: Array<Record<string, string>> }> {
+  const dataId = String(Number(await setting(ctx, "bd.promotions_data_id", "0")) || 0);
+  if (dataId === "0" || !bdMemberId) return { ok: true, list: [] };
+  const r = await bdList(f(ctx), await setting(ctx, "site.url", ""), ctx.deps.env("BD_API_KEY"), "/api/v2/data_posts/get?property=user_id&property_value=" + Math.trunc(bdMemberId), 3);
+  if (!r.ok) { if (r.status !== 404) console.error("bd_promotions", r.error.slice(0, 120)); return { ok: r.status === 404, list: [] }; }
+  const today = new Date().toISOString().slice(0, 10).split("-").join("");
+  const list = r.data.filter((x) => String(x.data_id) === dataId && String(x.user_id) === String(Math.trunc(bdMemberId)) && String(x.post_status) === "1")
+    .filter((x) => { const e = String(x.post_expire_date ?? "").replace(/[^0-9]/g, "").slice(0, 8); return e.length !== 8 || e === "00000000" || e >= today; })
+    .slice(0, 6).map((x) => {
+      const e = String(x.post_expire_date ?? "").replace(/[^0-9]/g, "").slice(0, 8);
+      return { title: htmlToText(x.post_title, 160), text: htmlToText(x.post_content, 800), code: htmlToText(x.post_promo, 60), ends: e.length === 8 && e !== "00000000" ? `${e.slice(0, 4)}-${e.slice(4, 6)}-${e.slice(6, 8)}` : "" };
+    }).filter((x) => x.title);
+  return { ok: true, list };
+}
+async function freelancerProfile(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_freelancer_profile", { p_viewer: s.person_id, p_person: need(uuid(ctx.url.searchParams.get("person"))) });
+  if (!r?.ok) return json(ctx, r);
+  await withPhotos(ctx, [r]);
+  const promo = await bdPromotions(ctx, Number(r.bd_member_id) || 0);
+  delete r.bd_member_id;
+  return json(ctx, { ...r, promotions: promo.list, promotions_ok: promo.ok });
+}
+// One document the freelancer chose to show: a link that works for five minutes
+async function freelancerDoc(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_freelancer_doc", { p_viewer: s.person_id, p_person: need(uuid(ctx.url.searchParams.get("person"))), p_file: need(uuid(ctx.url.searchParams.get("file"))) });
+  if (!r?.ok) return json(ctx, r);
+  await rpc(ctx, "dela_audit", { p_actor_type: "member", p_actor: s.person_id, p_action: "profile_sample_opened", p_object_type: "file", p_object_id: String(ctx.url.searchParams.get("file")), p_detail: {}, p_ip: ctx.ip }).catch(() => null);
+  return json(ctx, { ok: true, name: r.name, url: await storageOf(ctx).signDownload(r.storage_path, 300, r.name) });
+}
 async function engagementPeople(ctx: Ctx) {
   const s = await memberSide(ctx);
   const r = await rpc<Record<string, any>>(ctx, "dela_engagement_people", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.url.searchParams.get("agreement"))) });
@@ -5308,6 +5345,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /gigs/agency-bench": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_gig_bench_for", { p_person: s.person_id, p_gig: need(uuid(ctx.url.searchParams.get("gig"))) })); }
       case "POST /agency/leave": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_leave", { p_person: s.person_id, p_org: need(uuid(ctx.body.org_id)) })); }
       case "GET /freelancers/card": return await freelancerCard(ctx);
+      case "GET /freelancers/profile": return await freelancerProfile(ctx);
+      case "GET /freelancers/doc": return await freelancerDoc(ctx);
       case "GET /engagements/people": return await engagementPeople(ctx);
       case "POST /engagements/team": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_engagement_team_set", { p_person: s.person_id, p_agreement: need(uuid(ctx.body.agreement_id)), p_member: need(uuid(ctx.body.person_id)), p_on: ctx.body.on !== false, p_role: str(ctx.body.role, 80) })); }
       case "POST /proposals/help": return await proposalHelp(ctx);

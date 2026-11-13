@@ -397,7 +397,7 @@
       var u = new URL(location.href);
       if (u.searchParams.get("tab") === tab) return;
       u.searchParams.set("tab", tab);
-      ["gig", "view", "pb", "thread", "meeting"].forEach(function (k) { u.searchParams.delete(k); });
+      ["gig", "view", "pb", "thread", "meeting", "person"].forEach(function (k) { u.searchParams.delete(k); });
       history.replaceState(null, "", u.pathname + u.search + u.hash);
     } catch (e) { /* the address stays as it was */ }
   }
@@ -5395,7 +5395,18 @@
     return { el: h("div", { class: "cat-search" }, input, list), input: input, close: close };
   }
 
+  // Step 18 part 2: a freelancer's full profile is a page of Talent (address /dela?tab=talent&person=ID), not a pop-up.
+  // The search stays as it was (filters, sort, place on the page) for the way back.
+  var talentPerson = null, talentTab = "overview", talentScroll = 0;
+  function talentAddress(person) {
+    try { var u = new URL(location.href); if (person) u.searchParams.set("person", person); else u.searchParams.delete("person"); history.replaceState(null, "", u.pathname + u.search + u.hash); } catch (e) { /* the address stays */ }
+  }
+  function openTalentProfile(person) { talentScroll = window.scrollY || 0; talentPerson = person; talentTab = "overview"; talentAddress(person); draw(); window.scrollTo(0, 0); }
+  function closeTalentProfile() { talentPerson = null; talentAddress(null); draw(); }
   function talentView() {
+    // The profile shows only while the address names the person (leaving Talent takes it out of the address)
+    try { if (talentPerson && new URLSearchParams(location.search).get("person") !== talentPerson) talentPerson = null; } catch (e) { talentPerson = null; }
+    if (talentPerson) return talentProfilePage();
     var el = h("div", null, h("h1", { text: "Talent" }));
     if ((me.switches || {}).bench) {
       el.appendChild(h("div", { class: "pills", role: "tablist", "aria-label": "Talent views" }, [["search", "Search"], ["bench", "My bench"]].map(function (v) {
@@ -5459,7 +5470,6 @@
     function show() { if (last) talentResults(results, last.x, last.gigs, idx, { chips: chips(), clear: clearAll, resort: show, reload: run }); }
     function run() {
       talentQ.category = chain.leaf || chain.sub || chain.top; talentQ.q = box.input.value.trim(); talentQ.state = state.value;
-      clear.hidden = !(talentQ.category || talentQ.q || talentQ.state);
       D.clear(results); results.appendChild(h("p", { class: "muted", role: "status", text: "Searching..." }));
       var qs = Object.keys(talentQ).filter(function (k) { return talentQ[k]; }).map(function (k) { return k + "=" + encodeURIComponent(talentQ[k]); }).join("&");
       Promise.all([api.get("/talent?" + qs), api.get("/gigs")]).then(function (rs) {
@@ -5469,12 +5479,11 @@
         show();
       }).catch(function (e) { D.clear(results); results.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
     }
-    var clear = h("button", { class: "ghost small", type: "button", hidden: true, style: "margin-bottom:8px", onclick: clearAll }, "Clear filters");
     form.appendChild(field("Search roles, specialties, tasks and software", box.el, "Pick a suggestion to search that category, or press Enter to search the words."));
     if (!idx.ok || !idx.tops.length) { form.appendChild(h("p", { class: "notice", text: "The categories could not be loaded right now. You can still search by words and state." })); form.appendChild(field("State you need", state)); }
-    else form.appendChild(h("div", { class: "talent-cats" }, field("Category", topSel), field("Specialty", subSel), field("Task, case type or software", leafSel), field("State you need", state)));
-    form.appendChild(h("div", { class: "row", style: "justify-content:flex-end;gap:8px;flex-wrap:wrap" }, clear,
-      h("button", { class: "blue small", type: "button", style: "margin-bottom:8px", onclick: function () { box.close(); run(); } }, "Search freelancers")));
+    else form.appendChild(h("div", { class: "talent-cats" }, field("Category", topSel), field("Specialty", subSel), field("Task, case type or software", leafSel), field("State you need", state),
+      h("div", { class: "talent-go" }, h("button", { class: "blue", type: "button", onclick: function () { box.close(); run(); } }, "Search freelancers"))));
+    if (!idx.ok || !idx.tops.length) form.appendChild(h("div", { class: "row", style: "justify-content:flex-end" }, h("button", { class: "blue small", type: "button", onclick: function () { box.close(); run(); } }, "Search freelancers")));
     draw3();
     // DELA's help is optional and folded away: opening it or typing uses nothing; only the button uses an action
     if ((me.switches || {}).ai_helpers) {
@@ -5495,6 +5504,157 @@
     }
     run();
   }
+
+  function servicePrice(sv) {
+    var a = sv.price_from_cents, b = sv.price_to_cents, per = sv.unit === "hour" ? " an hour" : "";
+    if (a === null && b === null) return "";
+    if (a !== null && b !== null && a !== b) return D.money(a) + " to " + D.money(b) + per;
+    return (a !== null && b === null ? "From " : "") + D.money(a !== null ? a : b) + per;
+  }
+  function lineList(text) { return String(text || "").split("\n").map(function (x) { return x.trim(); }).filter(Boolean); }
+  function talentProfilePage() {
+    var person = talentPerson;
+    var el = h("div", { class: "tp" }, h("p", null, h("button", { class: "ghost small", type: "button", onclick: closeTalentProfile }, "← Back to Talent search")), h("p", { class: "muted", role: "status", text: "Loading the profile..." }));
+    var now = Date.now();
+    Promise.all([api.get("/freelancers/profile?person=" + encodeURIComponent(person)), api.get("/gigs").catch(function () { return { ok: false }; }), loadCats()]).then(function (rs) {
+      if (talentPerson !== person) return;
+      var x = rs[0], idx = rs[2], mine = rs[1].ok ? rs[1].gigs.filter(function (g) { return g.status === "open" && !g.paused_by_team && (!g.closes_at || new Date(g.closes_at).getTime() > now); }) : [];
+      el.removeChild(el.lastChild);
+      if (!x.ok) { el.appendChild(h("p", { class: "notice", role: "alert", text: "This profile could not be opened. The member may have closed their freelancer profile." })); return; }
+      var rv = x.reviews || {}, n = rv.count || 0, verified = x.verification === "verified";
+      // ----- The header: who this is, what was checked, real reviews, and the invitation -----
+      var inv = talentInvite({ person_id: x.person_id, name: x.name }, mine, el);
+      var facts = [x.capacity_hours_week ? x.capacity_hours_week + " hours a week" : "", x.timezone ? x.timezone + " time" : "", x.state ? "Based in " + x.state : "",
+        (x.agencies || []).length ? "Works with " + x.agencies.join(", ") : x.company ? "Works through " + x.company : ""].filter(Boolean).join(" | ");
+      var head = h("div", { class: "card tp-head" },
+        h("div", { class: "talent-top", style: "grid-template-columns:84px 1fr" },
+          x.photo_url ? h("img", { class: "talent-photo tp-photo", src: x.photo_url, alt: "Photo of " + x.name }) : h("span", { class: "talent-photo tp-photo none", "aria-hidden": "true", text: String(x.name || "?").trim().charAt(0).toUpperCase() }),
+          h("div", null, h("h1", { style: "margin:0", text: x.name }), x.headline ? h("p", { style: "margin:2px 0 6px", text: x.headline }) : null,
+            h("div", { class: "row small", style: "gap:14px;flex-wrap:wrap" },
+              h("span", { class: verified ? "talent-ver" : "muted", text: verified ? "✓ Verified" : "Not verified yet" }),
+              h("span", { class: n ? "" : "muted", text: !n ? "No reviews yet" : rv.average ? "★ " + rv.average + " (" + n + (n === 1 ? " review)" : " reviews)") : n + (n === 1 ? " review" : " reviews") }),
+              x.available_now ? null : h("span", { class: "badge held", text: "Not taking new work right now" })),
+            facts ? h("p", { class: "small muted", style: "margin:6px 0 0", text: facts }) : null)),
+        !mine.length ? h("p", { class: "notice", style: "margin:12px 0 0" }, "You have no posted gig that is open for proposals, so there is nothing to invite this freelancer to yet. ",
+          h("a", { href: "#", onclick: function (e) { e.preventDefault(); talentPerson = null; talentAddress(null); goTab("projects"); }, text: "Post a gig in Projects" }), ".") : null,
+        h("div", { class: "talent-acts" }, h("label", { class: "talent-gig" }, h("span", { class: "talent-gig-word", text: "Invite for gig:" }), inv.gigSel), inv.invite), inv.said);
+      el.appendChild(head);
+      // ----- The tabs: everything stays on this page -----
+      var promos = x.promotions || [];
+      var TABS = [["overview", "Overview"], ["services", "Services"], ["experience", "Experience and qualifications"], ["portfolio", "Portfolio"], ["reviews", "Reviews" + (n ? " (" + n + ")" : "")]];
+      if (promos.length) TABS.push(["promotions", "Promotions (" + promos.length + ")"]);
+      if (!TABS.some(function (tb) { return tb[0] === talentTab; })) talentTab = "overview";
+      var panel = h("div", { class: "tp-panel", role: "tabpanel", id: "tp-panel", tabindex: "0" });
+      var bar = h("div", { class: "tp-tabs", role: "tablist", "aria-label": "Sections of " + x.name + "'s profile" });
+      var btns = TABS.map(function (tb, i) {
+        var b = h("button", { type: "button", role: "tab", id: "tp-tab-" + tb[0], "aria-controls": "tp-panel", "aria-selected": String(talentTab === tb[0]), tabindex: talentTab === tb[0] ? "0" : "-1" }, tb[1]);
+        b.addEventListener("click", function () { pick(i, false); });
+        // Arrow keys move between tabs, Home and End jump to the ends (the W3C tabs pattern)
+        b.addEventListener("keydown", function (e) {
+          var to = e.key === "ArrowRight" ? (i + 1) % TABS.length : e.key === "ArrowLeft" ? (i + TABS.length - 1) % TABS.length : e.key === "Home" ? 0 : e.key === "End" ? TABS.length - 1 : -1;
+          if (to >= 0) { e.preventDefault(); pick(to, true); }
+        });
+        bar.appendChild(b); return b;
+      });
+      function pick(i, focus) {
+        talentTab = TABS[i][0];
+        btns.forEach(function (b, k) { b.setAttribute("aria-selected", String(k === i)); b.setAttribute("tabindex", k === i ? "0" : "-1"); });
+        if (focus) btns[i].focus();
+        panel.setAttribute("aria-labelledby", "tp-tab-" + talentTab);
+        D.clear(panel); SECTIONS[talentTab]();
+      }
+      function card(title) { var c = h("section", { class: "card" }, h("h2", { text: title })); panel.appendChild(c); return c; }
+      function chips(list) { return h("div", { class: "talent-tags" }, list.map(function (v) { return h("span", { class: "talent-tag", text: v }); })); }
+      function none(c, text) { c.appendChild(h("p", { class: "muted", text: text })); }
+      function catGroups() {
+        var groups = {}, order = [];
+        (x.categories || []).forEach(function (k) { var c = idx.byKey[k]; if (!c) return; var top = idx.byKey[c.top], g = top ? top.name : "Other"; if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(idx.path(k).slice(1).join(" › ")); });
+        return order.map(function (g) { return [g, groups[g]]; });
+      }
+      var SECTIONS = {
+        overview: function () {
+          var a = card("About " + x.name);
+          if (x.summary) lineList(x.summary).forEach(function (l) { a.appendChild(h("p", { text: l })); }); else none(a, "No summary written yet.");
+          var s = card("Skills, services and categories"), groups = catGroups();
+          if (groups.length) { s.appendChild(h("h3", { text: "Lawfecta categories" })); groups.forEach(function (g) { s.appendChild(h("p", { class: "small", style: "margin:8px 0 2px;font-weight:700", text: g[0] })); s.appendChild(chips(g[1])); }); }
+          if ((x.practice_areas || []).length) { s.appendChild(h("h3", { text: "Practice areas" })); s.appendChild(chips(x.practice_areas)); }
+          if ((x.services || []).length) { s.appendChild(h("h3", { text: "Services" })); s.appendChild(chips(x.services.map(function (sv) { return sv.title; }))); }
+          if ((x.software || []).length) { s.appendChild(h("h3", { text: "Software" })); s.appendChild(chips(x.software)); }
+          if (!groups.length && !(x.practice_areas || []).length && !(x.services || []).length && !(x.software || []).length) none(s, "Nothing listed yet.");
+          var q = card("Quick facts");
+          q.appendChild(h("dl", { class: "tp-facts" }, [["Availability", x.capacity_hours_week ? x.capacity_hours_week + " hours a week" + (x.availability === "limited" ? " (limited right now)" : "") : "Not given"], ["Usual hours", x.hours || "Not given"],
+            ["Time zone", x.timezone || "Not given"], ["Agency", (x.agencies || []).join(", ") || x.company || "Independent"], ["Reviews", n ? n + (n === 1 ? " review" : " reviews") : "No reviews yet"]].map(function (r) {
+            return h("div", null, h("dt", { text: r[0] }), h("dd", { text: r[1] }));
+          })));
+          var v = card("Verification");
+          v.appendChild(h("p", { class: verified ? "talent-ver" : "muted", text: verified ? "✓ Verified" : "Not verified yet" }));
+          v.appendChild(h("p", { class: "small muted", text: verified ? "The Lawfecta Team checked this member. Help explains what is checked. Experience, education and skills are written by the member and are not checked one by one." : "This member's check is not finished. Experience, education and skills are written by the member." }));
+          if (promos.length) { var pc = card("Current promotions"); pc.appendChild(h("p", { class: "small", text: promos.length + (promos.length === 1 ? " promotion is" : " promotions are") + " listed." })); pc.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { pick(TABS.length - 1, true); } }, "See promotions")); }
+        },
+        services: function () {
+          var c = card("Services offered");
+          if (!(x.services || []).length) { none(c, x.name + " has not listed services yet."); return; }
+          c.appendChild(h("p", { class: "small muted", text: "Prices are the member's own starting points. The price of a job is set in the proposal and the agreement." }));
+          x.services.forEach(function (sv) {
+            var price = servicePrice(sv);
+            c.appendChild(h("div", { class: "tp-item" }, h("div", { class: "row" }, h("h3", { class: "grow", style: "margin:0", text: sv.title }), price ? h("b", { text: price }) : h("span", { class: "small muted", text: "No price given" })),
+              sv.for_whom ? h("p", { class: "small", style: "margin:4px 0 0", text: sv.for_whom }) : null));
+          });
+        },
+        experience: function () {
+          var c = card("Professional experience"), ex = lineList(x.experience);
+          if (ex.length) c.appendChild(h("ul", { class: "tp-lines" }, ex.map(function (l) { return h("li", { text: l }); }))); else none(c, "Not provided.");
+          var e = card("Education and credentials"), ed = lineList(x.education);
+          if (ed.length) e.appendChild(h("ul", { class: "tp-lines" }, ed.map(function (l) { return h("li", { text: l }); }))); else none(e, "Not provided.");
+          e.appendChild(h("p", { class: "small muted", text: "Written by the member. Lawfecta does not check each item." }));
+          var k = card("Practice and technology experience");
+          if ((x.practice_areas || []).length) { k.appendChild(h("h3", { text: "Practice areas" })); k.appendChild(chips(x.practice_areas)); }
+          if ((x.skills || []).length) { k.appendChild(h("h3", { text: "Skills" })); k.appendChild(chips(x.skills)); }
+          if ((x.software || []).length) { k.appendChild(h("h3", { text: "Software" })); k.appendChild(chips(x.software)); }
+          if (!(x.practice_areas || []).length && !(x.skills || []).length && !(x.software || []).length) none(k, "Not provided.");
+        },
+        portfolio: function () {
+          var c = card("Work samples");
+          if (!x.samples_allowed) { none(c, "Work samples are shown to members who hire."); return; }
+          if (!(x.samples || []).length) { none(c, x.name + " has not shown any work samples yet."); return; }
+          c.appendChild(h("p", { class: "small muted", text: "Samples the member chose to show. Members confirm they hold no client information. They open inside Lawfecta for a few minutes at a time." }));
+          x.samples.forEach(function (f) {
+            var msg = h("span", { class: "small muted", role: "status" });
+            c.appendChild(h("div", { class: "tp-item row", style: "flex-wrap:wrap;gap:8px" }, h("span", { class: "grow" }, h("b", { text: f.name }), h("span", { class: "small muted", text: " " + String(f.ext || "").toUpperCase() + ", " + (f.size_bytes >= 1048576 ? (Math.round(f.size_bytes / 104857.6) / 10) + " MB" : Math.max(1, Math.round(f.size_bytes / 1024)) + " KB") })),
+              msg, h("button", { class: "ghost small", type: "button", "aria-label": "Open the sample " + f.name, onclick: function () {
+                msg.textContent = "Opening...";
+                api.get("/freelancers/doc?person=" + encodeURIComponent(person) + "&file=" + encodeURIComponent(f.id)).then(function (d) {
+                  if (!d.ok) { msg.textContent = "This sample is no longer shown."; return; }
+                  msg.textContent = ""; window.open(d.url, "_blank", "noopener");
+                }).catch(function (e) { msg.textContent = D.errorText(e.message); });
+              } }, "Open sample")));
+          });
+        },
+        reviews: function () {
+          var c = card("Reviews from completed engagements");
+          c.appendChild(h("p", { class: "muted", text: "Loading..." }));
+          api.get("/reviews/of?person=" + encodeURIComponent(person) + "&side=freelancer").then(function (r) {
+            c.removeChild(c.lastChild);
+            if (!r.ok) { c.appendChild(h("p", { class: "notice", text: revErr(r) })); return; }
+            if (r.on && !r.count) c.appendChild(h("p", { class: "muted", text: "No reviews yet. A review can only be left after a completed Lawfecta engagement, so a new member starts with none." }));
+            else reviewsList(c, r, "freelancer");
+          }).catch(function (e) { c.removeChild(c.lastChild); c.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+        },
+        promotions: function () {
+          var c = card("Promotions");
+          c.appendChild(h("p", { class: "small muted", text: "Offers this member posted on Lawfecta. The price and scope of a job are confirmed in the proposal and the agreement." }));
+          promos.forEach(function (pr) {
+            c.appendChild(h("div", { class: "tp-item" }, h("h3", { style: "margin:0", text: pr.title }), lineList(pr.text).map(function (l) { return h("p", { class: "small", style: "margin:4px 0 0", text: l }); }),
+              h("p", { class: "small", style: "margin:6px 0 0" }, pr.code ? h("span", null, "Code: ", h("b", { text: pr.code }), pr.ends ? " | " : "") : null, pr.ends ? "Ends " + D.date(pr.ends) : "No end date given")));
+          });
+        }
+      };
+      el.appendChild(bar); el.appendChild(panel);
+      panel.setAttribute("aria-labelledby", "tp-tab-" + talentTab);
+      SECTIONS[talentTab]();
+    }).catch(function (e) { if (talentPerson !== person) return; el.removeChild(el.lastChild); el.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
+    return el;
+  }
   var TALENT_SORTS = [["relevant", "Most relevant"], ["reviews", "Most reviews"], ["hours", "Most hours a week"], ["name", "Name, A to Z"]];
   function talentSorted(people) {
     var list = people.slice();
@@ -5506,13 +5666,47 @@
   // Stacey 2026-11-12: the word is "Verified"; the Help page (FAQ) says what Lawfecta checks. Shown only when the check passed.
   function talentTrust(p) {
     var rv = p.reviews || {}, n = rv.count || 0;
-    return h("div", { class: "talent-trust small" },
+    // Side by side, as in Stacey's mockup of 2026-11-12: "✓ Verified | ★ No reviews yet"
+    return h("div", { class: "talent-trust" },
       p.verification === "verified" ? h("span", { class: "talent-ver", text: "✓ Verified" }) : null,
-      h("span", { class: n ? "" : "muted", text: !n ? "No reviews yet" : rv.average ? "★ " + rv.average + " (" + n + (n === 1 ? " review)" : " reviews)") : n + (n === 1 ? " review" : " reviews") }));
+      h("span", { class: "talent-rev" }, h("span", { class: "talent-star", "aria-hidden": "true", text: "★ " }), !n ? "No reviews yet" : rv.average ? rv.average + " (" + n + (n === 1 ? " review)" : " reviews)") : n + (n === 1 ? " review" : " reviews")));
   }
   function talentAvatar(p) {
     return p.photo_url ? h("img", { class: "talent-photo", src: p.photo_url, alt: "Photo of " + p.name })
       : h("span", { class: "talent-photo none", "aria-hidden": "true", text: String(p.name || "?").trim().charAt(0).toUpperCase() });
+  }
+  // "Gig to invite for" with "Invite to this gig": the same control on a result card and on the profile page.
+  // scope: where to take a gig out of every list once the server says it no longer takes proposals.
+  function talentInvite(p, mine, scope) {
+    var results = scope;
+    var gigSel = h("select", { "aria-label": "Gig to invite " + p.name + " for", disabled: !mine.length },
+      [h("option", { value: "", text: mine.length ? "Select one of your posted gigs" : "No posted gig is open for proposals" })].concat(mine.map(function (g) { return h("option", { value: g.id, text: g.title }); })));
+    var invite = h("button", { class: "blue small", type: "button", disabled: true }, "Invite to this gig");
+    var said = h("p", { class: "small muted", role: "status", style: "margin:6px 0 0", text: "Inviting asks this freelancer to send a proposal for the gig you select. It does not hire them or award the work." });
+    gigSel.addEventListener("change", function () { invite.disabled = !gigSel.value; });
+    invite.addEventListener("click", function () {
+      var gid = gigSel.value, title = (mine.filter(function (g) { return g.id === gid; })[0] || {}).title || "your gig";
+      if (!gid) return;
+      invite.disabled = true; invite.textContent = "Sending...";
+      api.post("/gigs/invite", { gig_id: gid, person_id: p.person_id }).then(function (y) {
+        invite.textContent = "Invite to this gig";
+        if (y && y.ok) {
+          said.className = "small notice ok"; said.textContent = y.duplicate ? p.name + " was already invited to \"" + title + "\". Nothing was sent again." : "Invitation sent. " + p.name + " can now send a proposal for \"" + title + "\". Nobody is hired until you choose a proposal.";
+          D.toast(app, y.duplicate ? "Already invited" : "Invited " + p.name);
+          gigSel.value = ""; return;
+        }
+        // The gig closed or was paused since the page loaded, or the freelancer is no longer available: say so, send nothing
+        said.className = "small notice bad"; said.setAttribute("role", "alert");
+        said.textContent = y && y.reason === "gig_not_open" ? "\"" + title + "\" no longer takes proposals, so no invitation was sent. Choose another gig." : y && y.reason === "freelancer_not_available" ? p.name + " cannot be invited to this gig right now. No invitation was sent." : gigErr(y || {});
+        // Take the gig out of every card's list, so it cannot be chosen again; the message above stays readable
+        if (y && y.reason === "gig_not_open") Array.prototype.forEach.call(results.querySelectorAll("select option"), function (op) { if (op.value === gid) op.remove(); });
+        gigSel.value = "";
+      }).catch(function (e) {
+        invite.textContent = "Invite to this gig"; invite.disabled = !gigSel.value;
+        said.className = "small notice bad"; said.setAttribute("role", "alert"); said.textContent = "The invitation was not sent (" + D.errorText(e.message) + "). Check your connection and try again.";
+      });
+    });
+    return { gigSel: gigSel, invite: invite, said: said };
   }
   // The results: count, the filters in use, the sort order, then one card per freelancer with two actions only,
   // "View profile" and "Invite to this gig" (with the gig to invite for chosen first)
@@ -5522,12 +5716,12 @@
     var n = x.people.length;
     var sort = h("select", { "aria-label": "Sort by" }, TALENT_SORTS.map(function (s) { return h("option", { value: s[0], text: s[1], selected: talentSort === s[0] }); }));
     sort.addEventListener("change", function () { talentSort = sort.value; o.resort(); });
-    var head = h("div", { class: "talent-head" }, h("h2", { style: "margin:0", text: "Matching freelancers" }),
-      h("span", { class: "small muted", role: "status", text: n ? n + (n === 1 ? " freelancer fits" : " freelancers fit") + " this search." : "No match-ready freelancers fit this search yet. Try a broader category or fewer words." }));
+    var head = h("div", { class: "talent-head" }, h("h2", { style: "margin:0", role: "status", text: n + (n === 1 ? " freelancer found" : " freelancers found") }));
+    if (!n) head.appendChild(h("span", { class: "small muted", text: "No match-ready freelancers fit this search yet. Try a broader category or fewer words." }));
     (o.chips || []).forEach(function (c) {
       head.appendChild(h("span", { class: "cat-chip" }, h("span", { text: c.text }), h("button", { type: "button", "aria-label": "Remove filter: " + c.text, onclick: c.remove }, "×")));
     });
-    if ((o.chips || []).length > 1) head.appendChild(h("button", { class: "ghost small", type: "button", onclick: o.clear }, "Clear all"));
+    if ((o.chips || []).length) head.appendChild(h("button", { class: "talent-clear", type: "button", onclick: o.clear }, "Clear all"));
     head.appendChild(h("span", { class: "grow" }));
     if (n > 1) head.appendChild(h("label", { class: "small talent-sort" }, "Sort by ", sort));
     results.appendChild(head);
@@ -5541,44 +5735,20 @@
       var tags = (p.practice_areas || []).slice(0, 4).concat((p.software || []).slice(0, 5));
       var facts = [p.capacity_hours_week ? p.capacity_hours_week + " hours a week" + (p.availability === "limited" ? " (limited right now)" : " available") : "", p.timezone ? p.timezone + " time" : "",
         p.firm_name ? "Works through " + p.firm_name : ""].filter(Boolean).join(" | ");
-      var gigSel = h("select", { "aria-label": "Gig to invite " + p.name + " for", disabled: !mine.length },
-        [h("option", { value: "", text: mine.length ? "Select one of your posted gigs" : "No posted gig is open for proposals" })].concat(mine.map(function (g) { return h("option", { value: g.id, text: g.title }); })));
-      var invite = h("button", { class: "blue small", type: "button", disabled: true }, "Invite to this gig");
-      var said = h("p", { class: "small muted", role: "status", style: "margin:6px 0 0", text: "Inviting asks this freelancer to send a proposal for the gig you select. It does not hire them or award the work." });
-      gigSel.addEventListener("change", function () { invite.disabled = !gigSel.value; });
-      invite.addEventListener("click", function () {
-        var gid = gigSel.value, title = (mine.filter(function (g) { return g.id === gid; })[0] || {}).title || "your gig";
-        if (!gid) return;
-        invite.disabled = true; invite.textContent = "Sending...";
-        api.post("/gigs/invite", { gig_id: gid, person_id: p.person_id }).then(function (y) {
-          invite.textContent = "Invite to this gig";
-          if (y && y.ok) {
-            said.className = "small notice ok"; said.textContent = y.duplicate ? p.name + " was already invited to \"" + title + "\". Nothing was sent again." : "Invitation sent. " + p.name + " can now send a proposal for \"" + title + "\". Nobody is hired until you choose a proposal.";
-            D.toast(app, y.duplicate ? "Already invited" : "Invited " + p.name);
-            gigSel.value = ""; return;
-          }
-          // The gig closed or was paused since the page loaded, or the freelancer is no longer available: say so, send nothing
-          said.className = "small notice bad"; said.setAttribute("role", "alert");
-          said.textContent = y && y.reason === "gig_not_open" ? "\"" + title + "\" no longer takes proposals, so no invitation was sent. Choose another gig." : y && y.reason === "freelancer_not_available" ? p.name + " cannot be invited to this gig right now. No invitation was sent." : gigErr(y || {});
-          // Take the gig out of every card's list, so it cannot be chosen again; the message above stays readable
-          if (y && y.reason === "gig_not_open") Array.prototype.forEach.call(results.querySelectorAll("select option"), function (op) { if (op.value === gid) op.remove(); });
-          gigSel.value = "";
-        }).catch(function (e) {
-          invite.textContent = "Invite to this gig"; invite.disabled = !gigSel.value;
-          said.className = "small notice bad"; said.setAttribute("role", "alert"); said.textContent = "The invitation was not sent (" + D.errorText(e.message) + "). Check your connection and try again.";
-        });
-      });
+      var inv = talentInvite(p, mine, results), gigSel = inv.gigSel, invite = inv.invite, said = inv.said;
       results.appendChild(h("article", { class: "card talent-card", "aria-label": p.name },
         h("div", { class: "talent-top" }, talentAvatar(p),
           h("div", { class: "talent-who" }, h("h3", { style: "margin:0", text: p.name }), p.headline ? h("div", { class: "small", text: p.headline }) : null, talentTrust(p)),
-          h("div", { class: "talent-about" }, p.summary ? h("p", { class: "small", style: "margin:0 0 6px", text: p.summary }) : null, catLine,
+          h("div", { class: "talent-about talent-rule" }, p.summary ? h("p", { class: "small", style: "margin:0 0 6px", text: p.summary }) : null, catLine,
             tags.length ? h("div", { class: "talent-tags" }, tags.map(function (x) { return h("span", { class: "talent-tag", text: x }); })) : null,
             facts ? h("div", { class: "small muted", text: facts }) : null)),
         h("div", { class: "talent-acts" },
-          h("button", { class: "ghost small", type: "button", onclick: function () { profileModal(p.person_id); } }, "View profile"),
-          h("label", { class: "talent-gig" }, h("span", { class: "small", style: "font-weight:700", text: "Gig to invite for" }), gigSel), invite),
+          h("button", { class: "ghost small", type: "button", onclick: function () { openTalentProfile(p.person_id); } }, "View profile"),
+          h("label", { class: "talent-gig" }, h("span", { class: "talent-gig-word", text: "Invite for gig:" }), gigSel), invite),
         said));
     });
+    // Back from a profile: the same place in the list
+    if (talentScroll) { var y = talentScroll; talentScroll = 0; setTimeout(function () { window.scrollTo(0, y); }, 0); }
   }
 
   // ---------- Freelancer: Work ----------
@@ -9666,6 +9836,8 @@
     // The Usage page on the member dashboard (/account/usage) shows the usage view
     if (location.pathname.indexOf("/account/usage") >= 0) tab = "usage";
     // A document link from a notice or a test (dela?tab=library&pb=ID) opens that document
+    var wantPerson = new URLSearchParams(location.search).get("person");
+    if (tab === "talent" && wantPerson && /^[0-9a-f-]{36}$/.test(wantPerson)) talentPerson = wantPerson;
     var wantPb = new URLSearchParams(location.search).get("pb");
     if (tab === "library" && wantPb && /^[0-9a-f-]{36}$/.test(wantPb)) { lib.pb = { playbook: { id: wantPb } }; lib.view = "read"; }
   } catch (e) { /* older browsers open Home */ }

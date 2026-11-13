@@ -197,6 +197,10 @@ const deps = {
     // The Lawfecta listing (BD API): reads give a sample listing, updates are recorded for the test
     if (u.includes("/api/v2/user/get/")) return Response.json({ status: "success", message: [{ user_id: Number(u.split("/").pop()), first_name: "Lia", last_name: "Listing", company: "Listing Law", city: "Dallas", state_code: "TX", website: "listinglaw.com", about_me: "From the directory.", image_main_file: "/pictures/lia.jpg", card_info: "4111111111111111" }] });
     if (u.endsWith("/api/v2/user/update")) { lastBdUpdate = String(opts.body ?? ""); return Response.json({ status: "success", message: {} }); }
+    // The website's posts of a member (step 18 part 2): one live promotion (post type 7) and one blog article
+    if (u.includes("/api/v2/data_posts/get")) { const uid = new URL(u).searchParams.get("property_value"); return Response.json({ status: "success", message: [
+      { post_id: "1", data_id: "7", user_id: uid, post_status: "1", post_title: "New client discount", post_content: "<p>10% off the first fixed-fee project.</p>", post_promo: "FIRST10", post_expire_date: "20991231" },
+      { post_id: "2", data_id: "14", user_id: uid, post_status: "1", post_title: "A blog article", post_content: "", post_promo: "", post_expire_date: "" }] }); }
     // The website's categories (step 17): two top categories, specialties and sub subs, as BD lists them
     if (u.includes("/api/v2/list_professions/get")) return Response.json({ status: "success", message: [
       { profession_id: "39", name: "Legal Nurse & Medical Records", filename: "legal-nurse" }, { profession_id: "40", name: "Paralegal Services", filename: "paralegal-services" }] });
