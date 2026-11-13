@@ -5840,7 +5840,14 @@
     if (!idx.ok || !idx.tops.length) { form.appendChild(h("p", { class: "notice", text: "The categories could not be loaded right now. You can still search by words, software and state." })); form.appendChild(h("div", { class: "talent-cats" }, field("Software", toolSel), stateField)); }
     else form.appendChild(h("div", { class: "talent-cats" }, field("Category", topSel), field("Practice area / Specialty", subSel), field("Services / Tasks", leafSel), field("Software", toolSel), stateField));
     form.appendChild(go);
-    loadBookmarks().then(function (bm) { if (bm.on) form.appendChild(h("label", { class: "small talent-bm", for: "talent-bm" }, onlyBm, " Bookmarked only (freelancers you saved)")); });
+    // Stacey 2026-11-13: one click to the freelancers you bookmarked. It clears the other filters and searches, so the
+    // list is all of your bookmarks. They are the same bookmarks the Lawfecta website keeps under "My Saved Members".
+    loadBookmarks().then(function (bm) {
+      if (!bm.on) return;
+      form.appendChild(h("div", { class: "row", style: "gap:14px;flex-wrap:wrap;align-items:center" },
+        h("label", { class: "small talent-bm", for: "talent-bm" }, onlyBm, " Bookmarked only (freelancers you saved)"),
+        h("button", { class: "ghost small", type: "button", id: "talent-my-bm", onclick: function () { resetForm(); onlyBm.checked = true; run(); } }, "★ Your bookmarks")));
+    });
     draw3(); fillTools();
     // DELA's help is optional: an accordion that stays as the attorney left it. Opening it or typing uses nothing; only
     // "Suggest filters" uses an action. The suggestions are chips to check; nothing is searched until they are applied.

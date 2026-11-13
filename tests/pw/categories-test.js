@@ -345,6 +345,13 @@ const SEARCH = "Search roles, specialties, tasks and software";
     await dela(p).getByLabel("Bookmarked only (freelancers you saved)").check();
     t = await waitGone(p, "Nia Nurse");
     ok(t.includes("Fern Family") && t.includes("1 freelancer found") && await dela(p).getByRole("button", { name: "Remove filter: Bookmarked" }).count() === 1 && await dela(p).locator(".talent-marked").count() === 1, "Bookmarked only shows the saved freelancers, as a removable filter, each marked");
+    // Stacey 2026-11-13: "Your bookmarks" clears the other filters and lists every bookmarked freelancer
+    await dela(p).getByRole("button", { name: "Remove filter: Bookmarked" }).click();
+    await waitFor(p, "Nia Nurse", 15000);
+    await label(p, SEARCH).fill("nurse");
+    await click(p, "★ Your bookmarks");
+    t = await waitGone(p, "Nia Nurse");
+    ok(t.includes("Fern Family") && t.includes("1 freelancer found") && await label(p, SEARCH).inputValue() === "" && await dela(p).getByLabel("Bookmarked only (freelancers you saved)").isChecked(), "Your bookmarks lists the bookmarked freelancers with the other filters cleared");
     await s.ctx.close();
     // 10 at a time with "Load more" on the same screen (the size is a setting; 1 here so two people make two pages)
     await sql("update settings set value = '1' where key = 'talent.page_size'; select 1");
