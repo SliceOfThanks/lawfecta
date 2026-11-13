@@ -91,8 +91,9 @@ const SEARCH = "Search roles, specialties, tasks and software";
     t = await waitGone(p, "Remove Medical Malpractice Review");
     ok(t.includes("2 of 25 picked"), "a picked category can be removed with its ×");
     await p.screenshot({ path: path.join(SHOTS, "categories-profile.png"), fullPage: true });
-    await click(p, "Save");
-    await waitFor(p, "Profile saved", 10000).catch(() => null);
+    // The button reads "Save", "Save to DELA only" or "Save and update my directory listing", by the listing tick
+    await dela(p).locator("button.blue", { hasText: /^Save/ }).first().click();
+    await waitFor(p, "Profile saved", 10000);
     const saved = (await sql(`select body->'categories' c from member_profiles where side = 'freelancer' and person_id = (select id from people where bd_member_id = ${FL3})`))[0];
     ok(saved && JSON.stringify(saved.c) === JSON.stringify(["s327", "s275"]), "Save keeps the picks in order: " + JSON.stringify(saved && saved.c));
     await s.ctx.close();
