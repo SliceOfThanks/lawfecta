@@ -56,9 +56,9 @@ const SEARCH = "Search roles, specialties, tasks and software";
   let s, p, t, before = null;
   try {
     // The suites after this one share the database: remember what this suite changes and put it back at the end
-    before = (await sql("select (select jsonb_object_agg(key, state) from feature_switches where key in ('flex_gigs', 'profiles', 'talent_search', 'new_layout', 'gig_chat')) sw, (select value from settings where key = 'verify.freelancer_linkedin') li"))[0];
+    before = (await sql("select (select jsonb_object_agg(key, state) from feature_switches where key in ('flex_gigs', 'profiles', 'talent_search', 'new_layout', 'gig_chat', 'meetings')) sw, (select value from settings where key = 'verify.freelancer_linkedin') li"))[0];
     // Step 18 part 3: the ready-made pictures are offered once the folder's web address is set
-    await sql("update feature_switches set state = 'everyone' where key in ('flex_gigs', 'profiles', 'talent_search', 'new_layout', 'gig_chat'); update settings set value = 'false' where key = 'verify.freelancer_linkedin'; select 1");
+    await sql("update feature_switches set state = 'everyone' where key in ('flex_gigs', 'profiles', 'talent_search', 'new_layout', 'gig_chat', 'meetings'); update settings set value = 'false' where key = 'verify.freelancer_linkedin'; select 1");
     await sql(`insert into people (bd_member_id, display_name, email) values (${ATT}, 'Cara Category', '${ATT}@test.invalid'), (${FL}, 'Nia Nurse', '${FL}@test.invalid'),
         (${FL2}, 'Fern Family', '${FL2}@test.invalid'), (${FL3}, 'Pat Picker', '${FL3}@test.invalid'), (${TEAM}, 'Theo Team', '${TEAM}@test.invalid') on conflict (bd_member_id) do nothing;
       select dela_ensure_side((select id from people where bd_member_id = ${ATT}), 'attorney', 'att_pro', 'staff_grant');
@@ -136,7 +136,7 @@ const SEARCH = "Search roles, specialties, tasks and software";
     // Step 22 (mockup 02): five filters that each work on their own, and the match-ready help
     ok(await label(p, "Practice area / Specialty").isEnabled() && await label(p, "Services / Tasks").isEnabled() && await label(p, "Software").isEnabled() && await label(p, "State / Jurisdiction").isEnabled(), "every filter can be used without choosing a category first");
     ok(await label(p, "Software").locator("option", { hasText: "Filevine" }).count() === 1, "the Software filter lists the software names");
-    ok(t.includes("You can message a freelancer before hiring. A posted gig is required to invite a freelancer to submit a proposal."), "the page says what needs a gig and what does not");
+    ok(t.includes("You can message a freelancer and book an introductory call before hiring. A posted gig is required to invite a freelancer to submit a proposal."), "the page says what needs a gig and what does not");
     const mrBtn = dela(p).getByRole("button", { name: "What does match-ready mean?" });
     ok(await mrBtn.getAttribute("aria-expanded") === "false", "the match-ready help starts closed");
     await mrBtn.click();
@@ -308,11 +308,30 @@ const SEARCH = "Search roles, specialties, tasks and software";
     ok(await bmBtn.getAttribute("aria-pressed") === "true" && (await bmBtn.innerText()).includes("Bookmarked"), "the Bookmark button saves the freelancer and shows it is on");
     await click(p, "Send message");
     t = await waitFor(p, "A conversation before any gig.");
-    ok(t.includes("Fern Family") && t.includes("Messages only: files and meetings come with a gig. Nobody is hired here.") && !t.includes("Book a meeting") && !t.includes("Open the gig"), "Send message opens a conversation with no gig: messages only, and it says nobody is hired");
+    ok(t.includes("Fern Family") && t.includes("Messages and an introductory call only: files come with a gig. Nobody is hired here.") && !t.includes("Book a meeting") && await dela(p).getByRole("button", { name: "Book a call", exact: true }).count() === 1 && !t.includes("Open the gig"), "Send message opens a conversation with no gig: messages only, and it says nobody is hired");
     ok((await sql(`select count(*)::int n from threads where intro_attorney = (select id from people where bd_member_id = ${ATT}) and freelancer_person = (select id from people where bd_member_id = ${FL2})`))[0].n === 1, "one conversation before a gig exists for the two");
     await click(p, "Create a gig for Fern Family");
     t = await waitFor(p, "You are creating a gig for Fern Family.");
     ok(t.includes("the invitation to Fern Family opens next"), "the gig is made for that freelancer: after posting, the invitation opens");
+    await s.ctx.close();
+    // Step 23: "Book a call" on the profile opens the conversation with the open times; the call hires nobody and needs no gig
+    await sql(`insert into meeting_availability (person_id) select id from people where bd_member_id = ${FL2} on conflict (person_id) do nothing; select 1`);
+    s = await open(browser, "DELA-App", ATT, "&tab=talent"); p = s.page;
+    await waitFor(p, "Fern Family", 15000);
+    await dela(p).locator(".talent-card", { hasText: "Fern Family" }).getByRole("button", { name: "View profile" }).click();
+    await waitFor(p, "Professional summary");
+    ok(await dela(p).locator(".talent-card").count() === 0 && await dela(p).locator(".tp-head").getByRole("button", { name: "Book a call", exact: true }).count() === 1, "Book a call is on the profile, not on the result cards");
+    await dela(p).locator(".tp-head").getByRole("button", { name: "Book a call", exact: true }).click();
+    t = await waitFor(p, "Book an introductory call", 15000);
+    t = await waitFor(p, "It hires nobody, costs nothing and creates no gig.");
+    await dela(p).locator("#book-panel .slot").first().waitFor({ timeout: 10000 });
+    await dela(p).locator("#book-panel .slot").first().click();
+    p.once("dialog", (d) => d.accept());
+    await dela(p).locator("#book-panel").getByRole("button", { name: "Review booking", exact: true }).click();
+    t = await waitFor(p, "Fern Family: Introductory call", 15000);
+    const callRow = (await sql(`select m.status, m.gig_id, (m.intro_thread is not null) t from meetings m where m.attorney_person = (select id from people where bd_member_id = ${ATT}) and m.freelancer_person = (select id from people where bd_member_id = ${FL2}) order by m.created_at desc limit 1`))[0];
+    ok(callRow && callRow.status === "confirmed" && callRow.gig_id === null && callRow.t === true, "the introductory call is booked on the conversation, with no gig: " + JSON.stringify(callRow));
+    await sql(`update meetings set status = 'canceled', cancel_reason = 'test' where intro_thread is not null and attorney_person = (select id from people where bd_member_id = ${ATT}); select 1`);
     await s.ctx.close();
     // Talent, bookmarked only
     s = await open(browser, "DELA-App", ATT, "&tab=talent"); p = s.page;

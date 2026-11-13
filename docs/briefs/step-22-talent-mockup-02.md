@@ -38,7 +38,7 @@ Attorneys could not filter by software without picking a category and a specialt
 profile.availability_days, talent.page_size, ai.credits.find_fit, the ai_helpers switch. No new numbers.
 
 ## Not built in this step
-- "Book a call" on the profile before a gig. Meetings today belong to a gig (a booking needs a gig). This needs a back-end change and a decision (question 1).
+- "Book a call" on the profile before a gig: built afterwards as step 23 (docs/briefs/step-23-intro-calls.md).
 - Sort by text relevance. "Most relevant" still orders by plan and recent activity (question 3).
 - A screen-reader pass by a person, and zoom to 400%. The automated rules (axe-core) and a 320 pixel phone width are tested.
 

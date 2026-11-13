@@ -2870,15 +2870,22 @@ async function withMeetingRules(ctx: Ctx, r: any) {
 async function meetingSlots(ctx: Ctx) {
   const s = await memberSide(ctx);
   const q = ctx.url.searchParams;
+  const len = int(q.get("length")) ?? (Number(await setting(ctx, "meeting.default_length", "30")) || 30);
+  // Step 23: an introductory call before a gig belongs to the conversation, not to a gig
+  const thread = uuid(q.get("thread"));
+  if (thread) return json(ctx, await withMeetingRules(ctx, await rpc(ctx, "dela_intro_call_slots", { p_person: s.person_id, p_side: s.side, p_thread: thread, p_length: len, p_except: uuid(q.get("except")) })));
   return json(ctx, await withMeetingRules(ctx, await rpc(ctx, "dela_meeting_slots", { p_person: s.person_id, p_side: s.side, p_gig: need(uuid(q.get("gig"))), p_freelancer: uuid(q.get("freelancer")),
     p_length: int(q.get("length")) ?? (Number(await setting(ctx, "meeting.default_length", "30")) || 30), p_except: uuid(q.get("except")) })));
 }
 
 async function meetingHold(ctx: Ctx) {
   const s = await memberSide(ctx);
-  const p = { gig_id: need(uuid(ctx.body.gig_id)), freelancer: uuid(ctx.body.freelancer), start_at: str(ctx.body.start_at, 40), length: int(ctx.body.length), request_id: str(ctx.body.request_id, 80) };
-  const resched = uuid(ctx.body.reschedule_of);
-  if (resched) return json(ctx, await rpc(ctx, "dela_meeting_reschedule_hold", { p_person: s.person_id, p_side: s.side, p_meeting: resched, p }));
+  const resched = uuid(ctx.body.reschedule_of), thread = uuid(ctx.body.thread_id);
+  const base = { freelancer: uuid(ctx.body.freelancer), start_at: str(ctx.body.start_at, 40), length: int(ctx.body.length), request_id: str(ctx.body.request_id, 80) };
+  // Moving a meeting: the database knows whether it belongs to a gig or to a conversation before a gig
+  if (resched) return json(ctx, await rpc(ctx, "dela_meeting_reschedule_hold", { p_person: s.person_id, p_side: s.side, p_meeting: resched, p: { ...base, gig_id: uuid(ctx.body.gig_id) } }));
+  if (thread) return json(ctx, await rpc(ctx, "dela_intro_call_hold", { p_person: s.person_id, p_side: s.side, p_thread: thread, p: base }));
+  const p = { ...base, gig_id: need(uuid(ctx.body.gig_id)) };
   return json(ctx, await rpc(ctx, "dela_meeting_hold", { p_person: s.person_id, p_side: s.side, p }));
 }
 

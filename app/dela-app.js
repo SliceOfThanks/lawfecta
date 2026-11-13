@@ -5659,7 +5659,7 @@
     }
     el.appendChild(h("p", { class: "muted", style: "margin-bottom:4px", text: "Find verified legal professionals who are ready to take on new work." }));
     el.appendChild(matchReadyHelp());
-    el.appendChild(h("p", { class: "small muted", id: "talent-rule", text: "You can message a freelancer before hiring. A posted gig is required to invite a freelancer to submit a proposal." }));
+    el.appendChild(h("p", { class: "small muted", id: "talent-rule", text: "You can message a freelancer and book an introductory call before hiring. A posted gig is required to invite a freelancer to submit a proposal." }));
     var live = h("div", { class: "sr", role: "status", id: "talent-live" });
     el.appendChild(live);
     var results = h("div"), form = h("div", { class: "card", id: "talent-find" }, h("h2", { text: "Find a freelancer" }), h("p", { class: "muted", text: "Loading the categories..." }));
@@ -5920,6 +5920,8 @@
       var facts = [x.capacity_hours_week ? x.capacity_hours_week + " hours a week" : "", x.timezone ? x.timezone + " time" : "", x.state ? "Based in " + x.state : "",
         (x.agencies || []).length ? "Works with " + x.agencies.join(", ") : x.company ? "Works through " + x.company : ""].filter(Boolean).join(" | ");
       var msgBtn = me.side === "attorney" ? (function () { var b = h("button", { class: "ghost small", type: "button" }, "Send message"); b.addEventListener("click", function () { startChat(x.person_id, x.name, b); }); return b; })() : null;
+      // Step 23: a first call before any gig, booked in the conversation with this freelancer
+      var callBtn = me.side === "attorney" && (me.switches || {}).meetings ? (function () { var b = h("button", { class: "blue small", type: "button" }, "Book a call"); b.addEventListener("click", function () { startChat(x.person_id, x.name, b, true); }); return b; })() : null;
       var head = h("div", { class: "card tp-head" },
         h("div", { class: "tp-head-grid" },
           x.photo_url ? h("img", { class: "talent-photo tp-photo", src: x.photo_url, alt: "Photo of " + x.name }) : h("span", { class: "talent-photo tp-photo none", "aria-hidden": "true", text: String(x.name || "?").trim().charAt(0).toUpperCase() }),
@@ -5930,9 +5932,9 @@
               x.available_now ? null : h("span", { class: "badge held", text: "Not taking new work right now" })),
             facts ? h("p", { class: "small muted", style: "margin:6px 0 0", text: facts }) : null),
           h("div", { class: "tp-head-acts" },
-            h("div", { class: "row tp-top-acts", style: "gap:8px;flex-wrap:wrap;justify-content:flex-end" }, canHire() ? h("span", { id: "tp-bookmark", class: "row", style: "gap:8px;flex-wrap:wrap;align-items:center" }, bookmarkButton(x.person_id, x.name)) : null, msgBtn),
+            h("div", { class: "row tp-top-acts", style: "gap:8px;flex-wrap:wrap;justify-content:flex-end" }, canHire() ? h("span", { id: "tp-bookmark", class: "row", style: "gap:8px;flex-wrap:wrap;align-items:center" }, bookmarkButton(x.person_id, x.name)) : null, msgBtn, callBtn),
             h("div", { class: "talent-acts tp-invite" }, h("label", { class: "talent-gig" }, h("span", { class: "talent-gig-word", text: "Invite for gig:" }), inv.gigSel), inv.invite))),
-        !mine.length ? h("p", { class: "notice", style: "margin:12px 0 0" }, "You have no posted gig that is open for proposals, so there is nothing to invite this freelancer to yet. You can still send a message. ",
+        !mine.length ? h("p", { class: "notice", style: "margin:12px 0 0" }, "You have no posted gig that is open for proposals, so there is nothing to invite this freelancer to yet. You can still send a message or book a call. ",
           h("a", { href: "#", onclick: function (e) { e.preventDefault(); talentPerson = null; talentAddress(null); goTab("projects"); }, text: "Post a gig in Projects" }), ".") : null,
         inv.said);
       el.appendChild(head);
@@ -6375,6 +6377,8 @@
     project_closed: "This engagement is complete, so its conversation is read only. Use your bench conversation to keep in touch.", bench_no_files: "A bench conversation does not share files. Share files on a gig.", too_many_messages: "You are sending messages very fast. Wait a moment.",
     edit_time_over: "Messages can be edited for 15 minutes only.", edit_needs_check: "That edit looks like contact details or payment outside Lawfecta. Send it as a new message instead, so DELA can check it.",
     time_taken: "Someone just took that time. Choose another.", same_time: "That is the meeting's current time. Choose a different time.", hold_expired: "The time was held for 10 minutes and ran out. Choose a time again.",
+    intro_calls_off: "Calls before a gig are not open right now.", intro_call_booked: "An introductory call with this freelancer is already booked. Open Your meetings to change or cancel it.",
+    limit_reached: "You have booked the most introductory calls allowed in one day. Try again tomorrow.", attorneys_only: "Only the attorney can book the first call. You can change its time once it is booked.",
     not_available: "This freelancer is not available for meetings right now.", not_yet: "You can confirm the meeting once it has started.",
     bad_timezone: "Choose your time zone.", choose_a_length: "Choose at least one meeting length.", bad_hours: "Check the hours: each day needs a start before its end.",
     assistant_off: "DELA's help in messages is not open for your account yet.", nothing_to_summarize: "There are no messages yet.",
@@ -6384,10 +6388,12 @@
   // Step 18 part 4: a conversation before any gig exists (attorneys start it; messages only until there is a gig)
   var INTRO_ERR = { chat_off: "Conversations before a gig are not open yet.", attorneys_only: "Only attorneys can start a conversation from Talent.", on_hold: "Your account is on hold. Contact the Lawfecta Team from Help.",
     verify_first: "Verify your bar license first. Open Profile to finish it; it is needed before you contact a freelancer or post a gig.", freelancer_not_available: "This freelancer is not taking new conversations right now.", not_found: "This freelancer could not be found." };
-  function startChat(person, name, btn) {
+  var introBook = false;
+  function startChat(person, name, btn, book) {
     if (btn) { btn.disabled = true; }
     api.post("/intro/open", { freelancer: person }).then(function (r) {
       if (btn) btn.disabled = false;
+      if (r.ok) introBook = book === true;
       if (!r.ok) { D.toast(app, r.reason === "limit_reached" ? "You have started " + r.limit + " new conversations in the last day, which is the limit. Try again tomorrow, or write in one you already have." : INTRO_ERR[r.reason] || D.errorText(r.reason), true); return; }
       talentInviteFor = null; talentPerson = null; talentAddress(null); talk.thread = r.thread_id; tab = "inbox"; draw();
     }).catch(function (e) { if (btn) btn.disabled = false; D.toast(app, D.errorText(e.message), true); });
@@ -6413,7 +6419,7 @@
     api.get("/threads").then(function (r) {
       D.clear(el);
       el.appendChild(h("div", { class: "row" }, h("h1", { class: "grow", text: "Inbox" }), (me.switches || {}).meetings ? h("button", { class: "ghost small", onclick: function () { talk.meeting = null; tab = "meetings"; draw(); } }, "Your meetings") : null));
-      el.appendChild(h("p", { class: "muted", text: "Every conversation is on a gig. Keep all work, contact and payment on Lawfecta." }));
+      el.appendChild(h("p", { class: "muted", text: "Conversations are on a gig, on your bench, or an introduction before a gig. Keep all work, contact and payment on Lawfecta." }));
       if (!r.on) { el.appendChild(h("p", { class: "notice", text: TALK_ERR.chat_off })); return; }
       if (!r.threads.length) el.appendChild(h("p", { class: "muted", text: me.side === "attorney" ? "No conversations yet. Invite a freelancer to a gig, or message someone who sent a proposal." : "No conversations yet. They start when an attorney invites you or when you send a proposal." }));
       r.threads.forEach(function (t) {
@@ -6434,13 +6440,16 @@
       el.appendChild(h("h1", { text: t.other_name }));
       var tcc = clientCard(r.client, "Who you are talking with"); if (tcc) el.appendChild(tcc);
       var noGig = t.kind === "bench" || t.kind === "intro";
-      el.appendChild(h("p", { class: "muted", text: t.kind === "intro" ? (r.role === "attorney" ? "A conversation before any gig. Messages only: files and meetings come with a gig. Nobody is hired here. Keep all work, contact and payment on Lawfecta." : "An attorney wrote to you before posting a gig. Messages only; nobody is hired here. Keep all work, contact and payment on Lawfecta.") : t.kind === "bench" ? t.gig_title + ": your ongoing bench conversation. It shares no files and is not a contract; new work goes through a gig. Keep all work, contact and payment on Lawfecta." : "About the gig \"" + t.gig_title + "\". Keep all work, contact and payment on Lawfecta." }));
+      el.appendChild(h("p", { class: "muted", text: t.kind === "intro" ? (r.role === "attorney" ? "A conversation before any gig. Messages and an introductory call only: files come with a gig. Nobody is hired here. Keep all work, contact and payment on Lawfecta." : "An attorney wrote to you before posting a gig. Messages and an introductory call only; nobody is hired here. Keep all work, contact and payment on Lawfecta.") : t.kind === "bench" ? t.gig_title + ": your ongoing bench conversation. It shares no files and is not a contract; new work goes through a gig. Keep all work, contact and payment on Lawfecta." : "About the gig \"" + t.gig_title + "\". Keep all work, contact and payment on Lawfecta." }));
       var tools = h("div", { class: "row", style: "flex-wrap:wrap" });
       if (t.kind === "intro" && r.role === "attorney") {
         tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { talk.thread = null; tab = "talent"; openTalentProfile(t.freelancer_person); } }, "View profile"));
         tools.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { talk.thread = null; gigs.pendingInvite = { person_id: t.freelancer_person, name: t.other_name }; gigs.id = null; tab = "projects"; draw(); } }, "Create a gig for " + t.other_name));
       }
       if (!noGig) tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { gigs.id = t.gig_id; gigs.view = "details"; tab = me.side === "attorney" ? "projects" : "work"; talk.thread = null; draw(); } }, "Open the gig"));
+      if ((me.switches || {}).meetings && r.writable && t.kind === "intro" && r.role === "attorney") tools.appendChild(h("button", { class: "blue small", type: "button", id: "intro-call-btn", onclick: function () { bookPanel(el, null, t.freelancer_person, null, t.id); } }, "Book a call"));
+      // Coming from "Book a call" on a profile: the open times show at once
+      if (introBook) { introBook = false; if (t.kind === "intro") setTimeout(function () { var ib = el.querySelector("#intro-call-btn"); if (ib) ib.click(); }, 0); }
       if ((me.switches || {}).meetings && r.writable && !noGig) tools.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { bookPanel(el, t.gig_id, t.freelancer_person, null); } }, "Book a meeting"));
       // The two main actions first; AI help and More (Report, Block) open on request (UX review I01)
       var aiHelp = h("details", { class: "inline-menu" }, h("summary", { class: "small", style: "cursor:pointer", text: "✦ AI help" }));
@@ -6568,15 +6577,19 @@
     }
     try { return Intl.DateTimeFormat().resolvedOptions().timeZone || "your time zone"; } catch (e2) { return "your time zone"; }
   }
-  function bookPanel(host, gigId, freelancer, rescheduleOf) {
-    var panel = h("div", { class: "card", "aria-label": "Book a meeting" }, h("h2", { text: rescheduleOf ? "Choose a new time" : "Book a meeting" }), h("p", { class: "muted small", text: "Loading open times..." }));
+  // introThread (step 23): the conversation before a gig that an introductory call belongs to; then there is no gig
+  function bookPanel(host, gigId, freelancer, rescheduleOf, introThread) {
+    var bookWord = rescheduleOf ? "Choose a new time" : introThread ? "Book an introductory call" : "Book a meeting";
+    var old = host.querySelector("#book-panel"); if (old) old.parentNode.removeChild(old);
+    var panel = h("div", { class: "card", id: "book-panel", "aria-label": bookWord }, h("h2", { text: bookWord }), h("p", { class: "muted small", text: "Loading open times..." }));
     host.insertBefore(panel, host.children[3] || null);
     var length = null, bookDay = null;
     function load() {
-      api.get("/meetings/slots?gig=" + gigId + (freelancer ? "&freelancer=" + freelancer : "") + (length ? "&length=" + length : "") + (rescheduleOf ? "&except=" + rescheduleOf : "")).then(function (r) {
+      api.get("/meetings/slots?" + (introThread ? "thread=" + introThread : "gig=" + gigId) + (freelancer ? "&freelancer=" + freelancer : "") + (length ? "&length=" + length : "") + (rescheduleOf ? "&except=" + rescheduleOf : "")).then(function (r) {
         D.clear(panel);
-        panel.appendChild(h("h2", { text: rescheduleOf ? "Choose a new time" : "Book a meeting" }));
+        panel.appendChild(h("h2", { text: bookWord }));
         if (!r.ok) { panel.appendChild(h("p", { class: "notice", text: talkErr(r) })); return; }
+        if (introThread && !rescheduleOf) panel.appendChild(h("p", { class: "notice", id: "intro-call-note", text: "An introductory call is a first conversation. It hires nobody, costs nothing and creates no gig. Keep all work, contact and payment on Lawfecta." }));
         if (r.no_availability) { panel.appendChild(h("p", { class: "muted", text: me.side === "freelancer" ? "Set your availability for meetings on your Profile first." : "This freelancer has not set their availability for meetings yet. Send them a message." })); return; }
         length = r.length;
         var sel = h("select", { "aria-label": "Meeting length" }, (r.lengths || []).map(function (n) { return h("option", { value: String(n), text: n + " minutes", selected: n === r.length }); }));
@@ -6623,10 +6636,10 @@
       }).catch(function (e) { D.clear(panel); panel.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     }
     function hold(s) {
-      api.post("/meetings/hold", { gig_id: gigId, freelancer: freelancer, start_at: s, length: length, request_id: newId(), reschedule_of: rescheduleOf }).then(function (x) {
+      api.post("/meetings/hold", { gig_id: gigId || null, thread_id: introThread || null, freelancer: freelancer, start_at: s, length: length, request_id: newId(), reschedule_of: rescheduleOf }).then(function (x) {
         if (x.reason === "time_taken") { D.toast(app, TALK_ERR.time_taken, true); load(); return; }
         gigOk(x);
-        if (!confirm((rescheduleOf ? "Move the meeting to " : "Book ") + whenLabel(s, length) + "? Both of you get one confirmation with a calendar file.")) { api.post("/meetings/cancel", { id: x.id }).catch(function () {}); load(); return; }
+        if (!confirm((rescheduleOf ? "Move the meeting to " : introThread ? "Book an introductory call on " : "Book ") + whenLabel(s, length) + "? Both of you get one confirmation with a calendar file.")) { api.post("/meetings/cancel", { id: x.id }).catch(function () {}); load(); return; }
         return api.post("/meetings/confirm", { id: x.id }).then(gigOk).then(function () { talk.meeting = x.id; tab = "meetings"; draw(); D.toast(app, rescheduleOf ? "Moved. One update went to both of you." : "Booked. A confirmation is on its way to both of you."); });
       }).catch(talkFail);
     }
@@ -6665,7 +6678,7 @@
             var a = document.createElement("a"); a.href = URL.createObjectURL(new Blob([x.text], { type: "text/calendar" })); a.download = x.name; document.body.appendChild(a); a.click(); a.remove();
           }).catch(talkFail);
         } }, "Add to my calendar (.ics)"),
-        h("button", { class: "ghost small", type: "button", onclick: function () { bookPanel(host, m.gig_id, me.side === "attorney" ? m.freelancer_person : null, m.id); } }, "Change the time"),
+        h("button", { class: "ghost small", type: "button", onclick: function () { bookPanel(host, m.gig_id, me.side === "attorney" ? m.freelancer_person : null, m.id, m.intro_thread || null); } }, "Change the time"),
         h("button", { class: "danger small", type: "button", onclick: function () {
           var why = prompt("Why are you canceling? Both of you are told. Less than " + plural((r.rules || {}).late_cancel_hours || 2, "hour") + " before counts as a late cancel.");
           if (why === null) return;
@@ -6704,7 +6717,7 @@
       D.clear(card);
       var a = r.availability;
       card.appendChild(h("h2", { text: "Your availability for meetings" }));
-      card.appendChild(h("p", { class: "small muted", text: "Attorneys book meetings with you only inside a gig, from these times, with " + plural((r.rules || {}).min_notice_hours || 12, "hour") + " of notice and " + plural((r.rules || {}).buffer_minutes || 15, "minute") + " between meetings. Meetings are free. Times are in your time zone." }));
+      card.appendChild(h("p", { class: "small muted", text: "Attorneys book meetings with you inside a gig, or one introductory call before a gig, from these times, with " + plural((r.rules || {}).min_notice_hours || 12, "hour") + " of notice and " + plural((r.rules || {}).buffer_minutes || 15, "minute") + " between meetings. Meetings are free. Times are in your time zone." }));
       var guess = ""; try { guess = Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (e) { guess = ""; }
       var tzList = TZS.indexOf(a.timezone) < 0 ? TZS.concat([a.timezone]) : TZS;
       if (guess && tzList.indexOf(guess) < 0) tzList = tzList.concat([guess]);

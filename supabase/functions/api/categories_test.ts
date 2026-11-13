@@ -317,6 +317,65 @@ Deno.test("a conversation before a gig: who may start one, messages only, the us
   await pool.query("update settings set value = 'true' where key = 'intro.chat_on'");
 });
 
+// Step 23 (Stacey 2026-11-13): an introductory call before any gig, booked in the conversation before a gig
+Deno.test("a call before a gig: booked by the attorney in the conversation, same times and room rules, hires nobody", async () => {
+  await pool.query("update feature_switches set state = 'everyone' where key in ('gig_chat', 'meetings')");
+  const o = (await call("POST", "/intro/open", att.token, { freelancer: fFamily.id })).body;
+  assert(o.ok && o.thread_id, JSON.stringify(o));
+  const th = o.thread_id as string;
+  const slotsOf = (who: M, extra = "") => call("GET", `/meetings/slots?thread=${th}&length=30${extra}`, who.token);
+  assertEquals((await slotsOf(att)).body.no_availability, true, "no availability set: nothing to book, and the page says so");
+  await pool.query("insert into meeting_availability (person_id) values ($1) on conflict (person_id) do nothing", [fFamily.id]);
+  const slots = (await slotsOf(att)).body.slots as string[];
+  assert(slots.length > 3, "the freelancer's open times are offered with no gig");
+  assertEquals((await slotsOf(fNurse)).body.reason, "not_found", "someone outside the conversation sees nothing");
+  assertEquals((await call("GET", `/meetings/slots?thread=${crypto.randomUUID()}&length=30`, att.token)).body.reason, "not_found");
+  // Only the attorney starts a call
+  assertEquals((await call("POST", "/meetings/hold", fFamily.token, { thread_id: th, start_at: slots[0], length: 30, request_id: "ic-f" })).body.reason, "attorneys_only");
+  // Off by one setting
+  await pool.query("update settings set value = '\"false\"' where key = 'intro.calls_on'");
+  assertEquals((await call("POST", "/meetings/hold", att.token, { thread_id: th, start_at: slots[0], length: 30, request_id: "ic-off" })).body.reason, "intro_calls_off");
+  await pool.query("update settings set value = '\"true\"' where key = 'intro.calls_on'");
+  const h = (await call("POST", "/meetings/hold", att.token, { thread_id: th, start_at: slots[0], length: 30, request_id: "ic-1" })).body;
+  assertEquals([h.ok, h.status], [true, "held"], JSON.stringify(h));
+  assertEquals((await call("POST", "/meetings/hold", att.token, { thread_id: th, start_at: slots[0], length: 30, request_id: "ic-1" })).body.duplicate, true, "two clicks hold once");
+  const c = (await call("POST", "/meetings/confirm", att.token, { id: h.id })).body;
+  assertEquals(c.ok, true, JSON.stringify(c));
+  const row = await one("select gig_id, intro_thread, attorney_person, freelancer_person, status from meetings where id = $1", [h.id]);
+  assertEquals([row.gig_id, row.intro_thread, row.attorney_person, row.freelancer_person, row.status], [null, th, att.id, fFamily.id, "confirmed"]);
+  // Both people see it, named as an introductory call; both are told; no gig, agreement or invitation was made
+  for (const who of [att, fFamily]) {
+    const m = ((await call("GET", "/meetings?id=" + h.id, who.token)).body.meetings as Array<Record<string, any>>)[0];
+    assertEquals([m?.gig_title, m?.intro_thread, m?.gig_id, m?.status], ["Introductory call", th, null, "confirmed"], "the list shows the call to " + who.id);
+  }
+  assertEquals((await one("select count(*)::int n from notifications where person_id = $1 and title = 'Meeting booked: Introductory call' and channel = 'in_app'", [fFamily.id])).n, 1, "the freelancer is told");
+  assertEquals((await call("GET", "/meetings?id=" + h.id, fNurse.token)).body.meetings.length, 0, "nobody else sees it");
+  // The room is made as for any meeting (the provider stand-in has no key here, so it waits for the provider)
+  assertEquals((await one("select dela_meeting_for_job($1) j", [h.id])).j.gig_title, "Introductory call");
+  // One upcoming call per conversation
+  assertEquals((await call("POST", "/meetings/hold", att.token, { thread_id: th, start_at: slots[2], length: 30, request_id: "ic-2" })).body.reason, "intro_call_booked");
+  // Consent works for both; the freelancer moves the call to another time
+  assertEquals((await call("POST", "/meetings/consent", att.token, { id: h.id, consent: true })).body.ok, true);
+  assertEquals((await call("POST", "/meetings/consent", fFamily.token, { id: h.id, consent: true })).body.ok, true);
+  const free = (await slotsOf(fFamily, "&except=" + h.id)).body.slots as string[];
+  const mv = (await call("POST", "/meetings/hold", fFamily.token, { reschedule_of: h.id, start_at: free[1], length: 30, request_id: "ic-mv" })).body;
+  assertEquals(mv.ok, true, JSON.stringify(mv));
+  assertEquals((await call("POST", "/meetings/confirm", fFamily.token, { id: mv.id })).body.ok, true);
+  const moved = await one("select m.intro_thread, m.gig_id, m.replaces, m.status, (select status from meetings where id = $2) old from meetings m where m.id = $1", [mv.id, h.id]);
+  assertEquals([moved.intro_thread, moved.gig_id, moved.replaces, moved.status, moved.old], [th, null, h.id, "confirmed", "rescheduled"], "a moved call stays with the conversation");
+  // The attorney cancels; a gig meeting's rules for who may cancel still hold
+  assertEquals((await call("POST", "/meetings/cancel", fNurse.token, { id: mv.id })).body.reason, "not_found");
+  assertEquals((await call("POST", "/meetings/cancel", att.token, { id: mv.id, reason: "Plans changed" })).body.ok, true);
+  assertEquals((await one("select count(*)::int n from notifications where person_id = $1 and title = 'Meeting canceled: Introductory call' and channel = 'in_app'", [fFamily.id])).n, 1);
+  // Blocking the conversation cancels an upcoming call and stops new ones
+  const h2 = (await call("POST", "/meetings/hold", att.token, { thread_id: th, start_at: slots[3], length: 30, request_id: "ic-3" })).body;
+  assertEquals((await call("POST", "/meetings/confirm", att.token, { id: h2.id })).body.ok, true, JSON.stringify(h2));
+  assertEquals((await call("POST", "/threads/block", fFamily.token, { thread_id: th, block: true })).body.ok, true);
+  assertEquals((await one("select status, cancel_reason from meetings where id = $1", [h2.id])), { status: "canceled", cancel_reason: "blocked" });
+  assertEquals((await slotsOf(att)).body.reason, "not_available");
+  assertEquals((await one("select count(*)::int n from gigs where created_by = $1 and created_at > now() - interval '1 minute'", [att.id])).n, 0, "no gig was made");
+});
+
 Deno.test("the freelancers who fit a document: the firm's own documents only, scored with reasons", async () => {
   const org = (await one("select dela_side_org($1, 'attorney') o", [att.id])).o;
   const body = { title: "Prepare discovery responses", practice_area: "Family law", jurisdiction: "Texas (TX)", steps: [{ text: "Open the matter", tool: "Clio" }, { text: "Draft responses" }] };
