@@ -4,6 +4,13 @@ Starting a new session? Read docs/SESSION_HANDOFF.md first (written 2026-11-12, 
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 25: meetings on VideoSDK, joined inside DELA (part 1): ON THE SITE (2026-11-13)
+- Site: code_version e81f826, api function version 117, migrations through 0116, health "ok". GitHub Tests passed on that commit (run 43493927511).
+- Stacey 2026-11-13: "Just use VideoSDK - best option even if paid". meetings.provider is "videosdk" (settings history written; the Decision Sheet regenerated). Brief with five questions for part 2 (recording, transcripts, who reads them): docs/briefs/step-25-videosdk-meetings.md.
+- Part 1: a VideoSDK room per confirmed meeting or introductory call; "Join the meeting" opens the room inside the DELA page for the two people, inside the join window; VideoSDK's signed reports of who joined and left are kept as meeting events; both joined sets attendance to evidence received. In-call chat, recording, polls and whiteboard are off.
+- Stacey entered VIDEOSDK_API_KEY and VIDEOSDK_SECRET in Supabase. Proven against the real service: a test meeting (introductory call, test attorney and test freelancer, made on her word, request_id videosdk-first-test-2026-11-13) got its room on the first try. Not yet proven: the meeting screen with real video in a browser, and that VideoSDK's reports arrive (they come only when someone joins). Her VideoSDK account is on the Free plan with $20 of credit; the key is not yet limited to the website (her step).
+- The test meeting's reminder and follow-up notices are still queued for the time it was first booked at (2026-11-14); they are harmless test notices to the two test accounts.
+
 ## Step 24 and the Vectera connection: ON THE SITE (2026-11-13)
 - Site: code_version 675235e, api function version 115, migrations through 0115, health "ok". GitHub Tests passed on that commit (run 43489818913). The first deploy attempt of the function failed with an internal error at Supabase; the second went through.
 - Step 24: a conversation before a gig shows the introductory call booked on it ("An introductory call is booked for ...", "Open the meeting") and stops offering a second one; the meeting card of an introductory call has "Open the conversation" and, for the attorney, "Create a gig for NAME"; the glossary says what match-ready does not promise; docs/STACEY_TODO.md section 9 lists Stacey's checks for the day.

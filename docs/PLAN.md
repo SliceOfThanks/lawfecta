@@ -2,6 +2,9 @@
 
 Last updated 2026-11-06. The one-page picture (built, in progress, next, before the MVP, after) is docs/MVP_OVERVIEW.md. Stacey's own checklist, in order, is docs/STACEY_TODO.md. Read this with STATUS.md. It shows what is done, what is being tested, what needs work, what is waiting on Stacey, and what comes next.
 
+## Newest (2026-11-13): meetings moved to VideoSDK (step 25, part 1)
+Decision changed by Stacey 2026-11-13: meetings run on VideoSDK, not Vectera ("Meetings stay on Vectera" below is replaced). Part 1 is on the site and the first real room was made. Needs testing: Stacey joins the test meeting from two browser windows. Waiting on Stacey: the five questions for part 2 in docs/briefs/step-25-videosdk-meetings.md, limiting the VideoSDK key to the website, and adding credit before members book.
+
 ## Newest (2026-11-13): step 23 is on the site
 "Book a call" before a gig is released (STATUS.md, top section). Needs work: bring the Talent journey ChatGPT prompt in line (one more button on the profile, a changed sentence in the conversation, a booking step). Waiting on Stacey: the five questions in docs/briefs/step-23-intro-calls.md and a first real booking on the site.
 
