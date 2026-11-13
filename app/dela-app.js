@@ -6742,7 +6742,7 @@
         document.head.appendChild(sc);
       };
       if (!r.transcript_on) { leave.focus(); load(); return; }
-      var panel = mk("div", "max-width:560px;margin:6vh auto;background:#fff;color:#1c2230;border-radius:14px;padding:22px 24px;font:15px/1.5 " + FONT);
+      var panel = mk("div", "max-width:560px;margin:6vh auto;background:#fff;color:#0b1220;border-radius:14px;padding:22px 24px;font:15px/1.5 " + FONT);
       panel.id = "dela-meeting-consent";
       panel.appendChild(mk("h2", "margin:0 0 8px;font:700 20px/1.3 " + FONT, "Before you join"));
       var lab = mk("label", "display:flex;gap:10px;align-items:flex-start;font-weight:700;cursor:pointer;margin:10px 0 6px");
@@ -6750,7 +6750,7 @@
       lab.appendChild(box); lab.appendChild(mk("span", "", TRANSCRIBE_LABEL));
       panel.appendChild(lab);
       panel.appendChild(mk("p", "margin:0 0 6px", TRANSCRIBE_AI));
-      panel.appendChild(mk("p", "margin:0 0 6px;color:#5f6675", "The meeting is transcribed only when both of you tick this box. If either of you leaves it unticked, nothing is transcribed. Either of you can press \"Stop transcript\" at any time. The transcript is deleted 90 days after the meeting; the summary and next steps stay with the meeting.".replace("90 days", (r.transcript_days || 90) + " days")));
+      panel.appendChild(mk("p", "margin:0 0 6px;color:#475569", "The meeting is transcribed only when both of you tick this box. If either of you leaves it unticked, nothing is transcribed. Either of you can press \"Stop transcript\" at any time. The transcript is deleted 90 days after the meeting; the summary and next steps stay with the meeting.".replace("90 days", (r.transcript_days || 90) + " days")));
       var go = mk("button", BTN + ";background:#8b2146;color:#fff;margin-top:8px", "Continue to the camera and microphone check"); go.type = "button";
       var say = mk("p", "margin:8px 0 0;color:#b53b39"); say.setAttribute("role", "alert");
       go.addEventListener("click", function () {
@@ -6781,8 +6781,10 @@
   }
 
   function meetingCard(host, m, confirmHours) {
-    var c = h("div", { class: "card" }, h("div", { class: "row" }, smallFace(m), h("h2", { class: "grow", style: "margin:0", text: m.other_name + ": " + m.gig_title }),
-      h("span", { class: "badge " + (m.status === "confirmed" || m.status === "completed" ? "ready" : m.status === "held" ? "held" : m.status === "canceled" || m.status === "no_show" ? "off" : ""), text: MEET_STATUS[m.status] || m.status })));
+    // Stacey 2026-11-13: the meeting card has a tinted heading band; everything else sits in the body under it
+    var c = h("div", { class: "mt-body" });
+    var mtCard = h("div", { class: "card mt-card" }, h("div", { class: "row mt-head" }, smallFace(m), h("h2", { class: "grow", style: "margin:0", text: m.other_name + ": " + m.gig_title }),
+      h("span", { class: "badge " + (m.status === "confirmed" || m.status === "completed" ? "ready" : m.status === "held" ? "held" : m.status === "canceled" || m.status === "no_show" ? "off" : ""), text: MEET_STATUS[m.status] || m.status })), c);
     c.appendChild(h("p", { text: whenLabel(m.start_at, m.length_min) + (m.version > 1 ? " | new time" : "") }));
     var started = new Date(m.start_at).getTime() <= Date.now();
     // Step 25: a room on VideoSDK opens inside this page (join_url is "dela:join"); an older room opens its own link.
@@ -6881,7 +6883,7 @@
         h("p", { class: "small muted", style: "margin:0", text: "Suggestions only. Nothing changes until one of you changes it." })));
     }
     if (m.status === "canceled" && m.cancel_reason) c.appendChild(h("p", { class: "small muted", text: "Reason: " + m.cancel_reason + (m.late ? " (late)" : "") }));
-    return c;
+    return mtCard;
   }
 
   // Profile: the freelancer's availability for meetings
