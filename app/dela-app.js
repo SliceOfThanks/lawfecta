@@ -1773,7 +1773,7 @@
     if (fmiss.length) {
       var FW = { billing_address: "Billing address", signatory: "Who may sign for the firm", service_email: "Email for formal notices" };
       card.appendChild(h("div", { class: "notice", id: "firm-missing", style: "margin-top:10px" }, h("span", { text: "Still needed before paid work: " + fmiss.map(function (k) { return FW[k] || k; }).join(", ") + ". " }),
-        h("button", { class: "linkish", type: "button", onclick: function () { var f = app.querySelector("#sec-firm"); if (f) { f.scrollIntoView({ behavior: "smooth", block: "start" }); var i = f.querySelector("input, textarea"); if (i) i.focus({ preventScroll: true }); } } }, "Go to Firm details")));
+        h("button", { class: "linkish", type: "button", onclick: function () { var f = app.querySelector("#sec-firm"); if (f) { f.scrollIntoView({ behavior: "smooth", block: "start" }); var i = f.querySelector("input:not([type=file]), textarea"); if (i) i.focus({ preventScroll: true }); } } }, "Go to Firm details")));
     }
     return card;
   }
