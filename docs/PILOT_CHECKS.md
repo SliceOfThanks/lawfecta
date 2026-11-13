@@ -34,6 +34,7 @@ How to read the "State" column:
 | 1.20 | Notices about an introductory call read naturally | The notice says "A 30-minute introductory call is booked." | Not yet | |
 | 1.21 | "Meetings" in the menu opens the quick view for attorneys and freelancers | The menu item is there on a computer and on a phone, and the page shows "Scheduled" or "Nothing scheduled yet." | Not yet | |
 | 1.22 | "Join the meeting" appears 10 minutes before the start | On a real booked meeting, the button shows at 10 minutes before and not earlier | Not yet | The setting was 15 until 2026-11-13. |
+| 1.23 | The grey heading band looks right on every page, light and dark | Stacey's look at Home, Meetings, Talent and the admin area in both looks | Not yet | #E2E4E8 light, #2B303C dark, released 2026-11-13. |
 
 ## 2. Calls before a gig
 

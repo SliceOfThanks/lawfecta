@@ -6,6 +6,15 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## "Meetings" in the menu, the quick-view Meetings page, join 10 minutes before, grey heading bands, pictures in more lists: ON THE SITE (2026-11-13)
+- Site: code_version a801cb7, api function version 120, migrations through 0122, health "ok". GitHub Tests passed on that commit (run 43513746238).
+- "Meetings" is a menu item for attorneys and freelancers in the new layout (left menu; phone menu). The old bottom bar (switch new_layout off) keeps its seven items, because an eighth scrolled sideways on a narrow phone; there, meetings are reached from "Your meetings" in the Inbox.
+- The Meetings page is a quick view: "Scheduled (N)" or a card "Nothing scheduled yet.", "Just ended (N)" for meetings that still take an answer to "Did the meeting happen?", and "Past and canceled (N)" folded.
+- "Join the meeting" shows 10 minutes before the start (setting meeting.join_early_minutes, 15 before; Stacey: "10 mins before meeting"; migration 0122 with a history row).
+- Heading band of every card: #E2E4E8 in the light look and #2B303C in the dark look (Stacey: the blue #EAF1F8 looked flat). The band fix b3890dd (bands had stayed pink) went on the site earlier the same day.
+- Step 28: pictures in the engagement lists and on the freelancer's benches (migration 0121).
+- The three ChatGPT checks are in her folder as .md and .txt; their menu description now lists "Meetings".
+
 ## New colors, "Your next meeting" on Home, notice wording: ON THE SITE (2026-11-13)
 - Site: code_version 5bc9b64 (browser code and migration 0120; the api function is unchanged at version 119), health "ok". GitHub Tests passed on that commit (run 43506056961), including the contrast checks.
 - Colors (Stacey 2026-11-13, not the menu): page #F5F5F7, text #0B1220, secondary text #475569, card border #DCE3EA, heading band of every card #E2E4E8 (first #EAF1F8, changed the same day; #2B303C in the dark look); buttons #8B2146 and white cards as before. The side menu, the phone's bottom bar and its sheet keep their colors. Asked: should other cards get the heading band too? No answer yet.
