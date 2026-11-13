@@ -111,12 +111,14 @@ const SEARCH = "Search roles, specialties, tasks and software";
     await dela(p).locator("#prof-avatars").getByRole("radio", { name: "Ready-made picture 48 of 48", exact: true }).click();
     await waitFor(p, "A ready-made picture. It is an illustration, not a photo of you.");
     ok(await dela(p).locator("#prof-avatars").getByRole("radio", { name: "Ready-made picture 48 of 48", exact: true }).getAttribute("aria-checked") === "true" && await dela(p).locator("#prof-avatars").getByRole("radio", { checked: true }).count() === 1, "one picture is chosen and marked");
+    ok((await text(p)).includes("This picture is not saved yet.") && await dela(p).locator("#photo-pending").getByRole("button", { name: "Save my picture", exact: true }).count() === 1, "choosing a picture says it is not saved yet and offers \"Save my picture\" right there");
     await dela(p).locator("#prof-avatars").getByRole("radio", { name: "Ready-made picture 48 of 48", exact: true }).focus();
     await p.keyboard.press("ArrowLeft");
     ok(await p.evaluate(() => document.querySelector(".dela-host").shadowRoot.activeElement.getAttribute("aria-label")) === "Ready-made picture 47 of 48", "the arrow keys move between the pictures");
     // The button reads "Save", "Save to DELA only" or "Save and update my directory listing", by the listing tick
-    await dela(p).getByRole("button", { name: /^Save( to DELA only| and update my directory listing)?$/ }).first().click();
-    await waitFor(p, "Profile saved", 10000);
+    await dela(p).locator("#photo-pending").getByRole("button", { name: "Save my picture", exact: true }).click();
+    await waitFor(p, "Your picture and profile are saved.", 10000);
+    ok(await dela(p).locator("#photo-pending").count() === 0, "after saving, the not-saved note is gone");
     const saved = (await sql(`select body->'categories' c from member_profiles where side = 'freelancer' and person_id = (select id from people where bd_member_id = ${FL3})`))[0];
     ok(saved && JSON.stringify(saved.c) === JSON.stringify(["s327", "s275"]), "Save keeps the picks in order: " + JSON.stringify(saved && saved.c));
     ok((await sql(`select body->>'avatar' a from member_profiles where side = 'freelancer' and person_id = (select id from people where bd_member_id = ${FL3})`))[0].a === "jimis-avatar-icons-collection-48.png", "Save keeps the chosen picture");

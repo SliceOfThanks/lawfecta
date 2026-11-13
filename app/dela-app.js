@@ -1906,13 +1906,13 @@
       photoMsg.textContent = "Uploading...";
       api.raw("/profile/photo", photoIn.files[0], photoIn.files[0].type || "image/jpeg").then(function (x) {
         if (!x.ok) { photoMsg.textContent = D.errorText(x.reason); return; }
-        prof.body.photo_file = x.photo_file; prof.body.avatar = ""; prof.photoPreview = x.url; prof.dirty = true;
+        prof.body.photo_file = x.photo_file; prof.body.avatar = ""; prof.photoPreview = x.url; prof.dirty = true; prof.photoPending = "Your new photo is not saved yet.";
         drawProfile();
-        D.toast(app, "New photo ready. Click Save to keep it.");
+        D.toast(app, "New photo ready. Click \"Save my picture\" next to it to keep it.");
       }).catch(function (e) { photoMsg.textContent = D.errorText(e.message); });
     });
-    var useDefault = (b.photo_file || b.avatar) ? h("button", { class: "ghost small", type: "button", onclick: function () { prof.body.photo_file = ""; prof.body.avatar = ""; prof.photoPreview = ""; prof.dirty = true; drawProfile(); D.toast(app, "Back to the default picture. Click Save to keep it."); } }, "Use the default picture") : null;
-    card.appendChild(h("div", { class: "row", style: "margin:8px 0;gap:12px" }, pic, h("div", null, h("div", { class: "row", style: "gap:6px;flex-wrap:wrap" }, h("button", { class: "ghost small", type: "button", onclick: function () { photoIn.click(); } }, shownPhoto ? "Change photo" : "Add a photo"), useDefault), h("div", null, photoMsg)), photoIn));
+    var useDefault = (b.photo_file || b.avatar) ? h("button", { class: "ghost small", type: "button", onclick: function () { prof.body.photo_file = ""; prof.body.avatar = ""; prof.photoPreview = ""; prof.dirty = true; prof.photoPending = "The default picture is not saved yet."; drawProfile(); D.toast(app, "Back to the default picture. Click \"Save my picture\" next to it to keep it."); } }, "Use the default picture") : null;
+    card.appendChild(h("div", { class: "row", style: "margin:8px 0;gap:12px" }, pic, h("div", null, h("div", { class: "row", style: "gap:6px;flex-wrap:wrap" }, h("button", { class: "ghost small", type: "button", onclick: function () { photoIn.click(); } }, shownPhoto ? "Change photo" : "Add a photo"), useDefault), h("div", null, photoMsg), prof.photoPending ? h("div", { id: "photo-pending", class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:6px" }, h("strong", { class: "small", text: prof.photoPending }), h("button", { class: "blue small", type: "button", onclick: function () { doSave(false); } }, "Save my picture"), h("span", { class: "small muted", text: "This saves your whole profile, the same as the Save button at the bottom of this page." })) : null), photoIn));
     // The ready-made pictures: one compact, folded group of choices (arrow keys move, Space or Enter picks)
     if (av.files.length) {
       var grid = h("div", { class: "av-grid", role: "radiogroup", "aria-label": "Ready-made pictures" });
@@ -1921,7 +1921,7 @@
         var on = b.avatar === f && !b.photo_file;
         var o = h("button", { type: "button", class: "av-opt", role: "radio", "aria-checked": String(on), "aria-label": avName(f, i), title: avName(f, i), tabindex: on || (!b.avatar && i === 0) ? "0" : "-1" },
           h("img", { src: av.base + f, alt: "", loading: "lazy", width: "44", height: "44" }));
-        o.addEventListener("click", function () { prof.body.avatar = f; prof.body.photo_file = ""; prof.photoPreview = ""; prof.dirty = true; prof.avatarsOpen = true; drawProfile(); D.toast(app, "Picture chosen. Click Save to keep it."); });
+        o.addEventListener("click", function () { prof.body.avatar = f; prof.body.photo_file = ""; prof.photoPreview = ""; prof.dirty = true; prof.avatarsOpen = true; prof.photoPending = "This picture is not saved yet."; drawProfile(); D.toast(app, "Picture chosen. Click \"Save my picture\" next to it to keep it."); });
         o.addEventListener("keydown", function (e) {
           var to = e.key === "ArrowRight" || e.key === "ArrowDown" ? (i + 1) % opts.length : e.key === "ArrowLeft" || e.key === "ArrowUp" ? (i + opts.length - 1) % opts.length : -1;
           if (to >= 0) { e.preventDefault(); opts[to].focus(); }
@@ -2020,9 +2020,9 @@
           if (confirm(ciNote(x, "This may include client information (" + (x.kinds || []).join(", ").split("_").join(" ") + "). Take it out and click Save, or click OK if it is not client information."))) doSave(true);
           return;
         }
-        if (!x.ok) { msg.textContent = D.errorText(x.reason); return; }
-        D.toast(app, "Profile saved");
-        prof.dirty = false;
+        if (!x.ok) { msg.textContent = D.errorText(x.reason); if (prof.photoPending) D.toast(app, "Not saved. " + D.errorText(x.reason), true); return; }
+        D.toast(app, prof.photoPending ? "Saved. Your picture and profile are saved." : "Profile saved");
+        prof.dirty = false; prof.photoPending = "";
         loadProfile();
       }).catch(function (e) { save.disabled = false; msg.textContent = D.errorText(e.message); });
     }
