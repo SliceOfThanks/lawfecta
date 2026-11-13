@@ -2021,7 +2021,7 @@
           return;
         }
         if (!x.ok) { msg.textContent = D.errorText(x.reason); if (prof.photoPending) D.toast(app, "Not saved. " + D.errorText(x.reason), true); return; }
-        D.toast(app, prof.photoPending ? "Saved. Your picture and profile are saved." : "Profile saved");
+        D.toast(app, prof.photoPending ? "Profile saved, with your picture." : "Profile saved");
         prof.dirty = false; prof.photoPending = "";
         loadProfile();
       }).catch(function (e) { save.disabled = false; msg.textContent = D.errorText(e.message); });

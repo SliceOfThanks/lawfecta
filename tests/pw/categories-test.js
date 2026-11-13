@@ -117,7 +117,7 @@ const SEARCH = "Search roles, specialties, tasks and software";
     ok(await p.evaluate(() => document.querySelector(".dela-host").shadowRoot.activeElement.getAttribute("aria-label")) === "Ready-made picture 47 of 48", "the arrow keys move between the pictures");
     // The button reads "Save", "Save to DELA only" or "Save and update my directory listing", by the listing tick
     await dela(p).locator("#photo-pending").getByRole("button", { name: "Save my picture", exact: true }).click();
-    await waitFor(p, "Your picture and profile are saved.", 10000);
+    await waitFor(p, "Profile saved, with your picture.", 10000);
     ok(await dela(p).locator("#photo-pending").count() === 0, "after saving, the not-saved note is gone");
     const saved = (await sql(`select body->'categories' c from member_profiles where side = 'freelancer' and person_id = (select id from people where bd_member_id = ${FL3})`))[0];
     ok(saved && JSON.stringify(saved.c) === JSON.stringify(["s327", "s275"]), "Save keeps the picks in order: " + JSON.stringify(saved && saved.c));
