@@ -4,12 +4,18 @@ Starting a new session? Read docs/SESSION_HANDOFF.md first (written 2026-11-12, 
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## The Subscription page, redesigned (step 19): ON THE SITE (2026-11-13, 04:53 UTC)
+- Site: code_version a716cca, api function version 111, migrations through 0109, health "ok". GitHub Tests passed on that commit (run 43367206331), including the automated accessibility rules (axe-core 4.10.2, WCAG 2.2 A and AA) on the four areas and the plan change review, the keyboard checks and a 320 wide phone.
+- Brief with the audit and three open decisions: docs/briefs/step-19-subscription-redesign.md. On the site: tabs My Subscription, Usage & Limits, Compare Plans, Billing & History; published price apart from what the member is billed (read from the website's billing for the member's own account, GET /subscription/billing); usage with remaining, reset date and what happens at each limit; no export limit shown while exports are not counted; Monthly/Annual and a full comparison table; a review before a plan change, then the website in a new tab.
+- Not done, by nature of the website: changing a plan or card, or cancelling, inside DELA; the exact charge, start date and proration of a change; a screen-reader pass by a person.
+- Waiting for Stacey's ChatGPT runs (docs/tests/RUN-NEXT.md): the Talent journey, then the Subscription page. Then check in the database what the reports cannot see.
+- Verified on the server only; nobody has looked at the new pages on the site in a browser.
+
 ## Talent redesign, part 4 and bookmarks (step 18): ON THE SITE (2026-11-13, 04:35 UTC)
 - Site: code_version cec3b81, api function version 110, migrations through 0108 (0109 is the avatar list, already set on the site by hand with history and audit rows), health "ok". GitHub Tests passed on that commit (run 43365304392).
 - Stacey 2026-11-12: build, test and release without asking; collect ChatGPT checks in docs/tests/RUN-NEXT.md for her to run in the morning.
 - On the site: a conversation before a gig ("Send message" on the profile page), "Create a gig for NAME" that leads into the invitation, "Freelancers who fit this work" on a document's page (both document renderers; tools read from "tool" or "system"), bookmarks through the website's table users_favorite, the 48 ready-made pictures.
 - To confirm with Stacey's run: whether the website's API key may use users_favorite (Advanced API permission) and whether dataType 10, featureId 1, checked 1 match the website's own bookmarks (setting bd.bookmarks; "Check the website's bookmarks" on the admin Tech catalog page shows it).
-- Step 19, the Subscription redesign (docs/briefs/step-19-subscription-redesign.md), is built and pushed (commit d57d30a), NOT released: waits for its GitHub run.
 
 ## Talent redesign, part 3 (step 18): ON THE SITE (2026-11-13, 03:54 UTC); part 4 built
 - Site: code_version 627d02f, api function version 109, migrations through 0106, health "ok". GitHub Tests passed on that commit (run 43360643421). Stacey: "Yes, release part 3".
