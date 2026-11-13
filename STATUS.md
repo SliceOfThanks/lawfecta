@@ -12,7 +12,7 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - Test meeting for Stacey (request_id videosdk-first-test-2026-11-13, test attorney and test freelancer): room ready, started, open until 2026-11-16 23:00 UTC, nobody's transcript box ticked. For her two-window video call and for ChatGPT check 3.
 - Three ChatGPT checks wait for her (docs/tests/RUN-NEXT.md): 1 Talent, 2 Subscription, 3 meetings and calls. Ready copies on her Mac are numbered 1 to 3.
 - Not proven against the real VideoSDK: the meeting screen with video, live transcription, and that its reports arrive. Her first real call is the test.
-- Built and pushed, in testing, not yet released: step 27 "Report this meeting" (commit 4a64183, migration 0119).
+- Step 27 "Report this meeting" released right after: code_version 4a64183, api function version 119, migration 0119, GitHub Tests run 43501180322. Each meeting card has "Report this meeting" (reason required, one open report per person and meeting); reported meetings sit in the admin card with flagged transcripts; a report lets the team open that meeting's transcript.
 
 ## Step 25: meetings on VideoSDK, joined inside DELA (part 1): ON THE SITE (2026-11-13)
 - Site: code_version e81f826, api function version 117, migrations through 0116, health "ok". GitHub Tests passed on that commit (run 43493927511).
