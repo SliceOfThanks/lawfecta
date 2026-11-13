@@ -1727,7 +1727,19 @@
           categoriesCard(card);
         }).catch(function (e) { fail(e); categoriesCard(card); });
       });
-      card.appendChild(h("div", { class: "row", style: "margin-top:8px" }, btn));
+      // Step 18 part 3: bookmarks will use the website's own bookmark system; this shows whether its API lets DELA read it
+      var bm = h("button", { class: "ghost small", type: "button" }, "Check the website's bookmarks"), bmOut = h("p", { class: "small", role: "status", style: "margin:8px 0 0;overflow-wrap:anywhere" });
+      bm.addEventListener("click", function () {
+        bm.disabled = true; bmOut.textContent = "Checking...";
+        api.get("/admin/bd/bookmarks-check").then(function (r) {
+          var x = (r && r.data) || {};
+          bm.disabled = false;
+          bmOut.textContent = x.ok ? "The website answered. Rows read: " + x.rows + ". Fields: " + (Object.keys(x.fields || {}).map(function (k) { return k + " (" + x.fields[k] + ")"; }).join(", ") || "none, there are no bookmarks yet")
+            : x.allowed === false ? "The website refused (" + x.status + "). In Brilliant Directories, Developer Hub, edit the DELA API key's permissions and allow users_favorite." : "No answer the check could read (" + (x.status || 0) + " " + (x.error || "") + ").";
+        }).catch(function (e) { bm.disabled = false; bmOut.textContent = D.errorText(e.message); });
+      });
+      card.appendChild(h("div", { class: "row", style: "margin-top:8px;gap:8px;flex-wrap:wrap" }, btn, bm));
+      card.appendChild(bmOut);
     }).catch(function (e) { D.clear(card); card.appendChild(h("h2", { text: "Website categories" })); card.appendChild(h("p", { class: "notice", text: D.errorText(e.message) })); });
   }
 

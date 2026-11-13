@@ -16,6 +16,8 @@ export type Profile = {
   acknowledged: boolean; photo_url: string; photo_file: string;
   // Step 17: the website categories a freelancer works in, as keys (s<service_id>); the database keeps only active ones
   categories: string[];
+  // Step 18 part 3: a ready-made picture (a file name from the setting profile.avatars); an uploaded photo comes first
+  avatar: string;
 };
 
 export const PRACTICE_AREAS = [
@@ -95,6 +97,7 @@ export function normalize(raw: unknown): Profile {
     photo_file: typeof r.photo_file === "string" && PHOTO_PATH.test(r.photo_file) ? r.photo_file : "",
     categories: (Array.isArray(r.categories) ? r.categories : []).filter((x): x is string => typeof x === "string" && /^s[0-9]{1,9}$/.test(x))
       .filter((x, i, a) => a.indexOf(x) === i).slice(0, 100),
+    avatar: typeof r.avatar === "string" && /^[A-Za-z0-9._-]{1,120}\.(png|jpg|jpeg|webp)$/.test(r.avatar) ? r.avatar : "",
   };
 }
 

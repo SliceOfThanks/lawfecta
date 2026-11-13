@@ -1860,21 +1860,43 @@
     });
     card.appendChild(h("div", { class: "row" }, fill, h("span", { class: "small muted", text: "Fills only empty boxes. Nothing is saved until you click Save. To change your listing from here, tick \"Also update my Lawfecta directory listing\" at the bottom before you save." })));
     // Change the photo right here (Stacey 2026-11-05)
-    var shownPhoto = prof.photoPreview || (b.photo_file ? r.photo_view_url : "") || b.photo_url;
+    // Step 18 part 3: the picture is the member's own photo, else a ready-made picture they chose, else the listing's photo
+    var av = r.avatars && r.avatars.base ? r.avatars : { base: "", files: [] };
+    var avatarUrl = b.avatar && av.files.indexOf(b.avatar) >= 0 ? av.base + b.avatar : "";
+    var shownPhoto = prof.photoPreview || (b.photo_file ? r.photo_view_url : "") || avatarUrl || b.photo_url;
     var pic = shownPhoto ? h("img", { src: shownPhoto, alt: "Your profile photo", style: "width:64px;height:64px;border-radius:50%;object-fit:cover" }) : h("span", { class: "chip", style: "width:64px;height:64px;font-size:22px", "aria-hidden": "true", text: "?" });
     var photoIn = h("input", { type: "file", accept: "image/png,image/jpeg,.png,.jpg,.jpeg", style: "display:none", "aria-label": "Choose a profile photo" });
-    var photoMsg = h("span", { class: "small muted", role: "status", text: b.photo_file ? "Your DELA profile photo." : b.photo_url ? "This photo comes from your Lawfecta listing." : "No photo yet." });
+    var photoMsg = h("span", { class: "small muted", role: "status", text: b.photo_file ? "Your DELA profile photo." : avatarUrl ? "A ready-made picture. It is an illustration, not a photo of you." : b.photo_url ? "This photo comes from your Lawfecta listing." : "No photo yet. Members see your initial." });
     photoIn.addEventListener("change", function () {
       if (!photoIn.files.length) return;
       photoMsg.textContent = "Uploading...";
       api.raw("/profile/photo", photoIn.files[0], photoIn.files[0].type || "image/jpeg").then(function (x) {
         if (!x.ok) { photoMsg.textContent = D.errorText(x.reason); return; }
-        prof.body.photo_file = x.photo_file; prof.photoPreview = x.url; prof.dirty = true;
+        prof.body.photo_file = x.photo_file; prof.body.avatar = ""; prof.photoPreview = x.url; prof.dirty = true;
         drawProfile();
         D.toast(app, "New photo ready. Click Save to keep it.");
       }).catch(function (e) { photoMsg.textContent = D.errorText(e.message); });
     });
-    card.appendChild(h("div", { class: "row", style: "margin:8px 0;gap:12px" }, pic, h("div", null, h("button", { class: "ghost small", type: "button", onclick: function () { photoIn.click(); } }, shownPhoto ? "Change photo" : "Add a photo"), h("div", null, photoMsg)), photoIn));
+    var useDefault = (b.photo_file || b.avatar) ? h("button", { class: "ghost small", type: "button", onclick: function () { prof.body.photo_file = ""; prof.body.avatar = ""; prof.photoPreview = ""; prof.dirty = true; drawProfile(); D.toast(app, "Back to the default picture. Click Save to keep it."); } }, "Use the default picture") : null;
+    card.appendChild(h("div", { class: "row", style: "margin:8px 0;gap:12px" }, pic, h("div", null, h("div", { class: "row", style: "gap:6px;flex-wrap:wrap" }, h("button", { class: "ghost small", type: "button", onclick: function () { photoIn.click(); } }, shownPhoto ? "Change photo" : "Add a photo"), useDefault), h("div", null, photoMsg)), photoIn));
+    // The ready-made pictures: one compact, folded group of choices (arrow keys move, Space or Enter picks)
+    if (av.files.length) {
+      var grid = h("div", { class: "av-grid", role: "radiogroup", "aria-label": "Ready-made pictures" });
+      var avName = function (f) { return f.replace(/\.[a-z]+$/i, "").replace(/^[0-9]+-+/, "").split("-").join(" "); };
+      var opts = av.files.map(function (f, i) {
+        var on = b.avatar === f && !b.photo_file;
+        var o = h("button", { type: "button", class: "av-opt", role: "radio", "aria-checked": String(on), "aria-label": avName(f), title: avName(f), tabindex: on || (!b.avatar && i === 0) ? "0" : "-1" },
+          h("img", { src: av.base + f, alt: "", loading: "lazy", width: "44", height: "44" }));
+        o.addEventListener("click", function () { prof.body.avatar = f; prof.body.photo_file = ""; prof.photoPreview = ""; prof.dirty = true; prof.avatarsOpen = true; drawProfile(); D.toast(app, "Picture chosen. Click Save to keep it."); });
+        o.addEventListener("keydown", function (e) {
+          var to = e.key === "ArrowRight" || e.key === "ArrowDown" ? (i + 1) % opts.length : e.key === "ArrowLeft" || e.key === "ArrowUp" ? (i + opts.length - 1) % opts.length : -1;
+          if (to >= 0) { e.preventDefault(); opts[to].focus(); }
+        });
+        grid.appendChild(o); return o;
+      });
+      card.appendChild(h("details", { id: "prof-avatars", class: "av-box", open: !!prof.avatarsOpen }, h("summary", { style: "cursor:pointer;font-weight:700", text: "Or choose a ready-made picture (" + av.files.length + ")" }),
+        h("p", { class: "small muted", style: "margin:6px 0", text: "A ready-made picture is an illustration. It is never treated as a photo of you or as proof of who you are. The same picture shows on Talent, your profile and your conversations." }), grid));
+    }
     card.appendChild(h("h3", { text: "About you" }));
     card.appendChild(textIn("first_name", "First name", { required: need("first_name"), help: "Your first name as you want members to see it." }));
     card.appendChild(textIn("last_name", "Last name", { required: need("last_name"), help: "Your last name as you want members to see it." }));
@@ -5401,11 +5423,98 @@
   function talentAddress(person) {
     try { var u = new URL(location.href); if (person) u.searchParams.set("person", person); else u.searchParams.delete("person"); history.replaceState(null, "", u.pathname + u.search + u.hash); } catch (e) { /* the address stays */ }
   }
+  // The review step before an invitation goes out: who, which gig, its scope, an optional note
+  var talentInviteFor = null;
+  function openInviteReview(p, gigId) { if (!talentPerson) talentScroll = window.scrollY || 0; talentInviteFor = { p: p, gig: gigId }; draw(); window.scrollTo(0, 0); }
+  function closeInviteReview() { talentInviteFor = null; draw(); }
+  function talentInvitePage() {
+    var cur = talentInviteFor, p = cur.p, now = Date.now();
+    var el = h("div", { class: "tp" }, h("p", null, h("button", { class: "ghost small", type: "button", onclick: closeInviteReview }, talentPerson ? "← Back to the profile" : "← Back to Talent search")),
+      h("h1", { text: "Invite " + p.name + " to submit a proposal" }),
+      h("p", { class: "muted", text: "Choose one of your posted gigs and invite this freelancer to send a proposal for it. Nobody is hired at this step." }));
+    var body = h("div", null, h("p", { class: "muted", role: "status", text: "Loading your gigs..." }));
+    el.appendChild(body);
+    api.get("/gigs").then(function (gs) {
+      if (talentInviteFor !== cur) return;
+      var mine = gs.ok ? gs.gigs.filter(function (g) { return g.status === "open" && !g.paused_by_team && (!g.closes_at || new Date(g.closes_at).getTime() > now); }) : [];
+      D.clear(body);
+      var sel = h("select", { "aria-label": "Existing gig", style: "width:100%" }, [h("option", { value: "", text: mine.length ? "Select one of your posted gigs" : "No posted gig is open for proposals" })].concat(mine.map(function (g) { return h("option", { value: g.id, text: g.title, selected: g.id === cur.gig }); })));
+      var scope = h("div", { "aria-live": "polite" });
+      var note = h("textarea", { rows: 3, style: "width:100%", maxlength: "2000", "aria-label": "Message to the freelancer (optional)", placeholder: "For example: your experience looks right for this gig. Please look at the scope and send a proposal if you are interested." });
+      var send = h("button", { class: "blue", type: "button" }, "Send invitation to submit a proposal");
+      var said = h("p", { class: "small", role: "status", style: "margin:8px 0 0" });
+      function gigTitle() { return (mine.filter(function (g) { return g.id === sel.value; })[0] || {}).title || "your gig"; }
+      function drawScope() {
+        D.clear(scope); send.disabled = !sel.value; cur.gig = sel.value;
+        if (!sel.value) { scope.appendChild(h("p", { class: "muted", text: mine.length ? "Choose a gig to see what the freelancer will be asked to propose on." : "Post a gig in Projects first. Creating a gig from an SOP or Workflow happens there, not here." })); return; }
+        scope.appendChild(h("p", { class: "muted", text: "Loading the gig..." }));
+        var want = sel.value;
+        api.get("/gigs/get?id=" + encodeURIComponent(want)).then(function (r) {
+          if (sel.value !== want) return;
+          D.clear(scope);
+          if (!r.ok) { scope.appendChild(h("p", { class: "notice", text: "This gig could not be loaded. Choose another one." })); return; }
+          var g = r.gig, pub = g.public || {};
+          var budget = g.budget_min_cents && g.budget_max_cents ? (g.budget_min_cents === g.budget_max_cents ? D.money(g.budget_min_cents) : D.money(g.budget_min_cents) + " to " + D.money(g.budget_max_cents)) : "Not given";
+          scope.appendChild(h("h3", { style: "margin:0 0 6px", text: g.title }));
+          if (pub.task) scope.appendChild(h("p", { text: pub.task }));
+          if (pub.outcome) scope.appendChild(h("p", { class: "small", text: "Outcome: " + pub.outcome }));
+          scope.appendChild(h("dl", { class: "tp-facts" }, [["Budget", budget], ["Deadline", g.deadline ? D.date(g.deadline) : (pub.timing || "Not given")], ["Proposals close", g.closes_at ? D.date(g.closes_at) : "No closing date"]].map(function (row) {
+            return h("div", null, h("dt", { text: row[0] }), h("dd", { text: row[1] }));
+          })));
+          scope.appendChild(h("p", { class: "small muted", text: "This is the public version of your gig, the one freelancers see. It holds no client information." }));
+        }).catch(function () { D.clear(scope); scope.appendChild(h("p", { class: "notice bad", text: "This gig could not be loaded. Check your connection." })); });
+      }
+      sel.addEventListener("change", drawScope);
+      function doSend(confirmed) {
+        if (!sel.value) return;
+        send.disabled = true; send.textContent = "Sending..."; said.className = "small"; said.textContent = "";
+        api.post("/gigs/invite", { gig_id: sel.value, person_id: p.person_id, message: note.value.trim(), confirm_no_client_info: confirmed === true }).then(function (y) {
+          send.textContent = "Send invitation to submit a proposal"; send.disabled = false;
+          if (y && y.reason === "looks_like_client_info") { if (confirm(ciNote(y, "Your message may include client information. Take it out, or click OK only if it is not client information."))) doSend(true); return; }
+          if (y && y.ok) {
+            var title = gigTitle();
+            D.clear(body);
+            body.appendChild(h("div", { class: "card", id: "invite-done", role: "status" }, h("h2", { text: y.duplicate ? "Already invited" : "Invitation sent" }),
+              h("p", { text: y.duplicate ? p.name + " was already invited to \"" + title + "\". Nothing was sent again." : p.name + " is invited to send a proposal for \"" + title + "\"." }),
+              y.note ? h("p", { class: "notice", text: y.note }) : null,
+              h("p", { class: "small muted", text: "What happens next: " + p.name + " gets a notice and can send a proposal or decline. Proposals appear on the gig in Projects. Nobody is hired and nothing is charged until you choose a proposal and sign an agreement." }),
+              h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("button", { class: "blue small", type: "button", onclick: function () { talentInviteFor = null; talentPerson = null; talentAddress(null); draw(); } }, "Back to Talent search"),
+                h("button", { class: "ghost small", type: "button", onclick: function () { talentInviteFor = null; openGig(sel.value, "proposals"); } }, "Open the gig"))));
+            D.toast(app, y.duplicate ? "Already invited" : "Invited " + p.name);
+            return;
+          }
+          said.className = "small notice bad"; said.setAttribute("role", "alert");
+          said.textContent = y && y.reason === "gig_not_open" ? "\"" + gigTitle() + "\" no longer takes proposals, so no invitation was sent. Choose another gig." : y && y.reason === "freelancer_not_available" ? p.name + " cannot be invited to this gig right now. No invitation was sent." : gigErr(y || {});
+          if (y && y.reason === "gig_not_open") { Array.prototype.forEach.call(sel.options, function (op) { if (op.value === sel.value && op.value) op.remove(); }); sel.value = ""; drawScope(); }
+        }).catch(function (e) {
+          send.textContent = "Send invitation to submit a proposal"; send.disabled = false;
+          said.className = "small notice bad"; said.setAttribute("role", "alert"); said.textContent = "The invitation was not sent (" + D.errorText(e.message) + "). Check your connection and try again.";
+        });
+      }
+      send.addEventListener("click", function () { doSend(false); });
+      var rv = p.reviews || {}, n = rv.count || 0;
+      body.appendChild(h("div", { class: "tp-two" },
+        h("div", null,
+          h("section", { class: "card" }, h("h2", { text: "1. Select an existing gig" }), h("p", { class: "small muted", text: "Only your posted gigs that still take proposals are listed." }), field("Existing gig", sel)),
+          h("section", { class: "card" }, h("h2", { text: "2. Review the gig" }), scope, field("Message to the freelancer (optional)", h("div", null, notice(), note), "Sent with the invitation, inside Lawfecta. Up to 2,000 characters.")),
+          h("section", { class: "card" }, h("h2", { text: "3. Invite to submit a proposal" }),
+            h("p", { class: "small", text: "This invitation asks " + p.name + " to send a proposal for your gig. It does not hire them, award the work or create anything to pay." }),
+            h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, send, h("button", { class: "ghost", type: "button", onclick: closeInviteReview }, "Cancel")), said)),
+        h("aside", { class: "card", "aria-label": "Who you are inviting" }, h("h2", { text: "Inviting" }),
+          h("div", { class: "row", style: "gap:12px;align-items:center" }, talentAvatar(p), h("div", null, h("b", { text: p.name }), p.headline ? h("div", { class: "small", text: p.headline }) : null)),
+          h("dl", { class: "tp-facts", style: "margin-top:10px" }, [["Verification", p.verification === "verified" ? "Verified" : "Not verified yet"], ["Reviews", n ? n + (n === 1 ? " review" : " reviews") : "No reviews yet"],
+            ["Availability", p.capacity_hours_week ? p.capacity_hours_week + " hours a week" : "Not given"], ["Time zone", p.timezone || "Not given"]].map(function (row) { return h("div", null, h("dt", { text: row[0] }), h("dd", { text: row[1] })); })),
+          h("p", { class: "small muted", text: "Work, messages, approvals and payments stay on Lawfecta." }))));
+      drawScope();
+    }).catch(function (e) { D.clear(body); body.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
+    return el;
+  }
   function openTalentProfile(person) { talentScroll = window.scrollY || 0; talentPerson = person; talentTab = "overview"; talentAddress(person); draw(); window.scrollTo(0, 0); }
   function closeTalentProfile() { talentPerson = null; talentAddress(null); draw(); }
   function talentView() {
     // The profile shows only while the address names the person (leaving Talent takes it out of the address)
     try { if (talentPerson && new URLSearchParams(location.search).get("person") !== talentPerson) talentPerson = null; } catch (e) { talentPerson = null; }
+    if (talentInviteFor) return talentInvitePage();
     if (talentPerson) return talentProfilePage();
     var el = h("div", null, h("h1", { text: "Talent" }));
     if ((me.switches || {}).bench) {
@@ -5523,7 +5632,7 @@
       if (!x.ok) { el.appendChild(h("p", { class: "notice", role: "alert", text: "This profile could not be opened. The member may have closed their freelancer profile." })); return; }
       var rv = x.reviews || {}, n = rv.count || 0, verified = x.verification === "verified";
       // ----- The header: who this is, what was checked, real reviews, and the invitation -----
-      var inv = talentInvite({ person_id: x.person_id, name: x.name }, mine, el);
+      var inv = talentInvite({ person_id: x.person_id, name: x.name, headline: x.headline, photo_url: x.photo_url, verification: x.verification, reviews: x.reviews, capacity_hours_week: x.capacity_hours_week, timezone: x.timezone }, mine, el);
       var facts = [x.capacity_hours_week ? x.capacity_hours_week + " hours a week" : "", x.timezone ? x.timezone + " time" : "", x.state ? "Based in " + x.state : "",
         (x.agencies || []).length ? "Works with " + x.agencies.join(", ") : x.company ? "Works through " + x.company : ""].filter(Boolean).join(" | ");
       var head = h("div", { class: "card tp-head" },
@@ -5684,28 +5793,8 @@
     var invite = h("button", { class: "blue small", type: "button", disabled: true }, "Invite to this gig");
     var said = h("p", { class: "small muted", role: "status", style: "margin:6px 0 0", text: "Inviting asks this freelancer to send a proposal for the gig you select. It does not hire them or award the work." });
     gigSel.addEventListener("change", function () { invite.disabled = !gigSel.value; });
-    invite.addEventListener("click", function () {
-      var gid = gigSel.value, title = (mine.filter(function (g) { return g.id === gid; })[0] || {}).title || "your gig";
-      if (!gid) return;
-      invite.disabled = true; invite.textContent = "Sending...";
-      api.post("/gigs/invite", { gig_id: gid, person_id: p.person_id }).then(function (y) {
-        invite.textContent = "Invite to this gig";
-        if (y && y.ok) {
-          said.className = "small notice ok"; said.textContent = y.duplicate ? p.name + " was already invited to \"" + title + "\". Nothing was sent again." : "Invitation sent. " + p.name + " can now send a proposal for \"" + title + "\". Nobody is hired until you choose a proposal.";
-          D.toast(app, y.duplicate ? "Already invited" : "Invited " + p.name);
-          gigSel.value = ""; return;
-        }
-        // The gig closed or was paused since the page loaded, or the freelancer is no longer available: say so, send nothing
-        said.className = "small notice bad"; said.setAttribute("role", "alert");
-        said.textContent = y && y.reason === "gig_not_open" ? "\"" + title + "\" no longer takes proposals, so no invitation was sent. Choose another gig." : y && y.reason === "freelancer_not_available" ? p.name + " cannot be invited to this gig right now. No invitation was sent." : gigErr(y || {});
-        // Take the gig out of every card's list, so it cannot be chosen again; the message above stays readable
-        if (y && y.reason === "gig_not_open") Array.prototype.forEach.call(results.querySelectorAll("select option"), function (op) { if (op.value === gid) op.remove(); });
-        gigSel.value = "";
-      }).catch(function (e) {
-        invite.textContent = "Invite to this gig"; invite.disabled = !gigSel.value;
-        said.className = "small notice bad"; said.setAttribute("role", "alert"); said.textContent = "The invitation was not sent (" + D.errorText(e.message) + "). Check your connection and try again.";
-      });
-    });
+    // Step 18 part 3: the button opens the review step (the gig's scope and an optional note); nothing is sent from here
+    invite.addEventListener("click", function () { if (gigSel.value) openInviteReview(p, gigSel.value); });
     return { gigSel: gigSel, invite: invite, said: said };
   }
   // The results: count, the filters in use, the sort order, then one card per freelancer with two actions only,

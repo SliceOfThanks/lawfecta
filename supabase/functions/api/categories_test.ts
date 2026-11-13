@@ -200,6 +200,36 @@ Deno.test("the full profile: what the page shows, never contact details; shown s
   assertEquals((await call("GET", "/freelancers/profile?person=" + fNurse.id, "ds_test_nobody")).status, 401);
 });
 
+Deno.test("ready-made pictures: offered only from the list, an uploaded photo comes first, the same picture on Talent and the profile", async () => {
+  const cur = (await call("GET", "/profile", fFamily.token)).body;
+  assertEquals(cur.avatars, { base: "", files: [] }, "nothing is offered until the folder's address is set");
+  await pool.query(`update settings set value = jsonb_set(value, '{base}', '"https://bd.test/images/Avatars/"') where key = 'profile.avatars'`);
+  const got = (await call("GET", "/profile", fFamily.token)).body;
+  assertEquals([got.avatars.base, got.avatars.files.length, got.avatars.files.includes("8272---Working-Lady.png")], ["https://bd.test/images/Avatars/", 60, true]);
+  const save = async (avatar: string) => { const c = (await call("GET", "/profile", fFamily.token)).body; return (await call("POST", "/profile/save", fFamily.token, { body: { ...c.body, avatar }, version: c.version })).body; };
+  const av = async () => (await one("select body->>'avatar' a from member_profiles where person_id = $1 and side = 'freelancer'", [fFamily.id])).a;
+  assertEquals((await save("../../evil.png")).ok, true); assertEquals(await av(), "", "a name that is not a plain file name is dropped");
+  assertEquals((await save("9999---Not-In-The-List.png")).ok, true); assertEquals(await av(), "", "a picture that is not in the list is dropped");
+  assertEquals((await save("8272---Working-Lady.png")).ok, true); assertEquals(await av(), "8272---Working-Lady.png");
+  // Saving a bare test profile marks it incomplete; put it back to match-ready for the search
+  await pool.query("update member_profiles set missing = '{}', score = 100 where person_id = $1 and side = 'freelancer'", [fFamily.id]);
+  await pool.query("select dela_profile_refresh($1, 'freelancer')", [fFamily.id]);
+  const card = ((await call("GET", "/talent?category=s308", att.token)).body.people as Array<Record<string, any>>).find((p) => p.person_id === fFamily.id)!;
+  assertEquals([card.photo_url, "avatar" in card], ["https://bd.test/images/Avatars/8272---Working-Lady.png", false], "Talent shows the chosen picture");
+  assertEquals((await call("GET", "/freelancers/profile?person=" + fFamily.id, att.token)).body.photo_url, "https://bd.test/images/Avatars/8272---Working-Lady.png", "and so does the profile page");
+  assertEquals((await call("GET", "/freelancers/card?person=" + fFamily.id, att.token)).body.photo_url, "https://bd.test/images/Avatars/8272---Working-Lady.png", "and the small card");
+  await pool.query(`update member_profiles set body = body || jsonb_build_object('photo_file', 'profiles/' || person_id || '/photo-' || gen_random_uuid() || '.png') where person_id = $1 and side = 'freelancer'`, [fFamily.id]);
+  assert(String((await call("GET", "/freelancers/profile?person=" + fFamily.id, att.token)).body.photo_url).startsWith("https://storage.test/get/profiles/"), "the member's own photo comes first");
+  await pool.query("update member_profiles set body = body - 'photo_file' - 'avatar' where person_id = $1 and side = 'freelancer'", [fFamily.id]);
+  await pool.query(`update settings set value = jsonb_set(value, '{base}', '""') where key = 'profile.avatars'`);
+  // The bookmarks check for the team: field names only; the website's refusal is said plainly
+  await pool.query("update staff_roles set role = 'support' where person_id = $1", [team.id]);
+  const bm = (await call("GET", "/admin/bd/bookmarks-check", team.token)).body.data;
+  assertEquals([bm.ok, bm.status], [false, 404]);
+  await pool.query("update staff_roles set role = 'reviewer' where person_id = $1", [team.id]);
+  assertEquals((await call("GET", "/admin/bd/bookmarks-check", team.token)).status, 403, "owners and support only");
+});
+
 Deno.test("the website refuses or answers with nothing: the lists stay as they were", async () => {
   site = "refuse";
   const a = (await call("POST", "/admin/categories/refresh", team.token)).status;

@@ -12,7 +12,7 @@ import { pickProvider } from "./lib/mail/index.ts";
 import { brevoDelivery } from "./lib/mail/brevo.ts";
 import { verifyPass } from "./lib/pass.ts";
 import { sendSms } from "./lib/sms/brevo.ts";
-import { bdCategories, bdFields, bdList, bdMember, bdMember as bdMember_, bdUpdate, shapeOf } from "./lib/bd/members.ts";
+import { bdCall, bdCategories, bdFields, bdList, bdMember, bdMember as bdMember_, bdUpdate, shapeOf } from "./lib/bd/members.ts";
 import { meetingIcs, NEXT_STEPS_SYSTEM, readSteps, THREAD_SYSTEM, threadPrompt, vecteraRoom, withoutLawfectaLinks } from "./lib/meetings/meet.ts";
 import { conductRules, GIG_SYSTEM, gigPrompt, normalizeMilestones, normalizePublic, PROPOSAL_SYSTEM, publicFromPlaybook, readReview, REVIEW_SYSTEM, toCents } from "./lib/gigs/model.ts";
 import { asksAboutTools, CATALOG_RULES, catalogText, rankForMember, readCatalog, type Tool } from "./lib/catalog/csv.ts";
@@ -1943,7 +1943,7 @@ async function profileGet(ctx: Ctx) {
   // Which boxes Save copies to the directory listing (UX review R02): the fields in the listing map, named as on the form
   const map = (await rpc<Record<string, string> | null>(ctx, "dela_setting", { p_key: "bd.profile_map" }).catch(() => null)) ?? {};
   const directory_fields = Object.keys(map && typeof map === "object" ? map : {}).filter((k) => map[k] && LABELS[k]).map((k) => LABELS[k].replace(" (or tick none)", ""));
-  return json(ctx, { ...r, body, photo_view_url, directory_fields, state: labelState(r.state), labels: LABELS, practice_areas: PRACTICE_AREAS, tech_tools: TECH_TOOLS, tech_groups: TECH_GROUPS, timezones: TIMEZONES });
+  return json(ctx, { ...r, body, photo_view_url, avatars: await avatarSet(ctx), directory_fields, state: labelState(r.state), labels: LABELS, practice_areas: PRACTICE_AREAS, tech_tools: TECH_TOOLS, tech_groups: TECH_GROUPS, timezones: TIMEZONES });
 }
 
 // What the member's Lawfecta listing holds now, to offer (never copied without the member choosing it)
@@ -1972,6 +1972,7 @@ async function profileSave(ctx: Ctx) {
   const s = await memberSide(ctx);
   const body = normalizeProfile(ctx.body.body);
   if (body.photo_file && !body.photo_file.startsWith("profiles/" + s.person_id + "/")) body.photo_file = "";
+  if (body.avatar && !(await avatarSet(ctx)).files.includes(body.avatar)) body.avatar = "";
   body.categories = s.side === "freelancer" && body.categories.length ? (await rpc<string[]>(ctx, "dela_categories_clean", { p_keys: body.categories })) ?? [] : [];
   const warn = (await sensitive(ctx, s, [body.headline, body.summary, body.experience, ...body.services.map((x) => x.title + " " + x.for_whom)].join("\n"), "public"));
   if (warn) return json(ctx, warn);
@@ -2533,12 +2534,24 @@ async function freelancerOnly(ctx: Ctx) {
   return s;
 }
 // Private photo paths become short-lived links
+// Ready-made pictures (step 18 part 3): the folder on the Lawfecta website and the file names a member may choose
+type Avatars = { base: string; files: string[] };
+async function avatarSet(ctx: Ctx): Promise<Avatars> {
+  const v = await rpc<Record<string, unknown> | null>(ctx, "dela_setting", { p_key: "profile.avatars" }).catch(() => null);
+  const base = typeof v?.base === "string" && /^https:\/\/[^\s"'<>]+\/$/.test(v.base) ? v.base : "";
+  const files = Array.isArray(v?.files) ? (v!.files as unknown[]).filter((x): x is string => typeof x === "string" && /^[A-Za-z0-9._-]{1,120}\.(png|jpg|jpeg|webp)$/.test(x)) : [];
+  return base && files.length ? { base, files } : { base: "", files: [] };
+}
+// The picture shown for a member: their uploaded photo (a signed link for an hour), else the ready-made picture they chose
 async function withPhotos<T extends Record<string, any>>(ctx: Ctx, list: T[]): Promise<T[]> {
   const storage = ctx.deps.storage;
+  let av: Avatars | null = null;
   for (const x of list) {
-    const pf = String(x.photo_file ?? "");
-    (x as any).photo_url = pf && storage && pf.startsWith("profiles/") ? await storage.signDownload(pf, 3600).catch(() => "") : "";
-    delete (x as any).photo_file;
+    const pf = String(x.photo_file ?? ""), a = String(x.avatar ?? "");
+    let url = pf && storage && pf.startsWith("profiles/") ? await storage.signDownload(pf, 3600).catch(() => "") : "";
+    if (!url && a) { av = av ?? await avatarSet(ctx); if (av.files.includes(a)) url = av.base + a; }
+    (x as any).photo_url = url;
+    delete (x as any).photo_file; delete (x as any).avatar;
   }
   return list;
 }
@@ -4564,6 +4577,15 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   },
   "/admin/ai-files": async (c, a) => ({ ...(await rpc<Record<string, unknown>>(c, "dela_admin_ai_files", { p_actor: a })), ready: aiReady(c.deps) }),
   "/admin/categories": (c, a) => rpc(c, "dela_admin_categories", { p_actor: a }),
+  // Step 18 part 3: does the website's API give DELA its bookmarks (table users_favorite)? Field names and kinds only, never values.
+  "/admin/bd/bookmarks-check": async (c, a) => {
+    await rpc(c, "dela_require_staff", { p_actor: a, p_roles: ["support"] });
+    const site = await setting(c, "site.url", ""), key = c.deps.env("BD_API_KEY");
+    const r = await bdCall<unknown>(f(c), site, key, "GET", "/api/v2/users_favorite/get?limit=1");
+    if (!r.ok) return { ok: false, status: r.status, allowed: r.status !== 403 && r.status !== 401, error: r.error.slice(0, 160) };
+    const first = Array.isArray(r.data) ? r.data[0] : r.data;
+    return { ok: true, rows: Array.isArray(r.data) ? r.data.length : 0, fields: shapeOf(first) };
+  },
 };
 
 const ADMIN_POST: Record<string, AdminRoute> = {

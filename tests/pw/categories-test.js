@@ -22,6 +22,7 @@ async function open(browser, widget, uid, query) {
   page.on("dialog", (d) => d.accept());
   await page.route("https://cdn.jsdelivr.net/**", (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(ROOT, u.pathname.split("@")[1].split("/").slice(1).join("/")), contentType: "application/javascript" }); });
   await page.route("https://fonts.googleapis.com/**", (r) => r.abort());
+  await page.route("https://www.lawfecta.co/**", (r) => r.abort());
   await page.goto(`${BASE}/page/${widget}?uid=${uid}&plan=${query || ""}`);
   await text(page);
   return { ctx, page };
@@ -55,6 +56,8 @@ const SEARCH = "Search roles, specialties, tasks and software";
   try {
     // The suites after this one share the database: remember what this suite changes and put it back at the end
     before = (await sql("select (select jsonb_object_agg(key, state) from feature_switches where key in ('flex_gigs', 'profiles', 'talent_search', 'new_layout')) sw, (select value from settings where key = 'verify.freelancer_linkedin') li"))[0];
+    // Step 18 part 3: the ready-made pictures are offered once the folder's web address is set
+    await sql(`update settings set value = jsonb_set(value, '{base}', '"https://www.lawfecta.co/images/Avatars/"') where key = 'profile.avatars'; select 1`);
     await sql("update feature_switches set state = 'everyone' where key in ('flex_gigs', 'profiles', 'talent_search', 'new_layout'); update settings set value = 'false' where key = 'verify.freelancer_linkedin'; select 1");
     await sql(`insert into people (bd_member_id, display_name, email) values (${ATT}, 'Cara Category', '${ATT}@test.invalid'), (${FL}, 'Nia Nurse', '${FL}@test.invalid'),
         (${FL2}, 'Fern Family', '${FL2}@test.invalid'), (${FL3}, 'Pat Picker', '${FL3}@test.invalid'), (${TEAM}, 'Theo Team', '${TEAM}@test.invalid') on conflict (bd_member_id) do nothing;
@@ -93,11 +96,22 @@ const SEARCH = "Search roles, specialties, tasks and software";
     t = await waitGone(p, "Remove Medical Malpractice Review");
     ok(t.includes("2 of 25 picked"), "a picked category can be removed with its ×");
     await p.screenshot({ path: path.join(SHOTS, "categories-profile.png"), fullPage: true });
+    // Step 18 part 3: a ready-made picture, from one compact group of choices
+    await dela(p).locator("#prof-avatars summary").click();
+    const radios = dela(p).locator("#prof-avatars").getByRole("radio");
+    ok(await radios.count() === 60 && (await text(p)).includes("It is never treated as a photo of you"), "all the ready-made pictures are offered in one folded group, with what they are not");
+    await dela(p).locator("#prof-avatars").getByRole("radio", { name: "Working Lady", exact: true }).click();
+    await waitFor(p, "A ready-made picture. It is an illustration, not a photo of you.");
+    ok(await dela(p).locator("#prof-avatars").getByRole("radio", { name: "Working Lady", exact: true }).getAttribute("aria-checked") === "true" && await dela(p).locator("#prof-avatars").getByRole("radio", { checked: true }).count() === 1, "one picture is chosen and marked");
+    await dela(p).locator("#prof-avatars").getByRole("radio", { name: "Working Lady", exact: true }).focus();
+    await p.keyboard.press("ArrowLeft");
+    ok(await p.evaluate(() => document.querySelector(".dela-host").shadowRoot.activeElement.getAttribute("aria-label")) === "Painter Girl", "the arrow keys move between the pictures");
     // The button reads "Save", "Save to DELA only" or "Save and update my directory listing", by the listing tick
     await dela(p).getByRole("button", { name: /^Save( to DELA only| and update my directory listing)?$/ }).first().click();
     await waitFor(p, "Profile saved", 10000);
     const saved = (await sql(`select body->'categories' c from member_profiles where side = 'freelancer' and person_id = (select id from people where bd_member_id = ${FL3})`))[0];
     ok(saved && JSON.stringify(saved.c) === JSON.stringify(["s327", "s275"]), "Save keeps the picks in order: " + JSON.stringify(saved && saved.c));
+    ok((await sql(`select body->>'avatar' a from member_profiles where side = 'freelancer' and person_id = (select id from people where bd_member_id = ${FL3})`))[0].a === "8272---Working-Lady.png", "Save keeps the chosen picture");
     await s.ctx.close();
 
     // ---------- Attorney: Talent ----------
@@ -122,22 +136,42 @@ const SEARCH = "Search roles, specialties, tasks and software";
     const opts = await gigSel.locator("option").allInnerTexts();
     ok(opts.join("|") === "Select one of your posted gigs|Organize discovery responses", "the list holds only posted gigs open for proposals, with nothing chosen at first: " + opts.join("|"));
     ok(await fern.getByRole("button", { name: "Invite to this gig" }).isDisabled(), "the invitation stays off until a gig is chosen");
+    // Step 18 part 3: the button opens a review step; nothing is sent until the attorney confirms there
     await gigSel.selectOption({ label: "Organize discovery responses" });
     await fern.getByRole("button", { name: "Invite to this gig" }).click();
-    t = await waitFor(p, "Invitation sent. Fern Family can now send a proposal");
-    ok((await sql(`select count(*)::int n from gig_invitations i join gigs g on g.id = i.gig_id where g.request_id = 'cat-gig' and i.freelancer_id = (select id from people where bd_member_id = ${FL2})`))[0].n === 1 &&
-      (await sql("select count(*)::int n from agreements a join gigs g on g.id = a.gig_id where g.request_id = 'cat-gig'"))[0].n === 0, "one invitation, and nobody is hired");
+    await waitFor(p, "Invite Fern Family to submit a proposal");
+    t = await waitFor(p, "Proposals close");
+    ok(t.includes("2. Review the gig") && t.includes("Organize discovery responses") && t.includes("Budget") && t.includes("Nobody is hired at this step.") && t.includes("It does not hire them, award the work or create anything to pay."), "the review step shows the gig, its budget and that nobody is hired");
+    ok(await label(p, "Existing gig").inputValue() !== "" && (await sql("select count(*)::int n from gig_invitations i join gigs g on g.id = i.gig_id where g.request_id = 'cat-gig'"))[0].n === 0, "the chosen gig is kept, and nothing is sent yet");
+    await label(p, "Message to the freelancer (optional)").fill("Your discovery experience fits this gig.");
+    await click(p, "Send invitation to submit a proposal");
+    t = await waitFor(p, "Invitation sent");
+    ok(t.includes("Fern Family is invited to send a proposal for") && t.includes("Nobody is hired and nothing is charged until you choose a proposal"), "the confirmation says what was sent and what happens next");
+    const sentInv = (await sql(`select i.message, (select count(*)::int from gig_invitations x where x.gig_id = i.gig_id) n from gig_invitations i join gigs g on g.id = i.gig_id where g.request_id = 'cat-gig' and i.freelancer_id = (select id from people where bd_member_id = ${FL2})`))[0];
+    ok(sentInv && sentInv.n === 1 && sentInv.message === "Your discovery experience fits this gig." && (await sql("select count(*)::int n from agreements a join gigs g on g.id = a.gig_id where g.request_id = 'cat-gig'"))[0].n === 0, "one invitation with the note, and nobody is hired");
+    await click(p, "Back to Talent search");
+    await waitFor(p, "Fern Family");
     await gigSel.selectOption({ label: "Organize discovery responses" });
     await fern.getByRole("button", { name: "Invite to this gig" }).click();
+    await waitFor(p, "Invite Fern Family to submit a proposal");
+    await waitFor(p, "Proposals close");
+    await click(p, "Send invitation to submit a proposal");
     await waitFor(p, "was already invited");
-    // A gig that closed since the page loaded: a clear message and no invitation
-    await sql("update gigs set status = 'closed' where request_id = 'cat-gig'; select 1");
+    await click(p, "Back to Talent search");
+    await waitFor(p, "Nia Nurse");
+    // A gig that closes while the review step is open: a clear message and no invitation
     const nia = dela(p).locator(".talent-card", { hasText: "Nia Nurse" });
     await nia.getByLabel("Gig to invite Nia Nurse for").selectOption({ label: "Organize discovery responses" });
     await nia.getByRole("button", { name: "Invite to this gig" }).click();
+    await waitFor(p, "Invite Nia Nurse to submit a proposal");
+    await waitFor(p, "Proposals close");
+    await sql("update gigs set status = 'closed' where request_id = 'cat-gig'; select 1");
+    await click(p, "Send invitation to submit a proposal");
     await waitFor(p, "no longer takes proposals, so no invitation was sent");
     ok((await sql(`select count(*)::int n from gig_invitations i join gigs g on g.id = i.gig_id where g.request_id = 'cat-gig'`))[0].n === 1, "a closed gig takes no invitation");
-    ok((await fern.getByLabel("Gig to invite Fern Family for").locator("option").allInnerTexts()).join("|") === "Select one of your posted gigs", "the closed gig leaves every card's list");
+    await click(p, "Cancel");
+    await waitFor(p, "You have no posted gig that is open for proposals");
+    ok((await fern.getByLabel("Gig to invite Fern Family for").locator("option").allInnerTexts()).join("|") === "No posted gig is open for proposals", "the closed gig is gone from every card's list");
     t = await text(p);
     ok(await label(p, "Specialty").isDisabled() && await label(p, "Task, case type or software").isDisabled(), "the lower lists wait for the one above them");
     await label(p, SEARCH).fill("chron");
@@ -228,6 +262,7 @@ const SEARCH = "Search roles, specialties, tasks and software";
     if (before) {
       for (const k of Object.keys(before.sw || {})) await sql(`update feature_switches set state = '${before.sw[k]}' where key = '${k}'; select 1`);
       await sql(`update settings set value = '${JSON.stringify(before.li)}'::jsonb where key = 'verify.freelancer_linkedin'; select 1`);
+      await sql(`update settings set value = jsonb_set(value, '{base}', '""') where key = 'profile.avatars'; select 1`);
     }
     await browser.close();
   }

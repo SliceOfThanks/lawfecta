@@ -39,6 +39,12 @@ Also missing everywhere: bookmarks.
 3. **Part 3: the invitation review step and profile pictures.** Mockups 04 and 11. Review page with scope and an optional note; default picture and the ready-made set, shown the same on cards, profile and messages.
 4. **Part 4: contact before a gig.** Mockups 09, 10 and bookmarks. Needs decisions below.
 
+## Built so far
+- **Part 1** (on the site 2026-11-13, commit 0507de6, migration 0104): Talent results and the rules.
+- **Part 2** (commit decc029, migration 0105): the full profile page at /dela?tab=talent&person=ID with tabs Overview, Services, Experience and qualifications, Portfolio, Reviews, Promotions; shown work samples opened through DELA; promotions read from the website's Promotion post type (bd.promotions_data_id, 7). Result cards rearranged to her second mockup (Verified and reviews side by side, "Invite for gig:" inline).
+- **Part 3** (migration 0106): the invitation review step ("Invite NAME to submit a proposal": the gig, its public scope, budget and deadline, an optional note, one "Send invitation to submit a proposal" button, a confirmation with what happens next); ready-made profile pictures (setting profile.avatars, 60 file names, a compact folded group on the Profile page; an uploaded photo comes first; "Use the default picture"); the team's "Check the website's bookmarks" button on the Tech catalog page.
+- **Waiting on Stacey for part 3:** the web address of one avatar file (the folder's address goes into profile.avatars base; until then no picture is offered), and the result of "Check the website's bookmarks" (the website's table is users_favorite; DELA needs to see its fields and be allowed to read and write it before bookmarks can be built).
+
 ## How it could go wrong
 - An attorney invites to a gig that closed a minute ago: the server refuses, the card says so, the gig leaves every list.
 - Two clicks or two tabs: one invitation (the server answers "already invited").
