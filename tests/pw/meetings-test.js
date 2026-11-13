@@ -160,6 +160,16 @@ async function makeMember(bd, side, plan) {
     ok(t.includes("The room opens at") || t.includes("meeting service is connected"), "the page says when the room opens, or that the link comes once the meeting service is connected");
     ok((await sql(`select count(*)::int n from meetings where gig_id = '${gigId}' and status = 'confirmed'`))[0].n === 1, "one meeting booked");
     await p.screenshot({ path: path.join(SHOTS, "meeting-booked.png"), fullPage: true });
+    // Fix (2026-11-13): a VideoSDK room opens inside the page, so shortly BEFORE the start time "Join the meeting" must be
+    // a button too, not a link to nowhere. The meeting is put inside its join window with a ready VideoSDK room, checked, and put back.
+    const was = (await sql(`select id, start_at, end_at from meetings where gig_id = '${gigId}' and status = 'confirmed'`))[0];
+    await sql(`update meetings set provider = 'videosdk', room_status = 'ready', room_ref = 'test-room-0001', room_url_attorney = 'dela:join', room_url_freelancer = 'dela:join', start_at = now() + interval '5 minutes', end_at = now() + interval '35 minutes' where id = '${was.id}'; select 1`);
+    await s.ctx.close();
+    s = await open(browser, "DELA-App", 2700, "&tab=meetings"); p = s.page;
+    await dela(p).getByRole("button", { name: "Join the meeting", exact: true }).waitFor({ timeout: 20000 });
+    ok(await dela(p).getByRole("button", { name: "Join the meeting", exact: true }).count() === 1 && await dela(p).locator('a[href^="dela:"]').count() === 0, "before the start time, Join the meeting is a button that opens the room in the page, not a link");
+    ok((await text(p)).includes("Transcribe this meeting (no video or audio is kept)"), "the meeting card asks about the transcript in the new words");
+    await sql(`update meetings set provider = 'vectera', room_status = 'waiting_for_provider', room_ref = '', room_url_attorney = '', room_url_freelancer = '', start_at = '${was.start_at}', end_at = '${was.end_at}' where id = '${was.id}'; select 1`);
     await s.ctx.close();
 
     // ---------- Freelancer: Inbox, reply, DELA's summary, move the meeting ----------

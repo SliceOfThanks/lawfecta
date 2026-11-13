@@ -6785,8 +6785,14 @@
       h("span", { class: "badge " + (m.status === "confirmed" || m.status === "completed" ? "ready" : m.status === "held" ? "held" : m.status === "canceled" || m.status === "no_show" ? "off" : ""), text: MEET_STATUS[m.status] || m.status })));
     c.appendChild(h("p", { text: whenLabel(m.start_at, m.length_min) + (m.version > 1 ? " | new time" : "") }));
     var started = new Date(m.start_at).getTime() <= Date.now();
+    // Step 25: a room on VideoSDK opens inside this page (join_url is "dela:join"); an older room opens its own link.
+    // The same control before and after the start time.
+    var joinControl = function () {
+      if (String(m.join_url).indexOf("dela:") === 0) { var jb = h("button", { class: "blue", type: "button" }, "Join the meeting"); jb.addEventListener("click", function () { openMeetingRoom(m, jb); }); return jb; }
+      return h("a", { class: "btn blue", href: m.join_url, target: "_blank", rel: "noopener" }, "Join the meeting");
+    };
     if (m.status === "confirmed" && !started) {
-      if (m.join_url) c.appendChild(h("a", { class: "btn blue", href: m.join_url, target: "_blank", rel: "noopener" }, "Join the meeting"));
+      if (m.join_url) c.appendChild(joinControl());
       else if (m.room_status !== "ready") c.appendChild(h("p", { class: "small muted", text: "Meeting room not connected yet. The link appears here once Lawfecta's meeting service is connected, and you both get it before the meeting." }));
       else c.appendChild(h("p", { class: "small muted", text: "The room opens at " + timeLabel(m.join_opens_at) + " on " + dayLabel(m.join_opens_at) + "." }));
       var consent = h("input", { type: "checkbox", checked: m.my_consent });
@@ -6805,11 +6811,7 @@
           api.post("/meetings/cancel", { id: m.id, reason: why }).then(gigOk).then(function (x) { draw(); D.toast(app, x.late ? "Canceled (late)" : "Canceled"); }).catch(talkFail);
         } }, "Cancel")));
     }
-    // Step 25: a room on VideoSDK opens inside this page (join_url is "dela:join"); an older room opens its own link
-    if (m.status === "confirmed" && started && m.join_url) {
-      if (m.join_url.indexOf("dela:") === 0) { var jb = h("button", { class: "blue", type: "button" }, "Join the meeting"); jb.addEventListener("click", function () { openMeetingRoom(m, jb); }); c.appendChild(jb); }
-      else c.appendChild(h("a", { class: "btn blue", href: m.join_url, target: "_blank", rel: "noopener" }, "Join the meeting"));
-    }
+    if (m.status === "confirmed" && started && m.join_url) c.appendChild(joinControl());
     // Step 25 part 2: the transcript of this meeting, for the two people only
     var tr = m.transcript;
     if (tr && tr.status !== "starting" && tr.status !== "running" && tr.status !== "failed") {
