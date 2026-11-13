@@ -2866,7 +2866,7 @@ async function availSave(ctx: Ctx) {
 async function meetingRules(ctx: Ctx) {
   const n = async (k: string, d: number) => Number(await setting(ctx, k, String(d))) || d;
   return { min_notice_hours: await n("meeting.min_notice_hours", 12), buffer_minutes: await n("meeting.buffer_minutes", 15),
-    window_days: await n("meeting.window_days", 21), late_cancel_hours: await n("meeting.late_cancel_hours", 2) };
+    window_days: await n("meeting.window_days", 21), late_cancel_hours: await n("meeting.late_cancel_hours", 2), join_early_minutes: await n("meeting.join_early_minutes", 10) };
 }
 async function withMeetingRules(ctx: Ctx, r: any) {
   if (r && typeof r === "object" && r.ok !== false) r.rules = await meetingRules(ctx);

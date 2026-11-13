@@ -32,6 +32,8 @@ How to read the "State" column:
 | 1.18 | "Report this meeting" reaches the team | The report shows in the admin area with the reason | Not yet | |
 | 1.19 | Home shows the next meeting with "Join the meeting" when the room is open | The card "Your next meeting" on Home, and the button opens the room | Not yet | Released after 2026-11-13. |
 | 1.20 | Notices about an introductory call read naturally | The notice says "A 30-minute introductory call is booked." | Not yet | |
+| 1.21 | "Meetings" in the menu opens the quick view for attorneys and freelancers | The menu item is there on a computer and on a phone, and the page shows "Scheduled" or "Nothing scheduled yet." | Not yet | |
+| 1.22 | "Join the meeting" appears 10 minutes before the start | On a real booked meeting, the button shows at 10 minutes before and not earlier | Not yet | The setting was 15 until 2026-11-13. |
 
 ## 2. Calls before a gig
 

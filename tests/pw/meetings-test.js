@@ -160,6 +160,12 @@ async function makeMember(bd, side, plan) {
     ok(t.includes("The room opens at") || t.includes("meeting service is connected"), "the page says when the room opens, or that the link comes once the meeting service is connected");
     ok((await sql(`select count(*)::int n from meetings where gig_id = '${gigId}' and status = 'confirmed'`))[0].n === 1, "one meeting booked");
     await p.screenshot({ path: path.join(SHOTS, "meeting-booked.png"), fullPage: true });
+    // Stacey 2026-11-13: "Meetings" is in the menu
+    ok(await dela(p).getByRole("button", { name: "Meetings", exact: true }).count() >= 1 || await dela(p).getByRole("tab", { name: /Meetings/ }).count() >= 1, "Meetings is in the menu");
+    // Stacey 2026-11-13: the meetings page is a quick view of what is scheduled, with past and canceled folded away
+    await dela(p).getByRole("button", { name: "← All meetings" }).click().catch(() => {});
+    t = await waitFor(p, "Scheduled (1)", 10000);
+    ok(t.includes("\"Join the meeting\" appears on a meeting 10 minutes before it starts.") && !t.includes("Nothing scheduled yet."), "Your meetings lists what is scheduled and says when Join the meeting appears");
     // Fix (2026-11-13): a VideoSDK room opens inside the page, so shortly BEFORE the start time "Join the meeting" must be
     // a button too, not a link to nowhere. The meeting is put inside its join window with a ready VideoSDK room, checked, and put back.
     const was = (await sql(`select id, start_at, end_at from meetings where gig_id = '${gigId}' and status = 'confirmed'`))[0];

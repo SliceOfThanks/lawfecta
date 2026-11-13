@@ -243,7 +243,7 @@ async function makeMember(bd, side, plan, name) {
     const side = await inShadow(p, (root) => ({ shown: getComputedStyle(root.querySelector(".nl-side")).display !== "none", bar: getComputedStyle(root.querySelector(".nl-bar")).display,
       items: [...root.querySelectorAll(".nl-side .nl-item")].map((b) => b.innerText.trim()), current: root.querySelector(".nl-side [aria-current=page]").innerText.trim(),
       weight: getComputedStyle(root.querySelector(".nl-side [aria-current=page]")).fontWeight, three: [...root.querySelectorAll(".hneed .hrow")].filter((x) => x.offsetParent !== null).length }));
-    ok(side.shown && side.bar === "none" && side.items.filter((x) => x !== "Agency").join(",") === "Home,Work,Ask DELA,Earnings,Profile,Subscription,Settings,Help,Collapse sidebar", "desktop: the sidebar lists the pages in order: " + side.items.join(", "));
+    ok(side.shown && side.bar === "none" && side.items.filter((x) => x !== "Agency" && x !== "Meetings").join(",") === "Home,Work,Ask DELA,Earnings,Profile,Subscription,Settings,Help,Collapse sidebar", "desktop: the sidebar lists the pages in order: " + side.items.join(", "));
     ok(side.current === "Home" && Number(side.weight) >= 700, "desktop: the current page is marked by more than color (bold, with aria-current)");
     ok(side.three === 3, "desktop: the next three requirements show");
     ok(await inShadow(p, (root) => { const b = [...root.querySelectorAll("button.blue")].find((x) => x.innerText.trim() === "Continue setup"); return getComputedStyle(b).backgroundColor; }) === "rgb(139, 33, 70)", "desktop: the main button is burgundy");

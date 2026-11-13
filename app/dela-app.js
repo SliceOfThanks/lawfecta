@@ -25,12 +25,14 @@
       if (sw.playbook_library) a.push(["library", "Library", "▥"]);
       if (sw.file_uploads) a.push(["files", "Files", "▤"]);
       a = a.concat([["projects", "Projects", "▣"], ["talent", "Talent", "◌"]]);
+      if (sw.meetings) a.push(["meetings", "Meetings", "◷"]);
       if (sw.guided_setup) a.push(["setup", "Get set up", "✓"]);
       return a;
     }
     var f = [["home", "Home", "⌂"]];
     if (sw.ai_generation) f.push(["ask", "Ask DELA", "✦"]);
     f = f.concat([["profile", "Profile", "☺"], ["work", "Work", "▣"], ["earnings", "Earnings", "$"]]);
+    if (sw.meetings) f.push(["meetings", "Meetings", "◷"]);
     if (sw.agency_team) f.push(["agency", "Agency", "◆"]);
     // An agency that hires (Step 7d part 2c): its own Library, Projects and Talent, as an attorney has
     if (me.agency_client) {
@@ -155,6 +157,7 @@
   function daysWords(d) { return d % 7 === 0 ? plural(d / 7, "week") : plural(d, "day"); }
   function setName() { return NL() ? "Settings" : "AI settings"; }
   var ICONS = {
+    meet: [["path", "M4 6h16v14H4z"], ["path", "M4 10h16"], ["path", "M8 3v5"], ["path", "M16 3v5"], ["path", "M12 13v3l2 1"]],
     plan: [["path", "M3 6h18v12H3z"], ["path", "M3 10h18"], ["path", "M7 15h4"]],
     home: [["path", "M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"]],
     work: [["path", "M3 8h18v11H3z"], ["path", "M9 8V5h6v3"]],
@@ -192,7 +195,7 @@
     });
     return svg;
   }
-  var ICON_FOR = { home: "home", delegate: "ask", ask: "ask", library: "library", files: "files", projects: "projects", talent: "talent", setup: "check", profile: "profile", work: "work", earnings: "earnings", agency: "agency", ai: "settings", help: "help", subscription: "plan" };
+  var ICON_FOR = { home: "home", delegate: "ask", ask: "ask", library: "library", files: "files", projects: "projects", talent: "talent", setup: "check", profile: "profile", work: "work", earnings: "earnings", agency: "agency", ai: "settings", help: "help", subscription: "plan", meetings: "meet" };
   var PAGE_NAMES = { subscription: "Subscription", inbox: "Inbox", meetings: "Meetings", usage: "Usage", connect: "Connect", record: "Record a process", ai: "Settings", help: "Help", profile: "Profile" };
   var WORKSPACE = { attorney: "Attorney workspace", freelancer: "Freelancer workspace" };
   // "Get set up" leaves the attorney's menu once it is finished or dismissed (Stacey 2026-11-11); it stays reachable from Help
@@ -208,7 +211,7 @@
       api.get("/setup").then(function (r) { if (r && (r.finished || r.dismissed)) { setupDone = true; if (tab !== "setup") draw(); } }).catch(function () {});
     }
     var main = att ? pick(["home", "projects", "delegate", "library"]) : pick(["home", "work", "ask", "earnings"]);
-    var second = att ? pick(["talent", "files"].concat(setupDone ? [] : ["setup"])) : pick(["library", "projects", "talent"]);
+    var second = att ? pick(["talent", "meetings", "files"].concat(setupDone ? [] : ["setup"])) : pick(["meetings", "library", "projects", "talent"]);
     while (main.length < 4 && second.length) main.push(second.shift());
     var account = [];
     if (sw.profiles) account.push(["profile", "Profile"]);
@@ -220,7 +223,7 @@
     var all = g.main.concat(g.second, g.account, g.foot), hit = all.filter(function (t) { return t[0] === tab; })[0];
     return hit ? hit[1] : PAGE_NAMES[tab] || "DELA";
   }
-  function goTab(key) { closeMore(); tab = key; if (key === "inbox") talk.thread = null; draw(); }
+  function goTab(key) { closeMore(); tab = key; if (key === "inbox") talk.thread = null; if (key === "meetings") talk.meeting = null; draw(); }
   function navItem(t, folded) {
     return h("button", { class: "nl-item", type: "button", "aria-current": t[0] === tab ? "page" : null, "aria-label": folded ? t[1] : null, "data-tip": t[1], onclick: function () { goTab(t[0]); } },
       icon(ICON_FOR[t[0]] || "chev"), h("span", { class: "lbl", text: t[1] }));
@@ -6786,15 +6789,38 @@
   }
 
   // Meetings: upcoming and past, the join link near the time, consent, the calendar file, reschedule, cancel and the follow-up
+  // Stacey 2026-11-13: "Meetings" is in the menu for attorneys and freelancers. The page is a quick view: what is
+  // scheduled, each with its buttons and "Join the meeting" from N minutes before (setting meeting.join_early_minutes),
+  // or a plain line that nothing is scheduled yet; past and canceled meetings are folded under it.
   function meetingsView() {
     var el = h("div", null, h("h1", { text: "Your meetings" }), h("p", { class: "muted", text: "Loading..." }));
     api.get("/meetings" + (talk.meeting ? "?id=" + talk.meeting : "")).then(function (r) {
       D.clear(el);
       el.appendChild(h("div", { class: "row" }, h("h1", { class: "grow", text: talk.meeting ? "Meeting" : "Your meetings" }),
-        h("button", { class: "ghost small", onclick: function () { if (talk.meeting) { talk.meeting = null; draw(); } else { tab = "inbox"; draw(); } } }, talk.meeting ? "← All meetings" : "← Inbox")));
+        talk.meeting ? h("button", { class: "ghost small", onclick: function () { talk.meeting = null; draw(); } }, "← All meetings") : h("button", { class: "ghost small", onclick: function () { tab = "inbox"; talk.thread = null; draw(); } }, "Inbox")));
       if (!r.on) { el.appendChild(h("p", { class: "notice", text: TALK_ERR.meetings_off })); return; }
-      if (!r.meetings.length) el.appendChild(h("p", { class: "muted", text: "No meetings yet. Book one from a conversation or a gig." }));
-      r.meetings.forEach(function (m) { el.appendChild(meetingCard(el, m, r.confirm_hours)); });
+      if (talk.meeting) {
+        if (!r.meetings.length) el.appendChild(h("p", { class: "muted", text: "This meeting is no longer listed." }));
+        r.meetings.forEach(function (m) { el.appendChild(meetingCard(el, m, r.confirm_hours)); });
+        return;
+      }
+      var now = Date.now(), early = (r.rules || {}).join_early_minutes || 10;
+      var upcoming = r.meetings.filter(function (m) { return (m.status === "confirmed" || m.status === "held") && new Date(m.end_at).getTime() > now; });
+      var past = r.meetings.filter(function (m) { return upcoming.indexOf(m) < 0; }).reverse();
+      el.appendChild(h("p", { class: "muted", id: "meetings-intro", text: "Times are in your time zone (" + tzName() + "). \"Join the meeting\" appears on a meeting " + early + " minutes before it starts." }));
+      el.appendChild(h("h2", { id: "meetings-upcoming", style: "margin:14px 0 6px", text: "Scheduled (" + upcoming.length + ")" }));
+      if (!upcoming.length) {
+        el.appendChild(h("div", { class: "card", id: "meetings-none" }, h("p", { style: "margin:0 0 6px;font-weight:700", text: "Nothing scheduled yet." }),
+          h("p", { class: "small muted", style: "margin:0 0 8px", text: me.side === "attorney" ? "Book an introductory call from a freelancer's profile in Talent, or a meeting from a gig's conversation." : "Attorneys book meetings and introductory calls with you from your open times. Set them on your Profile, in the card \"Your availability for meetings\"." }),
+          me.side === "attorney" && (me.switches || {}).talent_search !== false ? h("button", { class: "blue small", type: "button", onclick: function () { goTab("talent"); } }, "Find a freelancer in Talent")
+            : (me.switches || {}).profiles ? h("button", { class: "ghost small", type: "button", onclick: function () { goTab("profile"); } }, "Open my Profile") : null));
+      }
+      upcoming.forEach(function (m) { el.appendChild(meetingCard(el, m, r.confirm_hours)); });
+      if (past.length) {
+        var fold = h("details", { id: "meetings-past", style: "margin-top:16px" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "Past and canceled (" + past.length + ")" }));
+        past.forEach(function (m) { fold.appendChild(meetingCard(el, m, r.confirm_hours)); });
+        el.appendChild(fold);
+      }
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     return el;
   }
