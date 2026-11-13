@@ -198,6 +198,8 @@ const deps = {
     // The Lawfecta listing (BD API): reads give a sample listing, updates are recorded for the test
     if (u.includes("/api/v2/user/get/")) return Response.json({ status: "success", message: [{ user_id: Number(u.split("/").pop()), first_name: "Lia", last_name: "Listing", company: "Listing Law", city: "Dallas", state_code: "TX", website: "listinglaw.com", about_me: "From the directory.", image_main_file: "/pictures/lia.jpg", card_info: "4111111111111111" }] });
     if (u.endsWith("/api/v2/user/update")) { lastBdUpdate = String(opts.body ?? ""); return Response.json({ status: "success", message: {} }); }
+    // The website's billing (step 19): no test member has a billing account, which BD answers this way
+    if (u.endsWith("/api/v2/user/transactions")) return Response.json({ status: "error", message: "user_id or client_id is required" }, { status: 400 });
     // The website's bookmark table (step 18, bookmarks): kept in memory for the run
     if (u.includes("/api/v2/users_favorite/")) {
       const uu = new URL(u), form = new URLSearchParams(String(opts.body ?? ""));
