@@ -160,7 +160,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
     Do: click "Back to Talent search".
 
 23. Do: click "View profile" on the DELA Test Freelancer card, then click "Send message" at the right of the header.
-    Expect: a conversation page with the heading "DELA Test Freelancer" and the sentence "A conversation before any gig. Messages and an introductory call only: files come with a gig. Nobody is hired here." Buttons "View profile", "Create a gig for DELA Test Freelancer" and "Book a call". There is no button "Book a meeting" and no button "Open the gig". Do not type or send a message, and do not click "Book a call".
+    Expect: a conversation page with the heading "DELA Test Freelancer" and the sentence "A conversation before any gig. Messages and an introductory call only: files come with a gig. Nobody is hired here." Buttons "View profile" and "Create a gig for DELA Test Freelancer". Then ONE of these two, and write which you saw: a button "Book a call", or a green-edged line that starts "An introductory call is booked for" with "Open the meeting" (a call is already booked with this freelancer, so no second one is offered). There is no button "Book a meeting" and no button "Open the gig". Do not type or send a message, and do not click "Book a call".
     Do: click "Create a gig for DELA Test Freelancer".
     Expect: the Projects page with a notice near the top: "You are creating a gig for DELA Test Freelancer. Post it, and the invitation to DELA Test Freelancer opens next." and the link "Not for a specific freelancer". Do NOT post a gig.
     Do: click "Not for a specific freelancer".
