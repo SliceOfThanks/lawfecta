@@ -6851,6 +6851,10 @@
     };
     if (m.status === "confirmed" && !started) {
       if (m.join_url) c.appendChild(joinControl());
+      // Fix (ChatGPT check 3, 2026-11-13): right after booking the room is still being made (about a minute). The card said
+      // "Meeting room not connected yet", which read as if the meeting service was missing. That text is now kept for the
+      // case where the service really is not connected.
+      else if (m.room_status === "pending") c.appendChild(h("p", { class: "small muted", id: "room-setting-up", text: "Your meeting room is being set up. This takes about a minute. \"Join the meeting\" appears here shortly before the meeting starts." }));
       else if (m.room_status !== "ready") c.appendChild(h("p", { class: "small muted", text: "Meeting room not connected yet. The link appears here once Lawfecta's meeting service is connected, and you both get it before the meeting." }));
       else c.appendChild(h("p", { class: "small muted", text: "The room opens at " + timeLabel(m.join_opens_at) + " on " + dayLabel(m.join_opens_at) + "." }));
       var consent = h("input", { type: "checkbox", checked: m.my_consent });

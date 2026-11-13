@@ -157,7 +157,16 @@ async function makeMember(bd, side, plan) {
     await click(p, "Review booking");
     t = await waitFor(p, "Your meetings", 10000).catch(() => text(p));
     t = await waitFor(p, "Time confirmed", 10000);
-    ok(t.includes("The room opens at") || t.includes("meeting service is connected"), "the page says when the room opens, or that the link comes once the meeting service is connected");
+    // Fix (ChatGPT check 3, 2026-11-13): a room that is still being made says so; "not connected yet" is only for a
+    // meeting service that really is not connected
+    ok(t.includes("The room opens at") || t.includes("meeting service is connected") || t.includes("Your meeting room is being set up"), "the page says when the room opens, that it is being set up, or that the link comes once the meeting service is connected");
+    const roomWas = (await sql(`select room_status from meetings where gig_id = '${gigId}' and status = 'confirmed'`))[0].room_status;
+    await sql(`update meetings set room_status = 'pending' where gig_id = '${gigId}' and status = 'confirmed'; select 1`);
+    const s2 = await open(browser, "DELA-App", 2700, "&tab=meetings");
+    const t2 = await waitFor(s2.page, "Your meeting room is being set up", 10000);
+    ok(!t2.includes("Meeting room not connected yet"), "a room that is being made does not say the meeting service is not connected");
+    await s2.ctx.close();
+    await sql(`update meetings set room_status = '${roomWas}' where gig_id = '${gigId}' and status = 'confirmed'; select 1`);
     ok((await sql(`select count(*)::int n from meetings where gig_id = '${gigId}' and status = 'confirmed'`))[0].n === 1, "one meeting booked");
     await p.screenshot({ path: path.join(SHOTS, "meeting-booked.png"), fullPage: true });
     // Stacey 2026-11-13: "Meetings" is in the menu

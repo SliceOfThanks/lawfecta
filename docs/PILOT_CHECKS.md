@@ -40,7 +40,7 @@ How to read the "State" column:
 
 | # | What must be seen working | How we will know | State | Notes |
 |---|---|---|---|---|
-| 2.1 | An attorney books an introductory call from a freelancer's profile | The call shows in "Your meetings" for both, named "Introductory call" | Part, 2026-11-13 | Made on the server for the test accounts. Not yet booked by a person in the browser. |
+| 2.1 | An attorney books an introductory call from a freelancer's profile | The call shows in "Your meetings" for both, named "Introductory call" | Confirmed 2026-11-13 | ChatGPT check 3 booked a call with sample freelancer Hannah Kim from her profile (Nov 16, 3:15 PM Pacific); the room became "Ready". Seen from the attorney's side only: Hannah is a sample account. |
 | 2.2 | The freelancer is told and can move or cancel it | Notice and email arrive; "Change the time" and "Cancel" work from the freelancer's side | Not yet | |
 | 2.3 | The call leads to a gig | "Create a gig for NAME" on the meeting card ends with an invitation to that freelancer | Not yet | |
 
@@ -48,8 +48,8 @@ How to read the "State" column:
 
 | # | What must be seen working | How we will know | State | Notes |
 |---|---|---|---|---|
-| 3.1 | The Talent page in the mockup 02 layout looks right in a browser | Stacey's look and the Talent ChatGPT check (number 1) | Not yet | Checks are waiting in her folder. |
-| 3.2 | Bookmarks are saved in the website's own bookmark system | "★ Bookmarked" on a profile, and the admin button "Check the website's bookmarks" answers "The website answered." | Not yet | Depends on a permission of the website's API key. |
+| 3.1 | The Talent page in the mockup 02 layout looks right in a browser | Stacey's look and the Talent ChatGPT check (number 1) | Part, 2026-11-13 | ChatGPT check 1: 25 of 26 steps passed. Step 14 reported the heading "DELA suggested filters" and its sentence missing, which the automated test does see; not yet looked at by a person. Stacey's own look is still open. |
+| 3.2 | Bookmarks are saved in the website's own bookmark system | "★ Bookmarked" on a profile, and the admin button "Check the website's bookmarks" answers "The website answered." | Part, 2026-11-13 | ChatGPT check 1: bookmark, the Bookmarked-only filter and removal worked in DELA, and the website answered. Left to see: DELA writes "checked 1" and the one website row read had "checked 0". Nobody has yet looked at whether a DELA bookmark shows in the member's own bookmark list on the website. |
 | 3.3 | Promotions from the website show on a profile | A member's live Promotion post shows under "Services" | Not yet | No real member has a promotion yet. |
 | 3.4 | A real freelancer becomes match-ready through the real steps | Profile filled, LinkedIn check passed by the team, availability confirmed, then listed in Talent | Not yet | The listed freelancers today are test and sample accounts. |
 | 3.5 | A firm logo upload works and freelancers see it | The logo shows in "Firm details" and on the freelancer's gig page, conversation and engagement | Not yet | By hand: an agent cannot choose a file. |
@@ -63,7 +63,7 @@ How to read the "State" column:
 | 4.1 | The first real payment | One payment in DELA, its ledger lines, and one Stripe event with a verified signature, all matching Stripe | Not yet | Stacey skipped real test payments on 2026-11-12. Tell Claude "The first real payment happened". |
 | 4.2 | The first real payout to a freelancer | The payout in DELA matches Stripe and reaches the bank | Not yet | |
 | 4.3 | A refund or a dispute with real money | The amounts in DELA match Stripe | Not yet | |
-| 4.4 | The Subscription page shows a paid member's real billing | A member with a paid website membership sees the amount, the cycle and the next date | Not yet | Only "No paid membership on record" has been seen. |
+| 4.4 | The Subscription page shows a paid member's real billing | A member with a paid website membership sees the amount, the cycle and the next date | Not yet | Only "No paid membership on record" has been seen (again in ChatGPT check 2, 2026-11-13, 10 of 10 steps passed). |
 | 4.5 | The Pro trial ends and the plan changes on the website | A real trial ends and the member's plan is right in DELA and on the website | Not yet | Built against a stand-in for the website; needs Stacey's check first. |
 
 ## 5. Accounts and access
