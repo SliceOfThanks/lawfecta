@@ -47,7 +47,7 @@ HOW TO WORK (read this first; it saves time and credits)
 Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
 1. Go to: https://www.lawfecta.co/dela?tab=meetings
-   Find: the page "Your meetings", then the card whose heading ends with "Introductory call". Its heading starts with "Example Lantern Legal".
+   Find: the page "Your meetings". Near the top, under the small heading that starts with "Scheduled (", find the card whose heading ends with "Introductory call". Its heading starts with "Example Lantern Legal".
    Expect: at the left of the heading a small round picture or a small round circle with a letter; the status "Time confirmed"; the sentence "An introductory call before any gig. Nobody is hired by it."; a dark red button "Join the meeting"; a button "Open the conversation"; a line "Attendance:"; a box that asks "Did the meeting happen?" (leave it alone); and a small link "Report this meeting" (it may be missing until the next release; write whether you see it, and do not click it). There is no button named "Create a gig for".
 
 2. Find: the dark red button "Join the meeting" on that card.
