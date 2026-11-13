@@ -51,8 +51,10 @@ const SEARCH = "Search roles, specialties, tasks and software";
 
 (async () => {
   const browser = await chromium.launch();
-  let s, p, t;
+  let s, p, t, before = null;
   try {
+    // The suites after this one share the database: remember what this suite changes and put it back at the end
+    before = (await sql("select (select jsonb_object_agg(key, state) from feature_switches where key in ('flex_gigs', 'profiles', 'talent_search', 'new_layout')) sw, (select value from settings where key = 'verify.freelancer_linkedin') li"))[0];
     await sql("update feature_switches set state = 'everyone' where key in ('flex_gigs', 'profiles', 'talent_search', 'new_layout'); update settings set value = 'false' where key = 'verify.freelancer_linkedin'; select 1");
     await sql(`insert into people (bd_member_id, display_name, email) values (${ATT}, 'Cara Category', '${ATT}@test.invalid'), (${FL}, 'Nia Nurse', '${FL}@test.invalid'),
         (${FL2}, 'Fern Family', '${FL2}@test.invalid'), (${FL3}, 'Pat Picker', '${FL3}@test.invalid'), (${TEAM}, 'Theo Team', '${TEAM}@test.invalid') on conflict (bd_member_id) do nothing;
@@ -145,6 +147,10 @@ const SEARCH = "Search roles, specialties, tasks and software";
 
     console.log(`\n${passed} checks passed`);
   } finally {
+    if (before) {
+      for (const k of Object.keys(before.sw || {})) await sql(`update feature_switches set state = '${before.sw[k]}' where key = '${k}'; select 1`);
+      await sql(`update settings set value = '${JSON.stringify(before.li)}'::jsonb where key = 'verify.freelancer_linkedin'; select 1`);
+    }
     await browser.close();
   }
 })().catch((e) => { console.error(e); process.exit(1); });
