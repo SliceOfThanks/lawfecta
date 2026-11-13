@@ -454,7 +454,9 @@
 
   function nav() {
     if (!me.side) return null;
-    var list = tabsFor();
+    // The old bottom bar (switch new_layout off) keeps the items it had: "Meetings" is a menu item of the new layout only,
+    // because an eighth item does not fit a narrow phone. The old layout reaches meetings from "Your meetings" in the Inbox.
+    var list = tabsFor().filter(function (t) { return t[0] !== "meetings"; });
     var n = h("nav", { class: "nav" + (list.length > 7 ? " many" : ""), "aria-label": "DELA sections" });
     list.forEach(function (t) {
       n.appendChild(h("button", { "aria-current": t[0] === tab ? "page" : null, onclick: function () { tab = t[0]; draw(); } }, h("i", { "aria-hidden": "true", text: t[2] }), t[1]));

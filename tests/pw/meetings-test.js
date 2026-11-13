@@ -161,7 +161,9 @@ async function makeMember(bd, side, plan) {
     ok((await sql(`select count(*)::int n from meetings where gig_id = '${gigId}' and status = 'confirmed'`))[0].n === 1, "one meeting booked");
     await p.screenshot({ path: path.join(SHOTS, "meeting-booked.png"), fullPage: true });
     // Stacey 2026-11-13: "Meetings" is in the menu
-    ok(await dela(p).getByRole("button", { name: "Meetings", exact: true }).count() >= 1 || await dela(p).getByRole("tab", { name: /Meetings/ }).count() >= 1, "Meetings is in the menu");
+    // (the menu of the new layout; the old bottom bar keeps its seven items and has no room for it)
+    const menuNow = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; return { nl: r.querySelector(".dela").classList.contains("nl"), has: [...r.querySelectorAll(".nl-side button, .nav button")].some((b) => b.textContent.includes("Meetings")) }; });
+    ok(menuNow.nl ? menuNow.has : !menuNow.has, "Meetings is in the menu of the new layout, and not in the old bottom bar (new layout: " + menuNow.nl + ")");
     // Stacey 2026-11-13: the meetings page is a quick view of what is scheduled, with past and canceled folded away
     await dela(p).getByRole("button", { name: "← All meetings" }).click().catch(() => {});
     t = await waitFor(p, "Scheduled (1)", 10000);
