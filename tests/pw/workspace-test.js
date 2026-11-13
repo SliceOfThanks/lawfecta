@@ -151,6 +151,10 @@ async function makeMember(bd, side, plan, name) {
     await p.evaluate(() => window.scrollTo(0, document.documentElement.scrollHeight));
     await p.waitForTimeout(200);
     ok(await inShadow(p, (root) => { const last = [...root.querySelectorAll(".nl-main .wrap > *")].pop().getBoundingClientRect(); return last.bottom <= root.querySelector(".nl-bar").getBoundingClientRect().top + 1; }), "phone: the last thing on the page is above the bottom bar");
+    // Fix (2026-11-13): the heading band of every card is the new #EAF1F8 in the light look (it stayed pink at first,
+    // because a later rule set the band color back)
+    const band = await p.evaluate(() => getComputedStyle(document.querySelector(".dela-host").shadowRoot.querySelector(".dela")).getPropertyValue("--head").trim().toLowerCase());
+    ok(band === "#eaf1f8", "the heading band of a card is #EAF1F8 in the light look: " + band);
     for (const w of [320, 375, 414, 768]) { await p.setViewportSize({ width: w, height: 844 }); await p.waitForTimeout(200); ok(await fits(p), "no sideways scrolling at " + w + " pixels"); }
     // Stacey 2026-11-12: the bar stays on the bottom edge of the window at every scroll position, on a long page, at
     // every phone width and in landscape; More keeps the place

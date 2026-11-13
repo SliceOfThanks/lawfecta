@@ -677,7 +677,7 @@ D.openTab = function (getUrl, onFail, opts) {
     // Card headings sit on their own tinted band, edge to edge, so a heading is easy to tell from the content under it
     // (Stacey 2026-11-13). The band is the card's first heading, or the first row that holds it.
     ".dela.nl .card>h2:first-child,.dela.nl .card>.hhead:first-child,.dela.nl .card>.row:first-child:has(>h2),.dela.nl .card>.row:first-child:has(>h3){margin:-14px -16px 12px;padding:10px 16px;background:var(--head);border-bottom:1px solid var(--line);border-radius:11px 11px 0 0}" +
-    ".dela.nl .card>.hhead:first-child h2,.dela.nl .card>.row:first-child:has(>h2) h2{margin:0}.dela{--head:var(--pink)}" +
+    ".dela.nl .card>.hhead:first-child h2,.dela.nl .card>.row:first-child:has(>h2) h2{margin:0}" +
     "@media (min-width:900px){.dela.nl .card>h2:first-child,.dela.nl .card>.hhead:first-child,.dela.nl .card>.row:first-child:has(>h2),.dela.nl .card>.row:first-child:has(>h3){margin:-18px -20px 14px;padding:11px 20px}}" +
     // The admin area in the compact workspace: groups in the sidebar, the account button, the "Menu" sheet on a phone
     ".aside-slot{display:none}.anav .nl-items{display:flex;flex-direction:column;gap:2px}.anav .nl-items[hidden]{display:none}.anav .nl-item{min-height:40px}" +
