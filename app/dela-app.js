@@ -2917,6 +2917,8 @@
       h("span", { class: "badge " + (P.status === "approved" ? "ready" : P.status === "in_review" ? "held" : ""), text: PB_STATUS[P.status] })));
     libEl.appendChild(h("p", { class: "small muted", text: "Version " + P.version + (P.approved_version ? " | last approved: version " + P.approved_version : "") + " | administrator: " + P.administrator +
       (P.next_review_at ? " | next review " + D.date(P.next_review_at) : "") + " | your role: " + ROLE_WORDS[lib.pb.role] }));
+    // Step 18 part 4: the freelancers who fit this document (older documents are drawn here, the document standard in drawDocument)
+    if ((me.switches || {}).talent_search && canHire() && lib.view !== "edit") libEl.appendChild(fitsCard(P.id));
     var pctBar = h("div", { class: "card" },
       h("div", { class: "row" }, h("b", { class: "grow", text: "Complete: " + P.completeness + "%" }),
         can(3) && P.status === "draft" ? h("button", { class: "ghost small", onclick: function () { status("submit", "Sent to the administrator for review"); } }, "Send for review") : null,

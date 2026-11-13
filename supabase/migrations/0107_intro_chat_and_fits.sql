@@ -105,7 +105,9 @@ begin
   select body into b from playbook_versions where playbook_id = pb.id and version = coalesce(pb.approved_version, pb.current_version);
   v_area := coalesce(nullif(b->>'practice_area', ''), pb.practice_area, '');
   v_state := upper(coalesce(substring(coalesce(b->>'jurisdiction', '') from '\(([A-Za-z]{2})\)'), ''));
-  v_tools := array(select distinct lower(s->>'tool') from jsonb_array_elements(case when jsonb_typeof(b->'steps') = 'array' then b->'steps' else '[]' end) s where coalesce(s->>'tool', '') <> '');
+  -- A step names its tool as "tool" (older documents) or "system" (the document standard)
+  v_tools := array(select distinct lower(coalesce(nullif(s->>'tool', ''), s->>'system')) from jsonb_array_elements(case when jsonb_typeof(b->'steps') = 'array' then b->'steps' else '[]' end) s
+    where coalesce(nullif(s->>'tool', ''), s->>'system', '') <> '');
   return jsonb_build_object('ok', true, 'on', true, 'practice_area', v_area, 'people', (select coalesce(jsonb_agg(x.j order by x.fit desc, x.boost desc), '[]') from (
     select c.fit, c.boost, jsonb_build_object('person_id', c.person_id, 'name', c.name, 'headline', c.headline, 'reasons', to_jsonb(c.reasons), 'fit', case when c.fit >= dela_int_setting('matching.good_fit', 60) then 'Good fit' else 'Fair fit' end,
       'photo_file', c.photo_file, 'avatar', c.avatar, 'verification', c.verification, 'reviews', dela_review_summary(c.person_id, 'freelancer'), 'capacity_hours_week', c.cap, 'timezone', c.tz) j
