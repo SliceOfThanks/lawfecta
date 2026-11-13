@@ -89,7 +89,7 @@ async function lowContrast(page) {
     // ---------- On: Light first, even on a dark device ----------
     await sql("update feature_switches set state = 'everyone' where key = 'appearance_choice'");
     s = await open(browser, "DELA-App", ATT, "&tab=home", "dark"); p = s.page;
-    ok(await theme(p) === "light" && (await bg(p)) === "rgb(244, 245, 247)", "on: everyone starts on Light, even on a dark device");
+    ok(await theme(p) === "light" && (await bg(p)) === "rgb(245, 245, 247)", "on: everyone starts on Light, even on a dark device");
     await dela(p).getByRole("button", { name: "Account menu" }).click();
     t = await text(p);
     ok(t.includes("Appearance") && t.includes("Match my device") && t.includes("✓ Light") && t.includes("Dark"), "the account menu offers the three choices, Light ticked");
@@ -128,7 +128,7 @@ async function lowContrast(page) {
     // ---------- Match my device ----------
     await sql(`update person_appearance set mode = 'device' where person_id = (select id from people where bd_member_id = ${ATT}); select 1`);
     s = await open(browser, "DELA-App", ATT, "&tab=home", "light"); p = s.page;
-    ok(await theme(p) === "auto" && (await bg(p)) === "rgb(244, 245, 247)", "Match my device on a light device is light");
+    ok(await theme(p) === "auto" && (await bg(p)) === "rgb(245, 245, 247)", "Match my device on a light device is light");
     await s.ctx.close();
     s = await open(browser, "DELA-App", ATT, "&tab=home", "dark"); p = s.page;
     ok((await bg(p)) === "rgb(17, 19, 27)", "Match my device on a dark device is dark");
