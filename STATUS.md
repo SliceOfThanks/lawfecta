@@ -4,6 +4,14 @@ Starting a new session? Read docs/SESSION_HANDOFF.md first (written 2026-11-12, 
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Talent "Load more" and the match-ready progress card (step 20): ON THE SITE (2026-11-13)
+- Site: code_version 7e5a98f, api function version 112, migrations through 0110, health "ok". GitHub Tests passed on that commit (run 43436863240).
+- Talent with no filters lists every match-ready freelancer, 10 at a time (setting talent.page_size), with "Load more freelancers" on the same screen and "Showing X of N freelancers". Sort by name, reviews or hours.
+- Freelancer Home shows one progress card, "Match-ready: X of Y steps done", in three groups: the profile, the Lawfecta Team's check, availability. Brief with open decisions: docs/briefs/step-20-match-ready.md.
+- Sample freelancers: Stacey's five website members (697 Maria Delgado, 698 Denise Carter, 699 Jordan Pierce, 700 Priya Nair, 701 Marcus Bell) were set up as match-ready demo profiles with tools/demo_freelancers.sql. Each summary starts "Sample profile for testing." They show as "Verified" without a real check. Talent for the test attorney now returns 6 freelancers (checked in the database). Their availability lapses after 14 days; run the file again to renew. Take them out before real members arrive with tools/demo_freelancers_remove.sql (closes their freelancer side, deletes nothing).
+- The Talent journey ChatGPT prompt was written before the samples; counts in a report will include them.
+- Verified on the server only; nobody has looked at these screens on the site in a browser.
+
 ## The Subscription page, redesigned (step 19): ON THE SITE (2026-11-13, 04:53 UTC)
 - Site: code_version a716cca, api function version 111, migrations through 0109, health "ok". GitHub Tests passed on that commit (run 43367206331), including the automated accessibility rules (axe-core 4.10.2, WCAG 2.2 A and AA) on the four areas and the plan change review, the keyboard checks and a 320 wide phone.
 - Brief with the audit and three open decisions: docs/briefs/step-19-subscription-redesign.md. On the site: tabs My Subscription, Usage & Limits, Compare Plans, Billing & History; published price apart from what the member is billed (read from the website's billing for the member's own account, GET /subscription/billing); usage with remaining, reset date and what happens at each limit; no export limit shown while exports are not counted; Monthly/Annual and a full comparison table; a review before a plan change, then the website in a new tab.
