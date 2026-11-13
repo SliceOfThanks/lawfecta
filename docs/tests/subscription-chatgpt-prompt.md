@@ -1,20 +1,20 @@
-# ChatGPT test: the Subscription page (step 16, 2026-11-12)
+# ChatGPT test: the Subscription page, redesigned (step 19, 2026-11-12)
 
-Looking only: nothing is signed, paid, sent or changed. Two logins (freelancer, then attorney), 10 steps. Every step opens the page by its link, so it works on a narrow window too (first run, 2026-11-12: the window was 810 wide, the menu sat at the bottom and five steps could not start). The limit banner is not part of this test: the test accounts are far below their limits, so it does not show. Claude's browser test (tests/pw/workspace-test.js) covers the banner.
+Replaces the step 16 check. Looking only: nothing is paid, changed or saved. Two logins (freelancer, then attorney), 10 steps. Every step opens the page by its link, so a narrow window works too; on a narrow window the four tabs read "Plan", "Usage", "Compare" and "Billing" instead of their full names.
 
-What is on the site: the test freelancer (BD 688) is on Freelancer Business and the test attorney (BD 687) on Attorney Pro, both set by the Lawfecta Team, so both pages show the badge "Set by the Lawfecta Team". Freelancer Business (agency) is the top plan, so the freelancer sees only "Downgrade to" buttons.
+What is on the site (checked 2026-11-12): the test freelancer (BD 688) is on Freelancer Business (agency) and the test attorney (BD 687) on Attorney Pro, both set by the Lawfecta Team. Neither has a paid membership or an invoice on the website, so billing reads "No paid membership on record" and no renewal date is shown. That is the correct result.
 
 Before you paste this:
-1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD.
-2. Each time ChatGPT reaches the login page: click "Take over", log in with the account it names, hand control back and type: I'm logged in, continue.
-3. A wide browser window is best, but a narrow one works.
+1. Run it only after Claude says the Subscription redesign is on the site.
+2. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD.
+3. Each time ChatGPT reaches the login page: click "Take over", log in with the account it names, hand control back and type: I'm logged in, continue.
 4. Don't use www.lawfecta.co in other tabs while it runs.
 
 Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are checking the Subscription page of DELA on the Lawfecta site, www.lawfecta.co. You only look and click the things named. Do not sign, pay, send or save anything. On the Lawfecta website's upgrade page, do not choose a plan and do not click anything. Do only what the steps say.
+You are checking the Subscription page of DELA on the Lawfecta site, www.lawfecta.co. You only look and click the things named. Do not pay, sign, send or save anything. On the Lawfecta website's upgrade page, do not choose a plan and do not click anything. Do only what the steps say.
 
 Logins (I log in for you each time):
 - test freelancer: stacey+dela-freelancer@lawfecta.com, password TEST_PASSWORD
@@ -43,21 +43,21 @@ HOW TO WORK (read this first; it saves time and credits)
 Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
 1. Go to: https://www.lawfecta.co/dela?tab=subscription
-   Expect: the page heading "Subscription". On a wide window, "Subscription" in the left menu is pink and sits right under "Profile". On a narrow window there is no left menu; a bar at the bottom of the page has "More" marked instead. Either one is a PASS.
+   Find: under the heading "Subscription", a row of four tabs, then a pink card.
+   Expect: the tabs "My Subscription", "Usage & Limits", "Compare Plans" and "Billing & History" (on a narrow window: "Plan", "Usage", "Compare", "Billing"). The first is marked as chosen. The pink card says "YOUR CURRENT PLAN", then "Freelancer Business (agency)" with the labels "✓ Current plan" and "Set by the Lawfecta Team".
 
-2. Find: the first card, titled "Your current plan: Freelancer Business (agency)", at the top of the page.
-   Expect: a small badge "Set by the Lawfecta Team" at the right of that heading; under it a line with a price and "Platform fee on jobs:" followed by a percentage.
+2. Find: in the same pink card, four rows.
+   Expect: "Published price" with a price; "Platform fee on jobs" with a percentage; "What you are billed" with "No paid membership on record"; "Next renewal" with "No renewal date on record". No date and no amount is shown for billing. Under the rows a notice that starts "The Lawfecta Team set this plan on your DELA account." and two buttons: "Manage subscription on the Lawfecta website" and "View billing history".
 
-3. Find: in the same card, the heading "Your usage" (middle of the card), then "What your plan allows" below it.
-   Expect: under "Your usage" either one or more lines, each with a name, "X of Y" and a bar, or the line "Nothing on your plan is counted against a limit."; then a grey line starting "Monthly limits start again on" with a date. Under "What your plan allows" a table with the columns "What you get" and "Your plan allows". No row in that table says "of" (for example "50 of 50 available").
+3. Find: the row of tabs.
+   Do: click "Compare Plans" (or "Compare").
+   Expect: a card "Compare freelancer plans" with a small choice "Monthly" / "Annual" and four plan boxes "Free", "Plus", "Pro", "Business (agency)". The "Business (agency)" box is pink with a dark red border, says "✓ Your current plan" and "You are on this plan", and has no button. The other three each have an outlined button (white, not filled): "Downgrade to Free", "Downgrade to Plus", "Downgrade to Pro". Below, a card "Full feature comparison" with one table whose first column is "Feature" and whose other columns are the four plans.
 
-4. Find: the second card, titled "All freelancer plans", below the first card.
-   Expect: four plan boxes named "Free", "Plus", "Pro" and "Business (agency)". The "Business (agency)" box is pink with a dark red border, has the green badge "Your current plan" and no button. Each of the other three boxes has an outlined button (white with a dark red border, not filled): "Downgrade to Free", "Downgrade to Plus", "Downgrade to Pro". Each box shows a price and "Platform fee on jobs:". Under the boxes a grey line about cancelling through the Lawfecta Team.
-
-5. Find: the "Pro" box in the "All freelancer plans" card.
+4. Find: the "Pro" box.
    Do: click "Downgrade to Pro".
-   Expect: a NEW browser tab opens on the Lawfecta website's upgrade page (www.lawfecta.co/account/upgrade). Do not choose anything there. Close that new tab and go back to the DELA tab. The DELA tab is still on the Subscription page.
-   Note: the website's own pages may say this account's plan is "Free". That is the website's membership; the Lawfecta Team set this test account's DELA plan by hand. Do not report it.
+   Expect: a box in front of the page titled "Review your plan change". It says "Downgrade from Freelancer Business (agency) to Freelancer Pro.", shows a table with the columns "Item", "Now" and "After the change" (rows "Published price", "Platform fee on jobs" and the allowances that change), says "Nothing is charged by continuing from here.", and has the buttons "Continue to the Lawfecta website" and "Cancel". No new browser tab opened yet.
+   Do: click "Cancel".
+   Expect: the box closes and the Compare Plans page is still there.
 
 Sign out (rule 7).
 
@@ -65,21 +65,25 @@ Sign out (rule 7).
 
 Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-6. Go to: https://www.lawfecta.co/dela?tab=subscription
-   Find: the first card, titled "Your current plan: Attorney Pro", at the top of the page.
-   Expect: the badge "Set by the Lawfecta Team" at the right of the heading; a line with a price and "Platform fee on jobs:".
+5. Go to: https://www.lawfecta.co/dela?tab=subscription
+   Find: the pink card under the tabs.
+   Expect: "Attorney Pro" with "✓ Current plan" and "Set by the Lawfecta Team"; "Published price" shows a monthly and a yearly price; "Platform fee on jobs" shows a percentage; "What you are billed" shows "No paid membership on record"; "Next renewal" shows "No renewal date on record". Below the pink card a card "Your usage at a glance" with one line "DELA actions this month" and the buttons "See all usage and limits" and "Compare plans".
 
-7. Find: in the same card, the heading "Your usage".
-   Expect: lines with a name, "X of Y" and a bar for each, including DELA actions for this month. If any line shows a badge "Nearing the limit" or "Limit reached", write its name in your report. Below them a grey line starting "Monthly limits start again on" that also says "Actions on your own AI key do not count." Storage sizes on the whole page are whole numbers such as "50 GB", never "51.2 GB".
+6. Do: click the tab "Usage & Limits" (or "Usage").
+   Expect: a card "Your plan usage" with two shaded headings: "Monthly allowances (start again on ...)" with a date, and "Account and capacity limits (these do not reset)". Under the first: "DELA actions this month" with "X of 1000 this month", a bar, a number "remaining" and a sentence starting "At the limit". Under the second: lines such as "Saved documents", "Storage" and "Open Flex Gigs at one time", each with "X of Y" or "X of Y used", a bar and a "remaining" amount. The line about open gigs says it counts gigs open at the same time. The sentence "Exporting your own documents is not limited and is not counted." is there, and there is NO line or bar for document exports. Below, a card "What your plan allows" with a table "What you get" / "Your plan allows". Storage reads as whole numbers such as "50 GB".
 
-8. Find: the second card, titled "All attorney plans".
-   Expect: four plan boxes "Free", "Plus", "Pro" and "Business (firm)". "Pro" is pink with a dark red border, has the green badge "Your current plan" and no button. "Business (firm)" has a filled dark red button "Upgrade to Business (firm)". "Free" and "Plus" each have an outlined button (white with a dark red border, not filled) "Downgrade to Free" or "Downgrade to Plus". The plan boxes say "DELA actions a month on Lawfecta's AI", not "Weighted AI credits". and under each of those two buttons a grey line starting "On a lower plan, documents above its limit become read-only."
+7. Do: click the tab "Compare Plans" (or "Compare"). Then click "Annual" in the small choice at the top of the card.
+   Expect: four boxes "Free", "Plus", "Pro", "Business (firm)". "Pro" says "✓ Your current plan" and "You are on this plan". Each paid plan now shows a price "a year" and a smaller line "About ... a month, paid once a year". "Business (firm)" has a filled dark red button "Upgrade to Business (firm)". "Free" and "Plus" have outlined buttons "Downgrade to Free" and "Downgrade to Plus". No box mentions "Weighted AI credits" or document exports.
 
-9. Find: the "Business (firm)" box in the "All attorney plans" card.
-   Do: click "Upgrade to Business (firm)".
-   Expect: a NEW browser tab opens on www.lawfecta.co/account/upgrade. Do not choose anything there. Close that tab and go back to the DELA tab.
+8. Do: click "Upgrade to Business (firm)".
+   Expect: the box "Review your plan change" with "Upgrade from Attorney Pro to Attorney Business (firm)." and a notice that the plan was set by the Lawfecta Team.
+   Do: click "Continue to the Lawfecta website".
+   Expect: a NEW browser tab opens on www.lawfecta.co/account/upgrade. Do not choose anything there. Close that new tab and go back to the DELA tab. The review box is closed and the DELA tab still shows the Subscription page.
 
-10. Go to: https://www.lawfecta.co/dela?tab=subscription
-    Expect: the Subscription page opens again with "Your current plan: Attorney Pro" (the plan did not change).
+9. Do: click the tab "Billing & History" (or "Billing").
+   Expect: a card "Your membership billing" that says "The Lawfecta website has no paid membership and no invoices on record for your account." and "DELA never charges your card for a membership." Below it a card "Manage your membership" with "Manage subscription on the Lawfecta website", "Compare plans first" and "Contact the Lawfecta Team", and a sentence about cancelling through the Lawfecta Team.
+
+10. Do: click the tab "My Subscription" (or "Plan") once, then press the Right Arrow key on the keyboard once.
+    Expect: the tab "Usage & Limits" becomes the chosen one and the card "Your plan usage" shows.
 
 Sign out (rule 7).
