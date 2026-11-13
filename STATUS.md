@@ -4,6 +4,13 @@ Starting a new session? Read docs/SESSION_HANDOFF.md first (written 2026-11-12, 
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Talent redesign, part 4 and bookmarks (step 18): ON THE SITE (2026-11-13, 04:35 UTC)
+- Site: code_version cec3b81, api function version 110, migrations through 0108 (0109 is the avatar list, already set on the site by hand with history and audit rows), health "ok". GitHub Tests passed on that commit (run 43365304392).
+- Stacey 2026-11-12: build, test and release without asking; collect ChatGPT checks in docs/tests/RUN-NEXT.md for her to run in the morning.
+- On the site: a conversation before a gig ("Send message" on the profile page), "Create a gig for NAME" that leads into the invitation, "Freelancers who fit this work" on a document's page (both document renderers; tools read from "tool" or "system"), bookmarks through the website's table users_favorite, the 48 ready-made pictures.
+- To confirm with Stacey's run: whether the website's API key may use users_favorite (Advanced API permission) and whether dataType 10, featureId 1, checked 1 match the website's own bookmarks (setting bd.bookmarks; "Check the website's bookmarks" on the admin Tech catalog page shows it).
+- Step 19, the Subscription redesign (docs/briefs/step-19-subscription-redesign.md), is built and pushed (commit d57d30a), NOT released: waits for its GitHub run.
+
 ## Talent redesign, part 3 (step 18): ON THE SITE (2026-11-13, 03:54 UTC); part 4 built
 - Site: code_version 627d02f, api function version 109, migrations through 0106, health "ok". GitHub Tests passed on that commit (run 43360643421). Stacey: "Yes, release part 3".
 - On the site with part 3: the invitation review step, the ready-made picture picker (hidden until profile.avatars has a base address), "Check the website's bookmarks" on the admin Tech catalog page.
