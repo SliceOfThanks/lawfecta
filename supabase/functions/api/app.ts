@@ -5655,6 +5655,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /threads/get": { const s = await memberSide(ctx); const tid = need(uuid(ctx.url.searchParams.get("id")));
         const r = await rpc<Record<string, any>>(ctx, "dela_thread_get", { p_person: s.person_id, p_side: s.side, p_thread: tid });
         if (r?.ok && s.side === "freelancer") r.client = await clientFace(ctx, "dela_client_face_thread", { p_thread: tid });
+        // Step 24: a conversation before a gig shows the introductory call booked on it
+        if (r?.ok && r.thread?.kind === "intro") r.intro_call = await rpc(ctx, "dela_intro_call_of", { p_thread: tid }).catch(() => null);
         return json(ctx, r); }
       case "POST /threads/send": return await messageSend(ctx);
       case "POST /threads/edit": { const s = await memberSide(ctx); const b = str(ctx.body.body, 8000).trim(); if (!b) throw new HttpError(400, "bad_request"); const w = await sensitive(ctx, s, b, "conversation", { signed: (await rpc<boolean>(ctx, "dela_thread_signed", { p_thread: uuid(ctx.body.thread_id) ?? uuid(ctx.body.id) }).catch(() => false)) === true }); if (w) return json(ctx, w);

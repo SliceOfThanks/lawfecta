@@ -6447,7 +6447,11 @@
         tools.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { talk.thread = null; gigs.pendingInvite = { person_id: t.freelancer_person, name: t.other_name }; gigs.id = null; tab = "projects"; draw(); } }, "Create a gig for " + t.other_name));
       }
       if (!noGig) tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { gigs.id = t.gig_id; gigs.view = "details"; tab = me.side === "attorney" ? "projects" : "work"; talk.thread = null; draw(); } }, "Open the gig"));
-      if ((me.switches || {}).meetings && r.writable && t.kind === "intro" && r.role === "attorney") tools.appendChild(h("button", { class: "blue small", type: "button", id: "intro-call-btn", onclick: function () { bookPanel(el, null, t.freelancer_person, null, t.id); } }, "Book a call"));
+      // Step 24: a call that is already booked shows here, with the way to it; otherwise the attorney can book one
+      var ic = t.kind === "intro" ? r.intro_call : null;
+      if (ic && ic.id) el.appendChild(h("div", { class: "notice ok", id: "intro-call-booked" }, h("span", { text: "An introductory call is booked for " + whenLabel(ic.start_at, ic.length_min) + ", " + tzName() + ". " }),
+        h("button", { class: "linkish", type: "button", onclick: function () { talk.thread = null; talk.meeting = ic.id; tab = "meetings"; draw(); } }, "Open the meeting")));
+      if ((me.switches || {}).meetings && r.writable && t.kind === "intro" && r.role === "attorney" && !(ic && ic.id)) tools.appendChild(h("button", { class: "blue small", type: "button", id: "intro-call-btn", onclick: function () { bookPanel(el, null, t.freelancer_person, null, t.id); } }, "Book a call"));
       // Coming from "Book a call" on a profile: the open times show at once
       if (introBook) { introBook = false; if (t.kind === "intro") setTimeout(function () { var ib = el.querySelector("#intro-call-btn"); if (ib) ib.click(); }, 0); }
       if ((me.switches || {}).meetings && r.writable && !noGig) tools.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { bookPanel(el, t.gig_id, t.freelancer_person, null); } }, "Book a meeting"));
@@ -6686,6 +6690,13 @@
         } }, "Cancel")));
     }
     if (m.status === "confirmed" && started && m.join_url) c.appendChild(h("a", { class: "btn blue", href: m.join_url, target: "_blank", rel: "noopener" }, "Join the meeting"));
+    // Step 24: an introductory call leads back to its conversation and, for the attorney, on to a gig for this freelancer
+    if (m.intro_thread) {
+      c.appendChild(h("p", { class: "small muted", text: "An introductory call before any gig. Nobody is hired by it." }));
+      c.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" },
+        h("button", { class: "ghost small", type: "button", onclick: function () { talk.meeting = null; talk.thread = m.intro_thread; tab = "inbox"; draw(); } }, "Open the conversation"),
+        me.side === "attorney" && (m.status === "confirmed" || m.status === "completed") ? h("button", { class: "ghost small", type: "button", onclick: function () { talk.meeting = null; gigs.pendingInvite = { person_id: m.freelancer_person, name: m.other_name }; gigs.id = null; tab = "projects"; draw(); } }, "Create a gig for " + m.other_name) : null));
+    }
     if ((m.status === "confirmed" || m.status === "completed" || m.status === "no_show") && started) {
       c.appendChild(h("p", { class: "small", text: "Attendance: " + ATTEND[m.attendance] + "." }));
       if (!m.my_followup) {

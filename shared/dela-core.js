@@ -171,7 +171,7 @@
   // Words members meet on many screens, each checked against what DELA really does (2026-11-06)
   D.HELP = {
     verified: "The Lawfecta Team checked this person: an attorney's bar license, or a freelancer's identity and LinkedIn profile. It does not rate the quality of their work.",
-    match_ready: "A freelancer is match-ready when three things are true: every required profile item is filled, the Lawfecta Team's check has passed, and they confirmed in the last 14 days that they can take work. Only match-ready freelancers show in Talent and gig matches.",
+    match_ready: "A freelancer is match-ready when three things are true: every required profile item is filled, the Lawfecta Team's check has passed, and they confirmed in the last 14 days that they can take work. Only match-ready freelancers show in Talent and gig matches. Match-ready does not guarantee qualifications, fit or availability for a particular project.",
     bench: "Freelancers an agency hires for its own clients' work under a signed bench agreement. They never use a team seat, and the attorney never sees the agency's share.",
     platform_fee: "Lawfecta's fee on each engagement: a percentage of the price, with a minimum. The client's fee is added to what they pay; the freelancer's fee comes out of their payouts.",
     milestone: "A portion of work with its own price, due date and review. Funds are released after acceptance.",

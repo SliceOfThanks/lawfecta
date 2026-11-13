@@ -350,6 +350,8 @@ Deno.test("a call before a gig: booked by the attorney in the conversation, same
   }
   assertEquals((await one("select count(*)::int n from notifications where person_id = $1 and title = 'Meeting booked: Introductory call' and channel = 'in_app'", [fFamily.id])).n, 1, "the freelancer is told");
   assertEquals((await call("GET", "/meetings?id=" + h.id, fNurse.token)).body.meetings.length, 0, "nobody else sees it");
+  // Step 24: the conversation itself shows the booked call to both people
+  for (const who of [att, fFamily]) assertEquals((await call("GET", "/threads/get?id=" + th, who.token)).body.intro_call?.id, h.id, "the conversation shows the call");
   // The room is made as for any meeting (the provider stand-in has no key here, so it waits for the provider)
   assertEquals((await one("select dela_meeting_for_job($1) j", [h.id])).j.gig_title, "Introductory call");
   // One upcoming call per conversation
@@ -367,6 +369,7 @@ Deno.test("a call before a gig: booked by the attorney in the conversation, same
   assertEquals((await call("POST", "/meetings/cancel", fNurse.token, { id: mv.id })).body.reason, "not_found");
   assertEquals((await call("POST", "/meetings/cancel", att.token, { id: mv.id, reason: "Plans changed" })).body.ok, true);
   assertEquals((await one("select count(*)::int n from notifications where person_id = $1 and title = 'Meeting canceled: Introductory call' and channel = 'in_app'", [fFamily.id])).n, 1);
+  assertEquals((await call("GET", "/threads/get?id=" + th, att.token)).body.intro_call, null, "a canceled call no longer shows in the conversation");
   // Blocking the conversation cancels an upcoming call and stops new ones
   const h2 = (await call("POST", "/meetings/hold", att.token, { thread_id: th, start_at: slots[3], length: 30, request_id: "ic-3" })).body;
   assertEquals((await call("POST", "/meetings/confirm", att.token, { id: h2.id })).body.ok, true, JSON.stringify(h2));

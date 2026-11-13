@@ -330,6 +330,11 @@ const SEARCH = "Search roles, specialties, tasks and software";
     t = await waitFor(p, "Fern Family: Introductory call", 15000);
     const callRow = (await sql(`select m.status, m.gig_id, (m.intro_thread is not null) t from meetings m where m.attorney_person = (select id from people where bd_member_id = ${ATT}) and m.freelancer_person = (select id from people where bd_member_id = ${FL2}) order by m.created_at desc limit 1`))[0];
     ok(callRow && callRow.status === "confirmed" && callRow.gig_id === null && callRow.t === true, "the introductory call is booked on the conversation, with no gig: " + JSON.stringify(callRow));
+    // Step 24: the meeting leads back to its conversation, which shows the booked call and offers a gig for this freelancer
+    ok(await dela(p).getByRole("button", { name: "Create a gig for Fern Family", exact: true }).count() === 1 && (await text(p)).includes("An introductory call before any gig. Nobody is hired by it."), "the meeting says it is an introductory call and offers a gig for this freelancer");
+    await click(p, "Open the conversation");
+    t = await waitFor(p, "An introductory call is booked for");
+    ok(await dela(p).getByRole("button", { name: "Open the meeting", exact: true }).count() === 1 && await dela(p).getByRole("button", { name: "Book a call", exact: true }).count() === 0, "the conversation shows the booked call and does not offer a second one");
     await sql(`update meetings set status = 'canceled', cancel_reason = 'test' where intro_thread is not null and attorney_person = (select id from people where bd_member_id = ${ATT}); select 1`);
     await s.ctx.close();
     // Talent, bookmarked only

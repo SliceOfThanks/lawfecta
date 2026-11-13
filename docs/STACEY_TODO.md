@@ -1,6 +1,6 @@
 # Stacey's to-do list, in order
 
-Last updated 2026-11-13. This replaces the list of 2026-11-04 (that one was written for two sites and the old address). The pilot runs on one site, https://www.lawfecta.co, for 10 to 50 invited members.
+Last updated 2026-11-13 (section 9 added). This replaces the list of 2026-11-04 (that one was written for two sites and the old address). The pilot runs on one site, https://www.lawfecta.co, for 10 to 50 invited members.
 
 Do these from top to bottom. Never paste a password, key or secret into chat. Type them only into Brilliant Directories, Stripe, Google or Supabase.
 
@@ -34,6 +34,16 @@ Done 2026-11-12. The yellow "Test site" label is gone and emails no longer start
 2. An uptime monitor on https://ojshgsxgsypbywtqhkch.supabase.co/functions/v1/api/health (any free monitor; Claude can suggest one and what to enter).
 3. Add each pilot member: https://www.lawfecta.co/dela-admin?tab=access, the page "Access list", the box "BD member ID" near the top, then the button "Add" beside it. A member's ID is in the Brilliant Directories admin under Members.
 4. One fuller ChatGPT test of what a pilot member does. Claude sends it after step 4.
+
+## 9. Checks for what was built on 2026-11-13
+Everything here is on the site. Do them in this order.
+1. Talent, by hand. Log in as the test attorney and open https://www.lawfecta.co/dela?tab=talent. In the "Find a freelancer" card, set the "Software" list (fourth in the row of five) to "Clio": the heading should read "9 freelancers found". Press "Reset". Scroll to the bottom of the list and press "Load more freelancers": the line should read "Showing 16 of 16 freelancers."
+2. A call before a gig, by hand. On the same page press "View profile" on the "DELA Test Freelancer" card. At the right of the header press "Book a call". On the card "Book an introductory call" pick a time under "Date", press "Review booking", press OK on the pop-up. The meeting should open, headed "DELA Test Freelancer: Introductory call". Press "Open the conversation": a green-edged line should say "An introductory call is booked for" with the time. Go back with "Open the meeting" and press "Cancel" when you are done.
+3. The firm logo, by hand. Open https://www.lawfecta.co/dela?tab=profile as the test attorney. At the top of the "Firm details" card press "Add a logo" and choose a PNG or JPG. You should see "Logo saved. Nothing else to click."
+4. The Talent ChatGPT check: paste the file talent-journey-chatgpt-prompt-READY-2.txt from the folder "Lawfecta DELA for Stacey" in your Documents into a new ChatGPT agent chat. Run it before 2026-11-19 (a test gig closes that day). Paste the report back to Claude.
+5. The Subscription ChatGPT check: the file subscription-chatgpt-prompt-READY-3.txt from the same folder, in a new ChatGPT agent chat. Paste the report back to Claude.
+6. Questions waiting for you, each in its brief on GitHub (https://github.com/SliceOfThanks/lawfecta/tree/claude/step-2a-ai-keys-voice-files/docs/briefs): step-21-firm-logo-client-face.md, step-22-talent-mockup-02.md, step-23-intro-calls.md.
+7. Before real members arrive: tell Claude "take the sample freelancers out". They also drop out of Talent by themselves on 2026-11-27.
 
 ## Later, not needed for the pilot
 - The Brilliant Directories key permission for practice area categories.
