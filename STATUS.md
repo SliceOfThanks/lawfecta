@@ -6,6 +6,12 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Draft warning in conversations, alert when a meeting room cannot be made: RELEASED (2026-11-13, while the website was down)
+- code_version afba23b, api function version 121, no new migration, health "ok". GitHub Tests passed on that commit (run 43527391294). Stacey: "continue to build and release". Nobody could look at it on the site at release time, because the website was down.
+- A saved message draft is checked by the same pattern rules as a sent message when the box is left or a saved draft is reopened (POST /threads/draft now answers with "flag"). A line under the box starts "Before you send:". No AI, nothing recorded, nobody flagged; Send checks again.
+- When a meeting room cannot be made, the owners get one alert per meeting ("A meeting room could not be made", in DELA and by email) with the meeting service's answer, and the card tells the two people. DELA keeps trying.
+- The approved monthly change staying in view was already built; docs/PLAN.md corrected.
+
 ## WEBSITE DOWN since about 3:00 PM Pacific, 2026-11-13 (not DELA)
 - www.lawfecta.co returns a LiteSpeed 404 on every address except the bare home address: /home, /login, /dela, /account/..., /admin and /api/v2. www.lawfecta.com on the same server works. DELA's api health is "ok".
 - It began right after Stacey activated the Bookmarks add-on in the Brilliant Directories add-ons menu. "Refresh Site Cache" did not fix it. She sent a support ticket to Brilliant Directories.
