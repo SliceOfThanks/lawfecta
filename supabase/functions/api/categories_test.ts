@@ -143,6 +143,11 @@ Deno.test("Talent: a category finds everyone in it and below it; free words also
   assertEquals(ids(await t("q=family%20paralegal")).filter((x) => [fNurse.id, fFamily.id, fNone.id].includes(x)), [fFamily.id], "and the profile's own words");
   const card = ((await t("category=p39")).body.people as Array<Record<string, any>>).find((p) => p.person_id === fNurse.id)!;
   assertEquals(card.categories, ["s275"], "results carry the freelancer's categories");
+  // Step 18: what the result cards show; the photo path never leaves, contact details never do
+  assertEquals([card.verification, card.availability, card.reviews.count, card.photo_url, "photo_file" in card], [(await one("select verification_state v from side_profiles where person_id = $1 and side = 'freelancer'", [fNurse.id])).v, "available", 0, "", false]);
+  await pool.query(`update member_profiles set body = body || jsonb_build_object('photo_file', 'profiles/' || person_id || '/photo-' || gen_random_uuid() || '.png') where person_id = $1 and side = 'freelancer'`, [fNurse.id]);
+  const withPic = ((await t("category=p39")).body.people as Array<Record<string, any>>).find((p) => p.person_id === fNurse.id)!;
+  assert(String(withPic.photo_url).startsWith("https://storage.test/get/profiles/") && !("photo_file" in withPic), "a DELA photo comes as a signed link");
   assertEquals((await t("category=s99999")).body.reason, "category_gone", "a category that is not on the website is said so");
   assertEquals(ids(await t("category=drop%20table")).length, all.length, "a key that is not a category key is ignored");
   assertEquals((await call("GET", "/talent?category=p39", fNurse.token)).status, 403, "freelancers do not search Talent");

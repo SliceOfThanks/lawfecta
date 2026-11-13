@@ -74,7 +74,8 @@ const ATT = 4400, FL = 4401, TEAM = 4402;
     await sql(`insert into agreements (gig_id, proposal_id, attorney_org, attorney_person, freelancer_person, total_cents, status, provider_customer, provider_payment_method) values ('${g0}', '${p0}', '${ids.org}', '${ids.att}', '${ids.fl}', 30000, 'completed', 'cus_saved', 'pm_saved'); select 1`);
 
     // ---------- The attorney: set one up from Talent ----------
-    s = await open(browser, "DELA-App", ATT, "&tab=talent");
+    // Step 18: offered from Projects, to freelancers the attorney completed a gig with (the earlier job above)
+    s = await open(browser, "DELA-App", ATT, "&tab=projects");
     p = s.page;
     // Fix (AI review 0.9.1, payments 2): form limits come from the server. The test changes the open-jobs limit on its
     // way to the screen and the box follows it.
@@ -84,8 +85,9 @@ const ATT = 4400, FL = 4401, TEAM = 4402;
       await route.fulfill({ response: r, json: j });
     });
     await p.reload();
-    t = await waitFor(p, "Rita Repeat", 10000);
-    await dela(p).locator(".card", { hasText: "Rita Repeat" }).last().getByRole("button", { name: "Set up a standing arrangement" }).click();
+    await waitFor(p, "Freelancers you have completed a gig with", 15000);
+    ok(await label(p, "Freelancer for a new standing arrangement").locator("option", { hasText: "Rita Repeat" }).count() === 1, "the freelancer the attorney completed a gig with is offered");
+    await dela(p).locator("#standing-new").getByRole("button", { name: "Set up a standing arrangement" }).click();
     const dlg = dela(p).getByRole("dialog");
     await dlg.waitFor();
     ok(await label(p, "Most jobs open at once").getAttribute("max") === "7", "the most-open-jobs box takes its limit from the server");

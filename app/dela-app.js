@@ -5162,7 +5162,7 @@
   // ---------- Step 7c part 2: standing arrangements (limited automatic repeat hiring) ----------
   // Off on Live until counsel approves (switch auto_repeat_hiring): the card then says "Coming soon".
   var STANDING_WORDS = { proposed: "Waiting for the freelancer", active: "Active", needs_review: "Needs review", ending: "Ending after open jobs", ended: "Ended", declined: "Declined" };
-  var STANDING_ERR = { standing_off: "Standing arrangements are not open for your account yet.", standing_paid_plans_only: "Standing arrangements are part of the paid attorney plans (Plus, Pro and Business).",
+  var STANDING_ERR = { needs_completed_gig: "A standing arrangement opens after you have completed a gig with this freelancer. Canceled, refunded or disputed gigs do not count.", standing_off: "Standing arrangements are not open for your account yet.", standing_paid_plans_only: "Standing arrangements are part of the paid attorney plans (Plus, Pro and Business).",
     owners_and_managers_only: "Only the firm's owner or a manager can set up or change a standing arrangement.", cap_required: "Set a monthly spend cap. DELA does not save an arrangement without one.",
     price_over_cap: "The price per job cannot be more than the monthly cap.", price_too_low: "The price per job is below the smallest engagement allowed.", bad_end_date: "Pick an end date within 12 months.",
     docs_required: "Choose at least one approved SOP or Workflow.", doc_not_approved: "Only approved SOPs and Workflows can be covered.", freelancer_not_verified: "This freelancer is not verified right now.",
@@ -5232,7 +5232,18 @@
       var PAST = ["ended", "declined"];
       var current = list.filter(function (a) { return PAST.indexOf(a.status) < 0; }), past = list.filter(function (a) { return PAST.indexOf(a.status) >= 0; });
       var c = h("div", { class: "card", id: "standing-card" }, h("h2", { text: "Standing arrangements (" + current.length + ")" }), cardStatus("standing"));
-      if (!current.length) c.appendChild(h("p", { class: "muted", text: att ? "None active. In Talent, choose a freelancer and click \"Set up a standing arrangement\"." : "None active." }));
+      if (!current.length) c.appendChild(h("p", { class: "muted", text: "None active." }));
+      // Step 18: an arrangement is offered only to a freelancer the attorney finished a gig with; the freelancer must accept it
+      if (att) {
+        var elig = st.eligible || [];
+        if (!elig.length) c.appendChild(h("p", { class: "small muted", id: "standing-new", text: "You can offer a standing arrangement to a freelancer after you complete a gig with them." }));
+        else {
+          var who = h("select", { "aria-label": "Freelancer for a new standing arrangement" }, elig.map(function (x) { return h("option", { value: x.person_id, text: x.name }); }));
+          c.appendChild(h("div", { class: "row", id: "standing-new", style: "flex-wrap:wrap;gap:8px;align-items:flex-end;margin:8px 0" },
+            h("label", { class: "small", style: "display:flex;flex-direction:column;gap:4px" }, h("span", { style: "font-weight:700", text: "Freelancers you have completed a gig with" }), who),
+            h("button", { class: "ghost small", type: "button", onclick: function () { var x = elig.filter(function (y) { return y.person_id === who.value; })[0]; if (x) standingSetup(x.person_id, x.name); } }, "Set up a standing arrangement")));
+        }
+      }
       var pastBox = past.length ? h("details", { id: "standing-past", style: "margin-top:10px" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "Past arrangements (" + past.length + ")" })) : null;
       current.concat(past).forEach(function (a) {
         var box = h("div", { class: "soft standing", style: "margin:10px 0;padding:10px 12px;border-radius:12px" });
@@ -5400,7 +5411,9 @@
     loadCats().then(function (idx) { talentForm(form, results, idx); });
     return el;
   }
-  // The search: words with category suggestions, three lists that narrow each other, the state (step 17)
+  // The search (step 17 lists, step 18 layout): words with category suggestions, three lists that narrow each other and
+  // the state; DELA's help folded away; then the count, the filters as removable chips, the sort order and the cards.
+  var talentSort = "relevant";
   function talentForm(form, results, idx) {
     D.clear(form);
     form.appendChild(h("h2", { text: "Find a freelancer" }));
@@ -5433,69 +5446,138 @@
     state.addEventListener("change", function () { run(); });
     var box = catSearchBox(idx, { label: "Search roles, specialties, tasks and software", placeholder: "For example: medical chronology, discovery, Clio", value: talentQ.q,
       onPick: function (c) { setCat(c); run(); }, onEnter: function () { run(); } });
+    function clearAll() { box.input.value = ""; state.value = ""; setCat(null); run(); }
+    // The filters in use, each one removable, for the line above the results
+    function chips() {
+      var out = [], cat = chain.leaf || chain.sub || chain.top;
+      if (cat && idx.byKey[cat]) out.push({ text: idx.path(cat).join(" › "), remove: function () { setCat(null); run(); } });
+      if (talentQ.q) out.push({ text: "\"" + talentQ.q + "\"", remove: function () { box.input.value = ""; run(); } });
+      if (talentQ.state) out.push({ text: (US_STATES.filter(function (s) { return s[0] === talentQ.state; })[0] || ["", talentQ.state])[1], remove: function () { state.value = ""; run(); } });
+      return out;
+    }
+    var last = null;
+    function show() { if (last) talentResults(results, last.x, last.gigs, idx, { chips: chips(), clear: clearAll, resort: show, reload: run }); }
     function run() {
       talentQ.category = chain.leaf || chain.sub || chain.top; talentQ.q = box.input.value.trim(); talentQ.state = state.value;
       clear.hidden = !(talentQ.category || talentQ.q || talentQ.state);
-      D.clear(results); results.appendChild(h("p", { class: "muted", text: "Searching..." }));
+      D.clear(results); results.appendChild(h("p", { class: "muted", role: "status", text: "Searching..." }));
       var qs = Object.keys(talentQ).filter(function (k) { return talentQ[k]; }).map(function (k) { return k + "=" + encodeURIComponent(talentQ[k]); }).join("&");
       Promise.all([api.get("/talent?" + qs), api.get("/gigs")]).then(function (rs) {
-        talentResults(results, rs[0], rs[1].ok ? rs[1].gigs.filter(function (g) { return g.status === "open"; }) : [], idx);
-      }).catch(function (e) { D.clear(results); results.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+        // Only gigs that still take proposals: posted, not paused by the Lawfecta Team, closing date not passed
+        var now = Date.now();
+        last = { x: rs[0], gigs: rs[1].ok ? rs[1].gigs.filter(function (g) { return g.status === "open" && !g.paused_by_team && (!g.closes_at || new Date(g.closes_at).getTime() > now); }) : [] };
+        show();
+      }).catch(function (e) { D.clear(results); results.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
     }
-    var clear = h("button", { class: "ghost small", type: "button", hidden: true, onclick: function () { box.input.value = ""; state.value = ""; setCat(null); run(); } }, "Clear the search");
-    form.appendChild(h("div", { class: "row", style: "align-items:flex-end;gap:8px;flex-wrap:wrap" },
-      h("div", { class: "grow", style: "min-width:260px" }, field("Search roles, specialties, tasks and software", box.el, "Pick a suggestion to search that category, or press Enter to search the words.")),
-      h("button", { class: "blue small", type: "button", style: "margin-bottom:8px", onclick: function () { box.close(); run(); } }, "Search")));
-    if (!idx.ok || !idx.tops.length) form.appendChild(h("p", { class: "notice", text: "The categories could not be loaded right now. You can still search by words and state." }));
+    var clear = h("button", { class: "ghost small", type: "button", hidden: true, style: "margin-bottom:8px", onclick: clearAll }, "Clear filters");
+    form.appendChild(field("Search roles, specialties, tasks and software", box.el, "Pick a suggestion to search that category, or press Enter to search the words."));
+    if (!idx.ok || !idx.tops.length) { form.appendChild(h("p", { class: "notice", text: "The categories could not be loaded right now. You can still search by words and state." })); form.appendChild(field("State you need", state)); }
     else form.appendChild(h("div", { class: "talent-cats" }, field("Category", topSel), field("Specialty", subSel), field("Task, case type or software", leafSel), field("State you need", state)));
-    if (!idx.ok || !idx.tops.length) form.appendChild(field("State you need", state));
-    form.appendChild(clear);
+    form.appendChild(h("div", { class: "row", style: "justify-content:flex-end;gap:8px;flex-wrap:wrap" }, clear,
+      h("button", { class: "blue small", type: "button", style: "margin-bottom:8px", onclick: function () { box.close(); run(); } }, "Search freelancers")));
     draw3();
-    var task = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Describe the task", placeholder: "For example: e-filing family law motions in Texas, using Clio" });
-    if ((me.switches || {}).ai_helpers) form.appendChild(field("Describe the task (for ✦ Help me find a fit)", h("div", null, aiNotice(), task), "DELA suggests filters from it. You check them, then click Search."));
-    // A suggestion that names a category picks it; other words go into the search box; a state picks the state
-    form.appendChild(helperButton("find_fit", "✦ Help me find a fit", function () { return { text: task.value }; }, { field: function (x) {
-      if (x.field === "state") return state;
-      if (["practice_area", "skill", "tool"].indexOf(x.field) < 0) return null;
-      return { apply: function (f) {
-        var c = idx.exact(f.suggestion);
-        if (c) setCat(c);
-        else box.input.value = (box.input.value ? box.input.value + " " : "") + f.suggestion;
-      } };
-    }, toast: "Added to the filters. Check them, then click Search." }));
+    // DELA's help is optional and folded away: opening it or typing uses nothing; only the button uses an action
+    if ((me.switches || {}).ai_helpers) {
+      var task = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Describe the task", placeholder: "For example: e-filing family law motions in Texas, using Clio" });
+      var help = h("details", { id: "talent-help", class: "talent-help" }, h("summary", null, h("b", { text: "✦ Need help finding the right freelancer?" }), h("span", { class: "small muted", text: " Describe the task and DELA suggests filters. You check them before searching." })),
+        field("Describe the task", h("div", null, aiNotice(), task), "DELA suggests filters from it. Nothing is searched until you click Search freelancers."),
+        // A suggestion that names a category picks it; other words go into the search box; a state picks the state
+        helperButton("find_fit", "✦ Help me find a fit", function () { return { text: task.value }; }, { field: function (x) {
+          if (x.field === "state") return state;
+          if (["practice_area", "skill", "tool"].indexOf(x.field) < 0) return null;
+          return { apply: function (f) {
+            var c = idx.exact(f.suggestion);
+            if (c) setCat(c);
+            else box.input.value = (box.input.value ? box.input.value + " " : "") + f.suggestion;
+          } };
+        }, toast: "Added to the filters. Check them, then click Search freelancers." }));
+      form.parentNode.insertBefore(help, results);
+    }
     run();
   }
-  // One card per freelancer, with the categories they work in under their headline
-  function talentResults(results, x, mine, idx) {
+  var TALENT_SORTS = [["relevant", "Most relevant"], ["reviews", "Most reviews"], ["hours", "Most hours a week"], ["name", "Name, A to Z"]];
+  function talentSorted(people) {
+    var list = people.slice();
+    if (talentSort === "reviews") list.sort(function (a, b) { return ((b.reviews || {}).count || 0) - ((a.reviews || {}).count || 0); });
+    else if (talentSort === "hours") list.sort(function (a, b) { return (b.capacity_hours_week || 0) - (a.capacity_hours_week || 0); });
+    else if (talentSort === "name") list.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+    return list;
+  }
+  // What was checked, in its own words: freelancers have a LinkedIn check, nothing else, so nothing else is claimed
+  function talentTrust(p) {
+    var rv = p.reviews || {}, n = rv.count || 0;
+    return h("div", { class: "talent-trust small" },
+      p.verification === "verified" ? h("span", { class: "talent-ver", text: "✓ LinkedIn verified" }) : null,
+      h("span", { class: n ? "" : "muted", text: !n ? "No reviews yet" : rv.average ? "★ " + rv.average + " (" + n + (n === 1 ? " review)" : " reviews)") : n + (n === 1 ? " review" : " reviews") }));
+  }
+  function talentAvatar(p) {
+    return p.photo_url ? h("img", { class: "talent-photo", src: p.photo_url, alt: "Photo of " + p.name })
+      : h("span", { class: "talent-photo none", "aria-hidden": "true", text: String(p.name || "?").trim().charAt(0).toUpperCase() });
+  }
+  // The results: count, the filters in use, the sort order, then one card per freelancer with two actions only,
+  // "View profile" and "Invite to this gig" (with the gig to invite for chosen first)
+  function talentResults(results, x, mine, idx, o) {
     D.clear(results);
-    if (!x.ok) { results.appendChild(h("p", { class: "notice", text: x.reason === "category_gone" ? "That category is no longer on the Lawfecta website. Choose another one." : gigErr(x) })); return; }
-    results.appendChild(h("p", { class: "small muted", role: "status", text: x.people.length ? x.people.length + (x.people.length === 1 ? " freelancer fits" : " freelancers fit") + " this search." : "No match-ready freelancers fit this search yet. Try a broader category or fewer words." }));
-    x.people.forEach(function (p) {
-      var act = h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" });
-      act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { profileModal(p.person_id); } }, "View profile"));
-      if (mine.length) {
-        var sel = h("select", { "aria-label": "Gig to invite " + p.name + " to" }, mine.map(function (g) { return h("option", { value: g.id, text: g.title }); }));
-        act.appendChild(sel);
-        act.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
-          api.post("/gigs/invite", { gig_id: sel.value, person_id: p.person_id }).then(gigOk).then(function (y) { D.toast(app, y.duplicate ? "Already invited" : "Invited " + p.name); }).catch(gigFail);
-        } }, "Invite to this gig"));
-      }
-      act.appendChild(h("button", { class: mine.length ? "ghost small" : "blue small", type: "button", onclick: function () {
-        gigs.pendingInvite = { person_id: p.person_id, name: p.name }; gigs.id = null; tab = "projects"; draw();
-      } }, "Create a gig from an SOP or Workflow"));
-      if ((me.switches || {}).bench) act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-        api.post("/bench/invite", { freelancer: p.person_id, request_id: newId() }).then(engOk).then(function (y) { D.toast(app, y.duplicate ? p.name + " is already on your bench or invited" : "Bench invitation sent to " + p.name); }).catch(revFail);
-      } }, "Invite to my bench"));
-      if ((me.switches || {}).auto_repeat_hiring && me.side === "attorney") act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { standingSetup(p.person_id, p.name); } }, "Set up a standing arrangement"));
-      var rb = reviewsButton(p.person_id, "freelancer", p.name);
-      if (rb) act.appendChild(rb);
+    if (!x.ok) { results.appendChild(h("p", { class: "notice", role: "alert", text: x.reason === "category_gone" ? "That category is no longer on the Lawfecta website. Choose another one." : gigErr(x) })); return; }
+    var n = x.people.length;
+    var sort = h("select", { "aria-label": "Sort by" }, TALENT_SORTS.map(function (s) { return h("option", { value: s[0], text: s[1], selected: talentSort === s[0] }); }));
+    sort.addEventListener("change", function () { talentSort = sort.value; o.resort(); });
+    var head = h("div", { class: "talent-head" }, h("h2", { style: "margin:0", text: "Matching freelancers" }),
+      h("span", { class: "small muted", role: "status", text: n ? n + (n === 1 ? " freelancer fits" : " freelancers fit") + " this search." : "No match-ready freelancers fit this search yet. Try a broader category or fewer words." }));
+    (o.chips || []).forEach(function (c) {
+      head.appendChild(h("span", { class: "cat-chip" }, h("span", { text: c.text }), h("button", { type: "button", "aria-label": "Remove filter: " + c.text, onclick: c.remove }, "×")));
+    });
+    if ((o.chips || []).length > 1) head.appendChild(h("button", { class: "ghost small", type: "button", onclick: o.clear }, "Clear all"));
+    head.appendChild(h("span", { class: "grow" }));
+    if (n > 1) head.appendChild(h("label", { class: "small talent-sort" }, "Sort by ", sort));
+    results.appendChild(head);
+    if (n && !mine.length) results.appendChild(h("p", { class: "notice", id: "talent-nogig" }, "You have no posted gig that is open for proposals, so there is nothing to invite a freelancer to yet. ",
+      h("a", { href: "#", onclick: function (e) { e.preventDefault(); goTab("projects"); }, text: "Post a gig in Projects" }), "."));
+    talentSorted(x.people).forEach(function (p) {
       // Grouped by top category: "Paralegal Services: Discovery Support, Clio"
       var groups = {}, order = [];
       (p.categories || []).forEach(function (k) { var c = idx.byKey[k]; if (!c) return; var top = idx.byKey[c.top]; var g = top ? top.name : ""; if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(c.name); });
       var catLine = order.length ? h("div", { class: "small cat-line", text: order.slice(0, 3).map(function (g) { return (g ? g + ": " : "") + groups[g].slice(0, 6).join(", "); }).join(" | ") }) : null;
-      results.appendChild(h("div", { class: "card", style: "margin:8px 0" }, h("b", { text: p.name }), p.headline ? h("div", { class: "small", text: p.headline }) : null, catLine,
-        h("div", { class: "small muted", text: [(p.practice_areas || []).join(", "), (p.software || []).length ? "Uses " + p.software.slice(0, 5).join(", ") : "", p.capacity_hours_week ? p.capacity_hours_week + " hours a week" : "", p.timezone || ""].filter(Boolean).join(" | ") }),
-        p.summary ? h("p", { class: "small", text: p.summary }) : null, act));
+      var tags = (p.practice_areas || []).slice(0, 4).concat((p.software || []).slice(0, 5));
+      var facts = [p.capacity_hours_week ? p.capacity_hours_week + " hours a week" + (p.availability === "limited" ? " (limited right now)" : " available") : "", p.timezone ? p.timezone + " time" : "",
+        p.firm_name ? "Works through " + p.firm_name : ""].filter(Boolean).join(" | ");
+      var gigSel = h("select", { "aria-label": "Gig to invite " + p.name + " for", disabled: !mine.length },
+        [h("option", { value: "", text: mine.length ? "Select one of your posted gigs" : "No posted gig is open for proposals" })].concat(mine.map(function (g) { return h("option", { value: g.id, text: g.title }); })));
+      var invite = h("button", { class: "blue small", type: "button", disabled: true }, "Invite to this gig");
+      var said = h("p", { class: "small muted", role: "status", style: "margin:6px 0 0", text: "Inviting asks this freelancer to send a proposal for the gig you select. It does not hire them or award the work." });
+      gigSel.addEventListener("change", function () { invite.disabled = !gigSel.value; });
+      invite.addEventListener("click", function () {
+        var gid = gigSel.value, title = (mine.filter(function (g) { return g.id === gid; })[0] || {}).title || "your gig";
+        if (!gid) return;
+        invite.disabled = true; invite.textContent = "Sending...";
+        api.post("/gigs/invite", { gig_id: gid, person_id: p.person_id }).then(function (y) {
+          invite.textContent = "Invite to this gig";
+          if (y && y.ok) {
+            said.className = "small notice ok"; said.textContent = y.duplicate ? p.name + " was already invited to \"" + title + "\". Nothing was sent again." : "Invitation sent. " + p.name + " can now send a proposal for \"" + title + "\". Nobody is hired until you choose a proposal.";
+            D.toast(app, y.duplicate ? "Already invited" : "Invited " + p.name);
+            gigSel.value = ""; return;
+          }
+          // The gig closed or was paused since the page loaded, or the freelancer is no longer available: say so, send nothing
+          said.className = "small notice bad"; said.setAttribute("role", "alert");
+          said.textContent = y && y.reason === "gig_not_open" ? "\"" + title + "\" no longer takes proposals, so no invitation was sent. Choose another gig." : y && y.reason === "freelancer_not_available" ? p.name + " cannot be invited to this gig right now. No invitation was sent." : gigErr(y || {});
+          // Take the gig out of every card's list, so it cannot be chosen again; the message above stays readable
+          if (y && y.reason === "gig_not_open") Array.prototype.forEach.call(results.querySelectorAll("select option"), function (op) { if (op.value === gid) op.remove(); });
+          gigSel.value = "";
+        }).catch(function (e) {
+          invite.textContent = "Invite to this gig"; invite.disabled = !gigSel.value;
+          said.className = "small notice bad"; said.setAttribute("role", "alert"); said.textContent = "The invitation was not sent (" + D.errorText(e.message) + "). Check your connection and try again.";
+        });
+      });
+      results.appendChild(h("article", { class: "card talent-card", "aria-label": p.name },
+        h("div", { class: "talent-top" }, talentAvatar(p),
+          h("div", { class: "talent-who" }, h("h3", { style: "margin:0", text: p.name }), p.headline ? h("div", { class: "small", text: p.headline }) : null, talentTrust(p)),
+          h("div", { class: "talent-about" }, p.summary ? h("p", { class: "small", style: "margin:0 0 6px", text: p.summary }) : null, catLine,
+            tags.length ? h("div", { class: "talent-tags" }, tags.map(function (x) { return h("span", { class: "talent-tag", text: x }); })) : null,
+            facts ? h("div", { class: "small muted", text: facts }) : null)),
+        h("div", { class: "talent-acts" },
+          h("button", { class: "ghost small", type: "button", onclick: function () { profileModal(p.person_id); } }, "View profile"),
+          h("label", { class: "talent-gig" }, h("span", { class: "small", style: "font-weight:700", text: "Gig to invite for" }), gigSel), invite),
+        said));
     });
   }
 
@@ -7392,6 +7474,7 @@
     if (r && r.reason === "limit_reached" && r.period) return "You reached the limit of " + r.limit + " requests " + (r.period === "month" ? "this month" : "in total") + ".";
     if (r && r.reason === "limit_reached" && r.limit !== undefined) return "Your plan allows " + r.limit + (r.limit === 1 ? " endpoint" : " endpoints") + ".";
     if (r && r.reason === "asked_recently") return "You asked this person recently. You can ask again after " + r.days + " days.";
+    if (r && r.reason === "needs_completed_gig") return D.errorText("needs_completed_gig");
     return (r && REV_ERR[r.reason]) || engErr(r);
   }
   function revFail(e) { D.toast(app, e && e.reason ? revErr(e) : D.errorText(e && e.message ? e.message : String(e)), true); }
@@ -7511,6 +7594,12 @@
         box.appendChild(h("h3", { text: "Your bench" }));
         if (st.bench) box.appendChild(h("p", { class: "small", text: st.bench.status === "active" ? "This freelancer is on your bench." : "Your bench invitation is waiting for their answer." }));
         else if (st.freelancer_person) box.appendChild(benchInviteRow(st.freelancer_person));
+      }
+      // A standing arrangement is offered from a completed engagement too (step 18); the freelancer has to accept it
+      if (r.role === "attorney" && (me.switches || {}).auto_repeat_hiring && me.side === "attorney" && st.freelancer_person) {
+        box.appendChild(h("h3", { text: "Work together again" }));
+        box.appendChild(h("p", { class: "small muted", text: "A standing arrangement lets you hire this freelancer again in one click, inside limits you both sign once. They have to accept it." }));
+        box.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { standingSetup(st.freelancer_person, "this freelancer"); } }, "Propose a standing arrangement"));
       }
     }).catch(function () { box.remove(); });
   }

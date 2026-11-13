@@ -153,6 +153,9 @@ const ATT = 4420, FL = 4421, FL2 = 4422;
     await s.ctx.close();
 
     s = await open(browser, "DELA-App", ATT, "&tab=talent"); p = s.page;
+    // Step 18: DELA's help on Talent is folded away until opened
+    await waitFor(p, "Need help finding the right freelancer?", 15000);
+    await dela(p).locator("#talent-help summary").click();
     t = await waitFor(p, "✦ Help me find a fit", 15000);
     ok(t.includes("Never enter sensitive data") && t.includes("Keep it in your own storage."), "the Talent task box has the sensitive data notice (step 8b Part C, R06)");
     await label(p, "Describe the task").fill("E-filing family law motions in Texas with Clio");

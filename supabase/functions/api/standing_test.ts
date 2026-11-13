@@ -111,6 +111,12 @@ Deno.test("setting up: off by default; paid plans only; a spend cap is required;
   assertEquals((await call("POST", "/standing/create", att.token, { ...base, price: "50", request_id: "s4" + RUN })).body.reason, "price_too_low");
   assertEquals((await call("POST", "/standing/create", att.token, { ...base, end_on: "2099-01-01", request_id: "s5" + RUN })).body.reason, "bad_end_date", "12 months at most");
   assertEquals((await call("POST", "/standing/create", att.token, { ...base, typed_name: "", request_id: "s6" + RUN })).body.reason, "sign_needs_name_and_consent");
+  // Step 18: only after a completed engagement between the two. The earlier one stops counting while it is disputed.
+  await pool.query("update agreements set status = 'disputed' where attorney_person = $1 and freelancer_person = $2", [att.id, fl.id]);
+  assertEquals((await call("POST", "/standing/create", att.token, { ...base, request_id: "s6b" + RUN })).body.reason, "needs_completed_gig", "no completed engagement, no standing arrangement");
+  assertEquals(((await list(att)).eligible as unknown[]).length, 0, "and the freelancer is not offered on the screen");
+  await pool.query("update agreements set status = 'completed' where attorney_person = $1 and freelancer_person = $2", [att.id, fl.id]);
+  assertEquals(((await list(att)).eligible as Array<Record<string, unknown>>)[0].person_id, fl.id);
   const r = (await call("POST", "/standing/create", att.token, { ...base, request_id: "s7" + RUN })).body;
   assert(r.ok, JSON.stringify(r));
   sa = r.id;

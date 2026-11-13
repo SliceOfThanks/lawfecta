@@ -257,7 +257,19 @@ Deno.test("the bench: invite, accept, a conversation without files that outlives
   assertEquals((await one("select status from agreements where id = $1", [ag])).status, "completed");
   // A Business firm has a firm bench; owners invite
   await pool.query("insert into member_profiles (person_id, side, body, missing, score) values ($1, 'attorney', '{\"firm_name\":\"Big Firm\"}', '{}', 100)", [att2.id]);
+  // Step 18: a bench invitation needs a completed engagement between the two (att2 and fl2 have none; att's active one with fl2 does not count)
+  assertEquals((await call("POST", "/bench/invite", att2.token, { freelancer: fl2.id, kind: "firm" })).body.reason, "needs_completed_gig");
+  assertEquals((await call("POST", "/bench/invite", att.token, { freelancer: fl2.id })).body.reason, "needs_completed_gig", "an engagement still running does not unlock the bench");
+  assertEquals(await rpc("dela_worked_together", { p_attorney: att.id, p_freelancer: fl.id }), true);
+  // A refund on the completed engagement takes the right away again
+  const dsp = (await one("insert into disputes (agreement_id, opened_by, reason, status, notice_ends_at, refund_cents) values ($1, $2, 'test', 'resolved', now(), 100) returning id", [ag, att.id])).id;
+  assertEquals(await rpc("dela_worked_together", { p_attorney: att.id, p_freelancer: fl.id }), false, "a refunded engagement does not count");
+  await pool.query("delete from disputes where id = $1", [dsp]);
+  assertEquals(((await rpc("dela_worked_with", { p_person: att.id })) as Array<Record<string, unknown>>).map((x) => x.person_id), [fl.id], "the list of freelancers an attorney finished work with");
+  // The rule is a setting: with it off, the earlier behavior
+  await pool.query("update settings set value = 'false' where key = 'bench.require_completed'");
   assertEquals((await call("POST", "/bench/invite", att2.token, { freelancer: fl2.id, kind: "firm" })).body.ok, true);
+  await pool.query("update settings set value = 'true' where key = 'bench.require_completed'");
 });
 
 Deno.test("webhooks: safe addresses only, the plan's limit, signed notices, retries, pausing, and events from DELA", async () => {

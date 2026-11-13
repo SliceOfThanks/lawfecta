@@ -182,7 +182,7 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     s = await open(browser, "DELA-App", 2600, "&tab=talent");
     p = s.page;
     t = await waitFor(p, "Fran 2601");
-    ok(t.includes("Create a gig from an SOP or Workflow") && !t.includes("@test.invalid"), "Talent lists match-ready freelancers, with no contact details");
+    ok(t.includes("Gig to invite for") && t.includes("Invite to this gig") && !t.includes("Create a gig from an SOP or Workflow") && !t.includes("@test.invalid"), "Talent lists match-ready freelancers with the invite control and no contact details");
     ok(await dela(p).getByLabel("State you need", { exact: true }).locator("option", { hasText: "Texas" }).count() === 1 && t.includes("Specialty") && t.includes("Task, case type or software"), "Talent boxes have visible labels and the state has full names (UX review T01, step 17 lists)");
     await dela(p).getByRole("button", { name: "View profile", exact: true }).first().click();
     await dela(p).getByRole("dialog").locator("h3").first().waitFor({ timeout: 8000 });

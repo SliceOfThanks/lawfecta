@@ -223,6 +223,7 @@
   D.errorText = function (code) {
     var map = {
       forbidden: "Only the Lawfecta Team owner can do that.",
+      needs_completed_gig: "This opens after you have completed a gig with this freelancer. Canceled, refunded or disputed gigs do not count.",
       sensitive_data: "This looks like sensitive data (a Social Security number or ITIN, a government ID number, an account or card number, or a password). Sensitive data never goes in DELA. Keep it in your own storage and share a link instead.",
       note_required: "Add a note saying why.", bad_amount: "Enter a number of actions from 1 to 100,000.",
       document_read_only: "This document is read-only on your plan. Upgrade to edit it.", no_subscription_id: "Brilliant Directories did not say which plan this member is on.",
@@ -407,7 +408,7 @@ D.openTab = function (getUrl, onFail, opts) {
     // Dark colors (UX review Phase 4 part D): on when the person chose Dark (data-theme=dark), or when they chose Match my
     // device and the device is dark (data-theme=auto). Light (data-theme=light) never turns dark.
     D.darkCss(".dela{--bg:#11131b;--card:#1a1d28;--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c;--brand:#c2416f;--pink:#2a1622;--pink-ink:#f19ab8;--soft:#222634;--shadow:none;--okbg:#17301f;--okline:#2b5a3b;--bluebg:#132233}" +
-      ".problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b}.notice.ok{background:#17301f}" +
+      ".problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b}.notice.ok{background:#17301f}.talent-ver{color:#7fd3a3}" +
       ".msg.mine,.flow,.helpbox{border-color:#2b4a66}button.ai-btn{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}.badge.ai-label{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}" +
       ".oktxt{color:#7fd3a3}" +
       ".dela{--head:var(--pink)}" +
@@ -477,6 +478,13 @@ D.openTab = function (getUrl, onFail, opts) {
     ".cat-search{position:relative}.cat-suggest{position:absolute;left:0;right:0;top:100%;z-index:30;margin:4px 0 0;padding:4px;list-style:none;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:320px;overflow:auto}" +
     ".cat-suggest li{padding:8px 10px;border-radius:8px;cursor:pointer;line-height:1.35}.cat-suggest li:hover,.cat-suggest li[aria-selected=true]{background:var(--pink)}" +
     ".talent-cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 12px}.talent-cats select{width:100%}.cat-line{color:var(--pink-ink);font-weight:600;margin:2px 0}" +
+    // Step 18: Talent results in the mockup layout (photo or initial, who, about, then the two actions with the gig to invite for)
+    ".talent-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:16px 0 8px}.talent-sort select{margin-left:6px}.talent-help{margin:12px 0;padding:12px 16px;border:1px solid var(--line);border-radius:12px;background:var(--pink)}.talent-help summary{cursor:pointer}" +
+    ".talent-card{margin:8px 0}.talent-top{display:grid;grid-template-columns:64px minmax(160px,240px) 1fr;gap:14px;align-items:start}.talent-photo{width:64px;height:64px;border-radius:50%;object-fit:cover;display:flex;align-items:center;justify-content:center}" +
+    ".talent-photo.none{background:var(--pink);color:var(--pink-ink);font-size:24px;font-weight:700}.talent-trust{display:flex;flex-direction:column;gap:2px;margin-top:4px}.talent-ver{color:#21613d;font-weight:700}" +
+    ".talent-tags{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.talent-tag{font-size:12px;font-weight:600;padding:3px 10px;border-radius:999px;background:var(--pink);color:var(--pink-ink)}" +
+    ".talent-acts{display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}.talent-gig{display:flex;flex-direction:column;gap:4px;flex:1 1 260px;min-width:0}.talent-gig select{width:100%}" +
+    ".talent-acts button{min-height:40px}@media (max-width:720px){.talent-top{grid-template-columns:48px 1fr}.talent-photo{width:48px;height:48px}.talent-about{grid-column:1 / -1}.talent-acts button{flex:1 1 100%}}" +
     ".cat-picked{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.cat-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 12px;border-radius:999px;background:var(--pink);border:1px solid var(--line);font-size:13px}" +
     ".cat-chip button{border:0;background:transparent;color:var(--ink);cursor:pointer;font-size:15px;line-height:1;padding:2px 6px;min-height:0}.cat-browse{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0 12px}.cat-browse select{width:100%}",
     ".sw-table thead th{background:var(--head,var(--pink));color:var(--ink)}.sw-band th{background:var(--head,var(--pink));color:var(--ink);padding:12px 10px;border-top:2px solid var(--line)}.sw-name{display:block;font-size:16px;font-weight:700}.sw-about{display:block;font-size:13px;font-weight:400;color:var(--muted);margin-top:2px}.sw-table tr[hidden]{display:none}",

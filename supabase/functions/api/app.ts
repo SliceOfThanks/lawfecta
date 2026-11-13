@@ -2623,8 +2623,11 @@ async function talent(ctx: Ctx) {
   const s = await client(ctx);
   const q = ctx.url.searchParams;
   const cat = str(q.get("category"), 12);
-  return json(ctx, await rpc(ctx, "dela_talent_search", { p_person: s.person_id, p: { practice_area: str(q.get("practice_area"), 80), skill: str(q.get("skill"), 80), tool: str(q.get("tool"), 80), state: str(q.get("state"), 2),
-    category: /^[ps][0-9]{1,9}$/.test(cat) ? cat : "", q: str(q.get("q"), 80) } }));
+  const r = await rpc<Record<string, any>>(ctx, "dela_talent_search", { p_person: s.person_id, p: { practice_area: str(q.get("practice_area"), 80), skill: str(q.get("skill"), 80), tool: str(q.get("tool"), 80), state: str(q.get("state"), 2),
+    category: /^[ps][0-9]{1,9}$/.test(cat) ? cat : "", q: str(q.get("q"), 80) } });
+  // Step 18: the cards show the freelancer's own DELA photo (a signed link for an hour); the storage path never leaves
+  if (r?.ok && Array.isArray(r.people)) await withPhotos(ctx, r.people);
+  return json(ctx, r);
 }
 
 // ---------- Step 17: the website's categories (docs/briefs/step-17-talent-categories.md) ----------
@@ -5182,7 +5185,13 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
     // deleting still work. The check runs only while usage_limits_enforced is on (inside dela_pb_locked).
     if (EDIT_ROUTES.has(key) && uuid(body.id) && await rpc<boolean>(ctx, "dela_pb_locked", { p_pb: uuid(body.id) })) return json(ctx, { ok: false, reason: "document_read_only" });
     switch (key) {
-      case "GET /standing": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_standing_list", { p_person: s.person_id, p_side: s.side })); }
+      case "GET /standing": {
+        const s = await memberSide(ctx);
+        const r = await rpc<Record<string, any>>(ctx, "dela_standing_list", { p_person: s.person_id, p_side: s.side });
+        // Step 18: an arrangement can only be offered to a freelancer the attorney finished work with
+        if (r && r.on && s.side === "attorney") r.eligible = await rpc(ctx, "dela_worked_with", { p_person: s.person_id });
+        return json(ctx, r);
+      }
       case "POST /standing/create": {
         const s = await memberSide(ctx);
         if (s.side !== "attorney") throw new HttpError(403, "attorneys_only");
