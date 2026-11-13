@@ -69,7 +69,7 @@ FREELANCER (log in once)
    Expect: no pink notice at the top of the page.
    Find: the card titled "Your profile" (scroll down, below the cards about availability and the LinkedIn check). Near the top of the card is a round photo with an outlined button to its right.
    Do: click that button ("Change photo", or "Add a photo" if there is no photo yet). Ask me to choose the PNG or JPG photo from Downloads. Wait until I say done.
-   Expect: the message "New photo ready. Click Save to keep it." and the new photo in the circle.
+   Expect: the message "New photo ready. Click "Save my picture" next to it to keep it." and the new photo in the circle.
 
 6. Find: in the card "Your profile", the folded line that starts "Biography: summary, experience and education".
    Do: click that line to open it, if the boxes "Summary", "Experience" and "Education" are not showing.

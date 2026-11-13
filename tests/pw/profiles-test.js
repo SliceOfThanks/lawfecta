@@ -183,7 +183,7 @@ async function waitFor(page, words, ms) {
     ok(await dela(p).getByRole("button", { name: "Westlaw" }).isVisible(), "opening a group shows its tools");
     // Change the photo on this page (Stacey 2026-11-05: "doesn't allow me")
     await dela(p).getByLabel("Choose a profile photo").setInputFiles({ name: "me.png", mimeType: "image/png", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]) });
-    await waitFor(p, "New photo ready. Click Save to keep it.");
+    await waitFor(p, "New photo ready. Click \"Save my picture\" next to it to keep it.");
     ok(await dela(p).getByRole("button", { name: "Change photo" }).count() === 1, "a new photo can be chosen on the profile page");
     await unfold(p, "prof-bio");
     await label(p, "Experience").fill("Eight years at two family law firms.");
