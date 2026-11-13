@@ -4535,12 +4535,14 @@ async function mcpCall(ctx: Ctx, w: McpWho, name: string, a: Record<string, any>
     const r = await rpc<Record<string, any>>(ctx, "dela_bench", { p_person: w.person_id, p_side: w.side });
     if (!r?.on) return { text: "The bench is not open for this account yet." };
     const items = (r.items ?? []) as Array<Record<string, any>>;
+    for (const b of items) delete b.face;
     return { text: items.length ? items.map((b) => w.side === "attorney" ? `- ${b.name} (${b.kind} bench, ${b.status})${b.available ? ", available" : ", not available now"}${b.reviews?.count ? ", " + b.reviews.count + " reviews" : ""}` : `- ${b.attorney} (${b.status})`).join("\n") : "Nobody on the bench yet.", data: items };
   }
   if (name === "list_my_engagements") {
     const r = await rpc<Record<string, any>>(ctx, "dela_engagements", { p_person: w.person_id, p_side: w.side });
     if (!r?.on) return { text: "Engagements are not open for this account yet." };
     const es = (r.engagements ?? []) as Array<Record<string, any>>;
+    for (const e of es) delete e.face;
     const usd = (c: number) => "$" + (Number(c) / 100).toFixed(2);
     return { text: es.length ? es.map((e) => `- ${e.gig_title} (id ${e.id}) with ${e.other_name}: ${e.status}, ${usd(e.total_cents)}, ${e.accepted} of ${e.milestones} milestones accepted` + (e.needs_me === "sign" ? ", waiting for your signature on the DELA website" : "")).join("\n") : "No engagements yet.", data: es };
   }
@@ -4548,7 +4550,7 @@ async function mcpCall(ctx: Ctx, w: McpWho, name: string, a: Record<string, any>
     const usd = (c: number) => "$" + (Number(c) / 100).toFixed(2);
     const e = await rpc<Record<string, any>>(ctx, "dela_engagements", { p_person: w.person_id, p_side: w.side });
     const monthly: Array<Record<string, any>> = [];
-    for (const x of (e?.engagements ?? []) as Array<Record<string, any>>) if (await rpc<boolean>(ctx, "dela_agreement_is_monthly", { p_agreement: x.id })) monthly.push(x);
+    for (const x of (e?.engagements ?? []) as Array<Record<string, any>>) { delete x.face; if (await rpc<boolean>(ctx, "dela_agreement_is_monthly", { p_agreement: x.id })) monthly.push(x); }
     const st = await rpc<Record<string, any>>(ctx, "dela_standing_list", { p_person: w.person_id, p_side: w.side });
     const arr = st?.on ? ((st.arrangements ?? []) as Array<Record<string, any>>) : [];
     const lines = [
@@ -5691,7 +5693,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       // app's own unsubscribe button (a form post with the token in the address). No login; the token is the proof.
       case "POST /public/unsubscribe":
         return json(ctx, await rpc(ctx, "dela_email_unsubscribe", { p_token: str(ctx.body.t, 60) || str(ctx.url.searchParams.get("t"), 60), p_source: ctx.body.t ? "page" : "mail_app" }));
-      case "GET /bench": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_bench", { p_person: s.person_id, p_side: s.side })); }
+      case "GET /bench": { const s = await memberSide(ctx); const r = await rpc<Record<string, any>>(ctx, "dela_bench", { p_person: s.person_id, p_side: s.side }); if (r?.ok) await withFaces(ctx, r.items); return json(ctx, r); }
       case "POST /bench/invite": return await benchInvite(ctx);
       case "POST /bench/answer": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); return json(ctx, await rpc(ctx, "dela_bench_answer", { p_person: s.person_id, p_bench: need(uuid(ctx.body.id)), p_accept: ctx.body.accept === true })); }
       case "POST /bench/end": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_bench_end", { p_person: s.person_id, p_side: s.side, p_bench: need(uuid(ctx.body.id)) })); }
@@ -5708,7 +5710,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /categories": return await categories(ctx);
       case "GET /availability": { const s = await memberSide(ctx); return json(ctx, await withMeetingRules(ctx, await rpc(ctx, "dela_avail_get", { p_person: s.person_id }))); }
       case "POST /availability": return await availSave(ctx);
-      case "GET /engagements": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_engagements", { p_person: s.person_id, p_side: s.side })); }
+      case "GET /engagements": { const s = await memberSide(ctx); const r = await rpc<Record<string, any>>(ctx, "dela_engagements", { p_person: s.person_id, p_side: s.side }); if (r?.ok) await withFaces(ctx, r.engagements); return json(ctx, r); }
       case "GET /agreements/get": return await agreementGet(ctx);
       case "POST /agreements/propose": return await agreementPropose(ctx);
       case "POST /agreements/subcontractors": return await agreementSubcontractors(ctx);
