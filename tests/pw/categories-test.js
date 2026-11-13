@@ -80,6 +80,8 @@ const SEARCH = "Search roles, specialties, tasks and software";
     const bar = await p.evaluate(() => { const b = document.querySelector(".dela-host").shadowRoot.querySelector("#ready-card [role=progressbar]"); return b ? b.getAttribute("aria-valuenow") + " | " + b.getAttribute("aria-valuetext") : ""; });
     ok(/^Match-ready: 0 of \d+ steps done/m.test(t) && /^0 \| 0 of \d+ steps done$/.test(bar) && t.includes("steps to go."), "the Profile page counts the steps to match-ready on one progress bar: " + bar);
     ok(t.includes("1. Your profile (0 of") && t.includes("3. Your availability (0 of 1)") && t.includes("Availability confirmed in the last 14 days") && !t.includes("2. The Lawfecta Team's check"), "the steps are grouped: the profile items, then availability (the check is left out when it is not required)");
+    const shown = await p.evaluate(() => { const n = document.querySelector(".dela-host").shadowRoot.querySelector("#talent-shown"); return n ? n.textContent : ""; });
+    ok(shown.startsWith("Attorneys cannot see you in Talent yet.") && / required profile items are still empty/.test(shown) && shown.includes("your availability is not confirmed") && shown.includes("your picture included"), "a profile that is not in Talent says so, with the reasons: " + shown);
     await dela(p).locator("#ready-card summary").click();
     ok((await text(p)).includes("That takes three things: every required profile item is filled, the Lawfecta Team's check has passed, and you confirmed in the last 14 days that you can take work."), "match-ready is defined in plain words on the page");
     await dela(p).locator("#ready-card").getByRole("button", { name: /^Add it: / }).first().click();

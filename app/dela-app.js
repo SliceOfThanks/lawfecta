@@ -1740,6 +1740,18 @@
       h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("h2", { class: "grow", style: "margin:0", text: goal + ": " + done + " of " + total + " steps done" }), h("span", { class: "badge " + (ready ? "ready" : "held"), text: STATE_BADGE[st.readiness] || st.readiness })),
       h("div", { class: "bar ready-bar", role: "progressbar", "aria-label": "Progress to " + goal.toLowerCase(), "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(pct), "aria-valuetext": done + " of " + total + " steps done" }, h("span", { style: "width:" + pct + "%" + (ready ? ";background:#21613d" : "") })),
       h("p", { id: "ready-say", text: paused ? (READY_WORDS[me.side] || {}).restricted : ready ? (READY_WORDS[me.side] || {}).match_ready : total - done === 1 ? "One step to go." : (total - done) + " steps to go." }));
+    // Stacey 2026-11-13: say plainly whether attorneys can see this profile in Talent, and why not
+    if (!att) {
+      var why = [];
+      var pLeft = steps.filter(function (x) { return x.group === "profile" && !x.done; });
+      if (pLeft.length) why.push(pLeft.length === 1 ? "1 required profile item is still empty (" + pLeft[0].label + ")" : pLeft.length + " required profile items are still empty");
+      if (steps.some(function (x) { return x.group === "check" && !x.done; })) why.push(st.verification === "pending" ? "the Lawfecta Team is still doing your LinkedIn check" : "the Lawfecta Team's LinkedIn check has not passed yet");
+      if (steps.some(function (x) { return x.group === "avail" && !x.done; })) why.push(st.availability === "unavailable" ? "you are marked \"Not taking new work\"" : "your availability is not confirmed");
+      card.appendChild(h("div", { id: "talent-shown", class: "notice " + (ready ? "ok" : "bad") },
+        h("strong", { text: ready ? "Attorneys can see you in Talent now." : "Attorneys cannot see you in Talent yet." }),
+        ready ? h("span", { text: " Your picture, headline and summary show on your Talent card." })
+          : h("span", { text: " " + (paused ? "The Lawfecta Team has paused matching on your account." : why.length ? "Reason: " + why.join("; ") + "." : "Finish the steps below.") + " Everything you save here, your picture included, is kept and shows to attorneys as soon as you are match-ready." })));
+    }
     card.appendChild(h("details", { class: "ready-what" }, h("summary", { style: "cursor:pointer;font-weight:700", text: att ? "What \"ready to post and hire\" means" : "What \"match-ready\" means" }),
       h("p", { class: "small", text: att ? "You can post gigs, contact freelancers and hire when two things are true: every required profile item is filled, and the Lawfecta Team has verified your bar license. Until then you can still use Ask DELA, documents, files and the recorder."
         : "Attorneys can find you on Talent, see you in gig matches and invite you only while you are match-ready. That takes three things: every required profile item is filled, the Lawfecta Team's check has passed, and you confirmed in the last " + (st.availability_days || 14) + " days that you can take work. If any one lapses, you drop out of Talent until it is fixed. Work you already have is not affected." })));

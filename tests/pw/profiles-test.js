@@ -263,6 +263,7 @@ async function waitFor(page, words, ms) {
     await click(p, "Available for new work");
     t = await waitFor(p, "You are match-ready");
     ok(t.includes("Confirm again by"), "confirming availability makes the freelancer match-ready, with the next date");
+    ok(t.includes("Attorneys can see you in Talent now.") && !t.includes("Attorneys cannot see you in Talent yet."), "a match-ready freelancer is told attorneys can see them in Talent");
     await p.screenshot({ path: path.join(SHOTS, "profile-freelancer.png"), fullPage: true });
     // Fix (UI review 2026-11-08): Home shows the same green "Ready" as the Profile, not a grey "match ready"
     await p.goto(p.url().replace("tab=profile", "tab=home"));
