@@ -96,6 +96,9 @@ async function lowContrast(page) {
     await dela(p).getByRole("menuitemradio", { name: "Dark" }).click();
     await waitFor(p, "Appearance: Dark");
     ok(await theme(p) === "dark" && (await bg(p)) === "rgb(17, 19, 27)", "Dark turns DELA dark at once");
+    // Stacey 2026-11-13: the heading band of every card is #2B303C in the dark look
+    const darkBand = await p.evaluate(() => getComputedStyle(document.querySelector(".dela-host").shadowRoot.querySelector(".dela")).getPropertyValue("--head").trim().toLowerCase());
+    ok(darkBand === "#2b303c", "the heading band of a card is #2B303C in the dark look: " + darkBand);
     await p.reload(); await text(p);
     ok(await theme(p) === "dark", "the choice stays after reloading");
 

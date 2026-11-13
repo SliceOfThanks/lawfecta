@@ -8,7 +8,7 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 
 ## New colors, "Your next meeting" on Home, notice wording: ON THE SITE (2026-11-13)
 - Site: code_version 5bc9b64 (browser code and migration 0120; the api function is unchanged at version 119), health "ok". GitHub Tests passed on that commit (run 43506056961), including the contrast checks.
-- Colors (Stacey 2026-11-13, not the menu): page #F5F5F7, text #0B1220, secondary text #475569, card border #DCE3EA, meeting card heading band #EAF1F8; buttons #8B2146 and white cards as before. The side menu, the phone's bottom bar and its sheet keep their colors. Asked: should other cards get the heading band too? No answer yet.
+- Colors (Stacey 2026-11-13, not the menu): page #F5F5F7, text #0B1220, secondary text #475569, card border #DCE3EA, heading band of every card #E2E4E8 (first #EAF1F8, changed the same day; #2B303C in the dark look); buttons #8B2146 and white cards as before. The side menu, the phone's bottom bar and its sheet keep their colors. Asked: should other cards get the heading band too? No answer yet.
 - Home: card "Your next meeting" with "Join the meeting" while the room is open, and "Open the meeting".
 - Notices for a meeting with no gig say "introductory call" (migration 0120); gig meeting notices unchanged.
 - docs/PILOT_CHECKS.md started (Stacey 2026-11-13): the running list of what must be seen working for real in the pilot. The two-person meeting and the transcript are on it as "Not yet"; Stacey chose not to test them on 2026-11-13.

@@ -403,17 +403,16 @@ D.openTab = function (getUrl, onFail, opts) {
 
   D.CSS = [
     ":host{all:initial}",
-    ".dela{--bg:#f5f5f7;--card:#ffffff;--ink:#0b1220;--muted:#475569;--line:#dce3ea;--head:#eaf1f8;--brand:#8b2146;--brand-ink:#ffffff;--blue:#0b6fbd;--pink:#fbeef2;--pink-ink:#8b2146;",
+    ".dela{--bg:#f5f5f7;--card:#ffffff;--ink:#0b1220;--muted:#475569;--line:#dce3ea;--head:#e2e4e8;--brand:#8b2146;--brand-ink:#ffffff;--blue:#0b6fbd;--pink:#fbeef2;--pink-ink:#8b2146;",
     "--navy:#1d2030;--hero:linear-gradient(135deg,#1d2030 0%,#3a1a33 45%,#8b2146 100%);--hot:linear-gradient(120deg,#3a1238 0%,#8b2146 55%,#d23b62 100%);",
     "--ok:#2f7a4f;--warn:#a46a00;--bad:#b3261e;--soft:#f1f2f6;--shadow:0 10px 30px rgba(139,33,70,.10);--okbg:#e3f3ea;--okline:#b6dcc5;--bluebg:#eef6fd;",
     "font-family:Inter,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:var(--ink);background:var(--bg);min-height:60vh;padding:0 0 88px;box-sizing:border-box;-webkit-font-smoothing:antialiased}",
     // Dark colors (UX review Phase 4 part D): on when the person chose Dark (data-theme=dark), or when they chose Match my
     // device and the device is dark (data-theme=auto). Light (data-theme=light) never turns dark.
-    D.darkCss(".dela{--bg:#11131b;--card:#1a1d28;--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c;--head:#222a3a;--brand:#c2416f;--pink:#2a1622;--pink-ink:#f19ab8;--soft:#222634;--shadow:none;--okbg:#17301f;--okline:#2b5a3b;--bluebg:#132233}.nl-side,.nl-bar,.nl-sheet{--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c}" +
+    D.darkCss(".dela{--bg:#11131b;--card:#1a1d28;--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c;--head:#2b303c;--brand:#c2416f;--pink:#2a1622;--pink-ink:#f19ab8;--soft:#222634;--shadow:none;--okbg:#17301f;--okline:#2b5a3b;--bluebg:#132233}.nl-side,.nl-bar,.nl-sheet{--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c}" +
       ".problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b}.notice.ok{background:#17301f}.talent-ver{color:#7fd3a3}" +
       ".msg.mine,.flow,.helpbox{border-color:#2b4a66}button.ai-btn{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}.badge.ai-label{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}" +
       ".oktxt{color:#7fd3a3}" +
-      ".dela{--head:var(--pink)}" +
       // Waiting and done badges are quiet on dark: a deep tint with light text, not a bright chip
       ".badge.held{background:#3a2f12;color:#f0c668;border-color:#5c4a1c}.badge.ready{background:#17301f;color:#7fd3a3;border-color:#2b5a3b}" +
       // Readable text on dark (at least 4.5 to 1): links, outlined buttons, the current tab, labels and blue buttons
@@ -528,7 +527,7 @@ D.openTab = function (getUrl, onFail, opts) {
     // Stacey 2026-11-13: the ready-made pictures are see-through drawings, so every picture sits on the light pink of the initial circle
     "img.talent-photo,img.face,.av-opt img{background:#fbeef2}" +
     // Stacey 2026-11-13: the platform's colors changed (page #F5F5F7, text #0B1220, secondary text #475569, card border #DCE3EA,
-    // card heading band #EAF1F8); the menus keep the colors they had
+    // card heading band #EAF1F8, changed the same day to the grey #E2E4E8, and #2B303C in the dark look); the menus keep the colors they had
     ".nl-side,.nl-bar,.nl-sheet{--ink:#1c2230;--muted:#5f6675;--line:#e6e7ec}" +
     ".dela .card.mt-card{padding:0;overflow:hidden}.mt-head{background:var(--head);color:var(--ink);padding:14px 20px;align-items:center;gap:10px}.mt-head h2{font-size:18px}.mt-body{padding:16px 20px 18px}.dela.nl .mt-head{padding:12px 16px}.dela.nl .mt-body{padding:14px 16px}" +
     ".talent-help-h{margin:0;font-size:inherit}.dela .talent-help-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:0;color:var(--ink);padding:4px 0;min-height:44px}.dela .talent-help-btn:focus-visible{outline:2px solid var(--pink-ink);outline-offset:2px}" +
