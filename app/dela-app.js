@@ -5214,7 +5214,7 @@
           end_on: end.value, allow_firm: firm.checked, typed_name: sb.name.value, consent: sb.ok.checked, request_id: req }).then(function (r) {
           send.disabled = false;
           if (!r.ok) { msg.textContent = standingErr(r); return; }
-          m.close(); D.toast(app, "Sent to " + personName + " to accept."); if (tab === "projects") draw();
+          m.close(); if (tab === "projects") draw(); D.toast(app, "Sent to " + personName + " to accept.");
         }).catch(function (e) { send.disabled = false; msg.textContent = standingErr(e); });
       });
       m.foot.appendChild(send);
