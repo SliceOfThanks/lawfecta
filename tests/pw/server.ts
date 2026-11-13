@@ -243,6 +243,10 @@ async function page(widget: string, uid: string, plan: string, cookie = "") {
 <body><header style="padding:10px;background:#222;color:#fff">Lawfecta site header (BD)</header>${html}<footer style="padding:10px">BD footer</footer></body></html>`;
 }
 
+// The browser suites share one database and look for their own people on Talent without a filter, so a page holds
+// 50 here. The suite that tests "Load more" sets the size itself (tests/pw/categories-test.js).
+await pool.query("update settings set value = '50' where key = 'talent.page_size'").catch(() => null);
+
 Deno.serve({ port: PORT, hostname: "127.0.0.1" }, async (req) => {
   const url = new URL(req.url);
   if (url.pathname.startsWith("/page/")) {

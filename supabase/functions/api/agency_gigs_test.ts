@@ -128,7 +128,7 @@ Deno.test("hiring: never the agency's own people; the bench first; freelancers s
   assertEquals((await call("GET", "/gigs/get?id=" + gig, att.token)).body.ok, false, "attorneys do not see the agency's gig");
   assertEquals((await call("GET", "/gigs/get?id=" + gig, owner.token)).body.access, "manager", "the agency manages its own gig from its freelancer session");
   assert((await call("POST", "/gigs/invite", owner.token, { gig_id: gig2, person_id: omar.id })).body.ok);
-  const talent = (await call("GET", "/talent", owner.token)).body;
+  const talent = (await call("GET", "/talent?limit=50", owner.token)).body;
   assertEquals(talent.ok, true, "the agency uses Talent");
 });
 

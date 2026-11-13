@@ -5615,12 +5615,28 @@
       return out;
     }
     var last = null;
-    function show() { if (last) talentResults(results, last.x, last.gigs, idx, { chips: chips(), clear: clearAll, resort: show, reload: run }); }
+    function query(offset) {
+      var q = Object.keys(talentQ).filter(function (k) { return talentQ[k]; }).map(function (k) { return k + "=" + encodeURIComponent(talentQ[k]); });
+      if (talentSort !== "relevant") q.push("sort=" + talentSort);
+      if (offset) q.push("offset=" + offset);
+      return "/talent?" + q.join("&");
+    }
+    // "Load more": the next page is added under the ones already shown, on the same screen
+    function more(btn, say) {
+      if (!last || !last.x.ok) return;
+      btn.disabled = true; btn.textContent = "Loading...";
+      api.get(query(last.x.people.length)).then(function (x) {
+        if (!x.ok) { btn.disabled = false; btn.textContent = "Load more freelancers"; say.textContent = "More could not be loaded. Try again."; return; }
+        var from = last.x.people.length;
+        last.x.people = last.x.people.concat(x.people || []); last.x.total = x.total;
+        show(from);
+      }).catch(function () { btn.disabled = false; btn.textContent = "Load more freelancers"; say.textContent = "More could not be loaded. Check your connection and try again."; });
+    }
+    function show(focusFrom) { if (last) talentResults(results, last.x, last.gigs, idx, { chips: chips(), clear: clearAll, resort: run, reload: run, more: more, focusFrom: focusFrom }); }
     function run() {
       talentQ.category = chain.leaf || chain.sub || chain.top; talentQ.q = box.input.value.trim(); talentQ.state = state.value; talentQ.bookmarked = onlyBm.checked ? "1" : "";
       D.clear(results); results.appendChild(h("p", { class: "muted", role: "status", text: "Searching..." }));
-      var qs = Object.keys(talentQ).filter(function (k) { return talentQ[k]; }).map(function (k) { return k + "=" + encodeURIComponent(talentQ[k]); }).join("&");
-      Promise.all([api.get("/talent?" + qs), api.get("/gigs"), loadBookmarks(!!talentQ.bookmarked)]).then(function (rs) {
+      Promise.all([api.get(query(0)), api.get("/gigs"), loadBookmarks(!!talentQ.bookmarked)]).then(function (rs) {
         talentMarks = rs[2].set || {};
         // Only gigs that still take proposals: posted, not paused by the Lawfecta Team, closing date not passed
         var now = Date.now();
@@ -5808,13 +5824,6 @@
     return el;
   }
   var TALENT_SORTS = [["relevant", "Most relevant"], ["reviews", "Most reviews"], ["hours", "Most hours a week"], ["name", "Name, A to Z"]];
-  function talentSorted(people) {
-    var list = people.slice();
-    if (talentSort === "reviews") list.sort(function (a, b) { return ((b.reviews || {}).count || 0) - ((a.reviews || {}).count || 0); });
-    else if (talentSort === "hours") list.sort(function (a, b) { return (b.capacity_hours_week || 0) - (a.capacity_hours_week || 0); });
-    else if (talentSort === "name") list.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
-    return list;
-  }
   // Stacey 2026-11-12: the word is "Verified"; the Help page (FAQ) says what Lawfecta checks. Shown only when the check passed.
   function talentTrust(p) {
     var rv = p.reviews || {}, n = rv.count || 0;
@@ -5846,7 +5855,7 @@
   function talentResults(results, x, mine, idx, o) {
     D.clear(results);
     if (!x.ok) { results.appendChild(h("p", { class: "notice", role: "alert", text: x.reason === "category_gone" ? "That category is no longer on the Lawfecta website. Choose another one." : /^bookmarks_/.test(x.reason || "") ? "Your bookmarks could not be read, so nothing is shown. " + D.errorText(x.reason) : gigErr(x) })); return; }
-    var n = x.people.length;
+    var n = typeof x.total === "number" ? x.total : x.people.length;
     var sort = h("select", { "aria-label": "Sort by" }, TALENT_SORTS.map(function (s) { return h("option", { value: s[0], text: s[1], selected: talentSort === s[0] }); }));
     sort.addEventListener("change", function () { talentSort = sort.value; o.resort(); });
     var head = h("div", { class: "talent-head" }, h("h2", { style: "margin:0", role: "status", text: n + (n === 1 ? " freelancer found" : " freelancers found") }));
@@ -5860,7 +5869,7 @@
     results.appendChild(head);
     if (n && !mine.length) results.appendChild(h("p", { class: "notice", id: "talent-nogig" }, "You have no posted gig that is open for proposals, so there is nothing to invite a freelancer to yet. ",
       h("a", { href: "#", onclick: function (e) { e.preventDefault(); goTab("projects"); }, text: "Post a gig in Projects" }), "."));
-    talentSorted(x.people).forEach(function (p) {
+    x.people.forEach(function (p, pi) {
       // Grouped by top category: "Paralegal Services: Discovery Support, Clio"
       var groups = {}, order = [];
       (p.categories || []).forEach(function (k) { var c = idx.byKey[k]; if (!c) return; var top = idx.byKey[c.top]; var g = top ? top.name : ""; if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(c.name); });
@@ -5869,7 +5878,7 @@
       var facts = [p.capacity_hours_week ? p.capacity_hours_week + " hours a week" + (p.availability === "limited" ? " (limited right now)" : " available") : "", p.timezone ? p.timezone + " time" : "",
         p.firm_name ? "Works through " + p.firm_name : ""].filter(Boolean).join(" | ");
       var inv = talentInvite(p, mine, results), gigSel = inv.gigSel, invite = inv.invite, said = inv.said;
-      results.appendChild(h("article", { class: "card talent-card", "aria-label": p.name },
+      results.appendChild(h("article", { class: "card talent-card", "aria-label": p.name, tabindex: o.focusFrom === pi ? "-1" : null },
         h("div", { class: "talent-top" }, talentAvatar(p),
           h("div", { class: "talent-who" }, h("h3", { style: "margin:0", text: p.name }), p.headline ? h("div", { class: "small", text: p.headline }) : null, talentTrust(p)),
           h("div", { class: "talent-about talent-rule" }, p.summary ? h("p", { class: "small", style: "margin:0 0 6px", text: p.summary }) : null, catLine,
@@ -5880,6 +5889,15 @@
           h("label", { class: "talent-gig" }, h("span", { class: "talent-gig-word", text: "Invite for gig:" }), gigSel), invite),
         said));
     });
+    // 10 at a time (setting talent.page_size): how many are shown, and the button for the next ones
+    if (n > x.people.length || x.people.length > 0) {
+      var say = h("span", { class: "small muted", role: "status", text: "Showing " + x.people.length + " of " + n + (n === 1 ? " freelancer" : " freelancers") + "." });
+      var row = h("div", { class: "row talent-more", style: "gap:12px;flex-wrap:wrap;align-items:center;justify-content:center;margin:14px 0" }, say);
+      if (n > x.people.length) { var mb = h("button", { class: "ghost", type: "button" }, "Load more freelancers"); mb.addEventListener("click", function () { o.more(mb, say); }); row.appendChild(mb); }
+      results.appendChild(row);
+    }
+    // After "Load more" the keyboard and the screen reader land on the first new freelancer
+    if (typeof o.focusFrom === "number") { var firstNew = results.querySelectorAll(".talent-card")[o.focusFrom]; if (firstNew) firstNew.focus(); }
     // Back from a profile: the same place in the list
     if (talentScroll) { var y = talentScroll; talentScroll = 0; setTimeout(function () { window.scrollTo(0, y); }, 0); }
   }

@@ -174,7 +174,7 @@ Deno.test("freelancers save their categories: only real ones, in order, capped; 
 Deno.test("Talent: a category finds everyone in it and below it; free words also match category names", async () => {
   await readyFreelancer(fNurse, { headline: "Nurse reviewer", practice_areas: [], software: [], skills: [], capacity_hours_week: 10, states_excluded: [], categories: ["s275"] });
   await readyFreelancer(fFamily, { headline: "Family paralegal", practice_areas: ["Family law"], software: [], skills: [], capacity_hours_week: 10, states_excluded: ["TX"], categories: ["s327"] });
-  const t = (q: string) => call("GET", "/talent?" + q, att.token);
+  const t = (q: string) => call("GET", "/talent?limit=50&" + q, att.token);
   const all = ids(await t(""));
   assert([fNurse.id, fFamily.id, fNone.id].every((x) => all.includes(x)), "no filter: everyone match-ready, with or without categories");
   assertEquals(ids(await t("category=p39")).filter((x) => [fNurse.id, fFamily.id, fNone.id].includes(x)), [fNurse.id], "a top category finds its sub subs");
@@ -388,6 +388,29 @@ Deno.test("subscription: what the member is billed comes from the website's reco
   assertEquals((await call("GET", "/subscription/billing", att.token)).body, { ok: false, reason: "billing_not_allowed" });
   billing = "none";
   assertEquals((await call("GET", "/subscription/billing", "ds_test_nobody")).status, 401);
+});
+
+Deno.test("Talent comes a page at a time: the setting's size, the total, the next page, one order across pages", async () => {
+  const get = async (q: string) => (await call("GET", "/talent?" + q, att.token)).body as Record<string, any>;
+  const all = await get("limit=50");
+  assert(all.total >= 3 && all.people.length === all.total, "with room for everyone, everyone comes: " + all.total);
+  // The page size is a setting (10); nothing is cut off at 40 any more
+  await pool.query("update settings set value = '2' where key = 'talent.page_size'");
+  const p1 = await get(""), p2 = await get("offset=2");
+  assertEquals([p1.people.length, p1.limit, p1.offset, p1.total, p2.offset], [2, 2, 0, all.total, 2]);
+  assertEquals(p1.people.map((x: any) => x.person_id).concat(p2.people.map((x: any) => x.person_id)), all.people.slice(0, 2 + p2.people.length).map((x: any) => x.person_id), "the pages follow each other in the same order, with nobody twice");
+  await pool.query("update settings set value = '10' where key = 'talent.page_size'");
+  assertEquals((await get("")).limit, 10);
+  // Sorting happens before the pages are cut, so page 2 continues page 1
+  const byName = (await get("limit=50&sort=name")).people.map((x: any) => String(x.name).toLowerCase());
+  assertEquals(byName, [...byName].sort(), "name order");
+  const n1 = await get("limit=1&sort=name"), n2 = await get("limit=1&offset=1&sort=name");
+  assertEquals([String(n1.people[0].name).toLowerCase(), String(n2.people[0].name).toLowerCase()], byName.slice(0, 2));
+  assertEquals([(await get("limit=500")).limit, (await get("limit=0")).limit, (await get("offset=-5")).offset, (await get("sort=drop")).ok], [50, 1, 0, true], "limits are kept between 1 and 50, and an unknown order is ignored");
+  assertEquals((await get("offset=100000")).people, [], "past the end: nobody, no error");
+  // A filter narrows the total too
+  const cat = await get("category=p39&limit=50");
+  assert(cat.total === cat.people.length && cat.total < all.total);
 });
 
 Deno.test("the website refuses or answers with nothing: the lists stay as they were", async () => {

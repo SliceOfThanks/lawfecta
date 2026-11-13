@@ -287,7 +287,7 @@ Deno.test("time runs out on the server; the team can pause a gig; Talent search"
   await pool.query("update gigs set closes_at = now() - interval '1 minute' where id = $1", [d.id]);
   assertEquals((await call("POST", "/proposals/send", f1.token, { gig_id: d.id, price: 350, included: "x", schedule: "y" })).body.reason, "gig_not_open", "even from an old page");
   assertEquals((await one("select status from gigs where id = $1", [d.id])).status, "closed");
-  const t = (await call("GET", "/talent?tool=clio&practice_area=Family%20law", att.token)).body.people as Array<Record<string, any>>;
+  const t = (await call("GET", "/talent?limit=50&tool=clio&practice_area=Family%20law", att.token)).body.people as Array<Record<string, any>>;
   assert(t.some((p) => p.person_id === f1.id) && !t.some((p) => p.person_id === f5.id), "match-ready freelancers only");
   assert(!JSON.stringify(t).includes("email"), "no contact details");
   assertEquals((await call("GET", "/talent", f1.token)).status, 403);

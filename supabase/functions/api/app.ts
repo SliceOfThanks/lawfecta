@@ -2760,7 +2760,9 @@ async function talent(ctx: Ctx) {
     only = (await rpc<string[]>(ctx, "dela_bookmark_people", { p_bd_ids: rows.data.map((x) => x.bd) })) ?? [];
   }
   const r = await rpc<Record<string, any>>(ctx, "dela_talent_search", { p_person: s.person_id, p: { practice_area: str(q.get("practice_area"), 80), skill: str(q.get("skill"), 80), tool: str(q.get("tool"), 80), state: str(q.get("state"), 2),
-    category: /^[ps][0-9]{1,9}$/.test(cat) ? cat : "", q: str(q.get("q"), 80), ...(only ? { only } : {}) } });
+    category: /^[ps][0-9]{1,9}$/.test(cat) ? cat : "", q: str(q.get("q"), 80), ...(only ? { only } : {}),
+    // One page at a time (setting talent.page_size), in one order across pages
+    limit: int(q.get("limit")) ?? "", offset: int(q.get("offset")) ?? 0, sort: ["name", "reviews", "hours"].includes(String(q.get("sort"))) ? String(q.get("sort")) : "" } });
   // Step 18: the cards show the freelancer's own DELA photo (a signed link for an hour); the storage path never leaves
   if (r?.ok && Array.isArray(r.people)) await withPhotos(ctx, r.people);
   return json(ctx, r);

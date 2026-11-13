@@ -265,6 +265,20 @@ const SEARCH = "Search roles, specialties, tasks and software";
     t = await waitGone(p, "Nia Nurse");
     ok(t.includes("Fern Family") && t.includes("1 freelancer found") && await dela(p).getByRole("button", { name: "Remove filter: Bookmarked" }).count() === 1 && await dela(p).locator(".talent-marked").count() === 1, "Bookmarked only shows the saved freelancers, as a removable filter, each marked");
     await s.ctx.close();
+    // 10 at a time with "Load more" on the same screen (the size is a setting; 1 here so two people make two pages)
+    await sql("update settings set value = '1' where key = 'talent.page_size'; select 1");
+    s = await open(browser, "DELA-App", ATT, "&tab=talent"); p = s.page;
+    t = await waitFor(p, "Load more freelancers", 15000);
+    const total = Number((t.match(/Showing 1 of (\d+) freelancers/) || [])[1] || 0);
+    ok(total >= 2 && await dela(p).locator(".talent-card").count() === 1 && t.includes(total + " freelancers found"), "Talent shows one page and says how many there are in all: " + total);
+    const firstName = await dela(p).locator(".talent-card h3").first().innerText();
+    await click(p, "Load more freelancers");
+    await waitFor(p, "Showing 2 of " + total);
+    const names = await dela(p).locator(".talent-card h3").allInnerTexts();
+    ok(names.length === 2 && names[0] === firstName && names[1] !== firstName && !p.url().includes("page="), "Load more adds the next freelancer under the first, on the same screen: " + names.join(", "));
+    ok(await p.evaluate(() => { const a = document.querySelector(".dela-host").shadowRoot.activeElement; return !!a && a.classList.contains("talent-card") && a.getAttribute("aria-label"); }) === names[1], "after Load more the keyboard is on the first new freelancer");
+    await sql("update settings set value = '50' where key = 'talent.page_size'; select 1");
+    await s.ctx.close();
     // DELA suggests the freelancers who fit a document; a chat starts from there
     await sql(`update playbooks set practice_area = 'Family law' where request_id = 'cat-pb';
       insert into playbook_versions (playbook_id, version, body, created_by) select id, 1, '{"title":"Category gig","practice_area":"Family law","steps":[{"text":"Open the matter","tool":"Clio"}]}', created_by from playbooks where request_id = 'cat-pb'; select 1`);
@@ -295,6 +309,7 @@ const SEARCH = "Search roles, specialties, tasks and software";
     if (before) {
       for (const k of Object.keys(before.sw || {})) await sql(`update feature_switches set state = '${before.sw[k]}' where key = '${k}'; select 1`);
       await sql(`update settings set value = '${JSON.stringify(before.li)}'::jsonb where key = 'verify.freelancer_linkedin'; select 1`);
+      await sql("update settings set value = '50' where key = 'talent.page_size'; select 1");
     }
     await browser.close();
   }
