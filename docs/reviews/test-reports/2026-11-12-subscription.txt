@@ -1,0 +1,15 @@
+DELA Subscription checklist report (Stacey's ChatGPT run, 2026-11-12). Chrome, page about 810 x 691.
+Summary kept by Claude from the report Stacey pasted in chat; the screenshots stayed on her computer.
+
+1 to 5 FAIL - the window was narrow, so the menu was the bottom bar with More; "Subscription" in a left menu could not be clicked. Blocked, not a defect.
+6 FAIL - Attorney Pro card, team badge, price and 3.5% fee present; only the left-menu item was missing (narrow window).
+7 PASS - seven usage rows with bars; DELA actions 82 of 1000; resets Dec 1, 2026.
+8 FAIL - four plans, Pro marked; Downgrade buttons were solid red, not outlined; the plan is named "Business (firm)".
+9 PASS - "Upgrade to Business (firm)" opened /account/upgrade in a new tab.
+10 FAIL - narrow window again.
+
+Notes: "13 of 50 saved" next to "50 of 50 available"; storage 50 GB in usage and 51.2 GB in the plan text; the website's own
+section said "Plan: Free" for the test freelancer whose DELA plan (Business, agency) was set by the Lawfecta Team.
+
+What was done: Downgrade buttons outlined, storage in whole GB, the allowance table shows allowances only ("Your plan allows"),
+"DELA actions" in place of the internal name; the prompt now opens every page by its link and uses the real plan names.

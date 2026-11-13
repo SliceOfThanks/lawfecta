@@ -351,7 +351,7 @@ async function makeMember(bd, side, plan, name) {
     // Stacey's pictures of 2026-11-12: Downgrade looked like a main button, storage read "51.2 GB", the AI allowance had its internal name
     const look = await inShadow(p, (root) => ({ down: [...root.querySelectorAll(".sub-plan a")].slice(0, 1).map((a) => { const was = a.className; a.className = "btn small ghost"; const c = getComputedStyle(a).backgroundColor; a.className = was; return c; }), words: root.querySelector("#sub-plans").innerText + root.querySelector("#sub-current").innerText }));
     ok(look.down.length > 0 && look.down.every((c) => c === "rgba(0, 0, 0, 0)" || c === "transparent"), "Subscription: Downgrade buttons are outlined, not filled: " + look.down.join(","));
-    ok(!look.words.includes("Weighted AI credits") && look.words.includes("DELA actions a month") && !/\d\.\d\d+ GB/.test(look.words), "Subscription: the AI allowance is called DELA actions and storage is in whole GB");
+    ok(!look.words.includes("Weighted AI credits") && look.words.includes("DELA actions a month") && !/\d\.\d\d+ GB/.test(look.words) && !/\d of \d+ (available|left)/.test(look.words.split("What your plan allows")[1] || "1 of 1 left"), "Subscription: DELA actions by name, storage in whole GB, and the allowance table shows allowances, not what is left");
     ok(plans.order.indexOf("Subscription") === plans.order.indexOf("Profile") + 1, "Subscription sits right under Profile in the menu: " + plans.order.join(", "));
     ok(await fits(p), "Subscription: no sideways scrolling");
     await p.screenshot({ path: path.join(SHOTS, "workspace-subscription.png"), fullPage: true });

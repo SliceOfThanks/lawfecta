@@ -9333,6 +9333,15 @@
     if (f.unit === "MB") return label + ": " + D.mbText(f.limit);
     return label + ": " + f.limit + (f.period === "month" && label.toLowerCase().indexOf("month") < 0 ? " a month" : "");
   }
+  // The allowance itself, never what is left: what is used is in the bars above (ChatGPT report 2026-11-12: "13 of 50 saved" next to "50 of 50 available")
+  function allowText(e) {
+    if (e.kind === "flag") return e.enabled ? "Included" : "Not in your plan";
+    if (!e.enabled) return "Not in your plan";
+    if (e.unlimited) return "No cap";
+    if (e.unit === "MB") return D.mbText(e.limit);
+    if (e.unit === "seats") return e.limit + (e.limit === 1 ? " seat" : " seats") + " included";
+    return e.limit + (e.period === "month" ? " a month" : "");
+  }
   function shortPlan(name) { return String(name || "").replace("Attorney ", "").replace("Freelancer ", ""); }
   // The banner after login: one line when any limit is at or above the warning level. "Dismiss" hides it until the next
   // login (signing out clears the mark; so does closing the browser tab).
@@ -9380,8 +9389,8 @@
       });
       card.appendChild(h("p", { class: "small muted", text: "Monthly limits start again on " + D.date(r.resets_on) + "." + (me.side === "attorney" ? " Actions on your own AI key do not count. Viewing, exporting and assigning documents, messaging freelancers, posting gigs, hiring and paying are never limited." : "") }));
       card.appendChild(h("h3", { text: "What your plan allows" }));
-      card.appendChild(h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "What you get" }), h("th", { text: "Right now" }))),
-        h("tbody", null, (me.entitlements || []).map(function (e) { return h("tr", null, h("td", { text: D.featLabel(e) }), h("td", { text: D.limitText(e) })); })))));
+      card.appendChild(h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "What you get" }), h("th", { text: "Your plan allows" }))),
+        h("tbody", null, (me.entitlements || []).map(function (e) { return h("tr", null, h("td", { text: D.featLabel(e) }), h("td", { text: allowText(e) })); })))));
       el.appendChild(card);
       // 2. Every plan of this workspace, the member's own one marked
       var listed = !!cur, all = h("div", { class: "card", id: "sub-plans" }, h("h2", { text: "All " + (me.side === "attorney" ? "attorney" : "freelancer") + " plans" }),
