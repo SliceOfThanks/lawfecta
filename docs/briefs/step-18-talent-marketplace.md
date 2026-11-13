@@ -29,7 +29,7 @@ Also missing everywhere: bookmarks.
 
 ## The parts, in build order
 1. **Part 1 (built 2026-11-12): Talent results and the rules.** Mockups 01, 02 and 12. Migration 0104.
-   - Cards: photo or initial, name, headline, "LinkedIn verified" only when that check passed, the real review summary or "No reviews yet", categories, practice areas and software, hours and time zone, short summary.
+   - Cards: photo or initial, name, headline, "Verified" only when the check passed, the real review summary or "No reviews yet", categories, practice areas and software, hours and time zone, short summary.
    - Two buttons only: "View profile" and "Invite to this gig". "Gig to invite for" lists only posted gigs still open for proposals, starts unselected, and the button is off until one is chosen. The card says an invitation asks for a proposal and hires nobody. Already invited, closed gig, unavailable freelancer and a lost connection each get their own message and send nothing twice.
    - Count, the filters as removable chips, "Clear filters", "Sort by" (most relevant, most reviews, most hours a week, name).
    - DELA's help is folded into "Need help finding the right freelancer?"; opening it or typing uses no action.
@@ -49,14 +49,18 @@ Also missing everywhere: bookmarks.
 ## Settings and switches it uses
 bench.require_completed, standing.require_completed (new, on); switches talent_search, bench, auto_repeat_hiring, reviews, ai_helpers (unchanged).
 
-## Decisions needed from Stacey
-1. **Messages and calls before a gig (mockups 09, 10).** Today every conversation and call belongs to a gig, which is also how DELA keeps contact on the platform and checks each message. Choices: (a) "Send message" and "Book a call" open after the attorney invited the freelancer to a gig (works today), or (b) a new kind of conversation with no gig, with the same message checks and a limit per day. Default until you choose: (a).
-2. **Verification wording.** Freelancers have one check, LinkedIn. The mockups show "Identity verified" and "Credentials reviewed". DELA will say "LinkedIn verified" and nothing more unless new checks are added. Do you want identity or credential checks built (who checks, and what proof)?
-3. **Reviews breakdown.** DELA reviews rate four questions (quality, deadlines, communication, followed the playbook), not one star score. The Reviews tab will show the average per question and the count rather than a 5-star distribution. OK?
-4. **Promotions.** Nothing exists. Leave the tab out until promotions are built, or build promotions now (who may post one, with what terms)?
-5. **Portfolio.** Show the documents a freelancer marked "shown" (they tick that there is no client information when uploading). OK to let verified attorneys open them?
-6. **Avatars.** Of the 60 uploaded pictures some are costumes (ninja, nun, waitress). Offer all 60 or a professional subset? And should a monthly engagement that is still running count as "worked together" for the bench and standing arrangements? Today only a completed engagement counts.
-7. **Bookmarks.** A private "saved" list per attorney, no notice to the freelancer. OK?
+## Stacey's decisions (2026-11-12, in chat)
+1. **Messages and calls before a gig: build it.** Her words: "Attorneys should be able to start a conversation and create a gig for that freelancer. When they create a playbook the AI should find the best freelancers that fit the potential delegation/gig and attorneys should be able to start a chat." So: a conversation with no gig yet (same message checks as every DELA conversation), "Create a gig for this freelancer" from that conversation, and after a document is made DELA suggests the freelancers that fit, each with "Start a chat".
+2. **Verification wording: "Verified".** The FAQ will say what Lawfecta does to verify. The badge shows only when the member's check passed.
+3. **Reviews breakdown:** the default. Average per question and the count; no 5-star bars.
+4. **Promotions** are the website's post type "Coupons", shown under the name "Promotions". DELA reads a freelancer's coupons from the website and shows them in the Promotions tab.
+5. **Portfolio:** yes. Attorneys can open the documents a freelancer marked as shown.
+6. **Avatars:** offer all of them (48 in her count), and keep that section compact.
+7. **Bookmarks:** use the bookmark system the website (Brilliant Directories) already has. No notice to the freelancer in this round. For 2027: telling a freelancer they were bookmarked shows progress and value on the platform (docs/ROADMAP.md).
+
+Still open: whether a monthly engagement that is still running counts as "worked together" for the bench and standing arrangements (today only a completed one counts).
+
+The parts after these answers: part 2 the full profile page (with Portfolio, Reviews, Promotions from the website's coupons); part 3 the invitation review step, profile pictures and bookmarks; part 4 conversations before a gig, "Create a gig for this freelancer", and DELA's suggested freelancers after a document is made.
 
 ## Success looks like
 An attorney can find a freelancer, review their complete profile, message or book them, select an existing posted gig, and invite them to submit a proposal without unnecessary screens, misleading actions, inaccessible interactions or off-platform contact.

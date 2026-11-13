@@ -27,4 +27,6 @@ Step 7b Part 1 starts now (Stacey 2026-10-27): Partnero on the current BD site, 
 
 Step 2b builds the connection once (sign in, permissions, limits, audit). After that, every later step adds its own tools to it (profiles in 3, gigs and proposals in 4, booking in 5, and so on), tested in the same ChatGPT prompt as the rest of that step.
 
+2027 (Stacey 2026-11-12): tell a freelancer when an attorney bookmarks them; being seen shows progress and value on the platform. In 2026 bookmarks are silent.
+
 2027 (Stacey 2026-11-12): a confirmation step when a member changes their sign-in email, done through Brilliant Directories, which owns sign-in, email and password. Fine without it for the pilot.

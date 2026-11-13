@@ -110,7 +110,7 @@ const SEARCH = "Search roles, specialties, tasks and software";
     const fern = dela(p).locator(".talent-card", { hasText: "Fern Family" });
     const btns = await fern.getByRole("button").allInnerTexts();
     ok(btns.join("|") === "View profile|Invite to this gig", "a result card has two buttons only: " + btns.join("|"));
-    ok(await fern.getByRole("button", { name: "Invite to this gig" }).isDisabled() && t.includes("You have no posted gig that is open for proposals") && t.includes("No reviews yet") && t.includes("LinkedIn verified"), "no posted gig: the invitation is off and the page says why; cards say what was checked and that there are no reviews");
+    ok(await fern.getByRole("button", { name: "Invite to this gig" }).isDisabled() && t.includes("You have no posted gig that is open for proposals") && t.includes("No reviews yet") && t.includes("✓ Verified"), "no posted gig: the invitation is off and the page says why; cards say Verified and that there are no reviews");
     ok(t.includes("It does not hire them or award the work."), "the card says an invitation asks for a proposal and hires nobody");
     const org = (await sql(`select dela_side_org((select id from people where bd_member_id = ${ATT}), 'attorney') o, (select id from people where bd_member_id = ${ATT}) a`))[0];
     const pb = (await sql(`insert into playbooks (org_id, title, status, current_version, approved_version, completeness, request_id, created_by, doc_type) values ('${org.o}', 'Category gig', 'approved', 1, 1, 100, 'cat-pb', '${org.a}', 'sop') returning id`))[0].id;

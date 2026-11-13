@@ -5503,11 +5503,11 @@
     else if (talentSort === "name") list.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
     return list;
   }
-  // What was checked, in its own words: freelancers have a LinkedIn check, nothing else, so nothing else is claimed
+  // Stacey 2026-11-12: the word is "Verified"; the Help page (FAQ) says what Lawfecta checks. Shown only when the check passed.
   function talentTrust(p) {
     var rv = p.reviews || {}, n = rv.count || 0;
     return h("div", { class: "talent-trust small" },
-      p.verification === "verified" ? h("span", { class: "talent-ver", text: "✓ LinkedIn verified" }) : null,
+      p.verification === "verified" ? h("span", { class: "talent-ver", text: "✓ Verified" }) : null,
       h("span", { class: n ? "" : "muted", text: !n ? "No reviews yet" : rv.average ? "★ " + rv.average + " (" + n + (n === 1 ? " review)" : " reviews)") : n + (n === 1 ? " review" : " reviews") }));
   }
   function talentAvatar(p) {
