@@ -1734,7 +1734,8 @@
         api.get("/admin/bd/bookmarks-check").then(function (r) {
           var x = (r && r.data) || {};
           bm.disabled = false;
-          bmOut.textContent = x.ok ? "The website answered. Rows read: " + x.rows + ". Fields: " + (Object.keys(x.fields || {}).map(function (k) { return k + " (" + x.fields[k] + ")"; }).join(", ") || "none, there are no bookmarks yet")
+          bmOut.textContent = x.ok ? "The website answered. Rows read: " + x.rows + ". Fields: " + (Object.keys(x.fields || {}).map(function (k) { return k + " (" + x.fields[k] + ")"; }).join(", ") || "none, there are no bookmarks yet") +
+              ". DELA writes a bookmarked member as: " + (x.expects || "?") + ". The website's own bookmarks look like: " + ((x.kinds || []).join("; ") || "none yet; bookmark one member on the website and check again") + "."
             : x.allowed === false ? "The website refused (" + x.status + "). In Brilliant Directories, Developer Hub, edit the DELA API key's permissions and allow users_favorite." : "No answer the check could read (" + (x.status || 0) + " " + (x.error || "") + ").";
         }).catch(function (e) { bm.disabled = false; bmOut.textContent = D.errorText(e.message); });
       });

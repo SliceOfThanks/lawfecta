@@ -223,6 +223,7 @@
   D.errorText = function (code) {
     var map = {
       forbidden: "Only the Lawfecta Team owner can do that.",
+      bookmarks_off: "Bookmarks are not turned on.", bookmarks_unreachable: "The Lawfecta website's bookmarks could not be reached just now. Try again in a minute.", bookmarks_not_allowed: "The Lawfecta website did not let DELA use its bookmarks. The Lawfecta Team has been asked to allow it.",
       needs_completed_gig: "This opens after you have completed a gig with this freelancer. Canceled, refunded or disputed gigs do not count.",
       sensitive_data: "This looks like sensitive data (a Social Security number or ITIN, a government ID number, an account or card number, or a password). Sensitive data never goes in DELA. Keep it in your own storage and share a link instead.",
       note_required: "Add a note saying why.", bad_amount: "Enter a number of actions from 1 to 100,000.",
@@ -496,6 +497,7 @@ D.openTab = function (getUrl, onFail, opts) {
     // Ready-made profile pictures: a compact grid, one choice, a clear ring on the chosen and the focused one
     ".av-box{margin:6px 0 10px}.av-grid{display:grid;grid-template-columns:repeat(auto-fill,52px);gap:6px;max-height:190px;overflow:auto;padding:4px}.dela .av-opt{width:52px;height:52px;min-height:0;padding:2px;border-radius:50%;border:2px solid transparent;background:transparent;line-height:0}" +
     ".av-opt img{width:44px;height:44px;border-radius:50%}.dela .av-opt[aria-checked=true]{border-color:var(--pink-ink);box-shadow:0 0 0 2px var(--pink)}.dela .av-opt:focus-visible{outline:2px solid var(--pink-ink);outline-offset:2px}" +
+    ".talent-bm{display:inline-flex;align-items:center;gap:6px;margin:4px 0 8px;cursor:pointer}.talent-marked{font-size:12px;font-weight:700;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}.dela .bm-btn[aria-pressed=true]{border-color:var(--pink-ink);background:var(--pink)}" +
     ".fit-row .talent-photo{width:48px;height:48px;font-size:20px}" +
     ".tp-two{display:grid;grid-template-columns:minmax(0,2fr) minmax(220px,1fr);gap:14px;align-items:start}.tp-two .card{margin:0 0 12px}@media (max-width:860px){.tp-two{grid-template-columns:1fr}}" +
     ".tp-lines{margin:0;padding-left:18px}.tp-lines li{margin:6px 0}@media (max-width:720px){.tp-photo{width:56px;height:56px;font-size:22px}}" +

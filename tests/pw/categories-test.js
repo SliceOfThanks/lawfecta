@@ -246,6 +246,11 @@ const SEARCH = "Search roles, specialties, tasks and software";
     // ---------- Step 18 part 4: a conversation before a gig, and a gig made for that freelancer ----------
     await dela(p).locator(".talent-card", { hasText: "Fern Family" }).getByRole("button", { name: "View profile" }).click();
     await waitFor(p, "About Fern Family");
+    // Bookmarks: saved through the website's bookmark system, privately
+    const bmBtn = dela(p).locator("#tp-bookmark").getByRole("button");
+    await dela(p).locator("#tp-bookmark").getByRole("button", { name: "Bookmark Fern Family" }).click();
+    await waitFor(p, "Saved to your bookmarks. Fern Family is not told.");
+    ok(await bmBtn.getAttribute("aria-pressed") === "true" && (await bmBtn.innerText()).includes("Bookmarked"), "the Bookmark button saves the freelancer and shows it is on");
     await click(p, "Send message");
     t = await waitFor(p, "A conversation before any gig.");
     ok(t.includes("Fern Family") && t.includes("Messages only: files and meetings come with a gig. Nobody is hired here.") && !t.includes("Book a meeting") && !t.includes("Open the gig"), "Send message opens a conversation with no gig: messages only, and it says nobody is hired");
@@ -253,6 +258,13 @@ const SEARCH = "Search roles, specialties, tasks and software";
     await click(p, "Create a gig for Fern Family");
     t = await waitFor(p, "You are creating a gig for Fern Family.");
     ok(t.includes("the invitation to Fern Family opens next"), "the gig is made for that freelancer: after posting, the invitation opens");
+    await s.ctx.close();
+    // Talent, bookmarked only
+    s = await open(browser, "DELA-App", ATT, "&tab=talent"); p = s.page;
+    await waitFor(p, "Nia Nurse", 15000);
+    await dela(p).getByLabel("Bookmarked only (freelancers you saved)").check();
+    t = await waitGone(p, "Nia Nurse");
+    ok(t.includes("Fern Family") && t.includes("1 freelancer found") && await dela(p).getByRole("button", { name: "Remove filter: Bookmarked" }).count() === 1 && await dela(p).locator(".talent-marked").count() === 1, "Bookmarked only shows the saved freelancers, as a removable filter, each marked");
     await s.ctx.close();
     // DELA suggests the freelancers who fit a document; a chat starts from there
     await sql(`update playbooks set practice_area = 'Family law' where request_id = 'cat-pb';

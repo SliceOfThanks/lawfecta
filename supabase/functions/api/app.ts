@@ -12,7 +12,7 @@ import { pickProvider } from "./lib/mail/index.ts";
 import { brevoDelivery } from "./lib/mail/brevo.ts";
 import { verifyPass } from "./lib/pass.ts";
 import { sendSms } from "./lib/sms/brevo.ts";
-import { bdCall, bdCategories, bdFields, bdList, bdMember, bdMember as bdMember_, bdUpdate, shapeOf } from "./lib/bd/members.ts";
+import { type BdResult, bdCall, bdCategories, bdFields, bdList, bdMember, bdMember as bdMember_, bdUpdate, shapeOf } from "./lib/bd/members.ts";
 import { meetingIcs, NEXT_STEPS_SYSTEM, readSteps, THREAD_SYSTEM, threadPrompt, vecteraRoom, withoutLawfectaLinks } from "./lib/meetings/meet.ts";
 import { conductRules, GIG_SYSTEM, gigPrompt, normalizeMilestones, normalizePublic, PROPOSAL_SYSTEM, publicFromPlaybook, readReview, REVIEW_SYSTEM, toCents } from "./lib/gigs/model.ts";
 import { asksAboutTools, CATALOG_RULES, catalogText, rankForMember, readCatalog, type Tool } from "./lib/catalog/csv.ts";
@@ -2610,6 +2610,54 @@ async function freelancerDoc(ctx: Ctx) {
   await rpc(ctx, "dela_audit", { p_actor_type: "member", p_actor: s.person_id, p_action: "profile_sample_opened", p_object_type: "file", p_object_id: String(ctx.url.searchParams.get("file")), p_detail: {}, p_ip: ctx.ip }).catch(() => null);
   return json(ctx, { ok: true, name: r.name, url: await storageOf(ctx).signDownload(r.storage_path, 300, r.name) });
 }
+// Step 18, bookmarks: the website's own bookmark table (users_favorite). A bookmarked member is a row with the
+// bookmarking member in userId, the bookmarked member in ownerId, postId 0 and the member dataType (setting bd.bookmarks).
+type BmCfg = { on: boolean; dataType: string; featureId: string; checked: string };
+async function bookmarkCfg(ctx: Ctx): Promise<BmCfg> {
+  const v = (await rpc<Record<string, unknown> | null>(ctx, "dela_setting", { p_key: "bd.bookmarks" }).catch(() => null)) ?? {};
+  const n = (x: unknown, d: number) => String(Number.isInteger(Number(x)) && Number(x) >= 0 ? Number(x) : d);
+  return { on: v.on === true, dataType: n(v.dataType, 10), featureId: n(v.featureId, 1), checked: n(v.checked, 1) };
+}
+function bookmarkWhy(r: { status: number; error: string }) { return r.status === 403 || r.status === 401 ? "bookmarks_not_allowed" : "bookmarks_unreachable"; }
+// The viewer's bookmarked members: [{ id (the bookmark's own id), bd (the bookmarked member's website number) }]
+async function bookmarkRows(ctx: Ctx, s: Session, cfg: BmCfg): Promise<BdResult<Array<{ id: string; bd: string }>>> {
+  const r = await bdList(f(ctx), await setting(ctx, "site.url", ""), ctx.deps.env("BD_API_KEY"), "/api/v2/users_favorite/get?property=userId&property_value=" + Math.trunc(s.bd_member_id), 10);
+  if (!r.ok) { if (r.status === 404) return { ok: true, data: [] }; console.error("bd_bookmarks", r.error.slice(0, 120)); return r; }
+  return { ok: true, data: r.data.filter((x) => String(x.userId) === String(Math.trunc(s.bd_member_id)) && String(x.dataType) === cfg.dataType && String(x.postId ?? "0") === "0" && /^[0-9]{1,9}$/.test(String(x.ownerId ?? "")) && String(x.ownerId) !== "0")
+    .map((x) => ({ id: String(x.id), bd: String(x.ownerId) })) };
+}
+async function bookmarksGet(ctx: Ctx) {
+  const s = await client(ctx);
+  const cfg = await bookmarkCfg(ctx);
+  if (!cfg.on) return json(ctx, { ok: true, on: false, people: [] });
+  const rows = await bookmarkRows(ctx, s, cfg);
+  if (!rows.ok) return json(ctx, { ok: false, on: true, reason: bookmarkWhy(rows), people: [] });
+  return json(ctx, { ok: true, on: true, people: await rpc(ctx, "dela_bookmark_people", { p_bd_ids: rows.data.map((x) => x.bd) }) });
+}
+// Bookmark or remove the bookmark. Asking twice changes nothing the second time. The freelancer is not told.
+async function bookmarkSet(ctx: Ctx) {
+  const s = await client(ctx);
+  const cfg = await bookmarkCfg(ctx);
+  if (!cfg.on) return json(ctx, { ok: false, reason: "bookmarks_off" });
+  const on = ctx.body.on !== false;
+  const target = await rpc<Record<string, any>>(ctx, "dela_bookmark_target", { p_viewer: s.person_id, p_person: need(uuid(ctx.body.person)) });
+  if (!target?.ok) return json(ctx, target);
+  const rows = await bookmarkRows(ctx, s, cfg);
+  if (!rows.ok) return json(ctx, { ok: false, reason: bookmarkWhy(rows) });
+  const mine = rows.data.filter((x) => x.bd === String(target.bd_member_id));
+  const site = await setting(ctx, "site.url", ""), key = ctx.deps.env("BD_API_KEY");
+  if (on) {
+    if (mine.length) return json(ctx, { ok: true, bookmarked: true, duplicate: true });
+    const r = await bdCall<unknown>(f(ctx), site, key, "POST", "/api/v2/users_favorite/create", { userId: String(Math.trunc(s.bd_member_id)), ownerId: String(target.bd_member_id), postId: "0", dataType: cfg.dataType, featureId: cfg.featureId, checked: cfg.checked });
+    if (!r.ok) { console.error("bd_bookmark_create", r.error.slice(0, 120)); return json(ctx, { ok: false, reason: bookmarkWhy(r) }); }
+    return json(ctx, { ok: true, bookmarked: true });
+  }
+  for (const m of mine) {
+    const r = await bdCall<unknown>(f(ctx), site, key, "DELETE", "/api/v2/users_favorite/delete", { id: m.id });
+    if (!r.ok) { console.error("bd_bookmark_delete", r.error.slice(0, 120)); return json(ctx, { ok: false, reason: bookmarkWhy(r) }); }
+  }
+  return json(ctx, { ok: true, bookmarked: false, duplicate: !mine.length });
+}
 async function engagementPeople(ctx: Ctx) {
   const s = await memberSide(ctx);
   const r = await rpc<Record<string, any>>(ctx, "dela_engagement_people", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.url.searchParams.get("agreement"))) });
@@ -2673,8 +2721,16 @@ async function talent(ctx: Ctx) {
   const s = await client(ctx);
   const q = ctx.url.searchParams;
   const cat = str(q.get("category"), 12);
+  // "Bookmarked only": the people the member bookmarked on the website; if the website does not answer, say so instead of showing everyone
+  let only: string[] | null = null;
+  if (q.get("bookmarked") === "1") {
+    const cfg = await bookmarkCfg(ctx);
+    const rows = cfg.on ? await bookmarkRows(ctx, s, cfg) : null;
+    if (!rows || !rows.ok) return json(ctx, { ok: false, reason: !rows ? "bookmarks_off" : bookmarkWhy(rows) });
+    only = (await rpc<string[]>(ctx, "dela_bookmark_people", { p_bd_ids: rows.data.map((x) => x.bd) })) ?? [];
+  }
   const r = await rpc<Record<string, any>>(ctx, "dela_talent_search", { p_person: s.person_id, p: { practice_area: str(q.get("practice_area"), 80), skill: str(q.get("skill"), 80), tool: str(q.get("tool"), 80), state: str(q.get("state"), 2),
-    category: /^[ps][0-9]{1,9}$/.test(cat) ? cat : "", q: str(q.get("q"), 80) } });
+    category: /^[ps][0-9]{1,9}$/.test(cat) ? cat : "", q: str(q.get("q"), 80), ...(only ? { only } : {}) } });
   // Step 18: the cards show the freelancer's own DELA photo (a signed link for an hour); the storage path never leaves
   if (r?.ok && Array.isArray(r.people)) await withPhotos(ctx, r.people);
   return json(ctx, r);
@@ -4584,7 +4640,10 @@ const ADMIN_GET: Record<string, AdminRoute> = {
     const r = await bdCall<unknown>(f(c), site, key, "GET", "/api/v2/users_favorite/get?limit=1");
     if (!r.ok) return { ok: false, status: r.status, allowed: r.status !== 403 && r.status !== 401, error: r.error.slice(0, 160) };
     const first = Array.isArray(r.data) ? r.data[0] : r.data;
-    return { ok: true, rows: Array.isArray(r.data) ? r.data.length : 0, fields: shapeOf(first) };
+    const cfg = await bookmarkCfg(c);
+    const more = await bdCall<unknown>(f(c), site, key, "GET", "/api/v2/users_favorite/get?limit=25");
+    const kinds = (more.ok && Array.isArray(more.data) ? more.data : []).map((x: any) => `dataType ${x?.dataType}, featureId ${x?.featureId}, checked ${x?.checked}, ${String(x?.postId ?? "0") === "0" ? "a member" : "a post"}`);
+    return { ok: true, rows: Array.isArray(r.data) ? r.data.length : 0, fields: shapeOf(first), expects: `dataType ${cfg.dataType}, featureId ${cfg.featureId}, checked ${cfg.checked}`, kinds: kinds.filter((x, i, a) => a.indexOf(x) === i).slice(0, 8) };
   },
 };
 
@@ -5369,6 +5428,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /freelancers/card": return await freelancerCard(ctx);
       case "GET /freelancers/profile": return await freelancerProfile(ctx);
       // Step 18 part 4: a conversation before a gig, and the freelancers who fit a document
+      case "GET /bookmarks": return await bookmarksGet(ctx);
+      case "POST /bookmarks/set": return await bookmarkSet(ctx);
       case "POST /intro/open": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_intro_open", { p_person: s.person_id, p_freelancer: need(uuid(ctx.body.freelancer)) })); }
       case "GET /playbooks/fits": {
         const s = await memberSide(ctx);

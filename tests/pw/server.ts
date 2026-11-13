@@ -16,6 +16,7 @@ const ROOT = new URL("../../", import.meta.url).pathname;
 export const CI = "browser-test-ci-secret-0123456789abcdefgh";
 // GitHub stand-in: the push button "starts" a run; the test reads the approval from /test/dispatch and plays GitHub's part
 let lastDispatch: unknown = null;
+const bdFavs: Array<Record<string, string>> = [];
 let lastBdUpdate = "";
 // File storage stand-in (Step 2a): uploads and links go to this server
 const objects = new Map<string, Uint8Array>();
@@ -197,6 +198,13 @@ const deps = {
     // The Lawfecta listing (BD API): reads give a sample listing, updates are recorded for the test
     if (u.includes("/api/v2/user/get/")) return Response.json({ status: "success", message: [{ user_id: Number(u.split("/").pop()), first_name: "Lia", last_name: "Listing", company: "Listing Law", city: "Dallas", state_code: "TX", website: "listinglaw.com", about_me: "From the directory.", image_main_file: "/pictures/lia.jpg", card_info: "4111111111111111" }] });
     if (u.endsWith("/api/v2/user/update")) { lastBdUpdate = String(opts.body ?? ""); return Response.json({ status: "success", message: {} }); }
+    // The website's bookmark table (step 18, bookmarks): kept in memory for the run
+    if (u.includes("/api/v2/users_favorite/")) {
+      const uu = new URL(u), form = new URLSearchParams(String(opts.body ?? ""));
+      if (uu.pathname.endsWith("/get")) { const who = uu.searchParams.get("property_value"); const rows = bdFavs.filter((x) => !who || x.userId === who); return rows.length ? Response.json({ status: "success", message: rows }) : Response.json({ status: "error", message: "users_favorite not found" }, { status: 404 }); }
+      if (uu.pathname.endsWith("/create")) { const row: Record<string, string> = { id: String(900000 + bdFavs.length + 1) }; for (const k of ["userId", "ownerId", "postId", "dataType", "featureId", "checked"]) row[k] = form.get(k) ?? ""; bdFavs.push(row); return Response.json({ status: "success", message: row }); }
+      if (uu.pathname.endsWith("/delete")) { const i = bdFavs.findIndex((x) => x.id === form.get("id")); if (i >= 0) bdFavs.splice(i, 1); return Response.json({ status: "success", message: "users_favorite record was deleted" }); }
+    }
     // The website's posts of a member (step 18 part 2): one live promotion (post type 7) and one blog article
     if (u.includes("/api/v2/data_posts/get")) { const uid = new URL(u).searchParams.get("property_value"); return Response.json({ status: "success", message: [
       { post_id: "1", data_id: "7", user_id: uid, post_status: "1", post_title: "New client discount", post_content: "<p>10% off the first fixed-fee project.</p>", post_promo: "FIRST10", post_expire_date: "20991231" },

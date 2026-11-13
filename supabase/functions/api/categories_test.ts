@@ -23,10 +23,33 @@ const SUBS = [
   { service_id: "309", profession_id: "40", master_id: "0", name: "Civil Litigation" },
   { service_id: "70", profession_id: "32", master_id: "69", name: "Chapter 7" },
 ];
-const fakeFetch = (async (input: string | URL | Request) => {
+// The website's bookmark table (users_favorite), as its API reference shows it: camelCase fields, values as text
+const favs: Array<Record<string, string>> = [];
+let favSeq = 910000, favs403 = false;
+const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
   const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
   calls.push(url.pathname + url.search);
   if (url.hostname !== "bd.test") return new Response("{}", { status: 404 });
+  if (url.pathname.startsWith("/api/v2/users_favorite/")) {
+    if (favs403) return Response.json({ status: "error", message: "API Key does not have permission" }, { status: 403 });
+    const form = new URLSearchParams(String(init.body ?? ""));
+    if (url.pathname.endsWith("/get")) {
+      const who = url.searchParams.get("property") === "userId" ? url.searchParams.get("property_value") : null;
+      const rows = favs.filter((x) => !who || x.userId === who);
+      return rows.length ? Response.json({ status: "success", message: rows.map((x) => ({ ...x, tablesExists: true })) }) : Response.json({ status: "error", message: "users_favorite not found" }, { status: 404 });
+    }
+    if (url.pathname.endsWith("/create") && init.method === "POST") {
+      const row = { id: String(++favSeq), userId: form.get("userId") ?? "", ownerId: form.get("ownerId") ?? "", postId: form.get("postId") ?? "", dataType: form.get("dataType") ?? "", featureId: form.get("featureId") ?? "", checked: form.get("checked") ?? "" };
+      favs.push(row);
+      return Response.json({ status: "success", message: row });
+    }
+    if (url.pathname.endsWith("/delete") && init.method === "DELETE") {
+      const i = favs.findIndex((x) => x.id === form.get("id"));
+      if (i < 0) return Response.json({ status: "error", message: "not found" }, { status: 404 });
+      favs.splice(i, 1);
+      return Response.json({ status: "success", message: "users_favorite record was deleted" });
+    }
+  }
   // The website's posts of one member (step 18 part 2): a live promotion, an expired one, a draft, another post type, another member's
   if (url.pathname === "/api/v2/data_posts/get") {
     if (site === "refuse") return Response.json({ status: "error", message: "API Key does not have permission" }, { status: 403 });
@@ -225,7 +248,7 @@ Deno.test("ready-made pictures: offered only from the list, an uploaded photo co
   // The bookmarks check for the team: field names only; the website's refusal is said plainly
   await pool.query("update staff_roles set role = 'support' where person_id = $1", [team.id]);
   const bm = (await call("GET", "/admin/bd/bookmarks-check", team.token)).body.data;
-  assertEquals([bm.ok, bm.status], [false, 404]);
+  assertEquals([bm.ok, bm.status, bm.allowed], [false, 404, true], "no bookmarks on the website yet: said as such, not as a refusal");
   await pool.query("update staff_roles set role = 'reviewer' where person_id = $1", [team.id]);
   assertEquals((await call("GET", "/admin/bd/bookmarks-check", team.token)).status, 403, "owners and support only");
 });
@@ -286,6 +309,43 @@ Deno.test("the freelancers who fit a document: the firm's own documents only, sc
   assert(!((await call("GET", "/playbooks/fits?id=" + pb, att.token)).body.people as Array<Record<string, any>>).some((p) => p.person_id === fFamily.id), "the document's state is respected");
   assertEquals((await call("GET", "/playbooks/fits?id=" + pb, team.token)).body.reason, "not_found", "another firm cannot ask about this document");
   assertEquals((await call("GET", "/playbooks/fits?id=" + pb, fNurse.token)).body.reason, "not_found");
+});
+
+Deno.test("bookmarks live in the website's own bookmark table: save, list, filter Talent, remove; nobody is told", async () => {
+  const notes = async () => Number((await one("select count(*)::int n from notifications where person_id = $1", [fFamily.id])).n);
+  const before = await notes();
+  assertEquals((await call("GET", "/bookmarks", att.token)).body, { ok: true, on: true, people: [] }, "no bookmarks yet (the website answers 404 for none)");
+  assertEquals((await call("POST", "/bookmarks/set", fNurse.token, { person: fFamily.id })).status, 403, "only members who hire bookmark freelancers");
+  assertEquals((await call("POST", "/bookmarks/set", att.token, { person: att.id })).body.reason, "not_found", "only freelancers can be bookmarked");
+  // A post the attorney liked on the website, and another member's bookmark: neither is a DELA bookmark of this attorney
+  favs.push({ id: "1", userId: String(att.bd), ownerId: String(fNurse.bd), postId: "87", dataType: "20", featureId: "8", checked: "0" });
+  favs.push({ id: "2", userId: "424242", ownerId: String(fNurse.bd), postId: "0", dataType: "10", featureId: "1", checked: "0" });
+  const r = (await call("POST", "/bookmarks/set", att.token, { person: fFamily.id })).body;
+  assertEquals([r.ok, r.bookmarked, r.duplicate], [true, true, undefined], JSON.stringify(r));
+  const row = favs.find((x) => x.userId === String(att.bd) && x.postId === "0")!;
+  assertEquals([row.ownerId, row.dataType, row.featureId, row.checked], [String(fFamily.bd), "10", "1", "1"], "written the way the website marks a bookmarked member");
+  assertEquals((await call("POST", "/bookmarks/set", att.token, { person: fFamily.id })).body.duplicate, true, "asking twice makes one bookmark");
+  assertEquals(favs.filter((x) => x.userId === String(att.bd) && x.postId === "0").length, 1);
+  assertEquals((await call("GET", "/bookmarks", att.token)).body.people, [fFamily.id], "the liked post and the other member's bookmark are not in the list");
+  assertEquals(await notes(), before, "the freelancer is not told");
+  // Talent, bookmarked only
+  const only = ((await call("GET", "/talent?bookmarked=1", att.token)).body.people as Array<Record<string, any>>).map((p) => p.person_id);
+  assertEquals(only, [fFamily.id]);
+  assertEquals(ids(await call("GET", "/talent?bookmarked=1&category=p39", att.token)), [], "with a category that does not fit, nobody");
+  // The website refuses: said plainly, and "bookmarked only" shows nobody instead of everybody
+  favs403 = true;
+  assertEquals((await call("GET", "/bookmarks", att.token)).body.reason, "bookmarks_not_allowed");
+  assertEquals((await call("POST", "/bookmarks/set", att.token, { person: fNurse.id })).body.reason, "bookmarks_not_allowed");
+  const refused = (await call("GET", "/talent?bookmarked=1", att.token)).body;
+  assertEquals([refused.ok, refused.reason, refused.people], [false, "bookmarks_not_allowed", undefined]);
+  favs403 = false;
+  // Remove
+  assertEquals((await call("POST", "/bookmarks/set", att.token, { person: fFamily.id, on: false })).body.bookmarked, false);
+  assertEquals([favs.length, (await call("GET", "/bookmarks", att.token)).body.people], [2, []], "only DELA's own bookmark row was deleted");
+  assertEquals((await call("POST", "/bookmarks/set", att.token, { person: fFamily.id, on: false })).body.duplicate, true);
+  await pool.query(`update settings set value = jsonb_set(value, '{on}', 'false') where key = 'bd.bookmarks'`);
+  assertEquals([(await call("GET", "/bookmarks", att.token)).body.on, (await call("POST", "/bookmarks/set", att.token, { person: fFamily.id })).body.reason], [false, "bookmarks_off"], "the setting turns bookmarks off");
+  await pool.query(`update settings set value = jsonb_set(value, '{on}', 'true') where key = 'bd.bookmarks'`);
 });
 
 Deno.test("the website refuses or answers with nothing: the lists stay as they were", async () => {
