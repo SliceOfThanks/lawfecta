@@ -2033,6 +2033,12 @@ async function firmLogoRemove(ctx: Ctx) {
   if (r?.ok && r.old && LOGO_PATH.test(String(r.old)) && ctx.deps.storage) await ctx.deps.storage.remove([String(r.old)]).catch(() => {});
   return json(ctx, r?.ok ? { ok: true } : r);
 }
+// Step 26: list rows that carry the other person's picture as "face" get a short-lived link in its place
+async function withFaces(ctx: Ctx, list: unknown): Promise<void> {
+  if (!Array.isArray(list)) return;
+  for (const x of list as Array<Record<string, any>>) { x.photo_file = x.face?.photo_file ?? ""; x.avatar = x.face?.avatar ?? ""; delete x.face; }
+  await withPhotos(ctx, list as Array<Record<string, any>>);
+}
 // Who the client is, for a screen a freelancer reads (the screen's own access check has already passed): the attorney's
 // name and picture, the firm's name and logo. Private file paths become links for an hour and never leave the server.
 async function clientFace(ctx: Ctx, fn: string, args: Record<string, unknown>): Promise<Record<string, any> | null> {
@@ -4430,6 +4436,7 @@ async function mcpCall(ctx: Ctx, w: McpWho, name: string, a: Record<string, any>
   if (name === "list_my_threads") {
     const r = await rpc<Record<string, any>>(ctx, "dela_threads", { p_person: w.person_id, p_side: w.side });
     const ts = (r?.threads ?? []) as Array<Record<string, any>>;
+    for (const t of ts) delete t.face;
     return { text: ts.length ? ts.map((t) => `- ${t.gig_title} with ${t.other_name} (thread ${t.id})${t.unread ? `: ${t.unread} unread` : ""}`).join("\n") : "No message threads yet.", data: ts };
   }
   if (name === "read_thread") {
@@ -4449,6 +4456,8 @@ async function mcpCall(ctx: Ctx, w: McpWho, name: string, a: Record<string, any>
   if (name === "list_my_meetings") {
     const r = await rpc<Record<string, any>>(ctx, "dela_meetings", { p_person: w.person_id, p_side: w.side, p_gig: null, p_meeting: null });
     const ms = (r?.meetings ?? []) as Array<Record<string, any>>;
+    // Pictures and file paths are for DELA's own screens, never for a connected assistant
+    for (const m of ms) delete m.face;
     return { text: ms.length ? ms.map((m) => `- ${m.gig_title} with ${m.other_name}: ${String(m.start_at).slice(0, 16).replace("T", " ")} UTC, ${m.length_min} minutes, ${m.status}${m.attendance === "verified" ? ", attended" : ""}`).join("\n") : "No meetings yet.", data: ms };
   }
   if (name === "list_my_reviews") {
@@ -4764,6 +4773,12 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   },
   "/admin/ai-files": async (c, a) => ({ ...(await rpc<Record<string, unknown>>(c, "dela_admin_ai_files", { p_actor: a })), ready: aiReady(c.deps) }),
   "/admin/categories": (c, a) => rpc(c, "dela_admin_categories", { p_actor: a }),
+  // Step 26: every firm logo, for the Lawfecta Team; the file path stays on the server
+  "/admin/firm-logos": async (c, a) => {
+    const r = await rpc<Record<string, any>>(c, "dela_admin_firm_logos", { p_actor: a });
+    for (const l of (r?.logos ?? []) as Array<Record<string, any>>) { l.logo_url = await logoLink(c, l.logo_file, 3600); delete l.logo_file; }
+    return r;
+  },
   // Step 18 part 3: does the website's API give DELA its bookmarks (table users_favorite)? Field names and kinds only, never values.
   "/admin/bd/bookmarks-check": async (c, a) => {
     await rpc(c, "dela_require_staff", { p_actor: a, p_roles: ["support"] });
@@ -4830,6 +4845,11 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   "/admin/submissions/decide": async (c, a) => {
     const r = await rpc<Record<string, any>>(c, "dela_admin_submission_decide", { p_actor: a, p_submission: need(uuid(c.body.id)), p_pass: c.body.pass === true, p_note: str(c.body.note, 1000) });
     return r;
+  },
+  "/admin/firm-logos/remove": async (c, a) => {
+    const r = await rpc<Record<string, any>>(c, "dela_admin_firm_logo_remove", { p_actor: a, p_org: need(uuid(c.body.org_id)), p_reason: str(c.body.reason, 300) });
+    if (r?.ok && r.old && LOGO_PATH.test(String(r.old)) && c.deps.storage) await c.deps.storage.remove([String(r.old)]).catch(() => {});
+    return r?.ok ? { ok: true } : r;
   },
   "/admin/reviews/decide": (c, a) => rpc(c, "dela_admin_review_decide", { p_actor: a, p: { kind: str(c.body.kind, 20), id: need(uuid(c.body.id)), action: str(c.body.action, 20), note: str(c.body.note, 1000) } }),
   "/admin/gigs/pause": (c, a) => rpc(c, "dela_admin_gig_pause", { p_actor: a, p_gig: need(uuid(c.body.id)), p_pause: c.body.pause === true, p_reason: str(c.body.reason, 300) }),
@@ -5684,7 +5704,10 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /stripe/webhook": return await stripeWebhook(ctx);
       case "POST /videosdk/webhook": return await videosdkWebhook(ctx);
       case "GET /meetings/join": return await meetingJoin(ctx);
-      case "GET /meetings": { const s = await memberSide(ctx); return json(ctx, await withMeetingRules(ctx, await rpc(ctx, "dela_meetings", { p_person: s.person_id, p_side: s.side, p_gig: uuid(ctx.url.searchParams.get("gig")), p_meeting: uuid(ctx.url.searchParams.get("id")) }))); }
+      case "GET /meetings": { const s = await memberSide(ctx);
+        const r = await rpc<Record<string, any>>(ctx, "dela_meetings", { p_person: s.person_id, p_side: s.side, p_gig: uuid(ctx.url.searchParams.get("gig")), p_meeting: uuid(ctx.url.searchParams.get("id")) });
+        if (r?.ok) await withFaces(ctx, r.meetings);
+        return json(ctx, await withMeetingRules(ctx, r)); }
       case "GET /meetings/slots": return await meetingSlots(ctx);
       case "POST /meetings/hold": return await meetingHold(ctx);
       case "POST /meetings/confirm": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_meeting_confirm", { p_person: s.person_id, p_meeting: need(uuid(ctx.body.id)) })); }
@@ -5692,7 +5715,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /meetings/consent": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_meeting_consent", { p_person: s.person_id, p_side: s.side, p_meeting: need(uuid(ctx.body.id)), p_consent: ctx.body.consent === true })); }
       case "POST /meetings/followup": return await meetingFollowup(ctx);
       case "GET /meetings/ics": return await meetingIcsFile(ctx);
-      case "GET /threads": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_threads", { p_person: s.person_id, p_side: s.side })); }
+      case "GET /threads": { const s = await memberSide(ctx); const r = await rpc<Record<string, any>>(ctx, "dela_threads", { p_person: s.person_id, p_side: s.side }); if (r?.ok) await withFaces(ctx, r.threads); return json(ctx, r); }
       case "POST /threads/open": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_open", { p_person: s.person_id, p_side: s.side, p_gig: need(uuid(ctx.body.gig_id)), p_freelancer: uuid(ctx.body.freelancer) })); }
       case "GET /threads/get": { const s = await memberSide(ctx); const tid = need(uuid(ctx.url.searchParams.get("id")));
         const r = await rpc<Record<string, any>>(ctx, "dela_thread_get", { p_person: s.person_id, p_side: s.side, p_thread: tid });

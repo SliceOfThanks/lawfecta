@@ -217,6 +217,19 @@ Deno.test("firm logo: uploaded by the firm, kept when the details are saved; a f
   assert(!("logo_file" in v.client) && !("photo_file" in v.client) && !("avatar" in v.client), "file paths never leave the server");
   assertEquals((await call("GET", "/gigs/get?id=" + gig, att.token)).body.client, undefined, "the attorney's own view is unchanged");
   assertEquals((await call("GET", "/gigs/get?id=" + gig, f3.token)).body.client, undefined, "a freelancer who cannot see the gig learns nothing about the client");
+  // Step 26: the Lawfecta Team sees every logo and can take one down with a reason; the owner is told
+  assertEquals((await call("GET", "/admin/firm-logos", att.token)).status, 403, "members do not see the team's list");
+  const teamList = (await call("GET", "/admin/firm-logos", team.token)).body.data;
+  const mineL = (teamList.logos as Array<Record<string, any>>).find((l) => l.org_id === org)!;
+  assert(mineL && mineL.logo_url.includes("firms/" + org + "/logo-") && !("logo_file" in mineL) && mineL.firm === "Example Legal", JSON.stringify(mineL));
+  const noWhy = (await call("POST", "/admin/firm-logos/remove", team.token, { org_id: org, reason: " " })).body;
+  assertEquals(noWhy.data?.reason ?? noWhy.reason, "reason_needed", "a reason is required");
+  const gone = (await call("POST", "/admin/firm-logos/remove", team.token, { org_id: org, reason: "Not the firm's own logo." })).body;
+  assertEquals(gone.data?.ok ?? gone.ok, true, JSON.stringify(gone));
+  assertEquals((await call("GET", "/gigs/get?id=" + gig, f1.token)).body.client.logo_url, "", "a logo the team removed is gone for freelancers");
+  assertEquals((await pool.query("select count(*)::int n from notifications where person_id = $1 and title = 'Your firm logo was removed' and channel = 'in_app'", [att.id])).rows[0].n, 1, "the owner is told");
+  assertEquals((await pool.query("select count(*)::int n from audit_log where action = 'firm_logo_removed_by_team' and object_id = $1", [org])).rows[0].n, 1);
+  assertEquals((await up(png, att)).body.ok, true, "the firm can upload another logo afterwards");
   // Another firm cannot touch this firm's logo
   const other = await handle(new Request("http://localhost/functions/v1/api/firm/logo?org=" + org, { method: "POST", headers: { origin: "https://lawfecta.com", "x-dela-session": att2.token, "content-type": "image/png" }, body: new Blob([png as BlobPart]) }), deps);
   assertEquals((await other.json()).reason, "firm_staff_only");

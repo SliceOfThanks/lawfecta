@@ -525,12 +525,37 @@
   function loadPlans() { return planList ? Promise.resolve(planList) : api.get("/admin/plans").then(function (r) { planList = r.data; return planList; }); }
 
   var peopleQ = "";
+  // Step 26: every firm logo, with a way to take one down. The firm's owner is told the reason.
+  function firmLogosCard(card) {
+    api.get("/admin/firm-logos").then(check).then(function (d) {
+      D.clear(card);
+      card.appendChild(h("h2", { text: "Firm logos" }));
+      card.appendChild(h("p", { class: "muted", text: "Logos that firms uploaded. Freelancers see them next to the firm's name. Remove one only when it is offensive, misleading or not the firm's own; the firm's owner is told your reason and can upload another." }));
+      var list = d.logos || [];
+      if (!list.length) { card.appendChild(h("p", { class: "muted", text: "No firm has uploaded a logo yet." })); return; }
+      card.appendChild(h("div", { class: "scroll" }, h("table", { class: "stack" }, h("thead", null, h("tr", null, ["Logo", "Firm", "Owner", "Uploaded", "Action"].map(function (t) { return h("th", { text: t }); }))),
+        h("tbody", null, list.map(function (l) {
+          return h("tr", null,
+            h("td", { "data-label": "Logo" }, l.logo_url ? h("img", { src: l.logo_url, alt: "Logo of " + l.firm, style: "width:56px;height:56px;object-fit:contain;border:1px solid #e6e7ec;border-radius:8px;background:#fff" }) : h("span", { class: "muted", text: "Could not be shown" })),
+            h("td", { "data-label": "Firm", text: l.firm || "" }), h("td", { "data-label": "Owner", text: (l.owner || "") + (l.bd_member_id ? " (" + l.bd_member_id + ")" : "") }),
+            h("td", { "data-label": "Uploaded", text: D.dateTime(l.updated_at) }),
+            h("td", { "data-label": "Action" }, h("button", { class: "ghost small", type: "button", "aria-label": "Remove the logo of " + l.firm, onclick: function () {
+              var why = prompt("Why are you removing this logo? The firm's owner is told this reason.");
+              if (why === null) return;
+              if (!why.trim()) { fail(new Error("Write a reason first.")); return; }
+              api.post("/admin/firm-logos/remove", { org_id: l.org_id, reason: why }).then(check).then(function () { ok("Logo removed. The owner was told."); firmLogosCard(card); }).catch(fail);
+            } }, "Remove logo")));
+        })))));
+    }).catch(function (e) { D.clear(card); card.appendChild(h("h2", { text: "Firm logos" })); card.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+  }
   function people(q) {
     peopleQ = q || "";
     Promise.all([api.get("/admin/people?q=" + encodeURIComponent(q || "")), loadPlans()]).then(function (res) {
       var rows = res[0].data;
       var plansData = res[1].plans;
       var qIn = h("input", { placeholder: "Search name, email or BD member ID", value: q || "", "aria-label": "Search" });
+      var logos = h("div", { class: "card", id: "firm-logos" }, h("h2", { text: "Firm logos" }), h("p", { class: "muted", text: "Loading..." }));
+      firmLogosCard(logos);
       body(h("div", null,
         pageHead("People", "people"),
         h("div", { class: "row" }, qIn, h("button", { onclick: function () { people(qIn.value); } }, "Search")),
@@ -548,7 +573,7 @@
                 api.post("/admin/holds", { bd_member_id: p.bd_member_id, reason: why, severity: "medium" }).then(check).then(function () { ok("Hold placed"); }).catch(fail);
               } }, "Place hold")));
           })))),
-        h("p", { class: "muted small", text: "Showing up to 50 people, most recently seen first." })));
+        h("p", { class: "muted small", text: "Showing up to 50 people, most recently seen first." }), logos));
     }).catch(fail);
   }
 

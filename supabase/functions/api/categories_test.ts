@@ -350,6 +350,17 @@ Deno.test("a call before a gig: booked by the attorney in the conversation, same
   }
   assertEquals((await one("select count(*)::int n from notifications where person_id = $1 and title = 'Meeting booked: Introductory call' and channel = 'in_app'", [fFamily.id])).n, 1, "the freelancer is told");
   assertEquals((await call("GET", "/meetings?id=" + h.id, fNurse.token)).body.meetings.length, 0, "nobody else sees it");
+  // Step 26: the Inbox and the meeting card carry the other person's picture as a link; file paths never leave
+  const avBefore = (await one("select value v from settings where key = 'profile.avatars'")).v;
+  await pool.query("update settings set value = $1 where key = 'profile.avatars'", [JSON.stringify({ base: "https://www.example.com/a/", files: ["one.png"] })]);
+  await pool.query("update member_profiles set body = body || '{\"avatar\":\"one.png\"}' where person_id = $1 and side = 'freelancer'", [fFamily.id]);
+  const inbox = ((await call("GET", "/threads", att.token)).body.threads as Array<Record<string, any>>).find((t) => t.id === th)!;
+  assertEquals([inbox.photo_url, "face" in inbox, "photo_file" in inbox, "avatar" in inbox], ["https://www.example.com/a/one.png", false, false, false], JSON.stringify(inbox));
+  const mCard = ((await call("GET", "/meetings?id=" + h.id, att.token)).body.meetings as Array<Record<string, any>>)[0];
+  assertEquals([mCard.photo_url, "face" in mCard, "photo_file" in mCard], ["https://www.example.com/a/one.png", false, false]);
+  assertEquals(((await call("GET", "/meetings?id=" + h.id, fFamily.token)).body.meetings as Array<Record<string, any>>)[0].photo_url, "", "an attorney with no picture shows an initial");
+  await pool.query("update member_profiles set body = body - 'avatar' where person_id = $1 and side = 'freelancer'", [fFamily.id]);
+  await pool.query("update settings set value = $1 where key = 'profile.avatars'", [JSON.stringify(avBefore)]);
   // Step 24: the conversation itself shows the booked call to both people
   for (const who of [att, fFamily]) assertEquals((await call("GET", "/threads/get?id=" + th, who.token)).body.intro_call?.id, h.id, "the conversation shows the call");
   // The room is made as for any meeting (the provider stand-in has no key here, so it waits for the provider)

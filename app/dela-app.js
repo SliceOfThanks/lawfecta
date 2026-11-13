@@ -6424,13 +6424,18 @@
       if (!r.threads.length) el.appendChild(h("p", { class: "muted", text: me.side === "attorney" ? "No conversations yet. Invite a freelancer to a gig, or message someone who sent a proposal." : "No conversations yet. They start when an attorney invites you or when you send a proposal." }));
       r.threads.forEach(function (t) {
         el.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { talk.thread = t.id; draw(); } },
-          h("span", { class: "chip", text: t.unread ? String(t.unread) : "✓" }), h("div", null, h("h3", { text: t.other_name }), h("div", { class: "muted small", text: t.gig_title + (t.last_at ? " | " + D.dateTime(t.last_at) : "") })),
+          h("span", { class: "chip", text: t.unread ? String(t.unread) : "✓" }), smallFace(t), h("div", null, h("h3", { text: t.other_name }), h("div", { class: "muted small", text: t.gig_title + (t.last_at ? " | " + D.dateTime(t.last_at) : "") })),
           h("span", { class: "grow" }), t.unread ? h("span", { class: "badge held", text: t.unread + " new" }) : null));
       });
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     return el;
   }
 
+  // Step 26: the other person's picture, small, next to their name in lists (their initial when they have none)
+  function smallFace(x) {
+    return x.photo_url ? h("img", { class: "face", src: x.photo_url, alt: "", style: "width:36px;height:36px;border-radius:50%;object-fit:cover;flex:0 0 auto" })
+      : h("span", { class: "avatar-dot", "aria-hidden": "true", style: "flex:0 0 auto", text: String(x.other_name || "?").trim().charAt(0).toUpperCase() });
+  }
   function threadView(el) {
     api.get("/threads/get?id=" + talk.thread).then(function (r) {
       D.clear(el);
@@ -6730,7 +6735,7 @@
   }
 
   function meetingCard(host, m, confirmHours) {
-    var c = h("div", { class: "card" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: m.other_name + ": " + m.gig_title }),
+    var c = h("div", { class: "card" }, h("div", { class: "row" }, smallFace(m), h("h2", { class: "grow", style: "margin:0", text: m.other_name + ": " + m.gig_title }),
       h("span", { class: "badge " + (m.status === "confirmed" || m.status === "completed" ? "ready" : m.status === "held" ? "held" : m.status === "canceled" || m.status === "no_show" ? "off" : ""), text: MEET_STATUS[m.status] || m.status })));
     c.appendChild(h("p", { text: whenLabel(m.start_at, m.length_min) + (m.version > 1 ? " | new time" : "") }));
     var started = new Date(m.start_at).getTime() <= Date.now();
