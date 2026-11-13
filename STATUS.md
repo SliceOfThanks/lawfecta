@@ -11,7 +11,7 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - Not built: "Book a call" before a gig (a booking needs a gig today; needs a server change and Stacey's rules); sorting by text match; a screen-reader pass by a person; zoom to 400%.
 - Pictures sit on a light pink circle (Stacey 2026-11-13: see-through ready-made pictures looked like floating heads).
 - Checked on the server after release: Software "Clio" alone finds 9 of the 16 sample freelancers; "clio family" and "family clio" both find 4.
-- The Talent journey ChatGPT prompt (docs/tests/talent-journey-chatgpt-prompt.md) names the old filter labels and must be rewritten before Stacey runs it.
+- The Talent journey ChatGPT prompt (docs/tests/talent-journey-chatgpt-prompt.md) was rewritten for the new page on 2026-11-13: 26 steps, three logins; the ready copy on her Mac is talent-journey-chatgpt-prompt-READY-2.txt. Its counts rely on the sample freelancers (availability lapses 2026-11-27) and on the two test gigs (first closes 2026-11-19).
 - Verified on the server only; nobody has looked at these screens on the site in a browser.
 
 ## Profile picture: "Save my picture" next to the picture: ON THE SITE (2026-11-13)
