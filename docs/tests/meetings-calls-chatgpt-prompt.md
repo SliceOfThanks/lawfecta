@@ -6,7 +6,7 @@ What it cannot cover: a real video call. That needs two people with cameras at t
 
 What changes on the site: the test attorney books one introductory call with the sample freelancer Hannah Kim (Claude cancels it afterwards) and ticks the transcript box for the prepared test meeting. Nothing is paid, signed or posted, and no message is sent.
 
-What Claude prepared on the site (2026-11-13): one confirmed introductory call between the test attorney ("DELA Test Attorney", firm "Example Lantern Legal") and the test freelancer ("DELA Test Freelancer"), with its room open until 2026-11-16, and nobody's transcript box ticked. Run this test before 2026-11-16, or tell Claude so the meeting is prepared again.
+What Claude prepared on the site (2026-11-13): one confirmed introductory call between the test attorney ("DELA Test Attorney", firm "Example Lantern Legal") and the test freelancer ("DELA Test Freelancer"), with its room open until 2026-11-16, and nobody's transcript box ticked. Its start time has passed (so the room is open), which is why the card also asks "Did the meeting happen?". Run this test before 2026-11-16, or tell Claude so the meeting is prepared again.
 
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD.
@@ -48,7 +48,7 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
 
 1. Go to: https://www.lawfecta.co/dela?tab=meetings
    Find: the page "Your meetings", then the card whose heading ends with "Introductory call". Its heading starts with "Example Lantern Legal".
-   Expect: at the left of the heading a small round picture or a small round circle with a letter; the status "Time confirmed"; the sentence "An introductory call before any gig. Nobody is hired by it."; a button "Open the conversation"; a tick box whose text starts "Transcribe this meeting (no video or audio is kept)"; and a dark red button "Join the meeting". There is no button named "Create a gig for".
+   Expect: at the left of the heading a small round picture or a small round circle with a letter; the status "Time confirmed"; the sentence "An introductory call before any gig. Nobody is hired by it."; a dark red button "Join the meeting"; a button "Open the conversation"; a line "Attendance:"; a box that asks "Did the meeting happen?" (leave it alone); and a small link "Report this meeting" (it may be missing until the next release; write whether you see it, and do not click it). There is no button named "Create a gig for".
 
 2. Find: the dark red button "Join the meeting" on that card.
    Do: click it.
@@ -80,7 +80,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 7. Do: click "Join the meeting" on that card. In the white panel "Before you join", tick the box "Transcribe this meeting (no video or audio is kept)". Click "Continue to the camera and microphone check". If the browser asks for the camera or microphone, choose Block.
    Expect: the top bar reads "This meeting is not being transcribed" (only one of the two people has ticked the box, so nothing is transcribed) and there is no "Stop transcript" button.
    Do: click "Leave and go back to DELA".
-   Expect: back on "Your meetings". On the card, the tick box that starts "Transcribe this meeting" is now ticked.
+   Expect: back on "Your meetings", with the same card.
 
 8. Go to: https://www.lawfecta.co/dela?tab=talent
    Find: the card for "DELA Test Freelancer" (use Ctrl+F for the name). Click "View profile" on it. At the right of the profile header click "Book a call".

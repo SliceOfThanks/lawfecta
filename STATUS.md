@@ -4,6 +4,16 @@ Starting a new session? Read docs/SESSION_HANDOFF.md first (written 2026-11-12, 
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 25 part 2 (transcripts) and step 26 (team logo take-down, pictures in lists): ON THE SITE (2026-11-13)
+- Site: code_version ee087f0, api function version 118, migrations through 0118, health "ok". GitHub Tests passed on that commit (run 43500038072).
+- Transcripts, to Stacey's five answers of 2026-11-13 (docs/briefs/step-25-videosdk-meetings.md): text only through VideoSDK's live transcription (no video or audio kept); "Before you join" panel with the tick box; transcribed only when both ticked; top bar status and "Stop transcript"; kept meeting.transcript_days (90) after the meeting, deletable early by either person for both; DELA's AI reads it once on Lawfecta's key (summary, next steps, off-platform flag); the team opens a transcript only when flagged or reported, and each opening is a meeting event; Lawfecta logo on the meeting screen; second top-bar line about DELA messages.
+- Fixed in this release: before the start time "Join the meeting" was a dead link for a VideoSDK room (it was live for a few hours in e81f826).
+- Step 26: admin People page card "Firm logos" with "Remove logo" (reason required, owner told); small pictures in the Inbox and on meeting cards; picture data kept out of the connector.
+- Test meeting for Stacey (request_id videosdk-first-test-2026-11-13, test attorney and test freelancer): room ready, started, open until 2026-11-16 23:00 UTC, nobody's transcript box ticked. For her two-window video call and for ChatGPT check 3.
+- Three ChatGPT checks wait for her (docs/tests/RUN-NEXT.md): 1 Talent, 2 Subscription, 3 meetings and calls. Ready copies on her Mac are numbered 1 to 3.
+- Not proven against the real VideoSDK: the meeting screen with video, live transcription, and that its reports arrive. Her first real call is the test.
+- Built and pushed, in testing, not yet released: step 27 "Report this meeting" (commit 4a64183, migration 0119).
+
 ## Step 25: meetings on VideoSDK, joined inside DELA (part 1): ON THE SITE (2026-11-13)
 - Site: code_version e81f826, api function version 117, migrations through 0116, health "ok". GitHub Tests passed on that commit (run 43493927511).
 - Stacey 2026-11-13: "Just use VideoSDK - best option even if paid". meetings.provider is "videosdk" (settings history written; the Decision Sheet regenerated). Brief with five questions for part 2 (recording, transcripts, who reads them): docs/briefs/step-25-videosdk-meetings.md.
