@@ -525,6 +525,8 @@ D.openTab = function (getUrl, onFail, opts) {
     ".tp-head-grid{display:grid;grid-template-columns:84px minmax(0,1fr) minmax(240px,340px);gap:18px;align-items:start}.tp-head-acts{display:flex;flex-direction:column;gap:10px}.tp-head-acts .tp-invite{margin:0;padding:0;border-top:0;flex-direction:column;align-items:stretch;gap:6px}" +
     ".tp-head-acts .talent-gig{flex:0 0 auto;flex-direction:column;align-items:stretch;gap:2px;padding-left:0;border-left:0}.tp-head-acts .talent-gig select{width:100%}.tp-head-acts button{min-height:44px}" +
     "@media (max-width:900px){.tp-head-grid{grid-template-columns:56px minmax(0,1fr)}.tp-head-acts{grid-column:1 / -1}.tp-head-acts #tp-bookmark{justify-content:flex-start}.tp-head-acts button{flex:1 1 auto}}" +
+    // Stacey 2026-11-13: the ready-made pictures are see-through drawings, so every picture sits on the light pink of the initial circle
+    "img.talent-photo,img.face,.av-opt img{background:#fbeef2}" +
     ".talent-help-h{margin:0;font-size:inherit}.dela .talent-help-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:0;color:var(--ink);padding:4px 0;min-height:44px}.dela .talent-help-btn:focus-visible{outline:2px solid var(--pink-ink);outline-offset:2px}" +
     ".talent-cost{border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--card);white-space:nowrap}.dela .cat-chip button{min-width:24px;min-height:24px}" +
     ".fit-row .talent-photo{width:48px;height:48px;font-size:20px}" +

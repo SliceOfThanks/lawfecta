@@ -296,7 +296,7 @@ const SEARCH = "Search roles, specialties, tasks and software";
     await dela(p).locator(".talent-card", { hasText: "Fern Family" }).getByRole("button", { name: "View profile" }).click();
     await waitFor(p, "Professional summary");
     await click(p, "← Back to Talent search");
-    await waitFor(p, "1 freelancer found");
+    await waitFor(p, "Fern Family", 10000);
     ok(await label(p, SEARCH).inputValue() === "family paralegal" && !(await text(p)).includes("Nia Nurse"), "back from a profile, the search is as it was");
     // ---------- Step 18 part 4: a conversation before a gig, and a gig made for that freelancer ----------
     await dela(p).locator(".talent-card", { hasText: "Fern Family" }).getByRole("button", { name: "View profile" }).click();

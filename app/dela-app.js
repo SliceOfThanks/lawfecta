@@ -1910,7 +1910,7 @@
     var av = r.avatars && r.avatars.base ? r.avatars : { base: "", files: [] };
     var avatarUrl = b.avatar && av.files.indexOf(b.avatar) >= 0 ? av.base + b.avatar : "";
     var shownPhoto = prof.photoPreview || (b.photo_file ? r.photo_view_url : "") || avatarUrl || b.photo_url;
-    var pic = shownPhoto ? h("img", { src: shownPhoto, alt: "Your profile photo", style: "width:64px;height:64px;border-radius:50%;object-fit:cover" }) : h("span", { class: "chip", style: "width:64px;height:64px;font-size:22px", "aria-hidden": "true", text: "?" });
+    var pic = shownPhoto ? h("img", { src: shownPhoto, alt: "Your profile photo", class: "face", style: "width:64px;height:64px;border-radius:50%;object-fit:cover" }) : h("span", { class: "chip", style: "width:64px;height:64px;font-size:22px", "aria-hidden": "true", text: "?" });
     var photoIn = h("input", { type: "file", accept: "image/png,image/jpeg,.png,.jpg,.jpeg", style: "display:none", "aria-label": "Choose a profile photo" });
     var photoMsg = h("span", { class: "small muted", role: "status", text: b.photo_file ? "Your DELA profile photo." : avatarUrl ? "A ready-made picture. It is an illustration, not a photo of you." : b.photo_url ? "This photo comes from your Lawfecta listing." : "No photo yet. Members see your initial." });
     photoIn.addEventListener("change", function () {
@@ -4767,7 +4767,7 @@
     api.get("/freelancers/card?person=" + personId).then(function (x) {
       D.clear(m.body);
       if (!x.ok) { m.body.appendChild(h("p", { class: "notice", text: gigErr(x) })); return; }
-      m.body.appendChild(h("div", { class: "row" }, x.photo_url ? h("img", { src: x.photo_url, alt: "", style: "width:64px;height:64px;border-radius:50%;object-fit:cover" }) : null,
+      m.body.appendChild(h("div", { class: "row" }, x.photo_url ? h("img", { src: x.photo_url, alt: "", class: "face", style: "width:64px;height:64px;border-radius:50%;object-fit:cover" }) : null,
         h("div", null, h("h3", { style: "margin:0", text: x.name }), x.headline ? h("div", { class: "small", text: x.headline }) : null,
           h("div", { class: "small muted", text: (x.readiness === "match_ready" || x.readiness === "availability_stale" || x.readiness === "unavailable" ? "Verified" : "Verification not finished") + " | " + reviewsLine(x.reviews) }))));
       if ((x.agencies || []).length) m.body.appendChild(h("p", { class: "small", text: "Works with: " + x.agencies.join(", ") }));
@@ -4780,7 +4780,7 @@
     }).catch(function (e) { D.clear(m.body); m.body.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
   function personLine(t, extra) {
-    return h("div", { class: "row", style: "gap:8px;margin:4px 0" }, t.photo_url ? h("img", { src: t.photo_url, alt: "", style: "width:32px;height:32px;border-radius:50%;object-fit:cover" }) : h("span", { class: "avatar-dot", "aria-hidden": "true", text: (t.name || "?").slice(0, 1) }),
+    return h("div", { class: "row", style: "gap:8px;margin:4px 0" }, t.photo_url ? h("img", { src: t.photo_url, alt: "", class: "face", style: "width:32px;height:32px;border-radius:50%;object-fit:cover" }) : h("span", { class: "avatar-dot", "aria-hidden": "true", text: (t.name || "?").slice(0, 1) }),
       h("span", { class: "grow" }, h("b", { text: t.name }), t.role ? h("span", { class: "small muted", text: " | " + t.role }) : null, t.reviews ? h("span", { class: "small muted", text: " | " + reviewsLine(t.reviews) }) : null),
       h("button", { class: "ghost small", type: "button", onclick: function () { profileModal(t.person_id); } }, "View profile"), extra || null);
   }
