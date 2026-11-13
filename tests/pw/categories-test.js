@@ -124,6 +124,7 @@ const SEARCH = "Search roles, specialties, tasks and software";
     ok(t.includes("Fern Family"), "Clear the search shows everyone again");
     await label(p, SEARCH).fill("family paralegal");
     await label(p, SEARCH).press("Escape");
+    ok(await label(p, SEARCH).inputValue() === "family paralegal", "Escape closes the suggestions and keeps the typed words");
     await label(p, SEARCH).press("Enter");
     t = await waitGone(p, "Nia Nurse");
     ok(t.includes("Fern Family"), "Enter searches the typed words");

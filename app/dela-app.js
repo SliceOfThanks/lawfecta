@@ -5377,7 +5377,8 @@
     input.addEventListener("keydown", function (e) {
       if (e.key === "ArrowDown" && items.length) { e.preventDefault(); if (list.hidden) show(); at = Math.min(at + 1, items.length - 1); mark(); }
       else if (e.key === "ArrowUp" && items.length) { e.preventDefault(); at = Math.max(at - 1, 0); mark(); }
-      else if (e.key === "Escape") close();
+      // Escape closes the suggestions and keeps the typed words (a search box would otherwise empty itself)
+      else if (e.key === "Escape") { if (!list.hidden) e.preventDefault(); close(); }
       else if (e.key === "Enter") { e.preventDefault(); if (!list.hidden && at >= 0) pick(idx.byKey[items[at].getAttribute("data-key")]); else { close(); if (o.onEnter) o.onEnter(input.value.trim()); } }
     });
     return { el: h("div", { class: "cat-search" }, input, list), input: input, close: close };
