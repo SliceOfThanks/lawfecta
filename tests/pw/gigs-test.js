@@ -186,7 +186,7 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     p = s.page;
     t = await waitFor(p, "Fran 2601");
     ok(t.includes("Invite for gig:") && t.includes("Invite to this gig") && !t.includes("Create a gig from an SOP or Workflow") && !t.includes("@test.invalid"), "Talent lists match-ready freelancers with the invite control and no contact details");
-    ok(await dela(p).getByLabel("State you need", { exact: true }).locator("option", { hasText: "Texas" }).count() === 1 && t.includes("Specialty") && t.includes("Task, case type or software"), "Talent boxes have visible labels and the state has full names (UX review T01, step 17 lists)");
+    ok(await dela(p).getByLabel("State / Jurisdiction", { exact: true }).locator("option", { hasText: "Texas" }).count() === 1 && t.includes("Practice area / Specialty") && t.includes("Services / Tasks") && t.includes("Software"), "Talent boxes have visible labels and the state has full names (UX review T01, step 17 lists)");
     await dela(p).getByRole("button", { name: "View profile", exact: true }).first().click();
     t = await waitFor(p, "← Back to Talent search");
     t = await waitFor(p, "Quick facts");

@@ -2812,6 +2812,8 @@ async function talent(ctx: Ctx) {
     limit: int(q.get("limit")) ?? "", offset: int(q.get("offset")) ?? 0, sort: ["name", "reviews", "hours"].includes(String(q.get("sort"))) ? String(q.get("sort")) : "" } });
   // Step 18: the cards show the freelancer's own DELA photo (a signed link for an hour); the storage path never leaves
   if (r?.ok && Array.isArray(r.people)) await withPhotos(ctx, r.people);
+  // Step 22: the page explains match-ready with the real number of days from Settings
+  if (r?.ok) r.availability_days = Number(await setting(ctx, "profile.availability_days", "")) || null;
   return json(ctx, r);
 }
 
@@ -2842,7 +2844,8 @@ async function categories(ctx: Ctx) {
   } else if (r?.stale) {
     await rpc(ctx, "dela_job_enqueue", { p_kind: "categories_sync", p_payload: { source: "stale" }, p_run_at: new Date().toISOString(), p_idem: "categories_sync:" + new Date().toISOString().slice(0, 13), p_person: null });
   }
-  return json(ctx, r);
+  // Step 22: the Software filter on Talent offers the same list the Profile page offers
+  return json(ctx, r && typeof r === "object" ? { ...r, software: TECH_TOOLS } : r);
 }
 
 // ---------- Step 5: availability, booking, meetings, follow-ups, messages ----------

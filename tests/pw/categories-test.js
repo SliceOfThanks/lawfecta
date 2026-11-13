@@ -14,6 +14,7 @@ const SHOTS = process.env.SHOTS || path.join(ROOT, "shots");
 fs.mkdirSync(SHOTS, { recursive: true });
 let passed = 0;
 function ok(cond, msg) { if (!cond) throw new Error("FAILED: " + msg); passed++; console.log("ok", msg); }
+async function fernStar(p) { return await p.evaluate(() => { const c = [...document.querySelector(".dela-host").shadowRoot.querySelectorAll(".talent-card")].find((x) => x.textContent.includes("Fern Family")); return c ? c.querySelectorAll(".talent-star").length : -1; }); }
 async function sql(q) { const r = await fetch(BASE + "/test/sql", { method: "POST", body: JSON.stringify({ sql: q }) }); const j = await r.json(); if (j.error) throw new Error("sql: " + j.error); return j.rows; }
 async function open(browser, widget, uid, query) {
   const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
@@ -131,7 +132,36 @@ const SEARCH = "Search roles, specialties, tasks and software";
     t = await waitFor(p, "Find a freelancer", 15000);
     t = await waitFor(p, "Fern Family", 10000);
     ok(t.includes("Nia Nurse") && t.includes("Paralegal Services: Discovery Support, Clio"), "results list everyone match-ready, each with their categories grouped by category");
-    ok(!t.includes("Practice area") && !t.includes("Tech tool"), "the old free-text boxes are gone");
+    ok(!t.includes("Tech tool") && !t.includes("Choose a category first"), "the old free-text boxes are gone and no filter waits for another");
+    // Step 22 (mockup 02): five filters that each work on their own, and the match-ready help
+    ok(await label(p, "Practice area / Specialty").isEnabled() && await label(p, "Services / Tasks").isEnabled() && await label(p, "Software").isEnabled() && await label(p, "State / Jurisdiction").isEnabled(), "every filter can be used without choosing a category first");
+    ok(await label(p, "Software").locator("option", { hasText: "Filevine" }).count() === 1, "the Software filter lists the software names");
+    ok(t.includes("You can message a freelancer before hiring. A posted gig is required to invite a freelancer to submit a proposal."), "the page says what needs a gig and what does not");
+    const mrBtn = dela(p).getByRole("button", { name: "What does match-ready mean?" });
+    ok(await mrBtn.getAttribute("aria-expanded") === "false", "the match-ready help starts closed");
+    await mrBtn.click();
+    t = await waitFor(p, "Match-ready does not guarantee qualifications, fit or availability for a particular project.");
+    ok(await mrBtn.getAttribute("aria-expanded") === "true" && t.includes("Confirmed their availability within the last 14 days") && t.includes("Passed the Lawfecta Team's member check"), "a click pins the match-ready help open, with the real number of days");
+    await p.keyboard.press("Escape");
+    ok(await mrBtn.getAttribute("aria-expanded") === "false" && await dela(p).locator("#mr-panel").isHidden(), "Escape closes the match-ready help");
+    ok(await fernStar(p) === 0, "a freelancer with no reviews shows no star");
+    // Automated accessibility rules (axe-core: WCAG 2.0, 2.1 and 2.2, levels A and AA), and a phone 320 wide
+    const axeSrc = fs.readFileSync(require.resolve("axe-core/axe.min.js"), "utf8");
+    const axe = async (page, sel, what) => {
+      if (!(await page.evaluate(() => !!window.axe))) await page.addScriptTag({ content: axeSrc });
+      const v = await page.evaluate(async (s) => {
+        const r = await window.axe.run({ include: [[".dela-host", s]] }, { runOnly: { type: "tag", values: ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"] } });
+        return r.violations.map((x) => x.id + " (" + x.impact + "): " + x.nodes.slice(0, 3).map((n) => n.target.join(" ") + " [" + (n.failureSummary || "").split("\n").slice(1, 3).join("; ").slice(0, 160) + "]").join(" || "));
+      }, sel);
+      ok(v.length === 0, "accessibility rules pass on " + what + (v.length ? ": " + v.join(" ### ") : ""));
+    };
+    await axe(p, ".talent-page", "the Talent search page");
+    const wide = p.viewportSize();
+    await p.setViewportSize({ width: 320, height: 720 }); await p.waitForTimeout(200);
+    ok(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "Talent fits a phone 320 wide with no sideways scrolling");
+    const fernPhone = dela(p).locator(".talent-card", { hasText: "Fern Family" });
+    ok(await fernPhone.getByRole("button", { name: "View profile" }).isVisible() && await fernPhone.getByLabel("Gig to invite Fern Family for").isVisible(), "on a phone the card keeps View profile and the gig to invite for");
+    await p.setViewportSize(wide); await p.waitForTimeout(200);
     // Step 18: each card has two actions only, and an invitation needs a posted gig chosen first
     const fern = dela(p).locator(".talent-card", { hasText: "Fern Family" });
     const btns = await fern.getByRole("button").allInnerTexts();
@@ -191,13 +221,13 @@ const SEARCH = "Search roles, specialties, tasks and software";
     await dela(p).locator(".cat-suggest li").first().click();
     t = await waitGone(p, "Fern Family");
     ok(t.includes("Nia Nurse") && t.includes("1 freelancer found"), "picking a suggestion searches that category");
-    ok(await label(p, "Category").inputValue() === "p39" && await label(p, "Specialty").inputValue() === "s267" && await label(p, "Task, case type or software").inputValue() === "s275", "the three lists show where the picked category sits");
+    ok(await label(p, "Category").inputValue() === "p39" && await label(p, "Practice area / Specialty").inputValue() === "s267" && await label(p, "Services / Tasks").inputValue() === "s275", "the three lists show where the picked category sits");
     await label(p, "Category").selectOption({ label: "Paralegal Services" });
     t = await waitFor(p, "Fern Family");
     ok(!t.includes("Nia Nurse"), "a category finds everyone in the categories below it");
-    const subs = await label(p, "Specialty").locator("option").allInnerTexts();
+    const subs = await label(p, "Practice area / Specialty").locator("option").allInnerTexts();
     ok(subs.join("|") === "Any specialty|Civil Litigation|Family Law", "the specialties are the chosen category's only: " + subs.join("|"));
-    await label(p, "Specialty").selectOption({ label: "Civil Litigation" });
+    await label(p, "Practice area / Specialty").selectOption({ label: "Civil Litigation" });
     t = await waitGone(p, "Fern Family");
     ok(t.includes("No match-ready freelancers fit this search yet."), "an empty result says to try a broader category");
     await click(p, "Clear all");
@@ -219,10 +249,16 @@ const SEARCH = "Search roles, specialties, tasks and software";
     await waitFor(p, "← Back to Talent search");
     t = await waitFor(p, "Quick facts");
     ok(p.url().includes("tab=talent") && p.url().includes("person=") && await dela(p).getByRole("dialog").count() === 0, "View profile opens a page with its own address, not a pop-up");
-    ok(t.includes("About Fern Family") && t.includes("I prepare family law filings.") && t.includes("✓ Verified") && t.includes("No reviews yet") && t.includes("15 hours a week") && t.includes("Invite for gig:"), "the page shows who this is, what was checked, the real review state and the invitation");
+    await axe(p, ".tp", "the freelancer profile page");
+    await p.goBack();
+    await waitFor(p, "Find a freelancer");
+    ok(!p.url().includes("person=") && (await text(p)).includes("Fern Family"), "the browser's Back button returns from the profile to the search results");
+    await dela(p).locator(".talent-card", { hasText: "Fern Family" }).getByRole("button", { name: "View profile" }).click();
+    await waitFor(p, "Quick facts");
+    ok(t.includes("Professional summary") && t.includes("Primary services") && t.includes("Software expertise") && t.includes("What does verified mean?") && t.includes("I prepare family law filings.") && t.includes("✓ Verified") && t.includes("No reviews yet") && t.includes("15 hours a week") && t.includes("Invite for gig:"), "the page shows who this is, what was checked, the real review state and the invitation");
     ok(!t.includes("512-555") && !t.includes("fern.example.com") && !t.includes("@test.invalid"), "no phone, website or email on the profile");
     const tabs = await dela(p).getByRole("tab").allInnerTexts();
-    ok(tabs.join("|") === "Overview|Services|Experience and qualifications|Portfolio|Reviews|Promotions (1)", "the sections are tabs of the same page: " + tabs.join("|"));
+    ok(tabs.join("|") === "Overview|Services|Experience and qualifications|Portfolio|Reviews", "the sections are tabs of the same page: " + tabs.join("|"));
     await dela(p).getByRole("tab", { name: "Overview" }).focus();
     await p.keyboard.press("ArrowRight");
     t = await waitFor(p, "Services offered");
@@ -235,11 +271,11 @@ const SEARCH = "Search roles, specialties, tasks and software";
     await dela(p).getByRole("tab", { name: "Reviews" }).click();
     await waitFor(p, "A review can only be left after a completed Lawfecta engagement");
     ok(await dela(p).locator(".drawer").count() === 0, "reviews are inside the profile, with no drawer");
-    await dela(p).getByRole("tab", { name: "Promotions (1)" }).click();
-    t = await waitFor(p, "New client discount");
-    ok(t.includes("FIRST10") && t.includes("10% off the first fixed-fee project.") && !t.includes("A blog article"), "promotions come from the website's Promotion posts only");
+    await dela(p).getByRole("tab", { name: "Services" }).click();
+    t = await waitFor(p, "FIRST10");
+    ok(t.includes("FIRST10") && t.includes("10% off the first fixed-fee project.") && !t.includes("A blog article"), "promotions sit inside Services and come from the website's Promotion posts only");
     await p.reload();
-    await waitFor(p, "About Fern Family", 15000);
+    await waitFor(p, "Professional summary", 15000);
     await click(p, "← Back to Talent search");
     t = await waitFor(p, "Find a freelancer");
     ok(!p.url().includes("person="), "the way back leaves the profile's address");
@@ -251,13 +287,13 @@ const SEARCH = "Search roles, specialties, tasks and software";
     await label(p, SEARCH).press("Enter");
     await waitGone(p, "Nia Nurse");
     await dela(p).locator(".talent-card", { hasText: "Fern Family" }).getByRole("button", { name: "View profile" }).click();
-    await waitFor(p, "About Fern Family");
+    await waitFor(p, "Professional summary");
     await click(p, "← Back to Talent search");
     await waitFor(p, "1 freelancer found");
     ok(await label(p, SEARCH).inputValue() === "family paralegal" && !(await text(p)).includes("Nia Nurse"), "back from a profile, the search is as it was");
     // ---------- Step 18 part 4: a conversation before a gig, and a gig made for that freelancer ----------
     await dela(p).locator(".talent-card", { hasText: "Fern Family" }).getByRole("button", { name: "View profile" }).click();
-    await waitFor(p, "About Fern Family");
+    await waitFor(p, "Professional summary");
     // Bookmarks: saved through the website's bookmark system, privately
     const bmBtn = dela(p).locator("#tp-bookmark").getByRole("button");
     await dela(p).locator("#tp-bookmark").getByRole("button", { name: "Bookmark Fern Family" }).click();

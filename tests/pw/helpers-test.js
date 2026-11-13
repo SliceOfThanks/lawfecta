@@ -153,18 +153,25 @@ const ATT = 4420, FL = 4421, FL2 = 4422;
     await s.ctx.close();
 
     s = await open(browser, "DELA-App", ATT, "&tab=talent"); p = s.page;
-    // Step 18: DELA's help on Talent is folded away until opened
-    await waitFor(p, "Need help finding the right freelancer?", 15000);
-    await dela(p).locator("#talent-help summary").click();
-    t = await waitFor(p, "✦ Help me find a fit", 15000);
-    ok(t.includes("Never enter sensitive data") && t.includes("Keep it in your own storage."), "the Talent task box has the sensitive data notice (step 8b Part C, R06)");
-    await label(p, "Describe the task").fill("E-filing family law motions in Texas with Clio");
-    await click(p, "✦ Help me find a fit");
-    t = await waitFor(p, "These are search filters only.");
-    for (let i = 0; i < 4; i++) await dela(p).locator('[data-helper="find_fit"]').getByRole("button", { name: "Use suggestion", exact: true }).first().click();
-    // Step 17: "Family law" and "Clio" are categories, so they pick Paralegal Services, Family Law, Clio; "E-filing" goes into the search box
-    ok((await label(p, "Specialty").inputValue()) === "s308" && (await label(p, "Task, case type or software").inputValue()) === "s331" &&
-      (await label(p, "Search roles, specialties, tasks and software").inputValue()) === "E-filing" && (await label(p, "State you need").inputValue()) === "TX", "Help me find a fit fills the search filters");
+    // Step 22: DELA's help on Talent is an accordion; its suggestions are chips to check, and nothing is searched until they are applied
+    await waitFor(p, "Find a freelancer with DELA", 15000);
+    const helpBtn = dela(p).locator("#talent-help .talent-help-btn");
+    ok(await helpBtn.getAttribute("aria-expanded") === "false", "DELA's help on Talent starts closed");
+    await helpBtn.click();
+    t = await waitFor(p, "What do you need help with?", 15000);
+    ok(await dela(p).locator("#talent-help .talent-help-btn").getAttribute("aria-expanded") === "true" && t.includes("Don't include client names") && /Uses \d+ DELA action/.test(t), "open, it shows the privacy note and what it uses before anything is sent");
+    await dela(p).locator("#talent-help-task").fill("E-filing family law motions in Texas with Clio");
+    await dela(p).locator("#talent-help .talent-help-btn").click();
+    await dela(p).locator("#talent-help .talent-help-btn").click();
+    ok(await dela(p).locator("#talent-help-task").inputValue() === "E-filing family law motions in Texas with Clio", "closing and opening the accordion keeps the typed words");
+    await click(p, "✦ Suggest filters");
+    t = await waitFor(p, "DELA suggested filters");
+    ok(t.includes("Software: Clio") && t.includes("State: TX") && t.includes("Nothing is searched until you apply them."), "the suggestions are chips to review: " + (await dela(p).locator("#talent-help-out").innerText()).split("\n").join(" | "));
+    ok((await label(p, "State / Jurisdiction").inputValue()) === "" && (await label(p, "Software").inputValue()) === "", "nothing is filled in or searched before the attorney applies the suggestions");
+    await click(p, "Apply filters & search");
+    await waitFor(p, "Software: Clio");
+    // "Family law" is a category, so it picks Paralegal Services, Family Law; Clio picks the Software filter; "E-filing" becomes a skill filter
+    ok((await label(p, "Practice area / Specialty").inputValue()) === "s308" && (await label(p, "Software").inputValue()) === "Clio" && (await label(p, "State / Jurisdiction").inputValue()) === "TX", "Apply filters & search fills the search filters");
     await s.ctx.close();
 
     s = await open(browser, "DELA-App", ATT, "&tab=delegate"); p = s.page;

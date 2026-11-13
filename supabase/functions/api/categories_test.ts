@@ -195,6 +195,19 @@ Deno.test("Talent: a category finds everyone in it and below it; free words also
   assertEquals((await t("category=s99999")).body.reason, "category_gone", "a category that is not on the website is said so");
   assertEquals(ids(await t("category=drop%20table")).length, all.length, "a key that is not a category key is ignored");
   assertEquals((await call("GET", "/talent?category=p39", fNurse.token)).status, 403, "freelancers do not search Talent");
+  // Step 22 (Talent revision package): software is searched on its own, every typed word counts in any order,
+  // and the page gets the software list and the real number of days behind "match-ready"
+  await pool.query(`update member_profiles set body = body || '{"software":["Filevine"]}' where person_id = $1 and side = 'freelancer'`, [fFamily.id]);
+  const mine = (r: { body: Record<string, any> }) => ids(r).filter((x) => [fNurse.id, fFamily.id, fNone.id].includes(x));
+  assertEquals(mine(await t("q=filevine")), [fFamily.id], "typing a software name finds it, with no category chosen");
+  assertEquals(mine(await t("tool=Filevine")), [fFamily.id], "the Software filter works on its own");
+  assertEquals(mine(await t("q=paralegal%20filevine%20family")), [fFamily.id], "every word must appear, in any order");
+  assertEquals(mine(await t("q=filevine%20nurse")), [], "a word that appears nowhere finds nobody");
+  assertEquals(mine(await t("tool=Filevine&category=p39")), [], "filters narrow each other");
+  const cats = (await call("GET", "/categories", att.token)).body;
+  assert(Array.isArray(cats.software) && cats.software.includes("Clio") && cats.software.includes("Filevine"), "the Software filter offers the Profile page's list");
+  assertEquals((await t("")).body.availability_days, Number((await one("select value v from settings where key = 'profile.availability_days'")).v), "the match-ready days come from Settings");
+  await pool.query(`update member_profiles set body = body || '{"software":[]}' where person_id = $1 and side = 'freelancer'`, [fFamily.id]);
 });
 
 Deno.test("the full profile: what the page shows, never contact details; shown samples for members who hire; promotions from the website", async () => {
