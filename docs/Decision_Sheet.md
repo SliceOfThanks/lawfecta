@@ -61,7 +61,7 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Playbook exports per month (per month) | 0 | 2 | 5 | 15 | Confirmed | |
 | Connected calendars (Google or Outlook) | 1 | 2 | 5 | 10 | Confirmed | |
 | Webhook endpoints | 1 | 2 | 5 | 10 | Confirmed | |
-| File storage | 250 | 1000 | 5000 | 20000 | Confirmed | |
+| File storage | 250 | 1000 | 5120 | 20480 | Confirmed | |
 | Bring your own AI key (OpenAI or Claude) | Yes | Yes | Yes | Yes | Confirmed | |
 
 - Weighted AI credits per month on Lawfecta's key: Provisional until costs are validated. Credits are weighted by AI cost; they are not a number of playbooks or conversations. Calls on the member's own key do not use credits. Attorney plans since step 9b (Stacey 2026-11-06), shown to attorneys as DELA actions: Free 50, Plus 300, Pro 1,000, Business 2,500 shared by the firm. The values here are the freelancer plans, unchanged. Stacey 2026-11-10: approved for beta; review after one month of real AI cost.

@@ -88,6 +88,9 @@ Deno.test("the new numbers: Free 3 documents, 50 credits, 1 GB; Business unlimit
   assertEquals(plus.l, 300);
   const fl = await one("select pf.quota_limit l from plan_features pf join plan_versions v on v.id = pf.plan_version_id where v.plan_code = 'fl_free' and v.status = 'approved' and pf.feature_key = 'ai.runs'");
   assertEquals(fl.l, 25, "freelancer limits are unchanged");
+  // Stacey 2026-11-13: freelancer Pro and Business storage are whole GB (5,120 and 20,480 MB), so the page reads "5 GB" and "20 GB"
+  const fs = await pool.query("select v.plan_code c, pf.quota_limit l from plan_features pf join plan_versions v on v.id = pf.plan_version_id where v.plan_code in ('fl_pro', 'fl_business') and v.status = 'approved' and pf.feature_key = 'storage.mb' order by 1");
+  assertEquals(fs.rows.map((x: any) => [x.c, Number(x.l)]), [["fl_business", 20480], ["fl_pro", 5120]]);
 });
 
 Deno.test("a Business firm shares one counter; a Free attorney has their own; the limit stops at 100%", async () => {

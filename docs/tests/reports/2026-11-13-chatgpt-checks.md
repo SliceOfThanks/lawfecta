@@ -4,13 +4,13 @@ Stacey pasted the three reports into the session. This is what they said and wha
 
 ## Check 1, Talent journey: 25 of 26 passed
 - Step 14 failed: the agent saw the four suggested chips and both buttons, but not the heading "DELA suggested filters" and the sentence "Review or remove the suggestions below. Nothing is searched until you apply them."
-  The code draws both in the same place as the chips, and the browser test (tests/pw/helpers-test.js) waits for the heading. Not reproduced. Open: a person looks once.
+  The code draws both in the same place as the chips, and the browser test (tests/pw/helpers-test.js) waits for the heading. Stacey looked the same day and sent a screenshot: the heading, the sentence, the four chips and both buttons are all there. The agent misread; not a defect.
 - Step 26, verbatim: "The website answered. Rows read: 1. ... DELA writes a bookmarked member as: dataType 10, featureId 1, checked 1. The website's own bookmarks look like: dataType 10, featureId 1, checked 0, a member."
   Not changed: one row is not enough to know what "checked" means on the website (it may mark a bookmark that was removed there). Open in docs/PILOT_CHECKS.md, line 3.2.
 - Everything else passed: categories, who posted a gig, five filters, keywords in any order, Load more, the profile page, browser Back, bookmark and removal, invitation not sent twice.
 
 ## Check 2, Subscription: 10 of 10 passed
-- Note: freelancer storage reads "4.9 GB" (Pro) and "19.5 GB" (Business), because the plans hold 5,000 and 20,000 MB. Attorney plans hold multiples of 1,024 and read as whole numbers. Asked Stacey whether to make them 5,120 and 20,480 MB (a business number, her decision).
+- Note: freelancer storage reads "4.9 GB" (Pro) and "19.5 GB" (Business), because the plans hold 5,000 and 20,000 MB. Attorney plans hold multiples of 1,024 and read as whole numbers. Stacey answered "YES" the same day: Pro is 5,120 MB and Business is 20,480 MB (migration 0123).
 - Note: the website's own sidebar says "Plan: Free" while DELA says the plan the team set. DELA explains it on the page.
 
 ## Check 3, Meetings and calls: 15 of 16 passed

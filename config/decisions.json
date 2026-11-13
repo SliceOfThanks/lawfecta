@@ -263,11 +263,11 @@
       "values": {
         "free": 250,
         "plus": 1000,
-        "pro": 5000,
-        "business": 20000
+        "pro": 5120,
+        "business": 20480
       },
       "status": "C",
-      "source": "Stacey 2026-11-10 (undecided numbers answers); was: Suggestion by Claude",
+      "source": "Stacey 2026-11-13 (freelancer Pro 5,120 and Business 20,480 MB, whole GB); before: Stacey 2026-11-10",
       "note": "Attorney plans since step 9b (Stacey 2026-11-06): Free 1,024, Plus 10,240, Pro 51,200, Business 204,800 MB, shared by the firm. The values here are the freelancer plans, unchanged."
     },
     {
