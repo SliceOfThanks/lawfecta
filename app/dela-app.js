@@ -6581,7 +6581,7 @@
   function bookPanel(host, gigId, freelancer, rescheduleOf, introThread) {
     var bookWord = rescheduleOf ? "Choose a new time" : introThread ? "Book an introductory call" : "Book a meeting";
     var old = host.querySelector("#book-panel"); if (old) old.parentNode.removeChild(old);
-    var panel = h("div", { class: "card", id: "book-panel", "aria-label": bookWord }, h("h2", { text: bookWord }), h("p", { class: "muted small", text: "Loading open times..." }));
+    var panel = h("div", { class: "card", id: "book-panel", "aria-label": introThread ? "Book an introductory call" : "Book a meeting" }, h("h2", { text: bookWord }), h("p", { class: "muted small", text: "Loading open times..." }));
     host.insertBefore(panel, host.children[3] || null);
     var length = null, bookDay = null;
     function load() {
