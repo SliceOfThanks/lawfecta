@@ -4,6 +4,14 @@ Starting a new session? Read docs/SESSION_HANDOFF.md first (written 2026-11-12, 
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Talent redesign, part 2 (step 18): ON THE SITE (2026-11-13, 03:44 UTC)
+- Site: code_version decc029, api function version 108, migrations through 0105, health "ok". GitHub Tests passed on that commit (run 43359568744). Stacey: "release it when the tests pass".
+- On the site: the full freelancer profile page (/dela?tab=talent&person=ID) with tabs Overview, Services, Experience and qualifications, Portfolio, Reviews, Promotions (the website's Promotion posts, post type 7); the result cards rearranged to her second mockup.
+- Part 3 is built and pushed (commit 627d02f, migration 0106), NOT released: the invitation review step, ready-made profile pictures, "Check the website's bookmarks" on the admin Tech catalog page. Its release waits for its GitHub run and Stacey's word.
+- Waiting on Stacey: the web address of one avatar file from the website's Media Manager (to set profile.avatars base; guesses under /images/Avatars/ answer "not found"), and, after part 3 is released, the line "Check the website's bookmarks" shows (the website's table is users_favorite).
+- Part 4 not started: a conversation before a gig, "Create a gig for this freelancer", DELA's suggested freelancers after a document is made.
+- Verified on the server only; nobody has looked at these pages on the site in a browser.
+
 ## Talent redesign, part 1 (step 18): ON THE SITE (2026-11-13, 03:24 UTC)
 - Site: code_version 0507de6, api function version 107, migrations through 0104, health "ok". GitHub Tests passed on that commit (run 43356894653). Stacey said "Yes, release it" after the app's safety check had refused the two release steps once.
 - Brief with the audit, her seven decisions and the parts still to build: docs/briefs/step-18-talent-marketplace.md (her prompt and 12 annotated mockups are in her Downloads folder).
