@@ -5368,6 +5368,14 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /agency/leave": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_leave", { p_person: s.person_id, p_org: need(uuid(ctx.body.org_id)) })); }
       case "GET /freelancers/card": return await freelancerCard(ctx);
       case "GET /freelancers/profile": return await freelancerProfile(ctx);
+      // Step 18 part 4: a conversation before a gig, and the freelancers who fit a document
+      case "POST /intro/open": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_intro_open", { p_person: s.person_id, p_freelancer: need(uuid(ctx.body.freelancer)) })); }
+      case "GET /playbooks/fits": {
+        const s = await memberSide(ctx);
+        const r = await rpc<Record<string, any>>(ctx, "dela_playbook_fits", { p_person: s.person_id, p_playbook: need(uuid(ctx.url.searchParams.get("id"))) });
+        if (r?.ok && Array.isArray(r.people)) await withPhotos(ctx, r.people);
+        return json(ctx, r);
+      }
       case "GET /freelancers/doc": return await freelancerDoc(ctx);
       case "GET /engagements/people": return await engagementPeople(ctx);
       case "POST /engagements/team": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_engagement_team_set", { p_person: s.person_id, p_agreement: need(uuid(ctx.body.agreement_id)), p_member: need(uuid(ctx.body.person_id)), p_on: ctx.body.on !== false, p_role: str(ctx.body.role, 80) })); }

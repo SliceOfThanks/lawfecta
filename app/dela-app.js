@@ -4120,7 +4120,8 @@
       var e = r.eligibility || {}, al = r.allowance || {};
       el.appendChild(h("p", { class: "muted", text: "Post approved work as a Flex Gig. DELA finds freelancers who fit, you compare proposals side by side, and you choose one. Signing and funding come next." }));
       if (!e.can_post) el.appendChild(h("p", { class: "notice", text: r.agency ? "Your agency cannot post yet. You can still draft gigs. Open the Agency page to see what is missing." : "Posting work and hiring need a verified license. You can still draft gigs. Open Profile and verification from your account menu." }));
-      if (gigs.pendingInvite) el.appendChild(h("p", { class: "notice", text: "Post a gig, then invite " + gigs.pendingInvite.name + " from its Matches view or from Talent." }));
+      if (gigs.pendingInvite) el.appendChild(h("p", { class: "notice", id: "gig-for" }, "You are creating a gig for " + gigs.pendingInvite.name + ". Post it, and the invitation to " + gigs.pendingInvite.name + " opens next. ",
+        h("a", { href: "#", onclick: function (e) { e.preventDefault(); gigs.pendingInvite = null; draw(); }, text: "Not for a specific freelancer" }), "."));
       // New gig
       var pick = h("select", { "aria-label": "Approved SOP or Workflow" }, [h("option", { value: "", text: r.playbooks.length ? "Choose an approved SOP or Workflow" : "No approved SOPs or Workflows yet" })].concat(r.playbooks.map(function (p) {
         return h("option", { value: p.id, text: (p.doc_id ? p.doc_id + " " : "") + p.title, selected: gigs.newFrom === p.id });
@@ -4434,7 +4435,10 @@
     var acts = h("div", { class: "row" });
     if (editable) acts.appendChild(h("button", { class: "ghost", type: "button", onclick: function () { save(); } }, "Save"));
     if (g.status === "draft") acts.appendChild(h("button", { class: "blue", type: "button", onclick: function () {
-      save(function () { return api.post("/gigs/publish", { id: g.id }).then(gigOk).then(function (x) { gigs.view = "matches"; draw(); D.toast(app, "Your gig is open until " + D.dateTime(x.closes_at)); }).catch(gigFail); });
+      save(function () { return api.post("/gigs/publish", { id: g.id }).then(gigOk).then(function (x) {
+          // Made for one freelancer (from a conversation): go on to the invitation, with this gig chosen
+          if (gigs.pendingInvite) { var pi = gigs.pendingInvite; gigs.pendingInvite = null; D.toast(app, "Your gig is open until " + D.dateTime(x.closes_at)); tab = "talent"; openInviteReview({ person_id: pi.person_id, name: pi.name }, g.id); return; }
+          gigs.view = "matches"; draw(); D.toast(app, "Your gig is open until " + D.dateTime(x.closes_at)); }).catch(gigFail); });
     } }, "Post the gig"));
     // Day counts and the number of extensions come from Settings (AI review 0.9.0, payments 6)
     var rules = r.rules || {}, extDays = rules.extension_days, extLeft = (g.max_extensions || 0) - (g.extensions || 0);
@@ -5646,7 +5650,8 @@
             facts ? h("p", { class: "small muted", style: "margin:6px 0 0", text: facts }) : null)),
         !mine.length ? h("p", { class: "notice", style: "margin:12px 0 0" }, "You have no posted gig that is open for proposals, so there is nothing to invite this freelancer to yet. ",
           h("a", { href: "#", onclick: function (e) { e.preventDefault(); talentPerson = null; talentAddress(null); goTab("projects"); }, text: "Post a gig in Projects" }), ".") : null,
-        h("div", { class: "talent-acts" }, h("label", { class: "talent-gig" }, h("span", { class: "talent-gig-word", text: "Invite for gig:" }), inv.gigSel), inv.invite), inv.said);
+        h("div", { class: "talent-acts" }, me.side === "attorney" ? (function () { var b = h("button", { class: "ghost small", type: "button" }, "Send message"); b.addEventListener("click", function () { startChat(x.person_id, x.name, b); }); return b; })() : null,
+          h("label", { class: "talent-gig" }, h("span", { class: "talent-gig-word", text: "Invite for gig:" }), inv.gigSel), inv.invite), inv.said);
       el.appendChild(head);
       // ----- The tabs: everything stays on this page -----
       var promos = x.promotions || [];
@@ -6073,6 +6078,17 @@
   };
   function talkErr(r) { return (r && TALK_ERR[r.reason]) || gigErr(r); }
   function talkFail(e) { D.toast(app, e && e.reason ? talkErr(e) : D.errorText(e && e.message ? e.message : String(e)), true); }
+  // Step 18 part 4: a conversation before any gig exists (attorneys start it; messages only until there is a gig)
+  var INTRO_ERR = { chat_off: "Conversations before a gig are not open yet.", attorneys_only: "Only attorneys can start a conversation from Talent.", on_hold: "Your account is on hold. Contact the Lawfecta Team from Help.",
+    verify_first: "Verify your bar license first. Open Profile to finish it; it is needed before you contact a freelancer or post a gig.", freelancer_not_available: "This freelancer is not taking new conversations right now.", not_found: "This freelancer could not be found." };
+  function startChat(person, name, btn) {
+    if (btn) { btn.disabled = true; }
+    api.post("/intro/open", { freelancer: person }).then(function (r) {
+      if (btn) btn.disabled = false;
+      if (!r.ok) { D.toast(app, r.reason === "limit_reached" ? "You have started " + r.limit + " new conversations in the last day, which is the limit. Try again tomorrow, or write in one you already have." : INTRO_ERR[r.reason] || D.errorText(r.reason), true); return; }
+      talentInviteFor = null; talentPerson = null; talentAddress(null); talk.thread = r.thread_id; tab = "inbox"; draw();
+    }).catch(function (e) { if (btn) btn.disabled = false; D.toast(app, D.errorText(e.message), true); });
+  }
   function openThread(gigId, freelancer) {
     api.post("/threads/open", { gig_id: gigId, freelancer: freelancer || null }).then(gigOk).then(function (r) { talk.thread = r.id; tab = "inbox"; draw(); }).catch(talkFail);
   }
@@ -6113,10 +6129,15 @@
       if (!r.ok) { el.appendChild(h("p", { class: "notice", text: "This conversation is not available to you." })); return; }
       var t = r.thread;
       el.appendChild(h("h1", { text: t.other_name }));
-      el.appendChild(h("p", { class: "muted", text: t.kind === "bench" ? t.gig_title + ": your ongoing bench conversation. It shares no files and is not a contract; new work goes through a gig. Keep all work, contact and payment on Lawfecta." : "About the gig \"" + t.gig_title + "\". Keep all work, contact and payment on Lawfecta." }));
+      var noGig = t.kind === "bench" || t.kind === "intro";
+      el.appendChild(h("p", { class: "muted", text: t.kind === "intro" ? (r.role === "attorney" ? "A conversation before any gig. Messages only: files and meetings come with a gig. Nobody is hired here. Keep all work, contact and payment on Lawfecta." : "An attorney wrote to you before posting a gig. Messages only; nobody is hired here. Keep all work, contact and payment on Lawfecta.") : t.kind === "bench" ? t.gig_title + ": your ongoing bench conversation. It shares no files and is not a contract; new work goes through a gig. Keep all work, contact and payment on Lawfecta." : "About the gig \"" + t.gig_title + "\". Keep all work, contact and payment on Lawfecta." }));
       var tools = h("div", { class: "row", style: "flex-wrap:wrap" });
-      if (t.kind !== "bench") tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { gigs.id = t.gig_id; gigs.view = "details"; tab = me.side === "attorney" ? "projects" : "work"; talk.thread = null; draw(); } }, "Open the gig"));
-      if ((me.switches || {}).meetings && r.writable && t.kind !== "bench") tools.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { bookPanel(el, t.gig_id, t.freelancer_person, null); } }, "Book a meeting"));
+      if (t.kind === "intro" && r.role === "attorney") {
+        tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { talk.thread = null; tab = "talent"; openTalentProfile(t.freelancer_person); } }, "View profile"));
+        tools.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { talk.thread = null; gigs.pendingInvite = { person_id: t.freelancer_person, name: t.other_name }; gigs.id = null; tab = "projects"; draw(); } }, "Create a gig for " + t.other_name));
+      }
+      if (!noGig) tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { gigs.id = t.gig_id; gigs.view = "details"; tab = me.side === "attorney" ? "projects" : "work"; talk.thread = null; draw(); } }, "Open the gig"));
+      if ((me.switches || {}).meetings && r.writable && !noGig) tools.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { bookPanel(el, t.gig_id, t.freelancer_person, null); } }, "Book a meeting"));
       // The two main actions first; AI help and More (Report, Block) open on request (UX review I01)
       var aiHelp = h("details", { class: "inline-menu" }, h("summary", { class: "small", style: "cursor:pointer", text: "✦ AI help" }));
       var moreMenu = h("details", { class: "inline-menu" }, h("summary", { class: "small", style: "cursor:pointer", text: "More" }));
@@ -6225,8 +6246,8 @@
       var draftBtn = (me.switches || {}).chat_assistant ? h("button", { class: "ghost small ai-btn", type: "button", onclick: function () {
         api.post("/threads/assist", { thread_id: t.id, mode: "draft" }).then(gigOk).then(function (y) { ta.value = y.text; D.toast(app, "DELA drafted a reply. Check it, then Send."); }).catch(talkFail);
       } }, "✦ Draft a reply") : null;
-      el.appendChild(h("div", { class: "card" }, ta, sayEl, h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" }, t.kind === "bench" ? null : pick, draftBtn, h("span", { class: "grow" }), send), attachWrap,
-        t.kind === "bench" ? null : helperButton("agenda", "✦ Draft an agenda", function () { return { gig_id: t.gig_id }; }, { field: function (x) { return x.field === "compose" ? ta : null; }, toast: "Added to your message. Nothing is sent until you click Send." })));
+      el.appendChild(h("div", { class: "card" }, ta, sayEl, h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" }, noGig ? null : pick, draftBtn, h("span", { class: "grow" }), send), attachWrap,
+        noGig ? null : helperButton("agenda", "✦ Draft an agenda", function () { return { gig_id: t.gig_id }; }, { field: function (x) { return x.field === "compose" ? ta : null; }, toast: "Added to your message. Nothing is sent until you click Send." })));
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
 
@@ -8376,6 +8397,26 @@
   function sentence(x) { var s = String(x || "").trim(); while (s && (s.charAt(s.length - 1) === "." || s.charAt(s.length - 1) === " ")) s = s.slice(0, -1); return s ? s + ". " : ""; }
   function hoursText(x) { return x >= 1 ? "about " + (x % 1 ? x.toFixed(1) : String(x)) + (x === 1 ? " hour a month" : " hours a month") : x > 0 ? "about " + Math.round(x * 60) + " minutes a month" : "not worked out yet"; }
 
+  // Step 18 part 4: once a document exists, DELA shows the freelancers who fit that work; the attorney can read a
+  // profile or start a chat. Scored like gig matching (practice area, the tools the steps name, hours, recent activity).
+  function fitsCard(pid) {
+    var card = h("div", { class: "card", id: "fits-card" }, h("h2", { text: "Freelancers who fit this work" }), h("p", { class: "muted", text: "Looking..." }));
+    api.get("/playbooks/fits?id=" + encodeURIComponent(pid)).then(function (r) {
+      card.removeChild(card.lastChild);
+      if (!r.ok || r.on === false) { card.remove(); return; }
+      card.appendChild(h("p", { class: "small muted", text: "DELA matched this document's practice area and the tools its steps name with match-ready freelancers. Start a chat to ask about fit, or turn the document into a gig and invite them. Nobody is hired here." }));
+      if (!r.people.length) { card.appendChild(h("p", { class: "muted", text: "No match-ready freelancer fits this document yet. Search Talent for a wider look." })); card.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { goTab("talent"); } }, "Search Talent")); return; }
+      r.people.forEach(function (p) {
+        var chat = h("button", { class: "blue small", type: "button" }, "Start a chat");
+        chat.addEventListener("click", function () { startChat(p.person_id, p.name, chat); });
+        card.appendChild(h("div", { class: "tp-item row fit-row", style: "gap:12px;flex-wrap:wrap;align-items:center" }, talentAvatar(p),
+          h("div", { class: "grow", style: "min-width:200px" }, h("b", { text: p.name }), h("span", { class: "badge " + (p.fit === "Good fit" ? "ready" : ""), style: "margin-left:8px", text: p.fit }), p.headline ? h("div", { class: "small", text: p.headline }) : null,
+            talentTrust(p), (p.reasons || []).length ? h("div", { class: "small muted", text: "Why: " + p.reasons.join(", ") }) : null),
+          h("button", { class: "ghost small", type: "button", onclick: function () { tab = "talent"; openTalentProfile(p.person_id); } }, "View profile"), me.side === "attorney" ? chat : null));
+      });
+    }).catch(function () { card.remove(); });
+    return card;
+  }
   function automateCard(pid) {
     var card = h("div", { class: "card", id: "automate-card" }, h("p", { class: "small muted", text: "Loading..." }));
     function load() {
@@ -8683,6 +8724,7 @@
     lib.docNotices = [];
     // Step 4d: the hint card above an approved SOP, Workflow or Playbook (it removes itself when the switch is off)
     if ((me.switches || {}).automate_delegate && P.approved_version && d.type !== "policy") libEl.appendChild(automateCard(P.id));
+    if ((me.switches || {}).talent_search && canHire() && d.type !== "policy" && lib.view !== "edit") libEl.appendChild(fitsCard(P.id));
     // Header fields, always visible
     var ownerOpts = (d.roles || []).slice();
     if (d.owner_role && ownerOpts.indexOf(d.owner_role) < 0) ownerOpts.unshift(d.owner_role);

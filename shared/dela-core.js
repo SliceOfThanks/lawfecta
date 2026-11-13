@@ -496,6 +496,7 @@ D.openTab = function (getUrl, onFail, opts) {
     // Ready-made profile pictures: a compact grid, one choice, a clear ring on the chosen and the focused one
     ".av-box{margin:6px 0 10px}.av-grid{display:grid;grid-template-columns:repeat(auto-fill,52px);gap:6px;max-height:190px;overflow:auto;padding:4px}.dela .av-opt{width:52px;height:52px;min-height:0;padding:2px;border-radius:50%;border:2px solid transparent;background:transparent;line-height:0}" +
     ".av-opt img{width:44px;height:44px;border-radius:50%}.dela .av-opt[aria-checked=true]{border-color:var(--pink-ink);box-shadow:0 0 0 2px var(--pink)}.dela .av-opt:focus-visible{outline:2px solid var(--pink-ink);outline-offset:2px}" +
+    ".fit-row .talent-photo{width:48px;height:48px;font-size:20px}" +
     ".tp-two{display:grid;grid-template-columns:minmax(0,2fr) minmax(220px,1fr);gap:14px;align-items:start}.tp-two .card{margin:0 0 12px}@media (max-width:860px){.tp-two{grid-template-columns:1fr}}" +
     ".tp-lines{margin:0;padding-left:18px}.tp-lines li{margin:6px 0}@media (max-width:720px){.tp-photo{width:56px;height:56px;font-size:22px}}" +
     ".cat-picked{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}.cat-chip{display:inline-flex;align-items:center;gap:6px;padding:4px 6px 4px 12px;border-radius:999px;background:var(--pink);border:1px solid var(--line);font-size:13px}" +

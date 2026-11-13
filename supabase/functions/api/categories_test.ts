@@ -230,6 +230,64 @@ Deno.test("ready-made pictures: offered only from the list, an uploaded photo co
   assertEquals((await call("GET", "/admin/bd/bookmarks-check", team.token)).status, 403, "owners and support only");
 });
 
+Deno.test("a conversation before a gig: who may start one, messages only, the usual checks, a daily limit", async () => {
+  await pool.query("update feature_switches set state = 'everyone' where key = 'gig_chat'");
+  assertEquals((await call("POST", "/intro/open", fNurse.token, { freelancer: fFamily.id })).status, 403, "freelancers do not start one");
+  assertEquals((await call("POST", "/intro/open", team.token, { freelancer: fNurse.id })).body.reason, "verify_first", "an attorney whose license is not verified cannot contact freelancers");
+  assertEquals((await call("POST", "/intro/open", att.token, { freelancer: att.id })).body.reason, "not_found");
+  await pool.query("update side_profiles set readiness_state = 'incomplete' where person_id = $1 and side = 'freelancer'", [fNone.id]);
+  assertEquals((await call("POST", "/intro/open", att.token, { freelancer: fNone.id })).body.reason, "freelancer_not_available", "only match-ready freelancers");
+  await pool.query("update side_profiles set readiness_state = 'match_ready' where person_id = $1 and side = 'freelancer'", [fNone.id]);
+  const o = (await call("POST", "/intro/open", att.token, { freelancer: fNurse.id })).body;
+  assert(o.ok && o.thread_id && !o.existing, JSON.stringify(o));
+  const again = (await call("POST", "/intro/open", att.token, { freelancer: fNurse.id })).body;
+  assertEquals([again.thread_id, again.existing], [o.thread_id, true], "one conversation per firm and freelancer");
+  // Messages both ways; the freelancer sees it in the Inbox as an introduction
+  const sent = (await call("POST", "/threads/send", att.token, { thread_id: o.thread_id, body: "Do you have time for medical chronologies next month?", request_id: "i1" })).body;
+  assertEquals(sent.ok, true, JSON.stringify(sent));
+  const inbox = ((await call("GET", "/threads", fNurse.token)).body.threads as Array<Record<string, any>>).find((x) => x.id === o.thread_id)!;
+  assertEquals([inbox.kind, inbox.gig_id, inbox.unread], ["intro", null, 1]);
+  const view = (await call("GET", "/threads/get?id=" + o.thread_id, fNurse.token)).body;
+  assertEquals([view.ok, view.role, view.writable, view.thread.kind, String(view.thread.gig_title).startsWith("Introduction from ")], [true, "freelancer", true, "intro", true]);
+  assertEquals((await call("POST", "/threads/send", fNurse.token, { thread_id: o.thread_id, body: "Yes, about 10 hours a week.", request_id: "i2" })).body.ok, true);
+  assert(await one("select 1 x from notifications where person_id = $1 and kind = 'message' and link like '%' || $2", [fNurse.id, o.thread_id]), "the freelancer is told about the first message");
+  // Messages only, and the same checks as any conversation
+  assertEquals((await call("POST", "/threads/send", att.token, { thread_id: o.thread_id, body: "See the attached.", attachments: [crypto.randomUUID()], request_id: "i3" })).body.reason, "bench_no_files", "no files before a gig");
+  await call("POST", "/threads/send", att.token, { thread_id: o.thread_id, body: "Email me at ann@example.com and we skip the fees", request_id: "i4" });
+  assertEquals((await one("select status from messages where thread_id = $1 and request_id = 'i4'", [o.thread_id])).status, "held", "an off-platform message is held, as everywhere");
+  // Nobody outside the conversation reads it
+  assertEquals((await call("GET", "/threads/get?id=" + o.thread_id, fFamily.token)).body.reason, "not_found");
+  assertEquals((await call("GET", "/threads/get?id=" + o.thread_id, team.token)).body.reason, "not_found");
+  // The freelancer can block it; the daily limit stops bulk contact
+  assertEquals((await call("POST", "/threads/block", fNurse.token, { thread_id: o.thread_id })).body.ok, true);
+  assertEquals((await call("POST", "/threads/send", att.token, { thread_id: o.thread_id, body: "Hello again", request_id: "i5" })).body.reason, "blocked");
+  await pool.query("update settings set value = '1' where key = 'intro.max_new_per_day'");
+  assertEquals((await call("POST", "/intro/open", att.token, { freelancer: fFamily.id })).body.reason, "limit_reached");
+  assertEquals((await call("POST", "/intro/open", att.token, { freelancer: fNurse.id })).body.existing, true, "a conversation already open does not count against the limit");
+  await pool.query("update settings set value = '10' where key = 'intro.max_new_per_day'");
+  await pool.query("update settings set value = 'false' where key = 'intro.chat_on'");
+  assertEquals((await call("POST", "/intro/open", att.token, { freelancer: fFamily.id })).body.reason, "chat_off", "the setting turns it off");
+  await pool.query("update settings set value = 'true' where key = 'intro.chat_on'");
+});
+
+Deno.test("the freelancers who fit a document: the firm's own documents only, scored with reasons", async () => {
+  const org = (await one("select dela_side_org($1, 'attorney') o", [att.id])).o;
+  const body = { title: "Prepare discovery responses", practice_area: "Family law", jurisdiction: "Texas (TX)", steps: [{ text: "Open the matter", tool: "Clio" }, { text: "Draft responses" }] };
+  const pb = (await one(`insert into playbooks (org_id, title, status, current_version, approved_version, completeness, practice_area, request_id, created_by) values ($1, $2, 'approved', 1, 1, 100, 'Family law', 'fit1', $3) returning id`, [org, body.title, att.id])).id;
+  await pool.query("insert into playbook_versions (playbook_id, version, body, created_by) values ($1, 1, $2, $3)", [pb, body, att.id]);
+  await pool.query(`update member_profiles set body = body || '{"software":["Clio"],"states_excluded":[]}'::jsonb where person_id = $1 and side = 'freelancer'`, [fFamily.id]);
+  const r = (await call("GET", "/playbooks/fits?id=" + pb, att.token)).body;
+  assertEquals([r.ok, r.on, r.practice_area], [true, true, "Family law"], JSON.stringify(r).slice(0, 300));
+  const fam = (r.people as Array<Record<string, any>>).find((p) => p.person_id === fFamily.id)!;
+  assert(fam && fam.reasons.includes("Family law") && fam.reasons.includes("Uses Clio") && !("photo_file" in fam) && !("avatar" in fam), JSON.stringify(fam));
+  assert(!(r.people as Array<Record<string, any>>).some((p) => p.person_id === fNurse.id), "a freelancer outside the practice area is not suggested");
+  // A state the freelancer does not work in takes them out
+  await pool.query(`update member_profiles set body = body || '{"states_excluded":["TX"]}'::jsonb where person_id = $1 and side = 'freelancer'`, [fFamily.id]);
+  assert(!((await call("GET", "/playbooks/fits?id=" + pb, att.token)).body.people as Array<Record<string, any>>).some((p) => p.person_id === fFamily.id), "the document's state is respected");
+  assertEquals((await call("GET", "/playbooks/fits?id=" + pb, team.token)).body.reason, "not_found", "another firm cannot ask about this document");
+  assertEquals((await call("GET", "/playbooks/fits?id=" + pb, fNurse.token)).body.reason, "not_found");
+});
+
 Deno.test("the website refuses or answers with nothing: the lists stay as they were", async () => {
   site = "refuse";
   const a = (await call("POST", "/admin/categories/refresh", team.token)).status;

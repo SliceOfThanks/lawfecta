@@ -4,6 +4,12 @@ Starting a new session? Read docs/SESSION_HANDOFF.md first (written 2026-11-12, 
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Talent redesign, part 3 (step 18): ON THE SITE (2026-11-13, 03:54 UTC); part 4 built
+- Site: code_version 627d02f, api function version 109, migrations through 0106, health "ok". GitHub Tests passed on that commit (run 43360643421). Stacey: "Yes, release part 3".
+- On the site with part 3: the invitation review step, the ready-made picture picker (hidden until profile.avatars has a base address), "Check the website's bookmarks" on the admin Tech catalog page.
+- Part 4 is built (migration 0107), NOT released: conversations before a gig ("Send message" on the profile page, intro threads), "Create a gig for NAME" that leads into the invitation, "Freelancers who fit this work" on a document's page with "Start a chat". Its release waits for its GitHub run and Stacey's word.
+- Still waiting on Stacey: one avatar file's web address; the line "Check the website's bookmarks" shows; whether "Book a call" before a gig is wanted (not built).
+
 ## Talent redesign, part 2 (step 18): ON THE SITE (2026-11-13, 03:44 UTC)
 - Site: code_version decc029, api function version 108, migrations through 0105, health "ok". GitHub Tests passed on that commit (run 43359568744). Stacey: "release it when the tests pass".
 - On the site: the full freelancer profile page (/dela?tab=talent&person=ID) with tabs Overview, Services, Experience and qualifications, Portfolio, Reviews, Promotions (the website's Promotion posts, post type 7); the result cards rearranged to her second mockup.

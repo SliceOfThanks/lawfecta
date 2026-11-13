@@ -55,10 +55,10 @@ const SEARCH = "Search roles, specialties, tasks and software";
   let s, p, t, before = null;
   try {
     // The suites after this one share the database: remember what this suite changes and put it back at the end
-    before = (await sql("select (select jsonb_object_agg(key, state) from feature_switches where key in ('flex_gigs', 'profiles', 'talent_search', 'new_layout')) sw, (select value from settings where key = 'verify.freelancer_linkedin') li"))[0];
+    before = (await sql("select (select jsonb_object_agg(key, state) from feature_switches where key in ('flex_gigs', 'profiles', 'talent_search', 'new_layout', 'gig_chat')) sw, (select value from settings where key = 'verify.freelancer_linkedin') li"))[0];
     // Step 18 part 3: the ready-made pictures are offered once the folder's web address is set
     await sql(`update settings set value = jsonb_set(value, '{base}', '"https://www.lawfecta.co/images/Avatars/"') where key = 'profile.avatars'; select 1`);
-    await sql("update feature_switches set state = 'everyone' where key in ('flex_gigs', 'profiles', 'talent_search', 'new_layout'); update settings set value = 'false' where key = 'verify.freelancer_linkedin'; select 1");
+    await sql("update feature_switches set state = 'everyone' where key in ('flex_gigs', 'profiles', 'talent_search', 'new_layout', 'gig_chat'); update settings set value = 'false' where key = 'verify.freelancer_linkedin'; select 1");
     await sql(`insert into people (bd_member_id, display_name, email) values (${ATT}, 'Cara Category', '${ATT}@test.invalid'), (${FL}, 'Nia Nurse', '${FL}@test.invalid'),
         (${FL2}, 'Fern Family', '${FL2}@test.invalid'), (${FL3}, 'Pat Picker', '${FL3}@test.invalid'), (${TEAM}, 'Theo Team', '${TEAM}@test.invalid') on conflict (bd_member_id) do nothing;
       select dela_ensure_side((select id from people where bd_member_id = ${ATT}), 'attorney', 'att_pro', 'staff_grant');
@@ -201,7 +201,7 @@ const SEARCH = "Search roles, specialties, tasks and software";
 
     // ---------- Attorney: the full profile page (step 18 part 2) ----------
     await sql(`update member_profiles set body = body || '{"summary":"I prepare family law filings.","experience":"Paralegal, family law firm, 2019 to now\\nLegal assistant, 2016 to 2019","education":"Paralegal certificate","timezone":"Central","capacity_hours_week":15,
-      "services":[{"title":"Discovery responses","for_whom":"Family law firms","price_from_cents":25000,"price_to_cents":40000,"unit":"fixed"}],"phone":"512-555-0100","website":"https://fern.example.com"}'::jsonb
+      "practice_areas":["Family law"],"software":["Clio"],"services":[{"title":"Discovery responses","for_whom":"Family law firms","price_from_cents":25000,"price_to_cents":40000,"unit":"fixed"}],"phone":"512-555-0100","website":"https://fern.example.com"}'::jsonb
       where side = 'freelancer' and person_id = (select id from people where bd_member_id = ${FL2}); select 1`);
     await dela(p).locator(".talent-card", { hasText: "Fern Family" }).getByRole("button", { name: "View profile" }).click();
     await waitFor(p, "← Back to Talent search");
@@ -243,6 +243,28 @@ const SEARCH = "Search roles, specialties, tasks and software";
     await click(p, "← Back to Talent search");
     await waitFor(p, "1 freelancer found");
     ok(await label(p, SEARCH).inputValue() === "family paralegal" && !(await text(p)).includes("Nia Nurse"), "back from a profile, the search is as it was");
+    // ---------- Step 18 part 4: a conversation before a gig, and a gig made for that freelancer ----------
+    await dela(p).locator(".talent-card", { hasText: "Fern Family" }).getByRole("button", { name: "View profile" }).click();
+    await waitFor(p, "About Fern Family");
+    await click(p, "Send message");
+    t = await waitFor(p, "A conversation before any gig.");
+    ok(t.includes("Fern Family") && t.includes("Messages only: files and meetings come with a gig. Nobody is hired here.") && !t.includes("Book a meeting") && !t.includes("Open the gig"), "Send message opens a conversation with no gig: messages only, and it says nobody is hired");
+    ok((await sql(`select count(*)::int n from threads where intro_attorney = (select id from people where bd_member_id = ${ATT}) and freelancer_person = (select id from people where bd_member_id = ${FL2})`))[0].n === 1, "one conversation before a gig exists for the two");
+    await click(p, "Create a gig for Fern Family");
+    t = await waitFor(p, "You are creating a gig for Fern Family.");
+    ok(t.includes("the invitation to Fern Family opens next"), "the gig is made for that freelancer: after posting, the invitation opens");
+    await s.ctx.close();
+    // DELA suggests the freelancers who fit a document; a chat starts from there
+    await sql(`update playbooks set practice_area = 'Family law' where request_id = 'cat-pb';
+      insert into playbook_versions (playbook_id, version, body, created_by) select id, 1, '{"title":"Category gig","practice_area":"Family law","steps":[{"text":"Open the matter","tool":"Clio"}]}', created_by from playbooks where request_id = 'cat-pb'; select 1`);
+    const fitPb = (await sql("select id from playbooks where request_id = 'cat-pb'"))[0].id;
+    s = await open(browser, "DELA-App", ATT, "&tab=library&pb=" + fitPb); p = s.page;
+    await waitFor(p, "Freelancers who fit this work", 20000);
+    t = await waitFor(p, "Why: Family law", 10000);
+    ok(t.includes("Fern Family") && t.includes("Uses Clio") && !t.includes("Nia Nurse"), "a document shows the freelancers who fit it, with the reasons");
+    await dela(p).locator(".fit-row", { hasText: "Fern Family" }).getByRole("button", { name: "Start a chat" }).click();
+    await waitFor(p, "A conversation before any gig.");
+    ok((await sql(`select count(*)::int n from threads where intro_attorney is not null and freelancer_person = (select id from people where bd_member_id = ${FL2})`))[0].n === 1, "Start a chat opens the same conversation, not a second one");
     await s.ctx.close();
 
     // ---------- The Lawfecta Team: the Website categories card ----------
