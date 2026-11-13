@@ -5,7 +5,7 @@
 import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { handle, type Deps } from "./app.ts";
 import { sessionHash } from "./lib/crypto.ts";
-import { meetingIcs, readSteps, withoutLawfectaLinks } from "./lib/meetings/meet.ts";
+import { meetingIcs, readSteps, vecteraRoom, withoutLawfectaLinks } from "./lib/meetings/meet.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
 
@@ -14,11 +14,17 @@ const WORKER = "test-worker-secret-meetings-0123456789ab";
 let vecteraKey = "";
 const vecteraCalls: string[] = [];
 
+const vecteraRoomDirect = (k: string) => vecteraRoom(fakeFetch, "https://www.vectera.com", k, "lawfecta-test", new Date().toISOString());
 const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
-  if (url.endsWith("/api/v2/meetingRooms")) {
-    vecteraCalls.push(String(init.body));
-    return Response.json({ id: "room-1", url: "https://meet.lawfecta.com/r/room-1?k=guest", hostUrl: "https://meet.lawfecta.com/r/room-1?k=host" });
+  // Vectera as its API reference describes it: "Authorization: Token <key>", a room, then one access link per person
+  if (url.includes("/api/v2/meetingRooms") || url.includes("/api/v2/permissions")) {
+    const auth = String((init.headers as Record<string, string>)?.authorization ?? "");
+    vecteraCalls.push(url + " " + auth + " " + String(init.body));
+    if (auth !== "Token vectera-test-key") return new Response("{}", { status: 401 });
+    const b = JSON.parse(String(init.body));
+    if (url.endsWith("/api/v2/meetingRooms")) return Response.json({ id: "0123456789abcdef0123456789abcdef", key: b.preferredKey, url: "https://meet.lawfecta.com/" + b.preferredKey }, { status: 201 });
+    return Response.json({ id: "perm", meetingRoomId: b.meetingRoomId, accessLevel: b.accessLevel, accessKey: "k", url: "https://meet.lawfecta.com/r/room-1?k=" + (b.accessLevel === "is_host" ? "host" : "guest") }, { status: 201 });
   }
   if (url.endsWith("/chat/completions")) {
     const body = JSON.parse(String(init.body));
@@ -168,6 +174,15 @@ Deno.test("the room: waits for Vectera without a key; with it, each person gets 
   assertEquals(mine.join_url, "https://meet.lawfecta.com/r/room-1?k=guest");
   assertEquals((await call("GET", "/meetings?id=" + meeting, att.token)).body.meetings[0].join_url, "https://meet.lawfecta.com/r/room-1?k=host");
   assertEquals((await call("GET", "/meetings?id=" + meeting, other.token)).body.meetings.length, 0, "nobody else sees it");
+  // What went to Vectera: the room at the documented address, then a host link and a guest link; no gig title or names
+  assertEquals(vecteraCalls.length, 3, vecteraCalls.join(" | "));
+  assert(vecteraCalls[0].startsWith("https://www.vectera.com/api/v2/meetingRooms Token vectera-test-key ") && /"preferredKey":"lawfecta-[0-9a-f]{20}"/.test(vecteraCalls[0]) && vecteraCalls[0].includes('"publicAccessLevel":"should_knock"'), vecteraCalls[0]);
+  assert(vecteraCalls[1].includes("/api/v2/permissions") && vecteraCalls[1].includes('"accessLevel":"is_host"') && vecteraCalls[2].includes('"accessLevel":"can_always_join"'), "one link with host rights for the attorney, one that always gets in for the freelancer");
+  assert(!/email|name"|title/i.test(vecteraCalls.join(" ")), "nothing about the gig or the people is sent");
+  // A wrong key: the room is marked as not made, to be tried again, and nobody gets a link
+  vecteraKey = "wrong";
+  const bad = await vecteraRoomDirect("wrong");
+  assertEquals([bad.status, bad.error], ["failed", "vectera_401"]);
   vecteraKey = "";
 });
 

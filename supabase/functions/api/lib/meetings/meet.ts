@@ -20,22 +20,32 @@ export function meetingIcs(m: { id: string; start_at: string; end_at: string; gi
 // ---------- Meeting rooms ----------
 export type Room = { status: "ready" | "failed" | "waiting_for_provider"; ref?: string; attorney_url?: string; freelancer_url?: string; error?: string };
 
-// Vectera: one room per meeting with a guest link for each person. The API plan and key come from Vectera (waiting on their answers),
-// so without VECTERA_API_KEY the meeting waits for the provider and both people see that plainly.
-export async function vecteraRoom(f: typeof fetch, base: string, key: string, title: string, startIso: string): Promise<Room> {
+// Vectera: one room per meeting, with a private link for each person. Written from Vectera's API reference
+// (https://www.vectera.com/docs/api/v2/reference/, read 2026-11-13): every request carries "Authorization: Token <key>";
+// POST /meetingRooms makes the room (preferredKey names its address; a taken name gets a postfix); POST /permissions
+// makes a link with a 30-character access key. The attorney's link has host rights and the freelancer's link always
+// gets in, so the two meet on their own with nobody from Lawfecta in the room. The room's public address asks to knock,
+// so a stranger with the plain address does not walk in. Nothing about the gig or the people is sent to Vectera.
+// Without VECTERA_API_KEY the meeting waits for the provider and both people see that plainly.
+export async function vecteraRoom(f: typeof fetch, base: string, key: string, roomName: string, _startIso: string): Promise<Room> {
   if (!key) return { status: "waiting_for_provider" };
+  const api = base.replace(/\/+$/, "") + "/api/v2";
+  const post = async (path: string, body: Record<string, unknown>) => {
+    const r = await f(api + path, { method: "POST", headers: { "content-type": "application/json", authorization: "Token " + key }, body: JSON.stringify(body), signal: AbortSignal.timeout(15000) });
+    if (!r.ok) throw new Error("vectera_" + r.status);
+    return await r.json() as Record<string, any>;
+  };
+  const https = (v: unknown) => { const u = String(v ?? ""); return /^https:\/\//.test(u) ? u : ""; };
   try {
-    const r = await f(base.replace(/\/+$/, "") + "/api/v2/meetingRooms", {
-      method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + key },
-      body: JSON.stringify({ name: title.slice(0, 120), locked: true, startDate: startIso }), signal: AbortSignal.timeout(15000),
-    });
-    if (!r.ok) return { status: "failed", error: "vectera_" + r.status };
-    const j = await r.json() as Record<string, any>;
-    const link = String(j.guestUrl ?? j.url ?? j.link ?? "");
-    if (!/^https:\/\//.test(link)) return { status: "failed", error: "vectera_no_link" };
-    return { status: "ready", ref: String(j.id ?? ""), attorney_url: String(j.hostUrl ?? link), freelancer_url: link };
+    const room = await post("/meetingRooms", { preferredKey: roomName.replace(/[^A-Za-z0-9-]+/g, "-").slice(0, 80), publicAccessLevel: "should_knock", teamAccessLevel: "should_knock" });
+    const id = String(room.id ?? "");
+    if (!id) return { status: "failed", error: "vectera_no_room" };
+    const host = https((await post("/permissions", { meetingRoomId: id, accessLevel: "is_host" })).url);
+    const guest = https((await post("/permissions", { meetingRoomId: id, accessLevel: "can_always_join" })).url);
+    if (!host || !guest) return { status: "failed", error: "vectera_no_link" };
+    return { status: "ready", ref: id, attorney_url: host, freelancer_url: guest };
   } catch (e) {
-    return { status: "failed", error: String(e).slice(0, 80) };
+    return { status: "failed", error: String(e instanceof Error ? e.message : e).slice(0, 80) };
   }
 }
 

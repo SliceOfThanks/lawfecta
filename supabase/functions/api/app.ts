@@ -2893,7 +2893,7 @@ async function meetingHold(ctx: Ctx) {
 async function meetingRoom(ctx: Ctx, id: string) {
   const m = await rpc<Record<string, any>>(ctx, "dela_meeting_for_job", { p_meeting: id });
   if (!m || m.status !== "confirmed" || m.room_status === "ready") return { ok: true };
-  const room = await vecteraRoom(f(ctx), await setting(ctx, "meeting.vectera_api_base", "https://api.vectera.com"), ctx.deps.env("VECTERA_API_KEY"), "Lawfecta: " + m.gig_title, m.start_at);
+  const room = await vecteraRoom(f(ctx), await setting(ctx, "meeting.vectera_api_base", "https://www.vectera.com"), ctx.deps.env("VECTERA_API_KEY"), "lawfecta-" + String(id).replace(/-/g, "").slice(0, 20), m.start_at);
   await rpc(ctx, "dela_meeting_room", { p_meeting: id, p_status: room.status, p_ref: room.ref ?? null, p_att: room.attorney_url ?? null, p_free: room.freelancer_url ?? null });
   if (room.status === "failed") return { ok: false, retry: true, error: room.error };
   return { ok: true };
