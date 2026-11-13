@@ -9327,10 +9327,11 @@
     return D.money(p.monthly_cents) + " a month" + (p.annual_cents ? " or " + D.money(p.annual_cents) + " a year" : "");
   }
   function planFeatureText(f) {
-    if (f.kind !== "quota") return f.label;
-    if (f.unlimited) return f.label + ": no cap";
-    if (f.unit === "MB") return f.label + ": " + (f.limit >= 1000 ? (f.limit / 1000) + " GB" : f.limit + " MB");
-    return f.label + ": " + f.limit + (f.period === "month" && String(f.label).toLowerCase().indexOf("month") < 0 ? " a month" : "");
+    var label = D.featLabel(f);
+    if (f.kind !== "quota") return label;
+    if (f.unlimited) return label + ": no cap";
+    if (f.unit === "MB") return label + ": " + D.mbText(f.limit);
+    return label + ": " + f.limit + (f.period === "month" && label.toLowerCase().indexOf("month") < 0 ? " a month" : "");
   }
   function shortPlan(name) { return String(name || "").replace("Attorney ", "").replace("Freelancer ", ""); }
   // The banner after login: one line when any limit is at or above the warning level. "Dismiss" hides it until the next
@@ -9380,7 +9381,7 @@
       card.appendChild(h("p", { class: "small muted", text: "Monthly limits start again on " + D.date(r.resets_on) + "." + (me.side === "attorney" ? " Actions on your own AI key do not count. Viewing, exporting and assigning documents, messaging freelancers, posting gigs, hiring and paying are never limited." : "") }));
       card.appendChild(h("h3", { text: "What your plan allows" }));
       card.appendChild(h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "What you get" }), h("th", { text: "Right now" }))),
-        h("tbody", null, (me.entitlements || []).map(function (e) { return h("tr", null, h("td", { text: e.label }), h("td", { text: D.limitText(e) })); })))));
+        h("tbody", null, (me.entitlements || []).map(function (e) { return h("tr", null, h("td", { text: D.featLabel(e) }), h("td", { text: D.limitText(e) })); })))));
       el.appendChild(card);
       // 2. Every plan of this workspace, the member's own one marked
       var listed = !!cur, all = h("div", { class: "card", id: "sub-plans" }, h("h2", { text: "All " + (me.side === "attorney" ? "attorney" : "freelancer") + " plans" }),

@@ -56,12 +56,16 @@
   D.firstName = function (name) { return String(name || "").split(" ")[0] || "there"; };
 
   // How an allowance reads to a member
+  // Storage allowances are kept in MB, 1024 to the GB: 51200 reads "50 GB" (Stacey's Subscription pictures, 2026-11-12)
+  D.mbText = function (mb) { return mb >= 1024 ? (Math.round(mb / 1024 * 10) / 10) + " GB" : mb + " MB"; };
+  // What members call a plan feature: the AI allowance is "DELA actions" everywhere
+  D.featLabel = function (f) { return f && f.key === "ai.runs" ? "DELA actions a month on Lawfecta's AI" : (f && f.label) || ""; };
   D.limitText = function (e) {
     if (e.kind === "flag") return e.enabled ? "Included" : "Not in your plan";
     if (!e.enabled) return "Not in your plan";
     if (e.unlimited) return "No cap";
     var left = e.remaining === null ? e.limit : e.remaining;
-    if (e.unit === "MB") return (e.limit >= 1000 ? (e.limit / 1000) + " GB" : e.limit + " MB");
+    if (e.unit === "MB") return D.mbText(e.limit);
     if (e.unit === "seats") return e.limit + (e.limit === 1 ? " seat" : " seats") + " included";
     return e.period === "month" ? left + " of " + e.limit + " left this month" : left + " of " + e.limit + " available";
   };
@@ -468,7 +472,7 @@ D.openTab = function (getUrl, onFail, opts) {
     "label{display:block;font-size:14px;font-weight:700;margin:10px 0 4px}",
     ".row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}",
     ".seg{display:inline-flex;border:1px solid rgba(255,255,255,.35);border-radius:999px;overflow:hidden}.seg button{border:0;border-radius:999px;background:transparent;color:#fff;font-weight:700;padding:6px 14px;font-size:14px}.seg button[aria-pressed=true]{background:#fff;color:var(--brand)}",
-    ".sub-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:12px 0}.sub-plan{border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;background:var(--card)}.sub-plan.current{border:2px solid var(--pink-ink);background:var(--pink)}.sub-mine{align-self:flex-start}.sub-price{font-size:17px;font-weight:700;margin:0}.sub-feats{margin:6px 0;padding-left:18px;font-size:13px;flex:1 1 auto}.sub-feats li{margin:2px 0}.sub-plan .btn{align-self:flex-start;margin-top:auto}.limit-banner{background:#fff7d6;border-color:#e6c84f;color:#3d2f00}",
+    ".sub-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:12px 0}.sub-plan{border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;background:var(--card)}.sub-plan.current{border:2px solid var(--pink-ink);background:var(--pink)}.sub-mine{align-self:flex-start}.sub-price{font-size:17px;font-weight:700;margin:0}.sub-feats{margin:6px 0;padding-left:18px;font-size:13px;flex:1 1 auto}.sub-feats li{margin:2px 0}.sub-plan .btn{align-self:flex-start;margin-top:auto}.limit-banner{background:#fff7d6;border-color:#e6c84f;color:#3d2f00}.dela .sub-plan a.btn.ghost{background:transparent;color:var(--pink-ink);border:1px solid var(--pink-ink)}",
     // Step 17: category search (suggestions under the box), the three lists, the category line on a result, the profile picker
     ".cat-search{position:relative}.cat-suggest{position:absolute;left:0;right:0;top:100%;z-index:30;margin:4px 0 0;padding:4px;list-style:none;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:320px;overflow:auto}" +
     ".cat-suggest li{padding:8px 10px;border-radius:8px;cursor:pointer;line-height:1.35}.cat-suggest li:hover,.cat-suggest li[aria-selected=true]{background:var(--pink)}" +
