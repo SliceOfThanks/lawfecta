@@ -188,7 +188,7 @@ Attorneys and freelancers have separate plans. Each side pays its own fee, based
 | Native booking syncs with Google and Outlook. Which plans get it is in the limits table (connected calendars). | Yes | Confirmed | Stacey 2026-10-25 | |
 | AI used on Lawfecta's key | openai | Confirmed | Stacey 2026-10-25 | |
 | Keys members can bring | openai, anthropic | Confirmed | Stacey 2026-10-25 | |
-| Online meetings | vectera | Confirmed | Stacey 2026-10-25 | |
+| Online meetings | videosdk | Confirmed | Stacey 2026-11-13 (was Vectera, 2026-10-25) | |
 | Recording a meeting | both people consent | Needs a gate | Stacey 2026-10-25; some states require everyone's consent | |
 | Using transcripts to improve DELA | separate opt in | Needs a gate | C-02 and Stacey 2026-10-25 | |
 | Talk of taking work off the platform. No automatic penalty. | flag for lawfecta team review | Confirmed | Stacey 2026-10-25 | |
