@@ -2,6 +2,9 @@
 
 Last updated 2026-11-06. The one-page picture (built, in progress, next, before the MVP, after) is docs/MVP_OVERVIEW.md. Stacey's own checklist, in order, is docs/STACEY_TODO.md. Read this with STATUS.md. It shows what is done, what is being tested, what needs work, what is waiting on Stacey, and what comes next.
 
+## Planned for 2027, not built: sharing logins through password.link
+Evaluation and plan approved by Stacey 2026-11-13: docs/briefs/2027-login-handoff-password-link.md. Five questions in it wait for her answers before any build. No code, no setting.
+
 ## Newest (2026-11-13): ChatGPT checks 1 to 3 done, three small changes on the site
 code_version f2b953b, api 120, migrations through 0123. Waiting on Stacey: one look at the website page /account/favorite-members after bookmarking in DELA; the two-person call is parked. See STATUS.md.
 

@@ -6,6 +6,13 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 29, the simpler Talent search: RELEASED (2026-11-13, while the website was down)
+- code_version 89abf70 (browser code only; api function 121 and migrations through 0123 unchanged), health "ok". GitHub Tests passed on that commit (run 43535140431). Nobody could look at it on the site at release time.
+- From Stacey's mockup and her 12 findings (docs/briefs/step-29-talent-simpler-results.md): one search box with the five filters behind "Filters (N)"; one row "Filters (N)", "Search freelancers", "Clear filters"; "Bookmarked only", "★ Your bookmarks" and "Apply filters" inside the panel; short cards (two lines of summary, three tags, "✓ Verified member", hours and time zone) with "View profile" and "Invite to gig"; the gig is chosen on the invitation step; the action cost shows on the DELA bar; no usage line under the results.
+- Not done: the date availability was confirmed (the search does not return it); grey tags (her mockup shows pink). On a phone the filters open in place, not as a slide-up panel; she was asked.
+- ChatGPT check 1 was updated to match (GitHub copy and both ready copies in her folder).
+- Also 2026-11-13: the password.link evaluation and plan for 2027, approved by Stacey, is docs/briefs/2027-login-handoff-password-link.md. Not built.
+
 ## Draft warning in conversations, alert when a meeting room cannot be made: RELEASED (2026-11-13, while the website was down)
 - code_version afba23b, api function version 121, no new migration, health "ok". GitHub Tests passed on that commit (run 43527391294). Stacey: "continue to build and release". Nobody could look at it on the site at release time, because the website was down.
 - A saved message draft is checked by the same pattern rules as a sent message when the box is left or a saved draft is reopened (POST /threads/draft now answers with "flag"). A line under the box starts "Before you send:". No AI, nothing recorded, nobody flagged; Send checks again.
