@@ -131,12 +131,19 @@ const SEARCH = "Search roles, specialties, tasks and software";
     s = await open(browser, "DELA-App", ATT, "&tab=talent"); p = s.page;
     t = await waitFor(p, "Find a freelancer", 15000);
     t = await waitFor(p, "Fern Family", 10000);
-    ok(t.includes("Nia Nurse") && t.includes("Paralegal Services: Discovery Support, Clio"), "results list everyone match-ready, each with their categories grouped by category");
+    ok(t.includes("Nia Nurse") && !t.includes("Paralegal Services: Discovery Support, Clio"), "results list everyone match-ready, on short cards without the long category lines (step 29)");
     ok(!t.includes("Tech tool") && !t.includes("Choose a category first"), "the old free-text boxes are gone and no filter waits for another");
     // Step 22 (mockup 02): five filters that each work on their own, and the match-ready help
     ok(await label(p, "Practice area / Specialty").isEnabled() && await label(p, "Services / Tasks").isEnabled() && await label(p, "Software").isEnabled() && await label(p, "State / Jurisdiction").isEnabled(), "every filter can be used without choosing a category first");
     ok(await label(p, "Software").locator("option", { hasText: "Filevine" }).count() === 1, "the Software filter lists the software names");
-    ok(t.includes("You can message a freelancer and book an introductory call before hiring. A posted gig is required to invite a freelancer to submit a proposal."), "the page says what needs a gig and what does not");
+    // Step 29 (Stacey's review of 2026-11-13): one short introduction, and the filters wait behind "Filters (0)"
+    ok(t.includes("Find verified legal professionals to support your practice.") && !t.includes("A posted gig is required to invite"), "one short introduction; the invitation rule is not above the search");
+    const fBtn = dela(p).locator("#talent-filters-btn");
+    ok((await fBtn.innerText()).trim() === "Filters (0)" && await fBtn.getAttribute("aria-expanded") === "false" && await dela(p).locator("#talent-filters").isHidden() && !t.includes("Practice area / Specialty"), "the filters are closed at first, and the button counts none in use");
+    ok(await dela(p).getByRole("button", { name: "Clear filters", exact: true }).isVisible() && await dela(p).getByRole("button", { name: "Reset", exact: true }).count() === 0, "Search freelancers and Clear filters sit in one row with Filters");
+    ok(!t.includes("DELA actions:"), "the usage line is not under the Talent results");
+    await fBtn.click();
+    ok(await fBtn.getAttribute("aria-expanded") === "true" && await label(p, "Category").isVisible() && await dela(p).getByRole("button", { name: "Apply filters", exact: true }).isVisible(), "Filters opens the five filters, with Apply filters");
     const mrBtn = dela(p).getByRole("button", { name: "What does match-ready mean?" });
     ok(await mrBtn.getAttribute("aria-expanded") === "false", "the match-ready help starts closed");
     await mrBtn.click();
@@ -160,29 +167,34 @@ const SEARCH = "Search roles, specialties, tasks and software";
     await p.setViewportSize({ width: 320, height: 720 }); await p.waitForTimeout(200);
     ok(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "Talent fits a phone 320 wide with no sideways scrolling");
     const fernPhone = dela(p).locator(".talent-card", { hasText: "Fern Family" });
-    ok(await fernPhone.getByRole("button", { name: "View profile" }).isVisible() && await fernPhone.getByLabel("Gig to invite Fern Family for").isVisible(), "on a phone the card keeps View profile and the gig to invite for");
+    ok(await fernPhone.getByRole("button", { name: "View profile" }).isVisible() && await fernPhone.getByRole("button", { name: "Invite to gig" }).isVisible(), "on a phone the card keeps View profile and Invite to gig");
     await p.setViewportSize(wide); await p.waitForTimeout(200);
     // Step 18: each card has two actions only, and an invitation needs a posted gig chosen first
     const fern = dela(p).locator(".talent-card", { hasText: "Fern Family" });
     const btns = await fern.getByRole("button").allInnerTexts();
-    ok(btns.join("|") === "View profile|Invite to this gig", "a result card has two buttons only: " + btns.join("|"));
-    ok(await fern.getByRole("button", { name: "Invite to this gig" }).isDisabled() && t.includes("You have no posted gig that is open for proposals") && t.includes("No reviews yet") && t.includes("✓ Verified"), "no posted gig: the invitation is off and the page says why; cards say Verified and that there are no reviews");
-    ok(t.includes("It does not hire them or award the work."), "the card says an invitation asks for a proposal and hires nobody");
+    ok(btns.join("|") === "View profile|Invite to gig", "a result card has two buttons only: " + btns.join("|"));
+    ok(t.includes("✓ Verified member") && !t.includes("No reviews yet") && !t.includes("It does not hire them or award the work.") && await fern.getByRole("combobox").count() === 0, "a card says Verified member, and has no gig list, no repeated rule and no empty reviews line");
+    ok(await fern.locator(".talent-tag").count() <= 3, "a card shows at most three tags");
+    // No posted gig: the invitation step says so, and nothing can be sent
+    await fern.getByRole("button", { name: "Invite to gig" }).click();
+    await waitFor(p, "Invite Fern Family to submit a proposal");
+    t = await waitFor(p, "Post a gig in Projects first.");
+    ok(await dela(p).getByRole("button", { name: "Send invitation to submit a proposal" }).isDisabled() && t.includes("Nobody is hired at this step."), "with no posted gig the invitation step explains and the send button is off");
+    await click(p, "Cancel");
+    await waitFor(p, "Fern Family");
     const org = (await sql(`select dela_side_org((select id from people where bd_member_id = ${ATT}), 'attorney') o, (select id from people where bd_member_id = ${ATT}) a`))[0];
     const pb = (await sql(`insert into playbooks (org_id, title, status, current_version, approved_version, completeness, request_id, created_by, doc_type) values ('${org.o}', 'Category gig', 'approved', 1, 1, 100, 'cat-pb', '${org.a}', 'sop') returning id`))[0].id;
     await sql(`insert into gigs (org_id, created_by, playbook_id, playbook_version, title, public, budget_min_cents, budget_max_cents, status, request_id) values ('${org.o}', '${org.a}', '${pb}', 1, 'Organize discovery responses', '{}', 30000, 40000, 'open', 'cat-gig'),
       ('${org.o}', '${org.a}', '${pb}', 1, 'A draft nobody should see', '{}', 30000, 40000, 'draft', 'cat-gig2'); select 1`);
     await click(p, "Search freelancers");
-    await waitGone(p, "You have no posted gig that is open for proposals");
-    const gigSel = fern.getByLabel("Gig to invite Fern Family for");
-    const opts = await gigSel.locator("option").allInnerTexts();
-    ok(opts.join("|") === "Select one of your posted gigs|Organize discovery responses", "the list holds only posted gigs open for proposals, with nothing chosen at first: " + opts.join("|"));
-    ok(await fern.getByRole("button", { name: "Invite to this gig" }).isDisabled(), "the invitation stays off until a gig is chosen");
-    // Step 18 part 3: the button opens a review step; nothing is sent until the attorney confirms there
-    await gigSel.selectOption({ label: "Organize discovery responses" });
-    await fern.getByRole("button", { name: "Invite to this gig" }).click();
+    await waitFor(p, "Fern Family");
+    // Step 18 part 3 and step 29: "Invite to gig" opens the review step, where the gig is chosen; nothing is sent until
+    // the attorney confirms there. With one posted gig it is already chosen.
+    await fern.getByRole("button", { name: "Invite to gig" }).click();
     await waitFor(p, "Invite Fern Family to submit a proposal");
     t = await waitFor(p, "Proposals close");
+    const opts = await label(p, "Existing gig").locator("option").allInnerTexts();
+    ok(opts.join("|") === "Select one of your posted gigs|Organize discovery responses", "the list holds only posted gigs open for proposals: " + opts.join("|"));
     ok(t.includes("2. Review the gig") && t.includes("Organize discovery responses") && t.includes("Budget") && t.includes("Nobody is hired at this step.") && t.includes("It does not hire them, award the work or create anything to pay."), "the review step shows the gig, its budget and that nobody is hired");
     ok(await label(p, "Existing gig").inputValue() !== "" && (await sql("select count(*)::int n from gig_invitations i join gigs g on g.id = i.gig_id where g.request_id = 'cat-gig'"))[0].n === 0, "the chosen gig is kept, and nothing is sent yet");
     await label(p, "Message to the freelancer (optional)").fill("Your discovery experience fits this gig.");
@@ -193,8 +205,7 @@ const SEARCH = "Search roles, specialties, tasks and software";
     ok(sentInv && sentInv.n === 1 && sentInv.message === "Your discovery experience fits this gig." && (await sql("select count(*)::int n from agreements a join gigs g on g.id = a.gig_id where g.request_id = 'cat-gig'"))[0].n === 0, "one invitation with the note, and nobody is hired");
     await click(p, "Back to Talent search");
     await waitFor(p, "Fern Family");
-    await gigSel.selectOption({ label: "Organize discovery responses" });
-    await fern.getByRole("button", { name: "Invite to this gig" }).click();
+    await fern.getByRole("button", { name: "Invite to gig" }).click();
     await waitFor(p, "Invite Fern Family to submit a proposal");
     await waitFor(p, "Proposals close");
     await click(p, "Send invitation to submit a proposal");
@@ -203,8 +214,7 @@ const SEARCH = "Search roles, specialties, tasks and software";
     await waitFor(p, "Nia Nurse");
     // A gig that closes while the review step is open: a clear message and no invitation
     const nia = dela(p).locator(".talent-card", { hasText: "Nia Nurse" });
-    await nia.getByLabel("Gig to invite Nia Nurse for").selectOption({ label: "Organize discovery responses" });
-    await nia.getByRole("button", { name: "Invite to this gig" }).click();
+    await nia.getByRole("button", { name: "Invite to gig" }).click();
     await waitFor(p, "Invite Nia Nurse to submit a proposal");
     await waitFor(p, "Proposals close");
     await sql("update gigs set status = 'closed' where request_id = 'cat-gig'; select 1");
@@ -212,16 +222,16 @@ const SEARCH = "Search roles, specialties, tasks and software";
     await waitFor(p, "no longer takes proposals, so no invitation was sent");
     ok((await sql(`select count(*)::int n from gig_invitations i join gigs g on g.id = i.gig_id where g.request_id = 'cat-gig'`))[0].n === 1, "a closed gig takes no invitation");
     await click(p, "Cancel");
-    await waitFor(p, "You have no posted gig that is open for proposals");
-    ok((await fern.getByLabel("Gig to invite Fern Family for").locator("option").allInnerTexts()).join("|") === "No posted gig is open for proposals", "the closed gig is gone from every card's list");
+    await waitFor(p, "Nia Nurse");
     t = await text(p);
     // Step 22: a specialty can be picked with no category chosen; it shows where it sits and searches
     await label(p, "Practice area / Specialty").selectOption({ label: "Family Law" });
     await waitGone(p, "Nia Nurse");
     ok(await label(p, "Category").inputValue() === "p40" && (await text(p)).includes("Fern Family"), "picking a specialty first fills in its category and searches");
-    await click(p, "Reset");
+    ok((await dela(p).locator("#talent-filters-btn").innerText()).trim() === "Filters (1)", "the Filters button counts the filter in use");
+    await click(p, "Clear filters");
     await waitFor(p, "Nia Nurse");
-    ok(await label(p, "Category").inputValue() === "" && await label(p, "Practice area / Specialty").inputValue() === "", "Reset empties the filters and shows everyone again");
+    ok(await label(p, "Category").inputValue() === "" && await label(p, "Practice area / Specialty").inputValue() === "" && (await dela(p).locator("#talent-filters-btn").innerText()).trim() === "Filters (0)", "Clear filters empties the filters and shows everyone again");
     await label(p, SEARCH).fill("chron");
     await dela(p).locator(".cat-suggest li").first().waitFor({ timeout: 5000 });
     await dela(p).locator(".cat-suggest li").first().click();
@@ -342,6 +352,7 @@ const SEARCH = "Search roles, specialties, tasks and software";
     // Talent, bookmarked only
     s = await open(browser, "DELA-App", ATT, "&tab=talent"); p = s.page;
     await waitFor(p, "Nia Nurse", 15000);
+    await dela(p).locator("#talent-filters-btn").click();
     await dela(p).getByLabel("Bookmarked only (freelancers you saved)").check();
     t = await waitGone(p, "Nia Nurse");
     ok(t.includes("Fern Family") && t.includes("1 freelancer found") && await dela(p).getByRole("button", { name: "Remove filter: Bookmarked" }).count() === 1 && await dela(p).locator(".talent-marked").count() === 1, "Bookmarked only shows the saved freelancers, as a removable filter, each marked");

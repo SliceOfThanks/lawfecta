@@ -5682,9 +5682,10 @@
       })));
       if (talentMode === "bench") { benchView(el); return el; }
     }
-    el.appendChild(h("p", { class: "muted", style: "margin-bottom:4px", text: "Find verified legal professionals who are ready to take on new work." }));
+    // Step 29 (Stacey's review of 2026-11-13, 12 notes): one short introduction; the rules about inviting are said once,
+    // on the invitation step, and the match-ready help stays a small link
+    el.appendChild(h("p", { class: "muted", style: "margin-bottom:4px", text: "Find verified legal professionals to support your practice." }));
     el.appendChild(matchReadyHelp());
-    el.appendChild(h("p", { class: "small muted", id: "talent-rule", text: "You can message a freelancer and book an introductory call before hiring. A posted gig is required to invite a freelancer to submit a proposal." }));
     var live = h("div", { class: "sr", role: "status", id: "talent-live" });
     el.appendChild(live);
     var results = h("div"), form = h("div", { class: "card", id: "talent-find" }, h("h2", { text: "Find a freelancer" }), h("p", { class: "muted", text: "Loading the categories..." }));
@@ -5722,6 +5723,7 @@
   // attorney checks before anything is searched; then the count, the filters in use, the sort order and the cards.
   var talentSort = "relevant", talentMarks = {}, talentLoaded = 0, talentPage = 0;
   var talentHelp = { open: false, text: "", chips: null, note: "", error: "" };
+  var talentFiltersOpen = false;
   var FIT_WORD = { practice_area: "Practice area", skill: "Skill", tool: "Software", state: "State" };
   function talentForm(form, results, idx, live) {
     D.clear(form);
@@ -5773,7 +5775,7 @@
     leafSel.addEventListener("change", function () { chain = chainOf(idx.byKey[leafSel.value] || idx.byKey[chain.sub] || idx.byKey[chain.top]); draw3(); run(); });
     toolSel.addEventListener("change", function () { talentQ.tool = toolSel.value; run(); });
     state.addEventListener("change", function () { run(); });
-    var box = catSearchBox(idx, { label: "Search roles, specialties, tasks and software", placeholder: "For example: medical chronology, discovery, Clio", value: talentQ.q,
+    var box = catSearchBox(idx, { label: "Search roles, specialties, tasks and software", placeholder: "Search by role, practice area, skills or software (for example \"Family law paralegal\" or \"Clio\")", value: talentQ.q,
       onPick: function (c) { setCat(c); run(); }, onEnter: function () { run(); } });
     var onlyBm = h("input", { type: "checkbox", id: "talent-bm", checked: talentQ.bookmarked === "1" });
     onlyBm.addEventListener("change", function () { run(); });
@@ -5791,7 +5793,7 @@
       if (talentQ.state) out.push({ text: stateName(talentQ.state), remove: function () { state.value = ""; run(); } });
       return out;
     }
-    var last = null;
+    var last = null, paintFilters = function () {};
     function query(offset, limit) {
       var q = Object.keys(talentQ).filter(function (k) { return talentQ[k]; }).map(function (k) { return k + "=" + encodeURIComponent(talentQ[k]); });
       if (talentSort !== "relevant") q.push("sort=" + talentSort);
@@ -5817,6 +5819,7 @@
       talentQ.category = chain.leaf || chain.sub || chain.top; talentQ.q = box.input.value.trim(); talentQ.state = state.value; talentQ.bookmarked = onlyBm.checked ? "1" : "";
       var want = keep === true && talentPage && talentLoaded > talentPage ? Math.min(50, talentLoaded) : 0;
       if (keep !== true) talentLoaded = 0;
+      paintFilters();
       D.clear(results); results.appendChild(h("p", { class: "muted", text: "Searching..." }));
       live.textContent = "Searching...";
       Promise.all([api.get(query(0, want)), api.get("/gigs"), loadBookmarks(!!talentQ.bookmarked)]).then(function (rs) {
@@ -5833,20 +5836,35 @@
         results.appendChild(h("div", { class: "notice bad", role: "alert" }, h("span", { text: D.errorText(e.message) + " " }), h("button", { class: "ghost small", type: "button", onclick: function () { run(keep); } }, "Try again")));
       });
     }
-    form.appendChild(field("Search roles, specialties, tasks and software", box.el, "Search by role, specialty, service, software or keywords. Pick a suggestion to search that category, or press Enter to search the words."));
-    var go = h("div", { class: "row talent-go2", style: "gap:10px;flex-wrap:wrap;margin:8px 0" }, h("button", { class: "blue", type: "button", onclick: function () { box.close(); run(); } }, "Search freelancers"),
-      h("button", { class: "ghost", type: "button", onclick: function () { box.close(); clearAll(); } }, "Reset"));
+    // Step 29: one search box, then "Filters (N)" (closed until asked for), "Search freelancers" and "Clear filters" in
+    // one row. The five filters, "Bookmarked only" and "Your bookmarks" live in the Filters panel; every filter still
+    // works on its own and searches as soon as it changes.
+    form.appendChild(field("Search roles, specialties, tasks and software", box.el));
+    var fPanel = h("div", { id: "talent-filters", class: "talent-filters", hidden: !talentFiltersOpen });
+    var fBtn = h("button", { class: "ghost", type: "button", id: "talent-filters-btn", "aria-expanded": String(talentFiltersOpen), "aria-controls": "talent-filters" }, "Filters (0)");
+    function filterCount() { return (chain.top || chain.sub || chain.leaf ? 1 : 0) + (talentQ.tool ? 1 : 0) + (state.value ? 1 : 0) + (onlyBm.checked ? 1 : 0) + (talentQ.skill ? 1 : 0) + (talentQ.practice_area ? 1 : 0); }
+    paintFilters = function () { fBtn.textContent = "Filters (" + filterCount() + ")"; fBtn.setAttribute("aria-label", "Filters, " + filterCount() + " in use"); };
+    function openFilters(v) { talentFiltersOpen = v; fPanel.hidden = !v; fBtn.setAttribute("aria-expanded", String(v)); }
+    fBtn.addEventListener("click", function () { openFilters(!talentFiltersOpen); if (talentFiltersOpen) { var first = fPanel.querySelector("select"); if (first) first.focus(); } });
+    fPanel.addEventListener("keydown", function (e) { if (e.key === "Escape") { e.stopPropagation(); openFilters(false); fBtn.focus(); } });
+    form.appendChild(h("div", { class: "row talent-go2", style: "gap:10px;flex-wrap:wrap;margin:8px 0;align-items:center" }, fBtn,
+      h("button", { class: "blue", type: "button", onclick: function () { box.close(); run(); } }, "Search freelancers"),
+      h("button", { class: "talent-clear", type: "button", onclick: function () { box.close(); clearAll(); } }, "Clear filters")));
     var stateField = field("State / Jurisdiction", state, "Leaves out freelancers who do not take work for that state.");
-    if (!idx.ok || !idx.tops.length) { form.appendChild(h("p", { class: "notice", text: "The categories could not be loaded right now. You can still search by words, software and state." })); form.appendChild(h("div", { class: "talent-cats" }, field("Software", toolSel), stateField)); }
-    else form.appendChild(h("div", { class: "talent-cats" }, field("Category", topSel), field("Practice area / Specialty", subSel), field("Services / Tasks", leafSel), field("Software", toolSel), stateField));
-    form.appendChild(go);
+    if (!idx.ok || !idx.tops.length) { fPanel.appendChild(h("p", { class: "notice", text: "The categories could not be loaded right now. You can still search by words, software and state." })); fPanel.appendChild(h("div", { class: "talent-cats" }, field("Software", toolSel), stateField)); }
+    else fPanel.appendChild(h("div", { class: "talent-cats" }, field("Category", topSel), field("Practice area / Specialty", subSel), field("Services / Tasks", leafSel), field("Software", toolSel), stateField));
+    var fFoot = h("div", { class: "row talent-filters-foot", style: "gap:14px;flex-wrap:wrap;align-items:center;margin-top:8px" });
+    fPanel.appendChild(fFoot);
+    form.appendChild(fPanel);
     // Stacey 2026-11-13: one click to the freelancers you bookmarked. It clears the other filters and searches, so the
     // list is all of your bookmarks. They are the same bookmarks the Lawfecta website keeps under "My Saved Members".
     loadBookmarks().then(function (bm) {
-      if (!bm.on) return;
-      form.appendChild(h("div", { class: "row", style: "gap:14px;flex-wrap:wrap;align-items:center" },
-        h("label", { class: "small talent-bm", for: "talent-bm" }, onlyBm, " Bookmarked only (freelancers you saved)"),
-        h("button", { class: "ghost small", type: "button", id: "talent-my-bm", onclick: function () { resetForm(); onlyBm.checked = true; run(); } }, "★ Your bookmarks")));
+      if (bm.on) {
+        fFoot.appendChild(h("label", { class: "small talent-bm", for: "talent-bm" }, onlyBm, " Bookmarked only (freelancers you saved)"));
+        fFoot.appendChild(h("button", { class: "ghost small", type: "button", id: "talent-my-bm", onclick: function () { resetForm(); onlyBm.checked = true; run(); } }, "★ Your bookmarks"));
+      }
+      fFoot.appendChild(h("span", { class: "grow" }));
+      fFoot.appendChild(h("button", { class: "blue small", type: "button", id: "talent-filters-apply", onclick: function () { box.close(); run(); openFilters(false); fBtn.focus(); } }, "Apply filters"));
     });
     draw3(); fillTools();
     // DELA's help is optional: an accordion that stays as the attorney left it. Opening it or typing uses nothing; only
@@ -5859,6 +5877,7 @@
         var n = ((info || {}).credits || {}).find_fit || 1;
         var tgl = h("button", { type: "button", class: "talent-help-btn", "aria-expanded": String(talentHelp.open), "aria-controls": "talent-help-panel" },
           h("span", { class: "grow" }, h("b", { text: "✦ Find a freelancer with DELA" }), h("span", { class: "small muted", style: "display:block", text: "Describe your project and get suggested search filters." })),
+          h("span", { class: "small talent-cost", title: "Opening this and typing use nothing. Only \"Suggest filters\" uses an action.", text: "Uses " + n + " DELA action" + (n === 1 ? "" : "s") + " (none on your own AI key)" }),
           h("span", { class: "talent-help-caret", "aria-hidden": "true", text: talentHelp.open ? "▲" : "▼" }));
         tgl.addEventListener("click", function () { talentHelp.open = !talentHelp.open; drawHelp(info); var b2 = help.querySelector(".talent-help-btn"); if (b2) b2.focus(); });
         help.appendChild(h("h2", { class: "talent-help-h" }, tgl));
@@ -5873,7 +5892,7 @@
         var btn = h("button", { class: "blue small ai-btn", type: "button" }, "✦ Suggest filters");
         panel.appendChild(h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0" },
           h("span", { class: "small muted grow", text: "Don't include client names, confidential case details, government IDs, account numbers, passwords or other sensitive information." }),
-          h("span", { class: "small talent-cost", text: "Uses " + n + " DELA action" + (n === 1 ? "" : "s") + " (none on your own AI key)" }), btn));
+          btn));
         panel.appendChild(out);
         function drawChips() {
           D.clear(out);
@@ -5890,7 +5909,7 @@
           if (talentHelp.note) out.appendChild(h("p", { class: "small muted", text: talentHelp.note }));
           out.appendChild(h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;margin-top:6px" },
             h("button", { class: "blue small", type: "button", onclick: function () { useChips(); run(); } }, "Apply filters & search"),
-            h("button", { class: "ghost small", type: "button", onclick: function () { useChips(); topSel.focus(); D.toast(app, "The filters are filled in. Change them, then click Search freelancers."); } }, "Edit filters manually")));
+            h("button", { class: "ghost small", type: "button", onclick: function () { useChips(); paintFilters(); openFilters(true); topSel.focus(); D.toast(app, "The filters are filled in. Change them, then click Search freelancers."); } }, "Edit filters manually")));
         }
         // The suggestions fill the form: a name that is a category picks it, software picks the Software filter, a state
         // picks the state, anything else becomes its own filter. This replaces the filters that were set before.
@@ -6103,8 +6122,13 @@
   }
   var TALENT_SORTS = [["relevant", "Most relevant"], ["reviews", "Most reviews"], ["hours", "Most hours a week"], ["name", "Name, A to Z"]];
   // Stacey 2026-11-12: the word is "Verified"; the Help page (FAQ) says what Lawfecta checks. Shown only when the check passed.
-  function talentTrust(p) {
+  function talentTrust(p, card) {
     var rv = p.reviews || {}, n = rv.count || 0;
+    // On a result card (step 29): "✓ Verified member", the rating only when there are reviews, and the bookmark mark
+    if (card) return h("div", { class: "talent-trust" },
+      p.verification === "verified" ? h("span", { class: "talent-ver", title: "The Lawfecta Team checked this member's identity and profile. It is not a check of qualifications.", text: "✓ Verified member" }) : null,
+      n ? h("span", { class: "talent-rev" }, h("span", { class: "talent-star", "aria-hidden": "true", text: "★ " }), rv.average ? rv.average + " (" + n + (n === 1 ? " review)" : " reviews)") : n + (n === 1 ? " review" : " reviews")) : null,
+      talentMarks[p.person_id] ? h("span", { class: "talent-marked", text: "Bookmarked" }) : null);
     // Side by side, as in Stacey's mockup of 2026-11-12: "✓ Verified | ★ No reviews yet"
     return h("div", { class: "talent-trust" },
       p.verification === "verified" ? h("span", { class: "talent-ver", text: "✓ Verified" }) : null,
@@ -6146,27 +6170,20 @@
     head.appendChild(h("span", { class: "grow" }));
     if (n > 0) head.appendChild(h("label", { class: "small talent-sort" }, "Sort by ", sort));
     results.appendChild(head);
-    if (n && !mine.length) results.appendChild(h("p", { class: "notice", id: "talent-nogig" }, "You have no posted gig that is open for proposals, so there is nothing to invite a freelancer to yet. ",
-      h("a", { href: "#", onclick: function (e) { e.preventDefault(); goTab("projects"); }, text: "Post a gig in Projects" }), "."));
     x.people.forEach(function (p, pi) {
-      // Grouped by top category: "Paralegal Services: Discovery Support, Clio"
-      var groups = {}, order = [];
-      (p.categories || []).forEach(function (k) { var c = idx.byKey[k]; if (!c) return; var top = idx.byKey[c.top]; var g = top ? top.name : ""; if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(c.name); });
-      var catLine = order.length ? h("div", { class: "small cat-line", text: order.slice(0, 3).map(function (g) { return (g ? g + ": " : "") + groups[g].slice(0, 6).join(", "); }).join(" | ") }) : null;
-      var tags = (p.practice_areas || []).slice(0, 4).concat((p.software || []).slice(0, 5));
-      var facts = [p.capacity_hours_week ? p.capacity_hours_week + " hours a week" + (p.availability === "limited" ? " (limited right now)" : " available") : "", p.timezone ? p.timezone + " time" : "",
-        p.firm_name ? "Works through " + p.firm_name : ""].filter(Boolean).join(" | ");
-      var inv = talentInvite(p, mine, results), gigSel = inv.gigSel, invite = inv.invite, said = inv.said;
+      // Step 29: a short card that is easy to compare. Two lines of summary, at most three tags, hours and time zone,
+      // and two actions. The gig is chosen after "Invite to gig", on the invitation step, where the rule is said once.
+      var tags = (p.practice_areas || []).slice(0, 2).concat((p.software || []).slice(0, 3)).slice(0, 3);
+      var facts = [p.capacity_hours_week ? p.capacity_hours_week + " hrs/week" + (p.availability === "limited" ? " (limited right now)" : "") : "", p.timezone ? p.timezone + " Time" : ""].filter(Boolean).join(" • ");
+      var inviteBtn = h("button", { class: "blue small", type: "button", onclick: function () { openInviteReview(p, mine.length === 1 ? mine[0].id : ""); } }, "Invite to gig");
       results.appendChild(h("article", { class: "card talent-card", "aria-label": p.name, tabindex: o.focusFrom === pi ? "-1" : null },
         h("div", { class: "talent-top" }, talentAvatar(p),
-          h("div", { class: "talent-who" }, h("h3", { style: "margin:0", text: p.name }), p.headline ? h("div", { class: "small", text: p.headline }) : null, talentTrust(p)),
-          h("div", { class: "talent-about talent-rule" }, p.summary ? h("p", { class: "small", style: "margin:0 0 6px", text: p.summary }) : null, catLine,
+          h("div", { class: "talent-who" }, h("h3", { style: "margin:0", text: p.name }), p.headline ? h("div", { class: "small", text: p.headline }) : null, talentTrust(p, true)),
+          h("div", { class: "talent-about talent-rule" }, p.summary ? h("p", { class: "small talent-sum", style: "margin:0 0 6px", text: p.summary }) : null,
             tags.length ? h("div", { class: "talent-tags" }, tags.map(function (x) { return h("span", { class: "talent-tag", text: x }); })) : null,
-            facts ? h("div", { class: "small muted", text: facts }) : null),
+            facts ? h("div", { class: "small muted talent-facts", text: facts }) : null),
           h("div", { class: "talent-acts" },
-            h("button", { class: "ghost small", type: "button", onclick: function () { openTalentProfile(p.person_id); } }, "View profile"),
-            h("label", { class: "talent-gig" }, h("span", { class: "talent-gig-word", text: "Invite for gig:" }), gigSel), invite)),
-        said));
+            h("button", { class: "ghost small", type: "button", onclick: function () { openTalentProfile(p.person_id); } }, "View profile"), inviteBtn))));
     });
     // 10 at a time (setting talent.page_size): how many are shown, and the button for the next ones
     if (n > x.people.length || x.people.length > 0) {
@@ -10232,7 +10249,8 @@
     else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1] + (me.side === "attorney" && (tab === "projects" || tab === "talent") && (sideInfo() || {}).verification_state !== "verified" ? " Posting work and hiring need a verified license: open Profile and verification from your account menu." : "")));
     else { tab = "home"; main.appendChild(NL() ? homeNew() : me.side === "attorney" ? attorneyHome() : freelancerHome()); }
     if (NL()) limitBanner(main); else if (me.side === "attorney") usageBanner(main);
-    if (me.side === "attorney") usageMeter(main);
+    // Step 29: the Talent page keeps its focus on finding people; the usage line shows on the other pages
+    if (me.side === "attorney" && tab !== "talent") usageMeter(main);
     closeMore();
     app.classList.toggle("nl", NL());
     show(NL() ? shellNew(main) : h("div", null, header(), nav(), main));

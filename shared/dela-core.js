@@ -530,6 +530,11 @@ D.openTab = function (getUrl, onFail, opts) {
     // card heading band #EAF1F8, changed the same day to the grey #E2E4E8, and #2B303C in the dark look); the menus keep the colors they had
     ".nl-side,.nl-bar,.nl-sheet{--ink:#1c2230;--muted:#5f6675;--line:#e6e7ec}" +
     ".dela .card.mt-card{padding:0;overflow:hidden}.mt-head{background:var(--head);color:var(--ink);padding:14px 20px;align-items:center;gap:10px}.mt-head h2{font-size:18px}.mt-body{padding:16px 20px 18px}.dela.nl .mt-head{padding:12px 16px}.dela.nl .mt-body{padding:14px 16px}" +
+    // Step 29 (Stacey's review of 2026-11-13): the Filters panel, two-line summaries, and the action cost on the DELA bar
+    ".talent-filters{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}.talent-filters[hidden]{display:none}.dela .talent-go2 .talent-clear{min-height:44px}" +
+    ".talent-sum{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.talent-facts{margin-top:6px}" +
+    ".talent-help-btn .talent-cost{flex:0 0 auto}@media (max-width:560px){.dela .talent-help-btn{flex-wrap:wrap}.talent-help-btn .talent-cost{white-space:normal;border-radius:12px;order:3;flex:1 1 100%}}" +
+    "@media (max-width:980px){.talent-card .talent-acts{flex-direction:row;flex-wrap:nowrap}.talent-card .talent-acts button{flex:1 1 0;width:auto}}" +
     ".talent-help-h{margin:0;font-size:inherit}.dela .talent-help-btn{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:transparent;border:0;color:var(--ink);padding:4px 0;min-height:44px}.dela .talent-help-btn:focus-visible{outline:2px solid var(--pink-ink);outline-offset:2px}" +
     ".talent-cost{border:1px solid var(--line);border-radius:999px;padding:3px 10px;background:var(--card);white-space:nowrap}.dela .cat-chip button{min-width:24px;min-height:24px}" +
     ".fit-row .talent-photo{width:48px;height:48px;font-size:20px}" +
