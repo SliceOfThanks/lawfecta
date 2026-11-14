@@ -9,7 +9,7 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 ## Step 29, the simpler Talent search: RELEASED (2026-11-13, while the website was down)
 - code_version 89abf70 (browser code only; api function 121 and migrations through 0123 unchanged), health "ok". GitHub Tests passed on that commit (run 43535140431). Nobody could look at it on the site at release time.
 - From Stacey's mockup and her 12 findings (docs/briefs/step-29-talent-simpler-results.md): one search box with the five filters behind "Filters (N)"; one row "Filters (N)", "Search freelancers", "Clear filters"; "Bookmarked only", "★ Your bookmarks" and "Apply filters" inside the panel; short cards (two lines of summary, three tags, "✓ Verified member", hours and time zone) with "View profile" and "Invite to gig"; the gig is chosen on the invitation step; the action cost shows on the DELA bar; no usage line under the results.
-- Not done: the date availability was confirmed (the search does not return it); grey tags (her mockup shows pink). On a phone the filters open in place, not as a slide-up panel; she was asked.
+- Right after (code_version a2f87ce, migration 0124, run 43538140039): the card says "Availability confirmed DATE" (her review note 8). Not done: grey tags (her mockup shows pink). On a phone the filters open in place, not as a slide-up panel; she was asked.
 - ChatGPT check 1 was updated to match (GitHub copy and both ready copies in her folder).
 - Also 2026-11-13: the password.link evaluation and plan for 2027, approved by Stacey, is docs/briefs/2027-login-handoff-password-link.md. Not built.
 
