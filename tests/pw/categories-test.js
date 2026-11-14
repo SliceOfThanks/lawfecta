@@ -175,6 +175,7 @@ const SEARCH = "Search roles, specialties, tasks and software";
     ok(btns.join("|") === "View profile|Invite to gig", "a result card has two buttons only: " + btns.join("|"));
     ok(t.includes("✓ Verified member") && !t.includes("No reviews yet") && !t.includes("It does not hire them or award the work.") && await fern.getByRole("combobox").count() === 0, "a card says Verified member, and has no gig list, no repeated rule and no empty reviews line");
     ok(await fern.locator(".talent-tag").count() <= 3, "a card shows at most three tags");
+    ok((await fern.locator(".talent-facts").innerText()).includes("Availability confirmed "), "a card says when availability was last confirmed (review note 8)");
     // No posted gig: the invitation step says so, and nothing can be sent
     await fern.getByRole("button", { name: "Invite to gig" }).click();
     await waitFor(p, "Invite Fern Family to submit a proposal");

@@ -6174,7 +6174,9 @@
       // Step 29: a short card that is easy to compare. Two lines of summary, at most three tags, hours and time zone,
       // and two actions. The gig is chosen after "Invite to gig", on the invitation step, where the rule is said once.
       var tags = (p.practice_areas || []).slice(0, 2).concat((p.software || []).slice(0, 3)).slice(0, 3);
-      var facts = [p.capacity_hours_week ? p.capacity_hours_week + " hrs/week" + (p.availability === "limited" ? " (limited right now)" : "") : "", p.timezone ? p.timezone + " Time" : ""].filter(Boolean).join(" • ");
+      var facts = [p.capacity_hours_week ? p.capacity_hours_week + " hrs/week" + (p.availability === "limited" ? " (limited right now)" : "") : "", p.timezone ? p.timezone + " Time" : "",
+        // Review note 8: say when the freelancer last confirmed their availability, when known
+        p.availability_confirmed_at ? "Availability confirmed " + D.date(p.availability_confirmed_at) : ""].filter(Boolean).join(" • ");
       var inviteBtn = h("button", { class: "blue small", type: "button", onclick: function () { openInviteReview(p, mine.length === 1 ? mine[0].id : ""); } }, "Invite to gig");
       results.appendChild(h("article", { class: "card talent-card", "aria-label": p.name, tabindex: o.focusFrom === pi ? "-1" : null },
         h("div", { class: "talent-top" }, talentAvatar(p),

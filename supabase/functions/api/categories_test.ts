@@ -263,6 +263,8 @@ Deno.test("ready-made pictures: offered only from the list, an uploaded photo co
   await pool.query("update member_profiles set missing = '{}', score = 100 where person_id = $1 and side = 'freelancer'", [fFamily.id]);
   await pool.query("select dela_profile_refresh($1, 'freelancer')", [fFamily.id]);
   const card = ((await call("GET", "/talent?category=s308", att.token)).body.people as Array<Record<string, any>>).find((p) => p.person_id === fFamily.id)!;
+  // Step 29, review note 8: the card can say when availability was last confirmed
+  assert(/^\d{4}-\d{2}-\d{2}T/.test(String(card.availability_confirmed_at)) && Date.now() - new Date(card.availability_confirmed_at).getTime() < 14 * 86400000, "the search returns the day availability was confirmed: " + card.availability_confirmed_at);
   assertEquals([card.photo_url, "avatar" in card], [BASE + PIC, false], "Talent shows the chosen picture");
   assertEquals((await call("GET", "/freelancers/profile?person=" + fFamily.id, att.token)).body.photo_url, BASE + PIC, "and so does the profile page");
   assertEquals((await call("GET", "/freelancers/card?person=" + fFamily.id, att.token)).body.photo_url, BASE + PIC, "and the small card");

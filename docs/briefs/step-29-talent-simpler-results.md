@@ -30,5 +30,5 @@ The count and sort, removable filter chips, "Load more" with the keyboard landin
 - Phone 320 wide: the row of three controls wraps; cards keep two buttons side by side.
 
 ## Not done, and why
-- Hours "confirmed on" date on the card (note 8, "when known"): the search does not return that date yet.
+- Done right after (migration 0124): the card says "Availability confirmed DATE" (note 8).
 - Neutral (grey) tags: the mockup itself shows pink tags, so they stay pink.
