@@ -80,7 +80,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 
 7. Go to: https://www.lawfecta.co/dela?tab=talent
    Find: the top of the page, above the first card.
-   Expect: the sentence "Find verified legal professionals who are ready to take on new work.", an underlined control "What does match-ready mean?" with a small circled "i", and the sentence "You can message a freelancer and book an introductory call before hiring. A posted gig is required to invite a freelancer to submit a proposal."
+   Expect: the sentence "Find verified legal professionals to support your practice." and an underlined control "What does match-ready mean?" with a small circled "i". There is no longer a sentence about a posted gig here.
 
 8. Find: the control "What does match-ready mean?" at the top of the page.
    Do: click it once.
@@ -89,13 +89,15 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Expect: the panel closes.
 
 9. Find: the card titled "Find a freelancer".
-   Expect: a box labelled "Search roles, specialties, tasks and software"; under it five lists in a row, "Category", "Practice area / Specialty", "Services / Tasks", "Software" and "State / Jurisdiction"; two buttons, "Search freelancers" (dark red) and "Reset". None of the five lists is greyed out. Under the card a pink bar "✦ Find a freelancer with DELA". Under that the heading "16 freelancers found" and, on the same line at the right, "Sort by".
+   Expect: a box labelled "Search roles, specialties, tasks and software"; under it one row with a button "Filters (0)", a dark red button "Search freelancers" and the underlined words "Clear filters". No lists show yet.
+   Do: click "Filters (0)".
+   Expect: five lists open under the row, "Category", "Practice area / Specialty", "Services / Tasks", "Software" and "State / Jurisdiction", none greyed out; under them a tick box "Bookmarked only (freelancers you saved)", a button "★ Your bookmarks" and a button "Apply filters". Leave the filters open for the next steps. Under the card a pink bar "✦ Find a freelancer with DELA". Under that the heading "16 freelancers found" and, on the same line at the right, "Sort by".
 
 10. Find: the list "Software" in the "Find a freelancer" card. Leave the other lists alone.
     Do: choose "Clio".
-    Expect: the heading changes to "9 freelancers found" and a pink chip "Software: Clio" with an × shows next to it, with the words "Clear all".
-    Do: click "Reset" (next to "Search freelancers").
-    Expect: "16 freelancers found" again and no chip.
+    Expect: the heading changes to "9 freelancers found" and a pink chip "Software: Clio" with an × shows next to it, with the words "Clear all". The button above the lists now reads "Filters (1)".
+    Do: click "Clear filters" (next to "Search freelancers").
+    Expect: "16 freelancers found" again, no chip, and the button reads "Filters (0)".
 
 11. Find: the list "Practice area / Specialty". Do not choose a category first.
     Do: open the list. It is grouped under category names. Under the group "Paralegal Services" choose "Family Law".
@@ -108,7 +110,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
     Expect: "2 freelancers found": Denise Carter and Renee Baptiste, with a chip "medical records" in quotation marks.
     Do: clear the box, type records medical and press Enter.
     Expect: the same two freelancers. The order of the words does not matter.
-    Do: click "Reset".
+    Do: click "Clear filters".
 
 13. Find: the box "Search roles, specialties, tasks and software".
     Do: type family law discovery and wait for the list under the box. Click the line "Discovery Support" that has "Paralegal Services › Family Law" after it.
@@ -117,18 +119,18 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 
 14. Find: the pink bar "✦ Find a freelancer with DELA" under the "Find a freelancer" card.
     Do: click it.
-    Expect: it opens and shows a box labelled "What do you need help with?", a grey sentence starting "Don't include client names", a small label "Uses 1 DELA action (none on your own AI key)" and a button "✦ Suggest filters".
+    Expect: the bar itself carries a small label "Uses 1 DELA action (none on your own AI key)". It opens and shows a box labelled "What do you need help with?", a grey sentence starting "Don't include client names" and a button "✦ Suggest filters".
     Do: in the box type: I need a family law paralegal experienced in Clio to help prepare and e-file motions in Texas. Then click "✦ Suggest filters" and wait up to 60 seconds.
     Expect: a heading "DELA suggested filters" with pink chips under it (for example "Practice area: ...", "Software: Clio", "State: ..."), each with an ×, the sentence "Review or remove the suggestions below. Nothing is searched until you apply them.", and two buttons, "Apply filters & search" and "Edit filters manually". The heading above the results still reads "16 freelancers found": nothing was searched yet. Copy the chips into your report, word for word.
 
 15. Find: the two buttons under the suggested chips.
     Do: click "Apply filters & search".
     Expect: the heading above the results changes and chips for the filters now show next to it. Write the number found in your report. Any number, including 0, is a PASS.
-    Do: click "Reset" in the "Find a freelancer" card.
+    Do: click "Clear filters" in the "Find a freelancer" card.
     Expect: "16 freelancers found".
 
 16. Find: the first card under the heading "16 freelancers found". Any freelancer.
-    Expect: on the left a round picture or a round pink circle with an initial; the name and a headline; "✓ Verified" and "No reviews yet" with NO star in front of it; in the middle a short description and pink tags; on the right, in a column, a button "View profile", the words "Invite for gig:" with a list that shows "Select one of your posted gigs", and a button "Invite to this gig" that is greyed out. The card has exactly two buttons. Under the card's content: "Inviting asks this freelancer to send a proposal for the gig you select. It does not hire them or award the work." There is no button named "Send message", "Book a call", "Reviews" or "Invite to my bench" on the card.
+    Expect: on the left a round picture or a round pink circle with an initial; the name and a headline; "✓ Verified member"; in the middle a description of at most two lines, at most three pink tags, and a grey line with hours a week and a time zone; on the right, in a column, two buttons, "View profile" and a dark red "Invite to gig". The card has exactly two buttons and no list to choose a gig from. There is no sentence under the card about inviting. There is no button named "Send message", "Book a call", "Reviews" or "Invite to my bench" on the card.
 
 17. Find: the bottom of the list of cards.
     Expect: the line "Showing 10 of 16 freelancers." and a button "Load more freelancers".
@@ -171,7 +173,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
     Expect: freelancers listed in that card, each with a line starting "Why:" and the buttons "View profile" and "Start a chat". "DELA Test Freelancer" is one of them. Do not click the buttons. If the card instead says the suggestions could not be loaded, copy that sentence into your report.
 
 25. Go to: https://www.lawfecta.co/dela?tab=talent
-    Find: under the two buttons in the "Find a freelancer" card, a tick box "Bookmarked only (freelancers you saved)".
+    Find: in the "Find a freelancer" card, the button that starts "Filters (". If the five lists are not showing, click it. Under the lists, a tick box "Bookmarked only (freelancers you saved)".
     Do: tick it.
     Expect: if step 21 ended with (a): "1 freelancer found", DELA Test Freelancer, with a small grey label "Bookmarked", and a chip "Bookmarked" next to the heading. If step 21 ended with (b): a notice starting "Your bookmarks could not be read, so nothing is shown." with a button "Try again". Write which one you saw.
     Do: untick the box. Then, only if step 21 ended with (a): click "View profile" on the DELA Test Freelancer card and click the button "★ Bookmarked".
