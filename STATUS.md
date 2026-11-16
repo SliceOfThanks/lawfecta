@@ -19,7 +19,9 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - When a meeting room cannot be made, the owners get one alert per meeting ("A meeting room could not be made", in DELA and by email) with the meeting service's answer, and the card tells the two people. DELA keeps trying.
 - The approved monthly change staying in view was already built; docs/PLAN.md corrected.
 
-## WEBSITE DOWN since about 3:00 PM Pacific, 2026-11-13 (not DELA)
+## The website was down from about 3:00 PM Pacific 2026-11-13; BACK by 7:17 AM Pacific 2026-11-16 (not DELA)
+- Back: /login, /home, /dela and the API answered again when checked on 2026-11-16 at 15:17 UTC. The exact time it came back is not known (the watch only ran while the computer was awake). What Brilliant Directories did is not known yet; ask Stacey for their reply.
+- The notes from the outage:
 - www.lawfecta.co returns a LiteSpeed 404 on every address except the bare home address: /home, /login, /dela, /account/..., /admin and /api/v2. www.lawfecta.com on the same server works. DELA's api health is "ok".
 - It began right after Stacey activated the Bookmarks add-on in the Brilliant Directories add-ons menu. "Refresh Site Cache" did not fix it. She sent a support ticket to Brilliant Directories.
 - Claude made no changes to the website that day (reads only: pages, menu items, favorites widgets). The BD connector cannot reach the site while the API is 404.
