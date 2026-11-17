@@ -48,7 +48,7 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
 
 1. Go to: https://www.lawfecta.co/dela?tab=inbox
    Find: the top of the page.
-   Expect: a pale blue notice that starts "DELA is for operations work", with a small blue circled "i" at its left and an "×" at its top right, and no colored stripe at its left edge. Under it the heading "Inbox", a box labelled "Search conversations", and a row of four rounded buttons: "All (2)", "Unread (" with a number, "Gigs (1)" and "Introductions (1)". Under them two rows, each with a round picture or a round circle with a letter, the name "DELA Test Attorney", a small tag ("Gig" or "Introduction") and a title. Copy the four button labels into your report, word for word.
+   Expect: a pale blue notice that starts "DELA is for operations work", with a small blue circled "i" at its left and an "×" at its top right, and no colored stripe at its left edge. Under it the heading "Inbox", a box labelled "Search conversations", and a row of four rounded buttons: "All (2)", "Unread (" with a number, "Gigs (1)" and "Introductions (1)". Under them two rows, each with a round picture or a round circle with a letter, the firm's name "Example Lantern Legal", a small tag ("Gig" or "Introduction") and a title. Copy the four button labels into your report, word for word.
 
 2. Find: the box labelled "Search conversations", near the top of the page under the heading "Inbox".
    Do: click in it and type: welcome
@@ -66,7 +66,7 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
 
 4. Find: the row with the tag "Gig".
    Do: click it.
-   Expect: a page with the blue notice at the top, a button "← Inbox", then a white card with a picture or letter circle, the name "DELA Test Attorney" and under it "Gig: Send the Welcome Packet and Intake Follow-Up". At the right of that card: "Open the gig", "Book a meeting" and "More ▾". Lower down, the messages, with a thin line and a date above the first message. At the bottom a white card with the bold label "Message", a box with the grey words "Write your message...", and under it "Attach a file ▾", "✦ AI tools ▾" and a dark red "Send". There is no button named "Draft an agenda".
+   Expect: a page with the blue notice at the top, a button "← Inbox", then a white card with a picture or letter circle, the name "DELA Test Attorney", under it "✓ Verified" and "Attorney at Example Lantern Legal", and under that "Gig: Send the Welcome Packet and Intake Follow-Up". There is no separate card titled "Who you are talking with". At the right of that card: "Open the gig", "Book a meeting" and "More ▾". Lower down, the messages, with a thin line and a date above the first message. At the bottom a white card with the bold label "Message", a box with the grey words "Write your message...", and under it "Attach a file ▾" and "✦ AI tools ▾" (both white with a thin border, with no white box behind them) and a dark red "Send". There is no button named "Draft an agenda".
 
 5. Find: at the bottom of the page, under the box labelled "Message", the button "Attach a file ▾".
    Do: click it.

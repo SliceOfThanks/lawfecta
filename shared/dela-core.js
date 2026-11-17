@@ -437,6 +437,7 @@ D.openTab = function (getUrl, onFail, opts) {
     // device and the device is dark (data-theme=auto). Light (data-theme=light) never turns dark.
     D.darkCss(".dela{--bg:#11131b;--card:#1a1d28;--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c;--head:#2b303c;--brand:#c2416f;--pink:#2a1622;--pink-ink:#f19ab8;--soft:#222634;--shadow:none;--okbg:#17301f;--okline:#2b5a3b;--bluebg:#132233}.nl-side,.nl-bar,.nl-sheet{--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c}" +
       ".notice-tag{background:#132233;color:#8cc4ff}.notice-tag.action{background:#3a1d1b;color:#f5b3ad}.notice-tag.payments{background:#17301f;color:#7fd3a3}.notice-tag.disputes{background:#3a2f12;color:#f0c668}.notice-dot.on{background:#8cc4ff}" +
+      "details.menu>summary.btn{color:#f19ab8}" +
       ".inbox-kind.intro{background:#132233;color:#8cc4ff}.inbox-dot.on{background:#8cc4ff}" +
       ".notice{background:#132233;border-color:#2b4a66;color:#eceef3;box-shadow:none}.notice-i{border-color:#8cc4ff;color:#8cc4ff}.notice-x{color:#eceef3}.notice-back{color:#8cc4ff}" +
       ".problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b;border-color:#e0685f}.notice.ok{background:#17301f;border-color:#4fa873}.talent-ver{color:#7fd3a3}" +
@@ -569,6 +570,10 @@ D.openTab = function (getUrl, onFail, opts) {
     ".dela .card.mt-card{padding:0;overflow:hidden}.mt-head{background:var(--head);color:var(--ink);padding:14px 20px;align-items:center;gap:10px}.mt-head h2{font-size:18px}.mt-body{padding:16px 20px 18px}.dela.nl .mt-head{padding:12px 16px}.dela.nl .mt-body{padding:14px 16px}" +
     // Step 29 (Stacey's review of 2026-11-13): the Filters panel, two-line summaries, and the action cost on the DELA bar
     ".talent-filters{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}.talent-filters[hidden]{display:none}.dela .talent-go2 .talent-clear{min-height:44px}" +
+    // Fix (ChatGPT check 4, 2026-11-17): a closed menu showed its empty white panel behind the button, and the button
+    // was filled dark red. A closed menu shows nothing, and the button looks like the outlined buttons beside it.
+    ".dela details.menu:not([open])>.menu-panel{display:none}.dela details.menu>summary.btn{background:var(--card);color:var(--brand);border:1.5px solid var(--line);border-radius:8px;padding:8px 14px;font-size:14px;font-weight:700}" +
+    ".dela details.menu>summary.btn:hover{border-color:var(--brand)}.dela details.menu>summary.btn:focus-visible{outline:3px solid #0d83dd;outline-offset:2px}.dela details.menu{border:0;background:transparent;box-shadow:none;padding:0;margin:0}" +
     ".dela details.menu{position:relative;display:inline-block}.dela details.menu>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;min-height:40px}.dela details.menu>summary::-webkit-details-marker{display:none}" +
     ".menu-panel{position:absolute;z-index:5;left:0;top:calc(100% + 4px);min-width:230px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(11,18,32,.14);padding:6px;display:flex;flex-direction:column;gap:2px}" +
     ".thread-acts details.menu .menu-panel{left:auto;right:0}.dela .menu-item{background:transparent;border:0;color:var(--ink);text-align:left;justify-content:flex-start;padding:10px 12px;min-height:44px;border-radius:8px;font-weight:600;width:100%;white-space:normal}.dela .menu-item:hover,.dela .menu-item:focus-visible{background:var(--soft)}" +

@@ -229,6 +229,12 @@ async function makeMember(bd, side, plan) {
     await dela(p).locator(".inbox-row", { hasText: "Client intake help" }).first().click();
     t = await waitFor(p, "Can you start Monday?");
     ok(!t.includes("512-555-0199"), "the held message is not shown to the freelancer");
+    // Fix (ChatGPT check 4, 2026-11-17): a closed menu shows nothing behind its button, and the button is outlined like
+    // the ones beside it, not filled; the header names the person and their firm, with no second card
+    const menuLook = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; const d = r.querySelector("#thread-ai-btn").parentElement; const c = getComputedStyle(r.querySelector("#thread-ai-btn"));
+      return { open: d.open, panel: getComputedStyle(d.querySelector(".menu-panel")).display, bg: c.backgroundColor, box: getComputedStyle(d).boxShadow, who: (r.querySelector("#thread-who") || {}).innerText || "", cards: [...r.querySelectorAll(".card h2")].map((x) => x.innerText) }; });
+    ok(menuLook.open === false && menuLook.panel === "none" && menuLook.bg !== "rgb(139, 33, 70)" && menuLook.box === "none", "a closed menu shows no panel and its button is not filled: " + JSON.stringify(menuLook));
+    ok(/Attorney/.test(menuLook.who) && !menuLook.cards.includes("Who you are talking with"), "the header says who the freelancer is talking with, in one card: " + JSON.stringify(menuLook));
     // The AI tools sit in one menu by the message box; Report and Block sit under More
     ok(await dela(p).locator("#thread-more").count() === 1 && await dela(p).getByRole("button", { name: "✦ Draft an agenda" }).count() === 0 && !t.includes("AI help"), "Report and Block sit under More, and the agenda button is gone from the conversation");
     await dela(p).locator("#thread-ai-btn").click();

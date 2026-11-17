@@ -6605,11 +6605,18 @@
       var t = r.thread;
       var aboutWord = t.kind === "intro" ? "Introduction, before any gig" : t.kind === "bench" ? "Bench conversation: " + t.gig_title : "Gig: " + t.gig_title;
       var headActs = h("div", { class: "row thread-acts", style: "gap:8px;flex-wrap:wrap;justify-content:flex-end" });
+      // A freelancer talks with a person at a firm: the header names that person, says they are verified, and names the
+      // firm. It used to be a second card, "Who you are talking with" (ChatGPT check 4, 2026-11-17: the name sat in an
+      // extra card and the header only had the firm).
+      var cl = r.client && (r.client.name || r.client.firm_name) ? r.client : null;
+      var whoName = cl ? (cl.name || cl.firm_name) : t.other_name;
+      var whoLine = cl ? h("div", { class: "small", id: "thread-who" }, cl.verified ? h("span", { class: "talent-ver", text: "✓ Verified" }) : null,
+        h("span", { class: "muted", text: (cl.verified ? " · " : "") + (cl.kind === "agency" ? "Agency" : "Attorney") + (cl.firm_name && cl.firm_name !== whoName ? " at " + cl.firm_name : "") })) : null;
       el.appendChild(h("div", { class: "card thread-head" }, h("div", { class: "row", style: "gap:12px;align-items:center;flex-wrap:wrap" },
-        smallFace({ photo_url: t.photo_url, other_name: t.other_name }),
-        h("div", { class: "grow", style: "min-width:160px" }, h("h1", { style: "margin:0;font-size:22px", text: t.other_name }), h("div", { class: "small muted", id: "thread-about", text: aboutWord })),
+        smallFace({ photo_url: cl ? cl.photo_url : t.photo_url, other_name: whoName }),
+        cl && cl.logo_url ? h("img", { class: "firm-logo", src: cl.logo_url, alt: "Logo of " + (cl.firm_name || whoName) }) : null,
+        h("div", { class: "grow", style: "min-width:160px" }, h("h1", { style: "margin:0;font-size:22px", text: whoName }), whoLine, h("div", { class: "small muted", id: "thread-about", text: aboutWord })),
         headActs)));
-      var tcc = clientCard(r.client, "Who you are talking with"); if (tcc) el.appendChild(tcc);
       var noGig = t.kind === "bench" || t.kind === "intro";
       el.appendChild(h("p", { class: "muted", text: t.kind === "intro" ? (r.role === "attorney" ? "A conversation before any gig. Messages and an introductory call only: files come with a gig. Nobody is hired here. Keep all work, contact and payment on Lawfecta." : "An attorney wrote to you before posting a gig. Messages and an introductory call only; nobody is hired here. Keep all work, contact and payment on Lawfecta.") : t.kind === "bench" ? t.gig_title + ": your ongoing bench conversation. It shares no files and is not a contract; new work goes through a gig. Keep all work, contact and payment on Lawfecta." : "About the gig \"" + t.gig_title + "\". Keep all work, contact and payment on Lawfecta." }));
       var tools = headActs;
@@ -6736,7 +6743,9 @@
           files.forEach(function (f) {
             var cb = h("input", { type: "checkbox", checked: attach.indexOf(f.id) >= 0 });
             cb.addEventListener("change", function () { if (cb.checked) addFile(f.id, f.name); else { attach = attach.filter(function (x) { return x !== f.id; }); drawChips(); } });
-            box.appendChild(h("label", { style: "display:flex;gap:6px;font-weight:400;min-height:32px;align-items:center" }, cb, f.name));
+            // Two files can carry the same name: the version and the day it was added tell them apart
+            var when = f.created_at ? " (" + (f.version && f.version > 1 ? "version " + f.version + ", " : "") + "added " + D.dateTime(f.created_at) + ")" : "";
+            box.appendChild(h("label", { style: "display:flex;gap:6px;font-weight:400;min-height:32px;align-items:center;flex-wrap:wrap" }, cb, h("span", { text: f.name }), when ? h("span", { class: "small muted", text: when }) : null));
           });
           box.appendChild(h("div", { class: "row", style: "margin-top:6px" }, h("button", { class: "ghost small", type: "button", onclick: function () { D.clear(attachWrap); pick.querySelector("summary").focus(); } }, "Done")));
           attachWrap.appendChild(box);
