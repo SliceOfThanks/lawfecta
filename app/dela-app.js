@@ -865,11 +865,31 @@
       return homeFoot(c, "View your plan", function () { goTab("subscription"); });
     }
     homeLoad(c, inner, function () { return loadUsage(true).then(function (u) { return u || { ok: false }; }); }, function (u) {
-      usageLines(u).filter(function (l) { return l.key !== "playbooks"; }).forEach(function (l) {
-        var p = usagePct(l.used, l.limit);
-        inner.appendChild(h("div", null, h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("b", { class: "grow", text: l.key === "actions" ? "DELA actions" : l.label }), h("span", { class: "hsub", text: l.text })),
-          l.limit ? h("div", { class: "bar", role: "progressbar", "aria-label": l.label, "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(p) }, h("span", { style: "width:" + p + "%" + (p >= 100 ? ";background:var(--bad)" : p >= (u.warn_pct || 80) ? ";background:#d9a400" : "") })) : null));
+      // A ring for the month's DELA actions (Stacey 2026-11-17: "a circle graph visual of usage"), the other limits beside it
+      var num = function (n) { return Number(n || 0).toLocaleString("en-US"); };
+      var act = u.actions, lim = act.limit, p = usagePct(act.used, lim), warn = u.warn_pct || 80;
+      var tone = lim && p >= 100 ? "var(--bad)" : lim && p >= warn ? "#d9a400" : "var(--brand)";
+      var R = 50, C = 2 * Math.PI * R;
+      var svg = document.createElementNS(SVG_NS, "svg");
+      svg.setAttribute("viewBox", "0 0 120 120"); svg.setAttribute("aria-hidden", "true");
+      [["var(--line)", C], [tone, lim ? C * p / 100 : 0]].forEach(function (x) {
+        var ci = document.createElementNS(SVG_NS, "circle");
+        ci.setAttribute("cx", "60"); ci.setAttribute("cy", "60"); ci.setAttribute("r", String(R)); ci.setAttribute("fill", "none"); ci.setAttribute("stroke-width", "12");
+        ci.setAttribute("stroke", x[0]); ci.setAttribute("stroke-linecap", "round"); ci.setAttribute("stroke-dasharray", x[1] + " " + C); ci.setAttribute("transform", "rotate(-90 60 60)");
+        if (x[1] > 0) svg.appendChild(ci);
       });
+      var said = lim ? num(act.used) + " of " + num(lim) + " DELA actions used this month, " + p + " percent" : num(act.used) + " DELA actions used this month, no limit on your plan";
+      var ring = h("div", { class: "usage-ring", role: "img", "aria-label": said }, svg,
+        h("div", { class: "usage-mid", "aria-hidden": "true" }, h("b", { text: num(act.used) }), h("span", { text: lim ? "/ " + num(lim) : "used" })));
+      var side = h("div", { class: "usage-side" },
+        h("div", null, h("b", { text: "DELA actions" }), h("div", { class: "hsub", text: lim ? Math.max(lim - act.used, 0) === 0 ? "None left this month" : num(Math.max(lim - act.used, 0)) + " left this month (" + p + "% used)" : "No limit on your plan" }),
+          act.shared ? h("div", { class: "hsub", text: "Shared by your firm" }) : null));
+      usageLines(u).filter(function (l) { return l.key !== "actions"; }).forEach(function (l) {
+        var q = usagePct(l.used, l.limit);
+        side.appendChild(h("div", null, h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("b", { class: "grow", text: l.label }), h("span", { class: "hsub", text: l.text.replace(" (no limit on your plan)", "") })),
+          l.limit ? h("div", { class: "bar", role: "progressbar", "aria-label": l.label, "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(q) }, h("span", { style: "width:" + q + "%" + (q >= 100 ? ";background:var(--bad)" : q >= warn ? ";background:#d9a400" : "") })) : null));
+      });
+      inner.appendChild(h("div", { class: "usage-row" }, ring, side));
       inner.appendChild(h("p", { class: "hsub", text: "DELA actions reset on " + D.date(u.resets_on) + "." }));
     });
     return homeFoot(c, "View usage details", function () { goTab(NL() ? "subscription" : "usage"); });

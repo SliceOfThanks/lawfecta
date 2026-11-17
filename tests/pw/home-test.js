@@ -81,6 +81,10 @@ const KEYS = "'onboarding_widget', 'flex_gigs', 'engagements', 'profiles', 'tale
     ok(JSON.stringify(home.filter((x) => x !== "account")) === JSON.stringify(["ask", "attention", "projects", "usage", "notifications"]) && home.includes("account"), "attorney: the six default widgets, in the default order: " + home.join(", "));
     ok(t.includes("Needs your attention") && t.includes("My projects") && t.includes("Urgent notifications") && t.includes("Home check notice"), "attorney: each widget shows its own content, with the unread notification");
     t = await waitFor(p, "DELA actions reset on");
+    // Stacey 2026-11-17: the month's DELA actions as a ring, with the other limits beside it
+    const ring = await inShadow(p, (root) => { const r = root.querySelector("#home-grid .usage-ring"); return r ? { said: r.getAttribute("aria-label"), mid: r.querySelector(".usage-mid").innerText.replace(/\s+/g, " "), bars: root.querySelectorAll("#home-grid [data-widget=usage] .bar").length, w: r.getBoundingClientRect().width } : null; });
+    ok(ring && /^\d[\d,]* of [\d,]+ DELA actions used this month, \d+ percent$/.test(ring.said) && /^\d[\d,]* \/ [\d,]+$/.test(ring.mid) && ring.bars >= 1 && ring.w > 100, "Monthly usage: a ring says how many DELA actions are used, with storage beside it: " + JSON.stringify(ring));
+    ok(t.includes("left this month") && t.includes("Storage"), "Monthly usage: what is left is said in words too");
     ok(t.includes("View usage details →") && t.includes("View all projects →") && t.includes("View all notifications →"), "attorney: each widget links to its full page");
     ok(await inShadow(p, (root) => getComputedStyle(root.querySelector("#home-grid")).gridTemplateColumns.split(" ").length === 2), "attorney at 1280: two columns");
     ok(await inShadow(p, (root) => root.querySelectorAll(".hero").length === 0), "the old banner is not on this Home");
