@@ -9,6 +9,7 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 ## Talent: "Bookmarks" tab, filter icon, the DELA bar from Stacey's mockup: ON THE SITE (2026-11-17)
 - Site: code_version 0866953, api function version 122, migrations through 0124, health "ok". GitHub Tests passed on that commit (run 44102886535). The website has been back since 2026-11-16.
 - A "Bookmarks" tab next to "Search" and "My bench" lists the bookmarked freelancers who are match-ready, on the same short cards (Stacey: "can we have them listed under a tab next to my bench"). Also reachable at ?tab=talent&view=bookmarks.
+- Right after (code_version 8f0470a, api function 123, migration 0125, run 44105654158): the Bookmarks tab also has a card "Not available right now (N)" naming bookmarked freelancers who are not listed in Talent at the moment, each with "Remove bookmark". Names only, no reason (GET /bookmarks?names=1, dela_bookmark_names).
 - "Filters (N)" has a filter icon. Stacey's screenshot of 2026-11-17 showed the Filters button and its panel working on the live site.
 - The "Find a freelancer with DELA" bar follows her mockup: label "1 DELA action" with an "i" (or "Your own AI key"), shorter subtitle, example and privacy line with a shield. GET /helpers answers own_key (true or false). "Suggest filters" already ran on a member's own key.
 
