@@ -5877,6 +5877,11 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
         const route = on ? await rpc<Record<string, any>>(ctx, "dela_ai_route", { p_person: s.person_id, p_side: s.side, p_task: "chat", p_lawfecta_once: false }).catch(() => null) : null;
         return json(ctx, { ok: true, on, credits, own_key: !!route?.ok && route.source !== "lawfecta" }); }
       case "GET /threads/file": return await messageFile(ctx);
+      // Step 33: the member's own Home. A layout only says what Home shows; nothing else reads it.
+      case "GET /home/layout": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_home_layout", { p_person: s.person_id, p_side: s.side })); }
+      case "POST /home/layout": { const s = await memberSide(ctx);
+        return json(ctx, await rpc(ctx, "dela_home_layout_save", { p_person: s.person_id, p_side: s.side, p_widgets: Array.isArray(ctx.body.widgets) ? ctx.body.widgets.slice(0, 30).map((w: unknown) => str(w, 40)) : null })); }
+      case "POST /home/layout/reset": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_home_layout_reset", { p_person: s.person_id, p_side: s.side })); }
       case "GET /prefs": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_prefs", { p_person: s.person_id })); }
       case "POST /prefs": { const s = await memberSide(ctx);
         // Each choice is saved only when it is sent, so turning one off never resets the other

@@ -298,7 +298,7 @@ async function makeMember(bd, side, plan, name) {
     // ---------- A freelancer who is ready for invitations ----------
     s = await open(browser, READY, "&tab=home", 1280, 900);
     p = s.page;
-    t = await waitFor(p, "Your work");
+    t = await waitFor(p, "My work");
     ok(t.includes("Profile complete") && t.includes("Attorneys can invite you.") && !t.includes("Complete your profile"), "ready freelancer: the profile box is gone; one status line says they can be invited");
     ok(t.includes("Paid out this month") && t.includes("all time") && t.includes("Proposals left this month"), "ready freelancer: Paid out shows this month and all time");
     // A number opens the list it counts
@@ -306,7 +306,7 @@ async function makeMember(bd, side, plan, name) {
     await p.waitForFunction(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.activeElement && r.activeElement.tagName === "H2" && r.activeElement.textContent.indexOf("Invitations") === 0; }, null, { timeout: 8000 });
     ok(p.url().includes("tab=work"), "ready freelancer: the Invitations number opens Work at the Invitations list");
     await dela(p).getByRole("button", { name: "Home", exact: true }).click();
-    await waitFor(p, "Your work");
+    await waitFor(p, "My work");
     await sql(`update member_profiles set availability_confirmed_at = now() - interval '20 days' where person_id = ${person(READY)} and side = 'freelancer'; select dela_profile_refresh(${person(READY)}, 'freelancer')`);
     await p.reload();
     t = await waitFor(p, "Your availability is out of date");
@@ -339,12 +339,12 @@ async function makeMember(bd, side, plan, name) {
     });
     await p.goto(`${BASE}/page/DELA-App?uid=5103&plan=&tab=home`);
     t = await waitFor(p, "Needs your attention");
-    ok(t.indexOf("Needs your attention") < t.indexOf("Your work") && t.indexOf("Your work") < t.indexOf("Complete your profile"), "work in hand: Needs your attention, then Your work, then the profile card");
+    ok(t.indexOf("Needs your attention") < t.indexOf("My work") && t.indexOf("My work") < t.indexOf("Complete your profile"), "work in hand: Needs your attention, then Your work, then the profile card");
     ok(t.indexOf("Milestone 1: Draft") < t.indexOf("Agreement to sign") && t.includes("Review and sign") && t.includes("View milestone"), "attention is ranked by the nearest deadline, with specific actions");
     // A page address DELA does not know lands on the new Home, never on the old one (found in the prompt check, 2026-11-13)
     await p.goto(`${BASE}/page/DELA-App?uid=5103&plan=&tab=nosuchpage`);
     t = await waitFor(p, "Needs your attention");
-    ok(await p.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelectorAll(".hero").length) === 0 && t.includes("Your work"), "an unknown page address shows the new Home, not the old one");
+    ok(await p.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelectorAll(".hero").length) === 0 && t.includes("My work"), "an unknown page address shows the new Home, not the old one");
     ok(t.includes("Work you already have is not affected.") && !t.includes("Invitations start when"), "work in hand with an incomplete profile: no contradicting message");
     await p.screenshot({ path: path.join(SHOTS, "workspace-desktop-work-first.png") });
     // Step 16 (Stacey 2026-11-12): "Subscription" under Profile shows the plan, what it allows, usage, and every plan of
@@ -536,7 +536,7 @@ async function makeMember(bd, side, plan, name) {
     // ---------- The attorney ----------
     s = await open(browser, ATT, "&tab=home", 1280, 900);
     p = s.page;
-    t = await waitFor(p, "Your projects");
+    t = await waitFor(p, "My projects");
     const amenu = await inShadow(p, (root) => [...root.querySelectorAll(".nl-side .nl-item")].map((b) => b.innerText.trim()).slice(0, 4));
     ok(amenu.join(",") === "Home,Projects,Ask DELA,Library", "attorney: the four main pages: " + amenu.join(", "));
     ok(t.includes("Deliveries to review") && t.includes("Open gigs") && t.includes("Gig drafts"), "attorney: the project numbers are on Home");
@@ -547,12 +547,12 @@ async function makeMember(bd, side, plan, name) {
     await p.waitForFunction(() => new URL(location.href).searchParams.get("tab") === "library", null, { timeout: 8000 });
     ok(true, "attorney: the suggestion's button opens the Library to start");
     await dela(p).getByRole("button", { name: "Home", exact: true }).click();
-    await waitFor(p, "Your projects");
+    await waitFor(p, "My projects");
     await dela(p).getByRole("button", { name: /Open gigs/ }).first().click();
     await p.waitForFunction(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.activeElement && r.activeElement.tagName === "H2" && r.activeElement.textContent.indexOf("Your gigs") === 0; }, null, { timeout: 8000 });
     ok(p.url().includes("tab=projects"), "attorney: the Open gigs number opens Projects at Your gigs");
     await dela(p).getByRole("button", { name: "Home", exact: true }).click();
-    await waitFor(p, "Your projects");
+    await waitFor(p, "My projects");
     await p.setViewportSize({ width: 390, height: 844 });
     await p.waitForTimeout(300);
     const abar = await inShadow(p, (root) => [...root.querySelectorAll(".nl-bar button")].map((b) => b.innerText.trim()));

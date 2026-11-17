@@ -188,6 +188,11 @@
     send: [["path", "M4 12l16-8-6 16-3-6z"]],
     swap: [["path", "M7 7h11l-3-3M17 17H6l3 3"]],
     out: [["path", "M10 4H5v16h5"], ["path", "M14 8l4 4-4 4M18 12H9"]],
+    alert: [["path", "M12 4l9 16H3z"], ["path", "M12 10v4"], ["path", "M12 17v.5"]],
+    bars: [["path", "M5 20v-7"], ["path", "M12 20V5"], ["path", "M19 20v-11"]],
+    bolt: [["path", "M13 3L5 13h6l-1 8 8-10h-6z"]],
+    grid: [["path", "M4 4h6v6H4z"], ["path", "M14 4h6v6h-6z"], ["path", "M4 14h6v6H4z"], ["path", "M14 14h6v6h-6z"]],
+    grip: [["circle", 9, 6, 1], ["circle", 15, 6, 1], ["circle", 9, 12, 1], ["circle", 15, 12, 1], ["circle", 9, 18, 1], ["circle", 15, 18, 1]],
   };
   var SVG_NS = "http://www.w3.org/2000/svg"; // rules-ok: the SVG namespace name, not a web address DELA calls
   function icon(name) {
@@ -660,7 +665,7 @@
       w.appendChild(h("p", { text: pf.readiness === "incomplete" ? "Invitations start when your profile, the LinkedIn check and your availability are in place." : pf.readiness === "verification_pending" ? "Invitations start when the LinkedIn check is done." : "Invitations start again once the step above is done." }));
       return w;
     }
-    var c = hcard(att ? "Your projects" : "Your work", alerts ? h("span", { style: "margin-left:auto" }, alerts) : null), inner = h("div", { class: "hgap" });
+    var c = hcard(att ? "My projects" : "My work", alerts ? h("span", { style: "margin-left:auto" }, alerts) : null), inner = h("div", { class: "hgap" });
     c.appendChild(inner);
     var tiles = h("div", { class: "hstats" });
     if (att) {
@@ -789,47 +794,371 @@
     var go = c.link ? noticeAction(c.link) : null;
     if (go) location.assign(go.href);
   }
-  function homeNew() {
-    var hm = me.home || {}, att = me.side === "attorney", fn = D.firstName(me.person.name);
-    var el = h("div", null, h("h1", { text: fn && fn !== "there" ? "Hi, " + fn : "Hi" }));
-    var left = h("div", { class: "hstack" });
-    homeAsk = null;
-    var pb = profileBox(hm), rows = attentionRows(hm);
-    homeHelpBtn = pb && pb.helpBtn ? pb.helpBtn : null;
-    homeHasProfileCard = !!pb;
-    var attention = rows.length ? hcard("Needs your attention", h("span", { class: "badge pink", text: String(rows.length) })) : null;
-    if (attention) attention.appendChild(h("div", { class: "hl" }, rows));
-    // Commitments first: what needs the member, then their work, then the profile. With no work in hand and nothing
-    // waiting, the profile card leads.
-    var busy = (hm.active_projects || 0) + (hm.invitations || 0) > 0;
-    if (attention) left.appendChild(attention);
-    // The next meeting, with the way into the room when it is open (meetings and introductory calls)
-    if ((me.switches || {}).meetings) {
-      var nextSlot = h("div", { id: "home-next-meeting" });
-      left.appendChild(nextSlot);
-      api.get("/meetings").then(function (r) {
-        if (!r.ok || !nextSlot.parentNode) return;
-        var now = Date.now();
-        var m = (r.meetings || []).filter(function (x) { return x.status === "confirmed" && new Date(x.end_at).getTime() > now; }).sort(function (x, y) { return String(x.start_at).localeCompare(String(y.start_at)); })[0];
-        if (!m) return;
-        var card = hcard("Your next meeting");
+  // ---------- Step 33: a Home each member arranges (docs/briefs/step-33-home-dashboard.md) ----------
+  // Which widgets a side may have, and the member's own order, come from the server (GET /home/layout). A layout only
+  // says what Home shows: removing a widget hides it here and changes nothing anywhere else in DELA.
+  var HOME_DEFAULT = ["ask", "attention", "projects", "usage", "notifications", "account"];
+  var HOME_W = {
+    ask: { title: "Ask DELA", about: "Ask a question and see DELA's next step for you.", icon: "ask", draw: function () { return askBox(); } },
+    attention: { title: "Needs your attention", about: "Signatures, payments, reviews and approvals that wait on you.", icon: "alert", draw: wAttention },
+    projects: { title: "My projects", flTitle: "My work", about: "Your active work, gigs and drafts.", flAbout: "Your active work, invitations and payouts.", icon: "projects", draw: wProjects },
+    usage: { title: "Monthly usage", about: "Your DELA actions, storage and plan limits.", flAbout: "What your plan gives you this month.", icon: "bars", draw: wUsage },
+    notifications: { title: "Urgent notifications", about: "Your newest unread updates and alerts.", icon: "bell", draw: wNotices },
+    account: { title: "Account status", about: "Your profile, verification and plan.", icon: "shield", draw: wAccount },
+    meetings: { title: "Upcoming meetings", about: "Your next scheduled calls and meetings.", icon: "meet", draw: wMeetings },
+    messages: { title: "Recent messages", about: "Your latest conversations and unread messages.", icon: "inbox", draw: wMessages },
+    bench: { title: "My bench", about: "The freelancers you trust and whether they are available.", icon: "profile", draw: wBench },
+    standing: { title: "Standing arrangements", about: "Recurring work and what was spent this month.", icon: "swap", draw: wStanding },
+    quick: { title: "Quick actions", about: "Shortcuts to the pages you use most.", icon: "bolt", draw: wQuick }
+  };
+  function homeTitle(id) { var w = HOME_W[id]; return me.side === "freelancer" && w.flTitle ? w.flTitle : w.title; }
+  function homeAbout(id) { var w = HOME_W[id]; return me.side === "freelancer" && w.flAbout ? w.flAbout : w.about; }
+  var homeLay = { data: null, draft: null, grid: null, nodes: {}, forSide: null };
+  // A widget whose feature is switched off for this member is not offered and not drawn
+  function homeAllowed() {
+    var sw = me.switches || {};
+    var off = { ask: !(sw.onboarding_widget || sw.ai_generation), messages: !sw.gig_chat, meetings: !sw.meetings, bench: !sw.bench || me.side !== "attorney", standing: !sw.engagements };
+    return ((homeLay.data && homeLay.data.all) || HOME_DEFAULT).filter(function (id) { return HOME_W[id] && !off[id]; });
+  }
+  function homeFoot(c, label, go) { c.appendChild(h("div", { class: "hw-foot" }, h("button", { class: "linkish", type: "button", onclick: go }, label + " →"))); return c; }
+  // A widget that loads its own data: it says so while it loads, and says so with "Try again" when it cannot
+  function homeLoad(c, inner, getter, fill) {
+    function run() {
+      D.clear(inner);
+      inner.appendChild(h("p", { class: "hsub", text: "Loading..." }));
+      getter().then(function (r) {
+        D.clear(inner);
+        if (!r || r.ok === false) throw new Error("load");
+        fill(r);
+      }).catch(function () {
+        D.clear(inner);
+        inner.appendChild(h("p", { class: "notice hw-failed", role: "status" }, "This could not load just now. ", h("button", { class: "linkish", type: "button", onclick: run }, "Try again")));
+      });
+    }
+    run();
+    return c;
+  }
+  function wAttention(hm) {
+    var rows = attentionRows(hm);
+    var c = hcard("Needs your attention", rows.length ? h("span", { class: "badge pink", text: String(rows.length) }) : null);
+    if (!rows.length) { c.appendChild(h("p", { class: "hsub", text: "Nothing needs you right now." })); return c; }
+    var list = h("div", { class: "hl" }, rows.slice(0, 3));
+    c.appendChild(list);
+    if (rows.length > 3) {
+      var more = h("button", { class: "linkish", type: "button", "aria-expanded": "false" }, "View all " + rows.length + " items →");
+      more.addEventListener("click", function () { rows.slice(3).forEach(function (r) { list.appendChild(r); }); more.parentNode.remove(); if (list.children[3]) list.children[3].focus(); });
+      c.appendChild(h("div", { class: "hw-foot" }, more));
+    }
+    return c;
+  }
+  function wProjects(hm) {
+    var att = me.side === "attorney";
+    return homeFoot(workBox(hm), att ? "View all projects" : "View all work", function () { tab = att ? "projects" : "work"; gigs.id = null; draw(); });
+  }
+  function wUsage() {
+    var c = hcard("Monthly usage"), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    if (me.side !== "attorney") {
+      var list = (me.entitlements || []).slice(0, 5);
+      if (!list.length) inner.appendChild(h("p", { class: "hsub", text: "Your plan has no monthly limits to show." }));
+      else inner.appendChild(h("div", { class: "hl" }, list.map(function (e) { return h("div", { class: "hrow" }, h("span", { class: "what" }, h("b", { text: D.featLabel(e) })), h("span", { class: "hsub", text: D.limitText(e) })); })));
+      return homeFoot(c, "View your plan", function () { goTab("subscription"); });
+    }
+    homeLoad(c, inner, function () { return loadUsage(true).then(function (u) { return u || { ok: false }; }); }, function (u) {
+      usageLines(u).filter(function (l) { return l.key !== "playbooks"; }).forEach(function (l) {
+        var p = usagePct(l.used, l.limit);
+        inner.appendChild(h("div", null, h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("b", { class: "grow", text: l.key === "actions" ? "DELA actions" : l.label }), h("span", { class: "hsub", text: l.text })),
+          l.limit ? h("div", { class: "bar", role: "progressbar", "aria-label": l.label, "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(p) }, h("span", { style: "width:" + p + "%" + (p >= 100 ? ";background:var(--bad)" : p >= (u.warn_pct || 80) ? ";background:#d9a400" : "") })) : null));
+      });
+      inner.appendChild(h("p", { class: "hsub", text: "DELA actions reset on " + D.date(u.resets_on) + "." }));
+    });
+    return homeFoot(c, "View usage details", function () { goTab(NL() ? "subscription" : "usage"); });
+  }
+  function wNotices() {
+    var n0 = typeof me.unread === "number" ? me.unread : 0;
+    var c = hcard("Urgent notifications", n0 ? h("span", { class: "badge pink", text: String(n0) }) : null), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    homeLoad(c, inner, function () { return api.get("/notifications"); }, function (r) {
+      var items = (r.items || []).filter(function (n) { return !n.read; }).slice(0, 3);
+      if (!items.length) { inner.appendChild(h("p", { class: "hsub", text: "No unread notifications." })); return; }
+      inner.appendChild(h("div", { class: "hl" }, items.map(function (n) {
+        var btn = noticeBtn(n);
+        return hrow({ dot: "warn", title: n.title, sub: D.dateTime(n.created_at), act: btn ? btn.label : "Open", go: function () { if (btn) noticeGo(n, btn); else openNoticesPage("all"); } });
+      })));
+    });
+    return homeFoot(c, "View all notifications", function () { openNoticesPage("all"); });
+  }
+  function wAccount(hm) {
+    var pb = profileBox(hm);
+    if (pb) { pb.pending = true; return pb; }
+    var c = hcard("Account status"), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    var st = statusLine(hm);
+    if (st) inner.appendChild(st);
+    inner.appendChild(planLine());
+    return homeFoot(c, "Manage profile", function () { goTab("profile"); });
+  }
+  function wMeetings() {
+    var c = hcard("Upcoming meetings"), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    homeLoad(c, inner, function () { return api.get("/meetings"); }, function (r) {
+      var now = Date.now();
+      var list = (r.meetings || []).filter(function (x) { return x.status === "confirmed" && new Date(x.end_at).getTime() > now; }).sort(function (x, y) { return String(x.start_at).localeCompare(String(y.start_at)); }).slice(0, 2);
+      if (!list.length) { inner.appendChild(h("p", { class: "hsub", text: "No upcoming meetings." })); return; }
+      list.forEach(function (m) {
         var acts = h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" });
         if (m.join_url && String(m.join_url).indexOf("dela:") === 0) { var jb = h("button", { class: "blue small", type: "button" }, "Join the meeting"); jb.addEventListener("click", function () { openMeetingRoom(m, jb); }); acts.appendChild(jb); }
         else if (m.join_url) acts.appendChild(h("a", { class: "btn blue", href: m.join_url, target: "_blank", rel: "noopener" }, "Join the meeting"));
         acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { talk.meeting = m.id; tab = "meetings"; draw(); } }, "Open the meeting"));
-        card.appendChild(h("div", { class: "row", style: "gap:10px;align-items:center;flex-wrap:wrap" }, smallFace(m),
-          h("div", { class: "grow" }, h("b", { text: m.other_name + ": " + m.gig_title }), h("div", { class: "small muted", text: whenLabel(m.start_at, m.length_min) + ", " + tzName() + (m.join_url ? "" : m.room_status === "ready" ? ". The room opens " + (new Date(m.join_opens_at).getTime() > now ? "at " + timeLabel(m.join_opens_at) + " on " + dayLabel(m.join_opens_at) : "soon") + "." : "") })), acts));
-        nextSlot.appendChild(card);
-      }).catch(function () {});
+        inner.appendChild(h("div", { class: "row hw-meet", style: "gap:10px;align-items:center;flex-wrap:wrap" }, smallFace(m),
+          h("div", { class: "grow" }, h("b", { text: m.other_name + ": " + m.gig_title }), h("div", { class: "small muted", text: whenLabel(m.start_at, m.length_min) + ", " + tzName() })), acts));
+      });
+    });
+    return homeFoot(c, "View calendar", function () { goTab("meetings"); });
+  }
+  function wMessages() {
+    var c = hcard("Recent messages"), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    homeLoad(c, inner, function () { return api.get("/threads"); }, function (r) {
+      var when = function (t) { return t.last_at || t.created_at || ""; };
+      var list = (r.threads || []).slice().sort(function (a, b) { return String(when(b)).localeCompare(String(when(a))); }).slice(0, 3);
+      if (!list.length) { inner.appendChild(h("p", { class: "hsub", text: "No conversations yet." })); return; }
+      inner.appendChild(h("div", { class: "hl" }, list.map(function (t) {
+        var prev = t.last_text ? (t.last_mine ? "You: " : "") + t.last_text : "No messages yet";
+        return hrow({ dot: t.unread ? "warn" : null, title: t.other_name + (t.unread ? " (" + t.unread + " unread)" : ""), sub: (t.gig_title ? t.gig_title + ". " : "") + prev, go: function () { talk.thread = t.id; talk.openReply = null; tab = "inbox"; draw(); } });
+      })));
+    });
+    return homeFoot(c, "View inbox", function () { goTab("inbox"); });
+  }
+  function wBench() {
+    var c = hcard("My bench"), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    var open = function () { talentMode = "bench"; talentPerson = null; goTab("talent"); };
+    homeLoad(c, inner, function () { return api.get("/bench").then(function (b) { return b && b.on === false ? { ok: true, items: [] } : b; }); }, function (b) {
+      var list = (b.items || []).filter(function (x) { return x.kind !== "firm"; }).slice(0, 3);
+      if (!list.length) { inner.appendChild(h("p", { class: "hsub", text: "Nobody on your bench yet. Invite someone from Talent, or after a completed job." })); return; }
+      inner.appendChild(h("div", { class: "hl" }, list.map(function (x) {
+        return hrow({ title: x.name, sub: x.headline || "", badge: x.status === "invited" ? "Invitation sent" : x.available ? "Available" : "Not available now", tone: x.status !== "invited" && x.available ? "ready" : "held", go: open });
+      })));
+    });
+    return homeFoot(c, "Open my bench", open);
+  }
+  function wStanding() {
+    var c = hcard("Standing arrangements"), inner = h("div", { class: "hgap" }), att = me.side === "attorney";
+    c.appendChild(inner);
+    var open = function () { tab = att ? "projects" : "work"; gigs.id = null; draw(); };
+    homeLoad(c, inner, function () { return api.get("/standing").then(function (st) { return st && st.on === false ? { ok: true, arrangements: [] } : st; }); }, function (st) {
+      var list = (st.arrangements || []).filter(function (a) { return a.status !== "ended" && a.status !== "declined"; }).slice(0, 3);
+      if (!list.length) { inner.appendChild(h("p", { class: "hsub", text: "No standing arrangement is active." })); return; }
+      inner.appendChild(h("div", { class: "hl" }, list.map(function (a) {
+        return hrow({ title: att ? a.freelancer_name : a.firm_name, sub: D.money(a.spend_cents) + " of " + D.money(a.cap_cents) + " this month. " + a.open + " of " + a.max_open + " jobs open.", badge: STANDING_WORDS[a.status] || a.status, tone: a.status === "active" ? "ready" : "held", go: open });
+      })));
+    });
+    return homeFoot(c, att ? "Open Projects" : "Open Work", open);
+  }
+  function wQuick() {
+    var c = hcard("Quick actions"), sw = me.switches || {}, att = me.side === "attorney", acts = [];
+    if (att) {
+      if (sw.flex_gigs) acts.push(["Post a gig", function () { tab = "projects"; gigs.id = null; draw(); }]);
+      if (sw.talent_search) acts.push(["Find a freelancer", function () { talentMode = "search"; talentPerson = null; goTab("talent"); }]);
+      if (sw.playbook_library) acts.push(["Open the Library", function () { goTab("library"); }]);
+    } else {
+      if (sw.flex_gigs) acts.push(["Find work", function () { tab = "work"; gigs.id = null; draw(); }]);
+      if (sw.profiles) acts.push(["Update my profile", function () { goTab("profile"); }]);
+      if (sw.engagements) acts.push(["See my earnings", function () { goTab("earnings"); }]);
     }
-    if (attention || busy) { left.appendChild(workBox(hm)); if (pb) left.appendChild(pb); }
-    else { if (pb) left.appendChild(pb); left.appendChild(workBox(hm)); }
-    var st = statusLine(hm);
-    if (st) left.appendChild(st);
-    left.appendChild(planLine());
-    var ask = askBox();
-    el.appendChild(h("div", { class: "hcols" + (localPref("side.folded") ? " capped" : "") }, left, ask));
+    if (sw.gig_chat) acts.push(["Open my inbox", function () { goTab("inbox"); }]);
+    if (sw.file_uploads && att) acts.push(["Open Files", function () { goTab("files"); }]);
+    c.appendChild(h("div", { class: "hw-quick" }, acts.map(function (a) { return h("button", { class: "ghost small", type: "button", onclick: a[1] }, a[0]); })));
+    return c;
+  }
+  function homeNode(id, hm) {
+    if (!(id in homeLay.nodes)) {
+      var n = HOME_W[id].draw(hm) || null;
+      if (n) { n.classList.add("hw"); n.setAttribute("data-widget", id); }
+      homeLay.nodes[id] = n;
+    }
+    return homeLay.nodes[id];
+  }
+  // Draws the member's widgets in their order. The profile card is the one thing that can show without being chosen:
+  // while the profile still blocks the member, it stays on Home (first, unless work or something urgent comes first).
+  function paintHome() {
+    var grid = homeLay.grid, hm = me.home || {};
+    if (!grid || !homeLay.data) return;
+    var allowed = homeAllowed();
+    var ids = (homeLay.draft || homeLay.data.widgets || []).filter(function (id) { return allowed.indexOf(id) >= 0; });
+    if (!ids.length) ids = HOME_DEFAULT.filter(function (id) { return allowed.indexOf(id) >= 0; });
+    var acct = homeNode("account", hm), pending = !!(acct && acct.pending), chosen = ids.indexOf("account") >= 0;
+    homeHelpBtn = pending && acct.helpBtn ? acct.helpBtn : null;
+    homeHasProfileCard = pending;
+    if (pending) {
+      var busy = attentionRows(hm).length > 0 || (hm.active_projects || 0) + (hm.invitations || 0) > 0;
+      if (!chosen) ids = busy ? ids.concat(["account"]) : ["account"].concat(ids);
+      else if (!busy) ids = ["account"].concat(ids.filter(function (id) { return id !== "account"; }));
+      var note = acct.querySelector(".hw-forced");
+      if (!chosen && !note) acct.appendChild(h("p", { class: "hsub hw-forced", text: "Shown on Home until this is done." }));
+      if (chosen && note) note.remove();
+    }
+    D.clear(grid);
+    ids.forEach(function (id) { var n = homeNode(id, hm); if (n) grid.appendChild(n); });
+    if (!grid.firstChild) grid.appendChild(h("p", { class: "muted", text: "Nothing to show yet. Choose \"Customize dashboard\" to add widgets." }));
+  }
+  function homeDash() {
+    var fn = D.firstName(me.person.name), sideKey = me.side + ":" + (me.person.id || "");
+    if (homeLay.forSide !== sideKey) { homeLay.data = null; homeLay.forSide = sideKey; }
+    homeLay.nodes = {}; homeLay.draft = null; homeAsk = null;
+    var btn = h("button", { class: "ghost small", type: "button", id: "home-customize", disabled: true }, icon("grid"), " Customize dashboard");
+    btn.addEventListener("click", function () { openCustomize(btn); });
+    var el = h("div", { class: "home-dash" }, h("div", { class: "home-top" },
+      h("div", { class: "grow" }, h("h1", { text: "Your Workspace" }), h("p", { class: "muted", id: "home-welcome", text: (fn && fn !== "there" ? "Welcome back, " + fn + ". " : "") + "Your work, your priorities." })), btn));
+    var grid = h("div", { class: "home-grid", id: "home-grid" }, h("p", { class: "muted", text: "Loading..." }));
+    el.appendChild(grid);
+    homeLay.grid = grid;
+    function got(r) {
+      if (homeLay.grid !== grid) return;
+      var before = homeLay.data ? JSON.stringify(homeLay.data.widgets) : "";
+      if (r && r.ok) homeLay.data = r;
+      else if (!homeLay.data) homeLay.data = { ok: true, widgets: HOME_DEFAULT.slice(), all: HOME_DEFAULT.slice(), "default": HOME_DEFAULT.slice(), customized: false, offline: true };
+      btn.disabled = !!homeLay.data.offline;
+      if (homeLay.data.offline) btn.title = "Your saved layout could not load. Reload the page to change it.";
+      if (!homeLay.draft && JSON.stringify(homeLay.data.widgets) !== before) paintHome();
+    }
+    if (homeLay.data && !homeLay.data.offline) { btn.disabled = false; paintHome(); }
+    api.get("/home/layout").then(got, function () { got(null); });
     return el;
+  }
+  // The Customize panel: Home stays in view behind it and follows every change as a preview. Nothing is kept until
+  // "Save changes". Order: drag the handle (mouse or touch), or "Move up" and "Move down" in each row's menu.
+  function openCustomize(opener) {
+    closeMenu();
+    if (drawer) closeDrawer();
+    var d = homeLay.data, allowed = homeAllowed();
+    var start = (d.widgets || []).filter(function (id) { return allowed.indexOf(id) >= 0; });
+    var mine = start.slice();
+    var live = h("p", { class: "sr", role: "status", "aria-live": "polite" });
+    var mineBox = h("div"), availBox = h("div");
+    var save = h("button", { class: "blue", type: "button", id: "cz-save" }, "Save changes");
+    var cancel = h("button", { class: "ghost", type: "button", id: "cz-cancel" }, "Cancel");
+    var reset = h("button", { class: "linkish", type: "button", id: "cz-reset" }, "Reset to default");
+    var problem = h("p", { class: "notice bad small", role: "alert", hidden: true });
+    var panel = h("div", { class: "drawer cz-panel", role: "dialog", "aria-label": "Customize dashboard" },
+      h("h2", { style: "margin:0 0 4px;padding-right:84px", text: "Customize dashboard" }),
+      h("p", { class: "muted small", style: "margin:0 0 14px", text: "Add, remove and reorder widgets to make Home work for you. Removing a widget only hides it on Home." }),
+      mineBox, availBox, live, problem,
+      h("div", { class: "cz-foot" }, cancel, save));
+    function changed() { return JSON.stringify(mine) !== JSON.stringify(start); }
+    function say(t) { live.textContent = ""; setTimeout(function () { live.textContent = t; }, 30); }
+    function preview() { homeLay.draft = mine.slice(); paintHome(); save.disabled = !changed(); }
+    function done() { homeLay.draft = null; closeDrawer(); document.removeEventListener("keydown", onKey, true); if (opener && opener.focus) opener.focus(); }
+    function leave() {
+      if (changed() && !confirm("Leave without saving your changes to Home?")) return;
+      done(); paintHome();
+    }
+    function onKey(e) {
+      if (e.key !== "Escape" || !drawer) return;
+      var open = panel.querySelector("details.dmenu[open]");
+      if (open) { open.open = false; open.querySelector("summary").focus(); e.stopPropagation(); return; }
+      e.stopPropagation(); leave();
+    }
+    function move(id, by) {
+      var i = mine.indexOf(id), j = i + by;
+      if (i < 0 || j < 0 || j >= mine.length) return;
+      mine.splice(i, 1); mine.splice(j, 0, id);
+      paint(); preview();
+      say(homeTitle(id) + ", now " + (j + 1) + " of " + mine.length + ".");
+      var again = mineBox.querySelector('[data-id="' + id + '"] summary'); if (again) again.focus();
+    }
+    function remove(id) {
+      if (mine.length <= 1) { say("Keep at least one widget on Home."); problem.hidden = false; problem.textContent = "Keep at least one widget on Home."; return; }
+      var i = mine.indexOf(id);
+      mine.splice(i, 1);
+      paint(); preview();
+      say(homeTitle(id) + " removed from Home. It is under Available widgets.");
+      var add = availBox.querySelector('[data-id="' + id + '"] button'); if (add) add.focus();
+    }
+    function add(id) {
+      mine.push(id);
+      paint(); preview();
+      say(homeTitle(id) + " added to Home, " + mine.length + " of " + mine.length + ".");
+      var row = mineBox.querySelector('[data-id="' + id + '"] summary'); if (row) row.focus();
+    }
+    function row(id, i) {
+      var name = homeTitle(id);
+      var handle = h("span", { class: "cz-grip", "aria-hidden": "true", title: "Drag to reorder" }, icon("grip"));
+      var sw = h("input", { type: "checkbox", role: "switch", class: "cz-switch", checked: true, "aria-label": "Show " + name + " on Home" });
+      sw.addEventListener("change", function () { if (!sw.checked) { if (mine.length <= 1) sw.checked = true; remove(id); } });
+      var sum = h("summary", { class: "btn ghost small", "aria-label": "More for " + name }, icon("more"));
+      var mp = h("div", { class: "menu-panel", role: "group", "aria-label": "More for " + name });
+      var menu = h("details", { class: "dmenu" }, sum, mp);
+      function item(text, fn, off) { var b = h("button", { class: "menu-item", type: "button", disabled: !!off }, text); b.addEventListener("click", function () { menu.open = false; fn(); }); mp.appendChild(b); }
+      item("Move up", function () { move(id, -1); }, i === 0);
+      item("Move down", function () { move(id, 1); }, i === mine.length - 1);
+      item("Remove from Home", function () { remove(id); }, mine.length <= 1);
+      var li = h("li", { class: "cz-row", "data-id": id }, handle, h("span", { class: "cz-ic", "aria-hidden": "true" }, icon(HOME_W[id].icon)), h("span", { class: "cz-name grow", text: name }), sw, menu);
+      // Dragging by the handle, with a mouse or a finger: the row follows the pointer one place at a time
+      handle.addEventListener("pointerdown", function (e) {
+        e.preventDefault();
+        var ul = li.parentNode;
+        li.classList.add("drag");
+        try { handle.setPointerCapture(e.pointerId); } catch (x) { /* older browsers drag without capture */ }
+        function over(ev) {
+          var at = app.getRootNode().elementFromPoint ? app.getRootNode().elementFromPoint(ev.clientX, ev.clientY) : document.elementFromPoint(ev.clientX, ev.clientY);
+          var other = at && at.closest ? at.closest(".cz-row") : null;
+          if (!other || other === li || other.parentNode !== ul) return;
+          var rows = [].slice.call(ul.children);
+          ul.insertBefore(li, rows.indexOf(other) > rows.indexOf(li) ? other.nextSibling : other);
+        }
+        function up() {
+          handle.removeEventListener("pointermove", over); handle.removeEventListener("pointerup", up); handle.removeEventListener("pointercancel", up);
+          li.classList.remove("drag");
+          var order = [].map.call(ul.children, function (x) { return x.getAttribute("data-id"); });
+          if (JSON.stringify(order) !== JSON.stringify(mine)) { mine = order; paint(); preview(); say(name + ", now " + (mine.indexOf(id) + 1) + " of " + mine.length + "."); }
+        }
+        handle.addEventListener("pointermove", over); handle.addEventListener("pointerup", up); handle.addEventListener("pointercancel", up);
+      });
+      return li;
+    }
+    function paint() {
+      problem.hidden = true;
+      D.clear(mineBox); D.clear(availBox);
+      mineBox.appendChild(h("div", { class: "row cz-head" }, h("h3", { class: "grow", id: "cz-mine-h", text: "My dashboard (" + mine.length + ")" }), reset));
+      mineBox.appendChild(h("ul", { class: "cz-list", id: "cz-mine", "aria-labelledby": "cz-mine-h" }, mine.map(row)));
+      var rest = allowed.filter(function (id) { return mine.indexOf(id) < 0; });
+      availBox.appendChild(h("h3", { id: "cz-avail-h", style: "margin-top:18px", text: "Available widgets" }));
+      if (!rest.length) availBox.appendChild(h("p", { class: "muted small", text: "Every widget is on your Home." }));
+      else availBox.appendChild(h("ul", { class: "cz-list", id: "cz-avail", "aria-labelledby": "cz-avail-h" }, rest.map(function (id) {
+        var b = h("button", { class: "ghost small", type: "button", "aria-label": "Add " + homeTitle(id) + " to Home" }, "+ Add");
+        b.addEventListener("click", function () { add(id); });
+        return h("li", { class: "cz-row avail", "data-id": id }, h("span", { class: "cz-ic", "aria-hidden": "true" }, icon(HOME_W[id].icon)), h("span", { class: "grow" }, h("b", { class: "cz-name", text: homeTitle(id) }), h("span", { class: "hsub", style: "display:block", text: homeAbout(id) })), b);
+      })));
+    }
+    reset.addEventListener("click", function () {
+      mine = (d["default"] || HOME_DEFAULT).filter(function (id) { return allowed.indexOf(id) >= 0; });
+      paint(); preview();
+      say("Back to the default layout. Choose Save changes to keep it.");
+      reset.focus();
+    });
+    cancel.addEventListener("click", function () { done(); paintHome(); });
+    save.addEventListener("click", function () {
+      save.disabled = true; problem.hidden = true;
+      var isDefault = JSON.stringify(mine) === JSON.stringify((d["default"] || HOME_DEFAULT).filter(function (id) { return allowed.indexOf(id) >= 0; }));
+      (isDefault ? api.post("/home/layout/reset", {}) : api.post("/home/layout", { widgets: mine })).then(function (r) {
+        if (!r || !r.ok) throw r || {};
+        homeLay.data = r;
+        done(); paintHome();
+        D.toast(app, isDefault ? "Home is back to the default layout." : "Your Home layout is saved.");
+      }).catch(function (e) {
+        save.disabled = false; problem.hidden = false;
+        problem.textContent = e && e.reason === "keep_one_widget" ? "Keep at least one widget on Home." : "Your layout was not saved. Check your connection and try again.";
+      });
+    });
+    paint();
+    save.disabled = true;
+    showDrawer(panel, true);
+    // The panel's own Close asks before it throws changes away
+    var x = panel.querySelector(".drawer-x");
+    if (x) { var x2 = x.cloneNode(true); x.parentNode.replaceChild(x2, x); x2.addEventListener("click", leave); x2.focus(); }
+    document.addEventListener("keydown", onKey, true);
   }
 
   function guideBox() {
@@ -10577,7 +10906,7 @@
     if (me.on_hold) main.appendChild(h("div", { class: "notice bad", role: "alert", text: "Some actions are paused on your account. Contact the Lawfecta Team." }));
     if (!me.side) main.appendChild(noSide());
     else if (tab === "usage" && me.side === "attorney") main.appendChild(usageView());
-    else if (tab === "home") main.appendChild(NL() ? homeNew() : me.side === "attorney" ? attorneyHome() : freelancerHome());
+    else if (tab === "home") main.appendChild(NL() ? homeDash() : me.side === "attorney" ? attorneyHome() : freelancerHome());
     else if (tab === "help" && NL()) main.appendChild(helpView());
     else if (tab === "subscription" && NL()) main.appendChild(subscriptionView());
     else if (tab === "ai") main.appendChild(aiSettingsView());
@@ -10601,7 +10930,7 @@
     else if (tab === "notices" && me.side) main.appendChild(noticesView());
     else if (wrongSideTab(tab)) main.appendChild(wrongSideView(tab));
     else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1] + (me.side === "attorney" && (tab === "projects" || tab === "talent") && (sideInfo() || {}).verification_state !== "verified" ? " Posting work and hiring need a verified license: open Profile and verification from your account menu." : "")));
-    else { tab = "home"; main.appendChild(NL() ? homeNew() : me.side === "attorney" ? attorneyHome() : freelancerHome()); }
+    else { tab = "home"; main.appendChild(NL() ? homeDash() : me.side === "attorney" ? attorneyHome() : freelancerHome()); }
     if (NL()) limitBanner(main); else if (me.side === "attorney") usageBanner(main);
     // Step 29: the Talent page keeps its focus on finding people; the usage line shows on the other pages
     if (me.side === "attorney" && tab !== "talent") usageMeter(main);
