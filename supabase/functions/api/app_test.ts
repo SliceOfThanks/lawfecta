@@ -180,6 +180,20 @@ Deno.test("notifications and the worker", async () => {
   const st = (await pool.query("select status, provider from notifications where channel = 'email' and kind = 'test' order by created_at desc limit 1")).rows[0];
   assertEquals(st, { status: "sent", provider: "log" });
   assertEquals((await call("POST", "/notifications/read", { session: ownerSession, body: { all: true } })).body.ok, true);
+  // Step 31: the Notifications page. The history with dismissed ones, and marking or dismissing several at once.
+  const page1 = (await call("GET", "/notifications?all=1", { session: ownerSession })).body;
+  assert(Array.isArray(page1.items) && page1.items.length >= 1 && typeof page1.total === "number" && page1.items.every((n: any) => n.dismissed === false), "the page lists the history: " + JSON.stringify(page1).slice(0, 200));
+  const nid = page1.items[0].id;
+  assertEquals((await call("POST", "/notifications/set", { session: ownerSession, body: { ids: [nid], action: "unread" } })).body, { ok: true, count: 1 });
+  assertEquals((await call("GET", "/notifications?all=1", { session: ownerSession })).body.items.find((n: any) => n.id === nid).read, false);
+  assertEquals((await call("POST", "/notifications/set", { session: ownerSession, body: { ids: [nid], action: "dismiss" } })).body.count, 1);
+  const after = (await call("GET", "/notifications?all=1", { session: ownerSession })).body.items.find((n: any) => n.id === nid);
+  assertEquals([after.dismissed, after.read, after.action], [true, true, false], "dismissed: read, never an action, kept in the history");
+  assert(!(await call("GET", "/notifications", { session: ownerSession })).body.items.some((n: any) => n.id === nid), "a dismissed notification leaves the panel");
+  assertEquals((await call("POST", "/notifications/set", { session: ownerSession, body: { ids: [nid], action: "restore" } })).body.count, 1);
+  assert((await call("GET", "/notifications", { session: ownerSession })).body.items.some((n: any) => n.id === nid), "restoring brings it back");
+  assertEquals((await call("POST", "/notifications/set", { session: ownerSession, body: { ids: [nid], action: "delete" } })).body.reason, "bad_request", "nothing can be deleted");
+  assertEquals((await call("POST", "/notifications/set", { session: ownerSession, body: { ids: ["not-an-id"], action: "read" } })).body.reason, "bad_request");
 });
 
 // Fix (AI review 0.9.0, security 5): the "Test site account" list is gone. Live never sends a member to the test site,

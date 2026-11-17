@@ -58,6 +58,15 @@ How to read the "State" column:
 | 3.6b | The blue information notice reads well and its X works with a screen reader | A person with VoiceOver or NVDA hears the notice, reaches "Dismiss notice", and lands on "Show the sensitive data notice" | Not yet | Released 2026-11-17. Automated checks pass; no person has tried it. |
 | 3.7 | A person using a screen reader can search Talent and read a profile | A pass by a person with VoiceOver or NVDA | Not yet | Automated accessibility rules pass; they do not replace a person. |
 
+## 3b. Inbox, conversations and notifications
+
+| # | What must be seen working | How we will know | State | Notes |
+|---|---|---|---|---|
+| 3b.1 | The new Inbox and conversation work for two real people | The ChatGPT check (number 4) passes, and a pilot pair writes back and forth with a file attached | Not yet | Released 2026-11-17. |
+| 3b.2 | "Upload a new file" from a conversation | An attorney uploads a file there and the freelancer opens it | Not yet | By hand: an agent cannot choose a file. |
+| 3b.3 | A retry after a failed AI request works | After any "DELA's AI could not finish" message, the same button works on the next click | Not yet | The cause of the false "out of DELA actions" was fixed 2026-11-17. |
+| 3b.4 | The notification panel and page help a member with many notifications | Stacey's look with the test attorney (70 unread): six things in the panel, the page's filters, dismiss and restore | Not yet | Step 31, in testing 2026-11-17. |
+
 ## 4. Money (from the go-live handoff)
 
 | # | What must be seen working | How we will know | State | Notes |

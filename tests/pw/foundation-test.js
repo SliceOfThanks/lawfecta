@@ -242,7 +242,7 @@ async function waitFor(page, words, ms) {
     ok(t.includes("Almost there"), "owner without a plan sees the setup message");
     await dela(s.page).getByRole("button", { name: "Account menu" }).click();
     ok((await text(s.page)).includes("Admin area"), "the account menu has the admin link for the Lawfecta Team");
-    await dela(s.page).getByRole("button", { name: "Notices" }).click();
+    await dela(s.page).locator("button.bell[aria-label^=Notifications]").first().click();
     await s.page.waitForTimeout(400);
     ok((await text(s.page)).includes("DELA test notice"), "the test notice arrives in Notices");
     await s.page.screenshot({ path: path.join(SHOTS, "notices.png") });

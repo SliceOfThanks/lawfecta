@@ -132,15 +132,15 @@ async function sign(page, name, version) {
     ok((await dela(p).locator("#needs-action").innerText()).includes("the agreement needs your signature"), "Needs your action lists the agreement to sign (UX review P01)");
     // Fix (step 8b, retest R02): Notices shows the same live list as Projects, even with no notice about it
     await sql("delete from notifications where person_id = (select id from people where bd_member_id = 2800); select 1");
-    await dela(p).getByRole("button", { name: "Notices" }).first().click();
-    await waitFor(p, "Needs your action (1)");
+    await dela(p).locator("button.bell[aria-label^=Notifications]").first().click();
+    await waitFor(p, "1 pending");
     ok((await dela(p).locator("#notices-action").innerText()).includes("the agreement needs your signature"), "Notices lists the same signature as Projects");
     await dela(p).locator("#notices-action").getByRole("button", { name: "Open the agreement" }).click();
     await waitFor(p, "Sign version");
     ok(true, "the Notices button opens the agreement");
     // Fix (AI review 0.10.0, tests 5): when the work list cannot load, Notices says it could not check, never "Nothing waits"
     await p.route(/\/engagements(\?.*)?$/, (r) => r.fulfill({ status: 500, contentType: "application/json", body: "{}" }));
-    await dela(p).getByRole("button", { name: "Notices" }).first().click();
+    await dela(p).locator("button.bell[aria-label^=Notifications]").first().click();
     t = await waitFor(p, "DELA could not check all your work just now");
     ok(!t.includes("Nothing waits on you right now"), "a failed check is never shown as nothing waiting");
     await p.unroute(/\/engagements(\?.*)?$/);

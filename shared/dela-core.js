@@ -436,6 +436,7 @@ D.openTab = function (getUrl, onFail, opts) {
     // Dark colors (UX review Phase 4 part D): on when the person chose Dark (data-theme=dark), or when they chose Match my
     // device and the device is dark (data-theme=auto). Light (data-theme=light) never turns dark.
     D.darkCss(".dela{--bg:#11131b;--card:#1a1d28;--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c;--head:#2b303c;--brand:#c2416f;--pink:#2a1622;--pink-ink:#f19ab8;--soft:#222634;--shadow:none;--okbg:#17301f;--okline:#2b5a3b;--bluebg:#132233}.nl-side,.nl-bar,.nl-sheet{--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c}" +
+      ".notice-tag{background:#132233;color:#8cc4ff}.notice-tag.action{background:#3a1d1b;color:#f5b3ad}.notice-tag.payments{background:#17301f;color:#7fd3a3}.notice-tag.disputes{background:#3a2f12;color:#f0c668}.notice-dot.on{background:#8cc4ff}" +
       ".inbox-kind.intro{background:#132233;color:#8cc4ff}.inbox-dot.on{background:#8cc4ff}" +
       ".notice{background:#132233;border-color:#2b4a66;color:#eceef3;box-shadow:none}.notice-i{border-color:#8cc4ff;color:#8cc4ff}.notice-x{color:#eceef3}.notice-back{color:#8cc4ff}" +
       ".problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b;border-color:#e0685f}.notice.ok{background:#17301f;border-color:#4fa873}.talent-ver{color:#7fd3a3}" +
@@ -573,6 +574,12 @@ D.openTab = function (getUrl, onFail, opts) {
     ".thread-acts details.menu .menu-panel{left:auto;right:0}.dela .menu-item{background:transparent;border:0;color:var(--ink);text-align:left;justify-content:flex-start;padding:10px 12px;min-height:44px;border-radius:8px;font-weight:600;width:100%;white-space:normal}.dela .menu-item:hover,.dela .menu-item:focus-visible{background:var(--soft)}" +
     ".ai-suggest{margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--pink)}.ai-suggest[hidden]{display:none}.thread-head h1{overflow-wrap:anywhere}" +
     ".msg-day{display:flex;align-items:center;gap:10px;margin:10px 0;color:var(--muted);font-size:12px}.msg-day::before,.msg-day::after{content:'';flex:1 1 auto;border-top:1px solid var(--line)}" +
+    // Step 31: the Notifications page and the panel from the bell (Stacey's mockup of 2026-11-17)
+    ".notices-tabs{margin:12px 0}.dela .notices-tabs button{min-height:44px}.notice-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:8px 0;min-height:60px}" +
+    ".notice-row.unread{background:var(--pink)}.notice-row input[type=checkbox]{width:18px;height:18px;flex:0 0 auto}.notice-dot{flex:0 0 auto;width:10px;height:10px;border-radius:50%}.notice-dot.on{background:#0d6fd6}" +
+    ".notice-main{flex:1 1 240px;min-width:0;display:flex;flex-direction:column;gap:2px}.notice-title{font-weight:600;overflow-wrap:anywhere}.notice-row.unread .notice-title{font-weight:800}.notice-body{color:var(--muted);overflow-wrap:anywhere}.notice-row.unread .notice-body{color:var(--ink)}" +
+    ".notice-tag{flex:0 0 auto;font-size:12px;font-weight:700;padding:3px 10px;border-radius:999px;background:#eaf4ff;color:#0b4f8f}.notice-tag.action{background:#fdeceb;color:#8a1c16}.notice-tag.payments{background:var(--okbg);color:#1f5c3a}.notice-tag.disputes{background:#fff3d6;color:#6b4700}.notice-tag.dismissed{background:var(--soft);color:var(--muted)}" +
+    ".notice-when{flex:0 0 auto;white-space:nowrap}.notice-row .menu-panel{left:auto;right:0}.notice-line{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;margin:2px 0}" +
     // Step 30: the Inbox list and the conversation view (Stacey's mockups of 2026-11-17)
     ".inbox-search label{display:block;font-weight:700;margin:8px 0 4px}.inbox-tabs{margin:12px 0}.dela .inbox-tabs button{min-height:44px}" +
     ".dela .inbox-row{display:flex;gap:12px;align-items:center;width:100%;text-align:left;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;min-height:64px;font-weight:400;white-space:normal;cursor:pointer}" +

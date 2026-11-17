@@ -25,6 +25,7 @@
       if (sw.playbook_library) a.push(["library", "Library", "▥"]);
       if (sw.file_uploads) a.push(["files", "Files", "▤"]);
       a = a.concat([["projects", "Projects", "▣"], ["talent", "Talent", "◌"]]);
+      a.push(["notices", "Notifications", "◔"]);
       if (sw.meetings) a.push(["meetings", "Meetings", "◷"]);
       if (sw.guided_setup) a.push(["setup", "Get set up", "✓"]);
       return a;
@@ -32,6 +33,7 @@
     var f = [["home", "Home", "⌂"]];
     if (sw.ai_generation) f.push(["ask", "Ask DELA", "✦"]);
     f = f.concat([["profile", "Profile", "☺"], ["work", "Work", "▣"], ["earnings", "Earnings", "$"]]);
+    f.push(["notices", "Notifications", "◔"]);
     if (sw.meetings) f.push(["meetings", "Meetings", "◷"]);
     if (sw.agency_team) f.push(["agency", "Agency", "◆"]);
     // An agency that hires (Step 7d part 2c): its own Library, Projects and Talent, as an attorney has
@@ -102,7 +104,7 @@
       api.get("/threads").then(function (r) { var n = (r.threads || []).reduce(function (a, t) { return a + (t.unread || 0); }, 0); if (n) inbox.appendChild(h("b", { text: String(n) })); }).catch(function () {});
       bar.appendChild(inbox);
     }
-    var bell = h("button", { class: "bell small", "aria-label": "Notices", onclick: openNotices }, "Notices");
+    var bell = h("button", { class: "bell small", "aria-label": "Notifications", onclick: openNotices }, "Notifications");
     if (me.unread > 0) bell.appendChild(h("b", { text: String(me.unread) }));
     bar.appendChild(bell);
     bar.appendChild(h("button", { class: "avatar", "aria-label": "Account menu", "aria-haspopup": "true", onclick: toggleMenu, text: initials(me.person.name) }));
@@ -197,7 +199,7 @@
     });
     return svg;
   }
-  var ICON_FOR = { home: "home", delegate: "ask", ask: "ask", library: "library", files: "files", projects: "projects", talent: "talent", setup: "check", profile: "profile", work: "work", earnings: "earnings", agency: "agency", ai: "settings", help: "help", subscription: "plan", meetings: "meet" };
+  var ICON_FOR = { home: "home", delegate: "ask", ask: "ask", library: "library", files: "files", projects: "projects", talent: "talent", setup: "check", profile: "profile", work: "work", earnings: "earnings", agency: "agency", ai: "settings", help: "help", subscription: "plan", meetings: "meet", notices: "bell" };
   var PAGE_NAMES = { subscription: "Subscription", inbox: "Inbox", meetings: "Meetings", usage: "Usage", connect: "Connect", record: "Record a process", ai: "Settings", help: "Help", profile: "Profile" };
   var WORKSPACE = { attorney: "Attorney workspace", freelancer: "Freelancer workspace" };
   // "Get set up" leaves the attorney's menu once it is finished or dismissed (Stacey 2026-11-11); it stays reachable from Help
@@ -213,7 +215,7 @@
       api.get("/setup").then(function (r) { if (r && (r.finished || r.dismissed)) { setupDone = true; if (tab !== "setup") draw(); } }).catch(function () {});
     }
     var main = att ? pick(["home", "projects", "delegate", "library"]) : pick(["home", "work", "ask", "earnings"]);
-    var second = att ? pick(["talent", "meetings", "files"].concat(setupDone ? [] : ["setup"])) : pick(["meetings", "library", "projects", "talent"]);
+    var second = att ? pick(["talent", "notices", "meetings", "files"].concat(setupDone ? [] : ["setup"])) : pick(["notices", "meetings", "library", "projects", "talent"]);
     while (main.length < 4 && second.length) main.push(second.shift());
     var account = [];
     if (sw.profiles) account.push(["profile", "Profile"]);
@@ -390,7 +392,7 @@
       }).catch(function () {});
       bar.appendChild(inbox);
     }
-    var bell = h("button", { class: "bell icon", type: "button", "aria-label": me.unread > 0 ? "Notices, " + me.unread + " unread" : "Notices", onclick: openNotices }, icon("bell"));
+    var bell = h("button", { class: "bell icon", type: "button", "aria-label": me.unread > 0 ? "Notifications, " + me.unread + " unread" : "Notifications", onclick: openNotices }, icon("bell"));
     if (me.unread > 0) bell.appendChild(h("b", { text: String(me.unread) }));
     bar.appendChild(bell);
     bar.appendChild(h("button", { class: "avatar", "aria-label": "Account menu", "aria-haspopup": "true", onclick: toggleMenu, text: initials(me.person.name) }));
@@ -458,7 +460,7 @@
     if (!me.side) return null;
     // The old bottom bar (switch new_layout off) keeps the items it had: "Meetings" is a menu item of the new layout only,
     // because an eighth item does not fit a narrow phone. The old layout reaches meetings from "Your meetings" in the Inbox.
-    var list = tabsFor().filter(function (t) { return t[0] !== "meetings"; });
+    var list = tabsFor().filter(function (t) { return t[0] !== "meetings" && t[0] !== "notices"; });
     var n = h("nav", { class: "nav" + (list.length > 7 ? " many" : ""), "aria-label": "DELA sections" });
     list.forEach(function (t) {
       n.appendChild(h("button", { "aria-current": t[0] === tab ? "page" : null, onclick: function () { tab = t[0]; draw(); } }, h("i", { "aria-hidden": "true", text: t[2] }), t[1]));
@@ -10430,6 +10432,7 @@
     else if (tab === "agency" && me.side === "freelancer" && (me.switches || {}).agency_team) main.appendChild(agencyView());
     else if (tab === "inbox" && me.side && (me.switches || {}).gig_chat) main.appendChild(inboxView());
     else if (tab === "meetings" && me.side && (me.switches || {}).meetings) main.appendChild(meetingsView());
+    else if (tab === "notices" && me.side) main.appendChild(noticesView());
     else if (wrongSideTab(tab)) main.appendChild(wrongSideView(tab));
     else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1] + (me.side === "attorney" && (tab === "projects" || tab === "talent") && (sideInfo() || {}).verification_state !== "verified" ? " Posting work and hiring need a verified license: open Profile and verification from your account menu." : "")));
     else { tab = "home"; main.appendChild(NL() ? homeNew() : me.side === "attorney" ? attorneyHome() : freelancerHome()); }
@@ -10855,54 +10858,197 @@
     return { label: label, href: location.pathname + "?" + cur.toString() };
   }
 
+  // Step 31 (Stacey's Notifications brief and mockup of 2026-11-17). What a notification is about, in one word, and
+  // the button that fits it. "Needs action" is never taken from a stored notice alone: it is the live list of what
+  // waits on the member (the same list as Projects and Home), so a finished task never keeps asking.
+  function noticeCat(n) {
+    var t = (n.title || "") + " " + (n.kind || "");
+    if (n.dismissed) return ["dismissed", "Dismissed"];
+    if (n.action) return ["action", "Needs action"];
+    if (/dispute/i.test(t)) return ["disputes", "Dispute"];
+    if (/\b(paid|payment|refund|refunded|payout|funded|receipt|charge|charged)\b/i.test(t)) return ["payments", "Payment"];
+    if (n.kind === "meeting") return ["meetings", "Meeting"];
+    if (n.kind === "message") return ["messages", "Message"];
+    return ["updates", "Update"];
+  }
+  function noticeBtn(n) {
+    var go = noticeAction(n.link);
+    if (!go) return null;
+    var t = n.title || "", c = noticeCat(n)[0];
+    var label = /signature/i.test(t) ? "Review and sign" : n.kind === "gig_proposal" ? "Review proposals" : n.kind === "gig_invitation" ? "View invitation" : n.kind === "review_due" ? "Write review"
+      : c === "payments" ? "View payment" : c === "disputes" ? "View details" : go.label;
+    return { label: label, href: go.href };
+  }
+  function noticeGo(n, btn) {
+    var done = function () { location.assign(btn.href); };
+    (n.read ? Promise.resolve() : api.post("/notifications/read", { id: n.id })).then(done, done);
+  }
+  var noticeState = { f: "all", q: "", range: "all", sort: "new", gig: "", gigName: "", shown: 25 };
+  function openNoticesPage(filter, gig, gigName) {
+    closeDrawer();
+    noticeState.f = filter || "all"; noticeState.gig = gig || ""; noticeState.gigName = gigName || ""; noticeState.q = ""; noticeState.shown = 25;
+    tab = "notices"; draw(); window.scrollTo(0, 0);
+  }
+
+  // The panel from the bell: at most six things. What needs the member first (two at most, with the way to all of
+  // them), then the newest update for each job. Everything else is on the Notifications page.
   function openNotices() {
     closeMenu();
     if (drawer) { closeDrawer(); return; }
     var nb = h("div", null, h("p", { class: "muted", text: "Loading..." }));
-    showDrawer(h("div", { class: "drawer", role: "dialog", "aria-label": "Notices" }, nb));
+    showDrawer(h("div", { class: "drawer", role: "dialog", "aria-label": "Notifications" }, nb));
     api.get("/notifications").then(function (r) {
       D.clear(nb);
-      nb.appendChild(h("div", { class: "row", style: "padding-right:84px" }, h("h2", { class: "grow", text: "Notices" }),
-        h("button", { class: "ghost small", onclick: function () { api.post("/notifications/read", { all: true }).then(function () { closeDrawer(); refresh(); }); } }, "Mark all read")));
-      if (!r.items.length) nb.appendChild(h("p", { class: "muted", text: "Nothing yet. Notices about your work will show up here." }));
-      function noticeLi(n, extra) {
-        var go = noticeAction(n.link);
-        return h("li", null, h("strong", { text: n.title }), n.read ? null : h("span", { class: "badge G", style: "margin-left:6px", text: "New" }),
-          n.body ? h("p", { class: "small", text: n.body }) : null,
-          h("div", { class: "row", style: "gap:8px;align-items:center" }, h("span", { class: "muted small grow", text: D.dateTime(n.created_at) }),
-            go ? h("button", { class: "ghost small", type: "button", onclick: function () {
-              var done = function () { location.assign(go.href); };
-              (n.read ? Promise.resolve() : api.post("/notifications/read", { id: n.id })).then(done, done);
-            } }, go.label) : null), extra || null);
-      }
-      // "Needs your action" first, checked against each job's current state; then "Updates", one line per job (UX review N01)
-      // "Needs your action" is the same live list as Projects (step 8b, retest R02); every notice is listed under Updates
-      var upd = r.items;
+      var unread = r.items.filter(function (n) { return !n.read; }).length;
+      nb.appendChild(h("div", { class: "row", style: "padding-right:84px;align-items:center;gap:10px" }, h("h2", { class: "grow", style: "margin:0", text: "Notifications" }),
+        h("span", { class: "badge " + (unread ? "held" : ""), id: "notices-unread", text: unread + " unread" })));
       var actBox = h("div", null, h("h3", { text: "Needs your action" }), h("p", { class: "muted small", text: "Checking your work..." }));
       nb.appendChild(actBox);
-      liveActions().then(function (items) {
-        D.clear(actBox);
-        actBox.appendChild(h("h3", { text: "Needs your action (" + items.length + ")" }));
-        if (items.length) actBox.appendChild(h("ul", { class: "list", id: "notices-action" }, items.map(function (x) {
-          return h("li", { class: "row" }, h("span", { class: "grow", text: x.text }), h("button", { class: "ghost small", type: "button", onclick: function () { closeDrawer(); x.open(); } }, x.label));
-        })));
-        var openWork = h("button", { class: "linkish", type: "button", onclick: function () { closeDrawer(); tab = me.side === "attorney" ? "projects" : "work"; gigs.id = null; draw(); } }, me.side === "attorney" ? "Open Projects" : "Open Work");
-        if (items.failed) actBox.appendChild(h("p", { class: "notice", id: "notices-check-failed", role: "status" }, "DELA could not check all your work just now, so something may still wait on you. ", openWork));
-        else if (!items.length) actBox.appendChild(h("p", { class: "muted small" }, "Nothing waits on you right now. ", me.side === "attorney" ? openWork : null));
-      });
-      if (r.items.length) {
-        nb.appendChild(h("h3", { text: "Updates" }));
+      var updBox = h("div");
+      nb.appendChild(updBox);
+      function drawUpdates(room) {
+        D.clear(updBox);
+        updBox.appendChild(h("h3", { text: "Recent updates" }));
+        if (!r.items.length) { updBox.appendChild(h("p", { class: "muted", text: "Nothing yet. Updates about your work will show up here." })); return; }
         var seen = {}, groups = [];
-        upd.forEach(function (n) {
+        r.items.forEach(function (n) {
           if (n.gig_id && seen[n.gig_id]) { seen[n.gig_id].more.push(n); return; }
           var g = { first: n, more: [] }; groups.push(g); if (n.gig_id) seen[n.gig_id] = g;
         });
-        nb.appendChild(h("ul", { class: "list", id: "notices-updates" }, groups.map(function (g) {
-          return noticeLi(g.first, g.more.length ? h("details", null, h("summary", { class: "small", text: g.more.length + " earlier " + (g.more.length === 1 ? "update" : "updates") + " about this job" }),
-            h("ul", { class: "list" }, g.more.map(function (n) { return noticeLi(n); }))) : null);
+        updBox.appendChild(h("ul", { class: "list", id: "notices-updates" }, groups.slice(0, room).map(function (g) {
+          var n = g.first, btn = noticeBtn(n);
+          return h("li", { class: n.read ? "" : "notice-new" }, h("strong", { text: n.title }), n.read ? null : h("span", { class: "badge G", style: "margin-left:6px", text: "New" }),
+            n.body ? h("p", { class: "small notice-line", text: n.body }) : null,
+            h("div", { class: "row small", style: "gap:8px;align-items:center;flex-wrap:wrap" }, h("span", { class: "muted", text: D.dateTime(n.created_at) }),
+              btn ? h("button", { class: "linkish", type: "button", onclick: function () { noticeGo(n, btn); } }, btn.label) : null),
+            g.more.length ? h("button", { class: "linkish small", type: "button", onclick: function () { openNoticesPage("all", n.gig_id, n.title); } },
+              "View " + g.more.length + " earlier " + (g.more.length === 1 ? "update" : "updates") + " for this job →") : null);
         })));
       }
-    }).catch(function () { D.clear(nb); nb.appendChild(h("p", { text: "Notices could not load." })); });
+      drawUpdates(4);
+      liveActions().then(function (items) {
+        D.clear(actBox);
+        actBox.appendChild(h("div", { class: "row", style: "align-items:baseline;gap:8px" }, h("h3", { class: "grow", text: "Needs your action" }), h("span", { class: "small muted", id: "notices-pending", text: items.length + " pending" })));
+        if (items.length) actBox.appendChild(h("ul", { class: "list", id: "notices-action" }, items.slice(0, 2).map(function (x) {
+          return h("li", { class: "row", style: "gap:8px;align-items:center" }, h("span", { class: "grow", text: x.text }), h("button", { class: "ghost small", type: "button", onclick: function () { closeDrawer(); x.open(); } }, x.label));
+        })));
+        if (items.length > 2) actBox.appendChild(h("button", { class: "ghost small", type: "button", id: "notices-all-actions", style: "width:100%;justify-content:center", onclick: function () { openNoticesPage("action"); } }, "See all " + items.length + " pending actions →"));
+        var openWork = h("button", { class: "linkish", type: "button", onclick: function () { closeDrawer(); tab = me.side === "attorney" ? "projects" : "work"; gigs.id = null; draw(); } }, me.side === "attorney" ? "Open Projects" : "Open Work");
+        if (items.failed) actBox.appendChild(h("p", { class: "notice", id: "notices-check-failed", role: "status" }, "DELA could not check all your work just now, so something may still wait on you. ", openWork));
+        else if (!items.length) actBox.appendChild(h("p", { class: "muted small" }, "Nothing waits on you right now. ", me.side === "attorney" ? openWork : null));
+        // Six things in all: what is not used by actions goes to updates
+        drawUpdates(Math.max(2, 6 - Math.min(items.length, 2)));
+      });
+      nb.appendChild(h("div", { class: "row", style: "gap:10px;align-items:center;flex-wrap:wrap;margin-top:14px;padding-top:12px;border-top:1px solid var(--line)" },
+        h("button", { class: "linkish", type: "button", onclick: function () { api.post("/notifications/read", { all: true }).then(function () { closeDrawer(); refresh(); }); } }, "Mark all read"),
+        h("span", { class: "grow" }),
+        h("button", { class: "blue small", type: "button", id: "notices-view-all", onclick: function () { openNoticesPage("all"); } }, "View all notifications →")));
+    }).catch(function () { D.clear(nb); nb.appendChild(h("p", { text: "Notifications could not load." })); });
+  }
+
+  // The Notifications page: the whole history, with filters, search, a time range, and marking or dismissing several at once
+  function noticesView() {
+    var el = h("div", { class: "notices-page" }, h("h1", { text: "Notifications" }), h("p", { class: "muted", text: "Loading..." }));
+    Promise.all([api.get("/notifications?all=1"), liveActions()]).then(function (rs) {
+      var r = rs[0], acts = rs[1], all = r.items || [], sel = {};
+      D.clear(el);
+      el.appendChild(h("h1", { text: "Notifications" }));
+      el.appendChild(h("p", { class: "muted", text: "Review updates, take action and manage your notifications." }));
+      var live = h("div", { class: "sr", role: "status" });
+      var search = h("input", { type: "search", id: "notices-search", autocomplete: "off", placeholder: "Search notifications (for example a job, a freelancer or a dispute)", value: noticeState.q, style: "width:100%" });
+      var range = h("select", { "aria-label": "Time range" }, [["all", "All time"], ["7", "Last 7 days"], ["30", "Last 30 days"], ["90", "Last 90 days"]].map(function (o) { return h("option", { value: o[0], text: o[1], selected: noticeState.range === o[0] }); }));
+      var sort = h("select", { "aria-label": "Sort" }, [["new", "Most recent"], ["old", "Oldest first"]].map(function (o) { return h("option", { value: o[0], text: o[1], selected: noticeState.sort === o[0] }); }));
+      var tabs = h("div", { class: "pills notices-tabs", role: "tablist", "aria-label": "Notifications to show" });
+      var gigBar = h("div"), bulk = h("div", { class: "row notices-bulk", style: "gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0" }), list = h("div", { id: "notices-list" }), foot = h("div", { class: "row", style: "gap:12px;justify-content:center;align-items:center;flex-wrap:wrap;margin:12px 0" });
+      el.appendChild(tabs);
+      el.appendChild(h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;align-items:flex-end" }, h("div", { class: "grow", style: "min-width:220px" }, h("label", { for: "notices-search", style: "display:block;font-weight:700;margin:0 0 4px", text: "Search notifications" }), search), range));
+      el.appendChild(gigBar); el.appendChild(bulk); el.appendChild(live); el.appendChild(list); el.appendChild(foot);
+      var kept = function () { return all.filter(function (n) { return !n.dismissed; }); };
+      var FILTERS = [["all", "All", function (n) { return !n.dismissed; }], ["action", "Needs action", null], ["unread", "Unread", function (n) { return !n.dismissed && !n.read; }],
+        ["updates", "Updates", function (n) { return noticeCat(n)[0] === "updates"; }], ["payments", "Payments", function (n) { return noticeCat(n)[0] === "payments"; }], ["disputes", "Disputes", function (n) { return noticeCat(n)[0] === "disputes"; }],
+        ["meetings", "Meetings", function (n) { return noticeCat(n)[0] === "meetings"; }], ["messages", "Messages", function (n) { return noticeCat(n)[0] === "messages"; }], ["dismissed", "Dismissed", function (n) { return n.dismissed; }]];
+      if (!FILTERS.some(function (f) { return f[0] === noticeState.f; })) noticeState.f = "all";
+      function rowsNow() {
+        var f = FILTERS.filter(function (x) { return x[0] === noticeState.f; })[0], q = noticeState.q.trim().toLowerCase(), since = noticeState.range === "all" ? 0 : Date.now() - Number(noticeState.range) * 86400000;
+        var rows = all.filter(f[2] || function () { return false; });
+        if (noticeState.gig) rows = rows.filter(function (n) { return n.gig_id === noticeState.gig; });
+        if (since) rows = rows.filter(function (n) { return new Date(n.created_at).getTime() >= since; });
+        if (q) rows = rows.filter(function (n) { var hay = ((n.title || "") + " " + (n.body || "") + " " + noticeCat(n)[1]).toLowerCase(); return q.split(/ +/).every(function (w) { return hay.indexOf(w) >= 0; }); });
+        if (noticeState.sort === "old") rows = rows.slice().reverse();
+        return rows;
+      }
+      function setMany(ids, action, say) {
+        if (!ids.length) return;
+        api.post("/notifications/set", { ids: ids, action: action }).then(function (x) {
+          if (!x || !x.ok) { D.toast(app, "That did not work. Please try again.", true); return; }
+          all.forEach(function (n) { if (ids.indexOf(n.id) < 0) return; if (action === "read") n.read = true; if (action === "unread") n.read = false; if (action === "dismiss") { n.dismissed = true; n.read = true; n.action = false; } if (action === "restore") n.dismissed = false; });
+          sel = {}; paint(); D.toast(app, say);
+        }).catch(function () { D.toast(app, "That did not work. Check your connection and try again.", true); });
+      }
+      function paint(announce) {
+        D.clear(tabs);
+        FILTERS.forEach(function (f) {
+          var n = f[0] === "action" ? acts.length : all.filter(f[2]).length;
+          var showCount = f[0] === "all" || f[0] === "action" || f[0] === "unread" || f[0] === "dismissed";
+          if (f[0] === "dismissed" && !n) return;
+          tabs.appendChild(h("button", { role: "tab", type: "button", "data-filter": f[0], "aria-selected": String(noticeState.f === f[0]), onclick: function () { noticeState.f = f[0]; noticeState.shown = 25; sel = {}; paint(true); var b = tabs.querySelector("[aria-selected=true]"); if (b) b.focus(); } }, f[1] + (showCount ? " (" + n + ")" : "")));
+        });
+        D.clear(gigBar);
+        if (noticeState.gig) gigBar.appendChild(h("p", { class: "notice", id: "notices-gig" }, "Showing the history of one job" + (noticeState.gigName ? ": " + noticeState.gigName : "") + ". ",
+          h("button", { class: "linkish", type: "button", onclick: function () { noticeState.gig = ""; noticeState.gigName = ""; paint(true); } }, "Show all jobs")));
+        D.clear(bulk); D.clear(list); D.clear(foot);
+        // What needs the member: the live list, each with its own button. These cannot be dismissed; they go when done.
+        if (noticeState.f === "action") {
+          if (acts.failed) list.appendChild(h("p", { class: "notice", role: "status", text: "DELA could not check all your work just now, so something may still wait on you." }));
+          if (!acts.length && !acts.failed) list.appendChild(h("p", { class: "muted", id: "notices-none", text: "Nothing waits on you right now." }));
+          acts.forEach(function (x) {
+            list.appendChild(h("div", { class: "notice-row" }, h("span", { class: "notice-main" }, h("span", { class: "notice-title", text: x.text })), h("span", { class: "notice-tag action", text: "Needs action" }),
+              h("button", { class: "blue small", type: "button", onclick: function () { x.open(); } }, x.label)));
+          });
+          if (announce) live.textContent = acts.length + " waiting on you";
+          return;
+        }
+        var rows = rowsNow(), page = rows.slice(0, noticeState.shown), picked = page.filter(function (n) { return sel[n.id]; });
+        var allBox = h("input", { type: "checkbox", id: "notices-all", checked: page.length > 0 && picked.length === page.length });
+        allBox.addEventListener("change", function () { page.forEach(function (n) { if (allBox.checked) sel[n.id] = true; else delete sel[n.id]; }); paint(); var nb2 = el.querySelector("#notices-all"); if (nb2) nb2.focus(); });
+        var ids = picked.map(function (n) { return n.id; }), inDismissed = noticeState.f === "dismissed";
+        bulk.appendChild(h("label", { for: "notices-all", style: "display:flex;gap:8px;align-items:center;font-weight:600;min-height:44px" }, allBox, h("span", { id: "notices-selected", text: picked.length + " selected" })));
+        bulk.appendChild(h("button", { class: "ghost small", type: "button", disabled: !ids.length, onclick: function () { setMany(ids, "read", "Marked as read."); } }, "Mark as read"));
+        bulk.appendChild(inDismissed ? h("button", { class: "ghost small", type: "button", disabled: !ids.length, onclick: function () { setMany(ids, "restore", "Restored."); } }, "Restore")
+          : h("button", { class: "ghost small", type: "button", disabled: !ids.length, onclick: function () { setMany(ids, "dismiss", "Dismissed. They stay in your history under \"Dismissed\"."); } }, "Dismiss"));
+        bulk.appendChild(h("span", { class: "grow" }));
+        bulk.appendChild(h("label", { class: "small", style: "display:flex;gap:6px;align-items:center" }, "Sort ", sort));
+        if (!rows.length) list.appendChild(h("p", { class: "muted", id: "notices-none", text: noticeState.q.trim() ? "No notification matches \"" + noticeState.q.trim() + "\". Try fewer words or another filter." : inDismissed ? "Nothing dismissed." : "Nothing here yet." }));
+        page.forEach(function (n) {
+          var cat = noticeCat(n), btn = noticeBtn(n);
+          var cb = h("input", { type: "checkbox", checked: !!sel[n.id], "aria-label": "Select: " + n.title });
+          cb.addEventListener("change", function () { if (cb.checked) sel[n.id] = true; else delete sel[n.id]; paint(); });
+          var more = h("details", { class: "menu" }, h("summary", { class: "btn ghost small", "aria-label": "More for: " + n.title }, "⋯"));
+          var panel = h("div", { class: "menu-panel", role: "group" });
+          var item = function (text, fn) { var b = h("button", { class: "menu-item", type: "button" }, text); b.addEventListener("click", function () { more.open = false; fn(); }); panel.appendChild(b); };
+          if (!n.dismissed) item(n.read ? "Mark as unread" : "Mark as read", function () { setMany([n.id], n.read ? "unread" : "read", n.read ? "Marked as unread." : "Marked as read."); });
+          if (n.dismissed) item("Restore", function () { setMany([n.id], "restore", "Restored."); }); else item("Dismiss", function () { setMany([n.id], "dismiss", "Dismissed. It stays in your history under \"Dismissed\"."); });
+          if (n.gig_id && !noticeState.gig) item("Show this job's history", function () { noticeState.gig = n.gig_id; noticeState.gigName = n.title; noticeState.f = "all"; paint(true); });
+          more.appendChild(panel);
+          more.addEventListener("keydown", function (e) { if (e.key === "Escape" && more.open) { e.stopPropagation(); more.open = false; more.querySelector("summary").focus(); } });
+          list.appendChild(h("div", { class: "notice-row" + (n.read ? "" : " unread") },
+            cb, h("span", { class: "notice-dot" + (n.read ? "" : " on"), "aria-hidden": "true" }),
+            h("span", { class: "notice-main" }, h("span", { class: "notice-title", text: n.title }), n.read ? null : h("span", { class: "sr", text: " (unread)" }), n.body ? h("span", { class: "notice-body small", text: n.body }) : null),
+            h("span", { class: "notice-tag " + cat[0], text: cat[1] }), h("span", { class: "notice-when small muted", text: D.dateTime(n.created_at) }),
+            btn ? h("button", { class: (cat[0] === "action" ? "blue" : "ghost") + " small", type: "button", onclick: function () { noticeGo(n, btn); } }, btn.label) : h("span", { class: "notice-nobtn" }),
+            more));
+        });
+        if (rows.length) foot.appendChild(h("span", { class: "small muted", text: "Showing " + page.length + " of " + rows.length + (rows.length === 1 ? " notification." : " notifications.") + (r.total > all.length ? " Older ones are kept; the newest " + all.length + " are listed." : "") }));
+        if (rows.length > noticeState.shown) foot.appendChild(h("button", { class: "ghost", type: "button", onclick: function () { noticeState.shown += 25; paint(); } }, "Show more notifications"));
+        if (announce) live.textContent = rows.length + (rows.length === 1 ? " notification" : " notifications");
+      }
+      var typing = null;
+      search.addEventListener("input", function () { noticeState.q = search.value; noticeState.shown = 25; clearTimeout(typing); typing = setTimeout(function () { paint(true); }, 150); });
+      range.addEventListener("change", function () { noticeState.range = range.value; paint(true); });
+      sort.addEventListener("change", function () { noticeState.sort = sort.value; paint(true); });
+      paint(false);
+    }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e && e.message) })); });
+    return el;
   }
 
   // Links in notices and emails can open a tab (for example /dela?tab=files)

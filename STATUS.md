@@ -6,6 +6,15 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 30, the simpler Inbox and conversation, and the fix for the false "out of DELA actions": ON THE SITE (2026-11-17)
+- Site: code_version 513d463, api function version 124, migrations through 0126, health "ok". GitHub Tests passed on that commit (run 44114473314). Before it the same day: efc68bb (one "Invite to gig" button on the profile page).
+- Brief with Claude's decisions: docs/briefs/step-30-inbox-messaging.md. Inbox: search, filters with counts (tab list), unread dot and bold, tag and title, preview of the newest message (dela_threads returns last_text and last_mine, never a held message of the other person). Conversation: header card, date lines, "Message" label, "Attach a file" menu (upload a new file for attorneys, or choose from Files), "AI tools" menu (Draft a reply, Suggest next steps, Summarize conversation) with a suggested-draft panel; "Draft an agenda" left the conversation; "What we agreed" left the menu.
+- Fix: routeKey in app.ts. The same AI request asked again after a failed try found its released reservation and answered no_credits_left. It now gets a reservation of its own (test in helpers_test.ts).
+- The Bookmarks tab on Talent shows its count.
+- The contact form limit test in security_test.ts used a fixed address that met another test's; it has its own range now (committed after this release).
+- ChatGPT check: docs/tests/inbox-messaging-chatgpt-prompt.md, ready copies "4-inbox-messaging-chatgpt-prompt-READY" in her folder. Not run yet.
+- In testing next: step 31, notifications (docs/briefs/step-31-notifications.md, migration 0127).
+
 ## Blue information notices, with a dismiss button on the sensitive data notice: ON THE SITE (2026-11-17)
 - Site: code_version 6e47b42 (browser code only; api function 123 and migrations through 0125 unchanged), health "ok". GitHub Tests passed on that commit (run 44108525185).
 - From Stacey's mockup and written instructions of 2026-11-17: every information notice (class "notice") is #EAF4FF with a 1px #B8D8F8 border on all sides, text #172B4D, 12px corners and a soft shadow; no stripe at the left. Problems (.bad) and confirmations (.ok) keep their colors and stripe. Dark look: deep blue.

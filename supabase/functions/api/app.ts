@@ -237,7 +237,9 @@ async function signOut(ctx: Ctx) {
 
 async function notifications(ctx: Ctx) {
   const s = await member(ctx);
-  const items = (await rpc<Array<Record<string, any>>>(ctx, "dela_notifications", { p_person: s.person_id, p_limit: 50 })) ?? [];
+  // all=1 (the Notifications page, step 31): the member's history, dismissed ones included
+  const page = ctx.url.searchParams.get("all") === "1" ? await rpc<Record<string, any>>(ctx, "dela_notifications_page", { p_person: s.person_id, p_limit: 300 }) : null;
+  const items = page ? ((page.items ?? []) as Array<Record<string, any>>) : (await rpc<Array<Record<string, any>>>(ctx, "dela_notifications", { p_person: s.person_id, p_limit: 50 })) ?? [];
   // "Needs your action" vs "Updates" (UX review N01): a notice about a job needs action only while that job still waits on
   // this member, checked now against the job's state. A document review reminder needs action until it is read.
   const waiting = new Set<string>(s.side === "attorney" || s.side === "freelancer" ? ((await rpc<string[]>(ctx, "dela_notice_actions", { p_person: s.person_id, p_side: s.side })) ?? []) : []);
@@ -245,8 +247,9 @@ async function notifications(ctx: Ctx) {
     const gig = /[?&]gig=([0-9a-f-]{36})/.exec(String(n.link ?? ""))?.[1];
     n.action = gig ? waiting.has(gig) : (n.kind === "doc_review" || n.kind === "review_due") && !n.read;
     n.gig_id = gig ?? null;
+    if (n.dismissed) n.action = false;
   }
-  return json(ctx, { items });
+  return json(ctx, page ? { items, total: page.total ?? items.length } : { items });
 }
 
 async function readNotification(ctx: Ctx) {
@@ -5623,6 +5626,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /sign-out": return await signOut(ctx);
       case "GET /notifications": return await notifications(ctx);
       case "POST /notifications/read": return await readNotification(ctx);
+      case "POST /notifications/set": { const s = await member(ctx); return json(ctx, await rpc(ctx, "dela_notifications_set", { p_person: s.person_id,
+        p_ids: Array.isArray(ctx.body.ids) ? ctx.body.ids.map((x: unknown) => str(x, 40)).slice(0, 500) : [], p_action: str(ctx.body.action, 12) })); }
       case "GET /ai": return await aiState(ctx);
       case "POST /ai/mode": return await aiMode(ctx);
       case "POST /ai/key": return await aiKeySave(ctx);

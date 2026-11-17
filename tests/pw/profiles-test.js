@@ -337,22 +337,22 @@ async function waitFor(page, words, ms) {
       // (Stacey 2026-11-05: "My Account" covered the top bar)
       await p.mouse.wheel(0, 900);
       await p.waitForTimeout(400);
-      const nb = await dela(p).getByRole("button", { name: "Notices", exact: true }).boundingBox();
+      const nb = await dela(p).locator("button.bell[aria-label^=Notifications]").first().boundingBox();
       const seen = await p.evaluate(([cx, cy]) => { const el = document.elementFromPoint(cx, cy); return !!el && el.classList.contains("dela-host"); }, [nb.x + nb.width / 2, nb.y + nb.height / 2]);
       ok(seen && nb.y >= 90, "scrolled down, the top bar sits below the site's header at " + vp.width + "px");
-      await dela(p).getByRole("button", { name: "Notices", exact: true }).click();
-      const x = dela(p).getByRole("button", { name: "Close notices" });
+      await dela(p).locator("button.bell[aria-label^=Notifications]").first().click();
+      const x = dela(p).getByRole("button", { name: "Close notifications" });
       await x.waitFor({ timeout: 5000 });
       const box = await x.boundingBox();
       const onTop = await p.evaluate(([cx, cy]) => { const el = document.elementFromPoint(cx, cy); return !!el && el.classList.contains("dela-host"); }, [box.x + box.width / 2, box.y + box.height / 2]);
       ok(onTop, "the X is above the site's header at " + vp.width + "px");
       await x.click();
-      ok(await dela(p).getByRole("dialog", { name: "Notices" }).count() === 0, "the X closes the panel at " + vp.width + "px");
-      await dela(p).getByRole("button", { name: "Notices", exact: true }).click();
-      await dela(p).getByRole("dialog", { name: "Notices" }).waitFor();
+      ok(await dela(p).getByRole("dialog", { name: "Notifications" }).count() === 0, "the X closes the panel at " + vp.width + "px");
+      await dela(p).locator("button.bell[aria-label^=Notifications]").first().click();
+      await dela(p).getByRole("dialog", { name: "Notifications" }).waitFor();
       await p.mouse.click(10, vp.height - 20);
       await p.waitForTimeout(200);
-      ok(await dela(p).getByRole("dialog", { name: "Notices" }).count() === 0, "clicking outside closes the panel at " + vp.width + "px");
+      ok(await dela(p).getByRole("dialog", { name: "Notifications" }).count() === 0, "clicking outside closes the panel at " + vp.width + "px");
       await s.ctx.close();
     }
 
@@ -360,12 +360,44 @@ async function waitFor(page, words, ms) {
     await sql("insert into notifications (person_id, kind, channel, title, body, link, dedupe_key) select id, 'test', 'in_app', 'Payout sent', 'Your payout is on its way.', '/dela?tab=earnings', 'ux-n01-' || id from people where bd_member_id = 2501; select 1");
     s = await open(browser, 2501, "");
     p = s.page;
-    await dela(p).getByRole("button", { name: "Notices", exact: true }).click();
-    const go = dela(p).getByRole("button", { name: "Open Earnings", exact: true });
+    await dela(p).locator("button.bell[aria-label^=Notifications]").first().click();
+    const go = dela(p).getByRole("button", { name: "View payment", exact: true });
     await go.waitFor({ timeout: 5000 });
     await Promise.all([p.waitForURL(/tab=earnings/, { timeout: 8000 }), go.click()]);
     ok(p.url().includes("uid=2501"), "a notice's own button opens the page it is about");
     ok((await sql("select read_at is not null r from notifications where dedupe_key like 'ux-n01-%'"))[0].r === true, "and marks the notice read");
+    await s.ctx.close();
+
+    // Step 31 (Stacey's Notifications brief of 2026-11-17): the panel shows a few things and leads to the Notifications
+    // page, where the history is searched, filtered, marked as read and dismissed
+    await sql("insert into notifications (person_id, kind, channel, title, body, link, dedupe_key) select id, 'test', 'in_app', 'Refund completed', 'Conflict check: a refund was sent.', '/dela?tab=earnings', 'n31-a-' || id from people where bd_member_id = 2501 on conflict do nothing; select 1");
+    await sql("insert into notifications (person_id, kind, channel, title, body, link, dedupe_key) select id, 'test', 'in_app', 'Your profile was checked', 'Nothing more is needed.', '/dela?tab=profile', 'n31-b-' || id from people where bd_member_id = 2501 on conflict do nothing; select 1");
+    s = await open(browser, 2501, "");
+    p = s.page;
+    await dela(p).locator("button.bell[aria-label^=Notifications]").first().click();
+    t = await waitFor(p, "Recent updates");
+    ok(t.includes("Needs your action") && t.includes("unread") && await dela(p).locator("#notices-updates > li").count() <= 6, "the panel has the two groups and at most six updates");
+    await dela(p).locator("#notices-view-all").click();
+    t = await waitFor(p, "Review updates, take action and manage your notifications.");
+    ok(await dela(p).getByRole("dialog", { name: "Notifications" }).count() === 0 && /All \(\d+\)/.test(t) && /Needs action \(\d+\)/.test(t) && /Unread \(\d+\)/.test(t) && t.includes("Payments") && t.includes("Disputes"), "View all notifications opens the page, with its filters and counts");
+    ok(await dela(p).locator(".notice-row", { hasText: "Refund completed" }).locator(".notice-tag").innerText() === "Payment" && await dela(p).locator(".notice-row", { hasText: "Your profile was checked" }).locator(".notice-tag").innerText() === "Update", "each row says what kind of notification it is");
+    await dela(p).getByLabel("Search notifications", { exact: true }).fill("refund");
+    await p.waitForTimeout(400);
+    ok(await dela(p).locator(".notice-row").count() === 1, "search narrows the list");
+    await dela(p).getByLabel("Select: Refund completed").check();
+    ok((await dela(p).locator("#notices-selected").innerText()) === "1 selected", "the page counts what is selected");
+    await dela(p).locator(".notices-bulk").getByRole("button", { name: "Dismiss", exact: true }).click();
+    await waitFor(p, "No notification matches");
+    await dela(p).getByLabel("Search notifications", { exact: true }).fill("");
+    await p.waitForTimeout(400);
+    await dela(p).getByRole("tab", { name: /^Dismissed/ }).click();
+    ok(await dela(p).locator(".notice-row", { hasText: "Refund completed" }).count() === 1 && (await sql("select count(*)::int n from notifications where dedupe_key like 'n31-a-%' and dismissed_at is not null"))[0].n === 1, "a dismissed notification stays in the history under Dismissed");
+    await dela(p).getByLabel("Select: Refund completed").check();
+    await dela(p).locator(".notices-bulk").getByRole("button", { name: "Restore", exact: true }).click();
+    await p.waitForTimeout(500);
+    ok((await sql("select count(*)::int n from notifications where dedupe_key like 'n31-a-%' and dismissed_at is null"))[0].n === 1, "Restore brings it back");
+    await p.setViewportSize({ width: 320, height: 720 }); await p.waitForTimeout(200);
+    ok(await p.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "the Notifications page fits a phone 320 wide with no sideways scrolling");
     await s.ctx.close();
 
     // Freelancers have no license form; attorneys no LinkedIn card
