@@ -62,10 +62,10 @@ How to read the "State" column:
 
 | # | What must be seen working | How we will know | State | Notes |
 |---|---|---|---|---|
-| 3b.1 | The new Inbox and conversation work for two real people | The ChatGPT check (number 4) passes, and a pilot pair writes back and forth with a file attached | Not yet | Released 2026-11-17. |
+| 3b.1 | The new Inbox and conversation work for two real people | The ChatGPT check (number 4) passes, and a pilot pair writes back and forth with a file attached | Part, 2026-11-17 | ChatGPT check 4 passed 12 of 14 (both misses fixed) and Stacey looked after the fixes: "looks good". Left: a real pilot pair, with a file. |
 | 3b.2 | "Upload a new file" from a conversation | An attorney uploads a file there and the freelancer opens it | Not yet | By hand: an agent cannot choose a file. |
 | 3b.3 | A retry after a failed AI request works | After any "DELA's AI could not finish" message, the same button works on the next click | Not yet | The cause of the false "out of DELA actions" was fixed 2026-11-17. |
-| 3b.4 | The notification panel and page help a member with many notifications | Stacey's look with the test attorney (70 unread): six things in the panel, the page's filters, dismiss and restore | Not yet | Step 31, in testing 2026-11-17. |
+| 3b.4 | The notification panel and page help a member with many notifications | Stacey's look with the test attorney (70 unread): six things in the panel, the page's filters, dismiss and restore | Confirmed 2026-11-17 | ChatGPT check 5 passed 13 of 13, and Stacey looked after the fixes: "tested notifications and inbox and looks good". Not yet tried: a screen reader, a phone. |
 
 ## 4. Money (from the go-live handoff)
 

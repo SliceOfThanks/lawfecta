@@ -1442,6 +1442,11 @@
     list.appendChild(h("a", { class: "hrow", href: "/security#contact", style: "text-decoration:none" }, h("span", { class: "what" }, h("b", { text: "Contact the Lawfecta Team" }), h("span", { class: "sub", text: "Opens the contact form on the Security page." })), icon("chev")));
     list.appendChild(h("a", { class: "hrow", href: "/security", style: "text-decoration:none" }, h("span", { class: "what" }, h("b", { text: "How DELA keeps your information safe" }), h("span", { class: "sub", text: "The Security page." })), icon("chev")));
     el.appendChild(h("div", { class: "card" }, list));
+    // The sensitive data rule is always readable here, also after the notice was dismissed on other pages (Stacey's
+    // notice instructions of 2026-11-17: the guidance stays available from a stable Help link after dismissal)
+    if (me.notice) el.appendChild(h("div", { class: "card", id: "help-sensitive" }, h("h2", { text: "Sensitive data: what never goes in DELA" }),
+      h("p", { text: String(me.notice) }),
+      h("p", { class: "small muted", text: "This rule always applies. Closing the blue notice on a page only hides the reminder; DELA still checks what you type and upload." })));
     return el;
   }
 

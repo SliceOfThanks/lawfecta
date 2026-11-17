@@ -131,6 +131,8 @@ async function makeMember(bd, side, plan, name) {
     await dela(p).getByRole("button", { name: "Help", exact: true }).click();
     t = await waitFor(p, "Contact the Lawfecta Team");
     ok(p.url().includes("tab=help") && await inShadow(p, (root) => !root.querySelector(".nl-sheet")), "phone: Help opens from More and the address follows the page");
+    // Stacey's notice instructions of 2026-11-17: the sensitive data rule stays readable on Help, whatever was dismissed
+    ok(await inShadow(p, (root) => { const c = root.querySelector("#help-sensitive"); return !!c && c.innerText.includes("Sensitive data: what never goes in DELA") && c.innerText.includes("DELA is for operations work") && !c.querySelector(".notice-x"); }), "Help always shows the sensitive data rule, with no way to dismiss it there");
     // A requirement row opens its part of the profile
     await dela(p).getByRole("button", { name: "Home", exact: true }).click();
     await waitFor(p, "Complete your profile");
