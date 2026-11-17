@@ -50,6 +50,9 @@ Removing a widget only hides it on Home. Nothing is deleted, no feature is turne
 9. Members still on the old layout (no menu at the left) keep the old Home. The test site has the new layout on.
 10. "Plan and limits" from one mockup is left out: "Monthly usage" and "Account status" cover it.
 
+## Added after her first look (2026-11-17)
+Stacey on "Monthly usage": "this should have a circle graph visual of usage, too much empty space and need to fill and people like visual". The card now shows the month's DELA actions as a ring with the number in the middle and what is left in words, with storage and saved documents beside it. "Account status" shows its checks as a ring in the same style. Each ring is also said in words for a screen reader.
+
 ## How it could go wrong
 - A saved layout names a widget that no longer exists: it is left out; if nothing is left, the default shows. Home is never empty.
 - A member removes everything: refused, one widget must stay.
