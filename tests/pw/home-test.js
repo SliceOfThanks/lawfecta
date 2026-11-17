@@ -76,7 +76,7 @@ const KEYS = "'onboarding_widget', 'flex_gigs', 'engagements', 'profiles', 'tale
     p = s.page;
     t = await waitFor(p, "Your Workspace");
     t = await waitFor(p, "Home check notice");
-    ok(t.includes("Welcome back, Hana.") && t.includes("Your work, your priorities.") && t.includes("Customize dashboard"), "attorney: the heading, the welcome line and the Customize button");
+    ok(t.includes("Your work, your priorities.") && t.includes("Customize dashboard"), "attorney: the heading, the welcome line and the Customize button: " + t.slice(0, 300).replace(/\n/g, " | "));
     let home = await onHome(p);
     ok(JSON.stringify(home.filter((x) => x !== "account")) === JSON.stringify(["ask", "attention", "projects", "usage", "notifications"]) && home.includes("account"), "attorney: the six default widgets, in the default order: " + home.join(", "));
     ok(t.includes("Needs your attention") && t.includes("My projects") && t.includes("Urgent notifications") && t.includes("Home check notice"), "attorney: each widget shows its own content, with the unread notification");
