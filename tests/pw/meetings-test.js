@@ -229,7 +229,10 @@ async function makeMember(bd, side, plan) {
     // Step 32 (Stacey's second Inbox mockup, 2026-11-17): one list with a quick preview beside it; the privacy rule is a
     // small link, not a banner; "Your meetings" left the page; every row has a real date
     t = await text(p);
-    ok(await dela(p).locator(".inbox-page .notice.info").count() === 0 && await dela(p).getByRole("button", { name: "Privacy and secure sharing" }).count() === 1 && await dela(p).getByRole("button", { name: "Your meetings", exact: true }).count() === 0, "no banner and no Your meetings button; the privacy rule is a link");
+    // "Your meetings" left the Inbox where "Meetings" is in the menu (the new layout); the old layout keeps the button
+    const nlNow = await p.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").classList.contains("nl"));
+    const look32 = { banner: await dela(p).locator(".inbox-page .notice.info").count(), link: await dela(p).getByRole("button", { name: "Privacy and secure sharing" }).count(), meetings: await dela(p).getByRole("button", { name: "Your meetings", exact: true }).count(), nl: nlNow };
+    ok(look32.banner === 0 && look32.link === 1 && look32.meetings === (nlNow ? 0 : 1), "no banner; the privacy rule is a link; Your meetings only where the menu has no Meetings: " + JSON.stringify(look32));
     await dela(p).getByRole("button", { name: "Privacy and secure sharing" }).click();
     ok((await text(p)).includes("DELA is for operations work") && await dela(p).getByRole("button", { name: "Close the privacy notice" }).count() === 1, "the link opens the approved notice in place");
     await dela(p).getByRole("button", { name: "Close the privacy notice" }).click();
