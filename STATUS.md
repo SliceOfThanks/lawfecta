@@ -12,7 +12,9 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - Unread rows are white (card color) in Notifications and the Inbox; unread is the blue dot and the bold title.
 - The panel's "N unread" is the member's true count, the same as the bell, and the bell follows what is done on the Notifications page.
 - ChatGPT check 5 came back 13 of 13: docs/tests/reports/2026-11-17-chatgpt-check-5-notifications.md. One job's history from the panel was not reached by it; a browser test covers it now.
-- Stacey 2026-11-17: do not ask her to test until a thing is released with nothing queued behind it (memory: test-only-when-released). Nobody has looked at this release logged in yet.
+- Stacey 2026-11-17: do not ask her to test until a thing is released with nothing queued behind it (memory: test-only-when-released). She then looked: "tested notifications and inbox and looks good".
+- Right after (code_version 2b1ba31, browser only, run 44130082217): the Help page always shows the sensitive data rule in a card "Sensitive data: what never goes in DELA" (her notice instructions: the guidance stays available from Help after dismissal).
+- Health report 2026-11 read (issue 7): its "Fix first" is one code scanning finding in app_test.ts on main (a test assertion about a link; the working branch does not have it). Nothing to fix in code; it clears when the branch is merged to main, which needs a pull request and her word.
 
 ## Step 31, the notification panel and the Notifications page: ON THE SITE (2026-11-17)
 - Site: code_version f07d1b0, api function version 125, migrations through 0127, health "ok". GitHub Tests passed on that commit (run 44119308518). Two runs before it failed: a 290 pixel phone scrolled sideways in the old header (the bell is an icon there now), and a "Fix" commit had no test (the rule refused it; the test was added in the next commit, no exception was marked).
