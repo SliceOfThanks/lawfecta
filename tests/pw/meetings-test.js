@@ -240,8 +240,10 @@ async function makeMember(bd, side, plan) {
     ok(await dela(p).locator("#inbox-list > li").count() >= 1 && (await dela(p).locator("#inbox-total").innerText()).endsWith(" total") && (await dela(p).locator(".inbox-row .inbox-when").first().innerText()).trim().length > 3 && await dela(p).getByLabel("Sort conversations").count() === 1, "the conversations are one list with a count, a date on each row and a sort order");
     const gigRow = dela(p).locator(".inbox-row", { hasText: "Client intake help" }).first();
     if (!((await gigRow.getAttribute("class")) || "").includes("sel")) await gigRow.click();
-    t = await waitFor(p, "Recent messages");
-    ok(await dela(p).locator("#inbox-preview").isVisible() && t.includes("Quick preview") && t.includes("Conversation context") && await dela(p).locator("#inbox-preview .peek-bubble").count() >= 1 && !(await dela(p).locator("#inbox-preview").innerText()).includes("512-555-0199") && await gigRow.getAttribute("aria-current") === "true", "choosing a row shows its newest messages beside the list, without the held one");
+    // The two small labels are drawn in capitals, so the page's text is compared without regard to case
+    await dela(p).locator("#inbox-preview .peek-bubble").first().waitFor({ timeout: 10000 });
+    t = (await text(p)).toLowerCase();
+    ok(await dela(p).locator("#inbox-preview").isVisible() && t.includes("quick preview") && t.includes("conversation context") && t.includes("recent messages") && await dela(p).locator("#inbox-preview .peek-bubble").count() >= 1 && !(await dela(p).locator("#inbox-preview").innerText()).includes("512-555-0199") && await gigRow.getAttribute("aria-current") === "true", "choosing a row shows its newest messages beside the list, without the held one");
     ok(await dela(p).locator("#inbox-list").isVisible() && await dela(p).getByLabel("Your message").count() === 0, "the preview does not open the conversation");
     await dela(p).locator("#inbox-open").click();
     t = await waitFor(p, "Can you start Monday?");
