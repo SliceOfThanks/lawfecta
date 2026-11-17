@@ -586,6 +586,19 @@ D.openTab = function (getUrl, onFail, opts) {
     ".msg-day{display:flex;align-items:center;gap:10px;margin:10px 0;color:var(--muted);font-size:12px}.msg-day::before,.msg-day::after{content:'';flex:1 1 auto;border-top:1px solid var(--line)}" +
     // Stacey 2026-11-17: no pink behind unread rows. Every row is the card color (white in the light look, the dark card
     // in the dark look); unread is the blue dot and the bold title.
+    // Step 32 (Stacey's second Inbox and messages mockups, 2026-11-17): a list with dividers and a quick preview; chat
+    // bubbles as wide as their words; a compact removed line; the thread panel beside the conversation
+    ".inbox-cols.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}.inbox-cols.two>.card{margin:12px 0}.inbox-list{list-style:none;margin:0;padding:0}.inbox-list>li+li{border-top:1px solid var(--line)}" +
+    ".dela .inbox-list .inbox-row{border:0;border-radius:8px;margin:2px 0;padding:12px 8px;background:transparent}.dela .inbox-list .inbox-row:hover{background:var(--soft)}.dela .inbox-list .inbox-row.sel{background:var(--pink)}.inbox-chev{flex:0 0 auto;color:var(--muted);font-size:22px;line-height:1}" +
+    ".inbox-context{padding:10px 12px;border-radius:10px;margin:12px 0}.inbox-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 4px}.peek-msg{margin:8px 0}" +
+    ".peek-bubble{display:inline-block;max-width:100%;padding:8px 12px;border-radius:12px;background:var(--bluebg);border:1px solid var(--line);overflow-wrap:anywhere;white-space:pre-wrap}" +
+    ".dela .privacy-link{display:inline-flex;gap:6px;align-items:center;font-weight:700;min-height:44px}.notice-i.small-i{width:16px;height:16px;line-height:12px;font-size:11px;border-width:1.5px;margin:0}" +
+    ".thread-cols.replying{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(280px,1fr);gap:16px;align-items:start}.thread-cols.replying>.thread-side{margin:12px 0}.dela .thread-back{display:none}" +
+    "@media (max-width:999px){.thread-cols.replying{display:block}.thread-cols.replying .thread-main{display:none}.dela .thread-back{display:inline-flex}}" +
+    ".msg-wrap{display:flex;flex-direction:column;align-items:flex-start;margin:10px 0}.msg-wrap.mine{align-items:flex-end}.msg-wrap .msg{max-width:min(560px,85%);width:fit-content;margin:0;padding:8px 12px;border-radius:14px}" +
+    ".msg-wrap.picked .msg{outline:2px solid #0d83dd;outline-offset:2px}.msg-meta{margin-top:3px}.msg-acts{margin-top:2px}.dela .msg-acts details.dmenu>summary.btn{min-height:32px;padding:2px 10px}.msg-wrap.mine .menu-panel{left:auto;right:0}" +
+    ".msg-gone{text-align:center;margin:10px 0}.msg-gone-pill{display:inline-block;font-size:13px;color:var(--muted);background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:3px 12px}.dela .msg-file{margin-top:6px}" +
+    ".thread-orig{background:var(--bluebg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0}.thread-empty{text-align:center;padding:28px 12px}.thread-reply-box{border-top:1px solid var(--line);padding-top:12px;margin-top:10px}" +
     // Step 31: the Notifications page and the panel from the bell (Stacey's mockup of 2026-11-17)
     ".notices-tabs{margin:12px 0}.dela .notices-tabs button{min-height:44px}.notice-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:8px 0;min-height:60px}" +
     ".notice-row input[type=checkbox]{width:18px;height:18px;flex:0 0 auto}.notice-dot{flex:0 0 auto;width:10px;height:10px;border-radius:50%}.notice-dot.on{background:#0d6fd6}" +

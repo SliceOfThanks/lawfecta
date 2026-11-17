@@ -229,7 +229,7 @@
     var all = g.main.concat(g.second, g.account, g.foot), hit = all.filter(function (t) { return t[0] === tab; })[0];
     return hit ? hit[1] : PAGE_NAMES[tab] || "DELA";
   }
-  function goTab(key) { closeMore(); tab = key; if (key === "inbox") talk.thread = null; if (key === "meetings") talk.meeting = null; draw(); }
+  function goTab(key) { closeMore(); tab = key; if (key === "inbox") { talk.thread = null; talk.openReply = null; } if (key === "meetings") talk.meeting = null; draw(); }
   function navItem(t, folded) {
     return h("button", { class: "nl-item", type: "button", "aria-current": t[0] === tab ? "page" : null, "aria-label": folded ? t[1] : null, "data-tip": t[1], onclick: function () { goTab(t[0]); } },
       icon(ICON_FOR[t[0]] || "chev"), h("span", { class: "lbl", text: t[1] }));
@@ -6480,7 +6480,7 @@
     chat_off: "Messages are not open for your account yet.", meetings_off: "Booking is not open for your account yet.", blocked: "This conversation is blocked.",
     thread_closed: "This conversation closed 30 days after the gig closed.", bench_ended: "This bench conversation is closed, because the freelancer is no longer on the bench.",
     project_closed: "This engagement is complete, so its conversation is read only. Use your bench conversation to keep in touch.", bench_no_files: "A bench conversation does not share files. Share files on a gig.", too_many_messages: "You are sending messages very fast. Wait a moment.",
-    edit_time_over: "Messages can be edited for 15 minutes only.", edit_needs_check: "That edit looks like contact details or payment outside Lawfecta. Send it as a new message instead, so DELA can check it.",
+    edit_time_over: "A message can be edited or removed for 15 minutes after it is sent.", reply_parent_gone: "That message is no longer there, so the reply was not sent.", edit_needs_check: "That edit looks like contact details or payment outside Lawfecta. Send it as a new message instead, so DELA can check it.",
     time_taken: "Someone just took that time. Choose another.", same_time: "That is the meeting's current time. Choose a different time.", hold_expired: "The time was held for 10 minutes and ran out. Choose a time again.",
     intro_calls_off: "Calls before a gig are not open right now.", intro_call_booked: "An introductory call with this freelancer is already booked. Open Your meetings to change or cancel it.",
     limit_reached: "You have booked the most introductory calls allowed in one day. Try again tomorrow.", attorneys_only: "Only the attorney can book the first call. You can change its time once it is booked.",
@@ -6532,64 +6532,142 @@
     if (d.toDateString() === y.toDateString()) return "Yesterday, " + time;
     return d.toLocaleDateString([], d.getFullYear() === now.getFullYear() ? { month: "short", day: "numeric" } : { month: "short", day: "numeric", year: "numeric" }) + ", " + time;
   }
+  // Step 32 (Stacey's second Inbox mockup, 2026-11-17): the privacy rule is one small link, "Privacy and secure sharing",
+  // that opens the approved blue notice in place. It no longer sits over the Inbox as a banner.
+  function privacyLink() {
+    var holder = h("div", { class: "privacy-holder", hidden: true });
+    var btn = h("button", { class: "linkish privacy-link", type: "button", "aria-expanded": "false" }, "Privacy and secure sharing", h("span", { class: "notice-i small-i", "aria-hidden": "true", text: "i" }));
+    function set(open) {
+      holder.hidden = !open; btn.setAttribute("aria-expanded", String(open));
+      D.clear(holder);
+      if (!open) return;
+      var x = h("button", { type: "button", class: "notice-x", "aria-label": "Close the privacy notice" }, h("span", { "aria-hidden": "true", text: "×" }));
+      x.addEventListener("click", function () { set(false); btn.focus(); });
+      holder.appendChild(h("div", { class: "notice info", role: "note" }, h("span", { class: "notice-i", "aria-hidden": "true", text: "i" }),
+        h("div", { class: "notice-words", text: String(me.notice || "Never enter sensitive data in DELA. Keep it in your own storage and add a secure link to the job.") }), x));
+    }
+    btn.addEventListener("click", function () { set(holder.hidden); });
+    return { btn: btn, holder: holder };
+  }
+  // Step 32: one list of conversations with dividers, and a quick preview beside it on a wide screen. A row says who,
+  // what the conversation is about, the newest message and a real date (the day it started when nothing was written yet).
   function inboxView() {
     var el = h("div", { class: "inbox-page" }, h("h1", { text: "Inbox" }), h("p", { class: "muted", text: "Loading..." }));
     if (talk.thread) { threadView(el); return el; }
     api.get("/threads").then(function (r) {
       D.clear(el);
-      if (me.notice) el.appendChild(D.infoNotice(String(me.notice), "sensitive"));
-      el.appendChild(h("div", { class: "row" }, h("h1", { class: "grow", text: "Inbox" }), (me.switches || {}).meetings ? h("button", { class: "ghost small", onclick: function () { talk.meeting = null; tab = "meetings"; draw(); } }, "Your meetings") : null));
-      el.appendChild(h("p", { class: "muted", text: me.side === "attorney" ? "Manage conversations with freelancers, discuss projects and arrange introductory calls. Keep all work, contact and payment on Lawfecta." : "Your conversations with attorneys about gigs, introductions and your bench. Keep all work, contact and payment on Lawfecta." }));
+      var priv = privacyLink();
+      // "Your meetings" left this page (Stacey 2026-11-17: Meetings is in the menu). The old layout has no such menu
+      // item, so it keeps the button.
+      el.appendChild(h("div", { class: "row", style: "gap:12px;align-items:center;flex-wrap:wrap" }, h("h1", { class: "grow", style: "margin:0", text: "Inbox" }), priv.btn,
+        !NL() && (me.switches || {}).meetings ? h("button", { class: "ghost small", onclick: function () { talk.meeting = null; tab = "meetings"; draw(); } }, "Your meetings") : null));
+      el.appendChild(priv.holder);
+      el.appendChild(h("p", { class: "muted", text: "Conversations about gigs, introductions and project work. Keep all work, contact and payment on Lawfecta." }));
       if (!r.on) { el.appendChild(h("p", { class: "notice", text: TALK_ERR.chat_off })); return; }
       var all = r.threads || [];
       if (!all.length) { el.appendChild(h("p", { class: "muted", id: "inbox-empty", text: me.side === "attorney" ? "No conversations yet. Invite a freelancer to a gig, or message someone who sent a proposal." : "No conversations yet. They start when an attorney invites you or when you send a proposal." })); return; }
-      var search = h("input", { type: "search", id: "inbox-search", autocomplete: "off", placeholder: "Search by name, gig or words in the last message", value: inboxState.q, style: "width:100%" });
+      var search = h("input", { type: "search", id: "inbox-search", autocomplete: "off", placeholder: "Search people, gig titles and message text", value: inboxState.q, style: "width:100%" });
       el.appendChild(h("div", { class: "inbox-search" }, h("label", { for: "inbox-search", text: "Search conversations" }), search));
       var isGig = function (t) { return t.kind !== "intro" && t.kind !== "bench"; };
       var FILTERS = [["all", "All", function () { return true; }], ["unread", "Unread", function (t) { return t.unread > 0; }], ["gigs", "Gigs", isGig], ["intros", "Introductions", function (t) { return t.kind === "intro"; }]];
       if (all.some(function (t) { return t.kind === "bench"; })) FILTERS.push(["bench", "Bench", function (t) { return t.kind === "bench"; }]);
       if (!FILTERS.some(function (f) { return f[0] === inboxState.f; })) inboxState.f = "all";
       var tabs = h("div", { class: "pills inbox-tabs", role: "tablist", "aria-label": "Conversations to show" });
-      el.appendChild(tabs);
-      var live = h("div", { class: "sr", role: "status" }), list = h("div", { id: "inbox-list", role: "tabpanel", "aria-label": "Conversations" }), foot = h("div", { class: "row inbox-foot", style: "gap:12px;flex-wrap:wrap;align-items:center;justify-content:center;margin:12px 0" });
-      el.appendChild(live); el.appendChild(list); el.appendChild(foot);
+      var sort = h("select", { "aria-label": "Sort conversations" }, [["new", "Most recent"], ["old", "Oldest first"], ["name", "Name, A to Z"]].map(function (o) { return h("option", { value: o[0], text: o[1], selected: (inboxState.sort || "new") === o[0] }); }));
+      el.appendChild(h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;align-items:center" }, tabs, h("span", { class: "grow" }), h("label", { class: "small", style: "display:flex;gap:6px;align-items:center" }, "Sort ", sort)));
+      var live = h("div", { class: "sr", role: "status" });
+      var count = h("span", { class: "small muted", id: "inbox-total" });
+      var list = h("ul", { id: "inbox-list", class: "inbox-list", "aria-label": "Conversations" });
+      var foot = h("div", { class: "row inbox-foot", style: "gap:12px;flex-wrap:wrap;align-items:center;justify-content:center;margin:10px 0 0" });
+      var pane = h("div", { class: "card inbox-pane", id: "inbox-preview", "aria-label": "Quick preview" });
+      var cols = h("div", { class: "inbox-cols" },
+        h("div", { class: "card inbox-listcard" }, h("div", { class: "row inbox-cardhead" }, h("h2", { class: "grow", style: "margin:0", text: "Conversations" }), count), list, foot), pane);
+      el.appendChild(live); el.appendChild(cols);
+      // The preview sits beside the list only where there is room; on a narrow screen a row opens its conversation
+      var wide = function () { try { return window.matchMedia("(min-width: 1000px)").matches; } catch (e) { return false; } };
+      var whenOf = function (t) { return t.last_at || t.created_at; };
       function matches(t) {
         var q = inboxState.q.trim().toLowerCase();
         if (!q) return true;
         var hay = [t.other_name, t.gig_title, t.last_text, INBOX_KIND[t.kind] || "Gig"].join(" ").toLowerCase();
         return q.split(/ +/).every(function (w) { return hay.indexOf(w) >= 0; });
       }
+      function openThread(t) { talk.thread = t.id; draw(); }
+      function kindTag(t) { return h("span", { class: "inbox-kind " + (t.kind === "intro" ? "intro" : t.kind === "bench" ? "bench" : "gig"), text: INBOX_KIND[t.kind] || "Gig" }); }
+      function drawPane(t) {
+        D.clear(pane);
+        pane.hidden = !wide();
+        if (pane.hidden) return;
+        pane.appendChild(h("div", { class: "row inbox-cardhead" }, h("h2", { class: "grow", style: "margin:0", text: "Quick preview" }), h("span", { class: "small muted", text: t ? "Selected conversation" : "" })));
+        if (!t) { pane.appendChild(h("p", { class: "muted", style: "padding:14px 16px", text: "Choose a conversation to see its newest messages here." })); return; }
+        var body = h("div", { class: "inbox-pane-body" });
+        pane.appendChild(body);
+        body.appendChild(h("div", { class: "row", style: "gap:12px;align-items:center" }, smallFace(t),
+          h("div", { class: "grow", style: "min-width:0" }, h("h3", { style: "margin:0;font-size:20px;overflow-wrap:anywhere", text: t.other_name }), h("div", { class: "inbox-about" }, kindTag(t), h("span", { class: "inbox-title", text: t.gig_title })))));
+        body.appendChild(h("div", { class: "soft inbox-context" }, h("div", { class: "inbox-label", text: "Conversation context" }),
+          h("b", { text: t.kind === "intro" ? "An introduction, before any gig" : t.kind === "bench" ? "Your ongoing bench conversation" : t.gig_title }),
+          h("div", { class: "small muted", text: t.last_at ? "Newest message " + inboxWhen(t.last_at) + "." : "No messages yet. The conversation started " + inboxWhen(t.created_at) + "." })));
+        var recent = h("div", { "aria-live": "polite" }, h("div", { class: "inbox-label", text: "Recent messages" }), h("p", { class: "muted small", text: "Loading..." }));
+        body.appendChild(recent);
+        api.get("/threads/peek?id=" + t.id).then(function (pk) {
+          if (inboxState.sel !== t.id || !recent.parentNode) return;
+          D.clear(recent); recent.appendChild(h("div", { class: "inbox-label", text: "Recent messages" }));
+          if (!pk || !pk.ok) { recent.appendChild(h("p", { class: "muted small", text: "The messages could not be loaded. Open the conversation to read them." })); return; }
+          if (!pk.messages.length) recent.appendChild(h("p", { class: "muted small", text: "No messages yet." }));
+          pk.messages.forEach(function (m) {
+            recent.appendChild(h("div", { class: "peek-msg" + (m.mine ? " mine" : "") }, h("div", { class: "peek-bubble", text: m.body + (m.files ? " (" + m.files + (m.files === 1 ? " file)" : " files)") : "") }),
+              h("div", { class: "small muted", text: (m.mine ? "You" : t.other_name) + " · " + inboxWhen(m.created_at) + (m.reply ? " · in a thread" : "") + (m.status === "held" ? " · being checked" : "") })));
+          });
+          if (pk.total > pk.messages.length) recent.appendChild(h("p", { class: "small muted", text: "The newest " + pk.messages.length + " of " + pk.total + " messages." }));
+        }).catch(function () { D.clear(recent); recent.appendChild(h("p", { class: "muted small", text: "The messages could not be loaded. Open the conversation to read them." })); });
+        body.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:12px" },
+          h("button", { class: "blue small", type: "button", id: "inbox-open", onclick: function () { openThread(t); } }, "Open conversation →"),
+          isGig(t) ? h("button", { class: "ghost small", type: "button", onclick: function () { gigs.id = t.gig_id; gigs.view = "details"; tab = me.side === "attorney" ? "projects" : "work"; draw(); } }, "View gig") : null));
+        body.appendChild(h("p", { class: "notice small", style: "margin:12px 0 0", text: "For private client materials, add a secure link on the job. Never put sensitive data in a message." }));
+      }
       function paint(announce) {
         D.clear(tabs);
         FILTERS.forEach(function (f) {
           var n = all.filter(f[2]).length;
-          tabs.appendChild(h("button", { role: "tab", type: "button", "data-filter": f[0], "aria-selected": String(inboxState.f === f[0]), onclick: function () { inboxState.f = f[0]; inboxState.shown = 20; paint(true); var b = tabs.querySelector("[aria-selected=true]"); if (b) b.focus(); } }, f[1] + " (" + n + ")"));
+          tabs.appendChild(h("button", { role: "tab", type: "button", "data-filter": f[0], "aria-selected": String(inboxState.f === f[0]), onclick: function () { inboxState.f = f[0]; inboxState.shown = 20; paint(true); var b2 = tabs.querySelector("[aria-selected=true]"); if (b2) b2.focus(); } }, f[1] + " (" + n + ")"));
         });
         var cur = FILTERS.filter(function (f) { return f[0] === inboxState.f; })[0];
-        var rows = all.filter(cur[2]).filter(matches);
+        var rows = all.filter(cur[2]).filter(matches), by = inboxState.sort || "new";
+        rows = rows.slice().sort(function (x, y) {
+          if (by === "name") return String(x.other_name).localeCompare(String(y.other_name));
+          var d = new Date(whenOf(y) || 0).getTime() - new Date(whenOf(x) || 0).getTime();
+          return by === "old" ? -d : d;
+        });
         D.clear(list); D.clear(foot);
-        if (!rows.length) list.appendChild(h("p", { class: "muted", id: "inbox-none", text: inboxState.q.trim() ? "No conversation matches \"" + inboxState.q.trim() + "\". Try fewer words, or choose \"All\"." : inboxState.f === "unread" ? "Nothing unread. You are up to date." : "No conversations here yet." }));
-        rows.slice(0, inboxState.shown).forEach(function (t) {
-          var kind = INBOX_KIND[t.kind] || "Gig", unread = t.unread > 0;
-          var preview = t.last_text ? (t.last_mine ? "You: " : "") + t.last_text : "No messages yet.";
-          var row = h("button", { type: "button", class: "inbox-row" + (unread ? " unread" : ""),
-            "aria-label": (unread ? t.unread + " unread. " : "") + t.other_name + ". " + kind + ": " + t.gig_title + ". " + preview + (t.last_at ? " " + inboxWhen(t.last_at) : ""),
-            onclick: function () { talk.thread = t.id; draw(); } },
+        count.textContent = rows.length + " total";
+        if (!rows.length) list.appendChild(h("li", { class: "inbox-none" }, h("p", { class: "muted", id: "inbox-none", text: inboxState.q.trim() ? "No conversation matches \"" + inboxState.q.trim() + "\". Try fewer words, or choose \"All\"." : inboxState.f === "unread" ? "Nothing unread. You are up to date." : "No conversations here yet." })));
+        var shown = rows.slice(0, inboxState.shown), two = wide();
+        if (two && !shown.some(function (t) { return t.id === inboxState.sel; })) inboxState.sel = shown.length ? shown[0].id : "";
+        shown.forEach(function (t) {
+          var kind = INBOX_KIND[t.kind] || "Gig", unread = t.unread > 0, selected = two && inboxState.sel === t.id;
+          var preview = t.last_text ? (t.last_mine ? "You: " : "") + t.last_text : "No messages yet · Conversation started " + inboxWhen(t.created_at);
+          var row = h("button", { type: "button", class: "inbox-row" + (unread ? " unread" : "") + (selected ? " sel" : ""), "aria-current": selected ? "true" : null,
+            "aria-label": (unread ? t.unread + " unread. " : "") + t.other_name + ". " + kind + ": " + t.gig_title + ". " + preview + ". " + inboxWhen(whenOf(t)) + (two ? ". Shows a preview; choose it again to open the conversation." : ""),
+            onclick: function () { if (!wide() || inboxState.sel === t.id) { openThread(t); return; } inboxState.sel = t.id; paint(false); var again = list.querySelector(".inbox-row.sel"); if (again) again.focus(); } },
             h("span", { class: "inbox-dot" + (unread ? " on" : ""), "aria-hidden": "true" }), smallFace(t),
             h("span", { class: "inbox-main" },
-              h("span", { class: "inbox-top" }, h("span", { class: "inbox-name", text: t.other_name }), h("span", { class: "inbox-when small muted", text: inboxWhen(t.last_at) })),
-              h("span", { class: "inbox-about" }, h("span", { class: "inbox-kind " + (t.kind === "intro" ? "intro" : t.kind === "bench" ? "bench" : "gig"), text: kind }), h("span", { class: "inbox-title", text: t.gig_title })),
+              h("span", { class: "inbox-top" }, h("span", { class: "inbox-name", text: t.other_name }), h("span", { class: "inbox-when small muted", text: inboxWhen(whenOf(t)) })),
+              h("span", { class: "inbox-about" }, kindTag(t), h("span", { class: "inbox-title", text: t.gig_title })),
               h("span", { class: "inbox-prev small" + (t.last_text ? "" : " muted"), text: preview })),
-            unread ? h("span", { class: "inbox-count", "aria-hidden": "true", text: String(t.unread) }) : null);
-          list.appendChild(row);
+            unread ? h("span", { class: "inbox-count", "aria-hidden": "true", text: String(t.unread) }) : null, h("span", { class: "inbox-chev", "aria-hidden": "true", text: "›" }));
+          row.addEventListener("dblclick", function () { openThread(t); });
+          list.appendChild(h("li", null, row));
         });
-        if (rows.length) foot.appendChild(h("span", { class: "small muted", text: "Showing " + Math.min(inboxState.shown, rows.length) + " of " + rows.length + (rows.length === 1 ? " conversation." : " conversations.") }));
-        if (rows.length > inboxState.shown) foot.appendChild(h("button", { class: "ghost", type: "button", onclick: function () { var from = inboxState.shown; inboxState.shown += 20; paint(false); var next = list.querySelectorAll(".inbox-row")[from]; if (next) next.focus(); } }, "Show more conversations"));
+        if (rows.length) foot.appendChild(h("span", { class: "small muted", text: "Showing " + shown.length + " of " + rows.length + (rows.length === 1 ? " conversation." : " conversations.") }));
+        if (rows.length > inboxState.shown) foot.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { var from = inboxState.shown; inboxState.shown += 20; paint(false); var next = list.querySelectorAll(".inbox-row")[from]; if (next) next.focus(); } }, "Show more conversations"));
+        cols.className = "inbox-cols" + (two ? " two" : "");
+        drawPane(two ? rows.filter(function (t) { return t.id === inboxState.sel; })[0] : null);
         if (announce) live.textContent = rows.length + (rows.length === 1 ? " conversation" : " conversations");
       }
       var typing = null;
       search.addEventListener("input", function () { inboxState.q = search.value; inboxState.shown = 20; clearTimeout(typing); typing = setTimeout(function () { paint(true); }, 150); });
       search.addEventListener("keydown", function (e) { if (e.key === "Escape" && search.value) { e.stopPropagation(); search.value = ""; inboxState.q = ""; paint(true); } });
+      sort.addEventListener("change", function () { inboxState.sort = sort.value; paint(true); });
       paint(false);
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     return el;
@@ -6604,8 +6682,10 @@
     api.get("/threads/get?id=" + talk.thread).then(function (r) {
       D.clear(el);
       // Step 30: the notice, the way back, then one header card that says who this is and what the conversation is about
-      if (me.notice) el.appendChild(D.infoNotice(String(me.notice), "sensitive"));
-      el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", onclick: function () { talk.thread = null; draw(); } }, "← Inbox")));
+      // Step 32: the privacy rule is a small link here too, not a banner over the conversation
+      var priv = privacyLink();
+      el.appendChild(h("div", { class: "row", style: "gap:12px;align-items:center;flex-wrap:wrap" }, h("button", { class: "ghost small", onclick: function () { talk.thread = null; talk.openReply = null; draw(); } }, "← Inbox"), h("span", { class: "grow" }), priv.btn));
+      el.appendChild(priv.holder);
       if (!r.ok) { el.appendChild(h("p", { class: "notice", text: "This conversation is not available to you." })); return; }
       var t = r.thread;
       var aboutWord = t.kind === "intro" ? "Introduction, before any gig" : t.kind === "bench" ? "Bench conversation: " + t.gig_title : "Gig: " + t.gig_title;
@@ -6667,48 +6747,115 @@
       // What DELA suggests shows in one panel under the message box, labeled as a suggestion; nothing is sent from it
       var aiOut = h("div", { class: "ai-suggest", id: "thread-ai-out", hidden: true, role: "status" });
       // Messages
-      var list = h("div", { class: "card", "aria-label": "Messages" });
-      if (!r.messages.length) list.appendChild(h("p", { class: "muted", text: "No messages yet. Say hello and ask what you need to know." }));
-      var lastMine = null, lastDay = "";
-      r.messages.forEach(function (m) {
-        // A line with the date where a new day starts (step 30)
-        var day = new Date(m.created_at).toDateString();
-        if (day !== lastDay) { lastDay = day; list.appendChild(h("div", { class: "msg-day", role: "separator" }, h("span", { text: new Date(m.created_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) }))); }
-        var box = h("div", { class: "msg" + (m.mine ? " mine" : "") });
-        // Who removed it (UX review 2026-11-08). Older removed messages carry no reason and keep the short line.
-        if (m.status === "removed") box.appendChild(h("p", { class: "muted small", text: m.removed_why === "team" ? "Message removed by the Lawfecta Team: it looked like a plan to work or pay outside Lawfecta." : m.removed_why === "sender" ? (m.mine ? "You removed this message." : "The sender removed this message.") : "Message removed" }));
-        else {
-          box.appendChild(h("p", { style: "margin:0;white-space:pre-wrap", text: m.body }));
-          (m.attachments || []).forEach(function (a) {
-            box.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-              D.openTab(function () { return api.get("/threads/file?thread=" + t.id + "&file=" + a.file_id).then(gigOk).then(function (x) { return x.url; }); }, talkFail);
-            } }, "Open " + a.name));
-          });
-          if (m.status === "held") box.appendChild(h("p", { class: "small bad", text: "Being checked by the Lawfecta Team. The other person does not see it yet." }));
-          if (m.warned) box.appendChild(h("p", { class: "small muted", text: "Sent with a reminder: keep all work, contact and payment on Lawfecta." }));
+      // Step 32 (Stacey's second messages mockup, 2026-11-17): chat bubbles only as wide as their words, the member's own
+      // at the right; a removed message is one small grey line; "Edit" and "Remove" sit in a three-dot menu for the 15
+      // minutes they are allowed; and any message can be answered in a thread that opens beside the conversation.
+      var mainCol = h("div", { class: "thread-main" }), side = h("div", { class: "card thread-side", id: "thread-side", "aria-label": "Thread", hidden: true });
+      var colsEl = h("div", { class: "thread-cols" }, mainCol, side);
+      el.appendChild(colsEl);
+      var list = h("div", { class: "card msg-list", "aria-label": "Messages" });
+      var tops = r.messages.filter(function (m) { return !m.reply_to; });
+      var timeOf = function (m) { return new Date(m.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); };
+      function msgNode(m, inThread) {
+        if (m.status === "removed") {
+          // Who removed it (UX review 2026-11-08). Older removed messages carry no reason and keep the short line.
+          var why = m.removed_why === "team" ? "Removed by the Lawfecta Team: it looked like a plan to work or pay outside Lawfecta." : m.removed_why === "sender" ? (m.mine ? "You removed this message." : "The sender removed this message.") : "";
+          return h("div", { class: "msg-gone" }, h("span", { class: "msg-gone-pill" }, h("span", { "aria-hidden": "true", text: "⊘ " }), "Message removed"), why ? h("span", { class: "small muted", text: " " + why }) : null);
         }
-        // Who wrote it and when, on every message (step 30, from the mockup): "You" for the member's own
-        var meta = h("div", { class: "small muted msg-meta", text: (m.mine ? "You" : t.other_name) + " · " + new Date(m.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + (m.edited ? " · edited" : "") });
-        box.appendChild(meta);
+        var bubble = h("div", { class: "msg" + (m.mine ? " mine" : "") }, h("p", { style: "margin:0;white-space:pre-wrap", text: m.body }));
+        (m.attachments || []).forEach(function (a2) {
+          bubble.appendChild(h("button", { class: "ghost small msg-file", type: "button", onclick: function () {
+            D.openTab(function () { return api.get("/threads/file?thread=" + t.id + "&file=" + a2.file_id).then(gigOk).then(function (x) { return x.url; }); }, talkFail);
+          } }, "Open " + a2.name));
+        });
+        if (m.status === "held") bubble.appendChild(h("p", { class: "small bad", text: "Being checked by the Lawfecta Team. The other person does not see it yet." }));
+        if (m.warned) bubble.appendChild(h("p", { class: "small muted", text: "Sent with a reminder: keep all work, contact and payment on Lawfecta." }));
+        var meta = h("div", { class: "small muted msg-meta", text: (m.mine ? "You" : t.other_name) + " · " + timeOf(m) + (m.edited ? " · edited" : "") });
+        var wrap = h("div", { class: "msg-wrap" + (m.mine ? " mine" : ""), "data-msg": m.id }, bubble, meta);
+        var acts = h("div", { class: "row msg-acts", style: "gap:8px;align-items:center" });
+        if (!inThread && m.status === "sent" && (r.writable || m.replies)) {
+          acts.appendChild(h("button", { class: "linkish small msg-reply", type: "button", "aria-label": "Reply in thread to the message from " + (m.mine ? "you" : t.other_name) + " at " + timeOf(m) + ", " + (m.replies || 0) + (m.replies === 1 ? " reply" : " replies"),
+            onclick: function () { talk.openReply = m.id; drawSide(true); } }, "↪ Reply in thread · " + (m.replies || 0) + (m.replies === 1 ? " reply" : " replies")));
+        }
+        // Edit and Remove: the sender's own message, for the 15 minutes after it was sent (the server refuses later)
         var fresh = Date.now() - new Date(m.created_at).getTime() < r.edit_minutes * 60000;
         if (m.mine && m.status === "sent" && fresh) {
-          box.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: function () {
+          var mm = menuOf("⋯", "msg-menu-" + m.id);
+          mm.querySelector("summary").setAttribute("aria-label", "More for your message at " + timeOf(m));
+          mm.item("Edit message", function () {
             var nb = prompt("Edit your message (the earlier text is kept for the Lawfecta Team):", m.body);
             if (nb === null || !nb.trim()) return;
             api.post("/threads/edit", { id: m.id, body: nb }).then(gigOk).then(function () { draw(); D.toast(app, "Edited"); }).catch(talkFail);
-          } }, "Edit"), h("button", { class: "ghost small", type: "button", onclick: function () {
+          });
+          mm.item("Remove message", function () {
             if (!confirm("Remove this message? The other person sees \"Message removed\".")) return;
             api.post("/threads/remove", { id: m.id }).then(gigOk).then(function () { draw(); }).catch(talkFail);
-          } }, "Remove")));
+          });
+          mm.querySelector(".menu-panel").appendChild(h("p", { class: "small muted", style: "margin:6px 12px 4px", text: "Shown only within " + r.edit_minutes + " minutes of sending." }));
+          acts.appendChild(mm);
         }
-        if (m.mine) lastMine = { m: m, meta: meta };
-        list.appendChild(box);
+        if (acts.children.length) wrap.appendChild(acts);
+        wrap.metaEl = meta;
+        return wrap;
+      }
+      if (!tops.length) list.appendChild(h("p", { class: "muted", text: "No messages yet. Say hello and ask what you need to know." }));
+      var lastMine = null, lastDay = "";
+      tops.forEach(function (m) {
+        // A line with the date where a new day starts (step 30)
+        var day = new Date(m.created_at).toDateString();
+        if (day !== lastDay) { lastDay = day; list.appendChild(h("div", { class: "msg-day", role: "separator" }, h("span", { text: new Date(m.created_at).toLocaleDateString([], { month: "long", day: "numeric", year: "numeric" }) }))); }
+        var node = msgNode(m, false);
+        if (m.mine && m.status !== "removed") lastMine = { m: m, meta: node.metaEl };
+        list.appendChild(node);
       });
       // "Seen" with its time, under the member's newest message, when the other person has read receipts on
       if (lastMine && r.seen_at && new Date(r.seen_at) >= new Date(lastMine.m.created_at)) lastMine.meta.appendChild(h("span", { class: "msg-seen", text: " · ✓ Seen " + inboxWhen(r.seen_at) }));
-      el.appendChild(list);
+      mainCol.appendChild(list);
+      // The thread of one message: the message, its replies, and a box to answer. It opens beside the conversation on a
+      // wide screen and in place of it on a narrow one, with a way back.
+      function drawSide(focus) {
+        var parent = talk.openReply ? r.messages.filter(function (m) { return m.id === talk.openReply && !m.reply_to; })[0] : null;
+        D.clear(side);
+        side.hidden = !parent;
+        colsEl.className = "thread-cols" + (parent ? " replying" : "");
+        [].forEach.call(list.querySelectorAll(".msg-wrap.picked"), function (x) { x.classList.remove("picked"); });
+        if (!parent) { talk.openReply = null; return; }
+        var pickedEl = list.querySelector("[data-msg=\"" + parent.id + "\"]"); if (pickedEl) pickedEl.classList.add("picked");
+        var closeSide = function () { talk.openReply = null; drawSide(false); var back = list.querySelector("[data-msg=\"" + parent.id + "\"] .msg-reply"); if (back) back.focus(); };
+        side.appendChild(h("div", { class: "row thread-side-head", style: "align-items:center;gap:8px" }, h("button", { class: "ghost small thread-back", type: "button", onclick: closeSide }, "← Back to the conversation"),
+          h("h2", { class: "grow", style: "margin:0", id: "thread-side-title", text: "Thread" }), h("button", { class: "notice-x", type: "button", "aria-label": "Close the thread", onclick: closeSide }, h("span", { "aria-hidden": "true", text: "×" }))));
+        side.appendChild(h("div", { class: "thread-orig" }, h("div", { class: "small muted", text: "Original message · " + (parent.mine ? "You" : t.other_name) + " · " + inboxWhen(parent.created_at) }),
+          parent.status === "removed" ? h("p", { class: "muted", style: "margin:4px 0 0", text: "Message removed" }) : h("p", { style: "margin:4px 0 0;white-space:pre-wrap;font-weight:600", text: parent.body })));
+        var replies = r.messages.filter(function (m) { return m.reply_to === parent.id; });
+        var rl = h("div", { class: "thread-replies", "aria-label": "Replies", "aria-live": "polite" });
+        if (!replies.length) rl.appendChild(h("div", { class: "thread-empty" }, h("b", { text: "No replies yet" }), h("p", { class: "small muted", style: "margin:4px 0 0", text: "Reply to this specific message without interrupting the main conversation." })));
+        replies.forEach(function (m) { rl.appendChild(msgNode(m, true)); });
+        side.appendChild(rl);
+        if (!r.writable || parent.status === "removed") { side.appendChild(h("p", { class: "small muted", style: "padding:0 16px 14px", text: parent.status === "removed" ? "This message was removed, so it takes no new replies." : (TALK_ERR[r.why_closed] || "This conversation is closed.") })); return; }
+        var rta = h("textarea", { rows: 2, style: "width:100%", id: "thread-reply", placeholder: "Write a reply..." });
+        var rsay = h("p", { class: "notice bad", role: "alert", hidden: true }), rsend = h("button", { class: "blue small", type: "button" }, "Send reply →"), rreq = newId();
+        rta.addEventListener("input", function () { rsay.hidden = true; });
+        function sendReply(confirmed) {
+          if (!rta.value.trim()) { rta.focus(); return; }
+          rsend.disabled = true;
+          api.post("/threads/send", { thread_id: t.id, body: rta.value, reply_to: parent.id, request_id: rreq, confirm_no_client_info: confirmed === true }).then(function (x) {
+            rsend.disabled = false;
+            if (x.reason === "sensitive_data") { rsay.textContent = x.message || D.errorText("sensitive_data"); rsay.hidden = false; rta.focus(); return; }
+            if (x.reason === "looks_like_client_info") { if (confirm(ciNote(x, "This may include client information (" + kindsText(x.kinds) + "). Click OK only if it is not."))) sendReply(true); return; }
+            if (x.reason === "reply_parent_gone") { rsay.textContent = "That message is no longer there, so the reply was not sent. Write it in the main conversation instead."; rsay.hidden = false; return; }
+            gigOk(x);
+            var note = x.held || x.warned ? x.note : "";
+            draw();
+            if (note) D.toast(app, note, x.held); else D.toast(app, "Reply sent in the thread.");
+          }).catch(function (e) { rsend.disabled = false; talkFail(e); });
+        }
+        rsend.addEventListener("click", function () { sendReply(false); });
+        side.appendChild(h("div", { class: "thread-reply-box" }, h("label", { for: "thread-reply", style: "display:block;font-weight:700;margin:0 0 4px", text: "Reply in thread" }), rta, rsay,
+          h("div", { class: "row", style: "margin-top:8px;justify-content:flex-end" }, rsend)));
+        if (focus) rta.focus();
+      }
       // Composer
-      if (!r.writable) { el.appendChild(h("p", { class: "notice", text: TALK_ERR[r.why_closed] || "This conversation is closed." })); return; }
+      if (!r.writable) { mainCol.appendChild(h("p", { class: "notice", text: TALK_ERR[r.why_closed] || "This conversation is closed." })); drawSide(false); return; }
       var ta = h("textarea", { rows: 3, style: "width:100%", id: "thread-message", "aria-label": "Your message", placeholder: "Write your message..." });
       ta.value = r.draft || "";
       // A saved draft is checked by the same rules as a sent message, and the result stays under the box until the text
@@ -6835,10 +6982,11 @@
         });
       }
       if (aiMenu) AI_TOOLS.forEach(function (tool) { aiMenu.item(tool[1], function () { runTool(tool); }); });
-      el.appendChild(h("div", { class: "card thread-compose" }, h("label", { for: "thread-message", style: "display:block;font-weight:700;margin:0 0 4px", text: "Message" }), ta,
+      mainCol.appendChild(h("div", { class: "card thread-compose" }, h("label", { for: "thread-message", style: "display:block;font-weight:700;margin:0 0 4px", text: "Message" }), ta,
         h("p", { class: "small muted", style: "margin:4px 0 0", text: (me.switches || {}).client_details_allowed ? "No sensitive data, contact details or payment outside Lawfecta." : "No client information, contact details or payment outside Lawfecta." }),
         draftFlag, sayEl, chips,
         h("div", { class: "row", style: "margin-top:8px;flex-wrap:wrap;gap:8px;align-items:center" }, noGig ? null : pick, aiMenu, h("span", { class: "grow" }), send), attachWrap, aiOut));
+      drawSide(false);
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
 

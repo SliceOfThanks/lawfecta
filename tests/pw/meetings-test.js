@@ -226,9 +226,23 @@ async function makeMember(bd, side, plan) {
     await dela(p).getByRole("tab", { name: /^Introductions/ }).click();
     ok(await dela(p).getByRole("tab", { name: /^Introductions/ }).getAttribute("aria-selected") === "true" && await dela(p).locator(".inbox-row", { hasText: "Client intake help" }).count() === 0, "the Introductions filter leaves gig conversations out");
     await dela(p).getByRole("tab", { name: /^All/ }).click();
-    await dela(p).locator(".inbox-row", { hasText: "Client intake help" }).first().click();
+    // Step 32 (Stacey's second Inbox mockup, 2026-11-17): one list with a quick preview beside it; the privacy rule is a
+    // small link, not a banner; "Your meetings" left the page; every row has a real date
+    t = await text(p);
+    ok(await dela(p).locator(".inbox-page .notice.info").count() === 0 && await dela(p).getByRole("button", { name: "Privacy and secure sharing" }).count() === 1 && await dela(p).getByRole("button", { name: "Your meetings", exact: true }).count() === 0, "no banner and no Your meetings button; the privacy rule is a link");
+    await dela(p).getByRole("button", { name: "Privacy and secure sharing" }).click();
+    ok((await text(p)).includes("DELA is for operations work") && await dela(p).getByRole("button", { name: "Close the privacy notice" }).count() === 1, "the link opens the approved notice in place");
+    await dela(p).getByRole("button", { name: "Close the privacy notice" }).click();
+    ok(!(await text(p)).includes("DELA is for operations work"), "and it closes again");
+    ok(await dela(p).locator("#inbox-list > li").count() >= 1 && (await dela(p).locator("#inbox-total").innerText()).endsWith(" total") && (await dela(p).locator(".inbox-row .inbox-when").first().innerText()).trim().length > 3 && await dela(p).getByLabel("Sort conversations").count() === 1, "the conversations are one list with a count, a date on each row and a sort order");
+    const gigRow = dela(p).locator(".inbox-row", { hasText: "Client intake help" }).first();
+    if (!((await gigRow.getAttribute("class")) || "").includes("sel")) await gigRow.click();
+    t = await waitFor(p, "Recent messages");
+    ok(await dela(p).locator("#inbox-preview").isVisible() && t.includes("Quick preview") && t.includes("Conversation context") && await dela(p).locator("#inbox-preview .peek-bubble").count() >= 1 && !(await dela(p).locator("#inbox-preview").innerText()).includes("512-555-0199") && await gigRow.getAttribute("aria-current") === "true", "choosing a row shows its newest messages beside the list, without the held one");
+    ok(await dela(p).locator("#inbox-list").isVisible() && await dela(p).getByLabel("Your message").count() === 0, "the preview does not open the conversation");
+    await dela(p).locator("#inbox-open").click();
     t = await waitFor(p, "Can you start Monday?");
-    ok(!t.includes("512-555-0199"), "the held message is not shown to the freelancer");
+    ok(!t.includes("512-555-0199") && await dela(p).getByLabel("Your message").count() === 1, "Open conversation opens it, and the held message is not shown to the freelancer");
     // Fix (ChatGPT check 4, 2026-11-17): a closed menu shows nothing behind its button, and the button is outlined like
     // the ones beside it, not filled; the header names the person and their firm, with no second card
     const menuLook = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; const d = r.querySelector("#thread-ai-btn").parentElement; const c = getComputedStyle(r.querySelector("#thread-ai-btn"));
@@ -251,6 +265,27 @@ async function makeMember(bd, side, plan) {
     ok((await label(p, "Your message").inputValue()) === "Thanks, Monday works for me.", "Use suggestion puts the draft in the message box, for the member to send");
     await click(p, "Send");
     await waitFor(p, "Thanks, Monday works for me.");
+    // Step 32 (Stacey's second messages mockup): bubbles at the sender's side and only as wide as their words; "Edit"
+    // and "Remove" in a three-dot menu while the 15 minutes last; a reply in a thread beside the conversation
+    const mineWrap = dela(p).locator(".msg-wrap.mine", { hasText: "Thanks, Monday works for me." }).last();
+    const sides = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; const L = r.querySelector(".msg-list").getBoundingClientRect(); const mine = [...r.querySelectorAll(".msg-wrap.mine .msg")].pop().getBoundingClientRect(); const theirs = r.querySelector(".msg-wrap:not(.mine) .msg").getBoundingClientRect();
+      return { mineRight: L.right - mine.right < 60, theirsLeft: theirs.left - L.left < 60, narrow: mine.width < L.width * 0.86 }; });
+    ok(sides.mineRight && sides.theirsLeft && sides.narrow, "my message sits at the right, theirs at the left, and a bubble is not full width: " + JSON.stringify(sides));
+    await mineWrap.locator("details.dmenu summary").click();
+    ok((await mineWrap.locator(".menu-item").allInnerTexts()).join("|") === "Edit message|Remove message" && (await mineWrap.innerText()).includes("Shown only within 15 minutes of sending."), "a fresh message of mine has Edit and Remove in its three-dot menu, with the 15 minute note");
+    await p.keyboard.press("Escape");
+    ok(await dela(p).locator(".msg-wrap:not(.mine) details.dmenu").count() === 0, "the other person's messages have no such menu");
+    const theirs = dela(p).locator(".msg-wrap:not(.mine)", { hasText: "Can you start" }).first();
+    await theirs.locator(".msg-reply").click();
+    t = await waitFor(p, "No replies yet");
+    ok(await dela(p).locator("#thread-side").isVisible() && t.includes("Original message") && t.includes("Reply to this specific message without interrupting the main conversation.") && await dela(p).getByLabel("Reply in thread", { exact: true }).count() === 1 && await dela(p).getByLabel("Your message").isVisible(), "Reply in thread opens the thread beside the conversation, which stays in view");
+    await dela(p).getByLabel("Reply in thread", { exact: true }).fill("Yes, I can start Monday morning.");
+    await click(p, "Send reply →");
+    await waitFor(p, "Reply sent in the thread.");
+    await dela(p).locator("#thread-side .msg-wrap", { hasText: "Yes, I can start Monday morning." }).waitFor({ timeout: 8000 });
+    ok(await dela(p).locator(".thread-main .msg-wrap", { hasText: "Yes, I can start Monday morning." }).count() === 0 && (await theirs.locator(".msg-reply").innerText()).includes("1 reply"), "the reply stays in its thread, and the message counts 1 reply");
+    await dela(p).getByRole("button", { name: "Close the thread" }).click();
+    ok(await dela(p).locator("#thread-side").isHidden(), "the X closes the thread");
     await s.ctx.close();
     s = await open(browser, "DELA-App", 2701, "&tab=meetings");
     p = s.page;

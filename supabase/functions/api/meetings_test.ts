@@ -478,6 +478,29 @@ Deno.test("messages: only the pair, held when clear, warned when unsure, edits, 
   assertEquals((await one("select count(*)::int n from message_edits where message_id = $1", [mid])).n, 1, "the history is kept");
   await pool.query("update messages set created_at = now() - interval '20 minutes' where id = $1", [mid]);
   assertEquals((await call("POST", "/threads/edit", att.token, { id: mid, body: "Wednesday" })).body.reason, "edit_time_over");
+  // Step 32: removing has the same 15 minutes as editing, enforced on the server
+  assertEquals((await call("POST", "/threads/remove", att.token, { id: mid })).body.reason, "edit_time_over", "after 15 minutes the sender cannot remove a message");
+  assertEquals((await one("select status from messages where id = $1", [mid])).status, "sent");
+  await pool.query("update messages set created_at = now() - interval '5 minutes' where id = $1", [mid]);
+  // Replies in a thread: one level, in the same conversation, counted on the parent, never mixed into another thread
+  const parentId = (await call("GET", "/threads/get?id=" + thread, att.token)).body.messages.find((m: any) => m.mine && m.id !== mid && m.status === "sent").id;
+  const rp = (await call("POST", "/threads/send", fl.token, { thread_id: thread, body: "We use the county forms.", reply_to: parentId, request_id: "rt1" })).body;
+  assertEquals(rp.ok, true, JSON.stringify(rp));
+  const withReply = (await call("GET", "/threads/get?id=" + thread, att.token)).body.messages;
+  assertEquals([withReply.find((m: any) => m.id === parentId).replies, withReply.find((m: any) => m.id === rp.id).reply_to], [1, parentId], "the parent counts its reply and the reply names its parent");
+  assertEquals((await call("POST", "/threads/send", att.token, { thread_id: thread, body: "Thanks", reply_to: rp.id, request_id: "rt2" })).body.reason, "reply_parent_gone", "a reply cannot be answered in a thread of its own");
+  assertEquals((await call("POST", "/threads/send", att.token, { thread_id: thread, body: "Thanks", reply_to: crypto.randomUUID(), request_id: "rt3" })).body.reason, "reply_parent_gone", "an unknown message takes no reply");
+  assertEquals((await call("POST", "/threads/send", other.token, { thread_id: thread, body: "Hi", reply_to: parentId, request_id: "rt4" })).body.reason, "not_found", "a stranger cannot reply in the thread");
+  const heldReply = (await call("POST", "/threads/send", fl.token, { thread_id: thread, body: "Or pay me directly, text 512-555-0177", reply_to: parentId, request_id: "rt5" })).body;
+  assertEquals(heldReply.held, true, "a reply is checked like any message");
+  assertEquals((await call("GET", "/threads/get?id=" + thread, att.token)).body.messages.find((m: any) => m.id === parentId).replies, 1, "a held reply is not counted for the other person");
+  // The Inbox's quick preview: the newest messages, for the two people only, without marking the conversation read
+  const readBefore = (await one("select last_read_at t from thread_reads where thread_id = $1 and person_id = $2", [thread, att.id])).t;
+  const pk = (await call("GET", "/threads/peek?id=" + thread, att.token)).body;
+  assert(pk.ok && pk.messages.length >= 1 && pk.messages.length <= 3 && pk.messages.every((m: any) => !String(m.body).includes("512-555-0177")) && typeof pk.total === "number" && pk.thread.created_at, "the preview shows the newest messages this person may see: " + JSON.stringify(pk).slice(0, 300));
+  assertEquals(String((await one("select last_read_at t from thread_reads where thread_id = $1 and person_id = $2", [thread, att.id])).t), String(readBefore), "the preview does not mark the conversation read");
+  assertEquals((await call("GET", "/threads/peek?id=" + thread, other.token)).body.reason, "not_found");
+  assert((await call("GET", "/threads", att.token)).body.threads.find((x: any) => x.id === thread).created_at, "the list carries the day the conversation started");
   assertEquals((await call("POST", "/threads/remove", att.token, { id: mid })).body.ok, true);
   const shown = (await call("GET", "/threads/get?id=" + thread, fl.token)).body.messages.find((m: any) => m.id === mid);
   assertEquals([shown.status, shown.body, shown.removed_why], ["removed", "", "sender"], "the other person sees that the sender removed it");

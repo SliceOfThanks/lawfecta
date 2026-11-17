@@ -3092,7 +3092,9 @@ async function messageSend(ctx: Ctx) {
   const held = rules.length > 0;
   const warned = !held && c.held;
   const r = await rpc<Record<string, any>>(ctx, "dela_message_send", { p_person: s.person_id, p_side: s.side, p_thread: thread,
-    p: { body, attachments: Array.isArray(ctx.body.attachments) ? ctx.body.attachments.map(uuid).filter(Boolean).slice(0, FORM_LIMITS.chat_attach_max) : [], request_id: str(ctx.body.request_id, 80), held, warned } });
+    p: { body, attachments: Array.isArray(ctx.body.attachments) ? ctx.body.attachments.map(uuid).filter(Boolean).slice(0, FORM_LIMITS.chat_attach_max) : [], request_id: str(ctx.body.request_id, 80), held, warned,
+      // A reply in a thread (step 32): the message it answers, checked in the database to be in this conversation
+      reply_to: uuid(ctx.body.reply_to) ?? "" } });
   if (r?.ok && !r.duplicate) {
     const gig = (await rpc<Record<string, any>>(ctx, "dela_thread_text", { p_person: s.person_id, p_side: s.side, p_thread: thread }))?.gig_id ?? null;
     await afterConduct(ctx, s, { ...c, held: held || warned, kinds: held ? rules : c.kinds }, "message", r.id, gig, body);
@@ -5859,6 +5861,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /threads/edit": { const s = await memberSide(ctx); const b = str(ctx.body.body, 8000).trim(); if (!b) throw new HttpError(400, "bad_request"); const w = await sensitive(ctx, s, b, "conversation", { signed: (await rpc<boolean>(ctx, "dela_thread_signed", { p_thread: uuid(ctx.body.thread_id) ?? uuid(ctx.body.id) }).catch(() => false)) === true }); if (w) return json(ctx, w);
         if (conductRules(withoutLawfectaLinks(b, await setting(ctx, "meeting.room_domain", "meet.lawfecta.com"))).length) return json(ctx, { ok: false, reason: "edit_needs_check" });
         return json(ctx, await rpc(ctx, "dela_message_edit", { p_person: s.person_id, p_msg: need(uuid(ctx.body.id)), p_body: b })); }
+      // The Inbox's quick preview: the newest messages of one conversation, without marking it read
+      case "GET /threads/peek": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_peek", { p_person: s.person_id, p_side: s.side, p_thread: need(uuid(ctx.url.searchParams.get("id"))) })); }
       case "POST /threads/remove": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_message_remove", { p_person: s.person_id, p_msg: need(uuid(ctx.body.id)) })); }
       case "POST /threads/draft": return await threadDraft(ctx);
       case "POST /threads/report": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_thread_report", { p_person: s.person_id, p_side: s.side, p_thread: need(uuid(ctx.body.thread_id)), p_msg: uuid(ctx.body.message_id), p_reason: str(ctx.body.reason, 1000) })); }
