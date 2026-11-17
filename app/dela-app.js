@@ -5299,7 +5299,7 @@
   // ---------- Attorney: Talent ----------
   var talentQ = { category: "", q: "", state: "", bookmarked: "", tool: "", skill: "", practice_area: "" };
   var talentMode = "search";
-  try { if (new URLSearchParams(location.search).get("view") === "bench") talentMode = "bench"; } catch (e) { /* no deep link */ }
+  try { var tv = new URLSearchParams(location.search).get("view"); if (tv === "bench" || tv === "bookmarks") talentMode = tv; } catch (e) { /* no deep link */ }
   // ---------- Step 7c part 2: standing arrangements (limited automatic repeat hiring) ----------
   // Off on Live until counsel approves (switch auto_repeat_hiring): the card then says "Coming soon".
   var STANDING_WORDS = { proposed: "Waiting for the freelancer", active: "Active", needs_review: "Needs review", ending: "Ending after open jobs", ended: "Ended", declined: "Declined" };
@@ -5678,12 +5678,22 @@
     if (talentInviteFor) return talentInvitePage();
     if (talentPerson) return talentProfilePage();
     var el = h("div", { class: "talent-page" }, h("h1", { text: "Talent" }));
-    if ((me.switches || {}).bench) {
-      el.appendChild(h("div", { class: "pills", role: "tablist", "aria-label": "Talent views" }, [["search", "Search"], ["bench", "My bench"]].map(function (v) {
-        return h("button", { role: "tab", "aria-selected": String(talentMode === v[0]), onclick: function () { talentMode = v[0]; draw(); } }, v[1]);
-      })));
-      if (talentMode === "bench") { benchView(el); return el; }
-    }
+    // Search, My bench (when the bench is on) and Bookmarks (Stacey 2026-11-17: "can we have them listed under a tab
+    // next to my bench"). The Bookmarks tab leaves if the website's bookmarks are switched off.
+    var views = [["search", "Search"]].concat((me.switches || {}).bench ? [["bench", "My bench"]] : []).concat([["bookmarks", "Bookmarks"]]);
+    if (talentMode === "bench" && !(me.switches || {}).bench) talentMode = "search";
+    var pills = h("div", { class: "pills", role: "tablist", "aria-label": "Talent views" }, views.map(function (v) {
+      return h("button", { role: "tab", "data-view": v[0], "aria-selected": String(talentMode === v[0]), onclick: function () { talentMode = v[0]; draw(); } }, v[1]);
+    }));
+    el.appendChild(pills);
+    loadBookmarks().then(function (bm) {
+      if (bm.on) return;
+      var b = pills.querySelector("[data-view=bookmarks]"); if (b) b.remove();
+      if (pills.children.length < 2) pills.remove();
+      if (talentMode === "bookmarks") { talentMode = "search"; draw(); }
+    });
+    if (talentMode === "bench") { benchView(el); return el; }
+    if (talentMode === "bookmarks") { bookmarksView(el); return el; }
     // Step 29 (Stacey's review of 2026-11-13, 12 notes): one short introduction; the rules about inviting are said once,
     // on the invitation step, and the match-ready help stays a small link
     el.appendChild(h("p", { class: "muted", style: "margin-bottom:4px", text: "Find verified legal professionals to support your practice." }));
@@ -5695,6 +5705,24 @@
     el.appendChild(results);
     loadCats().then(function (idx) { talentForm(form, results, idx, live); });
     return el;
+  }
+  // The Bookmarks tab: every freelancer the member bookmarked, on the same short cards as a search. These are the
+  // website's own bookmarks ("My Saved Members"). A bookmarked freelancer who is not match-ready right now is not listed.
+  function bookmarksView(el) {
+    el.appendChild(h("p", { class: "muted", style: "margin-bottom:4px", text: "Freelancers you saved for later. They are not told. To add one, open a profile from Search and click \"☆ Bookmark\"." }));
+    var live = h("div", { class: "sr", role: "status" }), results = h("div", { id: "talent-bookmarks" }, h("p", { class: "muted", text: "Loading your bookmarks..." }));
+    el.appendChild(live); el.appendChild(results);
+    function load() {
+      Promise.all([api.get("/talent?bookmarked=1&limit=50"), api.get("/gigs"), loadBookmarks(true)]).then(function (rs) {
+        talentMarks = {};
+        var now = Date.now(), x = rs[0], mine = rs[1].ok ? rs[1].gigs.filter(function (g) { return g.status === "open" && !g.paused_by_team && (!g.closes_at || new Date(g.closes_at).getTime() > now); }) : [];
+        var n = x && x.ok ? (typeof x.total === "number" ? x.total : (x.people || []).length) : 0;
+        live.textContent = x && x.ok ? n + (n === 1 ? " bookmark" : " bookmarks") : "Your bookmarks could not be read.";
+        talentResults(results, x, mine, null, { chips: [], clear: load, resort: load, reload: load, more: function (b) { b.remove(); }, title: "Bookmarks (" + n + ")",
+          empty: "Nobody yet. Open a freelancer's profile from Search and click \"☆ Bookmark\"." });
+      }).catch(function (e) { D.clear(results); results.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
+    }
+    load();
   }
   // Step 22 (mockup 02): "What does match-ready mean?" opens a small panel. With a mouse it opens on hover and on
   // keyboard focus, a click pins it open, Escape closes it. On a phone a tap opens it in place and a tap closes it.
@@ -6169,14 +6197,14 @@
     var n = typeof x.total === "number" ? x.total : x.people.length;
     var sort = h("select", { "aria-label": "Sort by" }, TALENT_SORTS.map(function (s) { return h("option", { value: s[0], text: s[1], selected: talentSort === s[0] }); }));
     sort.addEventListener("change", function () { talentSort = sort.value; o.resort(); });
-    var head = h("div", { class: "talent-head" }, h("h2", { style: "margin:0", text: n + (n === 1 ? " freelancer found" : " freelancers found") }));
-    if (!n) head.appendChild(h("span", { class: "small muted", text: "No match-ready freelancers fit this search yet. Try a broader category or fewer words." }));
+    var head = h("div", { class: "talent-head" }, h("h2", { style: "margin:0", text: o.title || (n + (n === 1 ? " freelancer found" : " freelancers found")) }));
+    if (!n) head.appendChild(h("span", { class: "small muted", text: o.empty || "No match-ready freelancers fit this search yet. Try a broader category or fewer words." }));
     (o.chips || []).forEach(function (c) {
       head.appendChild(h("span", { class: "cat-chip" }, h("span", { text: c.text }), h("button", { type: "button", "aria-label": "Remove filter: " + c.text, onclick: c.remove }, "×")));
     });
     if ((o.chips || []).length) head.appendChild(h("button", { class: "talent-clear", type: "button", onclick: o.clear }, "Clear all"));
     head.appendChild(h("span", { class: "grow" }));
-    if (n > 0) head.appendChild(h("label", { class: "small talent-sort" }, "Sort by ", sort));
+    if (n > 0 && !o.title) head.appendChild(h("label", { class: "small talent-sort" }, "Sort by ", sort));
     results.appendChild(head);
     x.people.forEach(function (p, pi) {
       // Step 29: a short card that is easy to compare. Two lines of summary, at most three tags, hours and time zone,

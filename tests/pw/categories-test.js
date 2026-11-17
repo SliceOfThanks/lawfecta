@@ -365,6 +365,13 @@ const SEARCH = "Search roles, specialties, tasks and software";
     await click(p, "★ Your bookmarks");
     t = await waitGone(p, "Nia Nurse");
     ok(t.includes("Fern Family") && t.includes("1 freelancer found") && await label(p, SEARCH).inputValue() === "" && await dela(p).getByLabel("Bookmarked only (freelancers you saved)").isChecked(), "Your bookmarks lists the bookmarked freelancers with the other filters cleared");
+    // Stacey 2026-11-17: a "Bookmarks" tab next to "My bench" lists the bookmarked freelancers
+    await dela(p).getByRole("tab", { name: "Bookmarks", exact: true }).click();
+    t = await waitFor(p, "Bookmarks (1)");
+    ok(t.includes("Fern Family") && !t.includes("Nia Nurse") && !t.includes("Find a freelancer") && await dela(p).locator("#talent-bookmarks .talent-card").count() === 1 && await dela(p).getByRole("tab", { name: "Bookmarks", exact: true }).getAttribute("aria-selected") === "true", "the Bookmarks tab lists only the bookmarked freelancers, on the same cards");
+    ok((await dela(p).locator("#talent-bookmarks .talent-card").getByRole("button").allInnerTexts()).join("|") === "View profile|Invite to gig", "a bookmark card has the same two buttons");
+    await dela(p).getByRole("tab", { name: "Search", exact: true }).click();
+    await waitFor(p, "Find a freelancer");
     await s.ctx.close();
     // 10 at a time with "Load more" on the same screen (the size is a setting; 1 here so two people make two pages)
     await sql("update settings set value = '1' where key = 'talent.page_size'; select 1");
