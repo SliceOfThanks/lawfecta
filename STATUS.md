@@ -6,7 +6,14 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
-## Fixes from ChatGPT checks 4 and 5 and Stacey's screenshots: ON THE SITE (2026-11-17), nothing queued behind it
+## Step 32, the Inbox list with a quick preview, chat bubbles and replies in a thread: ON THE SITE (2026-11-17), nothing queued behind it
+- Site: code_version 0271115, api function version 126, migrations through 0128, health "ok". GitHub Tests passed on that commit (run 44139498999), after three runs that failed on the new test's own expectations (old layout keeps "Your meetings"; labels drawn in capitals; the message menu's name contained "your message") and one screen change from them: the three-dot menu is named "Edit or remove what you sent at TIME".
+- Brief with Claude's decisions: docs/briefs/step-32-inbox-preview-threads.md. Inbox: one "Conversations" card with dividers, "N total", a date on every row (the conversation's start when empty), a sort order, and a "Quick preview" card on screens 1000 pixels and wider (GET /threads/peek, dela_thread_peek, does not mark read). "Privacy and secure sharing" link in place of the banner on the Inbox and in a conversation. "Your meetings" left the Inbox in the new layout (Stacey: "they have it on the menu").
+- Conversation: bubbles by sender (.msg-wrap), a compact "Message removed" line, "Edit message" and "Remove message" in a three-dot menu for chat.edit_minutes, "Reply in thread" with a thread panel (messages.reply_to, one level; replies are screened like messages). dela_message_remove now refuses after 15 minutes.
+- ChatGPT check 4 was rewritten for these screens: docs/tests/inbox-messaging-chatgpt-prompt.md, ready copies "4-inbox-messaging-chatgpt-prompt-READY". Not run yet.
+- Also since the last entry (code_version 2b1ba31): the Help page always shows the sensitive data rule.
+
+## Fixes from ChatGPT checks 4 and 5 and Stacey's screenshots: ON THE SITE (2026-11-17)
 - Site: code_version 4218799 (browser only), api function version 125, migrations through 0127, health "ok". GitHub Tests passed on that commit (run 44127355415).
 - The new menus ("More", "Attach a file", "AI tools", "⋯" on a notification) were class "menu", the class of the older account menu, and took its 220 pixel width, its box and its place. They are class "dmenu" now; a closed menu is the size of its button, and an open one is on top of the rows below. Earlier the same day two partial fixes treated the symptoms.
 - Unread rows are white (card color) in Notifications and the Inbox; unread is the blue dot and the bold title.

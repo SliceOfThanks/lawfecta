@@ -67,6 +67,10 @@ How to read the "State" column:
 | 3b.3 | A retry after a failed AI request works | After any "DELA's AI could not finish" message, the same button works on the next click | Not yet | The cause of the false "out of DELA actions" was fixed 2026-11-17. |
 | 3b.4 | The notification panel and page help a member with many notifications | Stacey's look with the test attorney (70 unread): six things in the panel, the page's filters, dismiss and restore | Confirmed 2026-11-17 | ChatGPT check 5 passed 13 of 13, and Stacey looked after the fixes: "tested notifications and inbox and looks good". Not yet tried: a screen reader, a phone. |
 
+| 3b.5 | Replies in a thread work between two real people | One writes a reply in a thread, the other sees the unread mark, opens the thread and answers there | Not yet | Step 32, released 2026-11-17. The rewritten ChatGPT check 4 covers both test accounts. |
+| 3b.6 | "Edit" and "Remove" are gone 15 minutes after sending | On a message older than 15 minutes there is no three-dot menu, and a fresh one has it | Not yet | The server refuses both after 15 minutes (tested). |
+| 3b.7 | The Inbox and a thread on a phone | A row opens the conversation at once; an open thread takes the conversation's place and "← Back to the conversation" returns | Not yet | No agent or person has tried a phone. |
+
 ## 4. Money (from the go-live handoff)
 
 | # | What must be seen working | How we will know | State | Notes |

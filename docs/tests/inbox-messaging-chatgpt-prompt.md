@@ -1,12 +1,12 @@
-# ChatGPT test: the Inbox and conversations (step 30, 2026-11-17)
+# ChatGPT test: the Inbox list with its preview, chat bubbles and replies in a thread (step 32, 2026-11-17)
 
-What it covers: the Inbox list (search, the four filters with counts, the tag and preview on each row), the conversation header, the "Message" label, the "Attach a file" menu, the "AI tools" menu with its summary and suggested draft, "More", and one sent message showing as the preview in the Inbox.
+This replaces the first Inbox test of the same day (step 30), whose screens changed.
 
-What it cannot cover: uploading a new file (an agent cannot choose a file from a computer), a screen reader, and a phone.
+What it covers: the list with dividers and dates, the quick preview, "Privacy and secure sharing" in place of the banner, bubbles at the sender's side, the compact "Message removed" line, the three-dot menu with its 15 minute note, a reply in a thread from both sides, and the unread mark for it.
 
-What changes on the site: the test attorney sends one message, "Test message from the Inbox check.", to the test freelancer on the gig "Send the Welcome Packet and Intake Follow-Up". Two DELA actions are used on the test freelancer's account. Nothing is paid, signed, posted, booked, reported or blocked.
+What it cannot cover: a phone (where a row opens the conversation at once and a thread takes the conversation's place), a screen reader, and what happens after the 15 minutes on a message sent during the test.
 
-What is on the site already: the test attorney and the test freelancer share one gig conversation and one introduction; the test attorney also has an introduction with the sample freelancer Hannah Kim.
+What changes on the site: the test freelancer sends one reply in a thread and the test attorney sends one message, both with the words in the steps. Nothing is paid, signed, posted, booked, reported or blocked, and no message is edited or removed.
 
 Before you paste this:
 1. The passwords are filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD.
@@ -17,7 +17,7 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are checking the Inbox and conversations in DELA on the Lawfecta site, www.lawfecta.co. Everything here uses test accounts. Do only what the steps say. Do not post a gig, do not pay, do not sign, do not book or cancel a meeting, do not report or block anyone. You send exactly one message, in step 13, with the words given there. Steps 7 and 8 each use one DELA action; that is expected.
+You are checking the Inbox, conversations and replies in a thread in DELA on the Lawfecta site, www.lawfecta.co. Everything here uses test accounts. Do only what the steps say. Do not post a gig, do not pay, do not sign, do not book or cancel a meeting, do not report or block anyone, and do not click "Edit message" or "Remove message". You send exactly two things: one reply in a thread (step 6) and one message (step 10), with the words given there. Use a browser window at least 1200 pixels wide, so the Inbox shows its preview beside the list.
 
 Logins (I log in for you each time):
 - test freelancer: stacey+dela-freelancer@lawfecta.com, password TEST_PASSWORD
@@ -48,46 +48,37 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
 
 1. Go to: https://www.lawfecta.co/dela?tab=inbox
    Find: the top of the page.
-   Expect: a pale blue notice that starts "DELA is for operations work", with a small blue circled "i" at its left and an "×" at its top right, and no colored stripe at its left edge. Under it the heading "Inbox", a box labelled "Search conversations", and a row of four rounded buttons: "All (2)", "Unread (" with a number, "Gigs (1)" and "Introductions (1)". Under them two rows, each with a round picture or a round circle with a letter, the firm's name "Example Lantern Legal", a small tag ("Gig" or "Introduction") and a title. Copy the four button labels into your report, word for word.
+   Expect: the heading "Inbox" and, at its right, the underlined words "Privacy and secure sharing" with a small circled "i". There is NO blue notice box across the top, and NO button "Your meetings". Under the heading a box labelled "Search conversations", then a row of rounded buttons "All (2)", "Unread (" with a number, "Gigs (1)", "Introductions (1)", and at the right "Sort" with a list "Most recent".
 
-2. Find: the box labelled "Search conversations", near the top of the page under the heading "Inbox".
-   Do: click in it and type: welcome
-   Expect: one row is left, with the tag "Gig" and the title "Send the Welcome Packet and Intake Follow-Up".
-   Do: clear the box and type: zzzz
-   Expect: the sentence that starts "No conversation matches".
-   Do: clear the box.
-   Expect: both rows are back.
+2. Find: under those buttons, two white cards side by side.
+   Expect: the left card is headed "Conversations" with "2 total" at its right, and holds two rows divided by a thin line. Each row has a round picture or letter circle, the name "Example Lantern Legal", a date or time at the right, a small tag ("Gig" or "Introduction") with a title, one grey line of text, and a small "›" at the far right. The row with the tag "Introduction" reads "No messages yet · Conversation started" followed by a date. The right card is headed "Quick preview" and shows "Selected conversation", the name, the small label "CONVERSATION CONTEXT", the small label "RECENT MESSAGES" with up to three messages, and the buttons "Open conversation →" and, for a gig, "View gig". Copy the date shown on each of the two rows into your report.
 
-3. Find: the row of rounded buttons under the search box.
-   Do: click "Introductions (1)".
-   Expect: one row, with the tag "Introduction" and the title "Introduction from Example Lantern Legal". The row with the tag "Gig" is not shown.
-   Do: click "All (2)".
-   Expect: both rows.
+3. Find: at the right of the heading "Inbox", the words "Privacy and secure sharing".
+   Do: click them.
+   Expect: a pale blue notice opens under the heading. It starts "DELA is for operations work" and has an "×" at its top right.
+   Do: click that "×".
+   Expect: the notice closes.
 
-4. Find: the row with the tag "Gig".
-   Do: click it.
-   Expect: a page with the blue notice at the top, a button "← Inbox", then a white card with a picture or letter circle, the name "DELA Test Attorney", under it "✓ Verified" and "Attorney at Example Lantern Legal", and under that "Gig: Send the Welcome Packet and Intake Follow-Up". There is no separate card titled "Who you are talking with". At the right of that card: "Open the gig", "Book a meeting" and "More ▾". Lower down, the messages, with a thin line and a date above the first message. At the bottom a white card with the bold label "Message", a box with the grey words "Write your message...", and under it "Attach a file ▾" and "✦ AI tools ▾" (both white with a thin border, with no white box behind them) and a dark red "Send". There is no button named "Draft an agenda".
+4. Find: in the left card, the row with the tag "Gig".
+   Do: click it once.
+   Expect: the row gets a pale highlight and the right card shows that conversation: under "RECENT MESSAGES" the newest line reads "Test message from the Inbox check." or a later message. The page is still the Inbox: the list is still on the left.
+   Do: in the right card click "Open conversation →".
+   Expect: the conversation opens: a button "← Inbox", a white card with the name "DELA Test Attorney", then the messages, then a box labelled "Message".
 
-5. Find: at the bottom of the page, under the box labelled "Message", the button "Attach a file ▾".
-   Do: click it.
-   Expect: a small menu opens under it with one line: "Choose from your profile documents".
-   Do: press the Escape key.
-   Expect: the menu closes.
+5. Find: the messages in the middle of the page.
+   Expect: every message is a small rounded bubble at the LEFT side, no wider than its words need, with a grey line under it that starts "Example Lantern Legal ·" and a time. There are thin lines with dates between days. One line in the middle of the list is a small grey pill that reads "Message removed", not a bubble. Under each bubble are the underlined words "↪ Reply in thread · 0 replies" (the number may differ).
 
-6. Find: next to "Attach a file ▾", the button "✦ AI tools ▾".
-   Do: click it.
-   Expect: a small menu with exactly three lines: "Draft a reply", "Suggest next steps", "Summarize conversation". Copy them into your report.
+6. Find: the bubble that reads "Test message from the Inbox check." and, under it, "↪ Reply in thread".
+   Do: click "↪ Reply in thread".
+   Expect: a panel headed "Thread" opens at the right of the messages, which stay in view. It shows "Original message", the text "Test message from the Inbox check.", the words "No replies yet" (unless a reply is already there), and at its bottom a box labelled "Reply in thread" with a dark red button "Send reply →".
+   Do: click in the box labelled "Reply in thread", type: Thread reply from the Inbox check. Then click "Send reply →".
+   Expect: a short message "Reply sent in the thread." The reply shows inside the Thread panel, at the right side of the panel, with "You ·" and a time under it. It does NOT show in the main list of messages. Under "Test message from the Inbox check." the words now read "↪ Reply in thread · 1 reply" (or one more than before).
 
-7. Do: in that menu click "Summarize conversation" and wait up to 60 seconds.
-   Expect: first the grey words "Summarizing the conversation...", then a pink box under the buttons with the bold heading "✦ Summary of this conversation", a few lines about the conversation, the grey sentence "For reading only. It does not change the gig, a proposal or an agreement." and a button "Dismiss". Copy the first line of the summary into your report.
-   Do: click "Dismiss".
-   Expect: the pink box is gone.
-
-8. Do: click "✦ AI tools ▾" again, then "Draft a reply". Wait up to 60 seconds.
-   Expect: a pink box with the bold heading "✦ Suggested draft", a short reply, the grey sentence "A suggestion, not sent. Check it before you send it." and three buttons: "Use suggestion", "Edit", "Dismiss". The box labelled "Message" is still empty.
-   Do: click "Use suggestion".
-   Expect: the reply is now in the box labelled "Message", and nothing was sent: no new message shows in the list above.
-   Do: click in the box labelled "Message", select all the text and delete it, so the box is empty. Do NOT click "Send".
+7. Find: in the Thread panel, your reply "Thread reply from the Inbox check.", and the small button "⋯" under it.
+   Do: click "⋯".
+   Expect: a small menu with "Edit message", "Remove message" and the grey line "Shown only within 15 minutes of sending." Do NOT click either.
+   Do: press the Escape key, then click the "×" at the top right of the Thread panel.
+   Expect: the menu closes, then the Thread panel closes and the messages take the full width again.
 
 Sign out: click the round button with initials at the top right, then "Sign out".
 
@@ -95,38 +86,28 @@ Sign out: click the round button with initials at the top right, then "Sign out"
 
 Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-9. Go to: https://www.lawfecta.co/dela?tab=inbox
-   Find: the row of rounded buttons under the box "Search conversations".
-   Expect: "All (3)", "Unread (" with a number, "Gigs (1)" and "Introductions (2)". Three rows: two with the name "DELA Test Freelancer" (one "Gig", one "Introduction") and one with "Hannah Kim" ("Introduction"). Copy the four button labels into your report.
+8. Go to: https://www.lawfecta.co/dela?tab=inbox
+   Find: the left card "Conversations".
+   Expect: "3 total" and three rows. The row "DELA Test Freelancer" with the tag "Gig" has a small blue dot at its left and a small dark red number at its right, because the freelancer's reply is unread; its grey line reads "Thread reply from the Inbox check." The two rows with the tag "Introduction" read "No messages yet · Conversation started" with a date, or show a message.
 
-10. Find: the row with the name "DELA Test Freelancer" and the tag "Gig".
-    Do: click it.
-    Expect: the white card with "DELA Test Freelancer" and "Gig: Send the Welcome Packet and Intake Follow-Up".
+9. Find: the row "DELA Test Freelancer" with the tag "Gig".
+   Do: click it once, then click "Open conversation →" in the right card.
+   Expect: the conversation opens. Your own messages ("Can you start Monday? Our template is attached.", "Test message from the Inbox check." and any later ones) are bubbles at the RIGHT side with "You ·" and a time under them. Under "Test message from the Inbox check." the words read "↪ Reply in thread · 1 reply" (or more).
+   Do: click those words.
+   Expect: the Thread panel opens at the right and shows the reply "Thread reply from the Inbox check." at the LEFT side of the panel, with "DELA Test Freelancer ·" and a time under it.
+   Do: click the "×" at the top right of the Thread panel.
 
-11. Find: at the bottom of the page, under the box labelled "Message", the button "Attach a file ▾".
-    Do: click it.
-    Expect: a small menu with two lines: "Upload a new file" and "Choose from Lawfecta Files".
-    Do: click "Choose from Lawfecta Files".
-    Expect: ONE of these two; write which. (a) A grey box titled "Choose from Lawfecta Files" with a list of file names, each with a tick box, and a button "Done". (b) The sentence that starts "No ready files yet."
-    Do: if you saw (a), tick the first file. A small pink chip with the file's name and an "×" appears above the buttons. Then click the "×" on that chip, and click "Done". If you saw (b), do nothing.
-    Expect: no chip is left.
+10. Find: the box labelled "Message" at the bottom of the page.
+    Do: type: Second test message from the Inbox check. Then click "Send".
+    Expect: the message shows as the last bubble, at the right side. Under it: "You ·" and a time, the words "↪ Reply in thread · 0 replies", and a small button "⋯".
+    Do: click that "⋯".
+    Expect: a small menu with "Edit message", "Remove message" and "Shown only within 15 minutes of sending." Do NOT click either. Press the Escape key.
 
-12. Find: at the right of the white card at the top of the page, the button "More ▾".
-    Do: click it.
-    Expect: a small menu with "Report this conversation" and "Block this conversation". Do NOT click either.
-    Do: press the Escape key.
-    Expect: the menu closes.
+11. Find: your older message "Can you start Monday? Our template is attached.", near the top of the list.
+    Expect: there is NO "⋯" button under it, because it is older than 15 minutes. It still has "↪ Reply in thread".
 
-13. Find: the box labelled "Message" at the bottom of the page.
-    Do: click in it and type: Test message from the Inbox check.
-    Do: click outside the box, wait 3 seconds, and check that no line starting "Before you send:" appeared. Then click "Send".
-    Expect: the message "Test message from the Inbox check." shows at the bottom of the list of messages, at the right side.
-    Do: click "← Inbox" at the top of the page.
-    Expect: the row "DELA Test Freelancer" with the tag "Gig" now shows the line "You: Test message from the Inbox check." and a time.
-
-14. Find: the row with the name "Hannah Kim".
-    Do: click it.
-    Expect: the white card with "Hannah Kim" and under it "Introduction, before any gig". At its right "View profile", "Create a gig for Hannah Kim" and "More ▾". At the bottom the box labelled "Message" with "✦ AI tools ▾" and "Send", and NO button "Attach a file". Do not type anything here.
+12. Do: click "← Inbox" at the top of the page.
+    Expect: the Inbox. The row "DELA Test Freelancer" with the tag "Gig" now reads "You: Second test message from the Inbox check." and has no blue dot.
 
 Sign out: click the round button with initials at the top right, then "Sign out".
 
