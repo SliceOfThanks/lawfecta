@@ -104,7 +104,9 @@
       api.get("/threads").then(function (r) { var n = (r.threads || []).reduce(function (a, t) { return a + (t.unread || 0); }, 0); if (n) inbox.appendChild(h("b", { text: String(n) })); }).catch(function () {});
       bar.appendChild(inbox);
     }
-    var bell = h("button", { class: "bell small", "aria-label": "Notifications", onclick: openNotices }, "Notifications");
+    // The old header shows the bell as an icon: the word "Notifications" made a 290 pixel phone scroll sideways (layout test)
+    var bellIcon = icon("bell"); bellIcon.setAttribute("style", "width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round");
+    var bell = h("button", { class: "bell small", "aria-label": me.unread > 0 ? "Notifications, " + me.unread + " unread" : "Notifications", onclick: openNotices }, bellIcon);
     if (me.unread > 0) bell.appendChild(h("b", { text: String(me.unread) }));
     bar.appendChild(bell);
     bar.appendChild(h("button", { class: "avatar", "aria-label": "Account menu", "aria-haspopup": "true", onclick: toggleMenu, text: initials(me.person.name) }));
@@ -6673,7 +6675,8 @@
           if (m.status === "held") box.appendChild(h("p", { class: "small bad", text: "Being checked by the Lawfecta Team. The other person does not see it yet." }));
           if (m.warned) box.appendChild(h("p", { class: "small muted", text: "Sent with a reminder: keep all work, contact and payment on Lawfecta." }));
         }
-        var meta = h("div", { class: "small muted", text: D.dateTime(m.created_at) + (m.edited ? " | edited" : "") });
+        // Who wrote it and when, on every message (step 30, from the mockup): "You" for the member's own
+        var meta = h("div", { class: "small muted msg-meta", text: (m.mine ? "You" : t.other_name) + " · " + new Date(m.created_at).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }) + (m.edited ? " · edited" : "") });
         box.appendChild(meta);
         var fresh = Date.now() - new Date(m.created_at).getTime() < r.edit_minutes * 60000;
         if (m.mine && m.status === "sent" && fresh) {
@@ -6689,7 +6692,8 @@
         if (m.mine) lastMine = { m: m, meta: meta };
         list.appendChild(box);
       });
-      if (lastMine && r.seen_at && new Date(r.seen_at) >= new Date(lastMine.m.created_at)) lastMine.meta.textContent += " | Seen";
+      // "Seen" with its time, under the member's newest message, when the other person has read receipts on
+      if (lastMine && r.seen_at && new Date(r.seen_at) >= new Date(lastMine.m.created_at)) lastMine.meta.appendChild(h("span", { class: "msg-seen", text: " · ✓ Seen " + inboxWhen(r.seen_at) }));
       el.appendChild(list);
       // Composer
       if (!r.writable) { el.appendChild(h("p", { class: "notice", text: TALK_ERR[r.why_closed] || "This conversation is closed." })); return; }
