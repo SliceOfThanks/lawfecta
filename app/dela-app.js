@@ -1100,7 +1100,6 @@
         e.preventDefault();
         var ul = li.parentNode;
         li.classList.add("drag");
-        try { handle.setPointerCapture(e.pointerId); } catch (x) { /* older browsers drag without capture */ }
         function over(ev) {
           var at = app.getRootNode().elementFromPoint ? app.getRootNode().elementFromPoint(ev.clientX, ev.clientY) : document.elementFromPoint(ev.clientX, ev.clientY);
           var other = at && at.closest ? at.closest(".cz-row") : null;
@@ -1109,12 +1108,13 @@
           ul.insertBefore(li, rows.indexOf(other) > rows.indexOf(li) ? other.nextSibling : other);
         }
         function up() {
-          handle.removeEventListener("pointermove", over); handle.removeEventListener("pointerup", up); handle.removeEventListener("pointercancel", up);
+          document.removeEventListener("pointermove", over); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
           li.classList.remove("drag");
           var order = [].map.call(ul.children, function (x) { return x.getAttribute("data-id"); });
           if (JSON.stringify(order) !== JSON.stringify(mine)) { mine = order; paint(); preview(); say(name + ", now " + (mine.indexOf(id) + 1) + " of " + mine.length + "."); }
         }
-        handle.addEventListener("pointermove", over); handle.addEventListener("pointerup", up); handle.addEventListener("pointercancel", up);
+        // On the page, not the handle: moving the row in the list lets go of the handle's hold on the pointer
+        document.addEventListener("pointermove", over); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
       });
       return li;
     }
