@@ -246,8 +246,11 @@ Deno.test("the /security page: facts from settings, and the contact form (trap f
 });
 
 Deno.test("the contact form limit counts the visitor's real address, whatever the sender types in x-forwarded-for", async () => {
+  // An address of this run's own, in a range no other test uses. A fixed address met that test's address
+  // on some runs (and earlier local runs within the hour), and the first message was then already over the limit.
+  const realIp = "198.51.102." + (RUN % 250);
   const send = async (typed: string, i: number) => (await (await handle(new Request("http://localhost/functions/v1/api/public/security/contact", {
-    method: "POST", headers: { origin: "https://lawfecta.com", "content-type": "application/json", "cf-connecting-ip": "198.51.100.44", "x-forwarded-for": typed },
+    method: "POST", headers: { origin: "https://lawfecta.com", "content-type": "application/json", "cf-connecting-ip": realIp, "x-forwarded-for": typed },
     body: JSON.stringify({ email: "sam@example.com", message: "Typed address " + i }),
   }), deps)).json());
   for (let i = 0; i < 5; i++) assertEquals((await send("203.0.113." + (100 + i), i)).ok, true);
