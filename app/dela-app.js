@@ -157,6 +157,7 @@
   function daysWords(d) { return d % 7 === 0 ? plural(d / 7, "week") : plural(d, "day"); }
   function setName() { return NL() ? "Settings" : "AI settings"; }
   var ICONS = {
+    filter: [["path", "M4 7h10"], ["path", "M18 7h2"], ["circle", "16", "7", "2"], ["path", "M4 17h2"], ["path", "M10 17h10"], ["circle", "8", "17", "2"]],
     shield: [["path", "M12 3l7 3v5c0 4.5-3 8.3-7 9.5C8 19.3 5 15.5 5 11V6l7-3z"]],
     meet: [["path", "M4 6h16v14H4z"], ["path", "M4 10h16"], ["path", "M8 3v5"], ["path", "M16 3v5"], ["path", "M12 13v3l2 1"]],
     plan: [["path", "M3 6h18v12H3z"], ["path", "M3 10h18"], ["path", "M7 15h4"]],
@@ -5842,9 +5843,10 @@
     // works on its own and searches as soon as it changes.
     form.appendChild(field("Search roles, specialties, tasks and software", box.el));
     var fPanel = h("div", { id: "talent-filters", class: "talent-filters", hidden: !talentFiltersOpen });
-    var fBtn = h("button", { class: "ghost", type: "button", id: "talent-filters-btn", "aria-expanded": String(talentFiltersOpen), "aria-controls": "talent-filters" }, "Filters (0)");
+    var fBtn = h("button", { class: "ghost", type: "button", id: "talent-filters-btn", "aria-expanded": String(talentFiltersOpen), "aria-controls": "talent-filters" }, icon("filter"), h("span", { id: "talent-filters-word", text: "Filters (0)" }));
+    var fWord = fBtn.querySelector("#talent-filters-word");
     function filterCount() { return (chain.top || chain.sub || chain.leaf ? 1 : 0) + (talentQ.tool ? 1 : 0) + (state.value ? 1 : 0) + (onlyBm.checked ? 1 : 0) + (talentQ.skill ? 1 : 0) + (talentQ.practice_area ? 1 : 0); }
-    paintFilters = function () { fBtn.textContent = "Filters (" + filterCount() + ")"; fBtn.setAttribute("aria-label", "Filters, " + filterCount() + " in use"); };
+    paintFilters = function () { fWord.textContent = "Filters (" + filterCount() + ")"; fBtn.setAttribute("aria-label", "Filters, " + filterCount() + " in use"); };
     function openFilters(v) { talentFiltersOpen = v; fPanel.hidden = !v; fBtn.setAttribute("aria-expanded", String(v)); }
     fBtn.addEventListener("click", function () { openFilters(!talentFiltersOpen); if (talentFiltersOpen) { var first = fPanel.querySelector("select"); if (first) first.focus(); } });
     fPanel.addEventListener("keydown", function (e) { if (e.key === "Escape") { e.stopPropagation(); openFilters(false); fBtn.focus(); } });

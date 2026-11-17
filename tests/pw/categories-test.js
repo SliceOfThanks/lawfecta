@@ -142,6 +142,7 @@ const SEARCH = "Search roles, specialties, tasks and software";
     ok((await fBtn.innerText()).trim() === "Filters (0)" && await fBtn.getAttribute("aria-expanded") === "false" && await dela(p).locator("#talent-filters").isHidden() && !t.includes("Practice area / Specialty"), "the filters are closed at first, and the button counts none in use");
     ok(await dela(p).getByRole("button", { name: "Clear filters", exact: true }).isVisible() && await dela(p).getByRole("button", { name: "Reset", exact: true }).count() === 0, "Search freelancers and Clear filters sit in one row with Filters");
     ok(!t.includes("DELA actions:"), "the usage line is not under the Talent results");
+    ok(await fBtn.locator("svg").count() === 1, "the Filters button carries a filter icon (Stacey 2026-11-17)");
     await fBtn.click();
     ok(await fBtn.getAttribute("aria-expanded") === "true" && await label(p, "Category").isVisible() && await dela(p).getByRole("button", { name: "Apply filters", exact: true }).isVisible(), "Filters opens the five filters, with Apply filters");
     const mrBtn = dela(p).getByRole("button", { name: "What does match-ready mean?" });

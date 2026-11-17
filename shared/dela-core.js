@@ -533,6 +533,7 @@ D.openTab = function (getUrl, onFail, opts) {
     // Step 29 (Stacey's review of 2026-11-13): the Filters panel, two-line summaries, and the action cost on the DELA bar
     ".talent-filters{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}.talent-filters[hidden]{display:none}.dela .talent-go2 .talent-clear{min-height:44px}" +
     ".talent-help-ico{font-size:22px;color:var(--pink-ink);line-height:1;flex:0 0 auto}.talent-cost-i{display:inline-block;width:15px;height:15px;line-height:13px;margin-left:6px;border:1px solid currentColor;border-radius:50%;font-size:11px;font-weight:700;text-align:center;font-style:normal}" +
+    ".dela #talent-filters-btn{display:inline-flex;align-items:center;gap:8px}#talent-filters-btn .ic{width:18px;height:18px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}" +
     ".talent-help-safe{display:flex;gap:8px;align-items:center}.talent-help-safe .ic{width:18px;height:18px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}" +
     ".talent-sum{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.talent-facts{margin-top:6px}" +
     ".talent-help-btn .talent-cost{flex:0 0 auto}@media (max-width:560px){.dela .talent-help-btn{flex-wrap:wrap}.talent-help-btn .talent-cost{white-space:normal;border-radius:12px;order:3;flex:1 1 100%}}" +
