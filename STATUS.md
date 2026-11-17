@@ -12,6 +12,7 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - Conversation: bubbles by sender (.msg-wrap), a compact "Message removed" line, "Edit message" and "Remove message" in a three-dot menu for chat.edit_minutes, "Reply in thread" with a thread panel (messages.reply_to, one level; replies are screened like messages). dela_message_remove now refuses after 15 minutes.
 - ChatGPT check 4 was rewritten for these screens: docs/tests/inbox-messaging-chatgpt-prompt.md, ready copies "4-inbox-messaging-chatgpt-prompt-READY". Not run yet.
 - Also since the last entry (code_version 2b1ba31): the Help page always shows the sensitive data rule.
+- Right after (code_version bb56465, browser only, run 44143226429): no section of a page has a pink background (Stacey 2026-11-17: "needs to be a blue or grey"). New variable --sel (#E8ECF2 light, #262B39 dark) for the chosen Inbox row, the Talent DELA bar, AI suggestion panels, the search suggestion list, the Subscription page's current plan, banner and group headings, the current step, the strong flow box and the guide bubble. The Ask DELA user bubble is pale blue. Menus, tags, chips, badges, initials and selected tab buttons keep pink; she was told about the tab buttons.
 
 ## Fixes from ChatGPT checks 4 and 5 and Stacey's screenshots: ON THE SITE (2026-11-17)
 - Site: code_version 4218799 (browser only), api function version 125, migrations through 0127, health "ok". GitHub Tests passed on that commit (run 44127355415).
