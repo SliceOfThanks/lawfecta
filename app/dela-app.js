@@ -6023,7 +6023,10 @@
       if (!x.ok) { el.appendChild(h("p", { class: "notice", role: "alert", text: "This profile could not be opened. The member may have closed their freelancer profile." })); return; }
       var rv = x.reviews || {}, n = rv.count || 0, verified = x.verification === "verified";
       // ----- The header: who this is, what was checked, real reviews, and the invitation -----
-      var inv = talentInvite({ person_id: x.person_id, name: x.name, headline: x.headline, photo_url: x.photo_url, verification: x.verification, reviews: x.reviews, capacity_hours_week: x.capacity_hours_week, timezone: x.timezone }, mine, el);
+      // Step 29 on the profile too: one "Invite to gig" button, as on a result card. The gig is chosen on the invitation
+      // step, where the rule about inviting is said once.
+      var invP = { person_id: x.person_id, name: x.name, headline: x.headline, photo_url: x.photo_url, verification: x.verification, reviews: x.reviews, capacity_hours_week: x.capacity_hours_week, timezone: x.timezone };
+      var inviteBtn = canHire() ? h("button", { class: "blue small", type: "button", id: "tp-invite-btn", onclick: function () { openInviteReview(invP, mine.length === 1 ? mine[0].id : ""); } }, "Invite to gig") : null;
       var facts = [x.capacity_hours_week ? x.capacity_hours_week + " hours a week" : "", x.timezone ? x.timezone + " time" : "", x.state ? "Based in " + x.state : "",
         (x.agencies || []).length ? "Works with " + x.agencies.join(", ") : x.company ? "Works through " + x.company : ""].filter(Boolean).join(" | ");
       var msgBtn = me.side === "attorney" ? (function () { var b = h("button", { class: "ghost small", type: "button" }, "Send message"); b.addEventListener("click", function () { startChat(x.person_id, x.name, b); }); return b; })() : null;
@@ -6040,10 +6043,7 @@
             facts ? h("p", { class: "small muted", style: "margin:6px 0 0", text: facts }) : null),
           h("div", { class: "tp-head-acts" },
             h("div", { class: "row tp-top-acts", style: "gap:8px;flex-wrap:wrap;justify-content:flex-end" }, canHire() ? h("span", { id: "tp-bookmark", class: "row", style: "gap:8px;flex-wrap:wrap;align-items:center" }, bookmarkButton(x.person_id, x.name)) : null, msgBtn, callBtn),
-            h("div", { class: "talent-acts tp-invite" }, h("label", { class: "talent-gig" }, h("span", { class: "talent-gig-word", text: "Invite for gig:" }), inv.gigSel), inv.invite))),
-        !mine.length ? h("p", { class: "notice", style: "margin:12px 0 0" }, "You have no posted gig that is open for proposals, so there is nothing to invite this freelancer to yet. You can still send a message or book a call. ",
-          h("a", { href: "#", onclick: function (e) { e.preventDefault(); talentPerson = null; talentAddress(null); goTab("projects"); }, text: "Post a gig in Projects" }), ".") : null,
-        inv.said);
+            inviteBtn ? h("div", { class: "talent-acts tp-invite" }, inviteBtn) : null)));
       el.appendChild(head);
       // ----- The tabs: everything stays on this page -----
       var promos = x.promotions || [];
@@ -6195,21 +6195,8 @@
     return p.photo_url ? h("img", { class: "talent-photo", src: p.photo_url, alt: "Photo of " + p.name })
       : h("span", { class: "talent-photo none", "aria-hidden": "true", text: String(p.name || "?").trim().charAt(0).toUpperCase() });
   }
-  // "Gig to invite for" with "Invite to this gig": the same control on a result card and on the profile page.
-  // scope: where to take a gig out of every list once the server says it no longer takes proposals.
-  function talentInvite(p, mine, scope) {
-    var results = scope;
-    var gigSel = h("select", { "aria-label": "Gig to invite " + p.name + " for", disabled: !mine.length },
-      [h("option", { value: "", text: mine.length ? "Select one of your posted gigs" : "No posted gig is open for proposals" })].concat(mine.map(function (g) { return h("option", { value: g.id, text: g.title }); })));
-    var invite = h("button", { class: "blue small", type: "button", disabled: true }, "Invite to this gig");
-    var said = h("p", { class: "small muted", role: "status", style: "margin:6px 0 0", text: "Inviting asks this freelancer to send a proposal for the gig you select. It does not hire them or award the work." });
-    gigSel.addEventListener("change", function () { invite.disabled = !gigSel.value; });
-    // Step 18 part 3: the button opens the review step (the gig's scope and an optional note); nothing is sent from here
-    invite.addEventListener("click", function () { if (gigSel.value) openInviteReview(p, gigSel.value); });
-    return { gigSel: gigSel, invite: invite, said: said };
-  }
   // The results: count, the filters in use, the sort order, then one card per freelancer with two actions only,
-  // "View profile" and "Invite to this gig" (with the gig to invite for chosen first)
+  // "View profile" and "Invite to gig" (the gig is chosen on the invitation step)
   function talentResults(results, x, mine, idx, o) {
     D.clear(results);
     if (!x.ok) { results.appendChild(h("div", { class: "notice", role: "alert" }, h("span", { text: (x.reason === "category_gone" ? "That category is no longer on the Lawfecta website. Choose another one." : /^bookmarks_/.test(x.reason || "") ? "Your bookmarks could not be read, so nothing is shown. " + D.errorText(x.reason) : gigErr(x)) + " " }),

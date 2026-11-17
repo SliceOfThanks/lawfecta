@@ -6,6 +6,12 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Blue information notices, with a dismiss button on the sensitive data notice: ON THE SITE (2026-11-17)
+- Site: code_version 6e47b42 (browser code only; api function 123 and migrations through 0125 unchanged), health "ok". GitHub Tests passed on that commit (run 44108525185).
+- From Stacey's mockup and written instructions of 2026-11-17: every information notice (class "notice") is #EAF4FF with a 1px #B8D8F8 border on all sides, text #172B4D, 12px corners and a soft shadow; no stripe at the left. Problems (.bad) and confirmations (.ok) keep their colors and stripe. Dark look: deep blue.
+- The sensitive data notice ("DELA is for operations work...", shown on Ask DELA, the Library and the recorder) is D.infoNotice in shared/dela-core.js: an info icon, the unchanged words, and an X ("Dismiss notice", 44 by 44). Dismissal is remembered in that browser (localStorage "dela.notice.sensitive") until the words change; a link "Show the sensitive data notice" stays in its place. No server check changes.
+- Not done from here: before and after screenshots for Stacey, and a pass with a real screen reader. She was told the dismissal is per browser, not per account.
+
 ## Talent: "Bookmarks" tab, filter icon, the DELA bar from Stacey's mockup: ON THE SITE (2026-11-17)
 - Site: code_version 0866953, api function version 122, migrations through 0124, health "ok". GitHub Tests passed on that commit (run 44102886535). The website has been back since 2026-11-16.
 - A "Bookmarks" tab next to "Search" and "My bench" lists the bookmarked freelancers who are match-ready, on the same short cards (Stacey: "can we have them listed under a tab next to my bench"). Also reachable at ?tab=talent&view=bookmarks.

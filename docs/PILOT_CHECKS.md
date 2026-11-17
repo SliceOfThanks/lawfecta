@@ -55,6 +55,7 @@ How to read the "State" column:
 | 3.4 | A real freelancer becomes match-ready through the real steps | Profile filled, LinkedIn check passed by the team, availability confirmed, then listed in Talent | Not yet | The listed freelancers today are test and sample accounts. |
 | 3.5 | A firm logo upload works and freelancers see it | The logo shows in "Firm details" and on the freelancer's gig page, conversation and engagement | Not yet | By hand: an agent cannot choose a file. |
 | 3.6 | Ready-made pictures show everywhere a picture is used | Talent cards, profile, Inbox, meeting cards | Part, 2026-11-13 | Seen by Stacey on a Talent card. |
+| 3.6b | The blue information notice reads well and its X works with a screen reader | A person with VoiceOver or NVDA hears the notice, reaches "Dismiss notice", and lands on "Show the sensitive data notice" | Not yet | Released 2026-11-17. Automated checks pass; no person has tried it. |
 | 3.7 | A person using a screen reader can search Talent and read a profile | A pass by a person with VoiceOver or NVDA | Not yet | Automated accessibility rules pass; they do not replace a person. |
 
 ## 4. Money (from the go-live handoff)

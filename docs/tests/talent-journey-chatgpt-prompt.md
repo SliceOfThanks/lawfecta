@@ -140,7 +140,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 18. Find: the card for "DELA Test Freelancer" in the list (use Ctrl+F for the name).
     Expect: its round picture is a drawing on a light pink circle, not a drawing floating on white.
     Do: click "View profile" on that card.
-    Expect: a full page, not a pop-up: at the top a button "← Back to Talent search"; the heading "DELA Test Freelancer", "✓ Verified", "No reviews yet"; on the right of the header "☆ Bookmark", "Send message" and "Book a call", and under them "Invite for gig:" with a list and "Invite to this gig"; then five tabs "Overview", "Services", "Experience and qualifications", "Portfolio", "Reviews". The address in the browser contains person=. On "Overview", two columns: on the left "Professional summary", "Primary services", "Software expertise"; on the right "Quick facts" and "Verification" with a line "What does verified mean?". No phone number, email address or website address anywhere on the page. Nothing reads "Not provided" or "Not given".
+    Expect: a full page, not a pop-up: at the top a button "← Back to Talent search"; the heading "DELA Test Freelancer", "✓ Verified", "No reviews yet"; on the right of the header "☆ Bookmark", "Send message" and "Book a call", and under them one dark red button "Invite to gig" (no list to choose a gig from); then five tabs "Overview", "Services", "Experience and qualifications", "Portfolio", "Reviews". The address in the browser contains person=. On "Overview", two columns: on the left "Professional summary", "Primary services", "Software expertise"; on the right "Quick facts" and "Verification" with a line "What does verified mean?". No phone number, email address or website address anywhere on the page. Nothing reads "Not provided" or "Not given".
 
 19. Do: press the browser's own Back button (the arrow at the top left of the browser window), not the button on the page.
     Expect: the Talent page again, with all 16 freelancers still loaded ("Showing 16 of 16 freelancers.").
@@ -154,8 +154,8 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
     Do: click it once.
     Expect: ONE of these two. Write in your report which one you saw, word for word. (a) The button reads "★ Bookmarked" on a light pink background, with no sentence beside it. (b) A sentence beside the button that starts "The Lawfecta website did not let DELA use its bookmarks" or "The Lawfecta website's bookmarks could not be reached". Both are a PASS for this step; (b) tells the Lawfecta Team a permission is missing.
 
-22. Find: at the right of the header, "Invite for gig:".
-    Do: in the list choose "Build document checklist from questionnaire answers". Click "Invite to this gig".
+22. Find: at the right of the header, the dark red button "Invite to gig".
+    Do: click it. On the page that opens, in the card "1. Select an existing gig", open the list "Existing gig" and choose "Build document checklist from questionnaire answers" (it may already be chosen).
     Expect: a page with the heading "Invite DELA Test Freelancer to submit a proposal" and "Nobody is hired at this step."; three cards "1. Select an existing gig", "2. Review the gig" and "3. Invite to submit a proposal" with the buttons "Send invitation to submit a proposal" and "Cancel".
     Do: click "Send invitation to submit a proposal". Leave the message box empty.
     Expect: a card "Already invited" saying DELA Test Freelancer was already invited to "Build document checklist from questionnaire answers" and "Nothing was sent again."
