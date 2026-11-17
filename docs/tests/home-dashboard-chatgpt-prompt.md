@@ -68,7 +68,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 
 5. Go to: https://www.lawfecta.co/dela?tab=home
    Find: the top of the page.
-   Expect: the heading "Your Workspace" and the button "Customize dashboard". Cards in two columns, among them "Ask DELA", "Needs your attention", "My projects", "Monthly usage" and "Urgent notifications". The card "Monthly usage" shows "DELA actions" and "Storage", each with a bar, and at its bottom the underlined words "View usage details →". The card "My projects" shows four numbers ("Deliveries to review", "Active projects", "Open gigs", "Gig drafts") and at its bottom "View all projects →". At the very top right of the screen, the bell has a small red number. Write that number into your report.
+   Expect: the heading "Your Workspace" and the button "Customize dashboard". Cards in two columns, among them "Ask DELA", "Needs your attention", "My projects", "Monthly usage" and "Urgent notifications". The card "Monthly usage" shows a ring (a circle that is partly filled) with a number in its middle over "/ " and a second number, beside it "DELA actions" with a line that ends "left this month" and a percent, then "Saved documents" and "Storage" each with a bar, and at its bottom the underlined words "View usage details →". The card "My projects" shows four numbers ("Deliveries to review", "Active projects", "Open gigs", "Gig drafts") and at its bottom "View all projects →". At the very top right of the screen, the bell has a small red number. Write that number into your report.
 
 6. Find: the button "Customize dashboard" at the top right of the page.
    Do: click it.
