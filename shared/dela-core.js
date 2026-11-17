@@ -574,6 +574,9 @@ D.openTab = function (getUrl, onFail, opts) {
     // was filled dark red. A closed menu shows nothing, and the button looks like the outlined buttons beside it.
     ".dela details.menu:not([open])>.menu-panel{display:none}.dela details.menu>summary.btn{background:var(--card);color:var(--brand);border:1.5px solid var(--line);border-radius:8px;padding:8px 14px;font-size:14px;font-weight:700}" +
     ".dela details.menu>summary.btn:hover{border-color:var(--brand)}.dela details.menu>summary.btn:focus-visible{outline:3px solid #0d83dd;outline-offset:2px}.dela details.menu{border:0;background:transparent;box-shadow:none;padding:0;margin:0}" +
+    // Fix (Stacey's screenshot, 2026-11-17): an open menu lay under the "⋯" button of the row below it. The open menu
+    // as a whole is lifted above the rows after it (the panel's own layer does not reach out of the menu in new browsers).
+    ".dela details.menu[open]{z-index:30}" +
     ".dela details.menu{position:relative;display:inline-block}.dela details.menu>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;min-height:40px}.dela details.menu>summary::-webkit-details-marker{display:none}" +
     ".menu-panel{position:absolute;z-index:5;left:0;top:calc(100% + 4px);min-width:230px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(11,18,32,.14);padding:6px;display:flex;flex-direction:column;gap:2px}" +
     ".thread-acts details.menu .menu-panel{left:auto;right:0}.dela .menu-item{background:transparent;border:0;color:var(--ink);text-align:left;justify-content:flex-start;padding:10px 12px;min-height:44px;border-radius:8px;font-weight:600;width:100%;white-space:normal}.dela .menu-item:hover,.dela .menu-item:focus-visible{background:var(--soft)}" +

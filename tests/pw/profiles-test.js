@@ -387,6 +387,13 @@ async function waitFor(page, words, ms) {
       return { bg: getComputedStyle(u).backgroundColor, dot: !!u.querySelector(".notice-dot.on"), weight: Number(getComputedStyle(u.querySelector(".notice-title")).fontWeight), panel: getComputedStyle(d.querySelector(".menu-panel")).display, sumBg: getComputedStyle(d.querySelector("summary")).backgroundColor, w: Math.round(d.getBoundingClientRect().width) }; });
     ok(rowLook.bg === "rgb(255, 255, 255)" && rowLook.dot && rowLook.weight >= 700, "an unread notification is white, with a blue dot and a bold title: " + JSON.stringify(rowLook));
     ok(rowLook.panel === "none" && rowLook.sumBg !== "rgb(139, 33, 70)" && rowLook.w <= 70, "the closed menu on a row is a small outlined button with no panel showing: " + JSON.stringify(rowLook));
+    // Fix (Stacey's screenshot, 2026-11-17): an open "⋯" menu is on top of the row below it, so every line can be clicked
+    const firstMenu = dela(p).locator(".notice-row details.menu").first();
+    await firstMenu.locator("summary").click();
+    const onTop = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; const d = r.querySelector(".notice-row details.menu[open]"); const items = [...d.querySelectorAll(".menu-item")];
+      return items.length > 0 && items.every((b) => { const q = b.getBoundingClientRect(); const hit = r.elementFromPoint(q.left + q.width / 2, q.top + q.height / 2); return hit === b || b.contains(hit); }); });
+    ok(onTop, "every line of an open row menu is on top and can be clicked");
+    await p.keyboard.press("Escape");
     await dela(p).getByLabel("Search notifications", { exact: true }).fill("refund");
     await p.waitForTimeout(400);
     ok(await dela(p).locator(".notice-row").count() === 1, "search narrows the list");
