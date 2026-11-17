@@ -208,6 +208,27 @@ async function listened(page, secs) {
     await dela(p).getByRole("button", { name: "Ask DELA" }).first().click();
     t = await waitFor(p, "Using your OpenAI key ending");
     ok(t.includes("DELA is for operations work"), "Ask DELA still shows the client information banner where people type");
+    // Stacey's notice mockup of 2026-11-17: pale blue, an even border with no stripe at the left, a soft shadow, an
+    // info icon, and an X that dismisses it. A link stays in its place, so the guidance can always be read again.
+    const look = await p.evaluate(() => { const n = document.querySelector(".dela-host").shadowRoot.querySelector(".notice.info"); const c = getComputedStyle(n); const x = n.querySelector(".notice-x").getBoundingClientRect(); const w = n.querySelector(".notice-words").getBoundingClientRect();
+      return { bg: c.backgroundColor, left: c.borderLeftWidth + " " + c.borderLeftColor, top: c.borderTopWidth + " " + c.borderTopColor, color: c.color, radius: c.borderRadius, shadow: c.boxShadow, xw: Math.round(x.width), xh: Math.round(x.height), over: w.right > x.left + 1, role: n.getAttribute("role") }; });
+    ok(look.bg === "rgb(234, 244, 255)" && look.left === "1px rgb(184, 216, 248)" && look.top === look.left && look.color === "rgb(23, 43, 77)" && look.radius === "12px" && look.shadow.includes("2px 8px"), "the notice is the blue one, with the same thin border on every side: " + JSON.stringify(look));
+    ok(look.xw >= 44 && look.xh >= 44 && !look.over && look.role === "note", "the X is at least 44 by 44, never over the words, and the notice is not an alert: " + JSON.stringify(look));
+    const xBtn = dela(p).getByRole("button", { name: "Dismiss notice", exact: true });
+    await xBtn.focus();
+    await p.keyboard.press("Enter");
+    t = await text(p);
+    ok(!t.includes("DELA is for operations work") && t.includes("Show the sensitive data notice") && await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.activeElement && r.activeElement.classList.contains("notice-back"); }), "Enter on the X hides the notice, leaves a link to bring it back, and puts the keyboard on that link");
+    ok(await dela(p).getByLabel("Your message").isVisible(), "dismissing leaves the page where it was");
+    await dela(p).getByRole("button", { name: "Show the sensitive data notice", exact: true }).click();
+    t = await text(p);
+    ok(t.includes("DELA is for operations work") && await dela(p).getByRole("button", { name: "Dismiss notice", exact: true }).count() === 1, "the link brings the notice back");
+    await p.screenshot({ path: path.join(SHOTS, "notice-blue.png"), fullPage: true });
+    // The dismissal is remembered in this browser: the notice does not come back by itself on the next visit
+    const stored = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; r.querySelector(".notice-x").click(); return localStorage.getItem("dela.notice.sensitive"); });
+    ok(typeof stored === "string" && stored.length > 4 && !(await text(p)).includes("DELA is for operations work"), "the dismissal is remembered in this browser");
+    await dela(p).getByRole("button", { name: "Show the sensitive data notice", exact: true }).click();
+    ok(await p.evaluate(() => localStorage.getItem("dela.notice.sensitive")) === null, "bringing it back clears the remembered dismissal");
     await dela(p).getByLabel("Your message").fill("Plan my filing day");
     await dela(p).getByRole("button", { name: "Send", exact: true }).click();
     t = await waitFor(p, "your key)");

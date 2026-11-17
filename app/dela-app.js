@@ -10277,7 +10277,7 @@
     // Not on Home, Files, Projects, Talent, Work, Earnings, Profile or Settings (Stacey 2026-11-05). Files and profile
     // documents keep their short reminder and tick box at the upload, and the client information check still runs on save.
     var noNotice = ["home", "files", "projects", "talent", "work", "earnings", "profile", "ai", "help", "usage", "subscription"];
-    if (me.notice && noNotice.indexOf(tab) < 0) main.appendChild(h("div", { class: "notice", role: "note", text: me.notice }));
+    if (me.notice && noNotice.indexOf(tab) < 0) main.appendChild(D.infoNotice(String(me.notice), "sensitive"));
     if (me.pause && me.pause.all) main.appendChild(h("div", { class: "notice bad", role: "alert", text: "DELA is paused for members right now. You can still use it because you are on the Lawfecta Team." }));
     if (me.on_hold) main.appendChild(h("div", { class: "notice bad", role: "alert", text: "Some actions are paused on your account. Contact the Lawfecta Team." }));
     if (!me.side) main.appendChild(noSide());

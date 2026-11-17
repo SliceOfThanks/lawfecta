@@ -325,6 +325,31 @@
   // Lawfecta brand: deep navy to burgundy, burgundy and blue pill buttons, soft pink highlights, Inter type.
 // Each dark rule twice: for data-theme=dark always, and for data-theme=auto when the device is dark. A rule for the root
 // (".dela{...}") gets the attribute on .dela itself; every other rule is scoped inside it.
+// The information notice that can be dismissed (Stacey's mockup of 2026-11-17). key names the notice; a dismissal is
+// remembered in this browser until the words change. After dismissal a small link stays in its place and brings the
+// notice back, so the guidance is always reachable. Dismissing changes nothing about what DELA checks or refuses.
+D.infoNotice = function (text, key) {
+  var h = D.h, k = "dela.notice." + key, mark = String(text.length) + ":" + text.slice(0, 24) + text.slice(-24);
+  var gone = false;
+  try { gone = localStorage.getItem(k) === mark; } catch (e) { gone = false; }
+  var wrap = h("div", { class: "notice-wrap", "data-notice": key });
+  function show(focus) {
+    while (wrap.firstChild) wrap.removeChild(wrap.firstChild);
+    if (gone) {
+      var back = h("button", { type: "button", class: "notice-back" }, "Show the sensitive data notice");
+      back.addEventListener("click", function () { gone = false; try { localStorage.removeItem(k); } catch (e) { /* storage is off */ } show("x"); });
+      wrap.appendChild(back);
+      if (focus) back.focus();
+      return;
+    }
+    var x = h("button", { type: "button", class: "notice-x", "aria-label": "Dismiss notice" }, h("span", { "aria-hidden": "true", text: "×" }));
+    x.addEventListener("click", function () { gone = true; try { localStorage.setItem(k, mark); } catch (e) { /* storage is off: it comes back on the next page */ } show(true); });
+    wrap.appendChild(h("div", { class: "notice info", role: "note" }, h("span", { class: "notice-i", "aria-hidden": "true", text: "i" }), h("div", { class: "notice-words", text: text }), x));
+    if (focus === "x") x.focus();
+  }
+  show(false);
+  return wrap;
+};
 D.darkCss = function (css) {
   var dark = "", auto = "";
   css.split("}").forEach(function (rule) {
@@ -410,7 +435,8 @@ D.openTab = function (getUrl, onFail, opts) {
     // Dark colors (UX review Phase 4 part D): on when the person chose Dark (data-theme=dark), or when they chose Match my
     // device and the device is dark (data-theme=auto). Light (data-theme=light) never turns dark.
     D.darkCss(".dela{--bg:#11131b;--card:#1a1d28;--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c;--head:#2b303c;--brand:#c2416f;--pink:#2a1622;--pink-ink:#f19ab8;--soft:#222634;--shadow:none;--okbg:#17301f;--okline:#2b5a3b;--bluebg:#132233}.nl-side,.nl-bar,.nl-sheet{--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c}" +
-      ".problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b}.notice.ok{background:#17301f}.talent-ver{color:#7fd3a3}" +
+      ".notice{background:#132233;border-color:#2b4a66;color:#eceef3;box-shadow:none}.notice-i{border-color:#8cc4ff;color:#8cc4ff}.notice-x{color:#eceef3}.notice-back{color:#8cc4ff}" +
+      ".problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b;border-color:#e0685f}.notice.ok{background:#17301f;border-color:#4fa873}.talent-ver{color:#7fd3a3}" +
       ".msg.mine,.flow,.helpbox{border-color:#2b4a66}button.ai-btn{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}.badge.ai-label{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}" +
       ".oktxt{color:#7fd3a3}" +
       // Waiting and done badges are quiet on dark: a deep tint with light text, not a bright chip
@@ -447,7 +473,15 @@ D.openTab = function (getUrl, onFail, opts) {
     ".chip{width:38px;height:38px;border-radius:50%;background:var(--pink);color:var(--pink-ink);display:inline-flex;align-items:center;justify-content:center;font-weight:800;flex:none}",
     ".tile{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;display:flex;gap:12px;align-items:flex-start}.tile.col{flex-direction:column;gap:2px}",
     ".soon{font-size:11px;font-weight:800;color:var(--blue);text-transform:uppercase;letter-spacing:.08em}",
-    ".notice{border-left:4px solid var(--brand);background:var(--pink);color:var(--ink);padding:12px 14px;border-radius:12px;margin:12px 0;font-size:14px}",
+    // Stacey's notice mockup of 2026-11-17: an information notice is pale blue with an even border, no stripe at the
+    // left, and a soft shadow. Problems (.bad) and confirmations (.ok) keep their own colors and their stripe: they are
+    // a different kind of message and are not recolored.
+    ".notice{background:#eaf4ff;border:1px solid #b8d8f8;color:#172b4d;padding:14px 16px;border-radius:12px;margin:12px 0;font-size:15px;line-height:1.55;box-shadow:0 2px 8px rgba(11,18,32,.08)}",
+    ".notice.bad,.notice.ok{border:0;border-left:4px solid var(--bad);color:var(--ink);box-shadow:none;padding:12px 14px;font-size:14px;line-height:1.5}" +
+    // The dismissible form (D.infoNotice): icon, words, and an X at the top right that never sits over the words
+    ".notice.info{display:flex;gap:14px;align-items:flex-start;padding:14px 6px 14px 16px}.notice-i{flex:0 0 auto;width:24px;height:24px;margin-top:1px;border:2px solid #0d83dd;color:#0d83dd;border-radius:50%;font-weight:700;font-size:14px;line-height:20px;text-align:center;font-style:normal}" +
+    ".notice-words{flex:1 1 auto;min-width:0;overflow-wrap:anywhere}.dela .notice-x{flex:0 0 auto;width:44px;height:44px;min-height:44px;margin:-8px 0 -8px 0;padding:0;background:transparent;border:0;color:#172b4d;font-size:24px;line-height:1;border-radius:10px;cursor:pointer;justify-content:center}" +
+    ".dela .notice-x:hover{background:rgba(13,131,221,.12)}.dela .notice-x:focus-visible{outline:2px solid #0d83dd;outline-offset:2px}.dela .notice-back{background:transparent;border:0;padding:6px 2px;min-height:0;color:var(--blue);font-weight:600;text-decoration:underline;cursor:pointer;font-size:13px}" +
     ".notice.bad{border-color:var(--bad);background:#fdeceb}.notice.ok{border-color:var(--ok);background:#e9f5ee}p.small.bad{color:var(--bad)}p.small.ok{color:var(--ok)}" +
     "@media (max-width:640px){table.stack thead{display:none}table.stack,table.stack tbody,table.stack tr,table.stack td{display:block;width:100%}table.stack tr{border-bottom:1px solid var(--line);padding:10px 0}table.stack td{border:0;padding:3px 0}table.stack td[data-label]:before{content:attr(data-label);display:block;font-size:12px;color:var(--muted);font-weight:700}}" +
     "@media (max-width:640px){table.stack tr.band th{display:block;width:100%}}" +
@@ -634,7 +668,7 @@ D.openTab = function (getUrl, onFail, opts) {
     ".dela.nl .top .bell .lbl{display:none}.dela.nl .top .bell b{position:absolute;top:4px;right:2px;background:var(--brand);color:#fff}.dela.nl .avatar{background:var(--brand);flex:none}" +
     ".dela.nl .top .seg{border-color:var(--line)}.dela.nl .top .seg button{color:var(--ink)}.dela.nl .top .seg button[aria-pressed=true]{background:var(--pink);color:var(--pink-ink)}" +
     ".dela.nl .wrap{max-width:1120px;width:100%;margin:0;padding:14px 16px}.dela.nl h1{font-size:22px;margin:4px 0 10px}.dela.nl h2{font-size:17px;font-weight:700}" +
-    ".dela.nl .card{border-radius:12px;padding:14px 16px;margin:12px 0;box-shadow:none}.dela.nl .soft{border-radius:10px}.dela.nl .notice{border-radius:10px}" +
+    ".dela.nl .card{border-radius:12px;padding:14px 16px;margin:12px 0;box-shadow:none}.dela.nl .soft{border-radius:10px}.dela.nl .notice.bad,.dela.nl .notice.ok{border-radius:10px}" +
     ".dela.nl button.blue,.dela.nl .btn.blue{background:var(--brand);border-color:var(--brand);color:var(--brand-ink)}" +
     ".dela.nl button.blue,.dela.nl button.ghost,.dela.nl .btn{border-radius:8px}.dela.nl button.ghost{border-color:var(--line)}.dela.nl button.ghost.danger{border-color:var(--bad)}" +
     ".dela.nl button:focus-visible,.dela.nl a:focus-visible,.dela.nl input:focus-visible,.dela.nl select:focus-visible,.dela.nl textarea:focus-visible{outline:2px solid var(--ink);outline-offset:2px}" +
