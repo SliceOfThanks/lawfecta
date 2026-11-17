@@ -100,10 +100,11 @@ async function makeMember(bd, side, plan, name) {
     const first = await inShadow(p, (root) => {
       const r = (el) => el ? el.getBoundingClientRect() : null;
       const btn = [...root.querySelectorAll("button")].find((b) => b.innerText.trim() === "Continue setup");
-      const work = [...root.querySelectorAll("h2")].find((x) => x.innerText.trim() === "Work opportunities");
+      // Step 33: the widget after the profile card is the member's first widget, Ask DELA by default
+      const work = [...root.querySelectorAll("h2")].find((x) => x.innerText.trim() === "Ask DELA");
       return { top: r(root.querySelector(".top")).top, h1: r(root.querySelector("h1")).bottom, btn: r(btn).bottom, work: r(work).top, bar: r(root.querySelector(".nl-bar")).top, vh: window.innerHeight };
     });
-    ok(first.top >= 0 && first.btn <= first.bar && first.work < first.bar && first.bar <= first.vh, "phone 390 x 844: the top bar, greeting, Continue setup and the start of Work are on the first screen: " + JSON.stringify(first));
+    ok(first.top >= 0 && first.btn <= first.bar && first.work < first.bar && first.bar <= first.vh, "phone 390 x 844: the top bar, greeting, Continue setup and the start of the next widget are on the first screen: " + JSON.stringify(first));
     ok(await fits(p), "phone 390: no sideways scrolling");
     await p.screenshot({ path: path.join(SHOTS, "workspace-phone-new.png") });
     // One requirement by default; the rest on request
