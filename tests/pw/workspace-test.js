@@ -57,6 +57,8 @@ async function makeMember(bd, side, plan, name) {
     await sql("update settings set value = 'true'::jsonb where key = 'verify.freelancer_linkedin'");
     restore = () => sql("update settings set value = '" + liBefore + "'::jsonb where key = 'verify.freelancer_linkedin'");
     await makeMember(NEW, "freelancer", "fl_free", "Nia Newcomer");
+    // Step 34: Ask DELA is no longer among a freelancer's six default widgets; this member chose it, first on their Home
+    await sql(`insert into home_layouts (person_id, side, widgets) values (${person(NEW)}, 'freelancer', '["ask", "projects", "attention", "gigs"]') on conflict (person_id, side) do update set widgets = excluded.widgets; select 1`);
     await makeMember(ATT, "attorney", "att_pro", "Ada Attorney");
     await makeMember(READY, "freelancer", "fl_plus", "Rae Ready");
     await sql(`insert into member_profiles (person_id, side, body, missing, score) values (${person(NEW)}, 'freelancer', '{"first_name":"Nia","last_name":"Newcomer"}', '{headline,summary,practice_areas,services,experience}', 58)
@@ -299,18 +301,15 @@ async function makeMember(bd, side, plan, name) {
     // ---------- A freelancer who is ready for invitations ----------
     s = await open(browser, READY, "&tab=home", 1280, 900);
     p = s.page;
-    t = await waitFor(p, "My work");
-    ok(t.includes("Profile complete") && t.includes("Attorneys can invite you.") && !t.includes("Complete your profile"), "ready freelancer: the profile box is gone; one status line says they can be invited");
+    t = await waitFor(p, "Active work and deadlines");
+    ok(!t.includes("Complete your profile") && !t.includes("Account status"), "ready freelancer: no profile card and no Account status on Home (step 34: profile and verification live on the Profile page)");
     ok(t.includes("Paid out this month") && t.includes("all time") && t.includes("Proposals left this month"), "ready freelancer: Paid out shows this month and all time");
-    // Step 33: the account checks also show as a ring
-    const acct = await inShadow(p, (root) => { const r = root.querySelector("[data-widget=account] .usage-ring"); return r ? r.getAttribute("aria-label") + " | " + r.innerText.replace(/\s+/g, " ") : ""; });
-    ok(/^Account 100 percent complete: \d of \d checks done \| 100% Complete$/.test(acct), "ready freelancer: Account status shows a full ring, in words too: " + acct);
     // A number opens the list it counts
     await dela(p).getByRole("button", { name: /Invitations/ }).first().click();
     await p.waitForFunction(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.activeElement && r.activeElement.tagName === "H2" && r.activeElement.textContent.indexOf("Invitations") === 0; }, null, { timeout: 8000 });
     ok(p.url().includes("tab=work"), "ready freelancer: the Invitations number opens Work at the Invitations list");
     await dela(p).getByRole("button", { name: "Home", exact: true }).click();
-    await waitFor(p, "My work");
+    await waitFor(p, "Active work and deadlines");
     await sql(`update member_profiles set availability_confirmed_at = now() - interval '20 days' where person_id = ${person(READY)} and side = 'freelancer'; select dela_profile_refresh(${person(READY)}, 'freelancer')`);
     await p.reload();
     t = await waitFor(p, "Your availability is out of date");
@@ -343,12 +342,12 @@ async function makeMember(bd, side, plan, name) {
     });
     await p.goto(`${BASE}/page/DELA-App?uid=5103&plan=&tab=home`);
     t = await waitFor(p, "Needs your attention");
-    ok(t.indexOf("Needs your attention") < t.indexOf("My work") && t.indexOf("My work") < t.indexOf("Complete your profile"), "work in hand: Needs your attention, then Your work, then the profile card");
+    ok(t.indexOf("Needs your attention") < t.indexOf("Active work and deadlines") && t.indexOf("Active work and deadlines") < t.indexOf("Complete your profile"), "work in hand: Needs your attention, then Your work, then the profile card");
     ok(t.indexOf("Milestone 1: Draft") < t.indexOf("Agreement to sign") && t.includes("Review and sign") && t.includes("View milestone"), "attention is ranked by the nearest deadline, with specific actions");
     // A page address DELA does not know lands on the new Home, never on the old one (found in the prompt check, 2026-11-13)
     await p.goto(`${BASE}/page/DELA-App?uid=5103&plan=&tab=nosuchpage`);
     t = await waitFor(p, "Needs your attention");
-    ok(await p.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelectorAll(".hero").length) === 0 && t.includes("My work"), "an unknown page address shows the new Home, not the old one");
+    ok(await p.evaluate(() => document.querySelector(".dela-host").shadowRoot.querySelectorAll(".hero").length) === 0 && t.includes("Active work and deadlines"), "an unknown page address shows the new Home, not the old one");
     ok(t.includes("Work you already have is not affected.") && !t.includes("Invitations start when"), "work in hand with an incomplete profile: no contradicting message");
     await p.screenshot({ path: path.join(SHOTS, "workspace-desktop-work-first.png") });
     // Step 16 (Stacey 2026-11-12): "Subscription" under Profile shows the plan, what it allows, usage, and every plan of

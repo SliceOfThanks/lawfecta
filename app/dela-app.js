@@ -665,7 +665,7 @@
       w.appendChild(h("p", { text: pf.readiness === "incomplete" ? "Invitations start when your profile, the LinkedIn check and your availability are in place." : pf.readiness === "verification_pending" ? "Invitations start when the LinkedIn check is done." : "Invitations start again once the step above is done." }));
       return w;
     }
-    var c = hcard(att ? "My projects" : "My work", alerts ? h("span", { style: "margin-left:auto" }, alerts) : null), inner = h("div", { class: "hgap" });
+    var c = hcard(att ? "My projects and milestones" : "Active work and deadlines", alerts ? h("span", { style: "margin-left:auto" }, alerts) : null), inner = h("div", { class: "hgap" });
     c.appendChild(inner);
     var tiles = h("div", { class: "hstats" });
     if (att) {
@@ -797,28 +797,40 @@
   // ---------- Step 33: a Home each member arranges (docs/briefs/step-33-home-dashboard.md) ----------
   // Which widgets a side may have, and the member's own order, come from the server (GET /home/layout). A layout only
   // says what Home shows: removing a widget hides it here and changes nothing anywhere else in DELA.
-  var HOME_DEFAULT = ["ask", "attention", "projects", "usage", "notifications", "account"];
+  var HOME_DEFAULTS = { attorney: ["attention", "delegating", "projects", "talent", "spend", "ask"], freelancer: ["gigs", "earnings", "proposals", "projects", "attention", "growth"] };
   var HOME_W = {
-    ask: { title: "Ask DELA", about: "Ask a question and see DELA's next step for you.", icon: "ask", draw: function () { return askBox(); } },
     attention: { title: "Needs your attention", about: "Signatures, payments, reviews and approvals that wait on you.", icon: "alert", draw: wAttention },
-    projects: { title: "My projects", flTitle: "My work", about: "Your active work, gigs and drafts.", flAbout: "Your active work, invitations and payouts.", icon: "projects", draw: wProjects },
+    delegating: { title: "Things to consider delegating", about: "DELA's suggestions from your approved documents, for you to review.", icon: "swap", draw: wDelegating },
+    projects: { title: "My projects and milestones", flTitle: "Active work and deadlines", about: "Your active work, gigs and next milestones.", flAbout: "Your active jobs and what is due next.", icon: "projects", draw: wProjects },
+    talent: { title: "Proposals and talent matches", about: "New proposals on your gigs and freelancers who fit.", icon: "talent", draw: wTalent },
+    spend: { title: "Delegation spend and results", about: "What you paid in a period and what was completed.", icon: "bars", draw: wSpend },
+    gigs: { title: "Recommended gigs", about: "Open gigs that match your profile, with the reason.", icon: "work", draw: wGigs },
+    earnings: { title: "Earnings and payments", about: "What you received, what waits for payout, and what is contracted.", icon: "earnings", draw: wEarnings },
+    proposals: { title: "My proposals and invitations", about: "Invitations to answer and where each proposal stands.", icon: "send", draw: wProposals },
+    growth: { title: "Business growth insights", about: "How your proposals are doing, and one next step.", icon: "bars", draw: wGrowth },
+    ask: { title: "Ask DELA", about: "Ask a question and see DELA's next step for you.", icon: "ask", draw: wAsk },
     usage: { title: "Monthly usage", about: "Your DELA actions, storage and plan limits.", flAbout: "What your plan gives you this month.", icon: "bars", draw: wUsage },
     notifications: { title: "Urgent notifications", about: "Your newest unread updates and alerts.", icon: "bell", draw: wNotices },
-    account: { title: "Account status", about: "Your profile, verification and plan.", icon: "shield", draw: wAccount },
     meetings: { title: "Upcoming meetings", about: "Your next scheduled calls and meetings.", icon: "meet", draw: wMeetings },
     messages: { title: "Recent messages", about: "Your latest conversations and unread messages.", icon: "inbox", draw: wMessages },
-    bench: { title: "My bench", about: "The freelancers you trust and whether they are available.", icon: "profile", draw: wBench },
+    bench: { title: "Trusted bench", about: "Freelancers you finished a job with, and whether they are available.", icon: "profile", draw: wBench },
     standing: { title: "Standing arrangements", about: "Recurring work and what was spent this month.", icon: "swap", draw: wStanding },
+    workflow: { title: "Workflow improvement opportunities", about: "Documents whose self-check found something to fix.", icon: "library", draw: wWorkflow },
+    availability: { title: "My availability", about: "Whether you can take new work, and when you last confirmed it.", icon: "meet", draw: wAvailability },
+    reviews: { title: "Client reviews", about: "Reviews from clients after completed jobs.", icon: "check", draw: wReviews },
     quick: { title: "Quick actions", about: "Shortcuts to the pages you use most.", icon: "bolt", draw: wQuick }
   };
   function homeTitle(id) { var w = HOME_W[id]; return me.side === "freelancer" && w.flTitle ? w.flTitle : w.title; }
   function homeAbout(id) { var w = HOME_W[id]; return me.side === "freelancer" && w.flAbout ? w.flAbout : w.about; }
   var homeLay = { data: null, draft: null, grid: null, nodes: {}, forSide: null };
   // A widget whose feature is switched off for this member is not offered and not drawn
+  function homeDefault() { return (homeLay.data && homeLay.data["default"]) || HOME_DEFAULTS[me.side] || []; }
   function homeAllowed() {
-    var sw = me.switches || {};
-    var off = { ask: !(sw.onboarding_widget || sw.ai_generation), messages: !sw.gig_chat, meetings: !sw.meetings, bench: !sw.bench || me.side !== "attorney", standing: !sw.engagements };
-    return ((homeLay.data && homeLay.data.all) || HOME_DEFAULT).filter(function (id) { return HOME_W[id] && !off[id]; });
+    var sw = me.switches || {}, att = me.side === "attorney";
+    var off = { ask: !(sw.onboarding_widget || sw.ai_generation), messages: !sw.gig_chat, meetings: !sw.meetings, bench: !sw.bench || !att, standing: !sw.engagements,
+      delegating: !att || !sw.automate_delegate || !sw.playbook_library, workflow: !att || !sw.playbook_library, talent: !att || !sw.flex_gigs, spend: !att || !sw.engagements,
+      gigs: att || !sw.flex_gigs, proposals: att || !sw.flex_gigs, growth: att || !sw.flex_gigs, earnings: att || !sw.engagements, availability: att || !sw.profiles, reviews: att || !sw.reviews };
+    return ((homeLay.data && homeLay.data.all) || HOME_DEFAULTS[me.side] || []).filter(function (id) { return HOME_W[id] && !off[id]; });
   }
   function homeFoot(c, label, go) { c.appendChild(h("div", { class: "hw-foot" }, h("button", { class: "linkish", type: "button", onclick: go }, label + " →"))); return c; }
   // A widget that loads its own data: it says so while it loads, and says so with "Try again" when it cannot
@@ -885,10 +897,10 @@
     return homeFoot(c, "View usage details", function () { goTab(NL() ? "subscription" : "usage"); });
   }
   // A ring that fills to a share of 100, with a number in the middle; the words for a screen reader are "said"
-  function homeRing(pct, tone, big, small, said) {
+  function homeRing(pct, tone, big, small, said, restTone) {
     var R = 50, C = 2 * Math.PI * R, svg = document.createElementNS(SVG_NS, "svg");
     svg.setAttribute("viewBox", "0 0 120 120"); svg.setAttribute("aria-hidden", "true");
-    [["var(--line)", C], [tone, C * Math.max(0, Math.min(100, pct)) / 100]].forEach(function (x) {
+    [[restTone || "var(--line)", C], [tone, C * Math.max(0, Math.min(100, pct)) / 100]].forEach(function (x) {
       if (!(x[1] > 0)) return;
       var ci = document.createElementNS(SVG_NS, "circle");
       ci.setAttribute("cx", "60"); ci.setAttribute("cy", "60"); ci.setAttribute("r", String(R)); ci.setAttribute("fill", "none"); ci.setAttribute("stroke-width", "12");
@@ -910,21 +922,6 @@
       })));
     });
     return homeFoot(c, "View all notifications", function () { openNoticesPage("all"); });
-  }
-  function wAccount(hm) {
-    var pb = profileBox(hm);
-    if (pb) { pb.pending = true; return pb; }
-    var c = hcard("Account status"), inner = h("div", { class: "hgap" });
-    c.appendChild(inner);
-    var st = statusLine(hm);
-    if (st) {
-      // The same checks as the status line, as a ring: how many of them are done
-      var all = st.querySelectorAll(".hpart").length, open = st.querySelectorAll(".hpart.warn").length, pct = all ? Math.round((all - open) * 100 / all) : 0;
-      inner.appendChild(h("div", { class: "usage-row acct-row" }, h("div", { class: "usage-side" }, st),
-        homeRing(pct, pct >= 100 ? "var(--ok,#1a7f4b)" : "#d9a400", pct + "%", pct >= 100 ? "Complete" : (all - open) + " of " + all + " done", "Account " + pct + " percent complete: " + (all - open) + " of " + all + " checks done")));
-    }
-    inner.appendChild(planLine());
-    return homeFoot(c, "Manage profile", function () { goTab("profile"); });
   }
   function wMeetings() {
     var c = hcard("Upcoming meetings"), inner = h("div", { class: "hgap" });
@@ -959,7 +956,7 @@
     return homeFoot(c, "View inbox", function () { goTab("inbox"); });
   }
   function wBench() {
-    var c = hcard("My bench"), inner = h("div", { class: "hgap" });
+    var c = hcard("Trusted bench"), inner = h("div", { class: "hgap" });
     c.appendChild(inner);
     var open = function () { talentMode = "bench"; talentPerson = null; goTab("talent"); };
     homeLoad(c, inner, function () { return api.get("/bench").then(function (b) { return b && b.on === false ? { ok: true, items: [] } : b; }); }, function (b) {
@@ -1000,6 +997,231 @@
     c.appendChild(h("div", { class: "hw-quick" }, acts.map(function (a) { return h("button", { class: "ghost small", type: "button", onclick: a[1] }, a[0]); })));
     return c;
   }
+  // ---------- Step 34: the role widgets (docs/briefs/step-34-role-dashboards.md). Real numbers only: a widget with
+  // nothing to show says so and offers one next step; one that cannot load says so with "Try again". ----------
+  function homeMoney(c) { return D.money(c || 0); }
+  function homeOpenDoc(id) { lib.pb = { playbook: { id: id } }; lib.view = "read"; lib.importId = null; tab = "library"; draw(); }
+  function homePeriod(c, state, reload) {
+    var sel = h("select", { class: "hw-period", "aria-label": "Period" }, [["month", "This month"], ["quarter", "This quarter"], ["year", "This year"]].map(function (o) { return h("option", { value: o[0], text: o[1], selected: state.period === o[0] }); }));
+    sel.addEventListener("change", function () { state.period = sel.value; reload(); });
+    var head = c.querySelector(".hhead");
+    if (head) head.appendChild(h("span", { style: "margin-left:auto" }, sel));
+    return sel;
+  }
+  var PERIOD_WORDS = { month: "this month", quarter: "this quarter", year: "this year" };
+  function homeLine(label, value, note) { return h("div", { class: "row hw-line" }, h("span", { class: "grow", text: label }), h("b", { text: value }), note ? h("span", { class: "hsub", style: "flex-basis:100%", text: note }) : null); }
+  // Attorney: delegation suggestions DELA already made on the firm's approved documents. Opening one shows the
+  // document's own review; nothing is posted, sent or assigned from Home.
+  function wDelegating() {
+    var c = hcard("Things to consider delegating"), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    homeLoad(c, inner, function () { return api.get("/home/delegate"); }, function (r) {
+      var items = r.items || [];
+      if (!r.documents) { inner.appendChild(h("p", { class: "hsub", text: "Approve a document in the Library to get delegation ideas. DELA only looks at documents you approved." })); return; }
+      if (!items.length) { inner.appendChild(h("p", { class: "hsub", text: r.reviewed ? "No open delegation suggestion right now." : "DELA has not looked at your approved documents yet. Open one and go to its card \"Automate or delegate\" to see what could be handed off." })); return; }
+      inner.appendChild(h("div", { class: "hl" }, items.map(function (x) {
+        var skills = (x.skills || []).slice(0, 2).join(", ");
+        return hrow({ title: x.title || "A task to hand off", sub: "From " + (x.doc_id ? x.doc_id + " " : "") + x.playbook_title + (x.why ? ". " + x.why : "") + (skills ? " Skills: " + skills + "." : ""), act: "Review suggestion", go: function () { homeOpenDoc(x.playbook_id); } });
+      })));
+      inner.appendChild(h("p", { class: "hsub", text: "Suggestions from DELA, from your approved documents. Nothing is posted or sent until you review and approve it." }));
+    });
+    return homeFoot(c, "Open the Library", function () { goTab("library"); });
+  }
+  // Attorney: new proposals on the firm's gigs, and freelancers who match the newest open gig
+  function wTalent(hm) {
+    var c = hcard("Proposals and talent matches"), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    homeLoad(c, inner, function () { return api.get("/gigs"); }, function (r) {
+      var open = (r.gigs || []).filter(function (g) { return g.status === "open" && !g.paused_by_team; });
+      var fresh = (hm.attention || []).filter(function (x) { return x.kind === "proposals"; });
+      var newN = fresh.reduce(function (a, x) { return a + (x.n || 0); }, 0);
+      inner.appendChild(h("div", { class: "hstats two" },
+        hstat(newN, newN === 1 ? "New proposal" : "New proposals", null, function () { if (fresh.length) openGig(fresh[0].gig_id, "proposals"); else openList("projects", "Your gigs", "active"); }),
+        hstat(open.length, open.length === 1 ? "Open gig" : "Open gigs", null, function () { openList("projects", "Your gigs", "active"); })));
+      if (!open.length) { inner.appendChild(h("p", { class: "hsub", text: "No open gig. Post a gig from Projects to get proposals and matching freelancers." })); return; }
+      var gig = open[0], box = h("div", { class: "hgap" }, h("p", { class: "hsub", text: "Looking for freelancers who fit \"" + gig.title + "\"..." }));
+      inner.appendChild(box);
+      api.get("/gigs/matches?id=" + gig.id).then(function (m) {
+        D.clear(box);
+        if (!m || m.ok === false) throw new Error("matches");
+        var list = (m.matches || []).filter(function (x) { return !x.applied; }).slice(0, 3);
+        box.appendChild(h("p", { class: "hmini", text: "Freelancers who fit \"" + gig.title + "\"" }));
+        if (!list.length) { box.appendChild(h("p", { class: "hsub", text: "No matching profiles yet." })); return; }
+        box.appendChild(h("div", { class: "hl" }, list.map(function (x) {
+          return hrow({ title: x.name, sub: [x.headline, (x.reasons || []).join(", ")].filter(Boolean).join(". "), badge: x.invited ? "Invited" : null, tone: "ready", act: "View profile", go: function () { talk.thread = null; tab = "talent"; openTalentProfile(x.person_id); } });
+        })));
+        box.appendChild(h("p", { class: "hsub", text: "Why they fit is taken from their profiles. An invitation asks for a proposal; it does not hire anyone." }));
+      }).catch(function () { D.clear(box); box.appendChild(h("p", { class: "notice hw-failed", role: "status", text: "The matching freelancers could not load just now." })); });
+    });
+    return homeFoot(c, "Find talent", function () { talentMode = "search"; talentPerson = null; goTab("talent"); });
+  }
+  // Attorney: what the firm paid in a period, the work and the platform fee apart, and what was measured
+  function wSpend() {
+    var c = hcard("Delegation spend and results"), inner = h("div", { class: "hgap" }), state = { period: "month" };
+    c.appendChild(inner);
+    function load() {
+      homeLoad(c, inner, function () { return api.get("/home/spend?period=" + state.period); }, function (r) {
+        var words = PERIOD_WORDS[r.period] || "this month", paid = r.paid_cents || 0, share = paid ? Math.round((r.work_cents || 0) * 100 / paid) : 0;
+        var said = paid ? homeMoney(paid) + " paid " + words + ": " + homeMoney(r.work_cents) + " for the work and " + homeMoney(r.fee_cents) + " platform fee" : "Nothing paid " + words;
+        var side = h("div", { class: "usage-side" });
+        if (!paid) side.appendChild(h("p", { class: "hsub", text: "No recorded delegation spend " + words + "." }));
+        else {
+          side.appendChild(homeLine("For the work", homeMoney(r.work_cents), share + "% of what you paid"));
+          side.appendChild(homeLine("Platform fee", homeMoney(r.fee_cents)));
+        }
+        if (r.refunded_cents) side.appendChild(homeLine("Refunded to you", homeMoney(r.refunded_cents)));
+        inner.appendChild(h("div", { class: "usage-row" }, homeRing(paid ? share : 0, "var(--brand)", homeMoney(paid), "paid " + words, said, paid ? "var(--blue)" : null), side));
+        var res = h("div", { class: "hl" });
+        res.appendChild(h("div", { class: "hrow" }, h("span", { class: "what" }, h("b", { text: "Milestones accepted" })), h("span", { text: String(r.milestones_accepted || 0) })));
+        res.appendChild(h("div", { class: "hrow" }, h("span", { class: "what" }, h("b", { text: "Engagements completed" })), h("span", { text: String(r.engagements_completed || 0) })));
+        if (r.avg_days !== null && r.avg_days !== undefined) res.appendChild(h("div", { class: "hrow" }, h("span", { class: "what" }, h("b", { text: "Average time from start to acceptance" })), h("span", { text: r.avg_days + (Number(r.avg_days) === 1 ? " day" : " days") })));
+        if (r.freelancers_hired) res.appendChild(h("div", { class: "hrow" }, h("span", { class: "what" }, h("b", { text: "Freelancers hired more than once" }), h("span", { class: "sub", text: "Of everyone you have signed with, all time" })), h("span", { text: r.freelancers_again + " of " + r.freelancers_hired })));
+        inner.appendChild(h("p", { class: "hmini", text: "Results " + words }));
+        inner.appendChild(res);
+      });
+    }
+    homePeriod(c, state, load);
+    load();
+    return homeFoot(c, "View projects and payments", function () { tab = "projects"; gigs.id = null; draw(); });
+  }
+  // Attorney: documents the self-check flags
+  function wWorkflow() {
+    var c = hcard("Workflow improvement opportunities"), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    homeLoad(c, inner, function () { return api.get("/library"); }, function (r) {
+      var list = (r.playbooks || []).filter(function (x) { return (x.blocking || 0) + (x.attention || 0) > 0 && ["archived", "trash", "deleted"].indexOf(x.status) < 0; })
+        .sort(function (a, b) { return (b.blocking || 0) - (a.blocking || 0) || (b.attention || 0) - (a.attention || 0); }).slice(0, 3);
+      if (!list.length) { inner.appendChild(h("p", { class: "hsub", text: "No flagged issues in your documents." })); return; }
+      inner.appendChild(h("div", { class: "hl" }, list.map(function (x) {
+        var parts = [];
+        if (x.blocking) parts.push(x.blocking + (x.blocking === 1 ? " problem that blocks approval" : " problems that block approval"));
+        if (x.attention) parts.push(x.attention + (x.attention === 1 ? " thing to look at" : " things to look at"));
+        return hrow({ title: x.title, sub: parts.join(", ") + ".", act: "Open document", go: function () { homeOpenDoc(x.id); } });
+      })));
+      inner.appendChild(h("p", { class: "hsub", text: "From each document's own self-check. DELA never changes a document by itself." }));
+    });
+    return homeFoot(c, "Open the Library", function () { goTab("library"); });
+  }
+  // Freelancer: open gigs that match, with the reason. Gigs already answered, closed or filled are not listed.
+  function wGigs() {
+    var c = hcard("Recommended gigs"), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    homeLoad(c, inner, function () { return homeWork(); }, function (r) {
+      var list = (r.matches || []).slice(0, 3);
+      if (!list.length) {
+        inner.appendChild(h("p", { class: "hsub", text: "No new matching gigs right now." }));
+        inner.appendChild(h("div", { class: "hacts" }, h("button", { class: "ghost small", type: "button", onclick: function () { goProfile("sec-availability"); } }, "Update skills and availability")));
+        return;
+      }
+      inner.appendChild(h("div", { class: "hl" }, list.map(function (g) {
+        var facts = [g.practice_area, g.state, budgetText(g), g.closes_at ? "closes " + shortDate(g.closes_at) : ""].filter(Boolean).join(" · ");
+        return hrow({ title: g.title, sub: facts + ((g.reasons || []).length ? ". Why it matches: " + g.reasons.join(", ") : "") + ".", act: "View gig", go: function () { openGig(g.id, "details"); } });
+      })));
+      inner.appendChild(h("p", { class: "hsub", text: "Opening a gig sends nothing. You send a proposal yourself." }));
+    });
+    return homeFoot(c, "View all gigs", function () { tab = "work"; gigs.id = null; draw(); });
+  }
+  // One read of the Work list for the widgets that share it
+  var homeWorkP = null;
+  function homeWork() { if (!homeWorkP) { homeWorkP = api.get("/work"); homeWorkP.then(function () { setTimeout(function () { homeWorkP = null; }, 5000); }, function () { homeWorkP = null; }); } return homeWorkP; }
+  function wProposals() {
+    var c = hcard("My proposals and invitations"), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    homeLoad(c, inner, function () { return homeWork(); }, function (r) {
+      var sent = r.sent || [], inv = r.invitations || [];
+      var n = function (st) { return sent.filter(function (x) { return st.indexOf(x.proposal_status) >= 0; }).length; };
+      var toWork = function (heading) { return function () { openList("work", heading); }; };
+      inner.appendChild(h("div", { class: "hstats" },
+        hstat(inv.length, inv.length === 1 ? "Invitation" : "Invitations", "to answer", toWork("Invitations")),
+        hstat(n(["sent", "held"]), "Under review", null, toWork("Sent proposals")),
+        hstat(n(["selected"]), "Chosen", null, toWork("Sent proposals")),
+        hstat(n(["not_selected"]), "Not chosen", null, toWork("Sent proposals"))));
+      var rows = inv.slice(0, 2).map(function (g) { return hrow({ title: "Invitation: " + g.title, sub: (g.invited_at ? "Invited " + shortDate(g.invited_at) + ". " : "") + "An invitation asks for a proposal; it is not a job yet.", act: "View invitation", go: function () { openGig(g.id, "details"); } }); })
+        .concat(sent.filter(function (x) { return x.proposal_status !== "withdrawn"; }).slice(0, Math.max(1, 3 - Math.min(inv.length, 2))).map(function (g) {
+          return hrow({ title: g.title, sub: (g.price_cents ? homeMoney(g.price_cents) + ". " : "") + (g.sent_at ? "Sent " + shortDate(g.sent_at) + "." : ""), badge: (PROP_STATUS[g.proposal_status] || g.proposal_status) + (g.needs_reconfirm ? ": please confirm" : ""), tone: g.needs_reconfirm ? "held" : propTone(g.proposal_status), go: function () { openGig(g.id, "details"); } });
+        }));
+      if (rows.length) inner.appendChild(h("div", { class: "hl" }, rows));
+      else inner.appendChild(h("p", { class: "hsub", text: "No proposals or invitations yet. Open a gig that fits and send your first proposal." }));
+    });
+    return homeFoot(c, "View all", function () { tab = "work"; gigs.id = null; draw(); });
+  }
+  // Freelancer: money received in a period; what waits for payout and what is only contracted are never added to it
+  function wEarnings() {
+    var c = hcard("Earnings and payments"), inner = h("div", { class: "hgap" }), state = { period: "month" };
+    c.appendChild(inner);
+    function load() {
+      homeLoad(c, inner, function () { return api.get("/home/earnings?period=" + state.period); }, function (r) {
+        var words = PERIOD_WORDS[r.period] || "this month", got = r.received_cents || 0, pend = r.pending_cents || 0, both = got + pend, share = both ? Math.round(got * 100 / both) : 0;
+        var said = homeMoney(got) + " received " + words + (pend ? "; " + homeMoney(pend) + " is waiting for payout" : "");
+        var side = h("div", { class: "usage-side" },
+          homeLine("Received " + words, homeMoney(got), "Paid out to you, after your platform fee"),
+          homeLine("Waiting for payout", homeMoney(pend), pend ? "Earned, not paid out yet" : null));
+        if (r.failed_cents) side.appendChild(homeLine("Could not be paid out", homeMoney(r.failed_cents), "Check your payout details in Earnings"));
+        side.appendChild(homeLine("Contracted, not yet earned", homeMoney(r.upcoming_cents), "Signed work that is not accepted yet"));
+        inner.appendChild(h("div", { class: "usage-row" }, homeRing(share, "var(--ok)", homeMoney(got), "received " + words, said, pend ? "#d9a400" : null), side));
+        var months = r.months || [], top = months.reduce(function (a, m) { return Math.max(a, m.cents || 0); }, 0);
+        if (top > 0) {
+          inner.appendChild(h("p", { class: "hmini", text: "Received in the last six months" }));
+          inner.appendChild(h("ul", { class: "hw-bars" }, months.map(function (m) {
+            return h("li", null, h("span", { class: "hw-bar", "aria-hidden": "true" }, h("i", { style: "height:" + Math.max(2, Math.round((m.cents || 0) * 100 / top)) + "%" })), h("span", { class: "hw-bar-l", text: m.label }), h("span", { class: "sr", text: ": " + homeMoney(m.cents) }));
+          })));
+        } else if (!got && !pend && !r.upcoming_cents) inner.appendChild(h("p", { class: "hsub", text: "No payments yet. Your first payout shows here when a milestone is accepted." }));
+      });
+    }
+    homePeriod(c, state, load);
+    load();
+    return homeFoot(c, "View earnings", function () { goTab("earnings"); });
+  }
+  // Freelancer: only what DELA really counts. Profile views are not counted, so they are not shown.
+  function wGrowth(hm) {
+    var c = hcard("Business growth insights"), inner = h("div", { class: "hgap" }), pf = hm.profile || {};
+    c.appendChild(inner);
+    homeLoad(c, inner, function () { return homeWork(); }, function (r) {
+      var sent = (r.sent || []).filter(function (x) { return x.proposal_status !== "withdrawn" && x.proposal_status !== "draft"; });
+      var decided = sent.filter(function (x) { return x.proposal_status === "selected" || x.proposal_status === "not_selected"; }), won = decided.filter(function (x) { return x.proposal_status === "selected"; }).length;
+      inner.appendChild(h("div", { class: "hstats two" },
+        hstat(sent.length, sent.length === 1 ? "Proposal sent" : "Proposals sent", "all time", function () { openList("work", "Sent proposals"); }),
+        hstat(decided.length ? won + " of " + decided.length : "0", "Proposals chosen", decided.length ? "of those the attorney decided" : "none decided yet", function () { openList("work", "Sent proposals"); })));
+      if (decided.length < 5) inner.appendChild(h("p", { class: "hsub", text: "More activity is needed to show a meaningful trend." }));
+      var tip = pf.readiness && pf.readiness !== "match_ready" ? ["Attorneys can only find and invite you once your profile is match-ready.", "Open my profile", function () { goProfile("sec-profile"); }]
+        : (r.matches || []).length ? [(r.matches.length === 1 ? "1 open gig matches" : r.matches.length + " open gigs match") + " your profile right now.", "View matching gigs", function () { tab = "work"; gigs.id = null; draw(); }]
+        : ["Keep your skills and availability current so new gigs can match you.", "Update my profile", function () { goProfile("sec-availability"); }];
+      inner.appendChild(h("div", { class: "hw-tip" }, h("span", { class: "grow", text: tip[0] }), h("button", { class: "ghost small", type: "button", onclick: tip[2] }, tip[1])));
+    });
+    return c;
+  }
+  function wAvailability(hm) {
+    var c = hcard("My availability"), pf = hm.profile || {}, inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    var say = pf.availability === "unavailable" ? "You said you are not taking new work." : pf.availability === "limited" ? "You said you have some hours only." : pf.availability ? "You said you are available for new work." : "You have not said yet whether you can take new work.";
+    inner.appendChild(h("p", { style: "margin:0", text: say }));
+    inner.appendChild(h("p", { class: "hsub", text: pf.availability_confirmed_at ? "Last confirmed " + shortDate(pf.availability_confirmed_at) + (pf.availability_due_at ? ". Confirm again by " + shortDate(pf.availability_due_at) + "." : ".") : "Not confirmed yet. Attorneys can invite you only while it is confirmed." }));
+    inner.appendChild(h("div", { class: "hacts" }, h("button", { class: "ghost small", type: "button", onclick: function () { goProfile("sec-availability"); } }, "Edit availability")));
+    return c;
+  }
+  function wReviews() {
+    var c = hcard("Client reviews"), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    homeLoad(c, inner, function () { return api.get("/reviews/of?person=" + me.person.id + "&side=freelancer").then(function (r) { return r && r.on === false ? { ok: true, count: 0, off: true } : r; }); }, function (r) {
+      var n = r.count || 0;
+      if (!n) { inner.appendChild(h("p", { class: "hsub", text: "No reviews yet. A client can review you after a completed job." })); return; }
+      inner.appendChild(h("div", { class: "hstats two" }, hstat(n, n === 1 ? "Review" : "Reviews", "from clients on Lawfecta", function () { goTab("profile"); }),
+        r.would_again_pct !== null && r.would_again_pct !== undefined && n >= (r.min_for_average || 1) ? hstat(r.would_again_pct + "%", "Would hire again", "of " + n + (n === 1 ? " review" : " reviews"), function () { goTab("profile"); }) : null));
+      if (n < (r.min_for_average || 1)) inner.appendChild(h("p", { class: "hsub", text: "Averages show from " + r.min_for_average + " reviews." }));
+    });
+    return homeFoot(c, "View my reviews", function () { goTab("profile"); });
+  }
+  // Ask DELA with the spec's shortcuts under it (attorneys)
+  function wAsk() {
+    var c = askBox();
+    if (!c || me.side !== "attorney") return c;
+    var sw = me.switches || {}, list = [];
+    if (sw.ai_generation) list.push(["What can I delegate?", function () { goTab("delegate"); }]);
+    if (sw.playbook_library) list.push(["Create a playbook", function () { lib.guideNew = {}; lib.pb = null; lib.importId = null; tab = "library"; draw(); }]);
+    if (sw.talent_search) list.push(["Find talent", function () { talentMode = "search"; talentPerson = null; goTab("talent"); }]);
+    if (list.length) c.appendChild(h("div", { class: "hw-quick", style: "margin-top:10px" }, list.map(function (a) { return h("button", { class: "ghost small", type: "button", onclick: a[1] }, a[0]); })));
+    return c;
+  }
   function homeNode(id, hm) {
     if (!(id in homeLay.nodes)) {
       var n = HOME_W[id].draw(hm) || null;
@@ -1008,28 +1230,38 @@
     }
     return homeLay.nodes[id];
   }
-  // Draws the member's widgets in their order. The profile card is the one thing that can show without being chosen:
-  // while the profile still blocks the member, it stays on Home (first, unless work or something urgent comes first).
+  // Draws the member's widgets in their order. On a wide screen they go into two columns, left then right, and each
+  // card keeps its own height (role spec 2026-11-17: no card stretched to its neighbor). The "Complete your profile"
+  // card is not a widget: while the profile still blocks the member it sits above the widgets, or under them when
+  // work or something urgent comes first.
   function paintHome() {
     var grid = homeLay.grid, hm = me.home || {};
     if (!grid || !homeLay.data) return;
     var allowed = homeAllowed();
     var ids = (homeLay.draft || homeLay.data.widgets || []).filter(function (id) { return allowed.indexOf(id) >= 0; });
-    if (!ids.length) ids = HOME_DEFAULT.filter(function (id) { return allowed.indexOf(id) >= 0; });
-    var acct = homeNode("account", hm), pending = !!(acct && acct.pending), chosen = ids.indexOf("account") >= 0;
-    homeHelpBtn = pending && acct.helpBtn ? acct.helpBtn : null;
-    homeHasProfileCard = pending;
-    if (pending) {
-      var busy = attentionRows(hm).length > 0 || (hm.active_projects || 0) + (hm.invitations || 0) > 0;
-      if (!chosen) ids = busy ? ids.concat(["account"]) : ["account"].concat(ids);
-      else if (!busy) ids = ["account"].concat(ids.filter(function (id) { return id !== "account"; }));
-      var note = acct.querySelector(".hw-forced");
-      if (!chosen && !note) acct.appendChild(h("p", { class: "hsub hw-forced", text: "Shown on Home until this is done." }));
-      if (chosen && note) note.remove();
-    }
+    if (!ids.length) ids = homeDefault().filter(function (id) { return allowed.indexOf(id) >= 0; });
+    if (!("pb" in homeLay.nodes)) homeLay.nodes.pb = profileBox(hm);
+    var pb = homeLay.nodes.pb;
+    homeHelpBtn = pb && pb.helpBtn ? pb.helpBtn : null;
+    homeHasProfileCard = !!pb;
+    var nodes = ids.map(function (id) { return homeNode(id, hm); }).filter(Boolean);
+    nodes.forEach(function (n, i) { n.setAttribute("data-pos", String(i)); });
+    var wide = !!(window.matchMedia && window.matchMedia("(min-width:1000px)").matches) && nodes.length > 1;
     D.clear(grid);
-    ids.forEach(function (id) { var n = homeNode(id, hm); if (n) grid.appendChild(n); });
-    if (!grid.firstChild) grid.appendChild(h("p", { class: "muted", text: "Nothing to show yet. Choose \"Customize dashboard\" to add widgets." }));
+    grid.className = "home-grid" + (wide ? " cols" : "");
+    if (wide) {
+      var left = h("div", { class: "home-col" }), right = h("div", { class: "home-col" });
+      nodes.forEach(function (n, i) { (i % 2 ? right : left).appendChild(n); });
+      grid.appendChild(left); grid.appendChild(right);
+    } else nodes.forEach(function (n) { grid.appendChild(n); });
+    if (!nodes.length) grid.appendChild(h("p", { class: "muted", text: "Nothing to show yet. Choose \"Customize dashboard\" to add widgets." }));
+    if (homeLay.top && homeLay.bottom) {
+      D.clear(homeLay.top); D.clear(homeLay.bottom);
+      if (pb) {
+        var busy = attentionRows(hm).length > 0 || (hm.active_projects || 0) + (hm.invitations || 0) > 0;
+        (busy ? homeLay.bottom : homeLay.top).appendChild(pb);
+      }
+    }
   }
   function homeDash() {
     var fn = D.firstName(me.person.name), sideKey = me.side + ":" + (me.person.id || "");
@@ -1040,13 +1272,19 @@
     var el = h("div", { class: "home-dash" }, h("div", { class: "home-top" },
       h("div", { class: "grow" }, h("h1", { text: "Your Workspace" }), h("p", { class: "muted", id: "home-welcome", text: (fn && fn !== "there" ? "Welcome back, " + fn + ". " : "") + "Your work, your priorities." })), btn));
     var grid = h("div", { class: "home-grid", id: "home-grid" }, h("p", { class: "muted", text: "Loading..." }));
-    el.appendChild(grid);
+    homeLay.top = h("div", { class: "home-fixed", id: "home-profile-top" }); homeLay.bottom = h("div", { class: "home-fixed", id: "home-profile-bottom" });
+    el.appendChild(homeLay.top); el.appendChild(grid); el.appendChild(homeLay.bottom);
     homeLay.grid = grid;
+    if (!homeLay.mq && window.matchMedia) {
+      homeLay.mq = window.matchMedia("(min-width:1000px)");
+      var onWidth = function () { if (homeLay.grid && homeLay.grid.isConnected) paintHome(); };
+      if (homeLay.mq.addEventListener) homeLay.mq.addEventListener("change", onWidth); else if (homeLay.mq.addListener) homeLay.mq.addListener(onWidth);
+    }
     function got(r) {
       if (homeLay.grid !== grid) return;
       var before = homeLay.data ? JSON.stringify(homeLay.data.widgets) : "";
       if (r && r.ok) homeLay.data = r;
-      else if (!homeLay.data) homeLay.data = { ok: true, widgets: HOME_DEFAULT.slice(), all: HOME_DEFAULT.slice(), "default": HOME_DEFAULT.slice(), customized: false, offline: true };
+      else if (!homeLay.data) homeLay.data = { ok: true, widgets: (HOME_DEFAULTS[me.side] || []).slice(), all: (HOME_DEFAULTS[me.side] || []).slice(), "default": (HOME_DEFAULTS[me.side] || []).slice(), customized: false, offline: true };
       btn.disabled = !!homeLay.data.offline;
       if (homeLay.data.offline) btn.title = "Your saved layout could not load. Reload the page to change it.";
       if (!homeLay.draft && JSON.stringify(homeLay.data.widgets) !== before) paintHome();
@@ -1067,7 +1305,7 @@
     var mineBox = h("div"), availBox = h("div");
     var save = h("button", { class: "blue", type: "button", id: "cz-save" }, "Save changes");
     var cancel = h("button", { class: "ghost", type: "button", id: "cz-cancel" }, "Cancel");
-    var reset = h("button", { class: "linkish", type: "button", id: "cz-reset" }, "Reset to default");
+    var reset = h("button", { class: "linkish", type: "button", id: "cz-reset" }, "Restore default");
     var problem = h("p", { class: "notice bad small", role: "alert", hidden: true });
     var panel = h("div", { class: "drawer cz-panel", role: "dialog", "aria-label": "Customize dashboard" },
       h("h2", { style: "margin:0 0 4px;padding-right:84px", text: "Customize dashboard" }),
@@ -1084,8 +1322,6 @@
     }
     function onKey(e) {
       if (e.key !== "Escape" || !drawer) return;
-      var open = panel.querySelector("details.dmenu[open]");
-      if (open) { open.open = false; open.querySelector("summary").focus(); e.stopPropagation(); return; }
       e.stopPropagation(); leave();
     }
     function move(id, by) {
@@ -1093,8 +1329,10 @@
       if (i < 0 || j < 0 || j >= mine.length) return;
       mine.splice(i, 1); mine.splice(j, 0, id);
       paint(); preview();
-      say(homeTitle(id) + ", now " + (j + 1) + " of " + mine.length + ".");
-      var again = mineBox.querySelector('[data-id="' + id + '"] summary'); if (again) again.focus();
+      say(homeTitle(id) + " moved to position " + (j + 1) + " of " + mine.length + ".");
+      var btns = mineBox.querySelectorAll('[data-id="' + id + '"] .cz-btn'), again = btns[by < 0 ? 0 : 1];
+      if (again && again.disabled) again = btns[by < 0 ? 1 : 0];
+      if (again) again.focus();
     }
     function remove(id) {
       if (mine.length <= 1) { say("Keep at least one widget on Home."); problem.hidden = false; problem.textContent = "Keep at least one widget on Home."; return; }
@@ -1108,21 +1346,18 @@
       mine.push(id);
       paint(); preview();
       say(homeTitle(id) + " added to Home, " + mine.length + " of " + mine.length + ".");
-      var row = mineBox.querySelector('[data-id="' + id + '"] summary'); if (row) row.focus();
+      var row = mineBox.querySelector('[data-id="' + id + '"] .cz-rm'); if (row) row.focus();
     }
     function row(id, i) {
       var name = homeTitle(id);
       var handle = h("span", { class: "cz-grip", "aria-hidden": "true", title: "Drag to reorder" }, icon("grip"));
-      var sw = h("input", { type: "checkbox", role: "switch", class: "cz-switch", checked: true, "aria-label": "Show " + name + " on Home" });
-      sw.addEventListener("change", function () { if (!sw.checked) { if (mine.length <= 1) sw.checked = true; remove(id); } });
-      var sum = h("summary", { class: "btn ghost small", "aria-label": "More for " + name }, icon("more"));
-      var mp = h("div", { class: "menu-panel", role: "group", "aria-label": "More for " + name });
-      var menu = h("details", { class: "dmenu" }, sum, mp);
-      function item(text, fn, off) { var b = h("button", { class: "menu-item", type: "button", disabled: !!off }, text); b.addEventListener("click", function () { menu.open = false; fn(); }); mp.appendChild(b); }
-      item("Move up", function () { move(id, -1); }, i === 0);
-      item("Move down", function () { move(id, 1); }, i === mine.length - 1);
-      item("Remove from Home", function () { remove(id); }, mine.length <= 1);
-      var li = h("li", { class: "cz-row", "data-id": id }, handle, h("span", { class: "cz-ic", "aria-hidden": "true" }, icon(HOME_W[id].icon)), h("span", { class: "cz-name grow", text: name }), sw, menu);
+      var up = h("button", { class: "ghost small cz-btn", type: "button", "aria-label": "Move " + name + " up", title: "Move up", disabled: i === 0 }, h("span", { "aria-hidden": "true", text: "↑" }));
+      var down = h("button", { class: "ghost small cz-btn", type: "button", "aria-label": "Move " + name + " down", title: "Move down", disabled: i === mine.length - 1 }, h("span", { "aria-hidden": "true", text: "↓" }));
+      var rm = h("button", { class: "ghost small cz-rm", type: "button", "aria-label": "Remove " + name, disabled: mine.length <= 1 }, "Remove");
+      up.addEventListener("click", function () { move(id, -1); });
+      down.addEventListener("click", function () { move(id, 1); });
+      rm.addEventListener("click", function () { remove(id); });
+      var li = h("li", { class: "cz-row", "data-id": id }, handle, h("span", { class: "cz-ic", "aria-hidden": "true" }, icon(HOME_W[id].icon)), h("span", { class: "cz-name grow", text: name }), up, down, rm);
       // Dragging by the handle, with a mouse or a finger: the row follows the pointer one place at a time
       handle.addEventListener("pointerdown", function (e) {
         e.preventDefault();
@@ -1139,7 +1374,7 @@
           document.removeEventListener("pointermove", over); document.removeEventListener("pointerup", up); document.removeEventListener("pointercancel", up);
           li.classList.remove("drag");
           var order = [].map.call(ul.children, function (x) { return x.getAttribute("data-id"); });
-          if (JSON.stringify(order) !== JSON.stringify(mine)) { mine = order; paint(); preview(); say(name + ", now " + (mine.indexOf(id) + 1) + " of " + mine.length + "."); }
+          if (JSON.stringify(order) !== JSON.stringify(mine)) { mine = order; paint(); preview(); say(name + " moved to position " + (mine.indexOf(id) + 1) + " of " + mine.length + "."); }
         }
         // On the page, not the handle: moving the row in the list lets go of the handle's hold on the pointer
         document.addEventListener("pointermove", over); document.addEventListener("pointerup", up); document.addEventListener("pointercancel", up);
@@ -1149,7 +1384,7 @@
     function paint() {
       problem.hidden = true;
       D.clear(mineBox); D.clear(availBox);
-      mineBox.appendChild(h("div", { class: "row cz-head" }, h("h3", { class: "grow", id: "cz-mine-h", text: "My dashboard (" + mine.length + ")" }), reset));
+      mineBox.appendChild(h("div", { class: "row cz-head" }, h("h3", { class: "grow", id: "cz-mine-h", text: "Your dashboard (" + mine.length + ")" }), reset));
       mineBox.appendChild(h("ul", { class: "cz-list", id: "cz-mine", "aria-labelledby": "cz-mine-h" }, mine.map(row)));
       var rest = allowed.filter(function (id) { return mine.indexOf(id) < 0; });
       availBox.appendChild(h("h3", { id: "cz-avail-h", style: "margin-top:18px", text: "Available widgets" }));
@@ -1161,7 +1396,7 @@
       })));
     }
     reset.addEventListener("click", function () {
-      mine = (d["default"] || HOME_DEFAULT).filter(function (id) { return allowed.indexOf(id) >= 0; });
+      mine = homeDefault().filter(function (id) { return allowed.indexOf(id) >= 0; });
       paint(); preview();
       say("Back to the default layout. Choose Save changes to keep it.");
       reset.focus();
@@ -1169,7 +1404,7 @@
     cancel.addEventListener("click", function () { done(); paintHome(); });
     save.addEventListener("click", function () {
       save.disabled = true; problem.hidden = true;
-      var isDefault = JSON.stringify(mine) === JSON.stringify((d["default"] || HOME_DEFAULT).filter(function (id) { return allowed.indexOf(id) >= 0; }));
+      var isDefault = JSON.stringify(mine) === JSON.stringify(homeDefault().filter(function (id) { return allowed.indexOf(id) >= 0; }));
       (isDefault ? api.post("/home/layout/reset", {}) : api.post("/home/layout", { widgets: mine })).then(function (r) {
         if (!r || !r.ok) throw r || {};
         homeLay.data = r;

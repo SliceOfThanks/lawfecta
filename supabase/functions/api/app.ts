@@ -5881,6 +5881,13 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /home/layout": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_home_layout", { p_person: s.person_id, p_side: s.side })); }
       case "POST /home/layout": { const s = await memberSide(ctx);
         return json(ctx, await rpc(ctx, "dela_home_layout_save", { p_person: s.person_id, p_side: s.side, p_widgets: Array.isArray(ctx.body.widgets) ? ctx.body.widgets.slice(0, 30).map((w: unknown) => str(w, 40)) : null })); }
+      // Step 34: the summaries behind three role widgets. Each is the signed-in member's own, for their side only.
+      case "GET /home/spend": { const s = await memberSide(ctx); if (s.side !== "attorney") throw new HttpError(403, "attorney_only");
+        return json(ctx, await rpc(ctx, "dela_home_spend", { p_person: s.person_id, p_period: str(ctx.url.searchParams.get("period"), 10) })); }
+      case "GET /home/earnings": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancer_only");
+        return json(ctx, await rpc(ctx, "dela_home_earnings", { p_person: s.person_id, p_period: str(ctx.url.searchParams.get("period"), 10) })); }
+      case "GET /home/delegate": { const s = await memberSide(ctx); if (s.side !== "attorney") throw new HttpError(403, "attorney_only");
+        return json(ctx, await rpc(ctx, "dela_home_delegate", { p_person: s.person_id, p_limit: 3 })); }
       case "POST /home/layout/reset": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_home_layout_reset", { p_person: s.person_id, p_side: s.side })); }
       case "GET /prefs": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_prefs", { p_person: s.person_id })); }
       case "POST /prefs": { const s = await memberSide(ctx);

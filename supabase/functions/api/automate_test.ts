@@ -139,6 +139,23 @@ Deno.test("the review: only when clicked, checked in code, one per approved vers
   assertEquals((await call("GET", "/automate?playbook=" + pb, mgr.token)).body.dismissed, false, "dismissing is per person");
 });
 
+// Step 34: Home lists DELA's open delegation suggestions across the firm's approved documents; it creates nothing
+Deno.test("Home: the delegation suggestions of an approved, reviewed document are listed for the firm only", async () => {
+  const h = (await call("GET", "/home/delegate", mgr.token)).body;
+  assertEquals([h.ok, h.on], [true, true]);
+  assertEquals((await call("GET", "/home/delegate", att.token)).body.items, [], "the attorney dismissed this document's suggestions, so Home does not bring them back");
+  assert(h.documents >= 1 && h.reviewed >= 1, JSON.stringify(h).slice(0, 300));
+  const st = (await call("GET", "/automate?playbook=" + pb, mgr.token)).body;
+  const want = st.review.recommendations.filter((r: Record<string, unknown>) => r.kind === "delegate").map((r: Record<string, unknown>) => r.id);
+  assertEquals(h.items.map((x: Record<string, unknown>) => x.rec_id).sort(), want.slice(0, 3).sort(), "the document's own delegate suggestions, at most three");
+  assert(h.items.every((x: Record<string, unknown>) => x.playbook_id === pb && typeof x.title === "string"));
+  assertEquals((await call("GET", "/home/delegate", fl.token)).status, 403, "freelancers have no delegation suggestions");
+  const n = async () => (await pool.query("select (select count(*) from delegations) d, (select count(*) from gigs) g")).rows[0];
+  const b4 = await n();
+  await call("GET", "/home/delegate", att.token);
+  assertEquals(await n(), b4, "reading the suggestions starts no delegation and drafts no gig");
+});
+
 Deno.test("delegate: the steps, the SOP for just those steps, KPIs as its quality check; an attorney approves and drafts the gig", async () => {
   const s = (await call("POST", "/automate/delegate", mgr.token, { review_id: review, rec_id: "r1" })).body;
   assertEquals(s.ok, true, JSON.stringify(s));

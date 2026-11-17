@@ -727,6 +727,38 @@ Deno.test("step 14: the fee rides on each milestone payment for new agreements; 
   } finally { await sw("off"); await pool.query("update settings set value = '1000' where key = 'fees.floor_cents_per_party'"); }
 });
 
+// Step 34: the Home summaries are the same sums as the money tables, for the member's own side only
+Deno.test("Home: an attorney's spend and a freelancer's earnings are the recorded sums; pending is never received", async () => {
+  const sp = (await call("GET", "/home/spend?period=year", att.token)).body;
+  const paid = await one(`select coalesce(sum(p.amount_cents), 0)::int a, coalesce(sum(p.fee_cents), 0)::int f from payments p join agreements a on a.id = p.agreement_id
+    where p.status = 'succeeded' and p.updated_at >= date_trunc('year', now()) and a.attorney_org = $1`, [org]);
+  assertEquals([sp.ok, sp.period, sp.paid_cents, sp.fee_cents, sp.work_cents], [true, "year", paid.a, paid.f, paid.a - paid.f], JSON.stringify(sp));
+  assert(sp.paid_cents > 0 && sp.fee_cents > 0 && sp.milestones_accepted > 0, "this suite paid and accepted milestones: " + JSON.stringify(sp));
+  assertEquals(sp.freelancers_again <= sp.freelancers_hired, true);
+  assertEquals((await call("GET", "/home/spend?period=nonsense", att.token)).body.period, "month", "an unknown period is the month");
+  const ea = (await call("GET", "/home/earnings?period=year", fl.token)).body;
+  const po = await one(`select coalesce(sum(amount_cents) filter (where status = 'sent' and updated_at >= date_trunc('year', now())), 0)::int sent,
+      coalesce(sum(amount_cents) filter (where status in ('pending', 'held')), 0)::int pend, coalesce(sum(amount_cents) filter (where status = 'failed'), 0)::int failed
+    from payouts where person_id = $1`, [fl.id]);
+  assertEquals([ea.ok, ea.received_cents, ea.pending_cents, ea.failed_cents], [true, po.sent, po.pend, po.failed], JSON.stringify(ea));
+  assertEquals(ea.months.length, 6, "six months, the newest last");
+  assertEquals(ea.months[5].cents, (await one("select coalesce(sum(amount_cents), 0)::int s from payouts where person_id = $1 and status = 'sent' and date_trunc('month', updated_at) = date_trunc('month', now())", [fl.id])).s);
+  // A payout that waits is counted as waiting, never as received
+  const before = ea.received_cents;
+  const mark = await one("update payouts set status = 'held', held_reason = 'payout_account' where id = (select id from payouts where person_id = $1 and status = 'sent' order by updated_at desc limit 1) returning id, amount_cents", [fl.id]);
+  if (mark) {
+    const held = (await call("GET", "/home/earnings?period=year", fl.token)).body;
+    assertEquals([held.received_cents, held.pending_cents], [before - mark.amount_cents, po.pend + mark.amount_cents], "a held payout moves from received to waiting");
+    await pool.query("update payouts set status = 'sent', held_reason = '' where id = $1", [mark.id]);
+  }
+  // Each summary is for its own side and its own member
+  assertEquals((await call("GET", "/home/spend", fl.token)).status, 403);
+  assertEquals((await call("GET", "/home/earnings", att.token)).status, 403);
+  assertEquals((await call("GET", "/home/spend", "ds_madeup")).status, 401);
+  const stranger = (await call("GET", "/home/earnings?period=year", other.token)).body;
+  assertEquals([stranger.received_cents, stranger.pending_cents], [0, 0], "another freelancer sees none of it");
+});
+
 Deno.test("teardown", async () => { await pool.end(); });
 
 Deno.test("fees: an agreement with no fee amounts reads \"-\", never \"$NaN\" (ChatGPT re-test 2026-11-05)", () => {

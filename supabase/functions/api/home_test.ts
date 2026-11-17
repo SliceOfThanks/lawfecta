@@ -15,7 +15,8 @@ async function call(method: string, path: string, session: string, body?: unknow
   return { status: res.status, body: await res.json() };
 }
 const RUN = Date.now() % 1000000;
-const DEFAULT = ["ask", "attention", "projects", "usage", "notifications", "account"];
+const DEFAULT = ["attention", "delegating", "projects", "talent", "spend", "ask"];
+const DEFAULT_FL = ["gigs", "earnings", "proposals", "projects", "attention", "growth"];
 let n = 0;
 async function person(sides: string[]) {
   const bd = 9_400_000 + RUN * 10 + (++n);
@@ -43,6 +44,8 @@ Deno.test("a member who never customized gets the default; signed out gets nothi
   assert(r.all.includes("bench") && r.all.includes("quick"), "the attorney's library has the bench");
   const f = (await call("GET", "/home/layout", both.tokens.freelancer)).body;
   assert(!f.all.includes("bench"), "a freelancer has no bench widget");
+  assertEquals([f.widgets, f["default"]], [DEFAULT_FL, DEFAULT_FL], "the freelancer's own six");
+  assert(f.all.includes("earnings") && !f.all.includes("spend") && !r.all.includes("earnings") && !r.all.includes("account"), "each side has its own library; Account status is gone");
   assertEquals((await call("GET", "/home/layout", "ds_madeup")).status, 401);
   assertEquals((await call("POST", "/home/layout", "ds_madeup", { widgets: ["ask"] })).status, 401);
 });
@@ -62,8 +65,9 @@ Deno.test("save keeps the member's order, drops repeats, and refuses what is not
 });
 
 Deno.test("the two sides and two members keep separate layouts", async () => {
-  assertEquals((await call("GET", "/home/layout", both.tokens.freelancer)).body.widgets, DEFAULT, "the attorney layout did not touch the freelancer side");
+  assertEquals((await call("GET", "/home/layout", both.tokens.freelancer)).body.widgets, DEFAULT_FL, "the attorney layout did not touch the freelancer side");
   assertEquals((await call("POST", "/home/layout", both.tokens.freelancer, { widgets: ["ask", "bench"] })).body.reason, "unknown_widget", "the bench is the attorney's");
+  assertEquals((await call("POST", "/home/layout", both.tokens.attorney, { widgets: ["ask", "account"] })).body.reason, "unknown_widget", "Account status is no longer a widget");
   assertEquals((await call("POST", "/home/layout", both.tokens.freelancer, { widgets: ["usage"] })).body.widgets, ["usage"]);
   assertEquals((await call("GET", "/home/layout", both.tokens.attorney)).body.widgets, ["messages", "ask", "bench"]);
   assertEquals((await call("GET", "/home/layout", other.tokens.attorney)).body.widgets, DEFAULT, "another member is not changed");
