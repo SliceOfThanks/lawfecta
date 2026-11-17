@@ -96,6 +96,8 @@ How to read the "State" column:
 | 6.1 | A backup can be restored | One restore drill done with Stacey (docs/RUNBOOK.md) | Not yet | |
 | 6.2 | The uptime monitor warns when DELA is down | A test alert reaches Stacey | Not yet | |
 | 6.3 | A virus scanner before confidential materials are switched on | Scanner in place and one infected test file refused | Not yet | The switch is off until then. |
+| 33.1 | A member's Home layout follows them to a second device (step 33) | Saved on one computer, seen on a phone or another browser | Not yet | Saved on the server per person and side. |
+| 33.2 | The Customize panel with a real screen reader and on a real phone, dragging with a finger (step 33) | "Move up" is read with the new place; a row can be dragged by its handle | Not yet | The automated tests cover the keyboard, a mouse drag and a 320 pixel screen. |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.

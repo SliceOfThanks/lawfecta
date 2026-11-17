@@ -6,6 +6,13 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 33, a Home each member arranges: ON THE SITE (2026-11-17), nothing queued behind it
+- Site: code_version bbe9e47, api function version 127, migrations through 0129, health "ok". GitHub Tests passed on that commit (run 44192739275, 35 Home checks), after three runs: an older first-screen check written for the old order, the new test assuming the member's name, and one real fault the test found (dragging a row stopped after one place; the drag now listens on the page).
+- Brief with Stacey's three answers and Claude's ten decisions: docs/briefs/step-33-home-dashboard.md. Home in the new layout is homeDash() in app/dela-app.js: "Your Workspace", "Customize dashboard", eleven widgets (HOME_W), six by default (Ask DELA, Needs your attention, My projects, Monthly usage, Urgent notifications, Account status). Layout per person and side in home_layouts (migration 0129), routes GET and POST /home/layout and POST /home/layout/reset. The "Complete your profile" card stays on Home while the profile blocks the member.
+- The old layout (switch new_layout off) keeps its old Home. new_layout is "everyone" on the site.
+- ChatGPT check 6: docs/tests/home-dashboard-chatgpt-prompt.md, ready copies "6-home-dashboard-chatgpt-prompt-READY". Not run yet.
+- Also since the last entry: grey section backgrounds (bb56465), and four tests the AI review 0.10.0 still missed (81cd238).
+
 ## Step 32, the Inbox list with a quick preview, chat bubbles and replies in a thread: ON THE SITE (2026-11-17), nothing queued behind it
 - Site: code_version 0271115, api function version 126, migrations through 0128, health "ok". GitHub Tests passed on that commit (run 44139498999), after three runs that failed on the new test's own expectations (old layout keeps "Your meetings"; labels drawn in capitals; the message menu's name contained "your message") and one screen change from them: the three-dot menu is named "Edit or remove what you sent at TIME".
 - Brief with Claude's decisions: docs/briefs/step-32-inbox-preview-threads.md. Inbox: one "Conversations" card with dividers, "N total", a date on every row (the conversation's start when empty), a sort order, and a "Quick preview" card on screens 1000 pixels and wider (GET /threads/peek, dela_thread_peek, does not mark read). "Privacy and secure sharing" link in place of the banner on the Inbox and in a conversation. "Your meetings" left the Inbox in the new layout (Stacey: "they have it on the menu").
