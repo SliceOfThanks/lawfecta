@@ -437,7 +437,7 @@ D.openTab = function (getUrl, onFail, opts) {
     // device and the device is dark (data-theme=auto). Light (data-theme=light) never turns dark.
     D.darkCss(".dela{--bg:#11131b;--card:#1a1d28;--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c;--head:#2b303c;--brand:#c2416f;--pink:#2a1622;--pink-ink:#f19ab8;--soft:#222634;--shadow:none;--okbg:#17301f;--okline:#2b5a3b;--bluebg:#132233}.nl-side,.nl-bar,.nl-sheet{--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c}" +
       ".notice-tag{background:#132233;color:#8cc4ff}.notice-tag.action{background:#3a1d1b;color:#f5b3ad}.notice-tag.payments{background:#17301f;color:#7fd3a3}.notice-tag.disputes{background:#3a2f12;color:#f0c668}.notice-dot.on{background:#8cc4ff}" +
-      "details.menu>summary.btn{color:#f19ab8}" +
+      "details.dmenu>summary.btn{color:#f19ab8}" +
       ".inbox-kind.intro{background:#132233;color:#8cc4ff}.inbox-dot.on{background:#8cc4ff}" +
       ".notice{background:#132233;border-color:#2b4a66;color:#eceef3;box-shadow:none}.notice-i{border-color:#8cc4ff;color:#8cc4ff}.notice-x{color:#eceef3}.notice-back{color:#8cc4ff}" +
       ".problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b;border-color:#e0685f}.notice.ok{background:#17301f;border-color:#4fa873}.talent-ver{color:#7fd3a3}" +
@@ -572,14 +572,16 @@ D.openTab = function (getUrl, onFail, opts) {
     ".talent-filters{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}.talent-filters[hidden]{display:none}.dela .talent-go2 .talent-clear{min-height:44px}" +
     // Fix (ChatGPT check 4, 2026-11-17): a closed menu showed its empty white panel behind the button, and the button
     // was filled dark red. A closed menu shows nothing, and the button looks like the outlined buttons beside it.
-    ".dela details.menu:not([open])>.menu-panel{display:none}.dela details.menu>summary.btn{background:var(--card);color:var(--brand);border:1.5px solid var(--line);border-radius:8px;padding:8px 14px;font-size:14px;font-weight:700}" +
-    ".dela details.menu>summary.btn:hover{border-color:var(--brand)}.dela details.menu>summary.btn:focus-visible{outline:3px solid #0d83dd;outline-offset:2px}.dela details.menu{border:0;background:transparent;box-shadow:none;padding:0;margin:0}" +
+    ".dela details.dmenu:not([open])>.menu-panel{display:none}.dela details.dmenu>summary.btn{background:var(--card);color:var(--brand);border:1.5px solid var(--line);border-radius:8px;padding:8px 14px;font-size:14px;font-weight:700}" +
+    ".dela details.dmenu>summary.btn:hover{border-color:var(--brand)}.dela details.dmenu>summary.btn:focus-visible{outline:3px solid #0d83dd;outline-offset:2px}.dela details.dmenu{border:0;background:transparent;box-shadow:none;padding:0;margin:0}" +
     // Fix (Stacey's screenshot, 2026-11-17): an open menu lay under the "⋯" button of the row below it. The open menu
     // as a whole is lifted above the rows after it (the panel's own layer does not reach out of the menu in new browsers).
-    ".dela details.menu[open]{z-index:30}" +
-    ".dela details.menu{position:relative;display:inline-block}.dela details.menu>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;min-height:40px}.dela details.menu>summary::-webkit-details-marker{display:none}" +
+    // Fix (2026-11-17): these menus are "dmenu". They were "menu", the class of the older account menu, and took its
+    // width (220 pixels), its box and its place, which is what drew a white box behind each button.
+    ".dela details.dmenu[open]{z-index:30}" +
+    ".dela details.dmenu{position:relative;display:inline-block}.dela details.dmenu>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;min-height:40px}.dela details.dmenu>summary::-webkit-details-marker{display:none}" +
     ".menu-panel{position:absolute;z-index:5;left:0;top:calc(100% + 4px);min-width:230px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(11,18,32,.14);padding:6px;display:flex;flex-direction:column;gap:2px}" +
-    ".thread-acts details.menu .menu-panel{left:auto;right:0}.dela .menu-item{background:transparent;border:0;color:var(--ink);text-align:left;justify-content:flex-start;padding:10px 12px;min-height:44px;border-radius:8px;font-weight:600;width:100%;white-space:normal}.dela .menu-item:hover,.dela .menu-item:focus-visible{background:var(--soft)}" +
+    ".thread-acts details.dmenu .menu-panel{left:auto;right:0}.dela .menu-item{background:transparent;border:0;color:var(--ink);text-align:left;justify-content:flex-start;padding:10px 12px;min-height:44px;border-radius:8px;font-weight:600;width:100%;white-space:normal}.dela .menu-item:hover,.dela .menu-item:focus-visible{background:var(--soft)}" +
     ".ai-suggest{margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--pink)}.ai-suggest[hidden]{display:none}.thread-head h1{overflow-wrap:anywhere}" +
     ".msg-day{display:flex;align-items:center;gap:10px;margin:10px 0;color:var(--muted);font-size:12px}.msg-day::before,.msg-day::after{content:'';flex:1 1 auto;border-top:1px solid var(--line)}" +
     // Stacey 2026-11-17: no pink behind unread rows. Every row is the card color (white in the light look, the dark card

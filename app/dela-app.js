@@ -6624,7 +6624,7 @@
       function menuOf(label, id, cls) {
         var sum = h("summary", { class: "btn " + (cls || "ghost") + " small", id: id }, label, h("span", { class: "menu-caret", "aria-hidden": "true", text: " ▾" }));
         var panel = h("div", { class: "menu-panel", role: "group", "aria-labelledby": id });
-        var d = h("details", { class: "menu" }, sum, panel);
+        var d = h("details", { class: "dmenu" }, sum, panel);
         d.addEventListener("keydown", function (e) { if (e.key === "Escape" && d.open) { e.stopPropagation(); d.open = false; sum.focus(); } });
         d.item = function (text, fn) {
           var b = h("button", { class: "menu-item", type: "button" }, text);
@@ -11036,7 +11036,7 @@
           var cat = noticeCat(n), btn = noticeBtn(n);
           var cb = h("input", { type: "checkbox", checked: !!sel[n.id], "aria-label": "Select: " + n.title });
           cb.addEventListener("change", function () { if (cb.checked) sel[n.id] = true; else delete sel[n.id]; paint(); });
-          var more = h("details", { class: "menu" }, h("summary", { class: "btn ghost small", "aria-label": "More for: " + n.title }, "⋯"));
+          var more = h("details", { class: "dmenu" }, h("summary", { class: "btn ghost small", "aria-label": "More for: " + n.title }, "⋯"));
           var panel = h("div", { class: "menu-panel", role: "group" });
           var item = function (text, fn) { var b = h("button", { class: "menu-item", type: "button" }, text); b.addEventListener("click", function () { more.open = false; fn(); }); panel.appendChild(b); };
           if (!n.dismissed) item(n.read ? "Mark as unread" : "Mark as read", function () { setMany([n.id], n.read ? "unread" : "read", n.read ? "Marked as unread." : "Marked as read."); });
