@@ -54,6 +54,10 @@ const ATT = 4430;
     await waitFor(p, "Get set up", 15000);
     const nav = await dela(p).locator(".nav").evaluate((n) => ({ sw: n.scrollWidth, cw: n.clientWidth, right: Math.max(...[...n.querySelectorAll("button")].map((b) => b.getBoundingClientRect().right)), count: n.querySelectorAll("button").length, vw: window.innerWidth, page: document.documentElement.scrollWidth }));
     ok(nav.page <= nav.vw + 1, "the page does not scroll sideways (" + nav.page + " > " + nav.vw + ")");
+    // Fix (2026-11-17): the bell was renamed "Notifications"; as a word it made this header 13 pixels too wide. In the
+    // old header it is an icon with the spoken name "Notifications", and no word in it.
+    const bellOld = await dela(p).locator("button.bell[aria-label^=Notifications]").first().evaluate((b) => ({ icon: !!b.querySelector("svg"), words: [...b.childNodes].filter((n) => n.nodeType === 3).map((n) => n.textContent.trim()).join(""), w: Math.round(b.getBoundingClientRect().width) }));
+    ok(bellOld.icon && bellOld.words === "" && bellOld.w <= 60, "the old header's bell is an icon named Notifications, narrow enough for a small phone: " + JSON.stringify(bellOld));
     ok(nav.count === 7, "seven attorney tabs: the old bottom bar does not get Meetings (" + nav.count + ")");
     ok(nav.sw <= nav.cw + 1, "the tab bar does not scroll sideways (" + nav.sw + " > " + nav.cw + ")");
     ok(nav.right <= nav.vw + 1, "every tab, Get set up included, is on screen (" + Math.round(nav.right) + " of " + nav.vw + ")");
