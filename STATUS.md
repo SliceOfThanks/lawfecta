@@ -6,6 +6,13 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 31, the notification panel and the Notifications page: ON THE SITE (2026-11-17)
+- Site: code_version f07d1b0, api function version 125, migrations through 0127, health "ok". GitHub Tests passed on that commit (run 44119308518). Two runs before it failed: a 290 pixel phone scrolled sideways in the old header (the bell is an icon there now), and a "Fix" commit had no test (the rule refused it; the test was added in the next commit, no exception was marked).
+- Brief with Claude's decisions: docs/briefs/step-31-notifications.md. Panel: "Notifications", "N unread", "Needs your action" (N pending, two shown), "Recent updates" (one per job), "View all notifications". Page (tab "notices", in the menu): filters with counts, search, time range, sort, tick boxes with "Mark as read" and "Dismiss", "Restore" under "Dismissed", one job's history. The word is "Notifications" everywhere.
+- Also in this release: messages show who wrote them and "✓ Seen" with its time.
+- ChatGPT check 4 (Inbox) came back 12 of 14: docs/tests/reports/2026-11-17-chatgpt-check-4-inbox.md. Its fixes (menu buttons drawn filled with a white box behind them, the header naming person and firm, file dates in the picker) are in the next commit, in testing.
+- ChatGPT check 5: docs/tests/notifications-chatgpt-prompt.md, ready copies "5-notifications-chatgpt-prompt-READY" in her folder. Not run yet.
+
 ## Step 30, the simpler Inbox and conversation, and the fix for the false "out of DELA actions": ON THE SITE (2026-11-17)
 - Site: code_version 513d463, api function version 124, migrations through 0126, health "ok". GitHub Tests passed on that commit (run 44114473314). Before it the same day: efc68bb (one "Invite to gig" button on the profile page).
 - Brief with Claude's decisions: docs/briefs/step-30-inbox-messaging.md. Inbox: search, filters with counts (tab list), unread dot and bold, tag and title, preview of the newest message (dela_threads returns last_text and last_mine, never a held message of the other person). Conversation: header card, date lines, "Message" label, "Attach a file" menu (upload a new file for attorneys, or choose from Files), "AI tools" menu (Draft a reply, Suggest next steps, Summarize conversation) with a suggested-draft panel; "Draft an agenda" left the conversation; "What we agreed" left the menu.
