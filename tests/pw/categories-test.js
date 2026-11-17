@@ -367,7 +367,9 @@ const SEARCH = "Search roles, specialties, tasks and software";
     ok(t.includes("Fern Family") && t.includes("1 freelancer found") && await label(p, SEARCH).inputValue() === "" && await dela(p).getByLabel("Bookmarked only (freelancers you saved)").isChecked(), "Your bookmarks lists the bookmarked freelancers with the other filters cleared");
     // Stacey 2026-11-17: a "Bookmarks" tab next to "My bench" lists the bookmarked freelancers
     await dela(p).getByRole("tab", { name: /^Bookmarks/ }).click();
-    t = await waitFor(p, "Bookmarks (1)");
+    // The tab itself reads "Bookmarks (1)", so wait for the list under it, not for those words
+    await dela(p).locator("#talent-bookmarks .talent-card").first().waitFor({ timeout: 10000 });
+    t = await text(p);
     ok(t.includes("Fern Family") && !t.includes("Nia Nurse") && !t.includes("Find a freelancer") && await dela(p).locator("#talent-bookmarks .talent-card").count() === 1 && await dela(p).getByRole("tab", { name: /^Bookmarks/ }).getAttribute("aria-selected") === "true", "the Bookmarks tab lists only the bookmarked freelancers, on the same cards");
     ok((await dela(p).getByRole("tab", { name: /^Bookmarks/ }).innerText()).trim() === "Bookmarks (1)", "the tab itself says how many are bookmarked");
     ok((await dela(p).locator("#talent-bookmarks .talent-card").getByRole("button").allInnerTexts()).join("|") === "View profile|Invite to gig", "a bookmark card has the same two buttons");

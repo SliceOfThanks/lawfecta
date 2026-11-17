@@ -372,12 +372,24 @@ async function waitFor(page, words, ms) {
     // page, where the history is searched, filtered, marked as read and dismissed
     await sql("insert into notifications (person_id, kind, channel, title, body, link, dedupe_key) select id, 'test', 'in_app', 'Refund completed', 'Conflict check: a refund was sent.', '/dela?tab=earnings', 'n31-a-' || id from people where bd_member_id = 2501 on conflict do nothing; select 1");
     await sql("insert into notifications (person_id, kind, channel, title, body, link, dedupe_key) select id, 'test', 'in_app', 'Your profile was checked', 'Nothing more is needed.', '/dela?tab=profile', 'n31-b-' || id from people where bd_member_id = 2501 on conflict do nothing; select 1");
+    await sql("insert into notifications (person_id, kind, channel, title, body, link, dedupe_key, created_at) select id, 'test', 'in_app', 'Job history older', 'The first update.', '/dela?tab=work&gig=11111111-2222-4333-8444-555555555555', 'n31-c-' || id, now() - interval '2 minutes' from people where bd_member_id = 2501 on conflict do nothing; select 1");
+    await sql("insert into notifications (person_id, kind, channel, title, body, link, dedupe_key, created_at) select id, 'test', 'in_app', 'Job history newest', 'The second update.', '/dela?tab=work&gig=11111111-2222-4333-8444-555555555555', 'n31-d-' || id, now() - interval '1 minute' from people where bd_member_id = 2501 on conflict do nothing; select 1");
     s = await open(browser, 2501, "");
     p = s.page;
     await dela(p).locator("button.bell[aria-label^=Notifications]").first().click();
     t = await waitFor(p, "Recent updates");
     ok(t.includes("Needs your action") && t.includes("unread") && await dela(p).locator("#notices-updates > li").count() <= 6, "the panel has the two groups and at most six updates");
     ok((await dela(p).locator("#notices-unread").innerText()).trim() === (await sql("select count(*)::int n from notifications n join people p on p.id = n.person_id where p.bd_member_id = 2501 and n.channel = 'in_app' and n.read_at is null"))[0].n + " unread", "the panel's unread number is the true count, the same as the bell");
+    // One job's history from the panel (not reached by ChatGPT check 5): two updates about the same job show as one,
+    // with a link to the earlier ones, which opens the page on that job only
+    ok(await dela(p).getByRole("button", { name: "View 1 earlier update for this job →", exact: true }).count() === 1 && await dela(p).locator("#notices-updates > li", { hasText: "Job history newest" }).count() === 1 && await dela(p).locator("#notices-updates > li", { hasText: "Job history older" }).count() === 0, "two updates about one job show as the newest, with a link to the earlier one");
+    await dela(p).getByRole("button", { name: "View 1 earlier update for this job →", exact: true }).click();
+    t = await waitFor(p, "Showing the history of one job");
+    ok(await dela(p).locator(".notice-row").count() === 2 && t.includes("Job history newest") && t.includes("Job history older") && !t.includes("Refund completed"), "the link opens the Notifications page on that job's two updates only");
+    await click(p, "Show all jobs");
+    await waitFor(p, "Refund completed");
+    await dela(p).locator("button.bell[aria-label^=Notifications]").first().click();
+    await waitFor(p, "Recent updates");
     await dela(p).locator("#notices-view-all").click();
     t = await waitFor(p, "Review updates, take action and manage your notifications.");
     ok(await dela(p).getByRole("dialog", { name: "Notifications" }).count() === 0 && /All \(\d+\)/.test(t) && /Needs action \(\d+\)/.test(t) && /Unread \(\d+\)/.test(t) && t.includes("Payments") && t.includes("Disputes"), "View all notifications opens the page, with its filters and counts");
