@@ -16,7 +16,7 @@ Attorneys and freelancers who write to each other on a gig, in an introduction b
 | 6 | Accessibility and consistency | The filters are a real tab list; each row is one button with a full spoken name; unread is a dot plus bold, not color alone; menus close with Escape and return the keyboard to their button; targets are at least 44 pixels high; the blue dismissible notice sits at the top of the Inbox and of a conversation. |
 
 ## Decisions Claude made (change any of them)
-1. "What we agreed" left the menu, because the brief names three tools. The server still knows it. Say if it should come back as a fourth.
+1. "What we agreed" left the menu, because the brief names three tools. The server still knows it. Stacey 2026-11-17: "LEAVE OUT".
 2. Button names kept as they were where the mockup differs only in wording ("Open the gig", "Book a meeting" on a gig, "Book a call" before a gig), so help texts and earlier tests stay true.
 3. For an introduction, "View profile" and "Create a gig for NAME" stay visible in the header, not behind "More": they are the two things an attorney does next.
 4. A new upload from a conversation is for attorneys only. Freelancers attach their profile documents, as before. An introduction or bench conversation still shares no files.

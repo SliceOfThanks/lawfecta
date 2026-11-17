@@ -2,6 +2,12 @@
 
 Last updated 2026-11-06. The one-page picture (built, in progress, next, before the MVP, after) is docs/MVP_OVERVIEW.md. Stacey's own checklist, in order, is docs/STACEY_TODO.md. Read this with STATUS.md. It shows what is done, what is being tested, what needs work, what is waiting on Stacey, and what comes next.
 
+## Decided by Stacey 2026-11-17 (four open points closed)
+- The Talent filters on a phone: "REVISIT IN 2027". They open in place under the search row until then.
+- The dismissed sensitive data notice: "KEEP AS IS". Remembered per browser, until the wording changes.
+- "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
+- A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
+
 ## Planned for 2027, not built: sharing logins through password.link
 Evaluation and plan approved by Stacey 2026-11-13: docs/briefs/2027-login-handoff-password-link.md. Five questions in it wait for her answers before any build. No code, no setting.
 

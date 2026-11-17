@@ -32,3 +32,4 @@ The count and sort, removable filter chips, "Load more" with the keyboard landin
 ## Not done, and why
 - Done right after (migration 0124): the card says "Availability confirmed DATE" (note 8).
 - Neutral (grey) tags: the mockup itself shows pink tags, so they stay pink.
+- A slide-up Filters panel on a phone: Stacey 2026-11-17, "REVISIT IN 2027". The filters open in place until then.
