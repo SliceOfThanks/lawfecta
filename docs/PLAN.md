@@ -8,6 +8,9 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
+## Newest (2026-11-17): step 34, Home widgets by role, is on the site for attorneys and freelancers
+code_version 1e6de60, api 128, migrations through 0130. Needs testing: ChatGPT check 6 (rewritten, docs/tests/home-dashboard-chatgpt-prompt.md) and Stacey's own look; check 4 (Inbox) is still out. Waiting on Stacey: the four questions for the agency Home and any of the six decisions in docs/briefs/step-34-role-dashboards.md. Next work once she answers: the agency Home (needs a rule for who sees agency money, and whether DELA starts recording team members' weekly hours). Not built on purpose: anything that would show numbers DELA does not record.
+
 ## Newest (2026-11-17): step 33, the Home each member arranges, is on the site
 code_version bbe9e47, api 127, migrations through 0129. Needs testing: ChatGPT check 6 (docs/tests/home-dashboard-chatgpt-prompt.md) and Stacey's own look at Home; ChatGPT check 4 (Inbox) is still out. Waiting on Stacey: any of the ten decisions in docs/briefs/step-33-home-dashboard.md she wants changed. Not built: choosing a card's width, counting how often widgets are used.
 

@@ -98,6 +98,9 @@ How to read the "State" column:
 | 6.3 | A virus scanner before confidential materials are switched on | Scanner in place and one infected test file refused | Not yet | The switch is off until then. |
 | 33.1 | A member's Home layout follows them to a second device (step 33) | Saved on one computer, seen on a phone or another browser | Not yet | Saved on the server per person and side. |
 | 33.2 | The Customize panel with a real screen reader and on a real phone, dragging with a finger (step 33) | "Move up" is read with the new place; a row can be dragged by its handle | Not yet | The automated tests cover the keyboard, a mouse drag and a 320 pixel screen. |
+| 34.1 | Earnings and spend on Home match what a member really received or paid (step 34) | One real payout and one real payment, compared with Stripe and the Earnings page | Not yet | The automated tests compare the cards with the payment records in test mode. |
+| 34.2 | "Things to consider delegating" shows suggestions from a real approved document (step 34) | An attorney approves a document, runs "Automate or delegate", and sees the suggestion on Home | Not yet | Home only lists what DELA already suggested; it creates nothing. |
+| 34.3 | Home at 200% text size and 400% zoom, and with a screen reader (step 34) | Cards reflow without cut-off buttons; rings are read as words | Not yet | Needs a person. |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.

@@ -6,6 +6,15 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 34, Home widgets by role with real numbers only: ON THE SITE (2026-11-17) for attorneys and freelancers; the agency Home is NOT built
+- Site: code_version 1e6de60, api function version 128, migrations through 0130, health "ok". GitHub Tests passed on that commit at the first run (run 44200557674: 48 Home checks, 138 workspace checks; api 429).
+- Source: Stacey's handoff "Lawfecta Role-Based Dashboard Widgets" and four mockups. Brief with what was built, Claude's six decisions, what waits and why, and four questions for the agency Home: docs/briefs/step-34-role-dashboards.md.
+- Attorney default: Needs your attention, Things to consider delegating, My projects and milestones, Proposals and talent matches, Delegation spend and results, Ask DELA. Freelancer default: Recommended gigs, Earnings and payments, My proposals and invitations, Active work and deadlines, Needs your attention, Business growth insights. "Account status" is gone from Home; the "Complete your profile" card is a fixed element, not a widget.
+- New on the server: dela_home_spend, dela_home_earnings, dela_home_delegate (read-only), routes GET /home/spend, /home/earnings, /home/delegate. Widgets are in HOME_W in app/dela-app.js (w* functions); cards keep their own height in two columns (paintHome); the panel has visible Move up, Move down and Remove.
+- One saved layout existed on the site before the release (the test attorney's, with every step 33 widget). It is kept; the new six show after "Restore default".
+- ChatGPT check 6 was rewritten: docs/tests/home-dashboard-chatgpt-prompt.md, ready copies "6-home-dashboard-chatgpt-prompt-READY". Not run yet.
+- Not built: the agency Home; freelancer widgets that would need numbers DELA does not record (profile views, repeat clients, skills in demand).
+
 ## Step 33, a Home each member arranges: ON THE SITE (2026-11-17), nothing queued behind it
 - Now on the site: code_version 444f462 (browser only, GitHub run 44196792983): rings on Home. Stacey 2026-11-17 on "Monthly usage": "should have a circle graph visual of usage, too much empty space". The card shows the month's DELA actions as a ring with what is left, and storage and saved documents beside it; "Account status" shows its checks as a ring (homeRing in app/dela-app.js).
 - First release of the step: code_version bbe9e47, api function version 127, migrations through 0129, health "ok". GitHub Tests passed on that commit (run 44192739275, 35 Home checks), after three runs: an older first-screen check written for the old order, the new test assuming the member's name, and one real fault the test found (dragging a row stopped after one place; the drag now listens on the page).
