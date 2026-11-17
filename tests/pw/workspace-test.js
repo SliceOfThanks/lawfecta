@@ -302,6 +302,9 @@ async function makeMember(bd, side, plan, name) {
     t = await waitFor(p, "My work");
     ok(t.includes("Profile complete") && t.includes("Attorneys can invite you.") && !t.includes("Complete your profile"), "ready freelancer: the profile box is gone; one status line says they can be invited");
     ok(t.includes("Paid out this month") && t.includes("all time") && t.includes("Proposals left this month"), "ready freelancer: Paid out shows this month and all time");
+    // Step 33: the account checks also show as a ring
+    const acct = await inShadow(p, (root) => { const r = root.querySelector("[data-widget=account] .usage-ring"); return r ? r.getAttribute("aria-label") + " | " + r.innerText.replace(/\s+/g, " ") : ""; });
+    ok(/^Account 100 percent complete: \d of \d checks done \| 100% Complete$/.test(acct), "ready freelancer: Account status shows a full ring, in words too: " + acct);
     // A number opens the list it counts
     await dela(p).getByRole("button", { name: /Invitations/ }).first().click();
     await p.waitForFunction(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.activeElement && r.activeElement.tagName === "H2" && r.activeElement.textContent.indexOf("Invitations") === 0; }, null, { timeout: 8000 });

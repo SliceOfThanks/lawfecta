@@ -869,18 +869,8 @@
       var num = function (n) { return Number(n || 0).toLocaleString("en-US"); };
       var act = u.actions, lim = act.limit, p = usagePct(act.used, lim), warn = u.warn_pct || 80;
       var tone = lim && p >= 100 ? "var(--bad)" : lim && p >= warn ? "#d9a400" : "var(--brand)";
-      var R = 50, C = 2 * Math.PI * R;
-      var svg = document.createElementNS(SVG_NS, "svg");
-      svg.setAttribute("viewBox", "0 0 120 120"); svg.setAttribute("aria-hidden", "true");
-      [["var(--line)", C], [tone, lim ? C * p / 100 : 0]].forEach(function (x) {
-        var ci = document.createElementNS(SVG_NS, "circle");
-        ci.setAttribute("cx", "60"); ci.setAttribute("cy", "60"); ci.setAttribute("r", String(R)); ci.setAttribute("fill", "none"); ci.setAttribute("stroke-width", "12");
-        ci.setAttribute("stroke", x[0]); ci.setAttribute("stroke-linecap", "round"); ci.setAttribute("stroke-dasharray", x[1] + " " + C); ci.setAttribute("transform", "rotate(-90 60 60)");
-        if (x[1] > 0) svg.appendChild(ci);
-      });
       var said = lim ? num(act.used) + " of " + num(lim) + " DELA actions used this month, " + p + " percent" : num(act.used) + " DELA actions used this month, no limit on your plan";
-      var ring = h("div", { class: "usage-ring", role: "img", "aria-label": said }, svg,
-        h("div", { class: "usage-mid", "aria-hidden": "true" }, h("b", { text: num(act.used) }), h("span", { text: lim ? "/ " + num(lim) : "used" })));
+      var ring = homeRing(lim ? p : 0, tone, num(act.used), lim ? "/ " + num(lim) : "used", said);
       var side = h("div", { class: "usage-side" },
         h("div", null, h("b", { text: "DELA actions" }), h("div", { class: "hsub", text: lim ? Math.max(lim - act.used, 0) === 0 ? "None left this month" : num(Math.max(lim - act.used, 0)) + " left this month (" + p + "% used)" : "No limit on your plan" }),
           act.shared ? h("div", { class: "hsub", text: "Shared by your firm" }) : null));
@@ -893,6 +883,19 @@
       inner.appendChild(h("p", { class: "hsub", text: "DELA actions reset on " + D.date(u.resets_on) + "." }));
     });
     return homeFoot(c, "View usage details", function () { goTab(NL() ? "subscription" : "usage"); });
+  }
+  // A ring that fills to a share of 100, with a number in the middle; the words for a screen reader are "said"
+  function homeRing(pct, tone, big, small, said) {
+    var R = 50, C = 2 * Math.PI * R, svg = document.createElementNS(SVG_NS, "svg");
+    svg.setAttribute("viewBox", "0 0 120 120"); svg.setAttribute("aria-hidden", "true");
+    [["var(--line)", C], [tone, C * Math.max(0, Math.min(100, pct)) / 100]].forEach(function (x) {
+      if (!(x[1] > 0)) return;
+      var ci = document.createElementNS(SVG_NS, "circle");
+      ci.setAttribute("cx", "60"); ci.setAttribute("cy", "60"); ci.setAttribute("r", String(R)); ci.setAttribute("fill", "none"); ci.setAttribute("stroke-width", "12");
+      ci.setAttribute("stroke", x[0]); ci.setAttribute("stroke-linecap", "round"); ci.setAttribute("stroke-dasharray", x[1] + " " + C); ci.setAttribute("transform", "rotate(-90 60 60)");
+      svg.appendChild(ci);
+    });
+    return h("div", { class: "usage-ring", role: "img", "aria-label": said }, svg, h("div", { class: "usage-mid", "aria-hidden": "true" }, h("b", { text: big }), h("span", { text: small })));
   }
   function wNotices() {
     var n0 = typeof me.unread === "number" ? me.unread : 0;
@@ -914,7 +917,12 @@
     var c = hcard("Account status"), inner = h("div", { class: "hgap" });
     c.appendChild(inner);
     var st = statusLine(hm);
-    if (st) inner.appendChild(st);
+    if (st) {
+      // The same checks as the status line, as a ring: how many of them are done
+      var all = st.querySelectorAll(".hpart").length, open = st.querySelectorAll(".hpart.warn").length, pct = all ? Math.round((all - open) * 100 / all) : 0;
+      inner.appendChild(h("div", { class: "usage-row acct-row" }, h("div", { class: "usage-side" }, st),
+        homeRing(pct, pct >= 100 ? "var(--ok,#1a7f4b)" : "#d9a400", pct + "%", pct >= 100 ? "Complete" : (all - open) + " of " + all + " done", "Account " + pct + " percent complete: " + (all - open) + " of " + all + " checks done")));
+    }
     inner.appendChild(planLine());
     return homeFoot(c, "Manage profile", function () { goTab("profile"); });
   }
