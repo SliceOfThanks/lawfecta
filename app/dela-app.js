@@ -5687,8 +5687,10 @@
     }));
     el.appendChild(pills);
     loadBookmarks().then(function (bm) {
-      if (bm.on) return;
-      var b = pills.querySelector("[data-view=bookmarks]"); if (b) b.remove();
+      var b = pills.querySelector("[data-view=bookmarks]");
+      // The tab says how many are bookmarked, so the member sees at a glance that there is something there
+      if (bm.on) { var nb = Object.keys(bm.set || {}).length; if (b && bm.ok && nb) b.textContent = "Bookmarks (" + nb + ")"; return; }
+      if (b) b.remove();
       if (pills.children.length < 2) pills.remove();
       if (talentMode === "bookmarks") { talentMode = "search"; draw(); }
     });
@@ -6507,20 +6509,79 @@
   }
 
   // The Inbox: every thread with its unread count
+  // Step 30 (Stacey's Inbox brief and mockups of 2026-11-17): a list that is easy to scan. Search, four filters with
+  // counts (a tab list), an unread dot with a bold name, what the conversation is about, a preview of the newest message
+  // and its time. The search and the filter stay as the member left them.
+  var inboxState = { q: "", f: "all", shown: 20 };
+  var INBOX_KIND = { intro: "Introduction", bench: "Bench" };
+  function inboxWhen(iso) {
+    if (!iso) return "";
+    var d = new Date(iso), now = new Date();
+    var time = d.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
+    if (d.toDateString() === now.toDateString()) return time;
+    var y = new Date(now.getTime() - 86400000);
+    if (d.toDateString() === y.toDateString()) return "Yesterday, " + time;
+    return d.toLocaleDateString([], d.getFullYear() === now.getFullYear() ? { month: "short", day: "numeric" } : { month: "short", day: "numeric", year: "numeric" }) + ", " + time;
+  }
   function inboxView() {
-    var el = h("div", null, h("h1", { text: "Inbox" }), h("p", { class: "muted", text: "Loading..." }));
+    var el = h("div", { class: "inbox-page" }, h("h1", { text: "Inbox" }), h("p", { class: "muted", text: "Loading..." }));
     if (talk.thread) { threadView(el); return el; }
     api.get("/threads").then(function (r) {
       D.clear(el);
+      if (me.notice) el.appendChild(D.infoNotice(String(me.notice), "sensitive"));
       el.appendChild(h("div", { class: "row" }, h("h1", { class: "grow", text: "Inbox" }), (me.switches || {}).meetings ? h("button", { class: "ghost small", onclick: function () { talk.meeting = null; tab = "meetings"; draw(); } }, "Your meetings") : null));
-      el.appendChild(h("p", { class: "muted", text: "Conversations are on a gig, on your bench, or an introduction before a gig. Keep all work, contact and payment on Lawfecta." }));
+      el.appendChild(h("p", { class: "muted", text: me.side === "attorney" ? "Manage conversations with freelancers, discuss projects and arrange introductory calls. Keep all work, contact and payment on Lawfecta." : "Your conversations with attorneys about gigs, introductions and your bench. Keep all work, contact and payment on Lawfecta." }));
       if (!r.on) { el.appendChild(h("p", { class: "notice", text: TALK_ERR.chat_off })); return; }
-      if (!r.threads.length) el.appendChild(h("p", { class: "muted", text: me.side === "attorney" ? "No conversations yet. Invite a freelancer to a gig, or message someone who sent a proposal." : "No conversations yet. They start when an attorney invites you or when you send a proposal." }));
-      r.threads.forEach(function (t) {
-        el.appendChild(h("div", { class: "work", style: "cursor:pointer", role: "button", tabindex: "0", onclick: function () { talk.thread = t.id; draw(); } },
-          h("span", { class: "chip", text: t.unread ? String(t.unread) : "✓" }), smallFace(t), h("div", null, h("h3", { text: t.other_name }), h("div", { class: "muted small", text: t.gig_title + (t.last_at ? " | " + D.dateTime(t.last_at) : "") })),
-          h("span", { class: "grow" }), t.unread ? h("span", { class: "badge held", text: t.unread + " new" }) : null));
-      });
+      var all = r.threads || [];
+      if (!all.length) { el.appendChild(h("p", { class: "muted", id: "inbox-empty", text: me.side === "attorney" ? "No conversations yet. Invite a freelancer to a gig, or message someone who sent a proposal." : "No conversations yet. They start when an attorney invites you or when you send a proposal." })); return; }
+      var search = h("input", { type: "search", id: "inbox-search", autocomplete: "off", placeholder: "Search by name, gig or words in the last message", value: inboxState.q, style: "width:100%" });
+      el.appendChild(h("div", { class: "inbox-search" }, h("label", { for: "inbox-search", text: "Search conversations" }), search));
+      var isGig = function (t) { return t.kind !== "intro" && t.kind !== "bench"; };
+      var FILTERS = [["all", "All", function () { return true; }], ["unread", "Unread", function (t) { return t.unread > 0; }], ["gigs", "Gigs", isGig], ["intros", "Introductions", function (t) { return t.kind === "intro"; }]];
+      if (all.some(function (t) { return t.kind === "bench"; })) FILTERS.push(["bench", "Bench", function (t) { return t.kind === "bench"; }]);
+      if (!FILTERS.some(function (f) { return f[0] === inboxState.f; })) inboxState.f = "all";
+      var tabs = h("div", { class: "pills inbox-tabs", role: "tablist", "aria-label": "Conversations to show" });
+      el.appendChild(tabs);
+      var live = h("div", { class: "sr", role: "status" }), list = h("div", { id: "inbox-list", role: "tabpanel", "aria-label": "Conversations" }), foot = h("div", { class: "row inbox-foot", style: "gap:12px;flex-wrap:wrap;align-items:center;justify-content:center;margin:12px 0" });
+      el.appendChild(live); el.appendChild(list); el.appendChild(foot);
+      function matches(t) {
+        var q = inboxState.q.trim().toLowerCase();
+        if (!q) return true;
+        var hay = [t.other_name, t.gig_title, t.last_text, INBOX_KIND[t.kind] || "Gig"].join(" ").toLowerCase();
+        return q.split(/ +/).every(function (w) { return hay.indexOf(w) >= 0; });
+      }
+      function paint(announce) {
+        D.clear(tabs);
+        FILTERS.forEach(function (f) {
+          var n = all.filter(f[2]).length;
+          tabs.appendChild(h("button", { role: "tab", type: "button", "data-filter": f[0], "aria-selected": String(inboxState.f === f[0]), onclick: function () { inboxState.f = f[0]; inboxState.shown = 20; paint(true); var b = tabs.querySelector("[aria-selected=true]"); if (b) b.focus(); } }, f[1] + " (" + n + ")"));
+        });
+        var cur = FILTERS.filter(function (f) { return f[0] === inboxState.f; })[0];
+        var rows = all.filter(cur[2]).filter(matches);
+        D.clear(list); D.clear(foot);
+        if (!rows.length) list.appendChild(h("p", { class: "muted", id: "inbox-none", text: inboxState.q.trim() ? "No conversation matches \"" + inboxState.q.trim() + "\". Try fewer words, or choose \"All\"." : inboxState.f === "unread" ? "Nothing unread. You are up to date." : "No conversations here yet." }));
+        rows.slice(0, inboxState.shown).forEach(function (t) {
+          var kind = INBOX_KIND[t.kind] || "Gig", unread = t.unread > 0;
+          var preview = t.last_text ? (t.last_mine ? "You: " : "") + t.last_text : "No messages yet.";
+          var row = h("button", { type: "button", class: "inbox-row" + (unread ? " unread" : ""),
+            "aria-label": (unread ? t.unread + " unread. " : "") + t.other_name + ". " + kind + ": " + t.gig_title + ". " + preview + (t.last_at ? " " + inboxWhen(t.last_at) : ""),
+            onclick: function () { talk.thread = t.id; draw(); } },
+            h("span", { class: "inbox-dot" + (unread ? " on" : ""), "aria-hidden": "true" }), smallFace(t),
+            h("span", { class: "inbox-main" },
+              h("span", { class: "inbox-top" }, h("span", { class: "inbox-name", text: t.other_name }), h("span", { class: "inbox-when small muted", text: inboxWhen(t.last_at) })),
+              h("span", { class: "inbox-about" }, h("span", { class: "inbox-kind " + (t.kind === "intro" ? "intro" : t.kind === "bench" ? "bench" : "gig"), text: kind }), h("span", { class: "inbox-title", text: t.gig_title })),
+              h("span", { class: "inbox-prev small" + (t.last_text ? "" : " muted"), text: preview })),
+            unread ? h("span", { class: "inbox-count", "aria-hidden": "true", text: String(t.unread) }) : null);
+          list.appendChild(row);
+        });
+        if (rows.length) foot.appendChild(h("span", { class: "small muted", text: "Showing " + Math.min(inboxState.shown, rows.length) + " of " + rows.length + (rows.length === 1 ? " conversation." : " conversations.") }));
+        if (rows.length > inboxState.shown) foot.appendChild(h("button", { class: "ghost", type: "button", onclick: function () { var from = inboxState.shown; inboxState.shown += 20; paint(false); var next = list.querySelectorAll(".inbox-row")[from]; if (next) next.focus(); } }, "Show more conversations"));
+        if (announce) live.textContent = rows.length + (rows.length === 1 ? " conversation" : " conversations");
+      }
+      var typing = null;
+      search.addEventListener("input", function () { inboxState.q = search.value; inboxState.shown = 20; clearTimeout(typing); typing = setTimeout(function () { paint(true); }, 150); });
+      search.addEventListener("keydown", function (e) { if (e.key === "Escape" && search.value) { e.stopPropagation(); search.value = ""; inboxState.q = ""; paint(true); } });
+      paint(false);
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     return el;
   }
@@ -6533,17 +6594,38 @@
   function threadView(el) {
     api.get("/threads/get?id=" + talk.thread).then(function (r) {
       D.clear(el);
+      // Step 30: the notice, the way back, then one header card that says who this is and what the conversation is about
+      if (me.notice) el.appendChild(D.infoNotice(String(me.notice), "sensitive"));
       el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", onclick: function () { talk.thread = null; draw(); } }, "← Inbox")));
       if (!r.ok) { el.appendChild(h("p", { class: "notice", text: "This conversation is not available to you." })); return; }
       var t = r.thread;
-      el.appendChild(h("h1", { text: t.other_name }));
+      var aboutWord = t.kind === "intro" ? "Introduction, before any gig" : t.kind === "bench" ? "Bench conversation: " + t.gig_title : "Gig: " + t.gig_title;
+      var headActs = h("div", { class: "row thread-acts", style: "gap:8px;flex-wrap:wrap;justify-content:flex-end" });
+      el.appendChild(h("div", { class: "card thread-head" }, h("div", { class: "row", style: "gap:12px;align-items:center;flex-wrap:wrap" },
+        smallFace({ photo_url: t.photo_url, other_name: t.other_name }),
+        h("div", { class: "grow", style: "min-width:160px" }, h("h1", { style: "margin:0;font-size:22px", text: t.other_name }), h("div", { class: "small muted", id: "thread-about", text: aboutWord })),
+        headActs)));
       var tcc = clientCard(r.client, "Who you are talking with"); if (tcc) el.appendChild(tcc);
       var noGig = t.kind === "bench" || t.kind === "intro";
       el.appendChild(h("p", { class: "muted", text: t.kind === "intro" ? (r.role === "attorney" ? "A conversation before any gig. Messages and an introductory call only: files come with a gig. Nobody is hired here. Keep all work, contact and payment on Lawfecta." : "An attorney wrote to you before posting a gig. Messages and an introductory call only; nobody is hired here. Keep all work, contact and payment on Lawfecta.") : t.kind === "bench" ? t.gig_title + ": your ongoing bench conversation. It shares no files and is not a contract; new work goes through a gig. Keep all work, contact and payment on Lawfecta." : "About the gig \"" + t.gig_title + "\". Keep all work, contact and payment on Lawfecta." }));
-      var tools = h("div", { class: "row", style: "flex-wrap:wrap" });
+      var tools = headActs;
+      // A small menu that opens under its button: Escape and a choice close it, and the keyboard goes back to the button
+      function menuOf(label, id, cls) {
+        var sum = h("summary", { class: "btn " + (cls || "ghost") + " small", id: id }, label, h("span", { class: "menu-caret", "aria-hidden": "true", text: " ▾" }));
+        var panel = h("div", { class: "menu-panel", role: "group", "aria-labelledby": id });
+        var d = h("details", { class: "menu" }, sum, panel);
+        d.addEventListener("keydown", function (e) { if (e.key === "Escape" && d.open) { e.stopPropagation(); d.open = false; sum.focus(); } });
+        d.item = function (text, fn) {
+          var b = h("button", { class: "menu-item", type: "button" }, text);
+          b.addEventListener("click", function () { d.open = false; sum.focus(); fn(b); });
+          panel.appendChild(b);
+          return b;
+        };
+        return d;
+      }
       if (t.kind === "intro" && r.role === "attorney") {
         tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { talk.thread = null; tab = "talent"; openTalentProfile(t.freelancer_person); } }, "View profile"));
-        tools.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { talk.thread = null; gigs.pendingInvite = { person_id: t.freelancer_person, name: t.other_name }; gigs.id = null; tab = "projects"; draw(); } }, "Create a gig for " + t.other_name));
+        tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { talk.thread = null; gigs.pendingInvite = { person_id: t.freelancer_person, name: t.other_name }; gigs.id = null; tab = "projects"; draw(); } }, "Create a gig for " + t.other_name));
       }
       if (!noGig) tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { gigs.id = t.gig_id; gigs.view = "details"; tab = me.side === "attorney" ? "projects" : "work"; talk.thread = null; draw(); } }, "Open the gig"));
       // Step 24: a call that is already booked shows here, with the way to it; otherwise the attorney can book one
@@ -6554,39 +6636,28 @@
       // Coming from "Book a call" on a profile: the open times show at once
       if (introBook) { introBook = false; if (t.kind === "intro") setTimeout(function () { var ib = el.querySelector("#intro-call-btn"); if (ib) ib.click(); }, 0); }
       if ((me.switches || {}).meetings && r.writable && !noGig) tools.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { bookPanel(el, t.gig_id, t.freelancer_person, null); } }, "Book a meeting"));
-      // The two main actions first; AI help and More (Report, Block) open on request (UX review I01)
-      var aiHelp = h("details", { class: "inline-menu" }, h("summary", { class: "small", style: "cursor:pointer", text: "✦ AI help" }));
-      var moreMenu = h("details", { class: "inline-menu" }, h("summary", { class: "small", style: "cursor:pointer", text: "More" }));
-      if ((me.switches || {}).chat_assistant) {
-        [["summarize", "✦ Summarize"], ["agreed", "✦ What we agreed"]].forEach(function (x) {
-          aiHelp.appendChild(h("button", { class: "ghost small ai-btn", type: "button", onclick: function () {
-            api.post("/threads/assist", { thread_id: t.id, mode: x[0] }).then(gigOk).then(function (y) {
-              aiOut.hidden = false; D.clear(aiOut);
-              aiOut.appendChild(h("div", { class: "row", style: "align-items:center;margin-bottom:4px" }, D.aiLabel(), h("span", { class: "grow" }), h("button", { class: "ghost small", type: "button", onclick: function () { aiOut.hidden = true; } }, "Dismiss")));
-              aiOut.appendChild(h("div", { text: y.text + "\n\nDELA's summary is for reading only. It does not change the gig, a proposal or an agreement." }));
-            }).catch(talkFail);
-          } }, x[1]));
-        });
-      }
-      moreMenu.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+      // Report and Block sit behind "More" (UX review I01)
+      var moreMenu = menuOf("More", "thread-more");
+      moreMenu.item("Report this conversation", function () {
         var why = prompt("What is wrong? The Lawfecta Team reads every report.");
         if (why === null) return;
         api.post("/threads/report", { thread_id: t.id, reason: why }).then(gigOk).then(function () { D.toast(app, "Reported to the Lawfecta Team"); }).catch(talkFail);
-      } }, "Report"));
-      if (!t.blocked || t.blocked_by_me) moreMenu.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
+      });
+      if (!t.blocked || t.blocked_by_me) moreMenu.item(t.blocked ? "Unblock" : "Block this conversation", function () {
         if (!t.blocked && !confirm("Block this conversation? New messages and meetings stop, and upcoming meetings are canceled. The Lawfecta Team is told.")) return;
         api.post("/threads/block", { thread_id: t.id, block: !t.blocked }).then(gigOk).then(function () { draw(); D.toast(app, t.blocked ? "Unblocked" : "Blocked"); }).catch(talkFail);
-      } }, t.blocked ? "Unblock" : "Block"));
-      if ((me.switches || {}).chat_assistant) tools.appendChild(aiHelp);
+      });
       tools.appendChild(moreMenu);
-      el.appendChild(tools);
-      var aiOut = h("p", { class: "helpbox", hidden: true, role: "status", style: "white-space:pre-wrap" });
-      el.appendChild(aiOut);
+      // What DELA suggests shows in one panel under the message box, labeled as a suggestion; nothing is sent from it
+      var aiOut = h("div", { class: "ai-suggest", id: "thread-ai-out", hidden: true, role: "status" });
       // Messages
       var list = h("div", { class: "card", "aria-label": "Messages" });
       if (!r.messages.length) list.appendChild(h("p", { class: "muted", text: "No messages yet. Say hello and ask what you need to know." }));
-      var lastMine = null;
+      var lastMine = null, lastDay = "";
       r.messages.forEach(function (m) {
+        // A line with the date where a new day starts (step 30)
+        var day = new Date(m.created_at).toDateString();
+        if (day !== lastDay) { lastDay = day; list.appendChild(h("div", { class: "msg-day", role: "separator" }, h("span", { text: new Date(m.created_at).toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" }) }))); }
         var box = h("div", { class: "msg" + (m.mine ? " mine" : "") });
         // Who removed it (UX review 2026-11-08). Older removed messages carry no reason and keep the short line.
         if (m.status === "removed") box.appendChild(h("p", { class: "muted small", text: m.removed_why === "team" ? "Message removed by the Lawfecta Team: it looked like a plan to work or pay outside Lawfecta." : m.removed_why === "sender" ? (m.mine ? "You removed this message." : "The sender removed this message.") : "Message removed" }));
@@ -6620,7 +6691,7 @@
       el.appendChild(list);
       // Composer
       if (!r.writable) { el.appendChild(h("p", { class: "notice", text: TALK_ERR[r.why_closed] || "This conversation is closed." })); return; }
-      var ta = h("textarea", { rows: 3, style: "width:100%", "aria-label": "Your message", placeholder: (me.switches || {}).client_details_allowed ? "Write a message. No sensitive data, contact details or payment outside Lawfecta." : "Write a message. No client information, contact details or payment outside Lawfecta." });
+      var ta = h("textarea", { rows: 3, style: "width:100%", id: "thread-message", "aria-label": "Your message", placeholder: "Write your message..." });
       ta.value = r.draft || "";
       // A saved draft is checked by the same rules as a sent message, and the result stays under the box until the text
       // changes (UX review 2026-11-08). It is a warning only: Send still checks again.
@@ -6639,20 +6710,59 @@
       ta.addEventListener("blur", saveDraft);
       ta.addEventListener("input", function () { draftFlag.hidden = true; });
       if (ta.value.trim()) saveDraft();
-      var attach = [], attachWrap = h("div", { class: "small" });
-      var pick = h("button", { class: "ghost small", type: "button" }, "Attach a file");
-      pick.addEventListener("click", function () {
+      // Attachments: a menu with the two ways to add a file; what was chosen shows as chips that can be removed
+      var attach = [], attachNames = {}, attachWrap = h("div", { class: "small", id: "thread-attach" }), chips = h("div", { class: "cat-picked", id: "thread-chips" });
+      function drawChips() {
+        D.clear(chips);
+        attach.forEach(function (id) {
+          var nm = attachNames[id] || "File";
+          chips.appendChild(h("span", { class: "cat-chip" }, h("span", { text: nm }), h("button", { type: "button", "aria-label": "Remove attachment: " + nm, onclick: function () { attach = attach.filter(function (x) { return x !== id; }); drawChips(); } }, "×")));
+        });
+      }
+      function addFile(id, name) { if (attach.indexOf(id) < 0) attach.push(id); attachNames[id] = name; drawChips(); }
+      function chooseFiles() {
+        D.clear(attachWrap); attachWrap.appendChild(h("p", { class: "muted", text: "Loading your files..." }));
         (me.side === "attorney" ? api.get("/files").then(function (x) { return (x.files || []).filter(function (f) { return f.status === "ready"; }); })
           : api.get("/profile").then(function (x) { return (x.documents || []).filter(function (f) { return f.status === "ready"; }); })).then(function (files) {
           D.clear(attachWrap);
-          if (!files.length) { attachWrap.appendChild(h("span", { class: "muted", text: me.side === "attorney" ? "No ready files. Upload on the Files page first." : "No ready profile documents. Add one on your Profile first." })); return; }
+          if (!files.length) { attachWrap.appendChild(h("span", { class: "muted", text: me.side === "attorney" ? "No ready files yet. Choose \"Upload a new file\", or upload on the Files page." : "No ready profile documents. Add one on your Profile first." })); return; }
+          var box = h("div", { class: "soft", style: "padding:10px 12px;border-radius:12px;margin-top:6px" }, h("b", { text: me.side === "attorney" ? "Choose from Lawfecta Files" : "Choose from your profile documents" }));
           files.forEach(function (f) {
-            var cb = h("input", { type: "checkbox" });
-            cb.addEventListener("change", function () { attach = attach.filter(function (x) { return x !== f.id; }); if (cb.checked) attach.push(f.id); });
-            attachWrap.appendChild(h("label", { style: "display:flex;gap:6px;font-weight:400" }, cb, f.name));
+            var cb = h("input", { type: "checkbox", checked: attach.indexOf(f.id) >= 0 });
+            cb.addEventListener("change", function () { if (cb.checked) addFile(f.id, f.name); else { attach = attach.filter(function (x) { return x !== f.id; }); drawChips(); } });
+            box.appendChild(h("label", { style: "display:flex;gap:6px;font-weight:400;min-height:32px;align-items:center" }, cb, f.name));
           });
-        }).catch(talkFail);
-      });
+          box.appendChild(h("div", { class: "row", style: "margin-top:6px" }, h("button", { class: "ghost small", type: "button", onclick: function () { D.clear(attachWrap); pick.querySelector("summary").focus(); } }, "Done")));
+          attachWrap.appendChild(box);
+        }).catch(function (e) { D.clear(attachWrap); talkFail(e); });
+      }
+      // A new file goes to the member's Lawfecta Files first (the same checks as the Files page), then is attached
+      function uploadNew() {
+        var input = h("input", { type: "file", "aria-label": "Choose a file to upload" });
+        input.addEventListener("change", function () {
+          if (!input.files.length) return;
+          var file = input.files[0];
+          D.clear(attachWrap);
+          var tick = h("input", { type: "checkbox", id: "thread-up-tick" }), go = h("button", { class: "blue small", type: "button", disabled: true }, "Upload and attach"), say = h("p", { class: "small", role: "status", style: "margin:6px 0 0" });
+          tick.addEventListener("change", function () { go.disabled = !tick.checked; });
+          go.addEventListener("click", function () {
+            go.disabled = true; say.className = "small"; say.textContent = "Uploading " + file.name + "...";
+            uploadBlob(file, file.name, "").then(function (u) {
+              if (!u || !u.ok) { go.disabled = false; say.className = "small notice bad"; say.textContent = "The file was not uploaded. " + (u && u.reason ? gigErr(u) : "Check your connection and try again."); return; }
+              if (u.status && u.status !== "ready") { D.clear(attachWrap); attachWrap.appendChild(h("p", { class: "notice", text: "\"" + file.name + "\" is in your Lawfecta Files and is being checked. In a moment, choose it with \"Choose from Lawfecta Files\"." })); return; }
+              addFile(u.file_id, file.name); D.clear(attachWrap); D.toast(app, "Attached. It is also saved in your Files.");
+            }).catch(function () { go.disabled = false; say.className = "small notice bad"; say.textContent = "The file was not uploaded. Check your connection and try again."; });
+          });
+          attachWrap.appendChild(h("div", { class: "soft", style: "padding:10px 12px;border-radius:12px;margin-top:6px" }, h("b", { text: "Upload \"" + file.name + "\"" }),
+            h("label", { for: "thread-up-tick", style: "display:flex;gap:8px;font-weight:400;margin:6px 0" }, tick, h("span", { text: "This file has no sensitive data (" + SENSITIVE_KINDS + ")." })),
+            h("div", { class: "row", style: "gap:8px" }, go, h("button", { class: "ghost small", type: "button", onclick: function () { D.clear(attachWrap); } }, "Cancel")), say));
+          tick.focus();
+        });
+        input.click();
+      }
+      var pick = menuOf("Attach a file", "thread-attach-btn");
+      if (me.side === "attorney" && (me.switches || {}).file_uploads) pick.item("Upload a new file", uploadNew);
+      pick.item(me.side === "attorney" ? "Choose from Lawfecta Files" : "Choose from your profile documents", chooseFiles);
       var send = h("button", { class: "blue", type: "button" }, "Send");
       var req = newId();
       var sayEl = h("p", { class: "notice bad", role: "alert", id: "thread-say" });
@@ -6675,11 +6785,40 @@
         }).catch(function (e) { send.disabled = false; talkFail(e); });
       }
       send.addEventListener("click", function () { doSend(false); });
-      var draftBtn = (me.switches || {}).chat_assistant ? h("button", { class: "ghost small ai-btn", type: "button", onclick: function () {
-        api.post("/threads/assist", { thread_id: t.id, mode: "draft" }).then(gigOk).then(function (y) { ta.value = y.text; D.toast(app, "DELA drafted a reply. Check it, then Send."); }).catch(talkFail);
-      } }, "✦ Draft a reply") : null;
-      el.appendChild(h("div", { class: "card" }, ta, draftFlag, sayEl, h("div", { class: "row", style: "margin-top:6px;flex-wrap:wrap" }, noGig ? null : pick, draftBtn, h("span", { class: "grow" }), send), attachWrap,
-        noGig ? null : helperButton("agenda", "✦ Draft an agenda", function () { return { gig_id: t.gig_id }; }, { field: function (x) { return x.field === "compose" ? ta : null; }, toast: "Added to your message. Nothing is sent until you click Send." })));
+      // DELA's help in one menu (step 30): Draft a reply, Suggest next steps, Summarize conversation. Each shows that it is
+      // working, then a result to read. A drafted reply is a suggestion: "Use suggestion" or "Edit" puts it in the box.
+      var AI_TOOLS = [["draft", "Draft a reply", "Drafting your reply...", "Suggested draft"], ["next", "Suggest next steps", "Working out the next steps...", "Suggested next steps"], ["summarize", "Summarize conversation", "Summarizing the conversation...", "Summary of this conversation"]];
+      var aiMenu = (me.switches || {}).chat_assistant ? menuOf("✦ AI tools", "thread-ai-btn", "ghost ai-btn") : null;
+      function runTool(tool) {
+        aiOut.hidden = false; D.clear(aiOut);
+        aiOut.appendChild(h("p", { class: "muted", style: "margin:0", text: tool[2] }));
+        api.post("/threads/assist", { thread_id: t.id, mode: tool[0] }).then(gigOk).then(function (y) {
+          D.clear(aiOut);
+          var close = function () { aiOut.hidden = true; D.clear(aiOut); (aiMenu ? aiMenu.querySelector("summary") : ta).focus(); };
+          aiOut.appendChild(h("div", { class: "row", style: "align-items:center;gap:8px;margin-bottom:6px" }, h("b", { class: "grow", text: "✦ " + tool[3] }), D.aiLabel()));
+          aiOut.appendChild(h("div", { id: "thread-ai-text", style: "white-space:pre-wrap", text: y.text }));
+          if (tool[0] === "draft") {
+            aiOut.appendChild(h("p", { class: "small muted", style: "margin:6px 0", text: "A suggestion, not sent. Check it before you send it." }));
+            aiOut.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" },
+              h("button", { class: "blue small", type: "button", onclick: function () { ta.value = y.text; aiOut.hidden = true; D.clear(aiOut); ta.focus(); D.toast(app, "Added to your message. Nothing is sent until you click Send."); } }, "Use suggestion"),
+              h("button", { class: "ghost small", type: "button", onclick: function () { ta.value = y.text; aiOut.hidden = true; D.clear(aiOut); ta.focus(); ta.setSelectionRange(0, ta.value.length); } }, "Edit"),
+              h("button", { class: "ghost small", type: "button", onclick: close }, "Dismiss")));
+          } else {
+            aiOut.appendChild(h("p", { class: "small muted", style: "margin:6px 0", text: "For reading only. It does not change the gig, a proposal or an agreement." }));
+            aiOut.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: close }, "Dismiss")));
+          }
+        }).catch(function (e) {
+          // The reason stays next to the tool, in words that fit what happened
+          D.clear(aiOut);
+          aiOut.appendChild(h("p", { class: "notice bad", role: "alert", style: "margin:0 0 6px", text: e && e.reason ? talkErr(e) : D.errorText(e && e.message ? e.message : String(e)) }));
+          aiOut.appendChild(h("div", { class: "row", style: "gap:8px" }, h("button", { class: "ghost small", type: "button", onclick: function () { runTool(tool); } }, "Try again"), h("button", { class: "ghost small", type: "button", onclick: function () { aiOut.hidden = true; D.clear(aiOut); } }, "Dismiss")));
+        });
+      }
+      if (aiMenu) AI_TOOLS.forEach(function (tool) { aiMenu.item(tool[1], function () { runTool(tool); }); });
+      el.appendChild(h("div", { class: "card thread-compose" }, h("label", { for: "thread-message", style: "display:block;font-weight:700;margin:0 0 4px", text: "Message" }), ta,
+        h("p", { class: "small muted", style: "margin:4px 0 0", text: (me.switches || {}).client_details_allowed ? "No sensitive data, contact details or payment outside Lawfecta." : "No client information, contact details or payment outside Lawfecta." }),
+        draftFlag, sayEl, chips,
+        h("div", { class: "row", style: "margin-top:8px;flex-wrap:wrap;gap:8px;align-items:center" }, noGig ? null : pick, aiMenu, h("span", { class: "grow" }), send), attachWrap, aiOut));
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
 
@@ -10263,7 +10402,8 @@
     // The full client information notice shows on Ask DELA, the Library and the recorder (where people describe processes).
     // Not on Home, Files, Projects, Talent, Work, Earnings, Profile or Settings (Stacey 2026-11-05). Files and profile
     // documents keep their short reminder and tick box at the upload, and the client information check still runs on save.
-    var noNotice = ["home", "files", "projects", "talent", "work", "earnings", "profile", "ai", "help", "usage", "subscription"];
+    // The Inbox shows the notice itself, at the top of the list and of a conversation (step 30)
+    var noNotice = ["home", "files", "projects", "talent", "work", "earnings", "profile", "ai", "help", "usage", "subscription", "inbox"];
     if (me.notice && noNotice.indexOf(tab) < 0) main.appendChild(D.infoNotice(String(me.notice), "sensitive"));
     if (me.pause && me.pause.all) main.appendChild(h("div", { class: "notice bad", role: "alert", text: "DELA is paused for members right now. You can still use it because you are on the Lawfecta Team." }));
     if (me.on_hold) main.appendChild(h("div", { class: "notice bad", role: "alert", text: "Some actions are paused on your account. Contact the Lawfecta Team." }));

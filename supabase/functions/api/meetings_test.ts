@@ -65,6 +65,7 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
       off_platform: /venmo/i.test(user), kinds: /venmo/i.test(user) ? ["payment_outside"] : [], quote: /venmo/i.test(user) ? "you can just pay me on Venmo" : "" };
     else if (system.includes("suggesting next steps after a meeting")) out = { steps: [{ who: "freelancer", text: "Send a proposal" }, { who: "attorney", text: "Update the gig budget" }] };
     else if (system.includes("drafting a reply for the member")) return Response.json({ model: body.model, choices: [{ message: { content: "Thanks, Monday works for me." } }], usage: { prompt_tokens: 5, completion_tokens: 5 } });
+    else if (system.includes("suggesting what the member")) return Response.json({ model: body.model, choices: [{ message: { content: "- Answer the question about the start date\n- Book a call" } }], usage: { prompt_tokens: 5, completion_tokens: 5 } });
     else if (system.includes("summarizing a message thread")) return Response.json({ model: body.model, choices: [{ message: { content: "The attorney needs intake help; the freelancer can start Monday." } }], usage: { prompt_tokens: 5, completion_tokens: 5 } });
     return Response.json({ model: body.model, choices: [{ message: { content: typeof out === "string" ? out : JSON.stringify(out) } }], usage: { prompt_tokens: 5, completion_tokens: 5 } });
   }
@@ -497,6 +498,18 @@ Deno.test("messages: only the pair, held when clear, warned when unsure, edits, 
   await call("POST", "/threads/send", fl.token, { thread_id: thread, body: "Yes, Monday works.", request_id: "m7" });
   const inbox = (await call("GET", "/threads", att.token)).body.threads;
   assert(inbox.some((x: any) => x.id === thread && x.unread >= 1), "the inbox counts unread messages");
+  // Step 30: the Inbox preview is the newest message the member may see, and "Suggest next steps" is a third AI tool
+  const mine = inbox.find((x: any) => x.id === thread);
+  assertEquals([mine.last_text, mine.last_mine], ["Yes, Monday works.", false], "the attorney's inbox shows the freelancer's newest message: " + JSON.stringify(mine));
+  const flBox = (await call("GET", "/threads", fl.token)).body.threads.find((x: any) => x.id === thread);
+  assertEquals([flBox.last_text, flBox.last_mine], ["Yes, Monday works.", true], "the sender sees their own message marked as theirs");
+  await pool.query("insert into messages (thread_id, sender, side, body, status, request_id) select $1, $2, 'freelancer', 'Text me at 512-555-0100 instead', 'held', 'preview-held-test'", [thread, fl.id]);
+  const after = (await call("GET", "/threads", att.token)).body.threads.find((x: any) => x.id === thread);
+  assertEquals(after.last_text, "Yes, Monday works.", "a message that is being held never shows in the other person's preview");
+  await pool.query("delete from messages where thread_id = $1 and body = 'Text me at 512-555-0100 instead'", [thread]);
+  const nx = (await call("POST", "/threads/assist", att.token, { thread_id: thread, mode: "next" })).body;
+  assert(nx.ok && nx.text.includes("Book a call"), "Suggest next steps answers: " + JSON.stringify(nx));
+  assertEquals((await call("POST", "/threads/assist", att.token, { thread_id: thread, mode: "agenda" })).status, 400, "an unknown tool is refused");
 });
 
 Deno.test("report, block and the team's view", async () => {

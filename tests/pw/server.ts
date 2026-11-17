@@ -170,6 +170,7 @@ function fakeAi(u: string, opts: RequestInit): Response | null {
     if (system.includes("You are the DELA guide")) return dj({ text: "Start with the first one; it is quick to hand to a freelancer.", button: 1 });
     if (system.includes("Suggest a fair settlement")) return dj({ release_cents: 15000, why: "The draft arrived; the exhibit list is still open." });
     if (system.includes("draft a decision")) return dj({ summary: "Half of the final packet was delivered.", terms: ["Deliverables: petition draft; exhibit list"], release_cents: 15000, why: "One of two parts.", note: "Half to each of you." });
+    if (system.includes("suggesting what the member")) return Response.json({ model: body.model, choices: [{ message: { content: "- Answer the open question\n- Book a call" } }], usage: { prompt_tokens: 5, completion_tokens: 5 } });
     if (system.includes("drafting a reply for the member")) return Response.json({ model: body.model, choices: [{ message: { content: "Thanks, Monday works for me." } }], usage: { prompt_tokens: 20, completion_tokens: 10 } });
     const pb = playbookAnswer(system, JSON.stringify(body?.messages?.at(-1) ?? ""));
     if (pb) return Response.json({ model: body.model, choices: [{ message: { content: JSON.stringify(pb) } }], usage: { prompt_tokens: 200, completion_tokens: 80 } });

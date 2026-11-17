@@ -15,6 +15,7 @@ import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
 const LAWFECTA = "sk-lawfecta" + "H".repeat(40); // rules-ok: a made-up test key
 const prompts: string[] = [];
 let aiCalls = 0;
+let aiDown = false;
 const many = (n: number) => Array.from({ length: n }, (_, i) => ({ field: "task", problem: "Problem " + (i + 1) + ".", suggestion: "Better task " + (i + 1) }));
 const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
@@ -23,6 +24,7 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
   const system = String(body.messages[0].content), user = String(body.messages.at(-1).content);
   prompts.push(system + "\n" + user);
   aiCalls++;
+  if (aiDown) return new Response(JSON.stringify({ error: { message: "down" } }), { status: 500 });
   let out: unknown = {};
   if (system.includes("Check a gig draft")) out = { findings: [{ field: "salary", problem: "Pay is low.", suggestion: "Pay more" }, { field: "outcome", problem: "Done is vague. This gig is legally sound.", suggestion: "The intake summary is saved in the matter." }, ...many(9)] };
   else if (system.includes("Compare proposals")) {
@@ -128,6 +130,20 @@ Deno.test("Check the scope: only the gig's owner, code-checked findings, and the
   assert(r.note.includes("do not confirm legal correctness"));
   const after = (await one("select public, version from gigs where id = $1", [draftGig]));
   assertEquals(after, before, "nothing saved");
+});
+
+Deno.test("Fix: after a failed try, asking the same thing again works and is not called out of DELA actions", async () => {
+  const body = { helper: "check_scope", gig_id: draftGig, draft: { title: "Retry", task: "File the weekly report", outcome: "Filed", steps: ["File"], budget_min: 300, budget_max: 600 } };
+  const used = async () => Number((await one("select coalesce(sum(used), 0) u from quota_usage where feature_key = 'ai.runs' and person_id = $1", [att.id])).u);
+  const before = await used();
+  aiDown = true;
+  const bad = (await run(att, body)).body;
+  aiDown = false;
+  assertEquals([bad.ok, bad.reason], [false, "ai_failed"], JSON.stringify(bad));
+  assertEquals(await used(), before, "a failed try uses no DELA action");
+  const again = (await run(att, body)).body;
+  assertEquals(again.ok, true, "the same request works on the next try: " + JSON.stringify(again).slice(0, 200));
+  assertEquals(await used(), before + 1, "and uses one DELA action, once");
 });
 
 Deno.test("Compare these proposals: the same fields for every proposal, no ranking, names never sent to the AI", async () => {

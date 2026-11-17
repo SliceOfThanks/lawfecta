@@ -445,10 +445,18 @@ async function routeKey(ctx: Ctx, s: Session, route: Route, task: string, idem: 
     const provider = forceProvider ?? (await setting(ctx, "ai.default_provider", "openai") === "anthropic" ? "anthropic" : "openai");
     const plainKey = lawfectaKey(ctx, provider);
     if (!plainKey) return { error: "ai_not_set_up" } as const;
-    const r = await rpc<Record<string, any>>(ctx, "dela_quota_reserve", {
+    let r = await rpc<Record<string, any>>(ctx, "dela_quota_reserve", {
       p_person: s.person_id, p_side: s.side, p_feature: "ai.runs", p_amount: Math.max(route.credits, 1), p_idem: idem, p_ref: task,
     });
-    if (!r?.ok) return { error: r?.reason === "limit_reached" ? "no_credits_left" : (r?.reason ?? "no_credits_left") } as const;
+    // Fix (Stacey 2026-11-17, "the misleading AI-credit exhaustion message"): the same request asked again after a
+    // FAILED try found its old reservation, already released, and the member was told their DELA actions were used up.
+    // A released reservation counted nothing, so the new try gets a reservation of its own.
+    if (r && !r.ok && r.duplicate === true && r.status === "released") {
+      r = await rpc<Record<string, any>>(ctx, "dela_quota_reserve", {
+        p_person: s.person_id, p_side: s.side, p_feature: "ai.runs", p_amount: Math.max(route.credits, 1), p_idem: idem + ":again:" + crypto.randomUUID(), p_ref: task,
+      });
+    }
+    if (!r?.ok) return { error: r?.reason === "limit_reached" ? "no_credits_left" : (r?.reason ?? "ai_busy") } as const;
     return { provider, plainKey, reservation: r.status === "reserved" ? String(r.reservation_id) : null } as const;
   }
   try {

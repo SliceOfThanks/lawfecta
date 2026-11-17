@@ -247,6 +247,7 @@
       on_hold: "Some actions are paused on your account. Contact the Lawfecta Team.",
       ai_not_set_up: "DELA's AI is still being set up. Please try again later.",
       no_credits_left: "You have used this month's included DELA actions. Add your own AI key in AI settings, or upgrade your plan.",
+      ai_busy: "DELA's AI could not start this time. No DELA action was used. Please try again.",
       no_key: "You chose to use your own key, but no key is saved. Add one in AI settings, or switch back to Lawfecta's AI.",
       no_backup_credits: "Lawfecta's DELA actions cannot be used as a backup right now.",
       key_unreadable: "DELA could not read your saved key. Please add it again in AI settings.",
@@ -435,6 +436,7 @@ D.openTab = function (getUrl, onFail, opts) {
     // Dark colors (UX review Phase 4 part D): on when the person chose Dark (data-theme=dark), or when they chose Match my
     // device and the device is dark (data-theme=auto). Light (data-theme=light) never turns dark.
     D.darkCss(".dela{--bg:#11131b;--card:#1a1d28;--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c;--head:#2b303c;--brand:#c2416f;--pink:#2a1622;--pink-ink:#f19ab8;--soft:#222634;--shadow:none;--okbg:#17301f;--okline:#2b5a3b;--bluebg:#132233}.nl-side,.nl-bar,.nl-sheet{--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c}" +
+      ".inbox-kind.intro{background:#132233;color:#8cc4ff}.inbox-dot.on{background:#8cc4ff}" +
       ".notice{background:#132233;border-color:#2b4a66;color:#eceef3;box-shadow:none}.notice-i{border-color:#8cc4ff;color:#8cc4ff}.notice-x{color:#eceef3}.notice-back{color:#8cc4ff}" +
       ".problem{background:#3a1d1b;border-color:#6b2c27}.notice.bad{background:#3a1d1b;border-color:#e0685f}.notice.ok{background:#17301f;border-color:#4fa873}.talent-ver{color:#7fd3a3}" +
       ".msg.mine,.flow,.helpbox{border-color:#2b4a66}button.ai-btn{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}.badge.ai-label{background:#2a1f33;color:#e6cdf2;border-color:#9a6bb0}" +
@@ -566,6 +568,20 @@ D.openTab = function (getUrl, onFail, opts) {
     ".dela .card.mt-card{padding:0;overflow:hidden}.mt-head{background:var(--head);color:var(--ink);padding:14px 20px;align-items:center;gap:10px}.mt-head h2{font-size:18px}.mt-body{padding:16px 20px 18px}.dela.nl .mt-head{padding:12px 16px}.dela.nl .mt-body{padding:14px 16px}" +
     // Step 29 (Stacey's review of 2026-11-13): the Filters panel, two-line summaries, and the action cost on the DELA bar
     ".talent-filters{border-top:1px solid var(--line);margin-top:10px;padding-top:10px}.talent-filters[hidden]{display:none}.dela .talent-go2 .talent-clear{min-height:44px}" +
+    ".dela details.menu{position:relative;display:inline-block}.dela details.menu>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;min-height:40px}.dela details.menu>summary::-webkit-details-marker{display:none}" +
+    ".menu-panel{position:absolute;z-index:5;left:0;top:calc(100% + 4px);min-width:230px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(11,18,32,.14);padding:6px;display:flex;flex-direction:column;gap:2px}" +
+    ".thread-acts details.menu .menu-panel{left:auto;right:0}.dela .menu-item{background:transparent;border:0;color:var(--ink);text-align:left;justify-content:flex-start;padding:10px 12px;min-height:44px;border-radius:8px;font-weight:600;width:100%;white-space:normal}.dela .menu-item:hover,.dela .menu-item:focus-visible{background:var(--soft)}" +
+    ".ai-suggest{margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--pink)}.ai-suggest[hidden]{display:none}.thread-head h1{overflow-wrap:anywhere}" +
+    ".msg-day{display:flex;align-items:center;gap:10px;margin:10px 0;color:var(--muted);font-size:12px}.msg-day::before,.msg-day::after{content:'';flex:1 1 auto;border-top:1px solid var(--line)}" +
+    // Step 30: the Inbox list and the conversation view (Stacey's mockups of 2026-11-17)
+    ".inbox-search label{display:block;font-weight:700;margin:8px 0 4px}.inbox-tabs{margin:12px 0}.dela .inbox-tabs button{min-height:44px}" +
+    ".dela .inbox-row{display:flex;gap:12px;align-items:center;width:100%;text-align:left;background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin:8px 0;min-height:64px;font-weight:400;white-space:normal;cursor:pointer}" +
+    ".dela .inbox-row:hover{border-color:var(--pink-ink)}.dela .inbox-row:focus-visible{outline:3px solid #0d83dd;outline-offset:2px}.dela .inbox-row.unread{background:var(--pink)}" +
+    ".inbox-dot{flex:0 0 auto;width:10px;height:10px;border-radius:50%}.inbox-dot.on{background:#0d6fd6}.inbox-main{flex:1 1 auto;min-width:0;display:flex;flex-direction:column;gap:3px}" +
+    ".inbox-top{display:flex;gap:10px;align-items:baseline}.inbox-name{flex:1 1 auto;min-width:0;font-weight:600;font-size:16px;overflow-wrap:anywhere}.inbox-row.unread .inbox-name{font-weight:800}.inbox-when{flex:0 0 auto;white-space:nowrap}" +
+    ".inbox-about{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.inbox-kind{font-size:12px;font-weight:700;padding:2px 9px;border-radius:999px;background:var(--pink);color:var(--pink-ink);border:1px solid transparent}.inbox-row.unread .inbox-kind{background:var(--card)}" +
+    ".inbox-kind.intro{background:#eaf4ff;color:#0b4f8f}.inbox-title{font-size:14px;overflow-wrap:anywhere}.inbox-prev{display:-webkit-box;-webkit-line-clamp:1;-webkit-box-orient:vertical;overflow:hidden;color:var(--muted)}.inbox-row.unread .inbox-prev{color:var(--ink)}" +
+    ".inbox-count{flex:0 0 auto;min-width:24px;height:24px;line-height:24px;text-align:center;border-radius:999px;background:var(--brand);color:#fff;font-size:12px;font-weight:700;padding:0 7px}" +
     ".talent-help-ico{font-size:22px;color:var(--pink-ink);line-height:1;flex:0 0 auto}.talent-cost-i{display:inline-block;width:15px;height:15px;line-height:13px;margin-left:6px;border:1px solid currentColor;border-radius:50%;font-size:11px;font-weight:700;text-align:center;font-style:normal}" +
     ".dela #talent-filters-btn{display:inline-flex;align-items:center;gap:8px}#talent-filters-btn .ic{width:18px;height:18px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}" +
     ".talent-help-safe{display:flex;gap:8px;align-items:center}.talent-help-safe .ic{width:18px;height:18px;flex:0 0 auto;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}" +

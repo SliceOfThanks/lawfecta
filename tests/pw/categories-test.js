@@ -366,13 +366,14 @@ const SEARCH = "Search roles, specialties, tasks and software";
     t = await waitGone(p, "Nia Nurse");
     ok(t.includes("Fern Family") && t.includes("1 freelancer found") && await label(p, SEARCH).inputValue() === "" && await dela(p).getByLabel("Bookmarked only (freelancers you saved)").isChecked(), "Your bookmarks lists the bookmarked freelancers with the other filters cleared");
     // Stacey 2026-11-17: a "Bookmarks" tab next to "My bench" lists the bookmarked freelancers
-    await dela(p).getByRole("tab", { name: "Bookmarks", exact: true }).click();
+    await dela(p).getByRole("tab", { name: /^Bookmarks/ }).click();
     t = await waitFor(p, "Bookmarks (1)");
-    ok(t.includes("Fern Family") && !t.includes("Nia Nurse") && !t.includes("Find a freelancer") && await dela(p).locator("#talent-bookmarks .talent-card").count() === 1 && await dela(p).getByRole("tab", { name: "Bookmarks", exact: true }).getAttribute("aria-selected") === "true", "the Bookmarks tab lists only the bookmarked freelancers, on the same cards");
+    ok(t.includes("Fern Family") && !t.includes("Nia Nurse") && !t.includes("Find a freelancer") && await dela(p).locator("#talent-bookmarks .talent-card").count() === 1 && await dela(p).getByRole("tab", { name: /^Bookmarks/ }).getAttribute("aria-selected") === "true", "the Bookmarks tab lists only the bookmarked freelancers, on the same cards");
+    ok((await dela(p).getByRole("tab", { name: /^Bookmarks/ }).innerText()).trim() === "Bookmarks (1)", "the tab itself says how many are bookmarked");
     ok((await dela(p).locator("#talent-bookmarks .talent-card").getByRole("button").allInnerTexts()).join("|") === "View profile|Invite to gig", "a bookmark card has the same two buttons");
     // A bookmarked freelancer who is not taking work right now is still shown, as not available, and can be removed
     await sql(`update member_profiles set availability = 'unavailable' where side = 'freelancer' and person_id = (select id from people where bd_member_id = ${FL2}); select 1`);
-    await dela(p).getByRole("tab", { name: "Bookmarks", exact: true }).click();
+    await dela(p).getByRole("tab", { name: /^Bookmarks/ }).click();
     t = await waitFor(p, "Not available right now (1)");
     ok(t.includes("Bookmarks (0)") && await dela(p).locator("#bookmarks-away").getByText("Fern Family").count() === 1 && await dela(p).locator("#bookmarks-away").getByRole("button", { name: "Remove the bookmark for Fern Family" }).count() === 1, "an unavailable bookmark is listed under Not available right now, with Remove bookmark");
     await sql(`update member_profiles set availability = 'available' where side = 'freelancer' and person_id = (select id from people where bd_member_id = ${FL2}); select 1`);
