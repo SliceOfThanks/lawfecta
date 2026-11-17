@@ -6,6 +6,12 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Talent: "Bookmarks" tab, filter icon, the DELA bar from Stacey's mockup: ON THE SITE (2026-11-17)
+- Site: code_version 0866953, api function version 122, migrations through 0124, health "ok". GitHub Tests passed on that commit (run 44102886535). The website has been back since 2026-11-16.
+- A "Bookmarks" tab next to "Search" and "My bench" lists the bookmarked freelancers who are match-ready, on the same short cards (Stacey: "can we have them listed under a tab next to my bench"). Also reachable at ?tab=talent&view=bookmarks.
+- "Filters (N)" has a filter icon. Stacey's screenshot of 2026-11-17 showed the Filters button and its panel working on the live site.
+- The "Find a freelancer with DELA" bar follows her mockup: label "1 DELA action" with an "i" (or "Your own AI key"), shorter subtitle, example and privacy line with a shield. GET /helpers answers own_key (true or false). "Suggest filters" already ran on a member's own key.
+
 ## Step 29, the simpler Talent search: RELEASED (2026-11-13, while the website was down)
 - code_version 89abf70 (browser code only; api function 121 and migrations through 0123 unchanged), health "ok". GitHub Tests passed on that commit (run 43535140431). Nobody could look at it on the site at release time.
 - From Stacey's mockup and her 12 findings (docs/briefs/step-29-talent-simpler-results.md): one search box with the five filters behind "Filters (N)"; one row "Filters (N)", "Search freelancers", "Clear filters"; "Bookmarked only", "★ Your bookmarks" and "Apply filters" inside the panel; short cards (two lines of summary, three tags, "✓ Verified member", hours and time zone) with "View profile" and "Invite to gig"; the gig is chosen on the invitation step; the action cost shows on the DELA bar; no usage line under the results.
