@@ -114,6 +114,7 @@ Deno.test("the switch off: no helpers, and nothing runs", async () => {
   await pool.query("update feature_switches set state = 'everyone' where key = 'ai_helpers'");
   const h = (await call("GET", "/helpers", att.token)).body;
   assertEquals([h.on, h.credits.check_scope, h.credits.compare_proposals, h.credits.agreement_check], [true, 1, 2, 2], "the DELA actions come from settings");
+  assertEquals(h.own_key, false, "a member on Lawfecta's AI is not on their own key");
 });
 
 Deno.test("Check the scope: only the gig's owner, code-checked findings, and the gig is not changed", async () => {

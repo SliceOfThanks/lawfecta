@@ -157,6 +157,7 @@
   function daysWords(d) { return d % 7 === 0 ? plural(d / 7, "week") : plural(d, "day"); }
   function setName() { return NL() ? "Settings" : "AI settings"; }
   var ICONS = {
+    shield: [["path", "M12 3l7 3v5c0 4.5-3 8.3-7 9.5C8 19.3 5 15.5 5 11V6l7-3z"]],
     meet: [["path", "M4 6h16v14H4z"], ["path", "M4 10h16"], ["path", "M8 3v5"], ["path", "M16 3v5"], ["path", "M12 13v3l2 1"]],
     plan: [["path", "M3 6h18v12H3z"], ["path", "M3 10h18"], ["path", "M7 15h4"]],
     home: [["path", "M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"]],
@@ -5874,16 +5875,20 @@
       form.parentNode.insertBefore(help, results);
       var drawHelp = function (info) {
         D.clear(help);
-        var n = ((info || {}).credits || {}).find_fit || 1;
+        var n = ((info || {}).credits || {}).find_fit || 1, ownKey = !!(info || {}).own_key;
+        var costWhy = ownKey ? "\"Suggest filters\" runs on your own AI key, so it uses no DELA action." : "\"Suggest filters\" uses " + n + " DELA action" + (n === 1 ? "" : "s") + ". No DELA action is used if you connect your own AI key.";
         var tgl = h("button", { type: "button", class: "talent-help-btn", "aria-expanded": String(talentHelp.open), "aria-controls": "talent-help-panel" },
-          h("span", { class: "grow" }, h("b", { text: "✦ Find a freelancer with DELA" }), h("span", { class: "small muted", style: "display:block", text: "Describe your project and get suggested search filters." })),
-          h("span", { class: "small talent-cost", title: "Opening this and typing use nothing. Only \"Suggest filters\" uses an action.", text: "Uses " + n + " DELA action" + (n === 1 ? "" : "s") + " (none on your own AI key)" }),
-          h("span", { class: "talent-help-caret", "aria-hidden": "true", text: talentHelp.open ? "▲" : "▼" }));
+          h("span", { class: "talent-help-ico", "aria-hidden": "true", text: "✦" }),
+          h("span", { class: "grow" }, h("b", { text: "Find a freelancer with DELA" }), h("span", { class: "small muted", style: "display:block", text: "Use DELA to describe your project and get suggested search filters." })),
+          // Stacey's mockup of 2026-11-16: a short label. On the member's own AI key it says so, and no DELA action is used.
+          h("span", { class: "small talent-cost", id: "talent-help-cost", title: ownKey ? costWhy : costWhy + " Opening this and typing use nothing." },
+            ownKey ? "Your own AI key" : n + " DELA action" + (n === 1 ? "" : "s"), h("span", { class: "talent-cost-i", "aria-hidden": "true", text: "i" })),
+          h("span", { class: "talent-help-caret", "aria-hidden": "true", text: talentHelp.open ? "▴" : "▾" }));
         tgl.addEventListener("click", function () { talentHelp.open = !talentHelp.open; drawHelp(info); var b2 = help.querySelector(".talent-help-btn"); if (b2) b2.focus(); });
         help.appendChild(h("h2", { class: "talent-help-h" }, tgl));
         var panel = h("div", { id: "talent-help-panel", hidden: !talentHelp.open });
         help.appendChild(panel);
-        var task = h("textarea", { rows: 2, style: "width:100%", id: "talent-help-task", placeholder: "For example: I need a family law paralegal experienced in Clio to help prepare and e-file motions in Texas." });
+        var task = h("textarea", { rows: 2, style: "width:100%", id: "talent-help-task", placeholder: "For example: family law paralegal in Clio to help with e-filing motions." });
         task.value = talentHelp.text;
         task.addEventListener("input", function () { talentHelp.text = task.value; });
         panel.appendChild(h("label", { for: "talent-help-task", style: "font-weight:700;display:block;margin:8px 0 4px", text: "What do you need help with?" }));
@@ -5891,7 +5896,8 @@
         var out = h("div", { role: "status", id: "talent-help-out" });
         var btn = h("button", { class: "blue small ai-btn", type: "button" }, "✦ Suggest filters");
         panel.appendChild(h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;align-items:center;margin:8px 0" },
-          h("span", { class: "small muted grow", text: "Don't include client names, confidential case details, government IDs, account numbers, passwords or other sensitive information." }),
+          h("span", { class: "small muted grow talent-help-safe" }, icon("shield"), h("span", { text: "Don't enter confidential client information, personal identifiers, or passwords." })),
+          h("span", { class: "sr", text: costWhy }),
           btn));
         panel.appendChild(out);
         function drawChips() {

@@ -163,6 +163,13 @@ Deno.test("own OpenAI key: tested, sealed, used, never shown", async () => {
   const before = await creditsUsed(ann);
   const r = await call("POST", "/ai/chat/send", { session: ann, body: { content: "Draft a checklist for opening a new matter", request_id: "ann-1" } });
   assertEquals([r.body.ok, r.body.reply.source], [true, "own_key"]);
+  // The helpers information says whose key AI work runs on, as true or false only (Talent's "Your own AI key" label)
+  const helpersWas = (await pool.query("select state from feature_switches where key = 'ai_helpers'")).rows[0]?.state ?? "off";
+  await pool.query("update feature_switches set state = 'everyone' where key = 'ai_helpers'");
+  const hk = (await call("GET", "/helpers", { session: ann })).body;
+  await pool.query("update feature_switches set state = $1 where key = 'ai_helpers'", [helpersWas]);
+  assertEquals([hk.on, hk.own_key], [true, true], "on her own key, the helpers information says so: " + JSON.stringify(hk));
+  assert(!JSON.stringify(hk).includes(OA_GOOD) && !JSON.stringify(hk).includes("ciphertext"), "nothing about the key itself is returned");
   assert(!r.body.reply.content.includes("**"), "the answer arrives without Markdown symbols");
   assertEquals(lastCall("/chat/completions")!.key, OA_GOOD, "the member's own key was used");
   assertEquals((await creditsUsed(ann)).u, before.u, "no credits on the member's own key");

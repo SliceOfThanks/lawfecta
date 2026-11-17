@@ -5851,7 +5851,10 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /helpers": { const s = await memberSide(ctx); const on = !!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "ai_helpers", p_person: s.person_id });
         const credits: Record<string, number> = {};
         if (on) for (const k of HELPERS) credits[k] = Number(await setting(ctx, HELPER_CREDITS[k][0], String(HELPER_CREDITS[k][1]))) || HELPER_CREDITS[k][1];
-        return json(ctx, { ok: true, on, credits }); }
+        // Whether this member's AI work runs on their own key right now (true or false only; nothing about the key),
+        // so the screen can say "Your own AI key" where it would say what a helper uses
+        const route = on ? await rpc<Record<string, any>>(ctx, "dela_ai_route", { p_person: s.person_id, p_side: s.side, p_task: "chat", p_lawfecta_once: false }).catch(() => null) : null;
+        return json(ctx, { ok: true, on, credits, own_key: !!route?.ok && route.source !== "lawfecta" }); }
       case "GET /threads/file": return await messageFile(ctx);
       case "GET /prefs": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_prefs", { p_person: s.person_id })); }
       case "POST /prefs": { const s = await memberSide(ctx);

@@ -119,7 +119,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 
 14. Find: the pink bar "✦ Find a freelancer with DELA" under the "Find a freelancer" card.
     Do: click it.
-    Expect: the bar itself carries a small label "Uses 1 DELA action (none on your own AI key)". It opens and shows a box labelled "What do you need help with?", a grey sentence starting "Don't include client names" and a button "✦ Suggest filters".
+    Expect: the bar itself carries a small label "1 DELA action" with a small circled "i" (or "Your own AI key" if the account uses its own AI key). It opens and shows a box labelled "What do you need help with?", a grey sentence with a small shield, "Don't enter confidential client information, personal identifiers, or passwords.", and a button "✦ Suggest filters".
     Do: in the box type: I need a family law paralegal experienced in Clio to help prepare and e-file motions in Texas. Then click "✦ Suggest filters" and wait up to 60 seconds.
     Expect: a heading "DELA suggested filters" with pink chips under it (for example "Practice area: ...", "Software: Clio", "State: ..."), each with an ×, the sentence "Review or remove the suggestions below. Nothing is searched until you apply them.", and two buttons, "Apply filters & search" and "Edit filters manually". The heading above the results still reads "16 freelancers found": nothing was searched yet. Copy the chips into your report, word for word.
 
