@@ -6,6 +6,14 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Fixes from ChatGPT checks 4 and 5 and Stacey's screenshots: ON THE SITE (2026-11-17), nothing queued behind it
+- Site: code_version 4218799 (browser only), api function version 125, migrations through 0127, health "ok". GitHub Tests passed on that commit (run 44127355415).
+- The new menus ("More", "Attach a file", "AI tools", "⋯" on a notification) were class "menu", the class of the older account menu, and took its 220 pixel width, its box and its place. They are class "dmenu" now; a closed menu is the size of its button, and an open one is on top of the rows below. Earlier the same day two partial fixes treated the symptoms.
+- Unread rows are white (card color) in Notifications and the Inbox; unread is the blue dot and the bold title.
+- The panel's "N unread" is the member's true count, the same as the bell, and the bell follows what is done on the Notifications page.
+- ChatGPT check 5 came back 13 of 13: docs/tests/reports/2026-11-17-chatgpt-check-5-notifications.md. One job's history from the panel was not reached by it; a browser test covers it now.
+- Stacey 2026-11-17: do not ask her to test until a thing is released with nothing queued behind it (memory: test-only-when-released). Nobody has looked at this release logged in yet.
+
 ## Step 31, the notification panel and the Notifications page: ON THE SITE (2026-11-17)
 - Site: code_version f07d1b0, api function version 125, migrations through 0127, health "ok". GitHub Tests passed on that commit (run 44119308518). Two runs before it failed: a 290 pixel phone scrolled sideways in the old header (the bell is an icon there now), and a "Fix" commit had no test (the rule refused it; the test was added in the next commit, no exception was marked).
 - Brief with Claude's decisions: docs/briefs/step-31-notifications.md. Panel: "Notifications", "N unread", "Needs your action" (N pending, two shown), "Recent updates" (one per job), "View all notifications". Page (tab "notices", in the menu): filters with counts, search, time range, sort, tick boxes with "Mark as read" and "Dismiss", "Restore" under "Dismissed", one job's history. The word is "Notifications" everywhere.
