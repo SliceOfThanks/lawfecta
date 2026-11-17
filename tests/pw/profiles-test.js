@@ -381,6 +381,12 @@ async function waitFor(page, words, ms) {
     t = await waitFor(p, "Review updates, take action and manage your notifications.");
     ok(await dela(p).getByRole("dialog", { name: "Notifications" }).count() === 0 && /All \(\d+\)/.test(t) && /Needs action \(\d+\)/.test(t) && /Unread \(\d+\)/.test(t) && t.includes("Payments") && t.includes("Disputes"), "View all notifications opens the page, with its filters and counts");
     ok(await dela(p).locator(".notice-row", { hasText: "Refund completed" }).locator(".notice-tag").innerText() === "Payment" && await dela(p).locator(".notice-row", { hasText: "Your profile was checked" }).locator(".notice-tag").innerText() === "Update", "each row says what kind of notification it is");
+    // Stacey 2026-11-17: unread rows are white like the others (the blue dot and bold title mark them), and the "⋯"
+    // menu is a small outlined button with nothing drawn behind it while closed
+    const rowLook = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; const u = r.querySelector(".notice-row.unread"); const d = u.querySelector("details.menu");
+      return { bg: getComputedStyle(u).backgroundColor, dot: !!u.querySelector(".notice-dot.on"), weight: Number(getComputedStyle(u.querySelector(".notice-title")).fontWeight), panel: getComputedStyle(d.querySelector(".menu-panel")).display, sumBg: getComputedStyle(d.querySelector("summary")).backgroundColor, w: Math.round(d.getBoundingClientRect().width) }; });
+    ok(rowLook.bg === "rgb(255, 255, 255)" && rowLook.dot && rowLook.weight >= 700, "an unread notification is white, with a blue dot and a bold title: " + JSON.stringify(rowLook));
+    ok(rowLook.panel === "none" && rowLook.sumBg !== "rgb(139, 33, 70)" && rowLook.w <= 70, "the closed menu on a row is a small outlined button with no panel showing: " + JSON.stringify(rowLook));
     await dela(p).getByLabel("Search notifications", { exact: true }).fill("refund");
     await p.waitForTimeout(400);
     ok(await dela(p).locator(".notice-row").count() === 1, "search narrows the list");
