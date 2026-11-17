@@ -6781,7 +6781,7 @@
         var fresh = Date.now() - new Date(m.created_at).getTime() < r.edit_minutes * 60000;
         if (m.mine && m.status === "sent" && fresh) {
           var mm = menuOf("⋯", "msg-menu-" + m.id);
-          mm.querySelector("summary").setAttribute("aria-label", "More for your message at " + timeOf(m));
+          mm.querySelector("summary").setAttribute("aria-label", "Edit or remove what you sent at " + timeOf(m));
           mm.item("Edit message", function () {
             var nb = prompt("Edit your message (the earlier text is kept for the Lawfecta Team):", m.body);
             if (nb === null || !nb.trim()) return;
