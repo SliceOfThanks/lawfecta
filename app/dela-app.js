@@ -5720,6 +5720,26 @@
         live.textContent = x && x.ok ? n + (n === 1 ? " bookmark" : " bookmarks") : "Your bookmarks could not be read.";
         talentResults(results, x, mine, null, { chips: [], clear: load, resort: load, reload: load, more: function (b) { b.remove(); }, title: "Bookmarks (" + n + ")",
           empty: "Nobody yet. Open a freelancer's profile from Search and click \"☆ Bookmark\"." });
+        // Bookmarked, but not listed in Talent right now (not taking work, or their profile is not match-ready): say so
+        // and let the member remove the bookmark. No reason is given.
+        if (x && x.ok) api.get("/bookmarks?names=1").then(function (bk) {
+          var shown = {}; (x.people || []).forEach(function (p) { shown[p.person_id] = true; });
+          var away = (bk && bk.ok && bk.names || []).filter(function (p) { return !shown[p.person_id]; });
+          if (!away.length || !results.parentNode) return;
+          var card = h("div", { class: "card", id: "bookmarks-away" }, h("h2", { text: "Not available right now (" + away.length + ")" }),
+            h("p", { class: "small muted", text: "You bookmarked these freelancers, and they are not listed in Talent at the moment. They show above again when they are available." }));
+          away.forEach(function (p) {
+            var say = h("span", { class: "small muted", role: "status" });
+            var rm = h("button", { class: "ghost small", type: "button", "aria-label": "Remove the bookmark for " + p.name }, "Remove bookmark");
+            rm.addEventListener("click", function () {
+              rm.disabled = true;
+              api.post("/bookmarks/set", { person: p.person_id, on: false }).then(function (r) { if (r && r.ok) { load(); return; } rm.disabled = false; say.textContent = D.errorText((r || {}).reason); })
+                .catch(function (e) { rm.disabled = false; say.textContent = D.errorText(e.message); });
+            });
+            card.appendChild(h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0" }, h("b", { class: "grow", text: p.name }), say, rm));
+          });
+          results.appendChild(card);
+        }).catch(function () {});
       }).catch(function (e) { D.clear(results); results.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
     }
     load();

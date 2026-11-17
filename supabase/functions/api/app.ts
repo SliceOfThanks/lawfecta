@@ -2685,7 +2685,11 @@ async function bookmarksGet(ctx: Ctx) {
   if (!cfg.on) return json(ctx, { ok: true, on: false, people: [] });
   const rows = await bookmarkRows(ctx, s, cfg);
   if (!rows.ok) return json(ctx, { ok: false, on: true, reason: bookmarkWhy(rows), people: [] });
-  return json(ctx, { ok: true, on: true, people: await rpc(ctx, "dela_bookmark_people", { p_bd_ids: rows.data.map((x) => x.bd) }) });
+  const people = await rpc<string[]>(ctx, "dela_bookmark_people", { p_bd_ids: rows.data.map((x) => x.bd) });
+  // names=1 (the Bookmarks tab): also the names, so a bookmarked freelancer who is not listed in Talent right now can
+  // still be shown and removed. Only the member's own bookmarks, and names only.
+  const names = ctx.url.searchParams.get("names") === "1" ? await rpc(ctx, "dela_bookmark_names", { p_people: people ?? [] }) : undefined;
+  return json(ctx, { ok: true, on: true, people, names });
 }
 // Bookmark or remove the bookmark. Asking twice changes nothing the second time. The freelancer is not told.
 async function bookmarkSet(ctx: Ctx) {

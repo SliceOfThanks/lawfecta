@@ -444,6 +444,14 @@ Deno.test("bookmarks live in the website's own bookmark table: save, list, filte
   const only = ((await call("GET", "/talent?bookmarked=1", att.token)).body.people as Array<Record<string, any>>).map((p) => p.person_id);
   assertEquals(only, [fFamily.id]);
   assertEquals(ids(await call("GET", "/talent?bookmarked=1&category=p39", att.token)), [], "with a category that does not fit, nobody");
+  // The Bookmarks tab: names come with ?names=1, so a bookmarked freelancer who is not listed right now can still be shown
+  const named = (await call("GET", "/bookmarks?names=1", att.token)).body;
+  assertEquals([named.people, named.names.map((x: any) => x.person_id), typeof named.names[0].name, Object.keys(named.names[0]).sort()], [[fFamily.id], [fFamily.id], "string", ["name", "person_id"]], "names only: " + JSON.stringify(named.names));
+  assertEquals((await call("GET", "/bookmarks", att.token)).body.names, undefined, "without names=1 nothing more is returned");
+  await pool.query("update member_profiles set availability = 'unavailable' where person_id = $1 and side = 'freelancer'", [fFamily.id]);
+  assertEquals(ids(await call("GET", "/talent?bookmarked=1", att.token)), [], "an unavailable freelancer leaves the search");
+  assertEquals((await call("GET", "/bookmarks?names=1", att.token)).body.names.map((x: any) => x.person_id), [fFamily.id], "and is still named among the bookmarks, so the tab can show them as not available");
+  await pool.query("update member_profiles set availability = 'available' where person_id = $1 and side = 'freelancer'", [fFamily.id]);
   // The website refuses: said plainly, and "bookmarked only" shows nobody instead of everybody
   favs403 = true;
   assertEquals((await call("GET", "/bookmarks", att.token)).body.reason, "bookmarks_not_allowed");
