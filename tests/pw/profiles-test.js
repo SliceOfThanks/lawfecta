@@ -377,6 +377,7 @@ async function waitFor(page, words, ms) {
     await dela(p).locator("button.bell[aria-label^=Notifications]").first().click();
     t = await waitFor(p, "Recent updates");
     ok(t.includes("Needs your action") && t.includes("unread") && await dela(p).locator("#notices-updates > li").count() <= 6, "the panel has the two groups and at most six updates");
+    ok((await dela(p).locator("#notices-unread").innerText()).trim() === (await sql("select count(*)::int n from notifications n join people p on p.id = n.person_id where p.bd_member_id = 2501 and n.channel = 'in_app' and n.read_at is null"))[0].n + " unread", "the panel's unread number is the true count, the same as the bell");
     await dela(p).locator("#notices-view-all").click();
     t = await waitFor(p, "Review updates, take action and manage your notifications.");
     ok(await dela(p).getByRole("dialog", { name: "Notifications" }).count() === 0 && /All \(\d+\)/.test(t) && /Needs action \(\d+\)/.test(t) && /Unread \(\d+\)/.test(t) && t.includes("Payments") && t.includes("Disputes"), "View all notifications opens the page, with its filters and counts");
@@ -399,8 +400,12 @@ async function waitFor(page, words, ms) {
     ok(await dela(p).locator(".notice-row").count() === 1, "search narrows the list");
     await dela(p).getByLabel("Select: Refund completed").check();
     ok((await dela(p).locator("#notices-selected").innerText()) === "1 selected", "the page counts what is selected");
+    // Fix (ChatGPT check 5, 2026-11-17): the bell's number follows the page. Dismissing an unread one lowers it by one.
+    const bellNum = async () => Number((/(\d+) unread/.exec(await dela(p).locator("button.bell[aria-label^=Notifications]").first().getAttribute("aria-label")) || [0, 0])[1]);
+    const bellBefore = await bellNum();
     await dela(p).locator(".notices-bulk").getByRole("button", { name: "Dismiss", exact: true }).click();
     await waitFor(p, "No notification matches");
+    ok(bellBefore > 0 && await bellNum() === bellBefore - 1, "dismissing an unread notification lowers the number on the bell (" + bellBefore + " to " + (await bellNum()) + ")");
     await dela(p).getByLabel("Search notifications", { exact: true }).fill("");
     await p.waitForTimeout(400);
     await dela(p).getByRole("tab", { name: /^Dismissed/ }).click();

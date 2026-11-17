@@ -10897,6 +10897,16 @@
     (n.read ? Promise.resolve() : api.post("/notifications/read", { id: n.id })).then(done, done);
   }
   var noticeState = { f: "all", q: "", range: "all", sort: "new", gig: "", gigName: "", shown: 25 };
+  // The number on the bell follows what the member does on the Notifications page (ChatGPT check 5, 2026-11-17: the
+  // bell stayed at 70 after one was dismissed, and the panel said "50 unread" because it only counted what it had loaded)
+  function setUnread(n) {
+    me.unread = Math.max(0, n);
+    [].forEach.call(app.querySelectorAll("button.bell[aria-label^=Notifications]"), function (b) {
+      var old = b.querySelector("b"); if (old) old.remove();
+      if (me.unread > 0) b.appendChild(h("b", { text: String(me.unread) }));
+      b.setAttribute("aria-label", me.unread > 0 ? "Notifications, " + me.unread + " unread" : "Notifications");
+    });
+  }
   function openNoticesPage(filter, gig, gigName) {
     closeDrawer();
     noticeState.f = filter || "all"; noticeState.gig = gig || ""; noticeState.gigName = gigName || ""; noticeState.q = ""; noticeState.shown = 25;
@@ -10912,8 +10922,9 @@
     showDrawer(h("div", { class: "drawer", role: "dialog", "aria-label": "Notifications" }, nb));
     api.get("/notifications").then(function (r) {
       D.clear(nb);
-      var unread = r.items.filter(function (n) { return !n.read; }).length;
-      nb.appendChild(h("div", { class: "row", style: "padding-right:84px;align-items:center;gap:10px" }, h("h2", { class: "grow", style: "margin:0", text: "Notifications" }),
+      // The same number as the bell: every unread notification, not only the ones loaded into this panel
+      var unread = typeof me.unread === "number" ? me.unread : r.items.filter(function (n) { return !n.read; }).length;
+      nb.appendChild(h("div", { class: "row", style: "padding-right:84px;align-items:center;gap:10px;min-height:40px;margin-bottom:18px" }, h("h2", { class: "grow", style: "margin:0", text: "Notifications" }),
         h("span", { class: "badge " + (unread ? "held" : ""), id: "notices-unread", text: unread + " unread" })));
       var actBox = h("div", null, h("h3", { text: "Needs your action" }), h("p", { class: "muted small", text: "Checking your work..." }));
       nb.appendChild(actBox);
@@ -10994,7 +11005,9 @@
         if (!ids.length) return;
         api.post("/notifications/set", { ids: ids, action: action }).then(function (x) {
           if (!x || !x.ok) { D.toast(app, "That did not work. Please try again.", true); return; }
+          var unreadBefore = all.filter(function (n) { return !n.read; }).length;
           all.forEach(function (n) { if (ids.indexOf(n.id) < 0) return; if (action === "read") n.read = true; if (action === "unread") n.read = false; if (action === "dismiss") { n.dismissed = true; n.read = true; n.action = false; } if (action === "restore") n.dismissed = false; });
+          setUnread((me.unread || 0) + all.filter(function (n) { return !n.read; }).length - unreadBefore);
           sel = {}; paint(); D.toast(app, say);
         }).catch(function () { D.toast(app, "That did not work. Check your connection and try again.", true); });
       }
