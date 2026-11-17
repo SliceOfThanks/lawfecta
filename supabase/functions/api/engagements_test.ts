@@ -353,6 +353,9 @@ Deno.test("review: changes need a note and stop at the included rounds; acceptan
   assertEquals([s.status, s.score], ["with_attorney", 100], JSON.stringify(s));
   // Fix (AI review 0.9.1, tests 2): a delivery waiting for the attorney shows on their Home tile
   assertEquals((await call("GET", "/me", att.token)).body.me.home.pending_reviews, 1, "the attorney's Deliveries to review tile");
+  // AI review 0.10.0 (tests 6): the list says a delivery waits for the attorney's review, and says it to the attorney only
+  const needs = async (who: { token: string }) => (await call("GET", "/engagements", who.token)).body.engagements.find((e: any) => e.id === ag).needs_me;
+  assertEquals([await needs(att), await needs(fl)], ["review", null], "review: the attorney only");
   assertEquals((await call("POST", "/milestones/decide", att.token, { submission_id: s.id, accept: false, note: "And the county." })).body.revisions_left, 0);
   s = (await call("POST", "/milestones/submit", fl.token, { milestone_id: ms[0].id, statement: "Added the county too. Nothing is open.", request_id: "s3" })).body;
   assertEquals((await call("POST", "/milestones/decide", att.token, { submission_id: s.id, accept: false, note: "One more thing." })).body.reason, "revisions_used_up", "more rounds need a change order");
@@ -404,6 +407,9 @@ Deno.test("a declined card falls back to Stripe's Checkout page; the work waits"
   assert(String(acc.next_payment.url).startsWith("https://checkout.stripe.test/"));
   const m3 = await one("select status from milestones where id = $1", [ms[2].id]);
   assertEquals(m3.status, "awaiting_funding");
+  // AI review 0.10.0 (tests 6): the next milestone waits for payment, said to the attorney only
+  const needsPay = async (who: { token: string }) => (await call("GET", "/engagements", who.token)).body.engagements.find((e: any) => e.id === ag).needs_me;
+  assertEquals([await needsPay(att), await needsPay(fl)], ["pay", null], "pay: the attorney only");
   const v = (await call("GET", "/agreements/get?id=" + ag, att.token)).body;
   assert(v.payments.some((p: any) => p.status === "failed" && p.failure.includes("declined")));
   const pay = await one("select id from payments where milestone_id = $1 and status = 'requires_payment'", [ms[2].id]);

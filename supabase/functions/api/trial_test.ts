@@ -3,7 +3,7 @@
 // Run: deno test -A supabase/functions/api/trial_test.ts   (after tools/dbtest.sh)
 import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { handle, type Deps } from "./app.ts";
-import { sessionHash } from "./lib/crypto.ts";
+import { b64url, hmacHex, sessionHash } from "./lib/crypto.ts";
 import { decide, trialEmail, type TrialInvoice, type TrialSettings } from "./lib/trial/rules.ts";
 import type { Res, TrialBd, TrialCandidate, TrialPost } from "./lib/trial/bd.ts";
 import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
@@ -312,6 +312,44 @@ Deno.test("with BD's manual billing, a downgrade lists the subscription and invo
   assert(ev.manual.includes("cancel the Plus and Pro subscription and invoice #inv-25") && ev.manual.includes("user ID " + (U + 25)) && ev.manual.includes("Active"), ev.manual);
   assertEquals(bdState.get(U + 25)!.plan_id, 3);
   bdState.delete(U + 25);
+});
+
+// AI review 0.10.0 (tests 3): the sign-in backstop. A freelancer's sign-in queues one check for them, at most once a
+// day, only while the switch is on; an attorney's sign-in queues nothing.
+Deno.test("sign-in backstop: one check a day for a freelancer, none for an attorney or with the switch off", async () => {
+  const signIn = async (n: number, side: string) => {
+    const bd = 9_300_000 + RUN * 10 + n;
+    const have = (await pool.query("select id from people where bd_member_id = $1", [bd])).rows[0];
+    if (!have) {
+      const id = (await pool.query("insert into people (bd_member_id, display_name, email) values ($1, $2, $3) returning id", [bd, "Sign " + n, `si${n}@test.invalid`])).rows[0].id;
+      await pool.query("insert into access_list (bd_member_id, channel) values ($1, 'access')", [bd]);
+      await pool.query("select dela_ensure_side($1, $2, $3, 'staff_grant')", [id, side, side === "attorney" ? "att_pro" : "fl_free"]);
+    }
+    const now = Math.floor(NOW / 1000);
+    const body = b64url(new TextEncoder().encode(JSON.stringify({ aud: "dela", uid: bd, sub: "", name: "Sign " + n, email: `si${n}@test.invalid`, jti: crypto.randomUUID(), iat: now, exp: now + 300 })));
+    const res = await handle(new Request("http://localhost/functions/v1/api/bootstrap", {
+      method: "POST", headers: { origin: "https://lawfecta.com", "content-type": "application/json" }, body: JSON.stringify({ pass: body + "." + await hmacHex(ENV.BD_SHARED_SECRET, body), side }),
+    }), deps);
+    const out = await res.json();
+    assertEquals([out.route, out.me?.side], ["here", side], JSON.stringify(out).slice(0, 300));
+    return bd;
+  };
+  const queued = async (bd: number) => (await pool.query("select count(*)::int n from jobs where kind = 'trial_check_one' and (payload->>'bd_user_id')::bigint = $1", [bd])).rows[0].n;
+  await setTrialSwitch("off");
+  const fl = await signIn(1, "freelancer");
+  assertEquals(await queued(fl), 0, "switch off: nothing is queued");
+  await setTrialSwitch("everyone");
+  try {
+    await signIn(1, "freelancer");
+    assertEquals(await queued(fl), 1, "one check is queued for the freelancer");
+    await signIn(1, "freelancer");
+    assertEquals(await queued(fl), 1, "a second sign-in the same day queues no second check");
+    const att = await signIn(2, "attorney");
+    assertEquals(await queued(att), 0, "an attorney's sign-in queues nothing");
+  } finally {
+    await setTrialSwitch("off");
+    await pool.query("delete from jobs where kind = 'trial_check_one' and (payload->>'bd_user_id')::bigint between $1 and $2", [9_300_000 + RUN * 10, 9_300_000 + RUN * 10 + 9]);
+  }
 });
 
 Deno.test("one trial: DELA's allowances follow the BD plan only, whatever the old trials switch says", async () => {

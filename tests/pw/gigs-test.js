@@ -146,6 +146,8 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     await label(p, "What your price includes").fill("Conflict check only");
     await label(p, "What it leaves out").fill("Opening the file");
     await label(p, "Days to deliver").fill("5");
+    // AI review 0.10.0 (tests 8): the freelancer's own words already give the number, in business days
+    await label(p, "Schedule").fill("Within 5 business days");
     await click(p, "Send proposal (uses 1)");
     await waitFor(p, "used one of your proposals");
     ok(true, "a matched proposal uses one of the month's proposals");
@@ -171,6 +173,8 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     ok(t.includes("Opening the file"), "what each proposal leaves out is shown");
     // Fix (step 8b, retest R10): the schedule's duration is said once, never "10 days (10 days)"
     ok(!/(\d+) days? \(\1 days?\)/.test(t) && t.includes("from signing"), "each schedule says its duration once, from signing");
+    // AI review 0.10.0 (tests 8), for the fix in 40f1e5a: business days and calendar days are never mixed in one schedule
+    ok(t.includes("Within 5 business days, from signing") && !t.includes("5 days from signing)"), "a schedule in business days is not repeated in calendar days");
     await p.screenshot({ path: path.join(SHOTS, "gig-compare.png"), fullPage: true });
     await dela(p).locator("tr", { hasText: "Fran 2601" }).getByRole("button", { name: "Choose" }).click();
     await waitFor(p, "Filled", 10000);

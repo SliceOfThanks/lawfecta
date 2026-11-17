@@ -205,6 +205,8 @@ Deno.test("monthly dates: the signed dates govern, and every unit falls inside t
   const rows = (await pool.query(`select m.seq, m.due_date, m.planned_due_date, m.due_note,
       (select nullif(e->>'due_date', '')::date from agreement_versions v, jsonb_array_elements(v.body->'milestones') e where v.agreement_id = m.agreement_id and v.version = m.from_version and (e->>'seq')::int = m.seq) signed
     from milestones m where m.agreement_id = $1 order by m.seq`, [agA])).rows;
+  // AI review 0.10.0 (tests 7): the checks below only mean something when the agreement has signed dates
+  assert(rows.some((r: Record<string, unknown>) => !!r.signed), "at least one unit has a signed due date");
   for (const r of rows) {
     assert(iso(r.due_date) <= iso(pr.ends_on), "unit " + r.seq + " is due inside the month: " + JSON.stringify(r));
     const inside = r.signed && iso(r.signed) >= iso(pr.starts_on) && iso(r.signed) <= iso(pr.ends_on);

@@ -8,6 +8,9 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
+## AI review 0.10.0 (GitHub issue 11): checked again 2026-11-17
+Every code fix from that review is in. Four of its missing tests were added on 2026-11-17 (tests only, nothing on the site changed): a freelancer's sign-in queues one trial check a day and an attorney's queues none; the engagements list says "review" and "pay" to the attorney only; the monthly date test now requires signed dates; a schedule in business days is not repeated in calendar days. Still open from that review: a test that runs the queued sign-in check itself in Dry run and Live, a test of the one-time monthly date correction, and a test of the Inbox hint with the sensitive data switch on and off (waits until Stacey's Inbox check 4 is back).
+
 ## Planned for 2027, not built: sharing logins through password.link
 Evaluation and plan approved by Stacey 2026-11-13: docs/briefs/2027-login-handoff-password-link.md. Five questions in it wait for her answers before any build. No code, no setting.
 
