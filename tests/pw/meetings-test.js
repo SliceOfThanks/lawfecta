@@ -245,6 +245,10 @@ async function makeMember(bd, side, plan) {
     t = (await text(p)).toLowerCase();
     ok(await dela(p).locator("#inbox-preview").isVisible() && t.includes("quick preview") && t.includes("conversation context") && t.includes("recent messages") && await dela(p).locator("#inbox-preview .peek-bubble").count() >= 1 && !(await dela(p).locator("#inbox-preview").innerText()).includes("512-555-0199") && await gigRow.getAttribute("aria-current") === "true", "choosing a row shows its newest messages beside the list, without the held one");
     ok(await dela(p).locator("#inbox-list").isVisible() && await dela(p).getByLabel("Your message").count() === 0, "the preview does not open the conversation");
+    // Stacey 2026-11-17: no section of a page has a pink background. The chosen row is a neutral grey, and the small
+    // tags inside it keep their own colors so they stay easy to tell apart.
+    const selLook = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; const row = r.querySelector(".inbox-row.sel"); return { row: getComputedStyle(row).backgroundColor, tag: getComputedStyle(row.querySelector(".inbox-kind")).backgroundColor }; });
+    ok(selLook.row === "rgb(232, 236, 242)" && selLook.tag !== selLook.row, "the chosen row is grey, not pink, and its tag has a different color: " + JSON.stringify(selLook));
     await dela(p).locator("#inbox-open").click();
     t = await waitFor(p, "Can you start Monday?");
     ok(!t.includes("512-555-0199") && await dela(p).getByLabel("Your message").count() === 1, "Open conversation opens it, and the held message is not shown to the freelancer");

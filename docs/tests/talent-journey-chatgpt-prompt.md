@@ -91,7 +91,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 9. Find: the card titled "Find a freelancer".
    Expect: a box labelled "Search roles, specialties, tasks and software"; under it one row with a button "Filters (0)", a dark red button "Search freelancers" and the underlined words "Clear filters". No lists show yet.
    Do: click "Filters (0)".
-   Expect: five lists open under the row, "Category", "Practice area / Specialty", "Services / Tasks", "Software" and "State / Jurisdiction", none greyed out; under them a tick box "Bookmarked only (freelancers you saved)", a button "★ Your bookmarks" and a button "Apply filters". Leave the filters open for the next steps. Under the card a pink bar "✦ Find a freelancer with DELA". Under that the heading "16 freelancers found" and, on the same line at the right, "Sort by".
+   Expect: five lists open under the row, "Category", "Practice area / Specialty", "Services / Tasks", "Software" and "State / Jurisdiction", none greyed out; under them a tick box "Bookmarked only (freelancers you saved)", a button "★ Your bookmarks" and a button "Apply filters". Leave the filters open for the next steps. Under the card a grey bar "✦ Find a freelancer with DELA". Under that the heading "16 freelancers found" and, on the same line at the right, "Sort by".
 
 10. Find: the list "Software" in the "Find a freelancer" card. Leave the other lists alone.
     Do: choose "Clio".
@@ -117,7 +117,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
     Expect: "Category" shows "Paralegal Services", "Practice area / Specialty" shows "Family Law", "Services / Tasks" shows "Discovery Support". A chip "Paralegal Services › Family Law › Discovery Support". "2 freelancers found": DELA Test Freelancer and Maria Delgado.
     Do: click "Clear all".
 
-14. Find: the pink bar "✦ Find a freelancer with DELA" under the "Find a freelancer" card.
+14. Find: the grey bar "✦ Find a freelancer with DELA" under the "Find a freelancer" card.
     Do: click it.
     Expect: the bar itself carries a small label "1 DELA action" with a small circled "i" (or "Your own AI key" if the account uses its own AI key). It opens and shows a box labelled "What do you need help with?", a grey sentence with a small shield, "Don't enter confidential client information, personal identifiers, or passwords.", and a button "✦ Suggest filters".
     Do: in the box type: I need a family law paralegal experienced in Clio to help prepare and e-file motions in Texas. Then click "✦ Suggest filters" and wait up to 60 seconds.

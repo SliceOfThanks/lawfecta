@@ -429,13 +429,13 @@ D.openTab = function (getUrl, onFail, opts) {
 
   D.CSS = [
     ":host{all:initial}",
-    ".dela{--bg:#f5f5f7;--card:#ffffff;--ink:#0b1220;--muted:#475569;--line:#dce3ea;--head:#e2e4e8;--brand:#8b2146;--brand-ink:#ffffff;--blue:#0b6fbd;--pink:#fbeef2;--pink-ink:#8b2146;",
+    ".dela{--bg:#f5f5f7;--card:#ffffff;--ink:#0b1220;--muted:#475569;--line:#dce3ea;--head:#e2e4e8;--sel:#e8ecf2;--brand:#8b2146;--brand-ink:#ffffff;--blue:#0b6fbd;--pink:#fbeef2;--pink-ink:#8b2146;",
     "--navy:#1d2030;--hero:linear-gradient(135deg,#1d2030 0%,#3a1a33 45%,#8b2146 100%);--hot:linear-gradient(120deg,#3a1238 0%,#8b2146 55%,#d23b62 100%);",
     "--ok:#2f7a4f;--warn:#a46a00;--bad:#b3261e;--soft:#f1f2f6;--shadow:0 10px 30px rgba(139,33,70,.10);--okbg:#e3f3ea;--okline:#b6dcc5;--bluebg:#eef6fd;",
     "font-family:Inter,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:16px;line-height:1.5;color:var(--ink);background:var(--bg);min-height:60vh;padding:0 0 88px;box-sizing:border-box;-webkit-font-smoothing:antialiased}",
     // Dark colors (UX review Phase 4 part D): on when the person chose Dark (data-theme=dark), or when they chose Match my
     // device and the device is dark (data-theme=auto). Light (data-theme=light) never turns dark.
-    D.darkCss(".dela{--bg:#11131b;--card:#1a1d28;--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c;--head:#2b303c;--brand:#c2416f;--pink:#2a1622;--pink-ink:#f19ab8;--soft:#222634;--shadow:none;--okbg:#17301f;--okline:#2b5a3b;--bluebg:#132233}.nl-side,.nl-bar,.nl-sheet{--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c}" +
+    D.darkCss(".dela{--bg:#11131b;--card:#1a1d28;--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c;--head:#2b303c;--sel:#262b39;--brand:#c2416f;--pink:#2a1622;--pink-ink:#f19ab8;--soft:#222634;--shadow:none;--okbg:#17301f;--okline:#2b5a3b;--bluebg:#132233}.nl-side,.nl-bar,.nl-sheet{--ink:#eceef3;--muted:#a7adbb;--line:#2a2e3c}" +
       ".notice-tag{background:#132233;color:#8cc4ff}.notice-tag.action{background:#3a1d1b;color:#f5b3ad}.notice-tag.payments{background:#17301f;color:#7fd3a3}.notice-tag.disputes{background:#3a2f12;color:#f0c668}.notice-dot.on{background:#8cc4ff}" +
       "details.dmenu>summary.btn{color:#f19ab8}" +
       ".inbox-kind.intro{background:#132233;color:#8cc4ff}.inbox-dot.on{background:#8cc4ff}" +
@@ -464,7 +464,7 @@ D.openTab = function (getUrl, onFail, opts) {
     "p{margin:0 0 10px}.muted{color:var(--muted)}.small{font-size:14px}",
     ".eyebrow{font-size:13px;font-weight:800;letter-spacing:.08em;text-transform:uppercase}",
     ".guide{border-left:4px solid var(--brand)}.guide-head{align-items:center;gap:10px}.guide-head img{width:28px;height:28px;border-radius:50%}" +
-      ".guide-msg{background:var(--pink);color:var(--ink);border-radius:4px 14px 14px 14px;padding:10px 14px;margin:10px 0 8px;max-width:680px}.guide-msg p{margin:0}" +
+      ".guide-msg{background:var(--sel);color:var(--ink);border-radius:4px 14px 14px 14px;padding:10px 14px;margin:10px 0 8px;max-width:680px}.guide-msg p{margin:0}" +
       ".guide-choices{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 4px}.guide-me{margin:10px 0 0 auto;max-width:520px;background:var(--soft);border-radius:14px 4px 14px 14px;padding:8px 12px;width:fit-content}" +
       ".guide-ask{margin-top:10px;gap:8px}.guide-ask input{flex:1;min-width:0}.guide-alerts{margin-top:8px}.guide-alerts summary{cursor:pointer;font-weight:600}.guide-toggle{display:inline-flex;align-items:center;gap:6px}",
     ".card{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:20px;margin:14px 0;box-shadow:var(--shadow)}",
@@ -512,13 +512,13 @@ D.openTab = function (getUrl, onFail, opts) {
     "label{display:block;font-size:14px;font-weight:700;margin:10px 0 4px}",
     ".row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}",
     ".seg{display:inline-flex;border:1px solid rgba(255,255,255,.35);border-radius:999px;overflow:hidden}.seg button{border:0;border-radius:999px;background:transparent;color:#fff;font-weight:700;padding:6px 14px;font-size:14px}.seg button[aria-pressed=true]{background:#fff;color:var(--brand)}",
-    ".sub-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:12px 0}.sub-plan{border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;background:var(--card)}.sub-plan.current{border:2px solid var(--pink-ink);background:var(--pink)}.sub-mine{align-self:flex-start}.sub-price{font-size:17px;font-weight:700;margin:0}.sub-feats{margin:6px 0;padding-left:18px;font-size:13px;flex:1 1 auto}.sub-feats li{margin:2px 0}.sub-plan .btn{align-self:flex-start;margin-top:auto}.limit-banner{background:#fff7d6;border-color:#e6c84f;color:#3d2f00}.dela .sub-plan a.btn.ghost{background:transparent;color:var(--pink-ink);border:1px solid var(--pink-ink)}",
+    ".sub-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:12px;margin:12px 0}.sub-plan{border:1px solid var(--line);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:6px;background:var(--card)}.sub-plan.current{border:2px solid var(--pink-ink);background:var(--sel)}.sub-mine{align-self:flex-start}.sub-price{font-size:17px;font-weight:700;margin:0}.sub-feats{margin:6px 0;padding-left:18px;font-size:13px;flex:1 1 auto}.sub-feats li{margin:2px 0}.sub-plan .btn{align-self:flex-start;margin-top:auto}.limit-banner{background:#fff7d6;border-color:#e6c84f;color:#3d2f00}.dela .sub-plan a.btn.ghost{background:transparent;color:var(--pink-ink);border:1px solid var(--pink-ink)}",
     // Step 17: category search (suggestions under the box), the three lists, the category line on a result, the profile picker
     ".cat-search{position:relative}.cat-suggest{position:absolute;left:0;right:0;top:100%;z-index:30;margin:4px 0 0;padding:4px;list-style:none;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.12);max-height:320px;overflow:auto}" +
-    ".cat-suggest li{padding:8px 10px;border-radius:8px;cursor:pointer;line-height:1.35}.cat-suggest li:hover,.cat-suggest li[aria-selected=true]{background:var(--pink)}" +
+    ".cat-suggest li{padding:8px 10px;border-radius:8px;cursor:pointer;line-height:1.35}.cat-suggest li:hover,.cat-suggest li[aria-selected=true]{background:var(--sel)}" +
     ".talent-cats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:0 12px}.talent-cats select{width:100%}.cat-line{color:var(--pink-ink);font-weight:600;margin:2px 0}" +
     // Step 18: Talent results in the mockup layout (photo or initial, who, about, then the two actions with the gig to invite for)
-    ".talent-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:16px 0 8px}.talent-sort select{margin-left:6px}.talent-help{margin:12px 0;padding:12px 16px;border:1px solid var(--line);border-radius:12px;background:var(--pink)}.talent-help summary{cursor:pointer}" +
+    ".talent-head{display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:16px 0 8px}.talent-sort select{margin-left:6px}.talent-help{margin:12px 0;padding:12px 16px;border:1px solid var(--line);border-radius:12px;background:var(--sel)}.talent-help summary{cursor:pointer}" +
     ".talent-card{margin:8px 0}.talent-top{display:grid;grid-template-columns:96px minmax(180px,280px) 1fr;gap:18px;align-items:center}.talent-photo{width:96px;height:96px;border-radius:50%;object-fit:cover;display:flex;align-items:center;justify-content:center}" +
     ".talent-rule{border-left:1px solid var(--line);padding-left:18px;align-self:stretch}.talent-clear{background:transparent;border:0;color:var(--pink-ink);font-weight:700;text-decoration:underline;cursor:pointer;padding:6px 4px;min-height:0}" +
     ".talent-cats{align-items:end}.talent-go{margin:8px 0;display:flex}.talent-go button{width:100%;min-height:44px}.talent-gig-word{font-weight:700;white-space:nowrap}.talent-rev{white-space:nowrap}.talent-star{color:#b7791f}" +
@@ -539,8 +539,8 @@ D.openTab = function (getUrl, onFail, opts) {
     // Step 19: the Subscription page (four areas as tabs; on a phone the tabs become four equal buttons with short names)
     ".sub-tabs{display:flex;flex-wrap:wrap;gap:4px;margin:10px 0;border-bottom:1px solid var(--line)}.dela .sub-tabs button{background:transparent;border:0;border-bottom:3px solid transparent;border-radius:8px 8px 0 0;color:var(--muted);font-weight:700;padding:10px 14px;min-height:44px}" +
     ".dela .sub-tabs button[aria-selected=true]{color:var(--pink-ink);border-bottom-color:var(--pink-ink);background:var(--pink)}.dela .sub-tabs button:focus-visible,.dela .sub-cycle button:focus-visible{outline:2px solid var(--pink-ink);outline-offset:2px}.st-short{display:none}" +
-    ".sub-panel:focus-visible{outline:2px solid var(--pink-ink);outline-offset:4px}.sub-panel .card{margin:10px 0}.sub-hero{background:var(--pink)}.sub-eyebrow{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--pink-ink);margin:0 0 4px}" +
-    ".sub-group{font-size:15px;margin:16px 0 4px;padding:8px 10px;background:var(--pink);border-radius:8px}.sub-line{padding:10px 0;border-top:1px solid var(--line)}.sub-group + .sub-line{border-top:0}" +
+    ".sub-panel:focus-visible{outline:2px solid var(--pink-ink);outline-offset:4px}.sub-panel .card{margin:10px 0}.sub-hero{background:var(--sel)}.sub-eyebrow{font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--pink-ink);margin:0 0 4px}" +
+    ".sub-group{font-size:15px;margin:16px 0 4px;padding:8px 10px;background:var(--sel);border-radius:8px}.sub-line{padding:10px 0;border-top:1px solid var(--line)}.sub-group + .sub-line{border-top:0}" +
     ".sub-table{width:100%;border-collapse:collapse}.sub-table caption{text-align:left;padding:0 0 6px}.sub-table th,.sub-table td{text-align:left;padding:8px 10px;border-top:1px solid var(--line);vertical-align:top}.sub-table thead th{border-top:0;white-space:nowrap}.sub-table tbody th{font-weight:600}" +
     ".sub-cycle{display:inline-flex;border:1px solid var(--line);border-radius:999px;padding:3px;gap:2px;margin:6px 0}.dela .sub-cycle button{background:transparent;border:0;border-radius:999px;color:var(--ink);font-weight:700;padding:6px 16px;min-height:36px}.dela .sub-cycle button[aria-checked=true]{background:var(--brand);color:var(--brand-ink)}" +
     ".sub-here{font-weight:700;color:var(--pink-ink);margin:auto 0 0}.sub-plan button{align-self:flex-start;margin-top:auto;min-height:40px}" +
@@ -582,14 +582,14 @@ D.openTab = function (getUrl, onFail, opts) {
     ".dela details.dmenu{position:relative;display:inline-block}.dela details.dmenu>summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;min-height:40px}.dela details.dmenu>summary::-webkit-details-marker{display:none}" +
     ".menu-panel{position:absolute;z-index:5;left:0;top:calc(100% + 4px);min-width:230px;background:var(--card);border:1px solid var(--line);border-radius:12px;box-shadow:0 8px 24px rgba(11,18,32,.14);padding:6px;display:flex;flex-direction:column;gap:2px}" +
     ".thread-acts details.dmenu .menu-panel{left:auto;right:0}.dela .menu-item{background:transparent;border:0;color:var(--ink);text-align:left;justify-content:flex-start;padding:10px 12px;min-height:44px;border-radius:8px;font-weight:600;width:100%;white-space:normal}.dela .menu-item:hover,.dela .menu-item:focus-visible{background:var(--soft)}" +
-    ".ai-suggest{margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--pink)}.ai-suggest[hidden]{display:none}.thread-head h1{overflow-wrap:anywhere}" +
+    ".ai-suggest{margin-top:10px;border:1px solid var(--line);border-radius:12px;padding:12px 14px;background:var(--sel)}.ai-suggest[hidden]{display:none}.thread-head h1{overflow-wrap:anywhere}" +
     ".msg-day{display:flex;align-items:center;gap:10px;margin:10px 0;color:var(--muted);font-size:12px}.msg-day::before,.msg-day::after{content:'';flex:1 1 auto;border-top:1px solid var(--line)}" +
     // Stacey 2026-11-17: no pink behind unread rows. Every row is the card color (white in the light look, the dark card
     // in the dark look); unread is the blue dot and the bold title.
     // Step 32 (Stacey's second Inbox and messages mockups, 2026-11-17): a list with dividers and a quick preview; chat
     // bubbles as wide as their words; a compact removed line; the thread panel beside the conversation
     ".inbox-cols.two{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:16px;align-items:start}.inbox-cols.two>.card{margin:12px 0}.inbox-list{list-style:none;margin:0;padding:0}.inbox-list>li+li{border-top:1px solid var(--line)}" +
-    ".dela .inbox-list .inbox-row{border:0;border-radius:8px;margin:2px 0;padding:12px 8px;background:transparent}.dela .inbox-list .inbox-row:hover{background:var(--soft)}.dela .inbox-list .inbox-row.sel{background:var(--pink)}.inbox-chev{flex:0 0 auto;color:var(--muted);font-size:22px;line-height:1}" +
+    ".dela .inbox-list .inbox-row{border:0;border-radius:8px;margin:2px 0;padding:12px 8px;background:transparent}.dela .inbox-list .inbox-row:hover{background:var(--soft)}.dela .inbox-list .inbox-row.sel{background:var(--sel)}.inbox-chev{flex:0 0 auto;color:var(--muted);font-size:22px;line-height:1}" +
     ".inbox-context{padding:10px 12px;border-radius:10px;margin:12px 0}.inbox-label{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin:0 0 4px}.peek-msg{margin:8px 0}" +
     ".peek-bubble{display:inline-block;max-width:100%;padding:8px 12px;border-radius:12px;background:var(--bluebg);border:1px solid var(--line);overflow-wrap:anywhere;white-space:pre-wrap}" +
     ".dela .privacy-link{display:inline-flex;gap:6px;align-items:center;font-weight:700;min-height:44px}.notice-i.small-i{width:16px;height:16px;line-height:12px;font-size:11px;border-width:1.5px;margin:0}" +
@@ -599,6 +599,9 @@ D.openTab = function (getUrl, onFail, opts) {
     ".msg-wrap.picked .msg{outline:2px solid #0d83dd;outline-offset:2px}.msg-meta{margin-top:3px}.msg-acts{margin-top:2px}.dela .msg-acts details.dmenu>summary.btn{min-height:32px;padding:2px 10px}.msg-wrap.mine .menu-panel{left:auto;right:0}" +
     ".msg-gone{text-align:center;margin:10px 0}.msg-gone-pill{display:inline-block;font-size:13px;color:var(--muted);background:var(--soft);border:1px solid var(--line);border-radius:999px;padding:3px 12px}.dela .msg-file{margin-top:6px}" +
     ".thread-orig{background:var(--bluebg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:10px 0}.thread-empty{text-align:center;padding:28px 12px}.thread-reply-box{border-top:1px solid var(--line);padding-top:12px;margin-top:10px}" +
+    // Stacey 2026-11-17: no section of a page has a pink background (menus keep theirs). A chosen row, a highlighted
+    // panel and DELA's suggestion boxes are a neutral grey (--sel), so the small colored tags inside them (pink "Gig",
+    // blue "Introduction") stay easy to tell apart. Small things keep their own color: tags, chips, badges, initials.
     // Step 31: the Notifications page and the panel from the bell (Stacey's mockup of 2026-11-17)
     ".notices-tabs{margin:12px 0}.dela .notices-tabs button{min-height:44px}.notice-row{display:flex;gap:12px;align-items:center;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:10px 14px;margin:8px 0;min-height:60px}" +
     ".notice-row input[type=checkbox]{width:18px;height:18px;flex:0 0 auto}.notice-dot{flex:0 0 auto;width:10px;height:10px;border-radius:50%}.notice-dot.on{background:#0d6fd6}" +
@@ -659,10 +662,10 @@ D.openTab = function (getUrl, onFail, opts) {
     ".badge.bad{background:#fdeceb;color:#9b1c14;border-color:#f3b8b3}",
     ".steps{list-style:none;margin:14px 0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}",
     ".steps li{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--soft);font-size:14px;font-weight:700;line-height:1.35}",
-    ".steps li.done{background:var(--okbg);border-color:var(--okline)}.steps li.now{background:var(--pink);border:2px solid var(--brand)}",
+    ".steps li.done{background:var(--okbg);border-color:var(--okline)}.steps li.now{background:var(--sel);border:2px solid var(--brand)}",
     ".steps i{display:inline-flex;width:28px;height:28px;border-radius:50%;align-items:center;justify-content:center;font-style:normal;font-weight:800;background:var(--card);border:1px solid var(--line);margin-bottom:6px}",
     ".steps li.done i{background:var(--ok);color:#fff;border-color:var(--ok)}.steps li.now i{background:var(--brand);color:#fff;border-color:var(--brand)}",
-    ".flow{border:1px solid #b9d9f4;background:var(--bluebg);border-radius:16px;padding:16px;margin-top:14px}.flow.strong{border:2px solid var(--brand);background:var(--pink)}",
+    ".flow{border:1px solid #b9d9f4;background:var(--bluebg);border-radius:16px;padding:16px;margin-top:14px}.flow.strong{border:2px solid var(--brand);background:var(--sel)}",
     ".bar{height:10px;border-radius:999px;background:var(--line);overflow:hidden;margin:8px 0}.bar span{display:block;height:100%;background:var(--blue);transition:width .4s}",
     ".tick{width:24px;height:24px;border-radius:50%;flex:none;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:800;border:1px solid var(--line);background:var(--card)}",
     ".tick.ok{background:var(--ok);border-color:var(--ok);color:#fff}.tick.now{background:var(--blue);border-color:var(--blue);color:#fff}.tick.bad{background:var(--bad);border-color:var(--bad);color:#fff}",
@@ -686,7 +689,7 @@ D.openTab = function (getUrl, onFail, opts) {
     ".gd-box ul{margin:6px 0 0;padding-left:18px;display:grid;gap:6px;line-height:1.5}",
     // AI chat and files (Step 2a)
     ".chat{display:flex;flex-direction:column;gap:10px;margin:12px 0}.msg{max-width:min(720px,92%);padding:12px 14px;border-radius:18px;white-space:pre-wrap;overflow-wrap:anywhere;line-height:1.55}" +
-    ".msg.user{align-self:flex-end;background:var(--pink);color:var(--ink);border-bottom-right-radius:6px}.msg.assistant{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-bottom-left-radius:6px}" +
+    ".msg.user{align-self:flex-end;background:var(--bluebg);color:var(--ink);border-bottom-right-radius:6px}.msg.assistant{align-self:flex-start;background:var(--card);border:1px solid var(--line);border-bottom-left-radius:6px}" +
     ".msg .src{display:block;margin-top:6px;font-size:12px;color:var(--muted);white-space:normal}" +
     ".composer{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:12px;box-shadow:var(--shadow)}@media (min-width:900px){.composer{position:sticky;bottom:12px}}" +
     ".composer textarea{width:100%;min-height:84px;resize:vertical;display:block}" +
