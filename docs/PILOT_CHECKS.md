@@ -101,6 +101,9 @@ How to read the "State" column:
 | 34.1 | Earnings and spend on Home match what a member really received or paid (step 34) | One real payout and one real payment, compared with Stripe and the Earnings page | Not yet | The automated tests compare the cards with the payment records in test mode. |
 | 34.2 | "Things to consider delegating" shows suggestions from a real approved document (step 34) | An attorney approves a document, runs "Automate or delegate", and sees the suggestion on Home | Not yet | Home only lists what DELA already suggested; it creates nothing. |
 | 34.3 | Home at 200% text size and 400% zoom, and with a screen reader (step 34) | Cards reflow without cut-off buttons; rings are read as words | Not yet | Needs a person. |
+| 35.1 | A real agency team member sees no "My agency" switch and no agency money (step 35) | A member of an agency opens Home and the Agency page | Not yet | The automated tests check it with two team members and a manager. The test agency on the site has no team member. |
+| 35.2 | "Ask to set hours" reaches a real team member (step 35) | The member gets the notification and the email, sets hours, and the owner sees them | Not yet | Needs an agency with a second person. |
+| 35.3 | "Paid by clients" and "Paid out to agency" against one real agency job (step 35) | Both amounts match Stripe after a paid milestone | Not yet | |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.

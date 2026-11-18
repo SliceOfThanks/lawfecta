@@ -6,6 +6,14 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 35, the agency Home: ON THE SITE (2026-11-17), nothing queued behind it
+- Site: code_version cc453f0, api function version 129, migrations through 0131, health "ok". GitHub Tests passed on that commit at the first run (run 44204153854: 61 Home checks; api 431).
+- Stacey's four answers, in her words, and Claude's six decisions: docs/briefs/step-35-agency-home.md. Owner only (dela_agency_owned); "My work" / "My agency" switch on Home (homeLay.view, a third layout side 'agency'); widgets revenue, team, clients, teamattention plus the shared gigs and proposals; "Paid by clients" and "Paid out to agency" apart, never called profit; no capacity percentage anywhere.
+- Weekly hours: org_members.weekly_hours, set by the member or the owner (POST /agency/hours), asked for by the owner at most once in 24 hours (POST /agency/hours/ask, a notification and an email). The box is on the Agency page: the "Team" card for the owner, "Agencies you work with" for a member.
+- A team member, a manager included, gets "agency_owner_only" with no figures from GET /home/agency and from the agency layout (tested).
+- The site has one agency: "Roe Test Agency LLC", owned by the test freelancer, with no other team member. ChatGPT check 7: docs/tests/agency-home-chatgpt-prompt.md, ready copies "7-agency-home-chatgpt-prompt-READY". Not run yet.
+- Open point for Stacey: the Agency page still offers the role "Manager" (step 7d). She said there is no manager role. Removing it needs her word.
+
 ## Step 34, Home widgets by role with real numbers only: ON THE SITE (2026-11-17) for attorneys and freelancers; the agency Home is NOT built
 - Site: code_version 1e6de60, api function version 128, migrations through 0130, health "ok". GitHub Tests passed on that commit at the first run (run 44200557674: 48 Home checks, 138 workspace checks; api 429).
 - Source: Stacey's handoff "Lawfecta Role-Based Dashboard Widgets" and four mockups. Brief with what was built, Claude's six decisions, what waits and why, and four questions for the agency Home: docs/briefs/step-34-role-dashboards.md.
