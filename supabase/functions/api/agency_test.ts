@@ -114,6 +114,41 @@ Deno.test("the team: invites by email, seats, roles; only owners and managers ma
   assertEquals((await call("POST", "/agency/invite/answer", newbie.token, { id: i3.id, accept: true })).body.status, "accepted");
 });
 
+// Step 35: weekly hours. The member or the owner sets them; the owner can ask once a day; nobody else sees or sets them
+Deno.test("weekly hours: set by the member or the owner, asked for by the owner, shown to those two only", async () => {
+  const row = async (who: M, id: string) => (await call("GET", "/agency", who.token)).body.agency.team.find((t: any) => t.person_id === id);
+  assertEquals((await row(owner, mem.id)).weekly_hours, null, "not set is not zero");
+  // The owner asks the member: one notice, then not again the same day
+  assertEquals((await call("POST", "/agency/hours/ask", mgr.token, { person_id: mem.id })).body.reason, "agency_owner_only", "only the owner asks");
+  assertEquals((await call("POST", "/agency/hours/ask", owner.token, { person_id: owner.id })).body.reason, "not_found", "not oneself");
+  assertEquals((await call("POST", "/agency/hours/ask", owner.token, { person_id: extra.id })).body.reason, "not_found", "not someone outside the team");
+  assertEquals((await call("POST", "/agency/hours/ask", owner.token, { person_id: mem.id })).body.ok, true);
+  const note = await one("select title, body, link from notifications where person_id = $1 and channel = 'in_app' and title like '%asks for your weekly hours' order by created_at desc limit 1", [mem.id]);
+  assert(note && note.body.includes("Hours a week") && note.link === "/dela?tab=agency", JSON.stringify(note));
+  assertEquals((await call("POST", "/agency/hours/ask", owner.token, { person_id: mem.id })).body.reason, "asked_recently");
+  assertEquals((await one("select count(*)::int n from notifications where person_id = $1 and channel = 'in_app' and title like '%asks for your weekly hours'", [mem.id])).n, 1, "one notice");
+  // The member sets their own; the list of agencies they belong to shows it back
+  assertEquals((await call("POST", "/agency/hours", mem.token, { person_id: mem.id, hours: 81 })).body.reason, "bad_hours");
+  assertEquals((await call("POST", "/agency/hours", mem.token, { person_id: mem.id, hours: 2.5 })).body.reason, "bad_hours");
+  assertEquals((await call("POST", "/agency/hours", mem.token, { person_id: mem.id, hours: 12, org_id: org })).body.weekly_hours, 12);
+  assertEquals((await call("GET", "/agency", mem.token)).body.memberships.find((x: any) => x.org_id === org).weekly_hours, 12);
+  assertEquals((await row(owner, mem.id)).weekly_hours, 12, "the owner sees it");
+  assertEquals((await call("POST", "/agency/hours/ask", owner.token, { person_id: mem.id })).body.reason, "hours_already_set");
+  // Another member cannot set it; the owner can, and can clear it
+  assertEquals((await call("POST", "/agency/hours", mgr.token, { person_id: mem.id, hours: 40 })).body.reason, "agency_owner_only");
+  assertEquals((await call("POST", "/agency/hours", extra.token, { person_id: mem.id, hours: 40 })).body.reason, "agency_owner_only");
+  assertEquals((await call("POST", "/agency/hours", att.token, { person_id: mem.id, hours: 40 })).status, 403);
+  assertEquals((await call("POST", "/agency/hours", owner.token, { person_id: mem.id, hours: 20 })).body.weekly_hours, 20);
+  assertEquals((await call("POST", "/agency/hours", owner.token, { person_id: owner.id, hours: 30 })).body.weekly_hours, 30);
+  const h = (await call("GET", "/home/agency", owner.token)).body;
+  const by = Object.fromEntries(h.team.map((t: any) => [t.person_id, t.weekly_hours]));
+  assertEquals([by[owner.id], by[mem.id], by[mgr.id]], [30, 20, null], "the agency Home has the hours, and null where none are set");
+  // A manager is a team member here: no agency figures
+  assertEquals((await call("GET", "/home/agency", mgr.token)).body.reason, "agency_owner_only");
+  assertEquals((await call("POST", "/agency/hours", owner.token, { person_id: mem.id, hours: null })).body.weekly_hours, null);
+  assertEquals((await row(owner, mem.id)).weekly_hours, null);
+});
+
 Deno.test("agency proposals: Who will do this work is required, verified people only, one per agency, the shared allowance", async () => {
   const opts = (await call("GET", "/proposals/options?gig=" + gig, mgr.token)).body;
   assertEquals(opts.agencies.length, 1);

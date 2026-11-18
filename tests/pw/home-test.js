@@ -52,14 +52,14 @@ const inPanel = (page) => inShadow(page, (root) => [...root.querySelectorAll("#c
 const offered = (page) => inShadow(page, (root) => [...root.querySelectorAll("#cz-avail li")].map((x) => x.getAttribute("data-id")));
 const grip = (page, id) => inShadow(page, (root, i) => { const r = root.querySelector('#cz-mine li[data-id="' + i + '"] .cz-grip').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, id);
 const focusName = (page) => inShadow(page, (root) => root.activeElement ? (root.activeElement.getAttribute("aria-label") || root.activeElement.id || root.activeElement.textContent) : "");
-const ATT = 5201, FL = 5202;
+const ATT = 5201, FL = 5202, OWN = 5203, MEM = 5204;
 const person = (bd) => `(select id from people where bd_member_id = ${bd})`;
 async function makeMember(bd, side, plan, name) {
   await sql(`insert into people (bd_member_id, display_name, email) values (${bd}, '${name}', '${bd}@test.invalid') on conflict (bd_member_id) do nothing;
     select dela_ensure_side(${person(bd)}, '${side}', '${plan}', 'staff_grant');
     insert into access_list (bd_member_id, channel) select ${bd}, 'access' where not exists (select 1 from access_list where bd_member_id = ${bd} and channel = 'access' and revoked_at is null); select 1`);
 }
-const KEYS = "'onboarding_widget', 'flex_gigs', 'engagements', 'profiles', 'talent_search', 'playbook_library', 'ai_generation', 'gig_chat', 'meetings', 'bench', 'reviews', 'automate_delegate', 'new_layout'";
+const KEYS = "'onboarding_widget', 'flex_gigs', 'engagements', 'profiles', 'talent_search', 'playbook_library', 'ai_generation', 'gig_chat', 'meetings', 'bench', 'reviews', 'automate_delegate', 'agency_team', 'new_layout'";
 const DEF_ATT = ["attention", "delegating", "projects", "talent", "spend", "ask"];
 
 (async () => {
@@ -228,13 +228,76 @@ const DEF_ATT = ["attention", "delegating", "projects", "talent", "spend", "ask"
     ok(rows.length === 1 && rows[0].side === "freelancer" && rows[0].widgets.includes("availability") && !rows[0].widgets.includes("growth"), "the freelancer's layout is saved for the freelancer side only");
     await s.ctx.close();
 
+    // ---------- Step 35: the agency's owner has "My work" and "My agency"; a team member has only their own Home ----------
+    await makeMember(OWN, "freelancer", "fl_business", "Olive Owner");
+    await makeMember(MEM, "freelancer", "fl_plus", "Mel Member");
+    await sql(`delete from home_layouts where person_id in (${person(OWN)}, ${person(MEM)}); select 1`);
+    const agencyOrg = (await sql(`select dela_agency_ensure(${person(OWN)}) id`))[0].id;
+    await sql(`insert into org_members (org_id, person_id, member_role) values ('${agencyOrg}', ${person(MEM)}, 'member') on conflict (org_id, person_id) do update set status = 'active', weekly_hours = null, hours_asked_at = null, hours_set_at = null;
+      update org_members set weekly_hours = null, hours_asked_at = null where org_id = '${agencyOrg}'; select 1`);
+    ok((await sql(`select dela_agency_owned(${person(OWN)}) is not null o, dela_agency_owned(${person(MEM)}) is null m`))[0].o === true, "setup: Olive owns an active agency with one team member");
+    s = await open(browser, OWN, "&tab=home", 1280, 900);
+    p = s.page;
+    await p.evaluate(() => { try { localStorage.removeItem("dela.home.agency"); } catch (e) { /* no storage */ } });
+    await p.reload();
+    t = await waitFor(p, "Your Workspace");
+    await dela(p).getByRole("button", { name: "My agency", exact: true }).waitFor({ timeout: 8000 });
+    ok(await dela(p).getByRole("button", { name: "My work", exact: true }).getAttribute("aria-pressed") === "true", "owner: the My work / My agency switch shows, on My work first");
+    await dela(p).getByRole("button", { name: "My agency", exact: true }).click();
+    t = await waitFor(p, "Agency Workspace");
+    t = await waitFor(p, "Neither amount is profit");
+    home = await onHome(p);
+    ok(JSON.stringify(home) === JSON.stringify(["revenue", "team", "gigs", "proposals", "clients", "teamattention"]), "My agency: its own six widgets: " + home.join(", "));
+    ok(t.includes("Paid by clients") && t.includes("Paid out to agency") && !/\bprofit\b(?! *:)/i.test(t.replace("Neither amount is profit", "")), "revenue: the two amounts apart, and neither is called profit");
+    ok(t.includes("Recommended agency gigs") && t.includes("Proposals and sales pipeline") && t.includes("Active client projects") && t.includes("Needs team attention") && t.includes("No team actions pending."), "My agency: each widget has its name and an honest empty state");
+    ok(t.includes("Hours not set") && !/\d+% *(used|utilization|capacity)/i.test(t), "team: with no hours entered the card says so and shows no percentage");
+    await dela(p).getByRole("button", { name: /^Ask .* to set their hours$/ }).first().click();
+    await waitFor(p, "was asked to set their weekly hours.");
+    ok((await sql(`select count(*)::int n from notifications where person_id = ${person(MEM)} and title like '%asks for your weekly hours'`))[0].n >= 1 && (await text(p)).includes("Asked today"), "team: the owner's button sends the member one notice and reads Asked today");
+    await p.screenshot({ path: path.join(SHOTS, "home-agency.png"), fullPage: true });
+    // Its own layout
+    await dela(p).getByRole("button", { name: "Customize dashboard" }).click();
+    await waitFor(p, "Your dashboard (6)");
+    ok(!(await offered(p)).includes("earnings") && (await offered(p)).includes("quick"), "My agency has its own library");
+    await dela(p).getByRole("button", { name: "Remove Needs team attention" }).click();
+    await waitFor(p, "Your dashboard (5)");
+    await dela(p).getByRole("button", { name: "Save changes" }).click();
+    await waitFor(p, "Your Home layout is saved.");
+    const agRows = await sql(`select side, widgets from home_layouts where person_id = ${person(OWN)}`);
+    ok(agRows.length === 1 && agRows[0].side === "agency" && !agRows[0].widgets.includes("teamattention"), "the agency layout is saved apart from My work: " + JSON.stringify(agRows));
+    await dela(p).getByRole("button", { name: "My work", exact: true }).click();
+    t = await waitFor(p, "Your Workspace");
+    t = await waitFor(p, "Earnings and payments");
+    home = await onHome(p);
+    ok(JSON.stringify(home) === JSON.stringify(["gigs", "earnings", "proposals", "projects", "attention", "growth"]) && !t.includes("Paid by clients"), "My work is the owner's own freelancer Home, unchanged");
+    // The Agency page: the owner sets a member's hours
+    await p.goto(`${BASE}/page/DELA-App?uid=${OWN}&plan=&tab=agency`);
+    await waitFor(p, "Team");
+    // The owner's own row is first in the team list; the member's is second
+    await dela(p).getByLabel(/^Hours a week for /).nth(1).fill("15");
+    await dela(p).getByRole("button", { name: /^Save hours a week for / }).nth(1).click();
+    await waitFor(p, "Saved: 15 hours a week.");
+    ok((await sql(`select weekly_hours from org_members where org_id = '${agencyOrg}' and person_id = ${person(MEM)}`))[0].weekly_hours === 15, "Agency page: the owner saves a member's hours a week");
+    await s.ctx.close();
+    // The team member: their own Home only
+    s = await open(browser, MEM, "&tab=home", 1280, 900);
+    p = s.page;
+    t = await waitFor(p, "Your Workspace");
+    t = await waitFor(p, "Earnings and payments");
+    ok(await inShadow(p, (root) => { const v = root.querySelector("#home-view"); return !v || v.hidden; }) && !t.includes("My agency") && !t.includes("Paid by clients") && !t.includes("Agency revenue"), "team member: no My agency switch and no agency figures on Home");
+    await p.evaluate(() => { try { localStorage.setItem("dela.home.agency", "1"); } catch (e) { /* no storage */ } });
+    await p.reload();
+    t = await waitFor(p, "Earnings and payments");
+    ok(!t.includes("Agency Workspace") && !t.includes("Paid by clients"), "team member: asking for the agency view by hand falls back to their own Home");
+    await s.ctx.close();
+
     console.log("\nALL " + passed + " HOME CHECKS PASSED");
   } catch (e) {
     console.error(e.message || e);
     process.exitCode = 1;
   } finally {
     if (before) for (const k of Object.keys(before)) await sql(`update feature_switches set state = '${before[k]}' where key = '${k}'`).catch(() => null);
-    await sql(`delete from home_layouts where person_id in (${person(ATT)}, ${person(FL)}); select 1`).catch(() => null);
+    await sql(`delete from home_layouts where person_id in (${person(ATT)}, ${person(FL)}, ${person(OWN)}, ${person(MEM)}); select 1`).catch(() => null);
     await browser.close();
   }
 })();

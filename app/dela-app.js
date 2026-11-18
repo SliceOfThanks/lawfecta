@@ -797,16 +797,18 @@
   // ---------- Step 33: a Home each member arranges (docs/briefs/step-33-home-dashboard.md) ----------
   // Which widgets a side may have, and the member's own order, come from the server (GET /home/layout). A layout only
   // says what Home shows: removing a widget hides it here and changes nothing anywhere else in DELA.
-  var HOME_DEFAULTS = { attorney: ["attention", "delegating", "projects", "talent", "spend", "ask"], freelancer: ["gigs", "earnings", "proposals", "projects", "attention", "growth"] };
+  var HOME_DEFAULTS = { attorney: ["attention", "delegating", "projects", "talent", "spend", "ask"], freelancer: ["gigs", "earnings", "proposals", "projects", "attention", "growth"], agency: ["revenue", "team", "gigs", "proposals", "clients", "teamattention"] };
+  // The agency owner's second Home. "freelancer" or "attorney" is the member's own side; "agency" is My agency.
+  function homeViewKey() { return me.side === "freelancer" && homeLay.view === "agency" ? "agency" : me.side; }
   var HOME_W = {
     attention: { title: "Needs your attention", about: "Signatures, payments, reviews and approvals that wait on you.", icon: "alert", draw: wAttention },
     delegating: { title: "Things to consider delegating", about: "DELA's suggestions from your approved documents, for you to review.", icon: "swap", draw: wDelegating },
     projects: { title: "My projects and milestones", flTitle: "Active work and deadlines", about: "Your active work, gigs and next milestones.", flAbout: "Your active jobs and what is due next.", icon: "projects", draw: wProjects },
     talent: { title: "Proposals and talent matches", about: "New proposals on your gigs and freelancers who fit.", icon: "talent", draw: wTalent },
     spend: { title: "Delegation spend and results", about: "What you paid in a period and what was completed.", icon: "bars", draw: wSpend },
-    gigs: { title: "Recommended gigs", about: "Open gigs that match your profile, with the reason.", icon: "work", draw: wGigs },
+    gigs: { title: "Recommended gigs", agTitle: "Recommended agency gigs", about: "Open gigs that match your profile, with the reason.", icon: "work", draw: wGigs },
     earnings: { title: "Earnings and payments", about: "What you received, what waits for payout, and what is contracted.", icon: "earnings", draw: wEarnings },
-    proposals: { title: "My proposals and invitations", about: "Invitations to answer and where each proposal stands.", icon: "send", draw: wProposals },
+    proposals: { title: "My proposals and invitations", agTitle: "Proposals and sales pipeline", about: "Invitations to answer and where each proposal stands.", icon: "send", draw: wProposals },
     growth: { title: "Business growth insights", about: "How your proposals are doing, and one next step.", icon: "bars", draw: wGrowth },
     ask: { title: "Ask DELA", about: "Ask a question and see DELA's next step for you.", icon: "ask", draw: wAsk },
     usage: { title: "Monthly usage", about: "Your DELA actions, storage and plan limits.", flAbout: "What your plan gives you this month.", icon: "bars", draw: wUsage },
@@ -818,19 +820,24 @@
     workflow: { title: "Workflow improvement opportunities", about: "Documents whose self-check found something to fix.", icon: "library", draw: wWorkflow },
     availability: { title: "My availability", about: "Whether you can take new work, and when you last confirmed it.", icon: "meet", draw: wAvailability },
     reviews: { title: "Client reviews", about: "Reviews from clients after completed jobs.", icon: "check", draw: wReviews },
-    quick: { title: "Quick actions", about: "Shortcuts to the pages you use most.", icon: "bolt", draw: wQuick }
+    quick: { title: "Quick actions", about: "Shortcuts to the pages you use most.", icon: "bolt", draw: wQuick },
+    revenue: { title: "Agency revenue and payments", about: "What clients paid for the agency's jobs and what was paid out to the agency.", icon: "earnings", draw: wAgRevenue },
+    team: { title: "Team workload and availability", about: "Who is on a job, and the weekly hours each person gave.", icon: "agency", draw: wAgTeam },
+    clients: { title: "Active client projects", about: "The agency's jobs, their next milestone and who works on them.", icon: "projects", draw: wAgClients },
+    teamattention: { title: "Needs team attention", about: "Overdue work, jobs with nobody named, and what waits on you.", icon: "alert", draw: wAgAttention }
   };
-  function homeTitle(id) { var w = HOME_W[id]; return me.side === "freelancer" && w.flTitle ? w.flTitle : w.title; }
+  function homeTitle(id) { var w = HOME_W[id]; return homeViewKey() === "agency" && w.agTitle ? w.agTitle : me.side === "freelancer" && w.flTitle ? w.flTitle : w.title; }
   function homeAbout(id) { var w = HOME_W[id]; return me.side === "freelancer" && w.flAbout ? w.flAbout : w.about; }
-  var homeLay = { data: null, draft: null, grid: null, nodes: {}, forSide: null };
+  var homeLay = { data: null, draft: null, grid: null, nodes: {}, forSide: null, view: "work", owner: false };
   // A widget whose feature is switched off for this member is not offered and not drawn
-  function homeDefault() { return (homeLay.data && homeLay.data["default"]) || HOME_DEFAULTS[me.side] || []; }
+  function homeDefault() { return (homeLay.data && homeLay.data["default"]) || HOME_DEFAULTS[homeViewKey()] || []; }
   function homeAllowed() {
     var sw = me.switches || {}, att = me.side === "attorney";
     var off = { ask: !(sw.onboarding_widget || sw.ai_generation), messages: !sw.gig_chat, meetings: !sw.meetings, bench: !sw.bench || !att, standing: !sw.engagements,
       delegating: !att || !sw.automate_delegate || !sw.playbook_library, workflow: !att || !sw.playbook_library, talent: !att || !sw.flex_gigs, spend: !att || !sw.engagements,
+      revenue: homeViewKey() !== "agency", team: homeViewKey() !== "agency", clients: homeViewKey() !== "agency", teamattention: homeViewKey() !== "agency",
       gigs: att || !sw.flex_gigs, proposals: att || !sw.flex_gigs, growth: att || !sw.flex_gigs, earnings: att || !sw.engagements, availability: att || !sw.profiles, reviews: att || !sw.reviews };
-    return ((homeLay.data && homeLay.data.all) || HOME_DEFAULTS[me.side] || []).filter(function (id) { return HOME_W[id] && !off[id]; });
+    return ((homeLay.data && homeLay.data.all) || HOME_DEFAULTS[homeViewKey()] || []).filter(function (id) { return HOME_W[id] && !off[id]; });
   }
   function homeFoot(c, label, go) { c.appendChild(h("div", { class: "hw-foot" }, h("button", { class: "linkish", type: "button", onclick: go }, label + " →"))); return c; }
   // A widget that loads its own data: it says so while it loads, and says so with "Try again" when it cannot
@@ -1222,10 +1229,114 @@
     if (list.length) c.appendChild(h("div", { class: "hw-quick", style: "margin-top:10px" }, list.map(function (a) { return h("button", { class: "ghost small", type: "button", onclick: a[1] }, a[0]); })));
     return c;
   }
+  // ---------- Step 35: the agency Home, for the agency's owner (docs/briefs/step-35-agency-home.md). Every figure is
+  // from the payment, payout and team records; where something is not recorded the card says so. ----------
+  var homeAgencyP = {};
+  function homeAgency(period) {
+    var k = period || "month";
+    if (!homeAgencyP[k]) { homeAgencyP[k] = api.get("/home/agency?period=" + k); homeAgencyP[k].then(function () { setTimeout(function () { delete homeAgencyP[k]; }, 5000); }, function () { delete homeAgencyP[k]; }); }
+    return homeAgencyP[k];
+  }
+  function agencyHours(n) { return n === null || n === undefined ? "Hours not set" : n + (n === 1 ? " hour a week" : " hours a week"); }
+  function wAgRevenue() {
+    var c = hcard("Agency revenue and payments"), inner = h("div", { class: "hgap" }), state = { period: "month" };
+    c.appendChild(inner);
+    function load() {
+      homeLoad(c, inner, function () { return homeAgency(state.period); }, function (r) {
+        var words = PERIOD_WORDS[r.period] || "this month";
+        inner.appendChild(h("div", { class: "hstats two" },
+          h("div", { class: "hstat", style: "cursor:default" }, h("b", { text: homeMoney(r.paid_by_clients_cents) }), h("span", { text: "Paid by clients" }), h("small", { text: words + ", for the agency's jobs, without platform fees" })),
+          h("div", { class: "hstat", style: "cursor:default" }, h("b", { text: homeMoney(r.paid_out_agency_cents) }), h("span", { text: "Paid out to agency" }), h("small", { text: words + ", sent to your payout account" }))));
+        if (r.waiting_agency_cents) inner.appendChild(homeLine("Waiting for payout to the agency", homeMoney(r.waiting_agency_cents), "Earned, not paid out yet"));
+        var months = r.months || [], top = months.reduce(function (a, m) { return Math.max(a, m.clients_cents || 0, m.agency_cents || 0); }, 0);
+        if (top > 0) {
+          inner.appendChild(h("p", { class: "hmini", text: "The last six months" }));
+          inner.appendChild(h("ul", { class: "hw-bars pair" }, months.map(function (m) {
+            return h("li", null, h("span", { class: "hw-bar", "aria-hidden": "true" }, h("i", { style: "height:" + Math.max(2, Math.round((m.clients_cents || 0) * 100 / top)) + "%" }), h("i", { class: "b", style: "height:" + Math.max(2, Math.round((m.agency_cents || 0) * 100 / top)) + "%" })),
+              h("span", { class: "hw-bar-l", text: m.label }), h("span", { class: "sr", text: ": paid by clients " + homeMoney(m.clients_cents) + ", paid out to agency " + homeMoney(m.agency_cents) }));
+          })));
+          inner.appendChild(h("p", { class: "hsub hw-key" }, h("i", { "aria-hidden": "true" }), " Paid by clients ", h("i", { class: "b", "aria-hidden": "true" }), " Paid out to agency"));
+        } else inner.appendChild(h("p", { class: "hsub", text: "No payments recorded for the agency's jobs yet." }));
+        inner.appendChild(h("p", { class: "hsub", text: "Neither amount is profit: team members' shares and your own costs are not taken off here." }));
+      });
+    }
+    homePeriod(c, state, load);
+    load();
+    return homeFoot(c, "View earnings", function () { goTab("earnings"); });
+  }
+  function wAgTeam() {
+    var c = hcard("Team workload and availability"), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    function load() {
+      homeLoad(c, inner, function () { return homeAgency("month"); }, function (r) {
+        var team = r.team || [], busy = team.filter(function (t) { return t.jobs > 0; }).length, noHours = team.filter(function (t) { return t.weekly_hours === null || t.weekly_hours === undefined; });
+        inner.appendChild(h("div", { class: "hstats" },
+          h("div", { class: "hstat", style: "cursor:default" }, h("b", { text: String(team.length) }), h("span", { text: team.length === 1 ? "Team member" : "Team members" })),
+          h("div", { class: "hstat", style: "cursor:default" }, h("b", { text: String(busy) }), h("span", { text: "On a job now" })),
+          h("div", { class: "hstat", style: "cursor:default" }, h("b", { text: String(team.length - busy) }), h("span", { text: "On no job now" }))));
+        inner.appendChild(h("ul", { class: "hw-team" }, team.map(function (t) {
+          var missing = t.weekly_hours === null || t.weekly_hours === undefined, asked = t.hours_asked_at && Date.now() - Date.parse(t.hours_asked_at) < 86400000, ask = null;
+          if (missing && !t.owner) {
+            ask = h("button", { class: "ghost small", type: "button", disabled: !!asked, "aria-label": asked ? t.name + " was asked today to set their hours" : "Ask " + t.name + " to set their hours" }, asked ? "Asked today" : "Ask to set hours");
+            ask.addEventListener("click", function () {
+              ask.disabled = true;
+              api.post("/agency/hours/ask", { person_id: t.person_id }).then(function (x) {
+                if (!x || !x.ok) { if (x && x.reason === "asked_recently") { ask.textContent = "Asked today"; return; } throw x || {}; }
+                ask.textContent = "Asked today"; ask.setAttribute("aria-label", t.name + " was asked today to set their hours");
+                D.toast(app, t.name + " was asked to set their weekly hours.");
+              }).catch(function () { ask.disabled = false; D.toast(app, "The reminder was not sent. Try again.", true); });
+            });
+          }
+          return h("li", null, h("span", { class: "grow" }, h("b", { text: t.name + (t.owner ? " (you)" : "") }), h("span", { class: "hsub", style: "display:block", text: (t.jobs === 1 ? "On 1 job" : "On " + (t.jobs || 0) + " jobs") + " · " + agencyHours(t.weekly_hours) })), ask);
+        })));
+        if (!noHours.length && team.length) inner.appendChild(h("p", { class: "hsub", text: "Hours a week across the team: " + team.reduce(function (a, t) { return a + t.weekly_hours; }, 0) + ". DELA does not record hours worked, so it shows no share of capacity used." }));
+        else if (noHours.length) inner.appendChild(h("p", { class: "hsub", text: noHours.length + " of " + team.length + (noHours.length === 1 ? " has" : " have") + " no weekly hours yet, so no team total is shown." }));
+      });
+    }
+    load();
+    return homeFoot(c, "Manage team", function () { goTab("agency"); });
+  }
+  function agencyJobRow(j, act) {
+    var bits = [j.client, j.accepted + " of " + j.milestones + (j.milestones === 1 ? " milestone accepted" : " milestones accepted")];
+    if (j.next_title) bits.push("Next: " + j.next_title + (j.due_date ? ", due " + shortDate(j.due_date) : ""));
+    bits.push((j.people || []).length ? "Team: " + j.people.join(", ") : "No team member named");
+    return hrow({ title: j.title, sub: bits.filter(Boolean).join(" · ") + ".", badge: j.overdue ? "Overdue" : null, tone: "bad", act: act || "Open job", go: function () { openGig(j.gig_id); } });
+  }
+  function wAgClients() {
+    var c = hcard("Active client projects"), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    homeLoad(c, inner, function () { return homeAgency("month"); }, function (r) {
+      var jobs = r.jobs || [];
+      if (!jobs.length) { inner.appendChild(h("p", { class: "hsub", text: "No active client projects. A job shows here once its agreement is signed by both sides." })); return; }
+      inner.appendChild(h("div", { class: "hl" }, jobs.slice(0, 3).map(function (j) { return agencyJobRow(j); })));
+      if (jobs.length > 3) inner.appendChild(h("p", { class: "hsub", text: "Showing 3 of " + jobs.length + ", the nearest due date first." }));
+    });
+    return homeFoot(c, "View all work", function () { tab = "work"; gigs.id = null; draw(); });
+  }
+  function wAgAttention(hm) {
+    var c = hcard("Needs team attention"), inner = h("div", { class: "hgap" });
+    c.appendChild(inner);
+    homeLoad(c, inner, function () { return homeAgency("month"); }, function (r) {
+      var jobs = r.jobs || [], rows = [];
+      jobs.filter(function (j) { return j.overdue; }).forEach(function (j) { rows.push(hrow({ title: "Overdue: " + j.title, sub: "Milestone " + j.next_seq + (j.next_title ? ", " + j.next_title : "") + ", was due " + shortDate(j.due_date) + ". " + ((j.people || []).length ? "Team: " + j.people.join(", ") + "." : "No team member named."), badge: "Overdue", tone: "bad", act: "Review", go: function () { openGig(j.gig_id); } })); });
+      jobs.filter(function (j) { return !(j.people || []).length; }).forEach(function (j) { rows.push(hrow({ title: "No team member named: " + j.title, sub: (j.client ? j.client + ". " : "") + "Name who works on it on the job's page.", badge: "Unassigned", act: "Assign", go: function () { openGig(j.gig_id); } })); });
+      rows = rows.concat(attentionRows(hm));
+      if (!rows.length) { inner.appendChild(h("p", { class: "hsub", text: "No team actions pending." })); return; }
+      var head = c.querySelector(".hhead");
+      if (head && !head.querySelector(".badge")) head.appendChild(h("span", { class: "badge pink", text: String(rows.length) }));
+      inner.appendChild(h("div", { class: "hl" }, rows.slice(0, 4)));
+      if (rows.length > 4) inner.appendChild(h("p", { class: "hsub", text: "Showing 4 of " + rows.length + "." }));
+    });
+    return homeFoot(c, "View all work", function () { tab = "work"; gigs.id = null; draw(); });
+  }
   function homeNode(id, hm) {
     if (!(id in homeLay.nodes)) {
       var n = HOME_W[id].draw(hm) || null;
-      if (n) { n.classList.add("hw"); n.setAttribute("data-widget", id); }
+      if (n) {
+        n.classList.add("hw"); n.setAttribute("data-widget", id);
+        var h2 = n.querySelector(".hhead h2");
+        if (h2 && HOME_W[id].agTitle && homeViewKey() === "agency") h2.textContent = homeTitle(id);
+      }
       homeLay.nodes[id] = n;
     }
     return homeLay.nodes[id];
@@ -1240,7 +1351,7 @@
     var allowed = homeAllowed();
     var ids = (homeLay.draft || homeLay.data.widgets || []).filter(function (id) { return allowed.indexOf(id) >= 0; });
     if (!ids.length) ids = homeDefault().filter(function (id) { return allowed.indexOf(id) >= 0; });
-    if (!("pb" in homeLay.nodes)) homeLay.nodes.pb = profileBox(hm);
+    if (!("pb" in homeLay.nodes)) homeLay.nodes.pb = homeViewKey() === "agency" ? null : profileBox(hm);
     var pb = homeLay.nodes.pb;
     homeHelpBtn = pb && pb.helpBtn ? pb.helpBtn : null;
     homeHasProfileCard = !!pb;
@@ -1265,12 +1376,21 @@
   }
   function homeDash() {
     var fn = D.firstName(me.person.name), sideKey = me.side + ":" + (me.person.id || "");
-    if (homeLay.forSide !== sideKey) { homeLay.data = null; homeLay.forSide = sideKey; }
+    if (homeLay.forSide !== sideKey) { homeLay.data = null; homeLay.forSide = sideKey; homeLay.owner = false; homeLay.view = me.side === "freelancer" && localPref("home.agency") ? "agency" : "work"; }
+    if (me.side !== "freelancer") homeLay.view = "work";
     homeLay.nodes = {}; homeLay.draft = null; homeAsk = null;
+    var agency = homeViewKey() === "agency";
     var btn = h("button", { class: "ghost small", type: "button", id: "home-customize", disabled: true }, icon("grid"), " Customize dashboard");
     btn.addEventListener("click", function () { openCustomize(btn); });
+    // "My work" and "My agency": only the agency's owner has the second one. Each keeps its own widgets.
+    var seg = h("div", { class: "home-seg", id: "home-view", role: "group", "aria-label": "Which Home to show", hidden: !homeLay.owner });
+    [["work", "My work"], ["agency", "My agency"]].forEach(function (o) {
+      var b = h("button", { type: "button", class: "ghost small", "aria-pressed": String(homeLay.view === o[0]) }, o[1]);
+      b.addEventListener("click", function () { if (homeLay.view === o[0]) return; homeLay.view = o[0]; localPref("home.agency", o[0] === "agency"); homeLay.data = null; draw(); });
+      seg.appendChild(b);
+    });
     var el = h("div", { class: "home-dash" }, h("div", { class: "home-top" },
-      h("div", { class: "grow" }, h("h1", { text: "Your Workspace" }), h("p", { class: "muted", id: "home-welcome", text: (fn && fn !== "there" ? "Welcome back, " + fn + ". " : "") + "Your work, your priorities." })), btn));
+      h("div", { class: "grow" }, h("h1", { text: agency ? "Agency Workspace" : "Your Workspace" }), h("p", { class: "muted", id: "home-welcome", text: agency ? "Your agency's work, team and payments." : (fn && fn !== "there" ? "Welcome back, " + fn + ". " : "") + "Your work, your priorities." })), seg, btn));
     var grid = h("div", { class: "home-grid", id: "home-grid" }, h("p", { class: "muted", text: "Loading..." }));
     homeLay.top = h("div", { class: "home-fixed", id: "home-profile-top" }); homeLay.bottom = h("div", { class: "home-fixed", id: "home-profile-bottom" });
     el.appendChild(homeLay.top); el.appendChild(grid); el.appendChild(homeLay.bottom);
@@ -1283,14 +1403,16 @@
     function got(r) {
       if (homeLay.grid !== grid) return;
       var before = homeLay.data ? JSON.stringify(homeLay.data.widgets) : "";
-      if (r && r.ok) homeLay.data = r;
-      else if (!homeLay.data) homeLay.data = { ok: true, widgets: (HOME_DEFAULTS[me.side] || []).slice(), all: (HOME_DEFAULTS[me.side] || []).slice(), "default": (HOME_DEFAULTS[me.side] || []).slice(), customized: false, offline: true };
+      // Asked for My agency without owning one (the agency ended, or another account): back to My work
+      if (r && r.ok === false && r.reason === "agency_owner_only" && homeLay.view === "agency") { homeLay.view = "work"; localPref("home.agency", false); homeLay.data = null; homeLay.owner = false; draw(); return; }
+      if (r && r.ok) { homeLay.data = r; homeLay.owner = !!r.agency_owner; seg.hidden = !homeLay.owner; }
+      else if (!homeLay.data) homeLay.data = { ok: true, widgets: (HOME_DEFAULTS[homeViewKey()] || []).slice(), all: (HOME_DEFAULTS[homeViewKey()] || []).slice(), "default": (HOME_DEFAULTS[homeViewKey()] || []).slice(), customized: false, offline: true };
       btn.disabled = !!homeLay.data.offline;
       if (homeLay.data.offline) btn.title = "Your saved layout could not load. Reload the page to change it.";
       if (!homeLay.draft && JSON.stringify(homeLay.data.widgets) !== before) paintHome();
     }
     if (homeLay.data && !homeLay.data.offline) { btn.disabled = false; paintHome(); }
-    api.get("/home/layout").then(got, function () { got(null); });
+    api.get("/home/layout" + (agency ? "?view=agency" : "")).then(got, function () { got(null); });
     return el;
   }
   // The Customize panel: Home stays in view behind it and follows every change as a preview. Nothing is kept until
@@ -1405,7 +1527,7 @@
     save.addEventListener("click", function () {
       save.disabled = true; problem.hidden = true;
       var isDefault = JSON.stringify(mine) === JSON.stringify(homeDefault().filter(function (id) { return allowed.indexOf(id) >= 0; }));
-      (isDefault ? api.post("/home/layout/reset", {}) : api.post("/home/layout", { widgets: mine })).then(function (r) {
+      (isDefault ? api.post("/home/layout/reset", { view: homeViewKey() }) : api.post("/home/layout", { widgets: mine, view: homeViewKey() })).then(function (r) {
         if (!r || !r.ok) throw r || {};
         homeLay.data = r;
         done(); paintHome();
@@ -5640,6 +5762,37 @@
     return card;
   }
 
+  // Step 35: the hours a week a team member can give the agency. The member or the agency's owner fills it in; empty
+  // means not known. "asked" is the time the owner last asked (false: no Ask button here).
+  function agencyHoursBox(personId, name, hours, orgId, asked) {
+    var mine = name === "you";
+    var inp = h("input", { type: "number", min: "0", max: "80", step: "1", inputmode: "numeric", class: "ag-hours", value: hours === null || hours === undefined ? "" : String(hours), "aria-label": mine ? "Hours a week you can give this agency" : "Hours a week for " + name, placeholder: "Not set" });
+    var save = h("button", { class: "ghost small", type: "button", "aria-label": mine ? "Save your hours a week" : "Save hours a week for " + name }, "Save hours");
+    var box = h("span", { class: "ag-hours-box" }, h("span", { class: "small", "aria-hidden": "true", text: "Hours a week" }), inp, save);
+    save.addEventListener("click", function () {
+      var v = inp.value.trim();
+      if (v !== "" && !(/^[0-9]+$/.test(v) && Number(v) <= 80)) { D.toast(app, "Enter a whole number of hours from 0 to 80, or leave it empty.", true); inp.focus(); return; }
+      save.disabled = true;
+      api.post("/agency/hours", { person_id: personId, hours: v === "" ? null : Number(v), org_id: orgId || null }).then(function (r) {
+        save.disabled = false;
+        if (!r || !r.ok) throw r || {};
+        D.toast(app, v === "" ? "Hours cleared. They show as \"Hours not set\"." : "Saved: " + v + (v === "1" ? " hour a week." : " hours a week."));
+      }).catch(function () { save.disabled = false; D.toast(app, "The hours were not saved. Try again.", true); });
+    });
+    if (asked !== false && (hours === null || hours === undefined)) {
+      var recent = asked && Date.now() - Date.parse(asked) < 86400000;
+      var ask = h("button", { class: "ghost small", type: "button", disabled: !!recent, "aria-label": recent ? name + " was asked today to set their hours" : "Ask " + name + " to set their hours" }, recent ? "Asked today" : "Ask to set hours");
+      ask.addEventListener("click", function () {
+        ask.disabled = true;
+        api.post("/agency/hours/ask", { person_id: personId }).then(function (r) {
+          if (!r || !r.ok) { if (r && r.reason === "asked_recently") { ask.textContent = "Asked today"; return; } throw r || {}; }
+          ask.textContent = "Asked today"; D.toast(app, name + " was asked to set their weekly hours.");
+        }).catch(function () { ask.disabled = false; D.toast(app, "The reminder was not sent. Try again.", true); });
+      });
+      box.appendChild(ask);
+    }
+    return box;
+  }
   function agencyView() {
     var el = h("div", null, h("h1", { text: "Agency" }), h("p", { class: "muted", text: "Loading..." }));
     api.get("/agency").then(function (v) {
@@ -5663,7 +5816,7 @@
             row.appendChild(h("button", { class: "ghost small", type: "button", onclick: draw }, "Cancel"));
             row.appendChild(h("button", { class: "danger small", type: "button", onclick: function () { api.post("/agency/leave", { org_id: m.org_id }).then(gigOk).then(function () { draw(); D.toast(app, "You left " + m.agency); }).catch(gigFail); } }, "Yes, leave"));
           });
-          var row = h("div", { class: "row" }, h("span", { class: "grow" }, h("b", { text: m.agency }), h("span", { class: "small muted", text: " | " + ROLE_NAMES[m.role] + (m.active ? "" : " | paused") })), leave);
+          var row = h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" }, h("span", { class: "grow" }, h("b", { text: m.agency }), h("span", { class: "small muted", text: " | " + ROLE_NAMES[m.role] + (m.active ? "" : " | paused") })), agencyHoursBox(me.person.id, "you", m.weekly_hours, m.org_id, false), leave);
           mc.appendChild(row);
         });
         el.appendChild(mc);
@@ -5713,7 +5866,7 @@
           acts.appendChild(rmB);
         }
         tc.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;border-top:1px solid var(--line);padding:6px 0" },
-          h("span", { class: "grow" }, h("b", { text: t.name }), h("span", { class: "small muted", text: " | " + ROLE_NAMES[t.role] + (t.email ? " | " + t.email : "") + " | " + (t.verified ? "verified" : "verification not finished") + (t.jobs ? " | on " + t.jobs + (t.jobs === 1 ? " job" : " jobs") : "") })), acts));
+          h("span", { class: "grow" }, h("b", { text: t.name }), h("span", { class: "small muted", text: " | " + ROLE_NAMES[t.role] + (t.email ? " | " + t.email : "") + " | " + (t.verified ? "verified" : "verification not finished") + (t.jobs ? " | on " + t.jobs + (t.jobs === 1 ? " job" : " jobs") : "") })), ag.role === "owner" ? agencyHoursBox(t.person_id, t.name, t.weekly_hours, null, t.role !== "owner" ? t.hours_asked_at : false) : null, acts));
       });
       (ag.pending || []).forEach(function (i) {
         tc.appendChild(h("div", { class: "row", style: "border-top:1px solid var(--line);padding:6px 0" }, h("span", { class: "grow" }, h("b", { text: i.name }), h("span", { class: "small muted", text: " | invited as " + ROLE_NAMES[i.role].toLowerCase() + " | open until " + D.date(i.expires_at) })),

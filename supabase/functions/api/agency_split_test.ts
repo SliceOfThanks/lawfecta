@@ -149,6 +149,46 @@ Deno.test("paying out: the agency gets its share minus the whole fee, the bench 
   assertEquals((await call("POST", "/agency/assignment/remove", owner.token, { id: asg1 })).body.reason, "milestone_started");
 });
 
+// Step 35: the agency Home. Money for the agency's owner only, from the payment and payout records, never as profit
+Deno.test("agency Home: the owner sees what clients paid and what was paid out to the agency; a team member sees none of it", async () => {
+  // This suite funds milestones without a payment record, so one is added here: $1,000 for the work and a $50 fee
+  const payKey = "agency-home-" + crypto.randomUUID();
+  await pool.query("insert into payments (agreement_id, milestone_id, kind, amount_cents, fee_cents, status, idem_key) values ($1, $2, 'milestone', 105000, 5000, 'succeeded', $3)", [ag, m1, payKey]);
+  const h = (await call("GET", "/home/agency?period=year", owner.token)).body;
+  const paid = await one("select coalesce(sum(p.amount_cents - p.fee_cents), 0)::int s from payments p where p.agreement_id = $1 and p.status = 'succeeded'", [ag]);
+  assertEquals([h.ok, h.paid_by_clients_cents, h.paid_out_agency_cents, h.waiting_agency_cents], [true, paid.s, 0, 25000], JSON.stringify(h).slice(0, 400));
+  assert(paid.s >= 100000, "the work part of the payment, without the platform fee: " + paid.s);
+  assert(!JSON.stringify(h).includes("70000"), "a team member's share is never in the agency's figures");
+  assertEquals(h.months.length, 6);
+  const job = h.jobs.find((j: Record<string, unknown>) => j.agreement_id === ag);
+  assert(job && job.milestones === 3 && job.accepted === 1 && typeof job.client === "string" && job.client.length > 0, JSON.stringify(job));
+  assert(h.team.some((t: Record<string, unknown>) => t.owner === true && t.person_id === owner.id));
+  // Paid out is only what was really sent
+  await pool.query("update payouts set status = 'sent' where milestone_id = $1 and share_kind = 'agency_share'", [m1]);
+  const sent = (await call("GET", "/home/agency?period=year", owner.token)).body;
+  assertEquals([sent.paid_out_agency_cents, sent.waiting_agency_cents], [25000, 0]);
+  await pool.query("update payouts set status = 'pending' where milestone_id = $1 and share_kind = 'agency_share'", [m1]);
+  // Everyone else: no figures at all
+  for (const who of [pia, ben]) {
+    const x = (await call("GET", "/home/agency?period=year", who.token)).body;
+    assertEquals([x.ok, x.reason], [false, "agency_owner_only"]);
+    assert(!JSON.stringify(x).includes("cents"), "no amounts for a team member");
+    assertEquals((await call("GET", "/home/layout?view=agency", who.token)).body.reason, "agency_owner_only");
+    assertEquals((await call("POST", "/home/layout", who.token, { view: "agency", widgets: ["revenue"] })).body.reason, "agency_owner_only");
+    assertEquals((await call("GET", "/home/layout", who.token)).body.agency_owner, false, "no My agency switch for a team member");
+  }
+  assertEquals((await call("GET", "/home/agency", att.token)).status, 403);
+  // The owner has two Homes, each with its own layout
+  const av = (await call("GET", "/home/layout?view=agency", owner.token)).body;
+  assertEquals([av.view, av.widgets, av.agency_owner], ["agency", ["revenue", "team", "gigs", "proposals", "clients", "teamattention"], true]);
+  assertEquals((await call("POST", "/home/layout", owner.token, { view: "agency", widgets: ["team", "revenue"] })).body.widgets, ["team", "revenue"]);
+  const mine = (await call("GET", "/home/layout", owner.token)).body;
+  assertEquals([mine.view, mine.customized, mine.agency_owner], ["freelancer", false, true], "the agency layout did not touch My work");
+  assertEquals((await call("POST", "/home/layout", owner.token, { widgets: ["revenue"] })).body.reason, "unknown_widget", "agency widgets are not offered on My work");
+  assertEquals((await call("POST", "/home/layout/reset", owner.token, { view: "agency" })).body.customized, false);
+  await pool.query("update payments set status = 'canceled' where idem_key = $1", [payKey]); // out of the way of the suites after this one
+});
+
 Deno.test("a lost chargeback comes back from both shares by the split: held money first, then transfer reversals", async () => {
   // The agency's share was sent; Pia's is still held
   const ao = await one("select id from payouts where milestone_id = $1 and share_kind = 'agency_share'", [m1]);

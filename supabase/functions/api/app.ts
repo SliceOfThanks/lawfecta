@@ -2592,6 +2592,8 @@ async function proposalSend(ctx: Ctx) {
 }
 
 // ---------- Agencies (Step 7d): the team, agency proposals, who works on an engagement ----------
+// Which Home layout a request means: the member's own side, or "agency" when a freelancer asks for the agency view
+function homeView(side: string, view: unknown): string { return side === "freelancer" && view === "agency" ? "agency" : side; }
 async function freelancerOnly(ctx: Ctx) {
   const s = await memberSide(ctx);
   if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
@@ -5878,9 +5880,19 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
         return json(ctx, { ok: true, on, credits, own_key: !!route?.ok && route.source !== "lawfecta" }); }
       case "GET /threads/file": return await messageFile(ctx);
       // Step 33: the member's own Home. A layout only says what Home shows; nothing else reads it.
-      case "GET /home/layout": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_home_layout", { p_person: s.person_id, p_side: s.side })); }
+      // The view "agency" is the agency owner's second Home ("My agency"), with its own layout. The database refuses it
+      // for anyone who does not own an active agency.
+      case "GET /home/layout": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_home_layout", { p_person: s.person_id, p_side: homeView(s.side, ctx.url.searchParams.get("view")) })); }
       case "POST /home/layout": { const s = await memberSide(ctx);
-        return json(ctx, await rpc(ctx, "dela_home_layout_save", { p_person: s.person_id, p_side: s.side, p_widgets: Array.isArray(ctx.body.widgets) ? ctx.body.widgets.slice(0, 30).map((w: unknown) => str(w, 40)) : null })); }
+        return json(ctx, await rpc(ctx, "dela_home_layout_save", { p_person: s.person_id, p_side: homeView(s.side, ctx.body.view), p_widgets: Array.isArray(ctx.body.widgets) ? ctx.body.widgets.slice(0, 30).map((w: unknown) => str(w, 40)) : null })); }
+      case "POST /home/layout/reset": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_home_layout_reset", { p_person: s.person_id, p_side: homeView(s.side, ctx.body.view) })); }
+      // Step 35: the agency summary is for the agency's owner; team members get "agency_owner_only" and no figures
+      case "GET /home/agency": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_home_agency", { p_person: s.person_id, p_period: str(ctx.url.searchParams.get("period"), 10) })); }
+      case "POST /agency/hours": { const s = await freelancerOnly(ctx);
+        const raw = ctx.body.hours, hours = raw === null || raw === "" || raw === undefined ? null : Number(raw);
+        if (hours !== null && (!Number.isInteger(hours) || hours < 0 || hours > 80)) return json(ctx, { ok: false, reason: "bad_hours" });
+        return json(ctx, await rpc(ctx, "dela_agency_hours_set", { p_person: s.person_id, p_member: need(uuid(ctx.body.person_id)), p_hours: hours, p_org: ctx.body.org_id ? uuid(ctx.body.org_id) : null })); }
+      case "POST /agency/hours/ask": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_hours_ask", { p_person: s.person_id, p_member: need(uuid(ctx.body.person_id)) })); }
       // Step 34: the summaries behind three role widgets. Each is the signed-in member's own, for their side only.
       case "GET /home/spend": { const s = await memberSide(ctx); if (s.side !== "attorney") throw new HttpError(403, "attorney_only");
         return json(ctx, await rpc(ctx, "dela_home_spend", { p_person: s.person_id, p_period: str(ctx.url.searchParams.get("period"), 10) })); }
