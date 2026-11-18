@@ -5276,44 +5276,59 @@
   // and there are no trends or scores. The old layout keeps the one long page. ----------
   var PJ_TABS = [["overview", "Overview"], ["gigs", "Gigs"], ["engagements", "Engagements"], ["standing", "Standing Arrangements"]];
   var PJ_HELP = {
-    page: "Your workspace for delegated work. Post gigs, review proposals, manage active engagements, track milestones and payments, and set up standing arrangements.",
-    needs: "Items that need your review, approval, signature or payment before the work can move on.",
-    gigs: "Gigs you created that are still drafts or are open for proposals.",
-    engagements: "Work you awarded to a freelancer that is not finished yet, with its milestones.",
-    standing: "Ongoing work with a freelancer you trust, inside limits you both signed once.",
-    upcoming: "The next milestone of each active engagement, the nearest date first."
+    page: "Manage posted gigs, awarded work, milestones and standing arrangements.",
+    needs: "Items waiting for your review, approval, signature or payment.",
+    gigs: "Work you created for freelancers. Drafts are not posted; open gigs can receive proposals.",
+    engagements: "Work awarded to a freelancer, with its milestones, deliverables and approvals.",
+    standing: "Ongoing work agreements with freelancers you have completed a gig with, inside limits you both signed.",
+    upcoming: "The next milestone of each active engagement, the nearest date first.",
+    // Step 40: each of these was checked against the code that counts it
+    accepted: "The number of milestones you accepted, out of the milestones in the signed agreement.",
+    next: "The first milestone that is not accepted yet, with its date when one is set.",
+    cap: "The most the prices of jobs started in one month may add up to. Lawfecta's platform fee is added to each charge and is not part of the limit.",
+    counted: "The prices of the jobs started from this arrangement this month.",
+    remaining: "The monthly limit minus the job prices counted this month. It is a limit, not money held for you.",
+    jobs: "Jobs open now under this arrangement, out of the most allowed at once."
   };
   function pjTip(text, label) { var t = D.helpTip(text, "About " + label, null, false, label); return t; }
   function pjHead(title, count, tipKey, more) {
     var t = tipKey ? pjTip(PJ_HELP[tipKey], title) : [null, null];
-    return [h("div", { class: "row pj-cardhead" }, h("h2", { class: "grow", style: "margin:0", text: title + (count === null || count === undefined ? "" : " (" + count + ")") }), t[0], more || null), t[1]];
+    // The help icon sits right beside the heading it explains (step 40), not at the card's far edge
+    return [h("div", { class: "row pj-cardhead" }, h("h2", { style: "margin:0", text: title + (count === null || count === undefined ? "" : " (" + count + ")") }), t[0], h("span", { class: "grow" }), more || null), t[1]];
   }
   // A table that reads as a table to a screen reader and stacks into labeled lines on a narrow screen
   function pjTable(caption, cols, rows) {
+    // A column given as [name, help] gets a help tip beside its name
+    var names = cols.map(function (c) { return Array.isArray(c) ? c[0] : c; });
     return h("table", { class: "pj-table" }, h("caption", { class: "sr", text: caption }),
-      h("thead", null, h("tr", null, cols.map(function (c) { return h("th", { scope: "col", text: c }); }))),
-      h("tbody", null, rows.map(function (cells) { return h("tr", null, cells.map(function (cell, i) { return h(i === 0 ? "th" : "td", i === 0 ? { scope: "row", "data-label": cols[i] } : { "data-label": cols[i] }, cell); })); })));
+      h("thead", null, h("tr", null, cols.map(function (c, i) { var t = Array.isArray(c) ? D.helpTip(c[1], "About " + c[0], null, false, c[0]) : [null, null]; return h("th", { scope: "col" }, h("span", { class: "pj-th", text: names[i] }), t[0] ? " " : null, t[0], t[1]); }))),
+      h("tbody", null, rows.map(function (cells) { return h("tr", null, cells.map(function (cell, i) { return h(i === 0 ? "th" : "td", i === 0 ? { scope: "row", "data-label": names[i] } : { "data-label": names[i] }, cell); })); })));
   }
   function pjEngOpen(e) { return function () { gigs.id = e.gig_id; gigs.view = "agreement"; tab = "projects"; draw(); }; }
   function pjEngRow(e) {
-    var nx = e.next || null, done = e.milestones ? Math.round((e.accepted || 0) * 100 / e.milestones) : 0, late = nx && isOverdue(nx.due_date, nx.status);
+    // Overdue only for work that is under way: an agreement not signed or not paid yet has no deadline running (step 40)
+    var nx = e.next || null, done = e.milestones ? Math.round((e.accepted || 0) * 100 / e.milestones) : 0, late = nx && e.status === "active" && isOverdue(nx.due_date, nx.status);
+    // The button names the next step when the engagement says what waits on this member; otherwise it opens the engagement
+    var step = { pay: "Pay milestone", review: "Review deliverable", sign: "Sign agreement" }[e.needs_me] || "";
     return [
       h("span", null, h("b", { text: e.gig_title }), h("span", { class: "hsub", style: "display:block", text: D.money(e.total_cents) })),
       h("span", { class: "row", style: "gap:8px;align-items:center" }, smallFace(e), h("span", { text: e.other_name || "" })),
       e.milestones ? h("span", null, h("span", { text: (e.accepted || 0) + " of " + e.milestones + " accepted" }), h("span", { class: "bar pj-bar", role: "img", "aria-label": (e.accepted || 0) + " of " + e.milestones + " milestones accepted" }, h("span", { style: "width:" + done + "%" }))) : h("span", { class: "hsub", text: "Set when you both sign" }),
-      nx ? h("span", null, h("span", { text: nx.title || "Milestone " + nx.seq }), nx.due_date ? h("span", { class: "hsub", style: "display:block", text: dueWords(nx.due_date, nx.status) }) : null) : h("span", { class: "hsub", text: "None" }),
-      h("span", { class: "row", style: "gap:6px;flex-wrap:wrap" }, late ? h("span", { class: "badge bad", text: "Overdue" }) : null, agBadge(e)),
-      h("button", { class: "ghost small", type: "button", "aria-label": "View " + e.gig_title, onclick: pjEngOpen(e) }, "View")
+      nx ? h("span", null, h("span", { text: nx.title || "Milestone " + nx.seq }), h("span", { class: "hsub", style: "display:block", text: nx.due_date ? (e.status === "active" ? dueWords(nx.due_date, nx.status) : "Planned for " + shortDate(nx.due_date)) : "No date set" })) : h("span", { class: "hsub", text: "Not scheduled" }),
+      h("span", { class: "row", style: "gap:6px;flex-wrap:wrap" }, agBadge(e), late ? h("span", { class: "badge bad", text: "Overdue" }) : null),
+      h("button", { class: (step ? "blue" : "ghost") + " small", type: "button", "aria-label": (step || "View engagement") + ": " + e.gig_title, onclick: pjEngOpen(e) }, step || "View engagement")
     ];
   }
   function pjGigRow(g) {
     return [
       h("span", null, h("b", { text: g.title }), g.kind === "monthly" || g.linked_to ? h("span", { class: "hsub", style: "display:block", text: (g.kind === "monthly" ? "Monthly" : "") + (g.linked_to ? (g.kind === "monthly" ? " · " : "") + "Linked to " + g.linked_to : "") }) : null),
       h("span", { text: String(g.proposals || 0) + (g.questions_open ? " · " + g.questions_open + (g.questions_open === 1 ? " question" : " questions") : "") }),
-      h("span", { text: budgetText(g) }),
+      g.budget_min_cents || g.budget_max_cents ? h("span", { text: budgetText(g) }) : h("span", { class: "hsub", text: "Budget not set" }),
       h("span", { text: g.status === "open" && g.closes_at ? shortDate(g.closes_at) : g.closed_at ? shortDate(g.closed_at) : "Not set" }),
       h("span", { class: "badge " + gigTone(g.status), text: GIG_STATUS[g.status] }),
-      h("button", { class: "ghost small", type: "button", "aria-label": "View " + g.title, onclick: function () { gigLink(g.id, "projects"); } }, "View")
+      g.status === "draft" ? h("button", { class: "ghost small", type: "button", "aria-label": "Continue draft: " + g.title, onclick: function () { gigLink(g.id, "projects"); } }, "Continue draft")
+        : g.status === "open" && g.proposals ? h("button", { class: "blue small", type: "button", "aria-label": "Review proposals: " + g.title, onclick: function () { tab = "projects"; gigs.id = g.id; gigs.view = "proposals"; draw(); } }, "Review proposals")
+        : h("button", { class: "ghost small", type: "button", "aria-label": "View gig: " + g.title, onclick: function () { gigLink(g.id, "projects"); } }, "View gig")
     ];
   }
   // What waits on the attorney, as rows with one specific button each. The same sources as Notifications' list.
@@ -5365,7 +5380,7 @@
         ngPanel.appendChild(b);
       });
       el.appendChild(h("div", { class: "pj-top" }, h("div", { class: "grow" }, h("div", { class: "row", style: "gap:8px;align-items:center" }, h("h1", { style: "margin:0", text: "Projects" }), tip[0]), tip[1],
-        h("p", { class: "muted", style: "margin:2px 0 0", text: "Manage your gigs, engagements and standing arrangements in one place." })), ng));
+        h("p", { class: "muted", style: "margin:2px 0 0", text: "Manage your gigs, awarded work, milestones and standing arrangements." })), ng));
       if (!r.ok) { el.appendChild(h("p", { class: "notice", text: gigErr(r) })); return; }
       var e0 = r.eligibility || {};
       if (!e0.can_post) el.appendChild(h("p", { class: "notice", text: r.agency ? "Your agency cannot post yet. You can still draft gigs. Open the Agency page to see what is missing." : "Posting work and hiring need a verified license. You can still draft gigs. Open Profile and verification from your account menu." }));
@@ -5402,12 +5417,12 @@
       var panel = h("div", { id: "pj-panel", role: "tabpanel", "aria-labelledby": "pj-tab-" + cur, tabindex: "0" });
       el.appendChild(panel);
       var failNote = function () { return h("p", { class: "notice hw-failed", role: "status" }, "Your engagements could not load just now. ", h("button", { class: "linkish", type: "button", onclick: draw }, "Try again")); };
-      var engCols = ["Engagement", "Freelancer", "Progress", "Next milestone", "Status", "Action"], gigCols = ["Gig", "Proposals", "Budget", "Closes", "Status", "Action"];
+      var engCols = ["Engagement", "Freelancer", ["Milestones accepted", PJ_HELP.accepted], ["Next milestone", PJ_HELP.next], "Status", "Action"], gigCols = ["Gig", "Proposals", "Budget", "Closing date", "Status", "Action"];
       var viewAll = function (key, words) { return h("button", { class: "linkish", type: "button", onclick: function () { go(key); } }, words + " →"); };
 
       if (cur === "overview") {
         var left = h("div", { class: "pj-col" }), right = h("div", { class: "pj-col" });
-        panel.appendChild(h("div", { class: "pj-cols" }, left, right));
+        panel.appendChild(h("div", { class: "pj-colwrap" }, h("div", { class: "pj-cols" }, left, right)));
         // Needs your attention
         var nc = h("section", { class: "card", id: "needs-action" }), nh = pjHead("Needs your attention", engFailed ? null : needs.length, "needs");
         nc.appendChild(nh[0]); if (nh[1]) nc.appendChild(nh[1]);
@@ -5452,22 +5467,24 @@
           sw.engagements ? qBtn("Pay milestones", n("pay"), function () { go("engagements"); }) : null,
           sw.engagements ? qBtn("Sign agreements", n("sign"), function () { go("engagements"); }) : null));
         right.appendChild(qa);
-        if (me.side === "attorney") { var ask = wAsk(); if (ask) right.appendChild(ask); }
         // Upcoming milestones
         if (sw.engagements && !engFailed) {
           var up = active.filter(function (e) { return e.next && e.next.due_date && e.status === "active"; }).sort(function (a, b) { return String(a.next.due_date).localeCompare(String(b.next.due_date)); }).slice(0, 4);
-          var uc = h("section", { class: "card" }), uh = pjHead("Upcoming milestones", null, "upcoming");
+          var uc = h("section", { class: "card" }), uh = pjHead("Upcoming milestones", null, "upcoming", active.length ? viewAll("engagements", "View all") : null);
           uc.appendChild(uh[0]); if (uh[1]) uc.appendChild(uh[1]);
           if (!up.length) uc.appendChild(h("p", { class: "muted", style: "margin:8px 0 0", text: "No milestone with a date in your active engagements." }));
-          else uc.appendChild(h("div", { class: "hl", style: "margin-top:8px" }, up.map(function (e) {
-            return hrow({ title: e.next.title || "Milestone " + e.next.seq, sub: e.gig_title + (e.other_name ? " · " + e.other_name : ""), flag: isOverdue(e.next.due_date, e.next.status) ? "Overdue" : null, badge: dueWords(e.next.due_date, e.next.status), act: "View", go: pjEngOpen(e) });
+          // Each row is one button: the words keep a readable width and the date drops under them when the column is narrow
+          else uc.appendChild(h("ul", { class: "pj-ups" }, up.map(function (e) {
+            return h("li", { class: "pj-up" }, h("button", { class: "pj-up-b", type: "button", onclick: pjEngOpen(e) },
+              h("span", { class: "pj-up-t" }, h("b", { text: e.next.title || "Milestone " + e.next.seq }), h("span", { class: "hsub", text: e.gig_title + (e.other_name ? " · " + e.other_name : "") })),
+              h("span", { class: "pj-up-d" }, isOverdue(e.next.due_date, e.next.status) ? h("span", { class: "badge bad", text: "Overdue" }) : null, h("span", { text: dueWords(e.next.due_date, e.next.status) }))));
           })));
           right.appendChild(uc);
         }
+        // Always on the page: the three words the page is built on (step 40)
+        panel.appendChild(h("p", { class: "pj-about", id: "pj-about" }, h("b", { text: "About projects. " }), "A gig is work you post for proposals. An engagement is work you awarded to a freelancer, with deliverables and milestones. A standing arrangement is ongoing work with a freelancer you have completed a gig with."));
       } else if (cur === "gigs") {
-        panel.appendChild(h("section", { class: "card", id: "new-gig-card" }, h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;align-items:center" }, h("div", { class: "grow" }, h("h2", { style: "margin:0", text: "Post a new gig" }),
-          h("p", { class: "small muted", style: "margin:4px 0 0", text: "Turn an approved SOP or Workflow into a gig in three steps. One-off or monthly." })),
-          h("button", { class: "blue small", type: "button", id: "pj-start-gig", onclick: function () { gigs.wiz = gigs.wiz || gigs.wizKept || {}; draw(); } }, "Start a new gig"))));
+        // One way to start a gig: "+ New Gig" at the top of the page (step 40)
         var GF = [["active", "Open and drafts", function (g) { return g.status === "open" || g.status === "draft" || g.status === "paused"; }], ["filled", "Filled", function (g) { return g.status === "filled"; }],
           ["closed", "Closed", function (g) { return g.status === "closed" || g.status === "canceled"; }], ["all", "All", function () { return true; }]];
         var gf = GF.filter(function (f) { return f[0] === (gigs.listFilter || "active"); })[0] || GF[0];
@@ -5478,7 +5495,7 @@
         var paintGigs = function () {
           D.clear(body);
           var q = (gigs.find || "").trim().toLowerCase(), shown = (r.gigs || []).filter(gf[2]).filter(function (g) { return !q || String(g.title).toLowerCase().indexOf(q) >= 0; });
-          if (!(r.gigs || []).length) body.appendChild(h("p", { class: "muted", text: "No gigs yet." }));
+          if (!(r.gigs || []).length) body.appendChild(h("p", { class: "muted", text: "No gigs yet. Choose \"+ New Gig\" at the top of the page to post your first one." }));
           else if (!shown.length) body.appendChild(h("p", { class: "muted", role: "status", text: q ? "No gig in this view matches \"" + gigs.find.trim() + "\"." : "None in this view." }));
           else body.appendChild(pjTable("Your gigs: " + gf[1], gigCols, shown.map(pjGigRow)));
         };
@@ -5516,13 +5533,16 @@
         if (st.on && standing.length) {
           var sc = h("section", { class: "card" }), sh = pjHead("At a glance", standing.length, "standing");
           sc.appendChild(sh[0]); if (sh[1]) sc.appendChild(sh[1]);
-          sc.appendChild(pjTable("Standing arrangements at a glance", ["Freelancer", "Monthly limit", "This month", "Remaining", "Jobs open", "Status"], standing.map(function (a) {
-            return [h("b", { text: a.freelancer_name || a.firm_name || "" }), h("span", { text: D.money(a.cap_cents) }), h("span", { text: D.money(a.spend_cents) }), h("span", { text: D.money(Math.max((a.cap_cents || 0) - (a.spend_cents || 0), 0)) }),
-              h("span", { text: a.open + " of " + a.max_open }), h("span", { class: "badge " + ({ active: "R", needs_review: "held" }[a.status] || ""), text: STANDING_WORDS[a.status] || a.status })];
+          sc.appendChild(pjTable("Standing arrangements at a glance", ["Freelancer", ["Monthly limit", PJ_HELP.cap], ["Counted this month", PJ_HELP.counted], ["Remaining", PJ_HELP.remaining], ["Jobs open", PJ_HELP.jobs], "Status", "Action"], standing.map(function (a) {
+            var who = a.freelancer_name || a.firm_name || "";
+            return [h("b", { text: who }), h("span", { text: D.money(a.cap_cents) }), h("span", { text: D.money(a.spend_cents) }), h("span", { text: D.money(Math.max((a.cap_cents || 0) - (a.spend_cents || 0), 0)) }),
+              h("span", { text: a.open + " of " + a.max_open }), h("span", { class: "badge " + ({ active: "R", needs_review: "held" }[a.status] || ""), text: STANDING_WORDS[a.status] || a.status }),
+              // Manage opens that arrangement's details in the card under the table
+              h("button", { class: "ghost small", type: "button", "aria-label": "Manage the arrangement with " + who, onclick: function () { var d = panel.querySelector("#standing-a-" + a.id); if (!d) return; d.open = true; d.scrollIntoView({ block: "start" }); var sm = d.querySelector("summary"); if (sm) sm.focus(); } }, "Manage")];
           })));
           panel.appendChild(sc);
         }
-        var slot = h("div"); panel.appendChild(slot); standingCard(slot);
+        var slot = h("div"); panel.appendChild(slot); standingCard(slot, true);
       }
       if (refocus === "tab") { var tb = el.querySelector("#pj-tab-" + cur); if (tb) tb.focus(); }
       else if (refocus === "needs") { var nb = el.querySelector("#needs-action"); if (nb) { nb.scrollIntoView({ block: "start" }); var fb = nb.querySelector(".pj-item button"); if (fb) fb.focus(); } }
@@ -6637,7 +6657,9 @@
     });
   }
   function loadStanding() { return api.get("/standing").catch(function () { return { on: false, arrangements: [] }; }); }
-  function standingCard(slot) {
+  // fold (the Projects workspace, step 40): each arrangement is one line that opens its details, so the page is not a
+  // row of fully open cards. One that waits on the member starts open.
+  function standingCard(slot, fold) {
     loadStanding().then(function (st) {
       var att = me.side === "attorney";
       if (!st.on) { if (att) slot.appendChild(h("div", { class: "card" }, h("h2", { text: "Standing arrangements" }), h("span", { class: "soon", text: "Coming soon" }), h("p", { class: "small muted", text: "Hire a trusted freelancer again in one click, inside limits you both sign once." }))); return; }
@@ -6662,7 +6684,9 @@
       var pastBox = past.length ? h("details", { id: "standing-past", style: "margin-top:10px" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "Past arrangements (" + past.length + ")" })) : null;
       current.concat(past).forEach(function (a) {
         var box = h("div", { class: "soft standing", style: "margin:10px 0;padding:10px 12px;border-radius:12px" });
-        box.appendChild(h("div", { class: "row" }, h("b", { class: "grow", text: att ? a.freelancer_name : a.firm_name }), h("span", { class: "badge " + ({ active: "R", needs_review: "held", proposed: "", ending: "", ended: "off", declined: "off" }[a.status] || ""), text: STANDING_WORDS[a.status] || a.status })));
+        var folded = !!fold && PAST.indexOf(a.status) < 0;
+        var headRow = [h("b", { class: "grow", text: att ? a.freelancer_name : a.firm_name }), h("span", { class: "badge " + ({ active: "R", needs_review: "held", proposed: "", ending: "", ended: "off", declined: "off" }[a.status] || ""), text: STANDING_WORDS[a.status] || a.status })];
+        if (!folded) box.appendChild(h("div", { class: "row" }, headRow));
         box.appendChild(h("p", { class: "small", style: "margin:4px 0", text: D.money(a.price_cents) + " per job | " + D.money(a.spend_cents) + " of " + D.money(a.cap_cents) + " this month | " + a.open + " of " + a.max_open + " jobs open | until " + D.date(a.end_on) }));
         box.appendChild(h("p", { class: "small muted", style: "margin:4px 0", text: "Covers: " + (a.docs || []).map(function (d) { return (d.doc_id ? d.doc_id + " " : "") + d.title + " (version " + d.version + ")"; }).join("; ") }));
         if (a.review_reason) box.appendChild(h("p", { class: "notice", text: a.review_reason + " Automatic hiring is paused until you both approve." }));
@@ -6733,7 +6757,8 @@
           if (!confirm("End this standing arrangement? No new jobs can be hired from it; open jobs finish as agreed.")) return; act("/standing/end", {}, function (r) { return r.status === "ending" ? "Ending once the open jobs finish." : "Ended."; });
         } }, "End arrangement"));
         if (tools.children.length) box.appendChild(tools);
-        (PAST.indexOf(a.status) >= 0 ? pastBox : c).appendChild(box);
+        var waits = (!att && a.status === "proposed") || (a.status === "needs_review" && (att ? a.role === "manager" : true) && !(att ? a.review_attorney_ok : a.review_freelancer_ok));
+        (PAST.indexOf(a.status) >= 0 ? pastBox : c).appendChild(folded ? h("details", { class: "standing-fold", id: "standing-a-" + a.id, open: waits || null }, h("summary", null, headRow, h("span", { class: "small muted standing-word", text: "Details" })), box) : box);
       });
       if (pastBox) c.appendChild(pastBox);
       slot.appendChild(c);

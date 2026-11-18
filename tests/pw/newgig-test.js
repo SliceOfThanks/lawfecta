@@ -71,7 +71,7 @@ const ATT = 5401, BARE = 5402;
     // ---------- Step 1: the page, its labels and its mistakes ----------
     s = await open(browser, ATT, "&tab=projects");
     p = s.page;
-    await waitFor(p, "Manage your gigs, engagements and standing arrangements in one place.");
+    await waitFor(p, "Manage your gigs, awarded work, milestones and standing arrangements.");
     await dela(p).locator("#pj-new").click();
     await dela(p).getByRole("button", { name: "From an approved document" }).click();
     t = await waitFor(p, "Post a New Gig");
@@ -113,9 +113,12 @@ const ATT = 5401, BARE = 5402;
     // Leaving and coming back keeps what was entered
     await dela(p).locator("#gs-back").click();
     await waitFor(p, "Needs your attention");
+    // One way to start a gig (step 40): the Gigs tab has no second button
     await dela(p).locator("#pj-tab-gigs").click();
-    await waitFor(p, "Turn an approved SOP or Workflow into a gig in three steps.");
-    await dela(p).locator("#pj-start-gig").click();
+    await waitFor(p, "Your gigs");
+    ok(await dela(p).locator("#pj-start-gig").count() === 0 && await dela(p).locator("#new-gig-card").count() === 0, "the Gigs tab has no second way to start a gig");
+    await dela(p).locator("#pj-new").click();
+    await dela(p).getByRole("button", { name: "From an approved document" }).click();
     await waitFor(p, "1. Choose your work");
     const kept = await inShadow(p, (root) => [root.getElementById("gs-bmin").value, root.getElementById("gs-bmax").value, root.getElementById("gs-deadline").value, root.getElementById("gs-notes").value, root.getElementById("gs-doc").selectedOptions[0].textContent].join("|"));
     ok(kept === "300|600|2099-03-01|Clio experience is required.|New client intake", "the Gigs tab opens the same page, with what was entered still there: " + kept);
@@ -169,7 +172,7 @@ const ATT = 5401, BARE = 5402;
     // ---------- No approved document ----------
     s = await open(browser, BARE, "&tab=projects");
     p = s.page;
-    await waitFor(p, "Manage your gigs, engagements and standing arrangements in one place.");
+    await waitFor(p, "Manage your gigs, awarded work, milestones and standing arrangements.");
     await dela(p).locator("#pj-new").click();
     await dela(p).getByRole("button", { name: "From an approved document" }).click();
     t = await waitFor(p, "A gig starts from an approved SOP or Workflow, and you have none yet.");

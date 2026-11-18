@@ -53,7 +53,7 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
 
     // ---------- No work yet ----------
     await p.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=projects`);
-    let t = await waitFor(p, "Manage your gigs, engagements and standing arrangements in one place.");
+    let t = await waitFor(p, "Manage your gigs, awarded work, milestones and standing arrangements.");
     t = await waitFor(p, "Nothing waits on you right now.");
     const tabs = await inShadow(p, (root) => [...root.querySelectorAll(".pj-tabs [role=tab]")].map((b) => b.textContent + ":" + b.getAttribute("aria-selected")));
     ok(tabs.join("|") === "Overview:true|Gigs:false|Engagements:false|Standing Arrangements:false", "four tabs, Overview first: " + tabs.join("|"));
@@ -127,14 +127,14 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     const gigs = [
       { id: G(1), title: "Client intake coordinator", status: "open", kind: "one_off", proposals: 3, questions_open: 1, budget_min_cents: 40000, budget_max_cents: 80000, closes_at: "2099-12-08T00:00:00Z" },
       { id: G(2), title: "Discovery response drafting", status: "open", kind: "one_off", proposals: 0, questions_open: 0, budget_min_cents: 60000, budget_max_cents: 120000, closes_at: "2099-12-08T00:00:00Z" },
-      { id: G(3), title: "Estate binder assembly", status: "draft", kind: "one_off", proposals: 0, questions_open: 0, budget_min_cents: 30000, budget_max_cents: 50000 },
+      { id: G(3), title: "Estate binder assembly", status: "draft", kind: "one_off", proposals: 0, questions_open: 0, budget_min_cents: null, budget_max_cents: null },
       { id: G(4), title: "Old filled gig", status: "filled", kind: "monthly", proposals: 2, questions_open: 0, budget_min_cents: 30000, budget_max_cents: 50000, closed_at: "2026-10-01T00:00:00Z" }];
     const eng = (n, title, who, status, needs, acc, total, next) => ({ id: G(10 + n), gig_id: G(10 + n), gig_title: title, status, total_cents: 120000, updated_at: "2026-11-1" + n + "T00:00:00Z", sign_by: needs === "sign" ? "2099-11-20T00:00:00Z" : null, other_name: who, milestones: total, accepted: acc, earned_cents: 0, needs_me: needs, next });
     const engagements = [
       eng(1, "Family law intake packets", "Avery Collins", "active", "review", 1, 3, { seq: 2, title: "Client two intake", due_date: "2099-11-20", status: "submitted" }),
       eng(2, "Discovery responses", "Tomas Reyes", "active", "pay", 2, 4, { seq: 3, title: "Finalize draft", due_date: "2099-11-22", status: "awaiting_funding" }),
       eng(3, "Late binder job", "Kendra Liu", "active", null, 0, 2, { seq: 1, title: "Initial documents", due_date: "2020-01-05", status: "in_progress" }),
-      eng(4, "Welcome packet", "Maria Rojas", "signing", "sign", 0, 0, null),
+      eng(4, "Welcome packet", "Maria Rojas", "signing", "sign", 0, 0, { seq: 1, title: "Welcome letter", due_date: "2020-02-01", status: "pending" }),
       eng(5, "Finished job", "Avery Collins", "completed", null, 2, 2, null)];
     let failEng = false;
     await p.route("**/api/**", async (route) => {
@@ -158,14 +158,20 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     t = await waitFor(p, "Review 3 proposals");
     ok(t.includes("Answer 1 question") && await dela(p).locator("#needs-action .pj-item").count() === 5, "the link shows every item");
     // The engagements table on the Overview: three rows, with progress, the next milestone and one Overdue
-    const table = await inShadow(p, (root) => { const tb = root.querySelector("#pj-panel table.pj-table"); return { caption: tb.querySelector("caption").textContent, heads: [...tb.querySelectorAll("thead th")].map((x) => x.textContent).join("|"), rows: [...tb.querySelectorAll("tbody tr")].map((r) => r.innerText.replace(/\s+/g, " ")), rowHeads: tb.querySelectorAll("tbody th[scope=row]").length, bars: [...tb.querySelectorAll(".pj-bar")].map((b) => b.getAttribute("aria-label")) }; });
-    ok(table.caption === "Active engagements" && table.heads === "Engagement|Freelancer|Progress|Next milestone|Status|Action" && table.rows.length === 3 && table.rowHeads === 3, "a real table with a caption, column headers and row headers: " + JSON.stringify(table.heads));
+    const table = await inShadow(p, (root) => { const tb = root.querySelector("#pj-panel table.pj-table"); return { caption: tb.querySelector("caption").textContent, heads: [...tb.querySelectorAll("thead th .pj-th")].map((x) => x.textContent).join("|"), tips: [...tb.querySelectorAll("thead th .help-q")].map((x) => x.getAttribute("aria-label")).join("|"), acts: [...tb.querySelectorAll("tbody td:last-child button")].map((x) => x.textContent + " > " + x.getAttribute("aria-label")), rows: [...tb.querySelectorAll("tbody tr")].map((r) => r.innerText.replace(/\s+/g, " ")), rowHeads: tb.querySelectorAll("tbody th[scope=row]").length, bars: [...tb.querySelectorAll(".pj-bar")].map((b) => b.getAttribute("aria-label")) }; });
+    ok(table.caption === "Active engagements" && table.heads === "Engagement|Freelancer|Milestones accepted|Next milestone|Status|Action" && table.tips === "About Milestones accepted|About Next milestone" && table.rows.length === 3 && table.rowHeads === 3, "a real table with a caption, column headers and row headers: " + JSON.stringify(table.heads));
     ok(table.bars.includes("1 of 3 milestones accepted") && table.rows.some((r) => r.includes("Avery Collins") && r.includes("1 of 3 accepted") && r.includes("Client two intake")), "each row shows the freelancer, the progress in words and the next milestone: " + table.rows[0]);
+    // Step 40: the button names the next step when one waits on the attorney; otherwise it opens the engagement
+    ok(table.acts.every((a) => /^(Pay milestone|Review deliverable|Sign agreement|View engagement) > (Pay milestone|Review deliverable|Sign agreement|View engagement): ./.test(a)) && !table.acts.some((a) => a.startsWith("View >")), "each engagement's button names its step and its job: " + table.acts.join(" | "));
+    ok(t.includes("About projects.") && t.includes("A gig is work you post for proposals.") && !t.includes("Ask DELA a question"), "the note on the three words is always on the Overview, and Home's Ask DELA box is not");
     await dela(p).locator("#pj-tab-engagements").click();
     t = await waitFor(p, "Engagements (5)");
+    const eacts = await inShadow(p, (root) => [...root.querySelectorAll("#pj-panel table.pj-table tbody td:last-child button")].map((x) => x.textContent));
+    ok(eacts.includes("Pay milestone") && eacts.includes("Review deliverable") && eacts.includes("Sign agreement") && eacts.includes("View engagement"), "the Engagements tab: pay, review, sign, or view: " + eacts.join(" | "));
     const erows = await inShadow(p, (root) => [...root.querySelectorAll("#pj-panel table.pj-table tbody tr")].map((r) => r.innerText.replace(/\s+/g, " ")));
     const late = erows.filter((r) => r.includes("Overdue"));
     ok(late.length === 1 && late[0].includes("Late binder job") && late[0].includes("Was due") && erows.some((r) => r.includes("Client two intake") && r.includes("Due ") && !r.includes("Overdue")), "Overdue by the one rule: past its date and not accepted, with Was due: " + late.join(" | "));
+    ok(erows.some((r) => r.includes("Welcome packet") && r.includes("Planned for") && !r.includes("Overdue") && !r.includes("Was due")), "an agreement that is not signed yet is never overdue, whatever its planned date (step 40)");
     ok(t.includes("Finished and canceled (1)") && await dela(p).locator("#pj-panel details.eng-past").count() === 1, "finished work folds away under the active engagements");
     await dela(p).getByLabel("Find an engagement by its title or freelancer").fill("kendra");
     await p.waitForTimeout(200);
@@ -176,6 +182,10 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     await dela(p).locator("#pj-tab-gigs").click();
     t = await waitFor(p, "Your gigs (4)");
     const grows = await inShadow(p, (root) => [...root.querySelectorAll("#pj-panel table.pj-table tbody tr")].map((r) => r.innerText.replace(/\s+/g, " ")));
+    const gacts = await inShadow(p, (root) => [...root.querySelectorAll("#pj-panel table.pj-table tbody tr")].map((r) => r.querySelector(".badge").textContent + " > " + r.querySelector("td:last-child button").textContent + " > " + r.querySelector("td:last-child button").getAttribute("aria-label")));
+    ok(gacts.every((a) => /^Draft > Continue draft > Continue draft: .|^Open > (Review proposals > Review proposals|View gig > View gig): ./.test(a)) && gacts.some((a) => a.startsWith("Open > Review proposals")), "each gig's button says what it does: " + gacts.join(" | "));
+    ok(grows.some((r) => r.includes("Estate binder assembly") && r.includes("Budget not set") && r.includes("Not set")), "a draft with no budget says Budget not set, and no closing date says Not set");
+    ok(!t.includes("$0 to $0") && await dela(p).locator("#new-gig-card").count() === 0 && (await inShadow(p, (root) => [...root.querySelectorAll("#pj-panel thead .pj-th")].map((x) => x.textContent).join("|"))) === "Gig|Proposals|Budget|Closing date|Status|Action", "the gigs table: its columns, no $0 to $0, and no second New Gig");
     ok(grows.length === 3 && grows[0].includes("Client intake coordinator") && grows[0].includes("3 · 1 question") && grows[0].includes("$400 to $800") && grows[0].includes("Open") && t.includes("Open and drafts (3)") && t.includes("Filled (1)"), "the gigs table: proposals, budget, closing date and status, open and drafts first: " + grows[0]);
     await dela(p).getByLabel("Find a gig by its title").fill("binder");
     await p.waitForTimeout(200);
@@ -189,8 +199,11 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     await waitFor(p, "Quick actions");
     const quick = await inShadow(p, (root) => [...root.querySelectorAll(".pj-quick")].map((b) => b.innerText.replace(/\s+/g, " ").trim()));
     ok(quick.join("|") === "Review proposals 1 waiting|Approve deliverables 1 waiting|Pay milestones 1 waiting|Sign agreements 1 waiting" && !quick.join(" ").includes("New Gig"), "quick actions: review, approve, pay and sign, each with what waits, and no second New Gig: " + quick.join("|"));
-    const upcoming = await inShadow(p, (root) => [...root.querySelectorAll("#pj-panel .pj-col:last-child .hl button.hrow")].map((r) => r.innerText.replace(/\s+/g, " ")));
+    const upcoming = await inShadow(p, (root) => [...root.querySelectorAll("#pj-panel .pj-up-b")].map((r) => r.innerText.replace(/\s+/g, " ")));
     ok(upcoming.length === 3 && upcoming[0].includes("Initial documents") && upcoming[0].includes("Overdue") && upcoming[1].includes("Client two intake"), "upcoming milestones, the nearest date first, late ones marked: " + upcoming.join(" | "));
+    // Step 40: the right column keeps a readable width, or sits under the left one
+    const cols = await inShadow(p, (root) => { const c = root.querySelectorAll("#pj-panel .pj-col"); const a = c[0].getBoundingClientRect(), b = c[1].getBoundingClientRect(); const tt = root.querySelector(".pj-up-t").getBoundingClientRect(); return { side: b.left > a.right - 1, right: Math.round(b.width), words: Math.round(tt.width) }; });
+    ok((cols.side ? cols.right >= 320 : true) && cols.words >= 150, "Upcoming milestones keeps a readable width: " + JSON.stringify(cols));
     await p.screenshot({ path: path.join(SHOTS, "projects-overview.png"), fullPage: true });
     // A tile opens its tab
     await dela(p).locator(".pj-tile").nth(2).click();
@@ -203,6 +216,8 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
       await p.setViewportSize({ width: w, height: 800 });
       await p.waitForTimeout(350);
       ok(await fits(p), w + " wide: the Overview fits with no sideways scrolling");
+      const nar = await inShadow(p, (root) => { const c = root.querySelectorAll("#pj-panel .pj-col"); return [c[1].getBoundingClientRect().top >= c[0].getBoundingClientRect().bottom - 1, Math.round(root.querySelector(".pj-up-t").getBoundingClientRect().width)]; });
+      ok(nar[0] && nar[1] >= 150, w + " wide: the right column sits under the left one and its words keep their width: " + nar.join(", "));
     }
     const stacked = await inShadow(p, (root) => { const td = root.querySelector("#pj-panel table.pj-table tbody td"); return getComputedStyle(td).display + "|" + getComputedStyle(td, "::before").content; });
     ok(stacked.startsWith("block|") && stacked.includes("Freelancer"), "on a phone each table row is a stack of labeled lines: " + stacked);
