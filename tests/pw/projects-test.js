@@ -89,6 +89,9 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     t = await waitFor(p, "DELA writes a public version of the document for freelancers.");
     ok(await dela(p).locator("#pj-tab-gigs").getAttribute("aria-selected") === "true", "it opens the form on the Gigs tab");
     await p.screenshot({ path: path.join(SHOTS, "projects-empty-gigs.png"), fullPage: true });
+    await dela(p).locator("#pj-tab-overview").click();
+    await waitFor(p, "Quick actions");
+    ok(await dela(p).locator("#pj-tab-overview").getAttribute("aria-selected") === "true", "with the form open, the other tabs can still be chosen");
 
     // ---------- With work, in the server's own shapes ----------
     const gigs = [

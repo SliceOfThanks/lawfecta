@@ -5186,7 +5186,11 @@
   }
   function projectsWorkspace(el) {
     var sw = me.switches || {}, cur = PJ_TABS.some(function (t) { return t[0] === gigs.ptab; }) ? gigs.ptab : "overview";
-    if (gigs.formOpen || gigs.newFrom || gigs.linkTo || gigs.pendingInvite) cur = "gigs";
+    // Arriving to post a gig (from a document, for a freelancer, or linked to a job) opens the Gigs tab once; after
+    // that the tabs are the member's to choose
+    var want = gigs.newFrom || gigs.linkTo || gigs.pendingInvite ? [gigs.newFrom || "", gigs.linkTo ? gigs.linkTo.id : "", gigs.pendingInvite ? gigs.pendingInvite.name : ""].join("|") : "";
+    if (want && gigs.pwant !== want) cur = "gigs";
+    gigs.pwant = want;
     gigs.ptab = cur;
     Promise.all([api.get("/gigs"), sw.engagements ? api.get("/engagements").catch(function () { return null; }) : Promise.resolve({ ok: true, on: false }), loadStanding()]).then(function (got) {
       var r = got[0], er = got[1], st = got[2] || {};
