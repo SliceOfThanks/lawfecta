@@ -352,6 +352,63 @@ Deno.test("sign-in backstop: one check a day for a freelancer, none for an attor
   }
 });
 
+// AI review 0.10.0 (tests 3), the last part: the queued check itself, run by the worker. In Dry run it only lists what
+// it would do; in Live it moves the member to Free once. Every other queued job is held back while the worker runs
+// here, and put back after, so this test runs the one job it is about.
+Deno.test("sign-in backstop: the queued check lists only in Dry run and changes the plan once in Live", async () => {
+  const WORKER = "test-worker-secret-0123456789abcdef0123";
+  await pool.query(`create or replace function dela_worker_ok(p_secret text) returns boolean language sql as $$ select p_secret = '${WORKER}' $$`);
+  const wDeps: Deps = { ...deps, fetch: (() => Promise.resolve(new Response("{}", { status: 200, headers: { "content-type": "application/json" } }))) as typeof fetch };
+  const bd = 9_300_000 + RUN * 10 + 5;
+  const id = (await pool.query("insert into people (bd_member_id, display_name, email) values ($1, 'Sign 5', 'si5@test.invalid') returning id", [bd])).rows[0].id;
+  await pool.query("insert into access_list (bd_member_id, channel) values ($1, 'access')", [bd]);
+  await pool.query("select dela_ensure_side($1, 'freelancer', 'fl_free', 'staff_grant')", [id]);
+  add(bd, 8, { dela_trial_status: "active", dela_trial_ends_at: iso(NOW - DAY) });
+  const signIn = async () => {
+    const now = Math.floor(NOW / 1000);
+    const body = b64url(new TextEncoder().encode(JSON.stringify({ aud: "dela", uid: bd, sub: "", name: "Sign 5", email: "si5@test.invalid", jti: crypto.randomUUID(), iat: now, exp: now + 300 })));
+    const res = await handle(new Request("http://localhost/functions/v1/api/bootstrap", {
+      method: "POST", headers: { origin: "https://lawfecta.com", "content-type": "application/json" }, body: JSON.stringify({ pass: body + "." + await hmacHex(ENV.BD_SHARED_SECRET, body), side: "freelancer" }),
+    }), deps);
+    await res.text();
+  };
+  const runWorker = async () => {
+    for (const fn of ["dela_maybe_queue_daily", "dela_maybe_queue_monthly", "dela_maybe_queue_plan_sync", "dela_maybe_queue_trial"]) await pool.query(`select ${fn}()`).catch(() => null);
+    const held = (await pool.query("update jobs set status = 'waiting_approval' where status in ('queued', 'delayed') and not (kind = 'trial_check_one' and (payload->>'bd_user_id')::bigint = $1) returning id", [bd])).rows.map((r: any) => r.id);
+    try {
+      const res = await handle(new Request("http://localhost/functions/v1/api/worker", { method: "POST", headers: { "x-dela-worker": WORKER } }), wDeps);
+      assertEquals(res.status, 200, await res.text());
+    } finally { if (held.length) await pool.query("update jobs set status = 'queued' where id = any($1::uuid[]) and status = 'waiting_approval'", [held]); }
+  };
+  const job = async () => (await pool.query("select status, last_error from jobs where kind = 'trial_check_one' and (payload->>'bd_user_id')::bigint = $1 order by created_at desc limit 1", [bd])).rows[0];
+  await setTrialSwitch("everyone");
+  try {
+    await setMode("dry_run");
+    await signIn();
+    calls.length = 0;
+    await runWorker();
+    let run = await lastRun();
+    let ev = (await runEvents(run.id)).filter((e) => Number(e.bd_user_id) === bd);
+    assertEquals([(await job()).status, run.trigger, run.mode], ["succeeded", "login", "dry_run"], JSON.stringify(await job()));
+    assertEquals([ev.length, ev[0]?.action, ev[0]?.done, ev[0]?.mode], [1, "downgrade", false, "dry_run"], "Dry run lists the downgrade and does nothing");
+    assertEquals([calls.length, bdState.get(bd)!.plan_id], [0, 8], "Dry run made no change in BD: " + calls.join(" "));
+
+    await setMode("live");
+    await pool.query("update jobs set status = 'queued', run_at = now(), attempts = 0, finished_at = null where kind = 'trial_check_one' and (payload->>'bd_user_id')::bigint = $1", [bd]);
+    await runWorker();
+    run = await lastRun();
+    ev = (await runEvents(run.id)).filter((e) => Number(e.bd_user_id) === bd);
+    assertEquals([(await job()).status, run.trigger, run.mode], ["succeeded", "login", "live"], JSON.stringify(await job()));
+    assertEquals([ev.length, ev[0]?.action, ev[0]?.done], [1, "downgrade", true], "Live moves the member to Free: " + JSON.stringify(ev));
+    assertEquals([calls.filter((c) => c === `plan:${bd}:3`).length, bdState.get(bd)!.plan_id, bdState.get(bd)!.meta.dela_trial_status], [1, 3, "downgraded"], "the plan changed once");
+  } finally {
+    await setMode("dry_run");
+    await setTrialSwitch("off");
+    bdState.delete(bd);
+    await pool.query("delete from jobs where kind = 'trial_check_one' and (payload->>'bd_user_id')::bigint = $1", [bd]);
+  }
+});
+
 Deno.test("one trial: DELA's allowances follow the BD plan only, whatever the old trials switch says", async () => {
   const id = (await pool.query("insert into people (bd_member_id, display_name, email, trial_ends_at) values ($1, 'Old trial', 'ot@test.invalid', now() + interval '3 days') returning id", [9_200_000 + RUN])).rows[0].id;
   await pool.query("select dela_ensure_side($1, 'freelancer', 'fl_free', 'staff_grant')", [id]);
