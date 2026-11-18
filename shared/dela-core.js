@@ -151,21 +151,76 @@
     setTimeout(measure, 0);
   };
 
-  // ---------- One accessible help tip for the member app and the admin (UX review part 3) ----------
-  // A "?" button that opens a short note under it: by click, tap or keyboard (Enter or Space); Escape closes it and
-  // returns focus to the button. The note is tied to the button with aria-controls and aria-describedby. Essential
-  // money, privacy and legal text always stays on the page; a tip only explains a word.
-  var tipN = 0;
-  D.helpTip = function (text, label, onToggle, startOpen) {
+  // ---------- One help tip for the member app and the admin (step 39, docs/briefs/step-39-help-tips.md) ----------
+  // A small "?" beside a heading or label. Its tip is a small white box that floats by the icon and never moves the
+  // page. With a mouse it opens when the pointer is on the icon and stays while the pointer is on the tip; a click
+  // keeps it open. With the keyboard it opens on focus, and Enter or Space keeps it open. On a touch screen a tap
+  // opens it. It closes with Escape, a click or tap anywhere else, the icon again, or its "×". One tip is open at a
+  // time. The tip is tied to the button with aria-controls and aria-describedby. Money, privacy and legal text always
+  // stays on the page; a tip only explains a word or a feature.
+  var tipN = 0, tipNow = null;
+  D.helpTip = function (text, label, onToggle, startOpen, title) {
     if (!text) return [null, null];
-    var id = "dela-tip-" + (++tipN);
-    var box = D.h("div", { class: "helpbox", role: "note", id: id, hidden: !startOpen, text: text });
-    var btn = D.h("button", { class: "help-q", type: "button", "aria-label": label || "What does this mean?", "aria-expanded": String(!!startOpen), "aria-controls": id, "aria-describedby": id }, "?");
-    function set(open) { box.hidden = !open; btn.setAttribute("aria-expanded", String(open)); if (onToggle) onToggle(open); }
-    btn.addEventListener("click", function (e) { e.stopPropagation(); set(box.hidden); });
-    function esc(e) { if (e.key === "Escape" && !box.hidden) { e.stopPropagation(); set(false); btn.focus(); } }
-    btn.addEventListener("keydown", esc);
-    box.addEventListener("keydown", esc);
+    var id = "dela-tip-" + (++tipN), pinned = false, timer = null, on = false;
+    var x = D.h("button", { class: "tip-x", type: "button", tabindex: "-1", "aria-hidden": "true" }, "×");
+    var box = D.h("div", { class: "tipbox", role: "tooltip", id: id, hidden: true }, x, title ? D.h("b", { class: "tip-h", text: title }) : null, typeof text === "string" ? D.h("span", { class: "tip-t", text: text }) : text);
+    var btn = D.h("button", { class: "help-q", type: "button", "aria-label": label || "What does this mean?", "aria-expanded": "false", "aria-controls": id, "aria-describedby": id }, "?");
+    // Where the tip may be drawn: the window, or the side panel or pop-up window the icon sits in
+    function bounds() {
+      var r = { left: 0, top: 0, right: document.documentElement.clientWidth || window.innerWidth, bottom: window.innerHeight };
+      for (var n = btn.parentNode; n && n.nodeType === 1; n = n.parentNode) {
+        var st = window.getComputedStyle(n);
+        if (st.transform && st.transform !== "none") { var q = n.getBoundingClientRect(); return { left: Math.max(r.left, q.left), top: Math.max(r.top, q.top), right: Math.min(r.right, q.right), bottom: Math.min(r.bottom, q.bottom) }; }
+      }
+      return r;
+    }
+    function place() {
+      if (box.hidden) return;
+      if (!btn.isConnected || !box.isConnected) { set(false); return; }
+      box.style.left = "0px"; box.style.top = "0px";
+      var r = btn.getBoundingClientRect(), t = box.getBoundingClientRect(), lim = bounds();
+      var left = Math.max(lim.left + 8, Math.min(r.left - 10, lim.right - 8 - t.width));
+      var under = r.bottom + 6, over = r.top - 6 - t.height;
+      var top = under + t.height > lim.bottom - 8 && over >= lim.top + 8 ? over : under;
+      // t.left and t.top say where "0, 0" really is: inside a pop-up window it is that window's corner
+      box.style.left = Math.round(left - t.left) + "px"; box.style.top = Math.round(top - t.top) + "px";
+    }
+    function away(e) { var p = e.composedPath ? e.composedPath() : [e.target]; if (p.indexOf(btn) < 0 && p.indexOf(box) < 0) set(false); }
+    function esc(e) { if (e.key === "Escape" && !box.hidden) { e.stopPropagation(); set(false); } }
+    function listen(yes) {
+      if (yes === on) return;
+      on = yes;
+      var f = yes ? "addEventListener" : "removeEventListener", root = btn.getRootNode ? btn.getRootNode() : document;
+      document[f]("pointerdown", away, true);
+      document[f]("keydown", esc, true);
+      window[f]("scroll", place, true);
+      window[f]("resize", place);
+      if (root !== document) root[f]("scroll", place, true);
+    }
+    function set(open, pin) {
+      clearTimeout(timer);
+      pinned = !!open && !!pin;
+      if (box.hidden === !open) return;
+      if (open && tipNow && tipNow !== set) tipNow(false);
+      box.hidden = !open; btn.setAttribute("aria-expanded", String(!!open));
+      if (open) { tipNow = set; listen(true); place(); } else { if (tipNow === set) tipNow = null; listen(false); }
+      if (onToggle) onToggle(!!open);
+    }
+    function later() { clearTimeout(timer); if (!pinned) timer = setTimeout(function () { if (!pinned) set(false); }, 200); }
+    var fine = false;
+    try { fine = window.matchMedia("(hover: hover) and (pointer: fine)").matches; } catch (e) { fine = false; }
+    if (fine) {
+      btn.addEventListener("mouseenter", function () { clearTimeout(timer); if (box.hidden) set(true, false); });
+      btn.addEventListener("mouseleave", later);
+      box.addEventListener("mouseenter", function () { clearTimeout(timer); });
+      box.addEventListener("mouseleave", later);
+    }
+    btn.addEventListener("focus", function () { var kb = false; try { kb = btn.matches(":focus-visible"); } catch (e) { kb = false; } if (kb && box.hidden) set(true, false); });
+    btn.addEventListener("blur", function () { if (!pinned) later(); });
+    btn.addEventListener("click", function (e) { e.stopPropagation(); if (!box.hidden && pinned) set(false); else set(true, true); });
+    box.addEventListener("click", function (e) { e.stopPropagation(); });
+    x.addEventListener("click", function () { set(false); });
+    if (startOpen) setTimeout(function () { if (btn.isConnected) set(true, true); }, 0);
     return [btn, box];
   };
   // Words members meet on many screens, each checked against what DELA really does (2026-11-06)
@@ -209,7 +264,7 @@
   // A label with its help tip after it, for headings and short terms
   D.term = function (label, key, tag) {
     var m = /^what (.+) means$/i.exec(label); // "What match-ready means" is asked as "What does match-ready mean?" (UX review 2026-11-08)
-    var t = D.helpTip(D.HELP[key], "What does " + (m ? m[1] : label).toLowerCase() + " mean?");
+    var t = D.helpTip(D.HELP[key], "What does " + (m ? m[1] : label).toLowerCase() + " mean?", null, false, m ? null : label);
     return D.h("span", { class: "term" }, D.h(tag || "span", { text: label }), t[0] ? " " : null, t[0], t[1]);
   };
 
@@ -501,8 +556,12 @@ D.openTab = function (getUrl, onFail, opts) {
     ".msg{max-width:80%;margin:8px 0;padding:10px 12px;border-radius:14px;background:var(--bg);border:1px solid var(--line)}.msg.mine{margin-left:auto;background:var(--bluebg);border-color:#b9d9f4}" +
     ".tool-group{border:1px solid var(--line);border-radius:12px;padding:8px 12px;margin:6px 0;background:var(--card)}.tool-group summary{cursor:pointer;list-style:revert}" +
     "button.ai-btn{border-color:#7a4b8c;color:#5a2d6b;background:#f7f0fa}button.ai-btn.blue{background:var(--blue);color:#fff;border-color:var(--blue)}.badge.ai-label{background:#f7f0fa;color:#5a2d6b;border:1px solid #d8c2e2}" +
-    ".term .helpbox{display:block}.term .helpbox[hidden]{display:none}.help-q:focus-visible{outline:3px solid var(--blue);outline-offset:2px}" +
-    ".help-q{width:22px;height:22px;min-height:0;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--card);color:var(--muted);font-size:12px;font-weight:700;line-height:1;cursor:pointer}.help-q:hover,.help-q[aria-expanded=true]{color:var(--ink);border-color:var(--ink)}",
+    ".dela .help-q:focus-visible{outline:2px solid var(--blue);outline-offset:3px}" +
+    // The help tip (step 39): a small icon whose click and tap area is larger than the picture, and a small white box that floats
+    ".dela .help-q{position:relative;display:inline-flex;align-items:center;justify-content:center;flex:0 0 auto;box-sizing:border-box;width:18px;height:18px;min-width:18px;min-height:0;margin:0;padding:0;border-radius:50%;border:1.5px solid var(--muted);background:transparent;color:var(--muted);font-size:11px;font-weight:700;line-height:1;text-decoration:none;box-shadow:none;cursor:pointer;vertical-align:middle}" +
+    ".dela .help-q:before{content:'';position:absolute;inset:-5px;border-radius:50%}@media (pointer:coarse){.dela .help-q:before{inset:-13px}}.dela .help-q:hover,.dela .help-q[aria-expanded=true]{color:var(--ink);border-color:var(--ink);background:transparent}" +
+    ".tipbox{position:fixed;left:0;top:0;z-index:40;box-sizing:border-box;width:max-content;max-width:min(300px,calc(100vw - 16px));margin:0;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 32px 10px 12px;box-shadow:0 4px 14px rgba(11,18,32,.1);font-size:14px;font-weight:400;font-style:normal;line-height:1.45;color:var(--ink);text-align:left;text-transform:none;letter-spacing:0;white-space:normal;overflow-wrap:anywhere}.tipbox[hidden]{display:none}" +
+    ".tip-h{display:block;margin:0 0 3px;font-weight:700}.tip-t{display:block}.dela .tip-x{position:absolute;top:4px;right:4px;width:24px;height:24px;min-width:0;min-height:0;padding:0;border:0;border-radius:6px;background:transparent;color:var(--muted);font-size:18px;font-weight:400;line-height:1;box-shadow:none;cursor:pointer}.dela .tip-x:hover{color:var(--ink);background:var(--sel)}",
     "button,.btn{font:inherit;font-weight:700;border-radius:999px;border:1.5px solid var(--brand);background:var(--brand);color:var(--brand-ink);padding:10px 20px;cursor:pointer;text-decoration:none;display:inline-flex;align-items:center;gap:6px;line-height:1.2}",
     "button.blue,.btn.blue{background:var(--blue);border-color:var(--blue);color:#fff}",
     "button.ghost{background:transparent;color:var(--brand)}button.danger{background:var(--bad);border-color:var(--bad);color:#fff}button.small,.btn.small{padding:6px 14px;font-size:14px}",
@@ -556,9 +615,9 @@ D.openTab = function (getUrl, onFail, opts) {
     ".talent-top .talent-gig{flex:0 0 auto;flex-direction:column;align-items:stretch;gap:2px;padding-left:0;border-left:0}.talent-top .talent-gig select{width:100%}.talent-top .talent-acts button{width:100%;min-height:44px}" +
     "@media (max-width:980px){.talent-top{grid-template-columns:56px minmax(0,1fr);align-items:start}.talent-card .talent-photo{width:56px;height:56px;font-size:22px}.talent-top .talent-about,.talent-top .talent-acts{grid-column:1 / -1}.talent-top .talent-acts{border-left:0;padding:10px 0 0;border-top:1px solid var(--line)}.talent-rule{border-left:0;padding-left:0}}" +
     ".mr-wrap{position:relative;display:inline-block;margin:0 0 6px}.dela .mr-btn{background:transparent;border:0;color:var(--ink);font-weight:600;padding:6px 4px;min-height:32px;display:inline-flex;align-items:center;gap:8px;text-decoration:underline}" +
-    ".mr-i{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:1.5px solid var(--ink);border-radius:50%;font-size:13px;font-weight:700;text-decoration:none}.dela .mr-btn:focus-visible{outline:2px solid var(--pink-ink);outline-offset:2px}" +
-    ".mr-panel{position:absolute;left:0;top:100%;z-index:20;width:min(380px,86vw);background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px;box-shadow:0 8px 24px rgba(0,0,0,.14);font-size:14px}.mr-list{margin:6px 0 0;padding:0;list-style:none}" +
-    ".mr-list li{padding:3px 0 3px 24px;position:relative}.mr-list li:before{content:'✓';position:absolute;left:2px;color:#21613d;font-weight:700}@media (max-width:720px),(hover:none){.mr-wrap{display:block}.mr-panel{position:static;width:auto;box-shadow:none;margin-top:4px}}" +
+    ".mr-i{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border:1.5px solid var(--muted);color:var(--muted);border-radius:50%;font-size:11px;font-weight:700;text-decoration:none}.dela .mr-btn:focus-visible{outline:2px solid var(--pink-ink);outline-offset:2px}" +
+    ".mr-panel{position:absolute;left:0;top:100%;z-index:40;width:min(320px,86vw);background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;box-shadow:0 4px 14px rgba(11,18,32,.1);font-size:14px;color:var(--ink)}.mr-list{margin:6px 0 0;padding:0;list-style:none}" +
+    ".mr-list li{padding:3px 0 3px 24px;position:relative}.mr-list li:before{content:'✓';position:absolute;left:2px;color:#21613d;font-weight:700}@media (max-width:720px),(hover:none){.mr-wrap{display:block}.mr-panel{width:min(320px,calc(100vw - 32px))}}" +
     ".tp-head-grid{display:grid;grid-template-columns:84px minmax(0,1fr) minmax(240px,340px);gap:18px;align-items:start}.tp-head-acts{display:flex;flex-direction:column;gap:10px}.tp-head-acts .tp-invite{margin:0;padding:0;border-top:0;flex-direction:column;align-items:stretch;gap:6px}" +
     ".tp-head-acts .talent-gig{flex:0 0 auto;flex-direction:column;align-items:stretch;gap:2px;padding-left:0;border-left:0}.tp-head-acts .talent-gig select{width:100%}.tp-head-acts button{min-height:44px}" +
     "@media (max-width:900px){.tp-head-grid{grid-template-columns:56px minmax(0,1fr)}.tp-head-acts{grid-column:1 / -1}.tp-head-acts .tp-top-acts{justify-content:flex-start}.tp-head-acts button{flex:1 1 auto}}" +

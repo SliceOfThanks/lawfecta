@@ -93,6 +93,7 @@ const BODY = (title, extra) => JSON.stringify({ schema: 2, type: "sop", title, l
     // The Ready to use tip says DELA does not check legal correctness
     await card("Run a conflict check").getByRole("button", { name: "What does Ready to use mean?" }).click();
     ok((await cardText("Run a conflict check")).includes("not whether it is legally correct"), "the Ready to use tip");
+    await p.keyboard.press("Escape");
 
     // ---------- Search by purpose, by ID, then the status choice ----------
     await label(p, "Find a document").fill("conflicts before");

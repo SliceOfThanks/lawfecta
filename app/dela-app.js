@@ -5283,7 +5283,7 @@
     standing: "Ongoing work with a freelancer you trust, inside limits you both signed once.",
     upcoming: "The next milestone of each active engagement, the nearest date first."
   };
-  function pjTip(text, label) { var t = D.helpTip(text, "About " + label); return t; }
+  function pjTip(text, label) { var t = D.helpTip(text, "About " + label, null, false, label); return t; }
   function pjHead(title, count, tipKey, more) {
     var t = tipKey ? pjTip(PJ_HELP[tipKey], title) : [null, null];
     return [h("div", { class: "row pj-cardhead" }, h("h2", { class: "grow", style: "margin:0", text: title + (count === null || count === undefined ? "" : " (" + count + ")") }), t[0], more || null), t[1]];

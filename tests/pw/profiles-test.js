@@ -176,6 +176,8 @@ async function waitFor(page, words, ms) {
     ok((await q.getAttribute("aria-expanded")) === "false" && await p.evaluate(() => document.querySelector(".dela-host").shadowRoot.activeElement.getAttribute("aria-label")) === "What to enter in Education", "Escape closes it and keeps focus on the ?");
     await p.keyboard.press("Enter");
     ok((await q.getAttribute("aria-expanded")) === "true", "Enter opens it again");
+    ok(await p.evaluate((id) => { const b = document.querySelector(".dela-host").shadowRoot.getElementById(id); return getComputedStyle(b).position === "fixed" && b.getBoundingClientRect().width <= 300; }, noteId), "the note floats by the ? and is at most 300 pixels wide (step 39)");
+    await p.keyboard.press("Escape");
     const writeBtns = await dela(p).getByRole("button", { name: "✦ Write with DELA" }).count();
     ok(writeBtns === 4, "Headline, Summary, Experience and Education each have Write with DELA (" + writeBtns + ")");
     await dela(p).getByRole("button", { name: "✦ Write with DELA" }).nth(2).click();
