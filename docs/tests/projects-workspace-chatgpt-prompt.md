@@ -1,6 +1,6 @@
-# ChatGPT test: Projects as a workspace, and posting a gig in three steps (steps 37 and 38, 2026-11-17)
+# ChatGPT test: Projects as a workspace, and posting a gig in three steps (steps 37, 38 and 39, 2026-11-18)
 
-What it covers: the new Projects page for an attorney, and the new three-step page for posting a gig (its labels, its messages for mistakes, the costs, DELA's draft, "Save draft", the review, and that nothing is posted without the tick box). The heading with its help tip, the four numbers, the four tabs (mouse and arrow keys), "Needs your attention" with one button per item, the engagements table with progress, next milestone and "Overdue", "Quick actions" as project tasks, "Upcoming milestones", the Gigs tab with its filters and search, the Engagements tab with its search, the Standing Arrangements tab, the "+ New Gig" menu, and a short review of clarity.
+What it covers: the new Projects page for an attorney, and the new three-step page for posting a gig (its labels, its messages for mistakes, the costs, DELA's draft, "Save draft", the review, and that nothing is posted without the tick box). The heading with its help tip (the small floating tip of step 39), the four numbers, the four tabs (mouse and arrow keys), "Needs your attention" with one button per item, the engagements table with progress, next milestone and "Overdue", "Quick actions" as project tasks, "Upcoming milestones", the Gigs tab with its filters and search, the Engagements tab with its search, the Standing Arrangements tab, the "+ New Gig" menu, and a short review of clarity.
 
 What it cannot cover: a real screen reader, a phone (the automated tests check 768 and 320 pixels), really posting a gig (the automated tests post one), paying, signing or approving, and what the page says when a list cannot load (the automated tests check it).
 
@@ -52,14 +52,19 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 
 1. Go to: https://www.lawfecta.co/dela?tab=projects
    Find: the top of the page.
-   Expect: the heading "Projects" with a small round "?" button beside it, the line "Manage your gigs, engagements and standing arrangements in one place.", and at the far right a dark red button "+ New Gig" with a small arrow. Under them a row of four boxes, each with a number: "Needs action", "Open and draft gigs", "Active engagements", "Standing arrangements". Under the boxes a row of four tabs: "Overview" (underlined in dark red), "Gigs", "Engagements", "Standing Arrangements". Write the four numbers into your report.
+   Expect: the heading "Projects" with a small grey "?" in a circle beside it (about the height of a letter, not a large round button), the line "Manage your gigs, engagements and standing arrangements in one place.", and at the far right a dark red button "+ New Gig" with a small arrow. Under them a row of four boxes, each with a number: "Needs action", "Open and draft gigs", "Active engagements", "Standing arrangements". Under the boxes a row of four tabs: "Overview" (underlined in dark red), "Gigs", "Engagements", "Standing Arrangements". Write the four numbers into your report.
    Expect also: nowhere on the page is there a percentage with an arrow, the words "vs. last month", "At risk", "High interest" or "Top performing".
 
-2. Find: the round "?" button right of the heading "Projects".
+2. Find: the small grey "?" in a circle right of the heading "Projects".
    Do: click it.
-   Expect: a short note opens under the heading that starts "Your workspace for delegated work."
+   Expect: a small white box with a thin grey border opens beside or under the "?". It has the bold word "Projects", a sentence that starts "Your workspace for delegated work.", and a small "×" at its top right. It is NOT a blue box. It lies over the page: the four boxes with numbers and the row of tabs did not move down.
    Do: click the "?" again.
-   Expect: the note closes.
+   Expect: the white box closes.
+   Then find the small grey "?" right of the heading "Needs your attention" (the first white card under the tabs, at the left).
+   Do: click it.
+   Expect: a small white box opens by that "?" with the bold words "Needs your attention" and a sentence that starts "Items that need your review". The rows of the card under it did not move down.
+   Do: click the "×" at the top right of the white box.
+   Expect: the white box closes.
 
 3. Find: the first white card under the tabs, at the left, with the heading "Needs your attention" and a number in brackets.
    Expect: the number in brackets is the same as the number in the box "Needs action" of step 1. The card lists three rows. Each row has a bold title, a grey line with the job's name, and one button at its right. The first row is "Milestone payment due" with the button "Pay milestone". The second is "Deliverable ready for review" with the button "Review deliverable". The third is "Agreement needs your signature" with the button "Sign agreement". Under the three rows, a link "+" a number "more items". Do not click any of the three buttons.

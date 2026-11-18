@@ -8,7 +8,10 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
-## Newest (2026-11-17): steps 37 and 38, the Projects workspace and posting a gig in three steps, are on the site
+## Newest (2026-11-18): step 39, one help tip for the whole site, is on the site
+code_version 755462f, api 130, migrations through 0134. Needs testing: ChatGPT check 10 (docs/tests/projects-workspace-chatgpt-prompt.md), which now also checks the tip in step 2. Waiting on Stacey, not blocking: the two questions in docs/briefs/step-39-help-tips.md.
+
+## Earlier (2026-11-17): steps 37 and 38, the Projects workspace and posting a gig in three steps, are on the site
 code_version 6dee56e, api 130, migrations through 0134. Needs testing: ChatGPT check 10 (docs/tests/projects-workspace-chatgpt-prompt.md), one login, the test attorney. Checks 9 (Home) and 4 (Inbox) came back and their notes are fixed and live. Waiting on Stacey, none of it blocking: the four questions in docs/briefs/step-37-projects-workspace.md and the four in docs/briefs/step-38-new-gig.md (the main ones: may attorneys choose the proposal deadline, and should step 1 of a new gig be saved on the server). Possible next builds if she wants them: the freelancer's Work page in the same four-tab style; agency proposals counted apart from the owner's own; one search box for the whole site.
 
 ## Earlier (2026-11-17): step 36, Home after the UX and accessibility review, is on the site

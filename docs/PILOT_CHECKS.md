@@ -112,6 +112,8 @@ How to read the "State" column:
 | 37.2 | Projects on a real phone (step 37) | The four numbers, the tabs and the stacked table rows are easy to use by touch | Not yet | The automated tests check 768 and 320 pixels. |
 | 38.1 | An attorney posts a real gig through the three steps, on a computer and on a phone (step 38) | The draft reads well, the costs match the agreement later, and the gig opens only after the tick box | Not yet | The automated tests post one in test mode. |
 | 38.2 | The costs on step 1 and step 3 against a real signed agreement (step 38) | The platform fee in the agreement falls inside the range the page showed | Not yet | |
+| 39.1 | The help tips with a real screen reader (step 39) | The "?" is announced as a button with its name, and the tip is read as its description | Not yet | The automated tests check the ties between icon and tip. |
+| 39.2 | The help tips on a real phone (step 39) | A tap opens the small white box, nothing on the page moves, and a tap elsewhere closes it | Not yet | Checked locally with a touch screen setting only. |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
