@@ -662,6 +662,7 @@
   // its heading takes focus (lists load a moment after the page, so the card is looked for briefly).
   function openList(toTab, heading, listFilter) {
     tab = toTab; gigs.id = null;
+    if (toTab === "projects") gigs.ptab = heading.indexOf("Your gigs") === 0 ? "gigs" : heading.indexOf("Engagements") === 0 ? "engagements" : heading.indexOf("Standing") === 0 ? "standing" : gigs.ptab;
     if (listFilter) { gigs.listFilter = listFilter; gigs.listMore = false; }
     draw();
     var tries = 0, timer = setInterval(function () {
@@ -5010,18 +5011,9 @@
   }
 
   // ---------- Attorney: Projects ----------
-  function projectsView() {
-    var el = h("div", null, h("h1", { text: "Projects" }), h("p", { class: "muted", text: "Loading..." }));
-    if (gigs.id) { gigPage(el); return el; }
-    api.get("/gigs").then(function (r) {
-      D.clear(el);
-      el.appendChild(h("h1", { text: "Projects" }));
-      if (!r.ok) { el.appendChild(h("p", { class: "notice", text: gigErr(r) })); return; }
-      var e = r.eligibility || {}, al = r.allowance || {};
-      el.appendChild(h("p", { class: "muted", text: "Post approved work as a Flex Gig. DELA finds freelancers who fit, you compare proposals side by side, and you choose one. Signing and funding come next." }));
-      if (!e.can_post) el.appendChild(h("p", { class: "notice", text: r.agency ? "Your agency cannot post yet. You can still draft gigs. Open the Agency page to see what is missing." : "Posting work and hiring need a verified license. You can still draft gigs. Open Profile and verification from your account menu." }));
-      if (gigs.pendingInvite) el.appendChild(h("p", { class: "notice", id: "gig-for" }, "You are creating a gig for " + gigs.pendingInvite.name + ". Post it, and the invitation to " + gigs.pendingInvite.name + " opens next. ",
-        h("a", { href: "#", onclick: function (e) { e.preventDefault(); gigs.pendingInvite = null; draw(); }, text: "Not for a specific freelancer" }), "."));
+  // The "Post a new gig" card: closed with one button once there is work to manage, open otherwise
+  function newGigCard(r) {
+      var al = r.allowance || {};
       // New gig
       var pick = h("select", { "aria-label": "Approved SOP or Workflow" }, [h("option", { value: "", text: r.playbooks.length ? "Choose an approved SOP or Workflow" : "No approved SOPs or Workflows yet" })].concat(r.playbooks.map(function (p) {
         return h("option", { value: p.id, text: (p.doc_id ? p.doc_id + " " : "") + p.title, selected: gigs.newFrom === p.id });
@@ -5059,14 +5051,29 @@
       });
       // The new gig form opens on request once there is work to manage (UX review P01); it starts open with no gigs yet
       var formOpen = gigs.formOpen || !r.gigs.some(function (g) { return g.status === "open" || g.status === "draft"; }) || !!gigs.newFrom || !!gigs.linkTo || !!gigs.pendingInvite;
-      if (!formOpen) el.appendChild(h("div", { class: "card", id: "new-gig-card" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Post a new gig" }),
+      if (!formOpen) return (h("div", { class: "card", id: "new-gig-card" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Post a new gig" }),
         h("button", { class: "blue small", type: "button", onclick: function () { gigs.formOpen = true; draw(); } }, "Start a new gig")),
         h("p", { class: "small muted", style: "margin:6px 0 0", text: "Turn an approved SOP or Workflow into a Flex Gig. One-off or monthly." })));
-      else el.appendChild(h("div", { class: "card", id: "new-gig-card" }, h("h2", { text: "Post a new gig" }),
+      return (h("div", { class: "card", id: "new-gig-card" }, h("h2", { text: "Post a new gig" }),
         h("p", { class: "small muted", text: "DELA writes a public version of the document for freelancers. You check it, set the budget (at least " + D.money(r.min_budget_cents) + ") and the deadline, then post. Open gigs on your plan: " + (al.unlimited ? "no cap" : (al.used || 0) + " of " + al.limit + " in use") + "." }),
         gigs.linkTo ? h("p", { class: "notice", text: "Linked to: " + gigs.linkTo.title + ". Whoever you hire is listed on the attorney's \"Who's working on this\", as your subcontractor. Share with them only what their part needs." },
           " ", h("button", { class: "ghost small", type: "button", onclick: function () { gigs.linkTo = null; draw(); } }, "Do not link")) : null,
         kindRow, field("Document", pick), notes, h("div", { class: "row" }, field("Budget from ($)", bmin), field("Budget to ($)", bmax)), feeNote, h("div", { class: "row" }, go)));
+  }
+  function projectsView() {
+    var el = h("div", null, h("h1", { text: "Projects" }), h("p", { class: "muted", text: "Loading..." }));
+    if (gigs.id) { gigPage(el); return el; }
+    if (NL()) { projectsWorkspace(el); return el; }
+    api.get("/gigs").then(function (r) {
+      D.clear(el);
+      el.appendChild(h("h1", { text: "Projects" }));
+      if (!r.ok) { el.appendChild(h("p", { class: "notice", text: gigErr(r) })); return; }
+      var e = r.eligibility || {}, al = r.allowance || {};
+      el.appendChild(h("p", { class: "muted", text: "Post approved work as a Flex Gig. DELA finds freelancers who fit, you compare proposals side by side, and you choose one. Signing and funding come next." }));
+      if (!e.can_post) el.appendChild(h("p", { class: "notice", text: r.agency ? "Your agency cannot post yet. You can still draft gigs. Open the Agency page to see what is missing." : "Posting work and hiring need a verified license. You can still draft gigs. Open Profile and verification from your account menu." }));
+      if (gigs.pendingInvite) el.appendChild(h("p", { class: "notice", id: "gig-for" }, "You are creating a gig for " + gigs.pendingInvite.name + ". Post it, and the invitation to " + gigs.pendingInvite.name + " opens next. ",
+        h("a", { href: "#", onclick: function (e) { e.preventDefault(); gigs.pendingInvite = null; draw(); }, text: "Not for a specific freelancer" }), "."));
+      el.appendChild(newGigCard(r));
       // What needs the attorney now (UX review P01): proposals to review, questions to answer, drafts to post, agreements to sign
       var todo = h("div", { class: "card", id: "needs-action" }, h("h2", { text: "Needs your action" }));
       var todoList = h("ul", { class: "list" });
@@ -5109,6 +5116,257 @@
       var stSlot = h("div"); el.appendChild(stSlot); standingCard(stSlot);
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     return el;
+  }
+
+
+  // ---------- Step 37: Projects as a workspace (docs/briefs/step-37-projects-workspace.md). Four tabs: Overview, Gigs,
+  // Engagements, Standing Arrangements. Every number is counted from the lists the page loads; nothing is estimated,
+  // and there are no trends or scores. The old layout keeps the one long page. ----------
+  var PJ_TABS = [["overview", "Overview"], ["gigs", "Gigs"], ["engagements", "Engagements"], ["standing", "Standing Arrangements"]];
+  var PJ_HELP = {
+    page: "Your workspace for delegated work. Post gigs, review proposals, manage active engagements, track milestones and payments, and set up standing arrangements.",
+    needs: "Items that need your review, approval, signature or payment before the work can move on.",
+    gigs: "Gigs you created that are still drafts or are open for proposals.",
+    engagements: "Work you awarded to a freelancer that is not finished yet, with its milestones.",
+    standing: "Ongoing work with a freelancer you trust, inside limits you both signed once.",
+    upcoming: "The next milestone of each active engagement, the nearest date first."
+  };
+  function pjTip(text, label) { var t = D.helpTip(text, "About " + label); return t; }
+  function pjHead(title, count, tipKey, more) {
+    var t = tipKey ? pjTip(PJ_HELP[tipKey], title) : [null, null];
+    return [h("div", { class: "row pj-cardhead" }, h("h2", { class: "grow", style: "margin:0", text: title + (count === null || count === undefined ? "" : " (" + count + ")") }), t[0], more || null), t[1]];
+  }
+  // A table that reads as a table to a screen reader and stacks into labeled lines on a narrow screen
+  function pjTable(caption, cols, rows) {
+    return h("table", { class: "pj-table" }, h("caption", { class: "sr", text: caption }),
+      h("thead", null, h("tr", null, cols.map(function (c) { return h("th", { scope: "col", text: c }); }))),
+      h("tbody", null, rows.map(function (cells) { return h("tr", null, cells.map(function (cell, i) { return h(i === 0 ? "th" : "td", i === 0 ? { scope: "row", "data-label": cols[i] } : { "data-label": cols[i] }, cell); })); })));
+  }
+  function pjEngOpen(e) { return function () { gigs.id = e.gig_id; gigs.view = "agreement"; tab = "projects"; draw(); }; }
+  function pjEngRow(e) {
+    var nx = e.next || null, done = e.milestones ? Math.round((e.accepted || 0) * 100 / e.milestones) : 0, late = nx && isOverdue(nx.due_date, nx.status);
+    return [
+      h("span", null, h("b", { text: e.gig_title }), h("span", { class: "hsub", style: "display:block", text: D.money(e.total_cents) })),
+      h("span", { class: "row", style: "gap:8px;align-items:center" }, smallFace(e), h("span", { text: e.other_name || "" })),
+      e.milestones ? h("span", null, h("span", { text: (e.accepted || 0) + " of " + e.milestones + " accepted" }), h("span", { class: "bar pj-bar", role: "img", "aria-label": (e.accepted || 0) + " of " + e.milestones + " milestones accepted" }, h("span", { style: "width:" + done + "%" }))) : h("span", { class: "hsub", text: "Set when you both sign" }),
+      nx ? h("span", null, h("span", { text: nx.title || "Milestone " + nx.seq }), nx.due_date ? h("span", { class: "hsub", style: "display:block", text: dueWords(nx.due_date, nx.status) }) : null) : h("span", { class: "hsub", text: "None" }),
+      h("span", { class: "row", style: "gap:6px;flex-wrap:wrap" }, late ? h("span", { class: "badge bad", text: "Overdue" }) : null, agBadge(e)),
+      h("button", { class: "ghost small", type: "button", "aria-label": "View " + e.gig_title, onclick: pjEngOpen(e) }, "View")
+    ];
+  }
+  function pjGigRow(g) {
+    return [
+      h("span", null, h("b", { text: g.title }), g.kind === "monthly" || g.linked_to ? h("span", { class: "hsub", style: "display:block", text: (g.kind === "monthly" ? "Monthly" : "") + (g.linked_to ? (g.kind === "monthly" ? " · " : "") + "Linked to " + g.linked_to : "") }) : null),
+      h("span", { text: String(g.proposals || 0) + (g.questions_open ? " · " + g.questions_open + (g.questions_open === 1 ? " question" : " questions") : "") }),
+      h("span", { text: budgetText(g) }),
+      h("span", { text: g.status === "open" && g.closes_at ? shortDate(g.closes_at) : g.closed_at ? shortDate(g.closed_at) : "Not set" }),
+      h("span", { class: "badge " + gigTone(g.status), text: GIG_STATUS[g.status] }),
+      h("button", { class: "ghost small", type: "button", "aria-label": "View " + g.title, onclick: function () { gigLink(g.id, "projects"); } }, "View")
+    ];
+  }
+  // What waits on the attorney, as rows with one specific button each. The same sources as Notifications' list.
+  function pjAttention(r, engs) {
+    var out = [];
+    engs.forEach(function (e) {
+      var open = pjEngOpen(e);
+      if (e.needs_me === "pay") out.push({ rank: 0, kind: "pay", title: "Milestone payment due", sub: e.gig_title, act: "Pay milestone", go: open });
+      else if (e.needs_me === "review") out.push({ rank: 1, kind: "review", title: "Deliverable ready for review", sub: e.gig_title, act: "Review deliverable", go: open });
+      else if (e.needs_me === "sign") out.push({ rank: 2, kind: "sign", title: "Agreement needs your signature", sub: e.gig_title + " · " + D.money(e.total_cents), due: e.sign_by ? "Sign by " + shortDate(e.sign_by) : "", act: "Sign agreement", go: open });
+    });
+    (r.gigs || []).forEach(function (g) {
+      if (g.status === "open" && g.proposals) out.push({ rank: 3, kind: "proposals", title: g.proposals === 1 ? "Review 1 proposal" : "Review " + g.proposals + " proposals", sub: g.title, due: g.closes_at ? "Closes " + shortDate(g.closes_at) : "", act: "Review proposals", go: function () { tab = "projects"; gigs.id = g.id; gigs.view = "proposals"; draw(); } });
+      if (g.questions_open) out.push({ rank: 4, kind: "questions", title: g.questions_open === 1 ? "Answer 1 question" : "Answer " + g.questions_open + " questions", sub: g.title, act: "Answer questions", go: function () { tab = "projects"; gigs.id = g.id; gigs.view = "questions"; draw(); } });
+    });
+    return out.sort(function (a, b) { return a.rank - b.rank; });
+  }
+  function pjItem(x) {
+    return h("li", { class: "pj-item" }, h("span", { class: "grow", style: "min-width:0" }, h("b", { style: "display:block", text: x.title }), h("span", { class: "hsub", text: x.sub })),
+      x.due ? h("span", { class: "badge held", text: x.due }) : null,
+      h("button", { class: (x.rank < 2 ? "blue" : "ghost") + " small", type: "button", "aria-label": x.act + ": " + x.sub, onclick: x.go }, x.act));
+  }
+  function projectsWorkspace(el) {
+    var sw = me.switches || {}, cur = PJ_TABS.some(function (t) { return t[0] === gigs.ptab; }) ? gigs.ptab : "overview";
+    if (gigs.formOpen || gigs.newFrom || gigs.linkTo || gigs.pendingInvite) cur = "gigs";
+    gigs.ptab = cur;
+    Promise.all([api.get("/gigs"), sw.engagements ? api.get("/engagements").catch(function () { return null; }) : Promise.resolve({ ok: true, on: false }), loadStanding()]).then(function (got) {
+      var r = got[0], er = got[1], st = got[2] || {};
+      D.clear(el);
+      var tip = pjTip(PJ_HELP.page, "Projects");
+      // The page is drawn again after a tab is chosen; focus goes back to that tab once it is there
+      var go = function (key, more) { gigs.ptab = key; gigs.pfocus = "tab"; if (more) more(); draw(); };
+      // New Gig, with the ways to start one
+      var ngSum = h("summary", { class: "btn blue", id: "pj-new" }, "+ New Gig", h("span", { class: "menu-caret", "aria-hidden": "true", text: " ▾" }));
+      var ngPanel = h("div", { class: "menu-panel", role: "group", "aria-labelledby": "pj-new" });
+      var ng = h("details", { class: "dmenu pj-new" }, ngSum, ngPanel);
+      ng.addEventListener("keydown", function (e) { if (e.key === "Escape" && ng.open) { e.stopPropagation(); ng.open = false; ngSum.focus(); } });
+      [["From an approved document", function () { gigs.formOpen = true; gigs.ptab = "gigs"; draw(); }],
+        sw.ai_generation && me.side === "attorney" ? ["Plan a task with Ask DELA", function () { goTab("delegate"); }] : null,
+        sw.playbook_library ? ["Create a document first", function () { goTab("library"); }] : null].filter(Boolean).forEach(function (o) {
+        var b = h("button", { class: "menu-item", type: "button" }, o[0]);
+        b.addEventListener("click", function () { ng.open = false; o[1](); });
+        ngPanel.appendChild(b);
+      });
+      el.appendChild(h("div", { class: "pj-top" }, h("div", { class: "grow" }, h("div", { class: "row", style: "gap:8px;align-items:center" }, h("h1", { style: "margin:0", text: "Projects" }), tip[0]), tip[1],
+        h("p", { class: "muted", style: "margin:2px 0 0", text: "Manage your gigs, engagements and standing arrangements in one place." })), ng));
+      if (!r.ok) { el.appendChild(h("p", { class: "notice", text: gigErr(r) })); return; }
+      var e0 = r.eligibility || {};
+      if (!e0.can_post) el.appendChild(h("p", { class: "notice", text: r.agency ? "Your agency cannot post yet. You can still draft gigs. Open the Agency page to see what is missing." : "Posting work and hiring need a verified license. You can still draft gigs. Open Profile and verification from your account menu." }));
+      if (gigs.pendingInvite) el.appendChild(h("p", { class: "notice", id: "gig-for" }, "You are creating a gig for " + gigs.pendingInvite.name + ". Post it, and the invitation to " + gigs.pendingInvite.name + " opens next. ",
+        h("a", { href: "#", onclick: function (e) { e.preventDefault(); gigs.pendingInvite = null; draw(); }, text: "Not for a specific freelancer" }), "."));
+      var engFailed = !!sw.engagements && !(er && er.ok);
+      var engs = er && er.ok && er.on ? er.engagements || [] : [];
+      var isPast = function (e) { return e.status === "completed" || e.status === "canceled"; };
+      var active = engs.filter(function (e) { return !isPast(e); });
+      var openDraft = (r.gigs || []).filter(function (g) { return g.status === "open" || g.status === "draft" || g.status === "paused"; });
+      var standing = st.on ? (st.arrangements || []).filter(function (a) { return a.status !== "ended" && a.status !== "declined"; }) : [];
+      var needs = pjAttention(r, engs);
+      // The four numbers; each opens its tab
+      var tile = function (n, label, key, tipKey, icon0, more) {
+        return h("button", { class: "pj-tile" + (key === "overview" && n ? " hot" : ""), type: "button", "aria-label": n + " " + label + ". " + PJ_HELP[tipKey], onclick: function () { go(key, more); } },
+          h("span", { class: "pj-ic", "aria-hidden": "true" }, icon(icon0)), h("span", null, h("b", { text: String(n) }), h("span", { text: label })), icon("chev"));
+      };
+      el.appendChild(h("div", { class: "pj-tiles" },
+        tile(engFailed ? "?" : needs.length, "Needs action", "overview", "needs", "alert", function () { gigs.needsAll = true; }),
+        tile(openDraft.length, "Open and draft gigs", "gigs", "gigs", "work", function () { gigs.listFilter = "active"; }),
+        tile(engFailed ? "?" : active.length, "Active engagements", "engagements", "engagements", "projects"),
+        tile(standing.length, "Standing arrangements", "standing", "standing", "swap")));
+      var tabs = h("div", { class: "pj-tabs", role: "tablist", "aria-label": "Sections of Projects" }, PJ_TABS.map(function (t) {
+        var b = h("button", { type: "button", role: "tab", id: "pj-tab-" + t[0], "aria-selected": String(t[0] === cur), "aria-controls": "pj-panel", tabindex: t[0] === cur ? "0" : "-1", onclick: function () { go(t[0]); } }, t[1]);
+        b.addEventListener("keydown", function (e) {
+          var i = PJ_TABS.map(function (x) { return x[0]; }).indexOf(t[0]), j = e.key === "ArrowRight" ? i + 1 : e.key === "ArrowLeft" ? i - 1 : e.key === "Home" ? 0 : e.key === "End" ? PJ_TABS.length - 1 : -1;
+          if (j < 0 && e.key !== "Home") return;
+          e.preventDefault(); go(PJ_TABS[(j + PJ_TABS.length) % PJ_TABS.length][0]);
+        });
+        return b;
+      }));
+      el.appendChild(tabs);
+      var refocus = gigs.pfocus; gigs.pfocus = null;
+      var panel = h("div", { id: "pj-panel", role: "tabpanel", "aria-labelledby": "pj-tab-" + cur, tabindex: "0" });
+      el.appendChild(panel);
+      var failNote = function () { return h("p", { class: "notice hw-failed", role: "status" }, "Your engagements could not load just now. ", h("button", { class: "linkish", type: "button", onclick: draw }, "Try again")); };
+      var engCols = ["Engagement", "Freelancer", "Progress", "Next milestone", "Status", "Action"], gigCols = ["Gig", "Proposals", "Budget", "Closes", "Status", "Action"];
+      var viewAll = function (key, words) { return h("button", { class: "linkish", type: "button", onclick: function () { go(key); } }, words + " →"); };
+
+      if (cur === "overview") {
+        var left = h("div", { class: "pj-col" }), right = h("div", { class: "pj-col" });
+        panel.appendChild(h("div", { class: "pj-cols" }, left, right));
+        // Needs your attention
+        var nc = h("section", { class: "card", id: "needs-action" }), nh = pjHead("Needs your attention", engFailed ? null : needs.length, "needs");
+        nc.appendChild(nh[0]); if (nh[1]) nc.appendChild(nh[1]);
+        if (engFailed) nc.appendChild(failNote());
+        if (!needs.length && !engFailed) nc.appendChild(h("p", { class: "muted", style: "margin:8px 0 0", text: "Nothing waits on you right now." }));
+        else if (needs.length) {
+          var all = gigs.needsAll || needs.length <= 3, ul = h("ul", { class: "pj-list" }, (all ? needs : needs.slice(0, 3)).map(pjItem));
+          nc.appendChild(ul);
+          if (!all) nc.appendChild(h("button", { class: "linkish", type: "button", id: "pj-more", onclick: function () { gigs.needsAll = true; draw(); } }, "+ " + (needs.length - 3) + (needs.length - 3 === 1 ? " more item" : " more items")));
+        }
+        left.appendChild(nc);
+        // Active engagements
+        if (sw.engagements) {
+          var ec = h("section", { class: "card" }), eh = pjHead("Active engagements", engFailed ? null : active.length, "engagements", active.length > 3 ? viewAll("engagements", "View all") : null);
+          ec.appendChild(eh[0]); if (eh[1]) ec.appendChild(eh[1]);
+          if (engFailed) ec.appendChild(failNote());
+          else if (!active.length) ec.appendChild(h("p", { class: "muted", style: "margin:8px 0 0", text: "No active engagements. An engagement starts when you choose a proposal and both sign the agreement." }));
+          else ec.appendChild(pjTable("Active engagements", engCols, active.slice(0, 3).map(pjEngRow)));
+          left.appendChild(ec);
+        }
+        // Your gigs, by state
+        var gc = h("section", { class: "card" }), gh = pjHead("Your gigs", (r.gigs || []).length, "gigs", viewAll("gigs", "View all"));
+        gc.appendChild(gh[0]); if (gh[1]) gc.appendChild(gh[1]);
+        var cnt = function (f) { return (r.gigs || []).filter(f).length; };
+        gc.appendChild(h("div", { class: "hstats", style: "margin-top:10px" },
+          hstat(cnt(function (g) { return g.status === "draft"; }), "Drafts", null, function () { go("gigs", function () { gigs.listFilter = "active"; }); }),
+          hstat(cnt(function (g) { return g.status === "open" || g.status === "paused"; }), "Open", null, function () { go("gigs", function () { gigs.listFilter = "active"; }); }),
+          hstat(cnt(function (g) { return g.status === "filled"; }), "Filled", null, function () { go("gigs", function () { gigs.listFilter = "filled"; }); }),
+          hstat(cnt(function (g) { return g.status === "closed" || g.status === "canceled"; }), "Closed", null, function () { go("gigs", function () { gigs.listFilter = "closed"; }); })));
+        if (!(r.gigs || []).length) gc.appendChild(h("p", { class: "muted", style: "margin:10px 0 0", text: "No gigs yet. Choose \"+ New Gig\" at the top of the page to post your first one." }));
+        left.appendChild(gc);
+        // Quick actions: the project tasks, not a second New Gig (Stacey 2026-11-17)
+        var n = function (k) { return needs.filter(function (x) { return x.kind === k; }); };
+        var qa = h("section", { class: "card" }, h("h2", { style: "margin:0 0 10px", text: "Quick actions" }));
+        var qBtn = function (label, list, emptyGo) {
+          return h("button", { class: "pj-quick", type: "button", onclick: function () { if (list.length === 1) list[0].go(); else if (list.length) { gigs.needsAll = true; gigs.pfocus = "needs"; draw(); } else emptyGo(); } },
+            h("b", { text: label }), h("span", { class: "hsub", text: list.length ? list.length + " waiting" : "None waiting" }));
+        };
+        qa.appendChild(h("div", { class: "pj-quicks" },
+          qBtn("Review proposals", n("proposals"), function () { go("gigs", function () { gigs.listFilter = "active"; }); }),
+          sw.engagements ? qBtn("Approve deliverables", n("review"), function () { go("engagements"); }) : null,
+          sw.engagements ? qBtn("Pay milestones", n("pay"), function () { go("engagements"); }) : null,
+          sw.engagements ? qBtn("Sign agreements", n("sign"), function () { go("engagements"); }) : null));
+        right.appendChild(qa);
+        if (me.side === "attorney") { var ask = wAsk(); if (ask) right.appendChild(ask); }
+        // Upcoming milestones
+        if (sw.engagements && !engFailed) {
+          var up = active.filter(function (e) { return e.next && e.next.due_date && e.status === "active"; }).sort(function (a, b) { return String(a.next.due_date).localeCompare(String(b.next.due_date)); }).slice(0, 4);
+          var uc = h("section", { class: "card" }), uh = pjHead("Upcoming milestones", null, "upcoming");
+          uc.appendChild(uh[0]); if (uh[1]) uc.appendChild(uh[1]);
+          if (!up.length) uc.appendChild(h("p", { class: "muted", style: "margin:8px 0 0", text: "No milestone with a date in your active engagements." }));
+          else uc.appendChild(h("div", { class: "hl", style: "margin-top:8px" }, up.map(function (e) {
+            return hrow({ title: e.next.title || "Milestone " + e.next.seq, sub: e.gig_title + (e.other_name ? " · " + e.other_name : ""), flag: isOverdue(e.next.due_date, e.next.status) ? "Overdue" : null, badge: dueWords(e.next.due_date, e.next.status), act: "View", go: pjEngOpen(e) });
+          })));
+          right.appendChild(uc);
+        }
+      } else if (cur === "gigs") {
+        panel.appendChild(newGigCard(r));
+        var GF = [["active", "Open and drafts", function (g) { return g.status === "open" || g.status === "draft" || g.status === "paused"; }], ["filled", "Filled", function (g) { return g.status === "filled"; }],
+          ["closed", "Closed", function (g) { return g.status === "closed" || g.status === "canceled"; }], ["all", "All", function () { return true; }]];
+        var gf = GF.filter(function (f) { return f[0] === (gigs.listFilter || "active"); })[0] || GF[0];
+        var lc = h("section", { class: "card" }), lh = pjHead("Your gigs", (r.gigs || []).length, "gigs");
+        lc.appendChild(lh[0]); if (lh[1]) lc.appendChild(lh[1]);
+        var find = h("input", { type: "search", class: "pj-find", "aria-label": "Find a gig by its title", placeholder: "Find a gig by its title", value: gigs.find || "" });
+        var body = h("div");
+        var paintGigs = function () {
+          D.clear(body);
+          var q = (gigs.find || "").trim().toLowerCase(), shown = (r.gigs || []).filter(gf[2]).filter(function (g) { return !q || String(g.title).toLowerCase().indexOf(q) >= 0; });
+          if (!(r.gigs || []).length) body.appendChild(h("p", { class: "muted", text: "No gigs yet." }));
+          else if (!shown.length) body.appendChild(h("p", { class: "muted", role: "status", text: q ? "No gig in this view matches \"" + gigs.find.trim() + "\"." : "None in this view." }));
+          else body.appendChild(pjTable("Your gigs: " + gf[1], gigCols, shown.map(pjGigRow)));
+        };
+        find.addEventListener("input", function () { gigs.find = find.value; paintGigs(); });
+        if ((r.gigs || []).length) lc.appendChild(h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0" }, h("div", { class: "pills grow", style: "margin:0" }, GF.map(function (f) {
+          return h("button", { type: "button", "aria-pressed": String(f[0] === gf[0]), onclick: function () { gigs.listFilter = f[0]; draw(); } }, f[1] + " (" + r.gigs.filter(f[2]).length + ")");
+        })), find));
+        lc.appendChild(body); paintGigs();
+        panel.appendChild(lc);
+      } else if (cur === "engagements") {
+        var ac = h("section", { class: "card" }), ah = pjHead("Engagements", engFailed ? null : engs.length, "engagements");
+        ac.appendChild(ah[0]); if (ah[1]) ac.appendChild(ah[1]);
+        if (!sw.engagements) ac.appendChild(h("p", { class: "muted", text: ENG_ERR.engagements_off }));
+        else if (engFailed) ac.appendChild(failNote());
+        else if (!engs.length) ac.appendChild(h("p", { class: "muted", style: "margin:8px 0 0", text: "No engagements yet. When you choose a proposal, the agreement and its milestones show here." }));
+        else {
+          var efind = h("input", { type: "search", class: "pj-find", "aria-label": "Find an engagement by its title or freelancer", placeholder: "Find by title or freelancer", value: gigs.efind || "" });
+          var ebody = h("div");
+          var paintEng = function () {
+            D.clear(ebody);
+            var q = (gigs.efind || "").trim().toLowerCase(), hit = function (e) { return !q || (String(e.gig_title) + " " + String(e.other_name || "")).toLowerCase().indexOf(q) >= 0; };
+            var act = active.filter(hit), past = engs.filter(isPast).filter(hit);
+            if (!act.length && !past.length) { ebody.appendChild(h("p", { class: "muted", role: "status", text: "No engagement matches \"" + gigs.efind.trim() + "\"." })); return; }
+            if (act.length) ebody.appendChild(pjTable("Active engagements", engCols, act.map(pjEngRow)));
+            else ebody.appendChild(h("p", { class: "muted", text: "No active engagement" + (q ? " matches." : ".") }));
+            if (past.length) ebody.appendChild(h("details", { class: "eng-past", open: q ? true : null, style: "margin-top:12px" }, h("summary", { text: "Finished and canceled (" + past.length + ")" }), pjTable("Finished and canceled engagements", engCols, past.map(pjEngRow))));
+          };
+          efind.addEventListener("input", function () { gigs.efind = efind.value; paintEng(); });
+          ac.appendChild(h("div", { class: "row", style: "margin:10px 0;justify-content:flex-end" }, efind));
+          ac.appendChild(ebody); paintEng();
+        }
+        panel.appendChild(ac);
+      } else {
+        // Standing arrangements: the numbers first; setting one up, hiring again and approvals are in the card under them
+        if (st.on && standing.length) {
+          var sc = h("section", { class: "card" }), sh = pjHead("At a glance", standing.length, "standing");
+          sc.appendChild(sh[0]); if (sh[1]) sc.appendChild(sh[1]);
+          sc.appendChild(pjTable("Standing arrangements at a glance", ["Freelancer", "Monthly limit", "This month", "Remaining", "Jobs open", "Status"], standing.map(function (a) {
+            return [h("b", { text: a.freelancer_name || a.firm_name || "" }), h("span", { text: D.money(a.cap_cents) }), h("span", { text: D.money(a.spend_cents) }), h("span", { text: D.money(Math.max((a.cap_cents || 0) - (a.spend_cents || 0), 0)) }),
+              h("span", { text: a.open + " of " + a.max_open }), h("span", { class: "badge " + ({ active: "R", needs_review: "held" }[a.status] || ""), text: STANDING_WORDS[a.status] || a.status })];
+          })));
+          panel.appendChild(sc);
+        }
+        var slot = h("div"); panel.appendChild(slot); standingCard(slot);
+      }
+      if (refocus === "tab") { var tb = el.querySelector("#pj-tab-" + cur); if (tb) tb.focus(); }
+      else if (refocus === "needs") { var nb = el.querySelector("#needs-action"); if (nb) { nb.scrollIntoView({ block: "start" }); var fb = nb.querySelector(".pj-item button"); if (fb) fb.focus(); } }
+    }).catch(function (e) { D.clear(el); el.appendChild(h("h1", { text: "Projects" })); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
 
   // What needs the member now, worked out from the live work (step 8b, retest R02): Projects and Notices both use these

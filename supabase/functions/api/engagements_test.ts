@@ -393,6 +393,13 @@ Deno.test("review: changes need a note and stop at the included rounds; acceptan
   const home = (await call("GET", "/me", fl.token)).body.me.home;
   assertEquals([home.paid_out_cents, home.active_projects], [30000 - ms[0].freelancer_fee_cents, 1], "the freelancer's Home counts");
   assertEquals((await call("GET", "/me", att.token)).body.me.home.active_projects, 1, "the attorney's Home counts");
+  // Step 37: the engagements list names each engagement's next milestone (the first one not accepted) for the Projects page
+  const nextOf = async (who: { token: string }) => (await call("GET", "/engagements", who.token)).body.engagements.find((e: any) => e.id === ag);
+  const firstOpen = await one("select seq, title, status, due_date from milestones where agreement_id = $1 and status not in ('accepted', 'canceled', 'refunded') order by seq limit 1", [ag]);
+  const listed = await nextOf(att);
+  assertEquals(listed.next ? [listed.next.seq, listed.next.title, listed.next.status] : null, firstOpen ? [firstOpen.seq, firstOpen.title, firstOpen.status] : null, "next is the first milestone that is not accepted");
+  assertEquals((await nextOf(fl)).next?.seq ?? null, firstOpen?.seq ?? null, "the freelancer's list carries the same field");
+  assert(typeof listed.milestones === "number" && "needs_me" in listed && "earned_cents" in listed, "the earlier fields are still there");
 });
 
 Deno.test("a declined card falls back to Stripe's Checkout page; the work waits", async () => {

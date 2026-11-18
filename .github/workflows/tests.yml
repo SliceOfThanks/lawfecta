@@ -89,6 +89,7 @@ jobs:
           SHOTS=shots node tests/pw/workspace-test.js
           SHOTS=shots node tests/pw/categories-test.js
           SHOTS=shots node tests/pw/home-test.js
+          SHOTS=shots node tests/pw/projects-test.js
       - name: Screens from the browser tests
         if: always()
         uses: actions/upload-artifact@v4
