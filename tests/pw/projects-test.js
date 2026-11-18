@@ -86,12 +86,11 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     const menu = await inShadow(p, (root) => [...root.querySelectorAll(".pj-new .menu-item")].map((b) => b.textContent));
     ok(menu[0] === "From an approved document" && menu.includes("Create a document first"), "New Gig offers the ways to start one: " + menu.join(" | "));
     await dela(p).getByRole("button", { name: "From an approved document" }).click();
-    t = await waitFor(p, "DELA writes a public version of the document for freelancers.");
-    ok(await dela(p).locator("#pj-tab-gigs").getAttribute("aria-selected") === "true", "it opens the form on the Gigs tab");
-    await p.screenshot({ path: path.join(SHOTS, "projects-empty-gigs.png"), fullPage: true });
-    await dela(p).locator("#pj-tab-overview").click();
+    t = await waitFor(p, "1. Choose your work");
+    ok(t.includes("Post a New Gig") && await dela(p).locator(".pj-tabs").count() === 0, "it opens the page for posting a gig (step 38)");
+    await dela(p).locator("#gs-cancel").click();
     await waitFor(p, "Quick actions");
-    ok(await dela(p).locator("#pj-tab-overview").getAttribute("aria-selected") === "true", "with the form open, the other tabs can still be chosen");
+    ok(await dela(p).locator("#pj-tab-overview").getAttribute("aria-selected") === "true", "Cancel returns to Projects");
 
     // ---------- With work, in the server's own shapes ----------
     const gigs = [

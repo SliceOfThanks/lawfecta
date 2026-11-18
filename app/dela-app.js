@@ -5119,6 +5119,158 @@
   }
 
 
+  // ---------- Step 38: posting a gig in three steps (docs/briefs/step-38-new-gig.md). Step 1 is this page; steps 2 and
+  // 3 are the draft gig's own page (gigDetails). Nothing is posted until the attorney confirms on step 3. Every
+  // amount comes from the api (the minimum budget and the fee rule); nothing is saved before DELA writes the draft,
+  // and the page never says it was. ----------
+  var GIG_STEPS = ["Set up the gig", "Review DELA's draft", "Review and post"];
+  function gigStepper(at) {
+    return h("ol", { class: "gs-steps", "aria-label": "Steps to post a gig" }, GIG_STEPS.map(function (name, i) {
+      var n = i + 1;
+      return h("li", { class: n === at ? "now" : n < at ? "done" : "", "aria-current": n === at ? "step" : null }, h("span", { class: "gs-n", "aria-hidden": "true", text: n < at ? "✓" : String(n) }),
+        h("span", null, h("span", { class: "sr", text: "Step " + n + " of 3" + (n < at ? ", done: " : n === at ? ", current: " : ": ") }), name));
+    }));
+  }
+  function gigFeeOf(fee, c) { return Math.max(Math.round(c * ((fee || {}).client_bps || 0) / 10000), (fee || {}).floor_cents || 0); }
+  // Budget, fee and total for a range, from the fee rule the api sent. With no rule or no budget it says so.
+  function gigCostBox(fee, loCents, hiCents, monthly) {
+    var box = h("div", { class: "gs-cost" });
+    var line = function (label, value, strong) { return h("div", { class: "row gs-costline" + (strong ? " strong" : "") }, h("span", { class: "grow", text: label }), h("b", { text: value })); };
+    var range = function (a, b) { return D.money(a) + (b > a ? " to " + D.money(b) : ""); };
+    if (!(loCents > 0)) { box.appendChild(h("p", { class: "hsub", style: "margin:0", text: "Enter a budget to see the estimated total." })); return box; }
+    var hi = hiCents > loCents ? hiCents : loCents;
+    box.appendChild(line(monthly ? "Your budget, each month" : "Your budget", range(loCents, hi)));
+    if (fee && fee.client_bps) {
+      box.appendChild(line("Platform fee (" + (fee.client_bps / 100) + "%, at least " + D.money(fee.floor_cents || 0) + ")", range(gigFeeOf(fee, loCents), gigFeeOf(fee, hi))));
+      box.appendChild(line(monthly ? "Estimated total each month" : "Estimated total", range(loCents + gigFeeOf(fee, loCents), hi + gigFeeOf(fee, hi)), true));
+      box.appendChild(h("p", { class: "hsub", style: "margin:6px 0 0", text: "The fee is worked out on the price you agree with the freelancer. The exact amount is shown in the agreement before you sign." }));
+    } else box.appendChild(h("p", { class: "hsub", style: "margin:6px 0 0", text: "Your platform fee is added and shown before you sign." }));
+    return box;
+  }
+  function gigNext(at) {
+    var words = [["Set up the gig", "Choose the document, the type, the budget and any details."], ["Review DELA's draft", "DELA writes a description for freelancers from your document. You can edit all of it."], ["Review and post", "Check what freelancers will see, the budget and the costs, then post. Nothing is posted before that."]];
+    return h("section", { class: "card" }, h("h2", { style: "margin:0 0 8px;font-size:18px", text: "What happens next" }), h("ol", { class: "gs-next" }, words.map(function (w, i) {
+      return h("li", { class: i + 1 === at ? "now" : "" }, h("b", { text: w[0] + (i + 1 === at ? " (you are here)" : "") }), h("span", { class: "hsub", style: "display:block", text: w[1] }));
+    })));
+  }
+  function newGigPage(el) {
+    var w = gigs.wiz, sw = me.switches || {};
+    // "Back to Projects" keeps what was entered for the next visit; "Cancel" throws it away
+    function leave(keep) { gigs.wizKept = keep === true ? gigs.wiz : null; gigs.wiz = null; draw(); }
+    api.get("/gigs").then(function (r) {
+      D.clear(el);
+      el.classList.add("gs-page");
+      el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", id: "gs-back", onclick: function () { leave(true); } }, "← Back to Projects")));
+      el.appendChild(h("h1", { style: "margin:10px 0 2px", text: "Post a New Gig" }));
+      el.appendChild(h("p", { class: "muted", style: "margin:0 0 12px", text: "Turn an approved SOP or Workflow into a gig. DELA prepares the description, and you review everything before posting." }));
+      if (!r.ok) { el.appendChild(h("p", { class: "notice", text: gigErr(r) })); return; }
+      el.appendChild(gigStepper(1));
+      var e0 = r.eligibility || {}, al = r.allowance || {}, fee = r.fee || null, minC = r.min_budget_cents || 0, docs = r.playbooks || [];
+      gigs.fee = fee; gigs.minBudget = minC;
+      if (!e0.can_post) el.appendChild(h("p", { class: "notice", text: r.agency ? "Your agency cannot post yet. You can still draft gigs. Open the Agency page to see what is missing." : "Posting work and hiring need a verified license. You can still draft gigs. Open Profile and verification from your account menu." }));
+      if (gigs.pendingInvite) el.appendChild(h("p", { class: "notice", id: "gig-for" }, "You are creating a gig for " + gigs.pendingInvite.name + ". Post it, and the invitation to " + gigs.pendingInvite.name + " opens next. ",
+        h("a", { href: "#", onclick: function (e) { e.preventDefault(); gigs.pendingInvite = null; draw(); }, text: "Not for a specific freelancer" }), "."));
+      if (gigs.linkTo) el.appendChild(h("p", { class: "notice" }, "Linked to: " + gigs.linkTo.title + ". Whoever you hire is listed on the attorney's \"Who's working on this\", as your subcontractor. Share with them only what their part needs. ",
+        h("button", { class: "ghost small", type: "button", onclick: function () { gigs.linkTo = null; draw(); } }, "Do not link")));
+      var main = h("div", { class: "gs-main" }), side = h("div", { class: "gs-side" });
+      el.appendChild(h("div", { class: "gs-cols" }, main, side));
+      var errOf = function (id) { return h("p", { class: "gs-err", id: id, role: "alert", hidden: true }); };
+      var setErr = function (box, input, text) { box.textContent = text || ""; box.hidden = !text; if (input) { if (text) input.setAttribute("aria-invalid", "true"); else input.removeAttribute("aria-invalid"); } };
+      // 1. The document
+      var c1 = h("section", { class: "card" }), t1 = D.helpTip("DELA uses the approved version of the document to write the gig. Freelancers you invite or hire see their part of the document, with their name as a watermark.", "About choosing a document");
+      c1.appendChild(h("div", { class: "row", style: "gap:8px;align-items:center" }, h("h2", { style: "margin:0", text: "1. Choose your work" }), t1[0])); c1.appendChild(t1[1]);
+      var pick = h("select", { id: "gs-doc", "aria-describedby": "gs-doc-help gs-doc-err" }, [h("option", { value: "", text: docs.length ? "Choose an approved SOP or Workflow" : "No approved SOPs or Workflows yet" })].concat(docs.map(function (d) {
+        return h("option", { value: d.id, text: (d.doc_id ? d.doc_id + " " : "") + d.title, selected: (w.doc || gigs.newFrom) === d.id });
+      })));
+      var preview = h("a", { class: "btn ghost small", id: "gs-preview", target: "_blank", rel: "noopener" }, "Preview document");
+      var docErr = errOf("gs-doc-err");
+      var syncDoc = function () { w.doc = pick.value; if (pick.value) { preview.href = "/dela?tab=library&pb=" + pick.value; preview.removeAttribute("aria-disabled"); preview.hidden = false; } else { preview.removeAttribute("href"); preview.hidden = true; } };
+      pick.addEventListener("change", function () { syncDoc(); setErr(docErr, pick, ""); });
+      c1.appendChild(h("label", { "for": "gs-doc", class: "gs-label", text: "Approved SOP or Workflow" }));
+      c1.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;align-items:center" }, h("div", { class: "grow", style: "min-width:220px" }, pick), preview));
+      c1.appendChild(docErr);
+      c1.appendChild(h("p", { class: "hsub", id: "gs-doc-help", style: "margin:6px 0 0", text: docs.length ? "Only approved documents are listed. \"Preview document\" opens it in a new tab." : "A gig starts from an approved SOP or Workflow, and you have none yet." }));
+      if (!docs.length && sw.playbook_library) c1.appendChild(h("div", { class: "hacts", style: "margin-top:8px" }, h("button", { class: "ghost small", type: "button", onclick: function () { gigs.wiz = null; goTab("library"); } }, "Open the Library to create or approve one")));
+      syncDoc();
+      main.appendChild(c1);
+      // 2. The type
+      var monthlyOn = !!sw.recurring_engagements;
+      var kOne = h("input", { type: "radio", name: "gs_kind", id: "gs-one", value: "one_off", checked: w.kind !== "monthly" || !monthlyOn }), kMon = h("input", { type: "radio", name: "gs_kind", id: "gs-mon", value: "monthly", checked: w.kind === "monthly" && monthlyOn });
+      var kindCard = function (input, title, text) { return h("label", { class: "gs-kind", "for": input.id }, input, h("span", null, h("b", { text: title }), h("span", { class: "hsub", style: "display:block", text: text }))); };
+      var c2 = h("section", { class: "card" }, h("fieldset", { class: "gs-set" }, h("legend", null, h("h2", { style: "margin:0", text: "2. Choose the engagement type" })),
+        h("div", { class: "gs-kinds" }, kindCard(kOne, "One-off", "A defined project with specific deliverables, a deadline and a fixed price."),
+          monthlyOn ? kindCard(kMon, "Monthly", "The same work every month for a flat monthly price, until either of you cancels. The budget is the monthly price.") : null),
+        monthlyOn ? null : h("p", { class: "hsub", style: "margin:8px 0 0", text: "Monthly gigs are not open for your account yet." })));
+      main.appendChild(c2);
+      // 3. The details
+      var c3 = h("section", { class: "card" }, h("h2", { style: "margin:0 0 2px", text: "3. Add the details" }), h("p", { class: "hsub", style: "margin:0 0 10px", text: "The budget and anything else freelancers should know before they send a proposal." }));
+      var num = function (id, val) { return h("input", { type: "number", id: id, min: "0", step: "1", inputmode: "numeric", value: val || "" }); };
+      var bmin = num("gs-bmin", w.bmin), bmax = num("gs-bmax", w.bmax), deadline = h("input", { type: "date", id: "gs-deadline", value: w.deadline || "", "aria-describedby": "gs-deadline-help" });
+      bmin.setAttribute("aria-describedby", "gs-budget-help gs-budget-err"); bmax.setAttribute("aria-describedby", "gs-budget-help gs-budget-err");
+      var budErr = errOf("gs-budget-err");
+      var money = function (input, label) { return h("div", { class: "gs-field" }, h("label", { "for": input.id, class: "gs-label", text: label }), h("div", { class: "gs-money" }, h("span", { "aria-hidden": "true", text: "$" }), input)); };
+      c3.appendChild(h("div", { class: "gs-row" }, money(bmin, "Budget from (USD)"), money(bmax, "Budget to (USD)"),
+        h("div", { class: "gs-field" }, h("label", { "for": "gs-deadline", class: "gs-label", text: "Work deadline (optional)" }), deadline)));
+      c3.appendChild(budErr);
+      c3.appendChild(h("p", { class: "hsub", id: "gs-budget-help", style: "margin:4px 0 0", text: "At least " + D.money(minC) + ". \"To\" must be the same as \"From\" or higher. The budget is for the work; your platform fee comes on top." }));
+      c3.appendChild(h("p", { class: "hsub", id: "gs-deadline-help", style: "margin:2px 0 0", text: "When the work should be finished. You can set or change it before posting. The closing date for proposals is set when you post, and shown then." }));
+      var notes = h("textarea", { id: "gs-notes", rows: 4, maxlength: "1500", style: "width:100%", "aria-describedby": "gs-notes-help gs-notes-count" });
+      notes.value = w.notes || "";
+      var count = h("span", { class: "hsub", id: "gs-notes-count" });
+      var syncCount = function () { w.notes = notes.value; count.textContent = notes.value.length + " of 1,500 characters"; };
+      notes.addEventListener("input", syncCount); syncCount();
+      c3.appendChild(h("div", { class: "gs-field", style: "margin-top:12px" }, h("label", { "for": "gs-notes", class: "gs-label", text: "Additional details for DELA (optional)" }), notes,
+        h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("span", { class: "hsub grow", id: "gs-notes-help", text: "For example: software the freelancer must know, experience you need, or how you want the work delivered." }), count)));
+      c3.appendChild(h("div", { class: "gs-protect", role: "note" }, h("b", { text: "Protect client information" }),
+        h("span", { style: "display:block", text: "Do not include client names, case details, account numbers or passwords. DELA checks what you type, but it cannot catch everything: read DELA's draft before it is shared with freelancers." })));
+      main.appendChild(c3);
+      // Costs and what happens next
+      var costHost = h("div");
+      var paintCost = function () {
+        w.bmin = bmin.value; w.bmax = bmax.value; w.deadline = deadline.value; w.kind = kMon.checked ? "monthly" : "one_off";
+        D.clear(costHost); costHost.appendChild(gigCostBox(fee, Math.round(Number(bmin.value || 0) * 100), Math.round(Number(bmax.value || 0) * 100), kMon.checked));
+      };
+      [bmin, bmax, deadline, kOne, kMon].forEach(function (x) { x.addEventListener("input", paintCost); x.addEventListener("change", paintCost); });
+      paintCost();
+      side.appendChild(h("section", { class: "card", "aria-live": "polite" }, h("h2", { style: "margin:0 0 8px;font-size:18px", text: "Estimated costs" }), costHost));
+      side.appendChild(gigNext(1));
+      // Actions
+      var status = h("p", { class: "hsub", id: "gs-status", role: "status", "aria-live": "polite", style: "margin:0" });
+      var formErr = errOf("gs-form-err");
+      var go = h("button", { class: "blue", type: "button", id: "gs-draft" }, "Draft with DELA");
+      var cancel = h("button", { class: "ghost", type: "button", id: "gs-cancel", onclick: function () { leave(false); } }, "Cancel");
+      var req = newId();
+      function validate() {
+        var lo = Math.round(Number(bmin.value || 0) * 100), hi = Math.round(Number(bmax.value || 0) * 100), first = null;
+        setErr(docErr, pick, pick.value ? "" : "Choose an approved SOP or Workflow."); if (!pick.value) first = first || pick;
+        var bad = !bmin.value ? "Enter the lowest budget, in dollars." : lo < minC ? "The budget must be at least " + D.money(minC) + "." : bmax.value && hi < lo ? "\"Budget to\" must be the same as \"Budget from\" or higher." : "";
+        var badBox = bad && bmin.value && lo >= minC ? bmax : bmin;
+        bmin.removeAttribute("aria-invalid"); bmax.removeAttribute("aria-invalid");
+        setErr(budErr, badBox, bad); if (bad) first = first || badBox;
+        if (first) first.focus();
+        return !first;
+      }
+      go.addEventListener("click", function () {
+        setErr(formErr, null, "");
+        if (!validate()) return;
+        var chosen = docs.filter(function (d) { return d.id === pick.value; })[0] || {};
+        gigImageWarning(chosen.images || 0, function () {
+          go.disabled = true; cancel.disabled = true; status.textContent = "DELA is writing the description. This can take a moment. Nothing is posted.";
+          api.post("/gigs/draft", { playbook_id: pick.value, request_id: req, notes: notes.value, budget_min: bmin.value, budget_max: bmax.value || bmin.value, deadline: deadline.value || undefined, linked_agreement: gigs.linkTo ? gigs.linkTo.id : undefined, kind: kMon.checked ? "monthly" : "one_off" }).then(function (x) {
+            if (!x || !x.ok) throw x || {};
+            gigs.newFrom = null; gigs.linkTo = null; gigs.wiz = null; gigs.wizKept = null; gigs.wstep = 2; gigs.wnew = x.source === "ai" ? "ai" : "doc";
+            gigLink(x.id, "projects");
+          }).catch(function (x) {
+            go.disabled = false; cancel.disabled = false; status.textContent = ""; req = newId();
+            setErr(formErr, null, (x && x.reason === "looks_like_client_info" ? "The additional details may include client information. Use placeholders instead." : x && x.reason ? gigErr(x) : "DELA could not write the draft just now. Check your connection and try again.") + " What you entered is still here.");
+          });
+        }, function () { gigs.wiz = null; tab = "library"; lib.pb = null; draw(); setTimeout(function () { openPlaybook(chosen.id, "read"); }, 50); });
+      });
+      main.appendChild(h("section", { class: "card gs-acts" }, formErr, h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;align-items:center" }, cancel, h("span", { class: "grow" }), go), status,
+        h("p", { class: "hsub", style: "margin:8px 0 0", text: "DELA writes a draft description from your document. Nothing is posted yet: you review and edit the draft, then post it yourself." + (sw.ai_generation ? " Drafting uses DELA actions from your plan." : "") + " Open gigs on your plan: " + (al.unlimited ? "no cap" : (al.used || 0) + " of " + al.limit + " in use") + "." })));
+    }).catch(function (e) { D.clear(el); el.appendChild(h("h1", { text: "Post a New Gig" })); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); el.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { leave(true); } }, "← Back to Projects")); });
+  }
+
   // ---------- Step 37: Projects as a workspace (docs/briefs/step-37-projects-workspace.md). Four tabs: Overview, Gigs,
   // Engagements, Standing Arrangements. Every number is counted from the lists the page loads; nothing is estimated,
   // and there are no trends or scores. The old layout keeps the one long page. ----------
@@ -5186,11 +5338,13 @@
   }
   function projectsWorkspace(el) {
     var sw = me.switches || {}, cur = PJ_TABS.some(function (t) { return t[0] === gigs.ptab; }) ? gigs.ptab : "overview";
-    // Arriving to post a gig (from a document, for a freelancer, or linked to a job) opens the Gigs tab once; after
-    // that the tabs are the member's to choose
+    // Arriving to post a gig (from a document, for a freelancer, or linked to a job) opens the new gig page once; after
+    // that the page is the member's to leave
     var want = gigs.newFrom || gigs.linkTo || gigs.pendingInvite ? [gigs.newFrom || "", gigs.linkTo ? gigs.linkTo.id : "", gigs.pendingInvite ? gigs.pendingInvite.name : ""].join("|") : "";
-    if (want && gigs.pwant !== want) cur = "gigs";
+    if (want && gigs.pwant !== want) gigs.wiz = gigs.wiz || gigs.wizKept || {};
     gigs.pwant = want;
+    if (gigs.formOpen) { gigs.formOpen = false; gigs.wiz = gigs.wiz || gigs.wizKept || {}; }
+    if (gigs.wiz) { newGigPage(el); return; }
     gigs.ptab = cur;
     Promise.all([api.get("/gigs"), sw.engagements ? api.get("/engagements").catch(function () { return null; }) : Promise.resolve({ ok: true, on: false }), loadStanding()]).then(function (got) {
       var r = got[0], er = got[1], st = got[2] || {};
@@ -5203,7 +5357,7 @@
       var ngPanel = h("div", { class: "menu-panel", role: "group", "aria-labelledby": "pj-new" });
       var ng = h("details", { class: "dmenu pj-new" }, ngSum, ngPanel);
       ng.addEventListener("keydown", function (e) { if (e.key === "Escape" && ng.open) { e.stopPropagation(); ng.open = false; ngSum.focus(); } });
-      [["From an approved document", function () { gigs.formOpen = true; gigs.ptab = "gigs"; draw(); }],
+      [["From an approved document", function () { gigs.wiz = gigs.wiz || gigs.wizKept || {}; draw(); }],
         sw.ai_generation && me.side === "attorney" ? ["Plan a task with Ask DELA", function () { goTab("delegate"); }] : null,
         sw.playbook_library ? ["Create a document first", function () { goTab("library"); }] : null].filter(Boolean).forEach(function (o) {
         var b = h("button", { class: "menu-item", type: "button" }, o[0]);
@@ -5311,7 +5465,9 @@
           right.appendChild(uc);
         }
       } else if (cur === "gigs") {
-        panel.appendChild(newGigCard(r));
+        panel.appendChild(h("section", { class: "card", id: "new-gig-card" }, h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;align-items:center" }, h("div", { class: "grow" }, h("h2", { style: "margin:0", text: "Post a new gig" }),
+          h("p", { class: "small muted", style: "margin:4px 0 0", text: "Turn an approved SOP or Workflow into a gig in three steps. One-off or monthly." })),
+          h("button", { class: "blue small", type: "button", id: "pj-start-gig", onclick: function () { gigs.wiz = gigs.wiz || gigs.wizKept || {}; draw(); } }, "Start a new gig"))));
         var GF = [["active", "Open and drafts", function (g) { return g.status === "open" || g.status === "draft" || g.status === "paused"; }], ["filled", "Filled", function (g) { return g.status === "filled"; }],
           ["closed", "Closed", function (g) { return g.status === "closed" || g.status === "canceled"; }], ["all", "All", function () { return true; }]];
         var gf = GF.filter(function (f) { return f[0] === (gigs.listFilter || "active"); })[0] || GF[0];
@@ -5583,20 +5739,64 @@
         return gigOk(x);
       }).then(function (x) { if (then) return then(); draw(); D.toast(app, x.big_change ? "Saved. This was a big change, so applicants are asked to confirm their proposals." : "Saved"); }).catch(function (e) { if (e && e.reason !== "canceled") gigFail(e); });
     }
-    body.appendChild(h("div", { class: "card" }, h("h2", { text: "Public version" }),
+    var wizard = NL() && g.status === "draft", step2 = wizard ? h("div", { id: "gs-step2" }) : body, step3 = wizard ? h("div", { id: "gs-step3" }) : body;
+    if (wizard) {
+      var at = gigs.wstep === 3 ? 3 : 2, stepHost = h("div"), newNote = gigs.wnew; gigs.wnew = null;
+      var showStep = function (n, focus) {
+        at = n; gigs.wstep = n; step2.hidden = n !== 2; step3.hidden = n !== 3;
+        D.clear(stepHost); stepHost.appendChild(gigStepper(n));
+        if (n === 3) paintReview();
+        if (focus) { var hd = (n === 2 ? step2 : step3).querySelector("h2"); if (hd) { hd.setAttribute("tabindex", "-1"); hd.focus(); } }
+      };
+      body.appendChild(stepHost);
+      if (newNote) body.appendChild(h("p", { class: "notice ok", role: "status", text: newNote === "ai" ? "DELA wrote this draft from your document. Read it and change anything that is not right. Nothing is posted yet." : "This draft was filled in from your document. Read it and change anything that is not right. Nothing is posted yet." }));
+      body.appendChild(step2); body.appendChild(step3);
+    }
+    step2.appendChild(h("div", { class: "card" }, h("h2", { text: wizard ? "What freelancers will read" : "Public version" }),
       h("p", { class: "small muted", text: "Matched freelancers read this before they spend a proposal. Invited and hired freelancers also see their part of the document (an SOP, or a workflow's steps for the freelancer role), with their name as a watermark. No client information." + (g.status === "open" ? " Changing the budget or the work tells applicants; a big change asks them to confirm their proposals." : "") }),
       field("Title", f.title), field("The task", f.task, "Two or three sentences: what the freelancer will do."), field("What done looks like", f.outcome), field("Steps, one per line", f.steps),
       field("Tools", f.tools, "Separated by commas. DELA matches freelancers who use them."), field("Skills", f.skills, "Separated by commas."),
       h("div", { class: "row" }, field("Practice area", f.area), field("State", f.state), field("Usual time", f.timing))));
-    body.appendChild(h("div", { class: "card" }, h("h2", { text: "Budget, deadline and milestones" }),
+    step3.appendChild(h("div", { class: "card" }, h("h2", { text: "Budget, deadline and milestones" }),
       h("div", { class: "row" }, field("Budget from ($)", f.bmin), field("Budget to ($)", f.bmax), field("Deadline", f.deadline)),
       field("Milestones (private)", f.miles, "For example: Draft, then Final. Freelancers see milestones only after you hire them; DELA sets the final milestones with the agreement.")));
-    if (g.status === "draft") body.appendChild(helperButton("check_scope", "✦ Check the scope", function () {
+    if (g.status === "draft") step2.appendChild(helperButton("check_scope", "✦ Check the scope", function () {
       var p = payload(); return { gig_id: g.id, draft: { title: p.public.title, task: p.public.task, outcome: p.public.outcome, steps: p.public.steps, timing: p.public.timing, budget_min: p.budget_min, budget_max: p.budget_max, deadline: p.deadline, milestones: lines(f.miles.value) } };
     }, { field: function (x) { return { title: f.title, task: f.task, outcome: f.outcome, steps: f.steps, timing: f.timing, milestones: f.miles }[x.field] || null; } }));
-    var acts = h("div", { class: "row" });
-    if (editable) acts.appendChild(h("button", { class: "ghost", type: "button", onclick: function () { save(); } }, "Save"));
-    if (g.status === "draft") acts.appendChild(h("button", { class: "blue", type: "button", onclick: function () {
+    // Step 3 of the new layout: the costs, what freelancers will see, and the attorney's own confirmation
+    var reviewHost = h("div"), confirmBox = h("input", { type: "checkbox", id: "gs-confirm" }), confirmErr = h("p", { class: "gs-err", id: "gs-confirm-err", role: "alert", hidden: true });
+    function paintReview() {
+      D.clear(reviewHost);
+      var pl = payload(), lo = Math.round(Number(f.bmin.value || 0) * 100), hi = Math.round(Number(f.bmax.value || 0) * 100), costs = h("div");
+      var fill = function () { D.clear(costs); costs.appendChild(gigCostBox(gigs.fee, lo, hi, g.kind === "monthly")); };
+      fill();
+      if (!gigs.fee) api.get("/gigs").then(function (x) { if (x && x.ok) { gigs.fee = x.fee || null; fill(); } }).catch(function () {});
+      var dl = function (rows) { return h("dl", { class: "gs-dl" }, rows.filter(function (x) { return x[1]; }).map(function (x) { return h("div", null, h("dt", { text: x[0] }), h("dd", { style: "white-space:pre-wrap", text: x[1] })); })); };
+      reviewHost.appendChild(h("div", { class: "card", "aria-live": "polite" }, h("h2", { text: "Estimated costs" }), costs));
+      reviewHost.appendChild(h("div", { class: "card", id: "gs-preview-card" }, h("h2", { text: "What freelancers will see" }), h("p", { class: "small muted", text: "Read it once more as a freelancer would. No client information." }),
+        dl([["Title", pl.public.title], ["The task", pl.public.task], ["What done looks like", pl.public.outcome], ["Steps", pl.public.steps.join("\n")], ["Tools", pl.public.tools.join(", ")], ["Skills", pl.public.skills.join(", ")],
+          ["Practice area", pl.public.practice_area], ["State", pl.public.state], ["Usual time", pl.public.timing], ["Type", g.kind === "monthly" ? "Monthly" : "One-off"], ["Budget", lo ? D.money(lo) + (hi > lo ? " to " + D.money(hi) : "") : "Not set"], ["Work deadline", f.deadline.value ? shortDate(f.deadline.value) : "Not set"]]),
+        h("button", { class: "linkish", type: "button", onclick: function () { showStep(2, true); } }, "← Edit the description")));
+    }
+    if (wizard) {
+      step3.appendChild(reviewHost);
+      step3.appendChild(h("div", { class: "card" }, h("label", { "for": "gs-confirm", style: "display:flex;gap:10px;font-weight:400;align-items:flex-start" }, confirmBox, h("span", { text: "I have read what freelancers will see. It has no client information, and I want to post this gig." })), confirmErr,
+        h("p", { class: "hsub", style: "margin:8px 0 0", text: "Posting opens the gig to matching freelancers. The closing date for proposals is shown when you post. You can still edit or close the gig after that." })));
+      confirmBox.addEventListener("change", function () { confirmErr.hidden = true; });
+    }
+    var acts = h("div", { class: "row", style: "gap:10px;flex-wrap:wrap" });
+    if (wizard) {
+      var acts2 = h("div", { class: "row", style: "gap:10px;flex-wrap:wrap" },
+        h("button", { class: "ghost", type: "button", id: "gs-save2", onclick: function () { save(); } }, "Save draft"), h("span", { class: "grow" }),
+        h("button", { class: "blue", type: "button", id: "gs-continue", onclick: function () { showStep(3, true); window.scrollTo(0, 0); } }, "Continue to review"));
+      step2.appendChild(acts2);
+      acts.appendChild(h("button", { class: "ghost", type: "button", id: "gs-back2", onclick: function () { showStep(2, true); window.scrollTo(0, 0); } }, "← Back"));
+      [f.bmin, f.bmax, f.deadline].forEach(function (x) { x.addEventListener("input", function () { if (at === 3) paintReview(); }); });
+    }
+    if (editable) acts.appendChild(h("button", { class: "ghost", type: "button", onclick: function () { save(); } }, wizard ? "Save draft" : "Save"));
+    if (wizard) acts.appendChild(h("span", { class: "grow" }));
+    if (g.status === "draft") acts.appendChild(h("button", { class: "blue", type: "button", id: wizard ? "gs-post" : null, onclick: function () {
+      if (wizard && !confirmBox.checked) { confirmErr.textContent = "Tick the box to confirm you have read what freelancers will see."; confirmErr.hidden = false; confirmBox.focus(); return; }
       save(function () { return api.post("/gigs/publish", { id: g.id }).then(gigOk).then(function (x) {
           // Made for one freelancer (from a conversation): go on to the invitation, with this gig chosen
           if (gigs.pendingInvite) { var pi = gigs.pendingInvite; gigs.pendingInvite = null; D.toast(app, "Your gig is open until " + D.dateTime(x.closes_at)); tab = "talent"; openInviteReview({ person_id: pi.person_id, name: pi.name }, g.id); return; }
@@ -5612,7 +5812,8 @@
       if (!confirm(g.status === "draft" ? "Delete this draft gig?" : "Close this gig now? Applicants are told, and you can still choose a proposal" + (rules.proposals_actionable_days ? " for " + rules.proposals_actionable_days + " days." : " for a short time."))) return;
       api.post("/gigs/close", { id: g.id, cancel: g.status === "draft" }).then(gigOk).then(function () { gigs.id = g.status === "draft" ? null : g.id; draw(); D.toast(app, "Closed"); }).catch(gigFail);
     } }, g.status === "draft" ? "Delete draft" : "Close the gig"));
-    body.appendChild(acts);
+    step3.appendChild(acts);
+    if (wizard) showStep(at, false);
     if (r.playbook) body.appendChild(h("details", { class: "card" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "The document (invited and hired freelancers see their part of it)" }),
       r.gig_part ? h("p", { class: "small muted", text: "The freelancer sees " + r.gig_part.steps + " of " + r.gig_part.of + " steps" + (r.gig_part.checkpoints ? ", with " + r.gig_part.checkpoints + " \"Attorney decides\" step" + (r.gig_part.checkpoints > 1 ? "s" : "") + " where the work waits for you" : "") + "." }) : null, playbookPlain(r.playbook)));
     if ((me.switches || {}).document_standard && editable) referencesEditor(body, g, r.references);
