@@ -90,6 +90,8 @@ const DEF_ATT = ["attention", "delegating", "projects", "talent", "spend", "ask"
     ok(t.includes("Milestones accepted") && t.includes("Engagements completed") && !t.includes("hours saved"), "spend: only measured results, no hours saved");
     const spendSaid = await inShadow(p, (root) => { const r = root.querySelector("[data-widget=spend] .hw-amount"); return (r ? r.getAttribute("aria-label") : "") + "|" + root.querySelectorAll("[data-widget=spend] .usage-ring").length; });
     ok(spendSaid === "Nothing paid this month|0" && t.includes("Post a gig →"), "spend: the amount as text with no ring, and a next step when nothing was spent: " + spendSaid);
+    const gap = await inShadow(p, (root) => { const c = root.querySelector("[data-widget=spend]"), a = c.querySelector(".hw-lines").getBoundingClientRect(), b = [...c.querySelectorAll(".hmini")].pop().getBoundingClientRect(); return Math.round(b.top - a.bottom); });
+    ok(gap >= 0 && gap <= 24, "spend: no empty gap between the next step and the results: " + gap + " pixels");
     ok(t.includes("View all projects →") && t.includes("Find talent →") && t.includes("Open the Library →"), "attorney: each widget links to its full page");
     ok((await columns(p)) === 2, "attorney at 1280: two columns");
     ok(JSON.stringify(await inPage(p)) === JSON.stringify(DEF_ATT), "the page holds the cards in the member's order, so Tab and a screen reader follow it");
@@ -180,6 +182,19 @@ const DEF_ATT = ["attention", "delegating", "projects", "talent", "spend", "ask"
     await p.keyboard.press("Escape");
     await waitFor(p, "Discard your changes?");
     ok((await focusName(p)) === "cz-keep" && popups === 0, "Escape with changes asks inside the panel, with focus on Keep editing, and no browser pop-up");
+    // ChatGPT report 2026-11-17: the question opened below the visible part of the panel, and Close sat on top of a row's Remove
+    const seen = await inShadow(p, (root) => { const a = root.querySelector("#cz-ask").getBoundingClientRect(), d = root.querySelector(".cz-panel").getBoundingClientRect(); return a.top >= d.top && a.bottom <= Math.min(d.bottom, window.innerHeight) && a.height > 0; });
+    ok(seen, "the question is inside the visible part of the panel");
+    await p.setViewportSize({ width: 1280, height: 420 });
+    await p.waitForTimeout(200);
+    const lowPanel = await inShadow(p, (root) => { const d = root.querySelector(".cz-panel"); d.scrollTop = 120; const a = root.querySelector("#cz-ask").getBoundingClientRect(), x = root.querySelector(".cz-panel .drawer-x").getBoundingClientRect(), bar = root.querySelector(".cz-panel .drawer-top");
+      const under = [...root.querySelectorAll("#cz-mine .cz-rm, #cz-mine .cz-btn")].filter((b) => { const r = b.getBoundingClientRect(); return r.bottom > x.top && r.top < x.bottom && r.right > x.left && r.left < x.right; });
+      const top = under.length ? root.elementFromPoint(x.left + x.width / 2, x.top + x.height / 2) : null;
+      return { ask: a.top >= 0 && a.bottom <= window.innerHeight, barTall: bar.getBoundingClientRect().height >= x.height, barBg: getComputedStyle(bar).backgroundColor, covered: under.length, hit: top ? (top.closest(".drawer-top") ? "bar" : top.className) : "none" }; });
+    ok(lowPanel.ask, "on a short screen, scrolled, the question still shows: " + JSON.stringify(lowPanel));
+    ok(lowPanel.barTall && lowPanel.barBg !== "rgba(0, 0, 0, 0)" && lowPanel.hit !== "cz-rm", "Close sits in its own solid bar, so no row's button shows through or under it: " + JSON.stringify(lowPanel));
+    await p.setViewportSize({ width: 1280, height: 900 });
+    await p.waitForTimeout(200);
     await dela(p).getByRole("button", { name: "Keep editing" }).click();
     ok((await inPanel(p)).includes("quick") && await inShadow(p, (root) => root.querySelector("#cz-ask").hidden), "Keep editing keeps the panel and the changes");
     await inShadow(p, (root) => root.querySelector(".dela-scrim").click());
@@ -316,7 +331,7 @@ const DEF_ATT = ["attention", "delegating", "projects", "talent", "spend", "ask"
     t = await waitFor(p, "Neither amount is profit");
     home = await onHome(p);
     ok(JSON.stringify(home) === JSON.stringify(["teamattention", "clients", "team", "revenue", "proposals", "gigs"]), "My agency: its own six widgets, what needs the team first: " + home.join(", "));
-    ok(await inShadow(p, (root) => ["gigs", "proposals"].every((id) => { const c = root.querySelector('[data-widget="' + id + '"] .hw-same'); return c && c.textContent === "Same list as My work. Agency and personal proposals are not separated yet."; })), "the two agency cards that show the owner's own lists say so");
+    ok(await inShadow(p, (root) => ["gigs", "proposals"].every((id) => { const c = root.querySelector('[data-widget="' + id + '"] .hw-same'); return c && c.textContent === "Same list as My work. Agency and personal " + id + " are not separated yet."; })), "the two agency cards that show the owner's own lists say so, each in its own words");
     ok(t.includes("Paid by clients") && t.includes("Paid out to agency") && !/\bprofit\b(?! *:)/i.test(t.replace("Neither amount is profit", "")), "revenue: the two amounts apart, and neither is called profit");
     ok(t.includes("Recommended agency gigs") && t.includes("Proposals and sales pipeline") && t.includes("Active client projects") && t.includes("Needs team attention") && t.includes("No team actions pending."), "My agency: each widget has its name and an honest empty state");
     ok(t.includes("Hours not set") && !/\d+% *(used|utilization|capacity)/i.test(t), "team: with no hours entered the card says so and shows no percentage");

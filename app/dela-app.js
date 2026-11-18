@@ -1097,7 +1097,7 @@
       homeLoad(c, inner, function () { return api.get("/home/spend?period=" + state.period); }, function (r) {
         var words = PERIOD_WORDS[r.period] || "this month", paid = r.paid_cents || 0, share = paid ? Math.round((r.work_cents || 0) * 100 / paid) : 0;
         var said = paid ? homeMoney(paid) + " paid " + words + ": " + homeMoney(r.work_cents) + " for the work and " + homeMoney(r.fee_cents) + " platform fee" : "Nothing paid " + words;
-        var side = h("div", { class: "usage-side" });
+        var side = h("div", { class: "hw-lines" });
         if (!paid) {
           side.appendChild(h("p", { class: "hsub", text: "No recorded delegation spend " + words + "." }));
           if ((me.switches || {}).flex_gigs) side.appendChild(h("div", { class: "hacts" }, h("button", { class: "linkish", type: "button", onclick: function () { tab = "projects"; gigs.id = null; draw(); } }, "Post a gig →")));
@@ -1193,7 +1193,7 @@
         inner.appendChild(h("div", { class: "hw-amount", role: "group", "aria-label": said }, h("b", { text: homeMoney(got) }), h("span", { text: "received " + words })));
         if (!got && !pend && !r.failed_cents && !r.upcoming_cents) inner.appendChild(h("p", { class: "hsub", text: "No payments " + words + ". You are paid after the attorney accepts a milestone." }));
         else {
-          var side = h("div", { class: "usage-side" },
+          var side = h("div", { class: "hw-lines" },
             homeLine("Waiting for payout", homeMoney(pend), pend ? "Earned, not paid out yet" : null));
           if (r.failed_cents) side.appendChild(homeLine("Could not be paid out", homeMoney(r.failed_cents), "Check your payout details in Earnings"));
           side.appendChild(homeLine("Signed, not yet paid", homeMoney(r.upcoming_cents), "Signed work that is not accepted yet"));
@@ -1385,7 +1385,7 @@
         if (h2 && HOME_W[id].agTitle && homeViewKey() === "agency") {
           h2.textContent = homeTitle(id);
           var hd = n.querySelector(".hhead");
-          if (hd) hd.parentNode.insertBefore(h("p", { class: "hsub hw-same", text: "Same list as My work. Agency and personal proposals are not separated yet." }), hd.nextSibling);
+          if (hd) hd.parentNode.insertBefore(h("p", { class: "hsub hw-same", text: "Same list as My work. Agency and personal " + (id === "gigs" ? "gigs" : "proposals") + " are not separated yet." }), hd.nextSibling);
         }
       }
       homeLay.nodes[id] = n;
@@ -1479,8 +1479,8 @@
       h("h2", { id: "cz-title", style: "margin:0 0 4px;padding-right:84px", text: "Customize dashboard" }),
       h("p", { class: "muted small", style: "margin:0 0 6px", text: "Add, remove and reorder widgets to make Home work for you. Removing a widget only hides it on Home." }),
       h("p", { class: "muted small", style: "margin:0 0 14px", text: "Home updates behind this panel as you make changes. Nothing is kept until you choose Save changes." }),
-      mineBox, availBox, live, problem, ask,
-      h("div", { class: "cz-foot" }, cancel, save));
+      mineBox, availBox, live, problem,
+      h("div", { class: "cz-bottom" }, ask, h("div", { class: "cz-foot" }, cancel, save)));
     function changed() { return JSON.stringify(mine) !== JSON.stringify(start); }
     function isDef(id) { return homeDefault().indexOf(id) >= 0; }
     function say(t) { live.textContent = ""; setTimeout(function () { live.textContent = t; }, 30); }
