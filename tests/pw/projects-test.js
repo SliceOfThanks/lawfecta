@@ -64,7 +64,7 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     ok(!(await inShadow(p, (root) => !!root.querySelector("#new-gig-card"))), "the new gig form is not on the Overview");
     // Help tips: closed until asked for, tied to their button, closed again with Escape
     const tipBtn = dela(p).getByRole("button", { name: "About Projects" });
-    ok(await tipBtn.getAttribute("aria-expanded") === "false" && !t.includes("Your workspace for delegated work."), "the page's help tip starts closed");
+    ok(await tipBtn.getAttribute("aria-expanded") === "false" && !t.includes("Manage posted gigs, awarded work, milestones and standing arrangements."), "the page's help tip starts closed");
     // Step 39: one small help tip. It floats by its icon and never moves the page.
     const tipState = () => inShadow(p, (root) => {
       const b = root.querySelector(".help-q[aria-label='About Projects']").getBoundingClientRect();
@@ -75,7 +75,7 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     ok(tip0.icon[0] === 18 && tip0.icon[1] === 18 && tip0.boxes.length === 0, "the help icon is small (18 by 18) and its tip is closed: " + JSON.stringify(tip0.icon));
     await tipBtn.hover();
     let tip1 = await tipState();
-    ok(tip1.boxes.length === 1 && tip1.boxes[0].words.includes("Your workspace for delegated work.") && tip1.boxes[0].role === "tooltip" && tip1.boxes[0].id === await tipBtn.getAttribute("aria-describedby"), "pointing at the icon opens its tip, tied to the icon");
+    ok(tip1.boxes.length === 1 && tip1.boxes[0].words.includes("Manage posted gigs, awarded work, milestones and standing arrangements.") && tip1.boxes[0].role === "tooltip" && tip1.boxes[0].id === await tipBtn.getAttribute("aria-describedby"), "pointing at the icon opens its tip, tied to the icon");
     ok(tip1.boxes[0].pos === "fixed" && tip1.tabs === tip0.tabs && tip1.height === tip0.height, "the tip floats: nothing on the page moves");
     ok(tip1.boxes[0].w <= 300 && tip1.boxes[0].left >= 8 && tip1.boxes[0].right <= tip1.vw - 8 && tip1.boxes[0].top >= tip1.icon[2], "the tip is at most 300 pixels wide, inside the window, under its icon: " + JSON.stringify(tip1.boxes[0]));
     await dela(p).locator(".tipbox:not([hidden])").hover();
@@ -90,14 +90,14 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     ok((await tipState()).boxes.length === 1 && await tipBtn.getAttribute("aria-expanded") === "true", "a click keeps the tip open");
     await dela(p).getByRole("button", { name: /^About Needs your attention/ }).click();
     tip1 = await tipState();
-    ok(tip1.boxes.length === 1 && !tip1.boxes[0].words.includes("Your workspace for delegated work."), "opening another tip closes the first: one tip at a time");
+    ok(tip1.boxes.length === 1 && !tip1.boxes[0].words.includes("Manage posted gigs, awarded work, milestones and standing arrangements."), "opening another tip closes the first: one tip at a time");
     await dela(p).locator("h1").first().click();
     ok((await tipState()).boxes.length === 0, "a click anywhere else closes the tip");
     await tipBtn.click();
     await dela(p).locator(".tipbox:not([hidden]) .tip-x").click();
     ok((await tipState()).boxes.length === 0, "the x in the tip closes it");
     await tipBtn.click();
-    t = await waitFor(p, "Your workspace for delegated work.");
+    t = await waitFor(p, "Manage posted gigs, awarded work, milestones and standing arrangements.");
     await p.keyboard.press("Escape");
     ok(await tipBtn.getAttribute("aria-expanded") === "false" && (await tipState()).boxes.length === 0, "Escape closes the tip");
     // Tabs by keyboard
