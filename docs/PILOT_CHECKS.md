@@ -114,6 +114,8 @@ How to read the "State" column:
 | 38.2 | The costs on step 1 and step 3 against a real signed agreement (step 38) | The platform fee in the agreement falls inside the range the page showed | Not yet | |
 | 39.1 | The help tips with a real screen reader (step 39) | The "?" is announced as a button with its name, and the tip is read as its description | Not yet | The automated tests check the ties between icon and tip. |
 | 39.2 | The help tips on a real phone (step 39) | A tap opens the small white box, nothing on the page moves, and a tap elsewhere closes it | Not yet | Checked locally with a touch screen setting only. |
+| 40.1 | Standing arrangements folded, with real arrangements (step 40) | "Manage" opens the right arrangement, and hiring again, changing limits and ending all work from inside it | Not yet | The automated tests have no arrangement on the Projects page. |
+| 40.2 | Projects at 200% and 400% browser zoom (step 40) | Every task can be done; nothing is cut off | Not yet | The automated tests check 768 and 320 pixels wide. |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.

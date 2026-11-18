@@ -52,17 +52,17 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 
 1. Go to: https://www.lawfecta.co/dela?tab=projects
    Find: the top of the page.
-   Expect: the heading "Projects" with a small grey "?" in a circle beside it (about the height of a letter, not a large round button), the line "Manage your gigs, engagements and standing arrangements in one place.", and at the far right a dark red button "+ New Gig" with a small arrow. Under them a row of four boxes, each with a number: "Needs action", "Open and draft gigs", "Active engagements", "Standing arrangements". Under the boxes a row of four tabs: "Overview" (underlined in dark red), "Gigs", "Engagements", "Standing Arrangements". Write the four numbers into your report.
+   Expect: the heading "Projects" with a small grey "?" in a circle beside it (about the height of a letter, not a large round button), the line "Manage your gigs, awarded work, milestones and standing arrangements.", and at the far right a dark red button "+ New Gig" with a small arrow. Under them a row of four boxes, each with a number: "Needs action", "Open and draft gigs", "Active engagements", "Standing arrangements". Under the boxes a row of four tabs: "Overview" (underlined in dark red), "Gigs", "Engagements", "Standing Arrangements". Write the four numbers into your report.
    Expect also: nowhere on the page is there a percentage with an arrow, the words "vs. last month", "At risk", "High interest" or "Top performing".
 
 2. Find: the small grey "?" in a circle right of the heading "Projects".
    Do: click it.
-   Expect: a small white box with a thin grey border opens beside or under the "?". It has the bold word "Projects", a sentence that starts "Your workspace for delegated work.", and a small "×" at its top right. It is NOT a blue box. It lies over the page: the four boxes with numbers and the row of tabs did not move down.
+   Expect: a small white box with a thin grey border opens beside or under the "?". It has the bold word "Projects", a sentence that starts "Manage posted gigs, awarded work, milestones and standing arrangements.", and a small "×" at its top right. It is NOT a blue box. It lies over the page: the four boxes with numbers and the row of tabs did not move down.
    Do: click the "?" again.
    Expect: the white box closes.
    Then find the small grey "?" right of the heading "Needs your attention" (the first white card under the tabs, at the left).
    Do: click it.
-   Expect: a small white box opens by that "?" with the bold words "Needs your attention" and a sentence that starts "Items that need your review". The rows of the card under it did not move down.
+   Expect: a small white box opens by that "?" with the bold words "Needs your attention" and a sentence that starts "Items waiting for your review". The rows of the card under it did not move down.
    Do: click the "×" at the top right of the white box.
    Expect: the white box closes.
 
@@ -72,10 +72,10 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Expect: the card now lists every item; the count of rows equals the number in the heading. Some rows read "Review" a number "proposals" (or "Review 1 proposal") with the button "Review proposals". Write the titles of all rows into your report.
 
 4. Find: the card "Active engagements" under "Needs your attention".
-   Expect: a table with the column names "Engagement", "Freelancer", "Progress", "Next milestone", "Status", "Action" and three rows. Each row has the job's name with a dollar amount under it, the freelancer's name, words like "1 of 3 accepted" with a thin bar under them (or "Set when you both sign"), the next milestone's name with "Due" or "Was due" and a date, a status pill, and a button "View". A row whose date is before today and that reads "Was due" also has a red pill "Overdue". At the top right of the card, the link "View all →". Write the three rows into your report.
+   Expect: a table with the column names "Engagement", "Freelancer", "Milestones accepted", "Next milestone", "Status", "Action" and three rows. "Milestones accepted" and "Next milestone" each have a small grey "?" beside them. Each row has the job's name with a dollar amount under it, the freelancer's name, words like "1 of 3 accepted" with a thin bar under them (or "Set when you both sign"), the next milestone's name with "Due" or "Was due" and a date (or "Planned for" and a date when the agreement is not signed or paid yet, or "Not scheduled"), a status pill, and one button. The button reads "Pay milestone", "Review deliverable" or "Sign agreement" when that step waits on the attorney; otherwise it reads "View engagement". No button reads only "View". A row that reads "Was due" also has a red pill "Overdue"; a row that reads "Planned for" never has it. At the top right of the card, the link "View all →". Write the three rows into your report.
 
 5. Find: at the right side of the page, the card "Quick actions".
-   Expect: four boxes: "Review proposals", "Approve deliverables", "Pay milestones", "Sign agreements". Each has a grey line under its name: a number and "waiting", or "None waiting". There is NO "New Gig" box in this card. Under "Quick actions" is the card "Ask DELA", and under that the card "Upcoming milestones" with up to four rows, the nearest date first; each row has a milestone's name, the job and freelancer in grey, and a pill with "Due" or "Was due" and a date. Write the grey line of each of the four quick action boxes.
+   Expect: four boxes: "Review proposals", "Approve deliverables", "Pay milestones", "Sign agreements". Each has a grey line under its name: a number and "waiting", or "None waiting". There is NO "New Gig" box in this card. There is NO "Ask DELA" card on this page. Under "Quick actions" is the card "Upcoming milestones" with up to four rows, the nearest date first; each row has a milestone's name in bold, the job and freelancer in grey under it, and at the right "Due" or "Was due" with a date. The names read as normal lines of words; no name is broken into one word or a few letters per line. At the very bottom of the page, under all cards, a grey box starts with the bold words "About projects." Write the grey line of each of the four quick action boxes.
 
 6. Find: the box "Approve deliverables" in the card "Quick actions".
    Do: click it.
@@ -85,7 +85,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 
 7. Find: the tab "Gigs" in the row of tabs.
    Do: click it.
-   Expect: "Gigs" is now underlined. The first card is "Post a new gig" with one grey line and a button "Start a new gig" (do not click it). The second card is "Your gigs" with a number in brackets, a row of rounded buttons "Open and drafts (", "Filled (", "Closed (", "All (" each with a number, a box "Find a gig by its title", and a table with the columns "Gig", "Proposals", "Budget", "Closes", "Status", "Action".
+   Expect: "Gigs" is now underlined. There is NO card "Post a new gig" and NO button "Start a new gig" on this tab. The card is "Your gigs" with a number in brackets, a row of rounded buttons "Open and drafts (", "Filled (", "Closed (", "All (" each with a number, a box "Find a gig by its title", and a table with the columns "Gig", "Proposals", "Budget", "Closing date", "Status", "Action". In the last column a draft has the button "Continue draft", an open gig with proposals has "Review proposals", and any other gig has "View gig". No row shows "$0 to $0"; a draft without a budget shows "Budget not set". Do not click these buttons.
    Do: click in the box "Find a gig by its title" and type: intake
    Expect: the table shows only gigs with "intake" in their title. Write how many rows remain.
    Do: clear the box. Then click the rounded button that starts "Filled (".
@@ -100,7 +100,9 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 
 9. Find: the tab "Standing Arrangements".
    Do: click it.
-   Expect: a card "At a glance" with a table: "Freelancer", "Monthly limit", "This month", "Remaining", "Jobs open", "Status" (it shows only if an arrangement is active or waiting; if none is, the card is missing). Under it the card "Standing arrangements (" with a number, where arrangements are set up and used. Do not click any button in it.
+   Expect: a card "At a glance" with a table: "Freelancer", "Monthly limit", "Counted this month", "Remaining", "Jobs open", "Status", "Action", with a button "Manage" at the end of each row (the card shows only if an arrangement is active or waiting; if none is, the card is missing and you skip the rest of this step after writing that down). Under it the card "Standing arrangements (" with a number. In that card each arrangement is ONE line with the freelancer's name, a status pill and the word "Details"; its details are closed.
+   Do: click "Manage" in the first row of the table.
+   Expect: the line of that freelancer opens in the card below and shows, among other things, a line that starts "Covers:". Nothing else on the page changes. Click no button inside the opened details.
 
 10. Keyboard only for this step.
     Find: the tab "Standing Arrangements", which is underlined.
