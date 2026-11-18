@@ -131,12 +131,13 @@ const OWNER = 3800, MGR = 3801, ATT = 3802, PIA = 3803, FRED = 3804;
     s = await open(browser, OWNER, `&tab=work&gig=${gig}&view=agreement`);
     t = await waitFor(s.page, "Who's working on this");
     ok(t.includes("Max Manager") && t.includes("Lead paralegal"), "the named team member is on the job with their role: " + t.slice(t.indexOf("Who's working on this"), t.indexOf("Who's working on this") + 300).replace(/\n/g, " | "));
-    await dela(s.page).locator("#people-card .row", { hasText: "Max Manager" }).getByRole("button", { name: "Take off this job" }).click();
-    await waitFor(s.page, "Max Manager is off this job. The attorney was told.");
-    await label(s.page, "Team member to add").selectOption({ label: "Max Manager" });
+    // One person must stay on the job: the owner adds themselves first, then takes the team member off
+    await label(s.page, "Team member to add").selectOption({ label: "Olive Owner" });
     await label(s.page, "Their role on the job").fill("Review");
     await click(s.page, "Add to this job");
     await waitFor(s.page, "Added. The attorney was told.");
+    await dela(s.page).locator("#people-card .row", { hasText: "Max Manager" }).getByRole("button", { name: "Take off this job" }).click();
+    await waitFor(s.page, "Max Manager is off this job. The attorney was told.");
     ok((await sql(`select count(*)::int n from notifications n join people p on p.id = n.person_id where p.bd_member_id = ${ATT} and n.title like 'A change in who is working on%'`))[0].n === 2, "the attorney gets an information-only notice");
     await s.page.setViewportSize({ width: 390, height: 844 });
     await s.page.goto(`${BASE}/page/DELA-App?uid=${OWNER}&plan=&tab=agency`);
