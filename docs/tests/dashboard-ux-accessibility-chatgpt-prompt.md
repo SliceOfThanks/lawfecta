@@ -1,5 +1,7 @@
 # ChatGPT review: the three Home dashboards, customizing them, and their UX, UI and accessibility (2026-11-17)
 
+REPLACED on 2026-11-17 by docs/tests/home-review-fixes-chatgpt-prompt.md (check 9). Home changed with step 36; do not run this one.
+
 What it covers: the default Home of the freelancer, the agency owner and the attorney with the test data now on the site; customizing each one ("+ Add", the arrow buttons, "Remove", "Save changes", reload, "Restore default"); that "My work" and "My agency" keep separate layouts; and a structured review of each Home and of the Customize panel: clarity, numbers, empty states, wording, consistency, contrast, charts with text, the keyboard, 200% zoom and click targets.
 
 What it cannot cover: a real screen reader (ChatGPT sees the screen, it does not hear it), measured color contrast, a phone, dragging a row, and what an agency team member sees (the test agency has no team member besides its owner). Treat its accessibility findings as a first look, not as proof of meeting WCAG 2.2 AA.

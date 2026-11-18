@@ -1,5 +1,7 @@
 # ChatGPT test: Home widgets by role and the Customize panel (steps 33 and 34, 2026-11-17)
 
+REPLACED on 2026-11-17 by docs/tests/home-review-fixes-chatgpt-prompt.md (check 9). Home changed with step 36; do not run this one.
+
 This replaces the first Home check of the same day, whose screens changed.
 
 What it covers: the six default cards of each role, the earnings and spend cards with their ring, exact amounts and period, that nothing invented shows (no match percentages, stars, profile views or hours saved), that "Account status" is gone, the "Customize dashboard" panel ("+ Add", the arrow buttons, "Remove", "Cancel", "Save changes", "Restore default"), the layout after a reload, and that Home changes nothing on the bell or the Notifications page.

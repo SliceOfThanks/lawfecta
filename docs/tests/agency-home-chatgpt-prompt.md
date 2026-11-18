@@ -1,5 +1,7 @@
 # ChatGPT test: the agency Home (step 35, 2026-11-17)
 
+REPLACED on 2026-11-17 by docs/tests/home-review-fixes-chatgpt-prompt.md (check 9). Home changed with step 36; do not run this one.
+
 What it covers: the "My work" / "My agency" switch for the agency's owner, the six agency cards, "Paid by clients" and "Paid out to agency" shown apart and never called profit, the team card with "Hours not set" and no percentage, setting weekly hours on the Agency page, and that each view keeps its own layout.
 
 What it cannot cover: what a team member sees (they must see no switch and no agency money; the automated tests check this with two team members and a manager), the "Ask to set hours" button (the test agency has no team member besides its owner), real payments, a phone and a screen reader.

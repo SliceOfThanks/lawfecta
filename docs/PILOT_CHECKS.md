@@ -104,6 +104,10 @@ How to read the "State" column:
 | 35.1 | A real agency team member sees no "My agency" switch and no agency money (step 35) | A member of an agency opens Home and the Agency page | Not yet | The automated tests check it with two team members and a manager. The test agency on the site has no team member. |
 | 35.2 | "Ask to set hours" reaches a real team member (step 35) | The member gets the notification and the email, sets hours, and the owner sees them | Not yet | Needs an agency with a second person. |
 | 35.3 | "Paid by clients" and "Paid out to agency" against one real agency job (step 35) | Both amounts match Stripe after a paid milestone | Not yet | |
+| 36.1 | Home read by a real screen reader after the review (step 36) | The cards are read in the member's order; a row is announced as its action and title; "Overdue" is heard | Not yet | The automated tests check the order in the page and the names. |
+| 36.2 | The Customize panel as a dialog with a real screen reader (step 36) | The page behind cannot be reached; "Discard your changes?" is announced | Not yet | |
+| 36.3 | "Ask everyone without hours to set them" with a real team (step 36) | Each member without hours gets one notification and one email | Not yet | Not clicked in the ChatGPT check: the sample team members are not real inboxes. |
+| 36.4 | A real failed charge shows its day on the attorney's Home (step 36) | "Milestone N · $amount · payment failed on" with the right date | Not yet | The test data has no failed charge on record. |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.

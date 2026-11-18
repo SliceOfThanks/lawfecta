@@ -8,7 +8,10 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
-## Newest (2026-11-17): agencies have no manager role
+## Newest (2026-11-17): step 36, Home after the UX and accessibility review, is on the site
+code_version ce53e6a, api 130, migrations through 0133. All 18 changes of the review are built (docs/briefs/step-36-home-ux-accessibility.md). Needs testing: ChatGPT check 9 (docs/tests/home-review-fixes-chatgpt-prompt.md), which replaces checks 6, 7 and 8; check 4 (Inbox) is still out. Waiting on Stacey: the four questions in the brief (Overdue for delivered work, a visual on Earnings and Spend, separating agency proposals, how long "Dismiss" lasts). Possible next build if she wants it: agency proposals and gigs counted apart from the owner's own.
+
+## Earlier (2026-11-17): agencies have no manager role
 code_version 17919e7, migrations through 0132. Decided by Stacey ("Yes, remove it"). Nothing waits on her for this. ChatGPT check 7 already expects no role list.
 
 ## Newest (2026-11-17): step 35, the agency Home, is on the site
