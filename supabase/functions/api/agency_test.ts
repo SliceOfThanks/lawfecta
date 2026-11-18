@@ -92,9 +92,9 @@ Deno.test("becoming an agency: Business only; business details, checked once by 
 Deno.test("the team: invites by email, seats, roles; only owners and managers manage", async () => {
   assertEquals((await call("POST", "/agency/invite", owner.token, { email: "nobody@test.invalid", role: "member" })).body.reason, "not_a_freelancer");
   assertEquals((await call("POST", "/agency/invite", owner.token, { email: att.email, role: "member" })).body.reason, "not_a_freelancer", "attorneys are not freelancers");
-  const i1 = (await call("POST", "/agency/invite", owner.token, { email: mgr.email, role: "manager" })).body;
+  const i1 = (await call("POST", "/agency/invite", owner.token, { email: mgr.email, role: "member" })).body;
   assertEquals(i1.ok, true, JSON.stringify(i1));
-  assertEquals((await call("POST", "/agency/invite", owner.token, { email: mgr.email, role: "manager" })).body.duplicate, true);
+  assertEquals((await call("POST", "/agency/invite", owner.token, { email: mgr.email, role: "member" })).body.duplicate, true);
   const i2 = (await call("POST", "/agency/invite", owner.token, { email: mem.email, role: "member" })).body;
   assertEquals((await call("POST", "/agency/invite", owner.token, { email: extra.email, role: "member" })).body.reason, "no_seats", "3 seats, owner included, pending invites count");
   assert(await one("select 1 from notifications where person_id = $1 and title like 'You are invited to join Roe Support Group Inc%'", [mgr.id]));
@@ -104,8 +104,11 @@ Deno.test("the team: invites by email, seats, roles; only owners and managers ma
   assertEquals((await call("POST", "/agency/invite/answer", mgr.token, { id: i1.id, accept: true })).body.status, "accepted");
   assertEquals((await call("POST", "/agency/invite/answer", mem.token, { id: i2.id, accept: true })).body.status, "accepted");
   const v = (await call("GET", "/agency", owner.token)).body.agency;
-  assertEquals([v.seats.used, v.team.length, v.team.map((t: any) => t.role)], [3, 3, ["owner", "manager", "member"]]);
-  // A member cannot manage; a manager cannot make managers
+  assertEquals([v.seats.used, v.team.length, v.team.map((t: any) => t.role)], [3, 3, ["owner", "member", "member"]]);
+  // Stacey 2026-11-17: there is no manager role. Nobody is invited as one or made one, and a team member cannot manage
+  assertEquals((await call("POST", "/agency/invite", owner.token, { email: extra.email, role: "manager" })).body.reason, "bad_role");
+  assertEquals((await call("POST", "/agency/member", owner.token, { person_id: mgr.id, action: "role", role: "manager" })).body.reason, "bad_role");
+  assertEquals((await call("POST", "/agency/invite", mgr.token, { email: extra.email, role: "member" })).body.reason, "agency_managers_only", "a team member's own organization is not the agency");
   assertEquals((await call("POST", "/agency/member", mem.token, { person_id: mgr.id, action: "remove" })).body.reason, "agency_managers_only", "a member's own organization is not the agency");
   assertEquals((await call("POST", "/agency/member", owner.token, { person_id: owner.id, action: "remove" })).body.reason, "owner_stays");
   // The team raises one agency's limit by hand
@@ -150,21 +153,24 @@ Deno.test("weekly hours: set by the member or the owner, asked for by the owner,
 });
 
 Deno.test("agency proposals: Who will do this work is required, verified people only, one per agency, the shared allowance", async () => {
-  const opts = (await call("GET", "/proposals/options?gig=" + gig, mgr.token)).body;
+  assertEquals((await call("GET", "/proposals/options?gig=" + gig, mgr.token)).body.agencies.length, 0, "a team member cannot send for the agency");
+  const opts = (await call("GET", "/proposals/options?gig=" + gig, owner.token)).body;
   assertEquals(opts.agencies.length, 1);
   const pick = opts.agencies[0].team.map((t: any) => t.name);
   assert(pick.includes("Mia Member") && !pick.includes("Ned New"), "people without their own verification cannot be named: " + pick);
   const body = { gig_id: gig, price: 600, included: "The intake packet", schedule: "5 days", request_id: "ap1", agency_org: org };
-  assertEquals((await call("POST", "/proposals/send", mgr.token, { ...body, team: [] })).body.reason, "pick_team");
-  assertEquals((await call("POST", "/proposals/send", mgr.token, { ...body, team: [{ person_id: newbie.id, role: "Lead" }] })).body.reason, "team_member_not_ready");
-  assertEquals((await call("POST", "/proposals/send", mgr.token, { ...body, team: [{ person_id: extra.id, role: "Lead" }] })).body.reason, "team_member_not_ready", "only the agency's own team");
+  assertEquals((await call("POST", "/proposals/send", owner.token, { ...body, team: [] })).body.reason, "pick_team");
+  assertEquals((await call("POST", "/proposals/send", owner.token, { ...body, team: [{ person_id: newbie.id, role: "Lead" }] })).body.reason, "team_member_not_ready");
+  assertEquals((await call("POST", "/proposals/send", owner.token, { ...body, team: [{ person_id: extra.id, role: "Lead" }] })).body.reason, "team_member_not_ready", "only the agency's own team");
   assertEquals((await call("POST", "/proposals/send", mem.token, { ...body, team: [{ person_id: mem.id, role: "Lead" }] })).body.reason, "agency_managers_only", "members do not send for the agency");
   const before = (await call("GET", "/agency", owner.token)).body.agency.allowance.used;
-  const r = (await call("POST", "/proposals/send", mgr.token, { ...body, team: [{ person_id: mem.id, role: "Lead paralegal" }, { person_id: mgr.id, role: "Review" }] })).body;
+  const r = (await call("POST", "/proposals/send", owner.token, { ...body, team: [{ person_id: mem.id, role: "Lead paralegal" }, { person_id: mgr.id, role: "Review" }] })).body;
   assertEquals([r.ok, r.agency], [true, true], JSON.stringify(r));
   prop = r.id;
-  assertEquals((await call("GET", "/agency", owner.token)).body.agency.allowance.used, before + 1, "the allowance is shared: the agency's, not the manager's");
-  assertEquals((await call("POST", "/proposals/send", owner.token, { ...body, request_id: "ap2", team: [{ person_id: owner.id }] })).body.reason, "agency_already_proposed");
+  assertEquals((await call("GET", "/agency", owner.token)).body.agency.allowance.used, before + 1, "the allowance is the agency's");
+  // One proposal per agency and gig: a second send makes no second proposal
+  const again = (await call("POST", "/proposals/send", owner.token, { ...body, request_id: "ap2", team: [{ person_id: owner.id }] })).body;
+  assertEquals((await one("select count(*)::int n from proposals where gig_id = $1 and agency_org = $2 and status <> 'withdrawn'", [gig, org])).n, 1, "still one agency proposal: " + JSON.stringify(again).slice(0, 200));
   // The attorney sees the agency and its people
   const ps = (await call("GET", "/gigs/proposals?id=" + gig, att.token)).body;
   const p = ps.proposals.find((x: any) => x.id === prop);
@@ -192,8 +198,8 @@ Deno.test("after the hire: paid to the agency, the people work on it, owners and
   assertEquals((await call("POST", "/engagements/cancel", mem.token, { id: ag, reason: "x" })).body.reason, "agency_managers_only");
   // The agency changes who works on it; the attorney is told, and approves nothing
   assertEquals((await call("POST", "/engagements/team", mem.token, { agreement_id: ag, person_id: owner.id, on: true })).body.reason, "not_found", "members do not change the team");
-  assertEquals((await call("POST", "/engagements/team", mgr.token, { agreement_id: ag, person_id: newbie.id, on: true })).body.reason, "team_member_not_ready");
-  assertEquals((await call("POST", "/engagements/team", mgr.token, { agreement_id: ag, person_id: owner.id, on: true, role: "Final check" })).body.ok, true);
+  assertEquals((await call("POST", "/engagements/team", owner.token, { agreement_id: ag, person_id: newbie.id, on: true })).body.reason, "team_member_not_ready");
+  assertEquals((await call("POST", "/engagements/team", owner.token, { agreement_id: ag, person_id: owner.id, on: true, role: "Final check" })).body.ok, true);
   assert(await one("select 1 from notifications where person_id = $1 and title like 'A change in who is working on%' and body like '%nothing is needed from you%'", [att.id]));
   // Removal ends access at once
   assertEquals((await call("POST", "/agency/member", owner.token, { person_id: mem.id, action: "remove" })).body.jobs_ended, 1);
@@ -207,7 +213,7 @@ Deno.test("reviews go to the agency and to each named person; each person shows 
   const of = async (who: M) => (await call("GET", `/reviews/of?person=${who.id}&side=freelancer`, att.token)).body;
   assertEquals((await of(owner)).count, 1, "the agency's profile");
   assertEquals((await of(mem)).count, 1, "the named member");
-  assertEquals((await of(mgr)).count, 1, "the named manager");
+  assertEquals((await of(mgr)).count, 1, "the second named person");
   assertEquals((await of(newbie)).count, 0, "a team member who was not named");
 });
 
@@ -217,7 +223,7 @@ Deno.test("a downgrade stops new team changes and agency proposals; current jobs
   const v = (await call("GET", "/agency", owner.token)).body.agency;
   assertEquals(v.active, false, JSON.stringify(v));
   assertEquals((await call("POST", "/agency/invite", owner.token, { email: extra.email, role: "member" })).body.reason, "agency_inactive");
-  assertEquals((await call("GET", "/proposals/options?gig=" + gig, mgr.token)).body.agencies.length, 0, "no agency proposals");
+  assertEquals((await call("GET", "/proposals/options?gig=" + gig, owner.token)).body.agencies.length, 0, "no agency proposals");
   assertEquals((await call("GET", "/engagements/people?agreement=" + ag, att.token)).body.ok, true, "the engagement stays readable");
 });
 

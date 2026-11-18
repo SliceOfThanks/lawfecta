@@ -52,7 +52,7 @@ Deno.test("setup", async () => {
   free = await member(4, "fl_free", "Fred Free"); other = await member(5, "fl_pro", "Omar Other"); att = await member(6, "att_pro", "Ann Attorney"); team = await member(7, "att_free", "Lawfecta Team");
   await pool.query("insert into staff_roles (person_id, role) values ($1, 'support')", [team.id]);
   assertEquals((await call("GET", "/agency", owner.token)).body.agency.role, "owner");
-  const inv = (await call("POST", "/agency/invite", owner.token, { email: mgr.email, role: "manager" })).body;
+  const inv = (await call("POST", "/agency/invite", owner.token, { email: mgr.email, role: "member" })).body;
   assert(inv.ok, JSON.stringify(inv));
   const id = (await one("select id from agency_invites where person_id = $1 order by created_at desc limit 1", [mgr.id])).id;
   assert((await call("POST", "/agency/invite/answer", mgr.token, { id, accept: true })).body.ok);
@@ -70,7 +70,7 @@ Deno.test("invite: owner or manager, a real freelancer, a split inside 5% to 50%
   const ok = (await call("POST", "/agency/bench/invite", owner.token, { email: plus.email, agency_percent: 30, note: "For intake work", request_id: "b1", ...sign })).body;
   assert(ok.ok && ok.plan_ok, JSON.stringify(ok));
   benchPlus = ok.id;
-  assertEquals((await call("POST", "/agency/bench/invite", mgr.token, { email: plus.email, agency_percent: 30, typed_name: "Max Manager", agree: true })).body.duplicate, true, "one open bench line per freelancer");
+  assertEquals((await call("POST", "/agency/bench/invite", owner.token, { email: plus.email, agency_percent: 30, typed_name: "Olive Owner", agree: true })).body.duplicate, true, "one open bench line per freelancer");
   const n = await one("select title, body from notifications where person_id = $1 order by created_at desc limit 1", [plus.id]);
   assert(n.title === "Roe Support Group invited you to its bench" && n.body.includes("30.0% of the fee to the agency and 70.0% to you"), JSON.stringify(n));
   const v = (await call("GET", "/agency/bench", owner.token)).body;
@@ -80,7 +80,7 @@ Deno.test("invite: owner or manager, a real freelancer, a split inside 5% to 50%
 });
 
 Deno.test("a Free freelancer is told to upgrade, and cannot sign until they do", async () => {
-  const r = (await call("POST", "/agency/bench/invite", mgr.token, { email: free.email, agency_percent: 20, typed_name: "Max Manager", agree: true })).body;
+  const r = (await call("POST", "/agency/bench/invite", owner.token, { email: free.email, agency_percent: 20, typed_name: "Olive Owner", agree: true })).body;
   assertEquals([r.ok, r.plan_ok], [true, false]);
   benchFree = r.id;
   const n = await one("select body from notifications where person_id = $1 order by created_at desc limit 1", [free.id]);
@@ -104,7 +104,7 @@ Deno.test("the freelancer proposes another split; the agency signs it; then they
   assertEquals((await call("POST", "/agency/bench/answer", plus.token, { id: benchPlus, action: "sign", typed_name: "Pia Plus", agree: true })).body.reason, "waiting_for_other_side", "the freelancer already signed version 2");
   const n = await one("select title from notifications where person_id = $1 order by created_at desc limit 1", [owner.id]);
   assertEquals(n.title, "Pia Plus proposed another split");
-  const s = (await call("POST", "/agency/bench/agency", mgr.token, { id: benchPlus, action: "sign", typed_name: "Max Manager", agree: true })).body;
+  const s = (await call("POST", "/agency/bench/agency", owner.token, { id: benchPlus, action: "sign", typed_name: "Olive Owner", agree: true })).body;
   assertEquals([s.ok, s.version, s.agency_bps, s.joined, s.status], [true, 2, 2000, true, "active"], JSON.stringify(s));
   const mine = (await call("GET", "/agency/bench", plus.token)).body.my_benches[0];
   assertEquals([mine.status, mine.agency, mine.split.agency_bps, mine.waiting], ["active", "Roe Support Group", 2000, null]);
@@ -151,7 +151,9 @@ Deno.test("a bench member on Free shows Inactive; leaving and removing", async (
   // Invited again: a new line with its own agreement
   const again = (await call("POST", "/agency/bench/invite", owner.token, { email: plus.email, agency_percent: 30, ...sign })).body;
   assert(again.ok && !again.duplicate && again.id !== benchPlus);
-  assertEquals((await call("POST", "/agency/bench/end", mgr.token, { id: again.id })).body.status, "removed", "a manager cancels the invitation");
+  // Stacey 2026-11-17: there is no manager role. A team member cannot act for the agency; the owner cancels the invitation
+  assert((await call("POST", "/agency/bench/end", mgr.token, { id: again.id })).body.ok !== true, "a team member cannot cancel the agency's invitation");
+  assertEquals((await call("POST", "/agency/bench/end", owner.token, { id: again.id })).body.status, "removed", "the owner cancels the invitation");
 });
 
 Deno.test("the switch: off means no bench", async () => {

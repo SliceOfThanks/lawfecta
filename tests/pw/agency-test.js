@@ -80,18 +80,20 @@ const OWNER = 3800, MGR = 3801, ATT = 3802, PIA = 3803, FRED = 3804;
     await click(s.page, "Invite to the team");
     await waitFor(s.page, "There is no Lawfecta freelancer with that email.");
     await label(s.page, "Their email on Lawfecta").fill(MGR + "@test.invalid");
-    await label(s.page, "Role").selectOption("manager");
+    // Stacey 2026-11-17: there is no manager role, so the invitation has no role list
+    ok(await dela(s.page).getByLabel("Role", { exact: true }).count() === 0, "the invitation offers no role: everyone joins as a team member");
     await click(s.page, "Invite to the team");
-    t = await waitFor(s.page, "invited as manager");
+    t = await waitFor(s.page, "invited as member");
     ok(t.includes("plus 1 invitation waiting"), "the invitation holds a seat");
     await s.ctx.close();
 
-    // ---------- The manager accepts and sends the agency's proposal ----------
+    // ---------- The team member accepts; the owner sends the agency's proposal and names them ----------
     s = await open(browser, MGR, "&tab=agency");
     await waitFor(s.page, "Invitation from Roe Support Group");
     await click(s.page, "Accept");
     await waitFor(s.page, "Agencies you work with");
-    await s.page.goto(`${BASE}/page/DELA-App?uid=${MGR}&plan=&tab=work&gig=${gig}`);
+    await s.ctx.close();
+    s = await open(browser, OWNER, `&tab=work&gig=${gig}`);
     t = await waitFor(s.page, "Who will do this work (required)");
     ok(t.includes("Send as"), "the proposal form offers the agency");
     await label(s.page, "Your total price ($)").fill("600");
@@ -99,9 +101,9 @@ const OWNER = 3800, MGR = 3801, ATT = 3802, PIA = 3803, FRED = 3804;
     await label(s.page, "Schedule").fill("5 days");
     await dela(s.page).getByRole("button", { name: /^Send proposal/ }).click();
     await waitFor(s.page, "Choose at least one person");
-    await label(s.page, "Name Olive Owner on this proposal").check();
+    await label(s.page, "Name Max Manager on this proposal").check();
     // The role is read when the proposal is sent, even when it was put in without typing (autofill, an agent; ChatGPT agency test 2026-11-05)
-    await dela(s.page).getByLabel("Role on this job for Olive Owner", { exact: true }).first().evaluate((el) => { el.value = "Lead paralegal"; });
+    await dela(s.page).getByLabel("Role on this job for Max Manager", { exact: true }).first().evaluate((el) => { el.value = "Lead paralegal"; });
     await dela(s.page).getByRole("button", { name: /^Send proposal/ }).click();
     await waitFor(s.page, "sent for your agency");
     const prop = (await sql(`select p.id, p.agency_org is not null ag from proposals p join gigs g on g.id = p.gig_id where g.id = '${gig}'`))[0];
@@ -112,23 +114,23 @@ const OWNER = 3800, MGR = 3801, ATT = 3802, PIA = 3803, FRED = 3804;
     // Fix (ChatGPT subcontracting test 2026-11-06): a link with view=proposals opens the Proposals view, not Details
     s = await open(browser, ATT, `&tab=projects&gig=${gig}&view=proposals`);
     t = await waitFor(s.page, "Who will do this work:");
-    ok(t.includes("Agency") && t.includes("Roe Support Group") && t.includes("Olive Owner") && t.includes("Lead paralegal"), "the attorney sees the agency, the person and their role");
+    ok(t.includes("Agency") && t.includes("Roe Support Group") && t.includes("Max Manager") && t.includes("Lead paralegal"), "the attorney sees the agency, the person and their role");
     await click(s.page, "View profile");
-    t = await waitFor(s.page, "Olive headline");
+    t = await waitFor(s.page, "Max headline");
     ok(t.includes("Works with: Roe Support Group"), "the profile shows the agency");
     await dela(s.page).getByRole("button", { name: "Close", exact: true }).last().click();
     await click(s.page, "Choose");
     await waitFor(s.page, "Chosen.");
     await s.page.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=projects&gig=${gig}&view=agreement`);
     t = await waitFor(s.page, "Who's working on this");
-    ok(t.includes("You hired Roe Support Group") && t.includes("Olive Owner") && t.includes("nothing is needed from you"), "after the hire: who's working on this");
+    ok(t.includes("You hired Roe Support Group") && t.includes("Max Manager") && t.includes("nothing is needed from you"), "after the hire: who's working on this");
     await s.page.screenshot({ path: path.join(SHOTS, "agency-attorney.png"), fullPage: true });
     await s.ctx.close();
 
     // ---------- The owner changes who works on it ----------
     s = await open(browser, OWNER, `&tab=work&gig=${gig}&view=agreement`);
     t = await waitFor(s.page, "Who's working on this");
-    ok(t.includes("Max Manager") && t.includes("Sent the proposal"), "the sender is on the job");
+    ok(t.includes("Max Manager") && t.includes("Sent the proposal"), "the named team member and the sender are on the job");
     await dela(s.page).locator("#people-card .row", { hasText: "Max Manager" }).getByRole("button", { name: "Take off this job" }).click();
     await waitFor(s.page, "Max Manager is off this job. The attorney was told.");
     await label(s.page, "Team member to add").selectOption({ label: "Max Manager" });

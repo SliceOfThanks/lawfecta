@@ -4887,7 +4887,7 @@
     needs_reconfirm: "The freelancer needs to confirm this proposal first, because the gig changed a lot or the proposal is older than its actionable days. Click \"Ask to confirm\".",
     sensitive_job: "This job is marked as involving sensitive data, so files cannot be uploaded or shared here. Use a secure document link instead.",
     pick_team: "Choose at least one person in \"Who will do this work\".", team_member_not_ready: "One of the people you chose has not finished their own verification, or is not on your agency's team.",
-    agency_already_proposed: "Your agency already sent a proposal for this gig.", agency_managers_only: "Only the agency's owner or a manager can do that.",
+    agency_already_proposed: "Your agency already sent a proposal for this gig.", agency_managers_only: "Only the agency's owner can do that.",
     agency_owner_only: "Only the agency's owner can do that.", agency_inactive: "Your agency is not on Freelancer Business right now, so team changes and agency proposals are paused. Jobs already running continue.",
     no_seats: "All of your agency's seats are used. Remove someone, or ask the Lawfecta Team about more seats.", not_a_freelancer: "There is no Lawfecta freelancer with that email. Ask them to join Lawfecta as a freelancer first, then invite them again.",
     already_on_team: "That person is already on your team.", owner_stays: "The owner stays on the team.", bad_role: "Choose Manager or Member.",
@@ -5677,7 +5677,7 @@
     api.get("/agency/profile").then(function (r) {
       D.clear(card);
       card.appendChild(h("h2", { text: "Agency profile" }));
-      if (!r.ok) { card.appendChild(h("p", { class: "small muted", text: r.reason === "agency_owner_only" ? "Only the agency's owner or a manager can edit the agency profile." : "The agency profile is not open yet." })); return; }
+      if (!r.ok) { card.appendChild(h("p", { class: "small muted", text: r.reason === "agency_owner_only" ? "Only the agency's owner can edit the agency profile." : "The agency profile is not open yet." })); return; }
       var b = r.body || {};
       card.appendChild(h("p", { class: "small muted", text: "Attorneys read this on your agency's proposals. Team of " + r.team_size + (r.bench_size ? ", bench of " + r.bench_size : "") + " (counted for you)." }));
       if (justSaved) card.appendChild(h("p", { class: "small ok", text: "Saved." }));
@@ -5851,11 +5851,7 @@
         h("p", { class: "small muted", text: seats.used + " of " + seats.limit + " seats used, the owner included" + (seats.pending ? ", plus " + seats.pending + (seats.pending === 1 ? " invitation" : " invitations") + " waiting" : "") + ". Team members use their own Lawfecta accounts and finish their own verification before you can name them on a proposal." }));
       (ag.team || []).forEach(function (t) {
         var acts = h("div", { class: "row" });
-        if (ag.role === "owner" && t.role !== "owner" && ag.active) {
-          var rs = h("select", { "aria-label": "Role for " + t.name }, ["manager", "member"].map(function (r0) { return h("option", { value: r0, selected: r0 === t.role ? "selected" : null, text: ROLE_NAMES[r0] }); }));
-          rs.addEventListener("change", function () { api.post("/agency/member", { person_id: t.person_id, action: "role", role: rs.value }).then(gigOk).then(function () { draw(); D.toast(app, "Role changed"); }).catch(gigFail); });
-          acts.appendChild(rs);
-        }
+        // No role list: an agency has its owner and team members (Stacey 2026-11-17: "We do not have a manager role")
         if (manage && ag.active && t.role !== "owner" && (ag.role === "owner" || t.role === "member")) {
           var rmB = h("button", { class: "ghost small", type: "button" }, "Remove");
           rmB.addEventListener("click", function () {
@@ -5874,11 +5870,10 @@
       });
       if (manage && ag.active) {
         var em = h("input", { type: "email", "aria-label": "Their email on Lawfecta", placeholder: "Their email on Lawfecta" });
-        var rl = h("select", { "aria-label": "Role" }, (ag.role === "owner" ? ["member", "manager"] : ["member"]).map(function (r0) { return h("option", { value: r0, text: ROLE_NAMES[r0] }); }));
-        tc.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:8px" }, em, rl, h("button", { class: "blue small", type: "button", onclick: function () {
-          api.post("/agency/invite", { email: em.value.trim(), role: rl.value }).then(gigOk).then(function (x) { draw(); D.toast(app, x.duplicate ? "Already invited" : "Invitation sent"); }).catch(gigFail);
+        tc.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:8px" }, em, h("button", { class: "blue small", type: "button", onclick: function () {
+          api.post("/agency/invite", { email: em.value.trim(), role: "member" }).then(gigOk).then(function (x) { draw(); D.toast(app, x.duplicate ? "Already invited" : "Invitation sent"); }).catch(gigFail);
         } }, "Invite to the team")));
-        tc.appendChild(h("p", { class: "small muted", text: "Managers can send proposals for the agency and change who works on a job. Members do the work they are named for." }));
+        tc.appendChild(h("p", { class: "small muted", text: "Team members do the work they are named for. Only you, as the owner, send proposals for the agency, sign for it and change who works on a job." }));
       }
       el.appendChild(tc);
       // The agency's allowance and jobs

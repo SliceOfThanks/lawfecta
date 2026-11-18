@@ -55,7 +55,7 @@ Deno.test("setup: an agency with a manager, a member and a bench member; an atto
   await pool.query("insert into staff_roles (person_id, role) values ($1, 'support')", [team.id]);
   org = (await call("GET", "/agency", owner.token)).body.agency.id;
   assert((await call("POST", "/agency/business", owner.token, { name: "Roe Support Group", state: "TX" })).body.ok);
-  for (const [who, role] of [[mgr, "manager"], [mem, "member"]] as [M, string][]) {
+  for (const [who, role] of [[mgr, "member"], [mem, "member"]] as [M, string][]) {
     assert((await call("POST", "/agency/invite", owner.token, { email: who.email, role })).body.ok);
     const inv = (await one("select id from agency_invites where person_id = $1 order by created_at desc limit 1", [who.id])).id;
     assert((await call("POST", "/agency/invite/answer", who.token, { id: inv, accept: true })).body.ok);
@@ -78,7 +78,8 @@ Deno.test("the switch off: no Library, Projects or Talent for the agency", async
 Deno.test("the Library: the owner runs it, managers edit, members and attorneys never see it", async () => {
   const o = (await call("GET", "/library", owner.token)).body;
   assertEquals([o.libraries.length, o.libraries[0].org_id, o.libraries[0].role, o.libraries[0].name], [1, org, "administrator", "Roe Support Group"]);
-  assertEquals((await call("GET", "/library", mgr.token)).body.libraries[0].role, "editor");
+  assertEquals((await call("GET", "/library", mgr.token)).status, 403, "there is no manager role: every team member is a member, without a Library");
+  assertEquals((await call("POST", "/agency/invite", owner.token, { email: omar.email, role: "manager" })).body.reason, "bad_role", "nobody can be invited as a manager");
   assertEquals((await call("GET", "/library", mem.token)).status, 403, "members do the work; they have no Library");
   assertEquals((await call("GET", "/library", omar.token)).status, 403, "a solo freelancer has no Library");
   const a = (await call("GET", "/library", att.token)).body;
@@ -103,10 +104,11 @@ Deno.test("posting: after the team's business check; the agency's own allowance;
   assertEquals((await call("GET", "/gigs", mem.token)).status, 403, "members cannot post for the agency");
   // The allowance is the agency's setting
   await pool.query("update settings set value = '1' where key = 'agency.gigs_active'");
-  gig2 = (await call("POST", "/gigs/draft", mgr.token, { playbook_id: pb, request_id: "g2" + RUN, budget_min: 300, budget_max: 900, use_ai: false })).body.id;
-  assertEquals((await call("POST", "/gigs/publish", mgr.token, { id: gig2 })).body.reason, "limit_reached", "one open gig at once");
+  gig2 = (await call("POST", "/gigs/draft", owner.token, { playbook_id: pb, request_id: "g2" + RUN, budget_min: 300, budget_max: 900, use_ai: false })).body.id;
+  assertEquals((await call("POST", "/gigs/publish", owner.token, { id: gig2 })).body.reason, "limit_reached", "one open gig at once");
   await pool.query("update settings set value = '0' where key = 'agency.gigs_active'");
-  assertEquals((await call("POST", "/gigs/publish", mgr.token, { id: gig2 })).body.ok, true, "a manager posts too");
+  assert((await call("POST", "/gigs/publish", mgr.token, { id: gig2 })).body.ok !== true, "a team member cannot post for the agency");
+  assertEquals((await call("POST", "/gigs/publish", owner.token, { id: gig2 })).body.ok, true, "the owner posts the second gig");
   const list = (await call("GET", "/gigs", owner.token)).body;
   assertEquals(list.gigs.map((g: { id: string }) => g.id).sort(), [gig, gig2].sort());
   assert(!(await call("GET", "/gigs", att.token)).body.gigs.some((g: { id: string }) => g.id === gig), "an attorney's Projects never shows the agency's gigs");
