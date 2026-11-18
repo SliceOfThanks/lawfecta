@@ -34,6 +34,12 @@ The heading, one "+ New Gig" at the top, four numbers counted from real records,
 - **Zoom.** The automated tests check 768 and 320 pixels wide (320 equals 400% zoom on a 1280 screen). A person has not tried browser zoom, a screen reader or a real phone.
 - **The four numbers have no "?" of their own.** Each is a button, and a button cannot hold a second button. The number's name for a screen reader includes the explanation.
 
+## Added the same day (step 41), closing two of the gaps above
+- **Status filter on Engagements.** A row of buttons above the table, one per status the active engagements really have, in the same words the rows show (for example "Active (3)", "Needs your signature (1)"), with "All active" first. It shows only when there is more than one status. A screen reader hears how many are shown.
+- **Ending an arrangement.** The question now names the open jobs ("The 2 open jobs finish as agreed: A; B."), or says "No job is open under it now."
+- **Quick actions** has its help tip, and its heading sits on the same band as the other cards.
+Still open: "Due soon" (needs a number of days) and sorting.
+
 ## How it could go wrong
 - A list cannot load: the page says so with "Try again" and never says "nothing waits".
 - A long title: it wraps; nothing is cut off.

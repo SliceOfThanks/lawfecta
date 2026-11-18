@@ -5288,7 +5288,8 @@
     cap: "The most the prices of jobs started in one month may add up to. Lawfecta's platform fee is added to each charge and is not part of the limit.",
     counted: "The prices of the jobs started from this arrangement this month.",
     remaining: "The monthly limit minus the job prices counted this month. It is a limit, not money held for you.",
-    jobs: "Jobs open now under this arrangement, out of the most allowed at once."
+    jobs: "Jobs open now under this arrangement, out of the most allowed at once.",
+    quick: "Shortcuts to the project tasks that wait on you. Each one says how many are waiting."
   };
   function pjTip(text, label) { var t = D.helpTip(text, "About " + label, null, false, label); return t; }
   function pjHead(title, count, tipKey, more) {
@@ -5456,7 +5457,8 @@
         left.appendChild(gc);
         // Quick actions: the project tasks, not a second New Gig (Stacey 2026-11-17)
         var n = function (k) { return needs.filter(function (x) { return x.kind === k; }); };
-        var qa = h("section", { class: "card" }, h("h2", { style: "margin:0 0 10px", text: "Quick actions" }));
+        var qa = h("section", { class: "card" }), qh = pjHead("Quick actions", null, "quick");
+        qa.appendChild(qh[0]); if (qh[1]) qa.appendChild(qh[1]);
         var qBtn = function (label, list, emptyGo) {
           return h("button", { class: "pj-quick", type: "button", onclick: function () { if (list.length === 1) list[0].go(); else if (list.length) { gigs.needsAll = true; gigs.pfocus = "needs"; draw(); } else emptyGo(); } },
             h("b", { text: label }), h("span", { class: "hsub", text: list.length ? list.length + " waiting" : "None waiting" }));
@@ -5517,14 +5519,28 @@
           var paintEng = function () {
             D.clear(ebody);
             var q = (gigs.efind || "").trim().toLowerCase(), hit = function (e) { return !q || (String(e.gig_title) + " " + String(e.other_name || "")).toLowerCase().indexOf(q) >= 0; };
-            var act = active.filter(hit), past = engs.filter(isPast).filter(hit);
+            var act = active.filter(hit).filter(function (e) { return !gigs.efilter || engWord(e) === gigs.efilter; }), past = engs.filter(isPast).filter(hit);
+            said.textContent = act.length + (act.length === 1 ? " active engagement shown." : " active engagements shown.");
             if (!act.length && !past.length) { ebody.appendChild(h("p", { class: "muted", role: "status", text: "No engagement matches \"" + gigs.efind.trim() + "\"." })); return; }
             if (act.length) ebody.appendChild(pjTable("Active engagements", engCols, act.map(pjEngRow)));
-            else ebody.appendChild(h("p", { class: "muted", text: "No active engagement" + (q ? " matches." : ".") }));
+            else ebody.appendChild(h("p", { class: "muted", text: "No active engagement" + (q || gigs.efilter ? " matches." : ".") }));
             if (past.length) ebody.appendChild(h("details", { class: "eng-past", open: q ? true : null, style: "margin-top:12px" }, h("summary", { text: "Finished and canceled (" + past.length + ")" }), pjTable("Finished and canceled engagements", engCols, past.map(pjEngRow))));
           };
           efind.addEventListener("input", function () { gigs.efind = efind.value; paintEng(); });
-          ac.appendChild(h("div", { class: "row", style: "margin:10px 0;justify-content:flex-end" }, efind));
+          // A filter per status the active engagements really have, in the words their rows show (step 41)
+          var engWord = function (e) { return e.needs_me === "sign" ? "Needs your signature" : AG_STATUS[e.status] || e.status; };
+          var words = []; active.forEach(function (e) { var w = engWord(e); if (words.indexOf(w) < 0) words.push(w); });
+          if (words.indexOf(gigs.efilter) < 0) gigs.efilter = "";
+          var said = h("span", { class: "sr", role: "status" });
+          var pills = h("div", { class: "pills grow", id: "pj-eng-filter", role: "group", "aria-label": "Show active engagements by status", style: "margin:0" });
+          var paintPills = function () {
+            D.clear(pills);
+            [""].concat(words).forEach(function (w) {
+              pills.appendChild(h("button", { type: "button", "aria-pressed": String((gigs.efilter || "") === w), onclick: function () { gigs.efilter = w; paintPills(); paintEng(); var on = pills.querySelector("[aria-pressed=true]"); if (on) on.focus(); } }, (w || "All active") + " (" + (w ? active.filter(function (e) { return engWord(e) === w; }).length : active.length) + ")"));
+            });
+          };
+          if (words.length > 1) paintPills();
+          ac.appendChild(h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;align-items:center;margin:10px 0" }, words.length > 1 ? pills : h("span", { class: "grow" }), efind, said));
           ac.appendChild(ebody); paintEng();
         }
         panel.appendChild(ac);
@@ -6754,7 +6770,10 @@
             h("button", { class: "blue small", type: "button", onclick: function () { act("/standing/change", { price: pr.value, cap: cp.value, max_open: Number(op.value), typed_name: sbC.name.value, consent: sbC.ok.checked }, "Sent. Hiring is paused until the freelancer approves."); } }, "Sign and send the new limits")));
         }
         if ((att ? a.role === "manager" : true) && ["proposed", "active", "needs_review"].indexOf(a.status) >= 0 && !(a.status === "proposed" && !att)) tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-          if (!confirm("End this standing arrangement? No new jobs can be hired from it; open jobs finish as agreed.")) return; act("/standing/end", {}, function (r) { return r.status === "ending" ? "Ending once the open jobs finish." : "Ended."; });
+          // The question names the jobs that are open, when the list on the page holds all of them (step 41)
+          var openJobs = (a.hires || []).filter(function (x) { return ["signing", "paying", "active"].indexOf(x.status) >= 0; }).map(function (x) { return x.title; });
+          var jobsLine = !a.open ? "No job is open under it now." : openJobs.length === a.open ? (a.open === 1 ? "The open job finishes as agreed: " : "The " + a.open + " open jobs finish as agreed: ") + openJobs.join("; ") + "." : (a.open === 1 ? "The 1 open job finishes as agreed." : "The " + a.open + " open jobs finish as agreed.");
+          if (!confirm("End this standing arrangement? No new jobs can be hired from it. " + jobsLine)) return; act("/standing/end", {}, function (r) { return r.status === "ending" ? "Ending once the open jobs finish." : "Ended."; });
         } }, "End arrangement"));
         if (tools.children.length) box.appendChild(tools);
         var waits = (!att && a.status === "proposed") || (a.status === "needs_review" && (att ? a.role === "manager" : true) && !(att ? a.review_attorney_ok : a.review_freelancer_ok));

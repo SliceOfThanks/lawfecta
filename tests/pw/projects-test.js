@@ -168,6 +168,13 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     t = await waitFor(p, "Engagements (5)");
     const eacts = await inShadow(p, (root) => [...root.querySelectorAll("#pj-panel table.pj-table tbody td:last-child button")].map((x) => x.textContent));
     ok(eacts.includes("Pay milestone") && eacts.includes("Review deliverable") && eacts.includes("Sign agreement") && eacts.includes("View engagement"), "the Engagements tab: pay, review, sign, or view: " + eacts.join(" | "));
+    // Step 41: a filter per status the active engagements really have
+    const pills = await inShadow(p, (root) => [...root.querySelectorAll("#pj-eng-filter button")].map((b) => b.textContent + ":" + b.getAttribute("aria-pressed")));
+    ok(pills.join("|") === "All active (4):true|Active (3):false|Needs your signature (1):false", "the status filter offers only statuses that exist, with counts: " + pills.join("|"));
+    await dela(p).getByRole("button", { name: "Needs your signature (1)" }).click();
+    const frows = await inShadow(p, (root) => [...root.querySelector("#pj-panel table.pj-table").querySelectorAll("tbody tr")].map((r) => r.innerText.replace(/\s+/g, " ")));
+    ok(frows.length === 1 && frows[0].includes("Welcome packet") && (await inShadow(p, (root) => root.querySelector("#pj-panel [role=status].sr").textContent)) === "1 active engagement shown.", "the filter shows that status only and says how many are shown");
+    await dela(p).getByRole("button", { name: "All active (4)" }).click();
     const erows = await inShadow(p, (root) => [...root.querySelectorAll("#pj-panel table.pj-table tbody tr")].map((r) => r.innerText.replace(/\s+/g, " ")));
     const late = erows.filter((r) => r.includes("Overdue"));
     ok(late.length === 1 && late[0].includes("Late binder job") && late[0].includes("Was due") && erows.some((r) => r.includes("Client two intake") && r.includes("Due ") && !r.includes("Overdue")), "Overdue by the one rule: past its date and not accepted, with Was due: " + late.join(" | "));
@@ -197,6 +204,7 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     // Quick actions are the project tasks, with what waits
     await dela(p).locator("#pj-tab-overview").click();
     await waitFor(p, "Quick actions");
+    ok(await dela(p).getByRole("button", { name: "About Quick actions" }).count() === 1, "Quick actions has its help tip beside the heading");
     const quick = await inShadow(p, (root) => [...root.querySelectorAll(".pj-quick")].map((b) => b.innerText.replace(/\s+/g, " ").trim()));
     ok(quick.join("|") === "Review proposals 1 waiting|Approve deliverables 1 waiting|Pay milestones 1 waiting|Sign agreements 1 waiting" && !quick.join(" ").includes("New Gig"), "quick actions: review, approve, pay and sign, each with what waits, and no second New Gig: " + quick.join("|"));
     const upcoming = await inShadow(p, (root) => [...root.querySelectorAll("#pj-panel .pj-up-b")].map((r) => r.innerText.replace(/\s+/g, " ")));
