@@ -1,10 +1,10 @@
-# ChatGPT test: Projects as a workspace (step 37, 2026-11-17)
+# ChatGPT test: Projects as a workspace, and posting a gig in three steps (steps 37 and 38, 2026-11-17)
 
-What it covers: the new Projects page for an attorney. The heading with its help tip, the four numbers, the four tabs (mouse and arrow keys), "Needs your attention" with one button per item, the engagements table with progress, next milestone and "Overdue", "Quick actions" as project tasks, "Upcoming milestones", the Gigs tab with its filters and search, the Engagements tab with its search, the Standing Arrangements tab, the "+ New Gig" menu, and a short review of clarity.
+What it covers: the new Projects page for an attorney, and the new three-step page for posting a gig (its labels, its messages for mistakes, the costs, DELA's draft, "Save draft", the review, and that nothing is posted without the tick box). The heading with its help tip, the four numbers, the four tabs (mouse and arrow keys), "Needs your attention" with one button per item, the engagements table with progress, next milestone and "Overdue", "Quick actions" as project tasks, "Upcoming milestones", the Gigs tab with its filters and search, the Engagements tab with its search, the Standing Arrangements tab, the "+ New Gig" menu, and a short review of clarity.
 
-What it cannot cover: a real screen reader, a phone (the automated tests check 768 and 320 pixels), posting a gig, paying, signing or approving (the test changes nothing), and what the page says when a list cannot load (the automated tests check it).
+What it cannot cover: a real screen reader, a phone (the automated tests check 768 and 320 pixels), really posting a gig (the automated tests post one), paying, signing or approving, and what the page says when a list cannot load (the automated tests check it).
 
-What changes on the site: nothing. The test opens pages and types in two search boxes.
+What changes on the site: one draft gig is made on the test attorney's account and deleted again in step 20. Writing it uses a DELA action of the test account. Nothing is posted, paid or signed.
 
 One login: the test attorney.
 
@@ -17,9 +17,9 @@ Paste everything below the line into ChatGPT in agent mode.
 
 ---
 
-You are checking the new Projects page of DELA on the Lawfecta site, www.lawfecta.co, as an attorney. Everything here uses a test account with test data. Do only what the steps say. Do not post a gig, do not pay, do not sign, do not approve or reject a delivery, do not send a message, and do not invite anyone. Several steps open a job's page to check that a button leads to the right place: on that page, click nothing except the link named in the step to go back. Use a browser window at least 1200 pixels wide. This test uses one login only.
+You are checking the new Projects page of DELA, and the new three-step page for posting a gig, on the Lawfecta site, www.lawfecta.co, as an attorney. Everything here uses a test account with test data. Do only what the steps say. You will prepare one draft gig and delete it again; never click "Post the gig" unless a step says so. Do not pay, do not sign, do not approve or reject a delivery, do not send a message, and do not invite anyone. Several steps open a job's page to check that a button leads to the right place: on that page, click nothing except the link named in the step to go back. Use a browser window at least 1200 pixels wide. This test uses one login only.
 
-No step should open a browser pop-up (a small OK / Cancel window from the browser itself). If one opens, click Cancel, write FAIL for that step and say what the pop-up said.
+Only step 20 should open a browser pop-up (a small OK / Cancel window from the browser itself). If one opens at any other step, click Cancel, write FAIL for that step and say what the pop-up said.
 
 Steps marked REVIEW ask for your judgment. Look at the screen as it is and answer in one or two sentences each. If you cannot tell something from the screen, write "could not check".
 
@@ -80,7 +80,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 
 7. Find: the tab "Gigs" in the row of tabs.
    Do: click it.
-   Expect: "Gigs" is now underlined. The first card is "Post a new gig" with a button "Start a new gig" (do not click it). The second card is "Your gigs" with a number in brackets, a row of rounded buttons "Open and drafts (", "Filled (", "Closed (", "All (" each with a number, a box "Find a gig by its title", and a table with the columns "Gig", "Proposals", "Budget", "Closes", "Status", "Action".
+   Expect: "Gigs" is now underlined. The first card is "Post a new gig" with one grey line and a button "Start a new gig" (do not click it). The second card is "Your gigs" with a number in brackets, a row of rounded buttons "Open and drafts (", "Filled (", "Closed (", "All (" each with a number, a box "Find a gig by its title", and a table with the columns "Gig", "Proposals", "Budget", "Closes", "Status", "Action".
    Do: click in the box "Find a gig by its title" and type: intake
    Expect: the table shows only gigs with "intake" in their title. Write how many rows remain.
    Do: clear the box. Then click the rounded button that starts "Filled (".
@@ -104,25 +104,61 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
     Do: press the Home key once.
     Expect: the tab "Overview" is underlined and has the outline.
 
-11. Find: the dark red button "+ New Gig" at the top right of the page.
-    Do: click it.
-    Expect: a small menu opens under it with "From an approved document", "Plan a task with Ask DELA" and "Create a document first".
-    Do: click "From an approved document".
-    Expect: the tab "Gigs" is chosen and the card "Post a new gig" is open, with a list "Document", two budget boxes and the button "Draft the gig with DELA". Do not click that button and do not fill anything in.
-
-12. Find: the first box of the four at the top, "Needs action".
+11. Find: the first box of the four at the top, "Needs action".
     Do: click it.
     Expect: the tab "Overview" is chosen and the card "Needs your attention" shows every item.
 
-13. REVIEW. On the "Overview" tab, scroll once from top to bottom, then answer:
+12. REVIEW. On the "Overview" tab, scroll once from top to bottom, then answer:
     a. In five seconds, is it clear what needs the attorney first?
     b. Is any section's purpose unclear, or does any section repeat another?
     c. Is any label, button name or sentence unclear to a lawyer? Quote it.
     d. Does anything overlap, get cut off, or leave a large empty area? Say where.
     e. Is every number labeled with what it counts?
 
+13. Find: the dark red button "+ New Gig" at the top right of the Projects page.
+    Do: click it.
+    Expect: a small menu opens under it with "From an approved document", "Plan a task with Ask DELA" and "Create a document first".
+    Do: click "From an approved document".
+    Expect: a page of its own opens. At its top left a button "← Back to Projects", then the heading "Post a New Gig" and one grey line under it. Under them a bar with three steps: "1 Set up the gig" (in dark red), "2 Review DELA's draft", "3 Review and post". The four boxes and the tabs of the Projects page are NOT on this page. At the left, three white cards: "1. Choose your work", "2. Choose the engagement type", "3. Add the details". At the right, the cards "Estimated costs" (it says "Enter a budget to see the estimated total.") and "What happens next" with three numbered lines, the first ending "(you are here)". There is NO button "Save draft" on this page.
+
+14. Find: the bottom of the left column, the dark red button "Draft with DELA" (the button "Cancel" is at its left).
+    Do: click "Draft with DELA" without filling anything in.
+    Expect: nothing is created. Under the list in card 1, in red: "Choose an approved SOP or Workflow." Under the budget boxes in card 3, in red: "Enter the lowest budget, in dollars." The dark outline is on the list in card 1.
+
+15. Find: the card "1. Choose your work" and its list, labeled "Approved SOP or Workflow".
+    Do: open the list and choose the second entry (the first approved document in it). Write its name into your report.
+    Expect: the red sentence under the list is gone, and a button "Preview document" shows at the right of the list. Do not click it.
+    Then find the card "2. Choose the engagement type".
+    Expect: two boxes side by side, "One-off" and "Monthly", each with a round selector and one grey sentence. "One-off" is chosen and has a dark red border.
+
+16. Find: the card "3. Add the details".
+    Expect: three boxes in a row, each with its name above it: "Budget from (USD)", "Budget to (USD)", "Work deadline (optional)". Under them a grey line that starts "At least $". Then a larger box named "Additional details for DELA (optional)" with "0 of 1,500 characters" under it at the right. Then a pale blue box "Protect client information".
+    Do: click in "Budget from (USD)" and type: 100 Then click "Draft with DELA" at the bottom.
+    Expect: in red under the budget boxes: "The budget must be at least $" and an amount. Nothing is created.
+    Do: clear "Budget from (USD)" and type: 300 Click in "Budget to (USD)" and type: 600 Click in "Additional details for DELA (optional)" and type: Test draft from the ChatGPT check. Clio experience is required.
+    Expect: the card "Estimated costs" at the right now shows three lines: "Your budget" with "$300 to $600", "Platform fee (" with a percentage and a least amount, and "Estimated total" with a range a little above $300 to $600. Write the three lines into your report.
+
+17. Find: the button "Draft with DELA" at the bottom of the left column.
+    Do: click it. Wait up to 60 seconds.
+    Expect: while it works, a grey line under the buttons says "DELA is writing the description." Then a new page opens. The bar of steps now marks "2 Review DELA's draft" in dark red, with a tick on step 1. A green notice says the draft is to be read and "Nothing is posted yet." A card "What freelancers will read" has filled boxes: "Title", "The task", "What done looks like", "Steps, one per line", "Tools", "Skills". At the bottom: "Save draft" (left) and "Continue to review" (right). Write the title DELA wrote into your report.
+    If instead a red sentence appears on the first page and your entries are still there, write FAIL with the sentence, skip steps 18 to 20, and click "Cancel".
+
+18. Find: the box "Title" in the card "What freelancers will read".
+    Do: click at the end of the title and type one space and the word: test Then click "Save draft" at the bottom left.
+    Expect: a short message "Saved". The page is still on step 2 and the title ends with "test".
+    Do: click "Continue to review".
+    Expect: the bar marks "3 Review and post". The page shows, from the top: a card "Budget, deadline and milestones" with "$300" and "$600" in its budget boxes; a card "Estimated costs" with the same three lines as in step 16; a card "What freelancers will see" that lists the title (ending "test"), the task, the steps, "TYPE" with "One-off" under it and "BUDGET" with "$300 to $600" under it; a card with one tick box that starts "I have read what freelancers will see."; and a row of buttons: "← Back", "Save draft", "Post the gig", "Delete draft".
+
+19. Find: the dark red button "Post the gig" in the last row. The tick box above it is NOT ticked. Leave it unticked.
+    Do: click "Post the gig" once.
+    Expect: the gig is NOT posted. In red under the tick box: "Tick the box to confirm you have read what freelancers will see." The page is still on step 3. Do NOT tick the box.
+
+20. Find: the button "Delete draft" at the right end of the last row.
+    Do: click it. A browser pop-up asks "Delete this draft gig?": click OK.
+    Expect: the Projects page shows again. Click the tab "Gigs": the draft with the title ending "test" is not in the table.
+
 Sign out: click the round button with initials at the top right, then "Sign out".
 
 ## Report
 
-For each numbered step write PASS or FAIL and one line of what you saw; for step 13 give the five answers. Then a list of every FAIL with a screenshot, every message on screen that confused you, and anything that took longer than 60 seconds. Add one screenshot of each tab: "Overview" (step 1), "Gigs" (step 7), "Engagements" (step 8) and "Standing Arrangements" (step 9).
+For each numbered step write PASS or FAIL and one line of what you saw; for step 12 give the five answers. Then a list of every FAIL with a screenshot, every message on screen that confused you, and anything that took longer than 60 seconds. Add one screenshot of each tab: "Overview" (step 1), "Gigs" (step 7), "Engagements" (step 8) and "Standing Arrangements" (step 9), and one of each step of posting a gig (steps 13, 17 and 18).

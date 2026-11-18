@@ -108,6 +108,10 @@ How to read the "State" column:
 | 36.2 | The Customize panel as a dialog with a real screen reader (step 36) | The page behind cannot be reached; "Discard your changes?" is announced | Not yet | |
 | 36.3 | "Ask everyone without hours to set them" with a real team (step 36) | Each member without hours gets one notification and one email | Not yet | Not clicked in the ChatGPT check: the sample team members are not real inboxes. |
 | 36.4 | A real failed charge shows its day on the attorney's Home (step 36) | "Milestone N · $amount · payment failed on" with the right date | Not yet | The test data has no failed charge on record. |
+| 37.1 | The Projects tabs and tables with a real screen reader (step 37) | Tabs are announced with their state; each table row is read with its column names | Not yet | The automated tests check the roles, captions and headers. |
+| 37.2 | Projects on a real phone (step 37) | The four numbers, the tabs and the stacked table rows are easy to use by touch | Not yet | The automated tests check 768 and 320 pixels. |
+| 38.1 | An attorney posts a real gig through the three steps, on a computer and on a phone (step 38) | The draft reads well, the costs match the agreement later, and the gig opens only after the tick box | Not yet | The automated tests post one in test mode. |
+| 38.2 | The costs on step 1 and step 3 against a real signed agreement (step 38) | The platform fee in the agreement falls inside the range the page showed | Not yet | |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
