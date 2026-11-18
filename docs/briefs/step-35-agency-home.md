@@ -42,8 +42,8 @@ Optional: Upcoming meetings, Recent messages, Urgent notifications, Ask DELA, Mo
 5. Revenue trend against a goal, pipeline value, utilization, at-risk scores and match percentages from the mockup are left out: DELA records none of them.
 6. The "My work" / "My agency" choice is remembered per browser, like the folded menu.
 
-## One thing to know
-The Agency page lets an owner give a team member the role "Manager" (it was built in step 7d). Stacey: "We do not have a manager role." For this step a manager is treated as a team member: no agency money, no agency Home. Removing the role from the Agency page is a separate change that needs her word, because it also decides what today's managers can still do (invite members, name people on jobs).
+## The manager role is gone (Stacey 2026-11-17: "Yes, remove it")
+An agency has its owner and team members. The Agency page no longer offers a role when inviting someone or beside a team member. On the server every agency rule that said "owner or manager" is now the owner's alone: inviting and removing people, sending the agency's proposals, posting its gigs, its Library, naming people on jobs, and signing. Inviting or promoting someone to manager is refused. Law firms keep their own roles. Migration 0132.
 
 ## How it could go wrong
 - A team member opens the agency view by hand: the server refuses, Home falls back to their own (tested in the browser).

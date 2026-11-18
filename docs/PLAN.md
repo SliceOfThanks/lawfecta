@@ -8,8 +8,11 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
+## Newest (2026-11-17): agencies have no manager role
+code_version 17919e7, migrations through 0132. Decided by Stacey ("Yes, remove it"). Nothing waits on her for this. ChatGPT check 7 already expects no role list.
+
 ## Newest (2026-11-17): step 35, the agency Home, is on the site
-code_version cc453f0, api 129, migrations through 0131. Needs testing: ChatGPT check 7 (docs/tests/agency-home-chatgpt-prompt.md) with the test freelancer, who owns the one agency on the site; checks 6 (Home by role) and 4 (Inbox) are still out. Waiting on Stacey: whether the "Manager" role should be removed from the Agency page, and what today's managers may still do. Not tested by a person: a team member's view and the "Ask to set hours" button (the test agency has no team member).
+code_version cc453f0, api 129, migrations through 0131. Needs testing: ChatGPT check 7 (docs/tests/agency-home-chatgpt-prompt.md) with the test freelancer, who owns the one agency on the site; checks 6 (Home by role) and 4 (Inbox) are still out. Not tested by a person: a team member's view and the "Ask to set hours" button (the test agency has no team member).
 
 ## Newest (2026-11-17): step 34, Home widgets by role, is on the site for attorneys and freelancers
 code_version 1e6de60, api 128, migrations through 0130. Needs testing: ChatGPT check 6 (rewritten, docs/tests/home-dashboard-chatgpt-prompt.md) and Stacey's own look; check 4 (Inbox) is still out. Waiting on Stacey: the four questions for the agency Home and any of the six decisions in docs/briefs/step-34-role-dashboards.md. Next work once she answers: the agency Home (needs a rule for who sees agency money, and whether DELA starts recording team members' weekly hours). Not built on purpose: anything that would show numbers DELA does not record.
