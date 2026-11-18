@@ -6,7 +6,11 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
-## Step 40, Projects after Stacey's implementation brief: ON THE SITE (2026-11-18), nothing queued behind it
+## Step 41, small additions to Projects: ON THE SITE (2026-11-18), nothing queued behind it
+- Site: code_version daac2c1, api 130 and migrations through 0134 unchanged, health "ok". GitHub Tests passed at the first run (run 44354682973: 57 Projects checks).
+- A status filter on the Engagements tab (#pj-eng-filter, gigs.efilter; one button per status the active engagements have, in the rows' own words); the question before ending a standing arrangement names the open jobs; Quick actions has a help tip and its heading sits on the band. Written up at the end of docs/briefs/step-40-projects-brief.md. Still open there: "Due soon" (needs a number of days from Stacey) and sorting.
+
+## Step 40, Projects after Stacey's implementation brief: ON THE SITE (2026-11-18)
 - Site: code_version 850ceb8, api function version 130 (unchanged), migrations through 0134 (unchanged), health "ok". GitHub Tests passed on that commit (run 44347726455: 54 Projects checks, 31 new gig, 92 Home, 139 workspace). Two earlier runs failed on test lines that still looked for old words; no app fault.
 - Brief: docs/briefs/step-40-projects-brief.md, which lists what was already in place, the ten changes, what was verified in the code before naming things, and the gaps. Browser code only (projectsWorkspace, pjEngRow, pjGigRow, pjTable, standingCard(slot, fold) in app/dela-app.js; ".pj-colwrap", ".pj-up", ".pj-about", ".standing-fold" in shared/dela-core.js).
 - Changes: the Overview's right column is at least 320 pixels or goes under the left one (a container query on .pj-colwrap); "Overdue" only when the engagement is active; "Budget not set", "Not scheduled", "Planned for DATE"; buttons that name the step ("Continue draft", "Review proposals", "View gig"; "Pay milestone", "Review deliverable", "Sign agreement", "View engagement"); the "Post a new gig" card is gone from the Gigs tab; Home's Ask DELA box is gone from Projects; standing arrangements fold to one line each with "Manage" in the table; help icons beside their headings and on six columns; an "About projects" note at the bottom of the Overview.

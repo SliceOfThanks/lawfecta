@@ -9,7 +9,7 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
 ## Newest (2026-11-18): step 40, Projects after the implementation brief, is on the site
-code_version 850ceb8, api 130, migrations through 0134. Needs testing: ChatGPT check 10 (docs/tests/projects-workspace-chatgpt-prompt.md), regenerated for steps 39 and 40. Waiting on Stacey, not blocking: the three questions in docs/briefs/step-40-projects-brief.md (days for "Due soon", a status filter on Engagements, naming open jobs before ending an arrangement).
+code_version daac2c1 (step 41 added a status filter on Engagements and names the open jobs before an arrangement ends), api 130, migrations through 0134. Needs testing: ChatGPT check 10 (docs/tests/projects-workspace-chatgpt-prompt.md), regenerated for steps 39 and 40. Waiting on Stacey, not blocking: the three questions in docs/briefs/step-40-projects-brief.md (days for "Due soon", a status filter on Engagements, naming open jobs before ending an arrangement).
 
 ## Earlier (2026-11-18): step 39, one help tip for the whole site, is on the site
 code_version 755462f, api 130, migrations through 0134. Needs testing: ChatGPT check 10 (docs/tests/projects-workspace-chatgpt-prompt.md), which now also checks the tip in step 2. Waiting on Stacey, not blocking: the two questions in docs/briefs/step-39-help-tips.md.

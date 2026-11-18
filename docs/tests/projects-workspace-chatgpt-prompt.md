@@ -94,7 +94,10 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 8. Find: the tab "Engagements".
    Do: click it.
    Expect: a card "Engagements" with a number in brackets, a box "Find by title or freelancer" at the right, and the same six columns as in step 4, now with every active engagement. Under the table, a line "Finished and canceled (" with a number that opens when clicked.
-   Do: click in the box and type: Avery
+   Expect also: at the left above the table, a row of rounded buttons: "All active (" with a number, then one button per status, such as "Active (" and "Needs your signature (", each with a number. (If every active engagement has the same status, this row is missing; write that down and skip the next two lines.)
+   Do: click the second rounded button in that row. Write its name into your report.
+   Expect: the table shows only rows whose status pill reads the same words as the button. Then click "All active (" and every active engagement is back.
+   Do: click in the box "Find by title or freelancer" and type: Avery
    Expect: only rows with the freelancer "Avery Collins" remain.
    Do: clear the box.
 
