@@ -7395,6 +7395,7 @@
         return q.split(/ +/).every(function (w) { return hay.indexOf(w) >= 0; });
       }
       function openThread(t) { talk.thread = t.id; draw(); }
+      function aboutTitle(t) { return t.kind === "intro" && me.side === "attorney" ? "Your introduction to " + t.other_name : t.gig_title; }
       function kindTag(t) { return h("span", { class: "inbox-kind " + (t.kind === "intro" ? "intro" : t.kind === "bench" ? "bench" : "gig"), text: INBOX_KIND[t.kind] || "Gig" }); }
       function drawPane(t) {
         D.clear(pane);
@@ -7405,11 +7406,15 @@
         var body = h("div", { class: "inbox-pane-body" });
         pane.appendChild(body);
         body.appendChild(h("div", { class: "row", style: "gap:12px;align-items:center" }, smallFace(t),
-          h("div", { class: "grow", style: "min-width:0" }, h("h3", { style: "margin:0;font-size:20px;overflow-wrap:anywhere", text: t.other_name }), h("div", { class: "inbox-about" }, kindTag(t), h("span", { class: "inbox-title", text: t.gig_title })))));
+          h("div", { class: "grow", style: "min-width:0" }, h("h3", { style: "margin:0;font-size:20px;overflow-wrap:anywhere", text: t.other_name }), h("div", { class: "inbox-about" }, kindTag(t), h("span", { class: "inbox-title", text: aboutTitle(t) })))));
         body.appendChild(h("div", { class: "soft inbox-context" }, h("div", { class: "inbox-label", text: "Conversation context" }),
           h("b", { text: t.kind === "intro" ? "An introduction, before any gig" : t.kind === "bench" ? "Your ongoing bench conversation" : t.gig_title }),
           h("div", { class: "small muted", text: t.last_at ? "Newest message " + inboxWhen(t.last_at) + "." : "No messages yet. The conversation started " + inboxWhen(t.created_at) + "." })));
         var recent = h("div", { "aria-live": "polite" }, h("div", { class: "inbox-label", text: "Recent messages" }), h("p", { class: "muted small", text: "Loading..." }));
+        // Above the messages, so it does not move when they load (ChatGPT check 4, 2026-11-17: a click could land on empty space)
+        body.appendChild(h("div", { class: "row", id: "inbox-acts", style: "gap:8px;flex-wrap:wrap;margin:12px 0" },
+          h("button", { class: "blue small", type: "button", id: "inbox-open", onclick: function () { openThread(t); } }, "Open conversation →"),
+          isGig(t) ? h("button", { class: "ghost small", type: "button", onclick: function () { gigs.id = t.gig_id; gigs.view = "details"; tab = me.side === "attorney" ? "projects" : "work"; draw(); } }, "View gig") : null));
         body.appendChild(recent);
         api.get("/threads/peek?id=" + t.id).then(function (pk) {
           if (inboxState.sel !== t.id || !recent.parentNode) return;
@@ -7422,9 +7427,6 @@
           });
           if (pk.total > pk.messages.length) recent.appendChild(h("p", { class: "small muted", text: "The newest " + pk.messages.length + " of " + pk.total + " messages." }));
         }).catch(function () { D.clear(recent); recent.appendChild(h("p", { class: "muted small", text: "The messages could not be loaded. Open the conversation to read them." })); });
-        body.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:12px" },
-          h("button", { class: "blue small", type: "button", id: "inbox-open", onclick: function () { openThread(t); } }, "Open conversation →"),
-          isGig(t) ? h("button", { class: "ghost small", type: "button", onclick: function () { gigs.id = t.gig_id; gigs.view = "details"; tab = me.side === "attorney" ? "projects" : "work"; draw(); } }, "View gig") : null));
         body.appendChild(h("p", { class: "notice small", style: "margin:12px 0 0", text: "For private client materials, add a secure link on the job. Never put sensitive data in a message." }));
       }
       function paint(announce) {
@@ -7454,7 +7456,7 @@
             h("span", { class: "inbox-dot" + (unread ? " on" : ""), "aria-hidden": "true" }), smallFace(t),
             h("span", { class: "inbox-main" },
               h("span", { class: "inbox-top" }, h("span", { class: "inbox-name", text: t.other_name }), h("span", { class: "inbox-when small muted", text: inboxWhen(whenOf(t)) })),
-              h("span", { class: "inbox-about" }, kindTag(t), h("span", { class: "inbox-title", text: t.gig_title })),
+              h("span", { class: "inbox-about" }, kindTag(t), h("span", { class: "inbox-title", text: aboutTitle(t) })),
               h("span", { class: "inbox-prev small" + (t.last_text ? "" : " muted"), text: preview })),
             unread ? h("span", { class: "inbox-count", "aria-hidden": "true", text: String(t.unread) }) : null, h("span", { class: "inbox-chev", "aria-hidden": "true", text: "›" }));
           row.addEventListener("dblclick", function () { openThread(t); });
@@ -7562,7 +7564,7 @@
         if (m.status === "removed") {
           // Who removed it (UX review 2026-11-08). Older removed messages carry no reason and keep the short line.
           var why = m.removed_why === "team" ? "Removed by the Lawfecta Team: it looked like a plan to work or pay outside Lawfecta." : m.removed_why === "sender" ? (m.mine ? "You removed this message." : "The sender removed this message.") : "";
-          return h("div", { class: "msg-gone" }, h("span", { class: "msg-gone-pill" }, h("span", { "aria-hidden": "true", text: "⊘ " }), "Message removed"), why ? h("span", { class: "small muted", text: " " + why }) : null);
+          return h("div", { class: "msg-gone" }, h("span", { class: "msg-gone-pill" }, h("span", { "aria-hidden": "true", text: "⊘ " }), "Message removed · " + timeOf(m)), why ? h("span", { class: "small muted", text: " " + why }) : null);
         }
         var bubble = h("div", { class: "msg" + (m.mine ? " mine" : "") }, h("p", { style: "margin:0;white-space:pre-wrap", text: m.body }));
         (m.attachments || []).forEach(function (a2) {
@@ -7572,7 +7574,7 @@
         });
         if (m.status === "held") bubble.appendChild(h("p", { class: "small bad", text: "Being checked by the Lawfecta Team. The other person does not see it yet." }));
         if (m.warned) bubble.appendChild(h("p", { class: "small muted", text: "Sent with a reminder: keep all work, contact and payment on Lawfecta." }));
-        var meta = h("div", { class: "small muted msg-meta", text: (m.mine ? "You" : t.other_name) + " · " + timeOf(m) + (m.edited ? " · edited" : "") });
+        var meta = h("div", { class: "small muted msg-meta", text: (m.mine ? "You" : whoName) + " · " + timeOf(m) + (m.edited ? " · edited" : "") });
         var wrap = h("div", { class: "msg-wrap" + (m.mine ? " mine" : ""), "data-msg": m.id }, bubble, meta);
         var acts = h("div", { class: "row msg-acts", style: "gap:8px;align-items:center" });
         if (!inThread && m.status === "sent" && (r.writable || m.replies)) {

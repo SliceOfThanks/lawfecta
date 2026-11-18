@@ -245,6 +245,9 @@ async function makeMember(bd, side, plan) {
     t = (await text(p)).toLowerCase();
     ok(await dela(p).locator("#inbox-preview").isVisible() && t.includes("quick preview") && t.includes("conversation context") && t.includes("recent messages") && await dela(p).locator("#inbox-preview .peek-bubble").count() >= 1 && !(await dela(p).locator("#inbox-preview").innerText()).includes("512-555-0199") && await gigRow.getAttribute("aria-current") === "true", "choosing a row shows its newest messages beside the list, without the held one");
     ok(await dela(p).locator("#inbox-list").isVisible() && await dela(p).getByLabel("Your message").count() === 0, "the preview does not open the conversation");
+    // ChatGPT check 4, 2026-11-17: "Open conversation" moved down when the messages loaded. It now sits above them.
+    const actsAbove = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; const b = r.querySelector("#inbox-open").getBoundingClientRect(), m = r.querySelector("#inbox-preview .peek-bubble").getBoundingClientRect(); return b.bottom <= m.top; });
+    ok(actsAbove, "Open conversation sits above the recent messages, so it does not move while they load");
     // Stacey 2026-11-17: no section of a page has a pink background. The chosen row is a neutral grey, and the small
     // tags inside it keep their own colors so they stay easy to tell apart.
     const selLook = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; const row = r.querySelector(".inbox-row.sel"); return { row: getComputedStyle(row).backgroundColor, tag: getComputedStyle(row.querySelector(".inbox-kind")).backgroundColor }; });
@@ -258,6 +261,9 @@ async function makeMember(bd, side, plan) {
       return { open: d.open, panel: getComputedStyle(d.querySelector(".menu-panel")).display, bg: c.backgroundColor, box: getComputedStyle(d).boxShadow, who: (r.querySelector("#thread-who") || {}).innerText || "", cards: [...r.querySelectorAll(".card h2")].map((x) => x.innerText) }; });
     ok(menuLook.open === false && menuLook.panel === "none" && menuLook.bg !== "rgb(139, 33, 70)" && menuLook.box === "none", "a closed menu shows no panel and its button is not filled: " + JSON.stringify(menuLook));
     ok(/Attorney/.test(menuLook.who) && !menuLook.cards.includes("Who you are talking with"), "the header says who the freelancer is talking with, in one card: " + JSON.stringify(menuLook));
+    // ChatGPT check 4, 2026-11-17: the bubbles named the firm while the header named the person. One name now.
+    const names = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; return { head: r.querySelector(".thread-head h1").innerText.trim(), bubble: r.querySelector(".msg-wrap:not(.mine) .msg-meta").innerText.split(" · ")[0].trim() }; });
+    ok(names.head.length > 0 && names.head === names.bubble, "the other person's messages carry the same name as the header: " + JSON.stringify(names));
     // The AI tools sit in one menu by the message box; Report and Block sit under More
     ok(await dela(p).locator("#thread-more").count() === 1 && await dela(p).getByRole("button", { name: "✦ Draft an agenda" }).count() === 0 && !t.includes("AI help"), "Report and Block sit under More, and the agenda button is gone from the conversation");
     await dela(p).locator("#thread-ai-btn").click();

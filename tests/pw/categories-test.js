@@ -351,6 +351,11 @@ const SEARCH = "Search roles, specialties, tasks and software";
     ok(await dela(p).getByRole("button", { name: "Open the meeting", exact: true }).count() === 1 && await dela(p).getByRole("button", { name: "Book a call", exact: true }).count() === 0, "the conversation shows the booked call and does not offer a second one");
     await sql(`update meetings set status = 'canceled', cancel_reason = 'test' where intro_thread is not null and attorney_person = (select id from people where bd_member_id = ${ATT}); select 1`);
     await s.ctx.close();
+    // ChatGPT check 4, 2026-11-17: in the attorney's own Inbox the introduction read "Introduction from" their own firm
+    s = await open(browser, "DELA-App", ATT, "&tab=inbox"); p = s.page;
+    t = await waitFor(p, "Your introduction to Fern Family", 15000);
+    ok(!t.includes("Introduction from"), "the attorney's Inbox names an introduction from their side: Your introduction to the freelancer");
+    await s.ctx.close();
     // Talent, bookmarked only
     s = await open(browser, "DELA-App", ATT, "&tab=talent"); p = s.page;
     await waitFor(p, "Nia Nurse", 15000);
