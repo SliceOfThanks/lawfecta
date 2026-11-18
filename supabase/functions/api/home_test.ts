@@ -16,7 +16,7 @@ async function call(method: string, path: string, session: string, body?: unknow
 }
 const RUN = Date.now() % 1000000;
 const DEFAULT = ["attention", "delegating", "projects", "talent", "spend", "ask"];
-const DEFAULT_FL = ["gigs", "earnings", "proposals", "projects", "attention", "growth"];
+const DEFAULT_FL = ["attention", "projects", "gigs", "earnings", "proposals", "growth"];
 let n = 0;
 async function person(sides: string[]) {
   const bd = 9_400_000 + RUN * 10 + (++n);

@@ -180,7 +180,7 @@ Deno.test("agency Home: the owner sees what clients paid and what was paid out t
   assertEquals((await call("GET", "/home/agency", att.token)).status, 403);
   // The owner has two Homes, each with its own layout
   const av = (await call("GET", "/home/layout?view=agency", owner.token)).body;
-  assertEquals([av.view, av.widgets, av.agency_owner], ["agency", ["revenue", "team", "gigs", "proposals", "clients", "teamattention"], true]);
+  assertEquals([av.view, av.widgets, av.agency_owner], ["agency", ["teamattention", "clients", "team", "revenue", "proposals", "gigs"], true]);
   assertEquals((await call("POST", "/home/layout", owner.token, { view: "agency", widgets: ["team", "revenue"] })).body.widgets, ["team", "revenue"]);
   const mine = (await call("GET", "/home/layout", owner.token)).body;
   assertEquals([mine.view, mine.customized, mine.agency_owner], ["freelancer", false, true], "the agency layout did not touch My work");

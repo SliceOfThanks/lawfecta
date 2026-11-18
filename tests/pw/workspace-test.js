@@ -303,9 +303,9 @@ async function makeMember(bd, side, plan, name) {
     p = s.page;
     t = await waitFor(p, "Active work and deadlines");
     ok(!t.includes("Complete your profile") && !t.includes("Account status"), "ready freelancer: no profile card and no Account status on Home (step 34: profile and verification live on the Profile page)");
-    ok(t.includes("Paid out this month") && t.includes("all time") && t.includes("Proposals left this month"), "ready freelancer: Paid out shows this month and all time");
+    ok(!t.includes("Paid out this month") && (t.includes("Proposals left this month") || t.includes("proposals this month")), "ready freelancer: Active work shows the proposals allowance and leaves payouts to the Earnings card");
     // A number opens the list it counts
-    await dela(p).getByRole("button", { name: /Invitations/ }).first().click();
+    await dela(p).getByRole("button", { name: /Invitations?\s*to answer/i }).first().click();
     await p.waitForFunction(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.activeElement && r.activeElement.tagName === "H2" && r.activeElement.textContent.indexOf("Invitations") === 0; }, null, { timeout: 8000 });
     ok(p.url().includes("tab=work"), "ready freelancer: the Invitations number opens Work at the Invitations list");
     await dela(p).getByRole("button", { name: "Home", exact: true }).click();
@@ -429,19 +429,24 @@ async function makeMember(bd, side, plan, name) {
     ok(await inShadow(p, (root) => !root.querySelector(".limit-banner")), "no limit banner while nothing is near a limit");
     await sql("insert into quota_usage (person_id, side, feature_key, period_start, used) select id, 'freelancer', 'ai.runs', dela_period_start('month'), 100000 from people where bd_member_id = 5103 on conflict (person_id, side, feature_key, period_start) do update set used = 100000");
     await p.goto(`${BASE}/page/DELA-App?uid=5103&plan=&tab=home`);
-    await waitFor(p, "You have reached a limit of your plan");
+    await waitFor(p, "You have used 100,000 of your ");
     ok(await inShadow(p, (root) => { const b = root.querySelector(".limit-banner"); return b && root.querySelector(".wrap").firstElementChild === b && [...b.querySelectorAll("button")].map((x) => x.innerText.trim()).join("|") === "View subscription|Dismiss"; }), "near a limit: a banner at the top after login, with View subscription and Dismiss");
     await dela(p).getByRole("button", { name: "Dismiss" }).click();
     await dela(p).getByRole("button", { name: "Work", exact: true }).click();
     await p.waitForTimeout(600);
-    ok(await inShadow(p, (root) => !root.querySelector(".limit-banner")), "Dismiss hides the banner for the rest of this login");
+    ok(await inShadow(p, (root) => !root.querySelector(".limit-banner")), "Dismiss hides the banner");
+    await p.goto(`${BASE}/page/DELA-App?uid=5103&plan=&tab=home`);
+    await waitFor(p, "Your Workspace");
+    await p.waitForTimeout(800);
+    ok(await inShadow(p, (root) => !root.querySelector(".limit-banner")), "the dismissed banner stays hidden while the limit is at the same level");
     await dela(p).getByRole("button", { name: "Subscription", exact: true }).click();
     t = await waitFor(p, "Limit reached");
     ok(t.includes("You are close to one limit"), "Subscription marks the limit that is reached");
-    await p.evaluate(() => sessionStorage.removeItem("dela.limitbanner.off"));
+    // Dismissed while only close to the limit: it comes back when the limit is reached
+    await p.evaluate(() => { const s = JSON.parse(localStorage.getItem("dela.limitbanner.seen")); s["ai.runs"] = 1; localStorage.setItem("dela.limitbanner.seen", JSON.stringify(s)); });
     await p.goto(`${BASE}/page/DELA-App?uid=5103&plan=&tab=home`);
-    await waitFor(p, "You have reached a limit of your plan");
-    ok(true, "at the next login the banner shows again");
+    await waitFor(p, "You have used 100,000 of your ");
+    ok(true, "the banner shows again when usage crosses the next level");
     await sql("delete from quota_usage where feature_key = 'ai.runs' and used = 100000");
     await ctx2.close();
 

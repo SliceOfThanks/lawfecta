@@ -60,8 +60,12 @@ export function guideMessage(s: GuideState): { text: string; choices: Choice[] }
         return { text: "Welcome to DELA. First, tell DELA about your firm in a sentence or two: your practice areas, the states you work in and the systems you use. DELA uses it in every document and to pick the tasks worth handing off.",
           choices: [{ id: "firm", label: "Tell DELA about my firm" }] };
       case "review_proposals":
-        return { text: plural(n(og.proposals), "proposal", "proposals") + " arrived for " + q(og.title) + ". Compare them side by side and choose one.",
-          choices: [{ id: "open_gig", label: "Compare the proposals", link: `/dela?tab=projects&gig=${og.id}&view=proposals` }] };
+        // With one proposal there is nothing to compare (review 2026-11-17, item 4)
+        return n(og.proposals) === 1
+          ? { text: "1 proposal arrived for " + q(og.title) + ". Review it and decide whether to hire.",
+            choices: [{ id: "open_gig", label: "Review the proposal", link: `/dela?tab=projects&gig=${og.id}&view=proposals` }] }
+          : { text: plural(n(og.proposals), "proposal", "proposals") + " arrived for " + q(og.title) + ". Compare them side by side and choose one.",
+            choices: [{ id: "open_gig", label: "Compare the proposals", link: `/dela?tab=projects&gig=${og.id}&view=proposals` }] };
       case "invite":
         return { text: "Your gig " + q(og.title) + " is live, and " + plural(n(og.matches), "freelancer fits", "freelancers fit") + " it. Invite the best ones. Invited freelancers usually answer first.",
           choices: [{ id: "open_gig", label: "See who fits", link: `/dela?tab=projects&gig=${og.id}&view=matches` }] };

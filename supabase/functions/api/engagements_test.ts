@@ -674,6 +674,14 @@ Deno.test("step 14: the fee rides on each milestone payment for new agreements; 
     // Home lists it to pay; and a payout Stripe refuses keeps Stripe's reason for the Lawfecta Team
     const attn = (await call("GET", "/me", att.token)).body.me.home.attention;
     assert(attn.some((x: any) => x.kind === "pay" && x.seq === 2 && x.first === false && String(x.gig_title).includes("s14new")), "Home asks the attorney to pay milestone 2: " + JSON.stringify(attn));
+    // Home review 2026-11-17, item 8: the row says how much, and the day a charge failed once one did
+    const ms2 = await one("select id, amount_cents from milestones where agreement_id = $1 and seq = 2", [nw]);
+    const payRow = attn.find((x: any) => x.kind === "pay" && x.seq === 2 && String(x.gig_title).includes("s14new"));
+    assertEquals([payRow.amount_cents, payRow.failed_at], [ms2.amount_cents, null], "the amount of milestone 2, and no failed charge yet");
+    const failedPay = await one("insert into payments (agreement_id, milestone_id, kind, amount_cents, status, failure, idem_key) values ($1, $2, 'milestone', $3, 'failed', 'card_declined', $4) returning id, updated_at", [nw, ms2.id, ms2.amount_cents, "pay:failed-home:" + ms2.id]);
+    const payRow2 = (await call("GET", "/me", att.token)).body.me.home.attention.find((x: any) => x.kind === "pay" && x.seq === 2 && String(x.gig_title).includes("s14new"));
+    assertEquals(new Date(payRow2.failed_at).getTime(), new Date(failedPay.updated_at).getTime(), "the day the charge failed");
+    await pool.query("update payments set status = 'canceled' where id = $1", [failedPay.id]);
     const po = await one("insert into payouts (milestone_id, agreement_id, person_id, amount_cents, idem_key) select milestone_id, agreement_id, person_id, 0, 'payout:reason-test' from payouts where agreement_id = $1 limit 1 returning id", [nw]);
     await pool.query("select dela_payout_result($1, 'failed', '', 'You have insufficient available funds in your Stripe account.')", [po.id]);
     assertEquals((await one("select status || ': ' || held_reason s from payouts where id = $1", [po.id])).s, "failed: You have insufficient available funds in your Stripe account.");

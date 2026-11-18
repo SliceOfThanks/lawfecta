@@ -137,7 +137,15 @@ Deno.test("attorney: pick a task, approve the playbook, hand off steps, post the
   g = await guide(att);
   assertEquals(g.step, "review_proposals");
   assert(g.choices[0].link.endsWith("&view=proposals"));
+  // Home review 2026-11-17, item 4: one proposal is reviewed, not compared, and Home's own count is the same one
+  assert(g.message.includes("1 proposal arrived") && g.message.includes("Review it and decide whether to hire.") && !g.message.includes("Compare"), g.message);
+  assertEquals(g.choices[0].label, "Review the proposal");
+  const hm = (await call("GET", "/me", att.token)).body.me.home;
+  assertEquals([hm.proposals_to_review, hm.proposals_gig], [1, gig], "Home counts the proposals that wait for an answer, the same as Ask DELA");
+  const two = guideMessage({ side: "attorney", step: "review_proposals", facts: { open_gig: { id: gig, title: "A gig", proposals: 2 } } });
+  assert(two.text.includes("2 proposals arrived") && two.text.includes("Compare them side by side") && two.choices[0].label === "Compare the proposals", two.text);
   await pool.query("update proposals set status = 'withdrawn' where gig_id = $1", [gig]);
+  assertEquals((await call("GET", "/me", att.token)).body.me.home.proposals_to_review, 0, "a withdrawn proposal is not waiting for an answer");
   await pool.query("update gigs set status = 'closed' where id = $1", [gig]);
   assertEquals((await guide(att)).step, "next_task", "after the first gig, the next task");
 });

@@ -12,14 +12,14 @@ const BASE = "http://127.0.0.1:8787";
 const ROOT = path.join(__dirname, "..", "..");
 const SHOTS = process.env.SHOTS || path.join(__dirname, "shots");
 fs.mkdirSync(SHOTS, { recursive: true });
-let passed = 0;
+let passed = 0, popups = 0;
 function ok(cond, msg) { if (!cond) throw new Error("FAILED: " + msg); passed++; console.log("ok", msg); }
 async function sql(q) { const r = await fetch(BASE + "/test/sql", { method: "POST", body: JSON.stringify({ sql: q }) }); const j = await r.json(); if (j.error) throw new Error("sql: " + j.error); return j.rows; }
 async function open(browser, uid, query, w, h) {
   const ctx = await browser.newContext({ viewport: { width: w || 1280, height: h || 900 } });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => { throw new Error("page error: " + e.message); });
-  page.on("dialog", (d) => d.accept());
+  page.on("dialog", (d) => { popups++; d.accept(); });
   await page.route("https://cdn.jsdelivr.net/**", (route) => { const u = new URL(route.request().url()); const f = u.pathname.split("@")[1].split("/").slice(1).join("/"); route.fulfill({ path: path.join(ROOT, f), contentType: f.endsWith(".png") ? "image/png" : "application/javascript" }); });
   await page.route("https://fonts.googleapis.com/**", (r) => r.abort());
   await page.goto(`${BASE}/page/DELA-App?uid=${uid}&plan=${query || ""}`);
@@ -47,7 +47,10 @@ async function waitGone(page, words, ms) {
 const inShadow = (page, fn, arg) => page.evaluate(([f, a]) => (new Function("root", "arg", "return (" + f + ")(root, arg)"))(document.querySelector(".dela-host").shadowRoot, a), [fn.toString(), arg]);
 const fits = (page) => page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1);
 const onHome = (page) => inShadow(page, (root) => [...root.querySelectorAll("#home-grid [data-widget]")].sort((a, b) => Number(a.getAttribute("data-pos")) - Number(b.getAttribute("data-pos"))).map((x) => x.getAttribute("data-widget")));
-const columns = (page) => inShadow(page, (root) => root.querySelectorAll("#home-grid > .home-col").length);
+// How many columns the cards stand in, and whether the page holds them in the member's order (the order the Tab key follows)
+const columns = (page) => inShadow(page, (root) => new Set([...root.querySelectorAll("#home-grid > [data-widget]")].map((x) => Math.round(x.getBoundingClientRect().left))).size);
+const inPage = (page) => inShadow(page, (root) => [...root.querySelectorAll("#home-grid > [data-widget]")].map((x) => x.getAttribute("data-widget")));
+const rowName = (page, sel) => inShadow(page, (root, s) => { const b = root.querySelector(s); if (!b || !b.getAttribute("aria-labelledby")) return ""; return b.getAttribute("aria-labelledby").split(" ").map((i) => root.getElementById(i).textContent).join(" "); }, sel);
 const inPanel = (page) => inShadow(page, (root) => [...root.querySelectorAll("#cz-mine li")].map((x) => x.getAttribute("data-id")));
 const offered = (page) => inShadow(page, (root) => [...root.querySelectorAll("#cz-avail li")].map((x) => x.getAttribute("data-id")));
 const grip = (page, id) => inShadow(page, (root, i) => { const r = root.querySelector('#cz-mine li[data-id="' + i + '"] .cz-grip').getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, id);
@@ -85,10 +88,16 @@ const DEF_ATT = ["attention", "delegating", "projects", "talent", "spend", "ask"
     ok(!t.includes("Account status"), "Account status is not on Home");
     ok(t.includes("Approve a document in the Library to get delegation ideas.") && t.includes("No open gig. Post a gig from Projects"), "attorney: with no documents and no gigs each widget says so and names the next step, with no invented numbers");
     ok(t.includes("Milestones accepted") && t.includes("Engagements completed") && !t.includes("hours saved"), "spend: only measured results, no hours saved");
-    const spendRing = await inShadow(p, (root) => { const r = root.querySelector("[data-widget=spend] .usage-ring"); return r ? r.getAttribute("aria-label") : ""; });
-    ok(spendRing === "Nothing paid this month", "spend: the ring is said in words: " + spendRing);
+    const spendSaid = await inShadow(p, (root) => { const r = root.querySelector("[data-widget=spend] .hw-amount"); return (r ? r.getAttribute("aria-label") : "") + "|" + root.querySelectorAll("[data-widget=spend] .usage-ring").length; });
+    ok(spendSaid === "Nothing paid this month|0" && t.includes("Post a gig →"), "spend: the amount as text with no ring, and a next step when nothing was spent: " + spendSaid);
     ok(t.includes("View all projects →") && t.includes("Find talent →") && t.includes("Open the Library →"), "attorney: each widget links to its full page");
     ok((await columns(p)) === 2, "attorney at 1280: two columns");
+    ok(JSON.stringify(await inPage(p)) === JSON.stringify(DEF_ATT), "the page holds the cards in the member's order, so Tab and a screen reader follow it");
+    const tops = await inShadow(p, (root) => [...root.querySelectorAll("#home-grid > [data-widget]")].map((x) => Math.round(x.getBoundingClientRect().top)));
+    ok(tops[0] === tops[1] && tops[2] === tops[3] && tops[2] > tops[0] && tops[4] > tops[2], "the two columns fill row by row: 1 and 2, then 3 and 4: " + tops.join(", "));
+    ok(await inShadow(p, (root) => root.querySelectorAll(".usage-meter").length === 0), "no second usage line under the cards");
+    ok(await inShadow(p, (root) => [...root.querySelectorAll(".home-dash .linkish")].every((b) => b.getBoundingClientRect().height >= 24)), "every link on Home is at least 24 pixels tall");
+    ok(await inShadow(p, (root) => { const q = root.querySelector("#home-ask-q"); return !q || (!!root.querySelector("label[for=home-ask-q]") && !q.getAttribute("aria-label")); }), "the Ask DELA box has a label that stays visible");
     const heights = await inShadow(p, (root) => [...root.querySelectorAll("#home-grid [data-widget]")].map((x) => Math.round(x.getBoundingClientRect().height)));
     ok(new Set(heights).size > 1, "cards keep their own height, none is stretched to its neighbor: " + heights.join(", "));
     ok(await inShadow(p, (root) => root.querySelectorAll(".hero").length === 0), "the old banner is not on this Home");
@@ -100,10 +109,55 @@ const DEF_ATT = ["attention", "delegating", "projects", "talent", "spend", "ask"
     ok(t.includes("Results this year"), "spend: the period can be changed and is named");
     await p.screenshot({ path: path.join(SHOTS, "home-default.png"), fullPage: true });
 
+    // ---------- Late work and a failed payment, in the server's own shapes (review 2026-11-17, items 2, 4, 8, 9) ----------
+    const G1 = "00000000-0000-0000-0000-000000000011", G2 = "00000000-0000-0000-0000-000000000012";
+    const fakeHome = async (route) => {
+      const res = await route.fetch();
+      let j; try { j = await res.json(); } catch (e) { return route.fulfill({ response: res }); }
+      if (j && j.me && j.me.home) {
+        j.me.home.attention = [{ kind: "sign", gig_id: G1, gig_title: "Late job", sign_by: "2099-01-01T00:00:00Z" },
+          { kind: "pay", gig_id: G2, gig_title: "Custody job", seq: 2, first: false, amount_cents: 120000, failed_at: "2026-11-10T15:00:00Z" }];
+        j.me.home.projects = [{ gig_id: G1, gig_title: "Late job", status: "active", other_name: "Pat Para", next: { seq: 1, title: "Draft", due_date: "2020-01-05", status: "funded" } },
+          { gig_id: G2, gig_title: "Delivered job", status: "active", other_name: "Pat Para", next: { seq: 1, title: "Draft", due_date: "2020-01-05", status: "submitted" } },
+          { gig_id: G2, gig_title: "Later job", status: "active", other_name: "Pat Para", next: { seq: 1, title: "Draft", due_date: "2099-01-05", status: "funded" } }];
+        j.me.home.active_projects = 3; j.me.home.proposals_to_review = 3;
+      }
+      return route.fulfill({ response: res, json: j });
+    };
+    await p.route("**/api/**", fakeHome);
+    await p.reload();
+    t = await waitFor(p, "Late job");
+    t = await waitFor(p, "Proposals to review");
+    ok(/Milestone 2 · \$1,200(\.00)? · payment failed on [A-Z][a-z]+ \d+, 2026/.test(t), "a failed payment says the milestone, the amount and the day it failed");
+    ok(t.indexOf("The payment for milestone 2 did not go through") < t.indexOf("Agreement to sign"), "the failed payment is listed first");
+    const payName = await rowName(p, "[data-widget=attention] button.hrow");
+    ok(payName === "Pay milestone: The payment for milestone 2 did not go through", "a row is named by its action and its title for a screen reader: " + payName);
+    ok(await inShadow(p, (root) => { const b = root.querySelector("[data-widget=attention] button.hrow"); return (b.getAttribute("aria-describedby") || "").split(" ").filter(Boolean).every((i) => !!root.getElementById(i)) && !!b.getAttribute("aria-describedby"); }), "the detail line is read after the name");
+    const proj = await inShadow(p, (root) => [...root.querySelectorAll("[data-widget=projects] button.hrow")].map((r) => r.innerText.replace(/\s+/g, " ")));
+    ok(proj.length === 3 && /was due .*2020/.test(proj[0]) && proj[0].includes("Overdue") && !proj[1].includes("Overdue") && !proj[2].includes("Overdue") && / due .*2099/.test(proj[2]), "one rule for late work: past its date and not accepted is Overdue with Was due; delivered work and later dates are not: " + proj.join(" | "));
+    ok(/3\s*Proposals to review/.test(t) && !t.includes("New proposals"), "the proposals count is the one Ask DELA uses, named Proposals to review");
+    await p.screenshot({ path: path.join(SHOTS, "home-late-work.png"), fullPage: true });
+    await p.unroute("**/api/**", fakeHome);
+    await p.reload();
+    await waitFor(p, "No recorded delegation spend this month.");
+
     // ---------- The Customize panel: add, move by keyboard, leave without saving ----------
     await dela(p).getByRole("button", { name: "Customize dashboard" }).click();
     t = await waitFor(p, "Your dashboard (6)");
     ok(t.includes("Available widgets") && t.includes("Removing a widget only hides it on Home.") && t.includes("Restore default"), "the panel opens with the member's widgets, the others, and what removing means");
+    ok(t.includes("Home updates behind this panel as you make changes. Nothing is kept until you choose Save changes."), "the panel says Home behind it is a live preview");
+    const modal = await inShadow(p, (root) => { const d = root.querySelector(".cz-panel"), behind = [...root.querySelector(".dela").children].filter((n) => n !== d && !n.classList.contains("dela-scrim"));
+      return { modal: d.getAttribute("aria-modal"), named: root.getElementById(d.getAttribute("aria-labelledby")).textContent, inert: behind.length > 0 && behind.every((n) => n.hasAttribute("inert")), dim: parseFloat(getComputedStyle(root.querySelector(".dela-scrim")).backgroundColor.split(",")[3]),
+        defs: [...root.querySelectorAll("#cz-mine .cz-def")].length, defsAvail: [...root.querySelectorAll("#cz-avail .cz-def")].length }; });
+    ok(modal.modal === "true" && modal.named === "Customize dashboard" && modal.inert, "the panel is a modal dialog: named, and the page behind it cannot be reached: " + JSON.stringify(modal));
+    ok(modal.dim <= 0.2, "the page behind is only lightly dimmed, so the preview can be read: " + modal.dim);
+    ok(modal.defs === 6 && modal.defsAvail === 0, "widgets of the default layout carry a Default tag");
+    // Tab stays inside the panel: forward from the last control goes to Close, back from Close goes to the last control
+    await dela(p).getByRole("button", { name: "Cancel", exact: true }).focus();
+    await p.keyboard.press("Tab");
+    const afterLast = await focusName(p);
+    await p.keyboard.press("Shift+Tab");
+    ok(afterLast === "Close customize dashboard" && (await focusName(p)) === "cz-cancel", "Tab and Shift+Tab stay inside the panel: " + afterLast);
     const off = await offered(p);
     ok(JSON.stringify(off) === JSON.stringify(["bench", "standing", "workflow", "meetings", "messages", "usage", "notifications", "quick"]), "the attorney's other widgets are offered: " + off.join(", "));
     ok(await dela(p).getByRole("button", { name: "Save changes" }).isDisabled(), "nothing changed yet: Save changes is off");
@@ -124,9 +178,22 @@ const DEF_ATT = ["attention", "delegating", "projects", "talent", "spend", "ask"
     ok((await focusName(p)) === "Move Quick actions up", "keyboard: focus stays on the same control of the moved widget");
     ok((await inShadow(p, (root) => root.querySelector(".cz-panel [role=status]").textContent)).includes("Quick actions moved to position 6 of 7."), "a screen reader hears the new place");
     await p.keyboard.press("Escape");
+    await waitFor(p, "Discard your changes?");
+    ok((await focusName(p)) === "cz-keep" && popups === 0, "Escape with changes asks inside the panel, with focus on Keep editing, and no browser pop-up");
+    await dela(p).getByRole("button", { name: "Keep editing" }).click();
+    ok((await inPanel(p)).includes("quick") && await inShadow(p, (root) => root.querySelector("#cz-ask").hidden), "Keep editing keeps the panel and the changes");
+    await inShadow(p, (root) => root.querySelector(".dela-scrim").click());
+    await waitFor(p, "Discard your changes?");
+    await dela(p).getByRole("button", { name: "Discard changes" }).click();
     await waitGone(p, "Your dashboard (");
     home = await onHome(p);
-    ok(!home.includes("quick") && (await focusName(p)) === "home-customize", "Escape leaves without saving (after asking): Home is as before and focus returns to the button");
+    ok(!home.includes("quick") && (await focusName(p)) === "home-customize", "a click outside asks too; Discard changes leaves without saving: Home is as before and focus returns to the button");
+    ok(await inShadow(p, (root) => root.querySelectorAll("[inert]").length === 0), "after the panel closes the page can be reached again");
+    await dela(p).getByRole("button", { name: "Customize dashboard" }).click();
+    await waitFor(p, "Your dashboard (6)");
+    await p.keyboard.press("Escape");
+    await waitGone(p, "Your dashboard (");
+    ok(popups === 0, "Escape with no changes closes the panel at once");
     ok((await sql(`select count(*)::int n from home_layouts where person_id = ${person(ATT)}`))[0].n === 0, "nothing was saved");
 
     // ---------- Remove, add, drag, save ----------
@@ -187,12 +254,12 @@ const DEF_ATT = ["attention", "delegating", "projects", "talent", "spend", "ask"
     ok(t.includes("Try again") && !t.includes("No recorded delegation spend"), "a widget that cannot load says so, never that there is nothing");
     await p.setViewportSize({ width: 768, height: 1000 });
     await p.waitForTimeout(400);
-    ok((await columns(p)) === 0 && await fits(p), "768 wide: one column, no sideways scrolling");
+    ok((await columns(p)) === 1 && await fits(p), "768 wide: one column, no sideways scrolling");
     home = await onHome(p);
     ok(JSON.stringify(home) === JSON.stringify(DEF_ATT), "one column keeps the member's order: " + home.join(", "));
     await p.setViewportSize({ width: 320, height: 700 });
     await p.waitForTimeout(300);
-    ok(await fits(p), "320 wide: Home fits");
+    ok(await fits(p) && JSON.stringify(await inPage(p)) === JSON.stringify(DEF_ATT), "320 wide: Home fits, in the same order");
     await dela(p).getByRole("button", { name: "Customize dashboard" }).click();
     await waitFor(p, "Your dashboard (6)");
     ok(await fits(p) && await inShadow(p, (root) => root.querySelector(".cz-panel").getBoundingClientRect().width <= 320 && [...root.querySelectorAll("#cz-mine .cz-btn")].every((b) => b.getBoundingClientRect().width >= 24 && b.getBoundingClientRect().right <= 320)), "320 wide: the panel and its Move buttons fit the screen");
@@ -206,11 +273,12 @@ const DEF_ATT = ["attention", "delegating", "projects", "talent", "spend", "ask"
     t = await waitFor(p, "Your Workspace");
     t = await waitFor(p, "More activity is needed to show a meaningful trend.");
     home = await onHome(p);
-    ok(JSON.stringify(home) === JSON.stringify(["gigs", "earnings", "proposals", "projects", "attention", "growth"]), "freelancer: the six default widgets of the role: " + home.join(", "));
+    ok(JSON.stringify(home) === JSON.stringify(["attention", "projects", "gigs", "earnings", "proposals", "growth"]), "freelancer: the six default widgets, what needs action first: " + home.join(", "));
     ok(t.includes("Recommended gigs") && t.includes("Earnings and payments") && t.includes("My proposals and invitations") && t.includes("Business growth insights"), "freelancer: each widget has its name");
-    ok(t.includes("No payments yet.") && t.includes("Waiting for payout") && t.includes("Contracted, not yet earned") && !t.includes("Profile views") && !t.includes("% Match"), "freelancer: received, waiting and contracted are apart; no profile views or match percentages are invented");
-    const earnRing = await inShadow(p, (root) => { const r = root.querySelector("[data-widget=earnings] .usage-ring"); return r ? r.getAttribute("aria-label") : ""; });
-    ok(/^\$0(\.00)? received this month$/.test(earnRing), "earnings: the ring is said in words: " + earnRing);
+    ok(t.includes("No payments this month. You are paid after the attorney accepts a milestone.") && !t.includes("Waiting for payout") && !t.includes("Profile views") && !t.includes("% Match"), "freelancer with no money yet: one line that says why and what pays, no rows of $0; no profile views or match percentages are invented");
+    const earnSaid = await inShadow(p, (root) => { const r = root.querySelector("[data-widget=earnings] .hw-amount"); return (r ? r.getAttribute("aria-label") : "") + "|" + root.querySelectorAll("[data-widget=earnings] .usage-ring").length; });
+    ok(/^\$0(\.00)? received this month\|0$/.test(earnSaid), "earnings: the amount as text, no ring: " + earnSaid);
+    ok(!t.includes("Paid out this month") && !/\bNo limit\b/.test(t), "Active work does not repeat the invitations and payout figures of the other cards");
     ok(await inShadow(p, (root) => !!root.querySelector("#home-profile-top .card, #home-profile-bottom .card")) && t.includes("Complete your profile"), "freelancer: the Complete your profile card stays, apart from the widgets");
     await dela(p).getByRole("button", { name: "Customize dashboard" }).click();
     await waitFor(p, "Your dashboard (6)");
@@ -247,14 +315,38 @@ const DEF_ATT = ["attention", "delegating", "projects", "talent", "spend", "ask"
     t = await waitFor(p, "Agency Workspace");
     t = await waitFor(p, "Neither amount is profit");
     home = await onHome(p);
-    ok(JSON.stringify(home) === JSON.stringify(["revenue", "team", "gigs", "proposals", "clients", "teamattention"]), "My agency: its own six widgets: " + home.join(", "));
+    ok(JSON.stringify(home) === JSON.stringify(["teamattention", "clients", "team", "revenue", "proposals", "gigs"]), "My agency: its own six widgets, what needs the team first: " + home.join(", "));
+    ok(await inShadow(p, (root) => ["gigs", "proposals"].every((id) => { const c = root.querySelector('[data-widget="' + id + '"] .hw-same'); return c && c.textContent === "Same list as My work. Agency and personal proposals are not separated yet."; })), "the two agency cards that show the owner's own lists say so");
     ok(t.includes("Paid by clients") && t.includes("Paid out to agency") && !/\bprofit\b(?! *:)/i.test(t.replace("Neither amount is profit", "")), "revenue: the two amounts apart, and neither is called profit");
     ok(t.includes("Recommended agency gigs") && t.includes("Proposals and sales pipeline") && t.includes("Active client projects") && t.includes("Needs team attention") && t.includes("No team actions pending."), "My agency: each widget has its name and an honest empty state");
     ok(t.includes("Hours not set") && !/\d+% *(used|utilization|capacity)/i.test(t), "team: with no hours entered the card says so and shows no percentage");
-    await dela(p).getByRole("button", { name: /^Ask .* to set their hours$/ }).first().click();
-    await waitFor(p, "was asked to set their weekly hours.");
-    ok((await sql(`select count(*)::int n from notifications where person_id = ${person(MEM)} and title like '%asks for your weekly hours'`))[0].n >= 1 && (await text(p)).includes("Asked today"), "team: the owner's button sends the member one notice and reads Asked today");
+    ok(await inShadow(p, (root) => root.querySelectorAll("[data-widget=team] .hw-team button").length === 0) && t.includes("Each of them gets a notification in DELA and an email"), "team: no button in each row; one request for everyone, and it says what is sent");
+    await dela(p).getByRole("button", { name: "Ask everyone without hours to set them" }).click();
+    await waitFor(p, "1 team member was asked to set their weekly hours.");
+    ok((await sql(`select count(*)::int n from notifications where person_id = ${person(MEM)} and title like '%asks for your weekly hours'`))[0].n >= 1 && (await text(p)).includes("Everyone without hours was asked today"), "team: the one request sends the member a notice and then reads as asked today");
     await p.screenshot({ path: path.join(SHOTS, "home-agency.png"), fullPage: true });
+    // Late agency work, and one milestone that is late and also waits on the owner (review items 2 and 3)
+    const A1 = "00000000-0000-0000-0000-000000000021", A2 = "00000000-0000-0000-0000-000000000022";
+    const fakeAgency = async (route) => {
+      const res = await route.fetch();
+      let j; try { j = await res.json(); } catch (e) { return route.fulfill({ response: res }); }
+      if (j && j.me && j.me.home) j.me.home.attention = [{ kind: "milestone", gig_id: A2, gig_title: "Twin job", seq: 1, title: "Summaries", due_date: "2020-02-01", amount_cents: 150000, status: "funded" }];
+      if (j && Array.isArray(j.jobs) && j.team) j.jobs = [
+        { gig_id: A1, title: "Unpaid late job", client: "Example Legal", people: ["Mel Member"], milestones: 2, accepted: 0, next_seq: 1, next_title: "Draft", due_date: "2020-01-05", next_status: "pending", overdue: false },
+        { gig_id: A2, title: "Twin job", client: "Example Legal", people: ["Olive Owner"], milestones: 1, accepted: 0, next_seq: 1, next_title: "Summaries", due_date: "2020-02-01", next_status: "funded", overdue: true }];
+      return route.fulfill({ response: res, json: j });
+    };
+    await p.route("**/api/**", fakeAgency);
+    await p.reload();
+    t = await waitFor(p, "Unpaid late job");
+    const teamRows = await inShadow(p, (root) => ({ rows: [...root.querySelectorAll("[data-widget=teamattention] button.hrow")].map((r) => r.innerText.replace(/\s+/g, " ")), badge: (root.querySelector("[data-widget=teamattention] .hhead .badge") || {}).textContent,
+      clients: [...root.querySelectorAll("[data-widget=clients] button.hrow")].map((r) => r.innerText.replace(/\s+/g, " ")) }));
+    ok(teamRows.rows.length === 2 && teamRows.badge === "2", "one milestone is one row, and the number counts the rows: " + JSON.stringify(teamRows.rows));
+    ok(teamRows.rows[0].includes("Overdue: Unpaid late job") && teamRows.rows[1].includes("Overdue: Twin job") && /\$1,500(\.00)? paid, held by Lawfecta\./.test(teamRows.rows[1]) && teamRows.rows.every((r) => r.includes("Review milestone")), "late work first, the oldest date first; the row that is also the owner's keeps its payment line; the action reads Review milestone");
+    ok(teamRows.clients.length === 2 && teamRows.clients.every((r) => r.includes("Overdue") && r.includes("was due")), "Active client projects marks every job past its date, whatever its payment state: " + JSON.stringify(teamRows.clients));
+    await p.unroute("**/api/**", fakeAgency);
+    await p.reload();
+    await waitFor(p, "Neither amount is profit");
     // Its own layout
     await dela(p).getByRole("button", { name: "Customize dashboard" }).click();
     await waitFor(p, "Your dashboard (6)");
@@ -269,7 +361,7 @@ const DEF_ATT = ["attention", "delegating", "projects", "talent", "spend", "ask"
     t = await waitFor(p, "Your Workspace");
     t = await waitFor(p, "Earnings and payments");
     home = await onHome(p);
-    ok(JSON.stringify(home) === JSON.stringify(["gigs", "earnings", "proposals", "projects", "attention", "growth"]) && !t.includes("Paid by clients"), "My work is the owner's own freelancer Home, unchanged");
+    ok(JSON.stringify(home) === JSON.stringify(["attention", "projects", "gigs", "earnings", "proposals", "growth"]) && !t.includes("Paid by clients"), "My work is the owner's own freelancer Home, unchanged");
     // The Agency page: the owner sets a member's hours
     await p.goto(`${BASE}/page/DELA-App?uid=${OWN}&plan=&tab=agency`);
     await waitFor(p, "Team");
@@ -291,6 +383,7 @@ const DEF_ATT = ["attention", "delegating", "projects", "talent", "spend", "ask"
     ok(!t.includes("Agency Workspace") && !t.includes("Paid by clients"), "team member: asking for the agency view by hand falls back to their own Home");
     await s.ctx.close();
 
+    ok(popups === 0, "no browser pop-up opened anywhere on Home");
     console.log("\nALL " + passed + " HOME CHECKS PASSED");
   } catch (e) {
     console.error(e.message || e);
