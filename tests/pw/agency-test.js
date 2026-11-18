@@ -130,7 +130,7 @@ const OWNER = 3800, MGR = 3801, ATT = 3802, PIA = 3803, FRED = 3804;
     // ---------- The owner changes who works on it ----------
     s = await open(browser, OWNER, `&tab=work&gig=${gig}&view=agreement`);
     t = await waitFor(s.page, "Who's working on this");
-    ok(t.includes("Max Manager") && t.includes("Sent the proposal"), "the named team member and the sender are on the job");
+    ok(t.includes("Max Manager") && t.includes("Lead paralegal"), "the named team member is on the job with their role: " + t.slice(t.indexOf("Who's working on this"), t.indexOf("Who's working on this") + 300).replace(/\n/g, " | "));
     await dela(s.page).locator("#people-card .row", { hasText: "Max Manager" }).getByRole("button", { name: "Take off this job" }).click();
     await waitFor(s.page, "Max Manager is off this job. The attorney was told.");
     await label(s.page, "Team member to add").selectOption({ label: "Max Manager" });
