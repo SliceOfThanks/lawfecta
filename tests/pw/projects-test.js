@@ -103,7 +103,7 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     // Tabs by keyboard
     await dela(p).locator("#pj-tab-overview").focus();
     await p.keyboard.press("ArrowRight");
-    t = await waitFor(p, "Post a new gig");
+    await p.waitForFunction(() => document.querySelector(".dela-host").shadowRoot.querySelector("#pj-panel[aria-labelledby=pj-tab-gigs]"), null, { timeout: 8000 });
     await p.waitForFunction(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.activeElement && r.activeElement.id === "pj-tab-gigs"; }, null, { timeout: 8000 });
     ok((await focusId(p)) === "pj-tab-gigs" && await dela(p).locator("#pj-tab-gigs").getAttribute("aria-selected") === "true" && await inShadow(p, (root) => root.querySelector("#pj-panel").getAttribute("aria-labelledby") === "pj-tab-gigs"), "Arrow right opens the next tab and keeps focus on it");
     await p.keyboard.press("End");
