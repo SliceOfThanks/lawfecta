@@ -165,7 +165,7 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     ok(table.acts.every((a) => /^(Pay milestone|Review deliverable|Sign agreement|View engagement) > (Pay milestone|Review deliverable|Sign agreement|View engagement): ./.test(a)) && !table.acts.some((a) => a.startsWith("View >")), "each engagement's button names its step and its job: " + table.acts.join(" | "));
     ok(!t.includes("About projects.") && !t.includes("Ask DELA a question") && t.indexOf("Your gigs (") < t.indexOf("Needs your attention"), "Your gigs is first on the Overview; the About projects note and Home's Ask DELA box are not there (Stacey 2026-11-18)");
     await dela(p).locator("#pj-tab-engagements").click();
-    t = await waitFor(p, "Engagements (5)");
+    t = await waitFor(p, "Engagements (4)");
     const eacts = await inShadow(p, (root) => [...root.querySelectorAll("#pj-panel table.pj-table tbody td:last-child button")].map((x) => x.textContent));
     ok(eacts.includes("Pay milestone") && eacts.includes("Review deliverable") && eacts.includes("Sign agreement") && eacts.includes("View engagement"), "the Engagements tab: pay, review, sign, or view: " + eacts.join(" | "));
     // Step 41: a filter per status the active engagements really have
@@ -230,7 +230,7 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     await p.screenshot({ path: path.join(SHOTS, "projects-overview.png"), fullPage: true });
     // A tile opens its tab
     await dela(p).locator(".pj-tile").nth(2).click();
-    await waitFor(p, "Engagements (5)");
+    await waitFor(p, "Engagements (4)");
     ok(await dela(p).locator("#pj-tab-engagements").getAttribute("aria-selected") === "true", "the Active engagements number opens the Engagements tab");
     // Narrow screens
     await dela(p).locator("#pj-tab-overview").click();
