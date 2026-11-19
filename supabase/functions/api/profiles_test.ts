@@ -180,7 +180,10 @@ Deno.test("Write with DELA: one box at a time, from facts or what the box says, 
   assertEquals((await call("POST", "/profile/draft", fl.token, { field: "experience", notes: "short", body: {} })).body.reason, "tell_us_more", "too little to go on");
   assertEquals((await call("POST", "/profile/draft", fl.token, { field: "password", notes: "Eight years as a paralegal in Austin", body: {} })).status, 400, "only the boxes DELA may write");
   const r = (await call("POST", "/profile/draft", fl.token, { field: "experience", notes: "Senior paralegal at a family law firm since 2019", body: {} })).body;
-  assertEquals([r.ok, r.field, r.text], [true, "experience", "Senior paralegal, family law firm, 2019 to now."], JSON.stringify(r));
+  // Step 50: the longer boxes keep DELA's light formatting; the headline is plain words
+  assertEquals([r.ok, r.field, r.text], [true, "experience", "**Senior paralegal**, family law firm, 2019 to now."], JSON.stringify(r));
+  const hl = (await call("POST", "/profile/draft", fl.token, { field: "headline", notes: "Senior paralegal at a family law firm since 2019", body: {} })).body;
+  assertEquals([hl.ok, hl.text], [true, "Senior paralegal, family law firm, 2019 to now."], JSON.stringify(hl));
   assertEquals(r.questions, ["Which courts do you file in?"]);
   const improve = (await call("POST", "/profile/draft", fl.token, { field: "education", notes: "", body: { education: "Paralegal certificate from Austin Community College" } })).body;
   assertEquals(improve.ok, true, "with no facts, DELA improves what the box says");
