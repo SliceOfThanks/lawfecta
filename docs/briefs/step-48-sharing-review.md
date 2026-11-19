@@ -30,7 +30,7 @@ None. It follows the gig and Talent switches.
 ## Questions, and how Claude answered them (acceleration mode)
 1. A separate "Review before sending" click, as in mockup 8? **No.** This page is already the review: nothing is sent until its one button. A second step would add a click with nothing new to read.
 2. Direct invitation with "Accept scope"? **Not here.** Stacey's answer on step 45: it sits beside proposals and arrives with assignments. This step improves the invitation that exists.
-3. Should inviting stop sharing the document's steps and the gig's files until a proposal is chosen? **Not changed.** That is a change to what freelancers need to price the work. The page now says what happens; whether to narrow it is Stacey's call.
+3. Should inviting stop sharing the document's steps and the gig's files until a proposal is chosen? **Not changed.** That is a change to what freelancers need to price the work. The page now says what happens; whether to narrow it is Stacey's call. Stacey 2026-11-19: "Keep as it is". Decided; an invitation keeps sharing the document's steps and the gig's files.
 4. "Save prepared draft" from the mockup: **left out.** The chosen gig and the message are kept while the page is open.
 5. The pop-up that asked about client information in the message: **replaced with a question on the page**, so agents and screen readers can answer it.
 
