@@ -242,6 +242,38 @@ async function waitFor(page, words, ms) {
     t = await waitFor(p, "Notary public, Texas");
     const live = (await sql("select body from member_profiles mp join people pe on pe.id = mp.person_id where pe.bd_member_id = 2501 and side = 'freelancer'"))[0].body;
     ok(live.headline === "Litigation support for solo attorneys in Texas" && /Notary public, Texas/.test(live.education) && live.summary === saved.summary && live.services.length === saved.services.length && live.photo_file === saved.photo_file, "editing in place saves that one part and leaves the rest of the profile as it was");
+    // Step 49, second part (Stacey 2026-11-19, "Yes, add them"): skills, software, services and the picture are changed on the live profile too
+    const one = async () => (await sql("select body from member_profiles mp join people pe on pe.id = mp.person_id where pe.bd_member_id = 2501 and side = 'freelancer'"))[0].body;
+    await dela(p).locator("#tp-edit-skills").click();
+    await dela(p).locator("#tp-box-skills").fill("E-filing, Discovery requests , Calendar control");
+    await dela(p).locator("#tp-save-skills").click();
+    t = await waitFor(p, "Calendar control");
+    let now = await one();
+    ok(JSON.stringify(now.skills) === JSON.stringify(["E-filing", "Discovery requests", "Calendar control"]), "skills typed with commas are saved as a list: " + JSON.stringify(now.skills));
+    await dela(p).locator("#tp-edit-software").click();
+    const other = dela(p).locator(".tp-editor").getByLabel("Other tech tools", { exact: true });
+    ok((await other.inputValue()).includes("Casemark"), "the tools editor opens with the tools already chosen");
+    await other.fill("Casemark, Lawmatics QA");
+    await dela(p).locator("#tp-save-software").click();
+    t = await waitFor(p, "Lawmatics QA");
+    now = await one();
+    ok(now.software.includes("Lawmatics QA") && now.software.includes("Clio") && now.software.includes("Casemark"), "a tool added in place is saved, and the chosen tools stay: " + JSON.stringify(now.software));
+    await dela(p).getByRole("tab", { name: "Services" }).click();
+    await dela(p).locator("#tp-edit-services").click();
+    await dela(p).locator(".tp-editor").getByRole("button", { name: "Add a service", exact: true }).click();
+    const nSv = saved.services.length + 1;
+    await dela(p).locator(".tp-editor").getByLabel("Service " + nSv + " name", { exact: true }).fill("Discovery document review");
+    await dela(p).locator(".tp-editor").getByLabel("Service " + nSv + " price from", { exact: true }).fill("90");
+    await dela(p).locator("#tp-save-services").click();
+    t = await waitFor(p, "Discovery document review");
+    now = await one();
+    ok(now.services.length === nSv && now.services[nSv - 1].title === "Discovery document review" && now.services[nSv - 1].price_from_cents === 9000 && now.services[0].price_from_cents === 15000, "a service added in place is saved in cents, and the first service is untouched");
+    ok(t.includes("From $90"), "the new service shows with its price on the page attorneys see");
+    await dela(p).locator("#tp-photo-file").setInputFiles({ name: "new.png", mimeType: "image/png", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]) });
+    await waitFor(p, "Picture saved. Your live profile shows it now.");
+    now = await one();
+    ok(/^profiles\/[0-9a-f-]{36}\/photo-[0-9a-f-]{36}\.png$/.test(now.photo_file || "") && now.photo_file !== saved.photo_file && now.headline === "Litigation support for solo attorneys in Texas", "a new picture is uploaded and saved in one go, and nothing else changes");
+    await dela(p).getByRole("tab", { name: "Overview" }).click();
     // The headline goes back the same way, so the listing checks further down see the profile they expect
     await dela(p).locator("#tp-edit-headline").click();
     await dela(p).locator("#tp-box-headline").fill(saved.headline);

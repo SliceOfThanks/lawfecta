@@ -2726,7 +2726,7 @@
     profEl.appendChild(h("h1", { text: side === "attorney" ? "Profile and verification" : "Profile" }));
     profEl.appendChild(h("p", { class: "muted", text: "This is your " + D.SIDE[side] + " profile. Your Lawfecta directory listing is your public profile; DELA keeps them in step when you choose." }));
     if (side === "freelancer") profEl.appendChild(h("div", { class: "card tp-self-card" }, h("div", { class: "row", style: "gap:12px;flex-wrap:wrap;align-items:center" },
-      h("p", { class: "grow", style: "margin:0", text: "See your profile the way attorneys see it. You can change your headline, summary, experience and education right on that page." }),
+      h("p", { class: "grow", style: "margin:0", text: "See your profile the way attorneys see it. You can change your picture, headline, summary, services, experience, education, skills and software right on that page." }),
       h("button", { class: "blue small", type: "button", id: "prof-live", onclick: openLiveProfile }, "View my live profile"))));
     else profEl.appendChild(h("div", { class: "card tp-self-card", id: "prof-seen" }, h("h2", { style: "margin:0 0 4px", text: "What freelancers see about you" }),
       h("p", { style: "margin:0", text: "Freelancers see your firm name on the gigs you post (\"Posted by " + (((r.firm || {}).body || {}).business_name || (r.firm || {}).name || "your firm") + "\"), the gig itself, and reviews of you from completed engagements." }),
@@ -7635,7 +7635,7 @@
       : h("button", { class: "ghost small", type: "button", onclick: closeTalentProfile }, "← Back to Talent search")), h("p", { class: "muted", role: "status", text: "Loading the profile..." }));
     // Step 49: on the member's own live profile, a text part is changed where it shows. The editor reads the saved
     // profile first, changes one box and saves the whole profile the way the form does, so nothing else moves.
-    var EDIT = { headline: ["Headline", false], summary: ["Professional summary", true], experience: ["Professional experience", true], education: ["Education and credentials", true] };
+    var EDIT = { headline: ["Headline", false], summary: ["Professional summary", true], experience: ["Professional experience", true], education: ["Education and credentials", true], skills: ["Task skills", "list"], software: ["Tech tools", "tools"], services: ["Services", "services"] };
     function editBtn(key, host) {
       if (!self || prof.dirty) return null;
       var b = h("button", { class: "ghost small tp-edit", type: "button", id: "tp-edit-" + key, "aria-label": "Edit " + EDIT[key][0].toLowerCase() }, "Edit");
@@ -7647,20 +7647,25 @@
       api.get("/profile").then(function (r) {
         btn.disabled = false;
         if (!r.ok) { D.toast(app, D.errorText(r.reason), true); return; }
-        var body = r.body || {}, id = "tp-box-" + key, area = EDIT[key][1];
-        var box = area ? h("textarea", { id: id, rows: 7, style: "width:100%" }) : h("input", { id: id, type: "text", style: "width:100%", maxlength: "160" });
-        box.value = body[key] === null || body[key] === undefined ? "" : String(body[key]);
+        var body = r.body || {}, id = "tp-box-" + key, kind = EDIT[key][1], area = kind === true;
+        // The pickers of the profile form work on prof.body, so the editor hands them the profile it just read
+        prof.data = r; prof.body = body; prof.dirty = false;
+        ["software", "skills", "services"].forEach(function (k) { if (!Array.isArray(body[k])) body[k] = []; });
+        var box = kind === "tools" ? toolsPicker(r.tech_tools || [], false, r.tech_groups) : kind === "services" ? servicesEditor(false)
+          : area ? h("textarea", { id: id, rows: 7, style: "width:100%" }) : h("input", { id: id, type: "text", style: "width:100%", maxlength: kind === "list" ? "600" : "160" });
+        var plain = kind !== "tools" && kind !== "services";
+        if (plain) box.value = kind === "list" ? body[key].join(", ") : body[key] === null || body[key] === undefined ? "" : String(body[key]);
         var msg = h("p", { class: "small", role: "status", style: "margin:6px 0 0" });
         var save = h("button", { class: "blue small", type: "button", id: "tp-save-" + key }, "Save"), cancel = h("button", { class: "ghost small", type: "button" }, "Cancel");
         var anyway = h("button", { class: "ghost small", type: "button", id: "tp-anyway-" + key, hidden: true }, "It is not client information, save");
         D.clear(host);
-        host.appendChild(h("div", { class: "tp-editor" }, h("label", { for: id, text: EDIT[key][0] }),
-          h("p", { class: "small muted", style: "margin:0 0 6px", text: (area ? "One point per line reads best. " : "") + "Attorneys see this. Never enter sensitive data or client information." }),
+        host.appendChild(h("div", { class: "tp-editor" }, plain ? h("label", { for: id, text: EDIT[key][0] }) : null,
+          h("p", { class: "small muted", style: "margin:0 0 6px", text: (area ? "One point per line reads best. " : kind === "list" ? "Separate them with commas. " : "") + "Attorneys see this. Never enter sensitive data or client information." }),
           box, h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:8px" }, save, cancel, anyway), msg));
-        box.focus();
+        if (plain) box.focus(); else { var f1 = box.querySelector("input, button, summary"); if (f1) f1.focus(); }
         function go(confirmed) {
           save.disabled = true; anyway.hidden = true; msg.textContent = "Saving...";
-          body[key] = box.value;
+          if (plain) body[key] = kind === "list" ? box.value.split(",").map(function (v) { return v.trim(); }).filter(Boolean) : box.value;
           api.post("/profile/save", { body: body, version: r.version, directory: r.directory !== false, confirm_no_client_info: confirmed === true }).then(function (x) {
             save.disabled = false;
             if (x.reason === "looks_like_client_info") { msg.textContent = ciNote(x, "This may include client information. Take it out and choose Save."); anyway.hidden = false; return; }
@@ -7672,7 +7677,7 @@
         }
         save.addEventListener("click", function () { go(false); });
         anyway.addEventListener("click", function () { go(true); });
-        cancel.addEventListener("click", function () { draw(); });
+        cancel.addEventListener("click", function () { prof.dirty = false; prof.body = null; draw(); });
       }).catch(function (e) { btn.disabled = false; D.toast(app, D.errorText(e.message), true); });
     }
     var now = Date.now();
@@ -7692,6 +7697,31 @@
       var msgBtn = !self && me.side === "attorney" ? (function () { var b = h("button", { class: "ghost small", type: "button" }, "Send message"); b.addEventListener("click", function () { startChat(x.person_id, x.name, b); }); return b; })() : null;
       // Step 23: a first call before any gig, booked in the conversation with this freelancer
       var callBtn = !self && me.side === "attorney" && (me.switches || {}).meetings ? (function () { var b = h("button", { class: "blue small", type: "button" }, "Book a call"); b.addEventListener("click", function () { startChat(x.person_id, x.name, b, true); }); return b; })() : null;
+      // The picture: chosen, uploaded and saved in one go, then the page shows it
+      function photoEdit() {
+        var msg = h("span", { class: "small muted", role: "status", id: "tp-photo-msg" });
+        var inp = h("input", { type: "file", id: "tp-photo-file", accept: "image/png,image/jpeg,.png,.jpg,.jpeg", style: "display:none", "aria-label": "Choose a profile photo" });
+        var btn = h("button", { class: "ghost small", type: "button", id: "tp-edit-photo", onclick: function () { inp.click(); } }, x.photo_url ? "Change photo" : "Add a photo");
+        inp.addEventListener("change", function () {
+          if (!inp.files.length) return;
+          btn.disabled = true; msg.textContent = "Uploading...";
+          var fail = function (t) { btn.disabled = false; msg.textContent = t; };
+          api.raw("/profile/photo", inp.files[0], inp.files[0].type || "image/jpeg").then(function (up) {
+            if (!up.ok) { fail(D.errorText(up.reason)); return; }
+            return api.get("/profile").then(function (r) {
+              if (!r.ok) { fail(D.errorText(r.reason)); return; }
+              var body = r.body || {}; body.photo_file = up.photo_file; body.avatar = "";
+              return api.post("/profile/save", { body: body, version: r.version, directory: r.directory !== false }).then(function (sv) {
+                if (!sv.ok) { fail(D.errorText(sv.reason)); return; }
+                prof.dirty = false; prof.body = null; prof.photoPreview = ""; prof.photoPending = "";
+                draw();
+                D.toast(app, "Picture saved. Your live profile shows it now.");
+              });
+            });
+          }).catch(function (e) { fail(D.errorText(e.message)); });
+        });
+        return h("div", { class: "tp-photo-edit" }, btn, inp, h("p", { class: "small muted", style: "margin:4px 0 0", text: "PNG or JPG. Ready-made pictures are on the profile form." }), msg);
+      }
       var headBox = h("div", { id: "tp-headline" });
       if (x.headline) headBox.appendChild(h("p", { style: "margin:2px 0 6px", text: x.headline })); else if (self) headBox.appendChild(h("p", { class: "muted", style: "margin:2px 0 6px", text: "No headline yet. Attorneys read this line first." }));
       var hb = editBtn("headline", headBox); if (hb) headBox.appendChild(hb);
@@ -7704,13 +7734,13 @@
               h("span", { class: n ? "" : "muted", text: !n ? "No reviews yet" : rv.average ? "★ " + rv.average + " (" + n + (n === 1 ? " review)" : " reviews)") : n + (n === 1 ? " review" : " reviews") }),
               x.available_now ? null : h("span", { class: "badge held", text: "Not taking new work right now" })),
             facts ? h("p", { class: "small muted", style: "margin:6px 0 0", text: facts }) : null),
-          h("div", { class: "tp-head-acts" },
+          h("div", { class: "tp-head-acts" }, self && !prof.dirty ? photoEdit() : null,
             h("div", { class: "row tp-top-acts", style: "gap:8px;flex-wrap:wrap;justify-content:flex-end" }, !self && canHire() ? h("span", { id: "tp-bookmark", class: "row", style: "gap:8px;flex-wrap:wrap;align-items:center" }, bookmarkButton(x.person_id, x.name)) : null, msgBtn, callBtn),
             inviteBtn ? h("div", { class: "talent-acts tp-invite" }, inviteBtn) : null)));
       if (self) el.insertBefore(h("div", { class: "card tp-self-card", id: "tp-self-note" },
         h("h2", { style: "margin:0 0 4px", text: "Your live profile, as attorneys see it" }),
         h("p", { style: "margin:0", text: x.readiness === "match_ready" ? "Attorneys can find this profile in Talent search now." : "Attorneys cannot find this profile in Talent search yet. Finish the steps on the profile form first. Attorneys you already work with can open it." }),
-        h("p", { class: "small muted", style: "margin:6px 0 0", text: prof.dirty ? "You have changes on the profile form that are not saved. This page shows what is saved, and editing here is off until you save or leave those changes." : "Choose \"Edit\" next to your headline, summary, experience or education to change it right here. Your picture, services, skills, software, categories and availability are changed on the profile form." })), el.children[1] || null);
+        h("p", { class: "small muted", style: "margin:6px 0 0", text: prof.dirty ? "You have changes on the profile form that are not saved. This page shows what is saved, and editing here is off until you save or leave those changes." : "Choose \"Edit\" next to a part to change it right here: your headline, summary, services, experience, education, skills and software. \"Change photo\" is beside your name. Your categories, practice areas and availability are changed on the profile form." })), el.children[1] || null);
       el.appendChild(head);
       // ----- The tabs: everything stays on this page -----
       var promos = x.promotions || [];
@@ -7755,7 +7785,9 @@
           if (x.summary) lineList(x.summary).forEach(function (l) { aBody.appendChild(h("p", { text: l })); }); else none(aBody, self ? "No summary yet. Say what you do and who you do it for." : x.name + " has not written a summary yet.");
           var sb = editBtn("summary", aBody); if (sb) aBody.appendChild(sb);
           if ((x.services || []).length) { var ps = into(left, "Primary services"); ps.appendChild(h("ul", { class: "mr-list" }, x.services.slice(0, 6).map(function (sv) { return h("li", { text: sv.title }); }))); }
-          if ((x.software || []).length) { var sw = into(left, "Software expertise"); sw.appendChild(chips(x.software)); }
+          if ((x.software || []).length || self) { var sw = into(left, "Software expertise"), swB = h("div", { id: "tp-software" }); sw.appendChild(swB);
+            if ((x.software || []).length) swB.appendChild(chips(x.software)); else none(swB, "No tools chosen yet. Attorneys can search for freelancers by tool.");
+            var wb = editBtn("software", swB); if (wb) swB.appendChild(wb); }
           var groups = catGroups();
           if (groups.length || (x.practice_areas || []).length) {
             var s = into(left, "Practice areas and categories");
@@ -7780,13 +7812,15 @@
         },
         services: function () {
           var c = card("Services offered");
-          if (!(x.services || []).length) { none(c, x.name + " has not listed services yet."); SECTIONS.promotions(); return; }
+          var svB = editBtn("services", c);
+          if (!(x.services || []).length) { none(c, self ? "No services yet. Say what you do, for whom, and your usual price." : x.name + " has not listed services yet."); if (svB) c.appendChild(svB); SECTIONS.promotions(); return; }
           c.appendChild(h("p", { class: "small muted", text: "Prices are the member's own starting points. The price of a job is set in the proposal and the agreement." }));
           x.services.forEach(function (sv) {
             var price = servicePrice(sv);
             c.appendChild(h("div", { class: "tp-item" }, h("div", { class: "row" }, h("h3", { class: "grow", style: "margin:0", text: sv.title }), price ? h("b", { text: price }) : h("span", { class: "small muted", text: "No price given" })),
               sv.for_whom ? h("p", { class: "small", style: "margin:4px 0 0", text: sv.for_whom }) : null));
           });
+          if (svB) c.appendChild(svB);
           SECTIONS.promotions();
         },
         experience: function () {
@@ -7798,11 +7832,15 @@
             if (ed.length) edB.appendChild(h("ul", { class: "tp-lines" }, ed.map(function (l) { return h("li", { text: l }); }))); else none(edB, "Nothing here yet. Add degrees, certificates and training, one per line.");
             var eb = editBtn("education", edB); if (eb) edB.appendChild(eb);
             e.appendChild(h("p", { class: "small muted", text: "Written by the member. Lawfecta does not check each item." })); }
-          if ((x.practice_areas || []).length || (x.skills || []).length || (x.software || []).length) {
+          if ((x.practice_areas || []).length || (x.skills || []).length || (x.software || []).length || self) {
             any = true; var k = card("Practice and technology experience");
             if ((x.practice_areas || []).length) { k.appendChild(h("h3", { text: "Practice areas" })); k.appendChild(chips(x.practice_areas)); }
-            if ((x.skills || []).length) { k.appendChild(h("h3", { text: "Skills" })); k.appendChild(chips(x.skills)); }
-            if ((x.software || []).length) { k.appendChild(h("h3", { text: "Software" })); k.appendChild(chips(x.software)); }
+            if ((x.skills || []).length || self) { k.appendChild(h("h3", { text: "Skills" })); var skB = h("div", { id: "tp-skills" }); k.appendChild(skB);
+              if ((x.skills || []).length) skB.appendChild(chips(x.skills)); else none(skB, "No skills listed yet.");
+              var kb = editBtn("skills", skB); if (kb) skB.appendChild(kb); }
+            if ((x.software || []).length || self) { k.appendChild(h("h3", { text: "Software" })); var s2 = h("div", { id: "tp-software" }); k.appendChild(s2);
+              if ((x.software || []).length) s2.appendChild(chips(x.software)); else none(s2, "No tools chosen yet.");
+              var w2 = editBtn("software", s2); if (w2) s2.appendChild(w2); }
           }
           if (!any) none(card("Experience and qualifications"), x.name + " has not added experience or qualifications yet.");
         },

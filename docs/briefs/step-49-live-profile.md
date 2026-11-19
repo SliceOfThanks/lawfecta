@@ -53,3 +53,12 @@ Freelancer login:
 - "← Back to the profile form" returns to the form with the new headline in it.
 Attorney login:
 - The Profile page shows "What freelancers see about you".
+
+## Second part, the same day (Stacey 2026-11-19: "Yes, add them")
+Also changed on the live profile now: the picture ("Change photo" beside the name, uploaded and saved in one go), services (the form's own editor, with prices), task skills (typed with commas) and tech tools (the form's own picker). Still on the profile form: ready-made pictures, categories, practice areas, availability, hours and time zone.
+
+Questions, and how Claude answered them (acceleration mode):
+1. Build new editors or reuse the form's? **Reuse the form's**, so prices, limits and the tool list behave the same in both places.
+2. Does a new picture need a second "Save" click? **No.** Choosing the file uploads it and saves it. The old picture is replaced, as on the form.
+3. Ready-made pictures on the live page? **No**, they stay on the form, where the grid of choices is.
+4. Categories and practice areas in place? **Not yet.** Categories drive search matching and have their own tree picker; they stay on the form until Stacey asks.
