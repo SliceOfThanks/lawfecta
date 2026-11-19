@@ -242,9 +242,15 @@ async function waitFor(page, words, ms) {
     t = await waitFor(p, "Notary public, Texas");
     const live = (await sql("select body from member_profiles mp join people pe on pe.id = mp.person_id where pe.bd_member_id = 2501 and side = 'freelancer'"))[0].body;
     ok(live.headline === "Litigation support for solo attorneys in Texas" && /Notary public, Texas/.test(live.education) && live.summary === saved.summary && live.services.length === saved.services.length && live.photo_file === saved.photo_file, "editing in place saves that one part and leaves the rest of the profile as it was");
+    // The headline goes back the same way, so the listing checks further down see the profile they expect
+    await dela(p).locator("#tp-edit-headline").click();
+    await dela(p).locator("#tp-box-headline").fill(saved.headline);
+    await dela(p).locator("#tp-save-headline").click();
+    await waitFor(p, "Saved. Your live profile shows it now.");
+    await waitFor(p, saved.headline);
     await dela(p).locator("#tp-self-back").click();
     t = await waitFor(p, "Your availability");
-    ok((await label(p, "Headline").inputValue().catch(() => "")) === "Litigation support for solo attorneys in Texas" || t.includes("View my live profile"), "back on the form, with the new headline");
+    ok(t.includes("View my live profile"), "back on the profile form");
 
     // A change not saved yet survives the LinkedIn button (Stacey's Step 3 test, 2026-11-05)
     await label(p, "Usual hours").fill("Not saved yet");
