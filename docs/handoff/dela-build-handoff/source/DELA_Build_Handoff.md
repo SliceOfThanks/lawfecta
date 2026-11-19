@@ -1,4 +1,6 @@
-# DELA — Product, UX, AI and Engineering Handoff
+> Copy kept with the gap map, 2026-11-19. Stacey's text is unchanged except that 20 long dashes were replaced with hyphens, which this repository's writing rule requires. Her original file is in her Documents folder, "Lawfecta DELA for Stacey", "DELA build handoff".
+
+# DELA - Product, UX, AI and Engineering Handoff
 
 Version: 1.0 · Prepared November 16, 2026  
 Product: Lawfecta DELA  
@@ -134,7 +136,7 @@ Recipient questions, failed handoffs and accepted revisions can suggest changes.
 
 ## 6. Screen-by-screen specification
 
-### Screen 1 — Conversation entry
+### Screen 1 - Conversation entry
 
 Primary content: welcome, blank composer, Send. Secondary: optional prompts, add example, record/narrate when available, visible context summary. New chat is secondary and non-destructive.
 
@@ -142,19 +144,19 @@ Default copy: “What would you like to get off your plate?” Supporting copy: 
 
 Required behavior: preserve unfinished text; display saving/error state; expose prior drafts; accurately state whether context is attached, connected, accessible or unavailable. Never imply a file was read because its filename was mentioned.
 
-### Screen 2 — Clarification and provisional draft
+### Screen 2 - Clarification and provisional draft
 
 Use available information before asking again. Ask the next question that changes scope, authority, required inputs or outcome. Offer a working draft without claiming completeness. Include concise source links for consequential firm-specific claims.
 
 A user may keep chatting, open the draft or correct a misunderstanding. Contributor knowledge is welcome; attorney knowledge of every operational method is not presumed.
 
-### Screen 3 — Playbook overview
+### Screen 3 - Playbook overview
 
 Display title, version/status, purpose, start trigger, scope, roles, expected output and success criteria. Show prioritized unresolved decisions separately from optional improvements.
 
 Saving a draft remains available. Approval is a different action with explicit authority and prerequisites. Never disable unrelated work because an optional future refinement is absent.
 
-### Screen 4 — Process editor and change review
+### Screen 4 - Process editor and change review
 
 Each step exposes one accountable owner, instructions, inputs, dependencies, output, completion evidence, exceptions and any approval point. Contributors may be multiple, but accountability must be clear.
 
@@ -162,7 +164,7 @@ Default view is a readable list; expand details on demand. Drag-and-drop is seco
 
 Chat edits generate a before/after proposal identifying affected steps, authority changes, downstream effects and scope of application. Primary action: “Apply to draft.” Applying a proposal is not policy approval or permission to execute.
 
-### Screen 5 — Recipient preview / handoff preparation
+### Screen 5 - Recipient preview / handoff preparation
 
 Delegator preview is read-only with respect to recipient actions. Show the actual work package filtered by recipient permissions: purpose, selected steps, input locations, examples, timing, limits, escalation contact, output destination and acceptance criteria.
 
@@ -222,7 +224,7 @@ Ask when the answer materially affects outcome, authority, scope, an immediate p
 
 Explain the conflict in plain language and identify the authorized resolver. A new chat message does not automatically supersede approved firm policy. An authorized exception is recorded at its actual scope with an expiry or applicability condition where needed.
 
-### AI task pipeline — recommended
+### AI task pipeline - recommended
 
 1. Authenticate and determine accessible context in application code.
 2. Extract intent and structured facts from the conversation.
@@ -284,7 +286,7 @@ Start eligibility is computed for the affected action. It depends on authorized 
 
 Prototype booleans must be replaced with authoritative server events. A status label is a view of recorded facts, not a model-generated opinion.
 
-## 11. Data model — recommended logical entities
+## 11. Data model - recommended logical entities
 
 All identifiers below are illustrative schema names. Every tenant-owned object carries tenant_id, created_by, created_at, updated_at and a revision token.
 
@@ -381,11 +383,11 @@ Finance example: prepare reconciled draft invoices with exceptions routed to the
 
 Latest five-screen conceptual set, available in the conversation's saved images:
 
-1. “DELA conversation starter for repeatable onboarding.png” — chat-first entry and preserved history.
-2. “Clarifying the onboarding handoff.png” — source-aware question about authority.
-3. “Review the onboarding playbook.png” — overview and prioritized unresolved rule.
-4. “Onboarding process review with visible dependencies.png” — process editor and proposed change.
-5. “Role-specific IT handoff preview.png” — recipient-specific package and separate statuses.
+1. “DELA conversation starter for repeatable onboarding.png” - chat-first entry and preserved history.
+2. “Clarifying the onboarding handoff.png” - source-aware question about authority.
+3. “Review the onboarding playbook.png” - overview and prioritized unresolved rule.
+4. “Onboarding process review with visible dependencies.png” - process editor and proposed change.
+5. “Role-specific IT handoff preview.png” - recipient-specific package and separate statuses.
 
 These are visual references, not screenshots of implemented capabilities. Apply these corrections when building:
 
@@ -464,27 +466,27 @@ Zero observed failures in a test set is a release check, not proof that failures
 
 ## 19. Delivery phases and priorities
 
-### Phase 0 — establish boundaries
+### Phase 0 - establish boundaries
 
 Audit actual existing DELA code and permissions separately from the concept prototype. Confirm permitted data, user roles, persistence architecture, integration scope and pilot definition. Produce schema and migration plan without overwriting existing production behavior.
 
-### Phase 1 — chat and reusable drafts
+### Phase 1 - chat and reusable drafts
 
 Deliver persistent chat, optional context, structured drafts, overview/process views, targeted questions, explicit proposals, source references and version-aware saving. Include general-role examples. Exit when users can capture a useful process without mandatory onboarding forms and the core permission tests pass.
 
-### Phase 2 — handoff quality
+### Phase 2 - handoff quality
 
 Deliver role-specific read-only preview, partial delegation checks, contributor feedback, explicit required inputs and acceptance criteria. Test with both delegators and recipients. Exit when recipients can identify their work, inputs, boundaries and escalation path.
 
-### Phase 3 — assignment preparation
+### Phase 3 - assignment preparation
 
 Resolve roles to people, set dates, review sharing scope, prepare/send invitations, record scope responses and input/access conditions. Confirm marketplace engagement integration separately. Exit when acceptance and access cannot be impersonated and revisions remain traceable.
 
-### Phase 4 — integrations and execution
+### Phase 4 - integrations and execution
 
 Add selected context retrieval, controlled writes, status synchronization and review queues. Validate permissions, idempotency and conflict handling per connector. Avoid a broad all-systems launch.
 
-### Phase 5 — maintenance and optimization
+### Phase 5 - maintenance and optimization
 
 Add review triggers, proposed improvements, reuse analytics, richer exports and targeted model optimization. Do not add complexity solely to resemble an autonomous agent product.
 
@@ -510,7 +512,7 @@ Prioritize durable state and trustworthy handoffs before elaborate graph canvase
 
 A new user can start in chat, describe a task without categorizing it, inspect a genuinely generated draft, understand unresolved decisions, edit safely, save durably, return later, and preview instructions for a recipient. The same structure works for legal support and nonlegal back-office roles. Source provenance and permissions are respected. Draft state cannot masquerade as approval or execution. Tests cover failure paths as well as the happy path.
 
-The handoff is successful when a recipient unfamiliar with the firm's internal conversation can explain what to produce, what inputs are needed, what they may do, when to stop, who resolves exceptions, and how their work will be evaluated—with less combined clarification effort than the existing method.
+The handoff is successful when a recipient unfamiliar with the firm's internal conversation can explain what to produce, what inputs are needed, what they may do, when to stop, who resolves exceptions, and how their work will be evaluated-with less combined clarification effort than the existing method.
 
 ## 22. Implementation instructions for the receiving developer
 
