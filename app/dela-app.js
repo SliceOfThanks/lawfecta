@@ -4256,7 +4256,7 @@
           return;
         }
         log.push({ role: "user", text: text });
-        log.push({ role: "assistant", text: r.reply + (r.suggestion_id ? "\n\nThis change is waiting on the \"Suggested edits\" tab." + (r.removes_review ? " It removes an attorney review point, so only the administrator can accept it." : "") : "") });
+        log.push({ role: "assistant", text: r.reply + (r.suggestion_id ? "\n\nThis is a suggestion. Nothing has changed yet: it is waiting on the \"Suggested edits\" tab." + (r.removes_review ? " It removes an attorney review point, so only the administrator can accept it." : "") : "") });
         ta.value = "";
         req = null;
         attempt = 0;
@@ -11980,7 +11980,7 @@
       rows = [{ label: lbl, now: nowText ? [{ text: nowText, mark: "" }] : [], next: [{ text: (sg.proposed || {}).text || "", mark: "changed" }] }];
     }
     var box = h("div", { class: "sg-diff", role: "group", "aria-label": "What this suggestion changes" });
-    if (!rows.length) { box.appendChild(h("p", { class: "small muted", style: "margin:0", text: "This suggestion matches the draft as it is now. Accepting it changes nothing." })); return box; }
+    if (!rows.length) { box.appendChild(h("p", { class: "small muted", style: "margin:0", text: "This suggestion matches the document as it is now. Accepting it changes nothing." })); return box; }
     var col = function (title, lines, empty) {
       return h("div", { class: "sg-col" }, h("div", { class: "sg-col-h", text: title }), lines.length ? h("ul", { class: "sg-lines" }, lines.map(function (l) {
         return h("li", { class: l.mark ? "sg-" + l.mark : "" }, l.mark ? h("span", { class: "badge " + (l.mark === "removed" ? "off" : "held"), text: l.mark === "removed" ? "Removed" : l.mark === "new" ? "New" : "Changed" }) : null, h("span", { text: l.text }));
@@ -11988,7 +11988,7 @@
     };
     rows.forEach(function (r) {
       box.appendChild(h("h4", { class: "sg-part", text: r.label }));
-      box.appendChild(h("div", { class: "sg-cols" }, col("Now, in the draft", r.now, "Empty now."), col("Proposed", r.next, "Empty after the change.")));
+      box.appendChild(h("div", { class: "sg-cols" }, col("Now, in this document", r.now, "Empty now."), col("Proposed", r.next, "Empty after the change.")));
     });
     return box;
   }

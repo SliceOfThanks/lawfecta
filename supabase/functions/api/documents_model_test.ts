@@ -4,7 +4,8 @@ import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { unzipSync, strFromU8 } from "npm:fflate@0.8.2";
 import { bodyWords, carryImages, changeSummary, checkDoc, imageSize, withoutImages, classifyLegacy, codeFix, docToCsv, docToDocx, docToMarkdown, fromLegacy, gigPart, namesToRoles, normalizeDoc, scrubCredentials, vagueWords, type DocBody } from "./lib/documents/model.ts";
 import { normalize } from "./lib/playbooks/model.ts";
-import { readDocAnswer } from "./lib/documents/ai.ts";
+import { DOC_CHAT_SYSTEM, readDocAnswer } from "./lib/documents/ai.ts";
+import { CHAT_SYSTEM } from "./lib/playbooks/ai.ts";
 
 const CTX = { systems: ["Clio", "LawPay"], maxWords: 900, maxConsulted: 2, kpiMin: 3, kpiMax: 5, skipped: [] as string[] };
 const META = { version: 2, date: "2026-11-05", status: "draft", firm: "Example Legal", doc_id: "INT-01", last_reviewed: "", next_review: "2027-02-05", changes: [{ at: "2026-11-05", what: "First version", by: "Attorney", approved_by: "" }] };
@@ -190,4 +191,10 @@ Deno.test("a conditional step with a clear action passes the verb check (UX revi
   assertEquals(verbsOf(["If the client signs, send the engagement letter.", "When the retainer arrives, open the matter in Clio."])?.status, "pass");
   assertEquals(verbsOf(["If the client signs, the letter goes out."])?.status, "attention", "a condition still needs an action after it");
   assertEquals(verbsOf(["The client gets a call."])?.status, "attention");
+});
+
+// Fix (ChatGPT check 13, 2026-11-19): DELA said "I added a final step" for a change that was only a suggestion.
+Deno.test("the document chat is told to word a change as a suggestion, never as done", () => {
+  for (const sys of [DOC_CHAT_SYSTEM, CHAT_SYSTEM]) assert(sys.includes('word a change as a suggestion that has not been made yet'), sys.slice(0, 80));
+  assert(!CHAT_SYSTEM.includes("what you changed"));
 });

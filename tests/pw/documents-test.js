@@ -112,7 +112,7 @@ async function makeMember(bd, side, plan) {
     t = await waitFor(p, "Accepting a suggestion saves a new draft version");
     const diff = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; const d = r.querySelector(".sg-diff"); const cols = [...d.querySelectorAll(".sg-cols")][0].querySelectorAll(".sg-col"); const a = cols[0].getBoundingClientRect(), b = cols[1].getBoundingClientRect();
       return { parts: [...d.querySelectorAll(".sg-part")].map((x) => x.textContent).join("|"), side: b.left > a.right - 1, marks: [...d.querySelectorAll(".sg-lines .badge")].map((x) => x.textContent + ":" + x.parentElement.lastChild.textContent).join(" | "), heads: [...d.querySelectorAll(".sg-col-h")].slice(0, 2).map((x) => x.textContent).join("|") }; });
-    ok(diff.parts.includes("Purpose") && diff.parts.includes("Steps") && diff.heads === "Now, in the draft|Proposed" && diff.side, "the suggestion lists the parts it changes, with now and proposed side by side: " + JSON.stringify(diff));
+    ok(diff.parts.includes("Purpose") && diff.parts.includes("Steps") && diff.heads === "Now, in this document|Proposed" && diff.side, "the suggestion lists the parts it changes, with now and proposed side by side: " + JSON.stringify(diff));
     ok(/New:\d+\. Send the welcome email\./.test(diff.marks) && /Changed:Find conflicts and welcome the client\./.test(diff.marks), "each changed line is marked in words (New, Changed): " + diff.marks);
     ok(t.includes("Accepting a suggestion saves a new draft version of this document. It approves nothing"), "the screen says what accepting does and does not do");
     await click(p, "Reject");

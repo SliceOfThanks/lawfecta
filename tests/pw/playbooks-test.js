@@ -98,7 +98,7 @@ async function makeMember(bd, side, plan) {
     await dela(p).getByLabel("Message about this document").fill("Please add a step to send the welcome email");
     await click(p, "Send");
     t = await waitFor(p, "Suggested edits (1)");
-    ok(t.includes("waiting on the \"Suggested edits\" tab") && t.includes("Suggested edits ("), "a requested change becomes a suggestion");
+    ok(t.includes("Nothing has changed yet: it is waiting on the \"Suggested edits\" tab") && t.includes("Suggested edits ("), "a requested change becomes a suggestion");
     await tab(p, "Suggested edits (1)");
     t = await waitFor(p, "Add a welcome email");
     ok(t.includes("Send the welcome email"), "the suggestion shows what would change");
