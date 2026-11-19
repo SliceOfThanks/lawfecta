@@ -201,6 +201,10 @@ const SEARCH = "Search roles, specialties, tasks and software";
     ok(opts.join("|") === "Select one of your posted gigs|Organize discovery responses", "the list holds only posted gigs open for proposals: " + opts.join("|"));
     ok(t.includes("2. Review the gig") && t.includes("Organize discovery responses") && t.includes("Budget") && t.includes("Nobody is hired at this step.") && t.includes("It does not hire them, award the work or create anything to pay."), "the review step shows the gig, its budget and that nobody is hired");
     ok(await label(p, "Existing gig").inputValue() !== "" && (await sql("select count(*)::int n from gig_invitations i join gigs g on g.id = i.gig_id where g.request_id = 'cat-gig'"))[0].n === 0, "the chosen gig is kept, and nothing is sent yet");
+    // Step 48: before sending, the page says what the invitation shares and what it does not
+    const share = await p.evaluate(() => [...document.querySelector(".dela-host").shadowRoot.querySelectorAll("#share-list li")].map((li) => li.querySelector("b").textContent + " = " + li.querySelector(".badge").textContent));
+    ok(t.includes("What Fern Family will be able to see") && share.length === 7 && share[0] === "The gig as freelancers see it = Shared" && share[1] === "The steps for this gig, from your document = Shared" && /^Files attached to this gig = Nothing to share$|file(s)? attached to this gig = Shared$/.test(share[2]) && share[4].endsWith("= Not shared") && share[5] === "Confidential materials = Not shared" && share[6] === "Your payment details = Not shared", "the sharing review lists what is shared and what is not, each in words: " + share.join(" | "));
+    ok(t.includes("An invitation gives no access to your own systems") && !t.includes("It holds no client information."), "it says an invitation opens no outside system, and no longer says only the public version is seen");
     await label(p, "Message to the freelancer (optional)").fill("Your discovery experience fits this gig.");
     await click(p, "Send invitation to submit a proposal");
     t = await waitFor(p, "Invitation sent");

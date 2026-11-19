@@ -7185,7 +7185,21 @@
           scope.appendChild(h("dl", { class: "tp-facts" }, [["Budget", budget], ["Deadline", g.deadline ? D.date(g.deadline) : (pub.timing || "Not given")], ["Proposals close", g.closes_at ? D.date(g.closes_at) : "No closing date"]].map(function (row) {
             return h("div", null, h("dt", { text: row[0] }), h("dd", { text: row[1] }));
           })));
-          scope.appendChild(h("p", { class: "small muted", text: "This is the public version of your gig, the one freelancers see. It holds no client information." }));
+          // Step 48 (docs/briefs/step-48-sharing-review.md): exactly what an invitation shares, and what it does not.
+          // An invited freelancer opens more than the public version: the gig's steps from your document, with a
+          // watermark naming them, and the files attached to the gig, while the gig is open and the invitation stands.
+          var files = r.files || [];
+          var shareRow = function (title, sub, tag, tone) { return h("li", { class: "aw-row" }, h("span", { class: "aw-row-t" }, h("b", { style: "font-weight:600", text: title }), h("span", { class: "hsub", text: sub })), h("span", { class: "badge " + tone, text: tag })); };
+          scope.appendChild(h("h3", { id: "share-h", style: "margin:14px 0 4px", text: "What " + p.name + " will be able to see" }));
+          scope.appendChild(h("ul", { class: "aw-docs", id: "share-list" },
+            shareRow("The gig as freelancers see it", "The title, the task, the outcome, the budget and the dates shown above.", "Shared", "ready"),
+            shareRow("The steps for this gig, from your document", (r.gig_part ? r.gig_part.steps + " of the document's " + r.gig_part.of + " steps. " : "The document's steps. ") + "Read only, with a watermark that names " + p.name + ".", "Shared", "ready"),
+            shareRow(files.length ? plural(files.length, "file") + " attached to this gig" : "Files attached to this gig", files.length ? files.map(function (f) { return f.name; }).slice(0, 6).join(", ") + (files.length > 6 ? ", and " + (files.length - 6) + " more" : "") + ". They can open them while the gig is open and the invitation stands." : "None are attached, so no file is shared.", files.length ? "Shared" : "Nothing to share", files.length ? "ready" : "off"),
+            shareRow("Your message", "Only what you type in the box below.", "Shared if you write one", "held"),
+            shareRow("Your Library, your other gigs and your other documents", "An invitation opens this one gig only.", "Not shared", "off"),
+            shareRow("Confidential materials", "They open only after you both sign and the first milestone is paid.", "Not shared", "off"),
+            shareRow("Your payment details", "Never shown to a freelancer.", "Not shared", "off")));
+          scope.appendChild(h("p", { class: "small muted", id: "share-note", text: "An invitation gives no access to your own systems, such as your case management software. If you want to change what is shared, take a file off the gig (the gig's \"Files\" view in Projects) before you send." }));
         }).catch(function () { D.clear(scope); scope.appendChild(h("p", { class: "notice bad", text: "This gig could not be loaded. Check your connection." })); });
       }
       sel.addEventListener("change", drawScope);
@@ -7194,7 +7208,14 @@
         send.disabled = true; send.textContent = "Sending..."; said.className = "small"; said.textContent = "";
         api.post("/gigs/invite", { gig_id: sel.value, person_id: p.person_id, message: note.value.trim(), confirm_no_client_info: confirmed === true }).then(function (y) {
           send.textContent = "Send invitation to submit a proposal"; send.disabled = false;
-          if (y && y.reason === "looks_like_client_info") { if (confirm(ciNote(y, "Your message may include client information. Take it out, or click OK only if it is not client information."))) doSend(true); return; }
+          // The client information question is asked on the page, not in a browser pop-up (step 48)
+          if (y && y.reason === "looks_like_client_info") {
+            said.className = "small notice"; said.setAttribute("role", "alert"); D.clear(said);
+            said.appendChild(h("span", { text: ciNote(y, "Your message may include client information. Take it out of the message, or send it only if it is not client information.") + " " }));
+            said.appendChild(h("button", { class: "ghost small", type: "button", id: "invite-anyway", onclick: function () { D.clear(said); doSend(true); } }, "It is not client information: send"));
+            said.appendChild(h("button", { class: "ghost small", type: "button", style: "margin-left:6px", onclick: function () { D.clear(said); said.className = "small"; note.focus(); } }, "Edit my message"));
+            return;
+          }
           if (y && y.ok) {
             var title = gigTitle();
             D.clear(body);
