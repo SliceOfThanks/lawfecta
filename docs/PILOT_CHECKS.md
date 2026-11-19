@@ -128,6 +128,7 @@ How to read the "State" column:
 | 46.2 | A firm with staff: a team member proposes, the administrator approves (step 46) | The proposer cannot approve; the administrator sees the proposal waiting | Not yet | Automated test passes; needs two real people in one firm |
 | 46.1 result | DELA follows approved firm guidance | Passed in ChatGPT check 13, 2026-11-19 | Done 2026-11-19 | DELA asked who confirms the missing documents and gave numbered steps, as the guidance and the preference said |
 | 49.1 | Home: each column of cards stacks on its own | On a wide screen no empty space sits under a short card; the order with the Tab key is still the member's order | Not yet | Automated test passes; Stacey to look on her own Home |
+| 49.2 | A freelancer edits the live profile in place (step 49) | The change shows at once on the page attorneys see, and an attorney who opens the profile sees it too | Not yet | ChatGPT check 14; the attorney's view needs a second real login |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
