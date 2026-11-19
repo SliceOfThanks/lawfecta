@@ -2697,7 +2697,7 @@
           if (x.reason === "looks_like_client_info") { msg.textContent = ""; if (confirm(ciNote(x, "This may include client information. Click OK if it is not."))) run(true); return; }
           if (x.reason === "tell_us_more") { msg.textContent = "Tell DELA a few facts first, or write a little in the box for DELA to improve."; return; }
           if (!x.ok) { msg.textContent = failText(x); return; }
-          prof.body[key] = x.text; el.value = x.text; prof.dirty = true;
+          prof.body[key] = x.text; el.value = x.text; prof.dirty = true; el.dispatchEvent(new Event("input"));
           msg.textContent = "DELA wrote this from your facts. Check it, change anything, then click Save." + (x.questions && x.questions.length ? " DELA asks: " + x.questions.join(" ") : "");
         }).catch(function (e) { go.disabled = false; msg.textContent = D.errorText(e.message); });
       }
@@ -2726,7 +2726,7 @@
     profEl.appendChild(h("h1", { text: side === "attorney" ? "Profile and verification" : "Profile" }));
     profEl.appendChild(h("p", { class: "muted", text: "This is your " + D.SIDE[side] + " profile. Your Lawfecta directory listing is your public profile; DELA keeps them in step when you choose." }));
     if (side === "freelancer") profEl.appendChild(h("div", { class: "card tp-self-card" }, h("div", { class: "row", style: "gap:12px;flex-wrap:wrap;align-items:center" },
-      h("p", { class: "grow", style: "margin:0", text: "See your profile the way attorneys see it. You can change your picture, headline, summary, services, experience, education, skills and software right on that page." }),
+      h("p", { class: "grow", style: "margin:0", text: "See your profile the way attorneys see it. You can change your picture, headline, summary, services, experience, education, skills and software right on that page, and add headings, lists, bold words and pictures to your summary, experience and education there." }),
       h("button", { class: "blue small", type: "button", id: "prof-live", onclick: openLiveProfile }, "View my live profile"))));
     else profEl.appendChild(h("div", { class: "card tp-self-card", id: "prof-seen" }, h("h2", { style: "margin:0 0 4px", text: "What freelancers see about you" }),
       h("p", { style: "margin:0", text: "Freelancers see your firm name on the gigs you post (\"Posted by " + (((r.firm || {}).body || {}).business_name || (r.firm || {}).name || "your firm") + "\"), the gig itself, and reviews of you from completed engagements." }),
@@ -7657,18 +7657,25 @@
         if (plain) box.value = kind === "list" ? body[key].join(", ") : body[key] === null || body[key] === undefined ? "" : String(body[key]);
         var msg = h("p", { class: "small", role: "status", style: "margin:6px 0 0" });
         var save = h("button", { class: "blue small", type: "button", id: "tp-save-" + key }, "Save"), cancel = h("button", { class: "ghost small", type: "button" }, "Cancel");
-        var anyway = h("button", { class: "ghost small", type: "button", id: "tp-anyway-" + key, hidden: true }, "It is not client information, save");
+        var anyway = h("button", { class: "ghost small", type: "button", id: "tp-anyway-" + key, style: "display:none" }, "It is not client information, save");
         D.clear(host);
+        var imgs = r.images || {}, prev = area ? h("div", { class: "md-prev", id: "tp-prev-" + key }) : null;
+        var drawPrev = function () { if (!prev) return; D.clear(prev); prev.appendChild(h("p", { class: "small muted md-prev-h", text: "How attorneys will see it" })); prev.appendChild(box.value.trim() ? mdRender(box.value, { bullets: key !== "summary", images: imgs }) : h("p", { class: "small muted", style: "margin:0", text: "Nothing yet." })); };
+        if (area) box.addEventListener("input", drawPrev);
+        var canAi = plain && kind !== "list" && (me.switches || {}).ai_generation;
         host.appendChild(h("div", { class: "tp-editor" }, plain ? h("label", { for: id, text: EDIT[key][0] }) : null,
-          h("p", { class: "small muted", style: "margin:0 0 6px", text: (area ? "One point per line reads best. " : kind === "list" ? "Separate them with commas. " : "") + "Attorneys see this. Never enter sensitive data or client information." }),
-          box, h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:8px" }, save, cancel, anyway), msg));
+          h("p", { class: "small muted", style: "margin:0 0 6px", text: (area ? "Use the bar to add a heading, a list, bold words or a picture. " : kind === "list" ? "Separate them with commas. " : "") + "Attorneys see this. Never enter sensitive data or client information." }),
+          area ? mdBar(box, imgs, null, function (t) { msg.textContent = t; }) : null,
+          box, canAi ? writeWithDela(key, EDIT[key][0], box) : null, prev, h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:8px" }, save, cancel, anyway), msg));
+        drawPrev();
         if (plain) box.focus(); else { var f1 = box.querySelector("input, button, summary"); if (f1) f1.focus(); }
         function go(confirmed) {
-          save.disabled = true; anyway.hidden = true; msg.textContent = "Saving...";
+          save.disabled = true; anyway.style.display = "none"; msg.textContent = "Saving...";
           if (plain) body[key] = kind === "list" ? box.value.split(",").map(function (v) { return v.trim(); }).filter(Boolean) : box.value;
           api.post("/profile/save", { body: body, version: r.version, directory: r.directory !== false, confirm_no_client_info: confirmed === true }).then(function (x) {
             save.disabled = false;
-            if (x.reason === "looks_like_client_info") { msg.textContent = ciNote(x, "This may include client information. Take it out and choose Save."); anyway.hidden = false; return; }
+            if (x.reason === "looks_like_client_info") { msg.textContent = ciNote(x, "This may include client information. Take it out and choose Save."); anyway.style.display = ""; return; }
+            if (x.reason === "too_many_images") { msg.textContent = "A profile can show up to " + x.max + " pictures in its text. Take one out and choose Save."; return; }
             if (!x.ok) { msg.textContent = x.reason === "stale" || x.reason === "version_conflict" ? "Your profile changed somewhere else. Choose Cancel and try again." : D.errorText(x.reason); return; }
             prof.dirty = false; prof.body = null;
             draw();
@@ -7740,7 +7747,7 @@
       if (self) el.insertBefore(h("div", { class: "card tp-self-card", id: "tp-self-note" },
         h("h2", { style: "margin:0 0 4px", text: "Your live profile, as attorneys see it" }),
         h("p", { style: "margin:0", text: x.readiness === "match_ready" ? "Attorneys can find this profile in Talent search now." : "Attorneys cannot find this profile in Talent search yet. Finish the steps on the profile form first. Attorneys you already work with can open it." }),
-        h("p", { class: "small muted", style: "margin:6px 0 0", text: prof.dirty ? "You have changes on the profile form that are not saved. This page shows what is saved, and editing here is off until you save or leave those changes." : "Choose \"Edit\" next to a part to change it right here: your headline, summary, services, experience, education, skills and software. \"Change photo\" is beside your name. Your categories, practice areas and availability are changed on the profile form." })), el.children[1] || null);
+        h("p", { class: "small muted", style: "margin:6px 0 0", text: prof.dirty ? "You have changes on the profile form that are not saved. This page shows what is saved, and editing here is off until you save or leave those changes." : "Choose \"Edit\" next to a part to change it right here: your headline, summary, services, experience, education, skills and software. The summary, experience and education take headings, lists, bold words and pictures, and DELA can help you write them. \"Change photo\" is beside your name. Your categories, practice areas and availability are changed on the profile form." })), el.children[1] || null);
       el.appendChild(head);
       // ----- The tabs: everything stays on this page -----
       var promos = x.promotions || [];
@@ -7782,7 +7789,7 @@
           var into = function (col, title) { var c = h("section", { class: "card" }, h("h2", { text: title })); col.appendChild(c); return c; };
           var a = into(left, "Professional summary");
           var aBody = h("div", { id: "tp-summary" }); a.appendChild(aBody);
-          if (x.summary) lineList(x.summary).forEach(function (l) { aBody.appendChild(h("p", { text: l })); }); else none(aBody, self ? "No summary yet. Say what you do and who you do it for." : x.name + " has not written a summary yet.");
+          if (x.summary) aBody.appendChild(mdRender(x.summary, { images: x.images })); else none(aBody, self ? "No summary yet. Say what you do and who you do it for." : x.name + " has not written a summary yet.");
           var sb = editBtn("summary", aBody); if (sb) aBody.appendChild(sb);
           if ((x.services || []).length) { var ps = into(left, "Primary services"); ps.appendChild(h("ul", { class: "mr-list" }, x.services.slice(0, 6).map(function (sv) { return h("li", { text: sv.title }); }))); }
           if ((x.software || []).length || self) { var sw = into(left, "Software expertise"), swB = h("div", { id: "tp-software" }); sw.appendChild(swB);
@@ -7826,10 +7833,10 @@
         experience: function () {
           var ex = lineList(x.experience), ed = lineList(x.education), any = false;
           if (ex.length || self) { any = true; var exB = h("div", { id: "tp-experience" }); card("Professional experience").appendChild(exB);
-            if (ex.length) exB.appendChild(h("ul", { class: "tp-lines" }, ex.map(function (l) { return h("li", { text: l }); }))); else none(exB, "Nothing here yet. Add where you worked and what you did, one point per line.");
+            if (ex.length) exB.appendChild(mdRender(x.experience, { bullets: true, images: x.images })); else none(exB, "Nothing here yet. Add where you worked and what you did, one point per line.");
             var xb = editBtn("experience", exB); if (xb) exB.appendChild(xb); }
           if (ed.length || self) { any = true; var e = card("Education and credentials"), edB = h("div", { id: "tp-education" }); e.appendChild(edB);
-            if (ed.length) edB.appendChild(h("ul", { class: "tp-lines" }, ed.map(function (l) { return h("li", { text: l }); }))); else none(edB, "Nothing here yet. Add degrees, certificates and training, one per line.");
+            if (ed.length) edB.appendChild(mdRender(x.education, { bullets: true, images: x.images })); else none(edB, "Nothing here yet. Add degrees, certificates and training, one per line.");
             var eb = editBtn("education", edB); if (eb) edB.appendChild(eb);
             e.appendChild(h("p", { class: "small muted", text: "Written by the member. Lawfecta does not check each item." })); }
           if ((x.practice_areas || []).length || (x.skills || []).length || (x.software || []).length || self) {
@@ -7888,6 +7895,81 @@
     }).catch(function (e) { if (stale()) return; el.removeChild(el.lastChild); el.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
     return el;
   }
+  // Step 50: light formatting in the profile's long text. The marks are read here and turned into page elements one by
+  // one (never as HTML), so nothing a member types can run as code. Marks: "## " heading, "- " list, "1. " numbered
+  // list, **bold**, *italic*, and a picture written as ![what it shows](img:<id>.png). No links.
+  var MD_IMG = /!\[([^\]\n]{0,160})\]\((img:[0-9a-f-]{36}\.(?:png|jpg))\)/;
+  function mdInline(text, images) {
+    var out = [], rest = String(text || ""), re = /(\*\*([^*\n]+)\*\*)|(\*([^*\n]+)\*)|(!\[([^\]\n]{0,160})\]\((img:[0-9a-f-]{36}\.(?:png|jpg))\))/;
+    while (rest) {
+      var m = re.exec(rest);
+      if (!m) { out.push(document.createTextNode(rest)); break; }
+      if (m.index) out.push(document.createTextNode(rest.slice(0, m.index)));
+      if (m[1]) out.push(h("strong", { text: m[2] }));
+      else if (m[3]) out.push(h("em", { text: m[4] }));
+      else out.push(mdPicture(m[6], m[7], images));
+      rest = rest.slice(m.index + m[0].length);
+    }
+    return out;
+  }
+  function mdPicture(alt, ref, images) {
+    var url = (images || {})[ref];
+    return url ? h("img", { class: "md-img", src: url, alt: alt || "Picture on this profile", loading: "lazy" }) : h("span", { class: "small muted", text: "[Picture: " + (alt || "not available") + "]" });
+  }
+  // opts.bullets: text written before step 50 in experience and education is one point per line, shown as a list
+  function mdRender(text, opts) {
+    opts = opts || {};
+    var lines = String(text || "").split("\n").map(function (l) { return l.replace(/\s+$/, ""); }), box = h("div", { class: "md" }), list = null, kind = "";
+    var marked = lines.some(function (l) { return /^(#{1,4} |[-*] |[0-9]{1,2}[.)] )/.test(l.trim()) || MD_IMG.test(l); });
+    var put = function (tag, cls, t) { list = null; kind = ""; box.appendChild(h(tag, cls ? { class: cls } : null, mdInline(t, opts.images))); };
+    var item = function (k, cls, t) { if (!list || kind !== k) { list = h(k, cls ? { class: cls } : null); kind = k; box.appendChild(list); } list.appendChild(h("li", null, mdInline(t, opts.images))); };
+    lines.forEach(function (raw) {
+      var l = raw.trim(), m;
+      if (!l) { list = null; kind = ""; return; }
+      if ((m = /^(#{1,4}) (.+)$/.exec(l))) put(m[1].length <= 2 ? "h3" : "h4", "md-h", m[2]);
+      else if ((m = /^[-*] (.+)$/.exec(l))) item("ul", "tp-lines", m[1]);
+      else if ((m = /^[0-9]{1,2}[.)] (.+)$/.exec(l))) item("ol", "md-ol", m[1]);
+      else if (opts.bullets && !marked) item("ul", "tp-lines", l);
+      else put("p", "", l);
+    });
+    return box;
+  }
+  function mdPlain(text) {
+    return String(text || "").replace(/!\[[^\]\n]*\]\([^)\n]*\)/g, "").replace(/\*\*([^*\n]+)\*\*/g, function (m, a) { return a; }).replace(/(^|[^*])\*([^*\n]+)\*/g, function (m, a, b) { return a + b; }).replace(/^#{1,4} /gm, "").replace(/\n{2,}/g, "\n").trim();
+  }
+  // The formatting bar over a text box: each button changes the selected text or the selected lines, the way a word
+  // processor's bar does. "Add picture" uploads the file and puts its mark where the cursor is.
+  function mdBar(box, images, onChange, say) {
+    var fire = function () { box.dispatchEvent(new Event("input")); if (onChange) onChange(); };
+    var wrap = function (mark, sample) {
+      var a = box.selectionStart, z = box.selectionEnd, v = box.value, sel = v.slice(a, z) || sample;
+      box.value = v.slice(0, a) + mark + sel + mark + v.slice(z); box.focus(); box.setSelectionRange(a + mark.length, a + mark.length + sel.length); fire();
+    };
+    var lines = function (prefix) {
+      var v = box.value, a = v.lastIndexOf("\n", box.selectionStart - 1) + 1, z = v.indexOf("\n", box.selectionEnd); if (z < 0) z = v.length;
+      var n = 0, block = v.slice(a, z).split("\n").map(function (l) { var bare = l.replace(/^(#{1,4} |[-*] |[0-9]{1,2}[.)] )/, ""); n++; return (prefix === "1. " ? n + ". " : prefix) + bare; }).join("\n");
+      box.value = v.slice(0, a) + block + v.slice(z); box.focus(); box.setSelectionRange(a, a + block.length); fire();
+    };
+    var file = h("input", { type: "file", accept: "image/png,image/jpeg,.png,.jpg,.jpeg", style: "display:none", "aria-label": "Choose a picture for this part", class: "md-file" });
+    file.addEventListener("change", function () {
+      if (!file.files.length) return;
+      say("Uploading the picture...");
+      api.raw("/profile/image", file.files[0], file.files[0].type || "image/jpeg").then(function (x) {
+        file.value = "";
+        if (!x.ok) { say(D.errorText(x.reason)); return; }
+        images[x.ref] = x.url;
+        var at = box.selectionEnd, v = box.value, mark = (at && v.charAt(at - 1) !== "\n" ? "\n" : "") + "![Describe this picture](" + x.ref + ")\n";
+        box.value = v.slice(0, at) + mark + v.slice(at); box.focus();
+        var d0 = box.value.indexOf("Describe this picture", at); box.setSelectionRange(d0, d0 + 21); fire();
+        say("Picture added. Type what it shows in place of \"Describe this picture\", for people who cannot see it.");
+      }).catch(function (e) { file.value = ""; say(D.errorText(e.message)); });
+    });
+    var btn = function (label, name, fn, cls) { return h("button", { class: "ghost small md-btn" + (cls ? " " + cls : ""), type: "button", "aria-label": name, title: name, onclick: fn }, label); };
+    return h("div", { class: "md-bar", role: "toolbar", "aria-label": "Formatting" },
+      btn("B", "Bold", function () { wrap("**", "bold words"); }, "md-b"), btn("I", "Italic", function () { wrap("*", "italic words"); }, "md-i"),
+      btn("Heading", "Heading", function () { lines("## "); }), btn("• List", "Bulleted list", function () { lines("- "); }), btn("1. List", "Numbered list", function () { lines("1. "); }),
+      btn("Plain", "Take the heading or list mark off these lines", function () { lines(""); }), btn("Add picture", "Add a picture", function () { file.click(); }), file);
+  }
   var TALENT_SORTS = [["relevant", "Most relevant"], ["reviews", "Most reviews"], ["hours", "Most hours a week"], ["name", "Name, A to Z"]];
   // Stacey 2026-11-12: the word is "Verified"; the Help page (FAQ) says what Lawfecta checks. Shown only when the check passed.
   function talentTrust(p, card) {
@@ -7936,7 +8018,7 @@
       results.appendChild(h("article", { class: "card talent-card", "aria-label": p.name, tabindex: o.focusFrom === pi ? "-1" : null },
         h("div", { class: "talent-top" }, talentAvatar(p),
           h("div", { class: "talent-who" }, h("h3", { style: "margin:0", text: p.name }), p.headline ? h("div", { class: "small", text: p.headline }) : null, talentTrust(p, true)),
-          h("div", { class: "talent-about talent-rule" }, p.summary ? h("p", { class: "small talent-sum", style: "margin:0 0 6px", text: p.summary }) : null,
+          h("div", { class: "talent-about talent-rule" }, p.summary ? h("p", { class: "small talent-sum", style: "margin:0 0 6px", text: mdPlain(p.summary) }) : null,
             tags.length ? h("div", { class: "talent-tags" }, tags.map(function (x) { return h("span", { class: "talent-tag", text: x }); })) : null,
             facts ? h("div", { class: "small muted talent-facts", text: facts }) : null),
           h("div", { class: "talent-acts" },

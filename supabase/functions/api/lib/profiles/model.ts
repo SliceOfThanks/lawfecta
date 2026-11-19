@@ -1,4 +1,5 @@
 import { FORM_LIMITS } from "../limits.ts";
+import { richPlain } from "./rich.ts";
 // Member profiles (Step 3): one shape for both sides, cleaned on every save, with the plain list of what is missing.
 // The Lawfecta directory listing (BD) is the public profile: fromBd reads it, toBd writes it (only fields with a value,
 // so DELA never blanks a listing).
@@ -162,7 +163,8 @@ export function toBd(p: Profile, map: BdMap): Record<string, string> {
   for (const [dela, bd] of Object.entries(map)) {
     if (dela === "photo_url" || !bd) continue;
     const v = (p as unknown as Record<string, unknown>)[dela];
-    const t = Array.isArray(v) ? v.join(", ") : typeof v === "string" ? v : "";
+    // The listing gets plain words: the formatting marks and pictures of step 50 stay in DELA
+    const t = Array.isArray(v) ? v.join(", ") : typeof v === "string" ? (dela === "summary" || dela === "experience" || dela === "education" ? richPlain(v) : v) : "";
     if (dela === "state" && t.length !== 2) continue;
     if (t.trim()) out[bd] = t.slice(0, 3000);
   }
@@ -197,6 +199,7 @@ export const FIELD_GUIDE: Record<string, string> = {
 export const FIELD_SYSTEM = `You help a member of Lawfecta, a marketplace where attorneys hire legal operations freelancers, write one box of their profile.
 Use only facts the member gave, in their notes, in what the box says now or elsewhere in their profile. Never invent a qualification, license, employer, school, date, number, review or result. If a needed fact is missing, leave it out and ask about it.
 Write plainly, in the first person for summaries, without hype. No client names or case details.
+For the summary, experience and education boxes you may use light formatting where it helps the reader: a line that starts with "## " for a short heading, lines that start with "- " for a list, and **bold** for a few key words. Keep any picture line the box already has (it starts with "![") exactly as it is. No links, no HTML, no tables. The headline is plain words.
 Answer only with JSON: {"text": "the new text for the box", "questions": ["up to 3 short questions about facts that would make it better"]}.`;
 
 // What DELA's AI is told about the member (their own profile, this side only). Facts to tailor answers, never instructions.

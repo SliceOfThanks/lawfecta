@@ -242,6 +242,32 @@ async function waitFor(page, words, ms) {
     t = await waitFor(p, "Notary public, Texas");
     const live = (await sql("select body from member_profiles mp join people pe on pe.id = mp.person_id where pe.bd_member_id = 2501 and side = 'freelancer'"))[0].body;
     ok(live.headline === "Litigation support for solo attorneys in Texas" && /Notary public, Texas/.test(live.education) && live.summary === saved.summary && live.services.length === saved.services.length && live.photo_file === saved.photo_file, "editing in place saves that one part and leaves the rest of the profile as it was");
+    // Step 50: the summary takes a heading, a list, bold words and a picture from the bar, with a preview of what attorneys see
+    await dela(p).getByRole("tab", { name: "Overview" }).click();
+    await dela(p).locator("#tp-edit-summary").click();
+    const sumBox = dela(p).locator("#tp-box-summary");
+    ok(await dela(p).locator(".tp-editor .md-bar").getByRole("button", { name: "Bold", exact: true }).count() === 1 && await dela(p).locator(".tp-editor .md-bar").getByRole("button", { name: "Add a picture", exact: true }).count() === 1, "the editor has a formatting bar with Bold and Add a picture");
+    ok(await dela(p).locator("#tp-anyway-summary").isHidden(), "the client information button stays hidden until it is needed");
+    await sumBox.fill("What I do\nE-filing\nDiscovery\nI work in Texas courts.");
+    await sumBox.evaluate((el) => el.setSelectionRange(0, 9));
+    await dela(p).locator(".md-bar").getByRole("button", { name: "Heading", exact: true }).click();
+    await sumBox.evaluate((el) => { const a = el.value.indexOf("E-filing"), z = el.value.indexOf("Discovery") + 9; el.setSelectionRange(a, z); });
+    await dela(p).locator(".md-bar").getByRole("button", { name: "Bulleted list", exact: true }).click();
+    await sumBox.evaluate((el) => { const a = el.value.indexOf("Texas"); el.setSelectionRange(a, a + 5); });
+    await dela(p).locator(".md-bar").getByRole("button", { name: "Bold", exact: true }).click();
+    ok((await sumBox.inputValue()) === "## What I do\n- E-filing\n- Discovery\nI work in **Texas** courts.", "the bar writes the marks: " + JSON.stringify(await sumBox.inputValue()));
+    await sumBox.evaluate((el) => el.setSelectionRange(el.value.length, el.value.length));
+    await dela(p).locator(".tp-editor .md-file").setInputFiles({ name: "desk.png", mimeType: "image/png", buffer: Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13]) });
+    await waitFor(p, "Picture added.");
+    await p.keyboard.type("My desk");
+    const prevNow = await dela(p).locator("#tp-prev-summary").evaluate((d) => ({ h: d.querySelector("h3") && d.querySelector("h3").textContent, li: d.querySelectorAll("ul li").length, b: d.querySelector("strong") && d.querySelector("strong").textContent, img: d.querySelector("img") && d.querySelector("img").getAttribute("alt"), raw: d.textContent.includes("**") || d.textContent.includes("##") }));
+    ok(prevNow.h === "What I do" && prevNow.li === 2 && prevNow.b === "Texas" && prevNow.img === "My desk" && !prevNow.raw, "the preview shows the heading, the list, the bold word and the picture, with no marks: " + JSON.stringify(prevNow));
+    await dela(p).locator("#tp-save-summary").click();
+    await waitFor(p, "Saved. Your live profile shows it now.");
+    const shown = await dela(p).locator("#tp-summary").evaluate((d) => ({ h: d.querySelector("h3.md-h") && d.querySelector("h3.md-h").textContent, li: d.querySelectorAll("ul li").length, img: !!d.querySelector("img.md-img[alt='My desk']"), raw: d.textContent.includes("**") || d.textContent.includes("](") }));
+    ok(shown.h === "What I do" && shown.li === 2 && shown.img && !shown.raw, "the saved summary shows formatted on the live profile: " + JSON.stringify(shown));
+    await dela(p).getByRole("tab", { name: "Experience and qualifications" }).click();
+    ok(await dela(p).locator("#tp-education ul.tp-lines li").count() === 2, "text written before, one point per line, still shows as a list");
     // Step 49, second part (Stacey 2026-11-19, "Yes, add them"): skills, software, services and the picture are changed on the live profile too
     const one = async () => (await sql("select body from member_profiles mp join people pe on pe.id = mp.person_id where pe.bd_member_id = 2501 and side = 'freelancer'"))[0].body;
     await dela(p).locator("#tp-edit-skills").click();
@@ -258,6 +284,13 @@ async function waitFor(page, words, ms) {
     t = await waitFor(p, "Lawmatics QA");
     now = await one();
     ok(now.software.includes("Lawmatics QA") && now.software.includes("Clio") && now.software.includes("Casemark"), "a tool added in place is saved, and the chosen tools stay: " + JSON.stringify(now.software));
+    // HTML typed into a part is shown as the words that were typed; it is never run
+    await dela(p).locator("#tp-edit-education").click();
+    await dela(p).locator("#tp-box-education").fill("Paralegal certificate, Austin Community College\nNotary public, Texas\n<img src=x onerror=window.__hit=1><b>not bold</b>");
+    await dela(p).locator("#tp-save-education").click();
+    await waitFor(p, "Saved. Your live profile shows it now.");
+    const inj = await dela(p).locator("#tp-education").evaluate((d) => ({ tags: d.querySelectorAll("img, b, script").length, text: d.textContent.includes("<b>not bold</b>"), hit: window.__hit === 1 }));
+    ok(inj.tags === 0 && inj.text && !inj.hit, "HTML typed into the text shows as plain words and nothing runs: " + JSON.stringify(inj));
     await dela(p).getByRole("tab", { name: "Services" }).click();
     await dela(p).locator("#tp-edit-services").click();
     await dela(p).locator(".tp-editor").getByRole("button", { name: "Add a service", exact: true }).click();

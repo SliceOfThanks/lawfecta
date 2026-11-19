@@ -333,7 +333,7 @@
       catalog_empty: "The file has no tools in it.",
       catalog_too_many: "The file has more tools than one upload allows.",
       photo_too_big: "That photo is too large. Use one under 3 MB.",
-      not_an_image: "That file is not a PNG or JPG photo.",
+      not_an_image: "That file is not a PNG or JPG photo.", too_many_images: "A profile can show only a few pictures in its text. Take one out and save again.",
       server_error: "Something went wrong. Please try again.",
       // Profiles and verification (Step 3)
       profiles_off: "Profiles open soon.",
@@ -589,7 +589,7 @@ D.openTab = function (getUrl, onFail, opts) {
     ".tp-photo{width:84px;height:84px;font-size:30px}.tp-tabs{display:flex;flex-wrap:wrap;gap:4px;margin:14px 0 10px;border-bottom:1px solid var(--line)}" +
     ".dela .tp-tabs button{background:transparent;border:0;border-bottom:3px solid transparent;border-radius:0;color:var(--muted);font-weight:700;padding:10px 12px;min-height:44px}" +
     ".dela .tp-tabs button[aria-selected=true]{color:var(--pink-ink);border-bottom-color:var(--pink-ink)}.dela .tp-tabs button:focus-visible{outline:2px solid var(--pink-ink);outline-offset:-2px}" +
-    "@media (max-width:700px){.dela #home-live-profile{display:none}}.tp-self-card{background:var(--sel);margin:0 0 12px}.dela .tp-edit{margin-top:8px}.tp-editor label{display:block;font-weight:700;margin:0 0 2px}.tp-editor textarea,.tp-editor input{box-sizing:border-box}" +
+    "@media (max-width:700px){.dela #home-live-profile{display:none}}.md>p{margin:0 0 8px}.md>:last-child{margin-bottom:0}.md .md-h{margin:12px 0 4px;font-size:16px}.md h4.md-h{font-size:15px}.md>.md-h:first-child{margin-top:0}.md .md-ol{margin:0 0 8px;padding-left:22px}.md .md-img{display:block;max-width:100%;max-height:420px;height:auto;border-radius:10px;margin:8px 0}.md-bar{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 6px}.dela .md-btn{min-height:36px;padding:4px 10px}.dela .md-b{font-weight:800}.dela .md-i{font-style:italic}.md-prev{margin:10px 0 0;padding:12px 14px;border:1px solid var(--line);border-radius:10px;background:var(--soft)}.md-prev-h{margin:0 0 6px;font-weight:700}.tp-self-card{background:var(--sel);margin:0 0 12px}.dela .tp-edit{margin-top:8px}.tp-editor label{display:block;font-weight:700;margin:0 0 2px}.tp-editor textarea,.tp-editor input{box-sizing:border-box}" +
     ".tp-panel:focus-visible{outline:2px solid var(--pink-ink);outline-offset:4px}.tp-panel .card{margin:10px 0}.tp-item{padding:12px 0;border-top:1px solid var(--line)}.tp-item:first-of-type{border-top:0}" +
     ".tp-facts{margin:0}.tp-facts div{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--line)}.tp-facts div:first-child{border-top:0}.tp-facts dt{color:var(--muted)}.tp-facts dd{margin:0;font-weight:700;text-align:right}" +
     // Ready-made profile pictures: a compact grid, one choice, a clear ring on the chosen and the focused one

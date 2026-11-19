@@ -6,7 +6,8 @@ import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { handle, type Deps } from "./app.ts";
 import { sessionHash } from "./lib/crypto.ts";
 import { FORM_LIMITS } from "./lib/limits.ts";
-import { normalize } from "./lib/profiles/model.ts";
+import { normalize, toBd } from "./lib/profiles/model.ts";
+import { richImages, richPlain } from "./lib/profiles/rich.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
 
@@ -427,6 +428,32 @@ Deno.test("the form limits come from one place: sent with the account and used w
   assertEquals((await call("GET", "/me", fl.token)).body.me.limits, FORM_LIMITS);
   const many = normalize({ services: Array.from({ length: 20 }, (_, i) => ({ title: "S" + i })), practice_areas: Array.from({ length: 20 }, (_, i) => "Area " + i) });
   assertEquals([many.services.length, many.practice_areas.length], [FORM_LIMITS.services_max, FORM_LIMITS.practice_areas_max]);
+});
+
+Deno.test("step 50: light formatting and pictures in the profile text", async () => {
+  const png = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 1, 2, 3]);
+  const up = async (bytes: Uint8Array) => await (await handle(new Request("http://localhost/functions/v1/api/profile/image", { method: "POST", headers: { origin: "https://lawfecta.com", "x-dela-session": fl.token, "content-type": "image/png" }, body: new Blob([bytes as BlobPart]) }), deps)).json();
+  assertEquals((await up(new TextEncoder().encode("not a picture"))).reason, "not_an_image");
+  const a = await up(png), b = await up(png);
+  assert(/^img:[0-9a-f-]{36}[.]png$/.test(a.ref) && a.url, JSON.stringify(a));
+  let cur = (await call("GET", "/profile", fl.token)).body;
+  const summary = "## What I do\n- **E-filing** in *Texas* courts\n![My desk](" + a.ref + ")";
+  let r = (await call("POST", "/profile/save", fl.token, { body: { ...cur.body, summary }, version: cur.version })).body;
+  assertEquals(r.ok, true, JSON.stringify(r));
+  cur = (await call("GET", "/profile", fl.token)).body;
+  assertEquals(cur.body.summary, summary, "the marks are kept as typed");
+  assert(cur.images[a.ref], "the member's own page gets a link for the picture");
+  const seen = (await call("GET", "/freelancers/profile?person=" + fl.id, att.token)).body;
+  assert(seen.ok && seen.images[a.ref] && Object.keys(seen.images).length === 1, "an attorney who opens the profile gets the picture: " + JSON.stringify(seen.images));
+  // The limit comes from the setting
+  await pool.query("update settings set value = '1' where key = 'profile.images_max'");
+  r = (await call("POST", "/profile/save", fl.token, { body: { ...cur.body, experience: "![Second](" + b.ref + ")" }, version: cur.version })).body;
+  assertEquals([r.ok, r.reason, r.max], [false, "too_many_images", 1]);
+  await pool.query("update settings set value = '6' where key = 'profile.images_max'");
+  // The directory listing and plain places get words only; a made-up picture address is not a picture
+  assertEquals(toBd(normalize({ summary }), { summary: "about_me" }).about_me, "What I do\n- E-filing in Texas courts");
+  assertEquals(richPlain("**Bold** and *soft*\n### Small head"), "Bold and soft\nSmall head");
+  assertEquals(richImages("![x](https://evil.example/a.png) ![y](img:../../etc/passwd)"), []);
 });
 
 Deno.test("teardown", async () => {

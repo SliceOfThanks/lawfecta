@@ -16,6 +16,7 @@ import { type BdResult, bdCall, bdCategories, bdFields, bdList, bdMember, bdMemb
 import { meetingIcs, NEXT_STEPS_SYSTEM, readSteps, THREAD_SYSTEM, threadPrompt, vecteraRoom, videosdkRoom, videosdkVerify, videosdkTranscriptStart, videosdkTranscriptStop, videosdkTranscriptText, TRANSCRIPT_SYSTEM, readTranscriptAi, withoutLawfectaLinks } from "./lib/meetings/meet.ts";
 import { conductRules, GIG_SYSTEM, gigPrompt, normalizeMilestones, normalizePublic, PROPOSAL_SYSTEM, publicFromPlaybook, readReview, REVIEW_SYSTEM, toCents } from "./lib/gigs/model.ts";
 import { asksAboutTools, CATALOG_RULES, catalogText, rankForMember, readCatalog, type Tool } from "./lib/catalog/csv.ts";
+import { imagePath, richImages, richPlain } from "./lib/profiles/rich.ts";
 import { aiContext, fromBd, LABELS, normalize as normalizeProfile, PRACTICE_AREAS, PROFILE_SYSTEM, profileText, readiness, FIELD_GUIDE, FIELD_SYSTEM, TECH_GROUPS, TECH_TOOLS, TIMEZONES, toBd, type BdMap, type Side } from "./lib/profiles/model.ts";
 import { encryptionReady, openKey, sealKey } from "./lib/ai/keycrypt.ts";
 import { AiFail, chat, guessProvider, looksLikeKey, testKey, transcribe, transcribeLines, type ChatImage, type ChatMsg, type Provider } from "./lib/ai/providers.ts";
@@ -2069,7 +2070,7 @@ async function profileGet(ctx: Ctx) {
   const directory_fields = Object.keys(map && typeof map === "object" ? map : {}).filter((k) => map[k] && LABELS[k]).map((k) => LABELS[k].replace(" (or tick none)", ""));
   if (r.firm && typeof r.firm === "object") r.firm.logo_url = await logoLink(ctx, r.firm.body?.logo_file, 86400);
   if (r.firm && Array.isArray(r.firm.staff_of)) for (const o of r.firm.staff_of as Array<Record<string, any>>) o.logo_url = await logoLink(ctx, o.body?.logo_file, 86400);
-  return json(ctx, { ...r, body, photo_view_url, avatars: await avatarSet(ctx), directory_fields, state: labelState(r.state), labels: LABELS, practice_areas: PRACTICE_AREAS, tech_tools: TECH_TOOLS, tech_groups: TECH_GROUPS, timezones: TIMEZONES });
+  return json(ctx, { ...r, body, photo_view_url, images: await richImageLinks(ctx, s.person_id, [body.summary, body.experience, body.education], 86400), avatars: await avatarSet(ctx), directory_fields, state: labelState(r.state), labels: LABELS, practice_areas: PRACTICE_AREAS, tech_tools: TECH_TOOLS, tech_groups: TECH_GROUPS, timezones: TIMEZONES });
 }
 
 // What the member's Lawfecta listing holds now, to offer (never copied without the member choosing it)
@@ -2100,6 +2101,8 @@ async function profileSave(ctx: Ctx) {
   if (body.photo_file && !body.photo_file.startsWith("profiles/" + s.person_id + "/")) body.photo_file = "";
   if (body.avatar && !(await avatarSet(ctx)).files.includes(body.avatar)) body.avatar = "";
   body.categories = s.side === "freelancer" && body.categories.length ? (await rpc<string[]>(ctx, "dela_categories_clean", { p_keys: body.categories })) ?? [] : [];
+  const imgMax = Number(await setting(ctx, "profile.images_max", "6")) || 6;
+  if (richImages(body.summary, body.experience, body.education).length > imgMax) return json(ctx, { ok: false, reason: "too_many_images", max: imgMax });
   const warn = (await sensitive(ctx, s, [body.headline, body.summary, body.experience, ...body.services.map((x) => x.title + " " + x.for_whom)].join("\n"), "public"));
   if (warn) return json(ctx, warn);
   const rd = readiness(body, await requiredFor(ctx, s.side));
@@ -2110,7 +2113,15 @@ async function profileSave(ctx: Ctx) {
 }
 
 // A new profile photo, sent as the image itself (PNG or JPG). Stored privately; the profile keeps its path once the member saves.
-async function profilePhoto(ctx: Ctx) {
+// Step 50: the pictures a member put in the summary, experience or education, each as a link that works for a while.
+// Only pictures stored under that member's own profile folder are ever signed.
+async function richImageLinks(ctx: Ctx, person: string, texts: unknown[], seconds: number): Promise<Record<string, string>> {
+  const out: Record<string, string> = {};
+  for (const k of richImages(...texts.map((t) => String(t ?? ""))).slice(0, 20)) out["img:" + k] = await storageOf(ctx).signDownload(imagePath(person, k), seconds).catch(() => "");
+  return out;
+}
+
+async function profilePhoto(ctx: Ctx, inText = false) {
   const s = await memberSide(ctx);
   if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "profiles", p_person: s.person_id })) return json(ctx, { ok: false, reason: "profiles_off" });
   const max = (Number(await setting(ctx, "profile.photo_max_kb", "3072")) || 3072) * 1024;
@@ -2120,6 +2131,12 @@ async function profilePhoto(ctx: Ctx) {
   const png = bytes[0] === 0x89 && bytes[1] === 0x50 && bytes[2] === 0x4e && bytes[3] === 0x47;
   const jpg = bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
   if (!png && !jpg) return json(ctx, { ok: false, reason: "not_an_image" });
+  if (inText) {
+    // A picture for the text of the profile: kept beside the photo, named in the text as img:<id>.<ext>
+    const key = `${crypto.randomUUID()}.${png ? "png" : "jpg"}`;
+    await storageOf(ctx).put(imagePath(s.person_id, key), bytes, png ? "image/png" : "image/jpeg");
+    return json(ctx, { ok: true, ref: "img:" + key, url: await storageOf(ctx).signDownload(imagePath(s.person_id, key), 86400) });
+  }
   const path = `profiles/${s.person_id}/photo-${crypto.randomUUID()}.${png ? "png" : "jpg"}`;
   await storageOf(ctx).put(path, bytes, png ? "image/png" : "image/jpeg");
   return json(ctx, { ok: true, photo_file: path, url: await storageOf(ctx).signDownload(path, 86400) });
@@ -2249,7 +2266,8 @@ async function profileDraftField(ctx: Ctx, s: Session & { side: "attorney" | "fr
     Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
   if (!ai.ok) return json(ctx, ai);
   const out = readJson(ai.text) as Record<string, any> | null;
-  const text = out && typeof out.text === "string" ? plainText(out.text).trim().slice(0, key === "headline" ? 120 : 3000) : "";
+  // The headline is plain words. The longer boxes may keep light formatting (step 50); pictures are the member's to add.
+  const text = out && typeof out.text === "string" ? (key === "headline" ? plainText(out.text) : out.text.replace(/!\[[^\]\n]*\]\([^)\n]*\)/g, "")).trim().slice(0, key === "headline" ? 120 : key === "education" ? 1500 : 3000) : "";
   if (!text) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_answer" });
   return json(ctx, { ok: true, source: ai.source, field: key, text, questions: (Array.isArray(out!.questions) ? out!.questions : []).map((q: unknown) => str(q, 200)).filter(Boolean).slice(0, 3) });
 }
@@ -2782,7 +2800,7 @@ async function freelancerProfile(ctx: Ctx) {
   await withPhotos(ctx, [r]);
   const promo = await bdPromotions(ctx, Number(r.bd_member_id) || 0);
   delete r.bd_member_id;
-  return json(ctx, { ...r, promotions: promo.list, promotions_ok: promo.ok });
+  return json(ctx, { ...r, images: await richImageLinks(ctx, String(r.person_id), [r.summary, r.experience, r.education], 3600), promotions: promo.list, promotions_ok: promo.ok });
 }
 // One document the freelancer chose to show: a link that works for five minutes
 async function freelancerDoc(ctx: Ctx) {
@@ -5689,7 +5707,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
   try {
     let body: Record<string, unknown> = {};
     // Speech and profile photos arrive as the file itself, not JSON; their handlers read them with their own size limits
-    if (req.method === "POST" && path !== "/ai/transcribe" && path !== "/profile/photo" && path !== "/firm/logo" && path !== "/stripe/webhook" && path !== "/videosdk/webhook") {
+    if (req.method === "POST" && path !== "/ai/transcribe" && path !== "/profile/photo" && path !== "/profile/image" && path !== "/firm/logo" && path !== "/stripe/webhook" && path !== "/videosdk/webhook") {
       const text = await req.text();
       // A tech catalog upload is the whole CSV, so it may be larger than other requests
       if (text.length > (path === "/admin/catalog/preview" ? 1024 * 1024 : MAX_BODY)) throw new HttpError(413, "too_large");
@@ -6152,6 +6170,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /profile/save": return await profileSave(ctx);
       case "POST /profile/draft": return await profileDraft(ctx);
       case "POST /profile/photo": return await profilePhoto(ctx);
+      case "POST /profile/image": return await profilePhoto(ctx, true);
       case "POST /profile/availability": { const s = await memberSide(ctx); if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only"); const r = await rpc<Record<string, any>>(ctx, "dela_profile_availability", { p_person: s.person_id, p_state: str(ctx.body.state, 20) }); return json(ctx, r?.state ? { ...r, state: labelState(r.state) } : r); }
       case "POST /profile/docs/start": return await profileDocStart(ctx);
       case "POST /profile/docs/action": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_profile_doc_action", { p_person: s.person_id, p_file: uuid(ctx.body.id), p_action: str(ctx.body.action, 20) })); }
