@@ -12,11 +12,14 @@ const ROOT = path.join(__dirname, "..", "..");
 const SHOTS = process.env.SHOTS || path.join(ROOT, "shots");
 fs.mkdirSync(SHOTS, { recursive: true });
 let passed = 0;
+let FOLD = false; // true: the next page opened shows the engagement folded, as a member first sees it
 function ok(cond, msg) { if (!cond) throw new Error("FAILED: " + msg); passed++; console.log("ok", msg); }
 async function sql(q) { const r = await fetch(BASE + "/test/sql", { method: "POST", body: JSON.stringify({ sql: q }) }); return (await r.json()).rows; }
 
 async function open(browser, widget, uid, query, viewport) {
   const ctx = await browser.newContext({ viewport: viewport || { width: 1200, height: 900 }, acceptDownloads: true });
+  // Step 43: the folded sections of "Agreement and work" are open, as with "Open all sections" (the folded page has its own checks in engagements-test.js)
+  await ctx.addInitScript((all) => { try { if (all) localStorage.setItem("dela_eg_all", "1"); else localStorage.removeItem("dela_eg_all"); } catch (e) { /* no storage */ } }, !FOLD);
   const page = await ctx.newPage();
   page.on("pageerror", (e) => { throw new Error("page error: " + e.message); });
   page.on("dialog", (d) => d.accept(d.type() === "prompt" ? "Test reason" : undefined));
@@ -154,13 +157,70 @@ async function sign(page, name, version) {
     ok(t.includes("The other person signed version 2"), "attorney: they see the freelancer signed version 2");
     ok(t.includes("Price for the work: $600") && t.includes("platform fee: $30"), "attorney: the price and the 5% fee before signing");
     await sign(p, "Ann Attorney", 2);
-    t = await waitFor(p, "Pay milestone 1 ($250) and the platform fee ($30)");
-    ok(t.includes("Stripe's test card"), "attorney: after both sign, one clear next step to pay milestone 1 with the fee");
-    await click(p, "Pay milestone 1");
+    t = await waitFor(p, "Review payment: milestone 1");
+    // Step 43: the folded page, as the attorney first sees it, at 1280 wide
+    {
+      FOLD = true;
+      const f = await open(browser, "DELA-App", 2800, `&tab=projects&gig=${gigId}&view=agreement`, { width: 1280, height: 900 });
+      FOLD = false;
+      const q = f.page;
+      await waitFor(q, "Review payment: milestone 1");
+      const next = await dela(q).locator("#eg-next").innerText();
+      ok(next.includes("NEXT ACTION") || next.includes("Next action"), "folded: the page starts with the next action");
+      ok(next.includes("Pay milestone 1") && next.includes("Milestone amount") && next.includes("$250") && next.includes("Platform fee") && next.includes("$30") && next.includes("Total due now") && next.includes("$280") && next.includes("Waiting for payment"), "folded: the next action names the milestone, the amount, the fee, the total due now and the state: " + next.replace(/\s+/g, " "));
+      const geo = await q.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; const b = r.querySelector("#eg-review-btn").getBoundingClientRect(), m = r.querySelector(".eg-main").getBoundingClientRect(), s = r.querySelector(".eg-side").getBoundingClientRect(); return { btnBottom: Math.round(b.bottom + window.scrollY), btnH: Math.round(b.height), side: s.left > m.right - 1, fits: document.documentElement.scrollWidth <= window.innerWidth + 1 }; });
+      ok(geo.btnBottom < 900 && geo.btnH >= 40, "folded: \"Review payment: milestone 1\" is in view without scrolling and is a full-size button: " + JSON.stringify(geo));
+      ok(geo.side && geo.fits, "folded: the summary sits at the right of the next action at 1280 wide");
+      const secs = await q.evaluate(() => [...document.querySelector(".dela-host").shadowRoot.querySelectorAll(".eg-sec")].map((s) => s.querySelector(".eg-sec-t b").textContent + ":" + s.querySelector(".eg-sec-b").getAttribute("aria-expanded") + ":" + s.querySelector(".eg-sec-body").hidden)).filter((x) => x.indexOf("Attorney decisions") !== 0);
+      ok(secs.join("|") === "Agreement and fees:false:true|Change orders:false:true|Who's working on this:false:true|Confidential materials:false:true|Disputes and cancellation:false:true", "folded: the agreement, change orders, people, confidential materials and disputes are folded sections that say they are closed: " + secs.join("|"));
+      let ft = await text(q);
+      ok(!ft.includes("Versions and signatures") && !ft.includes("Propose a change order"), "folded: what is inside a folded section is not on the screen");
+      const sum = (await dela(q).locator("#eg-summary").innerText()).replace(/\s+/g, " ");
+      ok(sum.includes("Price for the work (contract value) $600") && sum.includes("once, with the first payment") && sum.includes("$30") && sum.includes("Your total (contract + platform fee) $630") && sum.includes("Paid to date") && sum.includes("$0") && sum.includes("Amount due now (milestone 1) $280"), "folded: the summary separates the contract value, the fee, the total, what is paid and what is due now: " + sum);
+      ok(ft.includes("How milestone payments work") && ft.includes("the next milestone is charged to your saved payment method") && ft.includes("is charged once, with the first milestone"), "folded: how payment works is in view, with the automatic charge said in plain words");
+      const ms = (await dela(q).locator("#eg-milestones").innerText()).replace(/\s+/g, " ");
+      ok(ms.includes("Milestone progress") && ms.includes("Payment: Not paid yet") && ms.includes("Delivery: Not submitted") && ms.includes("Acceptance: Not accepted yet"), "folded: each milestone shows payment, delivery and acceptance as three separate states: " + ms.slice(0, 400));
+      // A section opens with the keyboard and says so
+      await dela(q).locator("#eg-sec-agreement .eg-sec-b").focus();
+      await q.keyboard.press("Enter");
+      ft = await waitFor(q, "Versions and signatures");
+      ok(await dela(q).locator("#eg-sec-agreement .eg-sec-b").getAttribute("aria-expanded") === "true", "folded: Enter opens \"Agreement and fees\" and the button says it is open");
+      await click(q, "View signed agreement (version 2)");
+      ok(await q.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.activeElement && r.activeElement.classList.contains("eg-sec-b"); }), "folded: \"View signed agreement\" goes to the agreement section");
+      // Review before paying: the amounts again, how it is paid, and a way back with nothing charged
+      await click(q, "Review payment: milestone 1");
+      ft = await waitFor(q, "Total charged now");
+      const rev = (await dela(q).locator("#eg-review").innerText()).replace(/\s+/g, " ");
+      ok(rev.includes("Review payment: milestone 1") && rev.includes("$250") && rev.includes("Platform fee $30") && rev.includes("Total charged now $280") && rev.includes("You pay on Stripe's secure page") && rev.includes("Lawfecta holds the milestone amount until you accept the milestone"), "review: the amounts, the total, how it is paid and what happens after: " + rev);
+      ok(await q.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.activeElement && r.activeElement.id === "eg-review-h"; }), "review: the keyboard lands on the review heading");
+      await click(q, "Go back");
+      ok(await q.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.activeElement && r.activeElement.id === "eg-review-btn" && !r.querySelector("#eg-review"); }) && (await sql(`select count(*)::int n from payments p join agreements a on a.id = p.agreement_id where a.gig_id = '${gigId}'`))[0].n === 0, "review: \"Go back\" closes it, returns to the button, and no payment was started");
+      // "Open all sections" is remembered
+      await click(q, "Open all sections");
+      ok(await q.evaluate(() => localStorage.getItem("dela_eg_all") === "1" && [...document.querySelector(".dela-host").shadowRoot.querySelectorAll(".eg-sec-body")].every((b) => !b.hidden)), "\"Open all sections\" opens every section and remembers the choice");
+      await click(q, "Close all sections");
+      // 320 wide: one column, the payment first, nothing off the side
+      await q.setViewportSize({ width: 320, height: 800 });
+      await q.waitForTimeout(350);
+      const nar = await q.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; const m = r.querySelector(".eg-main").getBoundingClientRect(), s = r.querySelector(".eg-side").getBoundingClientRect(), n = r.querySelector("#eg-next").getBoundingClientRect(), ms = r.querySelector("#eg-milestones").getBoundingClientRect(); return { under: s.top >= m.bottom - 1, first: n.top < ms.top, fits: document.documentElement.scrollWidth <= window.innerWidth + 1 }; });
+      ok(nar.under && nar.first && nar.fits, "320 wide: one column, the next action above the milestones, the summary under them, no sideways scrolling: " + JSON.stringify(nar));
+      await q.screenshot({ path: path.join(SHOTS, "engagement-folded-320.png"), fullPage: true });
+      await q.setViewportSize({ width: 1280, height: 900 });
+      await q.waitForTimeout(250);
+      await q.screenshot({ path: path.join(SHOTS, "engagement-folded.png"), fullPage: true });
+      await f.ctx.close();
+    }
+    await click(p, "Review payment: milestone 1");
+    t = await waitFor(p, "Continue to Stripe");
+    ok(t.includes("Stripe's test card") && t.includes("Total charged now"), "attorney: after both sign, one clear next step: review, then pay milestone 1 with the fee");
+    await click(p, "Continue to Stripe");
     await p.waitForURL(/\/test\/stripe\/checkout\//, { timeout: 8000 });
     ok((await p.textContent("h1")).includes("28000 cents: paid"), "attorney: Stripe's Checkout charges milestone 1 and the fee together ($280)");
     await p.goto(`${BASE}/page/DELA-App?uid=2800&plan=&tab=projects&gig=${gigId}&view=agreement&paid=1`);
     t = await waitFor(p, "Paid: ready to start");
+    // Step 43: paid comes from the payment record, and the three states stay apart
+    ok(/Payment: Paid[\s\S]*Payment: Not paid yet/.test(t) && t.includes("Acceptance: Not accepted yet") && /Paid to date[^$]*\$280/.test(t) && !t.includes("Amount due now"), "attorney: milestone 1 reads Paid from its confirmed payment, milestone 2 Not paid yet, and $280 is paid to date");
+    ok(t.includes("Nothing is due from you right now"), "attorney: with the milestone paid, the next action says nothing is due");
     ok(t.includes("Thank you. Your payment is confirmed.") && !t.includes("Stripe is confirming") && t.includes("Active"), "attorney: back from Stripe with the milestone already paid, the notice says the payment is confirmed");
     // Fee test report 2026-11-11 (phone screenshots): the status badge does not sit on the heading at phone widths
     for (const w of [320, 390]) {
@@ -266,10 +326,16 @@ async function sign(page, name, version) {
     }
     ok((await sql("select count(*)::int n from deliverable_downloads"))[0].n === 1, "attorney: the download is in the log");
     await click(p, "Accept and release payment");
-    t = await waitFor(p, "Accepted");
+    // Step 43: the confirmation is on the page and names both amounts; nothing is decided by a browser pop-up
+    t = await waitFor(p, "Accept milestone 1?");
+    ok(t.includes("Released to the freelancer") && t.includes("Charged now to your saved payment method: milestone 2") && t.includes("Accepting cannot be undone."), "attorney: the accept step shows what is released and what is charged for milestone 2 before confirming");
+    ok((await sql(`select count(*)::int n from milestones m join agreements a on a.id = m.agreement_id where a.gig_id = '${gigId}' and m.status = 'accepted'`))[0].n === 0, "attorney: nothing is accepted until the confirmation");
+    await dela(p).getByRole("button", { name: /^Yes, accept and release / }).first().click();
+    t = await waitFor(p, "Acceptance: Accepted");
     await waitFor(p, "2. Final");
     t = await text(p);
     ok(/Final[\s\S]*Paid: ready to start/.test(t), "attorney: accepting charged milestone 2 with the saved payment method");
+    ok((t.match(/Payment: Paid/g) || []).length === 2, "attorney: both milestones read Paid, each from its own confirmed payment");
     await s.ctx.close();
 
     // ---------- Freelancer: payouts ----------
@@ -340,7 +406,8 @@ async function sign(page, name, version) {
     }
     s = await open(browser, "DELA-App", 2800, `&tab=projects&gig=${feeGig}&view=agreement`);
     p = s.page;
-    t = await waitFor(p, "Pay milestone 1");
+    t = await waitFor(p, "Review payment: milestone 1");
+    ok(/Milestone amount\s*\$150\.00/.test(t) && /Lawfecta fee[^$]*\$7\.50/.test(t) && /Total due now\s*\$157\.50/.test(t), "attorney: with the fee on each milestone, the next action shows the three amounts with cents");
     ok(t.includes("Milestone $150.00") && t.includes("Lawfecta fee $7.50") && t.includes("Total $157.50") && !t.includes("$165"), "attorney: the Pay card asks for $157.50 in three lines, not the whole fee at the start");
     await p.screenshot({ path: path.join(SHOTS, "engagement-fee-per-milestone.png"), fullPage: true });
     await s.ctx.close();

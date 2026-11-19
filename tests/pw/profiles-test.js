@@ -19,6 +19,8 @@ async function worker(n) { for (let i = 0; i < n; i++) { await sql("update jobs 
 
 async function open(browser, uid, query, viewport, timezoneId) {
   const ctx = await browser.newContext(Object.assign({ viewport: viewport || { width: 1200, height: 900 } }, timezoneId ? { timezoneId } : {}));
+  // Step 43: the folded sections of "Agreement and work" are open, as with "Open all sections" (the folded page has its own checks in engagements-test.js)
+  await ctx.addInitScript((all) => { try { if (all) localStorage.setItem("dela_eg_all", "1"); else localStorage.removeItem("dela_eg_all"); } catch (e) { /* no storage */ } }, true);
   const page = await ctx.newPage();
   page.on("pageerror", (e) => { throw new Error("page error: " + e.message); });
   page.on("dialog", (d) => d.accept());

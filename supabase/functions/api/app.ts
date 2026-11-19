@@ -3764,6 +3764,26 @@ async function engagementPay(ctx: Ctx) {
   return json(ctx, await chargeOrCheckout(ctx, key, n, ctx.body.use_checkout === true));
 }
 
+// Step 43: what the attorney sees on "Review payment" before a charge on the saved payment method: the kind, the brand
+// and the last four digits, read from Stripe at that moment and never stored. Only the paying side may ask. When Stripe
+// cannot say, the page says "your saved payment method" and names no card.
+async function engagementPayMethod(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = need(uuid(ctx.url.searchParams.get("id")));
+  const m = await rpc<Record<string, any>>(ctx, "dela_agreement_pay_method", { p_person: s.person_id, p_side: s.side, p_agreement: id });
+  if (!m?.ok) return json(ctx, m ?? { ok: false, reason: "not_found" });
+  if (!m.payment_method) return json(ctx, { ok: true, saved: false });
+  const key = await stripeKey(ctx);
+  if (!key) return json(ctx, { ok: true, saved: true, known: false });
+  const r = await stripe(f(ctx), key, "GET", "/payment_methods/" + encodeURIComponent(String(m.payment_method)));
+  if (!r.ok) return json(ctx, { ok: true, saved: true, known: false });
+  const d = r.data ?? {}, type = String(d.type ?? "");
+  const clean = (v: unknown, n: number) => String(v ?? "").replace(/[^A-Za-z0-9 .&'-]/g, "").slice(0, n);
+  if (type === "card") return json(ctx, { ok: true, saved: true, known: true, kind: "card", brand: clean(d.card?.brand, 30), last4: clean(d.card?.last4, 4) });
+  if (type === "us_bank_account") return json(ctx, { ok: true, saved: true, known: true, kind: "bank", brand: clean(d.us_bank_account?.bank_name, 60), last4: clean(d.us_bank_account?.last4, 4) });
+  return json(ctx, { ok: true, saved: true, known: false });
+}
+
 async function chargeOrCheckout(ctx: Ctx, key: string, n: Record<string, any>, forceCheckout: boolean) {
   const name = (n.monthly ? `Lawfecta: ${n.gig_title}, month ${n.period?.n}` : `Lawfecta: ${n.gig_title}, milestone ${n.milestone.seq}`) + (n.fee_cents ? (n.fee_timing === "with_each_milestone" ? " and its Lawfecta fee" : " and the platform fee") : "");
   if (n.customer && n.payment_method && !forceCheckout) {
@@ -5800,6 +5820,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /automate/delegation/gig": return await delegationGig(ctx);
       case "POST /agreements/sign": return await agreementSign(ctx);
       case "POST /engagements/pay": return await engagementPay(ctx);
+      case "GET /engagements/pay-method": return await engagementPayMethod(ctx);
       case "POST /engagements/cancel": return await engagementCancel(ctx);
       case "GET /engagements/export": return await engagementExport(ctx);
       case "POST /payouts/setup": return await payoutSetup(ctx);

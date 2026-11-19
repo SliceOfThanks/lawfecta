@@ -16,6 +16,8 @@ function ok(cond, msg) { if (!cond) throw new Error("FAILED: " + msg); passed++;
 async function sql(q) { const r = await fetch(BASE + "/test/sql", { method: "POST", body: JSON.stringify({ sql: q }) }); const j = await r.json(); if (j.error) throw new Error("sql: " + j.error); return j.rows; }
 async function open(browser, widget, uid, query) {
   const ctx = await browser.newContext({ viewport: { width: 1200, height: 900 } });
+  // Step 43: the folded sections of "Agreement and work" are open, as with "Open all sections" (the folded page has its own checks in engagements-test.js)
+  await ctx.addInitScript((all) => { try { if (all) localStorage.setItem("dela_eg_all", "1"); else localStorage.removeItem("dela_eg_all"); } catch (e) { /* no storage */ } }, true);
   const page = await ctx.newPage();
   page.on("pageerror", (e) => { throw new Error("page error: " + e.message); });
   page.on("dialog", (d) => d.accept());
@@ -104,9 +106,12 @@ const ATT = 4100, FL = 4101;
     ok(!(await text(p)).includes("Pay month 1"), "without the permission, it does not sign");
     await label(p, "Charge this payment method each month").check();
     await click(p, "Sign version 2");
-    t = await waitFor(p, "Pay month 1 ($1,000) and the platform fee ($50)");
-    ok(t.includes("The day it is paid becomes your billing day") && t.includes("A bank payment takes about 4 business days"), "pay month 1, with the billing day and bank timing explained");
-    await click(p, "Pay month 1");
+    t = await waitFor(p, "Review payment: month 1");
+    ok(t.includes("Pay month 1") && /Month 1\s*\$1,000/.test(t) && /Platform fee[^$]*\$50/.test(t) && /Total due now\s*\$1,050/.test(t) && t.includes("The day month 1 is paid becomes your billing day"), "pay month 1: the month, the fee, the total due now and the billing day");
+    await click(p, "Review payment: month 1");
+    t = await waitFor(p, "Continue to Stripe");
+    ok(/Total charged now\s*\$1,050/.test(t) && t.includes("A bank payment takes about 4 business days") && t.includes("charged once on your billing day"), "the review step repeats the total and explains the renewal and bank timing");
+    await click(p, "Continue to Stripe");
     await p.waitForURL(/\/test\/stripe\/checkout\//, { timeout: 8000 });
     ok((await p.textContent("h1")).includes("105000 cents: paid"), "Stripe's page charges month 1 and the fee together");
     await p.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=projects&gig=${gig}&view=agreement`);

@@ -35,6 +35,7 @@ function stripeAnswer(method: string, path: string, body: URLSearchParams): [num
     const hit = chargeByPayment.get((String(body.get("query") ?? "").match(/'([0-9a-f-]{36})'/) ?? [])[1] ?? "");
     return [200, { data: hit ? [hit] : [] }];
   }
+  if (method === "GET" && path.startsWith("/payment_methods/")) return path.endsWith("pm_card_1") ? [200, { id: "pm_card_1", type: "card", card: { brand: "visa", last4: "4242", exp_year: 2031 } }] : [404, { error: { message: "No such payment method" } }];
   if (method === "POST" && path === "/checkout/sessions") return [200, { id: "cs_" + (++n), url: "https://checkout.stripe.test/c/" + n }];
   // Fix 2026-11-10 (Stacey's first Stripe run): Stripe refuses the v1 Accounts API for new Connect platforms, as the sandbox does
   if (method === "POST" && (path === "/accounts" || path === "/account_links")) return [400, { error: { message: "Stripe no longer recommends Accounts v1 for new Connect integrations. Create connected accounts with POST /v2/core/accounts instead." } }];
@@ -314,6 +315,12 @@ Deno.test("paying: Checkout once for two clicks; Stripe's events are signed, han
   assertEquals([Number(led.c), Number(led.f), Number(led.h)], [35000, 5000, 30000]);
   const v = (await call("GET", "/agreements/get?id=" + ag, att.token)).body;
   assertEquals([v.agreement.status, v.milestones[0].status, v.agreement.saved_payment], ["active", "funded", true]);
+  // Step 43: each payment says which milestone it paid, and the paying side can read the saved card's brand and last four
+  assertEquals(v.payments.map((p: any) => [p.milestone_seq, p.status]), [[1, "succeeded"]], "the payment record names its milestone");
+  const pm = (await call("GET", "/engagements/pay-method?id=" + ag, att.token)).body;
+  assertEquals([pm.ok, pm.saved, pm.known, pm.kind, pm.brand, pm.last4], [true, true, true, "card", "visa", "4242"], JSON.stringify(pm));
+  assertEquals(Object.keys(pm).sort(), ["brand", "kind", "known", "last4", "ok", "saved"], "nothing else about the card leaves the server");
+  assertEquals((await call("GET", "/engagements/pay-method?id=" + ag, fl.token)).status, 403, "the freelancer cannot read the attorney's payment method");
   assertEquals((await call("POST", "/engagements/pay", att.token, { id: ag })).body.reason, "previous_not_accepted", "the next milestone waits for this one");
   let refused = false;
   try { await pool.query("delete from ledger_entries where agreement_id = $1", [ag]); } catch { refused = true; }

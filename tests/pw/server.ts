@@ -62,6 +62,7 @@ function fakeStripe(u: string, opts: RequestInit): Response | null {
   if (method === "POST" && path === "/transfers") return Response.json({ id: "tr_test_" + (++stripeN) });
   if (method === "POST" && path === "/refunds") return Response.json({ id: "re_test_" + (++stripeN) });
   if (method === "GET" && path.startsWith("/payment_intents/")) return Response.json({ id: path.slice(17), status: "succeeded", amount: 0 });
+  if (method === "GET" && path.startsWith("/payment_methods/")) return Response.json({ id: path.slice(17), type: "card", card: { brand: "visa", last4: "4242" } });
   return Response.json({ error: { message: "no such route" } }, { status: 404 });
 }
 async function stripeEvent(type: string, object: Record<string, unknown>) {

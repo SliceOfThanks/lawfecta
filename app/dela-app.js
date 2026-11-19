@@ -8786,7 +8786,7 @@
 
 
   // ---------- Step 6: the agreement, signing, paying, delivery, review, payouts, disputes ----------
-  var eng = { gig: null, editing: false, paid: false };
+  var eng = { gig: null, editing: false, paid: false, open: {}, ms: {} };
   try { if (new URLSearchParams(location.search).get("paid") === "1") eng.paid = true; var gv = new URLSearchParams(location.search).get("view"); if (["details", "matches", "questions", "proposals", "files", "agreement"].indexOf(gv) >= 0) gigs.view = gv; } catch (e) { /* no deep link */ }
   var AG_STATUS = { draft: "Draft", sent: "Draft", signing: "Waiting for signatures", signed: "Signed: waiting for the first payment", active: "Active", completed: "Complete", canceled: "Canceled", disputed: "In dispute", paused: "Paused by the Lawfecta Team" };
   var MS_STATUS = { pending: "Not paid yet", awaiting_funding: "Waiting for payment", funded: "Paid: ready to start", in_progress: "In progress", submitted: "Submitted", changes_requested: "Changes requested",
@@ -8992,46 +8992,208 @@
     return card;
   }
 
+  // ---------- Step 43: Agreement and work, the payment page (docs/briefs/step-43-agreement-work-payment.md) ----------
+  // The next action first, then the milestones, then the agreement, decisions, change orders and disputes in folded
+  // sections. Every amount and state comes from the agreement, milestone and payment records the server sends.
+  var EG_HELP = {
+    review: "Review the amount and payment details before completing this milestone payment.",
+    status: "Funding, delivery, and acceptance are tracked separately.",
+    fee: "Your applicable fee is calculated from the terms of this engagement and your plan.",
+    change: "Propose changes to price, scope, or milestones for the required review and approval.",
+    decisions: "Approve work only when the applicable decision step becomes available.",
+    disputes: "Review applicable deadlines and financial consequences before taking action.",
+    agreement: "The signed terms, the milestones, the fees agreed at signing, and every version with its signatures.",
+    paid: "The payments Stripe confirmed for this engagement, less any refunds. A payment still being confirmed is listed apart."
+  };
+  function egAll() { try { return localStorage.getItem("dela_eg_all") === "1"; } catch (e) { return false; } }
+  function egOpen(key, auto) { var o = (eng.open || {})[key]; return o === undefined ? !!auto || egAll() : o; }
+  // One folded section: a button that says whether it is open, a help tip beside it, and the cards it holds
+  function egSec(key, title, desc, tipKey, nodes, auto) {
+    nodes = (nodes || []).filter(Boolean);
+    if (!nodes.length) return null;
+    var open = egOpen(key, auto), tip = tipKey ? pjTip(EG_HELP[tipKey], title) : [null, null];
+    var body = h("div", { class: "eg-sec-body", id: "eg-body-" + key }, nodes);
+    body.hidden = !open;
+    var btn = h("button", { class: "eg-sec-b", type: "button", "aria-expanded": String(open), "aria-controls": "eg-body-" + key },
+      h("span", { class: "eg-sec-t" }, h("b", { text: title }), h("span", { class: "hsub eg-sec-d", text: desc })), h("span", { class: "eg-chev", "aria-hidden": "true", text: "▾" }));
+    btn.addEventListener("click", function () {
+      var now = body.hidden; body.hidden = !now; btn.setAttribute("aria-expanded", String(now));
+      eng.open = eng.open || {}; eng.open[key] = now;
+    });
+    return h("section", { class: "card eg-sec", id: "eg-sec-" + key }, h("div", { class: "eg-sec-h" }, h("h2", { class: "eg-sec-hd" }, btn), tip[0]), tip[1], body);
+  }
+  function egShow(key, focusSel) {
+    var root = app, sec = root.querySelector("#eg-sec-" + key);
+    if (!sec) return;
+    var body = sec.querySelector(".eg-sec-body"), btn = sec.querySelector(".eg-sec-b");
+    if (body.hidden) { body.hidden = false; btn.setAttribute("aria-expanded", "true"); eng.open = eng.open || {}; eng.open[key] = true; }
+    egGo(focusSel ? sec.querySelector(focusSel) || btn : btn);
+  }
+  function egGo(el) {
+    if (!el) return;
+    try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); }
+    var top = el.getBoundingClientRect().top + window.pageYOffset;
+    window.scrollTo(0, Math.max(0, top - 120));
+  }
+  function egMsShow(seq) {
+    var row = app.querySelector("#eg-ms-" + seq);
+    if (!row) return;
+    var b = row.querySelector(".eg-ms-b"), body = row.querySelector(".eg-ms-body");
+    if (body && body.hidden && b) b.click();
+    egGo(b || row);
+  }
+  // What the payment records say about one milestone (the paying side only): never "paid" from "accepted"
+  function egPayState(r, m) {
+    if (r.role !== "attorney") {
+      if (["funded", "in_progress", "submitted", "changes_requested", "disputed"].indexOf(m.status) >= 0) return ["Paid by the client, held by Lawfecta", "ready"];
+      if (m.status === "accepted") return ["Paid by the client", "ready"];
+      if (m.status === "refunded") return ["Refunded to the client", "held"];
+      return ["Not paid yet", "held"];
+    }
+    var ps = (r.payments || []).filter(function (p) { return p.milestone_seq === m.seq; });
+    var back = (r.refunds || []).filter(function (x) { return x.seq === m.seq && x.status === "succeeded"; }).reduce(function (s, x) { return s + (x.amount_cents || 0); }, 0);
+    var okp = ps.filter(function (p) { return p.status === "succeeded"; });
+    if (okp.length) {
+      var got = okp.reduce(function (s, p) { return s + (p.amount_cents || 0); }, 0);
+      return back >= got ? ["Refunded", "held"] : back > 0 ? ["Paid, part refunded", "ready"] : ["Paid", "ready"];
+    }
+    if (ps.some(function (p) { return p.status === "processing"; })) return ["Payment being confirmed", "held"];
+    var last = ps[ps.length - 1];
+    if (last && last.status === "failed") return ["Payment did not go through", "bad"];
+    return ["Not paid yet", "held"];
+  }
+  function egDelivery(m) {
+    var last = (m.submissions || [])[(m.submissions || []).length - 1];
+    if (!last) return m.status === "in_progress" ? "In progress, not submitted" : "Not submitted";
+    return "Submission " + last.n + ": " + (SUB_STATUS[last.status] || last.status).toLowerCase();
+  }
+  function egAccepted(m) { return m.status === "accepted" ? "Accepted" : m.status === "disputed" ? "In dispute" : "Not accepted yet"; }
+  // The fee this payment carries: with the first payment only, or with each milestone, as saved on the agreement
+  function egFee(r, m) {
+    var a = r.agreement;
+    if (perMilestoneFee(a)) return typeof m.attorney_fee_cents === "number" ? m.attorney_fee_cents : 0;
+    return !a.started_at && typeof a.attorney_fee_cents === "number" ? a.attorney_fee_cents : 0;
+  }
+  function egLine(label, value, cls, tip) {
+    return h("div", { class: "eg-line" + (cls ? " " + cls : "") }, h("span", { class: "eg-line-l" }, h("span", { text: label }), tip ? tip[0] : null), h("b", { text: value }), tip ? tip[1] : null);
+  }
+  function egPaidToDate(r) {
+    var paid = (r.payments || []).filter(function (p) { return p.status === "succeeded"; }).reduce(function (s, p) { return s + (p.amount_cents || 0); }, 0);
+    var back = (r.refunds || []).filter(function (x) { return x.status === "succeeded"; }).reduce(function (s, x) { return s + (x.amount_cents || 0); }, 0);
+    return paid - back;
+  }
+  // The summary at the right: the parties and the money, each figure from its own record
+  function egSummary(r, b, due) {
+    var a = r.agreement, p = b.parties || {}, fe = b.fees || {}, att = r.role === "attorney", ms = r.milestones || [];
+    var signedOnce = ["draft", "sent", "signing"].indexOf(a.status) < 0;
+    var c = h("section", { class: "card eg-sum", id: "eg-summary" }, h("h2", { text: signedOnce ? "Agreement summary" : "Agreement summary (not signed yet)" }));
+    c.appendChild(egLine("Client (firm)", (p.client || {}).firm || "-", "plain"));
+    c.appendChild(egLine(r.agency_name ? "Agency" : "Freelancer", r.agency_name || (p.freelancer || {}).name || "-", "plain"));
+    if (r.monthly) {
+      (r.money_summary || []).forEach(function (l) { c.appendChild(h("p", { class: "small", style: "margin:8px 0 0", text: l })); });
+    } else if (att) {
+      var per = perMilestoneFee(a), feeKnown = per ? ms.length > 0 && ms.every(function (m) { return typeof m.attorney_fee_cents === "number"; }) : typeof a.attorney_fee_cents === "number";
+      var fee = feeKnown ? (per ? ms.reduce(function (s, m) { return s + m.attorney_fee_cents; }, 0) : a.attorney_fee_cents) : null;
+      c.appendChild(egLine("Price for the work (contract value)", D.money(fe.total_cents)));
+      c.appendChild(egLine("Attorney platform fee" + (per ? " (with each milestone)" : " (once, with the first payment)"), fee === null ? "Not available" : D.money(fee), "", pjTip(EG_HELP.fee, "Attorney platform fee")));
+      if (fee !== null && typeof fe.total_cents === "number") c.appendChild(egLine("Your total (contract + platform fee)", D.money(fe.total_cents + fee), "strong"));
+      if (signedOnce) {
+        c.appendChild(egLine("Paid to date", D.money(egPaidToDate(r)), "", pjTip(EG_HELP.paid, "Paid to date")));
+        var conf = (r.payments || []).filter(function (x) { return x.status === "processing"; }).reduce(function (s, x) { return s + (x.amount_cents || 0); }, 0);
+        if (conf) c.appendChild(egLine("Being confirmed by the bank", D.money(conf)));
+        if (due) c.appendChild(egLine("Amount due now (milestone " + due.seq + ")", egMoney(r, due.amount_cents + egFee(r, due)), "due"));
+      }
+    } else {
+      c.appendChild(egLine("Price for the work (contract value)", D.money(fe.total_cents)));
+      if (ms.length && ms.every(function (m) { return typeof m.payout_cents === "number"; })) c.appendChild(egLine("You receive", D.money(ms.reduce(function (s, m) { return s + m.payout_cents; }, 0)), "strong"));
+      var sent = ms.reduce(function (s, m) { return s + (m.payout && m.payout.status === "sent" ? m.payout.amount_cents : 0); }, 0);
+      if (signedOnce) c.appendChild(egLine("Paid out to you so far", D.money(sent)));
+    }
+    c.appendChild(h("div", { class: "row", style: "margin-top:12px" }, h("button", { class: "linkish", type: "button", id: "eg-view-agreement", onclick: function () { egShow("agreement"); } },
+      signedOnce ? "View signed agreement (version " + a.version + ")" : "Read the agreement (version " + a.version + ")")));
+    return c;
+  }
+  // How payment works on this engagement, in view all the time. It says what the code does: the first payment by hand,
+  // each next milestone charged to the saved method when the one before it is accepted, by hand again if that fails.
+  function egHowPay(r) {
+    var a = r.agreement, att = r.role === "attorney";
+    if (r.monthly || ["signing", "signed", "active", "draft", "sent"].indexOf(a.status) < 0) return null;
+    var c = h("section", { class: "card eg-how", id: "eg-how" }, h("h2", { text: "How milestone payments work" }));
+    var lines = att ? [
+      "You pay the first milestone on Stripe's secure page. With your consent there, your payment method is saved for this engagement.",
+      "When you accept a milestone, its payment is released to the freelancer and the next milestone is charged to your saved payment method. The accept step shows both amounts before you confirm.",
+      "If that charge does not go through, nothing is paid. This page then shows \"Review payment\" and you pay on Stripe's page.",
+      perMilestoneFee(a) ? "The platform fee is charged with each milestone. Every payment shows its own fee." : typeof a.attorney_fee_cents === "number" && a.attorney_fee_cents > 0 ? "The platform fee of " + D.money(a.attorney_fee_cents) + " is charged once, with the first milestone. It is not added to later milestones." : null
+    ] : [
+      "The " + clientKindWord(r) + " pays each milestone before you start it. Do not start unpaid work.",
+      "Lawfecta holds the milestone amount until the " + clientKindWord(r) + " accepts the milestone.",
+      "After acceptance, your part is paid out to the payout account on your Earnings page."
+    ];
+    c.appendChild(h("ul", { class: "eg-how-l" }, lines.filter(Boolean).map(function (l) { return h("li", { text: l }); })));
+    return c;
+  }
+
   function drawEngagement(host, r) {
     var a = r.agreement, cur = r.current || {}, b = cur.body || {}, att = r.role === "attorney";
     var mySigned = (r.signatures || []).some(function (s) { return s.version === a.version && s.role === r.role; });
     var theirSigned = (r.signatures || []).some(function (s) { return s.version === a.version && s.role !== r.role; });
+    var pre = a.status === "draft" || a.status === "signing" || a.status === "sent";
+    // What is open belongs to one engagement: another engagement starts folded again
+    if (eng.forId !== a.id) { eng.forId = a.id; eng.open = {}; eng.ms = {}; }
     host.appendChild(h("div", { class: "row" }, h("h2", { class: "grow", style: "flex:1 1 auto", text: "Agreement, version " + a.version }), h("span", { class: "badge " + agTone({ status: a.status }), text: AG_STATUS[a.status] || a.status })));
     if (eng.paid && att) { eng.paid = false;
       // Already confirmed when the newest payment is paid (fee test report 2026-11-11): say so, do not say "confirming"
       var newest = (r.payments || []).slice().sort(function (x, y) { return String(y.created_at).localeCompare(String(x.created_at)); })[0];
-      host.appendChild(h("p", { class: "notice ok", text: newest && newest.status === "succeeded" ? "Thank you. Your payment is confirmed." : "Thank you. Stripe is confirming the payment. This page shows it as paid within a minute (a bank payment can take about 4 business days)." })); }
+      host.appendChild(h("p", { class: "notice ok", role: "status", text: newest && newest.status === "succeeded" ? "Thank you. Your payment is confirmed." : "Thank you. Stripe is confirming the payment. This page shows it as paid within a minute (a bank payment can take about 4 business days)." })); }
     if (a.status === "signing" && a.sign_by) host.appendChild(h("p", { class: "small muted", text: "Both of you sign by " + D.dateTime(a.sign_by) + ". If it is not signed by then, it closes." }));
     if (a.status === "paused") host.appendChild(h("p", { class: "notice bad", text: "A payment on this engagement is under review with the bank, so it is paused. You can still read everything and send messages. The Lawfecta Team will be in touch." }));
     if (a.status === "canceled") host.appendChild(h("p", { class: "notice", text: "This engagement was canceled" + (a.cancel_reason ? ": " + (a.cancel_reason === "not_signed_in_time" ? "it was not signed in time" : a.cancel_reason) : "") + "." }));
-    host.appendChild(nextStep(r, mySigned, theirSigned));
-    if (r.monthly && (a.status === "draft" || a.status === "signing" || a.status === "sent")) host.appendChild(monthlyTermsCard(r));
-    if (r.monthly && !(a.status === "draft" || a.status === "signing" || a.status === "sent")) host.appendChild(monthlyCard(r));
-    if (!att) { var ecc = clientCard(r.client); if (ecc) host.appendChild(ecc); }
-    host.appendChild(agreementCard(r, b));
-    // Who is on the job comes right under the agreement and its subcontracting terms (UX review E02)
-    var sc = subsCard(r, b); if (sc) host.appendChild(sc);
-    host.appendChild(peopleCard(r));
-    if (!r.monthly && (a.status === "signing" || a.status === "signed" || a.status === "active")) host.appendChild(changesCard(r, b));
-    var cpc = checkpointsCard(r); if (cpc) host.appendChild(cpc);
-    if ((r.milestones || []).length) host.appendChild(milestonesCard(r));
-    if (att && (r.payments || []).length) host.appendChild(paymentsCard(r));
-    if (!att && r.payout_account !== undefined) host.appendChild(payoutCard(r.payout_account, true));
-    if (!att) host.appendChild(assignmentsCard(r));
-    host.appendChild(confCard(r));
-    host.appendChild(disputeCard(r));
-    if (a.status === "completed") { host.appendChild(closeoutCard(r)); reviewPanel(host, r); }
-    // Make this monthly (Step 7c answer 1): a completed one-off engagement, the same freelancer, both sign first
-    if (a.status === "completed" && !r.monthly && att && (me.switches || {}).recurring_engagements) host.appendChild(h("div", { class: "card", id: "make-monthly" }, h("h2", { text: "Keep this going every month" }), cardStatus("makemonthly"),
-      h("p", { class: "small muted", text: "Draft a monthly agreement with the same freelancer, starting from this finished work. You both sign before anything is charged." }),
-      h("button", { class: "blue small", type: "button", onclick: function () {
-        api.post("/engagements/make-monthly", { id: a.id }).then(engOk).then(function (x) { gigs.id = x.gig_id; gigs.view = "agreement"; draw(); setTimeout(function () { cardSay("monthly", "Drafted. Fill in the monthly terms, then both of you sign."); }, 300); })
-          .catch(function (e) { cardSay("makemonthly", monthlyErr(e), true); });
-      } }, "Make this monthly")));
-    if (r.export) host.appendChild(h("div", { class: "card" }, h("h2", { text: "Engagement document (Word)" }), h("p", { class: "small muted", text: "A Word copy of the document for this engagement, now that a milestone is accepted." }),
+    var main = h("div", { class: "eg-main" }), side = h("div", { class: "eg-side" });
+    host.appendChild(h("div", { class: "eg-wrap" }, h("div", { class: "eg-cols" }, main, side)));
+    var ns = nextStep(r, mySigned, theirSigned);
+    main.appendChild(ns);
+    if (r.monthly && pre) main.appendChild(monthlyTermsCard(r));
+    if (r.monthly && !pre) main.appendChild(monthlyCard(r));
+    if ((r.milestones || []).length) main.appendChild(milestonesCard(r));
+    if (a.status === "completed") {
+      main.appendChild(closeoutCard(r)); reviewPanel(main, r);
+      // Make this monthly (Step 7c answer 1): a completed one-off engagement, the same freelancer, both sign first
+      if (!r.monthly && att && (me.switches || {}).recurring_engagements) main.appendChild(h("div", { class: "card", id: "make-monthly" }, h("h2", { text: "Keep this going every month" }), cardStatus("makemonthly"),
+        h("p", { class: "small muted", text: "Draft a monthly agreement with the same freelancer, starting from this finished work. You both sign before anything is charged." }),
+        h("button", { class: "blue small", type: "button", onclick: function () {
+          api.post("/engagements/make-monthly", { id: a.id }).then(engOk).then(function (x) { gigs.id = x.gig_id; gigs.view = "agreement"; draw(); setTimeout(function () { cardSay("monthly", "Drafted. Fill in the monthly terms, then both of you sign."); }, 300); })
+            .catch(function (e) { cardSay("makemonthly", monthlyErr(e), true); });
+        } }, "Make this monthly")));
+    }
+    // The folded sections. One opens by itself when it holds something that waits on the member; the agreement is open
+    // until both have signed, because it must be read before signing.
+    var cps = r.checkpoints || [], cpWait = cps.some(function (cp) { return cp.status === "requested"; });
+    var dispOpen = a.status === "disputed" || (r.disputes || []).some(function (d) { return d.status === "notice" || d.status === "team_review"; });
+    var exportCard = r.export ? h("div", { class: "card" }, h("h2", { text: "Engagement document (Word)" }), h("p", { class: "small muted", text: "A Word copy of the document for this engagement, now that a milestone is accepted." }),
       h("button", { class: "ghost small", type: "button", onclick: function () {
         api.get("/engagements/export?id=" + a.id).then(engOk).then(function (x) { saveB64(x.name, x.type, x.b64); }).catch(engFail);
-      } }, "Download the document (Word)")));
+      } }, "Download the document (Word)")) : null;
+    var secs = [
+      egSec("agreement", "Agreement and fees", att ? "Contract value, platform fees, payment history and the agreement versions." : "The work, the milestones, what you receive and the agreement versions.", "agreement",
+        [agreementCard(r, b), att && (r.payments || []).length ? paymentsCard(r) : null, !att && r.payout_account !== undefined ? payoutCard(r.payout_account, true) : null, exportCard], pre),
+      egSec("decisions", "Attorney decisions", att ? "Approve work at the steps that need your decision." : "The steps where the work waits for the attorney's decision.", "decisions", [checkpointsCard(r)], cpWait),
+      !r.monthly && (a.status === "signing" || a.status === "signed" || a.status === "active") ? egSec("changes", a.status === "signing" ? "Propose changes" : "Change orders", "Propose changes to scope, price or milestones. Nothing changes until you both sign the new version.", "change", [changesCard(r, b)], !!eng.editing) : null,
+      egSec("people", "Who's working on this", "Everyone on the job, and any subcontractors.", null, [!att ? clientCard(r.client) : null, subsCard(r, b), peopleCard(r), !att ? assignmentsCard(r) : null], false),
+      egSec("confidential", "Confidential materials", "Client files, private messages and secure links for this engagement.", null, [confCard(r)], false),
+      egSec("disputes", "Disputes and cancellation", "Report a problem, open a dispute or cancel, with the dates and what happens to the money.", "disputes", [disputeCard(r)], dispOpen)
+    ].filter(Boolean);
+    secs.forEach(function (s) { main.appendChild(s); });
+    var allBtn = h("button", { class: "linkish", type: "button", id: "eg-all" }, egAll() ? "Close all sections" : "Open all sections");
+    allBtn.addEventListener("click", function () {
+      var on = !egAll();
+      try { if (on) localStorage.setItem("dela_eg_all", "1"); else localStorage.removeItem("dela_eg_all"); } catch (e) { /* the choice lasts for this page only */ }
+      eng.open = {};
+      secs.forEach(function (s) { var bd = s.querySelector(".eg-sec-body"), bt = s.querySelector(".eg-sec-b"); bd.hidden = !on; bt.setAttribute("aria-expanded", String(on)); eng.open[s.id.slice(7)] = on; });
+      allBtn.textContent = on ? "Close all sections" : "Open all sections";
+    });
+    main.appendChild(h("p", { class: "small", style: "margin:4px 0 0" }, allBtn, h("span", { class: "muted", text: " Your choice is remembered on this device." })));
+    side.appendChild(egSummary(r, b, ns.egDue || null));
+    var how = egHowPay(r); if (how) side.appendChild(how);
   }
 
   // ---------- Confidential materials (step 6c, with the security rules of step 6d) ----------
@@ -9088,6 +9250,8 @@
     if (!v.ok) {
       if (v.reason === "not_found") { body.closest(".card").remove(); return; }
       if (v.reason === "confidential_off") {
+        // Step 43: not offered as working while it is off; the folded section says so before it is opened
+        var csec = body.closest(".eg-sec"), cdesc = csec ? csec.querySelector(".eg-sec-d") : null; if (cdesc) cdesc.textContent = "Coming soon. Not available yet.";
         body.appendChild(h("p", { text: "Coming soon: a private area on each engagement where the attorney and the hired freelancer exchange client files, confidential messages and secure links. The AI never reads it." }));
         return;
       }
@@ -9342,69 +9506,137 @@
   }
 
   // One clear next step for this person
+  // Step 43: the review step before any payment. It lists the amounts, says how it will be paid (the saved card by its
+  // brand and last four digits, or Stripe's page), and only then charges. The buttons lock while a payment is in flight;
+  // the server refuses a second payment for the same milestone or month.
+  // Cents are always shown when the fee is charged with each milestone (step 14), so the three amounts add up on screen
+  function egMoney(r, c) { return perMilestoneFee(r.agreement) ? money2(c) : D.money(c); }
+  function payReview(r, o) {
+    var a = r.agreement, total = o.lines.reduce(function (s, l) { return s + l[1]; }, 0);
+    var box = h("div", { class: "eg-review", id: "eg-review", role: "group", "aria-labelledby": "eg-review-h" });
+    var hd = h("h3", { id: "eg-review-h", tabindex: "-1", style: "margin:0 0 8px", text: "Review payment: " + o.what });
+    box.appendChild(hd);
+    o.lines.forEach(function (l) { box.appendChild(egLine(l[0], egMoney(r, l[1]))); });
+    box.appendChild(egLine("Total charged now", egMoney(r, total), "strong"));
+    var how = h("p", { class: "small", id: "eg-review-how", style: "margin:10px 0 0", text: a.saved_payment ? "Paid with your saved payment method. Checking which one..." : "You pay on Stripe's secure page. DELA never sees your card or bank details." + (r.stripe_test ? TEST_CARD_NOTE : "") });
+    box.appendChild(how);
+    box.appendChild(h("p", { class: "small", style: "margin:6px 0 0", text: o.after }));
+    if (o.extra) box.appendChild(o.extra);
+    var say = h("p", { class: "notice small", role: "status", "aria-live": "polite" }); say.hidden = true;
+    var go = h("button", { class: "blue", type: "button" }, a.saved_payment ? "Pay " + egMoney(r, total) + " now" : "Continue to Stripe");
+    var other = a.saved_payment ? h("button", { class: "ghost", type: "button" }, "Pay another way") : null;
+    var back = h("button", { class: "ghost", type: "button" }, "Go back");
+    function lock(on) { [go, other, back].forEach(function (x) { if (x) x.disabled = on; }); }
+    function run(useCheckout) {
+      lock(true); say.hidden = false; say.className = "notice small"; say.textContent = "Starting the payment...";
+      api.post("/engagements/pay", useCheckout ? { id: a.id, use_checkout: true } : { id: a.id }).then(engOk).then(function (x) {
+        if (x.url) {
+          say.textContent = x.failed_first ? "Your saved payment method did not go through. Nothing was charged. Opening Stripe to pay another way." : "Opening Stripe's secure page...";
+          if (x.failed_first) D.toast(app, "Your saved payment method did not go through. Opening Stripe to pay another way.");
+          location.href = x.url; return;
+        }
+        engReload(x.status === "succeeded" ? o.done : "The payment is being confirmed.");
+      }).catch(function (e) {
+        lock(false); say.className = "notice small bad"; say.textContent = "The payment did not go through. Nothing was charged. " + (e && e.reason ? engErr(e) : D.errorText(e && e.message ? e.message : String(e))) + " You can try again.";
+      });
+    }
+    go.addEventListener("click", function () { run(false); });
+    if (other) other.addEventListener("click", function () { run(true); });
+    back.addEventListener("click", function () { o.close(); });
+    box.appendChild(say);
+    box.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:10px" }, go, other, back));
+    if (a.saved_payment) api.get("/engagements/pay-method?id=" + a.id).then(function (m) {
+      var name = m && m.known ? (m.kind === "bank" ? (m.brand || "Bank account") : (m.brand ? m.brand.charAt(0).toUpperCase() + m.brand.slice(1) : "Card")) + " ending " + m.last4 : "";
+      how.textContent = (name ? "Paid with your saved payment method: " + name + "." : "Paid with your saved payment method.") + " To use another one, choose \"Pay another way\" and pay on Stripe's secure page.";
+    }).catch(function () { how.textContent = "Paid with your saved payment method. To use another one, choose \"Pay another way\" and pay on Stripe's secure page."; });
+    setTimeout(function () { try { hd.focus(); } catch (e) { /* focus is a help, not a need */ } }, 0);
+    return box;
+  }
+  // The amounts of a payment, in view before the review button: no amount lives only in a tooltip
+  function payAmounts(r, lines) {
+    var total = lines.reduce(function (s, l) { return s + l[1]; }, 0);
+    return h("div", { class: "eg-amts" }, lines.map(function (l) { return h("div", null, h("span", { class: "hsub" }, h("span", { text: l[0] }), l[2] ? l[2][0] : null), h("b", { text: egMoney(r, l[1]) }), l[2] ? l[2][1] : null); }).concat([
+      h("div", { class: "eg-amt-total" }, h("span", { class: "hsub", text: "Total due now" }), h("b", { text: egMoney(r, total) }))]));
+  }
+  function payStart(r, box, o) {
+    var acts = h("div", { class: "eg-acts" });
+    function closed() {
+      D.clear(acts);
+      var rb = h("button", { class: "blue", type: "button", id: "eg-review-btn" }, "Review payment: " + o.what), t = pjTip(EG_HELP.review, "Review payment");
+      rb.addEventListener("click", function () { D.clear(acts); acts.appendChild(payReview(r, Object.assign({ close: function () { closed(); rb = acts.querySelector("#eg-review-btn"); if (rb) rb.focus(); } }, o))); });
+      acts.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, rb, t[0], o.details ? h("button", { class: "ghost", type: "button", onclick: o.details }, "View milestone details") : null));
+      if (t[1]) acts.appendChild(t[1]);
+      acts.appendChild(h("p", { class: "small muted", style: "margin:8px 0 0", text: "Nothing is charged until you confirm on the next step." }));
+    }
+    closed();
+    box.appendChild(acts);
+  }
+
   function nextStep(r, mySigned, theirSigned) {
-    var a = r.agreement, att = r.role === "attorney", box = h("div", { class: "card" }, h("h2", { text: "What happens next" }));
+    var a = r.agreement, att = r.role === "attorney", ms = r.milestones || [];
+    var ttl = h("h2", { class: "eg-next-t", id: "eg-next-t", text: "Nothing to do here" }), chip = h("span", { class: "badge held" }); chip.hidden = true;
+    var box = h("section", { class: "card eg-next", id: "eg-next", "aria-labelledby": "eg-next-t" }, h("p", { class: "eg-kicker", text: "Next action" }), h("div", { class: "row eg-next-h" }, ttl, h("span", { class: "grow" }), chip));
+    function head(t, c, tone) { ttl.textContent = t; if (c) { chip.textContent = c; chip.className = "badge " + (tone || "held"); chip.hidden = false; } }
     if (r.monthly && (a.status === "signed" || a.status === "active") && r.monthly.terms.status !== "ended") {
       var mv = r.monthly, cur = mv.current, nx = mv.next || {};
       if (!cur && att) {
         var p1 = (mv.periods || [])[0] || {};
-        var csum = commitmentSummary(r, true); if (csum) box.appendChild(csum);
-        box.appendChild(h("p", { text: "Pay month 1 (" + D.money(p1.price_cents) + ") and the platform fee (" + D.money(p1.fee_cents) + "). The day it is paid becomes your billing day each month. Lawfecta holds it until each unit is accepted." }));
+        head("Pay month 1", "Waiting for payment");
+        box.appendChild(h("p", { text: "The day month 1 is paid becomes your billing day each month. Lawfecta holds it until each unit is accepted." }));
         if (!r.stripe_ready) box.appendChild(h("p", { class: "notice", text: ENG_ERR.payments_not_set_up }));
         else {
-          var pm = h("button", { class: "blue", type: "button" }, "Pay month 1");
-          pm.addEventListener("click", function () {
-            pm.disabled = true; pm.textContent = "Starting the payment...";
-            api.post("/engagements/pay", { id: a.id }).then(engOk).then(function (x) { if (x.url) { location.href = x.url; return; } engReload(x.status === "succeeded" ? "Paid. Month 1 is open." : "The payment is being confirmed."); })
-              .catch(function (e) { pm.disabled = false; pm.textContent = "Pay month 1"; engFail(e); });
-          });
-          box.appendChild(h("div", { class: "row" }, pm));
-          box.appendChild(h("p", { class: "small muted", text: "You pay on Stripe's secure page, and that payment method is saved for each month's renewal. A bank payment takes about 4 business days; the month's tasks open only once it clears." + (r.stripe_test ? TEST_CARD_NOTE : "") }));
+          var ml = [["Month 1", p1.price_cents || 0]]; if (p1.fee_cents) ml.push(["Platform fee", p1.fee_cents, pjTip(EG_HELP.fee, "Platform fee")]);
+          box.appendChild(payAmounts(r, ml));
+          payStart(r, box, { what: "month 1", lines: ml.map(function (l) { return [l[0], l[1]]; }), done: "Paid. Month 1 is open.", extra: commitmentSummary(r, true),
+            after: "That payment method is saved for each month's renewal, charged once on your billing day. A bank payment takes about 4 business days; the month's tasks open only once it clears." });
         }
-      } else if (!cur) box.appendChild(h("p", { text: "Waiting for the client to pay month 1. Do not start unpaid work." }));
-      else if (nx.status === "failed") box.appendChild(h("p", { text: att ? "Month " + nx.n + "'s payment did not go through. Pay now from the Monthly engagement card below." : "Month " + nx.n + " is not paid yet, so new work is paused. Do not start month " + nx.n + "'s tasks." }));
-      else box.appendChild(h("p", { text: att ? "Month " + cur.n + " is paid. Review each unit when it is submitted. The next month renews on its billing day." : "Month " + cur.n + " is paid and held by Lawfecta. Do this month's units, then submit each one below." }));
+      } else if (!cur) { head("Waiting for payment", "Waiting for payment"); box.appendChild(h("p", { text: "Waiting for the client to pay month 1. Do not start unpaid work." })); }
+      else if (nx.status === "failed") { head(att ? "Pay month " + nx.n : "Month " + nx.n + " is not paid yet", "Payment did not go through", "bad"); box.appendChild(h("p", { text: att ? "Month " + nx.n + "'s payment did not go through. Pay now from the Monthly engagement card below." : "Month " + nx.n + " is not paid yet, so new work is paused. Do not start month " + nx.n + "'s tasks." })); }
+      else { head(att ? "Review each unit when it is submitted" : "Do this month's units", "Month " + cur.n + " is paid", "ready"); box.appendChild(h("p", { text: att ? "Month " + cur.n + " is paid. Review each unit when it is submitted. The next month renews on its billing day." : "Month " + cur.n + " is paid and held by Lawfecta. Do this month's units, then submit each one below." })); }
       return box;
     }
     if (a.status === "signing" || a.status === "draft") {
-      if (mySigned && !theirSigned) box.appendChild(h("p", { text: "You signed version " + a.version + ". Waiting for the " + (att ? "freelancer" : ((((r.current || {}).body || {}).parties || {}).client || {}).kind === "agency" ? "agency" : "attorney") + " to sign." }));
-      else box.appendChild(signForm(r, theirSigned));
+      if (mySigned && !theirSigned) { head("Waiting for the other signature", "You signed", "ready"); box.appendChild(h("p", { text: "You signed version " + a.version + ". Waiting for the " + (att ? "freelancer" : ((((r.current || {}).body || {}).parties || {}).client || {}).kind === "agency" ? "agency" : "attorney") + " to sign." })); }
+      else { head("Sign the agreement", "Needs your signature"); box.appendChild(h("p", { class: "small muted", text: "Read the agreement under \"Agreement and fees\" below, then sign here." })); box.appendChild(signForm(r, theirSigned)); }
     } else if ((a.status === "signed" || a.status === "active") && att) {
-      var due = (r.milestones || []).filter(function (m) { return m.status === "pending" || m.status === "awaiting_funding"; })[0];
-      var open = (r.milestones || []).some(function (m) { return ["funded", "in_progress", "submitted", "changes_requested", "disputed"].indexOf(m.status) >= 0; });
+      var due = ms.filter(function (m) { return m.status === "pending" || m.status === "awaiting_funding"; })[0];
+      var open = ms.some(function (m) { return ["funded", "in_progress", "submitted", "changes_requested", "disputed"].indexOf(m.status) >= 0; });
       var waiting = (r.payments || []).filter(function (p) { return p.status === "processing"; })[0];
-      if (waiting) box.appendChild(h("p", { text: "Your payment of " + D.money(waiting.amount_cents) + " is being confirmed by the bank. Work starts when it is confirmed." }));
-      else if (due && !open) {
-        var first = !a.started_at;
-        var csum1 = first ? commitmentSummary(r, true) : null; if (csum1) box.appendChild(csum1);
-        if (perMilestoneFee(a)) {
-          box.appendChild(h("p", { text: "Pay milestone " + due.seq + ". Lawfecta holds the milestone amount until you accept the milestone." }));
-          box.appendChild(threeLinesList(due.amount_cents, due.attorney_fee_cents || 0));
-        } else
-        box.appendChild(h("p", { text: "Pay milestone " + due.seq + " (" + D.money(due.amount_cents) + ")" + (first && typeof a.attorney_fee_cents === "number" && a.attorney_fee_cents > 0 ? " and the platform fee (" + D.money(a.attorney_fee_cents) + ")" : "") + ". Lawfecta holds it until you accept the milestone." }));
+      var toReview = ms.filter(function (m) { var l = (m.submissions || [])[(m.submissions || []).length - 1]; return l && l.status === "with_attorney"; })[0];
+      if (waiting) { head("Payment being confirmed", "Being confirmed"); box.appendChild(h("p", { text: "Your payment of " + D.money(waiting.amount_cents) + " is being confirmed by the bank. Work starts when it is confirmed." })); box.appendChild(h("p", { class: "small muted", text: "Nothing more is needed from you. A bank payment can take about 4 business days. No second payment can be made while this one is being confirmed." })); }
+      else if (toReview) {
+        head("Review milestone " + toReview.seq, "Deliverable ready for review");
+        box.appendChild(h("p", { class: "eg-next-s", text: toReview.title }));
+        box.appendChild(h("p", { text: "The freelancer submitted this milestone. Read it, then accept it or ask for changes." }));
+        box.appendChild(h("div", { class: "row" }, h("button", { class: "blue", type: "button", id: "eg-review-work", onclick: function () { egMsShow(toReview.seq); } }, "Review deliverable: milestone " + toReview.seq)));
+      } else if (due && !open) {
+        var fee = egFee(r, due), st = egPayState(r, due);
+        box.egDue = due;
+        head("Pay milestone " + due.seq, st[1] === "bad" ? st[0] : "Waiting for payment", st[1] === "bad" ? "bad" : "held");
+        box.appendChild(h("p", { class: "eg-next-s", text: due.title }));
+        if (st[1] === "bad") box.appendChild(h("p", { class: "small", text: a.saved_payment ? "The charge to your saved payment method did not go through, so nothing was paid. Review the payment and pay again." : "The last payment did not go through, so nothing was paid. Review the payment and pay again." }));
+        else if (a.started_at) box.appendChild(h("p", { class: "small", text: a.saved_payment ? "This milestone has not been charged yet, so it waits for you." : "No payment method is saved for this engagement, so this milestone waits for you." }));
+        var lines = [["Milestone amount", due.amount_cents]]; if (fee > 0) lines.push([perMilestoneFee(a) ? "Lawfecta fee" : "Platform fee", fee, pjTip(EG_HELP.fee, "Platform fee")]);
+        box.appendChild(payAmounts(r, lines));
+        if (fee === 0 && !perMilestoneFee(a) && typeof a.attorney_fee_cents === "number" && a.attorney_fee_cents > 0) box.appendChild(h("p", { class: "small muted", style: "margin:6px 0 0", text: "Milestone amount only. The platform fee of " + D.money(a.attorney_fee_cents) + " was charged once, with the first milestone." }));
         if (!r.stripe_ready) box.appendChild(h("p", { class: "notice", text: ENG_ERR.payments_not_set_up }));
-        else {
-          var pay = h("button", { class: "blue", type: "button" }, a.saved_payment ? "Pay milestone " + due.seq + " with your saved payment method" : "Pay milestone " + due.seq);
-          pay.addEventListener("click", function () {
-            pay.disabled = true; pay.textContent = "Starting the payment...";
-            api.post("/engagements/pay", { id: a.id }).then(engOk).then(function (x) {
-              if (x.url) { if (x.failed_first) D.toast(app, "Your saved payment method did not go through. Opening Stripe to pay another way."); location.href = x.url; return; }
-              engReload(x.status === "succeeded" ? "Paid. The freelancer can start." : "The payment is being confirmed.");
-            }).catch(function (e) { pay.disabled = false; pay.textContent = "Pay milestone " + due.seq; engFail(e); });
-          });
-          box.appendChild(h("div", { class: "row" }, pay));
-          if (a.saved_payment) box.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
-            api.post("/engagements/pay", { id: a.id, use_checkout: true }).then(engOk).then(function (x) { if (x.url) location.href = x.url; else engReload(); }).catch(engFail);
-          } }, "Pay another way"));
-          box.appendChild(h("p", { class: "small muted", text: "You pay on Stripe's secure page. DELA never sees your card or bank details." + (r.stripe_test ? TEST_CARD_NOTE : "") }));
-        }
-      } else if (open) box.appendChild(h("p", { text: "The freelancer is working on the paid milestone. You review each one when it is submitted." }));
-      else box.appendChild(h("p", { text: "Nothing is due from you right now." }));
+        else payStart(r, box, { what: "milestone " + due.seq, lines: [["Milestone " + due.seq + ": " + due.title, due.amount_cents]].concat(fee > 0 ? [[perMilestoneFee(a) ? "Lawfecta fee" : "Platform fee", fee]] : []),
+          done: "Paid. The freelancer can start.", extra: !a.started_at ? commitmentSummary(r, true) : null, details: function () { egMsShow(due.seq); },
+          after: "Lawfecta holds the milestone amount until you accept the milestone." });
+      } else if (open) { head("Nothing is due from you right now", "Work in progress", "ready"); box.appendChild(h("p", { text: "The freelancer is working on the paid milestone. You review each one when it is submitted." })); }
+      else { head("Nothing is due from you right now"); box.appendChild(h("p", { text: "Nothing is due from you right now." })); }
     } else if (a.status === "signed" || a.status === "active") {
-      var ready = (r.milestones || []).filter(function (m) { return m.status === "funded" || m.status === "in_progress" || m.status === "changes_requested"; })[0];
-      box.appendChild(h("p", { text: ready ? "Milestone " + ready.seq + " is paid and held by Lawfecta. Do the work, then submit it below." : "Waiting for the " + clientKindWord(r) + " to pay the next milestone. Do not start unpaid work." }));
+      var ready = ms.filter(function (m) { return m.status === "funded" || m.status === "in_progress" || m.status === "changes_requested"; })[0];
+      var withAtt = ms.filter(function (m) { return m.status === "submitted"; })[0];
+      if (ready) {
+        head(ready.status === "funded" ? "Start milestone " + ready.seq : ready.status === "changes_requested" ? "Make the changes for milestone " + ready.seq : "Submit milestone " + ready.seq, ready.status === "changes_requested" ? "Changes requested" : "Paid, held by Lawfecta", ready.status === "changes_requested" ? "held" : "ready");
+        box.appendChild(h("p", { class: "eg-next-s", text: ready.title }));
+        box.appendChild(h("p", { text: "Milestone " + ready.seq + " is paid and held by Lawfecta. Do the work, then submit it below." }));
+        box.appendChild(h("div", { class: "row" }, h("button", { class: "blue", type: "button", id: "eg-go-ms", onclick: function () { egMsShow(ready.seq); } }, "Go to milestone " + ready.seq)));
+      } else if (withAtt) { head("Waiting for the " + clientKindWord(r) + "'s review", "Submitted", "ready"); box.appendChild(h("p", { text: "Milestone " + withAtt.seq + " is submitted. Nothing is needed from you until it is reviewed." })); }
+      else { head("Waiting for payment", "Waiting for payment"); box.appendChild(h("p", { text: "Waiting for the " + clientKindWord(r) + " to pay the next milestone. Do not start unpaid work." })); }
       if (!r.payout_account || r.payout_account.status !== "ready") box.appendChild(h("p", { class: "small", text: "Set up payouts on the Earnings page so accepted milestones reach your bank." }));
-    } else if (a.status === "completed") box.appendChild(h("p", { text: "Every milestone is accepted. This engagement is complete." }));
+    } else if (a.status === "completed") { head("This engagement is complete", "Complete", "ready"); box.appendChild(h("p", { text: "Every milestone is accepted. This engagement is complete." })); }
     else box.appendChild(h("p", { class: "muted", text: "Nothing to do here." }));
     return box;
   }
@@ -9599,24 +9831,48 @@
     return c;
   }
 
+  // Step 43: milestone progress. One row per milestone with its amount and date, and three separate states in words:
+  // payment (from the payment records), delivery (from the submissions) and acceptance. A row opens to its details and
+  // to the action that belongs to it.
   function milestonesCard(r) {
-    var c = h("div", { class: "card" }, h("h2", { text: "Milestones" }));
-    r.milestones.forEach(function (m) {
-      var box = h("div", { class: "card", style: "padding:12px" },
-        h("div", { class: "row" }, h("h3", { class: "grow", style: "margin:0", text: m.seq + ". " + m.title }), h("span", { class: "badge " + (m.status === "accepted" ? "ready" : m.status === "disputed" ? "bad" : "held"), text: MS_STATUS[m.status] || m.status })),
-        h("p", { class: "small muted", text: (r.role === "attorney" && perMilestoneFee(r.agreement) ? threeLines(m.amount_cents, m.attorney_fee_cents || 0) : D.money(m.amount_cents)) + (r.role === "freelancer" ? (m.payout_cents === m.amount_cents ? " (you receive all of it; you pay no platform fee)" : " (you receive " + D.money(m.payout_cents) + " after the platform fee)") : "") + (m.due_date ? " | due " + dueText(m) : "") + (m.revisions_used ? " | rounds of changes used: " + m.revisions_used + " of " + r.limits.revisions : "") }));
-      if (m.deliverables) box.appendChild(h("p", { class: "small", text: "Deliverables: " + m.deliverables }));
-      if (m.payout) box.appendChild(h("p", { class: "small", text: "Payout: " + D.money(m.payout.amount_cents) + ", " + (m.payout.status === "sent" ? "sent to your bank" : m.payout.status === "held" ? (m.payout.held_reason === "payout_account" ? "waiting for your payout setup (Earnings page)" : "held") : m.payout.status === "failed" ? "did not go through. The Lawfecta Team is checking it" : "on its way") }));
-      var last = (m.submissions || [])[m.submissions.length - 1];
-      if (last) box.appendChild(submissionBlock(r, m, last));
+    var ms = r.milestones, att = r.role === "attorney", tip = pjTip(EG_HELP.status, "Milestone progress");
+    var acc = ms.filter(function (m) { return m.status === "accepted"; }).length;
+    var c = h("section", { class: "card eg-msc", id: "eg-milestones" }, h("div", { class: "row pj-cardhead" }, h("h2", { style: "margin:0", text: r.monthly ? "This month's units" : "Milestone progress" }), tip[0], h("span", { class: "grow" }),
+      h("span", { class: "small muted", text: plural(ms.length, r.monthly ? "unit" : "milestone") + " · " + acc + " accepted" })), tip[1]);
+    var list = h("ol", { class: "eg-mss" });
+    ms.forEach(function (m) {
+      var last = (m.submissions || [])[(m.submissions || []).length - 1];
+      var mine = att ? !!(last && last.status === "with_attorney") : ["funded", "in_progress", "changes_requested"].indexOf(m.status) >= 0 || !!(last && last.status === "failed");
+      var o = (eng.ms || {})[m.id], open = o === undefined ? mine || egAll() : o;
+      var pay = egPayState(r, m);
+      var body = h("div", { class: "eg-ms-body", id: "eg-msb-" + m.seq });
+      body.hidden = !open;
+      body.appendChild(h("p", { class: "small muted", text: (att && perMilestoneFee(r.agreement) ? threeLines(m.amount_cents, m.attorney_fee_cents || 0) : D.money(m.amount_cents)) + (r.role === "freelancer" ? (m.payout_cents === m.amount_cents ? " (you receive all of it; you pay no platform fee)" : " (you receive " + D.money(m.payout_cents) + " after the platform fee)") : "") + (m.due_date ? " | due " + dueText(m) : "") + (m.revisions_used ? " | rounds of changes used: " + m.revisions_used + " of " + r.limits.revisions : "") }));
+      if (m.deliverables) body.appendChild(h("p", { class: "small", text: "Deliverables: " + m.deliverables }));
+      if (m.payout) body.appendChild(h("p", { class: "small", text: "Payout: " + D.money(m.payout.amount_cents) + ", " + (m.payout.status === "sent" ? "sent to your bank" : m.payout.status === "held" ? (m.payout.held_reason === "payout_account" ? "waiting for your payout setup (Earnings page)" : "held") : m.payout.status === "failed" ? "did not go through. The Lawfecta Team is checking it" : "on its way") }));
+      if (last) body.appendChild(submissionBlock(r, m, last));
       if (r.role === "freelancer") {
-        if (m.status === "funded") box.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
+        if (m.status === "funded") body.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
           api.post("/milestones/start", { id: m.id }).then(engOk).then(function () { engReload("Started. Submit it here when it is done."); }).catch(engFail);
         } }, "Start this milestone"));
-        if (m.status === "in_progress" || m.status === "changes_requested") box.appendChild(submitForm(m));
+        if (m.status === "in_progress" || m.status === "changes_requested") body.appendChild(submitForm(m));
       }
-      c.appendChild(box);
+      var btn = h("button", { class: "ghost small eg-ms-b", type: "button", "aria-expanded": String(open), "aria-controls": "eg-msb-" + m.seq, "aria-label": (open ? "Hide" : "View") + " milestone " + m.seq + ": " + m.title }, open ? "Hide" : "View");
+      btn.addEventListener("click", function () {
+        var now = body.hidden; body.hidden = !now; btn.setAttribute("aria-expanded", String(now)); btn.textContent = now ? "Hide" : "View";
+        btn.setAttribute("aria-label", (now ? "Hide" : "View") + " milestone " + m.seq + ": " + m.title);
+        eng.ms = eng.ms || {}; eng.ms[m.id] = now;
+      });
+      list.appendChild(h("li", { class: "eg-ms" + (m.status === "accepted" ? " done" : ""), id: "eg-ms-" + m.seq },
+        h("div", { class: "eg-ms-h" },
+          h("span", { class: "eg-ms-i", "aria-hidden": "true", text: m.status === "accepted" ? "✓" : String(m.seq) }),
+          h("div", { class: "eg-ms-t" }, h("h3", { style: "margin:0", text: m.seq + ". " + m.title }),
+            h("span", { class: "hsub", text: D.money(m.amount_cents) + (m.due_date ? " · Due " + dueText(m) : " · No date set") }),
+            h("span", { class: "eg-ms-st" }, h("span", null, h("b", { text: "Payment: " }), pay[0]), h("span", null, h("b", { text: "Delivery: " }), egDelivery(m)), h("span", null, h("b", { text: "Acceptance: " }), egAccepted(m)))),
+          h("span", { class: "badge " + (m.status === "accepted" ? "ready" : m.status === "disputed" ? "bad" : "held"), text: MS_STATUS[m.status] || m.status }), btn),
+        body));
     });
+    c.appendChild(list);
     return c;
   }
 
@@ -9652,21 +9908,37 @@
     } }, "Ask for a human review"));
     if (r.role === "attorney" && s.status === "with_attorney") {
       var note = h("textarea", { rows: 2, style: "width:100%", "aria-label": "Note to the freelancer", placeholder: "What should change (needed to ask for changes), or a thank you" });
-      b.appendChild(h("p", { class: "small", text: "Review it by " + D.dateTime(s.review_due_at) + ". Accepting releases the payment to the freelancer" + (r.milestones.some(function (x) { return x.seq > m.seq && (x.status === "pending" || x.status === "awaiting_funding"); }) ? " and charges the next milestone with your saved payment method." : ".") }));
+      b.appendChild(h("p", { class: "small", text: "Review it by " + D.dateTime(s.review_due_at) + ". Accepting releases the payment to the freelancer" + (r.agreement.saved_payment && r.milestones.some(function (x) { return x.seq > m.seq && (x.status === "pending" || x.status === "awaiting_funding"); }) ? " and charges the next milestone with your saved payment method. You see both amounts before you confirm." : ".") }));
       b.appendChild(note);
       var acc = h("button", { class: "blue small", type: "button" }, "Accept and release payment");
-      acc.addEventListener("click", function () {
-        if (!confirm("Accept milestone " + m.seq + " and release " + D.money(m.amount_cents) + " to the freelancer?")) return;
-        acc.disabled = true;
+      // Step 43: the confirmation is on the page, with the amount released and the amount charged for the next milestone
+      var nextDue = r.milestones.filter(function (x) { return x.seq > m.seq && (x.status === "pending" || x.status === "awaiting_funding"); })[0];
+      var cf = h("div", { class: "eg-review", id: "eg-accept-" + m.seq, role: "group", "aria-labelledby": "eg-accept-h-" + m.seq }); cf.hidden = true;
+      var cfh = h("h3", { id: "eg-accept-h-" + m.seq, tabindex: "-1", style: "margin:0 0 8px", text: "Accept milestone " + m.seq + "?" });
+      cf.appendChild(cfh);
+      cf.appendChild(egLine("Released to the freelancer", D.money(m.amount_cents)));
+      if (nextDue && r.agreement.saved_payment) {
+        var nfee = perMilestoneFee(r.agreement) && typeof nextDue.attorney_fee_cents === "number" ? nextDue.attorney_fee_cents : 0;
+        cf.appendChild(egLine("Charged now to your saved payment method: milestone " + nextDue.seq + (nfee ? " and its Lawfecta fee" : ""), D.money(nextDue.amount_cents + nfee)));
+        cf.appendChild(h("p", { class: "small", style: "margin:6px 0 0", text: "If that charge does not go through, nothing is paid for milestone " + nextDue.seq + " and you pay it on Stripe's page." }));
+      } else if (nextDue) cf.appendChild(h("p", { class: "small", style: "margin:6px 0 0", text: "Milestone " + nextDue.seq + " (" + D.money(nextDue.amount_cents) + ") is not charged now. You pay it next, from the top of this page." }));
+      cf.appendChild(h("p", { class: "small", style: "margin:6px 0 0", text: "Accepting cannot be undone." }));
+      var yes = h("button", { class: "blue small", type: "button" }, "Yes, accept and release " + D.money(m.amount_cents));
+      var no = h("button", { class: "ghost small", type: "button", onclick: function () { cf.hidden = true; acc.disabled = false; acc.focus(); } }, "Go back");
+      cf.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:10px" }, yes, no));
+      acc.addEventListener("click", function () { cf.hidden = false; acc.disabled = true; cfh.focus(); });
+      yes.addEventListener("click", function () {
+        yes.disabled = true; no.disabled = true;
         api.post("/milestones/decide", { submission_id: s.id, accept: true, note: note.value }).then(engOk).then(function (x) {
           var np = x.next_payment;
           if (np && np.url) { D.toast(app, "Accepted. Your saved payment method did not go through for the next milestone. Opening Stripe."); location.href = np.url; return; }
           engReload("Accepted. The payment is released" + (np && np.status === "succeeded" ? " and the next milestone is paid." : "."));
-        }).catch(function (e) { acc.disabled = false; engFail(e); });
+        }).catch(function (e) { yes.disabled = false; no.disabled = false; engFail(e); });
       });
       b.appendChild(h("div", { class: "row" }, acc, h("button", { class: "ghost small", type: "button", onclick: function () {
         api.post("/milestones/decide", { submission_id: s.id, accept: false, note: note.value }).then(engOk).then(function (x) { engReload("Changes requested. Rounds left: " + x.revisions_left + "."); }).catch(engFail);
       } }, "Ask for changes")));
+      b.appendChild(cf);
     }
     return b;
   }
