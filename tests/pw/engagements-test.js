@@ -178,6 +178,8 @@ async function sign(page, name, version) {
       const sum = (await dela(q).locator("#eg-summary").innerText()).replace(/\s+/g, " ");
       ok(sum.includes("Price for the work (contract value) $600") && sum.includes("once, with the first payment") && sum.includes("$30") && sum.includes("Your total (contract + platform fee) $630") && sum.includes("Paid to date") && sum.includes("$0") && sum.includes("Amount due now (milestone 1) $280"), "folded: the summary separates the contract value, the fee, the total, what is paid and what is due now: " + sum);
       ok(ft.includes("How milestone payments work") && ft.includes("the next milestone is charged to your saved payment method") && ft.includes("is charged once, with the first milestone"), "folded: how payment works is in view, with the automatic charge said in plain words");
+      const wn = (await dela(q).locator("#eg-whatnext").innerText()).replace(/\s+/g, " ");
+      ok(wn.includes("What happens next?") && /You review and pay milestone 1\..*The freelancer starts the work\..*You review the deliverable when it is submitted/.test(wn), "folded: \"What happens next?\" lists the real steps from here, in order: " + wn);
       const ms = (await dela(q).locator("#eg-milestones").innerText()).replace(/\s+/g, " ");
       ok(ms.includes("Milestone progress") && ms.includes("Payment: Not paid yet") && ms.includes("Delivery: Not submitted") && ms.includes("Acceptance: Not accepted yet"), "folded: each milestone shows payment, delivery and acceptance as three separate states: " + ms.slice(0, 400));
       // A section opens with the keyboard and says so

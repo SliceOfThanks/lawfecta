@@ -9133,6 +9133,37 @@
     return c;
   }
 
+  // "What happens next?" (Stacey 2026-11-18): the real steps from here, in order, for this person. Each line is something
+  // the platform does today; a monthly engagement explains itself in its own card.
+  function egWhatNext(r, mySigned, theirSigned) {
+    var a = r.agreement, att = r.role === "attorney", ms = r.milestones || [], other = att ? "freelancer" : clientKindWord(r), steps = null;
+    if (r.monthly) return null;
+    var lastOf = function (m) { return (m.submissions || [])[(m.submissions || []).length - 1]; };
+    if (a.status === "signing" || a.status === "draft") {
+      steps = [mySigned ? "The " + other + " signs version " + a.version + "." : theirSigned ? "You sign version " + a.version + "." : "You and the " + other + " both sign version " + a.version + ".",
+        att ? "You review and pay milestone 1 on Stripe's secure page." : "The " + other + " pays milestone 1.",
+        att ? "The freelancer starts the work." : "You start the work once it is paid."];
+    } else if ((a.status === "signed" || a.status === "active") && att) {
+      var due = ms.filter(function (m) { return m.status === "pending" || m.status === "awaiting_funding"; })[0];
+      var open = ms.some(function (m) { return ["funded", "in_progress", "submitted", "changes_requested", "disputed"].indexOf(m.status) >= 0; });
+      var toReview = ms.filter(function (m) { var l = lastOf(m); return l && l.status === "with_attorney"; })[0];
+      if ((r.payments || []).some(function (p) { return p.status === "processing"; })) steps = ["The bank confirms your payment.", "The freelancer starts the work.", "You review the deliverable when it is submitted."];
+      else if (toReview) steps = ["You review milestone " + toReview.seq + ", then accept it or ask for changes.", "Accepting releases " + D.money(toReview.amount_cents) + " to the freelancer.",
+        due ? (a.saved_payment ? "Milestone " + due.seq + " is charged to your saved payment method. The accept step shows the amount first." : "You review and pay milestone " + due.seq + ".") : "With every milestone accepted, the engagement is complete."];
+      else if (due && !open) steps = ["You review and pay milestone " + due.seq + ".", "The freelancer starts the work.", "You review the deliverable when it is submitted, then accept it or ask for changes."];
+      else if (open) steps = ["The freelancer does the work and submits it.", "DELA checks the submission against the agreed checklist.", "You review it, then accept it or ask for changes."];
+    } else if (a.status === "signed" || a.status === "active") {
+      var ready = ms.filter(function (m) { return m.status === "funded" || m.status === "in_progress" || m.status === "changes_requested"; })[0];
+      var sub = ms.filter(function (m) { return m.status === "submitted"; })[0];
+      if (ready) steps = [ready.status === "funded" ? "You start milestone " + ready.seq + "." : ready.status === "changes_requested" ? "You make the requested changes to milestone " + ready.seq + "." : "You finish milestone " + ready.seq + ".",
+        "You submit it with a completion statement.", "DELA checks it against the agreed checklist, then the " + other + " reviews it.", "After acceptance, your part is paid out to your payout account."];
+      else if (sub) steps = ["The " + other + " reviews milestone " + sub.seq + ".", "After acceptance, your part is paid out to your payout account."];
+      else steps = ["The " + other + " pays the next milestone.", "You start it once it is paid."];
+    }
+    if (!steps) return null;
+    return h("section", { class: "card eg-wn", id: "eg-whatnext" }, h("h2", { text: "What happens next?" }), h("ol", { class: "eg-how-l" }, steps.map(function (s) { return h("li", { text: s }); })));
+  }
+
   function drawEngagement(host, r) {
     var a = r.agreement, cur = r.current || {}, b = cur.body || {}, att = r.role === "attorney";
     var mySigned = (r.signatures || []).some(function (s) { return s.version === a.version && s.role === r.role; });
@@ -9193,6 +9224,7 @@
     });
     main.appendChild(h("p", { class: "small", style: "margin:4px 0 0" }, allBtn, h("span", { class: "muted", text: " Your choice is remembered on this device." })));
     side.appendChild(egSummary(r, b, ns.egDue || null));
+    var wn = egWhatNext(r, mySigned, theirSigned); if (wn) side.appendChild(wn);
     var how = egHowPay(r); if (how) side.appendChild(how);
   }
 
