@@ -35,3 +35,5 @@ HOW TO WORK (read this first; it saves time and credits)
 9. Never type real client information. Use only the made-up details in the steps.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
+## The file is the whole prompt (Stacey 2026-11-19, a hard rule)
+A check file Stacey receives is sent to the agent whole, exactly as it is. She does not copy a part of it and does not edit it. So the file holds only the prompt: no title for her, no "what it covers", no "before you paste", no line to copy below. Anything she must do herself (turn a switch on, log in when asked) is said to her in the chat message that sends the file, never inside the file. The copy in docs/tests is the same whole-file prompt with TEST_PASSWORD; notes about a check go in a separate file beside it, named "...-chatgpt-notes.md".
