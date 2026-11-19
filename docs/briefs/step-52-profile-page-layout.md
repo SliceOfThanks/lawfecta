@@ -10,7 +10,7 @@ Freelancers and attorneys, on every plan. The mockup shows the freelancer page; 
 The Profile page was one long form: the checklist, availability, meeting hours, the LinkedIn check and every profile box on one scroll. It is now:
 
 1. **Compact readiness.** One line under the heading: a tag ("Not yet visible in Talent" or "Visible in Talent"), then one short state for each part ("Profile details incomplete · LinkedIn review not started · Availability unconfirmed"), and the link "View requirements", which opens the full checklist.
-2. **Separate tasks.** Three tabs: "Public profile", "Matching & verification" (the checklist, availability, the LinkedIn check) and "Meeting schedule". For attorneys: "Profile" and "Firm & verification".
+2. **Separate tasks.** Three tabs: "Public profile", "Matching & verification" (the checklist, availability, the LinkedIn check) and "Meeting schedule". For attorneys: "Firm & verification" first (the firm essentials and the license lead, as decided in step 8b), then "Profile".
 3. **Manageable sections.** A menu at the left, "Profile sections": Basics, Summary, Services & skills, Experience & education, Work hours & agreement, Contact details (optional). One section shows at a time, straight in its boxes.
 4. **Persistent guidance.** The help under each box and the client information notice stay where they were, beside the box they explain. "Draft with DELA" sits in the Summary section.
 5. **Clear saving.** One Save row at the foot of the card: the Save button, the words "Unsaved changes" when something changed, and "Next: ..." to the following section. Moving between sections keeps what was typed.
@@ -44,7 +44,7 @@ None new. The "Meeting schedule" tab shows with the meetings switch; the directo
 3. "Check publication status" for the directory listing? **The card says what happened to the listing last time** (updated when, being updated, or why it failed), which DELA already knows. A live check of the public page is a later step.
 4. "Choose illustration"? **The ready-made pictures stay as the fold "Or choose a ready-made picture"** under the photo, in Basics.
 5. Where do profile documents and reviews go? **Under the form on "Public profile"**, since attorneys see them.
-6. The attorney page? **The same frame**, with the tabs "Profile" and "Firm & verification". The right column says what freelancers see about the attorney.
+6. The attorney page? **The same frame**, with the tabs "Firm & verification" (first) and "Profile". The right column says what freelancers see about the attorney.
 7. The wording of the Save button? **Unchanged**: it already says where the change goes ("Save and update my directory listing" or "Save to DELA only").
 8. The breadcrumb "Profile / Public profile" in the top bar? **Not built.** The tabs already say where the member is, and the top bar is shared by every page.
 
@@ -58,4 +58,4 @@ Freelancer login:
 - The right column shows "Visibility & publishing" and "Directory updates".
 - "Preview profile" opens the live profile.
 Attorney login:
-- Tabs "Profile" and "Firm & verification"; the right column says what freelancers see.
+- Tabs "Firm & verification" and "Profile"; on "Profile" the right column says what freelancers see.

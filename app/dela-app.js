@@ -2571,7 +2571,7 @@
 
   // ---------- Step 3: Profile and verification (both sides) ----------
 
-  var prof = { data: null, body: null, dirty: false, live: false, tab: "public", sec: "" };
+  var prof = { data: null, body: null, dirty: false, live: false, tab: "", sec: "" };
   var tpSelf = false;
   function openLiveProfile() { prof.live = true; talentTab = "overview"; if (tab === "profile") draw(); else goTab("profile"); window.scrollTo(0, 0); }
   var profEl = null;
@@ -2740,8 +2740,9 @@
       h("span", { class: "badge " + (ready ? "ready" : ""), text: att ? (ready ? "Ready to post and hire" : "Not ready to post and hire yet") : ready ? "Visible in Talent" : st.readiness === "restricted" ? "Paused" : "Not yet visible in Talent" }),
       h("span", { class: "pf-states", text: states.join(" · ") }),
       h("button", { class: "linkish", type: "button", id: "pf-reqs", onclick: function () { var c = profEl.querySelector("#ready-card"); if (c) { prof.reveal(c); c.scrollIntoView({ behavior: "smooth", block: "start" }); var b = c.querySelector("button, summary"); if (b) b.focus({ preventScroll: true }); } } }, "View requirements")));
-    var TABS = att ? [["public", "Profile"], ["match", "Firm & verification"]] : [["public", "Public profile"], ["match", "Matching & verification"]].concat((me.switches || {}).meetings ? [["meet", "Meeting schedule"]] : []);
-    if (!TABS.some(function (t) { return t[0] === prof.tab; })) prof.tab = "public";
+    // For an attorney the firm essentials and the license come first (step 8b, answer 7), so that tab leads
+    var TABS = att ? [["match", "Firm & verification"], ["public", "Profile"]] : [["public", "Public profile"], ["match", "Matching & verification"]].concat((me.switches || {}).meetings ? [["meet", "Meeting schedule"]] : []);
+    if (!TABS.some(function (t) { return t[0] === prof.tab; })) prof.tab = TABS[0][0];
     var bar = h("div", { class: "pf-tabs", role: "tablist", "aria-label": "Parts of your profile" }), panels = {};
     var tabBtns = TABS.map(function (t, i) {
       var b = h("button", { type: "button", role: "tab", id: "pf-tab-" + t[0], "aria-controls": "pf-panel-" + t[0] }, t[1]);
