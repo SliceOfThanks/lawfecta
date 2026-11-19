@@ -1,4 +1,4 @@
-You are checking the new Ask DELA page on the Lawfecta site, www.lawfecta.co. Everything here uses test accounts with test data. Do only what the steps say. You will send four short chat messages. Never click "Draft it with DELA", "Post the gig", "Approve" or "Send for review", and never type real client information.
+You are checking the new Ask DELA page on the Lawfecta site, www.lawfecta.co. Everything here uses test accounts with test data. Do only what the steps say. You will send three short chat messages: two as the attorney and one as the freelancer. Never click "Draft it with DELA", "Post the gig", "Approve" or "Send for review", and never type real client information.
 
 No step should open a browser pop-up (a small OK / Cancel window from the browser itself). If one opens, click Cancel, write FAIL for that step and say what the pop-up said.
 
@@ -35,7 +35,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Find: the top of the page, then the two columns under it.
    Expect: the heading "Ask DELA" with two outlined buttons at its right, "+ New chat" and "Settings". In the left column: the bold line "What would you like to get off your plate?", a grey line that starts "Describe the work or what keeps going wrong. We'll work through it together.", an example box, and a message box. In the right column: a card "What DELA is using" and under it a card "Suggested next actions".
    Expect in "What DELA is using": the grey line "DELA reads only what is listed here. Naming a document in your message does not attach it."; a row "Firm profile for documents" with a small green tag "In use"; the small heading "Documents (0 of 3)"; a grey line that starts "None chosen."; and an outlined button "Add a document".
-   Expect in "Suggested next actions": one grey line, "Send a message first. The actions that fit your chat appear here."
+   Expect in "Suggested next actions": one grey line, "Choose a document or send a message. The actions that fit appear here."
    (If there is no right column and the page has only the chat, the feature is still switched off: write that, mark every step of this test FAIL, and stop.)
 
 2. Find: the outlined button "Add a document" in the card "What DELA is using".
@@ -82,7 +82,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 
 9. Go to: https://www.lawfecta.co/dela?tab=delegate
    Do: open the list "Earlier chats", choose the line that starts "Using the document I attached", wait for the conversation, then click the outlined button "+ New chat" at the right of the heading "Ask DELA".
-   Expect: the conversation is gone and the example box is back. The right column reads "Documents (0 of 3)" and "Send a message first." The list "Earlier chats" still holds the line that starts "Using the document I attached".
+   Expect: the conversation is gone and the example box is back. The right column reads "Documents (0 of 3)" and "Choose a document or send a message." The list "Earlier chats" still holds the line that starts "Using the document I attached".
 
 10. REVIEW. About the Ask DELA page: (a) Was it clear which documents DELA was using and which it was not? (b) Was it clear that choosing a document, a suggested answer or "Create a draft" did not approve, post or send anything? (c) Anything confusing, repeated or hard to read?
 
@@ -94,11 +94,14 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
 
 11. Go to: https://www.lawfecta.co/dela?tab=ask
     Find: the two columns under the heading "Ask DELA".
-    Expect: the bold line "What would you like to get off your plate?" at the left. At the right, the card "What DELA is using" with "Documents (0 of 3)" and the grey line "Your account has no Library, so there are no documents to choose." There is NO button "Add a document" and no row "Firm profile for documents".
+    Expect: the bold line "What would you like to get off your plate?" at the left. At the right, the card "What DELA is using" with the small heading "Documents (0 of 3)" and an outlined button "Add a document". (This test freelancer owns an agency, and an agency that hires has its own Library, so the documents panel is expected here.)
+    Expect also: the card "Suggested next actions" holds one grey line, "Choose a document or send a message. The actions that fit appear here."
 
 12. Do: click in the message box and type exactly: Give me a three step checklist for organizing discovery documents.
     Then click "Send". Wait up to 60 seconds.
-    Expect: an answer with a short checklist. No line starts "QUESTION:" or "CHOICES:". The card "Suggested next actions" does NOT offer "Create a draft from this chat", "Review delegation opportunities" or "Prepare a gig draft".
+    Expect: an answer with a short checklist. No line starts "QUESTION:" or "CHOICES:". The card "Suggested next actions" now offers "Create a draft from this chat →". It does NOT offer "Review delegation opportunities" or "Prepare a gig draft", because no document was chosen.
+    Find: the grey line under the bold line "What would you like to get off your plate?", which ends with how many DELA actions are left (or names your own key).
+    Expect: if it shows a number of DELA actions left, that number is one lower than before you clicked "Send", without leaving the page.
 
 Sign out: click the round button with your initials at the far right of the top bar, then click "Sign out".
 

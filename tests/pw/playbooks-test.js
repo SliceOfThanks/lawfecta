@@ -252,16 +252,21 @@ async function makeMember(bd, side, plan) {
     await click(s.page, "Ask DELA");
     t = await waitFor(s.page, "What DELA is using");
     ok(t.includes("What would you like to get off your plate?") && t.includes("Describe the work or what keeps going wrong. We'll work through it together.") && t.includes("+ New chat"), "Ask DELA opens on a blank chat with the question, and New chat is a secondary button");
-    ok(t.includes("Naming a document in your message does not attach it.") && /Documents \(0 of 3\)/.test(t) && t.includes("None chosen.") && t.includes("Send a message first."), "the panel says what DELA is using: nothing chosen yet, and no next action before a message");
+    ok(t.includes("Naming a document in your message does not attach it.") && /Documents \(0 of 3\)/.test(t) && t.includes("None chosen.") && t.includes("Choose a document or send a message. The actions that fit appear here."), "the panel says what DELA is using: nothing chosen yet, and no next action before a message");
     const cols = await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; const a = r.querySelector(".aw-main").getBoundingClientRect(), b = r.querySelector(".aw-side").getBoundingClientRect(); return b.left > a.right - 1; });
     ok(cols, "at 1280 wide the panel sits beside the chat");
     await click(s.page, "Add a document");
     await dela(s.page).locator(".aw-opt input").first().check();
     t = await text(s.page);
     ok(/Documents \(1 of 3\)/.test(t) && t.includes("Approved, version") && await dela(s.page).getByRole("button", { name: /^Remove .* from this chat$/ }).count() === 1, "a chosen document is listed with its type and approved version, and can be removed");
+    // ChatGPT check 12: after an answer the DELA actions count is read again, without leaving the page
+    const reread = [];
+    s.page.on("request", (q) => { const u = q.url(); if (/\/api\/(ai|usage)(\?|$)/.test(u)) reread.push(u.split("/api")[1]); });
     await dela(s.page).getByLabel("Your message", { exact: true }).fill("Please ask me what you need about intake");
     await click(s.page, "Send");
     t = await waitFor(s.page, "Suggested answers", 15000);
+    await s.page.waitForTimeout(600);
+    ok(reread.includes("/ai") && reread.includes("/usage") && await dela(s.page).locator("#chat-credits").count() === 1, "after an answer the DELA actions left are read again on the same page: " + reread.join(", "));
     ok(t.includes("I used your document.") && t.includes("Which matters does this cover?") && !t.includes("CHOICES:") && !t.includes("QUESTION:"), "DELA answered from the chosen document and its one question shows as text, with the choices as buttons");
     const before45 = (await sql("select count(*)::int n from ai_messages"))[0].n;
     await click(s.page, "New matters only");

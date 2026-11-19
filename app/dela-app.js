@@ -1918,7 +1918,7 @@
     if (ws) { host = h("div", { class: "aw-main" }); chatEl.appendChild(h("div", { class: "aw-wrap" }, h("div", { class: "aw-cols" }, host, workspacePanel()))); }
     if (ws) {
       host.appendChild(h("p", { class: "aw-lead", text: "What would you like to get off your plate?" }));
-      host.appendChild(h("p", { class: "muted", style: "margin:2px 0 10px", text: "Describe the work or what keeps going wrong. We'll work through it together. " + creditsLine() }));
+      host.appendChild(h("p", { class: "muted", style: "margin:2px 0 10px", text: "Describe the work or what keeps going wrong. We'll work through it together. " }, h("span", { id: "chat-credits", text: creditsLine() })));
     } else host.appendChild(h("p", { class: "muted", text: me.side === "attorney"
       ? "Describe a task you want to hand off, ask for a checklist, or attach a process write-up and ask DELA to turn it into an SOP. " + creditsLine()
       : "Plan your work, draft a checklist or tidy a process. " + creditsLine() }));
@@ -2023,7 +2023,7 @@
     if (approved.length && (me.switches || {}).automate_delegate) acts.push(["Review delegation opportunities", "Opens \"" + approved[0].title + "\" in the Library, where \"✦ Automate or delegate\" suggests what to hand off.", function () { openDocFromChat(approved[0].id); }, "aw-deleg"]);
     if (gigDoc && canHire() && (me.switches || {}).flex_gigs) acts.push(["Prepare a gig draft", "Opens \"Post a New Gig\" with \"" + gigDoc.title + "\" chosen. Nothing is posted until you review and post.", function () { gigs.newFrom = gigDoc.id; gigs.wiz = { doc: gigDoc.id }; tab = "projects"; draw(); window.scrollTo(0, 0); }, "aw-gig"]);
     var n = h("section", { class: "card", id: "aw-next" }, h("h2", { text: "Suggested next actions" }));
-    if (!acts.length) n.appendChild(h("p", { class: "hsub", style: "margin:0", text: "Send a message first. The actions that fit your chat appear here." }));
+    if (!acts.length) n.appendChild(h("p", { class: "hsub", style: "margin:0", text: "Choose a document or send a message. The actions that fit appear here." }));
     else acts.forEach(function (a) { n.appendChild(h("button", { class: "aw-act", type: "button", id: a[3], onclick: a[2] }, h("b", { text: a[0] + " →" }), h("span", { class: "hsub", text: a[1] }))); });
     side.appendChild(n);
     return side;
@@ -2131,6 +2131,11 @@
         chat.docs = chat.docs.filter(function (d) { return usedIds.indexOf(d.id) >= 0; });
       }
       chat.ask = r.ask || null;
+      // ChatGPT check 12 (2026-11-19): the DELA actions left stayed at the old number until the page was left. After an
+      // answer the count is read again: in the line under the heading, and in the meter at the foot of the page.
+      api.get("/ai").then(function (x) { if (x) { chat.ai = x; var cl = app.querySelector("#chat-credits"); if (cl) cl.textContent = creditsLine(); } }).catch(function () { /* the next page load shows it */ });
+      loadUsage(true).then(function (u) { var mt = app.querySelector(".usage-meter a"); if (mt && u && u.actions && u.actions.limit !== null) mt.textContent = "DELA actions: " + u.actions.used + " of " + u.actions.limit + " this month";
+        var bn = app.querySelector(".usage-banner .grow"); if (bn && u && u.actions && u.actions.limit) bn.textContent = bn.textContent.split("You've used ").map(function (part, i) { return i && part.indexOf(" DELA actions this month.") > 0 && part.indexOf(" DELA actions this month.") < 24 ? u.actions.used + " of " + u.actions.limit + part.slice(part.indexOf(" DELA actions this month.")) : part; }).join("You've used "); });
       chat.pending = null;
       chat.attach = [];
       chat.picking = false;

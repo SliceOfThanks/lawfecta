@@ -4,7 +4,7 @@ What it covers: the new Ask DELA page for an attorney and for a freelancer. The 
 
 What it cannot cover: whether DELA's answer is good legal operations advice, a document that tries to give DELA orders (an automated test checks the rule is sent), a screen reader and a phone. The automated tests cover rights (another firm's document is never offered or used), the link between a chat and its draft, and 320 pixels wide.
 
-What changes on the site: three chat messages are sent on the test attorney's account and one on the test freelancer's, each using one DELA action of that test account. One chat is left in each account's earlier chats. No document is created: the test stops at the form and never clicks "Draft it with DELA". Nothing is posted, approved or shared.
+What changes on the site: two chat messages are sent on the test attorney's account and one on the test freelancer's, each using one DELA action of that test account. One chat is left in each account's earlier chats. No document is created: the test stops at the form and never clicks "Draft it with DELA". Nothing is posted, approved or shared.
 
 Two logins: the test attorney, then the test freelancer. Each logs in once.
 
@@ -13,3 +13,5 @@ Before you paste this:
 2. The password is filled in on the ready-to-paste copy Claude sent you in chat. This GitHub copy says TEST_PASSWORD.
 3. When ChatGPT reaches the login page: click "Take over", log in as the account it names, hand control back and type: I'm logged in, continue.
 4. Don't use www.lawfecta.co in other tabs while it runs.
+
+First run, 2026-11-19 (10 PASS, 2 FAIL): both fails were this file's mistake. The test freelancer owns an agency, so it has a Library and the documents panel; steps 11 and 12 now say so. A freelancer with no agency is covered by the automated tests. Fixed in the app from that run: the DELA actions count is read again after an answer, and the empty next-actions hint reads "Choose a document or send a message."
