@@ -3,6 +3,8 @@
 Written 2026-11-18 from the code that is live on that day (code_version c801b18 or later, step 43 included).
 Every label in quotes in this handoff was copied from the code. Nothing here is a mockup or a wish.
 
+> See also (2026-11-19): docs/handoff/dela-build-handoff/GAP-MAP.md compares Stacey's DELA build handoff and its ten mockups with the product described here. The two handoffs overlap and should be read as one plan.
+
 ## 1. What this is for
 
 Lawfecta DELA is being redesigned as a whole, not page by page. This handoff gives a design team (people or AI) what
