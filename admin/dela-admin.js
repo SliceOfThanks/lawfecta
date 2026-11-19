@@ -838,7 +838,7 @@
     ["Agencies", "Freelancer agencies: their team, their bench of freelancers, their own gigs and handing work to subcontractors.",
       ["agency_team", "agency_bench", "agency_hiring", "agency_subcontracting", "agency_extra_seats"]],
     ["DELA's AI", "What DELA's AI may do for members: answers and drafts, talking, their own AI key, the connection to ChatGPT and Claude, and suggestions on Home.",
-      ["ai_generation", "ai_helpers", "byok", "voice_input", "mcp_connector", "member_insights", "tech_catalog", "onboarding_widget"]],
+      ["ai_generation", "ai_helpers", "ask_dela_workspace", "byok", "voice_input", "mcp_connector", "member_insights", "tech_catalog", "onboarding_widget"]],
     ["Documents and files", "The attorney's Library and Files: document types, images, the recorder, imports, and client information rules.",
       ["playbook_library", "document_standard", "document_images", "document_conversion", "approved_view", "library_workspace", "recorder", "scribe_import", "file_uploads", "automate_delegate", "confidential_materials", "client_details_allowed"]],
     ["Gigs and hiring", "Posting work and finding people: gigs, proposals, Talent, gig alerts, the bench and reviews.",
