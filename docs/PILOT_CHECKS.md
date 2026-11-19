@@ -127,6 +127,7 @@ How to read the "State" column:
 | 46.1 | DELA follows approved firm guidance (step 46) | With a line approved, the next answer follows it, and a request that disagrees is said, not chosen silently | Not yet | ChatGPT check 13, step 6; only a real AI answer shows this |
 | 46.2 | A firm with staff: a team member proposes, the administrator approves (step 46) | The proposer cannot approve; the administrator sees the proposal waiting | Not yet | Automated test passes; needs two real people in one firm |
 | 46.1 result | DELA follows approved firm guidance | Passed in ChatGPT check 13, 2026-11-19 | Done 2026-11-19 | DELA asked who confirms the missing documents and gave numbered steps, as the guidance and the preference said |
+| 49.1 | Home: each column of cards stacks on its own | On a wide screen no empty space sits under a short card; the order with the Tab key is still the member's order | Not yet | Automated test passes; Stacey to look on her own Home |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
