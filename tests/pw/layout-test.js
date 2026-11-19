@@ -114,6 +114,14 @@ const ATT = 4430;
     await waitFor(p, "Projects");
     ok(!p.url().includes("tab=work"), "Go to Home also clears the freelancer page from the address bar (" + p.url() + ")");
     await s.ctx.close();
+    // A member with both sides: "Switch to the freelancer workspace" lands on the page the link asked for, not on Home
+    await sql(`select dela_ensure_side((select id from people where bd_member_id = ${ATT}), 'freelancer', 'fl_free', 'staff_grant'); select 1`);
+    s = await open(browser, "DELA-App", ATT, "&tab=earnings"); p = s.page;
+    t = await waitFor(p, "freelancer workspace", 15000);
+    await click(p, "Switch to the freelancer workspace");
+    await p.waitForFunction(() => { const r = document.querySelector(".dela-host").shadowRoot; const cur = r.querySelector("[aria-current=page]"); return !r.querySelector("#wrong-side") && !!cur && cur.textContent.includes("Earnings"); }, null, { timeout: 15000 });
+    ok(true, "switching workspaces from the wrong-side page opens the page that was asked for (Earnings)");
+    await s.ctx.close();
     console.log(passed + " browser checks passed");
   } catch (e) {
     console.error(e.message);

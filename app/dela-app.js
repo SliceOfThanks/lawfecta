@@ -12644,15 +12644,16 @@
       h("p", { text: "This page is on the " + other + " workspace of DELA. You are signed in as " + (me.side === "attorney" ? "an attorney" : "a freelancer") + who + "." +
         (hasOther ? " Switch workspaces to open it." : " To use it, sign out and sign in with your " + other + " account.") }),
       h("div", { class: "row", style: "flex-wrap:wrap" },
-        hasOther ? h("button", { class: "blue small", type: "button", onclick: function () { switchSide(other); } }, "Switch to the " + other + " workspace") : null,
+        hasOther ? h("button", { class: "blue small", type: "button", onclick: function () { switchSide(other, t); } }, "Switch to the " + other + " workspace") : null,
         h("button", { class: hasOther ? "ghost small" : "blue small", type: "button", onclick: function () {
           // The address bar stops pointing at the other side's page
           try { var u = new URL(location.href); u.searchParams.delete("tab"); history.replaceState(null, "", u.toString()); } catch (e) { /* older browsers keep the address */ }
           tab = "home"; draw(); } }, "Go to Home")));
   }
-  function switchSide(side) {
+  // "to" is the page to land on: the wrong-side page passes the page the link asked for, so the member arrives there
+  function switchSide(side, to) {
     if (side === me.side) return;
-    api.post("/me/side", { side: side }).then(function (r) { me = r.me; tab = "home"; draw(); }).catch(function (e) { D.toast(app, D.errorText(e.message), true); });
+    api.post("/me/side", { side: side }).then(function (r) { me = r.me; tab = to || "home"; draw(); }).catch(function (e) { D.toast(app, D.errorText(e.message), true); });
   }
 
   // Sign out ends the DELA session, then logs out of Lawfecta too (BD's own log out page), so the next person or

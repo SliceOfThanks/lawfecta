@@ -354,7 +354,9 @@ async function makeMember(bd, side, plan) {
 
     // ---------- Cancel from the meeting card (found reading the page for the UX handoff, 2026-11-18): the button asks
     // why, with the late-cancel hours from the settings, and cancels. It used to stop on a missing value. ----------
-    await sql(`update meetings set start_at = now() + interval '3 days', end_at = now() + interval '3 days 30 minutes' where gig_id = '${gigId}' and status = 'confirmed'; select 1`);
+    // The meeting of this test is put back as a confirmed meeting three days ahead, whatever the steps above left it as
+    console.log("meeting before the cancel check:", JSON.stringify(await sql(`select status from meetings where gig_id = '${gigId}' order by created_at`)));
+    await sql(`update meetings set status = 'confirmed', start_at = now() + interval '3 days', end_at = now() + interval '3 days 30 minutes' where id = (select id from meetings where gig_id = '${gigId}' and status <> 'rescheduled' order by created_at desc limit 1); select 1`);
     s = await open(browser, "DELA-App", 2701, "&tab=meetings");
     p = s.page;
     await waitFor(p, "Change the time");
