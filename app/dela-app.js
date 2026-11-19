@@ -1405,9 +1405,26 @@
   }
   // Draws the member's widgets in their order, in one container, so the Tab key and a screen reader meet them in the
   // order the member chose (WCAG 1.3.2 and 2.4.3; review 2026-11-17, item 1). On a wide screen the styles lay them
-  // out in two columns that fill row by row: 1 and 2, then 3 and 4. Each card keeps its own height. The "Complete your profile"
+  // out in two columns, odd cards on the left and even ones on the right, each column stacked on its own (homeStack). Each card keeps its own height. The "Complete your profile"
   // card is not a widget: while the profile still blocks the member it sits above the widgets, or under them when
   // work or something urgent comes first.
+  // Stacks each column on its own (Stacey 2026-11-19: a short card must not leave a hole beside a tall one). The cards
+  // stay in the member's order in the page: odd ones sit in the left column, even ones in the right, and each card
+  // takes as many thin rows as its own height needs, so the next card in its column starts right under it.
+  function homeStack() {
+    var grid = homeLay.grid;
+    if (!grid) return;
+    var kids = [].slice.call(grid.children).filter(function (n) { return n.classList && n.classList.contains("card"); });
+    var two = grid.classList.contains("cols") && kids.length > 1 && window.matchMedia && window.matchMedia("(min-width:1000px)").matches;
+    grid.classList.toggle("mz", !!two);
+    kids.forEach(function (n) { var want = two ? "span " + Math.max(1, Math.ceil((n.offsetHeight + 20) / 4)) : ""; if (n.style.gridRowEnd !== want) n.style.gridRowEnd = want; });
+  }
+  function homeStackWatch(nodes) {
+    if (homeLay.ro) homeLay.ro.disconnect();
+    if (typeof ResizeObserver === "function") { homeLay.ro = new ResizeObserver(function () { homeStack(); }); nodes.forEach(function (n) { homeLay.ro.observe(n); }); }
+    if (!homeLay.onSize) { homeLay.onSize = function () { homeStack(); }; window.addEventListener("resize", homeLay.onSize); }
+    homeStack();
+  }
   function paintHome() {
     var grid = homeLay.grid, hm = me.home || {};
     if (!grid || !homeLay.data) return;
@@ -1424,6 +1441,7 @@
     grid.className = "home-grid" + (nodes.length > 1 ? " cols" : "");
     nodes.forEach(function (n) { grid.appendChild(n); });
     if (!nodes.length) grid.appendChild(h("p", { class: "muted", text: "Nothing to show yet. Choose \"Customize dashboard\" to add widgets." }));
+    homeStackWatch(nodes);
     if (homeLay.top && homeLay.bottom) {
       D.clear(homeLay.top); D.clear(homeLay.bottom);
       if (pb) {

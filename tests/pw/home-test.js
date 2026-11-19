@@ -98,7 +98,11 @@ const DEF_ATT = ["attention", "delegating", "projects", "talent", "spend", "ask"
     ok((await columns(p)) === 2, "attorney at 1280: two columns");
     ok(JSON.stringify(await inPage(p)) === JSON.stringify(DEF_ATT), "the page holds the cards in the member's order, so Tab and a screen reader follow it");
     const tops = await inShadow(p, (root) => [...root.querySelectorAll("#home-grid > [data-widget]")].map((x) => Math.round(x.getBoundingClientRect().top)));
-    ok(tops[0] === tops[1] && tops[2] === tops[3] && tops[2] > tops[0] && tops[4] > tops[2], "the two columns fill row by row: 1 and 2, then 3 and 4: " + tops.join(", "));
+    ok(tops[0] === tops[1] && tops[2] > tops[0] && tops[4] > tops[2], "the two columns start level, and each goes down in the member's order: " + tops.join(", "));
+    // Stacey 2026-11-19: each column is stacked on its own, so a short card leaves no hole beside a tall one
+    const stack = await inShadow(p, (root) => { const b = [...root.querySelectorAll("#home-grid > [data-widget]")].map((x) => x.getBoundingClientRect()); const out = [];
+      for (let i = 2; i < b.length; i++) out.push({ gap: Math.round(b[i].top - b[i - 2].bottom), sameCol: Math.abs(b[i].left - b[i - 2].left) < 2 }); return out; });
+    ok(stack.length > 0 && stack.every((s) => s.sameCol && s.gap >= 16 && s.gap <= 24), "each card starts right under the card above it in its own column: " + JSON.stringify(stack));
     ok(await inShadow(p, (root) => root.querySelectorAll(".usage-meter").length === 0), "no second usage line under the cards");
     ok(await inShadow(p, (root) => [...root.querySelectorAll(".home-dash .linkish")].every((b) => b.getBoundingClientRect().height >= 24)), "every link on Home is at least 24 pixels tall");
     ok(await inShadow(p, (root) => { const q = root.querySelector("#home-ask-q"); return !q || (!!root.querySelector("label[for=home-ask-q]") && !q.getAttribute("aria-label")); }), "the Ask DELA box has a label that stays visible");
