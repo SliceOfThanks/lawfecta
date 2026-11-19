@@ -13,7 +13,7 @@ An attorney has no profile page that freelancers can open. Freelancers see the f
 
 ## Where
 - Profile page (https://www.lawfecta.co/dela?tab=profile), freelancer workspace: a blue card at the top with the button "View my live profile".
-- Home, in the "Complete your profile" card: the link "View my live profile", next to "Help me complete my profile".
+- Home, in the "Complete your profile" card: the link "View my live profile", next to "Help me complete my profile" (on a computer; on a phone the card stays short and the button on the Profile page is the way in).
 - The live profile page itself: a card "Your live profile, as attorneys see it" at the top, an "Edit" button next to each of the four text parts, and "← Back to the profile form".
 - Profile page, attorney workspace: the card "What freelancers see about you".
 
