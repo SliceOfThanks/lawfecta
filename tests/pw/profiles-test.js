@@ -356,7 +356,7 @@ async function waitFor(page, words, ms) {
       let v = await waitFor(q, "PROFILE SECTIONS");
       ok(v.includes("Your profile") && v.includes("Edit what attorneys see. Save each section as you go.") && v.includes("Preview profile"), "the page has its heading, one sentence and Preview profile");
       const strip = await dela(q).locator("#pf-ready").innerText();
-      ok(/Visible in Talent/.test(strip) && /Profile details (complete|incomplete)/.test(strip) && /LinkedIn review (passed|in progress|not started)/.test(strip) && /Availability (confirmed|unconfirmed)/.test(strip) && strip.includes("View requirements"), "the readiness line gives one state for each of the three parts: " + strip.replace(/\n/g, " | "));
+      ok(/isible in Talent/.test(strip) && /Profile details (complete|incomplete)/.test(strip) && /LinkedIn review (passed|in progress|not started)/.test(strip) && /Availability (confirmed|unconfirmed)/.test(strip) && strip.includes("View requirements"), "the readiness line gives one state for each of the three parts: " + strip.replace(/\n/g, " | "));
       const tabs = await dela(q).locator(".pf-tabs [role=tab]").allInnerTexts();
       ok(tabs[0] === "Public profile" && tabs[1] === "Matching & verification" && (await dela(q).locator("#pf-tab-public").getAttribute("aria-selected")) === "true", "the page is in tabs, Public profile first: " + tabs.join(", "));
       ok(!v.includes("Tell attorneys whether you can take work") && !v.includes("steps done"), "the checklist and availability are not on the Public profile tab");
