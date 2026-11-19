@@ -179,6 +179,13 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     const late = erows.filter((r) => r.includes("Overdue"));
     ok(late.length === 1 && late[0].includes("Late binder job") && late[0].includes("Was due") && erows.some((r) => r.includes("Client two intake") && r.includes("Delivered, was due") && !r.includes("Overdue")), "Overdue by the one rule: past its date and not accepted, with Was due: " + late.join(" | "));
     ok(erows.some((r) => r.includes("Welcome packet") && r.includes("Was planned for") && !r.includes("Overdue") && !r.includes("Was due")), "an agreement that is not signed yet is never overdue, whatever its planned date (step 40)");
+    // Check 10, second run: a filter does not stay when the tab is opened again, and the panel is not a keyboard stop
+    await dela(p).getByRole("button", { name: "Needs your signature (1)" }).click();
+    await dela(p).locator("#pj-tab-overview").click();
+    await dela(p).locator("#pj-tab-engagements").click();
+    await p.waitForFunction(() => document.querySelector(".dela-host").shadowRoot.querySelector("#pj-eng-filter [aria-pressed=true]"), null, { timeout: 8000 });
+    ok(await inShadow(p, (root) => root.querySelector("#pj-eng-filter [aria-pressed=true]").textContent.indexOf("All active") === 0 && root.querySelectorAll("#pj-panel table.pj-table tbody tr").length >= 4 && !root.querySelector("#pj-panel").hasAttribute("tabindex")), "opening the Engagements tab again shows every active engagement, and the panel is not a keyboard stop");
+    t = await text(p);
     ok(t.includes("Finished and canceled (1)") && await dela(p).locator("#pj-panel details.eng-past").count() === 1, "finished work folds away under the active engagements");
     await dela(p).getByLabel("Find an engagement by its title or freelancer").fill("kendra");
     await p.waitForTimeout(200);

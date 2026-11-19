@@ -5263,7 +5263,7 @@
           go.disabled = true; cancel.disabled = true; status.textContent = "DELA is writing the description. This can take a moment. Nothing is posted.";
           api.post("/gigs/draft", { playbook_id: pick.value, request_id: req, notes: notes.value, budget_min: bmin.value, budget_max: bmax.value || bmin.value, deadline: deadline.value || undefined, linked_agreement: gigs.linkTo ? gigs.linkTo.id : undefined, kind: kMon.checked ? "monthly" : "one_off" }).then(function (x) {
             if (!x || !x.ok) throw x || {};
-            gigs.newFrom = null; gigs.linkTo = null; gigs.wiz = null; gigs.wizKept = null; gigs.wstep = 2; gigs.wnew = x.source === "ai" ? "ai" : "doc";
+            gigs.newFrom = null; gigs.linkTo = null; gigs.wiz = null; gigs.wizKept = null; gigs.wstep = 2; gigs.wtop = true; gigs.wnew = x.source === "ai" ? "ai" : "doc";
             gigLink(x.id, "projects");
           }).catch(function (x) {
             go.disabled = false; cancel.disabled = false; status.textContent = ""; req = newId();
@@ -5373,7 +5373,8 @@
       var tip = pjTip(PJ_HELP.page, "Projects");
       // The page is drawn again after a tab is chosen; focus goes back to that tab once it is there
       var go = function (key, more) {
-        gigs.ptab = cur = key; if (more) more();
+        // A tab opens with its whole list; a filter is kept only when the button that led here sets it (check 10, second run)
+        gigs.ptab = cur = key; gigs.efilter = ""; gigs.listFilter = "active"; if (more) more();
         PJ_TABS.forEach(function (t) { var b = el.querySelector("#pj-tab-" + t[0]); if (b) { b.setAttribute("aria-selected", String(t[0] === cur)); b.setAttribute("tabindex", t[0] === cur ? "0" : "-1"); } });
         paintPanel();
         var tb = el.querySelector("#pj-tab-" + cur); if (tb) tb.focus();
@@ -5425,7 +5426,8 @@
       }));
       el.appendChild(tabs);
       var refocus = gigs.pfocus; gigs.pfocus = null;
-      var panel = h("div", { id: "pj-panel", role: "tabpanel", "aria-labelledby": "pj-tab-" + cur, tabindex: "0" });
+      // Every panel starts with a control, so the panel itself is not a keyboard stop
+      var panel = h("div", { id: "pj-panel", role: "tabpanel", "aria-labelledby": "pj-tab-" + cur });
       el.appendChild(panel);
       // Choosing a tab paints its panel from what is already loaded: the page does not reload, the tab stays in place
       // and keeps the keyboard focus (check 10, 2026-11-18)
@@ -5571,7 +5573,7 @@
             return [h("b", { text: who }), h("span", { text: D.money(a.cap_cents) }), h("span", { text: D.money(a.spend_cents) }), h("span", { text: D.money(Math.max((a.cap_cents || 0) - (a.spend_cents || 0), 0)) }),
               h("span", { text: a.open + " of " + a.max_open }), h("span", { class: "badge " + ({ active: "R", needs_review: "held" }[a.status] || ""), text: STANDING_WORDS[a.status] || a.status }),
               // Manage opens that arrangement's details in the card under the table
-              h("button", { class: "ghost small", type: "button", "aria-label": "Manage the arrangement with " + who, onclick: function () { var d = panel.querySelector("#standing-a-" + a.id); if (!d) return; d.open = true; var sm = d.querySelector("summary"); if (sm) sm.focus({ preventScroll: true }); setTimeout(function () { d.scrollIntoView({ block: "center" }); }, 0); } }, "Manage")];
+              h("button", { class: "ghost small", type: "button", "aria-label": "Manage the arrangement with " + who, onclick: function () { var d = panel.querySelector("#standing-a-" + a.id); if (!d) return; d.open = true; var sm = d.querySelector("summary"); if (sm) sm.focus({ preventScroll: true }); setTimeout(function () { window.scrollTo(0, Math.max(d.getBoundingClientRect().top + (window.scrollY || 0) - 120, 0)); }, 60); } }, "Manage")];
           })));
           panel.appendChild(sc);
         }
@@ -5811,7 +5813,7 @@
       h("p", { class: "small muted", text: "Matched freelancers read this before they spend a proposal. Invited and hired freelancers also see their part of the document (an SOP, or a workflow's steps for the freelancer role), with their name as a watermark. No client information." + (g.status === "open" ? " Changing the budget or the work tells applicants; a big change asks them to confirm their proposals." : "") }),
       field("Title", f.title), field("The task", f.task, "Two or three sentences: what the freelancer will do."), field("What done looks like", f.outcome), field("Steps, one per line", f.steps),
       field("Tools", f.tools, "Separated by commas. DELA matches freelancers who use them."), field("Skills", f.skills, "Separated by commas."),
-      h("div", { class: "row" }, field("Practice area", f.area), field("State", f.state), field("Usual time", f.timing))));
+      h("div", { class: "row" }, field("Practice area", f.area), field("State", f.state)), field("Usual time", f.timing)));
     step3.appendChild(h("div", { class: "card" }, h("h2", { text: "Budget, deadline and milestones" }),
       h("div", { class: "row" }, field("Budget from ($)", f.bmin), field("Budget to ($)", f.bmax), field("Deadline", f.deadline)),
       field("Milestones (private)", f.miles, "For example: First version, then Final version. Freelancers see milestones only after you hire them; DELA sets the final milestones with the agreement.")));
@@ -5863,12 +5865,14 @@
       if (!confirm("Keep this gig open " + (extDays ? "for " + extDays + " more days" : "longer") + "? " + (extLeft === 1 ? "You can extend it once." : "You can extend it " + extLeft + " more times."))) return;
       api.post("/gigs/extend", { id: g.id }).then(gigOk).then(function (x) { draw(); D.toast(app, "Open until " + D.dateTime(x.closes_at)); }).catch(gigFail);
     } }, extDays ? "Extend " + extDays + " days" : "Extend"));
-    if (g.status === "open" || g.status === "draft") acts.appendChild(h("button", { class: "danger", type: "button", style: "margin-left:24px", onclick: function () {
+    if (g.status === "open" || g.status === "draft") acts.appendChild(h("button", { class: g.status === "draft" ? "ghost" : "danger", type: "button", style: g.status === "draft" ? "margin-left:24px;color:var(--bad);border-color:var(--bad)" : "margin-left:24px", onclick: function () {
       if (!confirm(g.status === "draft" ? "Delete this draft gig?" : "Close this gig now? Applicants are told, and you can still choose a proposal" + (rules.proposals_actionable_days ? " for " + rules.proposals_actionable_days + " days." : " for a short time."))) return;
       api.post("/gigs/close", { id: g.id, cancel: g.status === "draft" }).then(gigOk).then(function () { var wasDraft = g.status === "draft"; gigs.id = wasDraft ? null : g.id; draw(); if (wasDraft) window.scrollTo(0, 0); D.toast(app, wasDraft ? "Draft deleted" : "Closed"); }).catch(gigFail);
     } }, g.status === "draft" ? "Delete draft" : "Close the gig"));
     step3.appendChild(acts);
     if (wizard) showStep(at, false);
+    // The step after DELA's draft opens at the top of the page
+    if (wizard && gigs.wtop) { gigs.wtop = false; setTimeout(function () { window.scrollTo(0, 0); }, 0); }
     if (r.playbook) body.appendChild(h("details", { class: "card" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "The document (invited and hired freelancers see their part of it)" }),
       r.gig_part ? h("p", { class: "small muted", text: "The freelancer sees " + r.gig_part.steps + " of " + r.gig_part.of + " steps" + (r.gig_part.checkpoints ? ", with " + r.gig_part.checkpoints + " \"Attorney decides\" step" + (r.gig_part.checkpoints > 1 ? "s" : "") + " where the work waits for you" : "") + "." }) : null, playbookPlain(r.playbook)));
     if ((me.switches || {}).document_standard && editable) referencesEditor(body, g, r.references);
