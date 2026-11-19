@@ -432,6 +432,15 @@ async function waitFor(page, words, ms) {
     t = await text(s.page);
     ok(t.includes("Lawfecta Team only"), "members cannot open the admin area");
     ok(t.includes("You are signed in as") && t.includes("BD member 1100"), "the refusal says which account this browser is signed in with");
+    // Stacey 2026-11-19: the screen has its own "Sign out" (signed in as someone else) and "Log in" (not signed in)
+    ok(await dela(s.page).getByRole("button", { name: "Sign out", exact: true }).count() === 1 && await dela(s.page).locator("#gate-login").count() === 0 && await dela(s.page).locator("#gate-dela").getAttribute("href") === "/dela", "a member on the admin page gets Sign out and a way to DELA");
+    await dela(s.page).getByRole("button", { name: "Sign out", exact: true }).click();
+    await s.page.waitForURL(/logout/, { timeout: 8000 }).catch(() => {});
+    ok(/logout/.test(s.page.url()), "Sign out ends the session and goes to the website's log out page (" + s.page.url() + ")");
+    await s.ctx.close();
+    s = await open(browser, "DELA-Admin", 0, "");
+    t = await text(s.page);
+    ok(t.includes("Lawfecta Team only") && await dela(s.page).locator("#gate-login").count() === 1 && /login/.test(await dela(s.page).locator("#gate-login").getAttribute("href")) && await dela(s.page).getByRole("button", { name: "Sign out", exact: true }).count() === 0, "not signed in: the admin page offers Log in, and no Sign out");
     await s.ctx.close();
 
     // Removing access takes effect on the next page load

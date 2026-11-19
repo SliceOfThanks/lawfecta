@@ -44,7 +44,17 @@
     app.appendChild(h("div", { class: "wrap" }, h("div", { class: "card", style: "max-width:560px;margin:40px auto;text-align:center" },
       h("h1", { text: "Lawfecta Team only" }), h("p", { class: "muted", text: "This page is for the Lawfecta Team. Log in with a Lawfecta Team account." }),
       // Test accounts share look-alike addresses, so say plainly which account this browser is signed in with
-      me.person ? h("p", { class: "notice", style: "text-align:left", text: "You are signed in as " + (me.person.name || "a member") + (me.person.email ? " (" + me.person.email + ")" : "") + ", BD member " + me.person.bd_member_id + ". To use the admin area, log out of the website and log in with your Lawfecta Team account." }) : null)));
+      me.person ? h("p", { class: "notice", style: "text-align:left", text: "You are signed in as " + (me.person.name || "a member") + (me.person.email ? " (" + me.person.email + ")" : "") + ", BD member " + me.person.bd_member_id + ". To use the admin area, use \"Sign out\" below, then log in with your Lawfecta Team account." }) : null,
+      // Stacey 2026-11-19: this screen has its own way in and out, so nobody needs the website's header or footer here.
+      // Signed in as someone else: "Sign out" ends the DELA session and the website login, as in the member area.
+      // Not signed in: "Log in" opens the website's login page.
+      h("div", { class: "row", id: "gate-acts", style: "justify-content:center;flex-wrap:wrap;gap:10px;margin-top:14px" },
+        me.person ? h("button", { class: "blue", type: "button", id: "gate-signout", onclick: function (e) {
+          e.currentTarget.disabled = true;
+          var out = function () { location.href = root.getAttribute("data-logout-url") || "/logout"; };
+          api.signOut().then(out).catch(out);
+        } }, "Sign out") : h("a", { class: "btn blue", id: "gate-login", href: root.getAttribute("data-login-url") || "/login" }, "Log in"),
+        me.person ? h("a", { class: "btn ghost", id: "gate-dela", href: "/dela" }, "Open DELA") : null))));
     return;
   }
 
