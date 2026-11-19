@@ -1,7 +1,7 @@
 # Feature brief: Ask DELA as a chat-first workspace (Phase 1 of the DELA build handoff)
 
 Step: 45   Spec references: Stacey's "DELA: Product, UX, AI and Engineering Handoff" v1.0 (2026-11-16), sections 4 to 8 and 19 (Phase 1), mockup 1; the gap map, docs/handoff/dela-build-handoff/GAP-MAP.md
-Status: draft, waiting for Stacey's answers
+Status: questions answered by Stacey 2026-11-19; approved to build after the foundation fixes
 
 ## Who
 Attorneys and their firm staff on every attorney plan, and agencies that hire. Freelancers keep Ask DELA as it is today, with the next question and its choices (part 3 below) but without documents to choose, because a freelancer has no Library.
@@ -112,6 +112,20 @@ Built on it: files shared on a job are never read by the AI; the six sensitive k
 | 4 | The file check passes a file when the AI's answer cannot be read | Data protection | Yes |
 | 5 | File text for a draft is checked against the file's own firm, with the side fixed to attorney | Ownership and permissions | Yes |
 | 6 | No test for an instruction planted in a file or document; none for accepting a stale suggestion | Missing tests | With Phase 1: step 45 adds documents to the chat, so the planted-instruction test belongs to it |
+
+## Stacey's answers, 2026-11-19
+Given in chat, after she read the recommendations above.
+
+1. Internal staff work with no gig: later, in phases. Not in step 45. No artificial $0 gigs.
+2. Direct invitation with "Accept scope": beside proposals, never replacing them, tied to the engagement's terms and payment for paid work. It comes with assignments, not now.
+3. The Library stays, with one underlying record. Ask DELA shows the same documents in a panel ("My documents", since the word stays "document").
+4. Her client information rule of 2026-11-05 stands. Step 45 does not widen what DELA takes in.
+5. **"Document" stays.** "Playbook" remains one of the four types.
+6. **Burgundy stays** for main buttons. Blue is for information and focus.
+7. Approved versions and drafts both, treated differently: a draft is labeled "Draft, not approved" in the context panel and to the model, and never overrides an approved version. A draft is used only when it is the one being edited or an editor chose it.
+8. One Ask DELA page with panels. No second menu. Focused views on a phone with a clear way back to the chat.
+9. **The Library administrator approves, as today.** A named approver per document is a later step with its own brief.
+10. Fix first, as their own step: the defects that touch billing, permissions and data protection (1, 3, 4 and 5 in the table above). Defect 2 can follow. The missing tests come with step 45.
 
 ## Success looks like
 Checks that must pass on the site before this is open to members. They become the automated tests and one ChatGPT check, grouped by login (freelancer, then attorney).
