@@ -1,0 +1,3 @@
+# Notes on ChatGPT check 14 (step 49 and the stacked Home columns, 2026-11-19)
+
+Covers: Home with each column of cards stacked on its own, the freelancer's live profile (the page attorneys see) with the headline, summary and education edited in place, and the attorney card "What freelancers see about you". Two logins, the test freelancer then the test attorney, each once. It changes the test freelancer's headline and education and puts both back. It sends no message and no invitation. The test freelancer is match-ready, with the headline "Family Law Paralegal Administrative Support" and no education, as read from Live on 2026-11-19.

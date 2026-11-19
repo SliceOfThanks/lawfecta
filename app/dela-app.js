@@ -7666,8 +7666,8 @@
             if (x.reason === "looks_like_client_info") { msg.textContent = ciNote(x, "This may include client information. Take it out and choose Save."); anyway.hidden = false; return; }
             if (!x.ok) { msg.textContent = x.reason === "stale" || x.reason === "version_conflict" ? "Your profile changed somewhere else. Choose Cancel and try again." : D.errorText(x.reason); return; }
             prof.dirty = false; prof.body = null;
-            D.toast(app, "Saved. Your live profile shows it now.");
             draw();
+            D.toast(app, "Saved. Your live profile shows it now.");
           }).catch(function (e) { save.disabled = false; msg.textContent = D.errorText(e.message); });
         }
         save.addEventListener("click", function () { go(false); });
