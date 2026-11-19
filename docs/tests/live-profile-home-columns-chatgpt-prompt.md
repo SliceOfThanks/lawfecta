@@ -1,4 +1,4 @@
-You are checking two new things in DELA on the Lawfecta site, www.lawfecta.co: the Home page, where each column of cards is now stacked on its own, and a new page where a freelancer sees their own profile the way attorneys see it and changes its text right there. Everything here uses test accounts with test data. Do only what the steps say. You will change the test freelancer's headline, education, skills and services and then put all of them back as they were. Do not click "Change photo". Send no message and no invitation.
+You are checking two new things in DELA on the Lawfecta site, www.lawfecta.co: the Home page, where each column of cards is now stacked on its own, and a new page with a formatting bar, where a freelancer sees their own profile the way attorneys see it and changes its text right there. Everything here uses test accounts with test data. Do only what the steps say. You will change the test freelancer's headline, education, skills and services and then put all of them back as they were. Do not click "Change photo". Send no message and no invitation.
 
 No step should open a browser pop-up (a small OK / Cancel window from the browser itself). If one opens, click Cancel, write FAIL for that step and say what the pop-up said.
 
@@ -53,6 +53,19 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
    Do: click that "Edit". In the box labeled "Professional summary", select all the text and type exactly: This text must not be saved.
    Then click the outlined button "Cancel".
    Expect: the card shows the old text again, starting "Fictional QA profile." The words "This text must not be saved." are nowhere on the page.
+   Do: click "Edit" in the card "Professional summary" again.
+   Expect: right above the box, a row of small outlined buttons: "B", "I", "Heading", "• List", "1. List", "Plain" and "Add picture". Under the box, a button "✦ Write with DELA", and under that a light grey box headed "How attorneys will see it" that shows the summary.
+   Expect also: there is no button "It is not client information, save" next to "Save" and "Cancel".
+   Do: click at the very end of the text in the box, press Enter, and type exactly: QA heading line
+   Then click the button "Heading" in the row above the box.
+   Expect: in the box, that last line now reads "## QA heading line". In the grey box "How attorneys will see it", the same words show as a larger bold heading without the "##".
+   Do: press Enter, type exactly: QA list point
+   Then click the button "• List".
+   Expect: in the box, the last line reads "- QA list point". In the grey box it shows as a list point with a dot in front, without the "-".
+   Do: click "✦ Write with DELA".
+   Expect: a small panel opens under that button with a box for facts and a button "Write it". Do NOT click "Write it".
+   Do: click the outlined button "Cancel" (next to "Save").
+   Expect: the card shows the old text again, starting "Fictional QA profile.", with no "QA heading line".
 
 5. Do: click the tab "Experience and qualifications".
    Find: the card "Education and credentials". It holds the grey words "Nothing here yet. Add degrees, certificates and training, one per line." and a small outlined button "Edit".
@@ -92,7 +105,7 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
 9. Do: click the small outlined button "← Back to the profile form" at the top left of the page.
    Expect: the profile form is back, with the heading "Profile" and the light blue card that holds "View my live profile".
 
-10. REVIEW. (a) On the live profile, was it clear that this is what attorneys see? (b) Was it clear which parts can be changed on that page, and where the other parts are changed? (c) Anything confusing, repeated or hard to read?
+10. REVIEW. (a) On the live profile, was it clear that this is what attorneys see? (b) Was it clear which parts can be changed on that page, and where the other parts are changed? Was the row of formatting buttons and the box "How attorneys will see it" easy to understand? (c) Anything confusing, repeated or hard to read?
 
 Sign out: click the round button with your initials at the far right of the top bar, then click "Sign out".
 

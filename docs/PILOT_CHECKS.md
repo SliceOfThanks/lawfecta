@@ -129,6 +129,8 @@ How to read the "State" column:
 | 46.1 result | DELA follows approved firm guidance | Passed in ChatGPT check 13, 2026-11-19 | Done 2026-11-19 | DELA asked who confirms the missing documents and gave numbered steps, as the guidance and the preference said |
 | 49.1 | Home: each column of cards stacks on its own | On a wide screen no empty space sits under a short card; the order with the Tab key is still the member's order | Not yet | Automated test passes; Stacey to look on her own Home |
 | 49.2 | A freelancer edits the live profile in place (step 49) | The change shows at once on the page attorneys see, and an attorney who opens the profile sees it too | Not yet | ChatGPT check 14; the attorney's view needs a second real login |
+| 50.1 | A picture in the profile text shows for an attorney (step 50) | A freelancer adds a picture to the summary and saves; an attorney who opens the profile sees it | Not yet | Automated tests pass with a stand-in for storage; needs a real upload on Live |
+| 50.2 | "Write with DELA" writes a section with light formatting (step 50) | The section comes back with a heading or a list and no invented facts | Not yet | Only a real AI answer shows this |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
