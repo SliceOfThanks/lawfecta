@@ -246,6 +246,51 @@ async function makeMember(bd, side, plan) {
     await s.page.screenshot({ path: path.join(SHOTS, "2-library-phone.png") });
     await s.ctx.close();
 
+    // ---------- Step 45: Ask DELA as a chat-first workspace ----------
+    await sql("update feature_switches set state = 'everyone' where key = 'ask_dela_workspace'; select 1");
+    s = await open(browser, 2200, { width: 1280, height: 900 });
+    await click(s.page, "Ask DELA");
+    t = await waitFor(s.page, "What DELA is using");
+    ok(t.includes("What would you like to get off your plate?") && t.includes("Describe the work or what keeps going wrong. We'll work through it together.") && t.includes("+ New chat"), "Ask DELA opens on a blank chat with the question, and New chat is a secondary button");
+    ok(t.includes("Naming a document in your message does not attach it.") && /Documents \(0 of 3\)/.test(t) && t.includes("None chosen.") && t.includes("Send a message first."), "the panel says what DELA is using: nothing chosen yet, and no next action before a message");
+    const cols = await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; const a = r.querySelector(".aw-main").getBoundingClientRect(), b = r.querySelector(".aw-side").getBoundingClientRect(); return b.left > a.right - 1; });
+    ok(cols, "at 1280 wide the panel sits beside the chat");
+    await click(s.page, "Add a document");
+    await dela(s.page).locator(".aw-opt input").first().check();
+    t = await text(s.page);
+    ok(/Documents \(1 of 3\)/.test(t) && t.includes("Approved, version") && await dela(s.page).getByRole("button", { name: /^Remove .* from this chat$/ }).count() === 1, "a chosen document is listed with its type and approved version, and can be removed");
+    await dela(s.page).getByLabel("Your message", { exact: true }).fill("Please ask me what you need about intake");
+    await click(s.page, "Send");
+    t = await waitFor(s.page, "Suggested answers", 15000);
+    ok(t.includes("I used your document.") && t.includes("Which matters does this cover?") && !t.includes("CHOICES:") && !t.includes("QUESTION:"), "DELA answered from the chosen document and its one question shows as text, with the choices as buttons");
+    const before45 = (await sql("select count(*)::int n from ai_messages"))[0].n;
+    await click(s.page, "New matters only");
+    await s.page.waitForTimeout(300);
+    ok(await dela(s.page).getByLabel("Your message", { exact: true }).inputValue() === "New matters only" && (await sql("select count(*)::int n from ai_messages"))[0].n === before45, "a choice only fills the message box; nothing is sent");
+    t = await text(s.page);
+    ok(t.includes("Create a draft from this chat →") && t.includes("Starting a new chat keeps your earlier chats and drafts."), "after a message, the next actions fit the chat");
+    await s.page.setViewportSize({ width: 320, height: 800 });
+    await s.page.waitForTimeout(350);
+    ok(await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; const a = r.querySelector(".aw-main").getBoundingClientRect(), b = r.querySelector(".aw-side").getBoundingClientRect(); return document.documentElement.scrollWidth <= window.innerWidth + 1 && b.top >= a.bottom - 1; }), "320 wide: one column, the panel under the chat, no sideways scrolling");
+    await s.page.setViewportSize({ width: 1280, height: 900 });
+    await s.page.waitForTimeout(250);
+    await s.page.screenshot({ path: path.join(SHOTS, "ask-dela-workspace.png"), fullPage: true });
+    // A draft from the chat: the chat is its material, the draft stays linked, nothing is approved
+    await dela(s.page).locator("#aw-draft").click();
+    await s.page.waitForFunction(() => { const r = document.querySelector(".dela-host").shadowRoot; const ta = r.querySelector('textarea[aria-label="Describe the task"], textarea[aria-label^="Paste an existing checklist"]'); return ta && ta.value.includes("Me: Please ask me what you need about intake"); }, null, { timeout: 15000 });
+    ok(true, "Create a draft from this chat opens New document with the chat as its material");
+    await click(s.page, "Draft it with DELA");
+    await waitFor(s.page, "DELA's questions", 15000);
+    const linked = await sql("select p.status, p.approved_version, (select saved_at is not null from ai_chats c where c.id = p.from_chat) kept from playbooks p where p.from_chat is not null");
+    ok(linked.length === 1 && linked[0].status === "draft" && linked[0].approved_version === null && linked[0].kept === true, "one draft, linked to its chat, not approved, and the chat is kept: " + JSON.stringify(linked));
+    await click(s.page, "Ask DELA");
+    t = await waitFor(s.page, "Drafts from this chat");
+    ok(/Documents \(1 of 3\)/.test(t), "back in the chat: its draft is listed and its document is still chosen");
+    await click(s.page, "+ New chat");
+    t = await waitFor(s.page, "None chosen.");
+    ok(!t.includes("Drafts from this chat") && (await sql("select count(*)::int n from ai_chats where archived_at is null and person_id = (select id from people where bd_member_id = 2200)"))[0].n >= 1, "New chat starts clean and the earlier chat is still stored");
+    await s.ctx.close();
+
     // ---------- Freelancer ----------
     s = await open(browser, 2202);
     t = await text(s.page);
