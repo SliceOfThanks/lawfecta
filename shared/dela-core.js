@@ -589,6 +589,7 @@ D.openTab = function (getUrl, onFail, opts) {
     ".tp-photo{width:84px;height:84px;font-size:30px}.tp-tabs{display:flex;flex-wrap:wrap;gap:4px;margin:14px 0 10px;border-bottom:1px solid var(--line)}" +
     ".dela .tp-tabs button{background:transparent;border:0;border-bottom:3px solid transparent;border-radius:0;color:var(--muted);font-weight:700;padding:10px 12px;min-height:44px}" +
     ".dela .tp-tabs button[aria-selected=true]{color:var(--pink-ink);border-bottom-color:var(--pink-ink)}.dela .tp-tabs button:focus-visible{outline:2px solid var(--pink-ink);outline-offset:-2px}" +
+    ".tp-self-card{background:var(--sel);margin:0 0 12px}.dela .tp-edit{margin-top:8px}.tp-editor label{display:block;font-weight:700;margin:0 0 2px}.tp-editor textarea,.tp-editor input{box-sizing:border-box}" +
     ".tp-panel:focus-visible{outline:2px solid var(--pink-ink);outline-offset:4px}.tp-panel .card{margin:10px 0}.tp-item{padding:12px 0;border-top:1px solid var(--line)}.tp-item:first-of-type{border-top:0}" +
     ".tp-facts{margin:0}.tp-facts div{display:flex;justify-content:space-between;gap:12px;padding:8px 0;border-top:1px solid var(--line)}.tp-facts div:first-child{border-top:0}.tp-facts dt{color:var(--muted)}.tp-facts dd{margin:0;font-weight:700;text-align:right}" +
     // Ready-made profile pictures: a compact grid, one choice, a clear ring on the chosen and the focused one

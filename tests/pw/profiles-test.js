@@ -219,6 +219,33 @@ async function waitFor(page, words, ms) {
     ok(saved.software.includes("Clio") && saved.software.includes("MyCase") && saved.software.includes("Casemark"), "tech tools are saved from the choices and the other box");
     ok(/^profiles\/[0-9a-f-]{36}\/photo-[0-9a-f-]{36}\.png$/.test(saved.photo_file || ""), "the new photo is kept when the profile is saved");
 
+    // Step 49: the freelancer opens the live profile, as attorneys see it, and changes the headline and the education right there
+    await dela(p).locator("#prof-live").click();
+    t = await waitFor(p, "Your live profile, as attorneys see it");
+    ok(t.includes("I support solo attorneys with e-filing and discovery in Texas courts.") && t.includes("Quick facts") && t.includes("Back to the profile form"), "the live profile shows the saved summary on the page attorneys see");
+    ok(!t.includes("Invite to gig") && !t.includes("Send message") && !t.includes("Book a call"), "the member's own live profile has no invite, message or call button");
+    ok(t.includes("Attorneys cannot find this profile in Talent search yet") || t.includes("Attorneys can find this profile in Talent search now"), "the page says whether attorneys can find the profile");
+    await dela(p).locator("#tp-edit-headline").click();
+    await dela(p).locator("#tp-box-headline").fill("Litigation support for solo attorneys in Texas");
+    await dela(p).locator("#tp-save-headline").click();
+    t = await waitFor(p, "Saved. Your live profile shows it now.");
+    t = await waitFor(p, "Litigation support for solo attorneys in Texas");
+    await dela(p).locator("#tp-edit-summary").click();
+    await dela(p).locator("#tp-box-summary").fill("This must not be kept.");
+    await dela(p).getByRole("button", { name: "Cancel", exact: true }).click();
+    t = await waitFor(p, "I support solo attorneys with e-filing and discovery in Texas courts.");
+    ok(!t.includes("This must not be kept."), "Cancel leaves the summary as it was");
+    await dela(p).getByRole("tab", { name: "Experience and qualifications" }).click();
+    await dela(p).locator("#tp-edit-education").click();
+    await dela(p).locator("#tp-box-education").fill("Paralegal certificate, Austin Community College\nNotary public, Texas");
+    await dela(p).locator("#tp-save-education").click();
+    t = await waitFor(p, "Notary public, Texas");
+    const live = (await sql("select body from member_profiles mp join people pe on pe.id = mp.person_id where pe.bd_member_id = 2501 and side = 'freelancer'"))[0].body;
+    ok(live.headline === "Litigation support for solo attorneys in Texas" && /Notary public, Texas/.test(live.education) && live.summary === saved.summary && live.services.length === saved.services.length && live.photo_file === saved.photo_file, "editing in place saves that one part and leaves the rest of the profile as it was");
+    await dela(p).locator("#tp-self-back").click();
+    t = await waitFor(p, "Your availability");
+    ok((await label(p, "Headline").inputValue().catch(() => "")) === "Litigation support for solo attorneys in Texas" || t.includes("View my live profile"), "back on the form, with the new headline");
+
     // A change not saved yet survives the LinkedIn button (Stacey's Step 3 test, 2026-11-05)
     await label(p, "Usual hours").fill("Not saved yet");
     await dela(p).getByLabel("LinkedIn profile address", { exact: true }).first().fill("https://www.linkedin.com/in/fran-freelancer");

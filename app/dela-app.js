@@ -623,8 +623,10 @@
         acts.appendChild(more);
       }
       var help = h("button", { class: "linkish", type: "button", hidden: true, onclick: function () { if (homeAsk) homeAsk("Help me complete my profile. What should I add next?"); } }, "Help me complete my profile");
+      var liveLink = att ? null : h("button", { class: "linkish", type: "button", id: "home-live-profile", onclick: openLiveProfile }, "View my live profile");
       c.helpBtn = help;
       acts.appendChild(help);
+      if (liveLink) acts.appendChild(liveLink);
       body.appendChild(acts);
       if (!att) {
         // Not profile details: a check the Lawfecta Team does, and a confirmation that repeats
@@ -2569,7 +2571,9 @@
 
   // ---------- Step 3: Profile and verification (both sides) ----------
 
-  var prof = { data: null, body: null, dirty: false };
+  var prof = { data: null, body: null, dirty: false, live: false };
+  var tpSelf = false;
+  function openLiveProfile() { prof.live = true; talentTab = "overview"; if (tab === "profile") draw(); else goTab("profile"); window.scrollTo(0, 0); }
   var profEl = null;
   var READY_WORDS = {
     attorney: { incomplete: "A few profile items are still needed.", verification_pending: "Your profile is complete. Your license check is next.", match_ready: "You are verified. You can post work and hire on DELA.", restricted: "Some actions are paused on your account. Contact the Lawfecta Team." },
@@ -2643,6 +2647,8 @@
     return wrap;
   }
   function profileView() {
+    // Step 49: the freelancer's own live profile, as attorneys see it, with the text changed in place
+    if (prof.live && me.side === "freelancer") { tpSelf = true; try { return talentProfilePage(); } finally { tpSelf = false; } }
     profEl = h("div", null, h("p", { class: "muted", text: "Loading..." }));
     var confirmTok = "";
     try { confirmTok = new URLSearchParams(location.search).get("confirm") || ""; } catch (e) { confirmTok = ""; }
@@ -2719,6 +2725,12 @@
     D.clear(profEl);
     profEl.appendChild(h("h1", { text: side === "attorney" ? "Profile and verification" : "Profile" }));
     profEl.appendChild(h("p", { class: "muted", text: "This is your " + D.SIDE[side] + " profile. Your Lawfecta directory listing is your public profile; DELA keeps them in step when you choose." }));
+    if (side === "freelancer") profEl.appendChild(h("div", { class: "card tp-self-card" }, h("div", { class: "row", style: "gap:12px;flex-wrap:wrap;align-items:center" },
+      h("p", { class: "grow", style: "margin:0", text: "See your profile the way attorneys see it. You can change your headline, summary, experience and education right on that page." }),
+      h("button", { class: "blue small", type: "button", id: "prof-live", onclick: openLiveProfile }, "View my live profile"))));
+    else profEl.appendChild(h("div", { class: "card tp-self-card", id: "prof-seen" }, h("h2", { style: "margin:0 0 4px", text: "What freelancers see about you" }),
+      h("p", { style: "margin:0", text: "Freelancers see your firm name on the gigs you post (\"Posted by " + (((r.firm || {}).body || {}).business_name || (r.firm || {}).name || "your firm") + "\"), the gig itself, and reviews of you from completed engagements." }),
+      h("p", { class: "small muted", style: "margin:6px 0 0", text: "They do not see this page. Your details here are for verification, agreements and DELA's own work." })));
     // A section menu at the top, so the important parts are one click away (UX review R01)
     var nav = h("nav", { class: "pills", "aria-label": "Profile sections", style: "margin:8px 0 12px" });
     profEl.appendChild(nav);
@@ -7617,11 +7629,55 @@
   }
   function lineList(text) { return String(text || "").split("\n").map(function (x) { return x.trim(); }).filter(Boolean); }
   function talentProfilePage() {
-    var person = talentPerson;
-    var el = h("div", { class: "tp" }, h("p", null, h("button", { class: "ghost small", type: "button", onclick: closeTalentProfile }, "← Back to Talent search")), h("p", { class: "muted", role: "status", text: "Loading the profile..." }));
+    var self = tpSelf === true, person = self ? me.person.id : talentPerson;
+    var stale = function () { return self ? !(tab === "profile" && prof.live) : talentPerson !== person; };
+    var el = h("div", { class: "tp" + (self ? " tp-self" : "") }, h("p", null, self ? h("button", { class: "ghost small", type: "button", id: "tp-self-back", onclick: function () { prof.live = false; draw(); window.scrollTo(0, 0); } }, "← Back to the profile form")
+      : h("button", { class: "ghost small", type: "button", onclick: closeTalentProfile }, "← Back to Talent search")), h("p", { class: "muted", role: "status", text: "Loading the profile..." }));
+    // Step 49: on the member's own live profile, a text part is changed where it shows. The editor reads the saved
+    // profile first, changes one box and saves the whole profile the way the form does, so nothing else moves.
+    var EDIT = { headline: ["Headline", false], summary: ["Professional summary", true], experience: ["Professional experience", true], education: ["Education and credentials", true] };
+    function editBtn(key, host) {
+      if (!self || prof.dirty) return null;
+      var b = h("button", { class: "ghost small tp-edit", type: "button", id: "tp-edit-" + key, "aria-label": "Edit " + EDIT[key][0].toLowerCase() }, "Edit");
+      b.addEventListener("click", function () { editPart(key, host, b); });
+      return b;
+    }
+    function editPart(key, host, btn) {
+      btn.disabled = true;
+      api.get("/profile").then(function (r) {
+        btn.disabled = false;
+        if (!r.ok) { D.toast(app, D.errorText(r.reason), true); return; }
+        var body = r.body || {}, id = "tp-box-" + key, area = EDIT[key][1];
+        var box = area ? h("textarea", { id: id, rows: 7, style: "width:100%" }) : h("input", { id: id, type: "text", style: "width:100%", maxlength: "160" });
+        box.value = body[key] === null || body[key] === undefined ? "" : String(body[key]);
+        var msg = h("p", { class: "small", role: "status", style: "margin:6px 0 0" });
+        var save = h("button", { class: "blue small", type: "button", id: "tp-save-" + key }, "Save"), cancel = h("button", { class: "ghost small", type: "button" }, "Cancel");
+        var anyway = h("button", { class: "ghost small", type: "button", id: "tp-anyway-" + key, hidden: true }, "It is not client information, save");
+        D.clear(host);
+        host.appendChild(h("div", { class: "tp-editor" }, h("label", { for: id, text: EDIT[key][0] }),
+          h("p", { class: "small muted", style: "margin:0 0 6px", text: (area ? "One point per line reads best. " : "") + "Attorneys see this. Never enter sensitive data or client information." }),
+          box, h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:8px" }, save, cancel, anyway), msg));
+        box.focus();
+        function go(confirmed) {
+          save.disabled = true; anyway.hidden = true; msg.textContent = "Saving...";
+          body[key] = box.value;
+          api.post("/profile/save", { body: body, version: r.version, directory: r.directory !== false, confirm_no_client_info: confirmed === true }).then(function (x) {
+            save.disabled = false;
+            if (x.reason === "looks_like_client_info") { msg.textContent = ciNote(x, "This may include client information. Take it out and choose Save."); anyway.hidden = false; return; }
+            if (!x.ok) { msg.textContent = x.reason === "stale" || x.reason === "version_conflict" ? "Your profile changed somewhere else. Choose Cancel and try again." : D.errorText(x.reason); return; }
+            prof.dirty = false; prof.body = null;
+            D.toast(app, "Saved. Your live profile shows it now.");
+            draw();
+          }).catch(function (e) { save.disabled = false; msg.textContent = D.errorText(e.message); });
+        }
+        save.addEventListener("click", function () { go(false); });
+        anyway.addEventListener("click", function () { go(true); });
+        cancel.addEventListener("click", function () { draw(); });
+      }).catch(function (e) { btn.disabled = false; D.toast(app, D.errorText(e.message), true); });
+    }
     var now = Date.now();
     Promise.all([api.get("/freelancers/profile?person=" + encodeURIComponent(person)), api.get("/gigs").catch(function () { return { ok: false }; }), loadCats()]).then(function (rs) {
-      if (talentPerson !== person) return;
+      if (stale()) return;
       var x = rs[0], idx = rs[2], mine = rs[1].ok ? rs[1].gigs.filter(function (g) { return g.status === "open" && !g.paused_by_team && (!g.closes_at || new Date(g.closes_at).getTime() > now); }) : [];
       el.removeChild(el.lastChild);
       if (!x.ok) { el.appendChild(h("p", { class: "notice", role: "alert", text: "This profile could not be opened. The member may have closed their freelancer profile." })); return; }
@@ -7630,24 +7686,31 @@
       // Step 29 on the profile too: one "Invite to gig" button, as on a result card. The gig is chosen on the invitation
       // step, where the rule about inviting is said once.
       var invP = { person_id: x.person_id, name: x.name, headline: x.headline, photo_url: x.photo_url, verification: x.verification, reviews: x.reviews, capacity_hours_week: x.capacity_hours_week, timezone: x.timezone };
-      var inviteBtn = canHire() ? h("button", { class: "blue small", type: "button", id: "tp-invite-btn", onclick: function () { openInviteReview(invP, mine.length === 1 ? mine[0].id : ""); } }, "Invite to gig") : null;
+      var inviteBtn = !self && canHire() ? h("button", { class: "blue small", type: "button", id: "tp-invite-btn", onclick: function () { openInviteReview(invP, mine.length === 1 ? mine[0].id : ""); } }, "Invite to gig") : null;
       var facts = [x.capacity_hours_week ? x.capacity_hours_week + " hours a week" : "", x.timezone ? x.timezone + " time" : "", x.state ? "Based in " + x.state : "",
         (x.agencies || []).length ? "Works with " + x.agencies.join(", ") : x.company ? "Works through " + x.company : ""].filter(Boolean).join(" | ");
-      var msgBtn = me.side === "attorney" ? (function () { var b = h("button", { class: "ghost small", type: "button" }, "Send message"); b.addEventListener("click", function () { startChat(x.person_id, x.name, b); }); return b; })() : null;
+      var msgBtn = !self && me.side === "attorney" ? (function () { var b = h("button", { class: "ghost small", type: "button" }, "Send message"); b.addEventListener("click", function () { startChat(x.person_id, x.name, b); }); return b; })() : null;
       // Step 23: a first call before any gig, booked in the conversation with this freelancer
-      var callBtn = me.side === "attorney" && (me.switches || {}).meetings ? (function () { var b = h("button", { class: "blue small", type: "button" }, "Book a call"); b.addEventListener("click", function () { startChat(x.person_id, x.name, b, true); }); return b; })() : null;
+      var callBtn = !self && me.side === "attorney" && (me.switches || {}).meetings ? (function () { var b = h("button", { class: "blue small", type: "button" }, "Book a call"); b.addEventListener("click", function () { startChat(x.person_id, x.name, b, true); }); return b; })() : null;
+      var headBox = h("div", { id: "tp-headline" });
+      if (x.headline) headBox.appendChild(h("p", { style: "margin:2px 0 6px", text: x.headline })); else if (self) headBox.appendChild(h("p", { class: "muted", style: "margin:2px 0 6px", text: "No headline yet. Attorneys read this line first." }));
+      var hb = editBtn("headline", headBox); if (hb) headBox.appendChild(hb);
       var head = h("div", { class: "card tp-head" },
         h("div", { class: "tp-head-grid" },
           x.photo_url ? h("img", { class: "talent-photo tp-photo", src: x.photo_url, alt: "Photo of " + x.name }) : h("span", { class: "talent-photo tp-photo none", "aria-hidden": "true", text: String(x.name || "?").trim().charAt(0).toUpperCase() }),
-          h("div", null, h("h1", { style: "margin:0", text: x.name }), x.headline ? h("p", { style: "margin:2px 0 6px", text: x.headline }) : null,
+          h("div", null, h("h1", { style: "margin:0", text: x.name }), headBox,
             h("div", { class: "row small", style: "gap:14px;flex-wrap:wrap" },
               h("span", { class: verified ? "talent-ver" : "muted", text: verified ? "✓ Verified" : "Not verified yet" }),
               h("span", { class: n ? "" : "muted", text: !n ? "No reviews yet" : rv.average ? "★ " + rv.average + " (" + n + (n === 1 ? " review)" : " reviews)") : n + (n === 1 ? " review" : " reviews") }),
               x.available_now ? null : h("span", { class: "badge held", text: "Not taking new work right now" })),
             facts ? h("p", { class: "small muted", style: "margin:6px 0 0", text: facts }) : null),
           h("div", { class: "tp-head-acts" },
-            h("div", { class: "row tp-top-acts", style: "gap:8px;flex-wrap:wrap;justify-content:flex-end" }, canHire() ? h("span", { id: "tp-bookmark", class: "row", style: "gap:8px;flex-wrap:wrap;align-items:center" }, bookmarkButton(x.person_id, x.name)) : null, msgBtn, callBtn),
+            h("div", { class: "row tp-top-acts", style: "gap:8px;flex-wrap:wrap;justify-content:flex-end" }, !self && canHire() ? h("span", { id: "tp-bookmark", class: "row", style: "gap:8px;flex-wrap:wrap;align-items:center" }, bookmarkButton(x.person_id, x.name)) : null, msgBtn, callBtn),
             inviteBtn ? h("div", { class: "talent-acts tp-invite" }, inviteBtn) : null)));
+      if (self) el.insertBefore(h("div", { class: "card tp-self-card", id: "tp-self-note" },
+        h("h2", { style: "margin:0 0 4px", text: "Your live profile, as attorneys see it" }),
+        h("p", { style: "margin:0", text: x.readiness === "match_ready" ? "Attorneys can find this profile in Talent search now." : "Attorneys cannot find this profile in Talent search yet. Finish the steps on the profile form first. Attorneys you already work with can open it." }),
+        h("p", { class: "small muted", style: "margin:6px 0 0", text: prof.dirty ? "You have changes on the profile form that are not saved. This page shows what is saved, and editing here is off until you save or leave those changes." : "Choose \"Edit\" next to your headline, summary, experience or education to change it right here. Your picture, services, skills, software, categories and availability are changed on the profile form." })), el.children[1] || null);
       el.appendChild(head);
       // ----- The tabs: everything stays on this page -----
       var promos = x.promotions || [];
@@ -7688,7 +7751,9 @@
           panel.appendChild(h("div", { class: "tp-two" }, left, right));
           var into = function (col, title) { var c = h("section", { class: "card" }, h("h2", { text: title })); col.appendChild(c); return c; };
           var a = into(left, "Professional summary");
-          if (x.summary) lineList(x.summary).forEach(function (l) { a.appendChild(h("p", { text: l })); }); else none(a, x.name + " has not written a summary yet.");
+          var aBody = h("div", { id: "tp-summary" }); a.appendChild(aBody);
+          if (x.summary) lineList(x.summary).forEach(function (l) { aBody.appendChild(h("p", { text: l })); }); else none(aBody, self ? "No summary yet. Say what you do and who you do it for." : x.name + " has not written a summary yet.");
+          var sb = editBtn("summary", aBody); if (sb) aBody.appendChild(sb);
           if ((x.services || []).length) { var ps = into(left, "Primary services"); ps.appendChild(h("ul", { class: "mr-list" }, x.services.slice(0, 6).map(function (sv) { return h("li", { text: sv.title }); }))); }
           if ((x.software || []).length) { var sw = into(left, "Software expertise"); sw.appendChild(chips(x.software)); }
           var groups = catGroups();
@@ -7726,8 +7791,12 @@
         },
         experience: function () {
           var ex = lineList(x.experience), ed = lineList(x.education), any = false;
-          if (ex.length) { any = true; card("Professional experience").appendChild(h("ul", { class: "tp-lines" }, ex.map(function (l) { return h("li", { text: l }); }))); }
-          if (ed.length) { any = true; var e = card("Education and credentials"); e.appendChild(h("ul", { class: "tp-lines" }, ed.map(function (l) { return h("li", { text: l }); })));
+          if (ex.length || self) { any = true; var exB = h("div", { id: "tp-experience" }); card("Professional experience").appendChild(exB);
+            if (ex.length) exB.appendChild(h("ul", { class: "tp-lines" }, ex.map(function (l) { return h("li", { text: l }); }))); else none(exB, "Nothing here yet. Add where you worked and what you did, one point per line.");
+            var xb = editBtn("experience", exB); if (xb) exB.appendChild(xb); }
+          if (ed.length || self) { any = true; var e = card("Education and credentials"), edB = h("div", { id: "tp-education" }); e.appendChild(edB);
+            if (ed.length) edB.appendChild(h("ul", { class: "tp-lines" }, ed.map(function (l) { return h("li", { text: l }); }))); else none(edB, "Nothing here yet. Add degrees, certificates and training, one per line.");
+            var eb = editBtn("education", edB); if (eb) edB.appendChild(eb);
             e.appendChild(h("p", { class: "small muted", text: "Written by the member. Lawfecta does not check each item." })); }
           if ((x.practice_areas || []).length || (x.skills || []).length || (x.software || []).length) {
             any = true; var k = card("Practice and technology experience");
@@ -7739,6 +7808,7 @@
         },
         portfolio: function () {
           var c = card("Work samples");
+          if (self) { none(c, "Attorneys who may hire see the work samples you chose to show. You choose them under \"Profile documents\" on the profile form."); return; }
           if (!x.samples_allowed) { none(c, "Work samples are shown to members who hire."); return; }
           if (!(x.samples || []).length) { none(c, x.name + " has not shown any work samples yet."); return; }
           c.appendChild(h("p", { class: "small muted", text: "Samples the member chose to show. Members confirm they hold no client information. They open inside Lawfecta for a few minutes at a time." }));
@@ -7777,7 +7847,7 @@
       el.appendChild(bar); el.appendChild(panel);
       panel.setAttribute("aria-labelledby", "tp-tab-" + talentTab);
       SECTIONS[talentTab]();
-    }).catch(function (e) { if (talentPerson !== person) return; el.removeChild(el.lastChild); el.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
+    }).catch(function (e) { if (stale()) return; el.removeChild(el.lastChild); el.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
     return el;
   }
   var TALENT_SORTS = [["relevant", "Most relevant"], ["reviews", "Most reviews"], ["hours", "Most hours a week"], ["name", "Name, A to Z"]];
