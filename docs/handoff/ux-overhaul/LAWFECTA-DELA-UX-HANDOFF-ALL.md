@@ -181,6 +181,8 @@ Collected from the page readers. Details and line numbers are in each file's "UX
   bench, delete a webhook, stop review requests, report a review, cancel a meeting, remove an AI key). "Open the
   dispute", "Ask for changes" and "Ask to end now" have no confirmation. One pattern is needed.
 
+**Fixed on 2026-11-18, after this was written (code_version ea4cecf):** the meeting "Cancel" button; rows that are buttons now open with Enter or Space; the footer usage link opens Subscription, "Usage & Limits"; a paused, canceled or disputed engagement says so in "Next action"; the wrong-side page's switch lands on the page asked for; "Signed" says who pays. Agreement status "sent" is never set, so it was not a defect.
+
 **Possible defects found while reading (not yet confirmed by running; each will be checked and fixed with a test)**
 - Meetings: "Cancel" on a meeting card reads a value that is not defined at that spot, so canceling may fail.
 - Agreement status "sent" shows "Nothing to do here" with no sign form.
