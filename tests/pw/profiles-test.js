@@ -20,7 +20,7 @@ async function worker(n) { for (let i = 0; i < n; i++) { await sql("update jobs 
 async function open(browser, uid, query, viewport, timezoneId) {
   const ctx = await browser.newContext(Object.assign({ viewport: viewport || { width: 1200, height: 900 } }, timezoneId ? { timezoneId } : {}));
   // Step 43: the folded sections of "Agreement and work" are open, as with "Open all sections" (the folded page has its own checks in engagements-test.js)
-  await ctx.addInitScript((all) => { try { if (all) localStorage.setItem("dela_eg_all", "1"); else localStorage.removeItem("dela_eg_all"); } catch (e) { /* no storage */ } }, true);
+  await ctx.addInitScript((all) => { try { if (all) (localStorage.setItem("dela_eg_all", "1"), localStorage.setItem("dela_pf_all", "1")); else localStorage.removeItem("dela_eg_all"); } catch (e) { /* no storage */ } }, true);
   const page = await ctx.newPage();
   page.on("pageerror", (e) => { throw new Error("page error: " + e.message); });
   page.on("dialog", (d) => d.accept());
@@ -343,7 +343,49 @@ async function waitFor(page, words, ms) {
     await waitFor(p, saved.headline);
     await dela(p).locator("#tp-self-back").click();
     t = await waitFor(p, "Your availability");
-    ok(t.includes("View my live profile"), "back on the profile form");
+    ok(t.includes("Preview profile") && t.includes("PROFILE SECTIONS"), "back on the profile form");
+
+    // Step 52 (Stacey's mockup, 2026-11-19): the Profile page as members see it. One tab and one section at a time,
+    // a short readiness line, a menu of sections at the left and the publishing cards at the right.
+    {
+      const s2 = await open(browser, 2501), q = s2.page;
+      await q.addInitScript(() => { try { localStorage.removeItem("dela_pf_all"); } catch (e) { /* no storage */ } });
+      await q.reload();
+      await text(q);
+      await click(q, "Profile");
+      let v = await waitFor(q, "PROFILE SECTIONS");
+      ok(v.includes("Your profile") && v.includes("Edit what attorneys see. Save each section as you go.") && v.includes("Preview profile"), "the page has its heading, one sentence and Preview profile");
+      const strip = await dela(q).locator("#pf-ready").innerText();
+      ok(/Visible in Talent/.test(strip) && /Profile details (complete|incomplete)/.test(strip) && /LinkedIn review (passed|in progress|not started)/.test(strip) && /Availability (confirmed|unconfirmed)/.test(strip) && strip.includes("View requirements"), "the readiness line gives one state for each of the three parts: " + strip.replace(/\n/g, " | "));
+      const tabs = await dela(q).locator(".pf-tabs [role=tab]").allInnerTexts();
+      ok(tabs[0] === "Public profile" && tabs[1] === "Matching & verification" && (await dela(q).locator("#pf-tab-public").getAttribute("aria-selected")) === "true", "the page is in tabs, Public profile first: " + tabs.join(", "));
+      ok(!v.includes("Tell attorneys whether you can take work") && !v.includes("steps done"), "the checklist and availability are not on the Public profile tab");
+      ok(await label(q, "First name").isVisible() && await label(q, "Summary").isHidden() && await label(q, "City").isHidden(), "one section shows at a time: Basics first");
+      ok(v.includes("Visibility & publishing") && v.includes("Directory updates") && v.includes("Required for matching"), "the publishing cards sit beside the form, and the section says it is required for matching");
+      const cols = await dela(q).locator(".pf-grid").evaluate((g) => [...g.children].map((c) => Math.round(c.getBoundingClientRect().left)));
+      ok(cols[0] < cols[1] && cols[1] < cols[2], "menu, form and publishing cards sit side by side on a wide screen: " + cols.join(", "));
+      await dela(q).locator("#pf-nav-summary").click();
+      ok(await label(q, "Summary").isVisible() && await label(q, "First name").isHidden() && (await dela(q).locator("#pf-nav-summary").getAttribute("aria-current")) === "true", "choosing Summary in the menu shows that section and marks it");
+      ok((await dela(q).locator("#pf-next").innerText()) === "Next: Services & skills →", "the foot of the card names the next section");
+      await dela(q).locator("#pf-next").click();
+      ok(await label(q, "Task skills").isVisible() && await label(q, "Summary").isHidden(), "Next moves to Services & skills");
+      ok((await dela(q).locator("#pf-unsaved").innerText()) === "", "nothing is marked unsaved before a change");
+      await label(q, "Task skills").fill("E-filing, Discovery requests, Calendar control, Trial binders");
+      ok((await dela(q).locator("#pf-unsaved").innerText()) === "Unsaved changes", "a change is marked as unsaved beside the Save button");
+      await dela(q).locator("#pf-nav-contact").click();
+      ok(await label(q, "City (optional)").isVisible() || await label(q, "City").isVisible(), "contact details are their own section");
+      await dela(q).locator("#pf-nav-services").click();
+      ok((await label(q, "Task skills").inputValue()).includes("Trial binders"), "moving between sections keeps what was typed");
+      await dela(q).locator("#pf-reqs").click();
+      v = await waitFor(q, "steps done");
+      ok((await dela(q).locator("#pf-tab-match").getAttribute("aria-selected")) === "true" && v.includes("Tell attorneys whether you can take work") && await label(q, "Task skills").isHidden(), "View requirements opens the Matching & verification tab with the full list");
+      await dela(q).locator("#pf-tab-match").press("ArrowLeft");
+      ok((await dela(q).locator("#pf-tab-public").getAttribute("aria-selected")) === "true", "the arrow keys move between the tabs");
+      await q.setViewportSize({ width: 390, height: 844 });
+      const stack = await dela(q).locator(".pf-grid").evaluate((g) => [...g.children].map((c) => Math.round(c.getBoundingClientRect().left)));
+      ok(Math.abs(stack[0] - stack[1]) < 2 && Math.abs(stack[1] - stack[2]) < 2 && await q.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth + 1), "on a phone the menu, the form and the cards stack, with no sideways scroll");
+      await s2.ctx.close();
+    }
 
     // A change not saved yet survives the LinkedIn button (Stacey's Step 3 test, 2026-11-05)
     await label(p, "Usual hours").fill("Not saved yet");

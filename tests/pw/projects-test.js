@@ -46,7 +46,7 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
       insert into access_list (bd_member_id, channel) select ${ATT}, 'access' where not exists (select 1 from access_list where bd_member_id = ${ATT} and channel = 'access' and revoked_at is null); select 1`);
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     // Step 43: the folded sections of "Agreement and work" are open, as with "Open all sections" (the folded page has its own checks in engagements-test.js)
-    await ctx.addInitScript((all) => { try { if (all) localStorage.setItem("dela_eg_all", "1"); else localStorage.removeItem("dela_eg_all"); } catch (e) { /* no storage */ } }, true);
+    await ctx.addInitScript((all) => { try { if (all) (localStorage.setItem("dela_eg_all", "1"), localStorage.setItem("dela_pf_all", "1")); else localStorage.removeItem("dela_eg_all"); } catch (e) { /* no storage */ } }, true);
     const p = await ctx.newPage();
     p.on("pageerror", (e) => { throw new Error("page error: " + e.message); });
     p.on("dialog", (d) => { popups++; d.accept(); });

@@ -545,7 +545,7 @@
   // One profile box (what is missing, and what still stands between the member and invitations), what needs attention,
   // work, and Ask DELA as one line. Every number comes from me.home (dela_home_counts); nothing is estimated.
   var profileJump = null;
-  var SECTION_FOR = { practice_areas: "prof-areas", summary: "prof-bio", experience: "prof-bio" };
+  var SECTION_FOR = { practice_areas: "prof-areas", summary: "pf-sec-summary", experience: "pf-sec-experience", education: "pf-sec-experience", services: "pf-sec-services", software: "pf-sec-services", timezone: "pf-sec-work", capacity: "pf-sec-work", acknowledged: "pf-sec-work", city: "pf-sec-contact", state: "pf-sec-contact", phone: "pf-sec-contact", website: "pf-sec-contact", jurisdictions: "pf-sec-practice" };
   function goProfile(section) { profileJump = section || null; tab = "profile"; draw(); }
   function openGig(id, view) { tab = me.side === "attorney" ? "projects" : "work"; gigs.id = id; gigs.view = view || "agreement"; draw(); window.scrollTo(0, 0); }
   function shortDate(iso) { return iso ? D.date(iso) : ""; }
@@ -2571,7 +2571,7 @@
 
   // ---------- Step 3: Profile and verification (both sides) ----------
 
-  var prof = { data: null, body: null, dirty: false, live: false };
+  var prof = { data: null, body: null, dirty: false, live: false, tab: "public", sec: "" };
   var tpSelf = false;
   function openLiveProfile() { prof.live = true; talentTab = "overview"; if (tab === "profile") draw(); else goTab("profile"); window.scrollTo(0, 0); }
   var profEl = null;
@@ -2721,37 +2721,98 @@
   }
 
   function drawProfile() {
-    var r = prof.data, side = me.side, st = r.state || {};
+    var r = prof.data, side = me.side, st = r.state || {}, att = side === "attorney";
     D.clear(profEl);
-    profEl.appendChild(h("h1", { text: side === "attorney" ? "Profile and verification" : "Profile" }));
-    profEl.appendChild(h("p", { class: "muted", text: "This is your " + D.SIDE[side] + " profile. Your Lawfecta directory listing is your public profile; DELA keeps them in step when you choose." }));
-    if (side === "freelancer") profEl.appendChild(h("div", { class: "card tp-self-card" }, h("div", { class: "row", style: "gap:12px;flex-wrap:wrap;align-items:center" },
-      h("p", { class: "grow", style: "margin:0", text: "See your profile the way attorneys see it. You can change your picture, headline, summary, services, experience, education, skills and software right on that page, and add headings, lists, bold words and pictures to your summary, experience and education there." }),
-      h("button", { class: "blue small", type: "button", id: "prof-live", onclick: openLiveProfile }, "View my live profile"))));
-    else profEl.appendChild(h("div", { class: "card tp-self-card", id: "prof-seen" }, h("h2", { style: "margin:0 0 4px", text: "What freelancers see about you" }),
-      h("p", { style: "margin:0", text: "Freelancers see your firm name on the gigs you post (\"Posted by " + (((r.firm || {}).body || {}).business_name || (r.firm || {}).name || "your firm") + "\"), the gig itself, and reviews of you from completed engagements." }),
-      h("p", { class: "small muted", style: "margin:6px 0 0", text: "They do not see this page. Your details here are for verification, agreements and DELA's own work." })));
-    // A section menu at the top, so the important parts are one click away (UX review R01)
-    var nav = h("nav", { class: "pills", "aria-label": "Profile sections", style: "margin:8px 0 12px" });
-    profEl.appendChild(nav);
-    function section(el, id, label) { el.id = id; nav.appendChild(h("button", { type: "button", onclick: function () { el.scrollIntoView({ behavior: "smooth", block: "start" }); var f = el.querySelector("input, select, textarea, button"); if (f) f.focus({ preventScroll: true }); } }, label)); return el; }
-    profEl.appendChild(statusCard(st));
-    // Step 8b Part C (R09, answer 7): the firm essentials (billing, signer, notices email) come first
-    if (side === "attorney") profEl.appendChild(section(firmCard(), "sec-firm", "Firm details"));
-    if (side === "freelancer") profEl.appendChild(section(availabilityCard(st), "sec-availability", "Availability"));
-    if (side === "freelancer" && (me.switches || {}).meetings) profEl.appendChild(meetingAvailabilityCard());
-    profEl.appendChild(section(side === "attorney" ? licenseCard() : linkedinCard(), "sec-verify", side === "attorney" ? "License verification" : "LinkedIn check"));
-    profEl.appendChild(section(formCard(), "sec-profile", "Your profile"));
-    if (side === "freelancer" && r.settings.documents_on) profEl.appendChild(docsCard());
-    if (side === "attorney") {
-      if ((me.switches || {}).document_standard) { var dfBox = section(h("div"), "sec-docprefs", "Document preferences"); profEl.appendChild(dfBox); docFirm().then(function (f) { firmProfileForm(dfBox, f, function () { draw(); }); }).catch(function () {}); }
-      ((r.firm || {}).staff_of || []).forEach(function (o) { profEl.appendChild(firmCard(o)); });
+    // Step 52 (Stacey's mockup, 2026-11-19): a short readiness line, the page in tabs, the public profile in sections
+    // with a menu at the left, and what is published where in a column at the right.
+    var all = false; try { all = localStorage.getItem("dela_pf_all") === "1"; } catch (e) { all = false; }
+    profEl.className = "pf" + (all ? " pf-all" : "");
+    profEl.appendChild(h("div", { class: "pf-head" }, h("div", { class: "grow" }, h("h1", { style: "margin:0", text: att ? "Profile and verification" : "Your profile" }),
+      h("p", { class: "muted", style: "margin:2px 0 0", text: att ? "This is your Attorney profile. It is used for verification, agreements and DELA's own work. Save each section as you go." : "Edit what attorneys see. Save each section as you go." })),
+      att ? null : h("button", { class: "ghost", type: "button", id: "prof-live", onclick: openLiveProfile }, "Preview profile")));
+    // The readiness line: one state for each of the three parts, and the full list one click away
+    var steps = readinessSteps(st), partDone = function (g) { var x = steps.filter(function (s) { return s.group === g; }); return x.length ? x.every(function (s) { return s.done; }) : null; };
+    var ready = st.readiness === "match_ready", vWord = att ? "License check" : "LinkedIn review";
+    var states = [partDone("profile") ? "Profile details complete" : "Profile details incomplete",
+      partDone("check") === null ? "" : st.verification === "verified" ? vWord + " passed" : st.verification === "pending" ? vWord + " in progress" : vWord + " not started",
+      partDone("avail") === null ? "" : partDone("avail") ? "Availability confirmed" : "Availability unconfirmed"].filter(Boolean);
+    profEl.appendChild(h("div", { class: "pf-ready", id: "pf-ready" },
+      h("span", { class: "badge " + (ready ? "ready" : ""), text: att ? (ready ? "Ready to post and hire" : "Not ready to post and hire yet") : ready ? "Visible in Talent" : st.readiness === "restricted" ? "Paused" : "Not yet visible in Talent" }),
+      h("span", { class: "pf-states", text: states.join(" · ") }),
+      h("button", { class: "linkish", type: "button", id: "pf-reqs", onclick: function () { var c = profEl.querySelector("#ready-card"); if (c) { prof.reveal(c); c.scrollIntoView({ behavior: "smooth", block: "start" }); var b = c.querySelector("button, summary"); if (b) b.focus({ preventScroll: true }); } } }, "View requirements")));
+    var TABS = att ? [["public", "Profile"], ["match", "Firm & verification"]] : [["public", "Public profile"], ["match", "Matching & verification"]].concat((me.switches || {}).meetings ? [["meet", "Meeting schedule"]] : []);
+    if (!TABS.some(function (t) { return t[0] === prof.tab; })) prof.tab = "public";
+    var bar = h("div", { class: "pf-tabs", role: "tablist", "aria-label": "Parts of your profile" }), panels = {};
+    var tabBtns = TABS.map(function (t, i) {
+      var b = h("button", { type: "button", role: "tab", id: "pf-tab-" + t[0], "aria-controls": "pf-panel-" + t[0] }, t[1]);
+      b.addEventListener("click", function () { pickTab(t[0], false); });
+      b.addEventListener("keydown", function (e) {
+        var to = e.key === "ArrowRight" ? (i + 1) % TABS.length : e.key === "ArrowLeft" ? (i + TABS.length - 1) % TABS.length : e.key === "Home" ? 0 : e.key === "End" ? TABS.length - 1 : -1;
+        if (to >= 0) { e.preventDefault(); pickTab(TABS[to][0], true); }
+      });
+      bar.appendChild(b);
+      panels[t[0]] = h("div", { class: "pf-panel", id: "pf-panel-" + t[0], role: "tabpanel", "aria-labelledby": "pf-tab-" + t[0] });
+      return b;
+    });
+    function pickTab(k, focus) {
+      prof.tab = k;
+      TABS.forEach(function (t, i) { var on = t[0] === k; tabBtns[i].setAttribute("aria-selected", String(on)); tabBtns[i].setAttribute("tabindex", on ? "0" : "-1"); panels[t[0]].style.display = all || on ? "" : "none"; if (on && focus) tabBtns[i].focus(); });
     }
-    profileReviewsCard(profEl);
+    profEl.appendChild(bar);
+    TABS.forEach(function (t) { profEl.appendChild(panels[t[0]]); });
+    function section(el, id) { el.id = id; return el; }
+    // ----- The public profile: the section menu, the form, and what is published where -----
+    var form = section(formCard(), "sec-profile");
+    var nav = h("nav", { class: "card pf-nav", "aria-label": "Profile sections" }, h("p", { class: "pf-nav-h", text: "Profile sections" }));
+    var navBtns = {};
+    form.pfSecs.forEach(function (s) { navBtns[s[0]] = h("button", { type: "button", id: "pf-nav-" + s[0], onclick: function () { form.pfGo(s[0], true); } }, s[1]); nav.appendChild(navBtns[s[0]]); });
+    form.pfGo = function (k, focus) {
+      if (!navBtns[k]) k = form.pfSecs[0][0];
+      prof.sec = k; form.pfShow(k, all);
+      form.pfSecs.forEach(function (s) { if (s[0] === k) navBtns[s[0]].setAttribute("aria-current", "true"); else navBtns[s[0]].removeAttribute("aria-current"); });
+      if (focus) { var hd = form.querySelector("#pf-sec-h-" + k); if (hd) { hd.setAttribute("tabindex", "-1"); hd.focus({ preventScroll: true }); form.scrollIntoView({ block: "nearest" }); } }
+    };
+    var rail = h("aside", { class: "pf-rail", "aria-label": "Visibility and publishing" });
+    var vis = h("div", { class: "card", id: "pf-vis" }, h("h2", { text: "Visibility & publishing" }));
+    if (att) {
+      vis.id = "prof-seen";
+      vis.appendChild(h("p", { style: "margin:0 0 6px" }, h("b", { text: "What freelancers see about you: " }), "your firm name on the gigs you post (\"Posted by " + (((r.firm || {}).body || {}).business_name || (r.firm || {}).name || "your firm") + "\"), the gig itself, and reviews of you from completed engagements."));
+      vis.appendChild(h("p", { class: "small muted", style: "margin:0", text: "They do not see this page." }));
+    } else {
+      vis.appendChild(h("p", { style: "margin:0 0 6px" }, h("b", { text: "Talent: " }), ready ? "Visible to attorneys" : "Not visible yet"));
+      vis.appendChild(h("p", { class: "small muted", style: "margin:0", text: "\"Preview profile\" shows what attorneys see. It does not publish anything." }));
+    }
+    rail.appendChild(vis);
+    var dirCard = h("div", { class: "card", id: "pf-dircard" }, h("h2", { text: "Directory updates" }));
+    if (form.pfSyncOn) { dirCard.appendChild(form.pfDir); dirCard.appendChild(h("p", { class: "small muted", style: "margin:6px 0 0", text: "Applies when you save. Your choice is remembered." })); }
+    else dirCard.appendChild(h("p", { class: "small muted", style: "margin:0", text: "Your Lawfecta directory listing is your public page on the website. Updating it from here is not turned on." }));
+    rail.appendChild(dirCard);
+    panels["public"].appendChild(h("div", { class: "pf-grid" }, nav, form, rail));
+    form.pfGo(prof.sec || form.pfSecs[0][0], false);
+    if (!att && r.settings.documents_on) panels["public"].appendChild(docsCard());
+    // ----- Matching and verification (freelancer), firm and verification (attorney) -----
+    var m = panels.match;
+    m.appendChild(statusCard(st));
+    if (att) m.appendChild(section(firmCard(), "sec-firm"));
+    else m.appendChild(section(availabilityCard(st), "sec-availability"));
+    m.appendChild(section(att ? licenseCard() : linkedinCard(), "sec-verify"));
+    if (!att && panels.meet) panels.meet.appendChild(meetingAvailabilityCard());
+    if (att) {
+      if ((me.switches || {}).document_standard) { var dfBox = section(h("div"), "sec-docprefs"); m.appendChild(dfBox); docFirm().then(function (f) { firmProfileForm(dfBox, f, function () { draw(); }); }).catch(function () {}); }
+      ((r.firm || {}).staff_of || []).forEach(function (o) { m.appendChild(firmCard(o)); });
+    }
+    // A link or a checklist line names a place on this page: open the tab and the section it sits in
+    prof.reveal = function (el) {
+      var n = el;
+      while (n && n !== profEl) { if (n.classList && n.classList.contains("pf-sec")) form.pfGo(n.getAttribute("data-sec"), false); if (n.classList && n.classList.contains("pf-panel")) pickTab(n.id.replace("pf-panel-", ""), false); n = n.parentNode; }
+    };
+    pickTab(prof.tab, false);
+    profileReviewsCard(panels[att ? "match" : "public"]);
     // Step 15: Home links open the part of the profile they name
     if (profileJump) {
       var target = profEl.querySelector("#" + profileJump);
       profileJump = null;
+      if (target) prof.reveal(target);
       if (target) setTimeout(function () { if (target.tagName === "DETAILS") target.open = true; target.scrollIntoView({ block: "start" }); var f = target.querySelector("input, select, textarea, button, summary"); if (f) f.focus({ preventScroll: true }); }, 60);
     }
   }
@@ -2779,7 +2840,7 @@
     var att = me.side === "attorney", steps = readinessSteps(st), done = steps.filter(function (s) { return s.done; }).length, total = steps.length;
     var pct = total ? Math.round(done * 100 / total) : 0, ready = st.readiness === "match_ready", paused = st.readiness === "restricted";
     var goal = att ? "Ready to post and hire" : "Match-ready";
-    var jump = function (id) { var el = app.querySelector("#" + id); if (!el) return; if (el.tagName === "DETAILS") el.open = true; el.scrollIntoView({ behavior: "smooth", block: "start" }); var f = el.querySelector("input, select, textarea, button"); if (f) f.focus({ preventScroll: true }); };
+    var jump = function (id) { var el = app.querySelector("#" + id); if (!el) return; if (prof.reveal) prof.reveal(el); if (el.tagName === "DETAILS") el.open = true; el.scrollIntoView({ behavior: "smooth", block: "start" }); var f = el.querySelector("input, select, textarea, button"); if (f) f.focus({ preventScroll: true }); };
     var card = h("div", { class: "card", id: "ready-card" },
       h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("h2", { class: "grow", style: "margin:0", text: goal + ": " + done + " of " + total + " steps done" }), h("span", { class: "badge " + (ready ? "ready" : "held"), text: STATE_BADGE[st.readiness] || st.readiness })),
       h("div", { class: "bar ready-bar", role: "progressbar", "aria-label": "Progress to " + goal.toLowerCase(), "aria-valuemin": "0", "aria-valuemax": "100", "aria-valuenow": String(pct), "aria-valuetext": done + " of " + total + " steps done" }, h("span", { style: "width:" + pct + "%" + (ready ? ";background:#21613d" : "") })),
@@ -2817,7 +2878,7 @@
     if (fmiss.length) {
       var FW = { billing_address: "Billing address", signatory: "Who may sign for the firm", service_email: "Email for formal notices" };
       card.appendChild(h("div", { class: "notice", id: "firm-missing", style: "margin-top:10px" }, h("span", { text: "Still needed before paid work: " + fmiss.map(function (k) { return FW[k] || k; }).join(", ") + ". " }),
-        h("button", { class: "linkish", type: "button", onclick: function () { var f = app.querySelector("#sec-firm"); if (f) { f.scrollIntoView({ behavior: "smooth", block: "start" }); var i = f.querySelector("input:not([type=file]), textarea"); if (i) i.focus({ preventScroll: true }); } } }, "Go to Firm details")));
+        h("button", { class: "linkish", type: "button", onclick: function () { var f = app.querySelector("#sec-firm"); if (f) { if (prof.reveal) prof.reveal(f); f.scrollIntoView({ behavior: "smooth", block: "start" }); var i = f.querySelector("input:not([type=file]), textarea"); if (i) i.focus({ preventScroll: true }); } } }, "Go to Firm details")));
     }
     return card;
   }
@@ -2927,7 +2988,19 @@
   function formCard() {
     var r = prof.data, b = prof.body, side = me.side, req = r.required || [];
     var need = function (k) { return req.indexOf(k) >= 0; };
-    var card = h("div", { class: "card" }, h("h2", { text: "Your profile" }));
+    // Step 52 (Stacey's profile page mockup, 2026-11-19): the form is one card in sections. One section shows at a time,
+    // chosen from the menu at its left; the whole profile is still saved by the one Save button.
+    var SEC = side === "attorney" ? [["basics", "Basics", true], ["summary", "Summary", true], ["practice", "Your practice", true], ["experience", "Experience & education", true], ["contact", "Contact details", true]]
+      : [["basics", "Basics", true], ["summary", "Summary", true], ["services", "Services & skills", true], ["experience", "Experience & education", true], ["work", "Work hours & agreement", true], ["contact", "Contact details (optional)", false]];
+    var wrap = h("div", { class: "card pf-form" }), secs = {}, cur = null;
+    SEC.forEach(function (s) {
+      secs[s[0]] = h("section", { class: "pf-sec", id: "pf-sec-" + s[0], "data-sec": s[0], "aria-labelledby": "pf-sec-h-" + s[0] },
+        h("div", { class: "row pf-sec-h" }, h("h2", { id: "pf-sec-h-" + s[0], text: s[1].replace(" (optional)", "") }), h("span", { class: "badge", text: s[2] ? (side === "attorney" ? "Needed to post and hire" : "Required for matching") : "Optional" })));
+      wrap.appendChild(secs[s[0]]);
+    });
+    var sec = function (k) { cur = secs[k]; };
+    var card = { appendChild: function (n) { if (n) cur.appendChild(n); return n; } };
+    sec("basics");
     card.appendChild(h("p", { class: "notice", role: "note", text: "Profiles are seen by other members. Do not include confidential client information, client names or case details." }));
     var fill = h("button", { class: "ghost small" }, "Fill from my Lawfecta listing");
     fill.addEventListener("click", function () {
@@ -2991,14 +3064,17 @@
     card.appendChild(textIn("first_name", "First name", { required: need("first_name"), help: "Your first name as you want members to see it." }));
     card.appendChild(textIn("last_name", "Last name", { required: need("last_name"), help: "Your last name as you want members to see it." }));
     card.appendChild(textIn("headline", "Headline", { required: need("headline"), ai: true, help: "One short line under your name: your role and the main kind of work you do. For example: " + (side === "attorney" ? "Family law attorney for Texas families." : "Litigation paralegal for small firms."), placeholder: side === "attorney" ? "Family law attorney in Austin" : "Litigation paralegal, e-filing and discovery" }));
+    sec(side === "attorney" ? "basics" : "contact");
     card.appendChild(textIn("firm_name", side === "attorney" ? "Firm name" : "Company or agency", { required: need("firm_name"), help: side === "attorney" ? "The firm name clients and courts know you by." : "Your business name, if you work through one. Leave empty if you work under your own name." }));
     if (side === "attorney") card.appendChild(textIn("firm_role", "Your role at the firm", { help: "For example owner, partner, associate or of counsel.", placeholder: "Owner, partner, associate" }));
+    sec("contact");
     card.appendChild(textIn("city", "City", { required: need("city"), help: "The city you work from." }));
     card.appendChild(textIn("state", "State", { required: need("state"), placeholder: "TX", help: "Two letters, for example TX or CA." }));
     card.appendChild(textIn("phone", "Business phone", { required: need("phone"), help: "A work number. Members contact you through Lawfecta, so this is shown only where your listing shows it." }));
     card.appendChild(textIn("website", "Website", { required: need("website"), help: "Your own or your firm's website, starting with https://" }));
     if (side === "attorney") card.appendChild(textIn("linkedin", "LinkedIn profile address", {}));
     card.appendChild(textIn("booking_link", "Booking link", { help: "A Calendly, TidyCal or similar link, if you use one.", hint: "A page where people book time with you, if you have one." }));
+    sec(side === "attorney" ? "practice" : "services");
     card.appendChild(h("h3", { text: side === "attorney" ? "Your practice" : "What you support" }));
     var areas = h("div", { class: "row", style: "flex-wrap:wrap;gap:6px" });
     // Selected areas first, with a search box, folded until opened (step 8b Part C, R09)
@@ -3025,11 +3101,12 @@
     if (side === "attorney") card.appendChild(textIn("jurisdictions", "Where you are licensed or practice", { list: true, required: need("jurisdictions"), placeholder: "TX, Western District of Texas", hint: "Separate them with commas." }));
     // The biography (summary, experience, education) is folded until opened, unless something needed is missing there
     var bioOpen = ["summary", "experience", "education"].some(function (k) { return pmiss.indexOf(k) >= 0; });
-    var bio = h("details", { id: "prof-bio", style: "margin:8px 0", open: bioOpen }, h("summary", { style: "cursor:pointer;font-weight:700", text: "Biography: summary, experience and education" + (bioOpen ? "" : (b.summary ? "" : " (not written yet)")) }));
-    card.appendChild(bio);
+    sec("summary"); var bio = card, bioX = { appendChild: function (n) { sec("experience"); return card.appendChild(n); } };
+    void bioOpen;
     bio.appendChild(textIn("summary", "Summary", { area: true, rows: 5, required: need("summary"), ai: true, help: side === "attorney" ? "A short paragraph about your practice: what you handle, for whom, and how you like to work with support staff." : "A short paragraph about you: the work you do, for which kinds of firms, how you work and what you are known for. No client names or case details." }));
-    bio.appendChild(textIn("experience", "Experience", { area: true, required: need("experience"), ai: true, help: "Your roles or kinds of work, newest first, one per line, with years. For example: " + (side === "attorney" ? "Founding attorney, Smith Family Law, 2019 to now." : "Senior paralegal, family law firm, 2019 to now.") }));
-    bio.appendChild(textIn("education", "Education", { area: true, rows: 3, required: need("education"), ai: true, help: "Degrees, certificates and courses, one per line, with the school and year. For example: " + (side === "attorney" ? "J.D., University of Texas School of Law, 2012." : "Paralegal certificate, Austin Community College, 2018.") }));
+    bioX.appendChild(textIn("experience", "Experience", { area: true, required: need("experience"), ai: true, help: "Your roles or kinds of work, newest first, one per line, with years. For example: " + (side === "attorney" ? "Founding attorney, Smith Family Law, 2019 to now." : "Senior paralegal, family law firm, 2019 to now.") }));
+    bioX.appendChild(textIn("education", "Education", { area: true, rows: 3, required: need("education"), ai: true, help: "Degrees, certificates and courses, one per line, with the school and year. For example: " + (side === "attorney" ? "J.D., University of Texas School of Law, 2012." : "Paralegal certificate, Austin Community College, 2018.") }));
+    sec(side === "attorney" ? "practice" : "services");
     var none = h("input", { type: "checkbox", checked: !!b.software_none });
     none.addEventListener("change", function () { prof.body.software_none = none.checked; prof.dirty = true; });
     card.appendChild(toolsPicker(r.tech_tools || [], need("software"), r.tech_groups));
@@ -3037,6 +3114,7 @@
     if (side === "freelancer") {
       card.appendChild(textIn("skills", "Task skills", { list: true, help: "The tasks you do well, separated by commas.", placeholder: "E-filing, discovery requests, client intake", hint: "Separate them with commas." }));
       card.appendChild(servicesEditor(need("services")));
+      sec("work");
       card.appendChild(h("h3", { text: "How you work" }));
       var tz = h("select", { "aria-label": "Time zone" }, [h("option", { value: "", text: "Choose" })].concat((r.timezones || []).map(function (z) { return h("option", { value: z, text: z, selected: b.timezone === z }); })));
       tz.addEventListener("change", function () { prof.body.timezone = tz.value; prof.dirty = true; });
@@ -3049,7 +3127,11 @@
       ack.addEventListener("change", function () { prof.body.acknowledged = ack.checked; prof.dirty = true; });
       card.appendChild(h("label", { style: "font-weight:400;display:flex;gap:8px;margin-top:10px" }, ack, h("span", { text: "I agree to keep attorneys' work confidential, to work only on funded milestones through Lawfecta, and not to take Lawfecta clients off the platform." })));
     }
+    sec("summary");
     card.appendChild(draftHelper());
+    // The foot of the card: the directory choice (shown in the column at the right on a wide screen) and the Save row
+    var foot = h("div", { class: "pf-foot" }), dirBox = h("div", { class: "pf-dir" });
+    wrap.appendChild(foot); foot.appendChild(dirBox); cur = dirBox;
     var dir = h("input", { type: "checkbox", checked: r.directory !== false });
     var msg = h("p", { role: "status", class: "small" });
     if (r.sync_on) {
@@ -3084,10 +3166,24 @@
     }
     save.addEventListener("click", function () { doSave(false); });
     saveLabel();
+    cur = foot;
     card.appendChild(dirList);
-    card.appendChild(h("div", { class: "row", style: "margin-top:12px" }, save));
+    var unsaved = h("span", { class: "small muted", id: "pf-unsaved", role: "status" }), nextBtn = h("button", { class: "linkish", type: "button", id: "pf-next" });
+    var markDirty = function () { unsaved.textContent = prof.dirty ? "Unsaved changes" : ""; };
+    wrap.addEventListener("input", markDirty); wrap.addEventListener("change", markDirty); wrap.addEventListener("click", function () { setTimeout(markDirty, 0); });
+    card.appendChild(h("div", { class: "row pf-save", style: "margin-top:12px;gap:12px;flex-wrap:wrap;align-items:center" }, save, unsaved, h("span", { class: "grow" }), nextBtn));
+    markDirty();
     card.appendChild(msg);
-    return card;
+    // Which section shows. With "all" every section is on the page at once (the automated tests of the older steps use it).
+    wrap.pfSecs = SEC; wrap.pfDir = dirBox; wrap.pfSyncOn = !!r.sync_on;
+    wrap.pfShow = function (key, all) {
+      if (!secs[key]) key = SEC[0][0];
+      SEC.forEach(function (s) { secs[s[0]].style.display = all || s[0] === key ? "" : "none"; });
+      var at = SEC.map(function (s) { return s[0]; }).indexOf(key), nx = SEC[at + 1];
+      nextBtn.style.display = nx && !all ? "" : "none";
+      if (nx) { nextBtn.textContent = "Next: " + nx[1].replace(" (optional)", "") + " →"; nextBtn.onclick = function () { if (wrap.pfGo) wrap.pfGo(nx[0], true); }; }
+    };
+    return wrap;
   }
 
   // Tech tools: common ones as choices, others typed. DELA's AI reads these to name the member's own tools in its answers.
