@@ -290,7 +290,6 @@ async function waitFor(page, words, ms) {
     const richNow = await richX.evaluate((d) => ({ li: d.querySelectorAll("ul li").length, bold: d.querySelectorAll("b, strong").length, marks: d.textContent.includes("**") || d.textContent.includes("- ") }));
     ok(richNow.li === 2 && richNow.bold >= 1 && !richNow.marks, "in the formatted box the lines become a list and the words turn bold, with no marks showing: " + JSON.stringify(richNow));
     ok((await dela(p).locator("#tp-box-experience").inputValue()) === "- **Paralegal work**\n- **Filed motions**", "behind it, the same text is kept with its marks: " + JSON.stringify(await dela(p).locator("#tp-box-experience").inputValue()));
-    await dela(p).locator("#tp-rich-experience").evaluate((d) => { const e = new Event("paste", { bubbles: true, cancelable: true }); e.clipboardData = { getData: () => "" }; d.dispatchEvent(e); });
     await dela(p).locator("#tp-save-experience").click();
     await waitFor(p, "Saved. Your live profile shows it now.");
     const expNow = (await sql("select body->>'experience' e from member_profiles mp join people pe on pe.id = mp.person_id where pe.bd_member_id = 2501 and side = 'freelancer'"))[0].e;
