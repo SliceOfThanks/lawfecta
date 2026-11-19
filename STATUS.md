@@ -6,7 +6,14 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
-## Step 41, small additions to Projects: ON THE SITE (2026-11-18), nothing queued behind it
+## Step 42, fixes after ChatGPT check 10 and Stacey's look: ON THE SITE (2026-11-18), nothing queued behind it
+- Site: code_version 9f1546c, api 130 and migrations through 0134 unchanged, health "ok". GitHub Tests passed (run 44428567455: 62 Projects checks). One earlier run failed on a test line that expected the old heading count; no app fault.
+- Check 10 report (33 DELA-test-report.txt): 17 of 20 passed. Fixed: a tab now paints its panel from loaded data (paintPanel in projectsWorkspace; no page reload, focus stays on the tab); a delivered milestone past its date reads "Delivered, was due" (dueWords), an unsigned plan past its date "Was planned for"; the two-column row starts at 860px of content (a scrollbar at 1280 had pushed it under 980).
+- Stacey's three notes the same day: Overview order is now "Your gigs" first at full width, then "Needs your attention" beside "Quick actions" and "Upcoming milestones", then "Active engagements" at full width (.pj-full, labeled lines under 700px of its own width); "About projects" removed; Quick actions with several items open the Gigs tab or the Engagements tab (Sign agreements sets the "Needs your signature" filter).
+- Also: a one-amount budget shows once; budget messages clear on typing; "Draft deleted"; job page and Projects open at the top; "Manage" scrolls to the opened arrangement; "Engagements (n)" counts active ones; milestone hint reads "First version, then Final version".
+- Not done, said to Stacey: "Open gigs on your plan: 1 of 10 in use" against 4 open gigs (server count, not yet read); DELA's draft filling State and Practice area; the freelancer list preselecting someone with an arrangement; "Loading..." flash on "Save draft".
+
+## Step 41, small additions to Projects: ON THE SITE (2026-11-18)
 - Site: code_version daac2c1, api 130 and migrations through 0134 unchanged, health "ok". GitHub Tests passed at the first run (run 44354682973: 57 Projects checks).
 - A status filter on the Engagements tab (#pj-eng-filter, gigs.efilter; one button per status the active engagements have, in the rows' own words); the question before ending a standing arrangement names the open jobs; Quick actions has a help tip and its heading sits on the band. Written up at the end of docs/briefs/step-40-projects-brief.md. Still open there: "Due soon" (needs a number of days from Stacey) and sorting.
 
