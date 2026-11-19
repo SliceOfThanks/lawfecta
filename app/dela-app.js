@@ -2995,7 +2995,7 @@
       : [["basics", "Basics", true], ["summary", "Summary", true], ["services", "Services & skills", true], ["experience", "Experience & education", true], ["work", "Work hours & agreement", true], ["contact", "Contact details (optional)", false]];
     var wrap = h("div", { class: "card pf-form" }), secs = {}, cur = null;
     SEC.forEach(function (s) {
-      secs[s[0]] = h("section", { class: "pf-sec", id: "pf-sec-" + s[0], "data-sec": s[0], "aria-labelledby": "pf-sec-h-" + s[0] },
+      secs[s[0]] = h("section", { class: "pf-sec", id: "pf-sec-" + s[0], "data-sec": s[0], "aria-label": s[1].replace(" (optional)", "") + " section" },
         h("div", { class: "row pf-sec-h" }, h("h2", { id: "pf-sec-h-" + s[0], text: s[1].replace(" (optional)", "") }), h("span", { class: "badge", text: s[2] ? (side === "attorney" ? "Needed to post and hire" : "Required for matching") : "Optional" })));
       wrap.appendChild(secs[s[0]]);
     });
