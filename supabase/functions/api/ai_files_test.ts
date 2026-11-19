@@ -7,7 +7,7 @@ import { handle, type Deps } from "./app.ts";
 import { sessionHash } from "./lib/crypto.ts";
 import { openKey } from "./lib/ai/keycrypt.ts";
 import { pickChatModel, pickTranscribeModel } from "./lib/ai/providers.ts";
-import { messageLooksSensitive } from "./lib/ai/clientcheck.ts";
+import { messageLooksSensitive, readCheckAnswer, readSensitiveAnswer } from "./lib/ai/clientcheck.ts";
 import { plainText } from "./lib/ai/text.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
@@ -413,6 +413,18 @@ Deno.test("files: size checked again after upload, storage full, versions, trash
   await handle(new Request("http://localhost/functions/v1/api/worker", { method: "POST", headers: { "x-dela-worker": WORKER } }), deps);
   assert(objects.size <= before - 2, "the trash is emptied from storage after its days");
   assertEquals((await pool.query("select count(*)::int as n from files where group_id = (select group_id from files where id = $1) and status = 'deleted'", [v2.file_id])).rows[0].n, 2);
+});
+
+Deno.test("Fix 2026-11-19: a file check answer that cannot be read never counts as a clear check", () => {
+  for (const bad of ["Sorry, I cannot help with that.", "", "[]", "null", "{}", '{"client_info":"no"}', '{"kinds":["names"]}']) {
+    assertEquals(readCheckAnswer(bad).unreadable, true, "client check, unreadable: " + bad);
+    assertEquals(readSensitiveAnswer(bad).unreadable, true, "sensitive check, unreadable: " + bad);
+  }
+  assertEquals(readCheckAnswer('{"client_info":false,"kinds":[]}'), { flagged: false, kinds: [] }, "a real clear answer is still clear");
+  assertEquals(readCheckAnswer('Here you go:\n{"client_info":false,"kinds":[]}'), { flagged: false, kinds: [] }, "a few words around the JSON do not make it unreadable");
+  assertEquals(readCheckAnswer('{"client_info":true,"kinds":["Names"]}'), { flagged: true, kinds: ["names"] });
+  assertEquals(readSensitiveAnswer('{"sensitive":false,"kinds":[]}'), { flagged: false, kinds: [] });
+  assertEquals(readSensitiveAnswer('{"sensitive":true,"kinds":["ssn"]}'), { flagged: true, kinds: ["ssn"] });
 });
 
 Deno.test("admin sees AI use and files, never keys or file contents", async () => {

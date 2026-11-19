@@ -19,6 +19,7 @@ const FULL = {
 };
 const sent: any[] = [];
 let aiDown = false;
+let aiBroken = false; // the AI answers, but not with the JSON it was asked for
 
 const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
   const url = typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
@@ -26,6 +27,7 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
   if (url.startsWith("https://api.openai.com/v1/chat/completions")) {
     sent.push(body);
     if (aiDown) return Response.json({ error: { code: "server_error" } }, { status: 503 });
+    if (aiBroken) return Response.json({ model: body.model, choices: [{ message: { content: "I am sorry, I could not write that as asked." } }], usage: { prompt_tokens: 100, completion_tokens: 20 } });
     const system = String(body.messages[0].content);
     const user = String(body.messages.at(-1).content);
     let out: unknown = {};
@@ -139,6 +141,26 @@ Deno.test("AI is down: nothing saved, credits given back", async () => {
   const res = (await pool.query("select coalesce(sum(reserved),0)::int r from quota_usage where person_id = $1", [owner.id])).rows[0].r;
   assertEquals(res, 0);
   aiDown = false;
+});
+
+Deno.test("Fix 2026-11-19: an answer DELA cannot read saves nothing and the DELA actions are given back", async () => {
+  const used = async () => (await pool.query("select coalesce(sum(used),0)::int u, coalesce(sum(reserved),0)::int r from quota_usage where person_id = $1 and feature_key = 'ai.runs'", [owner.id])).rows[0];
+  const before = await used();
+  aiBroken = true;
+  const r = await call("POST", "/playbooks/create", owner.token, { org_id: org, request_id: "c-broken", description: "Billing at month end" });
+  aiBroken = false;
+  assertEquals([r.body.ok, r.body.reason, r.body.code], [false, "ai_failed", "bad_request"], JSON.stringify(r.body));
+  assertEquals((await pool.query("select count(*)::int n from playbooks where request_id = 'c-broken'")).rows[0].n, 0, "nothing saved");
+  const after = await used();
+  assertEquals([after.u - before.u, after.r], [0, 0], "no DELA action was used or left reserved for an answer that was thrown away");
+});
+
+Deno.test("Fix 2026-11-19: someone who may not create here is refused before the AI runs", async () => {
+  const asked = sent.length;
+  const r = await call("POST", "/playbooks/create", outsider.token, { org_id: org, request_id: "c-outsider", description: "Billing at month end" });
+  assertEquals([r.body.ok, r.body.reason], [false, "not_allowed"], JSON.stringify(r.body));
+  assertEquals(sent.length, asked, "the AI was not asked");
+  assertEquals((await pool.query("select coalesce(sum(used),0)::int u from quota_usage where person_id = $1 and feature_key = 'ai.runs'", [outsider.id])).rows[0].u, 0, "and no DELA action was used");
 });
 
 Deno.test("chat: questions answered, changes become suggestions, review points protected", async () => {
