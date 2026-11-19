@@ -103,6 +103,22 @@ async function makeMember(bd, side, plan) {
     await dela(p).locator("tr", { hasText: oldId }).first().click();
     t = await waitFor(p, "DELA moved this to the document standard as SOP");
     ok(t.includes("Draft, not approved"), "a converted document shows Draft, not approved until it is approved again");
+    // Step 47: a suggested edit is shown part by part, now and proposed side by side, before anyone accepts it
+    await tab(p, "Chat");
+    await dela(p).getByLabel("Message about this document", { exact: true }).fill("Please add a welcome email step");
+    await click(p, "Send");
+    await waitFor(p, "Suggested edits (1)", 15000);
+    await tab(p, "Suggested edits (1)");
+    t = await waitFor(p, "Now, in the draft");
+    const diff = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; const d = r.querySelector(".sg-diff"); const cols = [...d.querySelectorAll(".sg-cols")][0].querySelectorAll(".sg-col"); const a = cols[0].getBoundingClientRect(), b = cols[1].getBoundingClientRect();
+      return { parts: [...d.querySelectorAll(".sg-part")].map((x) => x.textContent).join("|"), side: b.left > a.right - 1, marks: [...d.querySelectorAll(".sg-lines .badge")].map((x) => x.textContent + ":" + x.parentElement.lastChild.textContent).join(" | "), heads: [...d.querySelectorAll(".sg-col-h")].slice(0, 2).map((x) => x.textContent).join("|") }; });
+    ok(diff.parts.includes("Purpose") && diff.parts.includes("Steps") && diff.heads === "Now, in the draft|Proposed" && diff.side, "the suggestion lists the parts it changes, with now and proposed side by side: " + JSON.stringify(diff));
+    ok(/New:\d+\. Send the welcome email\./.test(diff.marks) && /Changed:Find conflicts and welcome the client\./.test(diff.marks), "each changed line is marked in words (New, Changed): " + diff.marks);
+    ok(t.includes("Accepting a suggestion saves a new draft version of this document. It approves nothing"), "the screen says what accepting does and does not do");
+    await click(p, "Reject");
+    await waitFor(p, "No suggestions waiting.");
+    await tab(p, "Draft and review");
+    await waitFor(p, "Draft, not approved");
     await dela(p).getByLabel("Change the type").selectOption("workflow");
     await click(p, "Change type");
     t = await waitFor(p, "Now a Workflow");

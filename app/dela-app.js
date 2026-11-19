@@ -11919,11 +11919,66 @@
     return box;
   }
 
+  // Step 47 (docs/briefs/step-47-change-review.md): what a suggested edit changes, part by part, with the wording now
+  // and the wording proposed side by side. Words say what happened to each line ("new", "changed", "removed"), never
+  // color alone. Reading the comparison changes nothing.
+  var DOC_PART = [["title", "Title"], ["purpose", "Purpose"], ["scope", "Scope"], ["trigger", "What starts it"], ["before_you_start", "Before you start"], ["roles", "Roles"], ["steps", "Steps"], ["decisions", "Decisions"],
+    ["exceptions", "Exceptions"], ["escalation", "Escalation"], ["timing", "Timing"], ["done_when", "Done when"], ["quality_check", "Quality check"], ["rules_must", "Must"], ["rules_must_not", "Must not"], ["kpis", "KPIs"], ["related_links", "Related links"]];
+  function docPartLines(key, v) {
+    if (v === null || v === undefined || v === "") return [];
+    if (typeof v === "string") return [v];
+    if (!Array.isArray(v)) return [];
+    return v.map(function (x, i) {
+      if (typeof x === "string") return x;
+      if (!x || typeof x !== "object") return "";
+      if (key === "steps") return (i + 1) + ". " + (x.text || "") + (x.role ? " (" + x.role + ")" : "") + (x.attorney_decides ? " [the attorney decides]" : "");
+      if (key === "decisions") return "If " + (x["if"] || "") + ", then " + (x.then || "") + (x.attorney_decides ? " [the attorney decides]" : "");
+      if (key === "kpis") return (x.name || "") + (x.target ? ": " + x.target : "");
+      if (key === "related_links") return x.label || x.url || "";
+      return x.text || x.name || x.label || "";
+    }).filter(Boolean);
+  }
+  function docDiff(before, after) {
+    var out = [];
+    DOC_PART.forEach(function (p) {
+      var a = docPartLines(p[0], (before || {})[p[0]]), z = docPartLines(p[0], (after || {})[p[0]]);
+      if (JSON.stringify(a) === JSON.stringify(z)) return;
+      // A step keeps its number in front; compare the words after it so a new step does not mark every later one
+      var bare = function (t) { return p[0] === "steps" ? t.replace(/^[0-9]+[.] /, "") : t; };
+      var aSet = a.map(bare), zSet = z.map(bare);
+      out.push({ label: p[1], now: a.map(function (t) { return { text: t, mark: zSet.indexOf(bare(t)) < 0 ? "removed" : "" }; }), next: z.map(function (t) { return { text: t, mark: aSet.indexOf(bare(t)) < 0 ? (a.length === z.length ? "changed" : "new") : "" }; }) });
+    });
+    return out;
+  }
+  function docDiffView(sg) {
+    var cur = lib.pb.body || {}, rows;
+    if (sg.kind === "ai") rows = docDiff(cur, sg.proposed || {});
+    else {
+      var part = String(sg.part || ""), lbl = part.indexOf("step:") === 0 ? "Step " + part.slice(5) : (DOC_PART.filter(function (p) { return p[0] === part; })[0] || [0, part || "This part"])[1];
+      var nowText = part.indexOf("step:") === 0 ? ((cur.steps || [])[Number(part.slice(5)) - 1] || {}).text || "" : docPartLines(part, cur[part]).join("\n");
+      rows = [{ label: lbl, now: nowText ? [{ text: nowText, mark: "" }] : [], next: [{ text: (sg.proposed || {}).text || "", mark: "changed" }] }];
+    }
+    var box = h("div", { class: "sg-diff", role: "group", "aria-label": "What this suggestion changes" });
+    if (!rows.length) { box.appendChild(h("p", { class: "small muted", style: "margin:0", text: "This suggestion matches the draft as it is now. Accepting it changes nothing." })); return box; }
+    var col = function (title, lines, empty) {
+      return h("div", { class: "sg-col" }, h("div", { class: "sg-col-h", text: title }), lines.length ? h("ul", { class: "sg-lines" }, lines.map(function (l) {
+        return h("li", { class: l.mark ? "sg-" + l.mark : "" }, l.mark ? h("span", { class: "badge " + (l.mark === "removed" ? "off" : "held"), text: l.mark === "removed" ? "Removed" : l.mark === "new" ? "New" : "Changed" }) : null, h("span", { text: l.text }));
+      })) : h("p", { class: "small muted", style: "margin:0", text: empty }));
+    };
+    rows.forEach(function (r) {
+      box.appendChild(h("h4", { class: "sg-part", text: r.label }));
+      box.appendChild(h("div", { class: "sg-cols" }, col("Now, in the draft", r.now, "Empty now."), col("Proposed", r.next, "Empty after the change.")));
+    });
+    return box;
+  }
   function docSuggestionsView(area) {
     var list = lib.pb.suggestions;
     if (!list.length) { area.appendChild(h("div", { class: "card" }, h("p", { class: "muted", style: "margin:0", text: "No suggestions waiting." }))); return; }
+    var P0 = lib.pb.playbook || {};
+    area.appendChild(h("p", { class: "small muted", id: "sg-impact", style: "margin:0 0 10px", text: "Accepting a suggestion saves a new draft version of this document. It approves nothing: approval is its own step." + (P0.approved_version ? " The approved version " + P0.approved_version + " stays in use until a new version is approved, and gigs already posted keep the version they were posted from." : "") }));
     list.forEach(function (sg) {
       area.appendChild(h("div", { class: "card" }, h("b", { text: sg.note || "A suggested change" }), h("div", { class: "small muted", text: sg.by + ", " + D.dateTime(sg.at) + (sg.removes_review ? ". It removes an attorney decision, so only the administrator can accept it." : "") }),
+        docDiffView(sg),
         can(3) ? h("div", { class: "row", style: "margin-top:6px" }, sg.removes_review && lib.pb.role !== "administrator" ? null : h("button", { class: "blue small", type: "button", onclick: function () { decideSuggestion(sg.id, true); } }, "Accept"), h("button", { class: "ghost small", type: "button", onclick: function () { decideSuggestion(sg.id, false); } }, "Reject")) : null));
     });
   }

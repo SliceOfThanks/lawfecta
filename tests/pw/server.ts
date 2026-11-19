@@ -115,6 +115,12 @@ function documentAnswer(system: string, user = ""): unknown {
   if (system.includes("own star ratings and notes")) return { review: "Calls were made on time and logged in Clio." };
   if (system.includes("You classify one existing")) return { type: "sop", lifecycle: "INT", reason: "It is one clear path." };
   if (system.includes("rewriting an existing law firm playbook")) return { document: { ...DOC_SOP, title: "New client intake" } };
+  // Step 47: asked to add a step, DELA proposes the document with one more step, as a suggestion
+  if (system.includes("answering questions about one of the firm's documents") && user.includes("add a welcome email step")) {
+    let doc: any = null;
+    try { const c = String(JSON.parse(user).content ?? ""); doc = JSON.parse(c.slice(c.indexOf("{"), c.lastIndexOf("}") + 1)); } catch { doc = null; }
+    if (doc && Array.isArray(doc.steps)) return { reply: "I added a welcome email step.", change: { ...doc, purpose: "Find conflicts and welcome the client.", steps: [...doc.steps, { text: "Send the welcome email.", role: doc.steps[0]?.role ?? "Paralegal", raci: doc.steps[0]?.raci ?? {} }] }, note: "Add a welcome email step" };
+  }
   if (system.includes("answering questions about one of the firm's documents")) return { reply: "That step is done by the paralegal.", change: null, note: "" };
   return null;
 }
