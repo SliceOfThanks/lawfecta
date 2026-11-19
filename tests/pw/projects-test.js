@@ -216,7 +216,7 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     ok(quick.join("|") === "Review proposals 1 gig with proposals|Approve deliverables 1 waiting|Pay milestones 1 waiting|Sign agreements 1 waiting" && !quick.join(" ").includes("New Gig"), "quick actions: review, approve, pay and sign, each with what waits, and no second New Gig: " + quick.join("|"));
     const upcoming = await inShadow(p, (root) => [...root.querySelectorAll("#pj-panel .pj-up-b")].map((r) => r.innerText.replace(/\s+/g, " ")));
     ok(upcoming.length === 3 && upcoming[0].includes("Initial documents") && upcoming[0].includes("Overdue") && upcoming[1].includes("Client two intake"), "upcoming milestones, the nearest date first, late ones marked: " + upcoming.join(" | "));
-    // Step 40: the right column keeps a readable width, or sits under the left one
+    // The right column keeps a readable width, or sits under the left one
     const cols = await inShadow(p, (root) => { const c = root.querySelectorAll("#pj-panel .pj-col"); const a = c[0].getBoundingClientRect(), b = c[1].getBoundingClientRect(); const tt = root.querySelector(".pj-up-t").getBoundingClientRect(); return { side: b.left > a.right - 1, right: Math.round(b.width), words: Math.round(tt.width) }; });
     ok((cols.side ? cols.right >= 320 : true) && cols.words >= 150, "Upcoming milestones keeps a readable width: " + JSON.stringify(cols));
     // Check 10 (2026-11-18): the engagements table has the full width of the page and stays inside its card
@@ -225,6 +225,11 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
     ok(gw >= wide.panel - 2, "Your gigs is as wide as the page: " + gw);
     ok(wide.card >= wide.panel - 2 && wide.inside && wide.btn, "Active engagements is as wide as the page, the table stays inside its card and the buttons are one line: " + JSON.stringify(wide));
     ok(cols.side, "at 1280 wide, Quick actions sits at the right of Needs your attention");
+    // 2026-11-18: no long right column beside an empty left side. The two cards of the row end at the same line,
+    // and Upcoming milestones is its own row, as wide as the page, with the milestones side by side
+    const bal = await inShadow(p, (root) => { const c = root.querySelectorAll("#pj-panel .pj-col"); const a = c[0].querySelector(".card").getBoundingClientRect(), b = c[1].querySelector(".card").getBoundingClientRect(); const uc = root.querySelector("#pj-panel .pj-uprow .card").getBoundingClientRect(); const u = [...root.querySelectorAll("#pj-panel .pj-uprow .pj-up-b")].map((x) => x.getBoundingClientRect()); const q = [...root.querySelectorAll(".pj-quick")].map((x) => x.getBoundingClientRect()); return { gap: Math.round(Math.abs(a.bottom - b.bottom)), inRight: c[1].querySelectorAll(".card").length, upWide: Math.round(uc.width), upUnder: uc.top >= a.bottom - 1, sameRow: u.every((x) => Math.abs(x.top - u[0].top) < 2), across: u[1].left > u[0].right - 1, qIn: q.every((x) => x.bottom <= b.bottom + 1) }; });
+    ok(bal.gap <= 2 && bal.inRight === 1 && bal.qIn, "Needs your attention and Quick actions end at the same line, and Quick actions is alone at the right: " + JSON.stringify(bal));
+    ok(bal.upWide >= wide.panel - 2 && bal.upUnder && bal.sameRow && bal.across, "Upcoming milestones is as wide as the page, with its milestones side by side: " + JSON.stringify(bal));
     // A mouse click on a tab keeps the keyboard on that tab, and the page is not loaded again
     await inShadow(p, (root) => { root.querySelector("#pj-tab-overview").dataset.kept = "1"; });
     await dela(p).locator("#pj-tab-standing").click();
@@ -248,6 +253,7 @@ const G = (n) => "00000000-0000-0000-0000-0000000003" + String(n).padStart(2, "0
       ok(await fits(p), w + " wide: the Overview fits with no sideways scrolling");
       const nar = await inShadow(p, (root) => { const c = root.querySelectorAll("#pj-panel .pj-col"); return [c[1].getBoundingClientRect().top >= c[0].getBoundingClientRect().bottom - 1, Math.round(root.querySelector(".pj-up-t").getBoundingClientRect().width)]; });
       ok(nar[0] && nar[1] >= 150, w + " wide: the right column sits under the left one and its words keep their width: " + nar.join(", "));
+      if (w === 320) ok(await inShadow(p, (root) => { const u = [...root.querySelectorAll("#pj-panel .pj-uprow .pj-up-b")].map((x) => x.getBoundingClientRect()); return u[1].top >= u[0].bottom - 1; }), "320 wide: the upcoming milestones sit one under the other");
     }
     const stacked = await inShadow(p, (root) => { const td = root.querySelector("#pj-panel table.pj-table tbody td"); return getComputedStyle(td).display + "|" + getComputedStyle(td, "::before").content; });
     ok(stacked.startsWith("block|") && stacked.includes("Freelancer"), "on a phone each table row is a stack of labeled lines: " + stacked);

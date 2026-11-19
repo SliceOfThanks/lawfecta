@@ -5442,7 +5442,9 @@
         // Your gigs is first and as wide as the page (Stacey 2026-11-18)
         var top = h("div"); panel.appendChild(top);
         panel.appendChild(h("div", { class: "pj-colwrap" }, h("div", { class: "pj-cols" }, left, right)));
-        // The tables take the full width of the page, under the two columns (Stacey 2026-11-18)
+        // Under the two columns, each card takes the full width of the page: the milestones side by side, then the table.
+        // Nothing long sits in the narrow right column, so no side of the page is left empty (Stacey 2026-11-18)
+        var upRow = h("div", { class: "pj-full pj-uprow" }); panel.appendChild(upRow);
         var full = h("div", { class: "pj-full" }); panel.appendChild(full);
         // Needs your attention
         var nc = h("section", { class: "card", id: "needs-action" }), nh = pjHead("Needs your attention", engFailed ? null : needs.length, "needs");
@@ -5495,13 +5497,13 @@
           var uc = h("section", { class: "card" }), uh = pjHead("Upcoming milestones", null, "upcoming", active.length ? viewAll("engagements", "View all") : null);
           uc.appendChild(uh[0]); if (uh[1]) uc.appendChild(uh[1]);
           if (!up.length) uc.appendChild(h("p", { class: "muted", style: "margin:8px 0 0", text: "No milestone with a date in your active engagements." }));
-          // Each row is one button: the words keep a readable width and the date drops under them when the column is narrow
+          // Each milestone is one button, side by side on a wide page and one under the other on a phone
           else uc.appendChild(h("ul", { class: "pj-ups" }, up.map(function (e) {
             return h("li", { class: "pj-up" }, h("button", { class: "pj-up-b", type: "button", onclick: pjEngOpen(e) },
               h("span", { class: "pj-up-t" }, h("b", { text: e.next.title || "Milestone " + e.next.seq }), h("span", { class: "hsub", text: e.gig_title + (e.other_name ? " · " + e.other_name : "") })),
               h("span", { class: "pj-up-d" }, isOverdue(e.next.due_date, e.next.status) ? h("span", { class: "badge bad", text: "Overdue" }) : null, h("span", { text: dueWords(e.next.due_date, e.next.status) }))));
           })));
-          right.appendChild(uc);
+          upRow.appendChild(uc);
         }
         // Always on the page: the three words the page is built on (step 40)
       } else if (cur === "gigs") {
