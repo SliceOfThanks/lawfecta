@@ -202,7 +202,7 @@ async function waitFor(page, words, ms) {
     await label(p, "Other tech tools").fill("Casemark");
     await label(p, "Time zone").selectOption("Central");
     await label(p, "Hours a week you can take on").fill("20");
-    await dela(p).getByLabel("LinkedIn profile address", { exact: true }).nth(1).fill("linkedin.com/in/fran-freelancer");
+    await dela(p).locator("#sec-profile").getByLabel("LinkedIn profile address", { exact: true }).fill("linkedin.com/in/fran-freelancer");
     await dela(p).getByText("I agree to keep attorneys' work confidential").click();
     // Client information in the summary: DELA asks first (the dialog is accepted here)
     await unfold(p, "prof-bio");
@@ -389,7 +389,7 @@ async function waitFor(page, words, ms) {
 
     // A change not saved yet survives the LinkedIn button (Stacey's Step 3 test, 2026-11-05)
     await label(p, "Usual hours").fill("Not saved yet");
-    await dela(p).getByLabel("LinkedIn profile address", { exact: true }).first().fill("https://www.linkedin.com/in/fran-freelancer");
+    await dela(p).locator("#sec-verify").getByLabel("LinkedIn profile address", { exact: true }).fill("https://www.linkedin.com/in/fran-freelancer");
     await click(p, "Ask for the check");
     await waitFor(p, "Waiting for the Lawfecta Team");
     ok(true, "the freelancer asks for the LinkedIn check");
