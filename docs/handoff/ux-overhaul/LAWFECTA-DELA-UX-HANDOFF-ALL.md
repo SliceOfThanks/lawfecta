@@ -2616,6 +2616,8 @@ Shared facts used throughout this file:
 
 # PART D
 
+> Update 2026-11-18, after this inventory was read: step 1 of "Post a New Gig" was rebuilt (step 44). It is now ONE form card with the headings "Choose the work", "Engagement type", "Budget & requirements"; the side cards "Estimated costs" and "What happens next" are gone (the estimate sits under the budget boxes and shows only with a budget); the bottom row is "Back to Projects" and "Draft with DELA", with "Clear the form" as a link under the card; choosing "Monthly" renames the budget boxes and hides the work deadline; the step bar reads "Set up your gig", "Review DELA draft", "Review & post". Read the step 1 section below with that in mind; see docs/briefs/step-44-new-gig-step-1.md.
+
 # Inventory D: Projects, gigs, agency, standing arrangements, Talent invite
 
 Source: `app/dela-app.js` lines 5066 to 7018 (read in full). New layout (`NL()`) only. The old one-long-page Projects layout (lines 5070 to 5120) is noted once under "Variations" of the Projects page and not described further.
