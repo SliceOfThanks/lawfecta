@@ -139,6 +139,13 @@
     if (menu && !menu.contains(e.target) && !(e.target.classList && e.target.classList.contains("avatar"))) closeMenu();
   });
   app.addEventListener("keydown", function (e) { if (e.key === "Escape") { closeMenu(); closeDrawer(); closeMore(true); } });
+  // A row or tile that is a button (role="button" on something that is not a <button>) opens with Enter or Space, as a
+  // real button does. Found while reading every page for the UX handoff (2026-11-18).
+  app.addEventListener("keydown", function (e) {
+    var t = e.target;
+    if ((e.key !== "Enter" && e.key !== " ") || !t || !t.getAttribute || t.getAttribute("role") !== "button" || /^(BUTTON|A|INPUT|TEXTAREA|SELECT|SUMMARY)$/.test(t.tagName)) return;
+    e.preventDefault(); t.click();
+  });
 
   function toggleMenu() {
     if (menu) { closeMenu(); return; }
@@ -4937,7 +4944,10 @@
   function gigTone(st) { return { open: "ready", paused: "held", filled: "R", closed: "off", canceled: "off" }[st] || ""; }
   function propTone(st) { return { sent: "R", held: "held", selected: "ready", withdrawn: "off", not_selected: "off", closed: "off" }[st] || ""; }
   function agTone(e) { return e.needs_me ? "held" : ({ active: "R", completed: "ready", canceled: "off", disputed: "bad", paused: "bad" }[e.status] || ""); }
-  function agBadge(e) { return h("span", { class: "badge " + agTone(e), text: e.needs_me === "sign" ? "Needs your signature" : AG_STATUS[e.status] || e.status }); }
+  // "Signed" says who pays next (ChatGPT check 10): the client sees "your", the hired side sees "the client's"
+  function agWord(status, role) { return status === "signed" ? (role === "freelancer" ? "Signed: waiting for the client's first payment" : "Signed: waiting for your first payment") : AG_STATUS[status] || status; }
+  function agRole(e) { return e && e.role ? e.role : me.side === "freelancer" && tab !== "projects" ? "freelancer" : "attorney"; }
+  function agBadge(e) { return h("span", { class: "badge " + agTone(e), text: e.needs_me === "sign" ? "Needs your signature" : agWord(e.status, agRole(e)) }); }
   var GIG_STATUS = { draft: "Draft", open: "Open", paused: "Paused by the Lawfecta Team", closed: "Closed", filled: "Filled", canceled: "Canceled" };
   var PROP_STATUS = { draft: "Draft", sent: "Sent", held: "Being checked", withdrawn: "Withdrawn", selected: "Chosen", not_selected: "Not chosen", closed: "Closed" };
   var GIG_ERR = {
@@ -5559,7 +5569,7 @@
           };
           efind.addEventListener("input", function () { gigs.efind = efind.value; paintEng(); });
           // A filter per status the active engagements really have, in the words their rows show (step 41)
-          var engWord = function (e) { return e.needs_me === "sign" ? "Needs your signature" : AG_STATUS[e.status] || e.status; };
+          var engWord = function (e) { return e.needs_me === "sign" ? "Needs your signature" : agWord(e.status, agRole(e)); };
           var words = []; active.forEach(function (e) { var w = engWord(e); if (words.indexOf(w) < 0) words.push(w); });
           if (words.indexOf(gigs.efilter) < 0) gigs.efilter = "";
           var said = h("span", { class: "sr", role: "status" });
@@ -8542,7 +8552,7 @@
       if (!r.on) { el.appendChild(h("p", { class: "notice", text: TALK_ERR.meetings_off })); return; }
       if (talk.meeting) {
         if (!r.meetings.length) el.appendChild(h("p", { class: "muted", text: "This meeting is no longer listed." }));
-        r.meetings.forEach(function (m) { el.appendChild(meetingCard(el, m, r.confirm_hours)); });
+        r.meetings.forEach(function (m) { el.appendChild(meetingCard(el, m, r.confirm_hours, r.rules)); });
         return;
       }
       var now = Date.now(), early = (r.rules || {}).join_early_minutes || 10;
@@ -8556,7 +8566,7 @@
           me.side === "attorney" && (me.switches || {}).talent_search !== false ? h("button", { class: "blue small", type: "button", onclick: function () { goTab("talent"); } }, "Find a freelancer in Talent")
             : (me.switches || {}).profiles ? h("button", { class: "ghost small", type: "button", onclick: function () { goTab("profile"); } }, "Open my Profile") : null));
       }
-      upcoming.forEach(function (m) { el.appendChild(meetingCard(el, m, r.confirm_hours)); });
+      upcoming.forEach(function (m) { el.appendChild(meetingCard(el, m, r.confirm_hours, r.rules)); });
       // A meeting that just ended stays in view for the time people have to say whether it happened (and to read its
       // transcript and next steps); older ones go into the fold
       var keep = (r.confirm_hours || 48) * 3600000;
@@ -8564,18 +8574,18 @@
       past = past.filter(function (m) { return waiting.indexOf(m) < 0; });
       if (waiting.length) {
         el.appendChild(h("h2", { id: "meetings-waiting", style: "margin:16px 0 6px", text: "Just ended (" + waiting.length + ")" }));
-        waiting.forEach(function (m) { el.appendChild(meetingCard(el, m, r.confirm_hours)); });
+        waiting.forEach(function (m) { el.appendChild(meetingCard(el, m, r.confirm_hours, r.rules)); });
       }
       if (past.length) {
         var fold = h("details", { id: "meetings-past", style: "margin-top:16px" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "Past and canceled (" + past.length + ")" }));
-        past.forEach(function (m) { fold.appendChild(meetingCard(el, m, r.confirm_hours)); });
+        past.forEach(function (m) { fold.appendChild(meetingCard(el, m, r.confirm_hours, r.rules)); });
         el.appendChild(fold);
       }
     }).catch(function (e) { D.clear(el); el.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
     return el;
   }
 
-  function meetingCard(host, m, confirmHours) {
+  function meetingCard(host, m, confirmHours, rules) {
     // Stacey 2026-11-13: the meeting card has a tinted heading band; everything else sits in the body under it
     var c = h("div", { class: "mt-body" });
     var mtCard = h("div", { class: "card mt-card" }, h("div", { class: "row mt-head" }, smallFace(m), h("h2", { class: "grow", style: "margin:0", text: m.other_name + ": " + m.gig_title }),
@@ -8608,7 +8618,7 @@
         } }, "Add to my calendar (.ics)"),
         h("button", { class: "ghost small", type: "button", onclick: function () { bookPanel(host, m.gig_id, me.side === "attorney" ? m.freelancer_person : null, m.id, m.intro_thread || null); } }, "Change the time"),
         h("button", { class: "danger small", type: "button", onclick: function () {
-          var why = prompt("Why are you canceling? Both of you are told. Less than " + plural((r.rules || {}).late_cancel_hours || 2, "hour") + " before counts as a late cancel.");
+          var why = prompt("Why are you canceling? Both of you are told. Less than " + plural((rules || {}).late_cancel_hours || 2, "hour") + " before counts as a late cancel.");
           if (why === null) return;
           api.post("/meetings/cancel", { id: m.id, reason: why }).then(gigOk).then(function (x) { draw(); D.toast(app, x.late ? "Canceled (late)" : "Canceled"); }).catch(talkFail);
         } }, "Cancel")));
@@ -9181,7 +9191,7 @@
     var pre = a.status === "draft" || a.status === "signing" || a.status === "sent";
     // What is open belongs to one engagement: another engagement starts folded again
     if (eng.forId !== a.id) { eng.forId = a.id; eng.open = {}; eng.ms = {}; }
-    host.appendChild(h("div", { class: "row" }, h("h2", { class: "grow", style: "flex:1 1 auto", text: "Agreement, version " + a.version }), h("span", { class: "badge " + agTone({ status: a.status }), text: AG_STATUS[a.status] || a.status })));
+    host.appendChild(h("div", { class: "row" }, h("h2", { class: "grow", style: "flex:1 1 auto", text: "Agreement, version " + a.version }), h("span", { class: "badge " + agTone({ status: a.status }), text: agWord(a.status, r.role) })));
     if (eng.paid && att) { eng.paid = false;
       // Already confirmed when the newest payment is paid (fee test report 2026-11-11): say so, do not say "confirming"
       var newest = (r.payments || []).slice().sort(function (x, y) { return String(y.created_at).localeCompare(String(x.created_at)); })[0];
@@ -9679,7 +9689,12 @@
       else { head("Waiting for payment", "Waiting for payment"); box.appendChild(h("p", { text: "Waiting for the " + clientKindWord(r) + " to pay the next milestone. Do not start unpaid work." })); }
       if (!r.payout_account || r.payout_account.status !== "ready") box.appendChild(h("p", { class: "small", text: "Set up payouts on the Earnings page so accepted milestones reach your bank." }));
     } else if (a.status === "completed") { head("This engagement is complete", "Complete", "ready"); box.appendChild(h("p", { text: "Every milestone is accepted. This engagement is complete." })); }
+    else if (a.status === "paused") { head("This engagement is paused", "Paused", "bad"); box.appendChild(h("p", { text: "A payment is under review with the bank, so work and payments wait. You can still read everything and send messages. The Lawfecta Team will be in touch." })); }
+    else if (a.status === "canceled") { head("This engagement was canceled", "Canceled"); box.appendChild(h("p", { class: "muted", text: "Nothing more to do here. What was paid and refunded is listed under \"Agreement and fees\"." })); }
     else box.appendChild(h("p", { class: "muted", text: "Nothing to do here." }));
+    // An open dispute is said at the top of the page, with the way to it, whatever else is next
+    if ((r.disputes || []).some(function (d) { return d.status === "notice" || d.status === "team_review"; })) box.appendChild(h("p", { class: "notice", id: "eg-dispute-note", style: "margin:12px 0 0" }, "A dispute is open on this engagement. Read it and answer under \"Disputes and cancellation\". ",
+      h("button", { class: "linkish", type: "button", onclick: function () { egShow("disputes"); } }, "Open the dispute")));
     return box;
   }
 
@@ -12301,7 +12316,7 @@
     loadUsage().then(function (u) {
       if (!u || u.actions.limit === null) return;
       host.appendChild(h("p", { class: "small muted usage-meter", style: "text-align:center;margin:18px 0 4px" },
-        h("a", { href: "#", onclick: function (e) { e.preventDefault(); tab = "usage"; draw(); }, text: "DELA actions: " + u.actions.used + " of " + u.actions.limit + " this month" })));
+        h("a", { href: "#", onclick: function (e) { e.preventDefault(); if (NL()) { subTab = "usage"; goTab("subscription"); } else { tab = "usage"; draw(); } }, text: "DELA actions: " + u.actions.used + " of " + u.actions.limit + " this month" })));
     });
   }
   // ---------- Step 16: Subscription (docs/briefs/step-16-subscription.md) ----------

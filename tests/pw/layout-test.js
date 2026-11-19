@@ -95,7 +95,7 @@ const ATT = 4430;
     await sql(`insert into agreements (gig_id, proposal_id, attorney_org, attorney_person, freelancer_person, total_cents, status) values ('${ng}', '${np}', '${nid.org}', '${nid.att}', '${nid.fl}', 30000, 'signed'); select 1`);
     for (const [uid, tb] of [[FLA, "work"], [FLA, "earnings"], [ATT2, "projects"]]) {
       s = await open(browser, "DELA-App", uid, "&tab=" + tb, 290); p = s.page;
-      await waitFor(p, "Signed: waiting for the first payment", 15000);
+      await waitFor(p, tb === "projects" ? "Signed: waiting for your first payment" : "Signed: waiting for the client's first payment", 15000);
       const w = await dela(p).locator(".nav").evaluate((n) => ({ page: document.documentElement.scrollWidth, vw: window.innerWidth, tabs: n.querySelectorAll("button").length }));
       ok(w.page <= w.vw + 1, tb + " at 290 pixels (" + w.tabs + " tabs): the page does not scroll sideways (" + w.page + " > " + w.vw + ")");
       // Fix (UX review 2026-11-08): with more than seven tabs the bar scrolls sideways, and no two tab names overlap

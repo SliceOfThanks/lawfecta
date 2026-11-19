@@ -352,6 +352,20 @@ async function makeMember(bd, side, plan) {
     ok(t.includes("512-555-0199"), "the held message waits in the Gigs tab for a decision");
     await s.ctx.close();
 
+    // ---------- Cancel from the meeting card (found reading the page for the UX handoff, 2026-11-18): the button asks
+    // why, with the late-cancel hours from the settings, and cancels. It used to stop on a missing value. ----------
+    await sql(`update meetings set start_at = now() + interval '3 days', end_at = now() + interval '3 days 30 minutes' where gig_id = '${gigId}' and status = 'confirmed'; select 1`);
+    s = await open(browser, "DELA-App", 2701, "&tab=meetings");
+    p = s.page;
+    await waitFor(p, "Change the time");
+    let asked = "";
+    p.on("dialog", (d) => { asked = d.message(); });
+    await click(p, "Cancel");
+    for (let i = 0; i < 40 && (await sql(`select count(*)::int n from meetings where gig_id = '${gigId}' and status = 'canceled'`))[0].n === 0; i++) await p.waitForTimeout(200);
+    ok(/^Why are you canceling\? Both of you are told\. Less than \d+ hours? before counts as a late cancel\.$/.test(asked), "Cancel asks why and names the late-cancel hours: " + asked);
+    ok((await sql(`select count(*)::int n from meetings where gig_id = '${gigId}' and status = 'canceled'`))[0].n === 1 && (await sql(`select count(*)::int n from meetings where gig_id = '${gigId}' and status = 'confirmed'`))[0].n === 0, "Cancel on the meeting card cancels the meeting");
+    await s.ctx.close();
+
     console.log("\n" + passed + " browser checks passed");
   } finally {
     await browser.close();

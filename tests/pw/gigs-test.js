@@ -140,7 +140,9 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     p = s.page;
     t = await waitFor(p, "Matches (1)");
     ok(t.includes("Why it fits: Family law"), "matches say why they fit");
-    await dela(p).locator(".work", { hasText: "Client intake for a family law firm" }).first().click();
+    // A row that is a button opens with the keyboard too (2026-11-18)
+    await dela(p).locator(".work", { hasText: "Client intake for a family law firm" }).first().focus();
+    await p.keyboard.press("Enter");
     t = await waitFor(p, "Your proposal");
     ok(!t.includes("The work handed to you"), "a matched freelancer sees only the public version");
     ok(t.includes("Which intake form do you use?") === false, "an unanswered question is not shown to other applicants yet");

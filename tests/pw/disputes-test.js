@@ -119,6 +119,7 @@ async function makeMember(bd, side, plan) {
     // ---------- Attorney: answer, add a link, accept the offer ----------
     s = await open(browser, "DELA-App", 4800, `&tab=projects&gig=${gigId}&view=agreement`); p = s.page;
     t = await waitFor(p, "The freelancer's offer: $200 to the freelancer", 15000);
+    ok((await dela(p).locator("#eg-next").innerText()).includes("A dispute is open on this engagement.") && await dela(p).locator("#eg-next").getByRole("button", { name: "Open the dispute" }).count() === 1, "attorney: the next action card says a dispute is open and links to it");
     ok(t.includes("Give your side by"), "attorney: asked to give their side by a date");
     await label(p, "Your side").fill("Only the draft arrived; the exhibit list is still missing.");
     await click(p, "Send my side");
