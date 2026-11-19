@@ -231,12 +231,13 @@ async function waitFor(page, words, ms) {
     t = await waitFor(p, "Saved. Your live profile shows it now.");
     t = await waitFor(p, "Litigation support for solo attorneys in Texas");
     await dela(p).locator("#tp-edit-summary").click();
-    await dela(p).locator("#tp-box-summary").fill("This must not be kept.");
+    await dela(p).locator("#tp-rich-summary").fill("This must not be kept.");
     await dela(p).getByRole("button", { name: "Cancel", exact: true }).click();
     t = await waitFor(p, "I support solo attorneys with e-filing and discovery in Texas courts.");
     ok(!t.includes("This must not be kept."), "Cancel leaves the summary as it was");
     await dela(p).getByRole("tab", { name: "Experience and qualifications" }).click();
     await dela(p).locator("#tp-edit-education").click();
+    await dela(p).locator("#tp-marks-education").click();
     await dela(p).locator("#tp-box-education").fill("Paralegal certificate, Austin Community College\nNotary public, Texas");
     await dela(p).locator("#tp-save-education").click();
     t = await waitFor(p, "Notary public, Texas");
@@ -246,6 +247,7 @@ async function waitFor(page, words, ms) {
     await dela(p).getByRole("tab", { name: "Overview" }).click();
     await dela(p).locator("#tp-edit-summary").click();
     const sumBox = dela(p).locator("#tp-box-summary");
+    await dela(p).locator("#tp-marks-summary").click();
     await sumBox.waitFor();
     ok(await dela(p).locator(".tp-editor .md-bar").getByRole("button", { name: "Bold", exact: true }).count() === 1 && await dela(p).locator(".tp-editor .md-bar").getByRole("button", { name: "Add a picture", exact: true }).count() === 1, "the editor has a formatting bar with Bold and Add a picture");
     ok(await dela(p).locator("#tp-anyway-summary").isHidden(), "the client information button stays hidden until it is needed");
@@ -269,6 +271,31 @@ async function waitFor(page, words, ms) {
     ok(shown.h === "What I do" && shown.li === 2 && shown.img && !shown.raw, "the saved summary shows formatted on the live profile: " + JSON.stringify(shown));
     await dela(p).getByRole("tab", { name: "Experience and qualifications" }).click();
     ok(await dela(p).locator("#tp-education ul.tp-lines li").count() === 2, "text written before, one point per line, still shows as a list");
+    // Step 51: the formatted box. The text changes look while it is typed, with no marks showing, and saves as the same marks
+    await dela(p).locator("#tp-edit-experience").click();
+    const richX = dela(p).locator("#tp-rich-experience");
+    await richX.waitFor();
+    ok(await dela(p).locator("#tp-box-experience").isHidden() && await dela(p).locator("#tp-prev-experience").isHidden(), "the formatted box is the one shown; the box with the marks and the preview are put away");
+    await dela(p).locator("#tp-marks-experience").click();
+    await dela(p).locator("#tp-box-experience").fill("");
+    await dela(p).locator("#tp-marks-experience").click();
+    await richX.click();
+    await p.keyboard.type("Paralegal work");
+    await p.keyboard.press("Enter");
+    await p.keyboard.type("Filed motions");
+    await p.keyboard.press("ControlOrMeta+A");
+    await dela(p).locator(".tp-editor .md-bar").getByRole("button", { name: "Bulleted list", exact: true }).click();
+    await p.keyboard.press("ControlOrMeta+A");
+    await dela(p).locator(".tp-editor .md-bar").getByRole("button", { name: "Bold", exact: true }).click();
+    const richNow = await richX.evaluate((d) => ({ li: d.querySelectorAll("ul li").length, bold: d.querySelectorAll("b, strong").length, marks: d.textContent.includes("**") || d.textContent.includes("- ") }));
+    ok(richNow.li === 2 && richNow.bold >= 1 && !richNow.marks, "in the formatted box the lines become a list and the words turn bold, with no marks showing: " + JSON.stringify(richNow));
+    ok((await dela(p).locator("#tp-box-experience").inputValue()) === "- **Paralegal work**\n- **Filed motions**", "behind it, the same text is kept with its marks: " + JSON.stringify(await dela(p).locator("#tp-box-experience").inputValue()));
+    await dela(p).locator("#tp-rich-experience").evaluate((d) => { const e = new Event("paste", { bubbles: true, cancelable: true }); e.clipboardData = { getData: () => "" }; d.dispatchEvent(e); });
+    await dela(p).locator("#tp-save-experience").click();
+    await waitFor(p, "Saved. Your live profile shows it now.");
+    const expNow = (await sql("select body->>'experience' e from member_profiles mp join people pe on pe.id = mp.person_id where pe.bd_member_id = 2501 and side = 'freelancer'"))[0].e;
+    const expShown = await dela(p).locator("#tp-experience").evaluate((d) => ({ li: d.querySelectorAll("ul li").length, strong: d.querySelectorAll("strong").length, raw: d.textContent.includes("**") }));
+    ok(expNow === "- **Paralegal work**\n- **Filed motions**" && expShown.li === 2 && expShown.strong === 2 && !expShown.raw, "it saves, and the live profile shows the bold list: " + JSON.stringify([expNow, expShown]));
     // Step 49, second part (Stacey 2026-11-19, "Yes, add them"): skills, software, services and the picture are changed on the live profile too
     const one = async () => (await sql("select body from member_profiles mp join people pe on pe.id = mp.person_id where pe.bd_member_id = 2501 and side = 'freelancer'"))[0].body;
     await dela(p).locator("#tp-edit-skills").click();
@@ -287,6 +314,7 @@ async function waitFor(page, words, ms) {
     ok(now.software.includes("Lawmatics QA") && now.software.includes("Clio") && now.software.includes("Casemark"), "a tool added in place is saved, and the chosen tools stay: " + JSON.stringify(now.software));
     // HTML typed into a part is shown as the words that were typed; it is never run
     await dela(p).locator("#tp-edit-education").click();
+    await dela(p).locator("#tp-marks-education").click();
     await dela(p).locator("#tp-box-education").fill("Paralegal certificate, Austin Community College\nNotary public, Texas\n<img src=x onerror=window.__hit=1><b>not bold</b>");
     await dela(p).locator("#tp-save-education").click();
     await waitFor(p, "Saved. Your live profile shows it now.");

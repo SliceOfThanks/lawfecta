@@ -7662,13 +7662,31 @@
         var imgs = r.images || {}, prev = area ? h("div", { class: "md-prev", id: "tp-prev-" + key }) : null;
         var drawPrev = function () { if (!prev) return; D.clear(prev); prev.appendChild(h("p", { class: "small muted md-prev-h", text: "How attorneys will see it" })); prev.appendChild(box.value.trim() ? mdRender(box.value, { bullets: key !== "summary", images: imgs }) : h("p", { class: "small muted", style: "margin:0", text: "Nothing yet." })); };
         if (area) box.addEventListener("input", drawPrev);
+        // Step 51: the long parts are written in a formatted box, where a heading looks like a heading while it is
+        // typed. The plain box with its marks stays one click away ("Show the marks") and is what gets saved.
+        var ed = null, marksBtn = null;
+        if (area) {
+          var richOn = true, syncing = false;
+          var rich = h("div", { class: "md md-rich", id: "tp-rich-" + key, contenteditable: "true", role: "textbox", "aria-multiline": "true", "aria-label": EDIT[key][0], "data-ph": "Write here. Use the bar above for a heading, a list, bold words or a picture." });
+          var renderRich = function () { D.clear(rich); var m = mdRender(box.value, { bullets: key !== "summary", images: imgs }); while (m.firstChild) rich.appendChild(m.firstChild); };
+          rich.addEventListener("input", function () { syncing = true; box.value = mdFromRich(rich); box.dispatchEvent(new Event("input")); syncing = false; });
+          // Pasted text comes in as plain words, so nothing from another page is carried into the profile
+          rich.addEventListener("paste", function (e) { e.preventDefault(); var t = ((e.clipboardData || window.clipboardData) || { getData: function () { return ""; } }).getData("text/plain") || ""; document.execCommand("insertText", false, t); });
+          rich.addEventListener("drop", function (e) { e.preventDefault(); });
+          box.addEventListener("input", function () { if (!syncing && richOn) renderRich(); });
+          marksBtn = h("button", { class: "linkish", type: "button", id: "tp-marks-" + key }, "Show the marks");
+          var setMode = function () { rich.style.display = richOn ? "" : "none"; box.style.display = richOn ? "none" : ""; prev.style.display = richOn ? "none" : ""; marksBtn.textContent = richOn ? "Show the marks" : "Back to the formatted box"; if (richOn) renderRich(); else drawPrev(); };
+          marksBtn.addEventListener("click", function () { richOn = !richOn; setMode(); (richOn ? rich : box).focus(); });
+          ed = { rich: rich, on: function () { return richOn; }, start: setMode };
+        }
         var canAi = plain && kind !== "list" && (me.switches || {}).ai_generation;
-        host.appendChild(h("div", { class: "tp-editor" }, plain ? h("label", { for: id, text: EDIT[key][0] }) : null,
-          h("p", { class: "small muted", style: "margin:0 0 6px", text: (area ? "Use the bar to add a heading, a list, bold words or a picture. " : kind === "list" ? "Separate them with commas. " : "") + "Attorneys see this. Never enter sensitive data or client information." }),
-          area ? mdBar(box, imgs, null, function (t) { msg.textContent = t; }) : null,
-          box, canAi ? writeWithDela(key, EDIT[key][0], box) : null, prev, h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:8px" }, save, cancel, anyway), msg));
+        host.appendChild(h("div", { class: "tp-editor" }, plain ? h("label", area ? { text: EDIT[key][0] } : { for: id, text: EDIT[key][0] }) : null,
+          h("p", { class: "small muted", style: "margin:0 0 6px", text: (area ? "Write in the box. Select words or click in a line, then use the bar for a heading, a list, bold words or a picture. " : kind === "list" ? "Separate them with commas. " : "") + "Attorneys see this. Never enter sensitive data or client information." }),
+          area ? mdBar(box, imgs, ed, function (t) { msg.textContent = t; }) : null,
+          ed ? ed.rich : null, box, marksBtn ? h("p", { class: "small", style: "margin:4px 0 0" }, marksBtn) : null, canAi ? writeWithDela(key, EDIT[key][0], box) : null, prev, h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:8px" }, save, cancel, anyway), msg));
         drawPrev();
-        if (plain) box.focus(); else { var f1 = box.querySelector("input, button, summary"); if (f1) f1.focus(); }
+        if (ed) { box.setAttribute("aria-label", EDIT[key][0] + ", with its marks"); ed.start(); ed.rich.focus(); }
+        else if (plain) box.focus(); else { var f1 = box.querySelector("input, button, summary"); if (f1) f1.focus(); }
         function go(confirmed) {
           save.disabled = true; anyway.style.display = "none"; msg.textContent = "Saving...";
           if (plain) body[key] = kind === "list" ? box.value.split(",").map(function (v) { return v.trim(); }).filter(Boolean) : box.value;
@@ -7914,7 +7932,7 @@
   }
   function mdPicture(alt, ref, images) {
     var url = (images || {})[ref];
-    return url ? h("img", { class: "md-img", src: url, alt: alt || "Picture on this profile", loading: "lazy" }) : h("span", { class: "small muted", text: "[Picture: " + (alt || "not available") + "]" });
+    return url ? h("img", { class: "md-img", src: url, alt: alt || "Picture on this profile", loading: "lazy", "data-ref": ref }) : h("span", { class: "small muted", text: "[Picture: " + (alt || "not available") + "]" });
   }
   // opts.bullets: text written before step 50 in experience and education is one point per line, shown as a list
   function mdRender(text, opts) {
@@ -7937,10 +7955,46 @@
   function mdPlain(text) {
     return String(text || "").replace(/!\[[^\]\n]*\]\([^)\n]*\)/g, "").replace(/\*\*([^*\n]+)\*\*/g, function (m, a) { return a; }).replace(/(^|[^*])\*([^*\n]+)\*/g, function (m, a, b) { return a + b; }).replace(/^#{1,4} /gm, "").replace(/\n{2,}/g, "\n").trim();
   }
-  // The formatting bar over a text box: each button changes the selected text or the selected lines, the way a word
-  // processor's bar does. "Add picture" uploads the file and puts its mark where the cursor is.
-  function mdBar(box, images, onChange, say) {
-    var fire = function () { box.dispatchEvent(new Event("input")); if (onChange) onChange(); };
+  // Step 51: the formatted box. What the member typed in it is read back into the same marks, element by element.
+  // Only the elements the bar can make are understood (heading, list, bold, italic, a picture the member uploaded);
+  // anything else contributes its words only.
+  function mdFromRich(root) {
+    var out = [], run = "";
+    var inl = function (n) {
+      if (n.nodeType === 3) return n.nodeValue.replace(/\s*\n\s*/g, " ");
+      if (n.nodeType !== 1) return "";
+      var t = n.tagName;
+      if (t === "BR") return "\n";
+      if (t === "IMG") { var ref = n.getAttribute("data-ref") || ""; return /^img:[0-9a-f-]{36}\.(png|jpg)$/.test(ref) ? "![" + String(n.getAttribute("alt") || "Picture").replace(/[\[\]\n]/g, " ").trim().slice(0, 160) + "](" + ref + ")" : ""; }
+      var inner = [].map.call(n.childNodes, inl).join(""), core = inner.trim(), st = n.style || {};
+      var bold = t === "B" || t === "STRONG" || st.fontWeight === "bold" || Number(st.fontWeight) >= 600, ital = t === "I" || t === "EM" || st.fontStyle === "italic";
+      if (!core || (!bold && !ital) || core.indexOf("\n") >= 0 || core.indexOf("*") >= 0) return inner;
+      var at = inner.indexOf(core), mark = bold ? "**" : "*";
+      return inner.slice(0, at) + mark + core + mark + inner.slice(at + core.length);
+    };
+    var isBlock = function (n) { return n.nodeType === 1 && /^(P|DIV|H[1-6]|UL|OL|LI|BLOCKQUOTE)$/.test(n.tagName); };
+    var flush = function () { if (run) run.split("\n").forEach(function (l) { out.push(l.trim()); }); run = ""; };
+    var blk = function (n) {
+      if (!isBlock(n)) { run += inl(n); return; }
+      flush();
+      var t = n.tagName;
+      if (/^H[1-6]$/.test(t)) { var tx = n.textContent.replace(/\s+/g, " ").trim(); if (tx) out.push((t <= "H3" ? "## " : "### ") + tx); return; }
+      if (t === "UL" || t === "OL") { var k = 0; [].forEach.call(n.children, function (li) { var x = inl(li).replace(/\n+/g, " ").trim(); if (x) { k++; out.push((t === "OL" ? k + ". " : "- ") + x); } }); return; }
+      if ([].some.call(n.childNodes, isBlock)) { [].forEach.call(n.childNodes, blk); flush(); return; }
+      inl(n).split("\n").forEach(function (l) { out.push(l.trim()); });
+    };
+    [].forEach.call(root.childNodes, blk); flush();
+    return out.join("\n").replace(/\n{3,}/g, "\n\n").trim();
+  }
+  // The formatting bar. ed.rich is the formatted box and ed.on() says whether it is the one in use; otherwise the
+  // buttons write the marks into the plain box. "Add picture" uploads the file and puts it where the cursor is.
+  function mdBar(box, images, ed, say) {
+    var rich = ed && ed.rich, onRich = function () { return !!(rich && ed.on()); };
+    var fire = function () { box.dispatchEvent(new Event("input")); };
+    var fireRich = function () { rich.dispatchEvent(new Event("input")); };
+    var exec = function (cmd, val) { rich.focus(); try { document.execCommand("styleWithCSS", false, false); } catch (e) { /* older browsers */ } document.execCommand(cmd, false, val === undefined ? null : val); fireRich(); };
+    var state = function (cmd) { try { return document.queryCommandState(cmd); } catch (e) { return false; } };
+    var blockNow = function () { try { return String(document.queryCommandValue("formatBlock") || "").toLowerCase().replace(/[<>]/g, ""); } catch (e) { return ""; } };
     var wrap = function (mark, sample) {
       var a = box.selectionStart, z = box.selectionEnd, v = box.value, sel = v.slice(a, z) || sample;
       box.value = v.slice(0, a) + mark + sel + mark + v.slice(z); box.focus(); box.setSelectionRange(a + mark.length, a + mark.length + sel.length); fire();
@@ -7950,6 +8004,12 @@
       var n = 0, block = v.slice(a, z).split("\n").map(function (l) { var bare = l.replace(/^(#{1,4} |[-*] |[0-9]{1,2}[.)] )/, ""); n++; return (prefix === "1. " ? n + ". " : prefix) + bare; }).join("\n");
       box.value = v.slice(0, a) + block + v.slice(z); box.focus(); box.setSelectionRange(a, a + block.length); fire();
     };
+    // What a picture shows, for people who cannot see it: one small box under the bar, for the picture last added or clicked
+    var altIn = h("input", { type: "text", class: "md-alt-in", maxlength: "160", "aria-label": "What the picture shows", placeholder: "For example: my desk with two screens" }), altImg = null;
+    var altRow = h("div", { class: "md-alt", style: "display:none" }, h("label", { class: "small", text: "What the picture shows (for people who cannot see it)" }), altIn);
+    var altFor = function (img) { altImg = img; altIn.value = img.getAttribute("alt") === "Picture" ? "" : img.getAttribute("alt") || ""; altRow.style.display = ""; };
+    altIn.addEventListener("input", function () { if (altImg) { altImg.setAttribute("alt", altIn.value.trim() || "Picture"); fireRich(); } });
+    if (rich) rich.addEventListener("click", function (e) { if (e.target && e.target.tagName === "IMG") altFor(e.target); });
     var file = h("input", { type: "file", accept: "image/png,image/jpeg,.png,.jpg,.jpeg", style: "display:none", "aria-label": "Choose a picture for this part", class: "md-file" });
     file.addEventListener("change", function () {
       if (!file.files.length) return;
@@ -7958,17 +8018,38 @@
         file.value = "";
         if (!x.ok) { say(D.errorText(x.reason)); return; }
         images[x.ref] = x.url;
+        if (onRich()) {
+          rich.focus();
+          var before = [].slice.call(rich.querySelectorAll("img"));
+          document.execCommand("insertImage", false, x.url);
+          var fresh = [].slice.call(rich.querySelectorAll("img")).filter(function (im) { return before.indexOf(im) < 0; })[0];
+          if (!fresh) { fresh = h("img", { src: x.url }); rich.appendChild(fresh); }
+          fresh.setAttribute("data-ref", x.ref); fresh.setAttribute("alt", "Picture"); fresh.className = "md-img";
+          fireRich(); altFor(fresh); altIn.focus();
+          say("Picture added. Type what it shows in the box under the bar.");
+          return;
+        }
         var at = box.selectionEnd, v = box.value, mark = (at && v.charAt(at - 1) !== "\n" ? "\n" : "") + "![Describe this picture](" + x.ref + ")\n";
         box.value = v.slice(0, at) + mark + v.slice(at); box.focus();
         var d0 = box.value.indexOf("Describe this picture", at); box.setSelectionRange(d0, d0 + 21); fire();
         say("Picture added. Type what it shows in place of \"Describe this picture\", for people who cannot see it.");
       }).catch(function (e) { file.value = ""; say(D.errorText(e.message)); });
     });
-    var btn = function (label, name, fn, cls) { return h("button", { class: "ghost small md-btn" + (cls ? " " + cls : ""), type: "button", "aria-label": name, title: name, onclick: fn }, label); };
-    return h("div", { class: "md-bar", role: "toolbar", "aria-label": "Formatting" },
-      btn("B", "Bold", function () { wrap("**", "bold words"); }, "md-b"), btn("I", "Italic", function () { wrap("*", "italic words"); }, "md-i"),
-      btn("Heading", "Heading", function () { lines("## "); }), btn("• List", "Bulleted list", function () { lines("- "); }), btn("1. List", "Numbered list", function () { lines("1. "); }),
-      btn("Plain", "Take the heading or list mark off these lines", function () { lines(""); }), btn("Add picture", "Add a picture", function () { file.click(); }), file);
+    var btn = function (label, name, fn, cls) {
+      var b = h("button", { class: "ghost small md-btn" + (cls ? " " + cls : ""), type: "button", "aria-label": name, title: name, onclick: fn }, label);
+      // A press on the bar must not take the selection out of the box
+      b.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      return b;
+    };
+    var bar = h("div", { class: "md-bar", role: "toolbar", "aria-label": "Formatting" },
+      btn("B", "Bold", function () { if (onRich()) exec("bold"); else wrap("**", "bold words"); }, "md-b"),
+      btn("I", "Italic", function () { if (onRich()) exec("italic"); else wrap("*", "italic words"); }, "md-i"),
+      btn("Heading", "Heading", function () { if (onRich()) exec("formatBlock", blockNow() === "h3" ? "<p>" : "<h3>"); else lines("## "); }),
+      btn("• List", "Bulleted list", function () { if (onRich()) exec("insertUnorderedList"); else lines("- "); }),
+      btn("1. List", "Numbered list", function () { if (onRich()) exec("insertOrderedList"); else lines("1. "); }),
+      btn("Plain", "Make this plain text again", function () { if (!onRich()) { lines(""); return; } if (state("insertUnorderedList")) exec("insertUnorderedList"); else if (state("insertOrderedList")) exec("insertOrderedList"); else exec("formatBlock", "<p>"); }),
+      btn("Add picture", "Add a picture", function () { file.click(); }), file);
+    return h("div", null, bar, altRow);
   }
   var TALENT_SORTS = [["relevant", "Most relevant"], ["reviews", "Most reviews"], ["hours", "Most hours a week"], ["name", "Name, A to Z"]];
   // Stacey 2026-11-12: the word is "Verified"; the Help page (FAQ) says what Lawfecta checks. Shown only when the check passed.
