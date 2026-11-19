@@ -23,6 +23,9 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 - Waiting on Stacey: turn "Ask DELA workspace" to "Access list" at https://www.lawfecta.co/dela-admin?tab=switches, then run ChatGPT check 12 (file "12-ask-dela-workspace-chatgpt-prompt-READY.md").
 - Live 2026-11-19 (code_version 60485e0): "Sign out", "Open DELA" and "Log in" on the admin's "Lawfecta Team only" screen; the website footer hidden on /dela-admin.
 - Security scan of the public site reviewed 2026-11-19 (nothing changed): waiting on Stacey for SPF and DMARC on lawfecta.co, and on whether HockeyStack analytics stays on the site.
+- Acceleration mode from 2026-11-19 (Stacey): Claude answers its own brief questions, builds and releases, then reports them for her review.
+- Live 2026-11-19 (code_version 6383c01, api 136, migration 0137): step 46 "DELA instructions" (firm guidance and preferences), step 47 suggested edits shown now and proposed side by side, step 48 the list of what an invitation shares; and the two fixes from ChatGPT check 12.
+- Waiting on Stacey: ChatGPT check 13 (file "13-dela-instructions-review-sharing-chatgpt-prompt-READY.md"), her review of Claude's answers in the briefs of steps 46 to 48, and whether an invitation should keep opening the gig's document steps and files before a proposal.
 - UX/UI overhaul handoff written 2026-11-18: docs/handoff/ux-overhaul (nine files; copy in Documents, "Lawfecta DELA for Stacey", "UX overhaul handoff").
 - Waiting on Stacey: ChatGPT check 11 (file "11-agreement-work-new-gig-chatgpt-prompt-READY.md"), and section 9 of the handoff's start page.
 - "Open gigs on your plan: 1 of 10" is the count of gigs posted through the site (the att.gigs_active reservation); the QA sample gigs were put into the database directly and never reserved, so the number is right for real members and low on the test account. No change made.

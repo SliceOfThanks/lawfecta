@@ -123,6 +123,9 @@ How to read the "State" column:
 | 45.1 | DELA uses a chosen document well (step 45) | With an approved document chosen, the answer follows the firm's own steps and names the document | Not yet | Only a real AI answer shows this; the automated tests use a stand-in |
 | 45.2 | DELA says a named document is not attached (step 45) | Asking about a checklist that was not chosen: DELA says it is not attached and does not describe it | Not yet | ChatGPT check 12, step 5 |
 | 45.3 | A document that tries to give DELA orders (step 45) | A chosen document containing "ignore your rules": DELA treats it as material | Not yet | The rule is sent and tested; the AI's behavior needs a real try |
+| 45.2 result | DELA says a named document is not attached | Passed in ChatGPT check 12, 2026-11-19 | Done 2026-11-19 | DELA said the checklist was not attached and asked for it to be added |
+| 46.1 | DELA follows approved firm guidance (step 46) | With a line approved, the next answer follows it, and a request that disagrees is said, not chosen silently | Not yet | ChatGPT check 13, step 6; only a real AI answer shows this |
+| 46.2 | A firm with staff: a team member proposes, the administrator approves (step 46) | The proposer cannot approve; the administrator sees the proposal waiting | Not yet | Automated test passes; needs two real people in one firm |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
