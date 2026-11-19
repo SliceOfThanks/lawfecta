@@ -112,6 +112,8 @@ Deno.test("attorney: draft from an approved playbook, minimum budget, only verif
   assertEquals((await call("GET", "/gigs", f1.token)).status, 403, "freelancers have no Projects");
   const list = (await call("GET", "/gigs", att.token)).body;
   assertEquals([list.ok, list.eligibility.can_post, list.playbooks.length], [true, true, 1], "the Projects list, with approved playbooks to post from");
+  // Step 44: the page is told how many DELA actions a draft uses, from the same setting the draft charges
+  assertEquals(list.draft_actions, Number((await one("select value from settings where key = 'ai.credits.chat'"))?.value ?? 1) || 1, "the DELA actions a gig draft uses");
   const d = (await call("POST", "/gigs/draft", att.token, { playbook_id: pb, request_id: "d1", budget_min: 100, budget_max: 200 })).body;
   assertEquals([d.ok, d.source], [true, "ai"], JSON.stringify(d));
   gig = d.id;

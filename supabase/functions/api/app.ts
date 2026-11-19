@@ -2231,6 +2231,9 @@ async function gigsMine(ctx: Ctx) {
   const r = await rpc<Record<string, any>>(ctx, "dela_gigs_mine_side", { p_person: s.person_id, p_side: s.side });
   // The client's platform fee, so the gig form can show an estimated total (UX review P02); never typed into screen code
   if (r && typeof r === "object") r.fee = { client_bps: Number(await setting(ctx, "fee.client_bps", "500")) || 500, floor_cents: Number(await setting(ctx, "fees.floor_cents_per_party", "1000")) || 1000 };
+  // Step 44: how many DELA actions a gig draft uses, shown before the member asks for one. The same setting gigDraft
+  // charges; none when AI drafting is off, because DELA then builds the draft from the document alone.
+  if (r && typeof r === "object") r.draft_actions = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "ai_generation", p_person: s.person_id }) ? (Number(await setting(ctx, "ai.credits.chat", "1")) || 1) : 0;
   return json(ctx, r);
 }
 
