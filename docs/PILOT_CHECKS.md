@@ -116,6 +116,7 @@ How to read the "State" column:
 | 39.2 | The help tips on a real phone (step 39) | A tap opens the small white box, nothing on the page moves, and a tap elsewhere closes it | Not yet | Checked locally with a touch screen setting only. |
 | 40.1 | Standing arrangements folded, with real arrangements (step 40) | "Manage" opens the right arrangement, and hiring again, changing limits and ending all work from inside it | Not yet | The automated tests have no arrangement on the Projects page. |
 | 40.2 | Projects at 200% and 400% browser zoom (step 40) | Every task can be done; nothing is cut off | Not yet | The automated tests check 768 and 320 pixels wide. |
+| 42.1 | Projects tabs by keyboard after a mouse click (step 42) | Click a tab, press Left arrow: the tab to its left opens | Not yet | ChatGPT's browser reported the focus on the content twice; the automated test with a real click passes. Needs one try by hand. |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
