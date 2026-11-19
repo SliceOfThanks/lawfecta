@@ -4,6 +4,8 @@ Written 2026-11-19 by Claude for Stacey. It compares "DELA: Product, UX, AI and 
 
 The handoff says of itself that it is "not a production audit" and that its names for records and interfaces are proposals. This map is the audit it asks for in its Phase 0.
 
+> Update 2026-11-19, later the same day: section 6's defects 1, 3 and 4 are fixed and live (step 45a); defect 5 was read again and is not a defect. Step B of section 7 (step 45) is built and live behind a switch that is off. The rows marked New for a chat linked to a draft, chosen documents in a chat and one next question now exist.
+
 ## 1. How to read it
 
 Each requirement gets one of three marks.
