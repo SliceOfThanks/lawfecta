@@ -4056,7 +4056,7 @@
           return;
         }
         log.push({ role: "user", text: text });
-        log.push({ role: "assistant", text: r.reply + (r.suggestion_id ? "\n\nThis change is waiting on the Suggestions view." + (r.removes_review ? " It removes an attorney review point, so only the administrator can accept it." : "") : "") });
+        log.push({ role: "assistant", text: r.reply + (r.suggestion_id ? "\n\nThis change is waiting on the \"Suggested edits\" tab." + (r.removes_review ? " It removes an attorney review point, so only the administrator can accept it." : "") : "") });
         ta.value = "";
         req = null;
         attempt = 0;
@@ -4118,7 +4118,7 @@
       area.appendChild(h("div", { class: "card", style: c.resolved ? "opacity:.65" : "" },
         h("div", { class: "row" }, h("b", { class: "grow", text: c.by + (c.part ? " on " + (c.part.indexOf("step:") === 0 ? "step " + c.part.slice(5) : c.part.split("_").join(" ")) : "") }), h("span", { class: "small muted", text: D.dateTime(c.at) })),
         h("p", { style: "white-space:pre-wrap", text: c.body }),
-        c.suggestion_id && !c.resolved ? h("p", { class: "small", text: "Has a suggested change waiting on the Suggestions view." }) : null,
+        c.suggestion_id && !c.resolved ? h("p", { class: "small", text: "Has a suggested change waiting on the \"Suggested edits\" tab." }) : null,
         !c.resolved && !c.suggestion_id && can(3) ? h("button", { class: "ghost small", onclick: function () { api.post("/playbooks/comment/resolve", { id: c.id }).then(okOr).then(function () { openPlaybook(lib.pb.playbook.id, "comments"); }).catch(pbFail); } }, "Mark done") : null,
         c.resolved ? h("span", { class: "badge", text: "Done" }) : null));
     });
@@ -11715,7 +11715,7 @@
     if (!list.length) { area.appendChild(h("div", { class: "card" }, h("p", { class: "muted", style: "margin:0", text: "No suggestions waiting." }))); return; }
     list.forEach(function (sg) {
       area.appendChild(h("div", { class: "card" }, h("b", { text: sg.note || "A suggested change" }), h("div", { class: "small muted", text: sg.by + ", " + D.dateTime(sg.at) + (sg.removes_review ? ". It removes an attorney decision, so only the administrator can accept it." : "") }),
-        can(3) ? h("div", { class: "row", style: "margin-top:6px" }, h("button", { class: "blue small", type: "button", onclick: function () { decideSuggestion(sg.id, true); } }, "Accept"), h("button", { class: "ghost small", type: "button", onclick: function () { decideSuggestion(sg.id, false); } }, "Reject")) : null));
+        can(3) ? h("div", { class: "row", style: "margin-top:6px" }, sg.removes_review && lib.pb.role !== "administrator" ? null : h("button", { class: "blue small", type: "button", onclick: function () { decideSuggestion(sg.id, true); } }, "Accept"), h("button", { class: "ghost small", type: "button", onclick: function () { decideSuggestion(sg.id, false); } }, "Reject")) : null));
     });
   }
   function decideSuggestion(id, accept) {

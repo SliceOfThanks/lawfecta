@@ -4774,14 +4774,14 @@ Where it stands: ${words[st?.readiness] ?? st?.readiness ?? "unknown"}. ${ver}.`
       const rr = docRemovesReview(dbb, nd);
       const r2 = await rpc<Record<string, any>>(ctx, "dela_pb_suggest", { p: { person_id: w.person_id, id, kind: "ai", base_version: cur.playbook.version, proposed: nd, note: str(a.note, 200) || "Change from an AI app", removes_review: rr } });
       if (!r2?.ok) fail(r2);
-      return { text: "The change is waiting on the document's Suggestions view in DELA. Nothing changes until an editor or the administrator accepts it." + (rr ? " It removes an attorney decision, so only the administrator can accept it." : ""), data: { suggestion_id: r2.suggestion_id } };
+      return { text: "The change is waiting on the document's \"Suggested edits\" tab in DELA. Nothing changes until an editor or the administrator accepts it." + (rr ? " It removes an attorney decision, so only the administrator can accept it." : ""), data: { suggestion_id: r2.suggestion_id } };
     }
     const before = normalize(cur.body);
     // Screenshots stay with their steps
     b.steps.forEach((st, i) => { if (!st.screenshot && before.steps[i]?.text === st.text) st.screenshot = before.steps[i].screenshot; });
     const r = await rpc<Record<string, any>>(ctx, "dela_pb_suggest", { p: { person_id: w.person_id, id, kind: "ai", base_version: cur.playbook.version, proposed: b, note: str(a.note, 200) || "Change from an AI app", removes_review: removesReview(before, b) } });
     if (!r?.ok) fail(r);
-    return { text: "The change is waiting on the document's Suggestions view in DELA. Nothing changes until an editor or the administrator accepts it." + (removesReview(before, b) ? " It removes an attorney review point, so only the administrator can accept it." : ""), data: { suggestion_id: r.suggestion_id } };
+    return { text: "The change is waiting on the document's \"Suggested edits\" tab in DELA. Nothing changes until an editor or the administrator accepts it." + (removesReview(before, b) ? " It removes an attorney review point, so only the administrator can accept it." : ""), data: { suggestion_id: r.suggestion_id } };
   }
   if (name === "export_document") {
     const fmt = a.format === "csv" ? "csv" : a.format === "html" ? "html" : "md";
