@@ -10926,6 +10926,9 @@
     D.clear(libEl);
     libEl.appendChild(h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "ghost small", onclick: loadLibrary }, "← Library")));
     libEl.appendChild(h("h1", { text: "New document" }));
+    // Step 45: started from "Create a draft from this chat". The notice stays on every step of the flow.
+    if (DOC.chat) libEl.appendChild(h("p", { class: "notice", id: "doc-from-chat", role: "note" }, "From your chat \"" + DOC.chat.title + "\". DELA drafts from the chat: on the last step it is in the box \"Paste an existing checklist, email or old SOP\", where you can take out anything DELA should not use. The draft stays linked to the chat. Nothing is approved or shared. ",
+      h("button", { class: "linkish", type: "button", onclick: function () { DOC.chat = null; newDocument(); } }, "Do not use the chat")));
     var host = h("div", null, h("p", { class: "muted", text: "Loading..." }));
     libEl.appendChild(host);
     Promise.all([docFirm(), docStarters()]).then(function (rs) {
@@ -11013,9 +11016,7 @@
     var paste = h("textarea", { rows: 3, style: "width:100%", "aria-label": "Paste an existing checklist, email or old SOP (optional)", placeholder: "DELA removes client names, case numbers, passwords and account numbers before drafting." });
     // From "What would you like to document?": the description goes with the answers, so DELA drafts from it
     if (flow.describe) paste.value = flow.describe;
-    if (DOC.chat) { paste.value = DOC.chat.text; paste.rows = 8;
-      host.appendChild(h("p", { class: "notice", id: "doc-from-chat", role: "note" }, "From your chat \"" + DOC.chat.title + "\". The chat is in the box \"Paste an existing checklist, email or old SOP\" below: read it and take out anything DELA should not use. The draft will stay linked to the chat. ",
-        h("button", { class: "linkish", type: "button", onclick: function () { DOC.chat = null; newDocument(); } }, "Do not use the chat"))); }
+    if (DOC.chat) { paste.value = DOC.chat.text; paste.rows = 8; }
     var files = [], fileWrap = h("div", { class: "small" });
     var pickFiles = h("button", { class: "ghost small", type: "button", onclick: function () {
       api.get("/files").then(function (x) {

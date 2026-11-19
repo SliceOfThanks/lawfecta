@@ -305,7 +305,8 @@ Deno.test("step 45: a chat uses only documents the member chose and may read, ma
   const row = mine.docs.find((d: any) => d.id === pb);
   assertEquals(row?.approved, true, "the document with an approved version is offered: " + JSON.stringify(mine.docs));
   assert(!(await call("GET", "/ai/chat/docs", outsider.token)).body.docs.some((d: any) => d.id === pb), "another firm is never offered this firm's document");
-  assertEquals((await call("GET", "/ai/chat/docs", fl.token)).body.docs, [], "a freelancer with no Library has nothing to choose");
+  const flDocs = (await call("GET", "/ai/chat/docs", fl.token)).body;
+  assertEquals([flDocs.on, flDocs.docs, flDocs.library, flDocs.firm], [true, [], false, false], "a freelancer has no Library to choose from and no firm profile is used");
 
   const r = await call("POST", "/ai/chat/send", owner.token, { content: "Which steps of our intake can I hand off?", request_id: "w-1", doc_ids: [pb] });
   assertEquals(r.body.ok, true, JSON.stringify(r.body));

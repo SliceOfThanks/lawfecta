@@ -384,12 +384,17 @@ async function aiChat(ctx: Ctx) {
 // ---------- Step 45: Ask DELA as a chat-first workspace (docs/briefs/step-45-ask-dela-chat-first-workspace.md) ----------
 const workspaceOn = async (ctx: Ctx, s: Session) => await rpc<boolean>(ctx, "dela_switch_on", { p_key: "ask_dela_workspace", p_person: s.person_id }).catch(() => false) === true;
 
+// Who has a Library to choose from: attorneys and their firm staff, and an agency that hires. A freelancer does not.
+const hasLibrary = async (ctx: Ctx, s: Session) =>
+  await rpc<boolean>(ctx, "dela_switch_on", { p_key: "playbook_library", p_person: s.person_id }).catch(() => false) === true
+  && (s.side === "attorney" || !!await rpc<string | null>(ctx, "dela_client_org", { p_person: s.person_id, p_side: s.side }).catch(() => null));
+
 // The Library documents this member may choose for a chat, and whether a firm profile for documents is saved. Read
 // with the member's rights at this moment; a freelancer with no Library gets an empty list.
 async function aiChatDocs(ctx: Ctx) {
   const s = await memberSide(ctx);
   if (!await workspaceOn(ctx, s)) return json(ctx, { ok: true, on: false, docs: [], max: 0, firm: false });
-  const library = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "playbook_library", p_person: s.person_id }).catch(() => false) === true;
+  const library = await hasLibrary(ctx, s);
   const docs = library ? await rpc<unknown[]>(ctx, "dela_ai_chat_docs_available", { p_person: s.person_id, p_side: s.side }) ?? [] : [];
   const firm = library ? await docFirm(ctx, s).then((x) => x.saved).catch(() => false) : false;
   return json(ctx, { ok: true, on: true, docs, max: Number(await setting(ctx, "ai.chat_context_documents", "3")) || 3, firm, library });
@@ -412,7 +417,7 @@ async function chatContext(ctx: Ctx, s: Session, chatId: string, docIds: string[
   }
   let firmUsed = false;
   let firmText = "";
-  const library = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "playbook_library", p_person: s.person_id }).catch(() => false) === true;
+  const library = await hasLibrary(ctx, s);
   if (library) {
     const firm = await docFirm(ctx, s).catch(() => null);
     if (firm?.saved) { firmUsed = true; firmText = "<firm_profile>\n" + JSON.stringify(firm.facts).slice(0, 4000) + "\n</firm_profile>"; }
