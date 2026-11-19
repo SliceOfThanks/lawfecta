@@ -22,7 +22,7 @@ End every update to Stacey with three clear headings, in this order: "What you n
 ## Every build starts with a feature brief
 Before building any feature, write docs/briefs/<step>-<feature>.md from docs/briefs/TEMPLATE.md:
 Who, What, Where, When, Why, How it could go wrong, and Questions to make it better.
-Stacey answers the questions before the build starts. Build comprehensively: whole journeys for attorneys and freelancers, misuse and edge cases included, never a small slice.
+Stacey answers the questions before the build starts. Acceleration mode (Stacey 2026-11-19, until she ends it): Claude answers its own questions with its recommended choice, records each question and answer in the brief, builds, tests and releases, and tells Stacey the questions and answers when the release is ready to test, so she can ask for a revision. The critical actions in "Safety rules" and anything in Stripe, deleting data, acting as one of her accounts or changing a business number still wait for her words. Build comprehensively: whole journeys for attorneys and freelancers, misuse and edge cases included, never a small slice.
 Every release ends with one comprehensive ChatGPT test prompt that covers both sides, mistakes and misuse.
 
 ## Two sides, always separate

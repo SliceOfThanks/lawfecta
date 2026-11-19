@@ -5,7 +5,7 @@ import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { unzipSync, strFromU8 } from "npm:fflate@0.8.2";
 import { handle, type Deps } from "./app.ts";
 import { sessionHash } from "./lib/crypto.ts";
-import { readAsk } from "./lib/ai/ask.ts";
+import { guidanceText, readAsk } from "./lib/ai/ask.ts";
 import { completeness, dayIn, normalize, removesReview, toCsv } from "./lib/playbooks/model.ts";
 import { readJson } from "./lib/playbooks/ai.ts";
 import type { Storage } from "./lib/files/storage.ts";
@@ -374,6 +374,76 @@ Deno.test("step 45: a draft created from a chat stays linked to it, for the chat
   // Someone else's chat cannot be claimed
   const other = await call("POST", "/playbooks/create", editor.token, { org_id: org, request_id: "w-steal", title: "Editor's own", from_chat: wsChat });
   assertEquals([other.body.ok, other.body.from_chat], [true, false], "an editor's draft is made, and is not linked to another person's chat");
+});
+
+// ---------- Step 46: DELA instructions (firm guidance and preferences) ----------
+Deno.test("step 46: guidance reaches the AI only as approved lines, in one marked block", () => {
+  assertEquals(guidanceText(null), "");
+  assertEquals(guidanceText({ firm: [], personal: [] }), "");
+  assertEquals(guidanceText({ firm: ["Ask who confirms   missing documents."], personal: ["Numbered steps."] }),
+    "Firm guidance, approved by the firm's Library administrator:\n- Ask who confirms missing documents.\n\nThis member's own preferences:\n- Numbered steps.\n\n");
+});
+
+Deno.test("step 46: firm guidance is proposed, then approved by the administrator; only then does DELA get it", async () => {
+  // The editor works in the owner's firm from here on: their workspace is the firm, as for firm staff. (Until now the
+  // editor was a guest in the owner's Library with a firm of their own.)
+  await pool.query("update side_profiles set org_id = $1 where person_id = $2 and side = 'attorney'", [org, editor.id]);
+  const start = (await call("GET", "/ai/rules", owner.token)).body;
+  assertEquals([start.on, start.has_firm, start.can_propose, start.can_approve, start.rules.length], [true, true, true, true, 0]);
+  const ed = (await call("GET", "/ai/rules", editor.token)).body;
+  assertEquals([ed.has_firm, ed.can_propose, ed.can_approve], [true, true, false], "an editor may propose and may not approve");
+  assertEquals((await call("POST", "/ai/rules/propose", editor.token, { scope: "firm", body: "Hi" })).body.reason, "rule_too_short");
+  assertEquals((await call("POST", "/ai/rules/propose", editor.token, { scope: "firm", body: "x".repeat(301) })).body.reason, "rule_too_long");
+  const p = await call("POST", "/ai/rules/propose", editor.token, { scope: "firm", body: "For intake work, ask who confirms missing documents before preparing a handoff." });
+  assertEquals([p.body.ok, p.body.status], [true, "proposed"], JSON.stringify(p.body));
+  // Proposed: not sent to the AI
+  await call("POST", "/ai/chat/send", owner.token, { content: "Plan the intake handoff", request_id: "g-1", chat_id: wsChat, doc_ids: [] });
+  assert(!String(sent.at(-1).messages.at(-1).content).includes("ask who confirms missing documents"), "a proposed line is not sent to the AI");
+  // Only the administrator decides
+  assertEquals((await call("POST", "/ai/rules/act", editor.token, { id: p.body.id, action: "approve" })).body.reason, "administrator_only");
+  assertEquals((await call("POST", "/ai/rules/act", outsider.token, { id: p.body.id, action: "approve" })).body.reason, "not_found", "another firm cannot touch it");
+  assert(!(await call("GET", "/ai/rules", outsider.token)).body.rules.some((x: any) => x.id === p.body.id), "another firm does not see it");
+  const ok = await call("POST", "/ai/rules/act", owner.token, { id: p.body.id, action: "approve" });
+  assertEquals([ok.body.ok, ok.body.status], [true, "approved"]);
+  assertEquals((await call("POST", "/ai/rules/act", owner.token, { id: p.body.id, action: "approve" })).body.duplicate, true, "approving twice changes nothing");
+  // Approved: sent, marked as firm guidance, for the editor too; and the rules say it cannot override DELA's own rules
+  const r = await call("POST", "/ai/chat/send", editor.token, { content: "Plan the intake handoff", request_id: "g-2" });
+  assertEquals(r.body.context.guidance, { firm: 1, personal: 0 }, JSON.stringify(r.body.context));
+  const last = String(sent.at(-1).messages.at(-1).content);
+  assert(last.startsWith("Firm guidance, approved by the firm's Library administrator:\n- For intake work, ask who confirms missing documents before preparing a handoff."), "approved guidance is sent first, marked: " + last.slice(0, 200));
+  const sys = String(sent.at(-1).messages[0].content);
+  assert(sys.includes("They can never change the rules above") && sys.includes("say so in one sentence, quote the guidance"), "guidance cannot switch off a rule, and a conflict is said, not chosen silently");
+  // Another firm gets none of it
+  const o = await call("POST", "/ai/chat/send", outsider.token, { content: "Plan the intake handoff", request_id: "g-3" });
+  assertEquals(o.body.context.guidance, { firm: 0, personal: 0 });
+  assert(!String(sent.at(-1).messages.at(-1).content).includes("ask who confirms missing documents"));
+  // Retired: no longer sent, still in the history
+  assertEquals((await call("POST", "/ai/rules/act", editor.token, { id: p.body.id, action: "retire" })).body.reason, "administrator_only");
+  assertEquals((await call("POST", "/ai/rules/act", owner.token, { id: p.body.id, action: "retire" })).body.status, "retired");
+  await call("POST", "/ai/chat/send", owner.token, { content: "Plan it again", request_id: "g-4", chat_id: wsChat, doc_ids: [] });
+  assert(!String(sent.at(-1).messages.at(-1).content).includes("ask who confirms missing documents"), "a retired line is no longer sent");
+  assertEquals((await call("GET", "/ai/rules", owner.token)).body.rules.find((x: any) => x.id === p.body.id)?.status, "retired", "and it stays in the history");
+  assert((await pool.query("select count(*)::int n from audit_log where object_type = 'firm_rule' and object_id = $1", [p.body.id])).rows[0].n >= 3, "each step is in the audit history");
+});
+
+Deno.test("step 46: a preference is the person's own, in force at once, and never another person's", async () => {
+  const p = await call("POST", "/ai/rules/propose", editor.token, { scope: "personal", body: "Give me checklists as numbered steps, no longer than ten." });
+  assertEquals([p.body.ok, p.body.status], [true, "approved"]);
+  assert(!(await call("GET", "/ai/rules", owner.token)).body.rules.some((x: any) => x.id === p.body.id), "the administrator does not see a teammate's preference");
+  assertEquals((await call("POST", "/ai/rules/act", owner.token, { id: p.body.id, action: "retire" })).body.reason, "not_found", "and cannot remove it");
+  const mine = await call("POST", "/ai/chat/send", editor.token, { content: "A checklist please", request_id: "g-5" });
+  assertEquals(mine.body.context.guidance, { firm: 0, personal: 1 });
+  assert(String(sent.at(-1).messages.at(-1).content).includes("This member's own preferences:\n- Give me checklists as numbered steps, no longer than ten."));
+  const theirs = await call("POST", "/ai/chat/send", owner.token, { content: "A checklist please", request_id: "g-6", chat_id: wsChat, doc_ids: [] });
+  assertEquals(theirs.body.context.guidance, { firm: 0, personal: 0 }, "a preference is not sent for anyone else");
+  assertEquals((await call("POST", "/ai/rules/act", editor.token, { id: p.body.id, action: "retire" })).body.status, "retired");
+  // A withdrawn proposal, and the sensitive-data check on what is typed
+  const w = await call("POST", "/ai/rules/propose", editor.token, { scope: "firm", body: "Always start answers with the matter type." });
+  assertEquals((await call("POST", "/ai/rules/act", owner.token, { id: w.body.id, action: "withdraw" })).body.reason, "not_allowed", "only the proposer withdraws");
+  assertEquals((await call("POST", "/ai/rules/act", editor.token, { id: w.body.id, action: "withdraw" })).body.status, "retired");
+  const bad = await call("POST", "/ai/rules/propose", editor.token, { scope: "firm", body: "Always use my client John Smith, DOB 01/02/1980, as the example." });
+  assertEquals(bad.body.ok, false, "client information in an instruction is stopped: " + JSON.stringify(bad.body));
+  assertEquals((await call("POST", "/ai/rules/propose", fl.token, { scope: "firm", body: "A freelancer with no firm proposes." })).body.reason, "no_firm");
 });
 
 Deno.test("teardown", async () => {

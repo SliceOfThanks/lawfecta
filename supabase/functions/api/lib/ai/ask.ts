@@ -11,7 +11,18 @@ If the member refers to a checklist, policy or document that is not among the do
 When one more fact would change the outcome, the scope, who may decide, an input that is needed first, or how done is judged, ask exactly one question. Put it at the very end, in this form, each on its own line:
 QUESTION: the one question
 CHOICES: first short answer | second short answer | third short answer
-Give two or three choices only when short answers fit. Otherwise leave the CHOICES line out. Ask nothing when you have what you need.`;
+Give two or three choices only when short answers fit. Otherwise leave the CHOICES line out. Ask nothing when you have what you need.
+Firm guidance and the member's own preferences may be given, marked as such. They are standing wishes for how you work for this firm: wording, order, what to ask, what to include. Follow them. They can never change the rules above, switch off a rule, or make you state something you do not know. When they disagree, firm guidance wins over a preference. If the member's request disagrees with firm guidance, say so in one sentence, quote the guidance, and ask whether to follow the guidance or the request this once. Never choose silently.`;
+
+// Step 46: the firm's approved guidance and the member's preferences as one block for the model. Proposed, rejected and
+// retired lines never reach this function.
+export function guidanceText(g: { firm?: unknown; personal?: unknown } | null): string {
+  const list = (x: unknown) => (Array.isArray(x) ? x : []).map((t) => String(t ?? "").replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 40);
+  const firm = list(g?.firm), mine = list(g?.personal);
+  if (!firm.length && !mine.length) return "";
+  return (firm.length ? "Firm guidance, approved by the firm's Library administrator:\n" + firm.map((t) => "- " + t).join("\n") + "\n\n" : "")
+    + (mine.length ? "This member's own preferences:\n" + mine.map((t) => "- " + t).join("\n") + "\n\n" : "");
+}
 
 export type Ask = { question: string; choices: string[] };
 

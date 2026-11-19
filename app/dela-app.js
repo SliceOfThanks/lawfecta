@@ -1858,9 +1858,11 @@
 
   var chat = { id: null, list: [], messages: [], files: [], attach: [], pending: null, busy: false, problem: null, ai: null, picking: false,
     // Step 45: the workspace beside the chat. ws is what the server offers; docs are the documents chosen for this chat
-    ws: null, docs: [], drafts: [], ask: null, docPick: false, dropped: [] };
+    ws: null, docs: [], drafts: [], ask: null, docPick: false, dropped: [],
+    // Step 46: DELA instructions. view "rules" shows them in place of the chat; rules is what the server last sent
+    view: "chat", rules: null, rulesTab: "firm", rulesSay: null };
   function wsOn() { return !!((me.switches || {}).ask_dela_workspace && chat.ws && chat.ws.on); }
-  function chatReset() { chat.id = null; chat.messages = []; chat.problem = null; chat.pending = null; chat.attach = []; chat.clientOk = null; chat.docs = []; chat.drafts = []; chat.ask = null; chat.docPick = false; chat.dropped = []; }
+  function chatReset() { chat.view = "chat"; chat.id = null; chat.messages = []; chat.problem = null; chat.pending = null; chat.attach = []; chat.clientOk = null; chat.docs = []; chat.drafts = []; chat.ask = null; chat.docPick = false; chat.dropped = []; }
   var chatEl = null;
 
   function chatView() {
@@ -1916,6 +1918,7 @@
     // Step 45: with the workspace on, the chat is the left column and "What DELA is using" sits beside it
     var host = chatEl;
     if (ws) { host = h("div", { class: "aw-main" }); chatEl.appendChild(h("div", { class: "aw-wrap" }, h("div", { class: "aw-cols" }, host, workspacePanel()))); }
+    if (ws && chat.view === "rules") { rulesView(host); return; }
     if (ws) {
       host.appendChild(h("p", { class: "aw-lead", text: "What would you like to get off your plate?" }));
       host.appendChild(h("p", { class: "muted", style: "margin:2px 0 10px", text: "Describe the work or what keeps going wrong. We'll work through it together. " }, h("span", { id: "chat-credits", text: creditsLine() })));
@@ -2009,6 +2012,17 @@
       c.appendChild(h("p", { class: "hsub", style: "margin:8px 0 0", text: "A draft is always labeled \"Draft, not approved\" and never counts as your firm's policy." }));
     }
     side.appendChild(c);
+    // Step 46: how the firm told DELA to work, and the way to change it
+    var R = chat.rules, rc = h("section", { class: "card", id: "aw-rules" }, h("h2", { text: "DELA instructions" }));
+    if (!R) { rc.appendChild(h("p", { class: "hsub", style: "margin:0 0 8px", text: "Loading..." })); loadRules(); }
+    else {
+      var appr = (R.rules || []).filter(function (x) { return x.status === "approved"; }), fN = appr.filter(function (x) { return x.scope === "firm"; }).length, pN = appr.length - fN;
+      var waitN = (R.rules || []).filter(function (x) { return x.scope === "firm" && x.status === "proposed"; }).length;
+      rc.appendChild(h("p", { class: "hsub", id: "aw-rules-sum", style: "margin:0 0 8px", text: !R.has_firm ? "Tell DELA how you like to work. Your account has no firm Library, so there is no firm guidance here." :
+        (fN ? plural(fN, "line") + " of firm guidance in use" : "No firm guidance yet") + (pN ? ", " + plural(pN, "preference") + " of your own" : "") + "." + (waitN ? " " + waitN + (waitN === 1 ? " proposal waits" : " proposals wait") + " for the Library administrator." : "") }));
+      if (R.has_firm) rc.appendChild(h("button", { class: "ghost small", type: "button", id: "aw-rules-open", onclick: function () { chat.view = "rules"; chat.rulesSay = null; drawChat(); } }, chat.view === "rules" ? "Shown at the left" : "Open DELA instructions"));
+    }
+    side.appendChild(rc);
     if (chat.drafts.length) side.appendChild(h("section", { class: "card", id: "aw-drafts" }, h("h2", { text: "Drafts from this chat" }), h("ul", { class: "aw-docs" }, chat.drafts.map(function (d) {
       return h("li", { class: "aw-row" }, h("span", { class: "aw-row-t" }, h("b", { text: d.title }), h("span", { class: "hsub", text: (DOC_KIND[d.doc_type] || "Document") + " · " + (PB_STATUS[d.status] || d.status) })),
         h("button", { class: "ghost small", type: "button", "aria-label": "Open the draft " + d.title, onclick: function () { openDocFromChat(d.id); } }, "Open"));
@@ -2027,6 +2041,87 @@
     else acts.forEach(function (a) { n.appendChild(h("button", { class: "aw-act", type: "button", id: a[3], onclick: a[2] }, h("b", { text: a[0] + " →" }), h("span", { class: "hsub", text: a[1] }))); });
     side.appendChild(n);
     return side;
+  }
+
+  // Step 46: DELA instructions (docs/briefs/step-46-dela-instructions.md). Firm guidance is proposed here and takes
+  // effect only when the Library administrator approves it. A preference is the person's own. Nothing on this screen
+  // changes a document, a gig or a payment.
+  var RULE_ERR = { workspace_off: "DELA instructions are not open for your account yet.", no_firm: "Your account has no firm Library, so there is no firm guidance to add to.", not_allowed: "You can read this guidance. Someone who may comment in the Library can propose a line.",
+    rule_too_short: "Write at least a few words.", rule_too_long: "Keep it to 300 characters.", rules_full: "The limit is reached. Retire a line first.", proposals_full: "Too many proposals are waiting. Ask the Library administrator to decide some first.",
+    administrator_only: "Only the Library administrator can do that.", not_found: "That line is no longer there." };
+  function ruleErr(r) { return r && RULE_ERR[r.reason] ? RULE_ERR[r.reason] : D.errorText(r && (r.reason || r.message)); }
+  function loadRules(then) {
+    return api.get("/ai/rules").then(function (r) { chat.rules = r && r.ok ? r : { has_firm: false, rules: [] }; if (then) then(); else drawChat(); }).catch(function () { chat.rules = { has_firm: false, rules: [] }; drawChat(); });
+  }
+  var RULE_BADGE = { proposed: ["Proposed, not in use", "held"], approved: ["Approved, in use", "ready"], rejected: ["Not approved", "off"], retired: ["Retired", "off"] };
+  function rulesView(host) {
+    var R = chat.rules;
+    host.appendChild(h("div", { class: "row", style: "margin:4px 0 8px" }, h("button", { class: "ghost small", type: "button", id: "rules-back", onclick: function () { chat.view = "chat"; drawChat(); } }, "← Back to the chat")));
+    host.appendChild(h("h2", { id: "rules-h", tabindex: "-1", style: "margin:0 0 4px", text: "DELA instructions" }));
+    host.appendChild(h("p", { class: "muted", style: "margin:0 0 12px", text: "Tell DELA how your firm works. Firm guidance applies to everyone in your firm, once the Library administrator approves it. Your preferences apply to your own chats only. DELA follows both in Ask DELA; they never change a document, a gig or a payment." }));
+    if (!R) { host.appendChild(h("p", { class: "muted", text: "Loading..." })); loadRules(); return; }
+    var say = h("p", { class: "notice small" + (chat.rulesSay && chat.rulesSay.bad ? " bad" : " ok"), role: "status", id: "rules-say", text: chat.rulesSay ? chat.rulesSay.text : "" }); say.hidden = !chat.rulesSay;
+    host.appendChild(say);
+    var all = R.rules || [], firm = all.filter(function (x) { return x.scope === "firm"; }), mine = all.filter(function (x) { return x.scope === "personal"; });
+    var live = function (l) { return l.filter(function (x) { return x.status === "approved" || x.status === "proposed"; }); };
+    var TABS = [["firm", "Firm guidance (" + live(firm).length + ")"], ["personal", "My preferences (" + live(mine).length + ")"], ["history", "Change history"]];
+    host.appendChild(h("div", { class: "pills", role: "tablist", "aria-label": "DELA instructions" }, TABS.map(function (t) {
+      return h("button", { role: "tab", type: "button", id: "rules-tab-" + t[0], "aria-selected": String(chat.rulesTab === t[0]), onclick: function () { chat.rulesTab = t[0]; chat.rulesSay = null; drawChat(); } }, t[1]);
+    })));
+    var act = function (id, action, msg) {
+      return api.post("/ai/rules/act", { id: id, action: action }).then(function (x) { if (!x || !x.ok) throw x || {}; chat.rulesSay = { text: msg }; return loadRules(); })
+        .catch(function (e) { chat.rulesSay = { text: ruleErr(e), bad: true }; drawChat(); });
+    };
+    var row = function (x, history) {
+      var b = RULE_BADGE[x.status] || [x.status, ""], acts = [];
+      if (!history) {
+        if (x.scope === "firm" && x.status === "proposed" && R.can_approve) {
+          acts.push(h("button", { class: "blue small", type: "button", "aria-label": "Approve: " + x.body, onclick: function () { act(x.id, "approve", "Approved. DELA follows it from the next message, for everyone in your firm."); } }, "Approve"));
+          acts.push(h("button", { class: "ghost small", type: "button", "aria-label": "Do not approve: " + x.body, onclick: function () { act(x.id, "reject", "Not approved. DELA does not use it."); } }, "Do not approve"));
+        }
+        if (x.scope === "firm" && x.status === "proposed" && x.mine && !R.can_approve) acts.push(h("button", { class: "ghost small", type: "button", "aria-label": "Withdraw: " + x.body, onclick: function () { act(x.id, "withdraw", "Withdrawn."); } }, "Withdraw"));
+        if (x.status === "approved" && (x.scope === "personal" || R.can_approve)) acts.push(h("button", { class: "ghost small", type: "button", "aria-label": (x.scope === "personal" ? "Remove: " : "Retire: ") + x.body, onclick: function () { act(x.id, "retire", x.scope === "personal" ? "Removed. DELA no longer uses it." : "Retired. DELA no longer uses it. It stays in the change history."); } }, x.scope === "personal" ? "Remove" : "Retire"));
+      }
+      var who = "Proposed by " + (x.mine ? "you" : x.proposed_by || "a team member") + " on " + D.date(x.created_at) +
+        (x.decided_at && x.scope === "firm" ? (x.status === "rejected" ? ". Not approved by " : ". Approved by ") + (x.decided_by || "the administrator") + " on " + D.date(x.decided_at) : "") +
+        (x.retired_at ? ". " + (x.status === "retired" && x.scope === "firm" && !x.decided_at ? "Withdrawn" : "Retired") + " on " + D.date(x.retired_at) : "") + ".";
+      return h("li", { class: "aw-row rule-row" }, h("span", { class: "aw-row-t" }, h("b", { style: "font-weight:600", text: x.body }), h("span", { class: "hsub", text: (history ? (x.scope === "firm" ? "Firm guidance. " : "Your preference. ") : "") + (x.scope === "personal" && !history ? "Added on " + D.date(x.created_at) + "." : who) })),
+        h("span", { class: "badge " + b[1], text: x.scope === "personal" && x.status === "approved" ? "In use" : b[0] }), acts.length ? h("span", { class: "row", style: "gap:6px;flex-wrap:wrap" }, acts) : null);
+    };
+    var card = h("section", { class: "card", id: "rules-card" });
+    host.appendChild(card);
+    if (chat.rulesTab === "history") {
+      card.appendChild(h("h3", { style: "margin:0 0 6px", text: "Change history" }));
+      if (!all.length) card.appendChild(h("p", { class: "muted", style: "margin:0", text: "Nothing has been proposed yet." }));
+      else card.appendChild(h("ul", { class: "aw-docs" }, all.map(function (x) { return row(x, true); })));
+      return;
+    }
+    var isFirm = chat.rulesTab === "firm", list = live(isFirm ? firm : mine);
+    card.appendChild(h("h3", { style: "margin:0 0 6px", text: isFirm ? "Firm guidance" : "My preferences" }));
+    card.appendChild(h("p", { class: "hsub", style: "margin:0 0 8px", text: isFirm ? "What DELA follows for everyone in your firm. A proposed line is not in use until the Library administrator approves it. Up to " + R.max + " lines in use." : "What DELA follows in your own chats only. When a preference disagrees with firm guidance, firm guidance wins." }));
+    if (!list.length) card.appendChild(h("p", { class: "muted", id: "rules-empty", style: "margin:0 0 8px", text: isFirm ? "No firm guidance yet." : "No preferences yet." }));
+    else card.appendChild(h("ul", { class: "aw-docs" }, list.map(function (x) { return row(x, false); })));
+    if (isFirm && !R.can_propose) { card.appendChild(h("p", { class: "hsub", style: "margin:8px 0 0", text: RULE_ERR.not_allowed })); return; }
+    var ta = h("textarea", { id: "rule-new", rows: 3, maxlength: "300", style: "width:100%", "aria-describedby": "rule-help rule-count" });
+    var count = h("span", { class: "hsub", id: "rule-count", text: "0 of 300 characters" });
+    ta.addEventListener("input", function () { count.textContent = ta.value.length + " of 300 characters"; });
+    var go = h("button", { class: "blue small", type: "button", id: "rule-go" }, isFirm ? "Propose instruction" : "Save preference");
+    go.addEventListener("click", function () {
+      if (ta.value.trim().length < 5) { chat.rulesSay = { text: RULE_ERR.rule_too_short, bad: true }; say.textContent = RULE_ERR.rule_too_short; say.className = "notice small bad"; say.hidden = false; ta.focus(); return; }
+      go.disabled = true;
+      api.post("/ai/rules/propose", { scope: isFirm ? "firm" : "personal", body: ta.value, confirm_no_client_info: go.getAttribute("data-confirmed") === "1" }).then(function (x) {
+        if (!x || !x.ok) throw x || {};
+        chat.rulesSay = { text: isFirm ? "Proposed. DELA does not follow it until the Library administrator approves it." : "Saved. DELA follows it in your chats from the next message." };
+        return loadRules();
+      }).catch(function (e) {
+        go.disabled = false;
+        var t = e && (e.reason === "looks_like_client_info" || e.reason === "sensitive_data" || e.reason === "maybe_sensitive") ? "This looks like it holds client or sensitive information. An instruction for DELA should describe how to work, with no names, numbers or passwords. Reword it and try again." : ruleErr(e);
+        say.textContent = t; say.className = "notice small bad"; say.hidden = false; ta.focus();
+      });
+    });
+    card.appendChild(h("div", { class: "gs-field", style: "margin-top:12px" }, h("label", { "for": "rule-new", class: "gs-label", text: isFirm ? "What should DELA do differently?" : "What should DELA do differently for you?" }), aiNotice(), ta,
+      h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("span", { class: "hsub grow", id: "rule-help", text: isFirm ? "For example: \"For intake work, ask who confirms missing documents before preparing a handoff.\" This creates a proposal. It does not change how DELA works until the administrator approves it." : "For example: \"Give me checklists as numbered steps, no longer than ten.\"" }), count),
+      h("div", { class: "row", style: "margin-top:8px" }, go)));
   }
 
   function bubble(m) {
