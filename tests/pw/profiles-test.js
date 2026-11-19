@@ -246,6 +246,7 @@ async function waitFor(page, words, ms) {
     await dela(p).getByRole("tab", { name: "Overview" }).click();
     await dela(p).locator("#tp-edit-summary").click();
     const sumBox = dela(p).locator("#tp-box-summary");
+    await sumBox.waitFor();
     ok(await dela(p).locator(".tp-editor .md-bar").getByRole("button", { name: "Bold", exact: true }).count() === 1 && await dela(p).locator(".tp-editor .md-bar").getByRole("button", { name: "Add a picture", exact: true }).count() === 1, "the editor has a formatting bar with Bold and Add a picture");
     ok(await dela(p).locator("#tp-anyway-summary").isHidden(), "the client information button stays hidden until it is needed");
     await sumBox.fill("What I do\nE-filing\nDiscovery\nI work in Texas courts.");
