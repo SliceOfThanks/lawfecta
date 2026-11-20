@@ -87,6 +87,15 @@ const DOC_SOP = {
     { text: "Decide whether to accept the matter.", role: "Attorney", raci: { Attorney: "R,A" }, attorney_decides: true }],
 };
 function documentAnswer(system: string, user = ""): unknown {
+  // Step 55: the newcomer check, and the attorney's answers written into the document
+  if (system.includes("has never worked with this firm")) return user.includes("Clio login from the office manager") ? { ready: true, summary: "Someone new could do this from the page.", findings: [] }
+    : { ready: false, summary: "A newcomer would be stuck in two places.", findings: [{ kind: "access", step: 1, what: "The page does not say how a newcomer gets into Clio.", question: "How does a new person get a Clio login?" },
+      { kind: "done", step: 0, what: "It is not clear what a finished conflict check looks like.", question: "What does a finished conflict check look like?" }] };
+  if (system.includes("adding the attorney's answers into a law firm document")) {
+    let d: Record<string, any> = DOC_SOP;
+    try { d = JSON.parse(user.split("The document:\n")[1].split("\n\nThe gaps")[0]); } catch { d = DOC_SOP; }
+    return { document: { ...d, before_you_start: [...(d.before_you_start ?? []), "Get a Clio login from the office manager."] }, notices: ["Added how to get a Clio login to Before you start."] };
+  }
   if (system.includes("document assistant inside Lawfecta, writing one")) {
     if (system.includes("writing one Policy")) return { document: { type: "policy", title: "Client trust account rules", roles: ["Attorney", "Paralegal"], owner_role: "Attorney", lifecycle: "BIL", purpose: "Keep client money safe.", scope: "Everyone who touches the trust account.",
       rules_must: ["Deposit client funds into the trust account within 1 business day"], rules_must_not: ["Pay firm bills from the trust account"], exceptions: "None without approval.", exceptions_role: "Attorney" }, questions: [], notices: [] };

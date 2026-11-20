@@ -56,7 +56,7 @@ async function makeMember(bd, side, plan) {
 (async () => {
   const browser = await chromium.launch();
   try {
-    await sql("update feature_switches set state = 'everyone' where key in ('ai_generation', 'playbook_library', 'file_uploads', 'flex_gigs', 'profiles', 'worker'); update feature_switches set state = 'off' where key in ('document_standard', 'document_conversion'); select 1");
+    await sql("update feature_switches set state = 'everyone' where key in ('ai_generation', 'playbook_library', 'file_uploads', 'flex_gigs', 'profiles', 'worker'); update feature_switches set state = 'off' where key in ('document_standard', 'document_conversion', 'handoff_kit'); select 1");
     await makeMember(3600, "attorney", "att_business");
 
     // ---------- An older playbook, made before the document standard ----------
@@ -74,7 +74,7 @@ async function makeMember(bd, side, plan) {
     await s.ctx.close();
 
     // ---------- The standard turns on and DELA converts the older playbook ----------
-    await sql("update feature_switches set state = 'everyone' where key in ('document_standard', 'document_conversion'); select 1");
+    await sql("update feature_switches set state = 'everyone' where key in ('document_standard', 'document_conversion', 'handoff_kit'); select 1");
     await sql("create or replace function dela_worker_ok(p_secret text) returns boolean language sql as $$ select p_secret = 'documents-browser-worker' $$; select 1");
     const q = await sql("select dela_doc_convert_queue() as r");
     ok(q[0].r.queued >= 1, "the conversion queues the older playbook");
@@ -98,6 +98,22 @@ async function makeMember(bd, side, plan) {
     await waitFor(p, "must be fixed first");
     ok(await p.evaluate(() => { const q = document.querySelector(".dela-host").shadowRoot.querySelector("#quality-check"); const r = q && q.getBoundingClientRect(); return !!r && r.top < innerHeight && r.bottom > 0; }), "the count opens the document at its quality check");
     ok(!(await text(p)).includes("Suggestions ("), "the AI-proposed edits tab is called Suggested edits");
+    // Step 55, the newcomer check: DELA reads the draft as someone who has never worked with the firm, the attorney
+    // answers, and the answers go into a new draft
+    ok(await dela(p).locator("#newcomer-card").count() === 1 && (await text(p)).includes("Can someone new follow this?") && await dela(p).locator("#newcomer-badge").count() === 0, "the document page asks whether someone new can follow it, with no result before a check");
+    await dela(p).locator("#newcomer-run").click();
+    t = await waitFor(p, "2 gaps for someone new", 15000);
+    ok(t.includes("The page does not say how a newcomer gets into Clio.") && t.includes("How does a new person get a Clio login?") && t.includes("Access needed") && t.includes("Step 1") && t.includes("What done looks like"), "each gap says what a newcomer would not know, about which step, with one question for the attorney");
+    await dela(p).locator("#newcomer-fill").click();
+    ok((await dela(p).locator("#newcomer-msg").innerText()) === "Answer at least one question first.", "nothing is sent without an answer");
+    await dela(p).locator("#nc-a-0").fill("The office manager sets up Clio for new people.");
+    await dela(p).locator("#newcomer-fill").click();
+    await waitFor(p, "Your answers are in a new draft", 15000);
+    const added = await p.evaluate(() => [...document.querySelector(".dela-host").shadowRoot.querySelectorAll("input, textarea")].some((x) => String(x.value).includes("Get a Clio login from the office manager.")));
+    ok(added && await dela(p).locator("#newcomer-badge").count() === 0, "the answer is written into the document, and the new draft has not been checked yet");
+    await dela(p).locator("#newcomer-run").click();
+    t = await waitFor(p, "Ready for someone new", 15000);
+    ok(await dela(p).locator("#newcomer-fill").count() === 0 && t.includes("Someone new could do this from the page."), "with the gap filled the document is marked Ready for someone new");
     await click(p, "← Library");
     await waitFor(p, "Intake and conflicts");
     await dela(p).locator("tr", { hasText: oldId }).first().click();

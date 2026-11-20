@@ -12157,6 +12157,7 @@
       });
       area.appendChild(qn);
     }
+    var nc0 = newcomerCard(lib.pb.playbook, can(3)); if (nc0) area.appendChild(nc0);
     // The document itself, laid out as the export (no boxes, no Save buttons)
     var doc = h("div", { class: "card", id: "approved-body" });
     (AV.blocks || []).forEach(function (b) {
@@ -12175,6 +12176,65 @@
     area.appendChild(doc);
   }
 
+  // Step 55, the newcomer check: can a person who has never worked with the firm do this from the page? DELA lists
+  // what they would not know, the attorney answers, and DELA writes the answers into a new draft.
+  var NC_KIND = { term: "A term to explain", access: "Access needed", location: "Where it lives", contact: "Who to ask", done: "What done looks like", example: "An example", system: "Where in the system", order: "The order", other: "Something else" };
+  function newcomerCard(P, edit) {
+    var st = lib.pb.newcomer;
+    if (!st || !st.ok || !st.on) return null;
+    var ck = st.check, list = (ck && ck.findings) || [], canRun = !!st.can_run;
+    var card = h("div", { class: "card", id: "newcomer-card" });
+    card.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("h2", { class: "grow", style: "margin:0", text: "Can someone new follow this?" }),
+      !ck ? null : h("span", { class: "badge " + (ck.ready ? "ready" : "held"), id: "newcomer-badge", text: ck.ready ? "Ready for someone new" : list.length + (list.length === 1 ? " gap for someone new" : " gaps for someone new") })));
+    card.appendChild(h("p", { class: "small muted", text: "DELA reads this version as a freelancer who has never worked with your firm and lists what they would not know. It blocks nothing, and it does not confirm the document is legally correct. Each check uses a DELA action (or your own AI key)." }));
+    if (!ck && st.out_of_date) card.appendChild(h("p", { class: "small", text: "This version has not been checked yet. An earlier version was." }));
+    if (ck && ck.summary) card.appendChild(h("p", { id: "newcomer-summary", text: ck.summary }));
+    var msg = h("p", { class: "small", role: "status", id: "newcomer-msg", style: "margin:6px 0 0" }), boxes = [];
+    list.forEach(function (f, i) {
+      var id = "nc-a-" + i, box = canRun ? h("textarea", { id: id, rows: 2, style: "width:100%", placeholder: "Your answer, in your own words. Leave empty to skip." }) : null;
+      if (box) boxes.push(box);
+      card.appendChild(h("div", { class: "nc-item" },
+        h("div", { class: "row", style: "gap:6px;flex-wrap:wrap" }, h("span", { class: "badge held", text: NC_KIND[f.kind] || NC_KIND.other }), f.step ? h("span", { class: "badge", text: "Step " + f.step }) : null),
+        h("p", { style: "margin:6px 0 4px", text: f.what }),
+        box && f.question ? h("label", { for: id, class: "small", style: "font-weight:700;display:block;margin:0 0 2px", text: f.question }) : f.question ? h("p", { class: "small", style: "margin:0", text: f.question }) : null,
+        box && !f.question ? h("label", { for: id, class: "sr", text: "Your answer about: " + f.what }) : null, box));
+    });
+    if (!canRun) { card.appendChild(msg); return card; }
+    var acts = h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:10px" });
+    var again = h("button", { class: "ghost small", type: "button", id: "newcomer-anyway", style: "display:none" }, "It is not client information, add it");
+    var fail = function (x, b, label) {
+      b.disabled = false; b.textContent = label;
+      if (x && x.reason === "looks_like_client_info") { msg.textContent = ciNote(x, "This may include client information. Take it out and try again."); again.style.display = ""; return; }
+      msg.textContent = x && x.reason === "tell_us_more" ? "Answer at least one question first." : x && x.reason === "check_first" ? "Run the check first." : x && x.reason === "feature_off" ? "This check is not turned on for your account." : "";
+      if (!msg.textContent) pbFail(x);
+    };
+    var runLabel = ck ? "✦ Check again" : "✦ Check as someone new";
+    var run = h("button", { class: list.length ? "ghost small ai-btn" : "blue small ai-btn", type: "button", id: "newcomer-run" }, runLabel);
+    run.addEventListener("click", function () {
+      run.disabled = true; run.textContent = "DELA is reading it as someone new..."; msg.textContent = "";
+      api.post("/documents/newcomer", { id: P.id }).then(function (r) { if (!r.ok) throw r; lib.doc = null; openPlaybook(P.id, lib.view); loadUsage(); })
+        .catch(function (x) { fail(x, run, runLabel); });
+    });
+    if (list.length) {
+      var fill = h("button", { class: "blue small", type: "button", id: "newcomer-fill" }, "Add my answers to the document");
+      var send = function (confirmed) {
+        var answers = boxes.map(function (b, i) { return { i: i, text: b.value.trim() }; }).filter(function (a) { return a.text; });
+        if (!answers.length) { msg.textContent = "Answer at least one question first."; return; }
+        fill.disabled = true; fill.textContent = "DELA is adding them..."; msg.textContent = ""; again.style.display = "none";
+        api.post("/documents/newcomer/fill", { id: P.id, answers: answers, confirm_no_client_info: confirmed === true }).then(function (r) {
+          if (!r.ok) throw r;
+          lib.doc = null; lib.docNotices = (r.notices || []).concat(["Your answers are in a new draft. Read it, then run the check again."]);
+          openPlaybook(P.id, "read"); loadUsage();
+        }).catch(function (x) { fail(x, fill, "Add my answers to the document"); });
+      };
+      fill.addEventListener("click", function () { send(false); });
+      again.addEventListener("click", function () { send(true); });
+      acts.appendChild(fill);
+    }
+    acts.appendChild(run); acts.appendChild(again);
+    card.appendChild(acts); card.appendChild(msg);
+    return card;
+  }
   function reviewScreen(area, d, ck, edit) {
     var P = lib.pb.playbook;
     var grid = h("div", { class: "doc-grid" });
@@ -12223,6 +12283,7 @@
       [["docx", "Word"], ["pdf", "PDF"], ["md", "Markdown"], ["html", "Web page"], ["csv", "Step checklist"]].map(function (f) { return h("button", { class: "ghost small", type: "button", disabled: blocked, onclick: function () { doExport(f[0], draftEx ? "draft" : ""); } }, f[1]); }));
     qp.appendChild(ex);
     right.appendChild(qp);
+    var ncc = newcomerCard(P, edit); if (ncc) right.appendChild(ncc);
     var cic = checkImagesCard(d); if (cic) right.appendChild(cic);
     if (lib.questions && lib.questions.length && can(3)) right.appendChild(questionsCard());
     // The editable document, section by section

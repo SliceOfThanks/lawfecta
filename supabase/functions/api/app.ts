@@ -32,6 +32,7 @@ import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, moneySummary, readTasks, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
 import { blockedKinds, blockedMessage, BLOCKED_WORDS, FILE_BLOCKED_MESSAGE, type Blocked } from "./lib/confidential/rules.ts";
 import { blocks as docBlocks, looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
+import { fillPrompt, NEWCOMER_FILL_SYSTEM, NEWCOMER_SYSTEM, readNewcomer, type NewcomerFinding } from "./lib/documents/newcomer.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
 import { clean, HELPER_SIDE, HELPER_SYSTEM, HELPERS, NOT_LEGAL, readCompare, readCriteria, readExplain, readFindings, readFirm, readFit, type HelperKey } from "./lib/helpers/model.ts";
 import { AUTOMATE_SYSTEM, defaultKpis, delegatedSop, FREQUENCIES, hoursSaved, promptFor, readKpis, readRecommendations, setupSteps, suggestBudget, timeInputs, type AllowedTool, type Frequency, type Recommendation } from "./lib/automate/model.ts";
@@ -1034,6 +1035,7 @@ async function pbGet(ctx: Ctx) {
     r.images = imageView(cc.images ?? {});
     r.images_due = imageIds(body).length ? await rpc(ctx, "dela_doc_images_due", { p_playbook: id, p_ids: imageIds(body) }) : { due: false, ids: [] };
     r.image_settings = await imageSettings(ctx, s);
+    r.newcomer = await rpc(ctx, "dela_doc_newcomer_get", { p_person: s.person_id, p_playbook: id }).catch(() => null);
     // Phase 4 part A: the approved version, read-only, as gigs and exports use it
     if (r.playbook.approved_version && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "approved_view", p_person: s.person_id })) r.approved = await approvedView(ctx, s, r);
   }
@@ -1595,6 +1597,58 @@ async function docCurrent(ctx: Ctx, s: Session, id: string) {
   const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
   if (!cur?.ok) return { cur, body: null };
   return { cur, body: isDoc(cur.body) ? normalizeDoc(cur.body) : null };
+}
+
+// Step 55, the newcomer check: DELA reads the version being worked on as someone who has never worked with the firm.
+// The result is kept for that version; it blocks nothing.
+async function docNewcomer(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = need(uuid(ctx.body.id));
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "handoff_kit", p_person: s.person_id })) return json(ctx, { ok: false, reason: "feature_off" });
+  const { cur, body } = await docCurrent(ctx, s, id);
+  if (!body) return json(ctx, cur?.ok ? { ok: false, reason: "not_a_document" } : cur);
+  if (dela_rank(cur!.role) < 3) return json(ctx, { ok: false, reason: "not_allowed" });
+  const steps = Array.isArray((body as unknown as { steps?: unknown[] }).steps) ? (body as unknown as { steps: unknown[] }).steps.length : 0;
+  const ai = await runAi(ctx, s, `newcomer:${id}:${cur!.playbook.version}`, NEWCOMER_SYSTEM, [{ role: "user", content: "The document:\n" + JSON.stringify(withoutImages(body)) }],
+    Number(await setting(ctx, "ai.credits.chat", "1")) || 1, true, (t) => !!readNewcomer(readJson(t), steps));
+  if (!ai.ok) return json(ctx, ai);
+  const read = readNewcomer(readJson(ai.text), steps);
+  if (!read) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_answer", source: ai.source });
+  const saved = await rpc<Record<string, any>>(ctx, "dela_doc_newcomer_save", { p_person: s.person_id, p_playbook: id, p_version: cur!.playbook.version, p: { ...read, source: ai.source } });
+  if (!saved?.ok) return json(ctx, saved);
+  return json(ctx, { ok: true, source: ai.source, newcomer: await rpc(ctx, "dela_doc_newcomer_get", { p_person: s.person_id, p_playbook: id }) });
+}
+// The attorney's answers to the newcomer's questions, written into the document as a new draft version
+async function docNewcomerFill(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = need(uuid(ctx.body.id));
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "handoff_kit", p_person: s.person_id })) return json(ctx, { ok: false, reason: "feature_off" });
+  const { cur, body } = await docCurrent(ctx, s, id);
+  if (!body) return json(ctx, cur?.ok ? { ok: false, reason: "not_a_document" } : cur);
+  if (dela_rank(cur!.role) < 3) return json(ctx, { ok: false, reason: "not_allowed" });
+  const state = await rpc<Record<string, any>>(ctx, "dela_doc_newcomer_get", { p_person: s.person_id, p_playbook: id });
+  const findings = (state?.check?.findings ?? []) as NewcomerFinding[];
+  if (!findings.length) return json(ctx, { ok: false, reason: "check_first" });
+  const answers: Record<number, string> = {};
+  for (const a of (Array.isArray(ctx.body.answers) ? ctx.body.answers : []).slice(0, 10)) {
+    const i = int((a as Record<string, unknown>)?.i), t = str((a as Record<string, unknown>)?.text, 1200).trim();
+    if (i !== null && i >= 0 && i < findings.length && t) answers[i] = t;
+  }
+  if (!Object.keys(answers).length) return json(ctx, { ok: false, reason: "tell_us_more" });
+  const warn = await sensitive(ctx, s, Object.values(answers).join("\n"), "ai");
+  if (warn) return json(ctx, warn);
+  const firm = await docFirm(ctx, s);
+  const key = (await sha256Hex(JSON.stringify(answers))).slice(0, 24);
+  const ai = await runAi(ctx, s, `newcomerfill:${id}:${cur!.playbook.version}:${key}`, NEWCOMER_FILL_SYSTEM, [{ role: "user", content: "The document:\n" + JSON.stringify(withoutImages(body)) + "\n\nThe gaps a newcomer found, with the attorney's answers:\n" + fillPrompt(findings, answers) }],
+    Number(await setting(ctx, "ai.credits.chat", "1")) || 1, true, (t) => { const x = readDocAnswer(readJson(t)); return !!x.body && x.body.type === body.type; });
+  if (!ai.ok) return json(ctx, ai);
+  const read = readDocAnswer(readJson(ai.text));
+  if (!read.body || read.body.type !== body.type) return json(ctx, { ok: false, reason: "ai_failed", code: "bad_answer", source: ai.source });
+  // The AI never removes an attorney flag or moves an attorney's A
+  const next = carryImages(body, codeFix(codeFix({ ...read.body, skipped: body.skipped, high_risk: body.high_risk }, "judgment", firm.people), "attorney_a", firm.people));
+  next.steps.forEach((st, i) => { if (!st.screenshot && body.steps[i]?.screenshot) st.screenshot = body.steps[i].screenshot; });
+  const out = await docSave(ctx, s, id, cur!.playbook.version, next, body, "Added answers for someone new to the firm", "ai_change", firm) as Record<string, any>;
+  return json(ctx, out?.ok ? { ...out, notices: [...(read.notices ?? []), ...((out.notices as string[] | undefined) ?? [])].slice(0, 10), answered: Object.keys(answers).length } : out);
 }
 
 // "Fix it" in the quality panel: code fixes, an AI fix for one check, or a split into linked SOPs
@@ -6076,6 +6130,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "POST /documents/draft": return await docDraft(ctx);
       case "POST /documents/check": return await docCheck(ctx);
       case "POST /documents/fix": return await docFix(ctx);
+      case "POST /documents/newcomer": return await docNewcomer(ctx);
+      case "POST /documents/newcomer/fill": return await docNewcomerFill(ctx);
       case "POST /documents/type": return await docChangeType(ctx);
       case "POST /documents/conversion-seen": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_doc_conversion_seen", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)) })); }
       case "POST /gigs/reference": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_gig_reference", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_doc: need(uuid(ctx.body.doc)), p_on: ctx.body.on !== false })); }

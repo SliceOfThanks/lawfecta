@@ -35,7 +35,16 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
     const system = String(body.messages[0].content), user = String(body.messages.at(-1).content);
     prompts.push(system + "\n" + user);
     let out: unknown = {};
-    if (system.includes("document assistant inside Lawfecta, writing one")) out = draftAnswer;
+    if (system.includes("has never worked with this firm")) {
+      out = user.includes("Clio login from the office manager") ? { ready: true, summary: "Someone new could do this from the page.", findings: [] }
+        : { ready: true, summary: "Two things are missing for someone new.", findings: [{ kind: "access", step: 1, what: "The page does not say how a newcomer gets into Clio.", question: "How does a new person get a Clio login?" },
+          { kind: "made_up", step: 99, what: "It is not clear what a finished check looks like.", question: "What does a finished conflict check look like?" }, { kind: "term", step: 1, what: "", question: "dropped" }] };
+    } else if (system.includes("adding the attorney's answers into a law firm document")) {
+      const d = JSON.parse(user.split("The document:\n")[1].split("\n\nThe gaps")[0]);
+      d.before_you_start = [...(d.before_you_start ?? []), "Get a Clio login from the office manager."];
+      d.steps = d.steps.map((st: any) => ({ ...st, attorney_decides: false }));
+      out = { document: d, notices: ["Added the Clio login to Before you start"] };
+    } else if (system.includes("document assistant inside Lawfecta, writing one")) out = draftAnswer;
     else if (system.includes("fixing a law firm document")) {
       const d = JSON.parse(user.split("The document:\n")[1].split("\n\n")[0]);
       d.timing = "Within 1 business day of the request.";
@@ -169,6 +178,37 @@ Deno.test("the block: export, sending for review and approval refused while a st
   let refused = false;
   try { await pool.query("delete from document_changes where playbook_id = $1", [sop]); } catch { refused = true; }
   assert(refused, "the change log is append-only");
+});
+
+Deno.test("step 55, the newcomer check: off until the switch is on; gaps kept per version; answers become a new draft; attorney flags stay", async () => {
+  let cur = (await call("GET", "/playbooks/get?id=" + sop, att.token)).body;
+  assertEquals(cur.newcomer.on, false, "nothing shows while the switch is off");
+  assertEquals((await call("POST", "/documents/newcomer", att.token, { id: sop })).body.reason, "feature_off");
+  await pool.query("update feature_switches set state = 'everyone' where key = 'handoff_kit'");
+  assertEquals((await call("POST", "/documents/newcomer", other.token, { id: sop })).body.ok, false, "someone outside the firm cannot run it");
+  const v0 = cur.playbook.version, flags0 = cur.body.steps.map((st: any) => !!st.attorney_decides);
+  const before = prompts.length;
+  let r = (await call("POST", "/documents/newcomer", att.token, { id: sop })).body;
+  assertEquals(r.ok, true, JSON.stringify(r));
+  const ck = r.newcomer.check;
+  assertEquals([ck.version, ck.ready, ck.findings.length], [v0, false, 2], "a finding with no sentence is dropped, and it is not ready while gaps are left");
+  assertEquals([ck.findings[0].kind, ck.findings[0].step, ck.findings[1].kind, ck.findings[1].step], ["access", 1, "other", 0], "an unknown kind and a step that does not exist are made safe");
+  assert(prompts.slice(before).some((p) => p.includes("has never worked with this firm") && p.includes("The document:")), "the model reads the document as a newcomer");
+  assertEquals((await call("GET", "/playbooks/get?id=" + sop, att.token)).body.newcomer.check.findings.length, 2, "the result is kept and read back without the AI");
+  // Answers
+  assertEquals((await call("POST", "/documents/newcomer/fill", att.token, { id: sop, answers: [{ i: 0, text: "  " }] })).body.reason, "tell_us_more");
+  r = (await call("POST", "/documents/newcomer/fill", att.token, { id: sop, answers: [{ i: 0, text: "The office manager sets up Clio." }, { i: 7, text: "ignored, no such gap" }] })).body;
+  assertEquals([r.ok, r.answered], [true, 1], JSON.stringify(r));
+  cur = (await call("GET", "/playbooks/get?id=" + sop, att.token)).body;
+  assert(cur.playbook.version > v0 && cur.body.before_you_start.includes("Get a Clio login from the office manager."), "the answers are in a new version");
+  assertEquals(cur.body.steps.map((st: any) => !!st.attorney_decides), flags0, "the AI cannot take an attorney decision off a step");
+  assertEquals([cur.newcomer.check, cur.newcomer.out_of_date], [null, true], "the new version has not been checked yet");
+  r = (await call("POST", "/documents/newcomer", att.token, { id: sop })).body;
+  assertEquals([r.newcomer.check.ready, r.newcomer.check.findings.length], [true, 0], "with the gap filled, the document is ready for someone new");
+  // The approved version keeps working: nothing here blocks export or approval
+  cur = (await call("GET", "/playbooks/get?id=" + sop, att.token)).body;
+  assertEquals(cur.check.blocking, 0);
+  if (cur.playbook.status !== "approved") assertEquals((await call("POST", "/playbooks/status", att.token, { id: sop, action: "approve" })).body.ok, true, "the draft with the answers can be approved");
 });
 
 Deno.test("length is a quality item, never a block; Split into linked SOPs; change type in one click", async () => {
