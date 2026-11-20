@@ -212,6 +212,14 @@ async function rate(page, labels, n) { for (const l of labels) await label(page,
     p = s.page;
     t = await waitFor(p, "From past clients (outside Lawfecta)");
     ok(t.includes("Reliable and careful") && t.includes("1 review from completed Lawfecta engagements"), "freelancer: the past-client review shows in its own section, not in the count");
+    // Step 54 (Stacey's Reviews mockup, 2026-11-19): who wrote it leads, the scores are folded under "Category ratings"
+    const rvw = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, one = r.querySelector(".rv-right .rv-one"), cat = one && one.querySelector("details.rv-cat");
+      const l = r.querySelector(".rv-left").getBoundingClientRect(), rt = r.querySelector(".rv-right").getBoundingClientRect();
+      return { by: one && one.querySelector("h3.rv-by") ? one.querySelector("h3.rv-by").textContent : "", weight: one ? getComputedStyle(one.querySelector("h3.rv-by")).fontWeight : "", folded: !!cat && !cat.open, sum: (r.querySelector(".rv-sum") || {}).textContent || "", side: rt.left > l.right - 1 }; });
+    ok(rvw.by.length > 0 && Number(rvw.weight) >= 700 && rvw.folded && rvw.sum.includes("review") && rvw.side, "a review leads with who wrote it in bold, its scores are folded, and the summary sits at the left of the reviews: " + JSON.stringify(rvw));
+    await dela(p).locator(".rv-right .rv-one details.rv-cat > summary").first().click();
+    const cat = await dela(p).locator(".rv-right .rv-one details.rv-cat").first().innerText();
+    ok(cat.includes("Quality of the work") && /[1-5]\/5/.test(cat) && /Would hire again\s*(Yes|No)/.test(cat), "Category ratings opens to each question as a number out of 5, and whether they would hire again: " + cat.replace(/\n/g, " | "));
     await s.ctx.close();
     console.log("\nALL " + passed + " CHECKS PASSED");
   } catch (e) {

@@ -40,8 +40,8 @@ None new.
 1. "LinkedIn check completed" or the word "Verified" (Stacey 2026-11-12)? **On the profile page, the mockup's words**, because they say what was checked. Search result cards keep "Verified member"; say if those should change too.
 2. The pink header band? First answered "grey", which was wrong. **The mockups' colors**, as Stacey said on 2026-11-19. A mockup from her is the visual spec for its page.
 3. The mockup's left menu (Home, Find Talent, My Profile, Opportunities, Saved)? **Not changed.** The global menu is not to be redesigned.
-4. "Would hire again 80% (4 of 5 supplied responses)"? **The percentage only.** DELA does not hold the count behind it on this page; adding it is a small server step.
-5. "Category ratings" folded under each review, and "View all 5 reviews"? **Each review shows as it does today** (its ratings with it), all of them listed. Folding and paging can follow when a profile has many reviews.
+4. "Would hire again 80% (4 of 5 supplied responses)"? First "the percentage only". **Now with the count** ("80% (4 of 5 reviews)"), counted from the reviews on the page, after Stacey said on 2026-11-19 that the reviews did not follow the mockup.
+5. "Category ratings" folded under each review, and "View all 5 reviews"? First left as it was, which was wrong. **Built as in the mockup** (step 54): the reviewer leads in bold, then the month and the practice area, then the text, with "Category ratings" folded under it; the first three reviews show and "View all N reviews" opens the rest. The same view is used wherever reviews show: the profile, "Your reviews" on the Profile page, and the reviews pop-up.
 6. Icons in "At a glance" and on service rows? First "words only"; **now drawn** (clock, building, document, pencil, eye, plus), with the mockups' colors.
 7. "Edit service" on each row? **Yes**, and each opens the one services editor, where all services are edited together.
 8. The owner's Work samples list? **The files the owner marked as shown to attorneys**, read from their own profile.

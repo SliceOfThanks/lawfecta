@@ -8046,30 +8046,13 @@
           });
         },
         reviews: function () {
-          var left = h("div"), right = h("div");
-          panel.appendChild(h("div", { class: "tp-two tp-rev" }, left, right));
-          var sum = h("section", { class: "card", id: "tp-rev-sum" }); left.appendChild(sum);
-          sum.appendChild(h("p", { class: "muted", text: "Loading..." }));
+          var box = h("div", { id: "tp-rev" }); panel.appendChild(box);
+          box.appendChild(h("p", { class: "muted", text: "Loading..." }));
           api.get("/reviews/of?person=" + encodeURIComponent(person) + "&side=freelancer").then(function (r) {
-            D.clear(sum);
-            if (!r.ok) { sum.appendChild(h("p", { class: "notice", text: revErr(r) })); return; }
-            if (!r.on) { sum.appendChild(h("p", { class: "muted", text: REV_ERR.reviews_off })); return; }
-            var cnt = r.count || 0;
-            sum.appendChild(h("h2", { style: "margin:0 0 4px" }, rv.average ? h("span", { class: "talent-star", "aria-hidden": "true", text: "★ " }) : null, (rv.average ? rv.average + " out of 5 · " : "") + cnt + (cnt === 1 ? " review" : " reviews")));
-            sum.appendChild(h("p", { class: "small muted", style: "margin:0", text: "Reviews from completed Lawfecta engagements." + (r.averages || !cnt ? "" : " Averages show after " + r.min_for_average + " reviews.") }));
-            if (r.averages) {
-              left.appendChild(h("details", { class: "card tp-rev-d", open: true }, h("summary", null, h("h2", { style: "display:inline;margin:0", text: "Rating details" })),
-                h("dl", { class: "tp-facts" }, REV_Q.of_freelancer.map(function (q) { return h("div", null, h("dt", { text: q[1] }), h("dd", { text: r.averages[q[0]] + "/5" })); })
-                  .concat([h("div", null, h("dt", { text: "Would hire again" }), h("dd", { text: r.would_again_pct + "%" }))]))));
-            }
-            if (!cnt) { right.appendChild(h("section", { class: "card" }, h("p", { class: "muted", style: "margin:0", text: "No reviews yet. A review can only be left after a completed Lawfecta engagement, so a new member starts with none." }))); }
-            (r.reviews || []).forEach(function (rw) { right.appendChild(h("section", { class: "card tp-rev-one" }, reviewBlock(rw, "of_freelancer"))); });
-            if (r.past_clients && r.past_clients.length) {
-              var pcBox = h("section", { class: "card" }, h("h2", { text: "From past clients (outside Lawfecta)" }), h("p", { class: "small muted", text: "Lawfecta confirmed the reviewer is an attorney, not the work itself. These are not counted in the numbers above." }));
-              r.past_clients.forEach(function (rw) { pcBox.appendChild(reviewBlock(rw, "of_freelancer")); });
-              right.appendChild(pcBox);
-            }
-          }).catch(function (e) { D.clear(sum); sum.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+            D.clear(box);
+            if (!r.ok) { box.appendChild(h("p", { class: "notice", text: revErr(r) })); return; }
+            reviewsList(box, r, "freelancer", rv.average);
+          }).catch(function (e) { D.clear(box); box.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
         },
         promotions: function () {
           if (!promos.length) return;
@@ -11070,26 +11053,52 @@
     return box;
   }
 
+  // Step 54 (Stacey 2026-11-19, the Reviews mockup): one review. Who wrote it leads, then when and about what, then
+  // what they wrote. The scores for each question are folded under "Category ratings".
   function reviewBlock(x, dir) {
-    return h("div", { class: "card", style: "padding:10px;margin:6px 0" },
-      h("div", { class: "small muted", text: [x.by, x.month || (x.created_at ? D.date(x.created_at) : ""), x.practice_area, x.state].filter(Boolean).join(" | ") + (x.edited ? " | Edited" : "") }),
-      h("div", { class: "small", text: REV_Q[dir].map(function (q) { return q[1] + " " + stars(x.ratings[q[0]] || 0); }).join("  ·  ") }),
-      h("div", { class: "small", text: x.would_again ? (dir === "of_freelancer" ? "Would hire again: yes" : "Would work with again: yes") : (dir === "of_freelancer" ? "Would hire again: no" : "Would work with again: no") }),
-      h("p", { style: "white-space:pre-wrap;margin:6px 0 0", text: x.body }),
-      x.response ? h("p", { class: "small", style: "margin:6px 0 0;padding-left:10px;border-left:3px solid var(--line)", text: "Response: " + x.response }) : null);
+    var again = dir === "of_freelancer" ? "Would hire again" : "Would work with again";
+    return h("div", { class: "card rv-one" },
+      h("h3", { class: "rv-by", text: x.by || "A Lawfecta member" }),
+      h("p", { class: "small muted rv-when", text: [x.month || (x.created_at ? D.date(x.created_at) : ""), x.practice_area, x.state].filter(Boolean).join(" · ") + (x.edited ? " · Edited" : "") }),
+      h("p", { class: "rv-body", text: x.body }),
+      x.response ? h("p", { class: "small rv-resp", text: "Response: " + x.response }) : null,
+      h("details", { class: "rv-cat" }, h("summary", { text: "Category ratings" }),
+        h("dl", { class: "rv-rows" }, REV_Q[dir].map(function (q) { var n = (x.ratings || {})[q[0]] || 0; return h("div", null, h("dt", { text: q[1] }), h("dd", null, h("span", { class: "talent-star", "aria-hidden": "true", text: stars(n) + " " }), n + "/5")); })
+          .concat([h("div", null, h("dt", { text: again }), h("dd", { text: x.would_again ? "Yes" : "No" }))]))));
   }
 
-  // Reviews of one member, for a signed-in member (platform reviews, then past clients in their own section)
-  function reviewsList(host, r, side) {
-    var dir = side === "freelancer" ? "of_freelancer" : "of_attorney";
+  // Reviews of one member, for a signed-in member: the overall rating and its details at the left, the written
+  // reviews at the right (the first three, then "View all"), and past clients in their own section.
+  function reviewsList(host, r, side, average) {
+    var dir = side === "freelancer" ? "of_freelancer" : "of_attorney", again = dir === "of_freelancer" ? "Would hire again" : "Would work with again";
     if (!r.on) { host.appendChild(h("p", { class: "muted", text: REV_ERR.reviews_off })); return; }
-    host.appendChild(h("p", { text: r.count + (r.count === 1 ? " review" : " reviews") + " from completed Lawfecta engagements." + (r.averages ? "" : r.count ? " Averages show after " + r.min_for_average + " reviews." : "") }));
-    if (r.averages) host.appendChild(h("div", { class: "kv" }, REV_Q[dir].map(function (q) { return h("div", null, q[1], h("b", { text: r.averages[q[0]] + " of 5" })); }).concat([h("div", null, dir === "of_freelancer" ? "Would hire again" : "Would work with again", h("b", { text: r.would_again_pct + "%" }))])));
-    (r.reviews || []).forEach(function (x) { host.appendChild(reviewBlock(x, dir)); });
+    var cnt = r.count || 0, list = r.reviews || [];
+    // The overall rating: the one the server gives, or the mean of the question averages it sent
+    var avg = average || r.average || (r.averages ? Math.round(REV_Q[dir].reduce(function (s, q) { return s + Number(r.averages[q[0]] || 0); }, 0) / REV_Q[dir].length * 10) / 10 : 0);
+    var left = h("div", { class: "rv-left" }), right = h("div", { class: "rv-right" });
+    host.appendChild(h("div", { class: "rv-grid" }, left, right));
+    left.appendChild(h("div", { class: "card rv-sum" },
+      h("p", { class: "rv-avg" }, avg ? h("span", { class: "talent-star", "aria-hidden": "true", text: "★ " }) : null, avg ? h("b", { text: avg + " out of 5" }) : null, avg ? " · " : "", cnt + (cnt === 1 ? " review" : " reviews")),
+      h("p", { class: "small muted", style: "margin:4px 0 0", text: avg ? "Reviews from completed Lawfecta engagements." : cnt + (cnt === 1 ? " review" : " reviews") + " from completed Lawfecta engagements." + (cnt ? " Averages show after " + r.min_for_average + " reviews." : "") })));
+    if (r.averages) {
+      // "4 of 5 reviews" is said only when every review is on the page to count
+      var yes = list.filter(function (x) { return x.would_again; }).length;
+      left.appendChild(h("details", { class: "card rv-details", open: true }, h("summary", null, h("span", { class: "rv-details-h", text: "Rating details" })),
+        h("dl", { class: "rv-rows" }, REV_Q[dir].map(function (q) { return h("div", null, h("dt", { text: q[1] }), h("dd", { text: r.averages[q[0]] + "/5" })); })
+          .concat([h("div", null, h("dt", { text: again }), h("dd", { text: r.would_again_pct + "%" + (list.length === cnt && cnt ? " (" + yes + " of " + cnt + " reviews)" : "") }))]))));
+    }
+    if (!cnt) right.appendChild(h("div", { class: "card rv-one" }, h("p", { class: "muted", style: "margin:0", text: "No reviews yet. A review can only be left after a completed Lawfecta engagement, so a new member starts with none." })));
+    var FIRST = 3, more = [];
+    list.forEach(function (x, i) { var b = reviewBlock(x, dir); if (i >= FIRST) { b.style.display = "none"; more.push(b); } right.appendChild(b); });
+    if (more.length) {
+      var all = h("button", { class: "ghost rv-all", type: "button", "aria-expanded": "false" }, "View all " + list.length + " reviews");
+      all.addEventListener("click", function () { more.forEach(function (b) { b.style.display = ""; }); all.remove(); var f = more[0].querySelector("h3"); if (f) { f.setAttribute("tabindex", "-1"); f.focus({ preventScroll: true }); } });
+      right.appendChild(all);
+    }
     if (r.past_clients && r.past_clients.length) {
-      host.appendChild(h("h3", { text: "From past clients (outside Lawfecta)" }));
-      host.appendChild(h("p", { class: "small muted", text: "Lawfecta confirmed the reviewer is an attorney, not the work itself. These are not counted in the numbers above." }));
-      r.past_clients.forEach(function (x) { host.appendChild(reviewBlock(x, "of_freelancer")); });
+      right.appendChild(h("h3", { class: "rv-past-h", text: "From past clients (outside Lawfecta)" }));
+      right.appendChild(h("p", { class: "small muted", text: "Lawfecta confirmed the reviewer is an attorney, not the work itself. These are not counted in the numbers above." }));
+      r.past_clients.forEach(function (x) { right.appendChild(reviewBlock(x, "of_freelancer")); });
     }
   }
 
