@@ -2746,6 +2746,7 @@
       h("span", { class: "pf-states", text: states.join(" · ") }),
       h("button", { class: "linkish", type: "button", id: "pf-reqs", onclick: function () { var c = profEl.querySelector("#ready-card"); if (c) { prof.reveal(c); var sb = c.querySelector("#ready-steps"); if (sb) sb.open = true; c.scrollIntoView({ behavior: "smooth", block: "start" }); var b = c.querySelector("button, summary"); if (b) b.focus({ preventScroll: true }); } } }, "View requirements")));
     // For an attorney the firm essentials and the license come first (step 8b, answer 7), so that tab leads
+    if (!att) profEl.appendChild(availabilityCard(st)).id = "sec-availability";
     var TABS = att ? [["match", "Firm & verification"], ["public", "Profile"]] : [["public", "Public profile"], ["match", "Matching & verification"]].concat((me.switches || {}).meetings ? [["meet", "Meeting schedule"]] : []);
     if (!TABS.some(function (t) { return t[0] === prof.tab; })) prof.tab = TABS[0][0];
     var bar = h("div", { class: "pf-tabs", role: "tablist", "aria-label": "Parts of your profile" }), panels = {};
@@ -2801,7 +2802,6 @@
     var m = panels.match;
     m.appendChild(statusCard(st));
     if (att) m.appendChild(section(firmCard(), "sec-firm"));
-    else m.appendChild(section(availabilityCard(st), "sec-availability"));
     m.appendChild(section(att ? licenseCard() : linkedinCard(), "sec-verify"));
     if (!att && panels.meet) panels.meet.appendChild(meetingAvailabilityCard());
     if (att) {
@@ -2897,18 +2897,31 @@
     return card;
   }
 
+  // Stacey 2026-11-19: availability sits at the top of the Profile page for a quick choice, and each choice says
+  // what it does behind a "?".
   function availabilityCard(st) {
     var labels = { available: "Available for new work", limited: "Some hours only", unavailable: "Not taking new work" };
-    var card = h("div", { class: "card" }, h("h2", { text: "Your availability" }));
-    card.appendChild(h("p", { text: st.availability_confirmed_at
-      ? "You said: " + labels[st.availability] + ", on " + D.date(st.availability_confirmed_at) + "." + (st.availability !== "unavailable" ? " Confirm again by " + D.date(st.availability_due_at) + " to stay in matches." : "")
-      : "Tell attorneys whether you can take work. Confirm it every " + st.availability_days + " days to stay in matches." }));
-    card.appendChild(h("div", { class: "row" }, ["available", "limited", "unavailable"].map(function (v) {
-      return h("button", { class: st.availability === v && st.availability_confirmed_at ? "blue small" : "ghost small", onclick: function () {
+    var MEANS = {
+      available: "You can take on new work now. Attorneys find you in Talent search and in gig matches, and can invite you to their gigs.",
+      limited: "You can take on a little new work. You stay in Talent search and gig matches, and your profile says your time is limited right now.",
+      unavailable: "You are not taking new work. You leave Talent search and gig matches until you choose one of the other two. Work you already have is not affected.",
+    };
+    var tips = [];
+    var opts = ["available", "limited", "unavailable"].map(function (v) {
+      var on = st.availability === v && !!st.availability_confirmed_at;
+      var b = h("button", { class: on ? "blue small" : "ghost small", type: "button", "aria-pressed": String(on), onclick: function () {
         api.post("/profile/availability", { state: v }).then(function (x) { if (x.ok === false) throw new Error(x.reason); D.toast(app, "Availability saved"); loadProfile(); }).catch(err);
       } }, labels[v]);
-    })));
-    return card;
+      var pair = D.helpTip(MEANS[v], "What \"" + labels[v] + "\" means", null, false, labels[v]);
+      if (pair[1]) tips.push(pair[1]);
+      return h("span", { class: "pf-av-opt" }, b, pair[0]);
+    });
+    return h("div", { class: "pf-avail" },
+      h("h2", { class: "pf-avail-h", text: "Your availability" }),
+      h("div", { class: "pf-av-opts", role: "group", "aria-label": "Your availability" }, opts), tips,
+      h("p", { class: "small pf-avail-say", text: st.availability_confirmed_at
+        ? "You said: " + labels[st.availability] + ", on " + D.date(st.availability_confirmed_at) + "." + (st.availability !== "unavailable" ? " Confirm again by " + D.date(st.availability_due_at) + " to stay in matches." : "")
+        : "Tell attorneys whether you can take work. Confirm it every " + st.availability_days + " days to stay in matches." }));
   }
 
   function licenseCard() {

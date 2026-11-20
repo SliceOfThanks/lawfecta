@@ -380,7 +380,14 @@ async function waitFor(page, words, ms) {
       ok(/isible in Talent/.test(strip) && /Profile details (complete|incomplete)/.test(strip) && /LinkedIn review (passed|in progress|not started)/.test(strip) && /Availability (confirmed|unconfirmed)/.test(strip) && strip.includes("View requirements"), "the readiness line gives one state for each of the three parts: " + strip.replace(/\n/g, " | "));
       const tabs = await dela(q).locator(".pf-tabs [role=tab]").allInnerTexts();
       ok(tabs[0] === "Public profile" && tabs[1] === "Matching & verification" && (await dela(q).locator("#pf-tab-public").getAttribute("aria-selected")) === "true", "the page is in tabs, Public profile first: " + tabs.join(", "));
-      ok(!v.includes("Tell attorneys whether you can take work") && !v.includes("steps done"), "the checklist and availability are not on the Public profile tab");
+      ok(!v.includes("The Lawfecta Team checks that the name on your LinkedIn profile") && !v.includes("steps done"), "the checklist and the LinkedIn check are not on the Public profile tab");
+      // Stacey 2026-11-19: availability is at the top for a quick choice, with what each choice means behind a "?"
+      const av = await q.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, a = r.querySelector("#sec-availability"), tabs = r.querySelector(".pf-tabs");
+        return { above: a.getBoundingClientRect().bottom <= tabs.getBoundingClientRect().top + 1, buttons: [...a.querySelectorAll(".pf-av-opt > button:first-child")].map((b) => b.textContent), tips: a.querySelectorAll(".pf-av-opt .help-q").length }; });
+      ok(av.above && av.buttons.join("|") === "Available for new work|Some hours only|Not taking new work" && av.tips === 3, "the three availability choices sit above the tabs, each with a help mark: " + JSON.stringify(av));
+      await dela(q).getByRole("button", { name: 'What "Not taking new work" means', exact: true }).click();
+      ok((await text(q)).includes("You leave Talent search and gig matches until you choose one of the other two. Work you already have is not affected."), "the help mark says what the choice does");
+      await q.keyboard.press("Escape");
       ok(await label(q, "First name").isVisible() && await label(q, "Summary").isHidden() && await label(q, "City").isHidden(), "one section shows at a time: Basics first");
       ok(v.includes("Visibility & publishing") && v.includes("Directory updates") && v.includes("Required for matching"), "the publishing cards sit beside the form, and the section says it is required for matching");
       // Stacey 2026-11-19: "make the profile form page warmer too"
@@ -403,7 +410,7 @@ async function waitFor(page, words, ms) {
       ok((await label(q, "Task skills").inputValue()).includes("Trial binders"), "moving between sections keeps what was typed");
       await dela(q).locator("#pf-reqs").click();
       v = await waitFor(q, "steps done");
-      ok((await dela(q).locator("#pf-tab-match").getAttribute("aria-selected")) === "true" && v.includes("Tell attorneys whether you can take work") && await label(q, "Task skills").isHidden(), "View requirements opens the Matching & verification tab with the full list");
+      ok((await dela(q).locator("#pf-tab-match").getAttribute("aria-selected")) === "true" && v.includes("The Lawfecta Team checks that the name on your LinkedIn profile") && await label(q, "Task skills").isHidden(), "View requirements opens the Matching & verification tab with the full list");
       // Stacey 2026-11-19: the list of steps can be folded away, and stays as the member left it
       ok(await dela(q).locator("#ready-steps").evaluate((d) => d.open) && v.includes("1. Your profile ("), "View requirements shows the list of steps open");
       await dela(q).locator("#ready-steps-sum").click();
