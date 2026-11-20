@@ -1986,7 +1986,7 @@
     var EXAMPLE = "Turn my notes on opening a new matter into a step by step checklist a paralegal can follow.";
     if (fresh) list.appendChild(h("div", { class: "card soft", id: "chat-example" }, h("p", { style: "margin:0 0 6px", text: "Example: \"" + EXAMPLE + "\"" }),
       h("button", { class: "ghost small", type: "button", onclick: function () { if (composerText) { composerText.value = EXAMPLE; composerText.focus(); } } }, "Use this example"),
-      h("p", { class: "small muted", id: "chat-backoffice", style: "margin:8px 0 0", text: "DELA works for the whole back office of your firm, not only legal support: intake, billing and bookkeeping, HR, IT, marketing and operations." })));
+      h("p", { class: "small muted", id: "chat-backoffice", style: "margin:8px 0 0", text: "DELA works for the whole back office of a law firm, not only legal support: intake, billing and bookkeeping, HR, IT, marketing and operations." })));
     chat.messages.forEach(function (m) { list.appendChild(bubble(m)); });
     if (chat.pending && chat.busy) list.appendChild(h("div", { class: "msg user", text: chat.pending.content }));
     if (chat.busy) list.appendChild(h("div", { class: "msg assistant muted", text: "DELA is checking your message, then answering..." }));

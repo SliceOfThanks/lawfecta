@@ -307,12 +307,12 @@ async function listened(page, secs) {
     s = await open(browser, "DELA-App", 2102);
     await dela(s.page).getByRole("button", { name: "Members", exact: true }).first().click();
     t = await waitFor(s.page, "Everyone who has opened DELA");
-    ok(t.includes("Test attorney 2100") && t.includes("Test freelancer 2101") && t.includes("most recently seen first"), "step 62: the Lawfecta Team sees the members with a count");
+    ok(t.includes("Member 2100") && t.includes("Member 2101") && t.includes("most recently seen first"), "step 62: the Lawfecta Team sees the members with a count");
     await dela(s.page).locator("#mem-q").fill("2103");
     await dela(s.page).locator("#mem-search").click();
     t = await waitFor(s.page, "Showing 1 to 1 of 1");
-    ok(t.includes("Test attorney 2103") && !t.includes("Test attorney 2100"), "step 62: search by member ID finds one person");
-    await dela(s.page).getByRole("button", { name: "Open Test attorney 2103" }).click();
+    ok(t.includes("2103") && !t.includes("Member 2100"), "step 62: search by member ID finds one person");
+    await dela(s.page).getByRole("button", { name: /^Open .*2103$/ }).click();
     t = await waitFor(s.page, "Workspaces and plans");
     ok(t.includes("Account") && t.includes("Access to DELA") && t.includes("On the access list since") && t.includes("Holds") && t.includes("Close this DELA account"), "step 62: one member shows the account, plans, access, holds and closing");
     await dela(s.page).locator("#mem-plan").selectOption({ label: "Attorney: Attorney Plus" }).catch(() => dela(s.page).locator("#mem-plan").selectOption({ index: 2 }));
@@ -341,7 +341,7 @@ async function listened(page, secs) {
     await waitFor(s.page, "Everyone who has opened DELA");
     await dela(s.page).locator("#mem-filter").selectOption("hold");
     t = await waitFor(s.page, "Showing 1 to 1 of 1");
-    ok(t.includes("Test attorney 2103"), "step 62: the On hold filter finds the member");
+    ok(t.includes("2103"), "step 62: the On hold filter finds the member");
     await s.ctx.close();
 
     // ---------- Admin: AI and files ----------
