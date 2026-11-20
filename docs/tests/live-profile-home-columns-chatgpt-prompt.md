@@ -38,10 +38,10 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
 
 2. Go to: https://www.lawfecta.co/dela?tab=profile
    Find: the top of the page.
-   Expect: the heading "Your profile", under it the grey sentence "Edit what attorneys see. Save each section as you go.", and at the far right an outlined button "Preview profile".
-   Expect: under that, one grey line with a small tag ("Visible in Talent" or "Not yet visible in Talent"), then three short states separated by dots (they start "Profile details", "LinkedIn review" and "Availability"), then a link "View requirements".
-   Expect: under that, a row of tabs: "Public profile" (selected), "Matching & verification" and "Meeting schedule".
-   Expect: under the tabs, three things side by side. At the left a card with the small grey capitals "PROFILE SECTIONS" and six lines: "Basics", "Summary", "Services & skills", "Experience & education", "Work hours & agreement", "Contact details (optional)". In the middle a card headed "Basics" with a small tag "Required for matching" and the boxes "First name", "Last name" and "Headline". At the right two cards, "Visibility & publishing" and "Directory updates".
+   Expect: the heading "Your profile", under it the grey sentence "Edit what attorneys see. Save each section as you go.", and at the far right a white button with a dark red outline and a small eye, "Preview profile".
+   Expect: under that, one soft pink line with a small tag ("Visible in Talent" or "Not yet visible in Talent"), then three short states separated by dots (they start "Profile details", "LinkedIn review" and "Availability"), then a link "View requirements".
+   Expect: under that, a row of tabs: "Public profile" (selected: pink background, dark red bold words), "Matching & verification" and "Meeting schedule".
+   Expect: under the tabs, three things side by side. At the left a card with the small grey capitals "PROFILE SECTIONS" and six lines, each with a small sign in front, the first one on a pink background: "Basics", "Summary", "Services & skills", "Experience & education", "Work hours & agreement", "Contact details (optional)". In the middle a card headed "Basics" in large bold letters with a small pink tag "Required for matching" and the boxes "First name", "Last name" and "Headline". At the right two cards, "Visibility & publishing" and "Directory updates".
    Expect also: the boxes "Summary" and "City" are not on the screen, and neither is a card that starts "Match-ready".
 
 3. Find: the card "PROFILE SECTIONS" at the left.
@@ -50,7 +50,7 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
    Do: click "Next: Services & skills →".
    Expect: the middle card is headed "Services & skills" and holds a box "Task skills" with "Discovery, Client intake, E-filing". Do not type in it.
 
-4. Do: click the link "View requirements" in the grey line near the top.
+4. Do: click the link "View requirements" in the pink line near the top.
    Expect: the tab "Matching & verification" is now selected. The page shows a card whose heading starts "Match-ready:", a card "Your availability" and a card "LinkedIn check". The card "PROFILE SECTIONS" is not on the screen.
    Do: click the tab "Meeting schedule".
    Expect: a card "Your availability for meetings" with the days of the week.
@@ -108,7 +108,12 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
 11. Do: click the tab "Work samples".
    Expect: a card "Work samples" with a dark red button "Manage work samples" and the grey words "Choose shared samples in Profile documents." Above the button there is either the heading "No work samples added" or a list of file names. Do not click the button.
    Do: click the tab "Reviews (5)".
-   Expect: at the left, a card with "out of 5 · 5 reviews" and "Reviews from completed Lawfecta engagements.", and under it a card "Rating details" with four lines that each end "/5" and a line "Would hire again". At the right, the written reviews, each in its own card.
+   Expect: at the left, a card with a gold star and "4.7 out of 5 · 5 reviews", and under those words "Reviews from completed Lawfecta engagements." Under it a card "Rating details" with four lines that each end "/5" and a last line "Would hire again" that ends "80% (4 of 5 reviews)".
+   Expect: at the right, three review cards. Each starts with the reviewer's name in bold, then a grey line with a month and a practice area, then what they wrote, then a folded line "Category ratings". No row of stars shows until that line is opened. Under the three cards, a wide pink button "View all 5 reviews".
+   Do: click "Category ratings" in the first review card.
+   Expect: it opens to four lines with stars and a number such as "5/5", and a line "Would hire again" with "Yes" or "No".
+   Do: click "View all 5 reviews".
+   Expect: five review cards show and the pink button is gone.
 
 12. Put everything back.
    Do: click the tab "Services". Click "Edit service" on any row. In the second small card (the one for "QA test service"), click the red button "Remove". Then click "Save".
@@ -125,7 +130,7 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
 13. Do: click the small outlined button "← Back to the profile form" at the top left of the page.
    Expect: the Profile page is back, with the heading "Your profile" and the button "Preview profile".
 
-14. REVIEW. (a) On the Profile page: was it clear what each tab and each section is for, and whether attorneys can see the profile? (b) On the profile attorneys see: was the difference between "Edit profile" and "Preview as attorney" clear? (c) Was the formatting bar easy to understand, and did the text change look inside the box as expected? Does the profile look finished and appealing: are the pink band, the tags and the small signs all in place, with nothing overlapping? (d) Anything confusing, repeated or hard to read on these pages?
+14. REVIEW. (a) On the Profile page: was it clear what each tab and each section is for, and whether attorneys can see the profile? (b) On the profile attorneys see: was the difference between "Edit profile" and "Preview as attorney" clear? (c) Was the formatting bar easy to understand, and did the text change look inside the box as expected? Does the profile look finished and appealing: are the pink band, the tags and the small signs all in place, with nothing overlapping? (d) On the Reviews tab: is it easy to see the overall rating, who wrote each review and what they said? (e) Anything confusing, repeated or hard to read on these pages?
 
 Sign out: click the round button with your initials at the far right of the top bar, then click "Sign out".
 
