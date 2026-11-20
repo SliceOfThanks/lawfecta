@@ -244,6 +244,74 @@ Deno.test("step 61: the author approves their own document; other editors commen
   await pool.query("update library_roles set role = 'editor' where org_id = $1 and person_id = $2", [org, editor.id]);
 });
 
+Deno.test("step 73: team work with no gig. Assign, accept, do the steps, submit, review; each its own event", async () => {
+  const get = (path: string, m: { token: string }) => call("GET", path, m.token).then((r) => r.body);
+  const act = (m: { token: string }, body: Record<string, unknown>) => call("POST", "/team-work/act", m.token, body).then((r) => r.body);
+  assertEquals((await get("/team-work", owner)).on, false, "off until the switch is on");
+  assertEquals((await call("POST", "/team-work/assign", owner.token, { playbook_id: pb, assignee: editor.id, request_id: "t0" })).body.reason, "feature_off");
+  await pool.query("update feature_switches set state = 'everyone' where key = 'team_assignments'");
+  try {
+    // Who can be assigned, and the steps to choose from
+    const form = await get("/team-work/steps?playbook=" + pb, owner);
+    assertEquals([form.on, form.can_assign, form.people.map((x: any) => x.person_id), form.steps.length >= 3], [true, true, [editor.id], true], JSON.stringify(form).slice(0, 300));
+    assertEquals((await get("/team-work/steps?playbook=" + pb, outsider)).reason, "not_found", "another firm cannot even list the steps");
+    const assign = (m: { token: string }, body: Record<string, unknown>) => call("POST", "/team-work/assign", m.token, { playbook_id: pb, ...body }).then((r) => r.body);
+    assertEquals((await assign(outsider, { assignee: editor.id, request_id: "t1" })).reason, "not_found");
+    assertEquals((await assign(owner, { assignee: outsider.id, request_id: "t1" })).reason, "not_on_team", "only people on this Library's team");
+    assertEquals((await assign(owner, { assignee: owner.id, request_id: "t1" })).reason, "not_on_team", "not to yourself");
+    const a = await assign(owner, { assignee: editor.id, steps: [3, 2, 2], due_date: "2026-12-01", note: "Use the new intake form.", request_id: "t2" });
+    assertEquals(a.ok, true, JSON.stringify(a));
+    assertEquals((await assign(owner, { assignee: editor.id, steps: [2, 3], request_id: "t2" })).duplicate, true, "a second click assigns once");
+    assert((await pool.query("select 1 from notifications where person_id = $1 and title = 'Work was assigned to you'", [editor.id])).rowCount, "the person is told");
+    // The person assigned sees it, with their steps only and what they build on
+    const mine = await get("/team-work", editor);
+    assertEquals([mine.mine.length, mine.mine[0].status, mine.mine[0].step_nos, mine.given.length], [1, "assigned", [2, 3], 0]);
+    assertEquals((await get("/team-work", owner)).given.map((x: any) => [x.status, x.assignee.person_id]), [["assigned", editor.id]]);
+    let one = await get("/team-work/one?id=" + a.id, editor);
+    assertEquals([one.role, one.part.steps.map((s: any) => s.no), one.part.prereqs.map((q: any) => q.no), one.part.whole, one.assignment.note, "body" in one], ["assignee", [2, 3], [1], false, "Use the new intake form.", false]);
+    assertEquals((await get("/team-work/one?id=" + a.id, outsider)).reason, "not_found");
+    assertEquals((await get("/team-work/one?id=" + a.id, fl)).reason, "not_found", "a freelancer has no part in it");
+    // Accepting is the assigned person's own act; nothing else moves before it
+    assertEquals((await act(owner, { id: a.id, action: "accept" })).reason, "assignee_only", "the person who assigned cannot accept for them");
+    assertEquals((await act(editor, { id: a.id, action: "step", step: 2 })).reason, "not_now");
+    assertEquals((await act(editor, { id: a.id, action: "submit" })).reason, "not_now");
+    assertEquals((await act(editor, { id: a.id, action: "decline" })).reason, "note_needed");
+    assertEquals((await act(editor, { id: a.id, action: "accept" })).status, "accepted");
+    assertEquals((await act(editor, { id: a.id, action: "accept" })).duplicate, true);
+    // Steps: only their own, ticked and unticked
+    assertEquals((await act(editor, { id: a.id, action: "step", step: 1 })).reason, "not_your_step");
+    assertEquals((await act(owner, { id: a.id, action: "step", step: 2 })).reason, "assignee_only");
+    await act(editor, { id: a.id, action: "step", step: 2 }); await act(editor, { id: a.id, action: "step", step: 2 }); await act(editor, { id: a.id, action: "step", step: 3 });
+    await act(editor, { id: a.id, action: "unstep", step: 3 });
+    assertEquals((await get("/team-work/one?id=" + a.id, owner)).done, [2]);
+    // A note either way, then submit; submitted is not accepted
+    assertEquals((await act(editor, { id: a.id, action: "note", note: "Which folder does the form go in?" })).ok, true);
+    assertEquals((await act(owner, { id: a.id, action: "approve" })).reason, "not_submitted");
+    assertEquals((await act(editor, { id: a.id, action: "submit", note: "Done except the filing." })).status, "submitted");
+    assertEquals((await act(editor, { id: a.id, action: "approve" })).reason, "assigner_only", "the person who did the work cannot accept it");
+    assertEquals((await act(owner, { id: a.id, action: "changes" })).reason, "note_needed");
+    assertEquals((await act(owner, { id: a.id, action: "changes", note: "Please file it too." })).status, "changes_requested");
+    assertEquals((await act(editor, { id: a.id, action: "submit" })).status, "submitted");
+    assertEquals((await act(owner, { id: a.id, action: "approve", note: "Thank you." })).status, "done");
+    assertEquals((await act(owner, { id: a.id, action: "approve" })).duplicate, true);
+    assertEquals((await act(owner, { id: a.id, action: "cancel" })).reason, "not_now", "finished work is not canceled");
+    one = await get("/team-work/one?id=" + a.id, editor);
+    assertEquals(one.events.map((e: any) => e.action), ["assigned", "accepted", "note", "submitted", "changes_requested", "submitted", "approved"], "every change is its own event, in order");
+    let kept = false;
+    try { await pool.query("delete from team_assignment_events where assignment_id = $1", [a.id]); } catch { kept = true; }
+    assert(kept, "the record of what happened cannot be deleted");
+    // Cancel and decline end an open assignment
+    const b = await assign(owner, { assignee: editor.id, request_id: "t3" });
+    assertEquals((await get("/team-work/one?id=" + b.id, editor)).part.whole, true, "no steps chosen means every step");
+    assertEquals((await act(editor, { id: b.id, action: "decline", note: "I am out next week." })).status, "declined");
+    const c = await assign(owner, { assignee: editor.id, request_id: "t4" });
+    assertEquals((await act(owner, { id: c.id, action: "cancel", note: "Handled it myself." })).status, "canceled");
+    assertEquals((await act(editor, { id: c.id, action: "accept" })).reason, "not_now");
+    // The assigned version stays the one that was approved then
+    assertEquals((await get("/team-work/one?id=" + a.id, editor)).assignment.version, (await pool.query("select playbook_version v from team_assignments where id = $1", [a.id])).rows[0].v);
+  } finally { await pool.query("update feature_switches set state = 'off' where key = 'team_assignments'"); }
+});
+
 Deno.test("Home counts the draft playbooks (Stacey's test 2026-11-05: Home showed 0)", async () => {
   const drafts = (await pool.query("select count(*)::int n from playbooks where org_id = $1 and status in ('draft', 'in_review')", [org])).rows[0].n;
   assert(drafts > 0);

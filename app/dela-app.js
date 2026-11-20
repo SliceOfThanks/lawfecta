@@ -56,6 +56,7 @@
       a.push(["notices", "Notifications", "◔"]);
       if (sw.meetings) a.push(["meetings", "Meetings", "◷"]);
       if (sw.guided_setup) a.push(["setup", "Get set up", "✓"]);
+      if (sw.team_assignments) a.push(["teamwork", "Team work", "☑"]);
       if (sw.community) a.push(["community", "Community", "❝"]);
       if ((me.staff || []).length) a.push(["members", "Members", "◍"]);
       return a;
@@ -252,7 +253,7 @@
     });
     return svg;
   }
-  var ICON_FOR = { home: "home", delegate: "ask", ask: "ask", library: "library", files: "files", projects: "projects", talent: "talent", setup: "check", profile: "profile", work: "work", earnings: "earnings", agency: "agency", members: "agency", community: "inbox", ai: "settings", help: "help", subscription: "plan", meetings: "meet", notices: "bell" };
+  var ICON_FOR = { home: "home", delegate: "ask", ask: "ask", library: "library", files: "files", projects: "projects", talent: "talent", setup: "check", profile: "profile", work: "work", earnings: "earnings", agency: "agency", members: "agency", community: "inbox", teamwork: "check", ai: "settings", help: "help", subscription: "plan", meetings: "meet", notices: "bell" };
   var PAGE_NAMES = { subscription: "Subscription", inbox: "Inbox", meetings: "Meetings", usage: "Usage", connect: "Connect", record: "Record a process", ai: "Settings", help: "Help", profile: "Profile" };
   var WORKSPACE = { attorney: "Attorney workspace", freelancer: "Freelancer workspace" };
   // "Get set up" leaves the attorney's menu once it is finished or dismissed (Stacey 2026-11-11); it stays reachable from Help
@@ -268,7 +269,7 @@
       api.get("/setup").then(function (r) { if (r && (r.finished || r.dismissed)) { setupDone = true; if (tab !== "setup") draw(); } }).catch(function () {});
     }
     var main = att ? pick(["home", "projects", "delegate", "library"]) : pick(["home", "work", "ask", "earnings"]);
-    var second = att ? pick(["talent", "notices", "meetings", "files"].concat(setupDone ? [] : ["setup"]).concat(["community", "members"])) : pick(["notices", "meetings", "library", "projects", "talent", "community", "members"]);
+    var second = att ? pick(["talent", "notices", "meetings", "files"].concat(setupDone ? [] : ["setup"]).concat(["teamwork", "community", "members"])) : pick(["notices", "meetings", "library", "projects", "talent", "community", "members"]);
     while (main.length < 4 && second.length) main.push(second.shift());
     var account = [];
     if (sw.profiles) account.push(["profile", "Profile"]);
@@ -7305,6 +7306,149 @@
     }).catch(function (e) { D.clear(el); el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: function () { mem.bd = null; draw(); } }, "← Members"))); el.appendChild(h("p", { class: "notice", text: MEM_ERR[e && e.reason] || "This member could not be opened." })); });
   }
 
+  // ---------- Step 73: Team work (Stacey 2026-11-20): an approved document assigned to someone on the firm's own team, with no gig ----------
+  var team = { id: null, assign: null };
+  var TEAM_STATUS = { assigned: ["Waiting for them to accept", "held"], accepted: ["Accepted, in progress", "ready"], submitted: ["Submitted, waiting for review", "held"], changes_requested: ["Changes requested", "held"],
+    done: ["Accepted. Done", "ready"], declined: ["Declined", "bad"], canceled: ["Canceled", ""] };
+  var TEAM_MINE = { assigned: "Waiting for you to accept", submitted: "Submitted, waiting for their review", changes_requested: "Changes requested from you" };
+  var TEAM_EVENT = { assigned: "Assigned", accepted: "Accepted the work", declined: "Declined", note: "Note", submitted: "Submitted for review", changes_requested: "Asked for changes", approved: "Accepted the result", canceled: "Canceled" };
+  var TEAM_ERR = { feature_off: "Team work is not open for your account yet.", not_found: "That is not there, or it is not yours to see.", not_allowed: "Only an editor or the administrator of this Library can assign work.",
+    playbook_not_approved: "Only an approved document can be assigned.", not_on_team: "Choose someone on this Library's team. Add people under Library, then \"Team\".", too_many_open: "Your firm has too many open assignments. Finish or cancel some first.",
+    note_needed: "Write a short note first.", assignee_only: "Only the person the work is assigned to can do that.", assigner_only: "Only the person who assigned the work, or the administrator, can do that.",
+    not_now: "That step is not open right now. Reload the page to see where it stands.", not_submitted: "The work has not been submitted yet.", not_your_step: "That step is not part of this assignment.", on_hold: "Some actions are paused on your account. Contact the Lawfecta Team.",
+    sensitive_data: "That looks like sensitive data (an SSN, an account number, a password). Take it out first.", looks_like_client_info: "That may include client information. Take it out, then try again." };
+  function teamOk(r) { if (!r || r.ok === false) { var e = new Error((r && r.reason) || "no"); e.reason = r && r.reason; e.note = r && r.message; throw e; } return r; }
+  function teamFail(e) { D.toast(app, (e && e.note) || TEAM_ERR[e && (e.reason || e.message)] || "That did not work. Try again.", true); }
+  function teamTag(a) { var w = TEAM_STATUS[a.status] || [a.status, ""]; return h("span", { class: "badge " + w[1], text: a.mine && TEAM_MINE[a.status] ? TEAM_MINE[a.status] : w[0] }); }
+  function teamStepsText(a) { return a.step_nos ? "Steps " + numList(a.step_nos) : "Every step"; }
+  function teamworkView() {
+    var el = h("div", { id: "teamwork-page" }, h("h1", { text: "Team work" }), h("p", { class: "muted", text: "Loading..." }));
+    if (team.id) { teamOne(el); return el; }
+    api.get("/team-work").then(function (v) {
+      D.clear(el);
+      el.appendChild(h("h1", { text: "Team work" }));
+      if (!v || !v.on) { el.appendChild(h("p", { class: "notice", text: "Team work is not open for your account yet." })); return; }
+      el.appendChild(h("p", { class: "muted", style: "margin-top:0", text: "Work from your firm's approved documents, assigned to people on your own team. No gig, no agreement and no payment. To assign something, open an approved document in the Library and choose \"Assign to your team\"." }));
+      var list = function (title, id, rows, empty, who) {
+        var c = h("section", { class: "card", id: id }, h("h2", { style: "margin-top:0", text: title + " (" + rows.length + ")" }));
+        if (!rows.length) c.appendChild(h("p", { class: "muted", style: "margin:0", text: empty }));
+        rows.forEach(function (a) {
+          c.appendChild(h("div", { class: "row", style: "padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;gap:6px" },
+            h("div", { class: "grow" }, h("button", { class: "linkish", type: "button", style: "font-weight:700;text-align:left", onclick: function () { team.id = a.id; draw(); } }, a.title),
+              h("div", { class: "small muted", text: who(a) + " | " + teamStepsText(a) + (a.due_date ? " | due " + D.date(a.due_date) : " | no due date") })),
+            teamTag(a)));
+        });
+        el.appendChild(c);
+      };
+      list("Assigned to you", "tw-mine", v.mine || [], "Nothing is assigned to you.", function (a) { return "From " + a.assigned_by.name; });
+      list("Assigned by you or your firm", "tw-given", v.given || [], "Nothing assigned yet. Open an approved document in the Library and choose \"Assign to your team\".", function (a) { return "To " + a.assignee.name; });
+    }).catch(function () { D.clear(el); el.appendChild(h("h1", { text: "Team work" })); el.appendChild(h("p", { class: "notice bad", text: "Team work could not load just now. Reload the page." })); });
+    return el;
+  }
+  function teamOne(el) {
+    api.get("/team-work/one?id=" + team.id).then(teamOk).then(function (r) {
+      var a = r.assignment, mine = r.role === "assignee", st = a.status, done = r.done || [];
+      var act = function (body, msg) { return api.post("/team-work/act", Object.assign({ id: a.id }, body)).then(teamOk).then(function () { draw(); if (msg) D.toast(app, msg); }).catch(teamFail); };
+      D.clear(el);
+      el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", id: "tw-back", onclick: function () { team.id = null; draw(); } }, "← Team work")));
+      el.appendChild(h("div", { class: "row", style: "margin:8px 0 4px;flex-wrap:wrap;gap:8px" }, h("h1", { class: "grow", style: "margin:0", text: a.title }), teamTag(a)));
+      // The facts, each on its own
+      el.appendChild(h("div", { class: "card", id: "tw-facts" }, h("div", { class: "kv" },
+        h("div", null, mine ? "Assigned by" : "Assigned to", h("b", { style: "font-size:15px", text: mine ? a.assigned_by.name : a.assignee.name })),
+        h("div", null, "Steps", h("b", { style: "font-size:15px", text: (r.part.whole ? "Every step: " : "Steps " + numList(a.step_nos) + ": ") + r.part.steps.length + " of the document's " + r.part.of })),
+        h("div", null, "Due", h("b", { style: "font-size:15px", text: a.due_date ? D.date(a.due_date) : "No date set" })),
+        h("div", null, "Progress", h("b", { style: "font-size:15px", text: done.length + " of " + r.part.steps.length + " steps ticked" }))),
+        a.note ? h("p", { id: "tw-note", style: "margin:10px 0 0" }, h("b", { text: "Note from " + a.assigned_by.name + ": " }), a.note) : null,
+        r.newer_version ? h("p", { class: "small muted", style: "margin:8px 0 0", text: "This work follows version " + a.version + " of the document, the one approved when it was assigned. A newer version has been approved since." }) : null));
+      // What to do next, by who is looking and where it stands
+      var next = h("div", { class: "card", id: "tw-next" }), note = h("textarea", { id: "tw-note-box", "aria-label": "Note", rows: "2", maxlength: "2000", style: "width:100%" });
+      var btn = function (label, cls, fn, id) { var b = h("button", { class: cls + " small", type: "button", id: id }, label); b.addEventListener("click", fn); return b; };
+      if (mine && st === "assigned") {
+        next.appendChild(h("h2", { style: "margin-top:0", text: "Can you take this?" }));
+        next.appendChild(h("p", { text: "Read the steps below. Accept if you can do it. If you cannot, decline with a short note, or write a note with your question first." }));
+        next.appendChild(note);
+        next.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, btn("Accept the work", "blue", function () { act({ action: "accept", note: note.value }, "Accepted. Tick each step as you finish it."); }, "tw-accept"),
+          btn("Decline", "ghost", function () { act({ action: "decline", note: note.value }, "Declined. " + a.assigned_by.name + " was told."); }, "tw-decline"),
+          btn("Send a note only", "ghost", function () { act({ action: "note", note: note.value }, "Note sent."); }, "tw-note-send")));
+      } else if (mine && (st === "accepted" || st === "changes_requested")) {
+        next.appendChild(h("h2", { style: "margin-top:0", text: st === "changes_requested" ? "Changes were requested" : "Do the steps, then submit" }));
+        next.appendChild(h("p", { text: "Tick each step below as you finish it. When the work is ready, submit it for review. A note is optional." + (done.length < r.part.steps.length ? " " + (r.part.steps.length - done.length) + " of your steps are not ticked yet." : "") }));
+        next.appendChild(note);
+        next.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, btn("Submit for review", "blue", function () { act({ action: "submit", note: note.value }, "Submitted. " + a.assigned_by.name + " was told."); }, "tw-submit"),
+          btn("Send a note only", "ghost", function () { act({ action: "note", note: note.value }, "Note sent."); }, "tw-note-send")));
+      } else if (!mine && st === "submitted") {
+        next.appendChild(h("h2", { style: "margin-top:0", text: "Review the work" }));
+        next.appendChild(h("p", { text: a.assignee.name + " submitted this. Accept it, or ask for changes with a note that says what to change." }));
+        next.appendChild(note);
+        next.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, btn("Accept the work", "blue", function () { act({ action: "approve", note: note.value }, "Accepted. " + a.assignee.name + " was told."); }, "tw-approve"),
+          btn("Request changes", "ghost", function () { act({ action: "changes", note: note.value }, "Sent back with your note."); }, "tw-changes")));
+      } else {
+        next.appendChild(h("h2", { style: "margin-top:0", text: st === "done" ? "Done" : st === "declined" ? "Declined" : st === "canceled" ? "Canceled" : mine ? "Waiting for review" : "Waiting for " + a.assignee.name }));
+        next.appendChild(h("p", { text: st === "done" ? "The work was accepted." : st === "declined" ? "The work was declined. Assign it again from the document if it is still needed." : st === "canceled" ? "This assignment was canceled."
+          : mine ? a.assigned_by.name + " will accept it or ask for changes." : st === "assigned" ? a.assignee.name + " has not accepted yet. Only they can accept." : a.assignee.name + " is doing the work." }));
+        if (st !== "done" && st !== "declined" && st !== "canceled") {
+          next.appendChild(note);
+          next.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, btn("Send a note", "ghost", function () { act({ action: "note", note: note.value }, "Note sent."); }, "tw-note-send"),
+            !mine ? btn("Cancel the assignment", "ghost", function () { act({ action: "cancel", note: note.value }, "Canceled. " + a.assignee.name + " was told."); }, "tw-cancel") : null));
+        }
+      }
+      el.appendChild(next);
+      // What the person builds on, then the steps
+      var can = mine && (st === "accepted" || st === "changes_requested");
+      var steps = h("div", { class: "card", id: "tw-steps" }, h("h2", { style: "margin-top:0", text: "The steps" }));
+      (r.part.prereqs || []).forEach(function (q) { steps.appendChild(h("p", { class: "notice", role: "note" }, h("b", { text: "Step " + (q.no + 1) + " builds on step " + q.no + ", which is not part of this assignment. " }), "Step " + q.no + ": \"" + q.text + "\". Ask " + (mine ? a.assigned_by.name : "who does it") + " where its result is if you do not have it.")); });
+      if (r.doc && r.doc.purpose) steps.appendChild(h("p", null, h("b", { text: "Purpose: " }), r.doc.purpose));
+      if (r.doc && (r.doc.before_you_start || []).length) steps.appendChild(h("div", null, h("b", { text: "Before you start" }), h("ul", { style: "margin:4px 0 8px" }, r.doc.before_you_start.map(function (x) { return h("li", { text: x }); }))));
+      r.part.steps.forEach(function (s) {
+        var cb = h("input", { type: "checkbox", id: "tw-step-" + s.no, checked: done.indexOf(s.no) >= 0, disabled: !can, "aria-label": "Step " + s.no + " is done" });
+        cb.addEventListener("change", function () { cb.disabled = true; api.post("/team-work/act", { id: a.id, action: cb.checked ? "step" : "unstep", step: s.no }).then(teamOk).then(function () { draw(); }).catch(function (e) { cb.checked = !cb.checked; cb.disabled = false; teamFail(e); }); });
+        steps.appendChild(h("div", { class: "row", style: "align-items:flex-start;gap:8px;padding:8px 0;border-top:1px solid var(--line)" }, cb,
+          h("label", { for: "tw-step-" + s.no, class: "grow", style: "font-weight:400;margin:0" }, h("b", { text: s.no + ". " }), s.text,
+            h("div", { class: "small muted", text: [s.role && "Role: " + s.role, s.system && "System: " + s.system, s.menu_path && "Where: " + s.menu_path, s.minutes && "About " + s.minutes + " min"].filter(Boolean).join(" | ") }),
+            s.attorney_decides ? h("div", { class: "small", style: "color:var(--brand);font-weight:700", text: "Attorney decides: ask the attorney before you go on." }) : null)));
+      });
+      if (r.doc && r.doc.done_when) steps.appendChild(h("p", { style: "margin:10px 0 0" }, h("b", { text: "Done when: " }), r.doc.done_when));
+      el.appendChild(steps);
+      el.appendChild(h("div", { class: "card", id: "tw-events" }, h("h2", { style: "margin-top:0", text: "What happened" }), h("ul", { style: "margin:0;padding-left:18px" }, (r.events || []).map(function (e) {
+        return h("li", { class: "small", style: "margin:4px 0" }, h("b", { text: (TEAM_EVENT[e.action] || e.action) + ": " }), (e.mine ? "you" : e.by) + ", " + D.dateTime(e.at) + (e.note ? ". \"" + e.note + "\"" : ""));
+      }))));
+    }).catch(function (e) { D.clear(el); el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: function () { team.id = null; draw(); } }, "← Team work"))); el.appendChild(h("p", { class: "notice", text: TEAM_ERR[e && e.reason] || "This assignment could not be opened." })); });
+  }
+  // On an approved document: assign it, or some of its steps, to someone on the Library's team
+  function teamAssignCard(P) {
+    var card = h("div", { class: "card", id: "tw-assign" }, h("h2", { style: "margin-top:0", text: "Assign to your team" }), h("p", { class: "muted", text: "Loading..." }));
+    api.get("/team-work/steps?playbook=" + P.id).then(teamOk).then(function (x) {
+      D.clear(card);
+      card.appendChild(h("h2", { style: "margin-top:0", text: "Assign to your team" }));
+      if (!x.can_assign) { card.appendChild(h("p", { class: "muted", style: "margin:0", text: "Only an editor or the administrator of this Library can assign work." })); return; }
+      if (!x.people.length) { card.appendChild(h("p", { class: "muted", style: "margin:0", text: "Nobody else is on this Library's team yet. Add people under Library, then \"Team\", and come back." })); return; }
+      card.appendChild(h("p", { class: "small muted", style: "margin-top:0", text: "For work your own team does: no gig, no agreement, no payment. The person accepts it themselves, ticks the steps and submits; you accept the result or ask for changes. It follows version " + x.version + ", the approved one." }));
+      var who = h("select", { id: "tw-who", "aria-label": "Assign to" }, [h("option", { value: "", text: "Choose a person" })].concat(x.people.map(function (p) { return h("option", { value: p.person_id, text: p.name + " (" + (ROLE_WORDS[p.role] || p.role) + ")" }); })));
+      var due = h("input", { type: "date", id: "tw-due", "aria-label": "Due date" });
+      var note = h("textarea", { id: "tw-assign-note", "aria-label": "Note for them", rows: "2", maxlength: "2000", style: "width:100%", placeholder: "Anything they should know. No passwords." });
+      var boxes = x.steps.map(function (st) { var cb = h("input", { type: "checkbox", id: "tw-pick-" + st.no, checked: true }); return [st, cb]; });
+      var err = h("p", { class: "gs-err", role: "alert", hidden: true }), req = newId();
+      var go = h("button", { class: "blue small", type: "button", id: "tw-assign-go" }, "Assign");
+      go.addEventListener("click", function () {
+        var nos = boxes.filter(function (b) { return b[1].checked; }).map(function (b) { return b[0].no; });
+        err.hidden = true;
+        if (!who.value) { err.hidden = false; err.textContent = "Choose who to assign it to."; return; }
+        if (!nos.length) { err.hidden = false; err.textContent = "Choose at least one step."; return; }
+        go.disabled = true;
+        api.post("/team-work/assign", { playbook_id: P.id, assignee: who.value, steps: nos.length === boxes.length ? [] : nos, due_date: due.value, note: note.value, request_id: req }).then(teamOk).then(function (y) {
+          team.id = y.id; tab = "teamwork"; draw(); window.scrollTo(0, 0); D.toast(app, "Assigned. They were told, and only they can accept it.");
+        }).catch(function (e) { go.disabled = false; err.hidden = false; err.textContent = (e && e.note) || TEAM_ERR[e && e.reason] || "That could not be assigned. Try again."; });
+      });
+      card.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, field("Assign to", who), field("Due date (optional)", due)));
+      card.appendChild(h("fieldset", { class: "ho-checks", id: "tw-picks" }, h("legend", { text: "Which steps?" }), boxes.map(function (b) {
+        return h("div", { class: "ho-check" }, b[1], h("label", { for: "tw-pick-" + b[0].no, style: "font-weight:400;margin:0" }, h("b", { text: b[0].no + ". " }), b[0].text, b[0].attorney_decides ? h("span", { class: "small muted", text: " Attorney decides." }) : null));
+      })));
+      card.appendChild(field("Note for them (optional)", note));
+      card.appendChild(err); card.appendChild(h("div", { class: "row", style: "margin-top:6px" }, go));
+    }).catch(function (e) { D.clear(card); card.appendChild(h("h2", { style: "margin-top:0", text: "Assign to your team" })); card.appendChild(h("p", { class: "notice", text: TEAM_ERR[e && e.reason] || "This could not load just now." })); });
+    return card;
+  }
+
   // ---------- Step 69: Community (Stacey 2026-11-20): discussions inside DELA, by audience ----------
   var com = { board: null, topic: null, offset: 0 };
   var COM_ERR = { not_found: "That is not there any more, or this board is not open to you.", title_needed: "Write a title of 3 to 160 letters.", text_needed: "Write your message first (up to 6,000 letters).",
@@ -12833,6 +12977,13 @@
     lib.docNotices = [];
     // Step 4d: the hint card above an approved SOP, Workflow or Playbook (it removes itself when the switch is off)
     if ((me.switches || {}).automate_delegate && P.approved_version && d.type !== "policy") libEl.appendChild(automateCard(P.id));
+    // Step 73: hand this document to someone on your own team
+    if ((me.switches || {}).team_assignments && me.side === "attorney" && P.approved_version && (d.type === "sop" || d.type === "workflow") && can(3)) {
+      var twOpen = h("button", { class: "ghost small", type: "button", id: "tw-assign-open" }, "Assign to your team");
+      var twHost = h("div", { id: "tw-assign-host" }, h("div", { class: "card" }, h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" }, h("span", { class: "grow" }, h("b", { text: "Work for your own team. " }), h("span", { class: "small muted", text: "No gig, no agreement, no payment." })), twOpen)));
+      twOpen.addEventListener("click", function () { D.clear(twHost); twHost.appendChild(teamAssignCard(P)); });
+      libEl.appendChild(twHost);
+    }
     // Step 70: the kind of work this document describes; a gig made from it starts with these categories
     if ((me.switches || {}).gig_categories && (d.type === "sop" || d.type === "workflow") && lib.view !== "approved") {
       var docCats = (lib.pb.categories || []).slice(), catNote = h("span", { class: "small muted", role: "status" });
@@ -13977,6 +14128,7 @@
     else if (tab === "notices" && me.side) main.appendChild(noticesView());
     else if (tab === "members" && (me.staff || []).length) main.appendChild(membersView());
     else if (tab === "community" && me.side && (me.switches || {}).community) main.appendChild(communityView());
+    else if (tab === "teamwork" && me.side === "attorney" && (me.switches || {}).team_assignments) main.appendChild(teamworkView());
     else if (wrongSideTab(tab)) main.appendChild(wrongSideView(tab));
     else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1] + (me.side === "attorney" && (tab === "projects" || tab === "talent") && (sideInfo() || {}).verification_state !== "verified" ? " Posting work and hiring need a verified license: open Profile and verification from your account menu." : "")));
     else { tab = "home"; main.appendChild(NL() ? homeDash() : me.side === "attorney" ? attorneyHome() : freelancerHome()); }
@@ -14632,6 +14784,8 @@
     // A document link from a notice or a test (dela?tab=library&pb=ID) opens that document
     var wantPerson = new URLSearchParams(location.search).get("person");
     if (tab === "talent" && wantPerson && /^[0-9a-f-]{36}$/.test(wantPerson)) talentPerson = wantPerson;
+    var wantTeam = new URLSearchParams(location.search).get("assignment");
+    if (tab === "teamwork" && wantTeam && /^[0-9a-f-]{36}$/.test(wantTeam)) team.id = wantTeam;
     var wantPb = new URLSearchParams(location.search).get("pb");
     if (tab === "library" && wantPb && /^[0-9a-f-]{36}$/.test(wantPb)) { lib.pb = { playbook: { id: wantPb } }; lib.view = "read"; }
   } catch (e) { /* older browsers open Home */ }

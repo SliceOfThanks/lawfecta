@@ -3107,6 +3107,58 @@ async function freelancerProfile(ctx: Ctx) {
     ...(arts ? { articles: arts.list, articles_ok: arts.ok, articles_write: String(r.person_id) === s.person_id ? await setting(ctx, "bd.articles_write_path", "") : "" } : {}) });
 }
 
+// ---------- Step 73: team work, with no gig ----------
+// An editor or the administrator of a Library assigns an approved document, or some of its steps, to a person on that
+// Library's team. The steps come from the version that was approved when it was assigned, cut here to the chosen ones.
+function teamSteps(raw: unknown, nos: number[] | null) {
+  const all = (isDoc(raw)
+    ? normalizeDoc(raw).steps.map((st) => ({ text: st.text, role: st.role, system: st.system, menu_path: st.menu_path, minutes: st.minutes, attorney_decides: st.attorney_decides }))
+    : normalize(raw).steps.map((st) => ({ text: st.text, role: st.who, system: st.tool, menu_path: "", minutes: st.minutes, attorney_decides: st.tag === "keep" })))
+    .map((st, i) => ({ no: i + 1, ...st })).filter((st) => st.text);
+  const picked = nos && nos.length ? all.filter((x) => nos.includes(x.no)) : all;
+  const have = new Set(picked.map((x) => x.no));
+  // The step right before a run of assigned steps, when it is not assigned too: the person starts from its result
+  const prereqs = picked.filter((x) => x.no > 1 && !have.has(x.no - 1) && all.some((y) => y.no === x.no - 1)).map((x) => ({ no: x.no - 1, text: all.find((y) => y.no === x.no - 1)!.text }));
+  return { of: all.length, steps: picked, whole: picked.length === all.length, prereqs, all };
+}
+async function teamOne(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const r = await rpc<Record<string, any>>(ctx, "dela_team_get", { p_person: s.person_id, p_id: need(uuid(ctx.url.searchParams.get("id"))) });
+  if (!r?.ok) return json(ctx, r);
+  const part = teamSteps(r.body, Array.isArray(r.assignment?.step_nos) ? r.assignment.step_nos : null);
+  const doc = isDoc(r.body) ? normalizeDoc(r.body) : null;
+  delete r.body;
+  return json(ctx, { ...r, part: { of: part.of, whole: part.whole, steps: part.steps, prereqs: part.prereqs },
+    doc: doc ? { purpose: doc.purpose, before_you_start: doc.before_you_start, done_when: doc.done_when, quality_check: doc.quality_check, timing: doc.timing } : null,
+    newer_version: Number(r.current_version) > Number(r.assignment?.version) });
+}
+async function teamSteps_(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const pbId = need(uuid(ctx.url.searchParams.get("playbook")));
+  const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: pbId });
+  if (!cur?.ok) return json(ctx, cur);
+  if (!cur.playbook.approved_version) return json(ctx, { ok: false, reason: "playbook_not_approved" });
+  const approved = await rpc<Record<string, any>>(ctx, "dela_pb_version", { p_person: s.person_id, p_id: pbId, p_version: cur.playbook.approved_version }).catch(() => null);
+  const part = teamSteps(approved?.body ?? cur.body, null);
+  const people = await rpc<Record<string, any>>(ctx, "dela_team_people", { p_person: s.person_id, p_org: cur.playbook.org_id });
+  return json(ctx, { ok: true, on: people?.on === true, can_assign: people?.can_assign === true, people: people?.people ?? [], title: cur.playbook.title, version: cur.playbook.approved_version,
+    steps: part.all.map((st) => ({ no: st.no, text: st.text, role: st.role, attorney_decides: st.attorney_decides })) });
+}
+async function teamAssign(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const note = str(ctx.body.note, 2000).trim();
+  if (note) { const w = await sensitive(ctx, s, note, "internal"); if (w) return json(ctx, w); }
+  const nos = (Array.isArray(ctx.body.steps) ? ctx.body.steps as unknown[] : []).map((n) => Number(n)).filter((n) => Number.isInteger(n) && n > 0).slice(0, 200);
+  return json(ctx, await rpc(ctx, "dela_team_assign", { p_person: s.person_id, p: { playbook_id: need(uuid(ctx.body.playbook_id)), assignee: need(uuid(ctx.body.assignee)), step_nos: nos.length ? nos : null,
+    due_date: str(ctx.body.due_date, 10), note, request_id: need(str(ctx.body.request_id, 80)) } }));
+}
+async function teamAct(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const note = str(ctx.body.note, 2000).trim();
+  if (note) { const w = await sensitive(ctx, s, note, "internal"); if (w) return json(ctx, w); }
+  return json(ctx, await rpc(ctx, "dela_team_act", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)), p_action: need(str(ctx.body.action, 20)), p_note: note, p_step: int(ctx.body.step) }));
+}
+
 // ---------- Step 69: community ----------
 // Discussions live inside DELA, so the boards' audiences, the short names and the contact rule all hold. Every post is
 // cleaned of contact details before it is saved, for everyone, and checked for sensitive data like any public text.
@@ -6182,6 +6234,11 @@ async function handleInner(req: Request, deps: Deps): Promise<Response> {
         p_ids: Array.isArray(ctx.body.ids) ? ctx.body.ids.map((x: unknown) => str(x, 40)).slice(0, 500) : [], p_action: str(ctx.body.action, 12) })); }
       case "GET /ai": return await aiState(ctx);
       case "POST /ai/mode": return await aiMode(ctx);
+      case "GET /team-work": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_team_list", { p_person: s.person_id })); }
+      case "GET /team-work/one": return await teamOne(ctx);
+      case "GET /team-work/steps": return await teamSteps_(ctx);
+      case "POST /team-work/assign": return await teamAssign(ctx);
+      case "POST /team-work/act": return await teamAct(ctx);
       case "GET /community": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_community_boards", { p_person: s.person_id, p_side: s.side })); }
       case "GET /community/topics": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_community_topics", { p_person: s.person_id, p_side: s.side, p_board: str(ctx.url.searchParams.get("board"), 20), p_offset: int(ctx.url.searchParams.get("offset")) ?? 0 })); }
       case "GET /community/topic": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_community_topic", { p_person: s.person_id, p_side: s.side, p_topic: need(uuid(ctx.url.searchParams.get("id"))) })); }

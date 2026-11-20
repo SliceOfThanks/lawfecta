@@ -297,6 +297,61 @@ async function makeMember(bd, side, plan) {
       } else ok((await text(p)).includes("Approved version"), "step 70: on the approved view the card is not shown (it is on the draft and the other tabs)");
       await s.ctx.close();
     } finally { await sql("update feature_switches set state = 'off' where key = 'gig_categories'; select 1"); }
+    // ---------- Step 73: team work with no gig. The owner assigns part of a document; the colleague accepts, ticks, submits; the owner accepts ----------
+    await makeMember(3601, "attorney", "att_free");
+    const teamAdd = await sql(`select dela_pb_team_set((select id from people where bd_member_id = 3600), (select org_id from playbooks where id = '${pbId}'), 3601, 'editor') r`);
+    ok(teamAdd[0].r.ok === true, "step 73: a colleague is on the Library's team: " + JSON.stringify(teamAdd[0].r));
+    await sql(`update playbooks set status = 'approved', approved_version = current_version, blocking = 0 where id = '${pbId}'; update feature_switches set state = 'everyone' where key = 'team_assignments'; select 1`);
+    try {
+      s = await open(browser, 3600, null, "&tab=library&pb=" + pbId);
+      p = s.page;
+      await dela(p).locator("#tw-assign-open").waitFor();
+      await dela(p).locator("#tw-assign-open").click();
+      await dela(p).locator("#tw-who").waitFor();
+      t = await text(p);
+      ok(t.includes("No gig, no agreement, no payment") || t.includes("no gig, no agreement, no payment"), "step 73: the form says this is work for the firm's own team, without a gig");
+      await dela(p).locator("#tw-assign-go").click();
+      await waitFor(p, "Choose who to assign it to.");
+      await dela(p).locator("#tw-who").selectOption({ index: 1 });
+      const nPick = await dela(p).locator("#tw-picks input").count();
+      if (nPick >= 2) await dela(p).locator("#tw-pick-1").uncheck();
+      await dela(p).locator("#tw-assign-note").fill("Use the new intake form.");
+      await dela(p).locator("#tw-assign-go").click();
+      t = await waitFor(p, "Waiting for them to accept");
+      ok(t.includes("Use the new intake form.") && t.includes("has not accepted yet. Only they can accept.") && (nPick < 2 || t.includes("builds on step 1, which is not part of this assignment")), "step 73: assigned; the page says only the colleague can accept, and what the part builds on");
+      ok(await dela(p).locator("#tw-accept").count() === 0, "step 73: the person who assigned has no Accept button for the colleague");
+      await s.ctx.close();
+      // The colleague
+      s = await open(browser, 3601, null, "&tab=teamwork");
+      p = s.page;
+      t = await waitFor(p, "Assigned to you (1)");
+      ok(t.includes("Waiting for you to accept"), "step 73: the colleague sees the work waiting for them");
+      await dela(p).locator("#tw-mine .linkish").first().click();
+      await waitFor(p, "Can you take this?");
+      ok(await dela(p).locator("#tw-steps input[type=checkbox]").first().isDisabled(), "step 73: steps cannot be ticked before accepting");
+      await dela(p).locator("#tw-accept").click();
+      await waitFor(p, "Do the steps, then submit");
+      await dela(p).locator("#tw-steps input[type=checkbox]").first().check();
+      await waitFor(p, "1 of ");
+      await dela(p).locator("#tw-note-box").fill("Done, the form is in the matter.");
+      await dela(p).locator("#tw-submit").click();
+      t = await waitFor(p, "Waiting for review");
+      ok(t.includes("Submitted for review") && t.includes("Done, the form is in the matter.") && await dela(p).locator("#tw-approve").count() === 0, "step 73: submitted, with the note in what happened; the colleague cannot accept their own work");
+      await s.ctx.close();
+      // The owner reviews
+      s = await open(browser, 3600, null, "&tab=teamwork");
+      p = s.page;
+      t = await waitFor(p, "Assigned by you or your firm (1)");
+      ok(t.includes("Submitted, waiting for review"), "step 73: the owner sees it waiting for review");
+      await dela(p).locator("#tw-given .linkish").first().click();
+      await waitFor(p, "Review the work");
+      await dela(p).locator("#tw-changes").click();
+      await waitFor(p, "Write a short note first.");
+      await dela(p).locator("#tw-approve").click();
+      t = await waitFor(p, "The work was accepted.");
+      ok(t.includes("Accepted the result") && t.includes("Accepted. Done"), "step 73: the owner accepts the result, and it is done");
+      await s.ctx.close();
+    } finally { await sql("update feature_switches set state = 'off' where key = 'team_assignments'; select 1"); }
     console.log(passed + " browser checks passed");
   } finally { await browser.close(); }
 })().catch((e) => { console.error(e.message); process.exit(1); });
