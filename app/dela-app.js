@@ -8119,7 +8119,7 @@
         help.appendChild(h("h2", { class: "talent-help-h" }, tgl));
         var panel = h("div", { id: "talent-help-panel", hidden: !talentHelp.open });
         help.appendChild(panel);
-        var task = h("textarea", { rows: 2, style: "width:100%", id: "talent-help-task", placeholder: "For example: family law paralegal in Clio to help with e-filing motions. Or: a bookkeeper for monthly trust reconciliation in QuickBooks." });
+        var task = h("textarea", { rows: 2, style: "width:100%", id: "talent-help-task", placeholder: "For example: family law paralegal in Clio to help with e-filing motions." });
         task.value = talentHelp.text;
         task.addEventListener("input", function () { talentHelp.text = task.value; });
         panel.appendChild(h("label", { for: "talent-help-task", style: "font-weight:700;display:block;margin:8px 0 4px", text: "What do you need help with?" }));
