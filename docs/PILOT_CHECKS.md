@@ -142,6 +142,16 @@ How to read the "State" column:
 | 59.1 | A freelancer's note becomes a better document (step 59) | The note shows on the document and DELA's suggested edit answers it | Not yet | ChatGPT check 15, steps 1 to 5; the suggestion itself needs a real AI answer |
 | 60.1 | The workflow path matches real work (step 60) | On the firm's real documents each path shows the true step and the next action leads to the right place | Not yet | ChatGPT check 15, steps 4 and 11 |
 
+## Steps 61 to 64 (released 2026-11-20)
+
+| # | What must be seen working | How we will know | State | Notes |
+|---|---|---|---|---|
+| 61-1 | An editor who wrote a document approves it, and another editor cannot | A firm with two people in its Library tries both | Not yet | Covered by automated tests; the pilot's test accounts are one-person firms |
+| 62-1 | Closing a real member's DELA account signs them out and keeps them out until reopened | Stacey closes and reopens a test member on the Members page | Not yet | Check 17 only tries closing with no reason |
+| 63-1 | A member gets a real OpenAI key by following the five steps and DELA runs on it | A pilot member does it and Ask DELA shows it is using their key | Not yet | OpenAI may rename its pages or buttons |
+| 63-2 | The same for a Claude key from the Claude Console | A pilot member does it | Not yet | Anthropic may rename its pages or buttons |
+| 64-1 | DELA writes a non-legal process (newsletter, bookkeeping, IT) without adding a practice area, court rule or attorney decision | Check 17 step 6, then real use | Not yet | Real AI answer needed |
+
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
 - When Stacey or a pilot member reports that something worked or failed, Claude fills in the state, the date and what was seen.
