@@ -150,7 +150,7 @@ How to read the "State" column:
 | 62-1 | Closing a real member's DELA account signs them out and keeps them out until reopened | Stacey closes and reopens a test member on the Members page | Not yet | Check 17 only tries closing with no reason |
 | 63-1 | A member gets a real OpenAI key by following the five steps and DELA runs on it | A pilot member does it and Ask DELA shows it is using their key | Not yet | OpenAI may rename its pages or buttons |
 | 63-2 | The same for a Claude key from the Claude Console | A pilot member does it | Not yet | Anthropic may rename its pages or buttons |
-| 64-1 | DELA writes a non-legal process (newsletter, bookkeeping, IT) without adding a practice area, court rule or attorney decision | Check 17 step 6, then real use | Not yet | Real AI answer needed |
+| 64-1 | DELA writes a non-legal process (newsletter, bookkeeping, IT) without adding a practice area, court rule or attorney decision | Check 17 step 6, then real use | Problem, then fixed 2026-11-20 | Check 17: the newsletter answer listed "Practice area and jurisdiction: Needs your input" and asked about attorney review. Instructions changed (code_version bf6c3df). Not yet seen again with the real AI |
 
 ## Steps 65 to 67 (released 2026-11-20)
 

@@ -6,6 +6,12 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Fixes after ChatGPT check 17: ON THE SITE (2026-11-20), nothing queued behind them
+- Site: code_version bf6c3df, api function 146, migrations through 0151 unchanged, health "ok". GitHub Tests passed (run 44820632517).
+- Report and what was done: docs/tests/reports/check-17-report-2026-11-20.md. 10 of 13 passed at a narrow width; the three fails were the narrow layout (two passed on the desktop retest, one is by design).
+- Changed: Ask DELA asks for practice area and attorney review only for legal work; Members tags and wording while DELA is open to everyone; what only the owner can do; key guide wording; the author box; no "Showing 0 to 0 of 0".
+- Open: a link from a member's page to the website's own member record.
+
 ## Step 70, categories on documents and gigs: ON THE SITE (2026-11-20), nothing queued behind it
 - Site: code_version 989e75a, api function 145, migrations through 0151, health "ok". GitHub Tests passed (run 44813666975, with 3 new browser checks on the document's Category card). Switch gig_categories is on "everyone" on the site.
 - docs/briefs/step-70-categories-on-gigs-and-documents.md. playbooks.categories (text[]); gigs.public.categories (present only when set); dela_gig_categories_clean, dela_category_family, dela_pb_categories, dela_pb_categories_set; dela_gig_match_refresh gives matching.category_points (25) to a freelancer in the gig's branch with the reason "Works in ...", and matching.category_miss_base (5) as the starting points for one outside it when the gig has categories and no practice area. App: catField (one picker for the document card #doc-cats-card, the gig form and the freelancer's gig view).
