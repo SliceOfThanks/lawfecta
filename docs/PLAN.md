@@ -8,6 +8,9 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
+## Newest (2026-11-21): step 73, team work with no gig, is on the site
+code_version d216f17, api 149, migrations through 0153 (run 44830167164). With it, every item of the Lapt evaluation is built except changing the scope after signing. To test on the site, a second person is needed on the test attorney's Library team: waiting for Stacey's yes to prepare it, then check 24. Seven check files are with Stacey: 15, 18, 19, 20, 21, 22, 23.
+
 ## Newest (2026-11-21, early): step 72, where each step comes from, is on the site
 code_version 100fb3d, api 148 (run 44827284366). To test: ChatGPT check 23 (one login, saves nothing). Seven check files are with Stacey: 15, 18, 19, 20, 21, 22, 23. Nothing more from the Lapt evaluation can be built without her word. Waiting for it: scope changes after signing, staff work with no gig, the website's public listing, how new freelancers sign up, the address for "Write an article", a link to the website's member record. Next without her: act on the check reports as they come.
 

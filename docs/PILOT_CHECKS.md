@@ -201,6 +201,13 @@ How to read the "State" column:
 | 72-1 | The real AI labels its own suggestions as "DELA's suggestion" and what the attorney said as "Confirmed by the firm" | Stacey or a pilot attorney drafts a document from a short description and reads the tags | Not yet | The test AI returns a fixed document, so only the screens and the code rule are proven |
 | 72-2 | Attorneys read the note and confirm or change suggestions before approving | Watching the first pilot drafts | Not yet | Nothing blocks approval |
 
+## Step 73 (released 2026-11-21)
+
+| # | What must be seen working | How we will know | State | Notes |
+|---|---|---|---|---|
+| 73-1 | A firm with real staff assigns a document, the staff member accepts, does it and submits, the attorney accepts | A pilot firm with at least two people on its Library team | Not yet | The pilot's test attorney has no team yet |
+| 73-2 | The emails for assigned, accepted, submitted and changes requested arrive and their link opens the assignment | The same firm | Not yet | |
+
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
 - When Stacey or a pilot member reports that something worked or failed, Claude fills in the state, the date and what was seen.

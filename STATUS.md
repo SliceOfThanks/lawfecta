@@ -6,6 +6,13 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 73, team work with no gig: ON THE SITE (2026-11-21), nothing queued behind it
+- Site: code_version d216f17, api function 149, migrations through 0153, health "ok". GitHub Tests passed (run 44830167164, with 10 new browser checks that play the whole flow with two people). Switch team_assignments is on "Access list" on the site.
+- docs/briefs/step-73-team-work.md. Tables team_assignments, team_assignment_steps, team_assignment_events (append-only). dela_team_people, dela_team_assign, dela_team_list, dela_team_get, dela_team_act (accept, decline, note, step, unstep, submit, approve, changes, cancel), dela_team_role. Routes GET /team-work, /team-work/one, /team-work/steps; POST /team-work/assign, /team-work/act. App: teamworkView, teamOne, teamAssignCard; menu entry "Team work" (attorney side); the line "Work for your own team" with "Assign to your team" on an approved SOP or Workflow.
+- Who assigns: an editor or the administrator of the Library. Who can be assigned: anyone on that Library's team except yourself. Accepting and ticking are the assignee's; accepting the result is the assigner's or the administrator's.
+- No check file yet. The test attorney's Library has nobody else on its team, so a live check needs a second attorney-side account on that team. Asked Stacey whether Claude may prepare it (an attorney workspace on her owner account, that account added to the test attorney's team as a viewer, one prepared assignment).
+- Not built: recurring assignments, reassigning, feedback from team work into the document, team work on the workflow card and on Home.
+
 ## Step 72, where each step comes from: ON THE SITE (2026-11-20), nothing queued behind it
 - Site: code_version 100fb3d, api function 148, migrations through 0152 unchanged, health "ok". GitHub Tests passed (run 44827284366, with 3 new browser checks).
 - docs/briefs/step-72-source-labels.md. DocStep.basis (said, source, proposed, unknown; absent on older steps); settleBasis in lib/documents/model.ts makes a step with an open placeholder "unknown" whatever the AI claimed; RULES and the step shape in lib/documents/ai.ts ask DELA for the label. App: BASIS, the tag .basis-tag, the list "Where this step comes from", the note #basis-summary and "Confirm all N suggestions" in stepsEditor. Freelancers do not get the label. No switch, no migration.
