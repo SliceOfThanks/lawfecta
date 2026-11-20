@@ -6195,7 +6195,7 @@
     if (!inputs.length) { box.appendChild(h("p", { class: "muted", style: "margin:0", text: role === "manager" ? "Nothing listed yet." : "Nothing is listed as needed before you start." })); return box; }
     var mark = function (it, status, note, btn) {
       btn.disabled = true;
-      api.post("/gigs/inputs/mark", { id: it.id, status: status, note: note || "" }).then(function (x) { if (!x || !x.ok) throw x || {}; D.toast(app, "Saved"); reload(); })
+      api.post("/gigs/inputs/mark", { id: it.id, status: status, note: note || "" }).then(function (x) { if (!x || !x.ok) throw x || {}; reload(); D.toast(app, "Saved"); })
         .catch(function (x) { btn.disabled = false; D.toast(app, x && x.reason === "looks_like_client_info" ? "That note may hold client information. Say it without it." : x && x.reason ? D.errorText(x.reason) : D.errorText((x && x.message) || "failed"), true); });
     };
     inputs.forEach(function (it) {
@@ -6236,7 +6236,7 @@
           var nos = list.chosen();
           if (!nos.length) { err.hidden = false; err.textContent = "Choose at least one step."; return; }
           save.disabled = true;
-          api.post("/gigs/steps", { id: g.id, steps: nos }).then(function (y) { if (!y || !y.ok) throw y || {}; D.toast(app, "Steps saved. Check that the description above still fits them."); reload(); })
+          api.post("/gigs/steps", { id: g.id, steps: nos }).then(function (y) { if (!y || !y.ok) throw y || {}; reload(); D.toast(app, "Steps saved. Check that the description above still fits them."); })
             .catch(function (y) { save.disabled = false; err.hidden = false; err.textContent = y && y.reason === "gig_not_draft" ? "The steps cannot change after a gig is posted." : y && y.reason ? gigErr(y) : "The steps could not be saved. Try again."; });
         });
         cancel.addEventListener("click", say);
@@ -6267,7 +6267,7 @@
     add.addEventListener("click", function () { if (rows.length >= (hf.max || 20)) { msg.textContent = "A gig can list up to " + (hf.max || 20) + " things."; return; } rows.push({ kind: "access", label: "", supplied_by: "client" }); paint(); var all = ed.querySelectorAll("input"); if (all.length) all[all.length - 1].focus(); });
     save2.addEventListener("click", function () {
       save2.disabled = true; msg.textContent = "Saving...";
-      api.post("/gigs/inputs/save", { id: g.id, items: rows.filter(function (it) { return String(it.label || "").trim(); }) }).then(function (x) { if (!x || !x.ok) throw x || {}; D.toast(app, "List saved"); reload(); })
+      api.post("/gigs/inputs/save", { id: g.id, items: rows.filter(function (it) { return String(it.label || "").trim(); }) }).then(function (x) { if (!x || !x.ok) throw x || {}; reload(); D.toast(app, "List saved"); })
         .catch(function (x) { save2.disabled = false; msg.textContent = x && x.reason === "looks_like_client_info" ? ciNote(x, "A line may hold client information or a password. Say how the freelancer gets it, without the secret itself.") : x && x.reason === "too_many_inputs" ? "A gig can list up to " + x.max + " things." : x && x.reason ? gigErr(x) : "The list could not be saved. Try again."; });
     });
     card.appendChild(ed); card.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:8px" }, add, save2)); card.appendChild(msg);
@@ -12378,7 +12378,7 @@
       send.disabled = true; msg.textContent = "Sending..."; again.style.display = "none";
       api.post("/engagements/feedback", { agreement_id: a.id, step_no: Number(about.value) || 0, text: box.value.trim(), confirm_no_client_info: confirmed === true }).then(function (x) {
         if (!x || !x.ok) throw x || {};
-        D.toast(app, "Sent. Thank you, this helps the next person."); draw();
+        draw(); D.toast(app, "Sent. Thank you, this helps the next person.");
       }).catch(function (x) {
         send.disabled = false;
         if (x && x.reason === "looks_like_client_info") { msg.textContent = ciNote(x, "This may include client information. Say it without the client's details."); again.style.display = ""; return; }
