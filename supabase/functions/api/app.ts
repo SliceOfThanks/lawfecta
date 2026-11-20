@@ -1113,6 +1113,8 @@ async function pbGet(ctx: Ctx) {
   const r = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
   // Step 61: who the author is, and whether this person may approve (the author or the administrator)
   if (r?.ok) r.approver = await rpc(ctx, "dela_pb_approver", { p_person: s.person_id, p_id: id }).catch(() => null);
+  // Step 70: the document's categories, which a gig made from it starts with
+  if (r?.ok) r.categories = await rpc(ctx, "dela_pb_categories", { p_person: s.person_id, p_id: id }).catch(() => []) ?? [];
   if (r?.ok && isDoc(r.body)) {
     const firm = await docFirm(ctx, s);
     const org = r.playbook.org_id;
@@ -2567,6 +2569,12 @@ async function gigDraft(ctx: Ctx) {
     const ai = await runAi(ctx, s, `gigdraft:${pbId}:${requestId}`, GIG_SYSTEM, [{ role: "user", content: gigPrompt(body, extra) }], Number(await setting(ctx, "ai.credits.chat", "1")) || 1);
     if (ai.ok) { const j = readJson(ai.text); if (j && typeof j === "object") { pub = normalizePublic({ ...pub, ...(j as Record<string, unknown>) }); source = "ai"; } }
   }
+  // Step 70: the gig starts with its document's categories (never with categories the AI made up)
+  delete pub.categories;
+  if (await rpc<boolean>(ctx, "dela_switch_on", { p_key: "gig_categories", p_person: s.person_id }).catch(() => false)) {
+    const dc = await rpc<string[]>(ctx, "dela_pb_categories", { p_person: s.person_id, p_id: pbId }).catch(() => []) ?? [];
+    if (dc.length) pub.categories = dc;
+  }
   const r = await rpc<Record<string, any>>(ctx, "dela_gig_create", { p_person: s.person_id, p: { playbook_id: pbId, request_id: requestId, public: pub,
     budget_min_cents: toCents(ctx.body.budget_min), budget_max_cents: toCents(ctx.body.budget_max), deadline: str(ctx.body.deadline, 10), milestones: [],
     kind: ctx.body.kind === "monthly" && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "recurring_engagements", p_person: s.person_id }) ? "monthly" : "one_off" } });
@@ -2813,6 +2821,8 @@ async function gigSave(ctx: Ctx) {
   const s = await client(ctx);
   const id = need(uuid(ctx.body.id));
   const pub = normalizePublic(ctx.body.public);
+  // Step 70: only real category keys are kept, up to the setting's number
+  if (pub.categories) { const ck = await rpc<string[]>(ctx, "dela_gig_categories_clean", { p_keys: pub.categories }) ?? []; if (ck.length) pub.categories = ck; else delete pub.categories; }
   const warn = (await sensitive(ctx, s, [pub.title, pub.task, pub.outcome, ...pub.steps].join("\n"), "public"));
   if (warn) return json(ctx, warn);
   // Milestones change only when they are sent, so a budget edit never wipes them
@@ -6492,6 +6502,7 @@ async function handleInner(req: Request, deps: Deps): Promise<Response> {
       case "POST /engagements/checkpoint": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_checkpoint_act", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)), p_step: need(int(ctx.body.step_no)), p_note: str(ctx.body.note, 1000) })); }
       case "GET /playbooks/get": return await pbGet(ctx);
       case "POST /playbooks/create": return await pbCreate(ctx);
+      case "POST /playbooks/categories": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_pb_categories_set", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)), p_keys: Array.isArray(ctx.body.categories) ? ctx.body.categories.slice(0, 30).map((x) => str(x, 20)) : [] })); }
       case "POST /playbooks/save": return await pbSave(ctx);
       case "POST /playbooks/fill": return await pbFill(ctx);
       case "POST /playbooks/chat": return await pbChat(ctx);

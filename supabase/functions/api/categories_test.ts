@@ -428,6 +428,41 @@ Deno.test("the freelancers who fit a document: the firm's own documents only, sc
   assertEquals((await call("GET", "/playbooks/fits?id=" + pb, fNurse.token)).body.reason, "not_found");
 });
 
+Deno.test("step 70: a document and a gig carry categories, and a freelancer in the gig's category fits better", async () => {
+  const { normalizePublic } = await import("./lib/gigs/model.ts");
+  assertEquals(normalizePublic({ title: "T", categories: ["s275", "s275", "p40", "x", 7, "s308"] }).categories, ["s275", "s308"], "only category keys, without repeats");
+  assertEquals("categories" in normalizePublic({ title: "T" }), false, "a gig without categories keeps its old shape");
+  const org = (await one("select dela_side_org($1, 'attorney') o", [att.id])).o;
+  const pb = (await one(`insert into playbooks (org_id, title, status, current_version, approved_version, completeness, request_id, created_by) values ($1, 'Build a medical chronology', 'approved', 1, 1, 100, 'cat70', $2) returning id`, [org, att.id])).id;
+  // The document's categories: an editor sets them, only real ones are kept, another firm cannot
+  let r = (await call("POST", "/playbooks/categories", att.token, { id: pb, categories: ["s267", "p39", "bogus", "s267"] })).body;
+  assertEquals([r.ok, r.categories], [true, ["s267"]], JSON.stringify(r));
+  assertEquals((await pool.query("select dela_pb_categories($1, $2) c", [att.id, pb])).rows[0].c, ["s267"]);
+  assertEquals((await pool.query("select dela_pb_categories($1, $2) c", [fNurse.id, pb])).rows[0].c, null, "another member reads nothing");
+  assertEquals((await pool.query("select dela_category_family(array['s267']) f")).rows[0].f.sort(), ["s267", "s275"], "a category's branch: itself and what sits under it");
+  assertEquals((await pool.query("select dela_category_family(array['s275']) f")).rows[0].f.sort(), ["s267", "s275"], "and what it sits under");
+  // A gig in that category, with no practice area: bookkeeping, a chronology, a newsletter
+  const gig = (await one(`insert into gigs (org_id, created_by, playbook_id, playbook_version, title, public, budget_min_cents, budget_max_cents, status, opened_at, closes_at, request_id)
+    values ($1, $2, $3, 1, 'Medical chronology', '{"task":"Build the chronology","categories":["s267"]}', 30000, 60000, 'open', now(), now() + interval '14 days', 'cat70g') returning id`, [org, att.id, pb])).id;
+  await pool.query("update member_profiles set body = body || '{\"categories\":[\"s275\"],\"capacity_hours_week\":20}'::jsonb where person_id = $1 and side = 'freelancer'", [fNurse.id]);
+  await pool.query("update member_profiles set body = body || '{\"categories\":[\"s327\"],\"capacity_hours_week\":20}'::jsonb where person_id = $1 and side = 'freelancer'", [fFamily.id]);
+  const matches = async () => { await pool.query("select dela_gig_match_refresh($1)", [gig]); return (await pool.query("select person_id, fit, reasons from gig_matches where gig_id = $1", [gig])).rows as Array<Record<string, any>>; };
+  // With the switch off nothing changes: both freelancers score the same, by hours and activity only
+  let m = await matches();
+  assertEquals(m.find((x) => x.person_id === fNurse.id)?.fit, m.find((x) => x.person_id === fFamily.id)?.fit, "off: categories play no part");
+  await pool.query("update feature_switches set state = 'everyone' where key = 'gig_categories'");
+  try {
+    m = await matches();
+    const nurse = m.find((x) => x.person_id === fNurse.id), fam = m.find((x) => x.person_id === fFamily.id);
+    assert(nurse && nurse.reasons.includes("Works in Medical Chronology Creation"), "the freelancer in the gig's branch fits, and the reason says so: " + JSON.stringify(m));
+    assert(!fam || fam.fit < nurse.fit - 25, "a freelancer outside the gig's categories no longer fits as well: " + JSON.stringify(m));
+    // A gig with no categories is matched as before
+    await pool.query("update gigs set public = public - 'categories' where id = $1", [gig]);
+    m = await matches();
+    assertEquals(m.find((x) => x.person_id === fNurse.id)?.fit, m.find((x) => x.person_id === fFamily.id)?.fit, "no categories on the gig: as before");
+  } finally { await pool.query("update feature_switches set state = 'off' where key = 'gig_categories'"); }
+});
+
 Deno.test("bookmarks live in the website's own bookmark table: save, list, filter Talent, remove; nobody is told", async () => {
   const notes = async () => Number((await one("select count(*)::int n from notifications where person_id = $1", [fFamily.id])).n);
   const before = await notes();

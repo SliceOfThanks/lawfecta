@@ -5566,6 +5566,8 @@
         p.state ? h("div", null, "State", h("b", { text: p.state })) : null,
         p.timing ? h("div", null, "Usual time", h("b", { text: p.timing })) : null,
         h("div", null, "Status", h("b", { text: closesText(g) }))),
+      // Step 70: the kind of work, from Lawfecta's categories
+      (me.switches || {}).gig_categories && (p.categories || []).length ? h("div", { style: "margin:8px 0" }, h("div", { class: "small muted", text: "Category" }), catField(p.categories.slice(), false, function () {}, "gigpub")) : null,
       p.outcome ? h("p", null, h("b", { text: "What done looks like: " }), p.outcome) : null,
       (p.steps || []).length ? h("div", null, h("h3", { text: "Steps" }), h("ol", null, p.steps.map(function (s) { return h("li", { text: s }); }))) : null,
       (p.tools || []).length ? h("p", null, h("b", { text: "Tools: " }), p.tools.join(", ")) : null,
@@ -6492,6 +6494,7 @@
       bmin: h("input", { type: "number", min: "0", step: "1", "aria-label": "Budget from ($)" }), bmax: h("input", { type: "number", min: "0", step: "1", "aria-label": "Budget to ($)" }),
       deadline: h("input", { type: "date", "aria-label": "Deadline" }), miles: h("textarea", { rows: 3, style: "width:100%", "aria-label": "Milestones, one per line" }),
     };
+    var gigCats = (p.categories || []).slice(), catsOn = !!(me.switches || {}).gig_categories;
     f.title.value = g.title; f.task.value = p.task || ""; f.outcome.value = p.outcome || ""; f.steps.value = (p.steps || []).join("\n"); f.tools.value = (p.tools || []).join(", ");
     f.skills.value = (p.skills || []).join(", "); f.timing.value = p.timing || ""; f.state.value = p.state || ""; f.area.value = p.practice_area || "";
     f.bmin.value = dollars(g.budget_min_cents); f.bmax.value = dollars(g.budget_max_cents); f.deadline.value = g.deadline || "";
@@ -6499,7 +6502,7 @@
     Object.keys(f).forEach(function (k) { f[k].disabled = !editable; });
     function payload() {
       return { id: g.id, version: g.version, budget_min: f.bmin.value, budget_max: f.bmax.value, deadline: f.deadline.value,
-        public: { title: f.title.value, task: f.task.value, outcome: f.outcome.value, steps: lines(f.steps.value), tools: commas(f.tools.value), skills: commas(f.skills.value), timing: f.timing.value, state: f.state.value, practice_area: f.area.value },
+        public: { title: f.title.value, task: f.task.value, outcome: f.outcome.value, steps: lines(f.steps.value), tools: commas(f.tools.value), skills: commas(f.skills.value), timing: f.timing.value, state: f.state.value, practice_area: f.area.value, categories: gigCats.slice() },
         milestones: lines(f.miles.value).map(function (t) { return { title: t }; }) };
     }
     function save(then) {
@@ -6525,7 +6528,9 @@
       h("p", { class: "small muted", text: "Matched freelancers read this before they spend a proposal. Invited and hired freelancers also see their part of the document (an SOP, or a workflow's steps for the freelancer role), with their name as a watermark. No client information." + (g.status === "open" ? " Changing the budget or the work tells applicants; a big change asks them to confirm their proposals." : "") }),
       field("Title", f.title), field("The task", f.task, "Two or three sentences: what the freelancer will do."), field("What done looks like", f.outcome), field("Steps, one per line", f.steps),
       field("Tools", f.tools, "Separated by commas. DELA matches freelancers who use them."), field("Skills", f.skills, "Separated by commas."),
-      h("div", { class: "row" }, field("Practice area", f.area), field("State", f.state)), field("Usual time", f.timing)));
+      catsOn ? h("div", { style: "margin:8px 0" }, h("label", { text: "Category" }), h("p", { class: "small muted", style: "margin:0 0 4px", text: "The kind of work, from Lawfecta's categories. DELA matches freelancers who work in it. It starts with the document's categories." }),
+        catField(gigCats, editable, function () {}, "gig")) : null,
+      h("div", { class: "row" }, field("Practice area", f.area, catsOn ? "Only for legal work. Leave empty for bookkeeping, marketing, IT and the like." : ""), field("State", f.state)), field("Usual time", f.timing)));
     step3.appendChild(h("div", { class: "card" }, h("h2", { text: "Budget, deadline and milestones" }),
       h("div", { class: "row" }, field("Budget from ($)", f.bmin), field("Budget to ($)", f.bmax), field("Deadline", f.deadline)),
       field("Milestones (private)", f.miles, "For example: First version, then Final version. Freelancers see milestones only after you hire them; DELA sets the final milestones with the agreement.")));
@@ -7831,6 +7836,38 @@
       return idx;
     }).catch(function () { return { ok: false, tops: [], byKey: {}, kids: {}, all: [], max: 25, path: function () { return []; }, find: function () { return []; }, exact: function () { return null; } }; });
     return catsP;
+  }
+  // Step 70: the website's categories on a document or a gig. keys is changed in place; onChange is called after each change.
+  // With edit false it only shows them. Nothing is drawn when there is nothing to show.
+  function catField(keys, edit, onChange, idPrefix) {
+    var wrap = h("div", { class: "cat-field", id: idPrefix + "-cats" }, h("span", { class: "small muted", text: "Loading the categories..." }));
+    loadCats().then(function (idx) {
+      D.clear(wrap);
+      if (!idx.ok || !idx.tops.length) { if (edit) wrap.appendChild(h("span", { class: "small muted", text: "The categories could not be loaded right now." })); return; }
+      var max = (me.limits || {}).gig_categories_max || 5;
+      var picked = h("div", { class: "cat-picked", "aria-live": "polite", style: "margin-bottom:6px" });
+      function drawPicked() {
+        D.clear(picked);
+        var list = keys.filter(function (k) { return idx.byKey[k]; });
+        if (!list.length) picked.appendChild(h("span", { class: "small muted", text: edit ? "None yet. Pick the kind of work, so DELA matches freelancers who do it." : "None" }));
+        list.forEach(function (k) {
+          picked.appendChild(h("span", { class: "cat-chip", title: catPathText(idx, k) }, h("span", { text: idx.path(k).join(" › ") }),
+            edit ? h("button", { type: "button", "aria-label": "Remove " + idx.byKey[k].name, onclick: function () { keys.splice(keys.indexOf(k), 1); drawPicked(); onChange(); } }, "×") : null));
+        });
+      }
+      wrap.appendChild(picked);
+      if (edit) {
+        var box = catSearchBox(idx, { label: "Add a category", placeholder: "Type a kind of work, for example \"bookkeeping\" or \"discovery\"", onPick: function (c) {
+          if (c.level < 2) { D.toast(app, "Pick a specialty or a task inside \"" + c.name + "\"."); return; }
+          if (keys.indexOf(c.key) >= 0) return;
+          if (keys.filter(function (k) { return idx.byKey[k]; }).length >= max) { D.toast(app, "Up to " + max + " categories. Remove one first.", true); return; }
+          keys.push(c.key); drawPicked(); onChange();
+        } });
+        wrap.appendChild(box.el);
+      }
+      drawPicked();
+    }).catch(function () { D.clear(wrap); });
+    return wrap;
   }
   function catPathText(idx, k) { return idx.path ? idx.path(k).join(" › ") : ""; }
   // A search box with a list of matching categories under it. Arrow keys move, Enter picks (or searches the words), Escape closes.
@@ -12726,6 +12763,19 @@
     lib.docNotices = [];
     // Step 4d: the hint card above an approved SOP, Workflow or Playbook (it removes itself when the switch is off)
     if ((me.switches || {}).automate_delegate && P.approved_version && d.type !== "policy") libEl.appendChild(automateCard(P.id));
+    // Step 70: the kind of work this document describes; a gig made from it starts with these categories
+    if ((me.switches || {}).gig_categories && (d.type === "sop" || d.type === "workflow") && lib.view !== "approved") {
+      var docCats = (lib.pb.categories || []).slice(), catNote = h("span", { class: "small muted", role: "status" });
+      libEl.appendChild(h("div", { class: "card", id: "doc-cats-card" }, h("h2", { style: "margin-top:0", text: "Category" }),
+        h("p", { class: "small muted", style: "margin-top:0", text: "The kind of work this document describes, from Lawfecta's categories. A gig made from it starts with these, and DELA matches freelancers who work in them." }),
+        catField(docCats, can(3), function () {
+          catNote.textContent = "Saving...";
+          api.post("/playbooks/categories", { id: P.id, categories: docCats }).then(function (x) {
+            if (!x || !x.ok) { catNote.textContent = failText(x || {}); return; }
+            lib.pb.categories = x.categories; catNote.textContent = "Saved";
+          }).catch(function () { catNote.textContent = "Not saved. Try again."; });
+        }, "doc"), catNote));
+    }
     if ((me.switches || {}).talent_search && canHire() && d.type !== "policy" && lib.view !== "edit") libEl.appendChild(fitsCard(P.id));
     // Header fields, always visible
     var ownerOpts = (d.roles || []).slice();

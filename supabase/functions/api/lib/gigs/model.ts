@@ -3,6 +3,8 @@ import { normalize as normalizePlaybook, type Body } from "../playbooks/model.ts
 
 export type GigPublic = {
   title: string; task: string; outcome: string; steps: string[]; tools: string[]; timing: string; state: string; practice_area: string; skills: string[];
+  // Step 70: website category keys (s<number>). Present only when the gig has some, so older gigs keep their shape.
+  categories?: string[];
 };
 export type Milestone = { title: string; due: string; share_pct: number | null };
 
@@ -12,9 +14,11 @@ const list = (v: unknown, n = 12, max = 200) => (Array.isArray(v) ? v : typeof v
 export function normalizePublic(raw: unknown): GigPublic {
   const r = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const st = s(r.state, 10).toUpperCase();
+  const cats = [...new Set((Array.isArray(r.categories) ? r.categories : []).map((x) => s(x, 20)).filter((k) => /^s\d{1,12}$/.test(k)))].slice(0, 12);
   return {
     title: s(r.title, 200), task: s(r.task, 1500), outcome: s(r.outcome, 800), steps: list(r.steps, 15, 300), tools: list(r.tools, 12, 80),
     timing: s(r.timing, 300), state: /^[A-Z]{2}$/.test(st) ? st : "", practice_area: s(r.practice_area, 80), skills: list(r.skills, 10, 80),
+    ...(cats.length ? { categories: cats } : {}),
   };
 }
 

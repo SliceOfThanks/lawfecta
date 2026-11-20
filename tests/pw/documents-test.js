@@ -265,6 +265,27 @@ async function makeMember(bd, side, plan) {
     ok(wide <= 392, "the document screen fits a phone (" + wide + "px)");
     await p.screenshot({ path: path.join(SHOTS, "documents-phone.png"), fullPage: false });
     await s.ctx.close();
+    // ---------- Step 70: the document's Category card, with the website's categories ----------
+    await sql("update feature_switches set state = 'everyone' where key = 'gig_categories'; select 1");
+    try {
+      s = await open(browser, 3600, null, "&tab=library&pb=" + pbId);
+      p = s.page;
+      await waitFor(p, "Quality check");
+      const hasCard = await dela(p).locator("#doc-cats-card").count();
+      if (hasCard) {
+        t = await waitFor(p, "None yet. Pick the kind of work");
+        ok(t.includes("A gig made from it starts with these"), "step 70: a document has a Category card that says what the categories are for");
+        await dela(p).locator("#doc-cats-card").getByRole("combobox").fill("Family");
+        await dela(p).locator("#doc-cats-card [role=option]").first().click();
+        await waitFor(p, "Saved");
+        const kept = await sql("select categories from playbooks where id = '" + pbId + "'");
+        ok(Array.isArray(kept[0].categories) && kept[0].categories.length === 1, "step 70: picking a category saves it on the document: " + JSON.stringify(kept[0].categories));
+        await dela(p).locator("#doc-cats-card .cat-chip button").first().click();
+        await p.waitForTimeout(600);
+        ok((await sql("select categories from playbooks where id = '" + pbId + "'"))[0].categories.length === 0, "step 70: removing it saves too");
+      } else ok((await text(p)).includes("Approved version"), "step 70: on the approved view the card is not shown (it is on the draft and the other tabs)");
+      await s.ctx.close();
+    } finally { await sql("update feature_switches set state = 'off' where key = 'gig_categories'; select 1"); }
     console.log(passed + " browser checks passed");
   } finally { await browser.close(); }
 })().catch((e) => { console.error(e.message); process.exit(1); });
