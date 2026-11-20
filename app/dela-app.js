@@ -6673,12 +6673,14 @@
           } }, "Ask to confirm"));
           else if (p.status === "sent") act.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
             if (!confirm("Choose " + p.name + "'s proposal (" + D.money(p.price_cents) + ")? DELA starts a draft agreement, closes the gig and tells the others politely.")) return;
-            api.post("/proposals/select", { id: p.id }).then(gigOk).then(function () { draw(); D.toast(app, "Chosen. The draft agreement is waiting for signing and funding."); }).catch(gigFail);
+            api.post("/proposals/select", { id: p.id }).then(gigOk).then(function (y) { draw(); D.toast(app, y && y.plan_needed ? "Chosen. The freelancer starts their subscription and signs first; you are not charged until you have both signed." : "Chosen. The draft agreement is waiting for signing and funding."); }).catch(gigFail);
           } }, "Choose"));
           else act.appendChild(h("span", { class: "badge " + propTone(p.status), text: PROP_STATUS[p.status] }));
           if ((me.switches || {}).gig_chat) act.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { openThread(r.gig.id, p.person_id); } }, "Message"));
           return h("tr", null,
-            h("td", { "data-label": "Freelancer" }, p.agency ? agencyOnProposal(p.agency) : null, p.agency ? h("div", { class: "small muted", text: "Sent by " + p.name }) : h("b", { text: p.name }), p.invited ? h("div", { class: "small muted", text: "Invited" }) : null, p.headline ? h("div", { class: "small", text: p.headline }) : null, (p.match_reasons || []).length ? h("div", { class: "small muted", text: p.match_reasons.join(" | ") }) : null),
+            h("td", { "data-label": "Freelancer" }, p.agency ? agencyOnProposal(p.agency) : null, p.agency ? h("div", { class: "small muted", text: "Sent by " + p.name }) : h("b", { text: p.name }), p.invited ? h("div", { class: "small muted", text: "Invited" }) : null,
+              x.hire_gate_on ? h("div", null, h("span", { class: "badge" + (p.ready_to_start ? " ready" : ""), title: p.ready_to_start ? "This freelancer has a subscription and can sign at once." : "This freelancer joins for free and starts a subscription when hired. They do that before signing; you are not charged until you have both signed.", text: p.ready_to_start ? "Ready to start" : "Subscribes when hired" })) : null,
+              p.headline ? h("div", { class: "small", text: p.headline }) : null, (p.match_reasons || []).length ? h("div", { class: "small muted", text: p.match_reasons.join(" | ") }) : null),
             h("td", { "data-label": "Price" }, h("b", { text: D.money(p.price_cents) }), h("div", null, h("span", { class: "badge " + lab[0], text: lab[1] }))),
             h("td", { "data-label": "Includes", text: p.included }), h("td", { "data-label": "Leaves out", text: p.excluded || "Not specified. Confirm before signing." }),
             h("td", { "data-label": "Schedule", text: scheduleText(p) }),
@@ -8950,6 +8952,7 @@
     c.appendChild(helperButton("proposal_check", "✦ Check my proposal", function () {
       return { gig_id: g.id, proposal: { price: f.price.value, days: f.days.value, included: f.included.value, excluded: f.excluded.value, schedule: f.schedule.value, qualifications: f.quals.value, message: f.message.value } };
     }, { field: function (x) { return { included: f.included, excluded: f.excluded, schedule: f.schedule, qualifications: f.quals, message: f.message }[x.field] || null; } }));
+    if (me.hire_gate && me.hire_gate.needs_plan) c.appendChild(h("p", { class: "small muted", id: "prop-free-note", text: "Sending proposals is free. You need a " + (me.hire_gate.min_plan || "paid") + " subscription or higher only when you accept a job." }));
     var send = h("button", { class: "blue", type: "button" }, invited ? "Send proposal (free: invited)" : "Send proposal (uses 1)");
     var sending = false;
     function doSend(confirmed) {
@@ -9986,6 +9989,7 @@
   var SUB_STATUS = { checking: "DELA is checking it", failed: "Did not pass DELA's check", human_review: "With a Lawfecta reviewer", with_attorney: "With the attorney for review", accepted: "Accepted", changes_requested: "Changes requested" };
   var ENG_ERR = {
     engagements_off: "Agreements are not open for your account yet.", not_current_version: "There is a newer version of the agreement. Reload it and read the new version before signing.",
+    plan_needed: "Start your subscription first. Being on Lawfecta is free until you are hired; to accept a job you need a paid plan. Reload this page after subscribing.",
     sign_needs_name_and_consent: "Type your full name and tick the box to sign.", sign_time_over: "The time to sign this agreement is over.",
     firm_details_missing: "Before you sign, add your firm's signatory, billing address and notice email in Profile, under \"Firm details\".",
     milestone_count: "Use between 1 and the most milestones allowed.", milestone_too_small: "Each milestone needs a title and at least the smallest amount.",
@@ -10823,7 +10827,16 @@
       return box;
     }
     if (a.status === "signing" || a.status === "draft") {
-      if (mySigned && !theirSigned) { head("Waiting for the other signature", "You signed", "ready"); box.appendChild(h("p", { text: "You signed version " + a.version + ". Waiting for the " + (att ? "freelancer" : ((((r.current || {}).body || {}).parties || {}).client || {}).kind === "agency" ? "agency" : "attorney") + " to sign." })); }
+      // Step 68: free until hired. A freelancer below the plan that can be hired subscribes first; the attorney sees why they wait
+      if (!att && r.hire_gate && r.hire_gate.needed && !mySigned) { head("Start your subscription to accept this job", "You were chosen", "ready"); box.appendChild(hireGateCard(r)); }
+      else if (mySigned && !theirSigned) {
+        head("Waiting for the other signature", "You signed", "ready");
+        var waitWho = att ? "freelancer" : ((((r.current || {}).body || {}).parties || {}).client || {}).kind === "agency" ? "agency" : "attorney";
+        var waitPlan = att && r.hire_gate && r.hire_gate.waiting;
+        box.appendChild(h("p", { id: waitPlan ? "hire-gate-wait" : null, text: "You signed version " + a.version + ". Waiting for the " + (waitPlan
+          ? "freelancer to start their subscription and sign" + (r.hire_gate.sign_by ? ", until " + D.date(r.hire_gate.sign_by) + ". If that day passes, the agreement closes and you can choose again." : ".") + " You are not charged until you have both signed."
+          : waitWho + " to sign.") }));
+      }
       else { head("Sign the agreement", "Needs your signature"); box.appendChild(h("p", { class: "small muted", text: "Read the agreement under \"Agreement and fees\" below, then sign here." })); box.appendChild(signForm(r, theirSigned)); }
     } else if ((a.status === "signed" || a.status === "active") && att) {
       var due = ms.filter(function (m) { return m.status === "pending" || m.status === "awaiting_funding"; })[0];
@@ -10928,6 +10941,21 @@
       h("b", { text: paying ? "Before you pay" : "What you are agreeing to" }), h("ul", { style: "margin:6px 0 0" }, lines.map(function (l) { return h("li", { text: l }); })));
   }
 
+  // Step 68: free until hired. Shown to a chosen freelancer in place of the signing box until their plan allows signing.
+  function hireGateCard(r) {
+    var g = r.hire_gate || {}, sum = (r.money_summary || [])[0] || "";
+    var url = g.upgrade_url || "/account/upgrade";
+    return h("div", { id: "hire-gate" },
+      h("p", { text: "You were chosen for this job. Being on Lawfecta is free until you are hired. To accept this job, start a " + (g.min_plan || "paid") + " subscription or higher. Then come back here and sign." }),
+      sum ? h("p", { id: "hire-gate-earn" }, h("b", { text: "On this job: " }), sum) : null,
+      h("ul", { id: "hire-gate-plans", style: "margin:6px 0 10px;padding-left:18px" }, (g.plans || []).map(function (p) {
+        return h("li", null, h("b", { text: p.name }), ": " + D.money(p.monthly_cents) + " a month" + (p.annual_cents ? ", or " + D.money(p.annual_cents) + " a year" : ""));
+      })),
+      h("div", { class: "row", style: "flex-wrap:wrap" },
+        h("a", { class: "btn blue", id: "hire-gate-go", href: url, target: "_blank", rel: "noopener" }, "Choose a plan"),
+        h("button", { class: "ghost", type: "button", id: "hire-gate-check", onclick: function () { location.reload(); } }, "I have subscribed, check again")),
+      h("p", { class: "small muted", style: "margin-bottom:0", text: "The plan opens on the Lawfecta website in a new tab. The attorney is not charged until you have both signed." + (g.sign_by ? " Sign by " + D.date(g.sign_by) + ", or the attorney can choose someone else." : "") + " Once you have signed, this engagement keeps running even if you later change your plan." }));
+  }
   function signForm(r, theirSigned) {
     var a = r.agreement;
     var name = h("input", { "aria-label": "Type your full name to sign", style: "width:100%", autocomplete: "name" });
@@ -13833,6 +13861,10 @@
       el.removeChild(el.lastChild);
       if (!r || !r.ok) { el.appendChild(h("p", { class: "notice", role: "alert", text: "Your plan could not be shown right now. Reload the page, or contact the Lawfecta Team from Help." })); return; }
       var warn = r.warn_pct || 80, cur = (r.plans || []).filter(function (p) { return p.current; })[0];
+      // Step 68: free until hired, said up front on the page where plans are chosen
+      if (me.side === "freelancer" && me.hire_gate) el.appendChild(h("p", { class: "notice", id: "sub-free-note", role: "note", text: me.hire_gate.needs_plan
+        ? "Being on Lawfecta is free: your profile, being found by attorneys and sending proposals cost nothing. You need a " + (me.hire_gate.min_plan || "paid") + " subscription or higher only when an attorney chooses you and you accept the job."
+        : "Your plan lets you accept a job as soon as an attorney chooses you." }));
       var lines = quotaLines(u).filter(function (l) { return r.exports_counted || l.key !== "exports"; });
       var near = lines.filter(function (l) { return l.limit && usagePct(l.used, l.limit) >= warn; });
       var staff = r.plan_source === "staff_grant", upgradeUrl = r.upgrade_url || "/account/upgrade";

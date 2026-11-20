@@ -627,6 +627,51 @@ Deno.test("a payout or refund that is tried again is first looked up at Stripe: 
   assertEquals(await findReversal(fakeFetch, STRIPE_TEST, "tr_other", "v-1"), "");
 });
 
+Deno.test("step 68: free until hired. A freelancer on Free subscribes before signing; nothing else is gated", async () => {
+  const set = (k: string, v: string) => pool.query("update settings set value = to_jsonb($2::text) where key = $1", [k, v]);
+  await pool.query("insert into member_profiles (person_id, side, body, missing, score, availability_confirmed_at) values ($1, 'freelancer', '{\"first_name\":\"Olga\",\"last_name\":\"Other\"}', '{}', 100, now()) on conflict do nothing", [other.id]);
+  const fg = await hire(other, 60000, "gate");
+  // With the setting empty the rule is off: nothing about it anywhere
+  let v = (await call("GET", "/agreements/get?id=" + fg, other.token)).body;
+  assertEquals([v.ok, v.hire_gate], [true, undefined], "off until the setting names a plan");
+  assertEquals((await call("GET", "/me", other.token)).body.me.hire_gate, null);
+  await set("fl.hire_min_tier", "plus");
+  try {
+  // The freelancer on Free: told what to do, shown the plans from Plus up with their prices, and cannot sign
+  assertEquals((await call("GET", "/me", other.token)).body.me.hire_gate, { on: true, min_plan: "Freelancer Plus", needs_plan: true });
+  assertEquals((await call("GET", "/me", fl.token)).body.me.hire_gate.needs_plan, false, "a freelancer on Plus is ready");
+  assertEquals((await call("GET", "/me", att.token)).body.me.hire_gate, null, "attorneys have no such state");
+  v = (await call("GET", "/agreements/get?id=" + fg, other.token)).body;
+  assertEquals([v.hire_gate.needed, v.hire_gate.min_plan, v.hire_gate.plans.map((p: any) => p.tier), v.hire_gate.upgrade_url], [true, "Freelancer Plus", ["plus", "pro", "business"], "/account/upgrade"]);
+  assert(v.hire_gate.plans.every((p: any) => Number.isInteger(p.monthly_cents) && p.monthly_cents > 0), "each plan carries its price in cents");
+  assertEquals((await call("POST", "/agreements/sign", other.token, { id: fg, version: v.agreement.version, typed_name: "Olga Other", consent: true })).body.reason, "plan_needed");
+  assertEquals((await one("select count(*)::int n from agreement_signatures where agreement_id = $1", [fg])).n, 0, "a refused signature leaves nothing behind");
+  // The attorney sees only that they are waiting, may sign first, and cannot pay before both signed
+  const av = (await call("GET", "/agreements/get?id=" + fg, att.token)).body;
+  assertEquals([av.hire_gate.needed, av.hire_gate.waiting, av.hire_gate.plans], [true, true, undefined], "the attorney is not shown the freelancer's plan choices");
+  assertEquals((await call("POST", "/agreements/sign", att.token, { id: fg, version: av.agreement.version, typed_name: "Ann Attorney", consent: true })).body.both_signed, false);
+  assertEquals((await call("POST", "/engagements/pay", att.token, { id: fg })).body.reason, "not_signed", "the attorney is never charged before the freelancer has subscribed and signed");
+  // Told once after being chosen
+  assertEquals((await pool.query("select dela_hire_gate_notify($1) a, dela_hire_gate_notify($1) b", [fg])).rows[0].a, true);
+  const note = await one("select count(*)::int n, min(body) body from notifications where person_id = $1 and title = 'Start your subscription to accept this job' and dedupe_key like '%:in_app'", [other.id]);
+  assert(note.n === 1 && note.body.includes("free until you are hired") && note.body.includes("Freelancer Plus subscription or higher") && note.body.includes("not charged until you have both signed"), JSON.stringify(note));
+  // An agreement started before the rule's first day is untouched
+  await set("fl.hire_gate_from", "2099-01-01");
+  assertEquals((await call("GET", "/agreements/get?id=" + fg, other.token)).body.hire_gate, undefined, "agreements started before the first day are not gated");
+  await set("fl.hire_gate_from", "");
+  // They subscribe on the website; DELA reads the new plan; the gate is gone and they sign
+  await pool.query("update side_profiles set plan_code = 'fl_plus' where person_id = $1 and side = 'freelancer'", [other.id]);
+  v = (await call("GET", "/agreements/get?id=" + fg, other.token)).body;
+  assertEquals(v.hire_gate, undefined);
+  assertEquals((await call("POST", "/agreements/sign", other.token, { id: fg, version: v.agreement.version, typed_name: "Olga Other", consent: true })).body.both_signed, true);
+  // After signing, going back to Free stops nothing on this engagement
+  await pool.query("update side_profiles set plan_code = 'fl_free' where person_id = $1 and side = 'freelancer'", [other.id]);
+  v = (await call("GET", "/agreements/get?id=" + fg, other.token)).body;
+  assertEquals([v.agreement.status, v.hire_gate], ["signed", undefined], "a signed engagement is never stopped by a lapsed plan");
+  assertEquals((await pool.query("select (dela_hire_gate($1)->>'needed')::boolean n", [fg])).rows[0].n, false);
+  } finally { await set("fl.hire_min_tier", ""); await set("fl.hire_gate_from", ""); }
+});
+
 Deno.test("every day: agreements not signed in time close and the attorney can choose again", async () => {
   const ag3 = await hire(other, 30000, "c");
   await call("GET", "/agreements/get?id=" + ag3, other.token);

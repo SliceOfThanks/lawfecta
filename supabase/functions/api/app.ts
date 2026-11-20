@@ -268,7 +268,8 @@ async function bootstrap(ctx: Ctx): Promise<Response> {
   const appearance = r.me?.person?.id ? await rpc<Record<string, unknown>>(ctx, "dela_appearance", { p_person: r.me.person.id }).catch(() => ({ on: false, mode: "device" })) : { on: false, mode: "device" };
   const home = r.me?.person?.id && r.me?.side ? await homeCounts(ctx, r.me.person.id, r.me.side) : null;
   const keyAsk = r.me?.person?.id && r.me?.side ? await rpc<{ show?: boolean }>(ctx, "dela_ai_key_ask", { p_person: r.me.person.id, p_side: r.me.side }).catch(() => null) : null;
-  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, site_code: await rpc(ctx, "dela_site_code", {}).catch(() => ({})), me: { ...r.me, key_ask: keyAsk?.show === true, notice: await pageNotice(ctx, r.me), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, account: await accountLinks(ctx), limits: FORM_LIMITS }, commit, version: VERSION });
+  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, site_code: await rpc(ctx, "dela_site_code", {}).catch(() => ({})), me: { ...r.me,
+    hire_gate: r.me?.side === "freelancer" && r.me?.person?.id ? await rpc<Record<string, any>>(ctx, "dela_hire_gate_me", { p_person: r.me.person.id }).then((g) => g?.on ? g : null).catch(() => null) : null, key_ask: keyAsk?.show === true, notice: await pageNotice(ctx, r.me), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, account: await accountLinks(ctx), limits: FORM_LIMITS }, commit, version: VERSION });
 }
 
 // ---------- Member routes ----------
@@ -306,7 +307,8 @@ async function me(ctx: Ctx) {
   const m = await rpc<Record<string, unknown>>(ctx, "dela_me", { p_person: s.person_id, p_side: s.side });
   // Step 63: Home asks once whether the member uses ChatGPT or Claude, and helps them add their own key
   const keyAsk = s.side ? await rpc<{ show?: boolean }>(ctx, "dela_ai_key_ask", { p_person: s.person_id, p_side: s.side }).catch(() => null) : null;
-  return json(ctx, { me: { ...m, key_ask: keyAsk?.show === true, notice: await pageNotice(ctx, m), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, account: await accountLinks(ctx), limits: FORM_LIMITS } });
+  const hireGate = s.side === "freelancer" ? await rpc<Record<string, unknown>>(ctx, "dela_hire_gate_me", { p_person: s.person_id }).catch(() => null) : null;
+  return json(ctx, { me: { ...m, hire_gate: hireGate?.on ? hireGate : null, key_ask: keyAsk?.show === true, notice: await pageNotice(ctx, m), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, account: await accountLinks(ctx), limits: FORM_LIMITS } });
 }
 
 async function setSide(ctx: Ctx) {
@@ -3016,6 +3018,10 @@ async function gigProposalsWithAgencies(ctx: Ctx) {
     const a = ag[p.id];
     if (a) p.agency = { ...a.agency, team: await withPhotos(ctx, a.team ?? []), subcontracting_note: SUBCONTRACTING_NOTE };
   }
+  // Step 68: with "free until hired" on, a freelancer who already has a plan can start at once
+  const ready = await rpc<Record<string, boolean>>(ctx, "dela_hire_ready", { p_people: (r.proposals ?? []).map((p: Record<string, any>) => p.person_id).filter(Boolean) }).catch(() => ({} as Record<string, boolean>));
+  r.hire_gate_on = (await rpc<Record<string, any>>(ctx, "dela_hire_gate_me", { p_person: s.person_id }).catch(() => null))?.on === true;
+  for (const p of r.proposals ?? []) p.ready_to_start = !!(ready ?? {})[p.person_id];
   return json(ctx, r);
 }
 async function freelancerCard(ctx: Ctx) {
@@ -3981,6 +3987,11 @@ async function agreementGet(ctx: Ctx) {
   if (facts.version === 0) await rpc(ctx, "dela_agreement_version_add", { p_person: s.person_id, p_side: s.side, p_agreement: id, p_body: buildBody(facts), p_note: "First draft by DELA", p_base: 0 });
   const v = await rpc<Record<string, any>>(ctx, "dela_agreement_view", { p_person: s.person_id, p_side: s.side, p_agreement: id });
   if (v?.ok && v.current?.body) { v.fee_lines = feeLines(v.current.body); v.money_summary = moneySummary(v.current.body, v.role); }
+  // Step 68: free until hired. The freelancer sees the plans to choose from; the attorney only that they are waiting
+  if (v?.ok) {
+    const g = await rpc<Record<string, any>>(ctx, "dela_hire_gate", { p_agreement: id }).catch(() => null);
+    if (g?.needed) v.hire_gate = v.role === "freelancer" ? g : { needed: true, waiting: true, sign_by: g.sign_by };
+  }
   if (v?.ok) {
     const mv = await rpc<Record<string, any>>(ctx, "dela_monthly_view", { p_person: s.person_id, p_side: s.side, p_agreement: id });
     if (mv?.monthly) {
@@ -6176,7 +6187,11 @@ async function handleInner(req: Request, deps: Deps): Promise<Response> {
       case "POST /proposals/withdraw": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_proposal_withdraw", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)) })); }
       case "POST /proposals/reconfirm": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_proposal_reconfirm", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)) })); }
       case "POST /proposals/ask-reconfirm": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_proposal_ask_reconfirm", { p_person: s.person_id, p_prop: need(uuid(ctx.body.id)) })); }
-      case "POST /proposals/select": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_proposal_select", { p_person: s.person_id, p_prop: need(uuid(ctx.body.id)) })); }
+      case "POST /proposals/select": { const s = await client(ctx); const pid = need(uuid(ctx.body.id));
+        const sel = await rpc<Record<string, any>>(ctx, "dela_proposal_select", { p_person: s.person_id, p_prop: pid });
+        // Step 68: free until hired. A freelancer who still needs a plan is told at once what to do to accept
+        if (sel?.ok) sel.plan_needed = await rpc<boolean>(ctx, "dela_hire_gate_notify_proposal", { p_proposal: pid }).catch(() => false) === true;
+        return json(ctx, sel); }
       case "GET /reviews/state": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_review_state", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.url.searchParams.get("agreement"))) })); }
       case "POST /reviews/save": return await reviewSave(ctx);
       case "POST /reviews/respond": return await reviewRespond(ctx);

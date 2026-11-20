@@ -94,8 +94,21 @@ async function sign(page, name, version) {
     let t = await waitFor(p, "Your engagements (1)");
     ok(t.includes("Needs your signature"), "freelancer: Work lists the engagement waiting for their signature");
     ok((await dela(p).locator(".badge", { hasText: "Needs your signature" }).first().getAttribute("class")).includes("held"), "Needs your signature is yellow on Work (UI review 2026-11-08)");
+    // Step 68: free until hired. On the Free plan the chosen freelancer sees the plans in place of the signing box
+    await sql("update settings set value = '\"plus\"' where key = 'fl.hire_min_tier'; update side_profiles set plan_code = 'fl_free' where side = 'freelancer' and person_id = (select id from people where bd_member_id = 2801)");
+    {
+      const g = await open(browser, "DELA-App", 2801, "&tab=work");
+      await waitFor(g.page, "Your engagements (1)");
+      await dela(g.page).getByText("Filing packet help").first().click();
+      const gt = await waitFor(g.page, "Start your subscription to accept this job");
+      ok(gt.includes("Being on Lawfecta is free until you are hired") && gt.includes("Freelancer Plus: $") && gt.includes("Choose a plan") && gt.includes("I have subscribed, check again") && gt.includes("The attorney is not charged until you have both signed"), "step 68: a freelancer on Free is shown the plans and what to do to accept");
+      ok(!gt.includes("Sign version") && await dela(g.page).locator("#hire-gate-go").getAttribute("href") === "/account/upgrade" && await dela(g.page).locator("#hire-gate-go").getAttribute("target") === "_blank", "step 68: no signing box until they subscribe; Choose a plan opens the website's plans in a new tab");
+      await g.ctx.close();
+    }
+    await sql("update settings set value = '\"\"' where key = 'fl.hire_min_tier'; update side_profiles set plan_code = 'fl_plus' where side = 'freelancer' and person_id = (select id from people where bd_member_id = 2801)");
     await dela(p).getByText("Filing packet help").first().click();
     t = await waitFor(p, "Agreement, version 1");
+    ok(!t.includes("Start your subscription to accept this job"), "step 68: with a plan that can be hired, the agreement shows its signing box");
     ok(t.includes("Example Legal") && t.includes("Fran Pays") && t.includes("$600"), "freelancer: DELA's first draft names the firm, the freelancer and the price");
     ok(t.includes("The freelancer receives: $570"), "freelancer: the fee lines say what they receive (5% on every plan)");
     ok(t.includes("Draft") && t.includes("Final") && t.includes("$300"), "freelancer: two milestones of $300 from the proposal");

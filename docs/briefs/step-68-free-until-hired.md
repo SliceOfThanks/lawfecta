@@ -1,7 +1,7 @@
 # Feature brief: free for freelancers until they are hired
 
 Step: 68   Spec references: config/decisions.json (freelancer plans and limits), step 6 (agreements and payments), step 9 (Pro trial)
-Status: proposal. Not built. It changes who pays and when, so it waits for Stacey's answers. Stacey 2026-11-20: "It is completely free for them to be on the platform and get visibility, etc., but once they get hired, they need to have a subscription. Based on our existing workflow, how can we make this a reality?"
+Status: built in acceleration mode after Stacey's answer of 2026-11-20 to the eight questions below: "Yes, as recommended". Stacey 2026-11-20: "It is completely free for them to be on the platform and get visibility, etc., but once they get hired, they need to have a subscription. Based on our existing workflow, how can we make this a reality?"
 
 ## How it works today
 - A freelancer joins on the website's plan "Free" and can do everything up to and including being hired: profile, Talent, 5 proposals a month, an agreement, payouts.
@@ -31,7 +31,7 @@ In code this is one check where the freelancer signs (the same place that alread
 - The plan is paid but DELA still shows Free: DELA reads the plan at each page load; the card has "I have paid, check again".
 - Agencies: the agency's plan counts for work signed by the agency. Bench members already need Plus.
 
-## Questions for Stacey
+## Questions, and Stacey's answer ("Yes, as recommended", 2026-11-20)
 1. Which plan is the least a freelancer needs to be hired? Recommended: **Plus ($12 a month)**.
 2. Do Free freelancers keep today's allowances (5 proposals and 3 pitches a month, 3 services)? Recommended: **yes**, so "free to be visible" is true.
 3. Must the plan stay active for the whole engagement? Recommended: **no, only to sign.** Nothing stops mid-job.
@@ -40,6 +40,14 @@ In code this is one check where the freelancer signs (the same place that alread
 6. The 5% platform fee on each side stays as it is? Recommended: **yes**.
 7. Should attorneys see which freelancers already have a plan (a small "Ready to start" tag)? Recommended: **yes**, it rewards subscribers and sets the attorney's expectation.
 8. Freelancers hired before this starts: Recommended: **their open engagements are untouched**; the rule applies from the next agreement.
+
+## What was built
+- Setting fl.hire_min_tier (empty is off; "plus" on the site) and fl.hire_gate_from (the first day; agreements started earlier are untouched). Migration 0149.
+- The check sits in the signing function itself, so no page or connector can sign around it. Reason: plan_needed.
+- Freelancer: on the agreement page, the card "Start your subscription to accept this job" with what the job pays, the plans from Plus up with their prices, "Choose a plan" (the website's plans, in a new tab) and "I have subscribed, check again". A notice and an email right after being chosen. A line on the proposal form and on the Subscription page saying it is free until hired.
+- Attorney: after choosing, "the freelancer starts their subscription and signs first; you are not charged until you have both signed"; on the agreement page the waiting line with the sign-by date; on the proposal list a tag "Ready to start" or "Subscribes when hired".
+- Not changed: the allowances on Free, the 5% fee, Stripe, the website's plans and checkout.
+- The Pro trial (answer 5): DELA's own trial switch was already off and nobody is on a trial. Whether new freelancers land on Free or on a trial is set in the website's sign-up, which DELA does not control. See the note to Stacey.
 
 ## Success looks like
 - A Free freelancer is chosen, sees "Choose a plan", subscribes on the website, comes back and signs.
