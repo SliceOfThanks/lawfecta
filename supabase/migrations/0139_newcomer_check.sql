@@ -28,9 +28,9 @@ begin
   v_role := case when x.id is null then null else dela_pb_role(p_person, x.org_id) end;
   if v_role is null then return jsonb_build_object('ok', false, 'reason', 'not_found'); end if;
   if not dela_switch_on('handoff_kit', p_person) then return jsonb_build_object('ok', true, 'on', false); end if;
-  select * into c from doc_newcomer_checks where playbook_id = x.id and version = x.version;
+  select * into c from doc_newcomer_checks where playbook_id = x.id and version = x.current_version;
   select * into a from doc_newcomer_checks where playbook_id = x.id and version = x.approved_version;
-  return jsonb_build_object('ok', true, 'on', true, 'can_run', dela_pb_rank(v_role) >= 3, 'version', x.version,
+  return jsonb_build_object('ok', true, 'on', true, 'can_run', dela_pb_rank(v_role) >= 3, 'version', x.current_version,
     'check', case when c.playbook_id is null then null else jsonb_build_object('version', c.version, 'ready', c.ready, 'findings', c.findings, 'summary', c.summary, 'created_at', c.created_at) end,
     'approved_ready', case when a.playbook_id is null then null else a.ready end,
     'out_of_date', c.playbook_id is null and exists (select 1 from doc_newcomer_checks o where o.playbook_id = x.id));

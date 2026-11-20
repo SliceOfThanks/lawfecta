@@ -1036,6 +1036,7 @@ async function pbGet(ctx: Ctx) {
     r.images_due = imageIds(body).length ? await rpc(ctx, "dela_doc_images_due", { p_playbook: id, p_ids: imageIds(body) }) : { due: false, ids: [] };
     r.image_settings = await imageSettings(ctx, s);
     r.newcomer = await rpc(ctx, "dela_doc_newcomer_get", { p_person: s.person_id, p_playbook: id }).catch(() => null);
+    r.feedback = await rpc(ctx, "dela_doc_feedback_list", { p_person: s.person_id, p_playbook: id }).catch(() => null);
     // Phase 4 part A: the approved version, read-only, as gigs and exports use it
     if (r.playbook.approved_version && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "approved_view", p_person: s.person_id })) r.approved = await approvedView(ctx, s, r);
   }
@@ -2733,6 +2734,19 @@ function gigDocView(db: DocBody, part: GigPart) {
     part: { nos: part.nos, of: part.of, whole: part.whole, before: part.whole ? "" : part.before, after: part.whole ? "" : part.after } };
 }
 const inputKind = (l: string) => /\b(access|log ?in|login|account|permission|invite)\b/i.test(l) ? "access" : /\btemplate\b/i.test(l) ? "template" : /\b(file|form|copy|document|folder|pdf)\b/i.test(l) ? "file" : "information";
+// Step 59, learning from each job: the freelancer's private note about the document, and the firm marking it handled
+async function docFeedbackAdd(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const text = str(ctx.body.text, 1500).trim();
+  if (text.length < 3) return json(ctx, { ok: false, reason: "write_a_little" });
+  const warn = await sensitive(ctx, s, text, "conversation", { signed: true });
+  if (warn) return json(ctx, warn);
+  return json(ctx, await rpc(ctx, "dela_doc_feedback_add", { p_person: s.person_id, p_side: s.side, p_agreement: need(uuid(ctx.body.agreement_id)), p_step: int(ctx.body.step_no) ?? 0, p_body: text }));
+}
+async function docFeedbackHandle(ctx: Ctx) {
+  const s = await client(ctx);
+  return json(ctx, await rpc(ctx, "dela_doc_feedback_handle", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)), p_handled: ctx.body.handled !== false }));
+}
 // The steps of an approved document a gig may hand over, for the checklist on "Post a New Gig"
 async function gigDocSteps(ctx: Ctx) {
   const s = await client(ctx);
@@ -3874,6 +3888,10 @@ async function agreementGet(ctx: Ctx) {
   const gdoc = await rpc<Record<string, any> | null>(ctx, "dela_agreement_doc", { p_agreement: id }).catch(() => null);
   if (v?.ok && gdoc && isDoc(gdoc)) {
     const part = gigPart(normalizeDoc(gdoc), v.agreement?.gig_id ? await gigStepNos(ctx, v.agreement.gig_id) : null);
+    // Step 59: the steps of the part, for the freelancer's note about what was unclear
+    if (part.ok && s.side === "freelancer" && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "handoff_kit", p_person: s.person_id }).catch(() => false)) {
+      v.feedback = { steps: part.steps.map((st, i) => ({ no: part.nos[i], text: st.text })), mine: await rpc(ctx, "dela_doc_feedback_mine", { p_person: s.person_id, p_side: s.side, p_agreement: id }).catch(() => []) };
+    }
     if (part.ok) await rpc(ctx, "dela_checkpoints_ensure", { p_agreement: id, p_steps: part.steps.map((st, i) => ({ n: i + 1, text: st.text })).filter((_, i) => part.checkpoints.includes(i + 1)) });
     v.checkpoints = await rpc(ctx, "dela_checkpoints", { p_person: s.person_id, p_side: s.side, p_agreement: id });
   }
@@ -5945,6 +5963,8 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /library": return await library(ctx);
       case "GET /gigs": return await gigsMine(ctx);
       case "GET /gigs/get": return await gigGet(ctx);
+      case "POST /engagements/feedback": return await docFeedbackAdd(ctx);
+      case "POST /documents/feedback/handle": return await docFeedbackHandle(ctx);
       case "GET /gigs/doc-steps": return await gigDocSteps(ctx);
       case "POST /gigs/steps": return await gigStepsSet(ctx);
       case "POST /gigs/inputs/save": return await gigInputsSave(ctx);

@@ -4385,6 +4385,8 @@
     }
     drawLog();
     var ta = h("textarea", { "aria-label": "Message about this document", style: "width:100%;min-height:70px" });
+    // Step 59: a freelancer's note about the document arrives here as the start of a request to DELA
+    if (lib.chatSeed) { ta.value = lib.chatSeed; lib.chatSeed = ""; }
     var status = h("span", { class: "small muted", role: "status" });
     var auto = h("input", { type: "checkbox" });
     var ai = chat.ai || {};
@@ -10064,6 +10066,7 @@
         [agreementCard(r, b), att && (r.payments || []).length ? paymentsCard(r) : null, !att && r.payout_account !== undefined ? payoutCard(r.payout_account, true) : null, exportCard], pre),
       (r.inputs || []).length ? egSec("needs", "Before the work starts", att ? "What the freelancer needs from you, and whether each thing has been supplied." : "What you need to begin, and whether each thing has been supplied.", null,
         [h("div", { class: "card", id: "eg-needs" }, h("h2", { text: "What the freelancer needs before starting" }), needsList(r.inputs, att ? "manager" : "hired", function () { draw(); }))], (r.inputs || []).some(function (i) { return i.status === "needed"; })) : null,
+      !att && r.feedback ? egSec("unclear", "Was anything unclear?", "Tell the firm, privately, what the document did not make clear.", null, [feedbackForm(r)], false) : null,
       egSec("decisions", "Attorney decisions", att ? "Approve work at the steps that need your decision." : "The steps where the work waits for the attorney's decision.", "decisions", [checkpointsCard(r)], cpWait),
       !r.monthly && (a.status === "signing" || a.status === "signed" || a.status === "active") ? egSec("changes", a.status === "signing" ? "Propose changes" : "Change orders", "Propose changes to scope, price or milestones. Nothing changes until you both sign the new version.", "change", [changesCard(r, b)], !!eng.editing) : null,
       egSec("people", "Who's working on this", "Everyone on the job, and any subcontractors.", null, [!att ? clientCard(r.client) : null, subsCard(r, b), peopleCard(r), !att ? assignmentsCard(r) : null], false),
@@ -12308,6 +12311,7 @@
       area.appendChild(qn);
     }
     var nc0 = newcomerCard(lib.pb.playbook, can(3)); if (nc0) area.appendChild(nc0);
+    var fb0 = feedbackCard(lib.pb.playbook); if (fb0) area.appendChild(fb0);
     // The document itself, laid out as the export (no boxes, no Save buttons)
     var doc = h("div", { class: "card", id: "approved-body" });
     (AV.blocks || []).forEach(function (b) {
@@ -12329,6 +12333,67 @@
   // Step 55, the newcomer check: can a person who has never worked with the firm do this from the page? DELA lists
   // what they would not know, the attorney answers, and DELA writes the answers into a new draft.
   var NC_KIND = { term: "A term to explain", access: "Access needed", location: "Where it lives", contact: "Who to ask", done: "What done looks like", example: "An example", system: "Where in the system", order: "The order", other: "Something else" };
+  // Step 59, learning from each job: what freelancers who did the work said was unclear, on the document itself
+  function feedbackCard(P) {
+    var fb = lib.pb.feedback;
+    if (!fb || !fb.ok || !fb.on || !(fb.notes || []).length) return null;
+    var card = h("div", { class: "card", id: "feedback-card" }, h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("h2", { class: "grow", style: "margin:0", text: "From people who did the work" }),
+      fb.open ? h("span", { class: "badge held", id: "feedback-open", text: fb.open + " to look at" }) : h("span", { class: "badge ready", text: "All looked at" })),
+      h("p", { class: "small muted", text: "Freelancers on your engagements said what this document did not make clear. Only your firm sees these notes. They are not reviews." }));
+    fb.notes.forEach(function (n) {
+      var acts = [];
+      if (fb.can_handle) {
+        if (n.status === "open") {
+          var ask = h("button", { class: "ghost small ai-btn", type: "button" }, "✦ Ask DELA to suggest an edit");
+          ask.addEventListener("click", function () {
+            lib.chatSeed = "A freelancer who did this work said" + (n.step_no ? " about step " + n.step_no : "") + ": \"" + n.body + "\" Suggest an edit that makes this clear to someone new to the firm. Change nothing else.";
+            lib.view = "chat"; openPlaybook(P.id, "chat");
+          });
+          acts.push(ask);
+        }
+        var hb = h("button", { class: "ghost small", type: "button" }, n.status === "open" ? "Mark as looked at" : "Open again");
+        hb.addEventListener("click", function () {
+          hb.disabled = true;
+          api.post("/documents/feedback/handle", { id: n.id, handled: n.status === "open" }).then(function (x) { if (!x.ok) throw x; openPlaybook(P.id, lib.view); }).catch(function (x) { hb.disabled = false; pbFail(x); });
+        });
+        acts.push(hb);
+      }
+      card.appendChild(h("div", { class: "nc-item" },
+        h("div", { class: "row", style: "gap:6px;flex-wrap:wrap" }, h("span", { class: "badge", text: n.step_no ? "Step " + n.step_no : "The whole task" }), n.status === "handled" ? h("span", { class: "badge ready", text: "Looked at" }) : null),
+        h("p", { style: "margin:6px 0 2px;white-space:pre-wrap", text: n.body }),
+        h("p", { class: "small muted", style: "margin:0 0 6px", text: n.by + ", " + D.date(n.created_at) + (n.gig ? ", on \"" + n.gig + "\"" : "") + ", version " + n.version }),
+        acts.length ? h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, acts) : null));
+    });
+    return card;
+  }
+  // The freelancer's side, on the engagement: a private note to the firm about the document
+  function feedbackForm(r) {
+    var fb = r.feedback || {}, a = r.agreement;
+    var about = h("select", { id: "fb-step", "aria-label": "Which step is this about?" }, [h("option", { value: "0", text: "The whole task" })].concat((fb.steps || []).map(function (st) { return h("option", { value: String(st.no), text: "Step " + st.no + ": " + (st.text.length > 70 ? st.text.slice(0, 68) + "..." : st.text) }); })));
+    var box = h("textarea", { id: "fb-text", rows: 3, maxlength: "1500", style: "width:100%", placeholder: "For example: step 3 says to save the file, but not where or under what name." });
+    var msg = h("p", { class: "small", role: "status", id: "fb-msg", style: "margin:6px 0 0" }), send = h("button", { class: "blue small", type: "button", id: "fb-send" }, "Send to the firm");
+    var again = h("button", { class: "ghost small", type: "button", style: "display:none" }, "It is not client information, send it");
+    var go = function (confirmed) {
+      if (box.value.trim().length < 3) { msg.textContent = "Write a few words first."; box.focus(); return; }
+      send.disabled = true; msg.textContent = "Sending..."; again.style.display = "none";
+      api.post("/engagements/feedback", { agreement_id: a.id, step_no: Number(about.value) || 0, text: box.value.trim(), confirm_no_client_info: confirmed === true }).then(function (x) {
+        if (!x || !x.ok) throw x || {};
+        D.toast(app, "Sent. Thank you, this helps the next person."); draw();
+      }).catch(function (x) {
+        send.disabled = false;
+        if (x && x.reason === "looks_like_client_info") { msg.textContent = ciNote(x, "This may include client information. Say it without the client's details."); again.style.display = ""; return; }
+        msg.textContent = x && x.reason === "feedback_limit" ? "You have sent the most notes one engagement takes (" + x.max + ")." : x && x.reason === "not_signed_yet" ? "You can send a note once the agreement is signed." : x && x.reason ? D.errorText(x.reason) : D.errorText((x && x.message) || "failed");
+      });
+    };
+    send.addEventListener("click", function () { go(false); }); again.addEventListener("click", function () { go(true); });
+    var mine = fb.mine || [];
+    return h("div", { class: "card", id: "eg-feedback" }, h("h2", { text: "Was anything unclear?" }),
+      h("p", { class: "small muted", text: "Tell the firm what the document did not make clear, or what would have helped you. It goes only to the firm, to improve the document for the next person. It is not a review and nobody else sees it. Never include client information." }),
+      h("label", { for: "fb-step", style: "display:block;font-weight:700;margin:0 0 2px", text: "What is it about?" }), about,
+      h("label", { for: "fb-text", style: "display:block;font-weight:700;margin:8px 0 2px", text: "What was unclear, or what would have helped?" }), box,
+      h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:8px" }, send, again), msg,
+      mine.length ? h("div", { id: "fb-mine", style: "margin-top:10px" }, h("h3", { text: "What you sent" }), mine.map(function (n) { return h("p", { class: "small", style: "margin:4px 0" }, h("b", { text: (n.step_no ? "Step " + n.step_no : "The whole task") + ": " }), n.body); })) : null);
+  }
   function newcomerCard(P, edit) {
     var st = lib.pb.newcomer;
     if (!st || !st.ok || !st.on) return null;
@@ -12434,6 +12499,7 @@
     qp.appendChild(ex);
     right.appendChild(qp);
     var ncc = newcomerCard(P, edit); if (ncc) right.appendChild(ncc);
+    var fbc = feedbackCard(P); if (fbc) right.appendChild(fbc);
     var cic = checkImagesCard(d); if (cic) right.appendChild(cic);
     if (lib.questions && lib.questions.length && can(3)) right.appendChild(questionsCard());
     // The editable document, section by section

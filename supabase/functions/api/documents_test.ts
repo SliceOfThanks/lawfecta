@@ -328,6 +328,22 @@ Deno.test("steps 56 to 58: a gig hands over chosen steps only; what the freelanc
   const av = (await call("GET", "/agreements/get?id=" + ag, fl.token)).body;
   assertEquals(av.inputs.map((i: any) => [i.status, i.note]), [["needed", "The login does not work"], ["supplied", ""]], "the engagement shows the same list to both sides");
   assertEquals(av.checkpoints.map((c: any) => [c.step_no, c.status]), [[1, "pending"]], "decision points count within the part handed over");
+  // Step 59, learning from each job: the freelancer's private note reaches the firm on the document
+  assertEquals([av.feedback.steps.map((x: any) => x.no), av.feedback.mine], [[3, 4], []], "the freelancer may name a step of their own part");
+  assertEquals("feedback" in (await call("GET", "/agreements/get?id=" + ag, att.token)).body, false, "the note form is the freelancer's");
+  assertEquals((await call("POST", "/engagements/feedback", att.token, { agreement_id: ag, step_no: 3, text: "The attorney cannot send one." })).body.reason, "not_found");
+  assertEquals((await call("POST", "/engagements/feedback", fl.token, { agreement_id: ag, step_no: 3, text: "ok" })).body.reason, "write_a_little");
+  assertEquals((await call("POST", "/engagements/feedback", fl.token, { agreement_id: ag, step_no: 3, text: "Step 3 does not say where the fee note is saved." })).body.ok, true);
+  let doc = (await call("GET", "/playbooks/get?id=" + wf, att.token)).body;
+  assertEquals([doc.feedback.on, doc.feedback.open, doc.feedback.can_handle, doc.feedback.notes[0].step_no, doc.feedback.notes[0].body, doc.feedback.notes[0].status], [true, 1, true, 3, "Step 3 does not say where the fee note is saved.", "open"]);
+  assertEquals((await call("GET", "/agreements/get?id=" + ag, fl.token)).body.feedback.mine.length, 1, "the freelancer sees what they sent");
+  assertEquals((await call("POST", "/documents/feedback/handle", other.token, { id: doc.feedback.notes[0].id })).body.reason, "not_found", "another firm cannot touch it");
+  assertEquals((await call("POST", "/documents/feedback/handle", att.token, { id: doc.feedback.notes[0].id })).body.ok, true);
+  doc = (await call("GET", "/playbooks/get?id=" + wf, att.token)).body;
+  assertEquals([doc.feedback.open, doc.feedback.notes[0].status], [0, "handled"]);
+  await pool.query("update settings set value = '1' where key = 'documents.feedback_max'");
+  assertEquals((await call("POST", "/engagements/feedback", fl.token, { agreement_id: ag, step_no: 0, text: "One more note about the whole task." })).body.reason, "feedback_limit");
+  await pool.query("update settings set value = '20' where key = 'documents.feedback_max'");
   // A gig with no choice hands over what it always did
   const whole = (await call("POST", "/gigs/draft", att.token, { playbook_id: wf, request_id: "h2", budget_min: 300, budget_max: 600, use_ai: false })).body;
   const wv = (await call("GET", "/gigs/get?id=" + whole.id, att.token)).body;
