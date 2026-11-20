@@ -8,6 +8,9 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
+## Newest (2026-11-21, early): step 72, where each step comes from, is on the site
+code_version 100fb3d, api 148 (run 44827284366). To test: ChatGPT check 23 (one login, saves nothing). Seven check files are with Stacey: 15, 18, 19, 20, 21, 22, 23. Nothing more from the Lapt evaluation can be built without her word. Waiting for it: scope changes after signing, staff work with no gig, the website's public listing, how new freelancers sign up, the address for "Write an article", a link to the website's member record. Next without her: act on the check reports as they come.
+
 ## Newest (2026-11-20, after midnight): step 71 is on the site
 code_version d9b4754, api 147, migrations through 0152 (run 44823822152). Prerequisites in a partial handoff, the separate status facts on the workflow card, Stop and the kept message in Ask DELA. To test: ChatGPT check 22, after Stacey sets "Handoff kit" to "Access list". Also with Stacey: checks 15, 18, 19, 20, 21. Next from the Lapt evaluation: source labels on instructions. Waiting for Stacey's word: scope changes after signing, staff work with no gig, the website's public listing, how new freelancers sign up, the address for "Write an article", a link to the website's member record.
 

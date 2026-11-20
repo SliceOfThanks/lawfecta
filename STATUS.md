@@ -6,6 +6,13 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 72, where each step comes from: ON THE SITE (2026-11-20), nothing queued behind it
+- Site: code_version 100fb3d, api function 148, migrations through 0152 unchanged, health "ok". GitHub Tests passed (run 44827284366, with 3 new browser checks).
+- docs/briefs/step-72-source-labels.md. DocStep.basis (said, source, proposed, unknown; absent on older steps); settleBasis in lib/documents/model.ts makes a step with an open placeholder "unknown" whatever the AI claimed; RULES and the step shape in lib/documents/ai.ts ask DELA for the label. App: BASIS, the tag .basis-tag, the list "Where this step comes from", the note #basis-summary and "Confirm all N suggestions" in stepsEditor. Freelancers do not get the label. No switch, no migration.
+- Not built: labels on the other parts of a document, on Policies and Playbooks, and in Ask DELA's answers.
+- Check file 23 (docs/tests/source-labels-chatgpt-prompt.md). Not run yet. It saves nothing.
+- With this, every gap named in the Lapt evaluation that did not need Stacey's decision is built. Left, waiting for her word: scope changes after signing, and staff work with no gig.
+
 ## Step 71, prerequisites, status facts, Stop and the kept message: ON THE SITE (2026-11-20), nothing queued behind it
 - Site: code_version d9b4754, api function 147, migrations through 0152, health "ok". GitHub Tests passed (run 44823822152, with 7 new browser checks).
 - docs/briefs/step-71-prerequisites-status-stop.md. gigPrereqs (lib/documents/model.ts): the step right before each run of handed-over steps, when the firm keeps it. dela_gig_prereqs_sync adds "Result of step N, which the firm keeps: ..." to gig_inputs and removes its own lines that no longer apply while they are still "needed". gig_part.prereqs; the handoff card's note .ho-prereq with "Hand over step N too". dela_workflow's eng now carries client_signed, freelancer_signed, plan_wait, needs_total, paid, accepted, milestones; wfFacts draws them as #wf-facts. Ask DELA: stopSend, chatDraft (localStorage dela.chatdraft.<side>), #chat-stop, #chat-stopped.
