@@ -52,7 +52,7 @@ let owner: M, mgr: M, mem: M, newbie: M, extra: M, att: M, team: M;
 let org = "", gig = "", ag = "", prop = "";
 
 Deno.test("setup", async () => {
-  await pool.query("update feature_switches set state = 'everyone' where key in ('flex_gigs', 'agency_team', 'engagements', 'reviews', 'profiles', 'gig_chat')");
+  await pool.query("update feature_switches set state = 'everyone' where key in ('flex_gigs', 'agency_team', 'engagements', 'reviews', 'profiles', 'gig_chat', 'hide_last_names')");
   await pool.query("update settings set value = 'false' where key = 'verify.freelancer_linkedin'");
   owner = await member(1, "fl_business", "Olive Owner"); mgr = await member(2, "fl_plus", "Max Manager"); mem = await member(3, "fl_plus", "Mia Member");
   newbie = await member(4, "fl_free", "Ned New"); extra = await member(5, "fl_plus", "Eve Extra"); att = await member(6, "att_pro", "Ann Attorney"); team = await member(7, "att_free", "Lawfecta Team");
@@ -174,10 +174,10 @@ Deno.test("agency proposals: Who will do this work is required, verified people 
   // The attorney sees the agency and its people
   const ps = (await call("GET", "/gigs/proposals?id=" + gig, att.token)).body;
   const p = ps.proposals.find((x: any) => x.id === prop);
-  assertEquals([p.agency.name, p.agency.team.map((t: any) => t.name + ":" + t.role)], ["Roe Support Group Inc", ["Mia Member:Lead paralegal", "Max Manager:Review"]]);
+  assertEquals([p.agency.name, p.agency.team.map((t: any) => t.name + ":" + t.role)], ["Roe Support Group Inc", ["Mia M.:Lead paralegal", "Max M.:Review"]], "step 66: before a hire the attorney sees first name and last initial");
   assert(p.agency.team[0].photo_url.includes("exp=3600") && p.agency.team[0].photo_file === undefined, "photos are short links, never paths");
   const card = (await call("GET", "/freelancers/card?person=" + mem.id, att.token)).body;
-  assertEquals([card.name, card.headline, card.agencies], ["Mia Member", "Mia Member headline", ["Roe Support Group Inc"]]);
+  assertEquals([card.name, card.headline, card.agencies], ["Mia M.", "Mia Member headline", ["Roe Support Group Inc"]]);
 });
 
 Deno.test("after the hire: paid to the agency, the people work on it, owners and managers bind it, changes notify the attorney", async () => {
@@ -187,7 +187,7 @@ Deno.test("after the hire: paid to the agency, the people work on it, owners and
   ag = a.id;
   assertEquals([a.freelancer_person, a.agency_org], [owner.id, org], "the agreement pays the agency (its owner's payout account)");
   const ppl = (await call("GET", "/engagements/people?agreement=" + ag, att.token)).body;
-  assertEquals(ppl.people.map((x: any) => x.name).sort(), ["Max Manager", "Mia Member"], "who's working on this");
+  assertEquals(ppl.people.map((x: any) => x.name).sort(), ["Max M.", "Mia M."], "who's working on this: short names until the agreement is signed (step 66)");
   assertEquals(ppl.agency.name, "Roe Support Group Inc");
   // The named member works on it; others in the agency do not see it
   assertEquals((await call("GET", "/agreements/get?id=" + ag, mem.token)).body.ok, true, "the named member opens the agreement");

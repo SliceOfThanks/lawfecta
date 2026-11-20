@@ -344,6 +344,34 @@ async function listened(page, secs) {
     ok(t.includes("2103"), "step 62: the On hold filter finds the member");
     await s.ctx.close();
 
+    // ---------- Step 65: Site code, added by the owner, runs on member pages and never in the admin area ----------
+    s = await open(browser, "DELA-Admin", 2102);
+    await dela(s.page).getByRole("tab", { name: "Site code" }).click();
+    t = await waitFor(s.page, "This code runs for every member on every DELA page.");
+    ok(t.includes("Header code") && t.includes("Footer code") && t.includes("Before the closing body tag") && t.includes("Never paste a password or a secret key here"), "step 65: the Site code page has the three places and the warning");
+    await dela(s.page).getByLabel("Header code").fill('<meta name="dela-site-code" content="yes"><script>window.__delaCode = (window.__delaCode || 0) + 1;</script>');
+    await dela(s.page).getByRole("button", { name: "Save header code" }).click();
+    await waitFor(s.page, "Saved. Members get it at their next page load.");
+    await dela(s.page).getByLabel("Before the closing body tag").fill('<div id="dela-code-end">Added at the end</div>');
+    await dela(s.page).getByRole("button", { name: "Save before the closing body tag" }).click();
+    await waitFor(s.page, "Saved. Members get it at their next page load.");
+    t = await text(s.page);
+    ok(t.includes("Last saved") && !t.includes("Nothing changed"), "step 65: each place says when it was last saved");
+    ok(await s.page.evaluate(() => window.__delaCode === undefined && !document.querySelector('meta[name="dela-site-code"]')), "step 65: the code is not added to the admin area");
+    const mp = await open(browser, "DELA-App", 2100);
+    const got = await mp.page.evaluate(() => ({ meta: !!document.head.querySelector('meta[name="dela-site-code"]'), ran: window.__delaCode, end: (document.getElementById("dela-code-end") || {}).parentNode === document.body }));
+    ok(got.meta && got.ran === 1 && got.end === true, "step 65: on a member page the header code is in the head, its script ran once, and the body-end code sits directly in the body: " + JSON.stringify(got));
+    await mp.ctx.close();
+    await dela(s.page).locator("#code-on-head").uncheck();
+    await dela(s.page).getByRole("button", { name: "Save header code" }).click();
+    await waitFor(s.page, "Saved. This place adds nothing now.");
+    const mp2 = await open(browser, "DELA-App", 2100);
+    const got2 = await mp2.page.evaluate(() => ({ meta: !!document.head.querySelector('meta[name="dela-site-code"]'), ran: window.__delaCode, end: !!document.getElementById("dela-code-end") }));
+    ok(!got2.meta && got2.ran === undefined && got2.end, "step 65: a place switched off adds nothing, and keeps its code for later: " + JSON.stringify(got2));
+    await mp2.ctx.close();
+    await sql("delete from site_code");
+    await s.ctx.close();
+
     // ---------- Admin: AI and files ----------
     s = await open(browser, "DELA-Admin", 2102);
     await dela(s.page).getByRole("tab", { name: "AI and files" }).click();

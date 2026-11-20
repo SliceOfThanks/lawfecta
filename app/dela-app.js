@@ -11,6 +11,34 @@
   var loginUrl = root.getAttribute("data-login-url") || "/login";
   var api = D.client(root, function () { show(signedOut(true)); });
   var boot = api.boot || {};
+  // Step 65: code the owner added in the admin area's "Site code" page, put into this page once: inside the head, at the
+  // footer, and before the closing body tag. A script written into a page as text does not run, so each one is made anew.
+  (function (sc) {
+    if (!sc || document.documentElement.getAttribute("data-dela-code")) return;
+    document.documentElement.setAttribute("data-dela-code", "1");
+    var place = { head: document.head, footer: document.querySelector("footer") || document.body, body_end: document.body };
+    function live(n, slot) {
+      if (n.nodeType !== 1) return n;
+      if (n.tagName === "SCRIPT") {
+        var s = document.createElement("script");
+        Array.prototype.slice.call(n.attributes).forEach(function (a) { s.setAttribute(a.name, a.value); });
+        s.text = n.textContent;
+        s.setAttribute("data-dela-code", slot);
+        return s;
+      }
+      n.setAttribute("data-dela-code", slot);
+      Array.prototype.slice.call(n.querySelectorAll("script")).forEach(function (x) { x.parentNode.replaceChild(live(x, slot), x); });
+      return n;
+    }
+    ["head", "footer", "body_end"].forEach(function (slot) {
+      if (!sc[slot] || !place[slot]) return;
+      try {
+        var t = document.createElement("template");
+        t.innerHTML = String(sc[slot]);
+        Array.prototype.slice.call(t.content.childNodes).forEach(function (n) { place[slot].appendChild(live(n, slot)); });
+      } catch (e) { /* a mistake in the pasted code must never stop DELA */ }
+    });
+  })((api.boot || {}).site_code);
   var me = boot.me || null;
   var drawer = null;
   var menu = null;
@@ -2889,6 +2917,8 @@
     // with a menu at the left, and what is published where in a column at the right.
     var all = false; try { all = localStorage.getItem("dela_pf_all") === "1"; } catch (e) { all = false; }
     profEl.className = "pf" + (all ? " pf-all" : "");
+    // Step 67: what DELA took out of the profile on the last save stays on the page until the next one
+    if (prof.removedNote) profEl.appendChild(h("div", { class: "notice bad", id: "pf-removed", role: "alert", text: prof.removedNote }));
     profEl.appendChild(h("div", { class: "pf-head" }, h("div", { class: "grow" }, h("h1", { style: "margin:0", text: att ? "Profile and verification" : "Your profile" }),
       h("p", { class: "muted", style: "margin:2px 0 0", text: att ? "This is your Attorney profile. It is used for verification, agreements and DELA's own work. Save each section as you go." : "Edit what attorneys see. Save each section as you go." })),
       att ? null : h("button", { class: "ghost", type: "button", id: "prof-live", onclick: openLiveProfile }, icon("eye"), " Preview profile")));
@@ -3343,7 +3373,8 @@
           return;
         }
         if (!x.ok) { msg.textContent = D.errorText(x.reason); if (prof.photoPending) D.toast(app, "Not saved. " + D.errorText(x.reason), true); return; }
-        D.toast(app, prof.photoPending ? "Profile saved, with your picture." : "Profile saved");
+        D.toast(app, x.removed ? contactRemovedText(x) : prof.photoPending ? "Profile saved, with your picture." : "Profile saved", !!x.removed);
+        prof.removedNote = contactRemovedText(x);
         prof.dirty = false; prof.photoPending = "";
         loadProfile();
       }).catch(function (e) { save.disabled = false; msg.textContent = D.errorText(e.message); });
@@ -7020,7 +7051,7 @@
         api.post("/agency/profile", { headline: head.value, summary: sum.value, practice_areas: commas(areas.value), tools: commas(tools.value), states_served: commas(states.value), services: services }).then(function (x) {
           save.disabled = false;
           if (!x.ok) { D.toast(app, x.message || failText(x), true); return; }
-          D.toast(app, "Saved");
+          D.toast(app, x.removed ? contactRemovedText(x) : "Saved", !!x.removed);
           card.replaceWith(agencyProfileCard(true));
         }).catch(function () { save.disabled = false; D.toast(app, "Not saved. Try again.", true); });
       });
@@ -7137,7 +7168,8 @@
         h("div", null, "Member ID (website)", h("b", { text: String(p.bd_member_id) })), h("div", null, "Email", h("b", { style: "font-size:15px;word-break:break-all", text: p.email || "Not known yet" })),
         h("div", null, "First opened DELA", h("b", { text: p.first_seen_at ? D.date(p.first_seen_at) : "Never" })), h("div", null, "Last seen", h("b", { text: p.last_seen_at ? D.dateTime(p.last_seen_at) : "Never" })),
         h("div", null, "Can open DELA now", h("b", { text: p.may_open ? "Yes" : p.status === "closed" ? "No, the account is closed" : "No, not on the access list" })),
-        h("div", null, "Made in DELA", h("b", { style: "font-size:15px", text: v.counts.documents + " documents, " + v.counts.gigs + " gigs" }))),
+        h("div", null, "Made in DELA", h("b", { style: "font-size:15px", text: v.counts.documents + " documents, " + v.counts.gigs + " gigs" })),
+        h("div", { id: "mem-violations" }, "Contact details removed from their profile", h("b", { style: "font-size:15px", text: v.counts.profile_violations ? v.counts.profile_violations + (v.counts.profile_violations === 1 ? " time" : " times") + ", last on " + D.date(v.counts.last_violation_at) : "Never" }))),
         h("p", { class: "small muted", style: "margin-bottom:0", text: "Name, email, password and the website plan are kept on the website. Change them in the website's member list; DELA picks them up at the member's next visit." })));
       // Workspaces and plans
       var sel = h("select", { id: "mem-plan", "aria-label": "Workspace and plan to give" }, h("option", { value: "", text: "Choose a workspace and plan" }), plans.map(function (pl) { return h("option", { value: pl.side + ":" + pl.code, text: D.SIDE[pl.side] + ": " + pl.name }); }));
@@ -7194,6 +7226,13 @@
     }).catch(function (e) { D.clear(el); el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: function () { mem.bd = null; draw(); } }, "← Members"))); el.appendChild(h("p", { class: "notice", text: MEM_ERR[e && e.reason] || "This member could not be opened." })); });
   }
 
+  // Step 67: what to say when DELA took contact details out of a profile on saving
+  function contactRemovedText(x) {
+    var r = x && x.removed;
+    if (!r) return "";
+    return "Saved, but DELA removed " + (r.words || "contact details") + " from: " + (r.fields || []).join(", ") + ". Contact details in a profile are against the Terms of Service. " +
+      (r.count >= 2 ? "This is not the first time: your account may be suspended or removed." : "A second time may lead to your account being suspended or removed.");
+  }
   function agencyView() {
     var el = h("div", null, h("h1", { text: "Agency" }), h("p", { class: "muted", text: "Loading..." }));
     api.get("/agency").then(function (v) {
@@ -8261,8 +8300,9 @@
             if (x.reason === "too_many_images") { msg.textContent = "A profile can show up to " + x.max + " pictures in its text. Take one out and choose Save."; return; }
             if (!x.ok) { msg.textContent = x.reason === "stale" || x.reason === "version_conflict" ? "Your profile changed somewhere else. Choose Cancel and try again." : D.errorText(x.reason); return; }
             prof.dirty = false; prof.body = null;
+            prof.removedNote = contactRemovedText(x);
             draw();
-            D.toast(app, "Saved. Your live profile shows it now.");
+            D.toast(app, x.removed ? contactRemovedText(x) : "Saved. Your live profile shows it now.", !!x.removed);
           }).catch(function (e) { save.disabled = false; msg.textContent = D.errorText(e.message); });
         }
         save.addEventListener("click", function () { go(false); });
@@ -8327,7 +8367,8 @@
       var head = h("div", { class: "card tp-head" },
         h("div", { class: "tp-head-grid" },
           x.photo_url ? h("img", { class: "talent-photo tp-photo", src: x.photo_url, alt: "Photo of " + x.name }) : h("span", { class: "talent-photo tp-photo none", "aria-hidden": "true", text: String(x.name || "?").trim().charAt(0).toUpperCase() }),
-          h("div", null, h("h1", { style: "margin:0", text: x.name }), headBox, h("div", { class: "tp-meta" }, meta)),
+          h("div", null, h("h1", { style: "margin:0", text: x.name }),
+            !own && /\s[A-Z]\.$/.test(x.name || "") ? h("div", { class: "small muted", id: "tp-name-note", text: "The last name shows once you have hired this freelancer." }) : null, headBox, h("div", { class: "tp-meta" }, meta)),
           h("div", { class: "tp-head-acts" }, self && !prof.dirty ? photoEdit() : null,
             h("div", { class: "row tp-top-acts", style: "gap:8px;flex-wrap:wrap;justify-content:flex-end" }, !own && canHire() ? h("span", { id: "tp-bookmark", class: "row", style: "gap:8px;flex-wrap:wrap;align-items:center" }, bookmarkButton(x.person_id, x.name)) : null, callBtn, msgBtn),
             inviteBtn ? h("div", { class: "talent-acts tp-invite" }, inviteBtn) : null)));

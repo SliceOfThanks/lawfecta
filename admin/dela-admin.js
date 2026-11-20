@@ -13,7 +13,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["disputes", "Disputes"], ["reviews", "Reviews and bench"], ["agencies", "Agencies"], ["recurring", "Recurring"], ["trials", "Trials"], ["usage", "Usage"], ["team", "Lawfecta Team"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["disputes", "Disputes"], ["reviews", "Reviews and bench"], ["agencies", "Agencies"], ["recurring", "Recurring"], ["trials", "Trials"], ["usage", "Usage"], ["code", "Site code"], ["team", "Lawfecta Team"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   var current = "control";
   var mainEl = null;
   var tabsEl = null;
@@ -62,7 +62,7 @@
   // The 25 pages sit in a sidebar, in groups that open and close; one account button holds My account, Appearance,
   // Member view and Sign out; on a phone a "Menu" button opens the same list. With the switch off the tab row below is used.
   var NLA = !!((me.switches || {}).new_layout);
-  var GROUPS = [["", ["control", "guide"]], ["Members", ["overview", "access", "people", "team", "agencies"]], ["Plans and settings", ["plans", "settings", "switches", "aifiles", "catalog", "trials", "usage"]],
+  var GROUPS = [["", ["control", "guide"]], ["Members", ["overview", "access", "people", "team", "agencies"]], ["Plans and settings", ["plans", "settings", "switches", "aifiles", "catalog", "trials", "usage", "code"]],
     ["Marketplace", ["verify", "gigs", "meet", "reviews"]], ["Payments", ["pay", "disputes", "recurring"]], ["Safety", ["security", "holds", "audit", "jobs"]]];
   var LABEL = { account: "My account" };
   TABS.forEach(function (x) { LABEL[x[0]] = x[1]; });
@@ -255,7 +255,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ account: accountTab, control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, disputes: disputesTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, trials: trialsTab, usage: usageTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ account: accountTab, control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, disputes: disputesTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, trials: trialsTab, usage: usageTab, code: siteCodeTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // Stripe's own settings that can break a payout (sandbox run 2026-11-12): money held for milestones sits on Lawfecta's
@@ -852,7 +852,7 @@
     ["Documents and files", "The attorney's Library and Files: document types, images, the recorder, imports, and client information rules.",
       ["playbook_library", "document_standard", "document_images", "document_conversion", "approved_view", "library_workspace", "recorder", "scribe_import", "file_uploads", "automate_delegate", "handoff_kit", "confidential_materials", "client_details_allowed"]],
     ["Gigs and hiring", "Posting work and finding people: gigs, proposals, Talent, gig alerts, the bench and reviews.",
-      ["flex_gigs", "public_gigs", "talent_search", "gig_alerts", "bench", "bench_suggestions", "reviews", "past_client_reviews", "multiple_hires"]],
+      ["flex_gigs", "public_gigs", "talent_search", "gig_alerts", "bench", "bench_suggestions", "reviews", "past_client_reviews", "multiple_hires", "hide_last_names", "profile_contact_rule"]],
     ["Layout and look", "How DELA looks: the menu layout, light and dark, and the Get set up page.",
       ["new_layout", "appearance_choice", "guided_setup"]],
     ["Messages and meetings", "Talking inside a gig: messages, DELA's help in a conversation, booking, recording and the check for plans to work outside Lawfecta.",
@@ -1655,6 +1655,44 @@
       });
     }).catch(function (e) { D.clear(ac); ac.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
   }
+  // ---------- Step 65: Site code (Stacey 2026-11-20): code added to DELA's member pages in three places ----------
+  var CODE_SLOTS = { head: ["Header code", "Added inside the page's head, on every DELA page a member opens. Use it for analytics, tag managers, fonts and meta tags.", "For example a script tag from your analytics tool"],
+    footer: ["Footer code", "Added at the page's footer, under the page content. Use it for something people see at the bottom of the page: a notice, a badge, a line of links.", "For example a line of text or links in HTML"],
+    body_end: ["Before the closing body tag", "Added as the last thing on the page, right before the closing body tag. Use it for chat bubbles and scripts that must load after the page.", "For example a chat widget's script tag"] };
+  function siteCodeTab() {
+    api.get("/admin/site-code").then(check).then(function (v) {
+      var cards = v.slots.map(function (s) {
+        var info = CODE_SLOTS[s.slot];
+        var ta = h("textarea", { id: "code-" + s.slot, "aria-label": info[0], spellcheck: "false", placeholder: info[2], disabled: !v.owner, style: "width:100%;min-height:150px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px" });
+        ta.value = s.code;
+        var on = h("input", { type: "checkbox", id: "code-on-" + s.slot, checked: s.enabled, disabled: !v.owner });
+        var count = h("span", { class: "small muted" });
+        var note = h("p", { role: "status", class: "small", style: "margin:6px 0 0" });
+        var tally = function () { count.textContent = ta.value.length + " of " + v.max + " characters"; };
+        ta.addEventListener("input", tally); tally();
+        var save = function (body, done) {
+          note.textContent = "Saving...";
+          api.post("/admin/site-code", body).then(check).then(function (r) { siteCodeTab(); ok(r.duplicate ? "Nothing changed" : done); }).catch(function (e) {
+            note.textContent = e.message === "too_long" ? "This is longer than " + v.max + " characters. Shorten it, or load the code from a file with one script tag." : D.errorText(e.message);
+          });
+        };
+        return h("div", { class: "card", id: "code-card-" + s.slot }, h("h2", { text: info[0] }), h("p", { class: "muted small", style: "margin-top:0", text: info[1] }), ta,
+          h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, h("label", { style: "display:flex;gap:6px;align-items:center;font-weight:400" }, on, h("span", { text: "On (turn off to stop using this code without deleting it)" })), h("span", { class: "grow" }), count),
+          ownerOnly(h("div", { class: "row", style: "margin-top:8px" }, h("button", { type: "button", id: "code-save-" + s.slot, onclick: function () { save({ slot: s.slot, code: ta.value, enabled: on.checked }, on.checked && ta.value.trim() ? "Saved. Members get it at their next page load." : "Saved. This place adds nothing now."); } }, "Save " + info[0].toLowerCase()))),
+          note,
+          h("p", { class: "small muted", style: "margin-bottom:0", text: s.updated_at ? "Last saved " + D.dateTime(s.updated_at) + (s.updated_by ? " by " + s.updated_by : "") + (s.enabled ? "" : ". Off now.") : "Nothing saved yet." }),
+          s.history.length > 1 ? h("details", { style: "margin-top:6px" }, h("summary", { class: "small", text: "Earlier versions" }), h("ul", { class: "small", style: "margin:6px 0 0;padding-left:18px" }, s.history.slice(1).map(function (x) {
+            return h("li", null, D.dateTime(x.saved_at) + (x.by ? ", " + x.by : "") + ", " + x.chars + " characters" + (x.enabled ? "" : ", off") + " ",
+              ownerOnly(h("button", { class: "ghost small", type: "button", onclick: function () { save({ slot: s.slot, restore: x.id, enabled: on.checked }, "The earlier version is back in use"); } }, "Put back")));
+          }))) : null);
+      });
+      body(h("div", null, pageHead("Site code", "code"),
+        h("div", { class: "notice", role: "note" }, h("b", { text: "This code runs for every member on every DELA page. " }),
+          "Paste only code from a service you trust. Never paste a password or a secret key here: members' browsers can read everything on this page's code. It is not added to the admin area. For the rest of the website (the home page, the login page, public profiles), use the website's own settings."),
+        v.owner ? null : h("p", { class: "muted", text: "Only the owner can change this." }), cards));
+    }).catch(fail);
+  }
+
   function securityTab() {
     var el = h("div");
     var msgs = h("div", { class: "card" }, h("h2", { text: "Security questions from the website" }), h("p", { class: "muted", text: "Loading..." }));
@@ -2113,6 +2151,7 @@
   }
   // Plain-language help behind every "?" on Release Control: what it is, and what it tells you
   var HELP = {
+    code: "Code you paste here is added to every DELA page a member opens: analytics, a chat bubble, a tag manager, a notice. It is not added to this admin area, so a mistake in it can always be fixed here.",
     guide: "A plain-words manual: the two copies of DELA, how a version gets to Live, what a push moves, going back, and what every page is for.",
     staging: "This site, while it is in test mode. Only you and the people on its access list use it. Every new version runs here first.",
     staging_health: "Healthy means the test site's database answers and its background helper ran in the last 10 minutes. Worker stopped means scheduled work (emails, reminders, checking Live) is not running. Tell Claude.",

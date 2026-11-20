@@ -17,6 +17,7 @@ import { meetingIcs, NEXT_STEPS_SYSTEM, readSteps, THREAD_SYSTEM, threadPrompt, 
 import { conductRules, GIG_SYSTEM, gigPrompt, normalizeMilestones, normalizePublic, PROPOSAL_SYSTEM, publicFromPlaybook, readReview, REVIEW_SYSTEM, toCents } from "./lib/gigs/model.ts";
 import { asksAboutTools, CATALOG_RULES, catalogText, rankForMember, readCatalog, type Tool } from "./lib/catalog/csv.ts";
 import { imagePath, richImages, richPlain } from "./lib/profiles/rich.ts";
+import { AGENCY_TEXT_LABELS, CONTACT_WORDS, PROFILE_TEXT_LABELS, stripProfile, type ContactKind } from "./lib/profiles/contact.ts";
 import { aiContext, fromBd, LABELS, normalize as normalizeProfile, PRACTICE_AREAS, PROFILE_SYSTEM, profileText, readiness, FIELD_GUIDE, FIELD_SYSTEM, TECH_GROUPS, TECH_TOOLS, TIMEZONES, toBd, type BdMap, type Side } from "./lib/profiles/model.ts";
 import { encryptionReady, openKey, sealKey } from "./lib/ai/keycrypt.ts";
 import { AiFail, chat, guessProvider, looksLikeKey, testKey, transcribe, transcribeLines, type ChatImage, type ChatMsg, type Provider } from "./lib/ai/providers.ts";
@@ -127,7 +128,87 @@ async function session(ctx: Ctx): Promise<Session> {
   if (!tok.startsWith("ds_") || tok.length > 100) throw new HttpError(401, "signed_out");
   const s = await rpc<Session | null>(ctx, "dela_session_resolve", { p_token_hash: await sessionHash(tok) });
   if (!s) throw new HttpError(401, "signed_out");
+  sessionSeen.set(ctx.req, s);
   return s;
+}
+
+// ---------- Step 66: a freelancer's last name stays hidden until they are hired ----------
+// Every answer DELA sends to a signed-in member passes through here. Where an answer carries a person's id next to
+// their name, and the viewer may not see that person's full name yet (dela_sees_full_name), the name becomes
+// "First L.". An agreement nobody has finished signing gets the same treatment through its whole text. This runs in
+// one place so that no page, list or new feature can send the full name by mistake.
+const sessionSeen = new WeakMap<Request, Session>();
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+type NameMap = Record<string, { full: string; display: string; short: string }>;
+function deepReplace(o: unknown, pairs: Array<[string, string]>, depth = 0): unknown {
+  if (depth > 40) return o;
+  if (typeof o === "string") { let s = o; for (const [a, b] of pairs) if (a && a !== b && s.includes(a)) s = s.split(a).join(b); return s; }
+  if (Array.isArray(o)) { for (let i = 0; i < o.length; i++) o[i] = deepReplace(o[i], pairs, depth + 1); return o; }
+  if (o && typeof o === "object") { const r = o as Record<string, unknown>; for (const k of Object.keys(r)) r[k] = deepReplace(r[k], pairs, depth + 1); }
+  return o;
+}
+async function nameShield(ctx: { req: Request; deps: Deps }, viewer: string, data: unknown): Promise<Array<[string, string]>> {
+  const hits: Array<[Record<string, unknown>, string, string]> = [];
+  const agreements = new Set<string>();
+  const walk = (o: unknown, depth: number) => {
+    if (!o || typeof o !== "object" || depth > 40) return;
+    if (Array.isArray(o)) { for (const x of o) walk(x, depth + 1); return; }
+    const r = o as Record<string, unknown>;
+    const pid = typeof r.person_id === "string" && UUID_RE.test(r.person_id) ? r.person_id : "";
+    const fp = typeof r.freelancer_person === "string" && UUID_RE.test(r.freelancer_person) ? r.freelancer_person : "";
+    if (pid && typeof r.name === "string") hits.push([r, "name", pid]);
+    if (fp && typeof r.other_name === "string") hits.push([r, "other_name", fp]);
+    if ((fp || pid) && typeof r.freelancer_name === "string") hits.push([r, "freelancer_name", fp || pid]);
+    const ag = r.agreement as Record<string, unknown> | undefined;
+    if (ag && typeof ag === "object" && typeof ag.id === "string" && UUID_RE.test(ag.id) && typeof ag.status === "string") agreements.add(ag.id);
+    for (const k of Object.keys(r)) walk(r[k], depth + 1);
+  };
+  walk(data, 0);
+  const done: Array<[string, string]> = [];
+  const c = ctx as Ctx;
+  if (hits.length) {
+    const ids = [...new Set(hits.map((h) => h[2]))].slice(0, 500);
+    const map = await rpc<NameMap>(c, "dela_names_to_shorten", { p_viewer: viewer, p_people: ids }) ?? {};
+    for (const [obj, key, id] of hits) {
+      const m = map[id];
+      const cur = String(obj[key]).trim();
+      // Only a value that IS the person's name is changed: a file or a gig that happens to sit next to a person id keeps its own name
+      if (m && m.short && (cur === m.full.trim() || cur === (m.display ?? "").trim())) { obj[key] = m.short; done.push([cur, m.short]); }
+    }
+  }
+  for (const id of agreements) {
+    const map = await rpc<NameMap>(c, "dela_agreement_name_mask", { p_viewer: viewer, p_agreement: id }) ?? {};
+    const pairs: Array<[string, string]> = [];
+    for (const m of Object.values(map)) { if (m.full) pairs.push([m.full, m.short]); if (m.display && m.display !== m.full) pairs.push([m.display, m.short]); }
+    if (!pairs.length) continue;
+    deepReplace(data, pairs);
+    // The name a freelancer typed to sign is their full name too: it shows once both have signed
+    const blank = (o: unknown, depth: number) => {
+      if (!o || typeof o !== "object" || depth > 40) return;
+      if (Array.isArray(o)) { for (const x of o) blank(x, depth + 1); return; }
+      const r = o as Record<string, unknown>;
+      if (r.role === "freelancer" && typeof r.typed_name === "string" && r.typed_name) r.typed_name = Object.values(map)[0]?.short ?? "Signed";
+      for (const k of Object.keys(r)) blank(r[k], depth + 1);
+    };
+    blank(data, 0);
+    done.push(...pairs);
+  }
+  return done;
+}
+async function shielded(req: Request, deps: Deps, res: Response): Promise<Response> {
+  const s = sessionSeen.get(req);
+  if (!s || res.status !== 200 || (s.staff ?? []).length || !(res.headers.get("content-type") ?? "").includes("application/json")) return res;
+  const text = await res.text();
+  const again = (body: string) => new Response(body, { status: 200, headers: res.headers });
+  if (text.length > 3_000_000 || !/"(?:name|other_name|freelancer_name|agreement)"/.test(text)) return again(text);
+  try {
+    const data = JSON.parse(text);
+    const done = await nameShield({ req, deps }, s.person_id, data);
+    return again(done.length ? JSON.stringify(data) : text);
+  } catch (e) {
+    console.error("name_shield", String(e).slice(0, 200));
+    return json({ req, deps }, { error: "server_error" }, 500);
+  }
 }
 
 async function staff(ctx: Ctx): Promise<Session> {
@@ -187,7 +268,7 @@ async function bootstrap(ctx: Ctx): Promise<Response> {
   const appearance = r.me?.person?.id ? await rpc<Record<string, unknown>>(ctx, "dela_appearance", { p_person: r.me.person.id }).catch(() => ({ on: false, mode: "device" })) : { on: false, mode: "device" };
   const home = r.me?.person?.id && r.me?.side ? await homeCounts(ctx, r.me.person.id, r.me.side) : null;
   const keyAsk = r.me?.person?.id && r.me?.side ? await rpc<{ show?: boolean }>(ctx, "dela_ai_key_ask", { p_person: r.me.person.id, p_side: r.me.side }).catch(() => null) : null;
-  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, me: { ...r.me, key_ask: keyAsk?.show === true, notice: await pageNotice(ctx, r.me), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, account: await accountLinks(ctx), limits: FORM_LIMITS }, commit, version: VERSION });
+  return json(ctx, { route: "here", session: token, expires_in_hours: r.expires_in_hours, site_code: await rpc(ctx, "dela_site_code", {}).catch(() => ({})), me: { ...r.me, key_ask: keyAsk?.show === true, notice: await pageNotice(ctx, r.me), pause: pause?.pause, playbooks_draft: drafts ?? 0, agency_client: agencyClient, appearance, home, account: await accountLinks(ctx), limits: FORM_LIMITS }, commit, version: VERSION });
 }
 
 // ---------- Member routes ----------
@@ -2158,7 +2239,13 @@ async function profileFromDirectory(ctx: Ctx) {
 
 async function profileSave(ctx: Ctx) {
   const s = await memberSide(ctx);
-  const body = normalizeProfile(ctx.body.body);
+  let body = normalizeProfile(ctx.body.body);
+  // Step 67: contact details are taken out of a freelancer's profile before it is saved
+  let removed: { fields: string[]; kinds: ContactKind[] } | null = null;
+  if (s.side === "freelancer" && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "profile_contact_rule", p_person: s.person_id }).catch(() => false)) {
+    const st = stripProfile(body as unknown as Record<string, unknown>, PROFILE_TEXT_LABELS);
+    if (st.kinds.length) { body = normalizeProfile(st.body); removed = { fields: st.fields, kinds: st.kinds }; }
+  }
   if (body.photo_file && !body.photo_file.startsWith("profiles/" + s.person_id + "/")) body.photo_file = "";
   if (body.avatar && !(await avatarSet(ctx)).files.includes(body.avatar)) body.avatar = "";
   body.categories = s.side === "freelancer" && body.categories.length ? (await rpc<string[]>(ctx, "dela_categories_clean", { p_keys: body.categories })) ?? [] : [];
@@ -2170,7 +2257,14 @@ async function profileSave(ctx: Ctx) {
   const r = await rpc<Record<string, any>>(ctx, "dela_profile_save", { p_person: s.person_id, p: { side: s.side, body, missing: rd.missing, score: rd.score,
     version: int(ctx.body.version) ?? 0, directory: ctx.body.directory !== false } });
   if (!r?.ok) return json(ctx, r);
-  return json(ctx, { ...r, state: labelState(r.state), missing_labels: rd.labels, score: rd.score });
+  return json(ctx, { ...r, state: labelState(r.state), missing_labels: rd.labels, score: rd.score, ...(removed ? { removed: await contactRemoved(ctx, s, "profile", removed) } : {}) });
+}
+
+// Step 67: one removal of contact details: kept on the member's record, and the member is told (a notice and an email)
+async function contactRemoved(ctx: Ctx, s: Session, place: "profile" | "agency_profile", removed: { fields: string[]; kinds: ContactKind[] }) {
+  const words = removed.kinds.map((k) => CONTACT_WORDS[k]).join(", ");
+  const v = await rpc<{ count?: number }>(ctx, "dela_profile_violation", { p_person: s.person_id, p_side: "freelancer", p_place: place, p_kinds: removed.kinds, p_fields: removed.fields, p_words: words }).catch(() => null);
+  return { fields: removed.fields, kinds: removed.kinds, words, count: v?.count ?? 1 };
 }
 
 // A new profile photo, sent as the image itself (PNG or JPG). Stored privately; the profile keeps its path once the member saves.
@@ -2368,6 +2462,8 @@ async function bdProfilePush(ctx: Ctx, p: Record<string, any>) {
   if (!x?.ok || !x.on) return { ok: true };
   const pb = normalizeProfile(x.body);
   const fields = toBd(pb, (x.map ?? {}) as BdMap);
+  // Step 67: a freelancer's phone, website, LinkedIn and booking link never go to the public listing from DELA
+  if (side === "freelancer" && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "profile_contact_rule", p_person: person }).catch(() => false)) for (const k of ["phone", "website", "linkedin", "booking_link"]) { const bdKey = ((x.map ?? {}) as Record<string, string>)[k]; if (bdKey) delete fields[bdKey]; }
   // Step 17: the categories go to the listing only when the setting bd.push_categories is on
   if (side === "freelancer" && pb.categories.length) {
     const c = await rpc<Record<string, any>>(ctx, "dela_categories_bd", { p_keys: pb.categories });
@@ -3244,6 +3340,9 @@ async function meetingJoin(ctx: Ctx) {
   if (!apiKey) return json(ctx, { ok: false, reason: "room_not_open" });
   const script = await setting(ctx, "meeting.videosdk_prebuilt_url", "");
   if (!/^https:\/\/sdk\.videosdk\.live\/rtc-js-prebuilt\/\d+\.\d+\.\d+\/rtc-js-prebuilt\.js$/.test(script)) return json(ctx, { ok: false, reason: "room_not_open" });
+  // Step 66: in the room, a freelancer carries the short name until this attorney has hired them
+  const roomName = s.side === "freelancer" ? await rpc<string | null>(ctx, "dela_meeting_room_name", { p_person: s.person_id, p_meeting: need(uuid(ctx.url.searchParams.get("id"))) }).catch(() => null) : null;
+  if (roomName) r.name = roomName;
   return json(ctx, { ...r, api_key: apiKey, script, logo: await codeLogo(ctx), transcript_on: (await setting(ctx, "meeting.transcript_on", "false")) === "true",
     transcript_days: Number(await setting(ctx, "meeting.transcript_days", "")) || null });
 }
@@ -5132,6 +5231,8 @@ async function mcpEndpoint(ctx: Ctx) {
     if (!mcpTools(who.side).some((t) => t.name === name)) return json(ctx, { jsonrpc: "2.0", id: msg.id, error: { code: -32602, message: "Unknown tool: " + name } });
     try {
       const out = await mcpCall(ctx, who, name, args0);
+      // Step 66: the connector follows the same name rule as the pages
+      if (out.data !== undefined) { const done = await nameShield(ctx, who.person_id, out.data); if (done.length) out.text = String(deepReplace(out.text, done)); }
       await rpc(ctx, "dela_mcp_log", { p_conn: who.connection_id, p_tool: name, p_ok: true, p_error: "" });
       return reply({ content: [{ type: "text", text: out.text }], ...(out.data !== undefined ? { structuredContent: { result: out.data } } : {}), isError: false });
     } catch (e) {
@@ -5161,6 +5262,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   // Step 62: the Members page inside DELA, for the Lawfecta Team
   "/admin/members": (c, a) => rpc(c, "dela_members_list", { p_actor: a, p_q: (c.url.searchParams.get("q") ?? "").slice(0, 100), p_filter: (c.url.searchParams.get("filter") ?? "all").slice(0, 20),
     p_limit: 25, p_offset: Math.max(0, int(c.url.searchParams.get("offset")) ?? 0) }),
+  "/admin/site-code": (c, a) => rpc(c, "dela_admin_site_code", { p_actor: a }),
   "/admin/members/one": (c, a) => rpc(c, "dela_member_detail", { p_actor: a, p_bd: need(int(c.url.searchParams.get("bd")), "bad_member_id") }),
   "/admin/audit": (c, a) => rpc(c, "dela_admin_audit", { p_actor: a, p_before: int(c.url.searchParams.get("before")), p_limit: 100 }),
   "/admin/jobs": (c, a) => rpc(c, "dela_admin_jobs", { p_actor: a }),
@@ -5328,6 +5430,9 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   "/admin/access/revoke": (c, a) => rpc(c, "dela_admin_access_revoke", { p_actor: a, p_id: need(int(c.body.id)) }),
   "/admin/staff/grant": (c, a) => rpc(c, "dela_admin_staff_grant", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id"), p_role: need(str(c.body.role, 20)) }),
   "/admin/staff/revoke": (c, a) => rpc(c, "dela_admin_staff_revoke", { p_actor: a, p_id: need(int(c.body.id)) }),
+  // Step 65: code the owner adds to DELA's member pages (head, footer, before the closing body tag)
+  "/admin/site-code": (c, a) => rpc(c, "dela_admin_site_code_set", { p_actor: a, p_slot: need(str(c.body.slot, 20)), p_code: typeof c.body.code === "string" ? c.body.code.slice(0, 20001) : "",
+    p_enabled: c.body.enabled !== false, p_restore: int(c.body.restore) }),
   "/admin/members/status": (c, a) => rpc(c, "dela_member_status_set", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id"), p_status: need(str(c.body.status, 10)), p_reason: str(c.body.reason, 500) }),
   "/admin/sides/grant": (c, a) => rpc(c, "dela_admin_grant_side", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id"), p_side: need(str(c.body.side, 20)), p_plan: need(str(c.body.plan_code, 40)) }),
   "/admin/sides/release": (c, a) => rpc(c, "dela_admin_release_side", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id"), p_side: need(str(c.body.side, 20)) }),
@@ -5869,6 +5974,9 @@ export function clientIp(req: Request): string {
 }
 
 export async function handle(req: Request, deps: Deps): Promise<Response> {
+  return shielded(req, deps, await handleInner(req, deps));
+}
+async function handleInner(req: Request, deps: Deps): Promise<Response> {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors(req, deps) });
   const url = new URL(req.url);
   const path = apiPath(url);
@@ -6015,7 +6123,12 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
         // Everything attorneys will read is checked, the lists of practice areas, tools and states included
         const text = [ctx.body.headline, ctx.body.summary, JSON.stringify(ctx.body.services ?? []), JSON.stringify(ctx.body.practice_areas ?? []), JSON.stringify(ctx.body.tools ?? []), JSON.stringify(ctx.body.states_served ?? [])].map((x) => str(x, 4000)).join("\n");
         const w = await sensitive(ctx, s, text, "public"); if (w) return json(ctx, w);
-        return json(ctx, await rpc(ctx, "dela_agency_profile_save", { p_person: s.person_id, p: ctx.body })); }
+        // Step 67: the same rule for an agency's profile
+        const rule = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "profile_contact_rule", p_person: s.person_id }).catch(() => false);
+        const st = rule ? stripProfile(ctx.body, AGENCY_TEXT_LABELS) : { body: ctx.body, fields: [], kinds: [] };
+        const saved = await rpc<Record<string, any>>(ctx, "dela_agency_profile_save", { p_person: s.person_id, p: st.body });
+        if (saved?.ok !== false && st.kinds.length) saved.removed = await contactRemoved(ctx, s, "agency_profile", { fields: st.fields, kinds: st.kinds });
+        return json(ctx, saved); }
       case "POST /agency/profile/draft": return json(ctx, await agencyProfileDraft(ctx));
       case "POST /agency/business": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_business_save", { p_person: s.person_id, p_name: str(ctx.body.name, 160), p_state: str(ctx.body.state, 10) })); }
       case "POST /agency/invite": { const s = await freelancerOnly(ctx); return json(ctx, await rpc(ctx, "dela_agency_invite", { p_person: s.person_id, p_email: str(ctx.body.email, 200), p_role: str(ctx.body.role, 10) })); }

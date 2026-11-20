@@ -197,6 +197,7 @@ Deno.test("setup", async () => {
   await pool.query("update feature_switches set state = 'everyone' where key in ('flex_gigs', 'engagements', 'milestone_funding', 'milestone_check', 'engagement_export', 'ai_generation', 'worker', 'profiles')");
   await pool.query("update feature_switches set state = 'off' where key = 'live_payments'");
   await pool.query("update settings set value = 'false' where key = 'verify.freelancer_linkedin'");
+  await pool.query("update feature_switches set state = 'everyone' where key = 'hide_last_names'");
   att = await member(1, "att_pro"); fl = await member(2, "fl_plus"); fl2 = await member(3, "fl_free"); other = await member(4, "fl_free"); team = await member(5, "att_free");
   await pool.query("insert into staff_roles (person_id, role) values ($1, 'finance'), ($1, 'reviewer')", [team.id]);
   await pool.query("insert into member_profiles (person_id, side, body, missing, score) values ($1, 'attorney', '{\"firm_name\":\"Example Legal\"}', '{}', 100)", [att.id]);
@@ -221,6 +222,15 @@ Deno.test("agreement: DELA drafts version 1 from the facts; only the two parties
   assert(String(body.terms).startsWith("1. The parties.") && !String(body.terms).includes("DRAFT FOR"), "the fixed template, with no draft line (Stacey 2026-11-10)");
   assertEquals(body.parties.client.firm, "Example Legal");
   assertEquals(body.parties.freelancer.name, "Fran Lance");
+  // Step 66: until both have signed, the attorney reads "Fran L." everywhere, the agreement's own text included
+  const attView = (await call("GET", "/agreements/get?id=" + ag, att.token)).body;
+  assertEquals(attView.current.body.parties.freelancer.name, "Fran L.", "the attorney sees the short name in an agreement not yet signed");
+  assert(!JSON.stringify(attView).includes("Fran Lance"), "the full name is nowhere in the attorney's copy before signing");
+  assertEquals((await one("select body->'parties'->'freelancer'->>'name' n from agreement_versions where agreement_id = $1 and version = 1", [ag])).n, "Fran Lance", "the stored agreement keeps the full legal name");
+  assertEquals((await call("GET", "/engagements", att.token)).body.engagements.find((e: any) => e.id === ag).other_name, "Fran L.", "the engagements list too");
+  assertEquals((await call("GET", "/freelancers/profile?person=" + fl.id, att.token)).body.name, "Fran L.", "and the profile page");
+  assertEquals((await call("GET", "/freelancers/profile?person=" + fl.id, fl.token)).body.name, "Fran Lance", "the freelancer sees their own full name");
+  assertEquals((await call("GET", "/freelancers/profile?person=" + fl.id, team.token)).body.name, "Fran Lance", "the Lawfecta Team sees full names");
   assertEquals([body.fees.attorney_bps, body.fees.freelancer_bps], [500, 500], "5% each side, whatever the plan (Stacey 2026-11-05)");
   assertEquals([body.fees.attorney_fee_cents, body.fees.freelancer_fee_cents], [5000, 5000]);
   assert(r.fee_lines.some((l: string) => l.includes("$50")));
@@ -286,6 +296,13 @@ Deno.test("changes and signing: checked amounts, stale versions refused, both si
   assertEquals(ms.reduce((a: number, m: any) => a + m.freelancer_fee_cents, 0), 5000, "the freelancer fee is spread with nothing lost to rounding");
   assertEquals(v.agreement.status, "signed");
   assertEquals(v.signatures.length, 2);
+  // Step 66: hired. The attorney now sees the full name, and only for the freelancer they hired
+  assertEquals([v.current.body.parties.freelancer.name, v.signatures.find((x: any) => x.role === "freelancer").typed_name], ["Fran Lance", "Fran Lance"], "after both sign, the full name shows");
+  assertEquals((await call("GET", "/engagements", att.token)).body.engagements.find((e: any) => e.id === ag).other_name, "Fran Lance");
+  assertEquals((await call("GET", "/freelancers/profile?person=" + fl.id, att.token)).body.name, "Fran Lance");
+  assertEquals((await call("GET", "/freelancers/profile?person=" + fl2.id, att.token)).body.name, "Fran L.", "a freelancer the attorney has not hired stays short");
+  await pool.query("insert into people (bd_member_id, display_name) values (99661, 'Mary Jo  van der Berg'), (99662, 'Cher')");
+  assertEquals((await pool.query("select dela_short_name(id) n from people where bd_member_id in (99661, 99662) order by bd_member_id")).rows.map((x: any) => x.n), ["Mary B.", "Cher"], "with no profile yet, the short name comes from the website name");
   let refused = false;
   try { await pool.query("update agreement_signatures set typed_name = 'Someone else' where agreement_id = $1", [ag]); } catch { refused = true; }
   assert(refused, "signatures are append-only");

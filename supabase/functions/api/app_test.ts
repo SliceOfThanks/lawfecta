@@ -572,6 +572,42 @@ Deno.test("step 62: the Members page lists, filters and opens members; only the 
   await pool.query("update staff_roles set revoked_at = now() where person_id = (select id from people where bd_member_id = 9151)");
 });
 
+Deno.test("step 65: the owner adds code to DELA's pages in three places; members load only what is on; every save is kept", async () => {
+  const ownerSession = (await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9001, name: "Stacey" }) } })).body.session;
+  const m = await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9150, sub: "31", name: "Morgan Member" }) } });
+  assertEquals(m.body.site_code, {}, "nothing is added until the owner saves code");
+  assertEquals((await call("GET", "/admin/site-code", { session: m.body.session })).status, 403);
+  assertEquals((await call("POST", "/admin/site-code", { session: m.body.session, body: { slot: "head", code: "<script>1</script>" } })).status, 403, "a member cannot add code");
+  const page = (await call("GET", "/admin/site-code", { session: ownerSession })).body.data;
+  assertEquals([page.owner, page.slots.map((s: any) => s.slot), page.slots[0].code], [true, ["head", "footer", "body_end"], ""]);
+  const save = (b: Record<string, unknown>, session = ownerSession) => call("POST", "/admin/site-code", { session, body: b });
+  assertEquals((await save({ slot: "sidebar", code: "x" })).body.data.reason, "bad_slot");
+  assertEquals((await save({ slot: "head", code: "x".repeat(20001) })).body.data.reason, "too_long");
+  assertEquals((await save({ slot: "head", code: "<meta name=\"one\">" })).body.data.ok, true);
+  assertEquals((await save({ slot: "head", code: "<meta name=\"one\">" })).body.data.duplicate, true, "saving the same thing twice keeps one version");
+  assertEquals((await save({ slot: "head", code: "<meta name=\"two\">" })).body.data.chars, 17);
+  assertEquals((await save({ slot: "body_end", code: "<script>window.x=1</script>" })).body.data.ok, true);
+  assertEquals((await save({ slot: "footer", code: "<p>Footer</p>", enabled: false })).body.data.enabled, false);
+  let got = (await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9150, sub: "31", name: "Morgan Member" }) } })).body.site_code;
+  assertEquals(got, { head: "<meta name=\"two\">", body_end: "<script>window.x=1</script>" }, "members load the places that are on; the footer is off");
+  // Put the first version back, by its place in the history
+  const hist = (await call("GET", "/admin/site-code", { session: ownerSession })).body.data.slots[0].history;
+  assertEquals(hist.length, 2);
+  assertEquals((await save({ slot: "head", restore: hist[1].id })).body.data.ok, true);
+  assertEquals((await save({ slot: "head", restore: 99999999 })).body.data.reason, "not_found");
+  got = (await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9150, sub: "31", name: "Morgan Member" }) } })).body.site_code;
+  assertEquals(got.head, "<meta name=\"one\">");
+  // A Team member who is not the owner reads but cannot save
+  await pool.query("update staff_roles set revoked_at = null where person_id = (select id from people where bd_member_id = 9151)");
+  const rv = await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9151, name: "Riley Reviewer" }) } });
+  assertEquals((await call("GET", "/admin/site-code", { session: rv.body.session })).body.data.owner, false);
+  assertEquals((await save({ slot: "head", code: "<script>bad()</script>" }, rv.body.session)).status, 403);
+  await pool.query("update staff_roles set revoked_at = now() where person_id = (select id from people where bd_member_id = 9151)");
+  assertEquals((await pool.query("select count(*)::int n from audit_log where action = 'site_code_saved'")).rows[0].n, 5, "each save is in the audit log");
+  // Clean up so later pages load nothing
+  for (const slot of ["head", "footer", "body_end"]) await save({ slot, code: "" });
+});
+
 Deno.test("teardown", async () => {
   await pool.end();
   assertEquals(sent.length, 0);

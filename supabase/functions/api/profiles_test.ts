@@ -316,6 +316,15 @@ Deno.test("the listing update: only mapped fields with a value, after the member
     assertEquals(sent.get("software"), "Clio, Word");
     assertEquals(sent.get("education"), null, "an empty box does not blank the listing");
     assertEquals(sent.get("image_main_file"), null, "the photo is read only");
+    await pool.query("update feature_switches set state = 'everyone' where key = 'profile_contact_rule'");
+    const cur67 = (await call("GET", "/profile", fl.token)).body;
+    await call("POST", "/profile/save", fl.token, { body: { ...cur67.body, hours: "Weekday mornings" }, version: cur67.version, directory: true });
+    bdCalls.length = 0;
+    await worker(1);
+    const put67 = bdCalls.find((c) => c.url.endsWith("/api/v2/user/update"));
+    assert(put67, "the listing is updated again");
+    const sent67 = new URLSearchParams(put67.body);
+    assertEquals([sent67.get("phone_number"), sent67.get("website"), sent67.get("linkedin"), sent67.get("booking_link"), sent67.get("position")], [null, null, null, null, "Litigation paralegal, Texas courts"], "step 67: a freelancer's phone, website, LinkedIn and booking link never go to the public listing");
     assertEquals((await call("GET", "/profile", fl.token)).body.bd_state, "done");
     // A key without permission: the DELA profile stays saved and the member is told
     bdMode = "forbidden";
@@ -457,6 +466,52 @@ Deno.test("step 50: light formatting and pictures in the profile text", async ()
   assertEquals(toBd(normalize({ summary }), { summary: "about_me" }).about_me, "What I do\n- E-filing in Texas courts");
   assertEquals(richPlain("**Bold** and *soft*\n### Small head"), "Bold and soft\nSmall head");
   assertEquals(richImages("![x](https://evil.example/a.png) ![y](img:../../etc/passwd)"), []);
+});
+
+Deno.test("step 67: contact details are taken out of a freelancer's profile, the member is told, and a second time alerts the owner", async () => {
+  const { stripContact } = await import("./lib/profiles/contact.ts");
+  await pool.query("update feature_switches set state = 'everyone' where key = 'profile_contact_rule'");
+  // The detector: what goes, what stays
+  assertEquals(stripContact("Email me at jane.doe@gmail.com or call (512) 555-0134.").kinds.sort(), ["email", "invitation", "phone"]);
+  assertEquals(stripContact("Book at calendly.com/jane or https://janelaw.com/hire").text, "Book at [removed] or [removed]");
+  assertEquals(stripContact("jane at gmail dot com").kinds, ["email"]);
+  assertEquals(stripContact("Find me on Instagram: @janeparalegal").text.includes("janeparalegal"), false);
+  for (const fine of ["I use Monday.com, Clio and Law.com daily. 10 years in Travis County. Filed 2,500 motions from 2015-2020.", "Case no. 2023-123456, ZIP 78701, 15 years, $45.00 an hour.",
+    "Paralegal Cert., Univ. of Texas, B.A. I worked at Smith.Jones LLP, e.g. intake and e-filing.", "See my reviews at www.lawfecta.co/reviews"]) assertEquals(stripContact(fine), { text: fine, kinds: [] }, fine);
+  const pic = "Here ![my certificate](img:11111111-2222-3333-4444-555555555555.png) and www.mysite.io";
+  assert(stripContact(pic).text.includes("![my certificate](img:11111111-2222-3333-4444-555555555555.png)") && !stripContact(pic).text.includes("mysite"), "a picture in the text is left alone");
+  // Saving: the profile is saved without the details, and the answer says what was removed
+  const before = (await pool.query("select count(*)::int n from notifications where person_id = $1 and title = 'Contact details were removed from your profile'", [fl.id])).rows[0].n;
+  let cur = (await call("GET", "/profile", fl.token)).body;
+  let r = (await call("POST", "/profile/save", fl.token, { body: { ...cur.body, summary: "I help solo attorneys file on time. Reach me at fran@lancerlegal.com or 512-555-0177.", skills: ["E-filing", "book me: calendly.com/fran"] }, version: cur.version })).body;
+  assertEquals([r.ok, r.removed.fields.sort(), r.removed.count], [true, ["Skills", "Summary"], 1], JSON.stringify(r));
+  assert(r.removed.kinds.includes("email") && r.removed.kinds.includes("phone") && r.removed.kinds.includes("link"));
+  cur = (await call("GET", "/profile", fl.token)).body;
+  assert(!JSON.stringify([cur.body.summary, cur.body.skills]).match(/lancerlegal|0177|calendly/), "nothing of it was saved: " + cur.body.summary);
+  assert(cur.body.summary.startsWith("I help solo attorneys file on time."), "the rest of the text is kept");
+  const seen = (await call("GET", "/freelancers/profile?person=" + fl.id, att.token)).body;
+  assert(!JSON.stringify(seen).match(/lancerlegal|0177|calendly/), "an attorney never reads it");
+  const note = (await pool.query("select body, essential from notifications where person_id = $1 and title = 'Contact details were removed from your profile' order by created_at desc limit 1", [fl.id])).rows[0];
+  assert(note.essential && note.body.includes("violation of the Lawfecta Terms of Service") && note.body.includes("A second violation may lead to your account being suspended or removed"), note.body);
+  // Saving the cleaned profile again is not a violation
+  r = (await call("POST", "/profile/save", fl.token, { body: cur.body, version: cur.version })).body;
+  assertEquals([r.ok, r.removed], [true, undefined]);
+  // A second time: counted, the member is warned harder, the owner is alerted. Nobody is suspended by code.
+  cur = (await call("GET", "/profile", fl.token)).body;
+  await pool.query("insert into staff_roles (person_id, role) values ($1, 'owner')", [staff.id]);
+  r = (await call("POST", "/profile/save", fl.token, { body: { ...cur.body, headline: "Litigation paralegal, text me at 512 555 0188" }, version: cur.version })).body;
+  await pool.query("update staff_roles set revoked_at = now() where person_id = $1 and role = 'owner'", [staff.id]);
+  assertEquals([r.ok, r.removed.count, r.removed.fields], [true, 2, ["Headline"]]);
+  assertEquals((await pool.query("select count(*)::int n from notifications where person_id = $1 and title = 'Contact details were removed from your profile'", [fl.id])).rows[0].n, before + 4, "each removal sends one notice in DELA and one email");
+  assert((await pool.query("select 1 from notifications where title = 'Contact details in a profile again' and person_id = $1", [staff.id])).rowCount >= 1, "the owner is alerted from the second time");
+  assertEquals((await pool.query("select status from people where id = $1", [fl.id])).rows[0].status, "active", "nobody is suspended by code");
+  let kept = false;
+  try { await pool.query("delete from profile_violations where person_id = $1", [fl.id]); } catch { kept = true; }
+  assert(kept, "the record of violations cannot be deleted");
+  // An attorney's own profile keeps its firm contact details
+  const ac = (await call("GET", "/profile", att.token)).body;
+  const ar = (await call("POST", "/profile/save", att.token, { body: { ...ac.body, summary: "Call our office at 512-555-0100 or see attorneylaw.com." }, version: ac.version })).body;
+  assertEquals([ar.ok, ar.removed], [true, undefined], "the rule is for freelancers");
 });
 
 Deno.test("teardown", async () => {
