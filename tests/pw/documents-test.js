@@ -186,6 +186,15 @@ async function makeMember(bd, side, plan) {
     ok(newId.startsWith("INT-") && newId !== oldId, "the new SOP gets the next ID in its group (" + newId + ")");
     ok(!(await sql("select count(*)::int as n from playbook_versions v join playbooks p on p.id = v.playbook_id where p.doc_id = '" + newId + "' and p." + MINE + " and v.body::text like '%hunter22%'"))[0].n, "a password in pasted material never reaches the document");
 
+    // ---------- Step 72: a step says where it comes from; editing a suggestion confirms it ----------
+    ok(await dela(p).getByLabel("Where step 1 comes from").count() === 1, "step 72: each step has a choice for where it comes from");
+    await dela(p).getByLabel("Where step 1 comes from").selectOption("proposed");
+    t = await waitFor(p, "DELA's own suggestion that nobody at the firm has confirmed");
+    ok(await dela(p).locator(".basis-tag").first().innerText() === "DELA's suggestion" && t.includes("Confirm all 1 suggestion"), "step 72: a suggestion carries a tag, and the page counts what nobody confirmed");
+    const s1 = dela(p).getByLabel("Step 1", { exact: true });
+    await s1.fill((await s1.inputValue()) + " now");
+    ok(await dela(p).locator(".basis-tag").first().innerText() === "Confirmed by the firm" && await dela(p).getByLabel("Where step 1 comes from").inputValue() === "said", "step 72: changing a suggested step's words makes it the firm's own");
+
     // ---------- Break the RACI: two owners means no owner, and everything is blocked ----------
     await dela(p).getByRole("button", { name: "Step 1, Attorney: empty" }).click();
     await dela(p).getByRole("button", { name: "Step 1, Attorney: R" }).click();

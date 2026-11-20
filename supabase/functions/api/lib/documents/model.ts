@@ -38,7 +38,13 @@ export const SYSTEM_GROUPS: Array<[string, string]> = [["practice_management", "
 
 export type Raci = Record<string, string>; // role -> "R", "A", "R,A", "C", "I" or ""
 export type Rule = { name: string; link: string; verify_by: string };
+// Step 72: where a step comes from. "said": the firm stated or confirmed it. "source": from a file the firm attached or one
+// of its approved documents. "proposed": DELA's own suggestion that nobody confirmed. "unknown": DELA could not tell and
+// left a placeholder. Absent on steps written before step 72, and on steps nobody labeled.
+export type Basis = "said" | "source" | "proposed" | "unknown";
+export const BASES: Basis[] = ["said", "source", "proposed", "unknown"];
 export type DocStep = {
+  basis?: Basis;
   text: string; role: string; raci: Raci; attorney_decides: boolean; not_judgment: boolean; system: string; menu_path: string; minutes: number | null;
   rule: Rule | null; stage: string; handoff: string; target_time: string; linked_sop: string; screenshot: string; images: ImageRef[];
 };
@@ -111,6 +117,7 @@ export function normalizeDoc(raw: unknown): DocBody {
       rule: rule(o.rule), stage: s(o.stage, 120), handoff: s(o.handoff, 600), target_time: s(o.target_time, 120), linked_sop: s(o.linked_sop, 120),
       screenshot: /^[0-9a-f-]{36}$/.test(String(o.screenshot ?? "")) ? String(o.screenshot) : "",
       images: stepsTakeImages(type) ? readRefs(o.images, (t) => s(t, 200)) : [],
+      ...(BASES.includes(o.basis) ? { basis: o.basis as Basis } : {}),
     };
   }).filter((x: DocStep) => x.text);
   return {
@@ -494,6 +501,17 @@ export function gigPart(b: DocBody, nos?: number[] | null): GigPart {
     nos: picked.map((x) => x.no), eligible: all.map((x) => x.no), of: b.steps.length, whole: picked.length === all.length,
     // What happens just before and just after the part, so the person doing it knows where their work sits
     before: first > 1 ? b.steps[first - 2].text : "", after: last < b.steps.length ? b.steps[last].text : "" };
+}
+
+// Step 72: what code can tell without trusting the AI's own label. A step that still carries a placeholder or a
+// "Check this" is not known, whatever label came with it. A label is never upgraded here.
+export function settleBasis(b: DocBody): DocBody {
+  for (const st of b.steps) {
+    const open = /\[Add |\[Check|Check this/i.test(st.text + " " + st.menu_path);
+    if (open && st.basis && st.basis !== "unknown") st.basis = "unknown";
+    else if (open && !st.basis && b.steps.some((x) => x.basis)) st.basis = "unknown";
+  }
+  return b;
 }
 
 // Step 71: the steps a part builds on that are not handed over. For each run of chosen steps, the step right before it:

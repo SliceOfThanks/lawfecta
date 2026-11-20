@@ -13243,9 +13243,20 @@
     return h("div", { class: "row", style: "flex-wrap:wrap;margin-top:4px" }, h("span", { class: "small muted", text: "Court rule, statute or filing deadline:" }), name, link, field("Verify by", by));
   }
 
+  // Step 72: where a step comes from, said on the step. The firm confirms a suggestion by editing the step or choosing "Confirmed by the firm".
+  var BASIS = { said: ["Confirmed by the firm", "ready"], source: ["From a file or an approved document", "ready"], proposed: ["DELA's suggestion", "held"], unknown: ["Not known yet", "bad"] };
   function stepsEditor(d, ro) {
     var wf = d.type === "workflow";
     var box = h("div");
+    var nProp = (d.steps || []).filter(function (x) { return x.basis === "proposed"; }).length, nUnk = (d.steps || []).filter(function (x) { return x.basis === "unknown"; }).length;
+    if (nProp || nUnk) {
+      var all = !ro && nProp ? h("button", { class: "ghost small", type: "button", id: "basis-confirm-all", style: "margin-left:6px" }, "Confirm all " + nProp + (nProp === 1 ? " suggestion" : " suggestions")) : null;
+      if (all) all.addEventListener("click", function () { d.steps.forEach(function (x) { if (x.basis === "proposed") x.basis = "said"; }); drawDocument(); D.toast(app, "Marked as confirmed. Save to keep it."); });
+      box.appendChild(h("p", { class: "notice", role: "note", id: "basis-summary" },
+        (nProp ? nProp + (nProp === 1 ? " step is" : " steps are") + " DELA's own suggestion that nobody at the firm has confirmed. " : "") +
+        (nUnk ? nUnk + (nUnk === 1 ? " step has" : " steps have") + " something DELA could not know. " : "") +
+        (ro ? "Each one carries a tag. Open the draft to confirm or change them." : "Read each one. Changing a step's words, or choosing \"Confirmed by the firm\" on it, confirms it."), all));
+    }
     var anyImg = (d.steps || []).some(function (x) { return (x.images || []).length; }) || Object.keys(d.section_images || {}).some(function (k) { return d.section_images[k].length; });
     (d.steps || []).forEach(function (st, i) {
       var c = h("div", { class: "card step-card", style: "padding:10px;margin:6px 0" + (st.attorney_decides ? ";border-color:var(--brand)" : "") });
@@ -13253,11 +13264,22 @@
       var slot = imagesOn(d) || st.images.length ? imageSlot(st.images, (wf ? "stage " : "step ") + (i + 1), !ro && imagesOn(d), imagesChanged) : null;
       c.appendChild(h("div", { class: "row" }, h("b", { class: "grow", text: (wf ? "Stage " : "Step ") + (i + 1) }),
         st.attorney_decides ? h("span", { class: "badge bad", text: "Attorney decides" }) : null,
+        st.basis && BASIS[st.basis] ? h("span", { class: "badge basis-tag " + BASIS[st.basis][1], text: BASIS[st.basis][0] }) : null,
         ro ? null : h("button", { class: "ghost small", type: "button", "aria-label": "Move step " + (i + 1) + " up", disabled: i === 0, onclick: function () { var x = d.steps.splice(i, 1)[0]; d.steps.splice(i - 1, 0, x); drawDocument(); } }, "↑"),
         ro ? null : h("button", { class: "ghost small", type: "button", "aria-label": "Remove step " + (i + 1), onclick: function () { d.steps.splice(i, 1); drawDocument(); } }, "Remove"),
         slot && !ro && imagesOn(d) ? addImageButton(slot, (wf ? "stage " : "step ") + (i + 1)) : null));
       if (wf) c.appendChild(field("Stage name", tIn(st, "stage", "Stage name " + (i + 1), { ro: ro })));
-      c.appendChild(field("What to do (one action, starting with a verb)", tIn(st, "text", "Step " + (i + 1), { rows: 2, ro: ro })));
+      var textIn = tIn(st, "text", "Step " + (i + 1), { rows: 2, ro: ro });
+      c.appendChild(field("What to do (one action, starting with a verb)", textIn));
+      // Changing a step's words makes it the firm's own; the choice below says so, or says something else
+      var basisSel = ro ? null : h("select", { "aria-label": "Where step " + (i + 1) + " comes from", class: "basis-sel" }, [["", "Not labeled"], ["said", BASIS.said[0]], ["source", BASIS.source[0]], ["proposed", BASIS.proposed[0]], ["unknown", BASIS.unknown[0]]].map(function (o) {
+        return h("option", { value: o[0], text: o[1], selected: (st.basis || "") === o[0] });
+      }));
+      if (basisSel) {
+        basisSel.addEventListener("change", function () { if (basisSel.value) st.basis = basisSel.value; else delete st.basis; drawDocument(); });
+        textIn.addEventListener("input", function () { if (st.basis === "proposed" || st.basis === "unknown") { st.basis = "said"; basisSel.value = "said"; var tg = c.querySelector(".basis-tag"); if (tg) { tg.textContent = BASIS.said[0]; tg.className = "badge basis-tag ready"; } } });
+        c.appendChild(field("Where this step comes from", basisSel));
+      }
       if (slot) { c.appendChild(slot.el); if (!ro && imagesOn(d)) slot.wire(c); }
       if (i === 0 && !anyImg && !ro && imagesOn(d)) c.appendChild(h("p", { class: "small muted img-tip", text: "Tip: Take a screenshot, click a step, and paste it here." }));
       var role = h("select", { "aria-label": "Responsible role for step " + (i + 1), disabled: ro }, [h("option", { value: "", text: "Choose" })].concat((d.roles || []).map(function (r) { return h("option", { value: r, text: r, selected: st.role === r }); })));
@@ -13273,7 +13295,7 @@
       c.appendChild(ruleFields(st, "rule", ro));
       box.appendChild(c);
     });
-    if (!ro) box.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { d.steps.push({ text: "", role: "", raci: {}, attorney_decides: false }); drawDocument(); } }, wf ? "Add a stage" : "Add a step"));
+    if (!ro) box.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { d.steps.push({ text: "", role: "", raci: {}, attorney_decides: false, basis: "said" }); drawDocument(); } }, wf ? "Add a stage" : "Add a step"));
     return box;
   }
   function decisionsEditor(d, ro) {

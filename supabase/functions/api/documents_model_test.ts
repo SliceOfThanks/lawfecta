@@ -210,3 +210,21 @@ Deno.test("the newcomer check's prompt and the drafting rules stay apart", async
   assert(RULES.includes("new to the firm") && RULES.includes("[Add where this lives]"), "new drafts are written for someone new");
   assert(!NEWCOMER_FILL_SYSTEM.includes("fixing a law firm document") && !NEWCOMER_SYSTEM.includes("writing one"));
 });
+
+Deno.test("step 72: a step says where it comes from; code never trusts a label over an open placeholder", async () => {
+  const { settleBasis, gigPrereqs } = await import("./lib/documents/model.ts");
+  const { RULES } = await import("./lib/documents/ai.ts");
+  const doc = normalizeDoc({ type: "sop", title: "Send the newsletter", roles, steps: [
+    { text: "Draft the newsletter in Mailchimp.", basis: "said" }, { text: "Send a test to yourself.", basis: "proposed" },
+    { text: "Open the list.", menu_path: "[Add the menu path in your system]", basis: "said" }, { text: "Archive the campaign.", basis: "made up" }, { text: "Check this: who approves the send?" }] });
+  assertEquals(doc.steps.map((s) => s.basis), ["said", "proposed", "said", undefined, undefined], "only the four known labels are kept");
+  assertEquals("basis" in doc.steps[3], false, "a step with no label keeps its old shape");
+  assertEquals(settleBasis(doc).steps.map((s) => s.basis), ["said", "proposed", "unknown", undefined, "unknown"], "a step that still has a placeholder or a Check this is not known, whatever the label said");
+  const old = normalizeDoc({ type: "sop", title: "Old", roles, steps: [{ text: "Check this: the fee." }, { text: "File it." }] });
+  assertEquals(settleBasis(old).steps.map((s) => s.basis), [undefined, undefined], "a document written before labels gets none added");
+  // DELA's answer goes through the same rule
+  const read = readDocAnswer({ document: { type: "sop", title: "T", roles, steps: [{ text: "Call the client. Check this: which number?", basis: "said" }, { text: "Log the call.", basis: "source" }] } });
+  assertEquals(read.body!.steps.map((s) => s.basis), ["unknown", "source"]);
+  assert(RULES.includes('"proposed": it is your own suggestion') && RULES.includes("a step nobody stated is \"proposed\""), "DELA is told to label its own suggestions as such");
+  assertEquals(gigPrereqs(doc, [2, 3]).map((x) => x.no), [1]);
+});
