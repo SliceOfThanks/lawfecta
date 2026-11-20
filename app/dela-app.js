@@ -5546,11 +5546,32 @@
       })));
       var preview = h("a", { class: "btn ghost small", id: "gs-preview", target: "_blank", rel: "noopener" }, "Preview document");
       var docErr = errOf("gs-doc-err");
-      var syncDoc = function () { w.doc = pick.value; if (pick.value) { preview.href = "/dela?tab=library&pb=" + pick.value; preview.removeAttribute("aria-disabled"); preview.hidden = false; } else { preview.removeAttribute("href"); preview.hidden = true; } };
+      // Step 56: once a document is chosen, its steps are listed so the attorney can hand over only some of them
+      var stepsHost = h("div", { id: "gs-steps" }), stepPick = null, stepsFor = "";
+      var loadSteps = function () {
+        stepPick = null; D.clear(stepsHost);
+        if (!sw.handoff_kit || !pick.value) return;
+        var forDoc = pick.value; stepsFor = forDoc;
+        stepsHost.appendChild(h("p", { class: "hsub", role: "status", text: "Loading the steps..." }));
+        api.get("/gigs/doc-steps?playbook=" + encodeURIComponent(forDoc)).then(function (x) {
+          if (stepsFor !== forDoc) return;
+          D.clear(stepsHost);
+          if (!x || !x.ok || !x.on || !(x.steps || []).length) return;
+          stepPick = stepChecklist(x, w.steps && w.stepsDoc === forDoc ? w.steps : x.eligible, "gs");
+          stepPick.el.addEventListener("change", function () { w.steps = stepPick.chosen(); w.stepsDoc = forDoc; });
+          stepsHost.appendChild(stepPick.el);
+          stepsHost.appendChild(h("p", { class: "hsub", style: "margin:6px 0 0", text: "Untick the steps your firm keeps. The freelancer gets the ticked steps, with what happens just before and just after them." }));
+          var nc = { ready: ["notice ok", "This document is marked \"Ready for someone new\"."], gaps: ["notice", "DELA found gaps a newcomer would hit in this document. Open it with \"Preview document\" and answer them under \"Can someone new follow this?\" before you hand it over."],
+            not_checked: ["hsub", "This document has not been checked for someone new yet. \"Preview document\" opens it, where \"Check as someone new\" runs the check."] }[x.newcomer];
+          if (nc) stepsHost.appendChild(h("p", { class: nc[0], id: "gs-newcomer", style: "margin:8px 0 0", text: nc[1] }));
+        }).catch(function () { if (stepsFor === forDoc) D.clear(stepsHost); });
+      };
+      var syncDoc = function () { w.doc = pick.value; loadSteps(); if (pick.value) { preview.href = "/dela?tab=library&pb=" + pick.value; preview.removeAttribute("aria-disabled"); preview.hidden = false; } else { preview.removeAttribute("href"); preview.hidden = true; } };
       pick.addEventListener("change", function () { syncDoc(); setErr(docErr, pick, ""); });
       c1.appendChild(h("label", { "for": "gs-doc", class: "gs-label", text: "Approved SOP or workflow" }));
       c1.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;align-items:center" }, h("div", { class: "grow", style: "min-width:220px" }, pick), preview));
       c1.appendChild(docErr);
+      c1.appendChild(stepsHost);
       c1.appendChild(h("p", { class: "hsub", id: "gs-doc-help", style: "margin:6px 0 0", text: docs.length ? "DELA uses this document to draft the gig. Only approved documents are listed. \"Preview document\" opens it in a new tab." : "A gig starts from an approved SOP or Workflow, and you have none yet." }));
       if (!docs.length && sw.playbook_library) c1.appendChild(h("div", { class: "hacts", style: "margin-top:8px" }, h("button", { class: "ghost small", type: "button", onclick: function () { gigs.wiz = null; goTab("library"); } }, "Open the Library to create or approve one")));
       syncDoc();
@@ -5627,10 +5648,12 @@
       go.addEventListener("click", function () {
         setErr(formErr, null, "");
         if (!validate()) return;
+        var stepNos = stepPick && stepsFor === pick.value ? stepPick.chosen() : null;
+        if (stepNos && !stepNos.length) { setErr(formErr, null, "Tick at least one step to hand over."); var fs = stepsHost.querySelector("input:not([disabled])"); if (fs) fs.focus(); return; }
         var chosen = docs.filter(function (d) { return d.id === pick.value; })[0] || {};
         gigImageWarning(chosen.images || 0, function () {
           go.disabled = true; back2.disabled = true; status.textContent = "DELA is writing the description. This can take a moment. Nothing is posted.";
-          api.post("/gigs/draft", { playbook_id: pick.value, request_id: req, notes: notes.value, budget_min: bmin.value, budget_max: bmax.value || bmin.value, deadline: kMon.checked ? undefined : deadline.value || undefined, linked_agreement: gigs.linkTo ? gigs.linkTo.id : undefined, kind: kMon.checked ? "monthly" : "one_off" }).then(function (x) {
+          api.post("/gigs/draft", { steps: stepNos && stepNos.length < stepPick.all() ? stepNos : undefined, playbook_id: pick.value, request_id: req, notes: notes.value, budget_min: bmin.value, budget_max: bmax.value || bmin.value, deadline: kMon.checked ? undefined : deadline.value || undefined, linked_agreement: gigs.linkTo ? gigs.linkTo.id : undefined, kind: kMon.checked ? "monthly" : "one_off" }).then(function (x) {
             if (!x || !x.ok) throw x || {};
             gigs.newFrom = null; gigs.linkTo = null; gigs.wiz = null; gigs.wizKept = null; gigs.wstep = 2; gigs.wtop = true; gigs.wnew = x.source === "ai" ? "ai" : "doc";
             gigLink(x.id, "projects");

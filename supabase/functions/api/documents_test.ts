@@ -252,7 +252,7 @@ Deno.test("gigs: SOPs and Workflows only; a workflow hands over only the freelan
   const g = (await call("POST", "/gigs/draft", att.token, { playbook_id: wf, request_id: "g1", budget_min: 300, budget_max: 600, use_ai: false })).body;
   assertEquals(g.ok, true, JSON.stringify(g));
   const pub = (await call("GET", "/gigs/get?id=" + g.id, att.token)).body;
-  assertEquals(pub.gig_part, { steps: 3, of: 4, checkpoints: 1, images: 0 }, "the attorney sees how much of the workflow the gig hands over");
+  assertEquals(pub.gig_part, { steps: 3, of: 4, checkpoints: 1, images: 0, nos: [1, 3, 4], eligible: [1, 3, 4], whole: true }, "the attorney sees how much of the workflow the gig hands over");
   // References: Playbooks and Policies only
   assertEquals((await call("POST", "/gigs/reference", att.token, { gig_id: g.id, doc: sop })).body.reason, "reference_policies_and_playbooks");
   assertEquals((await call("POST", "/gigs/reference", att.token, { gig_id: g.id, doc: pbook })).body.ok, true);
@@ -280,6 +280,58 @@ Deno.test("gigs: SOPs and Workflows only; a workflow hands over only the freelan
   assertEquals((await call("POST", "/engagements/checkpoint", att.token, { agreement_id: ag, step_no: 2 })).body.reason, "agreement_closed");
   assertEquals((await call("POST", "/engagements/checkpoint", fl.token, { agreement_id: ag, step_no: 2 })).body.reason, "agreement_closed");
   assertEquals((await one("select status from engagement_checkpoints where agreement_id = $1 and step_no = 2", [ag])).status, "pending");
+});
+
+Deno.test("steps 56 to 58: a gig hands over chosen steps only; what the freelancer needs and who may mark it; the attorney's preview is the freelancer's page", async () => {
+  // The checklist: only a freelancer's steps can be chosen
+  const ds = (await call("GET", "/gigs/doc-steps?playbook=" + wf, att.token)).body;
+  assertEquals([ds.on, ds.of, ds.eligible, ds.steps[1].eligible, ds.steps[2].attorney_decides, ds.newcomer], [true, 4, [1, 3, 4], false, true, "not_checked"], JSON.stringify(ds));
+  assertEquals((await call("POST", "/gigs/draft", att.token, { playbook_id: wf, request_id: "h0", budget_min: 300, budget_max: 600, use_ai: false, steps: [2] })).body.reason, "no_steps_chosen", "a step that is the firm's own cannot be handed over");
+  const g = (await call("POST", "/gigs/draft", att.token, { playbook_id: wf, request_id: "h1", budget_min: 300, budget_max: 600, use_ai: false, steps: [4, 3, 2] })).body;
+  assertEquals(g.ok, true, JSON.stringify(g));
+  let v = (await call("GET", "/gigs/get?id=" + g.id, att.token)).body;
+  assertEquals(v.gig_part, { steps: 2, of: 4, checkpoints: 1, images: 0, nos: [3, 4], eligible: [1, 3, 4], whole: false });
+  assertEquals(v.preview.steps.map((x: any) => [x.no, x.text]), [[3, "Approve the fee for the engagement letter."], [4, "Prepare the engagement letter draft."]]);
+  assertEquals(v.preview.part, { nos: [3, 4], of: 4, whole: false, before: "Run the conflict check.", after: "" }, "the part says what happens just before it");
+  assert(!JSON.stringify(v.gig.public).includes("Answer the inquiry"), "the gig's own description is written from the chosen steps only");
+  // The steps can change while the gig is a draft
+  assertEquals((await call("POST", "/gigs/steps", att.token, { id: g.id, steps: [2] })).body.reason, "no_steps_chosen");
+  assertEquals((await call("POST", "/gigs/steps", other.token, { id: g.id, steps: [1] })).body.ok, false, "another firm cannot change them");
+  assertEquals((await call("POST", "/gigs/steps", att.token, { id: g.id, steps: [1, 3, 4] })).body.step_nos, null, "every step is the same as no choice");
+  assertEquals((await call("POST", "/gigs/steps", att.token, { id: g.id, steps: [3, 4] })).body.step_nos, [3, 4]);
+  // What the freelancer needs before starting
+  assertEquals((await call("POST", "/gigs/inputs/save", other.token, { id: g.id, items: [{ label: "x" }] })).body.ok, false);
+  let r = (await call("POST", "/gigs/inputs/save", att.token, { id: g.id, items: [{ kind: "access", label: "A Clio login, set up by the office manager" }, { kind: "zzz", label: "The engagement letter template", supplied_by: "freelancer" }, { label: "   " }] })).body;
+  assertEquals(r.ok, true, JSON.stringify(r));
+  v = (await call("GET", "/gigs/get?id=" + g.id, att.token)).body;
+  assertEquals(v.handoff.inputs.map((i: any) => [i.kind, i.supplied_by, i.status]), [["access", "client", "needed"], ["other", "freelancer", "needed"]], "an empty line is dropped and an unknown kind is made safe");
+  await pool.query("update settings set value = '1' where key = 'gig.inputs_max'");
+  assertEquals((await call("POST", "/gigs/inputs/save", att.token, { id: g.id, items: [{ label: "a" }, { label: "b" }] })).body.reason, "too_many_inputs");
+  await pool.query("update settings set value = '20' where key = 'gig.inputs_max'");
+  const [mine, theirs] = v.handoff.inputs.map((i: any) => i.id);
+  // Posted and invited: the freelancer gets the same page as the preview, and cannot mark anything yet
+  await pool.query("insert into gig_invitations (gig_id, freelancer_id, invited_by) values ($1, $2, $3)", [g.id, fl.id, att.id]);
+  await pool.query("update gigs set status = 'open', opened_at = now(), closes_at = now() + interval '14 days' where id = $1", [g.id]);
+  assertEquals((await call("POST", "/gigs/steps", att.token, { id: g.id, steps: [4] })).body.reason, "gig_not_draft", "the part is fixed once the gig is posted");
+  const seen = (await call("GET", "/gigs/get?id=" + g.id, fl.token)).body;
+  assertEquals(JSON.stringify(seen.playbook), JSON.stringify(v.preview), "the attorney's preview is exactly what the freelancer is sent");
+  assertEquals([seen.handoff.access, seen.handoff.inputs.length], ["invited", 2]);
+  assertEquals((await call("POST", "/gigs/inputs/mark", fl.token, { id: theirs, status: "supplied" })).body.reason, "not_allowed", "an invited freelancer reads the list only");
+  // Hired: the attorney marks what was supplied; the freelancer may say it is still needed, and marks only their own things
+  const pr = (await one("insert into proposals (gig_id, freelancer_id, status, price_cents, sent_at) values ($1, $2, 'selected', 50000, now()) returning id", [g.id, fl.id])).id;
+  const ag = (await one("insert into agreements (gig_id, proposal_id, attorney_org, attorney_person, freelancer_person, total_cents, status) values ($1, $2, $3, $4, $5, 50000, 'active') returning id", [g.id, pr, org, att.id, fl.id])).id;
+  assertEquals((await call("POST", "/gigs/inputs/mark", att.token, { id: mine, status: "supplied", note: "Sent through the office manager" })).body.ok, true);
+  assertEquals((await call("POST", "/gigs/inputs/mark", fl.token, { id: mine, status: "not_needed" })).body.reason, "not_allowed");
+  assertEquals((await call("POST", "/gigs/inputs/mark", fl.token, { id: mine, status: "needed", note: "The login does not work" })).body.ok, true);
+  assertEquals((await call("POST", "/gigs/inputs/mark", fl.token, { id: theirs, status: "supplied" })).body.ok, true);
+  assertEquals((await call("POST", "/gigs/inputs/mark", other.token, { id: mine, status: "supplied" })).body.reason, "not_found");
+  const av = (await call("GET", "/agreements/get?id=" + ag, fl.token)).body;
+  assertEquals(av.inputs.map((i: any) => [i.status, i.note]), [["needed", "The login does not work"], ["supplied", ""]], "the engagement shows the same list to both sides");
+  assertEquals(av.checkpoints.map((c: any) => [c.step_no, c.status]), [[1, "pending"]], "decision points count within the part handed over");
+  // A gig with no choice hands over what it always did
+  const whole = (await call("POST", "/gigs/draft", att.token, { playbook_id: wf, request_id: "h2", budget_min: 300, budget_max: 600, use_ai: false })).body;
+  const wv = (await call("GET", "/gigs/get?id=" + whole.id, att.token)).body;
+  assertEquals([wv.gig_part.whole, wv.gig_part.nos, wv.preview.part.before], [true, [1, 3, 4], ""]);
 });
 
 Deno.test("older playbooks: the type check converts them, the old version stays, the owner is told and can change the type", async () => {

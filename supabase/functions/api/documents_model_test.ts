@@ -198,3 +198,15 @@ Deno.test("the document chat is told to word a change as a suggestion, never as 
   for (const sys of [DOC_CHAT_SYSTEM, CHAT_SYSTEM]) assert(sys.includes('word a change as a suggestion that has not been made yet'), sys.slice(0, 80));
   assert(!CHAT_SYSTEM.includes("what you changed"));
 });
+
+// Fix (run 44667310501): the drafting rules must not carry the sentence that marks the newcomer check's own prompt,
+// or anything that tells the two prompts apart (the test stand-ins, a log search) takes a draft for a check.
+Deno.test("the newcomer check's prompt and the drafting rules stay apart", async () => {
+  const { RULES, draftSystem, FIX_SYSTEM } = await import("./lib/documents/ai.ts");
+  const { NEWCOMER_SYSTEM, NEWCOMER_FILL_SYSTEM } = await import("./lib/documents/newcomer.ts");
+  const mark = "has never worked with this firm";
+  assert(NEWCOMER_SYSTEM.includes(mark));
+  for (const p of [RULES, draftSystem("sop"), FIX_SYSTEM, NEWCOMER_FILL_SYSTEM]) assert(!p.includes(mark), p.slice(0, 60));
+  assert(RULES.includes("new to the firm") && RULES.includes("[Add where this lives]"), "new drafts are written for someone new");
+  assert(!NEWCOMER_FILL_SYSTEM.includes("fixing a law firm document") && !NEWCOMER_SYSTEM.includes("writing one"));
+});

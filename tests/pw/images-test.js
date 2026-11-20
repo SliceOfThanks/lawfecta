@@ -83,7 +83,7 @@ const imgs = (step) => sql("select v.body->'steps'->" + step + "->'images' as im
 (async () => {
   const browser = await chromium.launch();
   try {
-    await sql("update feature_switches set state = 'everyone' where key in ('ai_generation', 'playbook_library', 'file_uploads', 'flex_gigs', 'profiles', 'document_standard', 'document_images'); select 1");
+    await sql("update feature_switches set state = 'everyone' where key in ('ai_generation', 'playbook_library', 'file_uploads', 'flex_gigs', 'profiles', 'document_standard', 'document_images', 'handoff_kit'); select 1");
     await makeMember(3700, "attorney", "att_business");
     await makeMember(3701, "freelancer", "fl_plus");
     await sql(`select dela_doc_firm_save((select id from people where bd_member_id = 3700), '{"size":"2-5","practice_areas":["Family law"],"jurisdictions":"Texas","roles":[{"name":"Attorney","kind":"attorney"},{"name":"Paralegal","kind":"staff"}],"systems":{"practice_management":["Clio"]}}'::jsonb)`);
@@ -249,6 +249,33 @@ const imgs = (step) => sql("select v.body->'steps'->" + step + "->'images' as im
     await waitFor(p, "Public version", 15000);
     const gig = (await sql("select id from gigs where " + MINE + " order by created_at desc limit 1"))[0].id;
     ok(!!gig, "Continue creates the gig");
+    // Steps 56 to 58, the handoff: the attorney chooses the steps and lists what the freelancer needs
+    t = await waitFor(p, "The handoff");
+    ok(t.includes("Steps handed over") && /Every step a freelancer may do: \d+ of the document's \d+\./.test(t) && t.includes("What the freelancer needs before starting"), "the gig page has the handoff card: the steps and what the freelancer needs");
+    await dela(p).locator("#ho-steps-change").click();
+    await dela(p).locator("#ho-checks").waitFor();
+    const nSteps = await dela(p).locator("#ho-checks input:not([disabled])").count();
+    await dela(p).locator("#ho-checks input:not([disabled])").last().uncheck();
+    await dela(p).locator("#ho-steps-save").click();
+    await waitFor(p, "Steps saved.");
+    await dela(p).locator("#ho-steps-say").waitFor();
+    const said = await dela(p).locator("#ho-steps-say").innerText();
+    const kept = (await sql("select step_nos from gigs where id = '" + gig + "'"))[0].step_nos;
+    ok(nSteps >= 2 && /^Steps? .+ of the document's \d+ steps\.$/.test(said) && kept.length === nSteps - 1, "unticking a step hands over the rest only: " + said + " " + JSON.stringify(kept));
+    await dela(p).locator("#ho-steps-change").click();
+    await dela(p).locator("#ho-checks").waitFor();
+    await dela(p).locator("#ho-checks input:not([disabled])").last().check();
+    await dela(p).locator("#ho-steps-save").click();
+    await waitFor(p, "Steps saved.");
+    await dela(p).locator("#ho-steps-say").waitFor();
+    ok(/Every step a freelancer may do/.test(await dela(p).locator("#ho-steps-say").innerText()) && (await sql("select step_nos from gigs where id = '" + gig + "'"))[0].step_nos === null, "ticking every step again is the same as no choice");
+    await dela(p).locator("#ho-add").click();
+    await dela(p).locator("#ho-inputs input").last().fill("The matter intake form, from the shared Intake folder");
+    await dela(p).locator("#ho-save").click();
+    await waitFor(p, "List saved");
+    await p.waitForTimeout(800);
+    const needs = await sql("select kind, label, supplied_by, status from gig_inputs where gig_id = '" + gig + "' order by pos");
+    ok(needs.some((n) => n.label === "The matter intake form, from the shared Intake folder" && n.supplied_by === "client" && n.status === "needed"), "a thing the freelancer needs is saved as still needed: " + JSON.stringify(needs));
 
     // ---------- A due review: Check images ----------
     await sql("update playbooks set next_review_at = current_date - 1, last_reviewed_at = current_date - 30 where title = 'Run a conflict check' and " + MINE + "; update doc_images set created_at = now() - interval '60 days' where " + MINE + "; select 1");
@@ -278,6 +305,7 @@ const imgs = (step) => sql("select v.body->'steps'->" + step + "->'images' as im
     await p.waitForTimeout(1500);
     ok(t.includes("The Run report button") && (await dela(p).locator(".img-fig img[src*='/test/storage/get/']").count()) >= 2, "the freelancer sees the images with captions");
     ok(!t.includes("Download") && (await dela(p).locator(".img-tools").count()) === 0, "no download button and no editing in the gig");
+    ok(t.includes("What you need before you start") && t.includes("The matter intake form, from the shared Intake folder") && t.includes("The attorney supplies this") && t.includes("Still needed") && await dela(p).locator("#needs-card button").count() === 0, "an invited freelancer reads what they will need, and cannot mark it");
     await sql("update gigs set status = 'closed' where id = '" + gig + "'; select 1");
     await s.ctx.close();
     s = await open(browser, 3701, null, "&tab=work&gig=" + gig);
