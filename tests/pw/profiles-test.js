@@ -341,6 +341,11 @@ async function waitFor(page, words, ms) {
     ok(/LinkedIn check (completed|not completed)/.test(metaLine) && /reviews?|No reviews yet/.test(metaLine) && metaLine.includes("hours/week") && metaLine.includes("time"), "the header says the check, the reviews, the hours and the time zone on one line: " + metaLine.replace(/\n/g, " | "));
     ok((await dela(p).locator("#tp-mode-edit").getAttribute("aria-pressed")) === "true" && await dela(p).locator("#tp-edit-summary").count() === 1 && t.includes("Edit summary"), "editing is on: the buttons say what they edit");
     ok(t.includes("About") && t.includes("Indicative pricing") && await dela(p).locator(".tp-rows .tp-row").count() >= 2 && t.includes("Experience, education and skills are provided by the member."), "Overview: About, services with indicative pricing, one card of skill and software rows, and what the check does not cover");
+    // The mockups' colors (Stacey 2026-11-19: "it should follow the color schemes"): a pink band behind the name, pink tags, marks on the buttons
+    const look = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, cs = (q) => getComputedStyle(r.querySelector(q));
+      return { band: cs(".tp-head").backgroundImage, tag: cs(".tp .talent-tag").backgroundColor, bar: cs(".tp-ownbar").backgroundColor, name: parseFloat(cs(".tp-head h1").fontSize), marks: r.querySelectorAll(".tp-own-b svg.ic").length, pencil: !!r.querySelector("#tp-edit-summary svg.ic"), li: !!r.querySelector(".tp-meta .tp-li"), tile: !!r.querySelector(".tp-svc .tp-tile svg.ic"), glance: r.querySelectorAll(".tp-glance li svg.ic").length }; });
+    ok(look.band.includes("gradient") && look.tag === "rgb(246, 220, 231)" && look.bar === "rgb(248, 230, 238)" && look.name >= 24, "the profile has the mockups' pink band, pink tags and a large name: " + JSON.stringify(look));
+    ok(look.marks === 2 && look.pencil && look.li && look.tile && look.glance >= 1, "buttons, the check, services and At a glance carry their marks: " + JSON.stringify(look));
     await dela(p).getByRole("tab", { name: "Work samples", exact: true }).click();
     t = await waitFor(p, "Manage work samples");
     ok(t.includes("Choose shared samples in Profile documents."), "Work samples: the owner is sent to Profile documents to choose them");

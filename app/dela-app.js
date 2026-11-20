@@ -200,6 +200,11 @@
     alert: [["path", "M12 4l9 16H3z"], ["path", "M12 10v4"], ["path", "M12 17v.5"]],
     bars: [["path", "M5 20v-7"], ["path", "M12 20V5"], ["path", "M19 20v-11"]],
     bolt: [["path", "M13 3L5 13h6l-1 8 8-10h-6z"]],
+    pencil: [["path", "M4 20l1-4L16 5l3 3L8 19z"], ["path", "M14 7l3 3"]],
+    eye: [["path", "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z"], ["circle", 12, 12, 3]],
+    clock: [["circle", 12, 12, 9], ["path", "M12 7v5l3 2"]],
+    plus: [["path", "M12 5v14M5 12h14"]],
+    doc: [["path", "M7 3h7l4 4v14H7z"], ["path", "M14 3v4h4"], ["path", "M10 13h5M10 17h3"]],
     grid: [["path", "M4 4h6v6H4z"], ["path", "M14 4h6v6h-6z"], ["path", "M4 14h6v6H4z"], ["path", "M14 14h6v6h-6z"]],
     grip: [["circle", 9, 6, 1], ["circle", 15, 6, 1], ["circle", 9, 12, 1], ["circle", 15, 12, 1], ["circle", 9, 18, 1], ["circle", 15, 18, 1]],
   };
@@ -7735,7 +7740,7 @@
     var EDIT = { headline: ["Headline", false], summary: ["Professional summary", true], experience: ["Professional experience", true], education: ["Education and credentials", true], skills: ["Task skills", "list"], software: ["Tech tools", "tools"], services: ["Services", "services"] };
     function editBtn(key, host) {
       if (!self || prof.dirty) return null;
-      var b = h("button", { class: "ghost small tp-edit", type: "button", id: "tp-edit-" + key, "aria-label": "Edit " + EDIT[key][0].toLowerCase() }, "Edit " + ({ summary: "summary", experience: "experience", education: "education", headline: "headline", skills: "skills", software: "software", services: "services" }[key] || ""));
+      var b = h("button", { class: "ghost small tp-edit", type: "button", id: "tp-edit-" + key, "aria-label": "Edit " + EDIT[key][0].toLowerCase() }, icon("pencil"), " Edit " + ({ summary: "summary", experience: "experience", education: "education", headline: "headline", skills: "skills", software: "software", services: "services" }[key] || ""));
       b.addEventListener("click", function () { editPart(key, host, b); });
       return b;
     }
@@ -7850,10 +7855,11 @@
       // Step 53 (Stacey's public profile mockups, 2026-11-19): one line under the headline with the check, the reviews,
       // the hours, the time zone and the agency, each said in words
       var org = (x.agencies || []).join(", ") || x.company || "";
-      var meta = [h("span", { class: verified ? "talent-ver tp-check" : "muted tp-check", text: verified ? "✓ LinkedIn check completed" : "LinkedIn check not completed" }),
+      var liMark = function () { return h("span", { class: "tp-li", "aria-hidden": "true", text: "in" }); };
+      var meta = [h("span", { class: verified ? "tp-check" : "muted tp-check" }, liMark(), verified ? "LinkedIn check completed " : "LinkedIn check not completed", verified ? h("span", { class: "tp-okdot", "aria-hidden": "true", text: "✓" }) : null),
         h("span", { class: n ? "" : "muted" }, n && rv.average ? h("span", { class: "talent-star", "aria-hidden": "true", text: "★ " }) : null, !n ? "No reviews yet" : rv.average ? rv.average + " out of 5 · " + n + (n === 1 ? " review" : " reviews") : n + (n === 1 ? " review" : " reviews")),
-        x.capacity_hours_week ? h("span", { text: x.capacity_hours_week + " hours/week" }) : null, x.timezone ? h("span", { text: x.timezone + " time" }) : null,
-        org ? h("span", { text: org }) : null, x.state ? h("span", { text: "Based in " + x.state }) : null,
+        x.capacity_hours_week ? h("span", null, icon("clock"), " " + x.capacity_hours_week + " hours/week") : null, x.timezone ? h("span", null, icon("clock"), " " + x.timezone + " time") : null,
+        org ? h("span", null, icon("agency"), " " + org) : null, x.state ? h("span", { text: "Based in " + x.state }) : null,
         x.available_now ? null : h("span", { class: "badge held", text: "Not taking new work right now" })].filter(Boolean);
       var head = h("div", { class: "card tp-head" },
         h("div", { class: "tp-head-grid" },
@@ -7866,11 +7872,11 @@
       if (own) {
         var mode = function (pv) { return function () { if (!!prof.preview === pv) return; prof.preview = pv; draw(); }; };
         el.insertBefore(h("div", { class: "tp-ownbar", id: "tp-self-note" },
-          h("div", { class: "grow" }, h("h2", { style: "margin:0;font-size:17px", text: prof.preview ? "Previewing as an attorney" : "Editing your profile" }),
+          h("div", { class: "grow" }, h("h2", { class: "tp-own-h" }, icon(prof.preview ? "eye" : "pencil"), " " + (prof.preview ? "Previewing as an attorney" : "Editing your profile")),
             h("p", { class: "small muted", style: "margin:2px 0 0", text: (x.readiness === "match_ready" ? "Attorneys can find this profile in Talent search now." : "Attorneys cannot find this profile in Talent search yet. Finish the steps on the profile form first.")
               + (prof.preview ? " Empty parts and edit buttons are left out, as for an attorney." : prof.dirty ? " You have changes on the profile form that are not saved. This page shows what is saved, and editing here is off until you save or leave those changes." : "") })),
-          h("button", { class: prof.preview ? "ghost small" : "blue small", type: "button", id: "tp-mode-edit", "aria-pressed": String(!prof.preview), onclick: mode(false) }, "Edit profile"),
-          h("button", { class: prof.preview ? "blue small" : "ghost small", type: "button", id: "tp-mode-preview", "aria-pressed": String(!!prof.preview), onclick: mode(true) }, "Preview as attorney")), el.children[1] || null);
+          h("button", { class: "ghost small tp-own-b", type: "button", id: "tp-mode-edit", "aria-pressed": String(!prof.preview), onclick: mode(false) }, icon("pencil"), " Edit profile"),
+          h("button", { class: "blue small tp-own-b", type: "button", id: "tp-mode-preview", "aria-pressed": String(!!prof.preview), onclick: mode(true) }, icon("eye"), " Preview as attorney")), el.children[1] || null);
       }
       el.appendChild(head);
       // ----- The tabs: everything stays on this page -----
@@ -7908,9 +7914,9 @@
       // What both the Overview and the Experience tab show at the right
       function glance(col) {
         var q = h("section", { class: "card" }, h("h2", { text: "At a glance" })); col.appendChild(q);
-        var qf = [["Hours", x.capacity_hours_week ? x.capacity_hours_week + " hours/week" + (x.availability === "limited" ? " (limited right now)" : "") : ""], ["Usual hours", x.hours || ""], ["Time zone", x.timezone ? x.timezone + " time" : ""], ["Agency", org]].filter(function (r) { return r[1]; });
-        if (qf.length) q.appendChild(h("dl", { class: "tp-facts" }, qf.map(function (r) { return h("div", null, h("dt", { text: r[0] }), h("dd", { text: r[1] })); }))); else none(q, "Nothing added yet.");
-        var v = h("section", { class: "card", id: "tp-check" }, h("h2", { text: verified ? "LinkedIn check completed" : "LinkedIn check not completed" })); col.appendChild(v);
+        var qf = [["clock", "Hours", x.capacity_hours_week ? x.capacity_hours_week + " hours/week" + (x.availability === "limited" ? " (limited right now)" : "") : ""], ["clock", "Usual hours", x.hours || ""], ["clock", "Time zone", x.timezone ? x.timezone + " time" : ""], ["agency", "Agency", org]].filter(function (r) { return r[2]; });
+        if (qf.length) q.appendChild(h("ul", { class: "tp-glance" }, qf.map(function (r) { return h("li", null, icon(r[0]), h("span", { class: "sr", text: r[1] + ": " }), h("span", { text: r[2] })); }))); else none(q, "Nothing added yet.");
+        var v = h("section", { class: "card", id: "tp-check" }, h("h2", { class: "tp-check-h" }, liMark(), verified ? "LinkedIn check completed" : "LinkedIn check not completed")); col.appendChild(v);
         v.appendChild(h("p", { class: "small", style: "margin:0", text: (verified ? "Lawfecta completed the LinkedIn check." : "Lawfecta has not completed this member's LinkedIn check.") + " Experience, education and skills are provided by the member." }));
         v.appendChild(h("details", { class: "small", style: "margin-top:8px" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "What the check covers" }),
           h("p", { text: D.HELP && D.HELP.verified ? D.HELP.verified : "The Lawfecta Team checked that this member is who they say they are. The Help page says what is checked." }),
@@ -7952,7 +7958,7 @@
             var ps = into(left, "Services");
             x.services.slice(0, 6).forEach(function (sv) {
               var price = servicePrice(sv);
-              ps.appendChild(h("div", { class: "tp-svc" }, h("div", { class: "grow" }, h("h3", { style: "margin:0", text: sv.title }), h("p", { class: "small", style: "margin:2px 0 0", text: price ? price + " · Indicative pricing" : "No price given" }), sv.for_whom ? h("p", { class: "small muted", style: "margin:2px 0 0", text: sv.for_whom }) : null)));
+              ps.appendChild(h("div", { class: "tp-svc" }, h("span", { class: "tp-tile", "aria-hidden": "true" }, icon("doc")), h("div", { class: "grow" }, h("h3", { style: "margin:0", text: sv.title }), h("p", { class: "small", style: "margin:2px 0 0", text: price ? price + " · Indicative pricing" : "No price given" }), sv.for_whom ? h("p", { class: "small muted", style: "margin:2px 0 0", text: sv.for_whom }) : null)));
             });
           }
           tagRows(left, true);
@@ -7970,12 +7976,12 @@
           var open = function (b) { editPart("services", c, b); };
           if (!(x.services || []).length) none(c, self ? "No services yet. Say what you do, for whom, and your usual price." : x.name + " has not listed services yet.");
           (x.services || []).forEach(function (sv) {
-            var price = servicePrice(sv), eb = self && !prof.dirty ? h("button", { class: "ghost small", type: "button", "aria-label": "Edit the service " + sv.title }, "Edit service") : null;
+            var price = servicePrice(sv), eb = self && !prof.dirty ? h("button", { class: "ghost small", type: "button", "aria-label": "Edit the service " + sv.title }, icon("pencil"), " Edit service") : null;
             if (eb) eb.addEventListener("click", function () { open(eb); });
-            c.appendChild(h("div", { class: "tp-svc" }, h("div", { class: "grow" }, h("h3", { style: "margin:0", text: sv.title }), sv.for_whom ? h("p", { class: "small", style: "margin:4px 0 0", text: sv.for_whom }) : null),
+            c.appendChild(h("div", { class: "tp-svc" }, h("span", { class: "tp-tile", "aria-hidden": "true" }, icon("doc")), h("div", { class: "grow" }, h("h3", { style: "margin:0", text: sv.title }), sv.for_whom ? h("p", { class: "small", style: "margin:4px 0 0", text: sv.for_whom }) : null),
               h("div", { class: "tp-svc-p" }, price ? h("b", { text: price }) : h("span", { class: "small muted", text: "No price given" }), price ? h("span", { class: "small muted", text: "Indicative range" }) : null), eb));
           });
-          if (self && !prof.dirty) { var add = h("button", { class: "ghost small tp-edit", type: "button", id: "tp-edit-services", "aria-label": "Add or edit services" }, "+ Add service"); add.addEventListener("click", function () { open(add); }); c.appendChild(add); }
+          if (self && !prof.dirty) { var add = h("button", { class: "ghost small tp-add", type: "button", id: "tp-edit-services", "aria-label": "Add or edit services" }, icon("plus"), " Add service"); add.addEventListener("click", function () { open(add); }); c.appendChild(add); }
           SECTIONS.promotions();
         },
         experience: function () {
@@ -7995,7 +8001,7 @@
           else if (self) {
             // An empty part is the owner's to fill, and is left out of what attorneys get
             var hostE = h("div", { id: "tp-education" }), addE = editBtn("education", hostE);
-            if (addE) { addE.textContent = "+ Add education or training"; hostE.appendChild(addE); }
+            if (addE) { D.clear(addE); addE.appendChild(icon("plus")); addE.appendChild(document.createTextNode(" Add education or training")); addE.className = "ghost small tp-add"; hostE.appendChild(addE); }
             hostE.appendChild(h("span", { class: "small muted", text: "This empty section is hidden in attorney preview." }));
             left.appendChild(h("section", { class: "card tp-empty" }, h("h2", { text: "Education" }), hostE));
           }
@@ -8021,7 +8027,7 @@
               c.removeChild(c.lastChild);
               var shown = ((pr || {}).documents || []).filter(function (f) { return f.shown && f.status === "ready"; });
               if (shown.length) list(shown, null);
-              else c.appendChild(h("div", { class: "tp-blank" }, h("h3", { style: "margin:0 0 4px", text: "No work samples added" }),
+              else c.appendChild(h("div", { class: "tp-blank" }, h("span", { class: "tp-tile big", "aria-hidden": "true" }, icon("doc")), h("h3", { class: "tp-blank-h", text: "No work samples added" }),
                 h("p", { style: "margin:0", text: "Add a work sample you have permission to share." }), h("p", { style: "margin:2px 0 10px", text: "Remove confidential client and case information." })));
               c.appendChild(h("div", { class: "tp-blank-acts" }, h("button", { class: "blue small", type: "button", id: "tp-manage-samples", onclick: manage }, "Manage work samples"),
                 h("p", { class: "small muted", style: "margin:6px 0 0", text: "Choose shared samples in Profile documents." + (shown.length ? "" : " This empty section is hidden in attorney preview.") })));
