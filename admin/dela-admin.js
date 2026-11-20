@@ -852,7 +852,7 @@
     ["Documents and files", "The attorney's Library and Files: document types, images, the recorder, imports, and client information rules.",
       ["playbook_library", "document_standard", "document_images", "document_conversion", "approved_view", "library_workspace", "recorder", "scribe_import", "file_uploads", "automate_delegate", "handoff_kit", "confidential_materials", "client_details_allowed"]],
     ["Gigs and hiring", "Posting work and finding people: gigs, proposals, Talent, gig alerts, the bench and reviews.",
-      ["flex_gigs", "public_gigs", "talent_search", "gig_alerts", "bench", "bench_suggestions", "reviews", "past_client_reviews", "multiple_hires", "hide_last_names", "profile_contact_rule"]],
+      ["flex_gigs", "public_gigs", "talent_search", "gig_alerts", "bench", "bench_suggestions", "reviews", "past_client_reviews", "multiple_hires", "hide_last_names", "profile_contact_rule", "community"]],
     ["Layout and look", "How DELA looks: the menu layout, light and dark, and the Get set up page.",
       ["new_layout", "appearance_choice", "guided_setup"]],
     ["Messages and meetings", "Talking inside a gig: messages, DELA's help in a conversation, booking, recording and the check for plans to work outside Lawfecta.",

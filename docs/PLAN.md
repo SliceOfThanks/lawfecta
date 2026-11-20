@@ -8,6 +8,9 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
+## Newest (2026-11-20, night): step 69, community, is on the site
+code_version 310e946, api 144, migrations through 0150 (run 44810853041). Discussions inside DELA by audience, Articles on the profile, Recent activity on Home. To test: ChatGPT check 20, after Stacey's BD connector prompt creates one test article. Open with Stacey: the website address for "Write an article"; whether Free freelancers may write articles (a website plan setting); whether the public article pages stay public. Next: categories on gigs and documents; then the Lapt gaps (prerequisites in a partial handoff, separate status facts, Stop and the kept message).
+
 ## Newest (2026-11-20, evening): step 68, free until hired, is on the site
 code_version 6d3c502, api 143, migrations through 0149 (run 44807441329). The rule is on: Freelancer Plus is the least plan needed to sign. To test: ChatGPT check 19. Waiting for Stacey: the seven questions of the community brief (step 69), first of all whether discussions live inside DELA or on the website's public pages; and how new freelancers sign up on the website (Free or a trial). Then: step 69, then categories on gigs and documents.
 

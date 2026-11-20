@@ -6,6 +6,16 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 69, community: ON THE SITE (2026-11-20), nothing queued behind it
+- Site: code_version 310e946, api function 144, migrations through 0150, health "ok". GitHub Tests passed (run 44810853041, with 7 new browser checks). Switch community is on "everyone" on the site.
+- docs/briefs/step-69-community-blogs-activity-discussions.md. Stacey: discussions "Inside DELA"; Claude answered the other six questions.
+- Discussions: tables community_topics, community_replies, community_reports; boards everyone, freelancers, attorneys, help (dela_community_may decides who reads and writes); routes /community, /community/topics, /community/topic, /community/post, /community/reply, /community/report, /community/moderate (Team). App: communityView, comList, comTopic (/dela?tab=community). Every post goes through stripContact and the sensitive data check.
+- Articles: bdMemberPosts reads a member's website posts once for promotions and articles; bdArticles; the profile page's "Articles" tab. Setting bd.articles_data_id (15) and bd.articles_write_path ("/account/home", marked open: the exact website address for adding an article is not confirmed).
+- Recent activity: GET /community/feed, community_feed_cache, read from the website at most every community.refresh_minutes (20); activityCard appended under Home's own cards (not a Customize widget).
+- On the website today there is one expired promotion and no community article, so the feed and the Articles tabs are empty until someone publishes.
+- Not in this commit's release: the admin switch list names "community" from the next release on (it shows among ungrouped switches until then).
+- Check file 20 (docs/tests/community-chatgpt-prompt.md). Not run yet. It expects a test article that Stacey creates with a BD connector prompt first.
+
 ## Step 68, free for freelancers until hired: ON THE SITE (2026-11-20), nothing queued behind it
 - Site: code_version 6d3c502, api function 143, migrations through 0149, health "ok". GitHub Tests passed (run 44807441329). Setting fl.hire_min_tier is "plus" on the site (Stacey 2026-11-20: "Yes, as recommended"); fl.hire_gate_from is empty.
 - docs/briefs/step-68-free-until-hired.md: one gate inside dela_agreement_sign (reason plan_needed) for a freelancer whose plan is below the setting, only while the agreement is not signed by them. dela_hire_gate(agreement), dela_hire_gate_me(person), dela_hire_ready(people), dela_hire_gate_notify(agreement). Agreement page: card #hire-gate for the freelancer, line #hire-gate-wait for the attorney; proposals list tag "Ready to start" or "Subscribes when hired"; notes on the proposal form and the Subscription page (me.hire_gate).

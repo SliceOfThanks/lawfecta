@@ -170,6 +170,15 @@ How to read the "State" column:
 | 68-2 | After paying on the website, "I have subscribed, check again" shows the signing box without a new login | Same hire | Not yet | DELA reads the plan at each page load |
 | 68-3 | A freelancer who does not subscribe: the agreement closes at its sign-by date and the attorney can choose again | A case in the pilot, or a prepared one | Not yet | Existing daily job |
 
+## Step 69 (released 2026-11-20)
+
+| # | What must be seen working | How we will know | State | Notes |
+|---|---|---|---|---|
+| 69-1 | A real community article published on the website shows on the author's profile in DELA | Check 20, then a pilot freelancer's article | Not yet | The website had no article on release day |
+| 69-2 | A new promotion or article reaches "Recent activity" within 20 minutes | Same | Not yet | Which date field the website fills for a new post is assumed, not seen |
+| 69-3 | "Write an article on the Lawfecta website" opens the right page | Stacey clicks it as a freelancer | Not yet | The address is a setting, set to the member dashboard for now |
+| 69-4 | Real members use the boards without leaking contact details or client information | The Team reads the boards in the first weeks | Not yet | |
+
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
 - When Stacey or a pilot member reports that something worked or failed, Claude fills in the state, the date and what was seen.
