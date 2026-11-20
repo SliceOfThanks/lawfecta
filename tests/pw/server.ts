@@ -227,7 +227,13 @@ const deps = {
       if (uu.pathname.endsWith("/delete")) { const i = bdFavs.findIndex((x) => x.id === form.get("id")); if (i >= 0) bdFavs.splice(i, 1); return Response.json({ status: "success", message: "users_favorite record was deleted" }); }
     }
     // The website's posts of a member (step 18 part 2): one live promotion (post type 7) and one blog article
-    if (u.includes("/api/v2/data_posts/get")) { const uid = new URL(u).searchParams.get("property_value"); return Response.json({ status: "success", message: [
+    if (u.includes("/api/v2/data_posts/get")) { const uid = new URL(u).searchParams.get("property_value");
+      // Step 69: every member's posts of one type, for Recent activity (the two freelancers of categories-test.js)
+      if (new URL(u).searchParams.get("property") === "data_id") return Response.json({ status: "success", message: uid === "15"
+        ? [{ post_id: "30", data_id: "15", user_id: "4602", post_status: "1", post_title: "Five intake mistakes", post_content: "<p>The first one is skipping the conflict check. Call 512-555-0199.</p>", post_live_date: "20261118090000" }]
+        : [{ post_id: "31", data_id: "7", user_id: "4601", post_status: "1", post_title: "10% off the first project", post_content: "For new clients.", post_promo: "FIRST10", post_expire_date: "20991231", post_live_date: "20261119090000" }] });
+      return Response.json({ status: "success", message: [
+      { post_id: "3", data_id: "15", user_id: uid, post_status: "1", post_title: "How I organize a family law file", post_content: "<p>Start with the pleadings index.</p><p>Write to me at fern@example.com.</p>", post_live_date: "20261101120000" },
       { post_id: "1", data_id: "7", user_id: uid, post_status: "1", post_title: "New client discount", post_content: "<p>10% off the first fixed-fee project.</p>", post_promo: "FIRST10", post_expire_date: "20991231" },
       { post_id: "2", data_id: "14", user_id: uid, post_status: "1", post_title: "A blog article", post_content: "", post_promo: "", post_expire_date: "" }] }); }
     // The website's categories (step 17): two top categories, specialties and sub subs, as BD lists them

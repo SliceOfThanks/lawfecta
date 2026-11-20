@@ -26,6 +26,7 @@ const SUBS = [
 // The website's bookmark table (users_favorite), as its API reference shows it: camelCase fields, values as text
 const favs: Array<Record<string, string>> = [];
 let favSeq = 910000, favs403 = false;
+let feedPosts: Array<Record<string, string>> = [], feedCalls = 0;
 let billing: "none" | "some" | "refuse" = "none";
 const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
   const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
@@ -64,7 +65,11 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
   if (url.pathname === "/api/v2/data_posts/get") {
     if (site === "refuse") return Response.json({ status: "error", message: "API Key does not have permission" }, { status: 403 });
     const uid = url.searchParams.get("property_value");
+    // Step 69: every member's posts of one type, for Recent activity
+    if (url.searchParams.get("property") === "data_id") { feedCalls++; return Response.json({ status: "success", message: feedPosts.filter((x) => x.data_id === uid) }); }
     return Response.json({ status: "success", message: [
+      { post_id: "6", data_id: "15", user_id: uid, post_status: "1", post_title: "How I build a medical chronology", post_content: "<p>Start with the intake notes.</p><p>Questions? Email me at nurse@example.com or see nursesite.com.</p>", post_live_date: "20261101120000" },
+      { post_id: "7", data_id: "15", user_id: uid, post_status: "0", post_title: "An unpublished article", post_content: "", post_live_date: "20261102120000" },
       { post_id: "1", data_id: "7", user_id: uid, post_status: "1", post_title: "New client discount", post_content: "<p>10% off the first fixed-fee project.</p><p>Ask in your invitation&nbsp;note.</p><script>x()</script>", post_promo: "FIRST10", post_expire_date: "20991231" },
       { post_id: "2", data_id: "7", user_id: uid, post_status: "1", post_title: "Old offer", post_content: "", post_promo: "", post_expire_date: "20200101" },
       { post_id: "3", data_id: "7", user_id: uid, post_status: "0", post_title: "Draft offer", post_content: "", post_promo: "", post_expire_date: "" },
@@ -550,6 +555,89 @@ Deno.test("the website listing gets categories only when the setting is on", asy
   await pool.query("update settings set value = 'true' where key = 'bd.push_categories'");
   assertEquals(((await rpc("dela_categories_bd", { p_keys: ["s275"] })) as Record<string, unknown>).on, true);
   await pool.query("update settings set value = 'false' where key = 'bd.push_categories'");
+});
+
+Deno.test("step 69: community. Discussions inside DELA by audience, articles on the profile, Recent activity on Home", async () => {
+  const get = (path: string, m: M) => call("GET", path, m.token).then((r) => r.body);
+  const post = (path: string, m: M, body: Record<string, unknown>) => call("POST", path, m.token, body).then((r) => r.body);
+  // Off until the switch is on
+  assertEquals((await get("/community", att)).on, false);
+  assertEquals((await get("/community/feed", att)).on, false);
+  assertEquals((await get("/freelancers/profile?person=" + fNurse.id, att)).articles, undefined);
+  await pool.query("update feature_switches set state = 'everyone' where key in ('community', 'hide_last_names')");
+  try {
+    // Boards by audience
+    assertEquals((await get("/community", att)).boards.map((b: any) => b.key), ["everyone", "attorneys", "help"]);
+    assertEquals((await get("/community", fNurse)).boards.map((b: any) => b.key), ["everyone", "freelancers", "help"]);
+    assertEquals((await get("/community", team)).boards.length, 4, "the Lawfecta Team reads every board");
+    assertEquals((await get("/community/topics?board=freelancers", att)).reason, "not_found", "an attorney cannot open the freelancers' board");
+    assertEquals((await get("/community/topics?board=attorneys", fNurse)).reason, "not_found", "a freelancer cannot open the attorneys' board");
+    assertEquals((await post("/community/post", att, { board: "freelancers", title: "Let me in", body: "Hello", request_id: "c0" })).reason, "not_found");
+    assertEquals((await post("/community/post", fNurse, { board: "everyone", title: "Hi", body: "x", request_id: "c0" })).reason, "title_needed");
+    // A freelancer starts a topic: contact details are taken out, sensitive data is refused, a retry makes one topic
+    const t1 = await post("/community/post", fNurse, { board: "freelancers", title: "How do you price a chronology?", body: "I charge per page. Write to me at nurse@example.com or 512-555-0100 to compare notes.", request_id: "c1" });
+    assertEquals([t1.ok, !!t1.removed, t1.removed.words.includes("an email address")], [true, true, true], JSON.stringify(t1));
+    assertEquals((await post("/community/post", fNurse, { board: "freelancers", title: "How do you price a chronology?", body: "again", request_id: "c1" })).duplicate, true);
+    assert(["sensitive_data", "looks_like_client_info"].includes((await post("/community/post", fNurse, { board: "freelancers", title: "A client file", body: "Her SSN is 123-45-6789.", request_id: "c2" })).reason), "sensitive data is stopped before a post is saved");
+    assertEquals((await pool.query("select count(*)::int n from community_topics where title = 'A client file'")).rows[0].n, 0);
+    let topic = await get("/community/topic?id=" + t1.id, fFamily);
+    assert(!/nurse@example|555-0100/.test(JSON.stringify(topic)) && topic.topic.body.includes("[removed]"), "nobody reads the contact details");
+    assertEquals(topic.topic.author.name, "F " + String(fNurse.bd).slice(0, 1) + ".", "another freelancer sees the short name");
+    assertEquals((await get("/community/topic?id=" + t1.id, fNurse)).topic.author.name, "F " + fNurse.bd, "the author sees their own full name");
+    assertEquals((await get("/community/topic?id=" + t1.id, att)).reason, "not_found", "an attorney cannot open a topic of the freelancers' board by its address");
+    // Replies, with a notice to the topic's author
+    const r1 = await post("/community/reply", fFamily, { topic_id: t1.id, body: "Per hour here, with a cap.", request_id: "r1" });
+    assertEquals(r1.ok, true);
+    assertEquals((await post("/community/reply", att, { topic_id: t1.id, body: "Me too", request_id: "r2" })).reason, "not_found");
+    assert((await pool.query("select 1 from notifications where person_id = $1 and title = 'New reply in your discussion'", [fNurse.id])).rowCount, "the author is told about a reply");
+    assertEquals((await get("/community/topics?board=freelancers", fNurse)).topics.map((x: any) => [x.title, x.replies, x.mine]), [["How do you price a chronology?", 1, true]]);
+    // An attorney posts in Everyone and is shown by first name and last initial
+    const t2 = await post("/community/post", att, { board: "everyone", title: "What makes a good handoff?", body: "Tell me what you wish attorneys wrote down.", request_id: "c3" });
+    assertEquals((await get("/community/topic?id=" + t2.id, fNurse)).topic.author.name, "Ann A.", "an attorney is shown by first name and last initial");
+    // Report and removal: a member reports, only the Team removes, with a reason; the author is told; members no longer see it
+    assertEquals((await post("/community/report", fNurse, { reply_id: r1.id, reason: "Off topic" })).ok, true);
+    assertEquals((await post("/community/moderate", fNurse, { reply_id: r1.id, reason: "I do not like it" })).error, "forbidden");
+    assertEquals((await get("/community", team)).open_reports, 1);
+    assertEquals((await post("/community/moderate", team, { reply_id: r1.id, reason: "" })).reason, "reason_needed");
+    assertEquals((await post("/community/moderate", team, { reply_id: r1.id, reason: "Not about the topic" })).ok, true);
+    topic = await get("/community/topic?id=" + t1.id, fNurse);
+    assertEquals(topic.replies.length, 0, "a removed reply is gone for members");
+    assertEquals((await get("/community/topic?id=" + t1.id, team)).replies[0].removed_reason, "Not about the topic", "the Team still sees it, with the reason");
+    assert((await pool.query("select 1 from notifications where person_id = $1 and title = 'A post of yours was removed' and body like '%Not about the topic%'", [fFamily.id])).rowCount, "the author is told why");
+    assertEquals((await get("/community", team)).open_reports, 0);
+    // The daily allowance
+    await pool.query("update settings set value = '1' where key = 'community.topics_per_day'");
+    assertEquals((await post("/community/post", fNurse, { board: "everyone", title: "A second topic today", body: "Hello", request_id: "c4" })).reason, "too_many_today");
+    await pool.query("update settings set value = '5' where key = 'community.topics_per_day'");
+
+    // Articles on the profile: published ones only, cleaned, never a link to the website page
+    const prof = await get("/freelancers/profile?person=" + fNurse.id, att);
+    assertEquals(prof.articles.map((a: any) => [a.title, a.at]), [["How I build a medical chronology", "2026-11-01"]]);
+    assert(prof.articles[0].text.startsWith("Start with the intake notes.") && !/nurse@example|nursesite/.test(JSON.stringify(prof.articles)), "an article is shown without contact details: " + prof.articles[0].text);
+    assertEquals([prof.articles_ok, prof.articles_write], [true, ""], "only the author gets the link to write one");
+    assertEquals((await get("/freelancers/profile?person=" + fNurse.id, fNurse)).articles_write, "/account/home");
+
+    // Recent activity: read from the website once, kept, people without a DELA workspace left out, freelancers see articles only
+    feedPosts = [
+      { post_id: "20", data_id: "15", user_id: String(fNurse.bd), post_status: "1", post_title: "Five intake mistakes", post_content: "<p>The first one is skipping the conflict check.</p>", post_live_date: "20261118090000" },
+      { post_id: "21", data_id: "7", user_id: String(fFamily.bd), post_status: "1", post_title: "10% off the first project", post_content: "Call 512-555-0199", post_promo: "FIRST10", post_expire_date: "20991231", post_live_date: "20261119090000" },
+      { post_id: "22", data_id: "7", user_id: String(fFamily.bd), post_status: "1", post_title: "Expired offer", post_content: "", post_expire_date: "20200101", post_live_date: "20261120090000" },
+      { post_id: "23", data_id: "15", user_id: "424242", post_status: "1", post_title: "From someone not in DELA", post_content: "", post_live_date: "20261120090000" },
+      { post_id: "24", data_id: "15", user_id: String(fNone.bd), post_status: "0", post_title: "A draft", post_content: "", post_live_date: "20261120090000" }];
+    feedCalls = 0;
+    const feed = await get("/community/feed", att);
+    assertEquals(feed.items.map((x: any) => [x.kind, x.title, x.name]), [["promotion", "10% off the first project", "F " + String(fFamily.bd).slice(0, 1) + "."], ["article", "Five intake mistakes", "F " + String(fNurse.bd).slice(0, 1) + "."]], JSON.stringify(feed.items));
+    assert(!JSON.stringify(feed).includes("555-0199") && !JSON.stringify(feed).includes("bd_member"), "no contact details and no website member number in the feed");
+    assertEquals((await get("/community/feed", fNone)).items.map((x: any) => x.kind), ["article"], "freelancers see articles, not other freelancers' promotions");
+    await get("/community/feed", att);
+    assertEquals(feedCalls, 2, "the website was read once for each post type, not on every page load");
+    // The website stops answering: the last good copy stays
+    await pool.query("update community_feed_cache set fetched_at = now() - interval '2 hours'");
+    site = "refuse";
+    const stale = await get("/community/feed", att);
+    assertEquals([stale.items.length, stale.website_ok], [2, false], "the last good copy is shown when the website does not answer");
+    site = "ok";
+  } finally { site = "ok"; await pool.query("update feature_switches set state = 'off' where key in ('community', 'hide_last_names')"); }
 });
 
 Deno.test("teardown", async () => {

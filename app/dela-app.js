@@ -56,6 +56,7 @@
       a.push(["notices", "Notifications", "◔"]);
       if (sw.meetings) a.push(["meetings", "Meetings", "◷"]);
       if (sw.guided_setup) a.push(["setup", "Get set up", "✓"]);
+      if (sw.community) a.push(["community", "Community", "❝"]);
       if ((me.staff || []).length) a.push(["members", "Members", "◍"]);
       return a;
     }
@@ -71,6 +72,7 @@
       if (sw.flex_gigs) f.push(["projects", "Projects", "▣"]);
       if (sw.talent_search) f.push(["talent", "Talent", "◌"]);
     }
+    if (sw.community) f.push(["community", "Community", "❝"]);
     if ((me.staff || []).length) f.push(["members", "Members", "◍"]);
     return f;
   }
@@ -250,7 +252,7 @@
     });
     return svg;
   }
-  var ICON_FOR = { home: "home", delegate: "ask", ask: "ask", library: "library", files: "files", projects: "projects", talent: "talent", setup: "check", profile: "profile", work: "work", earnings: "earnings", agency: "agency", members: "agency", ai: "settings", help: "help", subscription: "plan", meetings: "meet", notices: "bell" };
+  var ICON_FOR = { home: "home", delegate: "ask", ask: "ask", library: "library", files: "files", projects: "projects", talent: "talent", setup: "check", profile: "profile", work: "work", earnings: "earnings", agency: "agency", members: "agency", community: "inbox", ai: "settings", help: "help", subscription: "plan", meetings: "meet", notices: "bell" };
   var PAGE_NAMES = { subscription: "Subscription", inbox: "Inbox", meetings: "Meetings", usage: "Usage", connect: "Connect", record: "Record a process", ai: "Settings", help: "Help", profile: "Profile" };
   var WORKSPACE = { attorney: "Attorney workspace", freelancer: "Freelancer workspace" };
   // "Get set up" leaves the attorney's menu once it is finished or dismissed (Stacey 2026-11-11); it stays reachable from Help
@@ -266,7 +268,7 @@
       api.get("/setup").then(function (r) { if (r && (r.finished || r.dismissed)) { setupDone = true; if (tab !== "setup") draw(); } }).catch(function () {});
     }
     var main = att ? pick(["home", "projects", "delegate", "library"]) : pick(["home", "work", "ask", "earnings"]);
-    var second = att ? pick(["talent", "notices", "meetings", "files"].concat(setupDone ? [] : ["setup"]).concat(["members"])) : pick(["notices", "meetings", "library", "projects", "talent", "members"]);
+    var second = att ? pick(["talent", "notices", "meetings", "files"].concat(setupDone ? [] : ["setup"]).concat(["community", "members"])) : pick(["notices", "meetings", "library", "projects", "talent", "community", "members"]);
     while (main.length < 4 && second.length) main.push(second.shift());
     var account = [];
     if (sw.profiles) account.push(["profile", "Profile"]);
@@ -7228,6 +7230,135 @@
     }).catch(function (e) { D.clear(el); el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: function () { mem.bd = null; draw(); } }, "← Members"))); el.appendChild(h("p", { class: "notice", text: MEM_ERR[e && e.reason] || "This member could not be opened." })); });
   }
 
+  // ---------- Step 69: Community (Stacey 2026-11-20): discussions inside DELA, by audience ----------
+  var com = { board: null, topic: null, offset: 0 };
+  var COM_ERR = { not_found: "That is not there any more, or this board is not open to you.", title_needed: "Write a title of 3 to 160 letters.", text_needed: "Write your message first (up to 6,000 letters).",
+    too_many_today: "You reached today's number of posts. Come back tomorrow.", on_hold: "Some actions are paused on your account. Contact the Lawfecta Team.", reason_needed: "Write the reason first (at least 5 letters). The author is told.",
+    sensitive_data: "That looks like sensitive data (an SSN, an account number, a password). Take it out and post again.", looks_like_client_info: "That may include client information. Take out names and case details, then post again.", forbidden: "Only the Lawfecta Team can do that." };
+  function comFail(e) { var r = e && (e.reason || e.message); D.toast(app, (e && e.note) || COM_ERR[r] || "That did not work. Try again.", true); }
+  function comOk(r) { if (!r || r.ok === false || r.error) { var e = new Error((r && (r.reason || r.error)) || "no"); e.reason = r && (r.reason || r.error); e.note = r && r.message; throw e; } return r; }
+  function comWho(a) { return (a.name || "A member") + (a.team ? "" : a.side === "attorney" ? ", attorney" : ", freelancer"); }
+  function comRemovedNote(r) { return r && r.removed ? " DELA removed " + r.removed.words + " from it: contact details stay out of Community." : ""; }
+  function communityView() {
+    var el = h("div", { id: "community-page" }, h("h1", { text: "Community" }), h("p", { class: "muted", text: "Loading..." }));
+    api.get("/community").then(function (v) {
+      D.clear(el);
+      el.appendChild(h("h1", { text: "Community" }));
+      if (!v.on) { el.appendChild(h("p", { class: "notice", text: "Community is not open for your account yet." })); return; }
+      el.appendChild(h("p", { class: "muted", style: "margin-top:0", text: "Talk with other members. Keep it helpful and keep it on Lawfecta: no contact details, no client information. Names are shown as a first name and last initial." }));
+      var boards = v.boards || [];
+      if (!com.board || !boards.some(function (b) { return b.key === com.board; })) com.board = boards.length ? boards[0].key : null;
+      el.appendChild(h("div", { class: "tabs", role: "tablist", id: "com-boards", style: "border-radius:14px;margin:10px 0" }, boards.map(function (b) {
+        return h("button", { role: "tab", type: "button", "aria-selected": String(b.key === com.board), onclick: function () { com.board = b.key; com.topic = null; com.offset = 0; draw(); } }, b.name + (b.topics ? " (" + b.topics + ")" : ""));
+      })));
+      if (v.team && v.open_reports) el.appendChild(h("p", { class: "notice", id: "com-reports", role: "note", text: v.open_reports + (v.open_reports === 1 ? " reported post is" : " reported posts are") + " waiting for the Lawfecta Team. Topics with a report carry a \"Reported\" tag." }));
+      var cur = boards.filter(function (b) { return b.key === com.board; })[0];
+      var body = h("div", { id: "com-body" });
+      el.appendChild(body);
+      if (!cur) { body.appendChild(h("p", { class: "muted", text: "No board is open to you yet." })); return; }
+      if (com.topic) comTopic(body, cur, v.team); else comList(body, cur, v.team);
+    }).catch(function () { D.clear(el); el.appendChild(h("h1", { text: "Community" })); el.appendChild(h("p", { class: "notice bad", text: "Community could not load just now. Reload the page." })); });
+    return el;
+  }
+  function comList(body, cur, team) {
+    body.appendChild(h("p", { class: "small muted", id: "com-about", text: cur.about }));
+    var title = h("input", { id: "com-title", "aria-label": "Title of your topic", maxlength: "160", placeholder: "A short title", style: "width:100%" });
+    var text = h("textarea", { id: "com-text", "aria-label": "Your message", rows: "4", maxlength: "6000", placeholder: "What do you want to ask or share?", style: "width:100%" });
+    var id = newId();
+    var send = h("button", { class: "blue small", type: "button", id: "com-post" }, "Post topic");
+    send.addEventListener("click", function () {
+      send.disabled = true;
+      api.post("/community/post", { board: cur.key, title: title.value, body: text.value, request_id: id }).then(comOk).then(function (r) { com.topic = r.id; draw(); D.toast(app, "Posted." + comRemovedNote(r)); })
+        .catch(function (e) { send.disabled = false; comFail(e); });
+    });
+    body.appendChild(h("details", { class: "card", id: "com-new" }, h("summary", { text: "Start a topic in " + cur.name }),
+      h("label", { for: "com-title", text: "Title" }), title, h("label", { for: "com-text", text: "Message" }), text,
+      h("p", { class: "small muted", text: "No email addresses, phone numbers, links or client information. DELA takes contact details out before posting." }),
+      h("div", { class: "row" }, send)));
+    var list = h("div", { class: "card", id: "com-topics" }, h("p", { class: "muted", text: "Loading..." }));
+    body.appendChild(list);
+    api.get("/community/topics?board=" + cur.key + "&offset=" + com.offset).then(comOk).then(function (r) {
+      D.clear(list);
+      if (!r.topics.length) { list.appendChild(h("p", { class: "muted", style: "margin:0", id: "com-none", text: "No topics yet. Start the first one above." })); return; }
+      r.topics.forEach(function (t) {
+        list.appendChild(h("div", { class: "row com-row", style: "padding:8px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;gap:6px" },
+          h("div", { class: "grow" }, h("button", { class: "linkish", type: "button", style: "font-weight:700;text-align:left", onclick: function () { com.topic = t.id; draw(); } }, t.title),
+            h("div", { class: "small muted", text: comWho(t.author) + (t.mine ? " (you)" : "") + " | started " + D.date(t.created_at) + " | last reply " + D.dateTime(t.last_at) })),
+          t.reported ? h("span", { class: "badge bad", text: "Reported" }) : null,
+          h("span", { class: "badge", text: t.replies + (t.replies === 1 ? " reply" : " replies") })));
+      });
+      var to = r.offset + r.topics.length;
+      list.appendChild(h("div", { class: "row", style: "margin-top:8px" }, h("span", { class: "grow small muted", text: "Showing " + (r.offset + 1) + " to " + to + " of " + r.total + ", newest activity first." }),
+        r.offset > 0 ? h("button", { class: "ghost small", type: "button", onclick: function () { com.offset = Math.max(0, r.offset - r.limit); draw(); } }, "Previous") : null,
+        to < r.total ? h("button", { class: "ghost small", type: "button", onclick: function () { com.offset = r.offset + r.limit; draw(); } }, "Next") : null));
+    }).catch(function (e) { D.clear(list); list.appendChild(h("p", { class: "notice", text: COM_ERR[e.reason] || "The topics could not load just now." })); });
+  }
+  function comTopic(body, cur, team) {
+    body.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", id: "com-back", onclick: function () { com.topic = null; draw(); } }, "← " + cur.name)));
+    var box = h("div", { id: "com-topic" }, h("p", { class: "muted", text: "Loading..." }));
+    body.appendChild(box);
+    api.get("/community/topic?id=" + com.topic).then(comOk).then(function (r) {
+      var t = r.topic;
+      D.clear(box);
+      // One post: who, when, the text, and under it Report (members) or Remove with a reason (the Lawfecta Team)
+      function postCard(p, isTopic) {
+        var key = isTopic ? { topic_id: t.id } : { reply_id: p.id };
+        var why = h("input", { "aria-label": isTopic ? "Reason, for the topic" : "Reason, for this reply", maxlength: "500", placeholder: "Reason", style: "flex:1;min-width:160px" });
+        var tools = h("div", { class: "row com-tools", style: "flex-wrap:wrap;margin-top:6px", hidden: true }, why);
+        var acts = h("div", { class: "row", style: "gap:10px;margin-top:6px" });
+        var gone = p.status === "removed";
+        if (r.team) {
+          if (gone) acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/community/moderate", Object.assign({ remove: false }, key)).then(comOk).then(function () { draw(); D.toast(app, "Put back"); }).catch(comFail); } }, "Put back"));
+          else {
+            tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/community/moderate", Object.assign({ remove: true, reason: why.value }, key)).then(comOk).then(function () { if (isTopic) com.topic = null; draw(); D.toast(app, "Removed. The author was told why."); }).catch(comFail); } }, "Remove this post"));
+            acts.appendChild(h("button", { class: "linkish small", type: "button", onclick: function () { tools.hidden = !tools.hidden; if (!tools.hidden) why.focus(); } }, "Remove"));
+          }
+        } else if (!p.mine) {
+          tools.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/community/report", Object.assign({ reason: why.value }, key)).then(comOk).then(function () { tools.hidden = true; D.toast(app, "Reported to the Lawfecta Team. Thank you."); }).catch(comFail); } }, "Send report"));
+          acts.appendChild(h("button", { class: "linkish small", type: "button", onclick: function () { tools.hidden = !tools.hidden; if (!tools.hidden) why.focus(); } }, "Report"));
+        }
+        return h("div", { class: "card com-post" + (gone ? " soft" : "") }, isTopic ? h("h2", { style: "margin-top:0", text: t.title }) : null,
+          h("div", { class: "small muted", text: comWho(p.author) + (p.mine ? " (you)" : "") + " | " + D.dateTime(p.created_at) + (p.reported ? " | reported " + p.reported + (p.reported === 1 ? " time" : " times") : "") }),
+          gone ? h("p", { class: "notice", text: "Removed by the Lawfecta Team. Reason: " + (p.removed_reason || "not written") }) : h("p", { style: "white-space:pre-wrap;margin:8px 0 0", text: p.body }),
+          acts.children.length ? acts : null, tools);
+      }
+      box.appendChild(postCard(t, true));
+      box.appendChild(h("h2", { id: "com-replies-h", style: "margin:14px 0 6px", text: r.replies.length ? r.replies.length + (r.replies.length === 1 ? " reply" : " replies") : "No replies yet" }));
+      r.replies.forEach(function (p) { box.appendChild(postCard(p, false)); });
+      if (t.status !== "open") return;
+      var text = h("textarea", { id: "com-reply", "aria-label": "Your reply", rows: "3", maxlength: "6000", placeholder: "Write a reply", style: "width:100%" });
+      var id = newId(), send = h("button", { class: "blue small", type: "button", id: "com-reply-send" }, "Reply");
+      send.addEventListener("click", function () {
+        send.disabled = true;
+        api.post("/community/reply", { topic_id: t.id, body: text.value, request_id: id }).then(comOk).then(function (x) { draw(); D.toast(app, "Reply posted." + comRemovedNote(x)); }).catch(function (e) { send.disabled = false; comFail(e); });
+      });
+      box.appendChild(h("div", { class: "card" }, h("label", { for: "com-reply", text: "Your reply" }), text, h("div", { class: "row", style: "margin-top:6px" }, send)));
+    }).catch(function (e) { D.clear(box); box.appendChild(h("p", { class: "notice", text: COM_ERR[e.reason] || "This topic could not load just now." })); });
+  }
+  // Recent activity on Home: new promotions and community articles from freelancers, read from the website a few times an hour
+  function activityCard() {
+    var att = me.side === "attorney";
+    var card = h("div", { class: "card", id: "home-activity", role: "region", "aria-label": "Recent activity" }, h("h2", { style: "margin-top:0", text: "Recent activity" }),
+      h("p", { class: "small muted", style: "margin-top:0", text: att ? "New promotions and articles from freelancers on Lawfecta." : "New articles from freelancers on Lawfecta." }));
+    var list = h("div", { id: "home-activity-list" }, h("p", { class: "muted", text: "Loading..." }));
+    card.appendChild(list);
+    api.get("/community/feed").then(function (r) {
+      D.clear(list);
+      if (!r || !r.on) { card.hidden = true; return; }
+      if (!r.items.length) { list.appendChild(h("p", { class: "muted", style: "margin:0", text: att ? "Nothing new yet. Promotions and articles show here as freelancers post them." : "Nothing new yet. Articles show here as freelancers post them." })); return; }
+      r.items.forEach(function (x) {
+        list.appendChild(h("div", { class: "row", style: "align-items:flex-start;gap:10px;padding:8px 0;border-bottom:1px solid var(--line)" },
+          x.photo_url ? h("img", { src: x.photo_url, alt: "", style: "width:36px;height:36px;border-radius:50%;object-fit:cover" }) : h("span", { "aria-hidden": "true", style: "width:36px;height:36px;border-radius:50%;background:var(--soft);display:inline-flex;align-items:center;justify-content:center;font-weight:700", text: (x.name || "?").charAt(0) }),
+          h("div", { class: "grow" }, h("div", null, h("span", { class: "badge" + (x.kind === "promotion" ? " ready" : ""), text: x.kind === "promotion" ? "Promotion" : "Article" }), " ", h("b", { text: x.title })),
+            h("div", { class: "small muted", text: x.name + (x.headline ? ", " + x.headline : "") + (x.at ? " | " + D.date(x.at) : "") + (x.ends ? " | until " + D.date(x.ends) : "") }),
+            x.text ? h("div", { class: "small", style: "margin-top:2px", text: x.text }) : null),
+          att && (me.switches || {}).talent_search ? h("button", { class: "ghost small", type: "button", "aria-label": "View the profile of " + x.name, onclick: function () { talentTab = x.kind === "promotion" ? "overview" : "articles"; tab = "talent"; openTalentProfile(x.person_id); } }, "View profile") : null));
+      });
+      if (r.website_ok === false) list.appendChild(h("p", { class: "small muted", text: "The website did not answer just now. This is the list as last read" + (r.fetched_at ? ", " + D.dateTime(r.fetched_at) : "") + "." }));
+    }).catch(function () { card.hidden = true; });
+    return card;
+  }
+
   // Step 67: what to say when DELA took contact details out of a profile on saving
   function contactRemovedText(x) {
     var r = x && x.removed;
@@ -8387,8 +8518,10 @@
       el.appendChild(head);
       // ----- The tabs: everything stays on this page -----
       var promos = x.promotions || [];
-      var TABS = [["overview", "Overview"], ["services", "Services"], ["experience", "Experience"], ["portfolio", "Work samples"], ["reviews", "Reviews" + (n ? " (" + n + ")" : "")]]
-        .filter(function (tb) { return tb[0] !== "portfolio" || self || !x.samples_allowed || (x.samples || []).length > 0; });
+      var arts = x.articles || null;
+      var TABS = [["overview", "Overview"], ["services", "Services"], ["experience", "Experience"], ["portfolio", "Work samples"], ["articles", "Articles" + (arts && arts.length ? " (" + arts.length + ")" : "")], ["reviews", "Reviews" + (n ? " (" + n + ")" : "")]]
+        .filter(function (tb) { return tb[0] !== "portfolio" || self || !x.samples_allowed || (x.samples || []).length > 0; })
+        .filter(function (tb) { return tb[0] !== "articles" || (arts && (arts.length > 0 || own)); });
       if (!TABS.some(function (tb) { return tb[0] === talentTab; })) talentTab = "overview";
       var panel = h("div", { class: "tp-panel", role: "tabpanel", id: "tp-panel", tabindex: "0" });
       var bar = h("div", { class: "tp-tabs", role: "tablist", "aria-label": "Sections of " + x.name + "'s profile" });
@@ -8514,6 +8647,21 @@
           if (!left.children.length) none(into("Experience"), x.name + " has not added experience or qualifications yet.");
           else left.appendChild(h("p", { class: "small muted", style: "margin:8px 0 0", text: "Experience and qualifications are provided by the member." }));
           glance(right);
+        },
+        // Step 69: the member's community articles, written on the website, read here without contact details
+        articles: function () {
+          var c = card("Articles");
+          if (own && x.articles_write) c.appendChild(h("p", null, h("a", { class: "btn small ghost", id: "tp-article-write", href: x.articles_write, target: "_blank", rel: "noopener" }, "Write an article on the Lawfecta website"),
+            h("span", { class: "small muted", text: " New articles show here within the hour." })));
+          if (x.articles_ok === false) { none(c, "The articles could not be read from the website just now."); return; }
+          if (!arts.length) { none(c, own ? "You have not published a community article yet." : x.name + " has not published an article yet."); return; }
+          arts.forEach(function (a) {
+            var long = a.text.length > 400, body = h("p", { style: "white-space:pre-wrap;margin:6px 0 0", text: long ? a.text.slice(0, 400) + "..." : a.text });
+            var more = long ? h("button", { class: "linkish small", type: "button", "aria-expanded": "false" }, "Read the whole article") : null;
+            if (more) more.addEventListener("click", function () { var open = more.getAttribute("aria-expanded") === "true"; body.textContent = open ? a.text.slice(0, 400) + "..." : a.text; more.textContent = open ? "Read the whole article" : "Show less"; more.setAttribute("aria-expanded", String(!open)); });
+            c.appendChild(h("div", { class: "tp-item" }, h("b", { text: a.title }), a.at ? h("span", { class: "small muted", text: " " + D.date(a.at) }) : null, body, more));
+          });
+          c.appendChild(h("p", { class: "small muted", style: "margin:8px 0 0", text: "Articles are written by the member. Contact details are not shown." }));
         },
         portfolio: function () {
           var c = card("Work samples");
@@ -13686,11 +13834,14 @@
     else if (tab === "meetings" && me.side && (me.switches || {}).meetings) main.appendChild(meetingsView());
     else if (tab === "notices" && me.side) main.appendChild(noticesView());
     else if (tab === "members" && (me.staff || []).length) main.appendChild(membersView());
+    else if (tab === "community" && me.side && (me.switches || {}).community) main.appendChild(communityView());
     else if (wrongSideTab(tab)) main.appendChild(wrongSideView(tab));
     else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1] + (me.side === "attorney" && (tab === "projects" || tab === "talent") && (sideInfo() || {}).verification_state !== "verified" ? " Posting work and hiring need a verified license: open Profile and verification from your account menu." : "")));
     else { tab = "home"; main.appendChild(NL() ? homeDash() : me.side === "attorney" ? attorneyHome() : freelancerHome()); }
     // Step 63: Home asks once whether the member already uses ChatGPT or Claude
     if (tab === "home" && me.key_ask && !keyAsk.hide && main.firstChild && main.firstChild.firstChild) { var kh = main.firstChild; kh.insertBefore(keyAskCard(), window.innerWidth < 700 ? null : (kh.children[1] || null)); } // on a phone it goes under Home's own cards, so the first screen keeps the greeting and the next step (step 33)
+    // Step 69: Recent activity sits under Home's own cards
+    if (tab === "home" && me.side && (me.switches || {}).community && main.firstChild) main.firstChild.appendChild(activityCard());
     if (NL()) limitBanner(main); else if (me.side === "attorney") usageBanner(main);
     // Step 29: the Talent page keeps its focus on finding people; the usage line shows on the other pages
     if (me.side === "attorney" && tab !== "talent" && !(NL() && tab === "home")) usageMeter(main);

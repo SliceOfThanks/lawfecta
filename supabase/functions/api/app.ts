@@ -3036,18 +3036,34 @@ function htmlToText(html: unknown, max: number) {
   return String(html ?? "").replace(/<(script|style)[^>]*>[\s\S]*?<\/\1\s*>/gi, "").replace(/<\s*(br|\/p|\/li|\/div)\s*\/?>/gi, "\n").replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").replace(/&amp;/g, "&").replace(/&#39;|&rsquo;/g, "'").replace(/&quot;/g, '"')
     .replace(/&lt;/g, "<").replace(/&gt;/g, ">").split("\n").map((x) => x.trim()).filter(Boolean).join("\n").slice(0, max);
 }
-async function bdPromotions(ctx: Ctx, bdMemberId: number): Promise<{ ok: boolean; list: Array<Record<string, string>> }> {
+// The website's posts of one member, read once for both the promotions and the articles of a profile page
+async function bdMemberPosts(ctx: Ctx, bdMemberId: number): Promise<{ ok: boolean; rows: Array<Record<string, unknown>> }> {
+  if (!bdMemberId) return { ok: true, rows: [] };
+  const r = await bdList(f(ctx), await setting(ctx, "site.url", ""), ctx.deps.env("BD_API_KEY"), "/api/v2/data_posts/get?property=user_id&property_value=" + Math.trunc(bdMemberId), 3);
+  if (!r.ok) { if (r.status !== 404) console.error("bd_member_posts", r.error.slice(0, 120)); return { ok: r.status === 404, rows: [] }; }
+  return { ok: true, rows: r.data.filter((x) => String(x.user_id) === String(Math.trunc(bdMemberId)) && String(x.post_status) === "1") };
+}
+const bdDay = (v: unknown) => { const e = String(v ?? "").replace(/[^0-9]/g, "").slice(0, 8); return e.length === 8 && e !== "00000000" ? `${e.slice(0, 4)}-${e.slice(4, 6)}-${e.slice(6, 8)}` : ""; };
+const bdPostDay = (x: Record<string, unknown>) => bdDay(x.post_live_date) || bdDay(x.post_start_date) || bdDay(x.revision_timestamp) || bdDay(x.post_date);
+async function bdPromotions(ctx: Ctx, bdMemberId: number, got?: { ok: boolean; rows: Array<Record<string, unknown>> }): Promise<{ ok: boolean; list: Array<Record<string, string>> }> {
   const dataId = String(Number(await setting(ctx, "bd.promotions_data_id", "0")) || 0);
   if (dataId === "0" || !bdMemberId) return { ok: true, list: [] };
-  const r = await bdList(f(ctx), await setting(ctx, "site.url", ""), ctx.deps.env("BD_API_KEY"), "/api/v2/data_posts/get?property=user_id&property_value=" + Math.trunc(bdMemberId), 3);
-  if (!r.ok) { if (r.status !== 404) console.error("bd_promotions", r.error.slice(0, 120)); return { ok: r.status === 404, list: [] }; }
-  const today = new Date().toISOString().slice(0, 10).split("-").join("");
-  const list = r.data.filter((x) => String(x.data_id) === dataId && String(x.user_id) === String(Math.trunc(bdMemberId)) && String(x.post_status) === "1")
-    .filter((x) => { const e = String(x.post_expire_date ?? "").replace(/[^0-9]/g, "").slice(0, 8); return e.length !== 8 || e === "00000000" || e >= today; })
-    .slice(0, 6).map((x) => {
-      const e = String(x.post_expire_date ?? "").replace(/[^0-9]/g, "").slice(0, 8);
-      return { title: htmlToText(x.post_title, 160), text: htmlToText(x.post_content, 800), code: htmlToText(x.post_promo, 60), ends: e.length === 8 && e !== "00000000" ? `${e.slice(0, 4)}-${e.slice(4, 6)}-${e.slice(6, 8)}` : "" };
-    }).filter((x) => x.title);
+  const r = got ?? await bdMemberPosts(ctx, bdMemberId);
+  if (!r.ok) return { ok: false, list: [] };
+  const today = new Date().toISOString().slice(0, 10);
+  const list = r.rows.filter((x) => String(x.data_id) === dataId)
+    .filter((x) => { const e = bdDay(x.post_expire_date); return !e || e >= today; })
+    .slice(0, 6).map((x) => ({ title: htmlToText(x.post_title, 160), text: htmlToText(x.post_content, 800), code: htmlToText(x.post_promo, 60), ends: bdDay(x.post_expire_date) })).filter((x) => x.title);
+  return { ok: true, list };
+}
+// Step 69: a freelancer's community articles, written on the website, shown on their profile in DELA. What DELA shows
+// follows the contact rule; the article's page on the website is not linked, because it carries the full name.
+async function bdArticles(ctx: Ctx, bdMemberId: number, got: { ok: boolean; rows: Array<Record<string, unknown>> }): Promise<{ ok: boolean; list: Array<Record<string, string>> }> {
+  const dataId = String(Number(await setting(ctx, "bd.articles_data_id", "0")) || 0);
+  if (dataId === "0" || !bdMemberId) return { ok: true, list: [] };
+  if (!got.ok) return { ok: false, list: [] };
+  const list = got.rows.filter((x) => String(x.data_id) === dataId).map((x) => ({ title: stripContact(htmlToText(x.post_title, 160)).text, text: stripContact(htmlToText(x.post_content, 6000)).text, at: bdPostDay(x) }))
+    .filter((x) => x.title).sort((a, b) => (b.at || "").localeCompare(a.at || "")).slice(0, 12);
   return { ok: true, list };
 }
 async function freelancerProfile(ctx: Ctx) {
@@ -3055,13 +3071,71 @@ async function freelancerProfile(ctx: Ctx) {
   const r = await rpc<Record<string, any>>(ctx, "dela_freelancer_profile", { p_viewer: s.person_id, p_person: need(uuid(ctx.url.searchParams.get("person"))) });
   if (!r?.ok) return json(ctx, r);
   await withPhotos(ctx, [r]);
-  const promo = await bdPromotions(ctx, Number(r.bd_member_id) || 0);
+  const posts = await bdMemberPosts(ctx, Number(r.bd_member_id) || 0);
+  const promo = await bdPromotions(ctx, Number(r.bd_member_id) || 0, posts);
+  const community = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "community", p_person: s.person_id }).catch(() => false);
+  const arts = community ? await bdArticles(ctx, Number(r.bd_member_id) || 0, posts) : null;
   // Step 67: a promotion written on the website follows the same rule as the profile text when DELA shows it
   if (promo.list.length && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "profile_contact_rule", p_person: s.person_id }).catch(() => false)) {
     promo.list = promo.list.map((x) => ({ ...x, title: stripContact(x.title).text, text: stripContact(x.text).text }));
   }
   delete r.bd_member_id;
-  return json(ctx, { ...r, images: await richImageLinks(ctx, String(r.person_id), [r.summary, r.experience, r.education], 3600), promotions: promo.list, promotions_ok: promo.ok });
+  return json(ctx, { ...r, images: await richImageLinks(ctx, String(r.person_id), [r.summary, r.experience, r.education], 3600), promotions: promo.list, promotions_ok: promo.ok,
+    ...(arts ? { articles: arts.list, articles_ok: arts.ok, articles_write: String(r.person_id) === s.person_id ? await setting(ctx, "bd.articles_write_path", "") : "" } : {}) });
+}
+
+// ---------- Step 69: community ----------
+// Discussions live inside DELA, so the boards' audiences, the short names and the contact rule all hold. Every post is
+// cleaned of contact details before it is saved, for everyone, and checked for sensitive data like any public text.
+async function communityWrite(ctx: Ctx, kind: "post" | "reply") {
+  const s = await memberSide(ctx);
+  const title = kind === "post" ? stripContact(str(ctx.body.title, 200).trim()) : { text: "", kinds: [] as ContactKind[] };
+  const body = stripContact(str(ctx.body.body, 6500).trim());
+  const warn = await sensitive(ctx, s, title.text + "\n" + body.text, "public");
+  if (warn) return json(ctx, warn);
+  const r = kind === "post"
+    ? await rpc<Record<string, any>>(ctx, "dela_community_post", { p_person: s.person_id, p_side: s.side, p: { board: str(ctx.body.board, 20), title: title.text, body: body.text, request_id: str(ctx.body.request_id, 80) } })
+    : await rpc<Record<string, any>>(ctx, "dela_community_reply", { p_person: s.person_id, p_side: s.side, p_topic: need(uuid(ctx.body.topic_id)), p_body: body.text, p_request: str(ctx.body.request_id, 80) });
+  const kinds = [...new Set([...title.kinds, ...body.kinds])];
+  if (r?.ok && kinds.length) r.removed = { words: kinds.map((k) => CONTACT_WORDS[k]).join(", ") };
+  return json(ctx, r);
+}
+// Recent activity: the newest promotions and community articles from freelancers, read from the website at most every
+// community.refresh_minutes and kept. Attorneys see both; freelancers see articles. If the website does not answer,
+// the last good copy is shown with its time.
+async function communityFeed(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "community", p_person: s.person_id }).catch(() => false)) return json(ctx, { ok: true, on: false, items: [] });
+  let c = await rpc<Record<string, any>>(ctx, "dela_community_feed_get", {});
+  if (c?.stale) {
+    const site = await setting(ctx, "site.url", ""), key = ctx.deps.env("BD_API_KEY");
+    const ids = { promotion: String(Number(await setting(ctx, "bd.promotions_data_id", "0")) || 0), article: String(Number(await setting(ctx, "bd.articles_data_id", "0")) || 0) };
+    const items: Array<Record<string, string>> = [];
+    let ok = true;
+    const today = new Date().toISOString().slice(0, 10);
+    for (const kind of ["promotion", "article"] as const) {
+      if (ids[kind] === "0") continue;
+      const r = await bdList(f(ctx), site, key, "/api/v2/data_posts/get?property=data_id&property_value=" + ids[kind], 3);
+      if (!r.ok) { if (r.status !== 404) { ok = false; console.error("bd_feed", r.error.slice(0, 120)); } continue; }
+      for (const x of r.data) {
+        if (String(x.data_id) !== ids[kind] || String(x.post_status) !== "1") continue;
+        const ends = bdDay(x.post_expire_date);
+        if (kind === "promotion" && ends && ends < today) continue;
+        const title = stripContact(htmlToText(x.post_title, 160)).text;
+        if (!title) continue;
+        items.push({ kind, bd: String(x.user_id ?? ""), title, text: stripContact(htmlToText(x.post_content, 280)).text, at: bdPostDay(x), ends });
+      }
+    }
+    items.sort((a, b) => (b.at || "").localeCompare(a.at || ""));
+    await rpc(ctx, "dela_community_feed_set", { p_items: items.slice(0, 60), p_ok: ok });
+    c = await rpc<Record<string, any>>(ctx, "dela_community_feed_get", {});
+  }
+  const all = (Array.isArray(c?.items) ? c.items : []) as Array<Record<string, string>>;
+  const mine = all.filter((x) => s.side === "attorney" || x.kind === "article");
+  const people = await rpc<Record<string, Record<string, any>>>(ctx, "dela_community_people", { p_bd: [...new Set(mine.map((x) => Number(x.bd)).filter((n) => Number.isInteger(n) && n > 0))] }) ?? {};
+  const out = mine.filter((x) => people[x.bd]).slice(0, 8).map((x) => ({ kind: x.kind, title: x.title, text: x.text, at: x.at, ends: x.ends, ...people[x.bd] }));
+  await withPhotos(ctx, out);
+  return json(ctx, { ok: true, on: true, items: out, fetched_at: c?.fetched_at ?? null, website_ok: c?.ok !== false });
 }
 // One document the freelancer chose to show: a link that works for five minutes
 async function freelancerDoc(ctx: Ctx) {
@@ -6080,6 +6154,14 @@ async function handleInner(req: Request, deps: Deps): Promise<Response> {
         p_ids: Array.isArray(ctx.body.ids) ? ctx.body.ids.map((x: unknown) => str(x, 40)).slice(0, 500) : [], p_action: str(ctx.body.action, 12) })); }
       case "GET /ai": return await aiState(ctx);
       case "POST /ai/mode": return await aiMode(ctx);
+      case "GET /community": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_community_boards", { p_person: s.person_id, p_side: s.side })); }
+      case "GET /community/topics": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_community_topics", { p_person: s.person_id, p_side: s.side, p_board: str(ctx.url.searchParams.get("board"), 20), p_offset: int(ctx.url.searchParams.get("offset")) ?? 0 })); }
+      case "GET /community/topic": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_community_topic", { p_person: s.person_id, p_side: s.side, p_topic: need(uuid(ctx.url.searchParams.get("id"))) })); }
+      case "POST /community/post": return await communityWrite(ctx, "post");
+      case "POST /community/reply": return await communityWrite(ctx, "reply");
+      case "POST /community/report": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_community_report", { p_person: s.person_id, p_side: s.side, p_topic: uuid(ctx.body.topic_id), p_reply: uuid(ctx.body.reply_id), p_reason: str(ctx.body.reason, 500) })); }
+      case "POST /community/moderate": { const s = await staff(ctx); return json(ctx, await rpc(ctx, "dela_community_moderate", { p_actor: s.person_id, p_topic: uuid(ctx.body.topic_id), p_reply: uuid(ctx.body.reply_id), p_remove: ctx.body.remove !== false, p_reason: str(ctx.body.reason, 500) })); }
+      case "GET /community/feed": return await communityFeed(ctx);
       case "POST /ai/key-ask": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_ai_key_ask_set", { p_person: s.person_id, p_side: s.side, p_answer: need(str(ctx.body.answer, 20)) })); }
       case "POST /ai/key": return await aiKeySave(ctx);
       case "POST /ai/key/test": return await aiKeyTest(ctx);

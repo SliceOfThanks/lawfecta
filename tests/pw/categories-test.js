@@ -430,6 +430,51 @@ const SEARCH = "Search roles, specialties, tasks and software";
     ok(last.source === "team" && last.ok && last.subs === 7 && t.includes("Copied: 2 categories, 7 below them"), "Refresh now copies the categories again and lists it");
     await s.ctx.close();
 
+    // ---------- Step 69: community. Discussions by audience, Articles on the profile, Recent activity on Home ----------
+    await sql("update feature_switches set state = 'everyone' where key = 'community'; select 1");
+    try {
+      s = await open(browser, "DELA-App", ATT); p = s.page;
+      t = await waitFor(p, "Recent activity");
+      t = await waitFor(p, "Five intake mistakes");
+      ok(t.includes("New promotions and articles from freelancers on Lawfecta.") && t.includes("Article") && t.includes("Promotion") && t.includes("10% off the first project") && !t.includes("555-0199"), "step 69: the attorney's Home shows Recent activity with a promotion and an article, without contact details");
+      await s.ctx.close();
+      s = await open(browser, "DELA-App", ATT, "&tab=community"); p = s.page;
+      t = await waitFor(p, "Talk with other members.");
+      const boards = await dela(p).locator("#com-boards [role=tab]").allInnerTexts();
+      ok(boards.join("|") === "Everyone|Attorney room|Help with Lawfecta", "step 69: an attorney has Everyone, Attorney room and Help with Lawfecta, and no Freelancer lounge: " + boards.join("|"));
+      await dela(p).getByText("Start a topic in Everyone").click();
+      await dela(p).locator("#com-post").click();
+      await waitFor(p, "Write a title of 3 to 160 letters.");
+      await dela(p).locator("#com-title").fill("What makes a good handoff?");
+      await dela(p).locator("#com-text").fill("Tell me what you wish attorneys wrote down. Reach me at ann@example.com.");
+      await dela(p).locator("#com-post").click();
+      t = await waitFor(p, "No replies yet");
+      ok(t.includes("What makes a good handoff?") && t.includes("[removed]") && !t.includes("ann@example.com") && t.includes("(you)"), "step 69: the topic is posted, and the email address in it was taken out");
+      await s.ctx.close();
+      s = await open(browser, "DELA-App", FL2, "&tab=community"); p = s.page;
+      await waitFor(p, "Talk with other members.");
+      const fb = await dela(p).locator("#com-boards [role=tab]").allInnerTexts();
+      ok(fb.join("|") === "Everyone (1)|Freelancer lounge|Help with Lawfecta", "step 69: a freelancer has Everyone, Freelancer lounge and Help with Lawfecta, and no Attorney room: " + fb.join("|"));
+      await dela(p).getByRole("button", { name: "What makes a good handoff?" }).click();
+      t = await waitFor(p, "No replies yet");
+      ok(/, attorney \|/.test(t) && !t.includes("(you)"), "step 69: the topic names its author by a short name and side");
+      await dela(p).locator("#com-reply").fill("The login to the matter file, every time.");
+      await dela(p).locator("#com-reply-send").click();
+      t = await waitFor(p, "1 reply");
+      ok(t.includes("The login to the matter file, every time.") && t.includes("Reply posted."), "step 69: a freelancer replies in Everyone");
+      await axe(p, "#community-page", "the Community page");
+      await s.ctx.close();
+      // Articles on the profile
+      s = await open(browser, "DELA-App", ATT, "&tab=talent"); p = s.page;
+      await waitFor(p, "Fern Family");
+      await dela(p).locator(".talent-card", { hasText: "Fern Family" }).getByRole("button", { name: "View profile" }).click();
+      await waitFor(p, "At a glance");
+      await dela(p).getByRole("tab", { name: "Articles (1)" }).click();
+      t = await waitFor(p, "How I organize a family law file");
+      ok(t.includes("Start with the pleadings index.") && !t.includes("fern@example.com") && t.includes("Contact details are not shown."), "step 69: the profile's Articles tab shows the member's article without contact details");
+      await s.ctx.close();
+    } finally { await sql("update feature_switches set state = 'off' where key = 'community'; select 1"); }
+
     console.log(`\n${passed} checks passed`);
   } finally {
     if (before) {
