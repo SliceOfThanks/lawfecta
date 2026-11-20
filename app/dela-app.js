@@ -2744,7 +2744,7 @@
     profEl.appendChild(h("div", { class: "pf-ready", id: "pf-ready" },
       h("span", { class: "badge " + (ready ? "ready" : ""), text: att ? (ready ? "Ready to post and hire" : "Not ready to post and hire yet") : ready ? "Visible in Talent" : st.readiness === "restricted" ? "Paused" : "Not yet visible in Talent" }),
       h("span", { class: "pf-states", text: states.join(" · ") }),
-      h("button", { class: "linkish", type: "button", id: "pf-reqs", onclick: function () { var c = profEl.querySelector("#ready-card"); if (c) { prof.reveal(c); c.scrollIntoView({ behavior: "smooth", block: "start" }); var b = c.querySelector("button, summary"); if (b) b.focus({ preventScroll: true }); } } }, "View requirements")));
+      h("button", { class: "linkish", type: "button", id: "pf-reqs", onclick: function () { var c = profEl.querySelector("#ready-card"); if (c) { prof.reveal(c); var sb = c.querySelector("#ready-steps"); if (sb) sb.open = true; c.scrollIntoView({ behavior: "smooth", block: "start" }); var b = c.querySelector("button, summary"); if (b) b.focus({ preventScroll: true }); } } }, "View requirements")));
     // For an attorney the firm essentials and the license come first (step 8b, answer 7), so that tab leads
     var TABS = att ? [["match", "Firm & verification"], ["public", "Profile"]] : [["public", "Public profile"], ["match", "Matching & verification"]].concat((me.switches || {}).meetings ? [["meet", "Meeting schedule"]] : []);
     if (!TABS.some(function (t) { return t[0] === prof.tab; })) prof.tab = TABS[0][0];
@@ -2868,12 +2868,19 @@
       h("p", { class: "small", text: att ? "You can post gigs, contact freelancers and hire when two things are true: every required profile item is filled, and the Lawfecta Team has verified your bar license. Until then you can still use Ask DELA, documents, files and the recorder."
         : "Attorneys can find you on Talent, see you in gig matches and invite you only while you are match-ready. That takes three things: every required profile item is filled, the Lawfecta Team's check has passed, and you confirmed in the last " + (st.availability_days || 14) + " days that you can take work. If any one lapses, you drop out of Talent until it is fixed. Work you already have is not affected." })));
     var GROUPS = att ? [["profile", "1. Your profile"], ["check", "2. The Lawfecta Team's check"]] : [["profile", "1. Your profile"], ["check", "2. The Lawfecta Team's check"], ["avail", "3. Your availability"]];
+    // Stacey 2026-11-19: the list of steps folds away. It starts open while steps are left and folded once all are
+    // done, and it stays the way the member last left it.
+    var keep = null; try { keep = localStorage.getItem("dela_ready_open"); } catch (e) { keep = null; }
+    var stepsBox = h("details", { class: "ready-steps", id: "ready-steps", open: keep === "1" || (keep !== "0" && done < total) },
+      h("summary", { id: "ready-steps-sum" }, h("span", { class: "ready-steps-h", text: "All " + total + " steps" }), h("span", { class: "small muted", text: " " + done + " of " + total + " done" })));
+    stepsBox.addEventListener("toggle", function () { try { localStorage.setItem("dela_ready_open", stepsBox.open ? "1" : "0"); } catch (e) { /* no storage */ } });
+    card.appendChild(stepsBox);
     GROUPS.forEach(function (g) {
       var list = steps.filter(function (s) { return s.group === g[0]; });
       if (!list.length) return;
       var d = list.filter(function (s) { return s.done; }).length;
-      card.appendChild(h("h3", { class: "ready-group", text: g[1] + " (" + d + " of " + list.length + ")" }));
-      card.appendChild(h("ul", { class: "ready-list" }, list.map(function (s) {
+      stepsBox.appendChild(h("h3", { class: "ready-group", text: g[1] + " (" + d + " of " + list.length + ")" }));
+      stepsBox.appendChild(h("ul", { class: "ready-list" }, list.map(function (s) {
         return h("li", { class: "check" + (s.done ? " done" : "") }, h("i", { "aria-hidden": "true", text: s.done ? "✓" : "" }),
           h("span", { class: "grow" }, h("span", { text: s.label }), h("span", { class: "sr", text: s.done ? " (done)" : " (not done yet)" }), s.note ? h("span", { class: "small muted", text: " " + s.note }) : null),
           !s.done && s.doWord ? h("button", { class: "linkish small", type: "button", "aria-label": s.doWord + ": " + s.label, onclick: function () { jump(s.jump); } }, s.doWord) : null);

@@ -404,6 +404,16 @@ async function waitFor(page, words, ms) {
       await dela(q).locator("#pf-reqs").click();
       v = await waitFor(q, "steps done");
       ok((await dela(q).locator("#pf-tab-match").getAttribute("aria-selected")) === "true" && v.includes("Tell attorneys whether you can take work") && await label(q, "Task skills").isHidden(), "View requirements opens the Matching & verification tab with the full list");
+      // Stacey 2026-11-19: the list of steps can be folded away, and stays as the member left it
+      ok(await dela(q).locator("#ready-steps").evaluate((d) => d.open) && v.includes("1. Your profile ("), "View requirements shows the list of steps open");
+      await dela(q).locator("#ready-steps-sum").click();
+      v = await text(q);
+      ok(!(await dela(q).locator("#ready-steps").evaluate((d) => d.open)) && !v.includes("1. Your profile (") && /All \d+ steps/.test(v) && v.includes("steps done"), "the list folds to one line, and the count stays in the card's heading");
+      await dela(q).locator("#pf-tab-public").click();
+      await dela(q).locator("#pf-tab-match").click();
+      ok(!(await dela(q).locator("#ready-steps").evaluate((d) => d.open)) && await q.evaluate(() => localStorage.getItem("dela_ready_open") === "0"), "it stays folded when the member comes back");
+      await dela(q).locator("#ready-steps-sum").click();
+      ok(await dela(q).locator("#ready-steps").evaluate((d) => d.open), "and opens again with one click");
       await dela(q).locator("#pf-tab-match").press("ArrowLeft");
       ok((await dela(q).locator("#pf-tab-public").getAttribute("aria-selected")) === "true", "the arrow keys move between the tabs");
       await q.setViewportSize({ width: 390, height: 844 });
