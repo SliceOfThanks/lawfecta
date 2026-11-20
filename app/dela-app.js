@@ -7372,7 +7372,7 @@
           btn("Send a note only", "ghost", function () { act({ action: "note", note: note.value }, "Note sent."); }, "tw-note-send")));
       } else if (mine && (st === "accepted" || st === "changes_requested")) {
         next.appendChild(h("h2", { style: "margin-top:0", text: st === "changes_requested" ? "Changes were requested" : "Do the steps, then submit" }));
-        next.appendChild(h("p", { text: "Tick each step below as you finish it. When the work is ready, submit it for review. A note is optional." + (done.length < r.part.steps.length ? " " + (r.part.steps.length - done.length) + " of your steps are not ticked yet." : "") }));
+        next.appendChild(h("p", { text: "Tick each step below as you finish it. When the work is ready, submit it for review. A note is optional." + (done.length < r.part.steps.length ? " " + (r.part.steps.length - done.length === 1 ? "1 of your steps is" : (r.part.steps.length - done.length) + " of your steps are") + " not ticked yet." : "") }));
         next.appendChild(note);
         next.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, btn("Submit for review", "blue", function () { act({ action: "submit", note: note.value }, "Submitted. " + a.assigned_by.name + " was told."); }, "tw-submit"),
           btn("Send a note only", "ghost", function () { act({ action: "note", note: note.value }, "Note sent."); }, "tw-note-send")));
@@ -14506,7 +14506,7 @@
   // (Stacey's standing arrangements report, 2026-11-06)
   function wrongSideTab(t) {
     if (me.side === "attorney") return ["work", "earnings", "agency", "ask"].indexOf(t) >= 0;
-    if (me.side === "freelancer") return ["files", "setup", "delegate", "record", "usage"].indexOf(t) >= 0 || (!me.agency_client && ["library", "projects", "talent"].indexOf(t) >= 0);
+    if (me.side === "freelancer") return ["files", "setup", "delegate", "record", "usage", "teamwork"].indexOf(t) >= 0 || (!me.agency_client && ["library", "projects", "talent"].indexOf(t) >= 0);
     return false;
   }
   function wrongSideView(t) {
