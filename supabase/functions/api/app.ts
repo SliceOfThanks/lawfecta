@@ -31,7 +31,7 @@ import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, moneySummary, readTasks, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
 import { blockedKinds, blockedMessage, BLOCKED_WORDS, FILE_BLOCKED_MESSAGE, type Blocked } from "./lib/confidential/rules.ts";
-import { blocks as docBlocks, looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
+import { blocks as docBlocks, looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, type GigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { fillPrompt, NEWCOMER_FILL_SYSTEM, NEWCOMER_SYSTEM, readNewcomer, type NewcomerFinding } from "./lib/documents/newcomer.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
 import { clean, HELPER_SIDE, HELPER_SYSTEM, HELPERS, NOT_LEGAL, readCompare, readCriteria, readExplain, readFindings, readFirm, readFit, type HelperKey } from "./lib/helpers/model.ts";
@@ -2439,10 +2439,15 @@ async function gigDraft(ctx: Ctx) {
   const approved = await rpc<Record<string, any>>(ctx, "dela_pb_version", { p_person: s.person_id, p_id: pbId, p_version: cur.playbook.approved_version }).catch(() => null);
   const raw = approved?.body ?? cur.body;
   let body = normalize(raw);
+  const handoffOn = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "handoff_kit", p_person: s.person_id }).catch(() => false);
+  let chosen: number[] | null = null, handoff: GigPart | null = null;
   if (isDoc(raw)) {
     const db = await docUpgradeImages(ctx, normalizeDoc(raw), cur.playbook.org_id);
-    const part = gigPart(db);
+    // Step 56: the attorney may hand over only some of the steps
+    if (handoffOn && Array.isArray(ctx.body.steps)) chosen = (ctx.body.steps as unknown[]).map((n) => Number(n)).filter((n) => Number.isInteger(n) && n > 0).slice(0, 200);
+    const part = gigPart(db, chosen);
     if (!part.ok) return json(ctx, { ok: false, reason: part.reason });
+    handoff = part;
     const gc = checkDoc(db, await docCtx(ctx, await docFirm(ctx, s), db, cur.playbook.org_id));
     if (gc.blocking > 0) {
       if (cur.playbook.approved_version) await rpc(ctx, "dela_doc_recheck", { p_id: pbId, p_version: cur.playbook.approved_version, p_blocking: gc.blocking, p_attention: gc.attention });
@@ -2460,6 +2465,13 @@ async function gigDraft(ctx: Ctx) {
   const r = await rpc<Record<string, any>>(ctx, "dela_gig_create", { p_person: s.person_id, p: { playbook_id: pbId, request_id: requestId, public: pub,
     budget_min_cents: toCents(ctx.body.budget_min), budget_max_cents: toCents(ctx.body.budget_max), deadline: str(ctx.body.deadline, 10), milestones: [],
     kind: ctx.body.kind === "monthly" && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "recurring_engagements", p_person: s.person_id }) ? "monthly" : "one_off" } });
+  // Steps 56 and 57: keep the chosen steps, and start the list of what the freelancer needs from "Before you start"
+  if (r?.ok && !r.duplicate && handoffOn && handoff) {
+    const gid = r.id ?? r.gig_id;
+    if (!handoff.whole) await rpc(ctx, "dela_gig_steps_set", { p_person: s.person_id, p_gig: gid, p_steps: handoff.nos });
+    const seed = handoff.before_you_start.map((l) => String(l).replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 20).map((l) => ({ kind: inputKind(l), label: l.slice(0, 200) }));
+    if (seed.length) await rpc(ctx, "dela_gig_inputs_save", { p_person: s.person_id, p_gig: gid, p_items: seed }).catch(() => null);
+  }
   if (r?.ok && linked) {
     const l = await rpc<Record<string, any>>(ctx, "dela_gig_link", { p_person: s.person_id, p_gig: r.id ?? r.gig_id, p_agreement: linked });
     if (!l?.ok) return json(ctx, { ...l, gig_id: r.id ?? r.gig_id });
@@ -2708,18 +2720,80 @@ async function gigSave(ctx: Ctx) {
   return json(ctx, await rpc(ctx, "dela_gig_save", { p_person: s.person_id, p_gig: id, p, p_version: int(ctx.body.version) }));
 }
 
+// Steps 56 to 58: the handoff. The chosen steps of a gig, what a freelancer is shown of the document, and the routes
+// for the list of things needed before starting.
+async function gigStepNos(ctx: Ctx, gigId: string): Promise<number[] | null> {
+  const v = await rpc<number[] | null>(ctx, "dela_gig_step_nos", { p_gig: gigId }).catch(() => null);
+  return Array.isArray(v) && v.length ? v : null;
+}
+function gigDocView(db: DocBody, part: GigPart) {
+  return { schema: 2, gig_view: true, type: db.type, title: db.title, purpose: part.purpose, before_you_start: part.before_you_start,
+    steps: part.steps.map((st, i) => ({ no: part.nos[i], text: st.text, role: st.role, system: st.system, menu_path: st.menu_path, minutes: st.minutes, attorney_decides: st.attorney_decides, stage: st.stage, handoff: st.handoff, target_time: st.target_time, images: st.images })),
+    before_images: part.before_images, timing: part.timing, quality_check: part.quality_check, done_when: part.done_when,
+    part: { nos: part.nos, of: part.of, whole: part.whole, before: part.whole ? "" : part.before, after: part.whole ? "" : part.after } };
+}
+const inputKind = (l: string) => /\b(access|log ?in|login|account|permission|invite)\b/i.test(l) ? "access" : /\btemplate\b/i.test(l) ? "template" : /\b(file|form|copy|document|folder|pdf)\b/i.test(l) ? "file" : "information";
+// The steps of an approved document a gig may hand over, for the checklist on "Post a New Gig"
+async function gigDocSteps(ctx: Ctx) {
+  const s = await client(ctx);
+  const pbId = need(uuid(ctx.url.searchParams.get("playbook")));
+  const on = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "handoff_kit", p_person: s.person_id }).catch(() => false);
+  if (!on) return json(ctx, { ok: true, on: false });
+  const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: pbId });
+  if (!cur?.ok) return json(ctx, cur);
+  if (cur.playbook.status !== "approved" && !cur.playbook.approved_version) return json(ctx, { ok: false, reason: "playbook_not_approved" });
+  const approved = await rpc<Record<string, any>>(ctx, "dela_pb_version", { p_person: s.person_id, p_id: pbId, p_version: cur.playbook.approved_version }).catch(() => null);
+  const raw = approved?.body ?? cur.body;
+  if (!isDoc(raw)) return json(ctx, { ok: true, on: true, steps: [] });
+  const db = normalizeDoc(raw), part = gigPart(db);
+  const nc = await rpc<Record<string, any>>(ctx, "dela_doc_newcomer_get", { p_person: s.person_id, p_playbook: pbId }).catch(() => null);
+  return json(ctx, { ok: true, on: true, type: db.type, title: db.title, of: db.steps.length, eligible: part.eligible,
+    steps: db.steps.map((st, i) => ({ no: i + 1, text: st.text, role: st.role, attorney_decides: !!st.attorney_decides, eligible: part.eligible.includes(i + 1) })),
+    newcomer: nc?.on ? (nc.approved_ready === true ? "ready" : nc.approved_ready === false ? "gaps" : "not_checked") : null });
+}
+// Changing the chosen steps of a draft gig
+async function gigStepsSet(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = need(uuid(ctx.body.id));
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "handoff_kit", p_person: s.person_id })) return json(ctx, { ok: false, reason: "feature_off" });
+  const g = await rpc<Record<string, any>>(ctx, "dela_gig_get", { p_person: s.person_id, p_side: "attorney", p_gig: id });
+  if (!g?.ok || !g.playbook || !isDoc(g.playbook)) return json(ctx, { ok: false, reason: "not_found" });
+  const nos = (Array.isArray(ctx.body.steps) ? ctx.body.steps as unknown[] : []).map((n) => Number(n)).filter((n) => Number.isInteger(n) && n > 0).slice(0, 200);
+  const part = gigPart(normalizeDoc(g.playbook), nos);
+  if (!part.ok) return json(ctx, { ok: false, reason: part.reason });
+  return json(ctx, await rpc(ctx, "dela_gig_steps_set", { p_person: s.person_id, p_gig: id, p_steps: part.whole ? null : part.nos }));
+}
+async function gigInputsSave(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = need(uuid(ctx.body.id));
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "handoff_kit", p_person: s.person_id })) return json(ctx, { ok: false, reason: "feature_off" });
+  const items = (Array.isArray(ctx.body.items) ? ctx.body.items as Record<string, unknown>[] : []).slice(0, 60).map((x) => ({ id: uuid(x?.id) ?? "", kind: str(x?.kind, 20), label: str(x?.label, 200).replace(/\s+/g, " ").trim(), supplied_by: str(x?.supplied_by, 20) })).filter((x) => x.label);
+  const warn = await sensitive(ctx, s, items.map((x) => x.label).join("\n"), "public");
+  if (warn) return json(ctx, warn);
+  return json(ctx, await rpc(ctx, "dela_gig_inputs_save", { p_person: s.person_id, p_gig: id, p_items: items }));
+}
+async function gigInputMark(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const note = str(ctx.body.note, 300).trim();
+  if (note) { const warn = await sensitive(ctx, s, note, "public"); if (warn) return json(ctx, warn); }
+  return json(ctx, await rpc(ctx, "dela_gig_input_mark", { p_person: s.person_id, p_side: s.side, p_input: need(uuid(ctx.body.id)), p_status: str(ctx.body.status, 20), p_note: note }));
+}
+
 async function gigGet(ctx: Ctx) {
   const s = await memberSide(ctx);
   const id = need(uuid(ctx.url.searchParams.get("id")));
   const r = await rpc<Record<string, any>>(ctx, "dela_gig_get", { p_person: s.person_id, p_side: s.side, p_gig: id });
   if (r?.ok && r.playbook && isDoc(r.playbook)) {
     const db = normalizeDoc(r.playbook);
-    const part = gigPart(db);
-    if (s.side === "freelancer") r.playbook = { schema: 2, gig_view: true, type: db.type, title: db.title, purpose: part.purpose, before_you_start: part.before_you_start,
-      steps: part.steps.map((st) => ({ text: st.text, role: st.role, system: st.system, menu_path: st.menu_path, minutes: st.minutes, attorney_decides: st.attorney_decides, stage: st.stage, handoff: st.handoff, target_time: st.target_time, images: st.images })),
-      before_images: part.before_images, timing: part.timing, quality_check: part.quality_check, done_when: part.done_when };
-    else r.gig_part = { steps: part.steps.length, of: db.steps.length, checkpoints: part.checkpoints.length, images: part.images };
+    const part = gigPart(db, await gigStepNos(ctx, id));
+    if (s.side === "freelancer") r.playbook = gigDocView(db, part);
+    else {
+      r.gig_part = { steps: part.steps.length, of: db.steps.length, checkpoints: part.checkpoints.length, images: part.images, nos: part.nos, eligible: part.eligible, whole: part.whole };
+      // Step 58: the very object a freelancer gets, so the attorney's preview cannot drift from it
+      r.preview = gigDocView(db, part);
+    }
   }
+  if (r?.ok) r.handoff = await rpc(ctx, "dela_gig_handoff", { p_person: s.person_id, p_side: s.side, p_gig: id }).catch(() => null);
   if (r?.ok) r.references = await rpc(ctx, "dela_gig_references", { p_person: s.person_id, p_side: s.side, p_gig: id }).catch(() => []);
   // The day counts the screen names, from Settings (AI review 0.9.0, payments 6): never typed into screen code
   if (r?.ok) r.rules = await gigRules(ctx);
@@ -3799,10 +3873,12 @@ async function agreementGet(ctx: Ctx) {
   // "Attorney decides" steps of the gig's document become checkpoints the work waits at
   const gdoc = await rpc<Record<string, any> | null>(ctx, "dela_agreement_doc", { p_agreement: id }).catch(() => null);
   if (v?.ok && gdoc && isDoc(gdoc)) {
-    const part = gigPart(normalizeDoc(gdoc));
+    const part = gigPart(normalizeDoc(gdoc), v.agreement?.gig_id ? await gigStepNos(ctx, v.agreement.gig_id) : null);
     if (part.ok) await rpc(ctx, "dela_checkpoints_ensure", { p_agreement: id, p_steps: part.steps.map((st, i) => ({ n: i + 1, text: st.text })).filter((_, i) => part.checkpoints.includes(i + 1)) });
     v.checkpoints = await rpc(ctx, "dela_checkpoints", { p_person: s.person_id, p_side: s.side, p_agreement: id });
   }
+  // Step 57: what the freelancer needs before starting, and whether each thing has been supplied
+  if (v?.ok) v.inputs = await rpc(ctx, "dela_agreement_inputs", { p_person: s.person_id, p_side: s.side, p_agreement: id }).catch(() => []);
   // Each milestone's signed date and, when the working date differs, the reason (step 8b, retest R01)
   if (v?.ok && Array.isArray(v.milestones)) {
     const dates = await rpc<Record<string, { planned_due_date: string | null; due_note: string }>>(ctx, "dela_milestone_dates", { p_agreement: id }).catch(() => ({}));
@@ -4205,6 +4281,9 @@ async function engagementExport(ctx: Ctx) {
   if (!pb?.playbook) return json(ctx, { ok: false, reason: "export_not_available" });
   if (isDoc(pb.playbook)) {
     const db = normalizeDoc(pb.playbook);
+    // Step 56: when the gig hands over only some steps, the copy holds only those
+    const nos = await gigStepNos(ctx, v.agreement.gig_id);
+    if (nos) { const part = gigPart(db, nos); if (part.ok) db.steps = part.steps; }
     const dm: DocMeta = { version: 1, date: await today(ctx), status: "approved", firm: "", doc_id: "", last_reviewed: "", next_review: "", changes: [] };
     // Images under the same rule as the gig: a freelancer's copy has them only while the engagement is open
     const imgs: ExportImages = new Map();
@@ -5866,6 +5945,10 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /library": return await library(ctx);
       case "GET /gigs": return await gigsMine(ctx);
       case "GET /gigs/get": return await gigGet(ctx);
+      case "GET /gigs/doc-steps": return await gigDocSteps(ctx);
+      case "POST /gigs/steps": return await gigStepsSet(ctx);
+      case "POST /gigs/inputs/save": return await gigInputsSave(ctx);
+      case "POST /gigs/inputs/mark": return await gigInputMark(ctx);
       case "POST /gigs/draft": return await gigDraft(ctx);
       case "POST /gigs/save": return await gigSave(ctx);
       case "POST /gigs/publish": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_gig_publish", { p_person: s.person_id, p_gig: need(uuid(ctx.body.id)) })); }

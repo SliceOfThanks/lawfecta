@@ -474,15 +474,26 @@ export const KPI_EXAMPLES: Record<string, string[]> = {
 // ---------- What a gig hands the freelancer ----------
 // An SOP: every step. A Workflow: only the steps where a freelancer role is R. Purpose, Before you start, Steps, Timing,
 // Quality check and Done when; nothing else. Policies and Playbooks never become gigs.
-export function gigPart(b: DocBody): { ok: boolean; reason?: string; purpose: string; before_you_start: string[]; before_images: ImageRef[]; steps: DocStep[]; timing: string; quality_check: string[]; done_when: string; checkpoints: number[]; images: number } {
-  const empty = { purpose: "", before_you_start: [], before_images: [], steps: [], timing: "", quality_check: [], done_when: "", checkpoints: [], images: 0 };
+// Step 56: a gig may hand over only some of those steps. "nos" are step numbers in the document, counted from 1; a
+// number the gig may not hand over is ignored. "eligible" lists the numbers a gig of this document may choose from.
+export type GigPart = { ok: boolean; reason?: string; purpose: string; before_you_start: string[]; before_images: ImageRef[]; steps: DocStep[]; timing: string; quality_check: string[]; done_when: string; checkpoints: number[]; images: number;
+  nos: number[]; eligible: number[]; of: number; whole: boolean; before: string; after: string };
+export function gigPart(b: DocBody, nos?: number[] | null): GigPart {
+  const empty = { purpose: "", before_you_start: [], before_images: [], steps: [], timing: "", quality_check: [], done_when: "", checkpoints: [], images: 0, nos: [], eligible: [], of: 0, whole: true, before: "", after: "" };
   if (b.type !== "sop" && b.type !== "workflow") return { ok: false, reason: "type_not_for_gigs", ...empty };
   const fl = freelancerRoles(b);
-  const steps = b.type === "sop" ? b.steps : b.steps.filter((st) => fl.some((r) => (st.raci[r] ?? "").split(",").includes("R")));
-  if (!steps.length) return { ok: false, reason: "no_freelancer_steps", ...empty };
+  const all = b.steps.map((st, i) => ({ st, no: i + 1 })).filter((x) => b.type === "sop" || fl.some((r) => (x.st.raci[r] ?? "").split(",").includes("R")));
+  if (!all.length) return { ok: false, reason: "no_freelancer_steps", ...empty };
+  const want = Array.isArray(nos) ? nos.filter((n) => Number.isInteger(n)) : [];
+  const picked = want.length ? all.filter((x) => want.includes(x.no)) : all;
+  if (!picked.length) return { ok: false, reason: "no_steps_chosen", ...empty, eligible: all.map((x) => x.no), of: b.steps.length };
+  const steps = picked.map((x) => x.st), first = picked[0].no, last = picked[picked.length - 1].no;
   const before_images = b.type === "sop" ? b.section_images.before_you_start ?? [] : [];
   return { ok: true, purpose: b.purpose, before_you_start: b.before_you_start, before_images, steps, timing: b.timing, quality_check: b.quality_check, done_when: b.done_when,
-    checkpoints: steps.map((st, i) => (st.attorney_decides ? i + 1 : 0)).filter(Boolean), images: new Set([...before_images, ...steps.flatMap((st) => st.images)].map((x) => x.id)).size };
+    checkpoints: steps.map((st, i) => (st.attorney_decides ? i + 1 : 0)).filter(Boolean), images: new Set([...before_images, ...steps.flatMap((st) => st.images)].map((x) => x.id)).size,
+    nos: picked.map((x) => x.no), eligible: all.map((x) => x.no), of: b.steps.length, whole: picked.length === all.length,
+    // What happens just before and just after the part, so the person doing it knows where their work sits
+    before: first > 1 ? b.steps[first - 2].text : "", after: last < b.steps.length ? b.steps[last].text : "" };
 }
 
 // ---------- Exports ----------

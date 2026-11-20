@@ -6144,6 +6144,123 @@
     out.appendChild(ul);
   }
 
+  // Steps 56 to 58, the handoff: which steps a gig hands over, what the freelancer needs before starting, and the
+  // page the freelancer gets, shown to the attorney before posting.
+  var IN_KIND = { access: "Access", file: "A file", template: "A template", information: "Information", other: "Something else" };
+  var IN_STATE = { needed: ["Still needed", "held"], supplied: ["Supplied", "ready"], not_needed: ["Not needed", ""] };
+  function numList(nos) {
+    nos = (nos || []).slice();
+    if (!nos.length) return "";
+    var run = nos.every(function (n, i) { return i === 0 || n === nos[i - 1] + 1; });
+    if (nos.length > 2 && run) return nos[0] + " to " + nos[nos.length - 1];
+    return nos.length === 1 ? String(nos[0]) : nos.slice(0, -1).join(", ") + " and " + nos[nos.length - 1];
+  }
+  // "You are doing steps 3 to 5 of 8", with what happens just before and just after
+  function partLine(part, mine) {
+    if (!part || part.whole || !(part.nos || []).length) return null;
+    var who = mine ? "You are doing" : "The freelancer does";
+    return h("div", { class: "ho-part" }, h("p", { style: "margin:0" }, h("b", { text: who + " " + (part.nos.length === 1 ? "step " : "steps ") + numList(part.nos) + " of this document's " + part.of + " steps." })),
+      part.before ? h("p", { class: "small", style: "margin:4px 0 0" }, h("b", { text: "Just before this part: " }), part.before) : null,
+      part.after ? h("p", { class: "small", style: "margin:4px 0 0" }, h("b", { text: "Just after this part: " }), part.after) : null);
+  }
+  // The list of things needed, read by either side; role decides which buttons show
+  function needsList(inputs, role, reload) {
+    inputs = inputs || [];
+    var box = h("div", { class: "ho-needs" });
+    if (!inputs.length) { box.appendChild(h("p", { class: "muted", style: "margin:0", text: role === "manager" ? "Nothing listed yet." : "Nothing is listed as needed before you start." })); return box; }
+    var mark = function (it, status, note, btn) {
+      btn.disabled = true;
+      api.post("/gigs/inputs/mark", { id: it.id, status: status, note: note || "" }).then(function (x) { if (!x || !x.ok) throw x || {}; D.toast(app, "Saved"); reload(); })
+        .catch(function (x) { btn.disabled = false; D.toast(app, x && x.reason === "looks_like_client_info" ? "That note may hold client information. Say it without it." : x && x.reason ? D.errorText(x.reason) : D.errorText((x && x.message) || "failed"), true); });
+    };
+    inputs.forEach(function (it) {
+      var st = IN_STATE[it.status] || IN_STATE.needed, acts = [];
+      var b = function (label, status, note) { var x = h("button", { class: "ghost small", type: "button", "aria-label": label + ": " + it.label }, label); x.addEventListener("click", function () { mark(it, status, note, x); }); return x; };
+      if (role === "manager") { if (it.status !== "supplied") acts.push(b("Mark as supplied", "supplied")); if (it.status !== "not_needed") acts.push(b("Not needed", "not_needed")); if (it.status !== "needed") acts.push(b("Still needed", "needed")); }
+      if (role === "hired") { if (it.supplied_by === "freelancer" && it.status !== "supplied") acts.push(b("I have this", "supplied")); if (it.status !== "needed") acts.push(b("I still need this", "needed", "The freelancer says this is still needed.")); }
+      box.appendChild(h("div", { class: "ho-need" }, h("div", { class: "grow" },
+        h("div", null, h("b", { text: it.label })),
+        h("div", { class: "small muted", text: (IN_KIND[it.kind] || IN_KIND.other) + " · " + (it.supplied_by === "freelancer" ? (role === "manager" || role === "preview" ? "The freelancer brings this" : "You bring this") : (role === "manager" || role === "preview" ? "You supply this" : "The attorney supplies this")) + (it.note ? " · " + it.note : "") })),
+        role === "preview" ? null : h("span", { class: "badge " + st[1], text: st[0] }), acts));
+    });
+    return box;
+  }
+  // The attorney's card on a gig: the steps handed over, and the list of what the freelancer needs
+  function handoffCard(r, g, reload) {
+    var hf = r.handoff || {}, gp = r.gig_part || {}, draft = g.status === "draft";
+    var card = h("div", { class: "card", id: "handoff-card" }, h("h2", { text: "The handoff" }),
+      h("p", { class: "small muted", text: "What a freelancer who has never worked with your firm gets: the steps you hand over, and what they need before they start. Never put a password or client information here; say how they get access." }));
+    // The steps
+    var stepsBox = h("div", { id: "ho-steps" });
+    card.appendChild(h("h3", { text: "Steps handed over" })); card.appendChild(stepsBox);
+    var say = function () {
+      D.clear(stepsBox);
+      stepsBox.appendChild(h("p", { style: "margin:0 0 6px", id: "ho-steps-say", text: gp.whole === false ? "Steps " + numList(gp.nos) + " of the document's " + gp.of + " steps." : "Every step a freelancer may do: " + (gp.steps || 0) + " of the document's " + (gp.of || 0) + "." }));
+      if (draft && g.playbook_id) { var ch = h("button", { class: "ghost small", type: "button", id: "ho-steps-change" }, "Choose the steps"); ch.addEventListener("click", function () { pickSteps(); }); stepsBox.appendChild(ch); }
+      else if (!draft) stepsBox.appendChild(h("p", { class: "small muted", style: "margin:0", text: "The steps are fixed once a gig is posted, because proposals and the agreement count from them." }));
+    };
+    var pickSteps = function () {
+      D.clear(stepsBox); stepsBox.appendChild(h("p", { class: "muted", role: "status", text: "Loading the steps..." }));
+      api.get("/gigs/doc-steps?playbook=" + encodeURIComponent(g.playbook_id)).then(function (x) {
+        if (!x || !x.ok || !x.on) throw x || {};
+        D.clear(stepsBox);
+        var chosen = gp.whole === false ? gp.nos : x.eligible, err = h("p", { class: "gs-err", role: "alert", hidden: true });
+        var list = stepChecklist(x, chosen, "ho");
+        var save = h("button", { class: "blue small", type: "button", id: "ho-steps-save" }, "Save the steps"), cancel = h("button", { class: "ghost small", type: "button" }, "Cancel");
+        save.addEventListener("click", function () {
+          var nos = list.chosen();
+          if (!nos.length) { err.hidden = false; err.textContent = "Choose at least one step."; return; }
+          save.disabled = true;
+          api.post("/gigs/steps", { id: g.id, steps: nos }).then(function (y) { if (!y || !y.ok) throw y || {}; D.toast(app, "Steps saved. Check that the description above still fits them."); reload(); })
+            .catch(function (y) { save.disabled = false; err.hidden = false; err.textContent = y && y.reason === "gig_not_draft" ? "The steps cannot change after a gig is posted." : y && y.reason ? gigErr(y) : "The steps could not be saved. Try again."; });
+        });
+        cancel.addEventListener("click", say);
+        stepsBox.appendChild(list.el); stepsBox.appendChild(err); stepsBox.appendChild(h("div", { class: "row", style: "gap:8px;margin-top:8px" }, save, cancel));
+      }).catch(function () { say(); D.toast(app, "The steps could not be loaded. Try again.", true); });
+    };
+    say();
+    // What the freelancer needs
+    card.appendChild(h("h3", { style: "margin-top:14px", text: "What the freelancer needs before starting" }));
+    var rows = (hf.inputs || []).map(function (it) { return { id: it.id, kind: it.kind, label: it.label, supplied_by: it.supplied_by }; });
+    var ed = h("div", { id: "ho-inputs" }), msg = h("p", { class: "small", role: "status", style: "margin:6px 0 0" });
+    var paint = function () {
+      D.clear(ed);
+      rows.forEach(function (it, i) {
+        var kind = h("select", { "aria-label": "Kind of thing " + (i + 1) }, Object.keys(IN_KIND).map(function (k) { return h("option", { value: k, text: IN_KIND[k], selected: it.kind === k }); }));
+        var label = h("input", { type: "text", maxlength: "200", style: "width:100%", "aria-label": "What is needed, line " + (i + 1), placeholder: "For example: a Clio login, set up by our office manager" });
+        label.value = it.label || "";
+        var who = h("select", { "aria-label": "Who brings line " + (i + 1) }, h("option", { value: "client", text: "You supply it", selected: it.supplied_by !== "freelancer" }), h("option", { value: "freelancer", text: "The freelancer brings it", selected: it.supplied_by === "freelancer" }));
+        kind.addEventListener("change", function () { it.kind = kind.value; }); label.addEventListener("input", function () { it.label = label.value; }); who.addEventListener("change", function () { it.supplied_by = who.value; });
+        var rm = h("button", { class: "ghost small", type: "button", "aria-label": "Remove line " + (i + 1) }, "Remove");
+        rm.addEventListener("click", function () { rows.splice(i, 1); paint(); });
+        ed.appendChild(h("div", { class: "ho-row" }, kind, h("div", { class: "grow", style: "min-width:200px" }, label), who, rm));
+      });
+      if (!rows.length) ed.appendChild(h("p", { class: "muted", style: "margin:0", text: "Nothing listed. Add the access, files, templates and information the freelancer must have to begin." }));
+    };
+    paint();
+    var add = h("button", { class: "ghost small", type: "button", id: "ho-add" }, "Add something"), save2 = h("button", { class: "blue small", type: "button", id: "ho-save" }, "Save the list");
+    add.addEventListener("click", function () { if (rows.length >= (hf.max || 20)) { msg.textContent = "A gig can list up to " + (hf.max || 20) + " things."; return; } rows.push({ kind: "access", label: "", supplied_by: "client" }); paint(); var all = ed.querySelectorAll("input"); if (all.length) all[all.length - 1].focus(); });
+    save2.addEventListener("click", function () {
+      save2.disabled = true; msg.textContent = "Saving...";
+      api.post("/gigs/inputs/save", { id: g.id, items: rows.filter(function (it) { return String(it.label || "").trim(); }) }).then(function (x) { if (!x || !x.ok) throw x || {}; D.toast(app, "List saved"); reload(); })
+        .catch(function (x) { save2.disabled = false; msg.textContent = x && x.reason === "looks_like_client_info" ? ciNote(x, "A line may hold client information or a password. Say how the freelancer gets it, without the secret itself.") : x && x.reason === "too_many_inputs" ? "A gig can list up to " + x.max + " things." : x && x.reason ? gigErr(x) : "The list could not be saved. Try again."; });
+    });
+    card.appendChild(ed); card.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:8px" }, add, save2)); card.appendChild(msg);
+    if (!draft && (hf.inputs || []).length) { card.appendChild(h("h3", { style: "margin-top:14px", text: "Supplied so far" })); card.appendChild(needsList(hf.inputs, "manager", reload)); }
+    return card;
+  }
+  // The checklist of a document's steps: the ones a gig may hand over can be ticked, the others are shown and locked
+  function stepChecklist(x, chosen, prefix) {
+    var boxes = [], el = h("fieldset", { class: "ho-checks", id: prefix + "-checks" }, h("legend", { text: "Which steps are you handing over?" }));
+    (x.steps || []).forEach(function (st) {
+      var id = prefix + "-step-" + st.no, cb = h("input", { type: "checkbox", id: id, disabled: !st.eligible });
+      cb.checked = st.eligible && (chosen || []).indexOf(st.no) >= 0;
+      if (st.eligible) boxes.push([st.no, cb]);
+      el.appendChild(h("div", { class: "ho-check" + (st.eligible ? "" : " off") }, cb, h("label", { for: id, style: "font-weight:400;margin:0" }, h("b", { text: st.no + ". " }), st.text,
+        h("span", { class: "small muted", text: " " + (st.eligible ? (st.role ? "(" + st.role + ")" : "") : "(" + (st.role || "your firm") + ": not a freelancer's step)") + (st.attorney_decides ? " Attorney decides." : "") }))));
+    });
+    return { el: el, chosen: function () { return boxes.filter(function (b) { return b[1].checked; }).map(function (b) { return b[0]; }); }, all: function () { return boxes.length; } };
+  }
   function gigDetails(body, r) {
     var g = r.gig, p = g.public || {}, editable = g.status === "draft" || g.status === "open";
     var f = {
@@ -6195,6 +6312,7 @@
     if (g.status === "draft") step2.appendChild(helperButton("check_scope", "✦ Check the scope", function () {
       var p = payload(); return { gig_id: g.id, draft: { title: p.public.title, task: p.public.task, outcome: p.public.outcome, steps: p.public.steps, timing: p.public.timing, budget_min: p.budget_min, budget_max: p.budget_max, deadline: p.deadline, milestones: lines(f.miles.value) } };
     }, { field: function (x) { return { title: f.title, task: f.task, outcome: f.outcome, steps: f.steps, timing: f.timing, milestones: f.miles }[x.field] || null; } }));
+    if (r.handoff && r.handoff.on && r.handoff.access === "manager" && r.gig_part) step2.appendChild(handoffCard(r, g, function () { draw(); }));
     // Step 3 of the new layout: the costs, what freelancers will see, and the attorney's own confirmation
     var reviewHost = h("div"), confirmBox = h("input", { type: "checkbox", id: "gs-confirm" }), confirmErr = h("p", { class: "gs-err", id: "gs-confirm-err", role: "alert", hidden: true });
     function paintReview() {
@@ -6209,6 +6327,11 @@
         dl([["Title", pl.public.title], ["The task", pl.public.task], ["What done looks like", pl.public.outcome], ["Steps", pl.public.steps.join("\n")], ["Tools", pl.public.tools.join(", ")], ["Skills", pl.public.skills.join(", ")],
           ["Practice area", pl.public.practice_area], ["State", pl.public.state], ["Usual time", pl.public.timing], ["Type", g.kind === "monthly" ? "Monthly" : "One-off"], ["Budget", lo ? D.money(lo) + (hi > lo ? " to " + D.money(hi) : "") : "Not set"], ["Work deadline", f.deadline.value ? shortDate(f.deadline.value) : "Not set"]]),
         h("button", { class: "linkish", type: "button", onclick: function () { showStep(2, true); } }, "← Edit the description")));
+      // Step 58: the page an invited or hired freelancer gets, built from the same data the freelancer is sent
+      if (r.handoff && r.handoff.on && r.preview) reviewHost.appendChild(h("div", { class: "card", id: "gs-fl-preview" }, h("h2", { text: "Exactly what an invited or hired freelancer gets" }),
+        h("p", { class: "small muted", text: "This is their page, from the same data they are sent, with their name across it as a watermark. Read it as someone who has never worked with your firm." }),
+        partLine(r.preview.part, false), docGigView(r.preview, g.id),
+        h("h3", { style: "margin-top:12px", text: "What they need before starting" }), needsList(r.handoff.inputs, "preview", function () {})));
     }
     if (wizard) {
       step3.appendChild(reviewHost);
@@ -8361,7 +8484,9 @@
       }
       if (g.milestones && g.milestones.length) el.appendChild(h("div", { class: "card" }, h("h2", { text: "Milestones" }), h("ol", null, g.milestones.map(function (m) { return h("li", { text: m.title }); })),
         h("p", { class: "small muted", text: "DELA finalizes the milestones with the agreement. You review and sign before any work starts." })));
-      if (r.playbook) el.appendChild(h("div", { class: "card watermarked", "data-watermark": r.watermark || "" }, h("h2", { text: "The work handed to you" }), h("p", { class: "small muted", text: r.watermark }), r.playbook.gig_view ? docGigView(r.playbook, g.id) : playbookPlain(r.playbook)));
+      if (r.playbook) el.appendChild(h("div", { class: "card watermarked", "data-watermark": r.watermark || "" }, h("h2", { text: "The work handed to you" }), h("p", { class: "small muted", text: r.watermark }), r.playbook.gig_view ? partLine(r.playbook.part, true) : null, r.playbook.gig_view ? docGigView(r.playbook, g.id) : playbookPlain(r.playbook)));
+      if (r.handoff && r.handoff.on && (r.handoff.inputs || []).length) el.appendChild(h("div", { class: "card", id: "needs-card" }, h("h2", { text: "What you need before you start" }),
+        h("p", { class: "small muted", text: "The attorney lists what you must have to begin. If something is missing after you are hired, say so here." }), needsList(r.handoff.inputs, r.access === "hired" ? "hired" : "invited", function () { draw(); })));
       var refsB = referencesBlock(r.references); if (refsB) el.appendChild(refsB);
       // Files
       if (r.files.length) {
@@ -9914,6 +10039,8 @@
     var secs = [
       egSec("agreement", "Agreement and fees", att ? "Contract value, platform fees, payment history and the agreement versions." : "The work, the milestones, what you receive and the agreement versions.", "agreement",
         [agreementCard(r, b), att && (r.payments || []).length ? paymentsCard(r) : null, !att && r.payout_account !== undefined ? payoutCard(r.payout_account, true) : null, exportCard], pre),
+      (r.inputs || []).length ? egSec("needs", "Before the work starts", att ? "What the freelancer needs from you, and whether each thing has been supplied." : "What you need to begin, and whether each thing has been supplied.", null,
+        [h("div", { class: "card", id: "eg-needs" }, h("h2", { text: "What the freelancer needs before starting" }), needsList(r.inputs, att ? "manager" : "hired", function () { draw(); }))], (r.inputs || []).some(function (i) { return i.status === "needed"; })) : null,
       egSec("decisions", "Attorney decisions", att ? "Approve work at the steps that need your decision." : "The steps where the work waits for the attorney's decision.", "decisions", [checkpointsCard(r)], cpWait),
       !r.monthly && (a.status === "signing" || a.status === "signed" || a.status === "active") ? egSec("changes", a.status === "signing" ? "Propose changes" : "Change orders", "Propose changes to scope, price or milestones. Nothing changes until you both sign the new version.", "change", [changesCard(r, b)], !!eng.editing) : null,
       egSec("people", "Who's working on this", "Everyone on the job, and any subcontractors.", null, [!att ? clientCard(r.client) : null, subsCard(r, b), peopleCard(r), !att ? assignmentsCard(r) : null], false),
