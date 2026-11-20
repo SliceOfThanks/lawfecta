@@ -31,18 +31,18 @@ Stacey's notes on the mockups: expertise first, facts scannable, what Lawfecta c
 - Experience written with headings or lists (step 50) keeps its own formatting; the timeline is for plain lines.
 - The owner mistakes Preview for publishing: the bar says which mode is on, and nothing is saved or published by switching.
 - An attorney sees empty parts: left out for them (About, Education, Work samples).
-- The mockups use a pink header and pink tags. Stacey's rule is no pink section backgrounds, so the header is grey and the tags keep DELA's own colors.
+- The mockups use a pink header band and pink tags. The first release made them grey under the older no-pink rule; Stacey corrected this the same day ("it should follow the color schemes for the content sections, right now its boring and unappealing"), so the page now takes the mockups' colors: the pink band behind the name, pink tags and icon tiles, the LinkedIn mark, the green check, the gold star, and marks on the buttons.
 
 ## Settings and switches it uses
 None new.
 
 ## Questions, and how Claude answered them (acceleration mode)
 1. "LinkedIn check completed" or the word "Verified" (Stacey 2026-11-12)? **On the profile page, the mockup's words**, because they say what was checked. Search result cards keep "Verified member"; say if those should change too.
-2. The pink header band? **Grey**, under the no-pink rule.
+2. The pink header band? First answered "grey", which was wrong. **The mockups' colors**, as Stacey said on 2026-11-19. A mockup from her is the visual spec for its page.
 3. The mockup's left menu (Home, Find Talent, My Profile, Opportunities, Saved)? **Not changed.** The global menu is not to be redesigned.
 4. "Would hire again 80% (4 of 5 supplied responses)"? **The percentage only.** DELA does not hold the count behind it on this page; adding it is a small server step.
 5. "Category ratings" folded under each review, and "View all 5 reviews"? **Each review shows as it does today** (its ratings with it), all of them listed. Folding and paging can follow when a profile has many reviews.
-6. Icons in "At a glance" and on service rows? **Words only** for now; DELA's icon set has no clock, building or document yet.
+6. Icons in "At a glance" and on service rows? First "words only"; **now drawn** (clock, building, document, pencil, eye, plus), with the mockups' colors.
 7. "Edit service" on each row? **Yes**, and each opens the one services editor, where all services are edited together.
 8. The owner's Work samples list? **The files the owner marked as shown to attorneys**, read from their own profile.
 9. The mockup's note "Overall rating shown as supplied; calculation requires validation"? **The rating is DELA's own average** from completed engagements, shown only once there are enough reviews (the existing rule).
