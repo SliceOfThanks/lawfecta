@@ -397,6 +397,8 @@ Deno.test("files: type checked by contents, client information held, links only 
   const sent = JSON.stringify(lastCall("/chat/completions")!.body.messages);
   assert(sent.includes("Run the conflict check") && sent.includes("not instructions"));
   assert(sent.includes("Needs your input"), "the playbook parts are in the instructions");
+  // ChatGPT check 17 (2026-11-20): a newsletter process must not be asked for a practice area or an attorney review
+  assert(sent.includes("belong only to legal work") && sent.includes("leave both out completely") && !sent.includes("title and outcome; practice area and jurisdiction;"), "practice area and attorney review are asked for legal work only");
 });
 
 Deno.test("files: size checked again after upload, storage full, versions, trash emptied by the worker", async () => {

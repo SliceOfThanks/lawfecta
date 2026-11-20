@@ -2684,13 +2684,13 @@
   var KEY_GUIDE = {
     openai: { name: "OpenAI (ChatGPT)", starts: "sk-", steps: [
       ["Open OpenAI's developer site", "Sign in with the same email you use for ChatGPT.", "https://platform.openai.com/api-keys", "Open platform.openai.com"],
-      ["Add a way to pay", "A ChatGPT Plus, Team or Pro subscription does not include this. The key is billed on its own, by use. In the left menu choose \"Billing\", add a card and a small credit. You can set a monthly limit there.", "https://platform.openai.com/settings/organization/billing/overview", "Open Billing"],
+      ["Add a way to pay", "A ChatGPT Plus, Team or Pro subscription does not include this. The key is billed on its own, by use. In the left menu choose \"Billing\", add a card and buy the smallest credit OpenAI offers: that is enough to start, and ordinary use costs cents a day. You can set a monthly limit there.", "https://platform.openai.com/settings/organization/billing/overview", "Open Billing"],
       ["Create the key", "In the left menu choose \"API keys\", then \"Create new secret key\". Name it DELA and choose \"Create secret key\".", "https://platform.openai.com/api-keys", "Open API keys"],
       ["Copy it now", "OpenAI shows the key once. Choose \"Copy\". It starts with sk-.", "", ""],
       ["Paste it below", "Paste the key in the \"Your key\" box under these steps and choose \"Save and test\".", "", ""]] },
     anthropic: { name: "Claude (Anthropic)", starts: "sk-ant-", steps: [
       ["Open the Claude Console", "This is Anthropic's site for keys. Sign in, or create a Console account with your email. It is separate from the Claude chat app.", "https://console.anthropic.com/settings/keys", "Open console.anthropic.com"],
-      ["Add credit", "A Claude Pro, Max or Team subscription does not include this. The key is billed on its own, by use. Choose \"Settings\", then \"Billing\", and buy a small credit.", "https://console.anthropic.com/settings/billing", "Open Billing"],
+      ["Add credit", "A Claude Pro, Max or Team subscription does not include this. The key is billed on its own, by use. Choose \"Settings\", then \"Billing\", and buy the smallest credit Anthropic offers: that is enough to start, and ordinary use costs cents a day.", "https://console.anthropic.com/settings/billing", "Open Billing"],
       ["Create the key", "Choose \"Settings\", then \"API keys\", then \"Create Key\". Name it DELA and choose \"Add\".", "https://console.anthropic.com/settings/keys", "Open API keys"],
       ["Copy it now", "The Console shows the key once. Choose \"Copy Key\". It starts with sk-ant-.", "", ""],
       ["Paste it below", "Paste the key in the \"Your key\" box under these steps and choose \"Save and test\".", "", ""]] }
@@ -2741,7 +2741,7 @@
     var save = h("button", { class: "blue" }, "Save and test");
     var msg = h("p", { role: "status", class: "small" });
     save.addEventListener("click", function () {
-      if (!key.value.trim()) { msg.textContent = "Paste your key first."; return; }
+      if (!key.value.trim()) { msg.textContent = "Paste your key first."; key.focus(); D.toast(app, "Paste your key in the box \"Your key\" first.", true); return; }
       save.disabled = true;
       msg.textContent = "Testing the key with " + providerName(prov.value) + "...";
       api.post("/ai/key", { provider: prov.value, key: key.value, scope: scope, use_for: use.value, request_id: id }).then(function (r) {
@@ -7112,12 +7112,15 @@
     access_granted: "Added to the access list", access_revoked: "Removed from the access list", staff_granted: "Added to the Lawfecta Team", staff_revoked: "Removed from the Lawfecta Team" };
   function memData(r) { var d = r && r.data ? r.data : r; if (!d || d.ok === false) { var e = new Error("no"); e.reason = d && d.reason; throw e; } return d; }
   function memFail(e) { D.toast(app, MEM_ERR[e && (e.reason || e.message)] || MEM_ERR[e && e.status === 403 ? "forbidden" : ""] || "That did not work. Try again."); }
-  function memBadges(p) {
+  function memBadges(p, mode) {
     var b = [];
     if (p.status === "closed") b.push(h("span", { class: "badge bad", text: "Closed" }));
     if ((p.staff || []).length) b.push(h("span", { class: "badge", text: "Lawfecta Team" }));
     if (p.on_hold) b.push(h("span", { class: "badge held", text: "On hold" }));
-    b.push(h("span", { class: "badge" + (p.access || (p.staff || []).length ? " ready" : ""), text: p.access ? "Access list" : (p.staff || []).length ? "Team access" : "No access" }));
+    // While DELA is open to every member, the access list decides nothing, so it is only named for the people on it
+    if (mode === "everyone") { if (p.access) b.push(h("span", { class: "badge", title: "On the access list. It decides who gets in only when DELA is not open to everyone.", text: "On the access list" })); }
+    else b.push(h("span", { class: "badge" + (p.access || (p.staff || []).length ? " ready" : ""), text: p.access ? "Access list" : (p.staff || []).length ? "Team access" : "No access" }));
+    if (!b.length) b.push(h("span", { class: "small muted", text: "Active" }));
     return h("div", { class: "row", style: "flex-wrap:wrap;gap:4px" }, b);
   }
   function membersView() {
@@ -7141,12 +7144,12 @@
           return h("tr", null,
             h("td", null, h("b", { text: p.name || "(no name yet)" }), h("div", { class: "small muted", text: "Member ID " + p.bd_member_id + (p.email ? " | " + p.email : "") })),
             h("td", { class: "small" }, p.sides.length ? p.sides.map(function (s) { return h("div", { text: D.SIDE[s.side] + ": " + (s.plan_name || s.plan_code) + (s.plan_source === "staff_grant" ? " (set by the Team)" : "") }); }) : h("span", { class: "muted", text: "No workspace yet" })),
-            h("td", null, memBadges(p)),
+            h("td", null, memBadges(p, v.access_mode)),
             h("td", { class: "small", text: p.last_seen_at ? D.dateTime(p.last_seen_at) : "Never" }),
             h("td", null, h("button", { class: "ghost small", type: "button", "aria-label": "Open " + (p.name || "member " + p.bd_member_id), onclick: function () { mem.bd = p.bd_member_id; draw(); } }, "Open")));
         })))));
       var from = v.total ? v.offset + 1 : 0, to = v.offset + v.people.length;
-      el.appendChild(h("div", { class: "row", style: "margin-top:8px" }, h("span", { class: "grow small muted", id: "mem-count", text: "Showing " + from + " to " + to + " of " + v.total + ", most recently seen first." }),
+      if (v.total) el.appendChild(h("div", { class: "row", style: "margin-top:8px" }, h("span", { class: "grow small muted", id: "mem-count", text: "Showing " + from + " to " + to + " of " + v.total + ", most recently seen first." }),
         v.offset > 0 ? h("button", { class: "ghost small", type: "button", onclick: function () { mem.offset = Math.max(0, v.offset - v.limit); draw(); } }, "Previous") : null,
         to < v.total ? h("button", { class: "ghost small", type: "button", onclick: function () { mem.offset = v.offset + v.limit; draw(); } }, "Next") : null));
     }).catch(function () { D.clear(el); el.appendChild(h("h1", { text: "Members" })); el.appendChild(h("p", { class: "notice", text: "This page is for the Lawfecta Team." })); });
@@ -7171,8 +7174,9 @@
       var post = function (path, body, msg) { return api.post(path, body).then(memData).then(function () { again(msg); }).catch(memFail); };
       D.clear(el);
       el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", id: "mem-back", onclick: function () { mem.bd = null; draw(); } }, "← Members")));
-      el.appendChild(h("div", { class: "row", style: "margin:8px 0 4px;flex-wrap:wrap" }, h("h1", { class: "grow", style: "margin:0", text: p.name || "Member " + p.bd_member_id }), memBadges({ status: p.status, staff: p.staff, on_hold: v.holds.length > 0, access: !!v.access })));
-      if (!own) el.appendChild(h("p", { class: "small muted", text: "You can read this page. Changes are for the owner; holds are for support and finance." }));
+      el.appendChild(h("div", { class: "row", style: "margin:8px 0 4px;flex-wrap:wrap" }, h("h1", { class: "grow", style: "margin:0", text: p.name || "Member " + p.bd_member_id }), memBadges({ status: p.status, staff: p.staff, on_hold: v.holds.length > 0, access: !!v.access }, v.access_mode)));
+      el.appendChild(h("p", { class: "small muted", id: "mem-who", text: own ? "Only you, the owner, can give a plan, change the access list, and close or reopen an account. Support and finance on the Lawfecta Team can place and release holds. The rest of the Team can read this page."
+        : "You can read this page. Changes are for the owner; holds are for support and finance." }));
       el.appendChild(h("div", { class: "card", id: "mem-account" }, h("h2", { text: "Account" }), h("div", { class: "kv" },
         h("div", null, "Member ID (website)", h("b", { text: String(p.bd_member_id) })), h("div", null, "Email", h("b", { style: "font-size:15px;word-break:break-all", text: p.email || "Not known yet" })),
         h("div", null, "First opened DELA", h("b", { text: p.first_seen_at ? D.date(p.first_seen_at) : "Never" })), h("div", null, "Last seen", h("b", { text: p.last_seen_at ? D.dateTime(p.last_seen_at) : "Never" })),
@@ -7197,6 +7201,7 @@
       var note = h("input", { id: "mem-access-note", placeholder: "Note (who this is)", "aria-label": "Note", maxlength: "200", style: "flex:1;min-width:160px" });
       el.appendChild(h("div", { class: "card", id: "mem-access" }, h("h2", { text: "Access to DELA" }),
         h("p", { text: v.access ? "On the access list since " + D.date(v.access.granted_at) + (v.access.note ? ". Note: " + v.access.note : ".") : (p.staff || []).length ? "On the Lawfecta Team, so DELA opens without the access list." : "Not on the access list." }),
+        v.access_mode === "everyone" ? h("p", { class: "small muted", id: "mem-access-mode", text: "DELA is open to every member of the website right now, so this list does not decide who gets in. It matters again if DELA is set back to \"access list only\"." }) : null,
         !own ? null : v.access ? h("button", { class: "ghost small", type: "button", id: "mem-access-remove", onclick: function () { post("/admin/access/revoke", { id: v.access.id }, "Removed from the access list. They are signed out."); } }, "Remove from the access list")
           : h("div", { class: "row", style: "flex-wrap:wrap" }, note, h("button", { class: "blue small", type: "button", id: "mem-access-add", onclick: function () { post("/admin/access/grant", { bd_member_id: bd, channel: "access", note: note.value.trim() }, "Added to the access list"); } }, "Add to the access list"))));
       // Holds
@@ -12786,7 +12791,7 @@
     risk.addEventListener("change", function () { d.high_risk = risk.checked; });
     if (lib.view !== "approved") libEl.appendChild(h("div", { class: "kv" }, h("div", null, "Document ID", h("b", { text: P.doc_id || "Not given yet (given at the first save)" })), h("div", null, "Version", h("b", { text: String(P.version) })),
       h("div", null, "Owner (role)", owner),
-      lib.pb.approver && lib.pb.approver.author ? h("div", { id: "doc-author" }, "Author (approves)", h("b", { text: lib.pb.approver.author + (lib.pb.approver.is_author ? " (you)" : "") })) : null,
+      lib.pb.approver && lib.pb.approver.author ? h("div", { id: "doc-author" }, "Author (approves)", h("b", { text: lib.pb.approver.author + (lib.pb.approver.is_author ? " (you)" : "") }), h("span", { class: "small muted", text: "The author or the Library administrator approves. Others comment." })) : null,
       h("div", null, "Last reviewed", h("b", { text: P.last_reviewed_at ? D.date(P.last_reviewed_at) : P.approved_version ? "Never reviewed since approval" : "Not reviewed yet" })),
       h("div", null, "Next review", h("b", { text: P.next_review_at ? D.date(P.next_review_at) : (d.high_risk ? "3 months after approval" : "12 months after approval") })),
       h("div", null, "High risk", h("label", { style: "display:flex;gap:6px;font-weight:400" }, risk, h("span", { text: "Trust, conflicts or deadlines (reviewed every 3 months)" })))));

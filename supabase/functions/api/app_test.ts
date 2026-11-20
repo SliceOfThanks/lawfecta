@@ -545,6 +545,7 @@ Deno.test("step 62: the Members page lists, filters and opens members; only the 
   const one = (await call("GET", "/admin/members/one?bd=9150", { session: ownerSession })).body.data;
   assertEquals([one.ok, one.person.name, one.person.status, one.person.may_open, one.access.note, one.holds.length], [true, "Morgan Member", "active", true, "Members page test", 0]);
   assertEquals((await call("GET", "/admin/members/one?bd=77777777", { session: ownerSession })).body.data.reason, "not_found");
+  assert(["access_list", "everyone"].includes(one.access_mode), "the member page is told whether the access list decides who gets in (check 17)");
   // Closing needs a reason, cannot be yourself or a Team member, and ends the member's session at once
   const close = (b: Record<string, unknown>) => call("POST", "/admin/members/status", { session: ownerSession, body: b });
   assertEquals((await close({ bd_member_id: 9150, status: "closed", reason: "" })).body.data.reason, "reason_needed");
