@@ -2004,9 +2004,10 @@
     return chat.messages.filter(function (m) { return m.role === "user" || (m.role === "assistant" && m.source !== ""); }).map(function (m) { return (m.role === "user" ? "Me: " : "DELA: ") + m.content; }).join("\n\n").slice(0, 20000);
   }
   function openDocFromChat(id) { tab = "library"; lib.importId = null; lib.pb = { playbook: { id: id } }; lib.view = "read"; draw(); }
-  // Step 60, the DELA workflow (Stacey's diagram, 2026-11-19): seven steps and the loop back. Each document of the
+  // Step 60, the DELA workflow (Stacey's diagram, 2026-11-19): seven steps and the loop back. The path says
+  // "playbook", as her diagram does (Stacey 2026-11-19: Use "playbook"); the rest of DELA keeps "document". Each document of the
   // firm stands at one of them. The facts come from the server; this turns them into the path and one next action.
-  var WF = [["Talk to DELA", "Describe what you need"], ["Clarify", "DELA asks what matters"], ["Build the document", "Organize the instructions"], ["Review", "Check and approve the instructions"],
+  var WF = [["Talk to DELA", "Describe what you need"], ["Clarify", "DELA asks what matters"], ["Build the playbook", "Organize the instructions"], ["Review", "Check and approve the instructions"],
     ["Prepare the handoff", "Choose the work and the recipient"], ["Confirm and do the work", "Resolve access, scope and blockers"], ["Review the result", "Accept it or request changes"]];
   function wfRead(it) {
     var gigable = it.doc_type === "sop" || it.doc_type === "workflow", e = it.eng, at = 4, next = null, note = "", saved = false, n;
@@ -2050,7 +2051,7 @@
         h("span", { class: "wf-b" }, h("b", { class: "wf-t", text: st[0] }), h("span", { class: "wf-s", text: st[1] }), h("span", { class: "sr", text: " (" + WORD[k] + ")" }))));
     });
     ol.appendChild(h("li", { class: "wf-step wf-loop" + (w.improve ? " wf-now" : "") }, h("span", { class: "wf-n", "aria-hidden": "true", text: "↺" }),
-      h("span", { class: "wf-b" }, h("b", { class: "wf-t", text: "Improve for next time" }), h("span", { class: "wf-s", text: "What the last job taught" }))));
+      h("span", { class: "wf-b" }, h("b", { class: "wf-t", text: "Improve the playbook" }), h("span", { class: "wf-s", text: "For next time" }))));
     return ol;
   }
   function wfWhere(it) {

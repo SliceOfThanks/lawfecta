@@ -54,7 +54,7 @@ Attorneys and agency owners, and the firm's staff who can open the Library.
 The handoff_kit switch (off), with steps 55 to 59. No new setting. Migration 0142 adds one read-only function.
 
 ## Questions, and how Claude answered them (acceleration mode)
-1. "Playbook" (the diagram) or "document" (Stacey's decision of 2026-11-19, kept that day)? **"Document"**: "Build the document". The diagram's meaning is unchanged. One word to switch if she wants it.
+1. "Playbook" (the diagram) or "document" (Stacey's decision of 2026-11-19, kept that day)? First answered "document". Stacey the same day: **Use "playbook"**. The path now reads "Build the playbook" and "Improve the playbook", as in her diagram. The rest of DELA keeps "document", with Playbook as one of the four document types, until she says otherwise.
 2. One step at a time, or may steps run side by side? **The path shows the furthest open step**, because a document can have a finished job, a running engagement and a new gig draft at once. The sentence under the path says what waits.
 3. Is "Save for future use" a step? **It is the state after step 4**, as in the diagram: the path says "Saved for future use" and offers "Prepare a handoff" as the next thing, when needed.
 4. Does the handoff document's "assignment without a gig" (internal staff work) belong here? **Not yet.** DELA has no assignment outside gigs. It is the largest open item of the handoff document and needs Stacey's decision (question 1 of the step 45 brief: answered "later").
