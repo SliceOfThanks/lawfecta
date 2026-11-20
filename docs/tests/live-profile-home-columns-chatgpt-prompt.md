@@ -40,6 +40,9 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
    Find: the top of the page.
    Expect: the heading "Your profile", under it the grey sentence "Edit what attorneys see. Save each section as you go.", and at the far right a white button with a dark red outline and a small eye, "Preview profile".
    Expect: under that, one soft pink line with a small tag ("Visible in Talent" or "Not yet visible in Talent"), then three short states separated by dots (they start "Profile details", "LinkedIn review" and "Availability"), then a link "View requirements".
+   Expect: under that, a white strip headed "Your availability" with three buttons in a row, "Available for new work", "Some hours only" and "Not taking new work", each followed by a small round "?" button. One of the three is dark red. At the right of the strip, a grey sentence that starts "You said:". Do not click the three buttons.
+   Do: click the small "?" right after "Not taking new work".
+   Expect: a small box opens that says you leave Talent search and gig matches until you choose one of the other two, and that work you already have is not affected. Press the Escape key to close it.
    Expect: under that, a row of tabs: "Public profile" (selected: pink background, dark red bold words), "Matching & verification" and "Meeting schedule".
    Expect: under the tabs, three things side by side. At the left a card with the small grey capitals "PROFILE SECTIONS" and six lines, each with a small sign in front, the first one on a pink background: "Basics", "Summary", "Services & skills", "Experience & education", "Work hours & agreement", "Contact details (optional)". In the middle a card headed "Basics" in large bold letters with a small pink tag "Required for matching" and the boxes "First name", "Last name" and "Headline". At the right two cards, "Visibility & publishing" and "Directory updates".
    Expect also: the boxes "Summary" and "City" are not on the screen, and neither is a card that starts "Match-ready".
@@ -51,7 +54,10 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
    Expect: the middle card is headed "Services & skills" and holds a box "Task skills" with "Discovery, Client intake, E-filing". Do not type in it.
 
 4. Do: click the link "View requirements" in the pink line near the top.
-   Expect: the tab "Matching & verification" is now selected. The page shows a card whose heading starts "Match-ready:", a card "Your availability" and a card "LinkedIn check". The card "PROFILE SECTIONS" is not on the screen.
+   Expect: the tab "Matching & verification" is now selected. The page shows a card whose heading starts "Match-ready:" and a card "LinkedIn check". The card "PROFILE SECTIONS" is not on the screen. The strip "Your availability" is still at the top.
+   Expect: in the card "Match-ready", a line "All 14 steps" with a count beside it (the number may differ). Clicking that line folds the list of steps away or opens it.
+   Do: click the line "All 14 steps" once, and once more.
+   Expect: the list under it (the headings "1. Your profile", "2. The Lawfecta Team's check", "3. Your availability") disappears and comes back.
    Do: click the tab "Meeting schedule".
    Expect: a card "Your availability for meetings" with the days of the week.
    Do: click the tab "Public profile".
