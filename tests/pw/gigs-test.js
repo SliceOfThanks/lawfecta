@@ -200,7 +200,7 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     await dela(p).getByRole("button", { name: "View profile", exact: true }).first().click();
     t = await waitFor(p, "← Back to Talent search");
     t = await waitFor(p, "At a glance");
-    ok(t.includes("Verification") && p.url().includes("person=") && await dela(p).getByRole("dialog").count() === 0, "View profile opens the freelancer's full profile page from Talent, not a pop-up");
+    ok(t.includes("LinkedIn check") && p.url().includes("person=") && await dela(p).getByRole("dialog").count() === 0, "View profile opens the freelancer's full profile page from Talent, not a pop-up");
     await click(p, "← Back to Talent search");
     await waitFor(p, "Fran 2601");
     await s.ctx.close();
