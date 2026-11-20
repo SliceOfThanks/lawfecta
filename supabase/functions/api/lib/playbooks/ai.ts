@@ -5,7 +5,7 @@ const SHAPE = `Playbook JSON shape (use exactly these keys):
 {"title": "", "outcome": "what done produces, 1 or 2 sentences", "practice_area": "", "jurisdiction": "a state, federal, or any",
  "when_to_use": "what starts it", "roles": "who owns it, who does each part, which parts only an attorney may do (one per line)",
  "needs": ["documents, information, access and tools needed first, described, never real client data"],
- "steps": [{"text": "what to do and how", "who": "attorney, paralegal, assistant or freelancer", "tool": "software used or empty", "minutes": 15, "decision": "if X, go to step N, or empty", "tag": "keep, delegate or automate"}],
+ "steps": [{"text": "what to do and how", "who": "attorney, paralegal, assistant, bookkeeper, office manager, marketer, IT or freelancer", "tool": "software used or empty", "minutes": 15, "decision": "if X, go to step N, or empty", "tag": "keep, delegate or automate"}],
  "has_deadlines": false, "deadlines": "court or rule deadlines and the firm's own target times",
  "checks": ["how to tell each step and the whole job was done right"], "review_points": ["where an attorney must review or sign"],
  "never_delegate": ["what must never be delegated"], "resources": ["templates, forms, checklists, references"], "tools": ["software"],
@@ -13,7 +13,7 @@ const SHAPE = `Playbook JSON shape (use exactly these keys):
 
 const RULES = `Rules:
 - Write for a trained person who has never done this process. Plain, direct words. At least 3 numbered steps for a real process.
-- tag each step: keep (needs an attorney's judgment, signature or legal advice), delegate (a paralegal or freelancer can do it), automate (software can do it).
+- tag each step: keep (needs an attorney's judgment, signature or legal advice), delegate (staff or a freelancer can do it), automate (software can do it).
 - Never invent court rules, filing deadlines, statutes or citations. If a rule or deadline matters and you are not sure, write it with the words "Check this:" in front.
 - Never include real client names, case numbers, dates of birth, addresses or account numbers. Use placeholders such as [Client Name], [Case Number].
 - Leave a part empty ("" or []) rather than guess when the member has not said enough. Do not fill parts with generic filler.

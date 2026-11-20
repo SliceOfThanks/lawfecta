@@ -132,7 +132,22 @@ Deno.test("everything is off until the switches go on", async () => {
   assertEquals(st.body.byok_on, false);
   assertEquals((await call("POST", "/ai/chat/send", { session: ann, body: { content: "hello", request_id: "off-1" } })).body.reason, "ai_off");
   assertEquals((await call("POST", "/files/start", { session: ann, body: { name: "a.txt", size_bytes: 5, ticked: true, request_id: "off-2" } })).body.reason, "uploads_off");
+  assertEquals((await call("GET", "/me", { session: ann })).body.me.key_ask, false, "no question about an own key while own keys are off");
   await pool.query("update feature_switches set state = 'everyone' where key in ('byok', 'ai_generation', 'voice_input', 'file_uploads')");
+});
+
+Deno.test("step 63: Home asks once whether the member uses ChatGPT or Claude, and stops asking after an answer or a key", async () => {
+  assertEquals((await call("GET", "/me", { session: ann })).body.me.key_ask, true, "asked while there is no key and no answer");
+  assertEquals((await call("GET", "/me", { session: fay })).body.me.key_ask, true, "each member is asked for their own workspace");
+  assertEquals((await call("POST", "/ai/key-ask", { session: ann, body: { answer: "gemini" } })).body.reason, "bad_request");
+  assertEquals((await call("POST", "/ai/key-ask", { body: { answer: "none" } })).status, 401);
+  assertEquals((await call("POST", "/ai/key-ask", { session: ann, body: { answer: "openai" } })).body.ok, true);
+  assertEquals((await call("POST", "/ai/key-ask", { session: ann, body: { answer: "openai" } })).body.ok, true, "answering twice is fine");
+  assertEquals((await call("GET", "/me", { session: ann })).body.me.key_ask, false, "not asked again after an answer");
+  assertEquals((await call("GET", "/me", { session: fay })).body.me.key_ask, true, "one member's answer does not answer for another");
+  assertEquals((await call("POST", "/ai/key-ask", { session: fay, body: { answer: "none" } })).body.answer, "none");
+  assertEquals((await call("GET", "/ai", { session: fay })).body.mode, "lawfecta", "saying no changes nothing about which AI is used");
+  assertEquals((await pool.query("select count(*)::int n from ai_keys where person_id = any($1::uuid[])", [[await personOf(ann), await personOf(fay)]])).rows[0].n, 0, "an answer never stores a key");
 });
 
 Deno.test("own OpenAI key: tested, sealed, used, never shown", async () => {
@@ -263,7 +278,8 @@ Deno.test("Claude key: chat on the member's key, talking on Lawfecta's speech to
   const msg = lastCall("/v1/messages")!;
   assertEquals(msg.key, ANT_GOOD);
   assertEquals(msg.body.model, "claude-opus-5-5");
-  assert(String(msg.body.system).includes("freelance paralegals"), "the freelancer side gets its own instructions");
+  assert(String(msg.body.system).includes("freelance professionals who support law firms"), "the freelancer side gets its own instructions");
+  assert(String(msg.body.system).includes("whole back office of a law firm"), "DELA is told the work is the whole back office, not only legal support");
 
   const before = await creditsUsed(fay);
   const audio = new Uint8Array(4000).fill(7);

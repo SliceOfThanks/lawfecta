@@ -20,7 +20,7 @@ export type Recommendation = {
 
 const s = (v: unknown, max = 400) => (typeof v === "string" ? v.split("\u0000").join("").replace(/\s+/g, " ").trim().slice(0, max) : "");
 
-export const AUTOMATE_SYSTEM = `You are DELA, reviewing one approved law-firm document (an SOP or a Workflow) to find specific groups of steps that could be automated with software or handed to a freelance legal operations professional.
+export const AUTOMATE_SYSTEM = `You are DELA, reviewing one approved law-firm document (an SOP or a Workflow) to find specific groups of steps that could be automated with software or handed to a freelance professional (legal support, bookkeeping, marketing, IT, HR or operations, whichever the steps call for).
 Rules:
 - Suggest specific step groups, never the whole document. Each group is a short run of step numbers (for example steps 3 to 5).
 - "delegate": the steps are repeatable, have clear inputs and outputs, and need no legal judgment or license. Never suggest delegating a step marked attorney_decides, or anything that is legal advice, legal strategy, signing for the firm, or deciding a client's matter.

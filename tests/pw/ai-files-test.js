@@ -81,6 +81,14 @@ async function listened(page, secs) {
     const p = s.page;
     t = await text(p);
     ok(t.includes("Ask DELA to plan a task"), "Home offers Ask DELA");
+    // Step 63: Home asks once about an own AI account; "No" is remembered
+    ok(t.includes("Do you already use ChatGPT or Claude?") && t.includes("Yes, ChatGPT") && t.includes("Yes, Claude"), "step 63: Home asks whether the member already uses ChatGPT or Claude");
+    await dela(p).locator("#key-ask-none").click();
+    t = await waitFor(p, "DELA uses Lawfecta's AI. You can add your own key any time in Settings.");
+    ok(!t.includes("Do you already use ChatGPT or Claude?"), "step 63: after No, the question is gone and DELA says where to add a key later");
+    await p.reload();
+    t = await text(p);
+    ok(!t.includes("Do you already use ChatGPT or Claude?"), "step 63: the answer is remembered after a reload");
     ok(!t.includes("DELA is for operations work"), "Home has no client information banner (Stacey 2026-11-05)");
     await dela(p).getByRole("button", { name: "Files" }).first().click();
     t = await waitFor(p, "Add files");
@@ -190,6 +198,14 @@ async function listened(page, secs) {
     t = await waitFor(p, "Which AI DELA uses");
     ok(t.includes("Use Lawfecta's AI") && t.includes("DELA actions left this month") && t.includes("DELA actions reset on the 1st of each month") && !t.includes("credits"), "AI settings show the included DELA actions and when they reset, one word for the allowance (step 8b Part C)");
     ok(!t.includes("Save and test") && t.includes("choose \"Use my own key\" above"), "key setup stays hidden until Use my own key is chosen (UX review AI01)");
+    // Step 63: the steps to get a key open from Settings too
+    await dela(p).locator("#key-guide-open").click();
+    t = await waitFor(p, "Get your OpenAI (ChatGPT) key");
+    ok(t.includes("Create new secret key") && t.includes("does not include this") && await dela(p).locator('#key-guide-steps li').count() === 5, "step 63: the OpenAI steps say where to click and that a ChatGPT subscription does not include the key");
+    ok(await dela(p).locator('#key-guide a[href^="https://platform.openai.com"][target="_blank"]').count() >= 2, "step 63: each link goes to OpenAI and opens in a new tab");
+    await dela(p).locator("#key-guide-close").click();
+    await p.waitForTimeout(400);
+    ok(!(await text(p)).includes("Get your OpenAI (ChatGPT) key"), "step 63: the steps close");
     await dela(p).getByText("Use my own key", { exact: true }).click();
     await waitFor(p, "Your own key");
     await dela(p).getByPlaceholder("Paste your key").first().fill(MEMBER_CLAUDE);
@@ -255,17 +271,18 @@ async function listened(page, secs) {
     s = await open(browser, "DELA-App", 2101);
     t = await text(s.page);
     ok(t.includes("Ask DELA") && !t.includes("Files"), "freelancers get Ask DELA but no Files tab yet");
-    await dela(s.page).getByRole("button", { name: "Ask DELA" }).first().click();
-    await waitFor(s.page, "AI settings");
-    await dela(s.page).getByRole("button", { name: "AI settings" }).click();
-    await waitFor(s.page, "Which AI DELA uses");
-    await dela(s.page).getByText("Use my own key", { exact: true }).click();
-    await waitFor(s.page, "Your own key");
-    await dela(s.page).getByLabel("Provider").first().selectOption("anthropic");
-    await dela(s.page).getByPlaceholder("Paste your key").first().fill(MEMBER_CLAUDE);
-    await dela(s.page).getByRole("button", { name: "Save and test" }).first().click();
+    // Step 63: the freelancer answers "Yes, Claude" on Home and is taken to the steps, with the box to paste the key
+    ok(t.includes("Do you already use ChatGPT or Claude?"), "step 63: a freelancer is asked too");
+    await dela(s.page).locator("#key-ask-anthropic").click();
+    t = await waitFor(s.page, "Get your Claude (Anthropic) key");
+    ok(t.includes("Which AI DELA uses") && t.includes("Create Key") && t.includes("does not include this") && t.includes("Never send your key to anyone"), "step 63: Yes, Claude opens Settings with the Claude steps");
+    ok(await dela(s.page).locator('#key-guide a[href^="https://console.anthropic.com"][target="_blank"]').count() >= 2, "step 63: each link goes to the Claude Console and opens in a new tab");
+    ok(await dela(s.page).locator("#key-guide").getByLabel("Provider").inputValue() === "anthropic", "step 63: the provider is already set to Claude");
+    await dela(s.page).locator("#key-guide").getByPlaceholder("Paste your key").fill(MEMBER_CLAUDE);
+    await dela(s.page).locator("#key-guide").getByRole("button", { name: "Save and test" }).click();
     t = await waitFor(s.page, "ending " + MEMBER_CLAUDE.slice(-4));
     ok(t.includes("Claude"), "a freelancer adds a Claude key");
+    ok(!t.includes("Get your Claude (Anthropic) key"), "step 63: the steps close once the key is saved");
     await dela(s.page).getByRole("button", { name: "Ask DELA" }).first().click();
     await waitFor(s.page, "Using your Claude key");
     await dela(s.page).getByLabel("Your message").fill("Help me plan my week");
@@ -277,6 +294,54 @@ async function listened(page, secs) {
     await dela(s.page).getByRole("button", { name: "■ Stop" }).click();
     t = await waitFor(s.page, "Lawfecta's speech to text was used");
     ok(true, "talking on a Claude key says Lawfecta's speech to text was used");
+    await s.ctx.close();
+
+    // ---------- Step 62: the Members page inside DELA, for the Lawfecta Team ----------
+    await makeMember(2103, "attorney", "att_free");
+    s = await open(browser, "DELA-App", 2100);
+    ok(await dela(s.page).getByRole("button", { name: "Members", exact: true }).count() === 0, "step 62: a member has no Members page");
+    await s.page.goto(`${BASE}/page/DELA-App?uid=2100&plan=&tab=members`);
+    t = await text(s.page);
+    ok(!t.includes("Everyone who has opened DELA"), "step 62: a member who types the address gets Home, not the Members page");
+    await s.ctx.close();
+    s = await open(browser, "DELA-App", 2102);
+    await dela(s.page).getByRole("button", { name: "Members", exact: true }).first().click();
+    t = await waitFor(s.page, "Everyone who has opened DELA");
+    ok(t.includes("Test attorney 2100") && t.includes("Test freelancer 2101") && t.includes("most recently seen first"), "step 62: the Lawfecta Team sees the members with a count");
+    await dela(s.page).locator("#mem-q").fill("2103");
+    await dela(s.page).locator("#mem-search").click();
+    t = await waitFor(s.page, "Showing 1 to 1 of 1");
+    ok(t.includes("Test attorney 2103") && !t.includes("Test attorney 2100"), "step 62: search by member ID finds one person");
+    await dela(s.page).getByRole("button", { name: "Open Test attorney 2103" }).click();
+    t = await waitFor(s.page, "Workspaces and plans");
+    ok(t.includes("Account") && t.includes("Access to DELA") && t.includes("On the access list since") && t.includes("Holds") && t.includes("Close this DELA account"), "step 62: one member shows the account, plans, access, holds and closing");
+    await dela(s.page).locator("#mem-plan").selectOption({ label: "Attorney: Attorney Plus" }).catch(() => dela(s.page).locator("#mem-plan").selectOption({ index: 2 }));
+    await dela(s.page).locator("#mem-plan-give").click();
+    t = await waitFor(s.page, "Gave a workspace and plan");
+    ok(t.includes("(set by the Team)"), "step 62: a plan given by the owner shows as set by the Team, and the action is in the history");
+    await dela(s.page).locator("#mem-hold-why").fill("Checking a payment question");
+    await dela(s.page).locator("#mem-hold-place").click();
+    t = await waitFor(s.page, "Placed a hold");
+    ok(t.includes("Checking a payment question") && t.includes("On hold"), "step 62: a hold is placed with its reason");
+    await dela(s.page).locator("#mem-close-go").click();
+    await waitFor(s.page, "Write the reason first");
+    await dela(s.page).locator("#mem-close-why").fill("Asked to leave the pilot");
+    await dela(s.page).locator("#mem-close-go").click();
+    t = await waitFor(s.page, "This DELA account is closed");
+    ok(t.includes("Nothing was deleted") && t.includes("Closed the account") && t.includes("Reason: Asked to leave the pilot"), "step 62: closing needs a reason, keeps everything and is in the history");
+    await s.page.screenshot({ path: path.join(SHOTS, "62-member.png"), fullPage: true });
+    const shut = await open(browser, "DELA-App", 2103).catch((e) => ({ err: e }));
+    const shutText = shut.err ? "" : await text(shut.page);
+    ok(shut.err || !shutText.includes("Ask DELA to plan a task"), "step 62: a closed account cannot open DELA");
+    if (!shut.err) await shut.ctx.close();
+    await dela(s.page).locator("#mem-reopen").click();
+    t = await waitFor(s.page, "Reopened the account");
+    ok(t.includes("Close this DELA account"), "step 62: the owner reopens the account");
+    await dela(s.page).locator("#mem-back").click();
+    await waitFor(s.page, "Everyone who has opened DELA");
+    await dela(s.page).locator("#mem-filter").selectOption("hold");
+    t = await waitFor(s.page, "Showing 1 to 1 of 1");
+    ok(t.includes("Test attorney 2103"), "step 62: the On hold filter finds the member");
     await s.ctx.close();
 
     // ---------- Admin: AI and files ----------

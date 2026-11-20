@@ -57,3 +57,7 @@ export function readAsk(raw: string): { text: string; ask: Ask | null } {
   const use = good.length >= 2 && good.length === choices.length && choices.length <= 3 ? good : [];
   return { text: (body ? body + "\n\n" : "") + question, ask: { question, choices: use } };
 }
+
+// Step 64 (Stacey 2026-11-20: "Lawfecta is back office, the whole back office for law firms"). One sentence every
+// writing prompt carries, so DELA does not treat all work as legal support.
+export const BACK_OFFICE = "Lawfecta covers the whole back office of a law firm, not only legal support: paralegal and legal assistant work, intake and reception, bookkeeping and billing, finance, HR and recruiting, IT and legal tech, marketing, operations and administration. Fit the roles, tools and wording to the kind of work in front of you. When the work has no practice area, jurisdiction, client matter, court rule or attorney decision (a newsletter, payroll, setting up a laptop), leave those out and do not add them.";

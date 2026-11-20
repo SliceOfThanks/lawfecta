@@ -189,7 +189,7 @@ Deno.test("chat: questions answered, changes become suggestions, review points p
   assertEquals((await call("POST", "/playbooks/decide", owner.token, { suggestion_id: rm.body.suggestion_id, accept: false, note: "Keep it" })).body.status, "rejected");
 });
 
-Deno.test("comments with a suggested change, decided by the administrator", async () => {
+Deno.test("comments with a suggested change, decided by the author or the administrator", async () => {
   const c = await call("POST", "/playbooks/comment", editor.token, { id: pb, part: "outcome", body: "Mention the retainer", suggested_text: "A signed engagement letter, the retainer paid, and an opened file" });
   assertEquals(c.body.ok, true);
   assertEquals((await call("POST", "/playbooks/comment", editor.token, { id: pb, part: "secrets", body: "x" })).status, 400, "only real parts");
@@ -211,6 +211,37 @@ Deno.test("a file alone is enough for DELA to draft a playbook (Stacey's test 20
   assert(prompt.includes("run the conflict check") && prompt.includes("no description"), "the AI got the file");
   const got = await call("GET", "/playbooks/get?id=" + r.body.id, owner.token);
   assertEquals(got.body.playbook.source, "file");
+});
+
+Deno.test("step 61: the author approves their own document; other editors comment and the author or the administrator decides", async () => {
+  // The editor writes a document, so the editor is its author
+  const mk = await call("POST", "/playbooks/create", editor.token, { org_id: org, request_id: "c-author", description: "How we send the monthly newsletter" });
+  assertEquals(mk.body.ok, true);
+  const mine = mk.body.id;
+  await call("POST", "/playbooks/fill", editor.token, { id: mine, answers: "The office manager sends it on the first Monday" });
+  let got = await call("GET", "/playbooks/get?id=" + mine, editor.token);
+  assertEquals([got.body.approver.is_author, got.body.approver.can_approve], [true, true], "the page knows the author may approve");
+  assertEquals((await call("GET", "/playbooks/get?id=" + pb, editor.token)).body.approver.can_approve, false, "not on a document someone else wrote");
+  assertEquals((await call("GET", "/library?org=" + org, editor.token)).body.list.playbooks.find((x: any) => x.id === mine).mine, true, "the Library marks the author's own documents");
+  // An editor who is not the author cannot approve the owner's document, and gets words that say who can
+  await pool.query("update playbooks set status = 'draft' where id = $1", [pb]);
+  assertEquals((await call("POST", "/playbooks/status", editor.token, { id: pb, action: "approve" })).body.reason, "author_or_administrator");
+  // The owner suggests a change to the editor's document in a comment; the author decides it
+  const c = await call("POST", "/playbooks/comment", owner.token, { id: mine, part: "outcome", body: "Say who proofreads", suggested_text: "The newsletter is sent and proofread" });
+  assertEquals(c.body.ok, true);
+  assert((await pool.query("select 1 from notifications where person_id = $1 and dedupe_key like 'pbsug:%'", [editor.id])).rowCount, "the author is told about the suggested change");
+  assertEquals((await call("POST", "/playbooks/decide", editor.token, { suggestion_id: c.body.suggestion_id, accept: true })).body.ok, true, "the author accepts a change suggested in a comment");
+  got = await call("GET", "/playbooks/get?id=" + mine, editor.token);
+  assertEquals(got.body.body.outcome, "The newsletter is sent and proofread");
+  // The author approves; the administrator could too
+  const ap = await call("POST", "/playbooks/status", editor.token, { id: mine, action: "approve" });
+  assert(ap.body.ok === true || ap.body.reason === "not_complete", "the author is allowed to approve (only completeness can stop it): " + JSON.stringify(ap.body));
+  assertEquals((await call("POST", "/playbooks/status", outsider.token, { id: mine, action: "approve" })).body.reason, "not_found");
+  // A member who loses the editor role loses the right, author or not
+  await pool.query("update library_roles set role = 'commenter' where org_id = $1 and person_id = $2", [org, editor.id]);
+  await pool.query("update playbooks set status = 'draft' where id = $1", [mine]);
+  assertEquals((await call("POST", "/playbooks/status", editor.token, { id: mine, action: "approve" })).body.reason, "author_or_administrator");
+  await pool.query("update library_roles set role = 'editor' where org_id = $1 and person_id = $2", [org, editor.id]);
 });
 
 Deno.test("Home counts the draft playbooks (Stacey's test 2026-11-05: Home showed 0)", async () => {

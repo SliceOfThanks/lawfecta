@@ -1,6 +1,7 @@
 // What DELA asks the AI to do with documents (the document standard). Every answer is JSON in the document shape
 // (model.ts). The rules are the guide's (docs/standards/law-firm-document-guide.txt) and Stacey's build prompt.
 import { normalizeDoc, type DocBody, type DocType, KPI_EXAMPLES, TYPE_INFO } from "./model.ts";
+import { BACK_OFFICE } from "../ai/ask.ts";
 
 const STEP = `{"text": "one action, starting with a verb", "role": "the Responsible role", "raci": {"<role>": "R" | "A" | "C" | "I" | "R,A"}, "attorney_decides": false,
   "system": "the exact system name the attorney gave, or empty", "menu_path": "the exact menu path and button labels the attorney gave, or \\"[Add the menu path in your system]\\"",
@@ -47,7 +48,7 @@ export const RULES = `Rules you must follow (the firm's document standard):
 const ANSWER = (type: DocType) => `Answer with one JSON object: {"document": ${SHAPES[type]}, "suggested_type": null or {"type": "policy|workflow|sop|playbook", "reason": "one sentence"}, "questions": ["up to 4 short questions that would fill what is still missing"], "notices": ["what you removed or changed and why"]}`;
 
 export function draftSystem(type: DocType): string {
-  return `You are DELA, the document assistant inside Lawfecta, writing one ${TYPE_INFO[type].label} for a law firm: ${TYPE_INFO[type].line}\n${RULES}\n${ANSWER(type)}`;
+  return `You are DELA, the document assistant inside Lawfecta, writing one ${TYPE_INFO[type].label} for a law firm: ${TYPE_INFO[type].line}\n${BACK_OFFICE}\n${RULES}\n${ANSWER(type)}`;
 }
 
 export type FirmFacts = { size: string; practice_areas: string[]; jurisdictions: string; roles: Array<{ name: string; kind: string }>; systems: Record<string, string[]> };

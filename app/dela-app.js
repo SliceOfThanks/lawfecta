@@ -28,6 +28,7 @@
       a.push(["notices", "Notifications", "◔"]);
       if (sw.meetings) a.push(["meetings", "Meetings", "◷"]);
       if (sw.guided_setup) a.push(["setup", "Get set up", "✓"]);
+      if ((me.staff || []).length) a.push(["members", "Members", "◍"]);
       return a;
     }
     var f = [["home", "Home", "⌂"]];
@@ -42,6 +43,7 @@
       if (sw.flex_gigs) f.push(["projects", "Projects", "▣"]);
       if (sw.talent_search) f.push(["talent", "Talent", "◌"]);
     }
+    if ((me.staff || []).length) f.push(["members", "Members", "◍"]);
     return f;
   }
 
@@ -220,7 +222,7 @@
     });
     return svg;
   }
-  var ICON_FOR = { home: "home", delegate: "ask", ask: "ask", library: "library", files: "files", projects: "projects", talent: "talent", setup: "check", profile: "profile", work: "work", earnings: "earnings", agency: "agency", ai: "settings", help: "help", subscription: "plan", meetings: "meet", notices: "bell" };
+  var ICON_FOR = { home: "home", delegate: "ask", ask: "ask", library: "library", files: "files", projects: "projects", talent: "talent", setup: "check", profile: "profile", work: "work", earnings: "earnings", agency: "agency", members: "agency", ai: "settings", help: "help", subscription: "plan", meetings: "meet", notices: "bell" };
   var PAGE_NAMES = { subscription: "Subscription", inbox: "Inbox", meetings: "Meetings", usage: "Usage", connect: "Connect", record: "Record a process", ai: "Settings", help: "Help", profile: "Profile" };
   var WORKSPACE = { attorney: "Attorney workspace", freelancer: "Freelancer workspace" };
   // "Get set up" leaves the attorney's menu once it is finished or dismissed (Stacey 2026-11-11); it stays reachable from Help
@@ -236,7 +238,7 @@
       api.get("/setup").then(function (r) { if (r && (r.finished || r.dismissed)) { setupDone = true; if (tab !== "setup") draw(); } }).catch(function () {});
     }
     var main = att ? pick(["home", "projects", "delegate", "library"]) : pick(["home", "work", "ask", "earnings"]);
-    var second = att ? pick(["talent", "notices", "meetings", "files"].concat(setupDone ? [] : ["setup"])) : pick(["notices", "meetings", "library", "projects", "talent"]);
+    var second = att ? pick(["talent", "notices", "meetings", "files"].concat(setupDone ? [] : ["setup"]).concat(["members"])) : pick(["notices", "meetings", "library", "projects", "talent", "members"]);
     while (main.length < 4 && second.length) main.push(second.shift());
     var account = [];
     if (sw.profiles) account.push(["profile", "Profile"]);
@@ -1767,7 +1769,7 @@
       (me.switches || {}).flex_gigs ? liveRow(2, "Flex Gigs", gigsEnt ? "Post approved work with a budget range. Your plan allows " + (gigsEnt.unlimited ? "unlimited" : gigsEnt.limit) + " open at once." : "Post approved work with a budget range.", "Open Projects", "projects")
         : soon(2, "Flex Gigs", gigsEnt ? "Post approved work with a budget range. Your plan allows " + (gigsEnt.unlimited ? "unlimited" : gigsEnt.limit) + " open at once." : "Post approved work with a budget range."),
       (me.switches || {}).talent_search ? liveRow(3, "Talent", "See available, qualified freelancers and invite them to a gig.", "Open Talent", "talent")
-        : soon(3, "Talent and your bench", "See available, qualified paralegals, including people you have worked with before."),
+        : soon(3, "Talent and your bench", "See available, qualified freelancers for legal support and the rest of your back office, including people you have worked with before."),
       (me.switches || {}).engagements ? liveRow(4, "Engagements and payments", "Sign an agreement and pay each milestone before work starts.", "Open Projects", "projects")
         : soon(4, "Engagements and payments", "Sign a fixed-fee agreement and fund each milestone before work starts."),
       planCard());
@@ -1823,7 +1825,7 @@
   var SECTIONS = {
     delegate: ["Delegate", "Start a delegation, answer DELA's questions, and approve a step by step document. This opens in the next DELA update."],
     projects: ["Projects", "Your gigs, proposals, signed engagements and milestones will live here."],
-    talent: ["Talent", "Find available, qualified paralegals, and keep your trusted bench in one place."],
+    talent: ["Talent", "Find available, qualified freelancers for legal support, bookkeeping, intake, marketing, IT and more, and keep your trusted bench in one place."],
     profile: ["Profile", "Profile Builder and Profile Audit, your services, promotions and pitches will live here."],
     work: ["Work", "Matches, invitations, proposals and active projects will live here."],
     earnings: ["Earnings", "Funded milestones, payouts and your bank transfer status will live here."],
@@ -1983,7 +1985,8 @@
     var fresh = !chat.messages.length && !chat.pending;
     var EXAMPLE = "Turn my notes on opening a new matter into a step by step checklist a paralegal can follow.";
     if (fresh) list.appendChild(h("div", { class: "card soft", id: "chat-example" }, h("p", { style: "margin:0 0 6px", text: "Example: \"" + EXAMPLE + "\"" }),
-      h("button", { class: "ghost small", type: "button", onclick: function () { if (composerText) { composerText.value = EXAMPLE; composerText.focus(); } } }, "Use this example")));
+      h("button", { class: "ghost small", type: "button", onclick: function () { if (composerText) { composerText.value = EXAMPLE; composerText.focus(); } } }, "Use this example"),
+      h("p", { class: "small muted", id: "chat-backoffice", style: "margin:8px 0 0", text: "DELA works for the whole back office of your firm, not only legal support: intake, billing and bookkeeping, HR, IT, marketing and operations." })));
     chat.messages.forEach(function (m) { list.appendChild(bubble(m)); });
     if (chat.pending && chat.busy) list.appendChild(h("div", { class: "msg user", text: chat.pending.content }));
     if (chat.busy) list.appendChild(h("div", { class: "msg assistant muted", text: "DELA is checking your message, then answering..." }));
@@ -2580,9 +2583,12 @@
     }
     aiEl.appendChild(h("div", { class: "card" }, h("h2", { text: "Which AI DELA uses" }), radios,
       ai.lawfecta_ready === false ? h("p", { class: "small muted", text: "Lawfecta's AI is still being set up." }) : null));
+    // Step 63: the steps to get a key, opened from Home's question or from "Show me the steps to get a key"
+    if (keyAsk.guide && !ai.own_key) aiEl.appendChild(keyGuideCard(ai, keyAsk.guide));
     // Key setup shows once "Use my own key" is chosen, or when a key is already saved (UX review AI01)
     if (ai.byok_on && ai.mode !== "own_key" && !ai.own_key && !ai.firm_key) {
-      aiEl.appendChild(h("p", { class: "small muted", text: "To add your own OpenAI or Claude key, choose \"Use my own key\" above." }));
+      aiEl.appendChild(h("p", { class: "small muted" }, "To add your own OpenAI or Claude key, choose \"Use my own key\" above. ",
+        keyAsk.guide ? null : h("button", { class: "ghost small", type: "button", id: "key-guide-open", onclick: function () { keyAsk.guide = "openai"; loadAi(); } }, "Show me the steps to get a key")));
     } else if (ai.byok_on) {
       aiEl.appendChild(keyCard(ai, "person", ai.own_key, "Your own key", "Only you use this key."));
       if (ai.may_manage_firm_key || (ai.firm_key && !ai.firm_key.mine)) {
@@ -2642,13 +2648,64 @@
     return card;
   }
 
-  function keyForm(ai, scope) {
+  // ---------- Step 63: own AI key in onboarding (Stacey 2026-11-20) ----------
+  // Home asks once whether the member already uses ChatGPT or Claude. A yes opens Settings with the steps to get a key and the box to paste it.
+  var keyAsk = { hide: false, guide: null };
+  var KEY_GUIDE = {
+    openai: { name: "OpenAI (ChatGPT)", starts: "sk-", steps: [
+      ["Open OpenAI's developer site", "Sign in with the same email you use for ChatGPT.", "https://platform.openai.com/api-keys", "Open platform.openai.com"],
+      ["Add a way to pay", "A ChatGPT Plus, Team or Pro subscription does not include this. The key is billed on its own, by use. In the left menu choose \"Billing\", add a card and a small credit. You can set a monthly limit there.", "https://platform.openai.com/settings/organization/billing/overview", "Open Billing"],
+      ["Create the key", "In the left menu choose \"API keys\", then \"Create new secret key\". Name it DELA and choose \"Create secret key\".", "https://platform.openai.com/api-keys", "Open API keys"],
+      ["Copy it now", "OpenAI shows the key once. Choose \"Copy\". It starts with sk-.", "", ""],
+      ["Paste it below", "Paste the key in the \"Your key\" box under these steps and choose \"Save and test\".", "", ""]] },
+    anthropic: { name: "Claude (Anthropic)", starts: "sk-ant-", steps: [
+      ["Open the Claude Console", "This is Anthropic's site for keys. Sign in, or create a Console account with your email. It is separate from the Claude chat app.", "https://console.anthropic.com/settings/keys", "Open console.anthropic.com"],
+      ["Add credit", "A Claude Pro, Max or Team subscription does not include this. The key is billed on its own, by use. Choose \"Settings\", then \"Billing\", and buy a small credit.", "https://console.anthropic.com/settings/billing", "Open Billing"],
+      ["Create the key", "Choose \"Settings\", then \"API keys\", then \"Create Key\". Name it DELA and choose \"Add\".", "https://console.anthropic.com/settings/keys", "Open API keys"],
+      ["Copy it now", "The Console shows the key once. Choose \"Copy Key\". It starts with sk-ant-.", "", ""],
+      ["Paste it below", "Paste the key in the \"Your key\" box under these steps and choose \"Save and test\".", "", ""]] }
+  };
+  function keyAskAnswer(a) { return api.post("/ai/key-ask", { answer: a }).then(function (r) { if (r && r.ok === false) throw new Error(r.reason); me.key_ask = false; }); }
+  function keyAskCard() {
+    var card = h("div", { class: "card", id: "key-ask", role: "region", "aria-label": "Your own AI account" }, h("h2", { style: "margin-top:0", text: "Do you already use ChatGPT or Claude?" }),
+      h("p", { text: "DELA can run on your own OpenAI (ChatGPT) or Anthropic (Claude) account. They bill you for the AI at their prices, and your included DELA actions stay as a backup. If you do not use either, DELA uses Lawfecta's AI and you have nothing to set up." }));
+    var go = function (prov) { return function () { keyAskAnswer(prov).then(function () { keyAsk.guide = prov; tab = "ai"; draw(); }).catch(function (e) { D.toast(app, D.errorText(e.message)); }); }; };
+    card.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" },
+      h("button", { class: "blue small", type: "button", id: "key-ask-openai", onclick: go("openai") }, "Yes, ChatGPT"),
+      h("button", { class: "blue small", type: "button", id: "key-ask-anthropic", onclick: go("anthropic") }, "Yes, Claude"),
+      h("button", { class: "ghost small", type: "button", id: "key-ask-none", onclick: function () { keyAskAnswer("none").then(function () { draw(); D.toast(app, "DELA uses Lawfecta's AI. You can add your own key any time in Settings."); }).catch(function (e) { D.toast(app, D.errorText(e.message)); }); } }, "No, use Lawfecta's AI"),
+      h("button", { class: "ghost small", type: "button", id: "key-ask-later", onclick: function () { keyAsk.hide = true; draw(); } }, "Not now")));
+    card.appendChild(h("p", { class: "small muted", style: "margin-bottom:0", text: "Using both? Choose the one you want DELA to use. You can change it in Settings." }));
+    return card;
+  }
+  // The steps to get a key, with the box to paste it. Shown in Settings.
+  function keyGuideCard(ai, prov) {
+    var g = KEY_GUIDE[prov] || KEY_GUIDE.openai;
+    var card = h("div", { class: "card", id: "key-guide" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Get your " + g.name + " key" }),
+      h("button", { class: "ghost small", type: "button", id: "key-guide-close", onclick: function () { keyAsk.guide = null; loadAi(); } }, "Close")));
+    card.appendChild(h("p", { class: "small muted", text: "A key lets DELA use your " + g.name + " account. It takes about 5 minutes. Each link opens in a new tab, so this page stays open." }));
+    card.appendChild(h("div", { class: "row", style: "flex-wrap:wrap;margin-bottom:6px" }, ["openai", "anthropic"].map(function (k) {
+      return h("button", { class: (k === prov ? "blue" : "ghost") + " small", type: "button", "aria-pressed": String(k === prov), onclick: function () { keyAsk.guide = k; loadAi(); } }, KEY_GUIDE[k].name);
+    })));
+    card.appendChild(h("ol", { id: "key-guide-steps", style: "padding-left:20px" }, g.steps.map(function (s) {
+      return h("li", { style: "margin:8px 0" }, h("b", { text: s[0] + ". " }), s[1], s[2] ? h("span", null, " ", h("a", { href: s[2], target: "_blank", rel: "noopener noreferrer" }, s[3] + " (new tab)")) : null);
+    })));
+    if (!ai.byok_on) card.appendChild(h("p", { class: "notice", text: "Adding your own key opens soon." }));
+    else if (ai.encryption_ready === false) card.appendChild(h("p", { class: "notice", text: "Adding a key is still being set up. Try again later." }));
+    else card.appendChild(keyForm(ai, "person", prov));
+    card.appendChild(h("p", { class: "small muted", style: "margin-bottom:0", text: "Never send your key to anyone by email or chat, the Lawfecta Team included. Paste it only in the box above." }));
+    return card;
+  }
+
+  function keyForm(ai, scope, pre) {
     var id = newId();
     var prov = h("select", { "aria-label": "Provider" }, h("option", { value: "openai", text: "OpenAI" }), h("option", { value: "anthropic", text: "Claude (Anthropic)" }));
     var key = h("input", { type: "password", autocomplete: "off", spellcheck: "false", placeholder: "Paste your key", style: "width:100%" });
     var use = h("select", { "aria-label": "Use the key for" }, h("option", { value: "all", text: "All AI tasks" }), h("option", { value: "chat", text: "Chat and documents only" }));
     var help = h("p", { class: "small muted" });
-    function where() { help.textContent = prov.value === "openai" ? "Get a key at platform.openai.com, under API keys. Your OpenAI account needs billing set up." : "Get a key at console.anthropic.com, under API Keys. Your Anthropic account needs credit."; }
+    if (pre) prov.value = pre;
+    var helpGo = h("button", { class: "ghost small", type: "button", onclick: function () { keyAsk.guide = prov.value; loadAi(); } }, "Show me the steps to get a key");
+    function where() { help.textContent = prov.value === "openai" ? "Get a key at platform.openai.com, under API keys. Your OpenAI account needs billing set up. " : "Get a key at console.anthropic.com, under API Keys. Your Anthropic account needs credit. "; if (!pre) help.appendChild(helpGo); }
     prov.addEventListener("change", where);
     where();
     var save = h("button", { class: "blue" }, "Save and test");
@@ -2659,7 +2716,7 @@
       msg.textContent = "Testing the key with " + providerName(prov.value) + "...";
       api.post("/ai/key", { provider: prov.value, key: key.value, scope: scope, use_for: use.value, request_id: id }).then(function (r) {
         save.disabled = false;
-        if (r.ok) { key.value = ""; D.toast(app, "Key saved. DELA will use it from now on."); loadAi(); return; }
+        if (r.ok) { key.value = ""; keyAsk.guide = null; me.key_ask = false; loadAi(); D.toast(app, "Key saved. DELA will use it from now on."); return; }
         if (r.reason === "wrong_provider") msg.textContent = "That looks like a " + providerName(r.looks_like) + " key. Choose " + providerName(r.looks_like) + " above, or paste your " + providerName(prov.value) + " key.";
         else if (r.reason === "key_test_failed") msg.textContent = "The key did not work: " + (KEY_PROBLEM[r.code] || "the provider refused it.") + " It was not saved.";
         else msg.textContent = D.errorText(r.reason);
@@ -3842,6 +3899,9 @@
     ai_filled: "DELA filled in answers", sent_for_review: "Sent for review", approved: "Approved", suggestion_made: "Suggested a change", suggestion_accepted: "Accepted a suggestion",
     suggestion_rejected: "Rejected a suggestion", comment_added: "Commented", restored: "Restored an earlier version", exported: "Exported", archived: "Archived", unarchived: "Brought back from the archive",
     deleted: "Moved to the trash", restored_from_trash: "Restored from the trash", file_attached: "Attached a file", file_removed: "Removed a file" };
+  // Step 61: the author or the administrator approves, and decides the changes people suggest in comments
+  function canApprove() { return !!(lib.pb && (lib.pb.approver ? lib.pb.approver.can_approve : (RANK[lib.pb.role] || 0) >= 4)); }
+  function authorLine() { var a = lib.pb && lib.pb.approver; return a && a.author ? " | author: " + a.author + (a.is_author ? " (you)" : "") : ""; }
   function can(n) { return lib.pb ? (RANK[lib.pb.role] || 0) >= n : (lib.data && lib.data.list ? (RANK[lib.data.list.role] || 0) >= n : false); }
   function failText(r) {
     if (r.reason === "sensitive_data" && r.message) return r.message;
@@ -3850,6 +3910,7 @@
     if (r.reason === "changed") return "Someone saved a newer version while you were working. Your changes were not saved. Reload the document, then make your change again.";
     if (r.reason === "not_complete") return "This document is not complete yet. Still missing: " + (r.missing || []).join(", ") + ".";
     if (r.reason === "administrator_only") return "Only the library's administrator can do that.";
+    if (r.reason === "author_or_administrator") return "Only the document's author or the library's administrator can do that. You can leave a comment with your suggested change.";
     if (r.reason === "not_allowed") return "Your role in this library does not allow that.";
     if (r.reason === "no_seat") return "Every seat on this plan is in use (" + r.seats + "). Editors need a seat. Add them as a commenter or viewer, or add seats on the Business plan.";
     if (r.reason === "no_guest_place") return "This library already has " + r.guests + " commenters and viewers, the most allowed.";
@@ -3970,7 +4031,7 @@
   function wsGo(fn) { lib.ws.scroll = window.pageYOffset || 0; fn(); }
   // The status and the one action for a card (the two tables in the brief, answer B5)
   function cardState(p, L) {
-    var today = D.today(), admin = L.role === "administrator", edit = can(3);
+    var today = D.today(), admin = L.role === "administrator" || (p.mine && can(3)), edit = can(3);
     var hasApproved = !!p.approved_version && (p.status === "approved" || p.status === "draft" || p.status === "in_review");
     var draftOpen = hasApproved && p.status !== "approved";
     if (p.converted) return { k: "review", label: "Review imported document", go: function () { openPlaybook(p.id, "read"); } };
@@ -4098,7 +4159,7 @@
   // New playbook: describe the task (type or talk), optionally attach files, and DELA drafts it
   function newPlaybook() {
     var box = h("div", { class: "card" });
-    var ta = h("textarea", { "aria-label": "Describe the task", style: "width:100%;min-height:120px", placeholder: "Describe the task the way you would explain it to a new paralegal: what starts it, the steps, who does each part, what done looks like." });
+    var ta = h("textarea", { "aria-label": "Describe the task", style: "width:100%;min-height:120px", placeholder: "Describe the task the way you would explain it to someone new on your team: what starts it, the steps, who does each part, what done looks like." });
     var title = h("input", { "aria-label": "Title", placeholder: "Title (optional)", style: "width:100%" });
     var status = h("span", { class: "small muted", role: "status" });
     var files = [];
@@ -4277,15 +4338,15 @@
     libEl.appendChild(h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "ghost small", onclick: loadLibrary }, "← Library")));
     libEl.appendChild(h("div", { class: "row", style: "margin:8px 0 4px" }, h("h1", { class: "grow", style: "margin:0", text: P.title }),
       h("span", { class: "badge " + (P.status === "approved" ? "ready" : P.status === "in_review" ? "held" : ""), text: PB_STATUS[P.status] })));
-    libEl.appendChild(h("p", { class: "small muted", text: "Version " + P.version + (P.approved_version ? " | last approved: version " + P.approved_version : "") + " | administrator: " + P.administrator +
+    libEl.appendChild(h("p", { class: "small muted", text: "Version " + P.version + (P.approved_version ? " | last approved: version " + P.approved_version : "") + authorLine() + " | administrator: " + P.administrator +
       (P.next_review_at ? " | next review " + D.date(P.next_review_at) : "") + " | your role: " + ROLE_WORDS[lib.pb.role] }));
     // Step 18 part 4: the freelancers who fit this document (older documents are drawn here, the document standard in drawDocument)
     if ((me.switches || {}).talent_search && canHire() && lib.view !== "edit") libEl.appendChild(fitsCard(P.id));
     var pctBar = h("div", { class: "card" },
       h("div", { class: "row" }, h("b", { class: "grow", text: "Complete: " + P.completeness + "%" }),
-        can(3) && P.status === "draft" ? h("button", { class: "ghost small", onclick: function () { status("submit", "Sent to the administrator for review"); } }, "Send for review") : null,
+        can(3) && P.status === "draft" ? h("button", { class: "ghost small", onclick: function () { status("submit", "Sent to the author and the administrator for review"); } }, "Send for review") : null,
         P.status === "approved" && me.side === "attorney" && (me.switches || {}).flex_gigs && can(4) ? h("button", { class: "blue small", onclick: function () { gigs.id = null; gigs.newFrom = P.id; tab = "projects"; draw(); } }, "Post as a Flex Gig") : null,
-        can(4) && (P.status === "draft" || P.status === "in_review") ? h("button", { class: "blue small", disabled: P.completeness < 100, title: P.completeness < 100 ? "Fill in every required part first" : "", onclick: function () { status("approve", "Approved"); } }, "Approve") : null),
+        canApprove() && (P.status === "draft" || P.status === "in_review") ? h("button", { class: "blue small", disabled: P.completeness < 100, title: P.completeness < 100 ? "Fill in every required part first" : "", onclick: function () { status("approve", "Approved"); } }, "Approve") : null),
       h("div", { class: "bar" }, h("span", { style: "width:" + P.completeness + "%" + (P.completeness === 100 ? ";background:var(--ok)" : "") })),
       P.missing.length ? h("p", { class: "small", style: "margin:6px 0 0", text: "Still missing: " + P.missing.join(", ") + "." }) : h("p", { class: "small", style: "margin:6px 0 0", text: "Every required part is filled." + ((lib.questions || []).length ? " DELA still has " + lib.questions.length + (lib.questions.length === 1 ? " question" : " questions") + " for you below: check its guesses before you approve." : "") }));
     libEl.appendChild(pctBar);
@@ -4406,7 +4467,7 @@
       h("div", { class: "row", style: "margin-top:6px" }, h("button", { class: "blue small", onclick: function () {
         if (!note.value.trim() && !withSug.checked) return;
         api.post("/playbooks/comment", { id: lib.pb.playbook.id, part: part, body: note.value, suggested_text: withSug.checked ? sug.value : "" }).then(okOr).then(function () {
-          D.toast(app, withSug.checked ? "Suggestion sent to the administrator" : "Comment added");
+          D.toast(app, withSug.checked ? "Suggestion sent to the author and the administrator" : "Comment added");
           openPlaybook(lib.pb.playbook.id);
         }).catch(pbFail);
       } }, "Send"), h("button", { class: "ghost small", onclick: function () { box.remove(); } }, "Cancel")));
@@ -4542,7 +4603,7 @@
     if (!lib.pb.suggestions.length) { area.appendChild(h("div", { class: "card" }, h("p", { class: "muted", style: "margin:0", text: "No suggestions waiting." }))); return; }
     lib.pb.suggestions.forEach(function (sg) {
       var changes = sg.kind === "ai" ? diffList(b, sg.proposed) : [[sg.part.indexOf("step:") === 0 ? "Step " + sg.part.slice(5) : (PB_PARTS.filter(function (p) { return p[0] === sg.part; })[0] || [0, sg.part])[1], "Becomes: " + (sg.proposed.text || "")]];
-      var mayDecide = sg.kind === "comment" || sg.removes_review ? can(4) : can(3);
+      var mayDecide = sg.removes_review ? can(4) : sg.kind === "comment" ? canApprove() : can(3);
       var stale = sg.kind === "ai" && sg.base_version !== lib.pb.playbook.version;
       area.appendChild(h("div", { class: "card" },
         h("div", { class: "row" }, h("h3", { class: "grow", style: "margin:0", text: (sg.kind === "ai" ? "From DELA chat: " : "From " + sg.by + ": ") + (sg.note || "Suggested change") }), sg.removes_review ? h("span", { class: "badge bad", text: "Removes an attorney review point" }) : null),
@@ -4552,7 +4613,7 @@
         mayDecide ? h("div", { class: "row" },
           h("button", { class: "blue small", disabled: stale, onclick: function () { decide(sg.id, true); } }, "Accept"),
           h("button", { class: "ghost small", onclick: function () { var n = prompt("Why not? (optional, the author sees this)") || ""; decide(sg.id, false, n); } }, "Reject"))
-          : h("p", { class: "small muted", text: "Waiting for " + (sg.kind === "comment" || sg.removes_review ? "the administrator." : "an editor or the administrator.") })));
+          : h("p", { class: "small muted", text: "Waiting for " + (sg.removes_review ? "the administrator." : sg.kind === "comment" ? "the author or the administrator." : "an editor or the administrator.") })));
     });
     function decide(id, accept, note) {
       api.post("/playbooks/decide", { suggestion_id: id, accept: accept, note: note || "" }).then(okOr).then(function () { D.toast(app, accept ? "Accepted. A new version was saved." : "Rejected"); openPlaybook(lib.pb.playbook.id, "suggestions"); }).catch(pbFail);
@@ -7001,6 +7062,138 @@
     }
     return box;
   }
+  // ---------- Step 62: Members, for the Lawfecta Team (Stacey 2026-11-20: manage users inside DELA, like the website's back end) ----------
+  var mem = { q: "", filter: "all", offset: 0, bd: null, plans: null };
+  var MEM_FILTERS = [["all", "Everyone"], ["attorney", "Attorneys"], ["freelancer", "Freelancers"], ["access", "On the access list"], ["no_access", "Not on the access list"], ["hold", "On hold"], ["closed", "Closed accounts"], ["team", "Lawfecta Team"]];
+  var MEM_ERR = { not_found: "No member has that ID in DELA yet. A member appears here after they open DELA once, or after you add them to the access list.", reason_needed: "Write the reason first (at least 5 letters). It is kept on the member's record.",
+    not_yourself: "You cannot close your own account.", team_member: "This person is on the Lawfecta Team. Remove them from the Team in the admin area first.", bad_plan: "That plan does not fit that workspace.",
+    bad_member_id: "The member ID is a number, as the website shows it.", forbidden: "Only the owner can do that.", bad_status: "That did not work. Reload the page and try again." };
+  var MEM_ACT = { account_closed: "Closed the account", account_reopened: "Reopened the account", side_granted: "Gave a workspace and plan", side_released: "Put the plan back on the website's plan", hold_placed: "Placed a hold", hold_released: "Released a hold",
+    access_granted: "Added to the access list", access_revoked: "Removed from the access list", staff_granted: "Added to the Lawfecta Team", staff_revoked: "Removed from the Lawfecta Team" };
+  function memData(r) { var d = r && r.data ? r.data : r; if (!d || d.ok === false) { var e = new Error("no"); e.reason = d && d.reason; throw e; } return d; }
+  function memFail(e) { D.toast(app, MEM_ERR[e && (e.reason || e.message)] || MEM_ERR[e && e.status === 403 ? "forbidden" : ""] || "That did not work. Try again."); }
+  function memBadges(p) {
+    var b = [];
+    if (p.status === "closed") b.push(h("span", { class: "badge bad", text: "Closed" }));
+    if ((p.staff || []).length) b.push(h("span", { class: "badge", text: "Lawfecta Team" }));
+    if (p.on_hold) b.push(h("span", { class: "badge held", text: "On hold" }));
+    b.push(h("span", { class: "badge" + (p.access || (p.staff || []).length ? " ready" : ""), text: p.access ? "Access list" : (p.staff || []).length ? "Team access" : "No access" }));
+    return h("div", { class: "row", style: "flex-wrap:wrap;gap:4px" }, b);
+  }
+  function membersView() {
+    var el = h("div", { id: "members-page" }, h("h1", { text: "Members" }), h("p", { class: "muted", text: "Loading..." }));
+    if (mem.bd) { memberOne(el); return el; }
+    api.get("/admin/members?q=" + encodeURIComponent(mem.q) + "&filter=" + mem.filter + "&offset=" + mem.offset).then(memData).then(function (v) {
+      D.clear(el);
+      el.appendChild(h("h1", { text: "Members" }));
+      el.appendChild(h("p", { class: "muted", style: "margin-top:0", text: "Everyone who has opened DELA or was added to it. Only the Lawfecta Team sees this page." + (v.access_mode === "everyone" ? " DELA is open to every member of the website." : " DELA opens only for people on the access list and the Lawfecta Team.") }));
+      var q = h("input", { id: "mem-q", type: "search", value: mem.q, placeholder: "Name, email or member ID", "aria-label": "Search members", style: "flex:1;min-width:180px" });
+      var f = h("select", { id: "mem-filter", "aria-label": "Show" }, MEM_FILTERS.map(function (x) { return h("option", { value: x[0], selected: x[0] === mem.filter, text: x[1] }); }));
+      var go = function () { mem.q = q.value.trim(); mem.filter = f.value; mem.offset = 0; draw(); };
+      q.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); go(); } });
+      f.addEventListener("change", go);
+      el.appendChild(h("div", { class: "card" }, h("div", { class: "row", style: "flex-wrap:wrap" }, q, f, h("button", { class: "blue small", type: "button", id: "mem-search", onclick: go }, "Search")),
+        v.owner ? memAddForm() : null));
+      if (!v.people.length) el.appendChild(h("div", { class: "card" }, h("p", { class: "muted", style: "margin:0", id: "mem-none", text: mem.q || mem.filter !== "all" ? "Nobody matches. Change the search or choose \"Everyone\"." : "Nobody has opened DELA yet." })));
+      else el.appendChild(h("div", { class: "card scroll" }, h("table", { id: "mem-table" },
+        h("thead", null, h("tr", null, h("th", { text: "Member" }), h("th", { text: "Workspaces and plans" }), h("th", { text: "Status" }), h("th", { text: "Last seen" }), h("th", null, h("span", { class: "sr", text: "Open" })))),
+        h("tbody", null, v.people.map(function (p) {
+          return h("tr", null,
+            h("td", null, h("b", { text: p.name || "(no name yet)" }), h("div", { class: "small muted", text: "Member ID " + p.bd_member_id + (p.email ? " | " + p.email : "") })),
+            h("td", { class: "small" }, p.sides.length ? p.sides.map(function (s) { return h("div", { text: D.SIDE[s.side] + ": " + (s.plan_name || s.plan_code) + (s.plan_source === "staff_grant" ? " (set by the Team)" : "") }); }) : h("span", { class: "muted", text: "No workspace yet" })),
+            h("td", null, memBadges(p)),
+            h("td", { class: "small", text: p.last_seen_at ? D.dateTime(p.last_seen_at) : "Never" }),
+            h("td", null, h("button", { class: "ghost small", type: "button", "aria-label": "Open " + (p.name || "member " + p.bd_member_id), onclick: function () { mem.bd = p.bd_member_id; draw(); } }, "Open")));
+        })))));
+      var from = v.total ? v.offset + 1 : 0, to = v.offset + v.people.length;
+      el.appendChild(h("div", { class: "row", style: "margin-top:8px" }, h("span", { class: "grow small muted", id: "mem-count", text: "Showing " + from + " to " + to + " of " + v.total + ", most recently seen first." }),
+        v.offset > 0 ? h("button", { class: "ghost small", type: "button", onclick: function () { mem.offset = Math.max(0, v.offset - v.limit); draw(); } }, "Previous") : null,
+        to < v.total ? h("button", { class: "ghost small", type: "button", onclick: function () { mem.offset = v.offset + v.limit; draw(); } }, "Next") : null));
+    }).catch(function () { D.clear(el); el.appendChild(h("h1", { text: "Members" })); el.appendChild(h("p", { class: "notice", text: "This page is for the Lawfecta Team." })); });
+    return el;
+  }
+  // The owner adds a person before they ever opened DELA: by the member ID the website shows
+  function memAddForm() {
+    var id = h("input", { id: "mem-add-id", inputmode: "numeric", placeholder: "Member ID", "aria-label": "Member ID to add", style: "width:130px" });
+    var note = h("input", { id: "mem-add-note", placeholder: "Note (who this is)", "aria-label": "Note", maxlength: "200", style: "flex:1;min-width:160px" });
+    return h("details", { id: "mem-add", style: "margin-top:10px" }, h("summary", { text: "Add someone to the access list" }),
+      h("p", { class: "small muted", text: "Use the member ID from the website's member list. They can open DELA from their next visit." }),
+      h("div", { class: "row", style: "flex-wrap:wrap" }, id, note, h("button", { class: "blue small", type: "button", onclick: function () {
+        api.post("/admin/access/grant", { bd_member_id: id.value.trim(), channel: "access", note: note.value.trim() }).then(memData).then(function () { mem.q = id.value.trim(); mem.filter = "all"; mem.offset = 0; draw(); D.toast(app, "Added to the access list"); }).catch(memFail);
+      } }, "Add")));
+  }
+  function memPlans() { return mem.plans ? Promise.resolve(mem.plans) : api.get("/admin/plans").then(memData).then(function (d) { mem.plans = d.plans || []; return mem.plans; }); }
+  function memberOne(el) {
+    var bd = mem.bd;
+    Promise.all([api.get("/admin/members/one?bd=" + bd).then(memData), memPlans()]).then(function (res) {
+      var v = res[0], plans = res[1], p = v.person, own = v.owner;
+      var again = function (msg) { draw(); if (msg) D.toast(app, msg); };
+      var post = function (path, body, msg) { return api.post(path, body).then(memData).then(function () { again(msg); }).catch(memFail); };
+      D.clear(el);
+      el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", id: "mem-back", onclick: function () { mem.bd = null; draw(); } }, "← Members")));
+      el.appendChild(h("div", { class: "row", style: "margin:8px 0 4px;flex-wrap:wrap" }, h("h1", { class: "grow", style: "margin:0", text: p.name || "Member " + p.bd_member_id }), memBadges({ status: p.status, staff: p.staff, on_hold: v.holds.length > 0, access: !!v.access })));
+      if (!own) el.appendChild(h("p", { class: "small muted", text: "You can read this page. Changes are for the owner; holds are for support and finance." }));
+      el.appendChild(h("div", { class: "card", id: "mem-account" }, h("h2", { text: "Account" }), h("div", { class: "kv" },
+        h("div", null, "Member ID (website)", h("b", { text: String(p.bd_member_id) })), h("div", null, "Email", h("b", { style: "font-size:15px;word-break:break-all", text: p.email || "Not known yet" })),
+        h("div", null, "First opened DELA", h("b", { text: p.first_seen_at ? D.date(p.first_seen_at) : "Never" })), h("div", null, "Last seen", h("b", { text: p.last_seen_at ? D.dateTime(p.last_seen_at) : "Never" })),
+        h("div", null, "Can open DELA now", h("b", { text: p.may_open ? "Yes" : p.status === "closed" ? "No, the account is closed" : "No, not on the access list" })),
+        h("div", null, "Made in DELA", h("b", { style: "font-size:15px", text: v.counts.documents + " documents, " + v.counts.gigs + " gigs" }))),
+        h("p", { class: "small muted", style: "margin-bottom:0", text: "Name, email, password and the website plan are kept on the website. Change them in the website's member list; DELA picks them up at the member's next visit." })));
+      // Workspaces and plans
+      var sel = h("select", { id: "mem-plan", "aria-label": "Workspace and plan to give" }, h("option", { value: "", text: "Choose a workspace and plan" }), plans.map(function (pl) { return h("option", { value: pl.side + ":" + pl.code, text: D.SIDE[pl.side] + ": " + pl.name }); }));
+      el.appendChild(h("div", { class: "card", id: "mem-sides" }, h("h2", { text: "Workspaces and plans" }),
+        v.sides.length ? h("ul", { style: "margin:0 0 8px;padding-left:18px" }, v.sides.map(function (s) {
+          return h("li", null, h("b", { text: D.SIDE[s.side] + ": " + (s.plan_name || s.plan_code) }), " " + (s.plan_source === "staff_grant" ? "(set by the Team)" : "(from the website plan)") + (s.org ? ", " + s.org : "") + ". Check: " + String(s.verification_state || "not started").replace(/_/g, " ") + ". ",
+            own && s.plan_source === "staff_grant" ? h("button", { class: "ghost small", type: "button", onclick: function () { post("/admin/sides/release", { bd_member_id: bd, side: s.side }, "Back on the website plan from their next visit"); } }, "Use the website plan for " + D.SIDE[s.side]) : null);
+        })) : h("p", { class: "muted", text: "No workspace yet. One is made at the member's first visit, from their website plan." }),
+        own ? h("div", { class: "row", style: "flex-wrap:wrap" }, sel, h("button", { class: "blue small", type: "button", id: "mem-plan-give", onclick: function () {
+          if (!sel.value) { D.toast(app, "Choose a workspace and plan first"); return; }
+          var parts = sel.value.split(":");
+          post("/admin/sides/grant", { bd_member_id: bd, side: parts[0], plan_code: parts[1] }, "Done. It applies at their next page load.");
+        } }, "Give this plan")) : null,
+        own ? h("p", { class: "small muted", style: "margin-bottom:0", text: "A plan given here stays until you put the member back on the website plan. It charges nothing and changes nothing on the website." }) : null));
+      // Access
+      var note = h("input", { id: "mem-access-note", placeholder: "Note (who this is)", "aria-label": "Note", maxlength: "200", style: "flex:1;min-width:160px" });
+      el.appendChild(h("div", { class: "card", id: "mem-access" }, h("h2", { text: "Access to DELA" }),
+        h("p", { text: v.access ? "On the access list since " + D.date(v.access.granted_at) + (v.access.note ? ". Note: " + v.access.note : ".") : (p.staff || []).length ? "On the Lawfecta Team, so DELA opens without the access list." : "Not on the access list." }),
+        !own ? null : v.access ? h("button", { class: "ghost small", type: "button", id: "mem-access-remove", onclick: function () { post("/admin/access/revoke", { id: v.access.id }, "Removed from the access list. They are signed out."); } }, "Remove from the access list")
+          : h("div", { class: "row", style: "flex-wrap:wrap" }, note, h("button", { class: "blue small", type: "button", id: "mem-access-add", onclick: function () { post("/admin/access/grant", { bd_member_id: bd, channel: "access", note: note.value.trim() }, "Added to the access list"); } }, "Add to the access list"))));
+      // Holds
+      var why = h("input", { id: "mem-hold-why", placeholder: "Why (the member sees a short notice that some actions are paused)", "aria-label": "Reason for the hold", maxlength: "500", style: "flex:1;min-width:200px" });
+      el.appendChild(h("div", { class: "card", id: "mem-holds" }, h("h2", { text: "Holds" }),
+        h("p", { class: "small muted", style: "margin-top:0", text: "A hold pauses posting, hiring, proposals and payouts for this member while something is checked. They can still sign in and read." }),
+        v.holds.length ? h("ul", { style: "margin:0 0 8px;padding-left:18px" }, v.holds.map(function (x) {
+          var ev = h("input", { placeholder: "What you checked", "aria-label": "What you checked before releasing", maxlength: "500", style: "min-width:180px" });
+          return h("li", null, h("b", { text: x.reason || "No reason written" }), " (" + x.severity + ", since " + D.date(x.created_at) + ") ",
+            h("span", { class: "row", style: "display:inline-flex;flex-wrap:wrap" }, ev, h("button", { class: "ghost small", type: "button", onclick: function () {
+              if (ev.value.trim().length < 5) { D.toast(app, "Write what you checked first"); return; }
+              post("/admin/holds/release", { id: x.id, evidence: ev.value.trim() }, "Hold released");
+            } }, "Release")));
+        })) : h("p", { text: "No hold." }),
+        h("div", { class: "row", style: "flex-wrap:wrap" }, why, h("button", { class: "ghost small", type: "button", id: "mem-hold-place", onclick: function () {
+          if (why.value.trim().length < 5) { D.toast(app, "Write the reason first"); return; }
+          post("/admin/holds", { bd_member_id: bd, reason: why.value.trim(), severity: "medium" }, "Hold placed");
+        } }, "Place a hold"))));
+      // Close or reopen (owner)
+      if (own && !v.self) {
+        var reason = h("input", { id: "mem-close-why", placeholder: "Reason (kept on the member's record)", "aria-label": "Reason for closing the account", maxlength: "500", style: "flex:1;min-width:200px" });
+        el.appendChild(h("div", { class: "card", id: "mem-close" }, h("h2", { text: p.status === "closed" ? "This DELA account is closed" : "Close this DELA account" }),
+          p.status === "closed"
+            ? h("div", null, h("p", { text: "The member cannot open DELA. Nothing was deleted: their documents, gigs, agreements and payment history are kept. Reopening lets them in again at their next visit." }),
+                h("button", { class: "blue small", type: "button", id: "mem-reopen", onclick: function () { post("/admin/members/status", { bd_member_id: bd, status: "active" }, "Account reopened"); } }, "Reopen this account"))
+            : h("div", null, h("p", { text: "Closing signs the member out at once and keeps them out of DELA until you reopen the account. Nothing is deleted, and their website account, plan and billing are not touched. Open engagements and payments stay as they are, so settle those first." }),
+                h("div", { class: "row", style: "flex-wrap:wrap" }, reason, h("button", { class: "ghost small", type: "button", id: "mem-close-go", onclick: function () {
+                  post("/admin/members/status", { bd_member_id: bd, status: "closed", reason: reason.value.trim() }, "Account closed. The member is signed out.");
+                } }, "Close this account")))));
+      }
+      el.appendChild(h("div", { class: "card", id: "mem-history" }, h("h2", { text: "What the Lawfecta Team did on this account" }),
+        v.history.length ? h("ul", { style: "margin:0;padding-left:18px" }, v.history.map(function (x) {
+          var d = x.detail || {};
+          return h("li", { class: "small" }, h("b", { text: MEM_ACT[x.action] || String(x.action).replace(/_/g, " ") }), " by " + (x.by || "the Team") + ", " + D.dateTime(x.at) + (d.reason ? ". Reason: " + d.reason : "") + (d.plan ? ". Plan: " + d.plan : ""));
+        })) : h("p", { class: "muted", style: "margin:0", text: "Nothing yet." })));
+    }).catch(function (e) { D.clear(el); el.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: function () { mem.bd = null; draw(); } }, "← Members"))); el.appendChild(h("p", { class: "notice", text: MEM_ERR[e && e.reason] || "This member could not be opened." })); });
+  }
+
   function agencyView() {
     var el = h("div", null, h("h1", { text: "Agency" }), h("p", { class: "muted", text: "Loading..." }));
     api.get("/agency").then(function (v) {
@@ -7813,7 +8006,7 @@
     leafSel.addEventListener("change", function () { chain = chainOf(idx.byKey[leafSel.value] || idx.byKey[chain.sub] || idx.byKey[chain.top]); draw3(); run(); });
     toolSel.addEventListener("change", function () { talentQ.tool = toolSel.value; run(); });
     state.addEventListener("change", function () { run(); });
-    var box = catSearchBox(idx, { label: "Search roles, specialties, tasks and software", placeholder: "Search by role, practice area, skills or software (for example \"Family law paralegal\" or \"Clio\")", value: talentQ.q,
+    var box = catSearchBox(idx, { label: "Search roles, specialties, tasks and software", placeholder: "Search by role, practice area, skills or software (for example \"Family law paralegal\", \"Bookkeeper\" or \"Clio\")", value: talentQ.q,
       onPick: function (c) { setCat(c); run(); }, onEnter: function () { run(); } });
     var onlyBm = h("input", { type: "checkbox", id: "talent-bm", checked: talentQ.bookmarked === "1" });
     onlyBm.addEventListener("change", function () { run(); });
@@ -7926,7 +8119,7 @@
         help.appendChild(h("h2", { class: "talent-help-h" }, tgl));
         var panel = h("div", { id: "talent-help-panel", hidden: !talentHelp.open });
         help.appendChild(panel);
-        var task = h("textarea", { rows: 2, style: "width:100%", id: "talent-help-task", placeholder: "For example: family law paralegal in Clio to help with e-filing motions." });
+        var task = h("textarea", { rows: 2, style: "width:100%", id: "talent-help-task", placeholder: "For example: family law paralegal in Clio to help with e-filing motions. Or: a bookkeeper for monthly trust reconciliation in QuickBooks." });
         task.value = talentHelp.text;
         task.addEventListener("input", function () { talentHelp.text = task.value; });
         panel.appendChild(h("label", { for: "talent-help-task", style: "font-weight:700;display:block;margin:8px 0 4px", text: "What do you need help with?" }));
@@ -12325,7 +12518,9 @@
     var risk = h("input", { type: "checkbox", checked: !!d.high_risk, disabled: !edit, "aria-label": "High risk (trust, conflicts or deadlines)" });
     risk.addEventListener("change", function () { d.high_risk = risk.checked; });
     if (lib.view !== "approved") libEl.appendChild(h("div", { class: "kv" }, h("div", null, "Document ID", h("b", { text: P.doc_id || "Not given yet (given at the first save)" })), h("div", null, "Version", h("b", { text: String(P.version) })),
-      h("div", null, "Owner (role)", owner), h("div", null, "Last reviewed", h("b", { text: P.last_reviewed_at ? D.date(P.last_reviewed_at) : P.approved_version ? "Never reviewed since approval" : "Not reviewed yet" })),
+      h("div", null, "Owner (role)", owner),
+      lib.pb.approver && lib.pb.approver.author ? h("div", { id: "doc-author" }, "Author (approves)", h("b", { text: lib.pb.approver.author + (lib.pb.approver.is_author ? " (you)" : "") })) : null,
+      h("div", null, "Last reviewed", h("b", { text: P.last_reviewed_at ? D.date(P.last_reviewed_at) : P.approved_version ? "Never reviewed since approval" : "Not reviewed yet" })),
       h("div", null, "Next review", h("b", { text: P.next_review_at ? D.date(P.next_review_at) : (d.high_risk ? "3 months after approval" : "12 months after approval") })),
       h("div", null, "High risk", h("label", { style: "display:flex;gap:6px;font-weight:400" }, risk, h("span", { text: "Trust, conflicts or deadlines (reviewed every 3 months)" })))));
     var views = [["read", "Draft and review"], ["chat", "Chat"], ["suggestions", "Suggested edits (" + lib.pb.suggestions.length + ")"], ["comments", "Comments (" + lib.pb.comments.filter(function (c) { return !c.resolved; }).length + ")"],
@@ -12585,9 +12780,9 @@
     // Actions
     var acts = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:8px" });
     if (edit) acts.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { docSave("", null); } }, "Save"));
-    if (can(3) && P.status === "draft") acts.appendChild(h("button", { class: "ghost small", type: "button", disabled: blocked, onclick: function () { status("submit", "Sent to the administrator for review"); } }, "Send for review"));
+    if (can(3) && P.status === "draft") acts.appendChild(h("button", { class: "ghost small", type: "button", disabled: blocked, onclick: function () { status("submit", "Sent to the author and the administrator for review"); } }, "Send for review"));
     var imgDue = !!(lib.pb.images_due && lib.pb.images_due.due && (lib.pb.images_due.ids || []).length);
-    if (can(4) && (P.status === "draft" || P.status === "in_review")) acts.appendChild(h("span", { title: blocked ? "Fix the blocking items first" : imgDue ? "Mark every image \"Still current\" or replace it in Check images first" : "" }, h("button", { class: "blue small", type: "button", disabled: blocked || imgDue, onclick: function () { status("approve", "Approved"); } }, "Approve")));
+    if (canApprove() && (P.status === "draft" || P.status === "in_review")) acts.appendChild(h("span", { title: blocked ? "Fix the blocking items first" : imgDue ? "Mark every image \"Still current\" or replace it in Check images first" : "" }, h("button", { class: "blue small", type: "button", disabled: blocked || imgDue, onclick: function () { status("approve", "Approved"); } }, "Approve")));
     if (P.status === "approved" && (d.type === "sop" || d.type === "workflow") && (me.switches || {}).flex_gigs && can(4)) acts.appendChild(h("button", { class: "blue small", type: "button", disabled: blocked, onclick: function () { gigs.id = null; gigs.newFrom = P.id; tab = "projects"; draw(); } }, "Post as a Flex Gig"));
     qp.appendChild(acts);
     var openItems = (ck.items || []).filter(function (it) { return it.status !== "pass"; });
@@ -12872,7 +13067,7 @@
     list.forEach(function (sg) {
       area.appendChild(h("div", { class: "card" }, h("b", { text: sg.note || "A suggested change" }), h("div", { class: "small muted", text: sg.by + ", " + D.dateTime(sg.at) + (sg.removes_review ? ". It removes an attorney decision, so only the administrator can accept it." : "") }),
         docDiffView(sg),
-        can(3) ? h("div", { class: "row", style: "margin-top:6px" }, sg.removes_review && lib.pb.role !== "administrator" ? null : h("button", { class: "blue small", type: "button", onclick: function () { decideSuggestion(sg.id, true); } }, "Accept"), h("button", { class: "ghost small", type: "button", onclick: function () { decideSuggestion(sg.id, false); } }, "Reject")) : null));
+        can(3) ? h("div", { class: "row", style: "margin-top:6px" }, (sg.removes_review && lib.pb.role !== "administrator") || (sg.kind === "comment" && !canApprove()) ? null : h("button", { class: "blue small", type: "button", onclick: function () { decideSuggestion(sg.id, true); } }, "Accept"), h("button", { class: "ghost small", type: "button", onclick: function () { decideSuggestion(sg.id, false); } }, "Reject")) : null));
     });
   }
   function decideSuggestion(id, accept) {
@@ -13421,9 +13616,12 @@
     else if (tab === "inbox" && me.side && (me.switches || {}).gig_chat) main.appendChild(inboxView());
     else if (tab === "meetings" && me.side && (me.switches || {}).meetings) main.appendChild(meetingsView());
     else if (tab === "notices" && me.side) main.appendChild(noticesView());
+    else if (tab === "members" && (me.staff || []).length) main.appendChild(membersView());
     else if (wrongSideTab(tab)) main.appendChild(wrongSideView(tab));
     else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1] + (me.side === "attorney" && (tab === "projects" || tab === "talent") && (sideInfo() || {}).verification_state !== "verified" ? " Posting work and hiring need a verified license: open Profile and verification from your account menu." : "")));
     else { tab = "home"; main.appendChild(NL() ? homeDash() : me.side === "attorney" ? attorneyHome() : freelancerHome()); }
+    // Step 63: Home asks once whether the member already uses ChatGPT or Claude
+    if (tab === "home" && me.key_ask && !keyAsk.hide && main.firstChild && main.firstChild.firstChild) { var kh = main.firstChild; kh.insertBefore(keyAskCard(), kh.children[1] || null); }
     if (NL()) limitBanner(main); else if (me.side === "attorney") usageBanner(main);
     // Step 29: the Talent page keeps its focus on finding people; the usage line shows on the other pages
     if (me.side === "attorney" && tab !== "talent" && !(NL() && tab === "home")) usageMeter(main);

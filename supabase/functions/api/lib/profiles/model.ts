@@ -25,7 +25,7 @@ export const PRACTICE_AREAS = [
   "Bankruptcy", "Business and corporate", "Civil litigation", "Criminal defense", "Employment and labor", "Estate planning and probate",
   "Family law", "Immigration", "Insurance defense", "Intellectual property", "Landlord and tenant", "Personal injury", "Real estate",
   "Tax", "Workers' compensation", "Social Security disability", "Consumer protection", "Elder law", "Medical malpractice",
-  "Government and administrative", "Environmental", "Securities", "Contracts", "General practice", "Other",
+  "Government and administrative", "Environmental", "Securities", "Contracts", "General practice", "All practice areas (back-office work)", "Other",
 ];
 
 // Common legal tech tools, offered as choices; members can add others
@@ -183,7 +183,7 @@ export function profileText(side: Side, p: Profile): string {
   return lines.filter(Boolean).join("\n");
 }
 
-export const PROFILE_SYSTEM = `You help a member of Lawfecta, a marketplace where attorneys hire legal operations freelancers, write their profile.
+export const PROFILE_SYSTEM = `You help a member of Lawfecta, a marketplace where attorneys hire freelancers for legal support and the rest of a law firm's back office (bookkeeping, intake, marketing, IT, HR, operations), write their profile.
 Use only facts the member gave. Never invent a qualification, license, employer, number, review or result. Where a fact is missing, leave the field empty and ask about it.
 Write plainly, in the first person, without hype. No client names or case details.
 Answer only with JSON: {"headline": "...", "summary": "...", "skills": ["..."], "software": ["..."], "services": [{"title": "...", "for_whom": "..."}], "questions": ["..."]}.
@@ -196,7 +196,7 @@ export const FIELD_GUIDE: Record<string, string> = {
   experience: "a short list of roles or kinds of work, newest first, one per line, each with years if the member gave them",
   education: "degrees, certificates and courses, one per line, with the school and year if the member gave them",
 };
-export const FIELD_SYSTEM = `You help a member of Lawfecta, a marketplace where attorneys hire legal operations freelancers, write one box of their profile.
+export const FIELD_SYSTEM = `You help a member of Lawfecta, a marketplace where attorneys hire freelancers for legal support and the rest of a law firm's back office (bookkeeping, intake, marketing, IT, HR, operations), write one box of their profile.
 Use only facts the member gave, in their notes, in what the box says now or elsewhere in their profile. Never invent a qualification, license, employer, school, date, number, review or result. If a needed fact is missing, leave it out and ask about it.
 Write plainly, in the first person for summaries, without hype. No client names or case details.
 For the summary, experience and education boxes you may use light formatting where it helps the reader: a line that starts with "## " for a short heading, lines that start with "- " for a list, and **bold** for a few key words. Keep any picture line the box already has (it starts with "![") exactly as it is. No links, no HTML, no tables. The headline is plain words.

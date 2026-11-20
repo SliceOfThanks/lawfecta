@@ -193,6 +193,7 @@ async function makeMember(bd, side, plan) {
     t = await waitFor(p, "Required before approval");
     ok(t.includes("Export, approval and Flex Gigs are blocked"), "the quality panel blocks a missing or double A");
     ok(await dela(p).getByRole("button", { name: "Approve", exact: true }).isDisabled(), "Approve is off while blocked");
+    ok(t.includes("Author (approves)") && /Author \(approves\)\s*[^\n]*\(you\)/.test(t), "step 61: the document names its author, who approves");
     ok(await dela(p).getByRole("button", { name: "Word", exact: true }).isDisabled(), "Word export is off while blocked");
     const r1 = await sql("select blocking from playbooks where doc_id = '" + newId + "' and " + MINE);
     ok(r1[0].blocking >= 1, "the block is recorded on the document");

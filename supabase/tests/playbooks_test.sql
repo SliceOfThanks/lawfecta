@@ -60,7 +60,15 @@ begin
   perform t_ok(r->>'reason' = 'changed' and (r->>'current_version')::int = 2, 'a save from an older version is refused, nothing overwritten');
 
   -- ---------- Review and approval ----------
-  perform t_ok(dela_pb_status(ed, pb, 'approve')->>'reason' = 'administrator_only', 'only the administrator approves');
+  perform t_ok(dela_pb_status(ed, pb, 'approve')->>'reason' = 'author_or_administrator', 'an editor who is not the author cannot approve');
+  -- Step 61: the author approves (Stacey 2026-11-20). The author is the person who created the document.
+  perform t_ok(dela_pb_may_approve(own, pb) and not dela_pb_may_approve(ed, pb) and not dela_pb_may_approve(com, pb), 'the administrator may approve; other people may not');
+  update playbooks set created_by = ed where id = pb;
+  perform t_ok(dela_pb_may_approve(ed, pb) and (dela_pb_approver(ed, pb)->>'can_approve')::boolean and (dela_pb_approver(ed, pb)->>'is_author')::boolean, 'the author may approve their own document');
+  update playbooks set created_by = com where id = pb;
+  perform t_ok(not dela_pb_may_approve(com, pb), 'an author who is only a commenter cannot approve');
+  perform t_ok(dela_pb_approver(other, pb) is null, 'another firm learns nothing about the author');
+  update playbooks set created_by = own where id = pb;
   perform dela_pb_status(ed, pb, 'submit');
   perform t_ok((select status from playbooks where id = pb) = 'in_review', 'sent for review');
   perform t_ok(exists (select 1 from notifications where person_id = own and title = 'A document is ready for your review'), 'the administrator is told');
@@ -102,7 +110,7 @@ begin
   r := dela_pb_suggest(jsonb_build_object('person_id', com, 'id', pb, 'kind', 'comment', 'part', 'outcome', 'proposed', '{"text":"A signed engagement letter, the retainer paid, and an opened file"}'::jsonb, 'comment', 'Add the retainer'));
   s := (r->>'suggestion_id')::uuid;
   perform t_ok((r->>'comment_id') is not null, 'a suggested change shows as a comment');
-  perform t_ok(dela_pb_decide(ed, s, true, full_body, '{}'::jsonb, '')->>'reason' = 'administrator_only', 'only the administrator decides on comments');
+  perform t_ok(dela_pb_decide(ed, s, true, full_body, '{}'::jsonb, '')->>'reason' = 'author_or_administrator', 'the author or the administrator decides on comments');
   perform t_ok(dela_pb_comment_resolve(own, (r->>'comment_id')::uuid)->>'reason' = 'decide_suggestion_first', 'a suggestion comment closes when decided');
   perform t_ok((dela_pb_decide(own, s, true, full_body || '{"outcome":"A signed engagement letter, the retainer paid, and an opened file"}'::jsonb, '{"completeness":100,"missing":[]}'::jsonb, '')->>'ok')::boolean, 'the administrator accepts it');
   perform t_ok((select resolved_at from playbook_comments where suggestion_id = s) is not null, 'its comment is resolved');

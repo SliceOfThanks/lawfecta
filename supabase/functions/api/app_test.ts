@@ -521,6 +521,57 @@ Deno.test("texts the database writes say page and Settings, not tab, AI settings
   assert(g.rows[0].n >= 1, "the gig alert text says where to turn alerts off");
 });
 
+Deno.test("step 62: the Members page lists, filters and opens members; only the owner closes and reopens an account", async () => {
+  const ownerSession = (await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9001, name: "Stacey" }) } })).body.session;
+  const g0 = await call("POST", "/admin/access/grant", { session: ownerSession, body: { bd_member_id: 9150, channel: "access", note: "Members page test" } });
+  assertEquals(g0.body?.data?.ok, true, JSON.stringify([g0.status, g0.body]));
+  const m = await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9150, sub: "31", name: "Morgan Member" }) } });
+  assertEquals(m.body.route, "here");
+  const mSession = m.body.session;
+  // A member cannot read the list, one member, or change a status
+  assertEquals((await call("GET", "/admin/members", { session: mSession })).status, 403);
+  assertEquals((await call("GET", "/admin/members/one?bd=9150", { session: mSession })).status, 403);
+  assertEquals((await call("POST", "/admin/members/status", { session: mSession, body: { bd_member_id: 9150, status: "closed", reason: "I want to" } })).status, 403);
+  // The list: search by name, by member ID, and the filters
+  const all = (await call("GET", "/admin/members", { session: ownerSession })).body.data;
+  assert(all.ok && all.owner === true && all.total >= 2 && all.people.length <= 25);
+  const byName = (await call("GET", "/admin/members?q=morgan", { session: ownerSession })).body.data;
+  assertEquals([byName.total, byName.people[0].bd_member_id, byName.people[0].access, byName.people[0].sides[0].side], [1, 9150, true, "attorney"]);
+  assertEquals((await call("GET", "/admin/members?q=9150", { session: ownerSession })).body.data.total, 1);
+  const team = (await call("GET", "/admin/members?filter=team", { session: ownerSession })).body.data;
+  assert(team.people.every((p: any) => p.staff.length > 0) && team.people.some((p: any) => p.bd_member_id === 9001));
+  assertEquals((await call("GET", "/admin/members?filter=closed", { session: ownerSession })).body.data.total, 0);
+  // One member
+  const one = (await call("GET", "/admin/members/one?bd=9150", { session: ownerSession })).body.data;
+  assertEquals([one.ok, one.person.name, one.person.status, one.person.may_open, one.access.note, one.holds.length], [true, "Morgan Member", "active", true, "Members page test", 0]);
+  assertEquals((await call("GET", "/admin/members/one?bd=77777777", { session: ownerSession })).body.data.reason, "not_found");
+  // Closing needs a reason, cannot be yourself or a Team member, and ends the member's session at once
+  const close = (b: Record<string, unknown>) => call("POST", "/admin/members/status", { session: ownerSession, body: b });
+  assertEquals((await close({ bd_member_id: 9150, status: "closed", reason: "" })).body.data.reason, "reason_needed");
+  assertEquals((await close({ bd_member_id: 9001, status: "closed", reason: "Closing myself" })).body.data.reason, "not_yourself");
+  assertEquals((await close({ bd_member_id: 9150, status: "gone", reason: "Not a status" })).body.data.reason, "bad_status");
+  assertEquals((await close({ bd_member_id: 9150, status: "closed", reason: "Asked to leave the pilot" })).body.data.status, "closed");
+  assertEquals((await close({ bd_member_id: 9150, status: "closed", reason: "Asked to leave the pilot" })).body.data.duplicate, true, "closing twice changes nothing");
+  assertEquals((await call("GET", "/me", { session: mSession })).status, 401, "the open session ended");
+  const again = await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9150, sub: "31", name: "Morgan Member" }) } });
+  assertEquals([again.body.route, again.body.reason], ["denied", "closed"], "a closed account cannot open DELA");
+  assertEquals((await call("GET", "/admin/members?filter=closed", { session: ownerSession })).body.data.total, 1);
+  const hist = (await call("GET", "/admin/members/one?bd=9150", { session: ownerSession })).body.data.history;
+  assertEquals([hist[0].action, hist[0].detail.reason], ["account_closed", "Asked to leave the pilot"], "the reason is on the member's record");
+  // A Team member who is not the owner can read but not close or reopen
+  await pool.query("insert into people (bd_member_id, display_name) values (9151, 'Riley Reviewer') on conflict (bd_member_id) do nothing");
+  await pool.query("insert into staff_roles (person_id, role) select id, 'reviewer' from people where bd_member_id = 9151");
+  const rv = await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9151, name: "Riley Reviewer" }) } });
+  assertEquals((await call("GET", "/admin/members", { session: rv.body.session })).body.data.owner, false);
+  assertEquals((await call("POST", "/admin/members/status", { session: rv.body.session, body: { bd_member_id: 9150, status: "active" } })).status, 403);
+  assertEquals((await close({ bd_member_id: 9151, status: "closed", reason: "A Team member" })).body.data.reason, "team_member");
+  // Reopen: the member can sign in again and nothing was lost
+  assertEquals((await close({ bd_member_id: 9150, status: "active" })).body.data.status, "active");
+  const back = await call("POST", "/bootstrap", { body: { pass: await makePass({ uid: 9150, sub: "31", name: "Morgan Member" }) } });
+  assertEquals([back.body.route, back.body.me.sides[0].plan_code], ["here", "att_plus"]);
+  await pool.query("update staff_roles set revoked_at = now() where person_id = (select id from people where bd_member_id = 9151)");
+});
+
 Deno.test("teardown", async () => {
   await pool.end();
   assertEquals(sent.length, 0);
