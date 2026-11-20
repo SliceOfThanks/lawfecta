@@ -152,6 +152,16 @@ How to read the "State" column:
 | 63-2 | The same for a Claude key from the Claude Console | A pilot member does it | Not yet | Anthropic may rename its pages or buttons |
 | 64-1 | DELA writes a non-legal process (newsletter, bookkeeping, IT) without adding a practice area, court rule or attorney decision | Check 17 step 6, then real use | Not yet | Real AI answer needed |
 
+## Steps 65 to 67 (released 2026-11-20)
+
+| # | What must be seen working | How we will know | State | Notes |
+|---|---|---|---|---|
+| 65-1 | A real analytics or chat script pasted in "Site code" loads on member pages and reports visits | Stacey pastes her HockeyStack or other script and sees data in that tool | Not yet | Check 18 uses a plain line of text |
+| 66-1 | An attorney cannot learn a freelancer's last name before hiring, on any page | A pilot attorney goes through Talent, a proposal, the Inbox and a meeting | Not yet | The public website listing still shows the full name |
+| 66-2 | The full name appears right after both sign | A real hire in the pilot | Not yet | |
+| 67-1 | Contact details written in unusual ways are caught (numbers in words, spaces between letters) | The Team reads new freelancer profiles in the first weeks | Not yet | The patterns are code; add what gets through |
+| 67-2 | Honest profile text is not damaged | Pilot freelancers report any "[removed]" that was wrong | Not yet | |
+
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
 - When Stacey or a pilot member reports that something worked or failed, Claude fills in the state, the date and what was seen.

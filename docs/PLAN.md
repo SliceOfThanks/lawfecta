@@ -8,6 +8,9 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
+## Newest (2026-11-20, later): steps 65 to 67 are on the site
+code_version 4201abe, api 142, migrations through 0148 (run 44802231594). Site code in the admin area (65), last names hidden until hired (66), contact details removed from freelancer profiles (67). To test: ChatGPT check 18. Waiting for Stacey's answers: free until hired (step 68 brief) and community articles, activity feed and discussions (step 69 brief). After that, in order: those two, then categories on gigs and documents.
+
 ## Newest (2026-11-20): steps 61 to 64 are on the site
 code_version 268968a, api 141, migrations through 0145 (run 44793726503). The author approves (61), the Members page inside DELA (62), the ChatGPT or Claude question with the steps to add a key (63), the whole back office in DELA's instructions and wording (64). To test: ChatGPT check 17. Next, in order: categories on gigs and documents with matching by category (the rest of step 64); prerequisites in a partial handoff, separate status facts, "Stop" and the kept message; source labels; then scope changes after signing and staff work with no gig, which wait for Stacey.
 
