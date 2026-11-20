@@ -6,6 +6,13 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 70, categories on documents and gigs: ON THE SITE (2026-11-20), nothing queued behind it
+- Site: code_version 989e75a, api function 145, migrations through 0151, health "ok". GitHub Tests passed (run 44813666975, with 3 new browser checks on the document's Category card). Switch gig_categories is on "everyone" on the site.
+- docs/briefs/step-70-categories-on-gigs-and-documents.md. playbooks.categories (text[]); gigs.public.categories (present only when set); dela_gig_categories_clean, dela_category_family, dela_pb_categories, dela_pb_categories_set; dela_gig_match_refresh gives matching.category_points (25) to a freelancer in the gig's branch with the reason "Works in ...", and matching.category_miss_base (5) as the starting points for one outside it when the gig has categories and no practice area. App: catField (one picker for the document card #doc-cats-card, the gig form and the freelancer's gig view).
+- On the site 26 of 28 freelancer profiles carry categories, so category matching has people to find.
+- Not built: "Freelancers who fit this document" by category; filtering the Library or Projects by category; DELA suggesting a category.
+- Check file 21 (docs/tests/gig-categories-chatgpt-prompt.md). Not run yet.
+
 ## Step 69, community: ON THE SITE (2026-11-20), nothing queued behind it
 - Site: code_version 310e946, api function 144, migrations through 0150, health "ok". GitHub Tests passed (run 44810853041, with 7 new browser checks). Switch community is on "everyone" on the site.
 - docs/briefs/step-69-community-blogs-activity-discussions.md. Stacey: discussions "Inside DELA"; Claude answered the other six questions.

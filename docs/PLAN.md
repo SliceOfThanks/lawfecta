@@ -8,6 +8,9 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
+## Newest (2026-11-20, late night): step 70, categories on documents and gigs, is on the site
+code_version 989e75a, api 145, migrations through 0151 (run 44813666975). To test: ChatGPT check 21 (one login). Checks 15 and 17 to 20 are also with Stacey. Next, from the Lapt evaluation: prerequisites when only part of a playbook is handed over, the separate status line, "Stop" and the kept message in the chat; then source labels. Waiting for Stacey's word: scope changes after signing, staff work with no gig, the website's public listing (full names and old contact fields), how new freelancers sign up on the website, the address for "Write an article".
+
 ## Newest (2026-11-20, night): step 69, community, is on the site
 code_version 310e946, api 144, migrations through 0150 (run 44810853041). Discussions inside DELA by audience, Articles on the profile, Recent activity on Home. To test: ChatGPT check 20, after Stacey's BD connector prompt creates one test article. Open with Stacey: the website address for "Write an article"; whether Free freelancers may write articles (a website plan setting); whether the public article pages stay public. Next: categories on gigs and documents; then the Lapt gaps (prerequisites in a partial handoff, separate status facts, Stop and the kept message).
 
