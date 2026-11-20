@@ -134,6 +134,12 @@ How to read the "State" column:
 | 51.1 | The formatted box in Safari and Firefox (step 51) | Bold, Heading, lists and a picture work in the box in each browser a member uses; "Show the marks" is the way out if one does not | Not yet | The automated test runs in Chrome only |
 | 52.1 | The Profile page in tabs and sections on a real account (step 52) | A member finds every required box, and "Add it" in the checklist opens the right section | Not yet | ChatGPT check 14 |
 | 53.1 | The public profile to the mockups, seen by a real attorney (step 53) | The header line, About, services, timeline and reviews read well with real content | Not yet | ChatGPT check 14, step 16 |
+| 55.1 | The newcomer check finds real gaps (step 55) | On a real document DELA lists what an outsider would not know, and nothing silly | Not yet | ChatGPT check 15, step 6; only a real AI answer shows this |
+| 55.2 | Answers written into the document (step 55) | The attorney's answers land where a newcomer meets them, in the attorney's own words, and nothing else changes | Not yet | Automated tests use a stand-in; needs a real AI answer |
+| 55.3 | A stranger does the work from the page (steps 55 to 58) | Someone who never worked with the firm finishes a handed-over part without asking the firm | Not yet | A human test; Claude prepares three cases and a scoring sheet when Stacey asks |
+| 56.1 | A gig hands over only the chosen steps (step 56) | The freelancer's page, the Word copy and the decision points show only that part | Not yet | ChatGPT check 15, steps 7 to 10 |
+| 57.1 | A need marked after hiring (step 57) | The attorney marks a thing supplied; the freelancer's "I still need this" shows for both | Not yet | Automated tests pass; needs two real logins on one engagement |
+| 59.1 | A freelancer's note becomes a better document (step 59) | The note shows on the document and DELA's suggested edit answers it | Not yet | ChatGPT check 15, steps 1 to 5; the suggestion itself needs a real AI answer |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
