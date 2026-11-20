@@ -9,7 +9,7 @@ The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Sta
 ## Step 71, prerequisites, status facts, Stop and the kept message: ON THE SITE (2026-11-20), nothing queued behind it
 - Site: code_version d9b4754, api function 147, migrations through 0152, health "ok". GitHub Tests passed (run 44823822152, with 7 new browser checks).
 - docs/briefs/step-71-prerequisites-status-stop.md. gigPrereqs (lib/documents/model.ts): the step right before each run of handed-over steps, when the firm keeps it. dela_gig_prereqs_sync adds "Result of step N, which the firm keeps: ..." to gig_inputs and removes its own lines that no longer apply while they are still "needed". gig_part.prereqs; the handoff card's note .ho-prereq with "Hand over step N too". dela_workflow's eng now carries client_signed, freelancer_signed, plan_wait, needs_total, paid, accepted, milestones; wfFacts draws them as #wf-facts. Ask DELA: stopSend, chatDraft (localStorage dela.chatdraft.<side>), #chat-stop, #chat-stopped.
-- Parts 1 and 2 sit on cards of the handoff kit, whose switch handoff_kit is still OFF on the site (Stacey's step since step 55). Part 3 (Stop, kept message) shows for everyone now.
+- The switch handoff_kit is on "Access list" on the site since 2026-11-20 (Stacey: "Yes, turn it on"; Claude set it, with an audit entry). Steps 55 to 60 and parts 1 and 2 of step 71 now show. Part 3 (Stop, kept message) shows for everyone.
 - Stop does not cancel the AI call on the server; it stops the wait. Said so on the screen and in the brief.
 - Check file 22 (docs/tests/prerequisites-status-stop-chatgpt-prompt.md). Not run yet; it needs "Handoff kit" on "Access list" first.
 
