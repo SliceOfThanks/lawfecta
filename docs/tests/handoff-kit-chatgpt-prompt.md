@@ -1,4 +1,4 @@
-You are checking five new things in DELA on the Lawfecta site, www.lawfecta.co. Together they are called the handoff kit. They help an attorney hand work to a freelancer who has never worked with the firm: a check of a document as someone new would read it, handing over only some of a document's steps, a list of what the freelancer needs before starting, a preview of what the freelancer gets, and a private note from the freelancer about what was unclear. Everything here uses test accounts with test data. Do only what the steps say. Never click "Post gig", "Send invitation", "Approve", "Add my answers to the document", "Pay" or "Accept". You will use one DELA action (the check in step 6) and you will leave one draft gig that is not posted.
+You are checking six new things in DELA on the Lawfecta site, www.lawfecta.co. Together they are called the handoff kit. They show the DELA workflow as one path of seven steps, and they help an attorney hand work to a freelancer who has never worked with the firm: a check of a document as someone new would read it, handing over only some of a document's steps, a list of what the freelancer needs before starting, a preview of what the freelancer gets, and a private note from the freelancer about what was unclear. Everything here uses test accounts with test data. Do only what the steps say. Never click "Post gig", "Send invitation", "Approve", "Add my answers to the document", "Pay" or "Accept". You will use one DELA action (the check in step 6) and you will leave one draft gig that is not posted.
 
 No step should open a browser pop-up (a small OK / Cancel window from the browser itself). If one opens, click Cancel, write FAIL for that step and say what the pop-up said.
 
@@ -55,6 +55,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 
 4. Go to: https://www.lawfecta.co/dela?tab=library&pb=cf6d4872-3c72-49d2-abf3-bc0b648a2a8a
    Find: the document "Send the welcome packet". Above the text of the document there are cards.
+   Expect: the first card is headed "The DELA workflow". It shows a row of eight boxes: "Talk to DELA", "Clarify", "Build the document", "Review", "Prepare the handoff", "Confirm and do the work", "Review the result" and "Improve for next time". The steps already done have a green check. One box has a dark red border: the step this document stands at. At the top right of the card a small tag reads "Step N of 7:" followed by that step's name (or "Saved for future use"). Under the boxes is one sentence about what is going on, and one dark red button for the next action. Because a freelancer's note is waiting, there is also an outlined button that starts "Look at 1 note" (the number is higher if this test ran before), and the box "Improve for next time" has a dark red border too. Do not click these buttons.
    Expect: a card headed "Can someone new follow this?" with a button "✦ Check as someone new" (or "✦ Check again" if it was run before).
    Expect: a card headed "From people who did the work" with a small yellow tag "1 to look at" (the number is higher if this test ran before). In it, a small tag "Step 2", the sentence the freelancer sent, and under it a grey line with "DELA Test Freelancer", today's date and the words "Test job: Agency proposal". Under that, two buttons: "✦ Ask DELA to suggest an edit" and "Mark as looked at".
 
@@ -92,10 +93,17 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Do NOT tick the confirmation box and do NOT post the gig. Leave the draft as it is.
    REVIEW: Reading only this card, as someone who has never worked with this firm: do you know what to do, in what order, what you need first, and what comes after your part? What is still missing?
 
-11. REVIEW. (a) Is "Can someone new follow this?" clear about what it does and that it blocks nothing? (b) Was it clear how to hand over only some steps, and that the freelancer sees only those? (c) Is the list of what the freelancer needs easy to understand and edit? (d) Anything confusing, repeated or hard to read on these screens?
+11. Go to: https://www.lawfecta.co/dela?tab=delegate
+   Find: in the right column, under the cards "What DELA is using", "DELA instructions" and "Suggested next actions", a card headed "Your work, step by step".
+   Expect: a grey sentence that names the seven steps, then up to five lines. Each line has a document's title in bold, under it grey words such as "Step 6 of 7: Confirm and do the work" or "Saved for future use · Step 5 is next: Prepare the handoff", and at the right a small outlined button with the next action (for example "Open the engagement", "Finish the gig draft", "Prepare a handoff" or "Continue the draft"). One line is "Send the welcome packet". If more than five documents are in work, a link "Show all N" is under the list.
+   Do: click "Show all N" if it is there.
+   Expect: the list grows to every document in work. Do not click the other buttons.
+   REVIEW: From this card alone, can you tell which piece of work needs the attorney first, and what to do about it?
+
+12. REVIEW. (a) Does the card "The DELA workflow" make it clear where a document stands and what comes next? (b) Is "Can someone new follow this?" clear about what it does and that it blocks nothing? (c) Was it clear how to hand over only some steps, and that the freelancer sees only those? (d) Is the list of what the freelancer needs easy to understand and edit? (e) Anything confusing, repeated or hard to read on these screens?
 
 Sign out: click the round button with your initials at the far right of the top bar, then click "Sign out".
 
 ## Report
 
-For each numbered step write PASS or FAIL and one line of what you saw; for the REVIEW steps (6, 10 and 11) give your answers. Then a list of every FAIL with a screenshot, every message on screen that confused you, and anything that took longer than 60 seconds. Add one screenshot of the whole page at step 4, step 6 (after the check), step 8 (the card "The handoff") and step 10. Put the whole report in a plain text file named DELA-test-report.txt and give me a link to download it.
+For each numbered step write PASS or FAIL and one line of what you saw; for the REVIEW steps (6, 10, 11 and 12) give your answers. Then a list of every FAIL with a screenshot, every message on screen that confused you, and anything that took longer than 60 seconds. Add one screenshot of the whole page at step 4, step 6 (after the check), step 8 (the card "The handoff") and step 10. Put the whole report in a plain text file named DELA-test-report.txt and give me a link to download it.

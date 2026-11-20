@@ -140,6 +140,7 @@ How to read the "State" column:
 | 56.1 | A gig hands over only the chosen steps (step 56) | The freelancer's page, the Word copy and the decision points show only that part | Not yet | ChatGPT check 15, steps 7 to 10 |
 | 57.1 | A need marked after hiring (step 57) | The attorney marks a thing supplied; the freelancer's "I still need this" shows for both | Not yet | Automated tests pass; needs two real logins on one engagement |
 | 59.1 | A freelancer's note becomes a better document (step 59) | The note shows on the document and DELA's suggested edit answers it | Not yet | ChatGPT check 15, steps 1 to 5; the suggestion itself needs a real AI answer |
+| 60.1 | The workflow path matches real work (step 60) | On the firm's real documents each path shows the true step and the next action leads to the right place | Not yet | ChatGPT check 15, steps 4 and 11 |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
