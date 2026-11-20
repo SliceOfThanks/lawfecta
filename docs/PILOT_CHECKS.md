@@ -162,6 +162,14 @@ How to read the "State" column:
 | 67-1 | Contact details written in unusual ways are caught (numbers in words, spaces between letters) | The Team reads new freelancer profiles in the first weeks | Not yet | The patterns are code; add what gets through |
 | 67-2 | Honest profile text is not damaged | Pilot freelancers report any "[removed]" that was wrong | Not yet | |
 
+## Step 68 (released 2026-11-20)
+
+| # | What must be seen working | How we will know | State | Notes |
+|---|---|---|---|---|
+| 68-1 | A real freelancer on Free is chosen, subscribes on the website, comes back and signs | The first such hire in the pilot | Not yet | The website's checkout and the plan arriving in DELA are outside DELA's own tests |
+| 68-2 | After paying on the website, "I have subscribed, check again" shows the signing box without a new login | Same hire | Not yet | DELA reads the plan at each page load |
+| 68-3 | A freelancer who does not subscribe: the agreement closes at its sign-by date and the attorney can choose again | A case in the pilot, or a prepared one | Not yet | Existing daily job |
+
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
 - When Stacey or a pilot member reports that something worked or failed, Claude fills in the state, the date and what was seen.

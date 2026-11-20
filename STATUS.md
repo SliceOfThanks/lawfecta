@@ -6,6 +6,13 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 68, free for freelancers until hired: ON THE SITE (2026-11-20), nothing queued behind it
+- Site: code_version 6d3c502, api function 143, migrations through 0149, health "ok". GitHub Tests passed (run 44807441329). Setting fl.hire_min_tier is "plus" on the site (Stacey 2026-11-20: "Yes, as recommended"); fl.hire_gate_from is empty.
+- docs/briefs/step-68-free-until-hired.md: one gate inside dela_agreement_sign (reason plan_needed) for a freelancer whose plan is below the setting, only while the agreement is not signed by them. dela_hire_gate(agreement), dela_hire_gate_me(person), dela_hire_ready(people), dela_hire_gate_notify(agreement). Agreement page: card #hire-gate for the freelancer, line #hire-gate-wait for the attorney; proposals list tag "Ready to start" or "Subscribes when hired"; notes on the proposal form and the Subscription page (me.hire_gate).
+- On the site today no open agreement is gated: the test freelancer is on Freelancer Business. To see the card, the test freelancer has to be put on Freelancer Free on the Members page (and back afterwards).
+- Not done, with Stacey: whether new freelancers sign up on Free or on a trial is set in the website's sign-up (answer 5). DELA's own trial switch is off, nobody is on a trial, bd_trial_downgrade runs in dry_run.
+- Check file 19 (docs/tests/free-until-hired-chatgpt-prompt.md). Not run yet.
+
 ## Steps 65 to 67: ON THE SITE (2026-11-20), nothing queued behind them
 - Site: code_version 4201abe, api function 142, migrations through 0148, health "ok". GitHub Tests passed (run 44802231594). Switches hide_last_names and profile_contact_rule are on "everyone" on the site.
 - Step 65 (docs/briefs/step-65-site-code.md, migration 0146): admin page "Site code" (/dela-admin?tab=code): Header code, Footer code, Before the closing body tag; On tick, history, Put back; owner only. The app adds the code once per page load (top of app/dela-app.js), never in the admin area. Bootstrap returns site_code.
