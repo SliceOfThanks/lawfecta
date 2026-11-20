@@ -17,7 +17,7 @@ import { meetingIcs, NEXT_STEPS_SYSTEM, readSteps, THREAD_SYSTEM, threadPrompt, 
 import { conductRules, GIG_SYSTEM, gigPrompt, normalizeMilestones, normalizePublic, PROPOSAL_SYSTEM, publicFromPlaybook, readReview, REVIEW_SYSTEM, toCents } from "./lib/gigs/model.ts";
 import { asksAboutTools, CATALOG_RULES, catalogText, rankForMember, readCatalog, type Tool } from "./lib/catalog/csv.ts";
 import { imagePath, richImages, richPlain } from "./lib/profiles/rich.ts";
-import { AGENCY_TEXT_LABELS, CONTACT_WORDS, PROFILE_TEXT_LABELS, stripProfile, type ContactKind } from "./lib/profiles/contact.ts";
+import { AGENCY_TEXT_LABELS, CONTACT_WORDS, PROFILE_TEXT_LABELS, stripContact, stripProfile, type ContactKind } from "./lib/profiles/contact.ts";
 import { aiContext, fromBd, LABELS, normalize as normalizeProfile, PRACTICE_AREAS, PROFILE_SYSTEM, profileText, readiness, FIELD_GUIDE, FIELD_SYSTEM, TECH_GROUPS, TECH_TOOLS, TIMEZONES, toBd, type BdMap, type Side } from "./lib/profiles/model.ts";
 import { encryptionReady, openKey, sealKey } from "./lib/ai/keycrypt.ts";
 import { AiFail, chat, guessProvider, looksLikeKey, testKey, transcribe, transcribeLines, type ChatImage, type ChatMsg, type Provider } from "./lib/ai/providers.ts";
@@ -3050,6 +3050,10 @@ async function freelancerProfile(ctx: Ctx) {
   if (!r?.ok) return json(ctx, r);
   await withPhotos(ctx, [r]);
   const promo = await bdPromotions(ctx, Number(r.bd_member_id) || 0);
+  // Step 67: a promotion written on the website follows the same rule as the profile text when DELA shows it
+  if (promo.list.length && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "profile_contact_rule", p_person: s.person_id }).catch(() => false)) {
+    promo.list = promo.list.map((x) => ({ ...x, title: stripContact(x.title).text, text: stripContact(x.text).text }));
+  }
   delete r.bd_member_id;
   return json(ctx, { ...r, images: await richImageLinks(ctx, String(r.person_id), [r.summary, r.experience, r.education], 3600), promotions: promo.list, promotions_ok: promo.ok });
 }
