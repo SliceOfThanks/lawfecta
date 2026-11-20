@@ -383,6 +383,10 @@ async function waitFor(page, words, ms) {
       ok(!v.includes("Tell attorneys whether you can take work") && !v.includes("steps done"), "the checklist and availability are not on the Public profile tab");
       ok(await label(q, "First name").isVisible() && await label(q, "Summary").isHidden() && await label(q, "City").isHidden(), "one section shows at a time: Basics first");
       ok(v.includes("Visibility & publishing") && v.includes("Directory updates") && v.includes("Required for matching"), "the publishing cards sit beside the form, and the section says it is required for matching");
+      // Stacey 2026-11-19: "make the profile form page warmer too"
+      const warm = await q.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, cs = (sel) => getComputedStyle(r.querySelector(sel));
+        return { strip: cs(".pf-ready").backgroundImage, tab: cs("#pf-tab-public").backgroundColor, nav: cs("#pf-nav-basics").backgroundColor, tag: cs(".pf-sec-h .badge").backgroundColor, navMarks: r.querySelectorAll(".pf-nav button svg.ic").length, eye: !!r.querySelector("#prof-live svg.ic"), h1: parseFloat(cs(".pf-head h1").fontSize) }; });
+      ok(warm.strip.includes("gradient") && warm.tab === "rgb(248, 230, 238)" && warm.nav === "rgb(248, 230, 238)" && warm.tag === "rgb(246, 220, 231)" && warm.navMarks === 6 && warm.eye && warm.h1 >= 26, "the Profile page has the warm look: a pink readiness line, pink tab and menu choice, pink section tag, marks in the menu: " + JSON.stringify(warm));
       const cols = await dela(q).locator(".pf-grid").evaluate((g) => [...g.children].map((c) => Math.round(c.getBoundingClientRect().left)));
       ok(cols[0] < cols[1] && cols[1] < cols[2], "menu, form and publishing cards sit side by side on a wide screen: " + cols.join(", "));
       await dela(q).locator("#pf-nav-summary").click();

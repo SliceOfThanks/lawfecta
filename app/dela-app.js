@@ -2734,7 +2734,7 @@
     profEl.className = "pf" + (all ? " pf-all" : "");
     profEl.appendChild(h("div", { class: "pf-head" }, h("div", { class: "grow" }, h("h1", { style: "margin:0", text: att ? "Profile and verification" : "Your profile" }),
       h("p", { class: "muted", style: "margin:2px 0 0", text: att ? "This is your Attorney profile. It is used for verification, agreements and DELA's own work. Save each section as you go." : "Edit what attorneys see. Save each section as you go." })),
-      att ? null : h("button", { class: "ghost", type: "button", id: "prof-live", onclick: openLiveProfile }, "Preview profile")));
+      att ? null : h("button", { class: "ghost", type: "button", id: "prof-live", onclick: openLiveProfile }, icon("eye"), " Preview profile")));
     // The readiness line: one state for each of the three parts, and the full list one click away
     var steps = readinessSteps(st), partDone = function (g) { var x = steps.filter(function (s) { return s.group === g; }); return x.length ? x.every(function (s) { return s.done; }) : null; };
     var ready = st.readiness === "match_ready", vWord = att ? "License check" : "LinkedIn review";
@@ -2771,7 +2771,8 @@
     var form = section(formCard(), "sec-profile");
     var nav = h("nav", { class: "card pf-nav", "aria-label": "Profile sections" }, h("p", { class: "pf-nav-h", text: "Profile sections" }));
     var navBtns = {};
-    form.pfSecs.forEach(function (s) { navBtns[s[0]] = h("button", { type: "button", id: "pf-nav-" + s[0], onclick: function () { form.pfGo(s[0], true); } }, s[1]); nav.appendChild(navBtns[s[0]]); });
+    var NAV_IC = { basics: "profile", summary: "doc", services: "grid", practice: "projects", experience: "library", work: "clock", contact: "inbox" };
+    form.pfSecs.forEach(function (s) { navBtns[s[0]] = h("button", { type: "button", id: "pf-nav-" + s[0], onclick: function () { form.pfGo(s[0], true); } }, icon(NAV_IC[s[0]] || "chev"), h("span", { text: s[1] })); nav.appendChild(navBtns[s[0]]); });
     form.pfGo = function (k, focus) {
       if (!navBtns[k]) k = form.pfSecs[0][0];
       prof.sec = k; form.pfShow(k, all);
