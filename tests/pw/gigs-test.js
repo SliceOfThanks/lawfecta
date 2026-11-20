@@ -199,7 +199,7 @@ const PB = JSON.stringify({ title: "New client intake", outcome: "An opened file
     ok(await dela(p).getByLabel("State / Jurisdiction", { exact: true }).locator("option", { hasText: "Texas" }).count() === 1 && t.includes("Practice area / Specialty") && t.includes("Services / Tasks") && t.includes("Software"), "Talent boxes have visible labels and the state has full names (UX review T01, step 17 lists)");
     await dela(p).getByRole("button", { name: "View profile", exact: true }).first().click();
     t = await waitFor(p, "← Back to Talent search");
-    t = await waitFor(p, "Quick facts");
+    t = await waitFor(p, "At a glance");
     ok(t.includes("Verification") && p.url().includes("person=") && await dela(p).getByRole("dialog").count() === 0, "View profile opens the freelancer's full profile page from Talent, not a pop-up");
     await click(p, "← Back to Talent search");
     await waitFor(p, "Fran 2601");

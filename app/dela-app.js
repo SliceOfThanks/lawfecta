@@ -2571,9 +2571,9 @@
 
   // ---------- Step 3: Profile and verification (both sides) ----------
 
-  var prof = { data: null, body: null, dirty: false, live: false, tab: "", sec: "" };
+  var prof = { data: null, body: null, dirty: false, live: false, preview: false, tab: "", sec: "" };
   var tpSelf = false;
-  function openLiveProfile() { prof.live = true; talentTab = "overview"; if (tab === "profile") draw(); else goTab("profile"); window.scrollTo(0, 0); }
+  function openLiveProfile() { prof.live = true; prof.preview = false; talentTab = "overview"; if (tab === "profile") draw(); else goTab("profile"); window.scrollTo(0, 0); }
   var profEl = null;
   var READY_WORDS = {
     attorney: { incomplete: "A few profile items are still needed.", verification_pending: "Your profile is complete. Your license check is next.", match_ready: "You are verified. You can post work and hire on DELA.", restricted: "Some actions are paused on your account. Contact the Lawfecta Team." },
@@ -2790,7 +2790,7 @@
     rail.appendChild(dirCard);
     panels["public"].appendChild(h("div", { class: "pf-grid" }, nav, form, rail));
     form.pfGo(prof.sec || form.pfSecs[0][0], false);
-    if (!att && r.settings.documents_on) panels["public"].appendChild(docsCard());
+    if (!att && r.settings.documents_on) panels["public"].appendChild(section(docsCard(), "sec-docs"));
     // ----- Matching and verification (freelancer), firm and verification (attorney) -----
     var m = panels.match;
     m.appendChild(statusCard(st));
@@ -2799,7 +2799,7 @@
     m.appendChild(section(att ? licenseCard() : linkedinCard(), "sec-verify"));
     if (!att && panels.meet) panels.meet.appendChild(meetingAvailabilityCard());
     if (att) {
-      if ((me.switches || {}).document_standard) { var dfBox = section(h("div"), "sec-docprefs"); m.appendChild(dfBox); docFirm().then(function (f) { firmProfileForm(dfBox, f, function () { draw(); }); }).catch(function () {}); }
+      if ((me.switches || {}).document_standard) { var dfBox = section(h("div"), "sec-docprefs"); m.appendChild(h("h2", { style: "margin:18px 0 6px", text: "Document preferences" })); m.appendChild(dfBox); docFirm().then(function (f) { firmProfileForm(dfBox, f, function () { draw(); }); }).catch(function () {}); }
       ((r.firm || {}).staff_of || []).forEach(function (o) { m.appendChild(firmCard(o)); });
     }
     // A link or a checklist line names a place on this page: open the tab and the section it sits in
@@ -7726,16 +7726,16 @@
   }
   function lineList(text) { return String(text || "").split("\n").map(function (x) { return x.trim(); }).filter(Boolean); }
   function talentProfilePage() {
-    var self = tpSelf === true, person = self ? me.person.id : talentPerson;
-    var stale = function () { return self ? !(tab === "profile" && prof.live) : talentPerson !== person; };
-    var el = h("div", { class: "tp" + (self ? " tp-self" : "") }, h("p", null, self ? h("button", { class: "ghost small", type: "button", id: "tp-self-back", onclick: function () { prof.live = false; draw(); window.scrollTo(0, 0); } }, "← Back to the profile form")
+    var own = tpSelf === true, self = own && !prof.preview, person = own ? me.person.id : talentPerson;
+    var stale = function () { return own ? !(tab === "profile" && prof.live) : talentPerson !== person; };
+    var el = h("div", { class: "tp" + (own ? " tp-self" : "") }, h("p", null, own ? h("button", { class: "ghost small", type: "button", id: "tp-self-back", onclick: function () { prof.live = false; prof.preview = false; draw(); window.scrollTo(0, 0); } }, "← Back to the profile form")
       : h("button", { class: "ghost small", type: "button", onclick: closeTalentProfile }, "← Back to Talent search")), h("p", { class: "muted", role: "status", text: "Loading the profile..." }));
     // Step 49: on the member's own live profile, a text part is changed where it shows. The editor reads the saved
     // profile first, changes one box and saves the whole profile the way the form does, so nothing else moves.
     var EDIT = { headline: ["Headline", false], summary: ["Professional summary", true], experience: ["Professional experience", true], education: ["Education and credentials", true], skills: ["Task skills", "list"], software: ["Tech tools", "tools"], services: ["Services", "services"] };
     function editBtn(key, host) {
       if (!self || prof.dirty) return null;
-      var b = h("button", { class: "ghost small tp-edit", type: "button", id: "tp-edit-" + key, "aria-label": "Edit " + EDIT[key][0].toLowerCase() }, "Edit");
+      var b = h("button", { class: "ghost small tp-edit", type: "button", id: "tp-edit-" + key, "aria-label": "Edit " + EDIT[key][0].toLowerCase() }, "Edit " + ({ summary: "summary", experience: "experience", education: "education", headline: "headline", skills: "skills", software: "software", services: "services" }[key] || ""));
       b.addEventListener("click", function () { editPart(key, host, b); });
       return b;
     }
@@ -7813,12 +7813,12 @@
       // Step 29 on the profile too: one "Invite to gig" button, as on a result card. The gig is chosen on the invitation
       // step, where the rule about inviting is said once.
       var invP = { person_id: x.person_id, name: x.name, headline: x.headline, photo_url: x.photo_url, verification: x.verification, reviews: x.reviews, capacity_hours_week: x.capacity_hours_week, timezone: x.timezone };
-      var inviteBtn = !self && canHire() ? h("button", { class: "blue small", type: "button", id: "tp-invite-btn", onclick: function () { openInviteReview(invP, mine.length === 1 ? mine[0].id : ""); } }, "Invite to gig") : null;
+      var inviteBtn = !own && canHire() ? h("button", { class: "blue small", type: "button", id: "tp-invite-btn", onclick: function () { openInviteReview(invP, mine.length === 1 ? mine[0].id : ""); } }, "Invite to gig") : null;
       var facts = [x.capacity_hours_week ? x.capacity_hours_week + " hours a week" : "", x.timezone ? x.timezone + " time" : "", x.state ? "Based in " + x.state : "",
         (x.agencies || []).length ? "Works with " + x.agencies.join(", ") : x.company ? "Works through " + x.company : ""].filter(Boolean).join(" | ");
-      var msgBtn = !self && me.side === "attorney" ? (function () { var b = h("button", { class: "ghost small", type: "button" }, "Send message"); b.addEventListener("click", function () { startChat(x.person_id, x.name, b); }); return b; })() : null;
+      var msgBtn = !own && me.side === "attorney" ? (function () { var b = h("button", { class: "ghost small", type: "button" }, "Send message"); b.addEventListener("click", function () { startChat(x.person_id, x.name, b); }); return b; })() : null;
       // Step 23: a first call before any gig, booked in the conversation with this freelancer
-      var callBtn = !self && me.side === "attorney" && (me.switches || {}).meetings ? (function () { var b = h("button", { class: "blue small", type: "button" }, "Book a call"); b.addEventListener("click", function () { startChat(x.person_id, x.name, b, true); }); return b; })() : null;
+      var callBtn = !own && me.side === "attorney" && (me.switches || {}).meetings ? (function () { var b = h("button", { class: "blue small", type: "button" }, "Book a call"); b.addEventListener("click", function () { startChat(x.person_id, x.name, b, true); }); return b; })() : null;
       // The picture: chosen, uploaded and saved in one go, then the page shows it
       function photoEdit() {
         var msg = h("span", { class: "small muted", role: "status", id: "tp-photo-msg" });
@@ -7845,28 +7845,38 @@
         return h("div", { class: "tp-photo-edit" }, btn, inp, h("p", { class: "small muted", style: "margin:4px 0 0", text: "PNG or JPG. Ready-made pictures are on the profile form." }), msg);
       }
       var headBox = h("div", { id: "tp-headline" });
-      if (x.headline) headBox.appendChild(h("p", { style: "margin:2px 0 6px", text: x.headline })); else if (self) headBox.appendChild(h("p", { class: "muted", style: "margin:2px 0 6px", text: "No headline yet. Attorneys read this line first." }));
+      if (x.headline) headBox.appendChild(h("p", { class: "tp-headline", text: x.headline })); else if (self) headBox.appendChild(h("p", { class: "muted tp-headline", text: "No headline yet. Attorneys read this line first." }));
       var hb = editBtn("headline", headBox); if (hb) headBox.appendChild(hb);
+      // Step 53 (Stacey's public profile mockups, 2026-11-19): one line under the headline with the check, the reviews,
+      // the hours, the time zone and the agency, each said in words
+      var org = (x.agencies || []).join(", ") || x.company || "";
+      var meta = [h("span", { class: verified ? "talent-ver tp-check" : "muted tp-check", text: verified ? "✓ LinkedIn check completed" : "LinkedIn check not completed" }),
+        h("span", { class: n ? "" : "muted" }, n && rv.average ? h("span", { class: "talent-star", "aria-hidden": "true", text: "★ " }) : null, !n ? "No reviews yet" : rv.average ? rv.average + " out of 5 · " + n + (n === 1 ? " review" : " reviews") : n + (n === 1 ? " review" : " reviews")),
+        x.capacity_hours_week ? h("span", { text: x.capacity_hours_week + " hours/week" }) : null, x.timezone ? h("span", { text: x.timezone + " time" }) : null,
+        org ? h("span", { text: org }) : null, x.state ? h("span", { text: "Based in " + x.state }) : null,
+        x.available_now ? null : h("span", { class: "badge held", text: "Not taking new work right now" })].filter(Boolean);
       var head = h("div", { class: "card tp-head" },
         h("div", { class: "tp-head-grid" },
           x.photo_url ? h("img", { class: "talent-photo tp-photo", src: x.photo_url, alt: "Photo of " + x.name }) : h("span", { class: "talent-photo tp-photo none", "aria-hidden": "true", text: String(x.name || "?").trim().charAt(0).toUpperCase() }),
-          h("div", null, h("h1", { style: "margin:0", text: x.name }), headBox,
-            h("div", { class: "row small", style: "gap:14px;flex-wrap:wrap" },
-              h("span", { class: verified ? "talent-ver" : "muted", text: verified ? "✓ Verified" : "Not verified yet" }),
-              h("span", { class: n ? "" : "muted", text: !n ? "No reviews yet" : rv.average ? "★ " + rv.average + " (" + n + (n === 1 ? " review)" : " reviews)") : n + (n === 1 ? " review" : " reviews") }),
-              x.available_now ? null : h("span", { class: "badge held", text: "Not taking new work right now" })),
-            facts ? h("p", { class: "small muted", style: "margin:6px 0 0", text: facts }) : null),
+          h("div", null, h("h1", { style: "margin:0", text: x.name }), headBox, h("div", { class: "tp-meta" }, meta)),
           h("div", { class: "tp-head-acts" }, self && !prof.dirty ? photoEdit() : null,
-            h("div", { class: "row tp-top-acts", style: "gap:8px;flex-wrap:wrap;justify-content:flex-end" }, !self && canHire() ? h("span", { id: "tp-bookmark", class: "row", style: "gap:8px;flex-wrap:wrap;align-items:center" }, bookmarkButton(x.person_id, x.name)) : null, msgBtn, callBtn),
+            h("div", { class: "row tp-top-acts", style: "gap:8px;flex-wrap:wrap;justify-content:flex-end" }, !own && canHire() ? h("span", { id: "tp-bookmark", class: "row", style: "gap:8px;flex-wrap:wrap;align-items:center" }, bookmarkButton(x.person_id, x.name)) : null, callBtn, msgBtn),
             inviteBtn ? h("div", { class: "talent-acts tp-invite" }, inviteBtn) : null)));
-      if (self) el.insertBefore(h("div", { class: "card tp-self-card", id: "tp-self-note" },
-        h("h2", { style: "margin:0 0 4px", text: "Your live profile, as attorneys see it" }),
-        h("p", { style: "margin:0", text: x.readiness === "match_ready" ? "Attorneys can find this profile in Talent search now." : "Attorneys cannot find this profile in Talent search yet. Finish the steps on the profile form first. Attorneys you already work with can open it." }),
-        h("p", { class: "small muted", style: "margin:6px 0 0", text: prof.dirty ? "You have changes on the profile form that are not saved. This page shows what is saved, and editing here is off until you save or leave those changes." : "Choose \"Edit\" next to a part to change it right here: your headline, summary, services, experience, education, skills and software. The summary, experience and education take headings, lists, bold words and pictures, and DELA can help you write them. \"Change photo\" is beside your name. Your categories, practice areas and availability are changed on the profile form." })), el.children[1] || null);
+      // The owner's bar: editing, or the page exactly as an attorney gets it
+      if (own) {
+        var mode = function (pv) { return function () { if (!!prof.preview === pv) return; prof.preview = pv; draw(); }; };
+        el.insertBefore(h("div", { class: "tp-ownbar", id: "tp-self-note" },
+          h("div", { class: "grow" }, h("h2", { style: "margin:0;font-size:17px", text: prof.preview ? "Previewing as an attorney" : "Editing your profile" }),
+            h("p", { class: "small muted", style: "margin:2px 0 0", text: (x.readiness === "match_ready" ? "Attorneys can find this profile in Talent search now." : "Attorneys cannot find this profile in Talent search yet. Finish the steps on the profile form first.")
+              + (prof.preview ? " Empty parts and edit buttons are left out, as for an attorney." : prof.dirty ? " You have changes on the profile form that are not saved. This page shows what is saved, and editing here is off until you save or leave those changes." : "") })),
+          h("button", { class: prof.preview ? "ghost small" : "blue small", type: "button", id: "tp-mode-edit", "aria-pressed": String(!prof.preview), onclick: mode(false) }, "Edit profile"),
+          h("button", { class: prof.preview ? "blue small" : "ghost small", type: "button", id: "tp-mode-preview", "aria-pressed": String(!!prof.preview), onclick: mode(true) }, "Preview as attorney")), el.children[1] || null);
+      }
       el.appendChild(head);
       // ----- The tabs: everything stays on this page -----
       var promos = x.promotions || [];
-      var TABS = [["overview", "Overview"], ["services", "Services"], ["experience", "Experience and qualifications"], ["portfolio", "Portfolio"], ["reviews", "Reviews" + (n ? " (" + n + ")" : "")]];
+      var TABS = [["overview", "Overview"], ["services", "Services"], ["experience", "Experience"], ["portfolio", "Work samples"], ["reviews", "Reviews" + (n ? " (" + n + ")" : "")]]
+        .filter(function (tb) { return tb[0] !== "portfolio" || self || !x.samples_allowed || (x.samples || []).length > 0; });
       if (!TABS.some(function (tb) { return tb[0] === talentTab; })) talentTab = "overview";
       var panel = h("div", { class: "tp-panel", role: "tabpanel", id: "tp-panel", tabindex: "0" });
       var bar = h("div", { class: "tp-tabs", role: "tablist", "aria-label": "Sections of " + x.name + "'s profile" });
@@ -7895,37 +7905,59 @@
         (x.categories || []).forEach(function (k) { var c = idx.byKey[k]; if (!c) return; var top = idx.byKey[c.top], g = top ? top.name : "Other"; if (!groups[g]) { groups[g] = []; order.push(g); } groups[g].push(idx.path(k).slice(1).join(" › ")); });
         return order.map(function (g) { return [g, groups[g]]; });
       }
+      // What both the Overview and the Experience tab show at the right
+      function glance(col) {
+        var q = h("section", { class: "card" }, h("h2", { text: "At a glance" })); col.appendChild(q);
+        var qf = [["Hours", x.capacity_hours_week ? x.capacity_hours_week + " hours/week" + (x.availability === "limited" ? " (limited right now)" : "") : ""], ["Usual hours", x.hours || ""], ["Time zone", x.timezone ? x.timezone + " time" : ""], ["Agency", org]].filter(function (r) { return r[1]; });
+        if (qf.length) q.appendChild(h("dl", { class: "tp-facts" }, qf.map(function (r) { return h("div", null, h("dt", { text: r[0] }), h("dd", { text: r[1] })); }))); else none(q, "Nothing added yet.");
+        var v = h("section", { class: "card", id: "tp-check" }, h("h2", { text: verified ? "LinkedIn check completed" : "LinkedIn check not completed" })); col.appendChild(v);
+        v.appendChild(h("p", { class: "small", style: "margin:0", text: (verified ? "Lawfecta completed the LinkedIn check." : "Lawfecta has not completed this member's LinkedIn check.") + " Experience, education and skills are provided by the member." }));
+        v.appendChild(h("details", { class: "small", style: "margin-top:8px" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "What the check covers" }),
+          h("p", { text: D.HELP && D.HELP.verified ? D.HELP.verified : "The Lawfecta Team checked that this member is who they say they are. The Help page says what is checked." }),
+          h("p", { text: "It does not mean Lawfecta checked a license, a certificate or each job listed, and it does not promise the member fits your project." })));
+      }
+      // Skills, software and practice areas as one card of rows, each row a label and its tags
+      function tagRows(host, withAreas) {
+        var rows = [["skills", "Skills", x.skills || []], ["software", "Software", x.software || []]];
+        if (withAreas) { rows.push(["", "Practice area", x.practice_areas || []]); catGroups().forEach(function (g) { rows.push(["", g[0], g[1]]); }); }
+        rows = rows.filter(function (r) { return r[2].length || (self && r[0]); });
+        if (!rows.length) return null;
+        var c = h("section", { class: "card tp-rows" }); host.appendChild(c);
+        rows.forEach(function (r) {
+          var val = h("div", { class: "tp-row-v", id: r[0] ? "tp-" + r[0] : null });
+          if (r[2].length) val.appendChild(chips(r[2])); else none(val, r[0] === "skills" ? "No skills listed yet." : "No tools chosen yet.");
+          var eb = r[0] ? editBtn(r[0], val) : null; if (eb) val.appendChild(eb);
+          c.appendChild(h("div", { class: "tp-row" }, h("h3", { class: "tp-row-k", text: r[1] }), val));
+        });
+        return c;
+      }
+      // An experience line such as "Senior paralegal at a small firm - 6 years" is shown as a role, a place and a length.
+      // Only what the member wrote is shown: nothing is worked out from it.
+      function expEntry(line) {
+        var parts = String(line).split(/\s+[\u2014\u2013-]\s+/), dur = parts.length > 1 && /[0-9]/.test(parts[parts.length - 1]) ? parts.pop() : "", main = parts.join(" - "), at = main.split(/\s+at\s+/i);
+        return { title: at[0], sub: [at.length > 1 ? at.slice(1).join(" at ") : "", dur].filter(Boolean).join(" · ") };
+      }
+      var isMarked = function (t) { return String(t || "").split("\n").some(function (l) { return /^(#{1,4} |[-*] |[0-9]{1,2}[.)] )/.test(l.trim()) || MD_IMG.test(l) || /\*\*[^*]+\*\*/.test(l); }); };
       var SECTIONS = {
         overview: function () {
-          // Two columns on a wide screen: who they are and what they do on the left, the short facts on the right.
-          // Anything the member did not fill in is left out.
           var left = h("div"), right = h("div");
           panel.appendChild(h("div", { class: "tp-two" }, left, right));
           var into = function (col, title) { var c = h("section", { class: "card" }, h("h2", { text: title })); col.appendChild(c); return c; };
-          var a = into(left, "Professional summary");
-          var aBody = h("div", { id: "tp-summary" }); a.appendChild(aBody);
-          if (x.summary) aBody.appendChild(mdRender(x.summary, { images: x.images })); else none(aBody, self ? "No summary yet. Say what you do and who you do it for." : x.name + " has not written a summary yet.");
-          var sb = editBtn("summary", aBody); if (sb) aBody.appendChild(sb);
-          if ((x.services || []).length) { var ps = into(left, "Primary services"); ps.appendChild(h("ul", { class: "mr-list" }, x.services.slice(0, 6).map(function (sv) { return h("li", { text: sv.title }); }))); }
-          if ((x.software || []).length || self) { var sw = into(left, "Software expertise"), swB = h("div", { id: "tp-software" }); sw.appendChild(swB);
-            if ((x.software || []).length) swB.appendChild(chips(x.software)); else none(swB, "No tools chosen yet. Attorneys can search for freelancers by tool.");
-            var wb = editBtn("software", swB); if (wb) swB.appendChild(wb); }
-          var groups = catGroups();
-          if (groups.length || (x.practice_areas || []).length) {
-            var s = into(left, "Practice areas and categories");
-            if ((x.practice_areas || []).length) s.appendChild(chips(x.practice_areas));
-            groups.forEach(function (g) { s.appendChild(h("p", { class: "small", style: "margin:8px 0 2px;font-weight:700", text: g[0] })); s.appendChild(chips(g[1])); });
+          if (x.summary || self) {
+            var a = into(left, "About"), aBody = h("div", { id: "tp-summary" }); a.appendChild(aBody);
+            if (x.summary) aBody.appendChild(mdRender(x.summary, { images: x.images })); else none(aBody, "No summary yet. Say what you do and who you do it for.");
+            var sb = editBtn("summary", aBody); if (sb) aBody.appendChild(sb);
           }
-          var q = into(right, "Quick facts");
-          var qf = [["Availability", x.capacity_hours_week ? x.capacity_hours_week + " hours a week" + (x.availability === "limited" ? " (limited right now)" : "") : ""], ["Usual hours", x.hours || ""],
-            ["Time zone", x.timezone || ""], ["Agency affiliation", (x.agencies || []).join(", ") || x.company || ""], ["Reviews", n ? n + (n === 1 ? " review" : " reviews") : "No reviews yet"]].filter(function (r) { return r[1]; });
-          q.appendChild(h("dl", { class: "tp-facts" }, qf.map(function (r) { return h("div", null, h("dt", { text: r[0] }), h("dd", { text: r[1] })); })));
-          var v = into(right, "Verification");
-          v.appendChild(h("p", { class: verified ? "talent-ver" : "muted", style: "border-right:0", text: verified ? "✓ Verified" : "Not verified yet" }));
-          v.appendChild(h("p", { class: "small muted", text: verified ? "The Lawfecta Team checked this member. Experience, education and skills are written by the member and are not checked one by one." : "This member's check is not finished. Experience, education and skills are written by the member." }));
-          v.appendChild(h("details", { class: "small" }, h("summary", { style: "cursor:pointer;font-weight:700", text: "What does verified mean?" }),
-            h("p", { text: D.HELP && D.HELP.verified ? D.HELP.verified : "The Lawfecta Team checked that this member is who they say they are. The Help page says what is checked." }),
-            h("p", { text: "Verified does not mean Lawfecta checked a license, a certificate or each job listed, and it does not promise the member fits your project." })));
+          if ((x.services || []).length) {
+            var ps = into(left, "Services");
+            x.services.slice(0, 6).forEach(function (sv) {
+              var price = servicePrice(sv);
+              ps.appendChild(h("div", { class: "tp-svc" }, h("div", { class: "grow" }, h("h3", { style: "margin:0", text: sv.title }), h("p", { class: "small", style: "margin:2px 0 0", text: price ? price + " · Indicative pricing" : "No price given" }), sv.for_whom ? h("p", { class: "small muted", style: "margin:2px 0 0", text: sv.for_whom }) : null)));
+            });
+          }
+          tagRows(left, true);
+          if (!left.children.length) none(into(left, "About"), x.name + " has not written a summary yet.");
+          glance(right);
           if (promos.length) {
             var pc = into(right, promos.length === 1 ? "Current promotion" : "Current promotions");
             promos.slice(0, 2).forEach(function (pr) { pc.appendChild(h("p", { style: "margin:4px 0" }, h("b", { text: pr.title }), pr.ends ? h("span", { class: "small muted", text: " Through " + D.date(pr.ends) }) : null)); });
@@ -7934,65 +7966,103 @@
         },
         services: function () {
           var c = card("Services offered");
-          var svB = editBtn("services", c);
-          if (!(x.services || []).length) { none(c, self ? "No services yet. Say what you do, for whom, and your usual price." : x.name + " has not listed services yet."); if (svB) c.appendChild(svB); SECTIONS.promotions(); return; }
-          c.appendChild(h("p", { class: "small muted", text: "Prices are the member's own starting points. The price of a job is set in the proposal and the agreement." }));
-          x.services.forEach(function (sv) {
-            var price = servicePrice(sv);
-            c.appendChild(h("div", { class: "tp-item" }, h("div", { class: "row" }, h("h3", { class: "grow", style: "margin:0", text: sv.title }), price ? h("b", { text: price }) : h("span", { class: "small muted", text: "No price given" })),
-              sv.for_whom ? h("p", { class: "small", style: "margin:4px 0 0", text: sv.for_whom }) : null));
+          c.appendChild(h("p", { class: "small muted", text: "Indicative pricing. Final scope and price are agreed in the proposal." }));
+          var open = function (b) { editPart("services", c, b); };
+          if (!(x.services || []).length) none(c, self ? "No services yet. Say what you do, for whom, and your usual price." : x.name + " has not listed services yet.");
+          (x.services || []).forEach(function (sv) {
+            var price = servicePrice(sv), eb = self && !prof.dirty ? h("button", { class: "ghost small", type: "button", "aria-label": "Edit the service " + sv.title }, "Edit service") : null;
+            if (eb) eb.addEventListener("click", function () { open(eb); });
+            c.appendChild(h("div", { class: "tp-svc" }, h("div", { class: "grow" }, h("h3", { style: "margin:0", text: sv.title }), sv.for_whom ? h("p", { class: "small", style: "margin:4px 0 0", text: sv.for_whom }) : null),
+              h("div", { class: "tp-svc-p" }, price ? h("b", { text: price }) : h("span", { class: "small muted", text: "No price given" }), price ? h("span", { class: "small muted", text: "Indicative range" }) : null), eb));
           });
-          if (svB) c.appendChild(svB);
+          if (self && !prof.dirty) { var add = h("button", { class: "ghost small tp-edit", type: "button", id: "tp-edit-services", "aria-label": "Add or edit services" }, "+ Add service"); add.addEventListener("click", function () { open(add); }); c.appendChild(add); }
           SECTIONS.promotions();
         },
         experience: function () {
-          var ex = lineList(x.experience), ed = lineList(x.education), any = false;
-          if (ex.length || self) { any = true; var exB = h("div", { id: "tp-experience" }); card("Professional experience").appendChild(exB);
-            if (ex.length) exB.appendChild(mdRender(x.experience, { bullets: true, images: x.images })); else none(exB, "Nothing here yet. Add where you worked and what you did, one point per line.");
-            var xb = editBtn("experience", exB); if (xb) exB.appendChild(xb); }
-          if (ed.length || self) { any = true; var e = card("Education and credentials"), edB = h("div", { id: "tp-education" }); e.appendChild(edB);
-            if (ed.length) edB.appendChild(mdRender(x.education, { bullets: true, images: x.images })); else none(edB, "Nothing here yet. Add degrees, certificates and training, one per line.");
-            var eb = editBtn("education", edB); if (eb) edB.appendChild(eb);
-            e.appendChild(h("p", { class: "small muted", text: "Written by the member. Lawfecta does not check each item." })); }
-          if ((x.practice_areas || []).length || (x.skills || []).length || (x.software || []).length || self) {
-            any = true; var k = card("Practice and technology experience");
-            if ((x.practice_areas || []).length) { k.appendChild(h("h3", { text: "Practice areas" })); k.appendChild(chips(x.practice_areas)); }
-            if ((x.skills || []).length || self) { k.appendChild(h("h3", { text: "Skills" })); var skB = h("div", { id: "tp-skills" }); k.appendChild(skB);
-              if ((x.skills || []).length) skB.appendChild(chips(x.skills)); else none(skB, "No skills listed yet.");
-              var kb = editBtn("skills", skB); if (kb) skB.appendChild(kb); }
-            if ((x.software || []).length || self) { k.appendChild(h("h3", { text: "Software" })); var s2 = h("div", { id: "tp-software" }); k.appendChild(s2);
-              if ((x.software || []).length) s2.appendChild(chips(x.software)); else none(s2, "No tools chosen yet.");
-              var w2 = editBtn("software", s2); if (w2) s2.appendChild(w2); }
+          var left = h("div"), right = h("div");
+          panel.appendChild(h("div", { class: "tp-two" }, left, right));
+          var ex = lineList(x.experience), ed = lineList(x.education);
+          var into = function (title) { var c = h("section", { class: "card" }, h("h2", { text: title })); left.appendChild(c); return c; };
+          if (ex.length || self) {
+            var exB = h("div", { id: "tp-experience" }); into("Professional experience").appendChild(exB);
+            if (!ex.length) none(exB, "Nothing here yet. Add where you worked and what you did, one point per line.");
+            else if (isMarked(x.experience)) exB.appendChild(mdRender(x.experience, { bullets: true, images: x.images }));
+            else exB.appendChild(h("ul", { class: "tp-timeline" }, ex.map(function (l) { var e = expEntry(l); return h("li", null, h("b", { text: e.title }), e.sub ? h("span", { class: "tp-tl-sub", text: e.sub }) : null); })));
+            var xb = editBtn("experience", exB); if (xb) exB.appendChild(xb);
           }
-          if (!any) none(card("Experience and qualifications"), x.name + " has not added experience or qualifications yet.");
+          tagRows(left, false);
+          if (ed.length) { var edB = h("div", { id: "tp-education" }); into("Education and credentials").appendChild(edB); edB.appendChild(mdRender(x.education, { bullets: true, images: x.images })); var eb = editBtn("education", edB); if (eb) edB.appendChild(eb); }
+          else if (self) {
+            // An empty part is the owner's to fill, and is left out of what attorneys get
+            var hostE = h("div", { id: "tp-education" }), addE = editBtn("education", hostE);
+            if (addE) { addE.textContent = "+ Add education or training"; hostE.appendChild(addE); }
+            hostE.appendChild(h("span", { class: "small muted", text: "This empty section is hidden in attorney preview." }));
+            left.appendChild(h("section", { class: "card tp-empty" }, h("h2", { text: "Education" }), hostE));
+          }
+          if (!left.children.length) none(into("Experience"), x.name + " has not added experience or qualifications yet.");
+          else left.appendChild(h("p", { class: "small muted", style: "margin:8px 0 0", text: "Experience and qualifications are provided by the member." }));
+          glance(right);
         },
         portfolio: function () {
           var c = card("Work samples");
-          if (self) { none(c, "Attorneys who may hire see the work samples you chose to show. You choose them under \"Profile documents\" on the profile form."); return; }
+          var manage = function () { prof.live = false; prof.preview = false; goProfile("sec-docs"); };
+          var list = function (files, opener) {
+            c.appendChild(h("p", { class: "small muted", text: "Samples the member chose to show. Members confirm they hold no client information. They open inside Lawfecta for a few minutes at a time." }));
+            files.forEach(function (f) {
+              var msg = h("span", { class: "small muted", role: "status" });
+              c.appendChild(h("div", { class: "tp-item row", style: "flex-wrap:wrap;gap:8px" }, h("span", { class: "grow" }, h("b", { text: f.name }), h("span", { class: "small muted", text: " " + String(f.ext || "").toUpperCase() + (f.size_bytes ? ", " + mbText(f.size_bytes) : "") })),
+                msg, opener ? h("button", { class: "ghost small", type: "button", "aria-label": "Open the sample " + f.name, onclick: function () { opener(f, msg); } }, "Open sample") : null));
+            });
+          };
+          if (self) {
+            // The owner's own list comes from the profile itself: the files marked as shown to attorneys
+            c.appendChild(h("p", { class: "muted", role: "status", text: "Loading..." }));
+            api.get("/profile").then(function (pr) {
+              c.removeChild(c.lastChild);
+              var shown = ((pr || {}).documents || []).filter(function (f) { return f.shown && f.status === "ready"; });
+              if (shown.length) list(shown, null);
+              else c.appendChild(h("div", { class: "tp-blank" }, h("h3", { style: "margin:0 0 4px", text: "No work samples added" }),
+                h("p", { style: "margin:0", text: "Add a work sample you have permission to share." }), h("p", { style: "margin:2px 0 10px", text: "Remove confidential client and case information." })));
+              c.appendChild(h("div", { class: "tp-blank-acts" }, h("button", { class: "blue small", type: "button", id: "tp-manage-samples", onclick: manage }, "Manage work samples"),
+                h("p", { class: "small muted", style: "margin:6px 0 0", text: "Choose shared samples in Profile documents." + (shown.length ? "" : " This empty section is hidden in attorney preview.") })));
+            }).catch(function (e) { c.removeChild(c.lastChild); c.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+            return;
+          }
           if (!x.samples_allowed) { none(c, "Work samples are shown to members who hire."); return; }
           if (!(x.samples || []).length) { none(c, x.name + " has not shown any work samples yet."); return; }
-          c.appendChild(h("p", { class: "small muted", text: "Samples the member chose to show. Members confirm they hold no client information. They open inside Lawfecta for a few minutes at a time." }));
-          x.samples.forEach(function (f) {
-            var msg = h("span", { class: "small muted", role: "status" });
-            c.appendChild(h("div", { class: "tp-item row", style: "flex-wrap:wrap;gap:8px" }, h("span", { class: "grow" }, h("b", { text: f.name }), h("span", { class: "small muted", text: " " + String(f.ext || "").toUpperCase() + ", " + (f.size_bytes >= 1048576 ? (Math.round(f.size_bytes / 104857.6) / 10) + " MB" : Math.max(1, Math.round(f.size_bytes / 1024)) + " KB") })),
-              msg, h("button", { class: "ghost small", type: "button", "aria-label": "Open the sample " + f.name, onclick: function () {
-                msg.textContent = "Opening...";
-                api.get("/freelancers/doc?person=" + encodeURIComponent(person) + "&file=" + encodeURIComponent(f.id)).then(function (d) {
-                  if (!d.ok) { msg.textContent = "This sample is no longer shown."; return; }
-                  msg.textContent = ""; window.open(d.url, "_blank", "noopener");
-                }).catch(function (e) { msg.textContent = D.errorText(e.message); });
-              } }, "Open sample")));
+          list(x.samples, function (f, msg) {
+            msg.textContent = "Opening...";
+            api.get("/freelancers/doc?person=" + encodeURIComponent(person) + "&file=" + encodeURIComponent(f.id)).then(function (d) {
+              if (!d.ok) { msg.textContent = "This sample is no longer shown."; return; }
+              msg.textContent = ""; window.open(d.url, "_blank", "noopener");
+            }).catch(function (e) { msg.textContent = D.errorText(e.message); });
           });
         },
         reviews: function () {
-          var c = card("Reviews from completed engagements");
-          c.appendChild(h("p", { class: "muted", text: "Loading..." }));
+          var left = h("div"), right = h("div");
+          panel.appendChild(h("div", { class: "tp-two tp-rev" }, left, right));
+          var sum = h("section", { class: "card", id: "tp-rev-sum" }); left.appendChild(sum);
+          sum.appendChild(h("p", { class: "muted", text: "Loading..." }));
           api.get("/reviews/of?person=" + encodeURIComponent(person) + "&side=freelancer").then(function (r) {
-            c.removeChild(c.lastChild);
-            if (!r.ok) { c.appendChild(h("p", { class: "notice", text: revErr(r) })); return; }
-            if (r.on && !r.count) c.appendChild(h("p", { class: "muted", text: "No reviews yet. A review can only be left after a completed Lawfecta engagement, so a new member starts with none." }));
-            else reviewsList(c, r, "freelancer");
-          }).catch(function (e) { c.removeChild(c.lastChild); c.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+            D.clear(sum);
+            if (!r.ok) { sum.appendChild(h("p", { class: "notice", text: revErr(r) })); return; }
+            if (!r.on) { sum.appendChild(h("p", { class: "muted", text: REV_ERR.reviews_off })); return; }
+            var cnt = r.count || 0;
+            sum.appendChild(h("h2", { style: "margin:0 0 4px" }, rv.average ? h("span", { class: "talent-star", "aria-hidden": "true", text: "★ " }) : null, (rv.average ? rv.average + " out of 5 · " : "") + cnt + (cnt === 1 ? " review" : " reviews")));
+            sum.appendChild(h("p", { class: "small muted", style: "margin:0", text: "Reviews from completed Lawfecta engagements." + (r.averages || !cnt ? "" : " Averages show after " + r.min_for_average + " reviews.") }));
+            if (r.averages) {
+              left.appendChild(h("details", { class: "card tp-rev-d", open: true }, h("summary", null, h("h2", { style: "display:inline;margin:0", text: "Rating details" })),
+                h("dl", { class: "tp-facts" }, REV_Q.of_freelancer.map(function (q) { return h("div", null, h("dt", { text: q[1] }), h("dd", { text: r.averages[q[0]] + "/5" })); })
+                  .concat([h("div", null, h("dt", { text: "Would hire again" }), h("dd", { text: r.would_again_pct + "%" }))]))));
+            }
+            if (!cnt) { right.appendChild(h("section", { class: "card" }, h("p", { class: "muted", style: "margin:0", text: "No reviews yet. A review can only be left after a completed Lawfecta engagement, so a new member starts with none." }))); }
+            (r.reviews || []).forEach(function (rw) { right.appendChild(h("section", { class: "card tp-rev-one" }, reviewBlock(rw, "of_freelancer"))); });
+            if (r.past_clients && r.past_clients.length) {
+              var pcBox = h("section", { class: "card" }, h("h2", { text: "From past clients (outside Lawfecta)" }), h("p", { class: "small muted", text: "Lawfecta confirmed the reviewer is an attorney, not the work itself. These are not counted in the numbers above." }));
+              r.past_clients.forEach(function (rw) { pcBox.appendChild(reviewBlock(rw, "of_freelancer")); });
+              right.appendChild(pcBox);
+            }
+          }).catch(function (e) { D.clear(sum); sum.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
         },
         promotions: function () {
           if (!promos.length) return;

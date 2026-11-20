@@ -221,8 +221,8 @@ async function waitFor(page, words, ms) {
 
     // Step 49: the freelancer opens the live profile, as attorneys see it, and changes the headline and the education right there
     await dela(p).locator("#prof-live").click();
-    t = await waitFor(p, "Your live profile, as attorneys see it");
-    ok(t.includes("I support solo attorneys with e-filing and discovery in Texas courts.") && t.includes("Quick facts") && t.includes("Back to the profile form"), "the live profile shows the saved summary on the page attorneys see");
+    t = await waitFor(p, "Editing your profile");
+    ok(t.includes("I support solo attorneys with e-filing and discovery in Texas courts.") && t.includes("At a glance") && t.includes("Back to the profile form") && t.includes("Preview as attorney"), "the live profile shows the saved summary on the page attorneys see");
     ok(!t.includes("Invite to gig") && !t.includes("Send message") && !t.includes("Book a call"), "the member's own live profile has no invite, message or call button");
     ok(t.includes("Attorneys cannot find this profile in Talent search yet") || t.includes("Attorneys can find this profile in Talent search now"), "the page says whether attorneys can find the profile");
     await dela(p).locator("#tp-edit-headline").click();
@@ -235,7 +235,7 @@ async function waitFor(page, words, ms) {
     await dela(p).getByRole("button", { name: "Cancel", exact: true }).click();
     t = await waitFor(p, "I support solo attorneys with e-filing and discovery in Texas courts.");
     ok(!t.includes("This must not be kept."), "Cancel leaves the summary as it was");
-    await dela(p).getByRole("tab", { name: "Experience and qualifications" }).click();
+    await dela(p).getByRole("tab", { name: "Experience", exact: true }).click();
     await dela(p).locator("#tp-edit-education").click();
     await dela(p).locator("#tp-marks-education").click();
     await dela(p).locator("#tp-box-education").fill("Paralegal certificate, Austin Community College\nNotary public, Texas");
@@ -269,7 +269,7 @@ async function waitFor(page, words, ms) {
     await waitFor(p, "Saved. Your live profile shows it now.");
     const shown = await dela(p).locator("#tp-summary").evaluate((d) => ({ h: d.querySelector("h3.md-h") && d.querySelector("h3.md-h").textContent, li: d.querySelectorAll("ul li").length, img: !!d.querySelector("img.md-img[alt='My desk']"), raw: d.textContent.includes("**") || d.textContent.includes("](") }));
     ok(shown.h === "What I do" && shown.li === 2 && shown.img && !shown.raw, "the saved summary shows formatted on the live profile: " + JSON.stringify(shown));
-    await dela(p).getByRole("tab", { name: "Experience and qualifications" }).click();
+    await dela(p).getByRole("tab", { name: "Experience", exact: true }).click();
     ok(await dela(p).locator("#tp-education ul.tp-lines li").count() === 2, "text written before, one point per line, still shows as a list");
     // Step 51: the formatted box. The text changes look while it is typed, with no marks showing, and saves as the same marks
     await dela(p).locator("#tp-edit-experience").click();
@@ -335,6 +335,22 @@ async function waitFor(page, words, ms) {
     now = await one();
     ok(/^profiles\/[0-9a-f-]{36}\/photo-[0-9a-f-]{36}\.png$/.test(now.photo_file || "") && now.photo_file !== saved.photo_file && now.headline === "Litigation support for solo attorneys in Texas", "a new picture is uploaded and saved in one go, and nothing else changes");
     await dela(p).getByRole("tab", { name: "Overview" }).click();
+    // Step 53 (Stacey's public profile mockups, 2026-11-19): the owner's bar, the header line, and "Preview as attorney"
+    t = await text(p);
+    const metaLine = await dela(p).locator(".tp-meta").innerText();
+    ok(/LinkedIn check (completed|not completed)/.test(metaLine) && /reviews?|No reviews yet/.test(metaLine) && metaLine.includes("hours/week") && metaLine.includes("time"), "the header says the check, the reviews, the hours and the time zone on one line: " + metaLine.replace(/\n/g, " | "));
+    ok((await dela(p).locator("#tp-mode-edit").getAttribute("aria-pressed")) === "true" && await dela(p).locator("#tp-edit-summary").count() === 1 && t.includes("Edit summary"), "editing is on: the buttons say what they edit");
+    ok(t.includes("About") && t.includes("Indicative pricing") && await dela(p).locator(".tp-rows .tp-row").count() >= 2 && t.includes("Experience, education and skills are provided by the member."), "Overview: About, services with indicative pricing, one card of skill and software rows, and what the check does not cover");
+    await dela(p).getByRole("tab", { name: "Work samples", exact: true }).click();
+    t = await waitFor(p, "Manage work samples");
+    ok(t.includes("Choose shared samples in Profile documents."), "Work samples: the owner is sent to Profile documents to choose them");
+    await dela(p).locator("#tp-mode-preview").click();
+    t = await waitFor(p, "Previewing as an attorney");
+    ok(await dela(p).locator(".tp-edit").count() === 0 && await dela(p).locator("#tp-edit-photo").count() === 0 && !t.includes("Edit summary") && !t.includes("Invite to gig"), "Preview as attorney: no edit buttons, and no invite button on your own profile");
+    await dela(p).locator("#tp-mode-edit").click();
+    await waitFor(p, "Editing your profile");
+    await dela(p).getByRole("tab", { name: "Overview" }).click();
+    await dela(p).locator("#tp-edit-headline").waitFor();
     // The headline goes back the same way, so the listing checks further down see the profile they expect
     await dela(p).locator("#tp-edit-headline").click();
     await dela(p).locator("#tp-box-headline").fill(saved.headline);
