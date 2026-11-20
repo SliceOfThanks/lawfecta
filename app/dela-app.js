@@ -13621,7 +13621,7 @@
     else if (SECTIONS[tab]) main.appendChild(sectionSoon(SECTIONS[tab][0], SECTIONS[tab][1] + (me.side === "attorney" && (tab === "projects" || tab === "talent") && (sideInfo() || {}).verification_state !== "verified" ? " Posting work and hiring need a verified license: open Profile and verification from your account menu." : "")));
     else { tab = "home"; main.appendChild(NL() ? homeDash() : me.side === "attorney" ? attorneyHome() : freelancerHome()); }
     // Step 63: Home asks once whether the member already uses ChatGPT or Claude
-    if (tab === "home" && me.key_ask && !keyAsk.hide && main.firstChild && main.firstChild.firstChild) { var kh = main.firstChild; kh.insertBefore(keyAskCard(), kh.children[1] || null); }
+    if (tab === "home" && me.key_ask && !keyAsk.hide && main.firstChild && main.firstChild.firstChild) { var kh = main.firstChild; kh.insertBefore(keyAskCard(), window.innerWidth < 700 ? null : (kh.children[1] || null)); } // on a phone it goes under Home's own cards, so the first screen keeps the greeting and the next step (step 33)
     if (NL()) limitBanner(main); else if (me.side === "attorney") usageBanner(main);
     // Step 29: the Talent page keeps its focus on finding people; the usage line shows on the other pages
     if (me.side === "attorney" && tab !== "talent" && !(NL() && tab === "home")) usageMeter(main);
