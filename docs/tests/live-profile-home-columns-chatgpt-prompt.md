@@ -58,13 +58,13 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
    Expect: the card "PROFILE SECTIONS" is back.
 
 5. Do: click the outlined button "Preview profile" at the top right.
-   Expect: a new page. At the top a small outlined button "← Back to the profile form". Under it a grey bar headed "Editing your profile" with two buttons at its right: "Edit profile" (dark red) and "Preview as attorney" (outlined).
-   Expect: under the bar, a grey card with the name "DELA Test Freelancer", the headline "Family Law Paralegal Administrative Support" with a small outlined button "Edit headline", and one line that holds, in this order: a phrase that starts "LinkedIn check", the rating ("out of 5 · 5 reviews"), "15 hours/week" and "Central time".
+   Expect: a new page. At the top a small outlined button "← Back to the profile form". Under it a light pink bar headed "Editing your profile" (dark red words with a small pencil) with two buttons at its right: "Edit profile" (white with a dark red outline) and "Preview as attorney" (dark red).
+   Expect: under the bar, a card with a soft pink background that holds a large round picture, the name "DELA Test Freelancer" in large bold letters, the headline "Family Law Paralegal Administrative Support" with a small dark red link "Edit headline", and one line that holds, in this order: a small blue square with "in" and the words "LinkedIn check completed" with a green check, a gold star with the rating ("out of 5 · 5 reviews"), "15 hours/week" and "Central time".
    Expect: under that card, the tabs "Overview", "Services", "Experience", "Work samples" and "Reviews (5)".
-   Expect: on "Overview", at the left: a card "About" whose text starts "Fictional QA profile." with a button "Edit summary"; a card "Services" with "Fictional document checklist support" and the words "Indicative pricing"; and a card with three rows named "Skills", "Software" and "Practice area". At the right: a card "At a glance" and a card whose heading starts "LinkedIn check" and whose text ends "Experience, education and skills are provided by the member."
+   Expect: on "Overview", at the left: a card "About" whose text starts "Fictional QA profile." with a dark red link "Edit summary" at its top right; a card "Services" with a small pink square holding a document sign, "Fictional document checklist support" and the words "Indicative pricing"; and a card with three rows named "Skills", "Software" and "Practice area", whose tags are light pink. At the right: a card "At a glance" and a card whose heading starts "LinkedIn check" and whose text ends "Experience, education and skills are provided by the member."
    Expect also: there is no button "Invite to gig", "Send message" or "Book a call" anywhere on this page.
 
-6. Do: click "Preview as attorney" in the grey bar.
+6. Do: click "Preview as attorney" in the pink bar.
    Expect: the bar is now headed "Previewing as an attorney". No button that starts with "Edit " is left in any card ("Edit headline" and "Edit summary" are gone), and "Change photo" is gone. The buttons "Edit profile" and "Preview as attorney" are still in the bar.
    Do: click "Edit profile" in the bar.
    Expect: the bar is headed "Editing your profile" again and "Edit summary" is back.
@@ -88,8 +88,8 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
 9. Do: click the tab "Experience".
    Expect: a card "Professional experience" with two entries on a vertical line with round dots. The first entry is the bold words "Senior paralegal" with a grey line under it that ends "· 6 years".
    Expect: under it a card with the rows "Skills" (tags "Discovery", "Client intake", "E-filing", and a button "Edit skills") and "Software".
-   Expect: under that, a card with a dashed border headed "Education", with a button "+ Add education or training" and the grey words "This empty section is hidden in attorney preview."
-   Do: click "+ Add education or training". In the white box type exactly: Paralegal certificate (QA test)
+   Expect: under that, a card with a dashed border headed "Education", with a pink button "Add education or training" (a plus sign in front) and the grey words "This empty section is hidden in attorney preview."
+   Do: click "Add education or training". In the white box type exactly: Paralegal certificate (QA test)
    Then click "Save".
    Expect: the message "Saved. Your live profile shows it now." A card "Education and credentials" now lists "Paralegal certificate (QA test)".
    Do: click "Edit skills" in the row "Skills". In the box labeled "Task skills", click at the end of the text and type exactly: , QA skill
@@ -97,8 +97,8 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
    Expect: the row "Skills" now has four tags, the last one "QA skill".
 
 10. Do: click the tab "Services".
-   Expect: a card "Services offered" with the grey sentence "Indicative pricing. Final scope and price are agreed in the proposal." and one row: "Fictional document checklist support", a price with the grey words "Indicative range" under it, and a button "Edit service". Under the row, a button "+ Add service".
-   Do: click "+ Add service".
+   Expect: a card "Services offered" with the grey sentence "Indicative pricing. Final scope and price are agreed in the proposal." and one row: "Fictional document checklist support", a price with the grey words "Indicative range" under it, and a button "Edit service". Under the row, a pink button "Add service" (a plus sign in front).
+   Do: click "Add service".
    Expect: the card turns into an editor headed "Services" with one small card for the service, an outlined button "Add a service", and "Save" and "Cancel" at the bottom.
    Do: click "Add a service". In the new small card, in its box labeled "Service" type exactly: QA test service
    In its box right after "From $" type: 50
@@ -117,7 +117,7 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
    Then click "Save".
    Expect: three tags in the row "Skills" again, and no "QA skill".
    Do: in the card "Education and credentials", click "Edit education". Click in the white box, select all the text, delete it so the box is empty, and click "Save".
-   Expect: the dashed card "Education" with "+ Add education or training" is back.
+   Expect: the dashed card "Education" with "Add education or training" is back.
    Do: click the tab "Overview". Click "Edit headline", select all the text in the box, type exactly: Family Law Paralegal Administrative Support
    Then click "Save".
    Expect: the headline under the name reads "Family Law Paralegal Administrative Support" again.
@@ -125,7 +125,7 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
 13. Do: click the small outlined button "← Back to the profile form" at the top left of the page.
    Expect: the Profile page is back, with the heading "Your profile" and the button "Preview profile".
 
-14. REVIEW. (a) On the Profile page: was it clear what each tab and each section is for, and whether attorneys can see the profile? (b) On the profile attorneys see: was the difference between "Edit profile" and "Preview as attorney" clear? (c) Was the formatting bar easy to understand, and did the text change look inside the box as expected? (d) Anything confusing, repeated or hard to read on these pages?
+14. REVIEW. (a) On the Profile page: was it clear what each tab and each section is for, and whether attorneys can see the profile? (b) On the profile attorneys see: was the difference between "Edit profile" and "Preview as attorney" clear? (c) Was the formatting bar easy to understand, and did the text change look inside the box as expected? Does the profile look finished and appealing: are the pink band, the tags and the small signs all in place, with nothing overlapping? (d) Anything confusing, repeated or hard to read on these pages?
 
 Sign out: click the round button with your initials at the far right of the top bar, then click "Sign out".
 
