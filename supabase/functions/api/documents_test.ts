@@ -252,7 +252,7 @@ Deno.test("gigs: SOPs and Workflows only; a workflow hands over only the freelan
   const g = (await call("POST", "/gigs/draft", att.token, { playbook_id: wf, request_id: "g1", budget_min: 300, budget_max: 600, use_ai: false })).body;
   assertEquals(g.ok, true, JSON.stringify(g));
   const pub = (await call("GET", "/gigs/get?id=" + g.id, att.token)).body;
-  assertEquals(pub.gig_part, { steps: 3, of: 4, checkpoints: 1, images: 0, nos: [1, 3, 4], eligible: [1, 3, 4], whole: true }, "the attorney sees how much of the workflow the gig hands over");
+  assertEquals(pub.gig_part, { steps: 3, of: 4, checkpoints: 1, images: 0, nos: [1, 3, 4], eligible: [1, 3, 4], whole: true, prereqs: [{ no: 2, text: "Run the conflict check." }] }, "the attorney sees how much of the workflow the gig hands over, and that step 3 builds on the firm's own step 2 (step 71)");
   // References: Playbooks and Policies only
   assertEquals((await call("POST", "/gigs/reference", att.token, { gig_id: g.id, doc: sop })).body.reason, "reference_policies_and_playbooks");
   assertEquals((await call("POST", "/gigs/reference", att.token, { gig_id: g.id, doc: pbook })).body.ok, true);
@@ -290,15 +290,27 @@ Deno.test("steps 56 to 58: a gig hands over chosen steps only; what the freelanc
   const g = (await call("POST", "/gigs/draft", att.token, { playbook_id: wf, request_id: "h1", budget_min: 300, budget_max: 600, use_ai: false, steps: [4, 3, 2] })).body;
   assertEquals(g.ok, true, JSON.stringify(g));
   let v = (await call("GET", "/gigs/get?id=" + g.id, att.token)).body;
-  assertEquals(v.gig_part, { steps: 2, of: 4, checkpoints: 1, images: 0, nos: [3, 4], eligible: [1, 3, 4], whole: false });
+  assertEquals(v.gig_part, { steps: 2, of: 4, checkpoints: 1, images: 0, nos: [3, 4], eligible: [1, 3, 4], whole: false, prereqs: [{ no: 2, text: "Run the conflict check." }] });
+  // Step 71: step 3 builds on step 2, which the firm keeps, so the result of step 2 is on the list of what the freelancer needs
+  const pre = (v.handoff.inputs as Array<Record<string, any>>).filter((i) => String(i.label).startsWith("Result of step "));
+  assertEquals(pre.map((i) => [i.label, i.kind, i.supplied_by, i.status]), [["Result of step 2, which the firm keeps: Run the conflict check.", "information", "client", "needed"]], JSON.stringify(v.handoff.inputs));
   assertEquals(v.preview.steps.map((x: any) => [x.no, x.text]), [[3, "Approve the fee for the engagement letter."], [4, "Prepare the engagement letter draft."]]);
   assertEquals(v.preview.part, { nos: [3, 4], of: 4, whole: false, before: "Run the conflict check.", after: "" }, "the part says what happens just before it");
   assert(!JSON.stringify(v.gig.public).includes("Answer the inquiry"), "the gig's own description is written from the chosen steps only");
   // The steps can change while the gig is a draft
   assertEquals((await call("POST", "/gigs/steps", att.token, { id: g.id, steps: [2] })).body.reason, "no_steps_chosen");
   assertEquals((await call("POST", "/gigs/steps", other.token, { id: g.id, steps: [1] })).body.ok, false, "another firm cannot change them");
-  assertEquals((await call("POST", "/gigs/steps", att.token, { id: g.id, steps: [1, 3, 4] })).body.step_nos, null, "every step is the same as no choice");
-  assertEquals((await call("POST", "/gigs/steps", att.token, { id: g.id, steps: [3, 4] })).body.step_nos, [3, 4]);
+  const allSteps = (await call("POST", "/gigs/steps", att.token, { id: g.id, steps: [1, 3, 4] })).body;
+  assertEquals(allSteps.step_nos, null, "every step is the same as no choice");
+  // Step 71: handing over steps 1, 3 and 4 still leaves step 2 with the firm, right before step 3
+  assertEquals(allSteps.prereqs, [{ no: 2, text: "Run the conflict check." }]);
+  const only4 = (await call("POST", "/gigs/steps", att.token, { id: g.id, steps: [4] })).body;
+  assertEquals([only4.prereqs.map((q: any) => q.no), only4.prereqs_added], [[3], 1], "with only step 4 handed over, the prerequisite is step 3");
+  let hv = (await call("GET", "/gigs/get?id=" + g.id, att.token)).body.handoff.inputs.map((i: any) => String(i.label).split(":")[0]).filter((l: string) => l.startsWith("Result of step"));
+  assertEquals(hv, ["Result of step 3, which the firm keeps"], "the line for step 2 went away with the change, the one for step 3 came");
+  const back = (await call("POST", "/gigs/steps", att.token, { id: g.id, steps: [3, 4] })).body;
+  assertEquals([back.step_nos, back.prereqs.map((q: any) => q.no)], [[3, 4], [2]]);
+  assertEquals((await call("POST", "/gigs/steps", att.token, { id: g.id, steps: [3, 4] })).body.prereqs_added, 0, "saving the same steps twice adds nothing twice");
   // What the freelancer needs before starting
   assertEquals((await call("POST", "/gigs/inputs/save", other.token, { id: g.id, items: [{ label: "x" }] })).body.ok, false);
   let r = (await call("POST", "/gigs/inputs/save", att.token, { id: g.id, items: [{ kind: "access", label: "A Clio login, set up by the office manager" }, { kind: "zzz", label: "The engagement letter template", supplied_by: "freelancer" }, { label: "   " }] })).body;
@@ -354,6 +366,9 @@ Deno.test("steps 56 to 58: a gig hands over chosen steps only; what the freelanc
   assertEquals([flow.on, flow.items.length, it.id, it.approved, it.doc_type, it.status], [true, 1, wf, true, "workflow", "approved"]);
   assertEquals([it.gig_draft, it.gig_open, it.proposals, it.eng.gig_id, it.eng.status, it.eng.needs, it.eng.submitted, it.done, it.feedback_open],
     [whole.id, g.id, 0, g.id, "active", 1, 0, 1, 0], "a draft gig, a posted gig, the engagement under way with one thing still needed, one job finished, no notes waiting: " + JSON.stringify(it));
+  // Step 71: the separate facts behind the step
+  assertEquals([typeof it.eng.client_signed, typeof it.eng.freelancer_signed, it.eng.plan_wait, it.eng.needs_total >= it.eng.needs, typeof it.eng.paid, typeof it.eng.milestones],
+    ["boolean", "boolean", false, true, "boolean", "number"], "who signed, what is needed, whether it is paid: " + JSON.stringify(it.eng));
   await pool.query("update milestones set status = 'submitted' where agreement_id = $1", [ag]);
   await pool.query("insert into milestones (agreement_id, seq, title, amount_cents, status, from_version) values ($1, 1, 'All', 50000, 'submitted', 1)", [ag]);
   assertEquals((await call("GET", "/workflow?playbook=" + wf, att.token)).body.items[0].eng.submitted, 1, "submitted work moves it to the review step");

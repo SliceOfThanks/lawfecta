@@ -496,6 +496,21 @@ export function gigPart(b: DocBody, nos?: number[] | null): GigPart {
     before: first > 1 ? b.steps[first - 2].text : "", after: last < b.steps.length ? b.steps[last].text : "" };
 }
 
+// Step 71: the steps a part builds on that are not handed over. For each run of chosen steps, the step right before it:
+// the freelancer starts from its result, so the firm has to supply that result (or hand the step over too).
+export function gigPrereqs(b: DocBody, nos?: number[] | null): Array<{ no: number; text: string; label: string }> {
+  const part = gigPart(b, nos);
+  if (!part.ok || part.whole && part.nos.length === b.steps.length) return [];
+  const picked = new Set(part.nos), out: Array<{ no: number; text: string; label: string }> = [];
+  for (const n of part.nos) {
+    const before = n - 1;
+    if (before < 1 || picked.has(before) || out.some((x) => x.no === before)) continue;
+    const text = String(b.steps[before - 1]?.text ?? "").replace(/\s+/g, " ").trim();
+    out.push({ no: before, text, label: ("Result of step " + before + ", which the firm keeps: " + text).slice(0, 200) });
+  }
+  return out;
+}
+
 // ---------- Exports ----------
 export type Change = { at: string; what: string; by: string; approved_by: string };
 export type DocMeta = { version: number; date: string; status: string; firm: string; doc_id: string; last_reviewed: string; next_review: string; changes: Change[] };

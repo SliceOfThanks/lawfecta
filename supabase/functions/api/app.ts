@@ -32,7 +32,7 @@ import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, moneySummary, readTasks, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
 import { blockedKinds, blockedMessage, BLOCKED_WORDS, FILE_BLOCKED_MESSAGE, type Blocked } from "./lib/confidential/rules.ts";
-import { blocks as docBlocks, looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, type GigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
+import { blocks as docBlocks, looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, gigPrereqs, type GigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { fillPrompt, NEWCOMER_FILL_SYSTEM, NEWCOMER_SYSTEM, readNewcomer, type NewcomerFinding } from "./lib/documents/newcomer.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
 import { clean, HELPER_SIDE, HELPER_SYSTEM, HELPERS, NOT_LEGAL, readCompare, readCriteria, readExplain, readFindings, readFirm, readFit, type HelperKey } from "./lib/helpers/model.ts";
@@ -2549,7 +2549,7 @@ async function gigDraft(ctx: Ctx) {
   const raw = approved?.body ?? cur.body;
   let body = normalize(raw);
   const handoffOn = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "handoff_kit", p_person: s.person_id }).catch(() => false);
-  let chosen: number[] | null = null, handoff: GigPart | null = null;
+  let chosen: number[] | null = null, handoff: GigPart | null = null, handoffPre: Array<{ no: number; label: string }> = [];
   if (isDoc(raw)) {
     const db = await docUpgradeImages(ctx, normalizeDoc(raw), cur.playbook.org_id);
     // Step 56: the attorney may hand over only some of the steps
@@ -2557,6 +2557,7 @@ async function gigDraft(ctx: Ctx) {
     const part = gigPart(db, chosen);
     if (!part.ok) return json(ctx, { ok: false, reason: part.reason });
     handoff = part;
+    handoffPre = gigPrereqs(db, part.whole ? null : part.nos).map((x) => ({ no: x.no, label: x.label }));
     const gc = checkDoc(db, await docCtx(ctx, await docFirm(ctx, s), db, cur.playbook.org_id));
     if (gc.blocking > 0) {
       if (cur.playbook.approved_version) await rpc(ctx, "dela_doc_recheck", { p_id: pbId, p_version: cur.playbook.approved_version, p_blocking: gc.blocking, p_attention: gc.attention });
@@ -2586,6 +2587,8 @@ async function gigDraft(ctx: Ctx) {
     if (!handoff.whole) await rpc(ctx, "dela_gig_steps_set", { p_person: s.person_id, p_gig: gid, p_steps: handoff.nos });
     const seed = handoff.before_you_start.map((l) => String(l).replace(/\s+/g, " ").trim()).filter(Boolean).slice(0, 20).map((l) => ({ kind: inputKind(l), label: l.slice(0, 200) }));
     if (seed.length) await rpc(ctx, "dela_gig_inputs_save", { p_person: s.person_id, p_gig: gid, p_items: seed }).catch(() => null);
+    // Step 71: the result of a step the firm keeps, right before a step handed over, is something the freelancer needs first
+    if (handoffPre.length) await rpc(ctx, "dela_gig_prereqs_sync", { p_person: s.person_id, p_gig: gid, p_items: handoffPre }).catch(() => null);
   }
   if (r?.ok && linked) {
     const l = await rpc<Record<string, any>>(ctx, "dela_gig_link", { p_person: s.person_id, p_gig: r.id ?? r.gig_id, p_agreement: linked });
@@ -2898,7 +2901,14 @@ async function gigStepsSet(ctx: Ctx) {
   const nos = (Array.isArray(ctx.body.steps) ? ctx.body.steps as unknown[] : []).map((n) => Number(n)).filter((n) => Number.isInteger(n) && n > 0).slice(0, 200);
   const part = gigPart(normalizeDoc(g.playbook), nos);
   if (!part.ok) return json(ctx, { ok: false, reason: part.reason });
-  return json(ctx, await rpc(ctx, "dela_gig_steps_set", { p_person: s.person_id, p_gig: id, p_steps: part.whole ? null : part.nos }));
+  const saved = await rpc<Record<string, any>>(ctx, "dela_gig_steps_set", { p_person: s.person_id, p_gig: id, p_steps: part.whole ? null : part.nos });
+  // Step 71: a step the firm keeps, right before a step handed over, becomes something the freelancer needs first
+  if (saved?.ok) {
+    const pre = gigPrereqs(normalizeDoc(g.playbook), part.whole ? null : part.nos);
+    const sync = await rpc<Record<string, any>>(ctx, "dela_gig_prereqs_sync", { p_person: s.person_id, p_gig: id, p_items: pre.map((x) => ({ no: x.no, label: x.label })) }).catch(() => null);
+    saved.prereqs = pre.map((x) => ({ no: x.no, text: x.text })); saved.prereqs_added = sync?.added ?? 0;
+  }
+  return json(ctx, saved);
 }
 async function gigInputsSave(ctx: Ctx) {
   const s = await client(ctx);
@@ -2925,7 +2935,8 @@ async function gigGet(ctx: Ctx) {
     const part = gigPart(db, await gigStepNos(ctx, id));
     if (s.side === "freelancer") r.playbook = gigDocView(db, part);
     else {
-      r.gig_part = { steps: part.steps.length, of: db.steps.length, checkpoints: part.checkpoints.length, images: part.images, nos: part.nos, eligible: part.eligible, whole: part.whole };
+      r.gig_part = { steps: part.steps.length, of: db.steps.length, checkpoints: part.checkpoints.length, images: part.images, nos: part.nos, eligible: part.eligible, whole: part.whole,
+        prereqs: gigPrereqs(db, part.whole ? null : part.nos).map((x) => ({ no: x.no, text: x.text })) };
       // Step 58: the very object a freelancer gets, so the attorney's preview cannot drift from it
       r.preview = gigDocView(db, part);
     }

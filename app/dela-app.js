@@ -2020,6 +2020,7 @@
     chat.messages.forEach(function (m) { list.appendChild(bubble(m)); });
     if (chat.pending && chat.busy) list.appendChild(h("div", { class: "msg user", text: chat.pending.content }));
     if (chat.busy) list.appendChild(h("div", { class: "msg assistant muted", text: "DELA is checking your message, then answering..." }));
+    if (chat.stopped && !chat.busy) list.appendChild(h("div", { class: "msg assistant muted", id: "chat-stopped", role: "status", text: "Stopped. Your message is back in the box below, so you can change it. If DELA had already begun, that answer may still be saved to this chat and count as one DELA action. Sending the same message again picks that answer up." }));
     // The one next question DELA asked: its choices only put words in the message box. Nothing is sent by a choice.
     if (ws && chat.ask && (chat.ask.choices || []).length && !chat.busy && !chat.pending) list.appendChild(h("div", { class: "aw-choices", role: "group", "aria-label": "Suggested answers to DELA's question" },
       h("span", { class: "small muted", text: "Suggested answers (you can also type your own):" }),
@@ -2098,10 +2099,31 @@
     if (w.improve) out.push(b(w.improve, "ghost"));
     return out;
   }
+  // Step 71: the facts behind the step, each said on its own, so "ready" never hides what is still open
+  function wfFacts(it) {
+    var f = [], e = it.eng, n;
+    f.push(["Instructions", !it.approved ? (it.status === "in_review" ? "in review" : "draft") : it.status === "approved" ? "approved" : "approved, with a newer draft", it.approved && it.status === "approved"]);
+    if (it.doc_type !== "sop" && it.doc_type !== "workflow") return f;
+    if (e) {
+      f.push(["Your signature", e.client_signed ? "signed" : "not yet", !!e.client_signed]);
+      f.push(["Freelancer", e.freelancer_signed ? "accepted and signed" : e.plan_wait ? "starting their subscription, then signs" : "has not signed yet", !!e.freelancer_signed]);
+      n = e.needs || 0;
+      if (e.needs_total) f.push(["What they need", n ? n + " of " + e.needs_total + " still open" : "all " + e.needs_total + " supplied", !n]);
+      if (e.client_signed && e.freelancer_signed) f.push(["Payment", e.paid ? "first milestone paid" : "not paid yet", !!e.paid]);
+      if (e.paid) f.push(["Work", e.submitted > 0 ? e.submitted + " submitted, waiting for your review" : e.milestones && e.accepted >= e.milestones ? "all accepted" : e.accepted ? e.accepted + " of " + e.milestones + " accepted" : "under way", e.submitted === 0]);
+    } else if (it.gig_open) f.push(["Gig", "posted, " + (it.proposals ? it.proposals + (it.proposals === 1 ? " proposal" : " proposals") + " to review" : "no proposals yet"), false]);
+    else if (it.gig_draft) f.push(["Gig", "draft, not posted", false]);
+    else if (it.approved) f.push(["Handoff", "none in progress", true]);
+    return f;
+  }
   function wfCard(it) {
     var w = wfRead(it);
     return h("div", { class: "card wf-card", id: "wf-card" }, h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("h2", { class: "grow", style: "margin:0", text: "The DELA workflow" }), h("span", { class: "badge", id: "wf-where", text: wfWhere(it) })),
-      wfStrip(it), w.note ? h("p", { class: "small", id: "wf-note", style: "margin:8px 0 0", text: w.note }) : null,
+      wfStrip(it),
+      h("ul", { class: "wf-facts", id: "wf-facts", "aria-label": "Where this stands, fact by fact", style: "list-style:none;display:flex;flex-wrap:wrap;gap:6px;margin:10px 0 0;padding:0" }, wfFacts(it).map(function (x) {
+        return h("li", { class: "badge" + (x[2] ? " ready" : " held"), style: "font-weight:400" }, h("b", { text: x[0] + ": " }), x[1]);
+      })),
+      w.note ? h("p", { class: "small", id: "wf-note", style: "margin:8px 0 0", text: w.note }) : null,
       h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:10px" }, wfActs(it, false)));
   }
   // The path for one document, loaded where that document, its gig or its engagement is on screen
@@ -2290,10 +2312,29 @@
   }
 
   var composerText = null;
+  // Step 71: a message that was typed and not sent is kept in this browser, so leaving the page or a lost connection does not lose it
+  function chatDraft(v) {
+    try {
+      var k = "dela.chatdraft." + (me.side || "");
+      if (v === undefined) return localStorage.getItem(k) || "";
+      if (v) localStorage.setItem(k, String(v).slice(0, 8000)); else localStorage.removeItem(k);
+    } catch (e) { return ""; }
+    return v;
+  }
+  // Stop: stop waiting for DELA's answer and put the message back in the box
+  function stopSend() {
+    var p = chat.pending;
+    if (!p || !chat.busy) return;
+    p.stopped = true; chat.busy = false; chat.stopped = true;
+    chatDraft(p.content);
+    drawChat();
+    if (composerText) composerText.focus();
+  }
   function composer() {
     var ai = chat.ai || {};
-    var ta = h("textarea", { "aria-label": "Your message", placeholder: "Type here, or press Talk and say it", maxlength: "8000", value: chat.pending && !chat.busy ? chat.pending.content : (composerText ? composerText.value : "") });
+    var ta = h("textarea", { "aria-label": "Your message", placeholder: "Type here, or press Talk and say it", maxlength: "8000", value: chat.pending && !chat.busy ? chat.pending.content : (composerText ? composerText.value : chatDraft()) });
     composerText = ta;
+    ta.addEventListener("input", function () { chatDraft(ta.value); });
     ta.addEventListener("keydown", function (e) { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendNew(); } });
     var status = h("span", { class: "small muted", role: "status" });
     var auto = h("input", { type: "checkbox", id: "dela-auto-send", checked: localPref("autoSend") });
@@ -2319,6 +2360,7 @@
         attachRow ? h("button", { class: "ghost small", type: "button", onclick: function () { chat.picking = !chat.picking; drawChat(); } }, chat.picking ? "Close files" : "Add a file") : null,
         h("span", { class: "grow" }),
         status,
+        chat.busy ? h("button", { class: "ghost", type: "button", id: "chat-stop", onclick: stopSend }, "Stop") : null,
         h("button", { class: "blue", disabled: chat.busy, onclick: sendNew }, chat.busy ? "Sending..." : "Send")),
       micOk ? null : (ai.voice_on ? h("p", { class: "small muted", style: "margin:6px 0 0", text: "Talking needs a browser with microphone support. You can type instead." }) : null));
   }
@@ -2348,7 +2390,11 @@
   function sendNew() {
     var text = (composerText ? composerText.value : "").trim();
     if (!text || chat.busy) return;
-    chat.pending = { content: text, request_id: newId(), file_ids: chat.attach.map(function (f) { return f.id; }), files: chat.attach.slice(), attempt: 0 };
+    chat.stopped = false;
+    // The same message again after "Stop" is the same request, so an answer DELA already wrote is picked up, not written twice
+    var old = chat.pending;
+    if (old && old.stopped && old.content === text) { old.stopped = false; old.gen = (old.gen || 0) + 1; send({}); return; }
+    chat.pending = { content: text, request_id: newId(), file_ids: chat.attach.map(function (f) { return f.id; }), files: chat.attach.slice(), attempt: 0, gen: 0 };
     send({});
   }
 
@@ -2364,12 +2410,16 @@
     // conversation (step 9c, question 2). Only that reminder is remembered, only for this conversation's real ID, and the
     // server then skips only that reminder: never the health and biometric one, and never the check with the switch off.
     p.detailsOk = !!(chat.clientOk && chat.id && chat.clientOk === chat.id);
+    var gen = p.gen || 0;
     chat.busy = true;
     chat.problem = null;
     drawChat();
     chat.ask = null;
     api.post("/ai/chat/send", { content: p.content, request_id: p.request_id, chat_id: chat.id, file_ids: p.file_ids, attempt: p.attempt, doc_ids: wsOn() ? chat.docs.map(function (d) { return d.id; }) : undefined,
       lawfecta_once: extra.lawfecta_once === true, confirm_no_client_info: p.confirmed === true, client_details_ok: p.detailsOk === true }).then(function (r) {
+      // Stopped, or sent again since: this answer is not shown here (it stays saved with the chat on the server)
+      if (p.stopped || (p.gen || 0) !== gen) { if (r && r.chat_id && !chat.id) chat.id = r.chat_id; return; }
+      if (r && r.ok) chatDraft("");
       chat.busy = false;
       if (r.chat_id) chat.id = r.chat_id;
       if (r.ok && p.remember && chat.id) chat.clientOk = chat.id;
@@ -2395,7 +2445,7 @@
       if (composerText) composerText.value = "";
       if (!chat.list.some(function (c) { return c.id === chat.id; })) chat.list.unshift({ id: chat.id, title: p.content.slice(0, 60), updated_at: new Date().toISOString() });
       drawChat();
-    }).catch(function (e) { chat.busy = false; chat.problem = { reason: e.message }; drawChat(); });
+    }).catch(function (e) { if (p.stopped || (p.gen || 0) !== gen) return; chat.busy = false; chat.problem = { reason: e.message }; drawChat(); });
   }
 
   function problemBox(pr) {
@@ -6417,6 +6467,21 @@
     var say = function () {
       D.clear(stepsBox);
       stepsBox.appendChild(h("p", { style: "margin:0 0 6px", id: "ho-steps-say", text: gp.whole === false ? "Steps " + numList(gp.nos) + " of the document's " + gp.of + " steps." : "Every step a freelancer may do: " + (gp.steps || 0) + " of the document's " + (gp.of || 0) + "." }));
+      // Step 71: a step the firm keeps, right before a step handed over, is a prerequisite: its result is on the list below
+      (gp.prereqs || []).forEach(function (q) {
+        var line = h("p", { class: "notice", role: "note", style: "margin:0 0 6px" }, h("b", { text: "Step " + (q.no + 1) + " builds on step " + q.no + ", which you keep. " }),
+          "Step " + q.no + ": \"" + (q.text.length > 120 ? q.text.slice(0, 120) + "..." : q.text) + "\". DELA added its result to \"What the freelancer needs before starting\" below. Mark it \"Supplied\" when it is ready" + (draft ? ", or hand step " + q.no + " over too." : "."));
+        line.className += " ho-prereq";
+        if (draft && (gp.eligible || []).indexOf(q.no) >= 0) {
+          var add = h("button", { class: "ghost small", type: "button", style: "margin-left:6px" }, "Hand over step " + q.no + " too");
+          add.addEventListener("click", function () {
+            add.disabled = true;
+            api.post("/gigs/steps", { id: g.id, steps: (gp.nos || []).concat([q.no]) }).then(function (y) { if (!y || !y.ok) throw y || {}; reload(); D.toast(app, "Step " + q.no + " is handed over too."); }).catch(function () { add.disabled = false; D.toast(app, "That could not be saved. Try again.", true); });
+          });
+          line.appendChild(add);
+        }
+        stepsBox.appendChild(line);
+      });
       if (draft && g.playbook_id) { var ch = h("button", { class: "ghost small", type: "button", id: "ho-steps-change" }, "Choose the steps"); ch.addEventListener("click", function () { pickSteps(); }); stepsBox.appendChild(ch); }
       else if (!draft) stepsBox.appendChild(h("p", { class: "small muted", style: "margin:0", text: "The steps are fixed once a gig is posted, because proposals and the agreement count from them." }));
     };
@@ -6432,7 +6497,7 @@
           var nos = list.chosen();
           if (!nos.length) { err.hidden = false; err.textContent = "Choose at least one step."; return; }
           save.disabled = true;
-          api.post("/gigs/steps", { id: g.id, steps: nos }).then(function (y) { if (!y || !y.ok) throw y || {}; reload(); D.toast(app, "Steps saved. Check that the description above still fits them."); })
+          api.post("/gigs/steps", { id: g.id, steps: nos }).then(function (y) { if (!y || !y.ok) throw y || {}; reload(); D.toast(app, "Steps saved. " + ((y.prereqs || []).length ? "Step " + y.prereqs.map(function (q) { return q.no; }).join(" and ") + " stays with you, so its result is now on the list of what the freelancer needs." : "Check that the description above still fits them.")); })
             .catch(function (y) { save.disabled = false; err.hidden = false; err.textContent = y && y.reason === "gig_not_draft" ? "The steps cannot change after a gig is posted." : y && y.reason ? gigErr(y) : "The steps could not be saved. Try again."; });
         });
         cancel.addEventListener("click", say);

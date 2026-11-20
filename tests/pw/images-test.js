@@ -269,6 +269,22 @@ const imgs = (step) => sql("select v.body->'steps'->" + step + "->'images' as im
     await waitFor(p, "Steps saved.");
     await dela(p).locator("#ho-steps-say").waitFor();
     ok(/Every step a freelancer may do/.test(await dela(p).locator("#ho-steps-say").innerText()) && (await sql("select step_nos from gigs where id = '" + gig + "'"))[0].step_nos === null, "ticking every step again is the same as no choice");
+    // Step 71: keeping the first step makes its result a prerequisite of the part, and one click hands it over after all
+    if (nSteps >= 2) {
+      await dela(p).locator("#ho-steps-change").click();
+      await dela(p).locator("#ho-checks").waitFor();
+      await dela(p).locator("#ho-checks input:not([disabled])").first().uncheck();
+      await dela(p).locator("#ho-steps-save").click();
+      t = await waitFor(p, "stays with you, so its result is now on the list of what the freelancer needs.");
+      await dela(p).locator(".ho-prereq").first().waitFor();
+      const pre = await dela(p).locator(".ho-prereq").first().innerText();
+      ok(/builds on step \d+, which you keep\./.test(pre) && pre.includes("What the freelancer needs before starting") && pre.includes("too"), "step 71: the handoff says which kept step the part builds on: " + pre.slice(0, 200));
+      ok((await sql("select count(*)::int n from gig_inputs where gig_id = '" + gig + "' and label like 'Result of step %, which the firm keeps%'"))[0].n === 1, "step 71: the kept step's result is on the list of what the freelancer needs");
+      await dela(p).locator(".ho-prereq button").first().click();
+      await waitFor(p, "is handed over too.");
+      await dela(p).locator("#ho-steps-say").waitFor();
+      ok((await sql("select count(*)::int n from gig_inputs where gig_id = '" + gig + "' and label like 'Result of step %, which the firm keeps%'"))[0].n === 0 && await dela(p).locator(".ho-prereq").count() === 0, "step 71: handing the step over too takes the prerequisite away again");
+    }
     await dela(p).locator("#ho-add").click();
     await dela(p).locator("#ho-inputs input").last().fill("The matter intake form, from the shared Intake folder");
     await dela(p).locator("#ho-save").click();

@@ -137,6 +137,12 @@ async function listened(page, secs) {
     await dela(p).getByRole("button", { name: "Send", exact: true }).click();
     t = await waitFor(p, "I read your file");
     ok(t.includes("Answered with Lawfecta's AI"), "the answer says it used Lawfecta's AI");
+    // Step 71: a message typed and not sent is kept in this browser; a sent one leaves nothing behind
+    ok(await p.evaluate(() => !localStorage.getItem("dela.chatdraft.attorney")), "step 71: a sent message leaves no kept draft");
+    await dela(p).getByLabel("Your message").fill("A message I have not sent yet");
+    ok(await p.evaluate(() => localStorage.getItem("dela.chatdraft.attorney")) === "A message I have not sent yet", "step 71: an unsent message is kept in this browser");
+    await dela(p).getByLabel("Your message").fill("");
+    ok(await p.evaluate(() => !localStorage.getItem("dela.chatdraft.attorney")), "step 71: clearing the box clears the kept message");
 
     // Client information warning
     await dela(p).getByLabel("Your message").fill("My client John Smith, DOB 01/02/1980, needs the motion filed");

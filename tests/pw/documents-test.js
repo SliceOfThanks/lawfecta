@@ -105,6 +105,8 @@ async function makeMember(bd, side, plan) {
       return { titles: steps.map((x) => x.querySelector(".wf-t").textContent).join("|"), now: now ? now.querySelector(".wf-t").textContent : "", where: c.querySelector("#wf-where").textContent, buttons: [...c.querySelectorAll("button")].map((b) => b.textContent).join("|") }; });
     ok(flow.titles === "Talk to DELA|Clarify|Build the playbook|Review|Prepare the handoff|Confirm and do the work|Review the result|Improve the playbook", "the document page shows the seven steps and the loop back: " + flow.titles);
     ok(flow.now === "Build the playbook" && flow.where === "Step 3 of 7: Build the playbook" && flow.buttons === "Continue the draft", "a draft stands at step 3, with one next action: " + JSON.stringify(flow));
+    const facts = (await dela(p).locator("#wf-facts").innerText()).replace(/\s+/g, " ");
+    ok(facts.includes("Instructions: draft"), "step 71: the workflow card states each fact on its own, here that the instructions are a draft: " + facts);
     // Step 55, the newcomer check: DELA reads the draft as someone who has never worked with the firm, the attorney
     // answers, and the answers go into a new draft
     ok(await dela(p).locator("#newcomer-card").count() === 1 && (await text(p)).includes("Can someone new follow this?") && await dela(p).locator("#newcomer-badge").count() === 0, "the document page asks whether someone new can follow it, with no result before a check");
