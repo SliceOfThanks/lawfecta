@@ -6,6 +6,13 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 71, prerequisites, status facts, Stop and the kept message: ON THE SITE (2026-11-20), nothing queued behind it
+- Site: code_version d9b4754, api function 147, migrations through 0152, health "ok". GitHub Tests passed (run 44823822152, with 7 new browser checks).
+- docs/briefs/step-71-prerequisites-status-stop.md. gigPrereqs (lib/documents/model.ts): the step right before each run of handed-over steps, when the firm keeps it. dela_gig_prereqs_sync adds "Result of step N, which the firm keeps: ..." to gig_inputs and removes its own lines that no longer apply while they are still "needed". gig_part.prereqs; the handoff card's note .ho-prereq with "Hand over step N too". dela_workflow's eng now carries client_signed, freelancer_signed, plan_wait, needs_total, paid, accepted, milestones; wfFacts draws them as #wf-facts. Ask DELA: stopSend, chatDraft (localStorage dela.chatdraft.<side>), #chat-stop, #chat-stopped.
+- Parts 1 and 2 sit on cards of the handoff kit, whose switch handoff_kit is still OFF on the site (Stacey's step since step 55). Part 3 (Stop, kept message) shows for everyone now.
+- Stop does not cancel the AI call on the server; it stops the wait. Said so on the screen and in the brief.
+- Check file 22 (docs/tests/prerequisites-status-stop-chatgpt-prompt.md). Not run yet; it needs "Handoff kit" on "Access list" first.
+
 ## Fixes after ChatGPT check 17: ON THE SITE (2026-11-20), nothing queued behind them
 - Site: code_version bf6c3df, api function 146, migrations through 0151 unchanged, health "ok". GitHub Tests passed (run 44820632517).
 - Report and what was done: docs/tests/reports/check-17-report-2026-11-20.md. 10 of 13 passed at a narrow width; the three fails were the narrow layout (two passed on the desktop retest, one is by design).

@@ -186,6 +186,14 @@ How to read the "State" column:
 | 70-1 | A gig with a category and no practice area (bookkeeping, marketing) suggests the right freelancers | A pilot attorney posts one and looks at its matches | Not yet | Check 21 only drafts a gig |
 | 70-2 | Attorneys find the right category for non-legal work | Pilot attorneys pick one without help | Not yet | The list is the website's; missing kinds of work are added there |
 
+## Step 71 (released 2026-11-20)
+
+| # | What must be seen working | How we will know | State | Notes |
+|---|---|---|---|---|
+| 71-1 | A freelancer who gets part of a document sees what the firm still owes them from the step before, and the firm supplies it | A real partial handoff in the pilot | Not yet | |
+| 71-2 | "Stop" appears while the real AI answers and puts the message back | Check 22 step 2, then real use | Not yet | The test AI answers at once, so my browser tests cannot click Stop in time |
+| 71-3 | The status tags read right through a whole real engagement (signing, needs, payment, review) | A pilot engagement from start to end | Not yet | |
+
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
 - When Stacey or a pilot member reports that something worked or failed, Claude fills in the state, the date and what was seen.
