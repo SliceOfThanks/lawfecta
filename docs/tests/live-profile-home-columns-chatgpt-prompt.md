@@ -1,4 +1,4 @@
-You are checking two new things in DELA on the Lawfecta site, www.lawfecta.co: the Home page, where each column of cards is now stacked on its own, and a new page with a formatting bar, where a freelancer sees their own profile the way attorneys see it and changes its text right there. Everything here uses test accounts with test data. Do only what the steps say. You will change the test freelancer's headline, education, skills and services and then put all of them back as they were. Do not click "Change photo". Send no message and no invitation.
+You are checking the rebuilt profile pages in DELA on the Lawfecta site, www.lawfecta.co: the Home page with its columns stacked, the Profile page in tabs and sections, and the profile that attorneys see, which a freelancer can now edit in place with a formatting bar. Everything here uses test accounts with test data. Do only what the steps say. You will change the test freelancer's headline, education, skills and services and then put all of them back as they were. Never click "Change photo", "Add picture", "Write it", "Invite to gig" or any "Save" button on the Profile form. Send no message and no invitation.
 
 No step should open a browser pop-up (a small OK / Cancel window from the browser itself). If one opens, click Cancel, write FAIL for that step and say what the pop-up said.
 
@@ -33,79 +33,99 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
 
 1. Go to: https://www.lawfecta.co/dela
    Find: the Home page. Under the heading at the top, the cards (grey header bar, white body) sit in two columns.
-   Expect: in each column, every card starts right under the card above it, with a small even space between them. A short card at the left does not leave a tall empty area before the next card at the left, and the same at the right.
+   Expect: in each column, every card starts right under the card above it, with a small even space between them. No card has a tall empty area above it.
    REVIEW: Does the page look orderly? Name any card that has a large empty area above or below it.
 
 2. Go to: https://www.lawfecta.co/dela?tab=profile
-   Find: near the top of the page, under the heading "Profile" and one grey sentence, a light blue card that starts "See your profile the way attorneys see it." with a dark red button "View my live profile" at its right.
-   Do: click "View my live profile".
-   Expect: a new page. At the top, a small outlined button "← Back to the profile form". Under it, a light blue card headed "Your live profile, as attorneys see it" with the sentence "Attorneys can find this profile in Talent search now." Under that, a card with the name "DELA Test Freelancer" and, under the name, the headline "Family Law Paralegal Administrative Support" with a small outlined button "Edit". Under that card, a row of tabs: "Overview", "Services", "Experience and qualifications", "Portfolio" and "Reviews" (the last one may end with a number in brackets).
-   Expect also: at the right of the card with the name, an outlined button "Change photo" (do not click it). There is no button "Invite to gig", "Send message" or "Book a call" anywhere on this page.
+   Find: the top of the page.
+   Expect: the heading "Your profile", under it the grey sentence "Edit what attorneys see. Save each section as you go.", and at the far right an outlined button "Preview profile".
+   Expect: under that, one grey line with a small tag ("Visible in Talent" or "Not yet visible in Talent"), then three short states separated by dots (they start "Profile details", "LinkedIn review" and "Availability"), then a link "View requirements".
+   Expect: under that, a row of tabs: "Public profile" (selected), "Matching & verification" and "Meeting schedule".
+   Expect: under the tabs, three things side by side. At the left a card with the small grey capitals "PROFILE SECTIONS" and six lines: "Basics", "Summary", "Services & skills", "Experience & education", "Work hours & agreement", "Contact details (optional)". In the middle a card headed "Basics" with a small tag "Required for matching" and the boxes "First name", "Last name" and "Headline". At the right two cards, "Visibility & publishing" and "Directory updates".
+   Expect also: the boxes "Summary" and "City" are not on the screen, and neither is a card that starts "Match-ready".
 
-3. Find: the small outlined button "Edit" right under the headline, in the card with the name.
-   Do: click "Edit".
-   Expect: the headline turns into a box labeled "Headline" that holds "Family Law Paralegal Administrative Support", with a dark red button "Save" and an outlined button "Cancel" under it.
+3. Find: the card "PROFILE SECTIONS" at the left.
+   Do: click "Summary".
+   Expect: the middle card is now headed "Summary" and holds a box "Summary" whose text starts "Fictional QA profile." The boxes "First name" and "Last name" are gone. At the bottom right of the middle card is a link "Next: Services & skills →".
+   Do: click "Next: Services & skills →".
+   Expect: the middle card is headed "Services & skills" and holds a box "Task skills" with "Discovery, Client intake, E-filing". Do not type in it.
+
+4. Do: click the link "View requirements" in the grey line near the top.
+   Expect: the tab "Matching & verification" is now selected. The page shows a card whose heading starts "Match-ready:", a card "Your availability" and a card "LinkedIn check". The card "PROFILE SECTIONS" is not on the screen.
+   Do: click the tab "Meeting schedule".
+   Expect: a card "Your availability for meetings" with the days of the week.
+   Do: click the tab "Public profile".
+   Expect: the card "PROFILE SECTIONS" is back.
+
+5. Do: click the outlined button "Preview profile" at the top right.
+   Expect: a new page. At the top a small outlined button "← Back to the profile form". Under it a grey bar headed "Editing your profile" with two buttons at its right: "Edit profile" (dark red) and "Preview as attorney" (outlined).
+   Expect: under the bar, a grey card with the name "DELA Test Freelancer", the headline "Family Law Paralegal Administrative Support" with a small outlined button "Edit headline", and one line that holds, in this order: a phrase that starts "LinkedIn check", the rating ("out of 5 · 5 reviews"), "15 hours/week" and "Central time".
+   Expect: under that card, the tabs "Overview", "Services", "Experience", "Work samples" and "Reviews (5)".
+   Expect: on "Overview", at the left: a card "About" whose text starts "Fictional QA profile." with a button "Edit summary"; a card "Services" with "Fictional document checklist support" and the words "Indicative pricing"; and a card with three rows named "Skills", "Software" and "Practice area". At the right: a card "At a glance" and a card whose heading starts "LinkedIn check" and whose text ends "Experience, education and skills are provided by the member."
+   Expect also: there is no button "Invite to gig", "Send message" or "Book a call" anywhere on this page.
+
+6. Do: click "Preview as attorney" in the grey bar.
+   Expect: the bar is now headed "Previewing as an attorney". No button that starts with "Edit " is left in any card ("Edit headline" and "Edit summary" are gone), and "Change photo" is gone. The buttons "Edit profile" and "Preview as attorney" are still in the bar.
+   Do: click "Edit profile" in the bar.
+   Expect: the bar is headed "Editing your profile" again and "Edit summary" is back.
+
+7. Do: click "Edit headline" under the name.
+   Expect: the headline turns into a box labeled "Headline" that holds "Family Law Paralegal Administrative Support", with "Save" and "Cancel" under it.
    Do: select all the text in the box, type exactly: Family Law Paralegal Support (QA edit)
    Then click "Save".
    Expect: a message near the top of the screen, "Saved. Your live profile shows it now." The headline under the name now reads "Family Law Paralegal Support (QA edit)".
 
-4. Find: on the tab "Overview", in the left column, the card "Professional summary". Its text starts "Fictional QA profile." and a small outlined button "Edit" sits under the text.
-   Do: click that "Edit". In the box labeled "Professional summary", select all the text and type exactly: This text must not be saved.
-   Then click the outlined button "Cancel".
-   Expect: the card shows the old text again, starting "Fictional QA profile." The words "This text must not be saved." are nowhere on the page.
-   Do: click "Edit" in the card "Professional summary" again.
-   Expect: right above the box, a row of small outlined buttons: "B", "I", "Heading", "• List", "1. List", "Plain" and "Add picture". Under the box, a button "✦ Write with DELA", and under that a light grey box headed "How attorneys will see it" that shows the summary.
-   Expect also: there is no button "It is not client information, save" next to "Save" and "Cancel".
-   Do: click at the very end of the text in the box, press Enter, and type exactly: QA heading line
+8. Do: click "Edit summary" in the card "About".
+   Expect: a row of small outlined buttons: "B", "I", "Heading", "• List", "1. List", "Plain" and "Add picture". Under the row, a white box that holds the summary as normal text. Under the box, a link "Show the marks" and a button "✦ Write with DELA". There is no button "It is not client information, save".
+   Do: click at the very end of the text in the white box, press Enter, and type exactly: QA heading line
    Then click the button "Heading" in the row above the box.
-   Expect: in the box, that last line now reads "## QA heading line". In the grey box "How attorneys will see it", the same words show as a larger bold heading without the "##".
-   Do: press Enter, type exactly: QA list point
-   Then click the button "• List".
-   Expect: in the box, the last line reads "- QA list point". In the grey box it shows as a list point with a dot in front, without the "-".
-   Do: click "✦ Write with DELA".
-   Expect: a small panel opens under that button with a box for facts and a button "Write it". Do NOT click "Write it".
+   Expect: in the white box itself, the line "QA heading line" is now larger and bold, and no "#" sign shows.
+   Do: click the link "Show the marks".
+   Expect: the white box is replaced by a plain text box whose last line reads "## QA heading line", and a light grey box headed "How attorneys will see it" appears under it. The link now reads "Back to the formatted box".
    Do: click the outlined button "Cancel" (next to "Save").
-   Expect: the card shows the old text again, starting "Fictional QA profile.", with no "QA heading line".
+   Expect: the card "About" shows its old text, starting "Fictional QA profile.", with no "QA heading line".
 
-5. Do: click the tab "Experience and qualifications".
-   Find: the card "Education and credentials". It holds the grey words "Nothing here yet. Add degrees, certificates and training, one per line." and a small outlined button "Edit".
-   Do: click that "Edit". In the box labeled "Education and credentials" type exactly: Paralegal certificate (QA test)
+9. Do: click the tab "Experience".
+   Expect: a card "Professional experience" with two entries on a vertical line with round dots. The first entry is the bold words "Senior paralegal" with a grey line under it that ends "· 6 years".
+   Expect: under it a card with the rows "Skills" (tags "Discovery", "Client intake", "E-filing", and a button "Edit skills") and "Software".
+   Expect: under that, a card with a dashed border headed "Education", with a button "+ Add education or training" and the grey words "This empty section is hidden in attorney preview."
+   Do: click "+ Add education or training". In the white box type exactly: Paralegal certificate (QA test)
    Then click "Save".
-   Expect: the message "Saved. Your live profile shows it now." The card "Education and credentials" now lists "Paralegal certificate (QA test)".
-   Expect also: the card "Professional experience" above it still lists the same lines as before.
-
-6. Find: on the same tab, the card "Practice and technology experience". Under its small heading "Skills" are three grey tags, "Discovery", "Client intake" and "E-filing", and a small outlined button "Edit".
-   Do: click that "Edit".
-   Expect: a box labeled "Task skills" that holds "Discovery, Client intake, E-filing", with "Save" and "Cancel" under it.
-   Do: click at the end of the text in the box and type exactly: , QA skill
+   Expect: the message "Saved. Your live profile shows it now." A card "Education and credentials" now lists "Paralegal certificate (QA test)".
+   Do: click "Edit skills" in the row "Skills". In the box labeled "Task skills", click at the end of the text and type exactly: , QA skill
    Then click "Save".
-   Expect: the message "Saved. Your live profile shows it now." Under "Skills" there are now four tags, the last one "QA skill".
+   Expect: the row "Skills" now has four tags, the last one "QA skill".
 
-7. Do: click the tab "Services".
-   Find: the card "Services offered". It lists one service, "Fictional document checklist support", and at the bottom of the card a small outlined button "Edit".
-   Do: click that "Edit".
-   Expect: the card turns into an editor headed "Services" with one small card for the service (boxes "Service" and "For whom", then "From $" and "to $" with a choice "per job" or "per hour", and a red button "Remove"), an outlined button "Add a service", and "Save" and "Cancel" at the bottom.
-   Do: click "Add a service". A second small card appears. In its box labeled "Service" type exactly: QA test service
+10. Do: click the tab "Services".
+   Expect: a card "Services offered" with the grey sentence "Indicative pricing. Final scope and price are agreed in the proposal." and one row: "Fictional document checklist support", a price with the grey words "Indicative range" under it, and a button "Edit service". Under the row, a button "+ Add service".
+   Do: click "+ Add service".
+   Expect: the card turns into an editor headed "Services" with one small card for the service, an outlined button "Add a service", and "Save" and "Cancel" at the bottom.
+   Do: click "Add a service". In the new small card, in its box labeled "Service" type exactly: QA test service
    In its box right after "From $" type: 50
    Then click the dark red button "Save" at the bottom.
-   Expect: the message "Saved. Your live profile shows it now." The card "Services offered" lists two services, and the line "QA test service" shows "From $50" at its right.
+   Expect: the message "Saved. Your live profile shows it now." The card lists two rows, and the row "QA test service" shows "From $50".
 
-8. Put everything back.
-   Do: in the card "Services offered", click "Edit". In the second small card (the one for "QA test service"), click the red button "Remove". Then click "Save".
+11. Do: click the tab "Work samples".
+   Expect: a card "Work samples" with a dark red button "Manage work samples" and the grey words "Choose shared samples in Profile documents." Above the button there is either the heading "No work samples added" or a list of file names. Do not click the button.
+   Do: click the tab "Reviews (5)".
+   Expect: at the left, a card with "out of 5 · 5 reviews" and "Reviews from completed Lawfecta engagements.", and under it a card "Rating details" with four lines that each end "/5" and a line "Would hire again". At the right, the written reviews, each in its own card.
+
+12. Put everything back.
+   Do: click the tab "Services". Click "Edit service" on any row. In the second small card (the one for "QA test service"), click the red button "Remove". Then click "Save".
    Expect: only "Fictional document checklist support" is listed.
-   Do: click the tab "Experience and qualifications". Under "Skills", click "Edit", select all the text in the box and type exactly: Discovery, Client intake, E-filing
+   Do: click the tab "Experience". Click "Edit skills", select all the text in the box and type exactly: Discovery, Client intake, E-filing
    Then click "Save".
-   Expect: three tags under "Skills" again, and no "QA skill".
-   Do: in the card "Education and credentials", click "Edit", delete all the text in the box so it is empty, and click "Save".
-   Expect: the card shows "Nothing here yet." again.
-   Do: click the tab "Overview". Click "Edit" under the headline, select all the text in the box, type exactly: Family Law Paralegal Administrative Support
+   Expect: three tags in the row "Skills" again, and no "QA skill".
+   Do: in the card "Education and credentials", click "Edit education". Click in the white box, select all the text, delete it so the box is empty, and click "Save".
+   Expect: the dashed card "Education" with "+ Add education or training" is back.
+   Do: click the tab "Overview". Click "Edit headline", select all the text in the box, type exactly: Family Law Paralegal Administrative Support
    Then click "Save".
    Expect: the headline under the name reads "Family Law Paralegal Administrative Support" again.
 
-9. Do: click the small outlined button "← Back to the profile form" at the top left of the page.
-   Expect: the profile form is back, with the heading "Profile" and the light blue card that holds "View my live profile".
+13. Do: click the small outlined button "← Back to the profile form" at the top left of the page.
+   Expect: the Profile page is back, with the heading "Your profile" and the button "Preview profile".
 
-10. REVIEW. (a) On the live profile, was it clear that this is what attorneys see? (b) Was it clear which parts can be changed on that page, and where the other parts are changed? Was the row of formatting buttons and the box "How attorneys will see it" easy to understand? (c) Anything confusing, repeated or hard to read?
+14. REVIEW. (a) On the Profile page: was it clear what each tab and each section is for, and whether attorneys can see the profile? (b) On the profile attorneys see: was the difference between "Edit profile" and "Preview as attorney" clear? (c) Was the formatting bar easy to understand, and did the text change look inside the box as expected? (d) Anything confusing, repeated or hard to read on these pages?
 
 Sign out: click the round button with your initials at the far right of the top bar, then click "Sign out".
 
@@ -113,13 +133,17 @@ Sign out: click the round button with your initials at the far right of the top 
 
 Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
-11. Go to: https://www.lawfecta.co/dela?tab=profile
-   Find: near the top of the page, under the heading "Profile and verification" and one grey sentence, a light blue card headed "What freelancers see about you".
-   Expect: the card's first sentence starts "Freelancers see your firm name on the gigs you post" and a smaller grey sentence under it starts "They do not see this page."
-   Expect also: there is no button "View my live profile" on this page.
+15. Go to: https://www.lawfecta.co/dela?tab=profile
+   Expect: the heading "Profile and verification", a grey line with a tag and the link "View requirements", and two tabs: "Firm & verification" (selected) and "Profile". There is no button "Preview profile".
+   Do: click the tab "Profile".
+   Expect: at the left the card "PROFILE SECTIONS"; in the middle a card headed "Basics"; at the right a card "Visibility & publishing" whose text starts "What freelancers see about you:".
+
+16. Go to: https://www.lawfecta.co/dela?tab=talent&person=ccce3193-cc8a-4ef9-98e5-4e6653003e10
+   Expect: the profile of "DELA Test Freelancer" with the headline "Family Law Paralegal Administrative Support", the line that starts "LinkedIn check", and a dark red button "Invite to gig" at the right of the card. There is no bar "Editing your profile" and no button that starts with "Edit ".
+   Expect: the tabs start "Overview", "Services", "Experience". The card "About" starts "Fictional QA profile." Do NOT click "Invite to gig".
 
 Sign out: click the round button with your initials at the far right of the top bar, then click "Sign out".
 
 ## Report
 
-For each numbered step write PASS or FAIL and one line of what you saw; for the REVIEW steps (1 and 10) give your answers. Then a list of every FAIL with a screenshot, every message on screen that confused you, and anything that took longer than 60 seconds. Add one screenshot of the whole page at step 1, step 2 and step 7. Put the whole report in a plain text file named DELA-test-report.txt and give me a link to download it.
+For each numbered step write PASS or FAIL and one line of what you saw; for the REVIEW steps (1 and 14) give your answers. Then a list of every FAIL with a screenshot, every message on screen that confused you, and anything that took longer than 60 seconds. Add one screenshot of the whole page at step 2, step 5, step 8 (after clicking "Heading") and step 9 (before adding education). Put the whole report in a plain text file named DELA-test-report.txt and give me a link to download it.

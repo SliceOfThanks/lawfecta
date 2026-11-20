@@ -131,6 +131,9 @@ How to read the "State" column:
 | 49.2 | A freelancer edits the live profile in place (step 49) | The change shows at once on the page attorneys see, and an attorney who opens the profile sees it too | Not yet | ChatGPT check 14; the attorney's view needs a second real login |
 | 50.1 | A picture in the profile text shows for an attorney (step 50) | A freelancer adds a picture to the summary and saves; an attorney who opens the profile sees it | Not yet | Automated tests pass with a stand-in for storage; needs a real upload on Live |
 | 50.2 | "Write with DELA" writes a section with light formatting (step 50) | The section comes back with a heading or a list and no invented facts | Not yet | Only a real AI answer shows this |
+| 51.1 | The formatted box in Safari and Firefox (step 51) | Bold, Heading, lists and a picture work in the box in each browser a member uses; "Show the marks" is the way out if one does not | Not yet | The automated test runs in Chrome only |
+| 52.1 | The Profile page in tabs and sections on a real account (step 52) | A member finds every required box, and "Add it" in the checklist opens the right section | Not yet | ChatGPT check 14 |
+| 53.1 | The public profile to the mockups, seen by a real attorney (step 53) | The header line, About, services, timeline and reviews read well with real content | Not yet | ChatGPT check 14, step 16 |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
