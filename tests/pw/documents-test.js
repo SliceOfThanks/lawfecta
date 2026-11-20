@@ -98,6 +98,13 @@ async function makeMember(bd, side, plan) {
     await waitFor(p, "must be fixed first");
     ok(await p.evaluate(() => { const q = document.querySelector(".dela-host").shadowRoot.querySelector("#quality-check"); const r = q && q.getBoundingClientRect(); return !!r && r.top < innerHeight && r.bottom > 0; }), "the count opens the document at its quality check");
     ok(!(await text(p)).includes("Suggestions ("), "the AI-proposed edits tab is called Suggested edits");
+    // Step 60, the DELA workflow: the seven steps on the document, with where it stands and one next action
+    await dela(p).locator("#wf-card").waitFor();
+    const flow = await p.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, c = r.querySelector("#wf-card"), steps = [...c.querySelectorAll(".wf > li")];
+      const now = c.querySelector("[aria-current=step]");
+      return { titles: steps.map((x) => x.querySelector(".wf-t").textContent).join("|"), now: now ? now.querySelector(".wf-t").textContent : "", where: c.querySelector("#wf-where").textContent, buttons: [...c.querySelectorAll("button")].map((b) => b.textContent).join("|") }; });
+    ok(flow.titles === "Talk to DELA|Clarify|Build the document|Review|Prepare the handoff|Confirm and do the work|Review the result|Improve for next time", "the document page shows the seven steps and the loop back: " + flow.titles);
+    ok(flow.now === "Build the document" && flow.where === "Step 3 of 7: Build the document" && flow.buttons === "Continue the draft", "a draft stands at step 3, with one next action: " + JSON.stringify(flow));
     // Step 55, the newcomer check: DELA reads the draft as someone who has never worked with the firm, the attorney
     // answers, and the answers go into a new draft
     ok(await dela(p).locator("#newcomer-card").count() === 1 && (await text(p)).includes("Can someone new follow this?") && await dela(p).locator("#newcomer-badge").count() === 0, "the document page asks whether someone new can follow it, with no result before a check");

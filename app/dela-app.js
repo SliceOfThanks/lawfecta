@@ -2004,6 +2004,104 @@
     return chat.messages.filter(function (m) { return m.role === "user" || (m.role === "assistant" && m.source !== ""); }).map(function (m) { return (m.role === "user" ? "Me: " : "DELA: ") + m.content; }).join("\n\n").slice(0, 20000);
   }
   function openDocFromChat(id) { tab = "library"; lib.importId = null; lib.pb = { playbook: { id: id } }; lib.view = "read"; draw(); }
+  // Step 60, the DELA workflow (Stacey's diagram, 2026-11-19): seven steps and the loop back. Each document of the
+  // firm stands at one of them. The facts come from the server; this turns them into the path and one next action.
+  var WF = [["Talk to DELA", "Describe what you need"], ["Clarify", "DELA asks what matters"], ["Build the document", "Organize the instructions"], ["Review", "Check and approve the instructions"],
+    ["Prepare the handoff", "Choose the work and the recipient"], ["Confirm and do the work", "Resolve access, scope and blockers"], ["Review the result", "Accept it or request changes"]];
+  function wfRead(it) {
+    var gigable = it.doc_type === "sop" || it.doc_type === "workflow", e = it.eng, at = 4, next = null, note = "", saved = false, n;
+    var openDoc = function () { homeOpenDoc(it.id); window.scrollTo(0, 0); };
+    var toGig = function (id) { return function () { gigLink(id, "projects"); window.scrollTo(0, 0); }; };
+    var toEng = function (id) { return function () { openGig(id, "agreement"); }; };
+    if (!it.approved) {
+      at = it.status === "in_review" ? 3 : 2;
+      next = [it.status === "in_review" ? "Review and approve" : "Continue the draft", openDoc];
+      note = it.newcomer === "gaps" ? "DELA found gaps a newcomer would hit. Answer them under \"Can someone new follow this?\"." : it.newcomer === "ready" ? "Marked \"Ready for someone new\"." : "";
+    } else if (!gigable) {
+      at = 7; saved = true; next = ["Open the document", openDoc];
+      note = "Saved for future use. A Policy or a Playbook guides the work; it is not handed over as a gig.";
+    } else if (e) {
+      at = e.submitted > 0 ? 6 : 5;
+      next = e.submitted > 0 ? ["Review the submitted work", toEng(e.gig_id)] : e.status === "signing" ? ["Open the agreement", toEng(e.gig_id)]
+        : e.needs > 0 ? ["Supply what the freelancer needs (" + e.needs + ")", toEng(e.gig_id)] : ["Open the engagement", toEng(e.gig_id)];
+      note = e.submitted > 0 ? "Work is waiting for your review." : e.status === "signing" ? "The agreement is waiting for signatures." : e.needs > 0 ? e.needs + (e.needs === 1 ? " thing the freelancer needs is" : " things the freelancer needs are") + " still marked as needed." : "The work is under way.";
+    } else if (it.gig_open) {
+      n = it.proposals || 0;
+      next = n ? ["Review " + n + (n === 1 ? " proposal" : " proposals"), toGig(it.gig_open)] : ["Open the gig", toGig(it.gig_open)];
+      note = n ? "" : "The gig is posted. Invite a freelancer from Talent, or wait for proposals.";
+    } else if (it.gig_draft) {
+      next = ["Finish the gig draft", toGig(it.gig_draft)]; note = "A gig draft is started. Nothing is posted yet.";
+    } else {
+      saved = true;
+      next = canHire() && (me.switches || {}).flex_gigs ? ["Prepare a handoff", function () { gigs.id = null; gigs.newFrom = it.id; gigs.wiz = { doc: it.id }; tab = "projects"; draw(); window.scrollTo(0, 0); }] : ["Open the document", openDoc];
+      note = "Approved and saved for future use." + (it.done ? " Handed over " + it.done + (it.done === 1 ? " time" : " times") + " so far." : " Hand it over when you need the work done.");
+    }
+    var fb = it.feedback_open || 0;
+    return { at: at, saved: saved, next: next, note: note, gigable: gigable, improve: fb ? ["Look at " + fb + (fb === 1 ? " note" : " notes") + " from people who did the work", openDoc] : null,
+      state: function (i) { return i < 2 && !it.from_chat ? (i < at ? "skip" : "todo") : i < at ? "done" : i === at ? (saved && at === 4 ? "next" : "now") : (!gigable && i > 3 ? "na" : "todo"); } };
+  }
+  function wfStrip(it) {
+    var w = wfRead(it), WORD = { done: "done", now: "you are here", next: "next, when you need it", todo: "not yet", skip: "started in the Library", na: "does not apply" };
+    var ol = h("ol", { class: "wf", "aria-label": "The DELA workflow" });
+    WF.forEach(function (st, i) {
+      var k = w.state(i);
+      ol.appendChild(h("li", { class: "wf-step wf-" + k, "aria-current": k === "now" ? "step" : null },
+        h("span", { class: "wf-n", "aria-hidden": "true", text: k === "done" ? "✓" : String(i + 1) }),
+        h("span", { class: "wf-b" }, h("b", { class: "wf-t", text: st[0] }), h("span", { class: "wf-s", text: st[1] }), h("span", { class: "sr", text: " (" + WORD[k] + ")" }))));
+    });
+    ol.appendChild(h("li", { class: "wf-step wf-loop" + (w.improve ? " wf-now" : "") }, h("span", { class: "wf-n", "aria-hidden": "true", text: "↺" }),
+      h("span", { class: "wf-b" }, h("b", { class: "wf-t", text: "Improve for next time" }), h("span", { class: "wf-s", text: "What the last job taught" }))));
+    return ol;
+  }
+  function wfWhere(it) {
+    var w = wfRead(it);
+    return w.at >= 7 ? "Saved for future use" : w.saved ? "Saved for future use · Step 5 is next: " + WF[4][0] : "Step " + (w.at + 1) + " of 7: " + WF[w.at][0];
+  }
+  function wfActs(it, small) {
+    var w = wfRead(it), out = [];
+    var b = function (a, cls) { var x = h("button", { class: cls + (small ? " small" : ""), type: "button" }, a[0]); x.addEventListener("click", a[1]); return x; };
+    if (w.next) out.push(b(w.next, small ? "ghost" : "blue"));
+    if (w.improve) out.push(b(w.improve, "ghost"));
+    return out;
+  }
+  function wfCard(it) {
+    var w = wfRead(it);
+    return h("div", { class: "card wf-card", id: "wf-card" }, h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("h2", { class: "grow", style: "margin:0", text: "The DELA workflow" }), h("span", { class: "badge", id: "wf-where", text: wfWhere(it) })),
+      wfStrip(it), w.note ? h("p", { class: "small", id: "wf-note", style: "margin:8px 0 0", text: w.note }) : null,
+      h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:10px" }, wfActs(it, false)));
+  }
+  // The path for one document, loaded where that document, its gig or its engagement is on screen
+  function wfHost(playbookId) {
+    var host = h("div", { class: "wf-host" });
+    if (!(me.switches || {}).handoff_kit || !playbookId) return host;
+    api.get("/workflow?playbook=" + encodeURIComponent(playbookId)).then(function (r) { if (r && r.ok && r.on && (r.items || []).length) host.appendChild(wfCard(r.items[0])); }).catch(function () {});
+    return host;
+  }
+  // On Ask DELA: every piece of work the firm has in motion, with the step it stands at and what comes next
+  function wfList() {
+    if (!(me.switches || {}).handoff_kit || me.side !== "attorney") return null;
+    var c = h("section", { class: "card", id: "aw-work" }, h("h2", { text: "Your work, step by step" }),
+      h("p", { class: "hsub", style: "margin:0 0 8px", text: "Each document, and where it stands in the seven steps: talk, clarify, build, review, hand off, do the work, review the result." }));
+    var box = h("div", { role: "status" }, h("p", { class: "hsub", style: "margin:0", text: "Loading..." }));
+    c.appendChild(box);
+    api.get("/workflow").then(function (r) {
+      D.clear(box); box.removeAttribute("role");
+      var items = (r && r.ok && r.on && r.items) || [];
+      if (!items.length) { box.appendChild(h("p", { class: "hsub", style: "margin:0", text: "Nothing in motion yet. Tell DELA what you would like off your plate, and it starts here." })); return; }
+      // What waits on the attorney comes first: submitted work, things still needed, proposals, notes, then drafts
+      var weight = function (it) { var e = it.eng || {}; return (e.submitted ? 50 : 0) + (e.needs ? 40 : 0) + (it.proposals ? 30 : 0) + (it.feedback_open ? 20 : 0) + (!it.approved ? 10 : 0) + (it.gig_draft ? 5 : 0); };
+      items = items.slice().sort(function (a, b) { return weight(b) - weight(a); });
+      var show = function (all) {
+        D.clear(box);
+        (all ? items : items.slice(0, 5)).forEach(function (it) {
+          box.appendChild(h("div", { class: "wf-row" }, h("div", { class: "grow" }, h("b", { text: (it.doc_id ? it.doc_id + " " : "") + it.title }), h("div", { class: "hsub", text: wfWhere(it) })), wfActs(it, true)));
+        });
+        if (!all && items.length > 5) { var more = h("button", { class: "linkish", type: "button", id: "aw-work-all" }, "Show all " + items.length); more.addEventListener("click", function () { show(true); }); box.appendChild(more); }
+      };
+      show(false);
+    }).catch(function () { D.clear(box); box.appendChild(h("p", { class: "hsub", style: "margin:0", text: "This list could not be loaded just now." })); });
+    return c;
+  }
   function workspacePanel() {
     var w = chat.ws || {}, max = w.max || 3, side = h("div", { class: "aw-side" });
     var c = h("section", { class: "card", id: "aw-using" }, h("h2", { text: "What DELA is using" }),
@@ -2065,6 +2163,7 @@
     if (!acts.length) n.appendChild(h("p", { class: "hsub", style: "margin:0", text: "Choose a document or send a message. The actions that fit appear here." }));
     else acts.forEach(function (a) { n.appendChild(h("button", { class: "aw-act", type: "button", id: a[3], onclick: a[2] }, h("b", { text: a[0] + " →" }), h("span", { class: "hsub", text: a[1] }))); });
     side.appendChild(n);
+    var wfl = wfList(); if (wfl) side.appendChild(wfl);
     return side;
   }
 
@@ -6288,6 +6387,7 @@
   }
   function gigDetails(body, r) {
     var g = r.gig, p = g.public || {}, editable = g.status === "draft" || g.status === "open";
+    if (g.playbook_id) body.appendChild(wfHost(g.playbook_id));
     var f = {
       title: h("input", { "aria-label": "Gig title", style: "width:100%" }), task: h("textarea", { rows: 3, style: "width:100%", "aria-label": "The task" }),
       outcome: h("textarea", { rows: 2, style: "width:100%", "aria-label": "What done looks like" }), steps: h("textarea", { rows: 6, style: "width:100%", "aria-label": "Steps, one per line" }),
@@ -12310,6 +12410,7 @@
       });
       area.appendChild(qn);
     }
+    area.appendChild(wfHost(lib.pb.playbook.id));
     var nc0 = newcomerCard(lib.pb.playbook, can(3)); if (nc0) area.appendChild(nc0);
     var fb0 = feedbackCard(lib.pb.playbook); if (fb0) area.appendChild(fb0);
     // The document itself, laid out as the export (no boxes, no Save buttons)
@@ -12455,6 +12556,7 @@
     var grid = h("div", { class: "doc-grid" });
     var left = h("div", { class: "doc-left" }), right = h("div", { class: "doc-right" });
     grid.appendChild(left); grid.appendChild(right);
+    area.appendChild(wfHost(P.id));
     area.appendChild(grid);
     // The quality panel
     var blocked = ck.blocking > 0;

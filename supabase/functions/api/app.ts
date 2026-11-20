@@ -2734,6 +2734,13 @@ function gigDocView(db: DocBody, part: GigPart) {
     part: { nos: part.nos, of: part.of, whole: part.whole, before: part.whole ? "" : part.before, after: part.whole ? "" : part.after } };
 }
 const inputKind = (l: string) => /\b(access|log ?in|login|account|permission|invite)\b/i.test(l) ? "access" : /\btemplate\b/i.test(l) ? "template" : /\b(file|form|copy|document|folder|pdf)\b/i.test(l) ? "file" : "information";
+// Step 60, the DELA workflow: where each document of the firm stands in the seven steps. Facts only; the screen
+// turns them into the path and the next action.
+async function workflowGet(ctx: Ctx) {
+  const s = await memberSide(ctx);
+  const pb = ctx.url.searchParams.get("playbook");
+  return json(ctx, await rpc(ctx, "dela_workflow", { p_person: s.person_id, p_side: s.side, p_playbook: pb ? need(uuid(pb)) : null }));
+}
 // Step 59, learning from each job: the freelancer's private note about the document, and the firm marking it handled
 async function docFeedbackAdd(ctx: Ctx) {
   const s = await memberSide(ctx);
@@ -5965,6 +5972,7 @@ export async function handle(req: Request, deps: Deps): Promise<Response> {
       case "GET /gigs/get": return await gigGet(ctx);
       case "POST /engagements/feedback": return await docFeedbackAdd(ctx);
       case "POST /documents/feedback/handle": return await docFeedbackHandle(ctx);
+      case "GET /workflow": return await workflowGet(ctx);
       case "GET /gigs/doc-steps": return await gigDocSteps(ctx);
       case "POST /gigs/steps": return await gigStepsSet(ctx);
       case "POST /gigs/inputs/save": return await gigInputsSave(ctx);

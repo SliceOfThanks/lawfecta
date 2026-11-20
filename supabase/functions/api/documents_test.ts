@@ -348,6 +348,22 @@ Deno.test("steps 56 to 58: a gig hands over chosen steps only; what the freelanc
   const whole = (await call("POST", "/gigs/draft", att.token, { playbook_id: wf, request_id: "h2", budget_min: 300, budget_max: 600, use_ai: false })).body;
   const wv = (await call("GET", "/gigs/get?id=" + whole.id, att.token)).body;
   assertEquals([wv.gig_part.whole, wv.gig_part.nos, wv.preview.part.before], [true, [1, 3, 4], ""]);
+  // Step 60, the DELA workflow: the facts that place this document on the seven steps
+  const flow = (await call("GET", "/workflow?playbook=" + wf, att.token)).body;
+  const it = flow.items[0];
+  assertEquals([flow.on, flow.items.length, it.id, it.approved, it.doc_type, it.status], [true, 1, wf, true, "workflow", "approved"]);
+  assertEquals([it.gig_draft, it.gig_open, it.proposals, it.eng.gig_id, it.eng.status, it.eng.needs, it.eng.submitted, it.done, it.feedback_open],
+    [whole.id, g.id, 0, g.id, "active", 1, 0, 1, 0], "a draft gig, a posted gig, the engagement under way with one thing still needed, one job finished, no notes waiting: " + JSON.stringify(it));
+  await pool.query("update milestones set status = 'submitted' where agreement_id = $1", [ag]);
+  await pool.query("insert into milestones (agreement_id, seq, title, amount_cents, status, from_version) values ($1, 1, 'All', 50000, 'submitted', 1)", [ag]);
+  assertEquals((await call("GET", "/workflow?playbook=" + wf, att.token)).body.items[0].eng.submitted, 1, "submitted work moves it to the review step");
+  const all = (await call("GET", "/workflow", att.token)).body;
+  assert(all.items.length >= 2 && all.items.some((x: any) => x.id === sop) && all.items.every((x: any) => ["draft", "in_review", "approved"].includes(x.status)), "the list holds the firm's documents in work");
+  assertEquals((await call("GET", "/workflow?playbook=" + wf, other.token)).body.reason, "not_found", "another firm sees nothing of it");
+  assertEquals((await call("GET", "/workflow", other.token)).body.items.some((x: any) => x.id === wf), false);
+  await pool.query("update feature_switches set state = 'off' where key = 'handoff_kit'");
+  assertEquals((await call("GET", "/workflow", att.token)).body, { ok: true, on: false, items: [] });
+  await pool.query("update feature_switches set state = 'everyone' where key = 'handoff_kit'");
 });
 
 Deno.test("older playbooks: the type check converts them, the old version stays, the owner is told and can change the type", async () => {
