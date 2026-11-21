@@ -521,6 +521,9 @@ const SEARCH = "Search roles, specialties, tasks and software";
     const sw75 = (await sql("select jsonb_object_agg(key, state) sw from feature_switches where key in ('ask_dela_workspace', 'dela_workspace_v2', 'ai_generation')"))[0].sw;
     await sql("update feature_switches set state = 'everyone' where key in ('ask_dela_workspace', 'dela_workspace_v2', 'ai_generation'); update settings set value = '50' where key = 'talent.page_size'; select 1");
     try {
+      // A posted gig of its own, so the invitation has something to invite to whatever the checks above left open
+      await sql(`insert into gigs (org_id, created_by, playbook_id, playbook_version, title, public, budget_min_cents, budget_max_cents, status, request_id)
+        select g.org_id, g.created_by, g.playbook_id, 1, 'Index the deposition exhibits', '{}', 30000, 40000, 'open', 'cat-gig75' from gigs g where g.request_id = 'cat-gig2' and not exists (select 1 from gigs where request_id = 'cat-gig75'); select 1`);
       s = await open(browser, "DELA-App", ATT, "&tab=talent"); p = s.page;
       await p.setViewportSize({ width: 1500, height: 950 });
       await waitFor(p, "Fern Family");
@@ -531,9 +534,11 @@ const SEARCH = "Search roles, specialties, tasks and software";
       if (await dela(p).locator("#dw-i-gig").inputValue() === "") {
         ok(await dela(p).locator("#dw-i-go").isDisabled() && await dela(p).locator("#dw-i-save").isDisabled(), "with no gig chosen, nothing can be prepared or reviewed");
         const gigOpts = await dela(p).locator("#dw-i-gig option").allInnerTexts();
-        await dela(p).locator("#dw-i-gig").selectOption({ label: gigOpts.filter((x) => x.includes("Organize discovery responses"))[0] || gigOpts[1] });
+        if (!gigOpts.some((x) => x.includes("Index the deposition exhibits"))) throw new Error("FAILED: the posted gig is not offered. The list holds: " + gigOpts.join(" | "));
+        await dela(p).locator("#dw-i-gig").selectOption({ label: "Index the deposition exhibits" });
       }
-      await dela(p).locator("#dw-i-share .dw-line").first().waitFor({ timeout: 10000 });
+      if (await dela(p).locator("#dw-i-gig").inputValue() !== "" && !(await dela(p).locator("#dw-i-gig option:checked").innerText()).includes("Index the deposition exhibits")) await dela(p).locator("#dw-i-gig").selectOption({ label: "Index the deposition exhibits" });
+      await dela(p).locator("#dw-i-share .dw-line").first().waitFor({ timeout: 10000 }).catch(async () => { throw new Error("FAILED: the sharing list did not show. The box says: " + await dela(p).locator("#dw-i-share").innerText()); });
       t = await text(p);
       const shared = await p.evaluate(() => [...document.querySelector(".dela-host").shadowRoot.querySelectorAll("#dw-i-share .dw-line")].map((li) => li.querySelector("b").textContent + " = " + li.querySelector(".dw-tag").textContent));
       ok(t.includes("Invitation & Sharing Review") && t.includes("Prepare invitation") && t.includes("Recipient package preview") && t.includes("Permission checks") && t.includes("Invitation · Not sent") && await dela(p).locator("#dw-i-who").inputValue() === "Fern Family · freelancer", "Invite to gig opens the invitation page of the workspace, for this freelancer");
