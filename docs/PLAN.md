@@ -8,6 +8,10 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
+## Newest (2026-11-21, night): step 75a, 75b and 75c are on the site for the Access list
+code_version 203b1ff, api 150, migrations through 0155 (run 44865765454). Eight of the ten mockup screens are pages of the Ask DELA workspace (switch dela_workspace_v2, "Access list"): the chat, My Playbooks, Delegation Opportunities, Partial Delegation & Dependencies, DELA Instructions & Firm Context, Create a Gig from DELA, Invitation & Sharing Review, Recipient Review & Acceptance. Check files 26, 27, 28, not run.
+Next: 75d, "Playbook Changes & Version Approval" (screen 7) and "Decisions, Blockers & Work Progress" (screen 10). Then the old places (the card on a document, the panel in the Library, "Post a New Gig" in Projects) open the new pages, and the switch goes to everyone on Stacey's word.
+
 ## Newest (2026-11-21, later): step 74 is on the site, and step 75 (the ten mockups) has its plan and first release built
 Step 74: code_version 20e278f, api 150, migrations through 0154 (run 44854092834). Tags and a private note on bookmarked freelancers, filters by tag and the three category levels, the profile header in blue. Check file 25, not run.
 Step 75: Stacey asked for DELA to match the ten workflow mockups end to end. Plan in docs/briefs/step-75-ask-dela-workspace-mockups.md: one Ask DELA workspace, ten pages on one skeleton, four releases. 75a (screens 1, 2 and 5) is built behind the switch dela_workspace_v2. Then 75b (screens 3, 4), 75c (6, 8, 9), 75d (7, 10).

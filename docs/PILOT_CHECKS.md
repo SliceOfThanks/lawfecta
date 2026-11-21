@@ -215,6 +215,14 @@ How to read the "State" column:
 | 74-1 | An attorney with several real bookmarks tags them, writes notes and finds people again with the tag and category filters | A pilot attorney with five or more bookmarks | Not yet | The test attorney has one bookmark |
 | 74-2 | The profile header looks right with a real photo upload, a long name, a long headline and no agency | Stacey or a pilot member looks at three real profiles | Not yet | Seen so far only with the ready-made picture |
 
+## Step 75a to 75c (released 2026-11-21, Access list)
+
+| # | What must be seen working | How we will know | State | Notes |
+|---|---|---|---|---|
+| 75-1 | An attorney walks from a chat to a selected playbook, to tasks to delegate, to a handoff, to a gig draft, to an invitation, without leaving Ask DELA and without help | Stacey or a pilot attorney does it once on their own | Not yet | Each page was tested by itself; the whole walk by a person has not been seen |
+| 75-2 | "Find tasks to delegate" gives sensible tasks and roles on a real playbook with the real AI | A pilot attorney reads the suggestions for one of their own playbooks | Not yet | Tested with a stand-in AI |
+| 75-3 | The pages read well on a laptop screen of ordinary width (about 1280) and on a phone | Stacey looks at the chat page, My Playbooks and the handoff page on both | Not yet | The tests check the layout by measurement, not by eye |
+
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
 - When Stacey or a pilot member reports that something worked or failed, Claude fills in the state, the date and what was seen.
