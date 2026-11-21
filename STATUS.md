@@ -6,6 +6,19 @@ What still has to be seen working for real during the pilot: docs/PILOT_CHECKS.m
 
 The plan (done, testing, needs work, waiting on Stacey, next): docs/PLAN.md. Stacey 2026-11-04: beta users start after Steps 4 to 6 are built and tested; meetings stay on Vectera.
 
+## Step 75, DELA rebuilt to the ten workflow mockups: IN FOUR RELEASES (75a to 75d)
+- Stacey 2026-11-21, with the ten mockups attached again: "the ux/ui for dela does not match the mockups - this needs to be done end to end and structured." The plan, screen by screen, with the addresses and the four releases: docs/briefs/step-75-ask-dela-workspace-mockups.md.
+- 75a is built (commit c25fdd7, switch dela_workspace_v2, migration 0155): the Ask DELA workspace with its second menu, the chat page (screen 1), My Playbooks (screen 2), DELA instructions as a page (screen 5), first forms of "Delegation opportunities" and "Gig drafts", the top bar path "Ask DELA / <page>" and the address ?tab=delegate&ws=<page>. Code: the block "Step 75a" in app/dela-app.js (dw, v2(), drawWs, dwChat, dwPlaybooks, dwOpps, dwGigs, dwInstructions) and the .dw- styles. It needs new_layout and ask_dela_workspace on.
+- Next: 75b (screens 3 and 4), 75c (6, 8, 9), 75d (7, 10). After 75d the old places open the new pages.
+
+## Step 74, tags and notes on bookmarks, and the blue profile header: ON THE SITE (2026-11-21), nothing queued behind it
+- Site: code_version 20e278f, api function 150, migrations through 0154, health "ok". GitHub Tests passed (run 44854092834).
+- docs/briefs/step-74-bookmark-tags-notes.md. Table bookmark_notes (one row per member and freelancer, private to the member). dela_bookmark_notes, dela_bookmark_note_set, dela_bookmark_tagged. Routes GET /bookmarks?notes=1, POST /bookmarks/note, GET /talent?bookmarked=1&tag=. Settings bookmarks.tags_max (8), bookmarks.tag_length (30), bookmarks.note_length (1000). No new switch: it rides on bd.bookmarks.
+- App: bmNoteBlock and the filter card in bookmarksView; "Tags and note" beside "★ Bookmarked" on a profile. The bookmark stays in the website's own table; a removed bookmark hides its tags and note and keeps them.
+- Profile header (Stacey: "crammed", "blue instead of pink"): the photo column takes the photo's width, the details line has room and wraps without a stray divider, the band is light blue (--tp-band). The same band on the freelancer's profile form is blue too.
+- Check file 25 (docs/tests/bookmark-tags-chatgpt-prompt.md). Not run yet.
+- Not built: tags on My bench, several tags in one filter, sharing tags inside a firm.
+
 ## Step 73, team work with no gig: ON THE SITE (2026-11-21), nothing queued behind it
 - Site: code_version d216f17, api function 149, migrations through 0153, health "ok". GitHub Tests passed (run 44830167164, with 10 new browser checks that play the whole flow with two people). Switch team_assignments is on "Access list" on the site.
 - docs/briefs/step-73-team-work.md. Tables team_assignments, team_assignment_steps, team_assignment_events (append-only). dela_team_people, dela_team_assign, dela_team_list, dela_team_get, dela_team_act (accept, decline, note, step, unstep, submit, approve, changes, cancel), dela_team_role. Routes GET /team-work, /team-work/one, /team-work/steps; POST /team-work/assign, /team-work/act. App: teamworkView, teamOne, teamAssignCard; menu entry "Team work" (attorney side); the line "Work for your own team" with "Assign to your team" on an approved SOP or Workflow.

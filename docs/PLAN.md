@@ -8,6 +8,10 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
+## Newest (2026-11-21, later): step 74 is on the site, and step 75 (the ten mockups) has its plan and first release built
+Step 74: code_version 20e278f, api 150, migrations through 0154 (run 44854092834). Tags and a private note on bookmarked freelancers, filters by tag and the three category levels, the profile header in blue. Check file 25, not run.
+Step 75: Stacey asked for DELA to match the ten workflow mockups end to end. Plan in docs/briefs/step-75-ask-dela-workspace-mockups.md: one Ask DELA workspace, ten pages on one skeleton, four releases. 75a (screens 1, 2 and 5) is built behind the switch dela_workspace_v2. Then 75b (screens 3, 4), 75c (6, 8, 9), 75d (7, 10).
+
 ## Newest (2026-11-21): step 73, team work with no gig, is on the site
 code_version d216f17, api 149, migrations through 0153 (run 44830167164). With it, every item of the Lapt evaluation is built except changing the scope after signing. To test on the site, a second person is needed on the test attorney's Library team: waiting for Stacey's yes to prepare it, then check 24. Seven check files are with Stacey: 15, 18, 19, 20, 21, 22, 23.
 

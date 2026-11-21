@@ -208,6 +208,13 @@ How to read the "State" column:
 | 73-1 | A firm with real staff assigns a document, the staff member accepts, does it and submits, the attorney accepts | A pilot firm with at least two people on its Library team | Not yet | The pilot's test attorney has no team yet |
 | 73-2 | The emails for assigned, accepted, submitted and changes requested arrive and their link opens the assignment | The same firm | Not yet | |
 
+## Step 74 (released 2026-11-21)
+
+| # | What must be seen working | How we will know | State | Notes |
+|---|---|---|---|---|
+| 74-1 | An attorney with several real bookmarks tags them, writes notes and finds people again with the tag and category filters | A pilot attorney with five or more bookmarks | Not yet | The test attorney has one bookmark |
+| 74-2 | The profile header looks right with a real photo upload, a long name, a long headline and no agency | Stacey or a pilot member looks at three real profiles | Not yet | Seen so far only with the ready-made picture |
+
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
 - When Stacey or a pilot member reports that something worked or failed, Claude fills in the state, the date and what was seen.
