@@ -136,6 +136,52 @@ const DOC = (title) => JSON.stringify({ schema: 2, type: "sop", title, lifecycle
     t = await waitFor(s.page, "Your firm profile for documents");
     ok(true, "a step opens in place");
     await s.ctx.close();
+
+    // ---------- Step 75b: Delegation Opportunities and Partial Delegation & Dependencies, as the mockups draw them ----------
+    await sql("update feature_switches set state = 'everyone' where key in ('new_layout', 'ask_dela_workspace', 'dela_workspace_v2', 'handoff_kit'); select 1");
+    try {
+      s = await open(browser, ATT, `&tab=delegate&ws=opportunities&doc=${pb2}`);
+      await s.page.setViewportSize({ width: 1500, height: 950 });
+      t = await waitFor(s.page, "DELA has not reviewed this version yet", 15000);
+      ok(t.includes("Delegation Opportunities") && t.includes("\"Close a matter\"") && t.includes("Recommendations · not approvals") && (await dela(s.page).locator(".top .where").innerText()).replace(/\s+/g, " ").trim() === "Ask DELA / Delegation Opportunities", "the page opens from its address on the playbook named there");
+      await dela(s.page).locator("#dw-opp-find").click();
+      t = await waitFor(s.page, "Collect and log intake forms", 15000);
+      ok(t.includes("Suggested") && t.includes("Why this task?") && t.includes("Playbook steps 1 to 2") && t.includes("Suggested role:") && t.includes("Review authority") && t.includes("The attorney decides"), "each candidate task is a card with its playbook steps, a suggested role and a tag; the attorney's step is shown as Review authority");
+      ok((await dela(s.page).locator("#dw-sel-n").innerText()) === "0" && await dela(s.page).locator("#dw-review-deps").isDisabled() && t.includes("Nothing selected."), "nothing is selected to begin with, and the next button is off");
+      await dela(s.page).getByRole("button", { name: "Why this task: Collect and log intake forms" }).click();
+      ok((await dela(s.page).locator(".dw-why").first().innerText()).includes("Estimated time saved"), "Why this task? opens the reason and the time saved");
+      await dela(s.page).getByLabel("Select the task: Collect and log intake forms").check();
+      await dela(s.page).locator(".dw-task.on").waitFor({ timeout: 8000 });
+      ok((await dela(s.page).locator("#dw-sel-n").innerText()) === "1" && (await dela(s.page).locator("#dw-selection").innerText()).includes("Selected for handoff") && (await sql(`select count(*)::int n from delegations where playbook_id = '${pb2}'`))[0].n === 0, "ticking a task builds the selection and hands nothing over");
+      await dela(s.page).locator("#dw-review-deps").click();
+      t = await waitFor(s.page, "Handoff summary", 15000);
+      ok(t.includes("Partial Delegation & Dependencies") && t.includes("Selected work") && t.includes("2 tasks selected") && t.includes("Excluded") && t.includes("Prerequisites & inputs") && t.includes("Completion criteria") && t.includes("Next step") && s.page.url().includes("ws=handoff") && s.page.url().includes("handoff="), "Review dependencies & ownership opens the handoff page with its own address: " + s.page.url());
+      ok(t.includes("The selected steps do not build on a step your firm keeps.") && await dela(s.page).locator("#dw-hand-preview").isDisabled() && await dela(s.page).locator("#dw-gig-make").isDisabled() && t.includes("Approve the instructions first."), "no prerequisite yet, and the preview and the gig draft wait for the instructions");
+      await dela(s.page).locator("#dw-steps-edit").click();
+      ok(await dela(s.page).getByLabel("Hand over step 4").count() === 0 && await dela(s.page).getByLabel("Hand over step 3").count() === 1, "the attorney's step cannot be handed over");
+      await dela(s.page).getByLabel("Hand over step 1").uncheck();
+      await dela(s.page).locator("#dw-steps-save").click();
+      t = await waitFor(s.page, "Selection saved.");
+      ok(t.includes("1 task selected") && t.includes("The result of step 1") && (await dela(s.page).locator("#dw-pre").innerText()).includes("Confirm"), "handing over step 2 without step 1 lists the result of step 1 as a prerequisite to confirm");
+      await dela(s.page).locator("#dw-crit-edit").click();
+      await dela(s.page).getByLabel("What done means").fill("Every returned form is logged and the missing ones are listed.");
+      await dela(s.page).locator("#dw-crit-save").click();
+      t = await waitFor(s.page, "Criteria saved.");
+      ok((await dela(s.page).locator("#dw-crit-done").innerText()) === "Every returned form is logged and the missing ones are listed.", "Edit criteria saves what done means");
+      await dela(s.page).locator("#dw-sop-draft").click();
+      await waitFor(s.page, "DELA drafted the instructions for just these steps.", 20000);
+      await dela(s.page).locator("#dw-sop-approve").click();
+      await waitFor(s.page, "The instructions are approved.", 15000);
+      await dela(s.page).locator("#dw-gig-make").click();
+      t = await waitFor(s.page, "The gig draft is prepared. It is not posted.", 20000);
+      ok(await dela(s.page).locator("#dw-hand-gig").count() === 1 && !(await dela(s.page).locator("#dw-hand-preview").isDisabled()) && t.includes("Assign input owners") && (await sql(`select g.status from gigs g join delegations d on d.gig_id = g.id where d.playbook_id = '${pb2}'`))[0].status === "draft", "Prepare gig draft makes a draft gig and posts nothing; the preview and the input owners open from here");
+      await s.page.reload();
+      await waitFor(s.page, "Handoff summary", 15000);
+      await s.page.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=delegate&ws=opportunities&doc=${pb2}`);
+      t = await waitFor(s.page, "Handoffs from this playbook", 15000);
+      ok(t.includes("Handed over") && t.includes("gig drafted, not posted") && await dela(s.page).getByLabel("Select the task: Collect and log intake forms").isDisabled(), "a task already handed over says so and cannot be selected again");
+      await s.ctx.close();
+    } finally { await sql("update feature_switches set state = 'off' where key in ('new_layout', 'ask_dela_workspace', 'dela_workspace_v2', 'handoff_kit'); select 1"); }
     console.log(passed + " browser checks passed");
   } catch (e) {
     if (s && s.page) await s.page.screenshot({ path: path.join(SHOTS, "automate-fail.png"), fullPage: true }).catch(() => {});

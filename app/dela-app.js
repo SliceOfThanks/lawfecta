@@ -458,10 +458,11 @@
       var u = new URL(location.href);
       // Step 75a: inside Ask DELA the workspace page is part of the address (?tab=delegate&ws=playbooks)
       var wsWant = dwOnAsk() && v2() && dw.page !== "chat" ? dw.page : "", wsKeep = dwOnAsk() && !chat.ws;
-      if (u.searchParams.get("tab") === tab && (wsKeep || (u.searchParams.get("ws") || "") === wsWant)) return;
+      var docWant = wsWant === "opportunities" && dw.pb ? dw.pb : "", handWant = wsWant === "handoff" && dw.hand ? dw.hand : "";
+      if (u.searchParams.get("tab") === tab && (wsKeep || ((u.searchParams.get("ws") || "") === wsWant && (u.searchParams.get("doc") || "") === docWant && (u.searchParams.get("handoff") || "") === handWant))) return;
       if (u.searchParams.get("tab") !== tab) ["gig", "view", "pb", "thread", "meeting", "person"].forEach(function (k) { u.searchParams.delete(k); });
       u.searchParams.set("tab", tab);
-      if (wsWant) u.searchParams.set("ws", wsWant); else if (!wsKeep) u.searchParams.delete("ws");
+      if (!wsKeep) [["ws", wsWant], ["doc", docWant], ["handoff", handWant]].forEach(function (kv) { if (kv[1]) u.searchParams.set(kv[0], kv[1]); else u.searchParams.delete(kv[0]); });
       history.replaceState(null, "", u.pathname + u.search + u.hash);
     } catch (e) { /* the address stays as it was */ }
   }
@@ -2040,13 +2041,21 @@
   // same skeleton (title, one sentence, the page's button; a main column and a right column; a blue note) and its own
   // address (?tab=delegate&ws=...). The pages are new faces on the records DELA already has: nothing here can approve,
   // send, post or pay in a new way. Inside this workspace the word is "playbook", as the mockups write it.
-  var dw = { page: "chat", f: "all", q: "", lib: null, libErr: "", gigs: null, allChats: false, ruleF: "all", ruleDraft: null };
+  var dw = { page: "chat", f: "all", q: "", lib: null, libErr: "", gigs: null, allChats: false, ruleF: "all", ruleDraft: null,
+    // Step 75b: the playbook whose delegation opportunities are shown, the tasks ticked there, and the handoff in preparation
+    pb: null, sel: {}, why: {}, hand: null };
+  var DW_MORE = { handoff: "Partial Delegation & Dependencies" };
   var DW_PAGES = [["chat", "Chat with DELA", "Ask DELA"], ["playbooks", "My playbooks", "My Playbooks Library"], ["opportunities", "Delegation opportunities", "Delegation Opportunities"],
     ["gigs", "Gig drafts", "Gig Drafts"], ["instructions", "DELA instructions", "DELA Instructions & Firm Context"]];
-  try { var dwWant = new URLSearchParams(location.search).get("ws"); if (DW_PAGES.some(function (x) { return x[0] === dwWant; })) dw.page = dwWant; } catch (e) { /* no deep link */ }
+  try {
+    var dwQ = new URLSearchParams(location.search), dwWant = dwQ.get("ws"), dwId = function (k) { var v = dwQ.get(k); return v && /^[0-9a-f-]{36}$/.test(v) ? v : null; };
+    if (DW_PAGES.some(function (x) { return x[0] === dwWant; })) dw.page = dwWant;
+    if (dwWant === "opportunities") dw.pb = dwId("doc");
+    if (dwWant === "handoff" && dwId("handoff")) { dw.page = "handoff"; dw.hand = dwId("handoff"); }
+  } catch (e) { /* no deep link */ }
   function v2() { return !!((me.switches || {}).dela_workspace_v2 && NL() && wsOn()); }
   function dwOnAsk() { return tab === "delegate" || tab === "ask"; }
-  function dwName(p) { return (DW_PAGES.filter(function (x) { return x[0] === p; })[0] || DW_PAGES[0])[2]; }
+  function dwName(p) { return DW_MORE[p] || (DW_PAGES.filter(function (x) { return x[0] === p; })[0] || DW_PAGES[0])[2]; }
   // The top bar reads "Ask DELA / <page>"; "Ask DELA" goes back to the chat
   function dwCrumb(el, plain) {
     D.clear(el);
@@ -2076,11 +2085,13 @@
     var w = chat.ws || {};
     D.clear(chatEl);
     if (!w.library && dw.page !== "chat" && dw.page !== "instructions") dw.page = "chat";
+    if (dw.page === "handoff" && !dw.hand) dw.page = "opportunities";
     var where = app.querySelector(".top .where"); if (where) dwCrumb(where, "Ask DELA");
     if (dw.page === "playbooks") dwPlaybooks();
     else if (dw.page === "opportunities") dwOpps();
     else if (dw.page === "gigs") dwGigs();
     else if (dw.page === "instructions") dwInstructions();
+    else if (dw.page === "handoff") dwHandoff();
     else dwChat();
   }
   // Screen 1: the conversation, with the second menu at the left and the working context at the right
@@ -2095,7 +2106,7 @@
       if (!w.library && p[0] !== "chat" && p[0] !== "instructions") return;
       if (p[0] === "opportunities" && !(me.switches || {}).automate_delegate) return;
       if (p[0] === "gigs" && !(canHire() && (me.switches || {}).flex_gigs)) return;
-      nav.appendChild(h("button", { class: "dw-item", type: "button", "aria-current": p[0] === "chat" ? "page" : null, onclick: function () { if (p[0] !== "chat") dwGo(p[0]); } }, p[1]));
+      nav.appendChild(h("button", { class: "dw-item", type: "button", "aria-current": p[0] === "chat" ? "page" : null, onclick: function () { if (p[0] === "opportunities") { dw.pb = null; dw.sel = {}; } if (p[0] !== "chat") dwGo(p[0]); } }, p[1]));
     });
     nav.appendChild(h("h2", { class: "dw-cap dw-cap2", text: "Recent conversations" }));
     if (!chat.list.length) nav.appendChild(h("p", { class: "hsub", style: "margin:0 0 8px", text: "None yet. Your chats are listed here." }));
@@ -2179,7 +2190,9 @@
     }))));
     var acts = [], said = chat.messages.some(function (m) { return m.role === "user"; });
     var approved = chat.docs.filter(function (d) { return d.approved; }), gigDoc = approved.filter(function (d) { return d.doc_type === "sop" || d.doc_type === "workflow"; })[0];
-    if (w.library && (me.switches || {}).automate_delegate) acts.push(["Review delegation opportunities", "See proposed tasks and source steps.", function () { dwGo("opportunities"); }, "aw-deleg"]);
+    if (w.library && (me.switches || {}).automate_delegate) acts.push(["Review delegation opportunities", "See proposed tasks and source steps.", function () {
+      var ap = approved.filter(function (d) { return d.doc_type !== "policy"; }); dw.pb = ap.length === 1 ? ap[0].id : null; dw.sel = {}; dwGo("opportunities");
+    }, "aw-deleg"]);
     if (w.library) acts.push(["Create or improve a playbook", chat.id && said ? "Capture this chat as a reusable draft. Nothing is approved or shared." : "Capture a reusable workflow.", function () {
       if (chat.id && said) { var c0 = chat.list.filter(function (x) { return x.id === chat.id; })[0]; lib.fromChat = { id: chat.id, title: c0 ? c0.title : "this chat", text: chatTranscript() }; goTab("library"); }
       else dwGo("playbooks");
@@ -2260,19 +2273,264 @@
       h("button", { class: "ghost dw-wide", type: "button", id: "dw-describe", onclick: function () { chatReset(); dwGo("chat"); if (composerText) composerText.focus(); } }, "Describe a process to DELA"));
     chatEl.appendChild(dwCols([tableCard], [sel, none, dwNote("Drafts and proposed changes are not approved instructions. Approval belongs to the playbook's author or the Library administrator.")]));
   }
-  // Screen 3, first form (the full screen comes with release 75b): the approved playbooks DELA can review for tasks to hand off
+  // Screen 3 (step 75b): Delegation Opportunities. With no playbook chosen it lists the approved ones; with one, it
+  // shows DELA's candidate tasks as cards to tick. Ticking only builds a selection: nothing is handed over here.
+  function dwDocTitle(id) { var d = ((chat.ws || {}).docs || []).filter(function (x) { return x.id === id; })[0]; return d ? d.title : ""; }
   function dwOpps() {
     var w = chat.ws || {};
-    chatEl.appendChild(dwHead("Delegation Opportunities", "Review candidate tasks from an approved playbook. Select only what you want to delegate.", []));
-    var list = (w.docs || []).filter(function (d) { return d.approved && d.doc_type !== "policy"; });
-    var card = h("section", { class: "card" }, h("h2", { text: "Choose a playbook to review" }));
-    if (!list.length) card.appendChild(h("p", { class: "muted", id: "dw-opp-none", style: "margin:0", text: "No approved playbook yet. DELA suggests tasks to hand off only from an approved SOP, workflow or playbook." }));
-    else card.appendChild(h("ul", { class: "aw-docs" }, list.map(function (d) {
-      return h("li", { class: "aw-row" }, h("span", { class: "aw-row-t" }, h("b", { text: (d.doc_id ? d.doc_id + " " : "") + d.title }), h("span", { class: "hsub", text: chatDocLine(d) })),
-        h("button", { class: "ghost small", type: "button", "aria-label": "Review opportunities in " + d.title, onclick: function () { openDocFromChat(d.id); } }, "Review opportunities"));
-    })));
-    var why = h("section", { class: "card" }, h("h2", { text: "Why these recommendations?" }), h("p", { class: "hsub", style: "margin:0", text: "Each suggestion connects to a step of the playbook, what the step needs, and who stays responsible. Steps the attorney decides stay with the attorney." }));
-    chatEl.appendChild(dwCols([card], [why, dwNote("Recommendations are not approvals. Nothing is handed over until you choose the steps and post or assign the work.")]));
+    if (!dw.pb) {
+      chatEl.appendChild(dwHead("Delegation Opportunities", "Review candidate tasks from an approved playbook. Select only what you want to delegate.", []));
+      var list = (w.docs || []).filter(function (d) { return d.approved && d.doc_type !== "policy"; });
+      var pick = h("section", { class: "card" }, h("h2", { text: "Choose a playbook to review" }));
+      if (!list.length) pick.appendChild(h("p", { class: "muted", id: "dw-opp-none", style: "margin:0", text: "No approved playbook yet. DELA suggests tasks to hand off only from an approved SOP, workflow or playbook." }));
+      else pick.appendChild(h("ul", { class: "aw-docs" }, list.map(function (d) {
+        return h("li", { class: "aw-row" }, h("span", { class: "aw-row-t" }, h("b", { text: (d.doc_id ? d.doc_id + " " : "") + d.title }), h("span", { class: "hsub", text: chatDocLine(d) })),
+          h("button", { class: "ghost small", type: "button", "aria-label": "Review opportunities in " + d.title, onclick: function () { dw.pb = d.id; dw.sel = {}; dwGo("opportunities"); } }, "Review opportunities"));
+      })));
+      chatEl.appendChild(dwCols([pick], [h("section", { class: "card" }, h("h2", { text: "Why these recommendations?" }), h("p", { class: "hsub", style: "margin:0", text: "Each suggestion connects to a step of the playbook, what the step needs, and who stays responsible. Steps the attorney decides stay with the attorney." })),
+        dwNote("Recommendations are not approvals. Nothing is handed over until you choose the steps and post or assign the work.")]));
+      return;
+    }
+    var pid = dw.pb, title = dwDocTitle(pid);
+    var headSub = h("span", { text: "Review candidate tasks from this playbook. Select only what you want to delegate." });
+    chatEl.appendChild(dwHead("Delegation Opportunities", "Review candidate tasks from " + (title ? "\"" + title + "\"" : "this playbook") + ". Select only what you want to delegate.", [
+      h("button", { class: "ghost small", type: "button", id: "dw-opp-other", onclick: function () { dw.pb = null; dw.sel = {}; dwGo("opportunities"); } }, "Choose another playbook"),
+      h("button", { class: "ghost small", type: "button", id: "dw-refine", onclick: function () {
+        var d = (w.docs || []).filter(function (x) { return x.id === pid; })[0]; if (d) dwPickDoc(d);
+        dwGo("chat"); if (composerText) { composerText.value = "Go through the tasks I could delegate from \"" + (title || "this playbook") + "\" with me. Ask me one question first."; composerText.focus(); }
+      } }, "Refine with DELA")]));
+    void headSub;
+    var main = h("div", { id: "dw-opp-main" }, h("p", { class: "muted", text: "Loading..." })), side = h("div", { class: "dw-side", id: "dw-opp-side" });
+    chatEl.appendChild(h("div", { class: "dw-wrap" }, h("div", { class: "dw-cols" }, h("div", { class: "dw-main" }, main), side)));
+    var say = h("p", { class: "notice small", role: "status" }); say.hidden = true;
+    function tell(t, bad) { say.textContent = t; say.className = "notice small" + (bad ? " bad" : " ok"); say.hidden = !t; }
+    function load() {
+      Promise.all([api.get("/automate?playbook=" + encodeURIComponent(pid)), api.get("/gigs/doc-steps?playbook=" + encodeURIComponent(pid)).catch(function () { return null; })]).then(function (rs) {
+        if (dw.page !== "opportunities" || dw.pb !== pid || !main.parentNode) return;
+        var st = rs[0] || {}, ds = rs[1] && rs[1].ok && rs[1].on ? rs[1] : null;
+        D.clear(main); D.clear(side);
+        if (!st.ok || !st.on || !st.can_run || !st.approved || st.doc_type === "policy") {
+          main.appendChild(h("section", { class: "card" }, h("p", { class: "notice", id: "dw-opp-cannot", style: "margin:0", text: !st.ok ? autoErr(st) : !st.approved ? "This playbook is not approved yet. DELA suggests tasks only from an approved version." : st.doc_type === "policy" ? "A policy has no steps to hand over." : "Delegation opportunities are not open for your account or your place in this Library." })));
+          return;
+        }
+        var stepOf = {}; ((ds && ds.steps) || []).forEach(function (x) { stepOf[x.no] = x; });
+        main.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("span", { class: "badge dw-blue dw-tag", text: "Source: " + (title || (ds && ds.title) || "this playbook") + (st.review ? " v" + st.review.version : "") }), h("span", { class: "badge pink dw-tag", text: "Recommendations · not approvals" })));
+        main.appendChild(say);
+        if (!st.review) {
+          // No review of this approved version yet: DELA reads the steps once
+          var freq = h("select", { "aria-label": "How often does this run?" }, [h("option", { value: "", text: "Choose (optional)" })].concat(["daily", "weekly", "monthly", "quarterly"].map(function (k) { return h("option", { value: k, text: FREQ_WORDS[k] }); })));
+          var mins = h("input", { type: "number", min: "1", max: "6000", step: "1", "aria-label": "How long does it take each time?", placeholder: "Minutes (optional)" });
+          var go = h("button", { class: "blue", type: "button", id: "dw-opp-find" }, "Find tasks to delegate");
+          go.addEventListener("click", function () {
+            go.disabled = true; go.textContent = "DELA is reviewing the steps...";
+            api.post("/automate/review", { playbook_id: pid, frequency: freq.value, minutes: mins.value ? Number(mins.value) : null }).then(function (x) { if (!x.ok) throw x; load(); })
+              .catch(function (e) { go.disabled = false; go.textContent = "Find tasks to delegate"; tell(e && e.reason ? autoErr(e) : D.errorText(e && e.message), true); });
+          });
+          main.appendChild(h("section", { class: "card", id: "dw-opp-first" }, h("h2", { text: "DELA has not reviewed this version yet" }),
+            h("p", { class: "hsub", style: "margin:0 0 10px", text: (st.out_of_date ? "The last review was for an older version. " : "") + "DELA reads the approved steps once and suggests which ones could be handed to someone else. It uses one DELA action (or your own AI key)." }),
+            h("div", { class: "row", style: "flex-wrap:wrap" }, field("How often does this run?", freq), field("How long does it take each time?", mins, "In minutes. Leave both empty and DELA estimates.")), go));
+          side.appendChild(dwNote("Recommendations only. Nothing is handed over until you choose the tasks and post or assign the work."));
+          return;
+        }
+        var recs = st.review.recommendations || [], dels = st.delegations || [], t = st.review.time || {};
+        var handedBy = function (r) { return dels.filter(function (d) { return d.kind !== "setup" && (d.rec_id === r.id || (r.steps || []).every(function (n) { return (d.steps || []).indexOf(n) >= 0; })); })[0]; };
+        var tasks = recs.filter(function (r) { return r.kind === "delegate"; });
+        Object.keys(dw.sel).forEach(function (k) { var r = tasks.filter(function (x) { return x.id === k; })[0]; if (!r || handedBy(r)) delete dw.sel[k]; });
+        if (!tasks.length) main.appendChild(h("section", { class: "card" }, h("p", { class: "muted", id: "dw-opp-empty", style: "margin:0", text: "DELA found no task in this version that could be handed over." })));
+        tasks.forEach(function (r) {
+          var done = handedBy(r), on = !!dw.sel[r.id], first = stepOf[(r.steps || [])[0]] || {};
+          var cb = h("input", { type: "checkbox", checked: on, disabled: !!done, "aria-label": "Select the task: " + r.title });
+          cb.addEventListener("change", function () { if (cb.checked) dw.sel[r.id] = true; else delete dw.sel[r.id]; load(); });
+          var why = h("div", { class: "hsub dw-why", id: "dw-why-" + r.id }, h("span", { text: sentence(r.why) + "Estimated time saved: " + hoursText(r.hours_month) + (t.estimated ? " (estimated by DELA)." : " (from your numbers).") + ((r.skills || []).length ? " Skills: " + r.skills.join(", ") + "." : "") }));
+          why.hidden = !dw.why[r.id];
+          var whyB = h("button", { class: "ghost small", type: "button", "aria-expanded": String(!!dw.why[r.id]), "aria-controls": "dw-why-" + r.id, "aria-label": "Why this task: " + r.title }, "Why this task?");
+          whyB.addEventListener("click", function () { dw.why[r.id] = !dw.why[r.id]; why.hidden = !dw.why[r.id]; whyB.setAttribute("aria-expanded", String(!!dw.why[r.id])); });
+          main.appendChild(h("section", { class: "card dw-task" + (on ? " on" : "") },
+            h("div", { class: "row", style: "gap:10px;align-items:flex-start" }, h("label", { class: "dw-task-l grow" }, cb, h("b", { text: r.title })), done ? dwTag("Handed over", "ready") : dwTag("Suggested", "pink")),
+            h("div", { class: "hsub dw-task-step", text: "Playbook " + stepsText(r.steps).toLowerCase() + (first.text ? " · " + String(first.text).slice(0, 90) : "") }),
+            h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:8px" }, h("span", { class: "badge off dw-tag", text: "Suggested role: " + (first.role || ((r.skills || [])[0]) || "Legal support") }), whyB,
+              done ? h("button", { class: "ghost small", type: "button", "aria-label": "Open the handoff for " + r.title, onclick: function () { if (done.gig_id && done.gig_status && done.gig_status !== "draft") gigLink(done.gig_id, "projects"); else { dw.hand = done.id; dwGo("handoff"); } } }, done.gig_id && done.gig_status && done.gig_status !== "draft" ? "View gig" : "Open the handoff") : null), why));
+        });
+        // The steps only the attorney decides: shown, never selectable
+        ((ds && ds.steps) || []).filter(function (x) { return x.attorney_decides; }).forEach(function (x) {
+          main.appendChild(h("section", { class: "card dw-task" },
+            h("div", { class: "row", style: "gap:10px;align-items:flex-start" }, h("label", { class: "dw-task-l grow" }, h("input", { type: "checkbox", disabled: true, "aria-label": "Step " + x.no + " stays with the attorney" }), h("b", { text: String(x.text).slice(0, 110) })), dwTag("Review authority", "held")),
+            h("div", { class: "hsub dw-task-step", text: "Playbook step " + x.no + " · The attorney decides" }),
+            h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:8px" }, h("span", { class: "badge off dw-tag", text: "Suggested role: Authorized attorney" }))));
+        });
+        var autos = recs.filter(function (r) { return r.kind !== "delegate"; });
+        if (autos.length) main.appendChild(h("p", { class: "hsub", id: "dw-opp-autos", text: plural(autos.length, "step") + " could be automated with a tool instead. " }, h("button", { class: "linkish", type: "button", onclick: function () { openDocFromChat(pid); } }, "Open the playbook in the Library to see them")));
+        main.appendChild(h("p", { class: "hsub", text: "Steps the attorney decides stay with the attorney and cannot be selected." }));
+        // The right column
+        var chosen = tasks.filter(function (r) { return dw.sel[r.id]; });
+        var selCard = h("section", { class: "card", id: "dw-selection" }, h("h2", { text: "Your selection" }));
+        if (!chosen.length) selCard.appendChild(h("p", { class: "hsub", id: "dw-sel-empty", style: "margin:0 0 10px", text: "Nothing selected. Tick the tasks you want to hand over." }));
+        chosen.forEach(function (r) { selCard.appendChild(h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: r.title }), h("span", { class: "hsub", style: "display:block", text: "Selected for handoff · " + stepsText(r.steps).toLowerCase() })), dwTag("Selected", "ready"))); });
+        selCard.appendChild(h("div", { class: "row dw-count" }, h("b", { class: "grow", text: "Selected tasks" }), h("b", { id: "dw-sel-n", text: String(chosen.length) })));
+        var next = h("button", { class: "blue dw-wide", type: "button", id: "dw-review-deps", disabled: !chosen.length }, "Review dependencies & ownership");
+        next.addEventListener("click", function () {
+          next.disabled = true;
+          var steps = []; chosen.forEach(function (r) { (r.steps || []).forEach(function (n) { if (steps.indexOf(n) < 0) steps.push(n); }); }); steps.sort(function (a, b) { return a - b; });
+          api.post("/automate/delegate", { review_id: st.review.id, rec_id: chosen[0].id, kind: "delegate" }).then(function (x) {
+            if (!x.ok) throw x;
+            var id = x.delegation.id;
+            if (chosen.length < 2) return id;
+            return api.post("/automate/delegation", { id: id, steps: steps, stage: 2 }).then(function (y) { if (!y.ok) throw y; return id; });
+          }).then(function (id) { dw.sel = {}; dw.hand = id; dwGo("handoff"); })
+            .catch(function (e) { next.disabled = false; tell(e && e.reason ? autoErr(e) : D.errorText(e && e.message), true); });
+        });
+        selCard.appendChild(next);
+        side.appendChild(selCard);
+        var open = dels.filter(function (d) { return d.kind !== "setup"; });
+        if (open.length) side.appendChild(h("section", { class: "card", id: "dw-handoffs" }, h("h2", { text: "Handoffs from this playbook" }), open.map(function (d) {
+          return h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: d.title }), h("span", { class: "hsub", style: "display:block", text: stepsText(d.steps) + (d.gig_id ? (d.gig_status && d.gig_status !== "draft" ? " · gig posted" : " · gig drafted, not posted") : " · in preparation") })),
+            h("button", { class: "ghost small", type: "button", "aria-label": "Open the handoff " + d.title, onclick: function () { dw.hand = d.id; dwGo("handoff"); } }, "Open"));
+        })));
+        side.appendChild(h("section", { class: "card" }, h("h2", { text: "Why these recommendations?" }), h("p", { class: "hsub", style: "margin:0", text: "Each suggestion connects to a step of the approved playbook. DELA suggests; your firm decides who does the work, and the supervising attorney stays accountable for every step." })));
+        side.appendChild(dwNote("Recommendations only. Time saved is an estimate. DELA makes no promise about a freelancer's qualifications or about compliance."));
+      }).catch(function (e) { D.clear(main); main.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
+    }
+    load();
+  }
+  // Screen 4 (step 75b): Partial Delegation & Dependencies. One handoff in preparation: the steps chosen and kept,
+  // what the work needs before it can start, what done means, and the way on to the gig draft.
+  var DW_NEED = { needed: ["Pending", "held"], supplied: ["Confirmed", "ready"], not_needed: ["Not needed", "off"] };
+  function dwHandoff() {
+    var id = dw.hand;
+    var headActs = h("span", { class: "row", style: "gap:8px;flex-wrap:wrap" });
+    chatEl.appendChild(dwHead("Partial Delegation & Dependencies", "Choose part of a process without losing required inputs, access rules, or downstream responsibilities.", [headActs]));
+    var main = h("div", { id: "dw-hand-main" }, h("p", { class: "muted", text: "Loading..." })), side = h("div", { class: "dw-side", id: "dw-hand-side" });
+    chatEl.appendChild(h("div", { class: "dw-wrap" }, h("div", { class: "dw-cols" }, h("div", { class: "dw-main" }, main), side)));
+    var say = h("p", { class: "notice small", role: "status", id: "dw-hand-say" }); say.hidden = true;
+    function tell(t, bad) { say.textContent = t; say.className = "notice small" + (bad ? " bad" : " ok"); say.hidden = !t; }
+    function fail(e) { tell(e && e.reason ? autoErr(e) : D.errorText(e && e.message), true); }
+    var editSteps = false, editCrit = false;
+    function post(path, body, msg) { return api.post(path, Object.assign({ id: id }, body || {})).then(function (x) { if (!x.ok) throw x; editSteps = false; editCrit = false; render(x, msg); return x; }).catch(fail); }
+    function render(v, msg) {
+      if (dw.page !== "handoff" || dw.hand !== id || !main.parentNode) return;
+      D.clear(main); D.clear(side); D.clear(headActs);
+      if (!v || !v.ok) { main.appendChild(h("section", { class: "card" }, h("p", { class: "notice", id: "dw-hand-gone", style: "margin:0", text: v ? autoErr(v) : "This handoff could not be read." }), h("button", { class: "ghost small", type: "button", onclick: function () { dwGo("opportunities"); } }, "Back to delegation opportunities"))); return; }
+      var d = v.delegation, sop = v.sop, k = v.kpis || {}, steps = v.parent_steps || [], locked = sop && sop.status === "approved";
+      var chosen = steps.filter(function (p) { return p.chosen; }), kept = steps.filter(function (p) { return p.attorney_decides || p.judgment; });
+      headActs.appendChild(h("button", { class: "ghost small", type: "button", id: "dw-hand-orig", onclick: function () { openDocFromChat(d.playbook_id); } }, "View original playbook"));
+      main.appendChild(say); if (msg) tell(msg);
+      // Selected work
+      var work = h("section", { class: "card", id: "dw-work" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Selected work" }), dwTag(plural(chosen.length, "task") + " selected", "pink")));
+      var boxes = [];
+      steps.forEach(function (p) {
+        var keep = p.attorney_decides || p.judgment, cb = null;
+        if (editSteps && !keep) { cb = h("input", { type: "checkbox", checked: !!p.chosen, "aria-label": "Hand over step " + p.n }); boxes.push([p.n, cb]); }
+        work.appendChild(h("div", { class: "dw-line" }, cb, h("span", { class: "grow" }, h("b", { text: p.n + " · " + String(p.text).slice(0, 140) }),
+          h("span", { class: "hsub", style: "display:block", text: keep ? "Excluded from handoff · " + (p.attorney_decides ? "The attorney decides this step" : "Needs legal judgment, stays with the attorney") : p.chosen ? "Part of this handoff" : "Stays with your firm" })),
+          keep ? dwTag("Excluded", "off") : p.chosen ? dwTag("Selected", "ready") : dwTag("Not selected", "off")));
+      });
+      if (d.kind !== "setup" && !locked) work.appendChild(editSteps
+        ? h("div", { class: "row", style: "gap:8px;margin-top:10px" }, h("button", { class: "blue small", type: "button", id: "dw-steps-save", onclick: function () { post("/automate/delegation", { steps: boxes.filter(function (x) { return x[1].checked; }).map(function (x) { return x[0]; }), stage: Math.max(d.stage, 2) }, "Selection saved."); } }, "Save selection"),
+          h("button", { class: "ghost small", type: "button", onclick: function () { editSteps = false; render(v); } }, "Cancel"))
+        : h("button", { class: "ghost dw-wide", type: "button", id: "dw-steps-edit", style: "margin-top:10px", onclick: function () { editSteps = true; render(v); } }, "Change the selection"));
+      else if (locked) work.appendChild(h("p", { class: "hsub", style: "margin:10px 0 0", text: "The instructions for this part are approved, so the selection is fixed." }));
+      main.appendChild(work);
+      // Prerequisites & inputs
+      var pre = h("section", { class: "card", id: "dw-pre" }, h("h2", { text: "Prerequisites & inputs" }));
+      var builds = chosen.filter(function (p) { return p.n > 1 && !steps[p.n - 2].chosen; });
+      var gigBox = h("div", null);
+      builds.forEach(function (p) {
+        var prev = steps[p.n - 2];
+        pre.appendChild(h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: "The result of step " + prev.n }), h("span", { class: "hsub", style: "display:block", text: "Supplier: your firm · Step " + p.n + " builds on it: " + String(prev.text).slice(0, 100) })), dwTag("Confirm", "held")));
+      });
+      pre.appendChild(gigBox);
+      if (d.gig_id) {
+        gigBox.appendChild(h("p", { class: "hsub", text: "Loading what the freelancer needs..." }));
+        api.get("/gigs/get?id=" + encodeURIComponent(d.gig_id)).then(function (g) {
+          D.clear(gigBox);
+          var ins = (g && g.ok && g.handoff && g.handoff.on && g.handoff.inputs) || [];
+          if (!ins.length) { gigBox.appendChild(h("p", { class: "hsub", id: "dw-pre-none", style: "margin:6px 0 0", text: "No inputs are listed on the gig draft yet. Add what the freelancer needs before starting." })); return; }
+          var open = 0;
+          ins.forEach(function (i) {
+            var tg = DW_NEED[i.status || "needed"] || DW_NEED.needed; if ((i.status || "needed") === "needed") open++;
+            gigBox.appendChild(h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: i.label || i.kind }), h("span", { class: "hsub", style: "display:block", text: "Supplier: " + (i.supplied_by === "freelancer" ? "the freelancer" : "your firm") + " · Needed before the work starts" })), dwTag(tg[0], tg[1])));
+          });
+          if (open) pre.insertBefore(h("p", { class: "dw-warn", id: "dw-pre-warn" }, h("b", { text: "Needs a decision: " }), h("span", { text: plural(open, "input") + " still " + (open === 1 ? "has" : "have") + " to be supplied or confirmed." })), pre.children[1] || null);
+        }).catch(function () { D.clear(gigBox); });
+        pre.appendChild(h("button", { class: "ghost dw-wide", type: "button", id: "dw-pre-assign", style: "margin-top:10px", onclick: function () { openGig(d.gig_id, "details"); } }, "Assign input owners"));
+      } else {
+        if (!builds.length) pre.appendChild(h("p", { class: "hsub", id: "dw-pre-none", style: "margin:0", text: "The selected steps do not build on a step your firm keeps." }));
+        pre.appendChild(h("p", { class: "hsub", style: "margin:10px 0 0", text: "Files, logins and other inputs get their owner on the gig draft, under \"What the freelancer needs before starting\". Access is never given by sending a link." }));
+      }
+      main.appendChild(pre);
+      // Completion criteria
+      var crit = h("section", { class: "card", id: "dw-crit" }, h("h2", { text: "Completion criteria" }));
+      if (!editCrit) {
+        crit.appendChild(h("p", { id: "dw-crit-done", style: "margin:0 0 8px", text: k.done || "Not written yet." }));
+        if ((k.checklist || []).length) crit.appendChild(h("ul", { class: "dw-list" }, k.checklist.map(function (x) { return h("li", { text: x }); })));
+        crit.appendChild(h("p", { class: "hsub", style: "margin:0 0 10px", text: "Turnaround: " + plural(k.turnaround_days || 2, "business day") + " · Accuracy target: " + (k.accuracy_pct || 95) + "%" }));
+        if (!locked) crit.appendChild(h("button", { class: "ghost dw-wide", type: "button", id: "dw-crit-edit", onclick: function () { editCrit = true; render(v); } }, "Edit criteria"));
+      } else {
+        var days = h("input", { type: "number", min: "1", max: "90", value: String(k.turnaround_days || 2) }), acc = h("input", { type: "number", min: "50", max: "100", value: String(k.accuracy_pct || 95) });
+        var chk = h("textarea", { rows: 4, style: "width:100%" }); chk.value = (k.checklist || []).join("\n");
+        var done = h("textarea", { rows: 2, style: "width:100%" }); done.value = k.done || "";
+        crit.appendChild(aiNotice());
+        crit.appendChild(field("What done means", done)); crit.appendChild(field("Quality checklist, one per line", chk));
+        crit.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, field("Turnaround (business days)", days), field("Accuracy target (%)", acc)));
+        crit.appendChild(h("div", { class: "row", style: "gap:8px" }, h("button", { class: "blue small", type: "button", id: "dw-crit-save", onclick: function () {
+          api.post("/automate/delegation", { id: id, kpis: { turnaround_days: Number(days.value), accuracy_pct: Number(acc.value), checklist: lines(chk.value), done: done.value }, stage: Math.max(d.stage, 4) }).then(function (x) {
+            if (!x.ok) throw x;
+            return sop ? api.post("/automate/delegation/sop", { id: id }).then(function (y) { if (!y.ok) throw y; return y; }) : x;
+          }).then(function (y) { editCrit = false; render(y, "Criteria saved."); }).catch(fail);
+        } }, "Save criteria"), h("button", { class: "ghost small", type: "button", onclick: function () { editCrit = false; render(v); } }, "Cancel")));
+      }
+      main.appendChild(crit);
+      // The right column: the summary, then the next step
+      var posted = d.gig_id && v.gig_status && v.gig_status !== "draft";
+      var sum = h("section", { class: "card", id: "dw-sum" }, h("h2", { text: "Handoff summary" }),
+        h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: "Scope" }), h("span", { class: "hsub", style: "display:block", text: plural(chosen.length, "selected step") + " of " + (v.parent ? v.parent.title : "the playbook") }))),
+        h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: "Accountable owner" }), h("span", { class: "hsub", style: "display:block", text: "The supervising attorney stays accountable for every step" }))),
+        h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: "Downstream reviewer" }), h("span", { class: "hsub", style: "display:block", text: kept.length ? plural(kept.length, "attorney decision") + " remain" + (kept.length === 1 ? "s" : "") + " outside the scope" : "Your firm reviews the result" }))),
+        h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: "Recipient access" }), h("span", { class: "hsub", style: "display:block", text: d.gig_id ? "Set on the gig draft" : "Not confirmed" })), dwTag(d.gig_id ? "Review" : "Pending", "held")),
+        h("p", { class: "dw-warn", text: "The selected work cannot start until required inputs and access are confirmed. Other work may continue." }));
+      var prevB = h("button", { class: "blue dw-wide", type: "button", id: "dw-hand-preview", disabled: !d.gig_id, onclick: function () { openGig(d.gig_id, "details"); } }, "Open recipient-safe preview");
+      sum.appendChild(prevB);
+      if (!d.gig_id) sum.appendChild(h("p", { class: "hsub", style: "margin:6px 0 0", text: "The preview is made from the gig draft. Prepare the gig draft first." }));
+      side.appendChild(sum);
+      var nx = h("section", { class: "card", id: "dw-hand-next" }, h("h2", { text: "Next step" }));
+      if (d.gig_id) {
+        nx.appendChild(h("p", { class: "hsub", style: "margin:0 0 10px", text: "The gig draft exists. Review what the freelancer will see there before you post it." }));
+        nx.appendChild(h("button", { class: "ghost dw-wide", type: "button", id: "dw-hand-gig", onclick: function () { openGig(d.gig_id, "details"); } }, "Open the gig draft"));
+      } else {
+        nx.appendChild(h("p", { class: "hsub", style: "margin:0 0 10px", text: "Prepare the instructions for just this part, approve them, then prepare a freelancer-facing gig draft. Nothing is posted from here." }));
+        // 1. the instructions for the part
+        nx.appendChild(h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: "1. Instructions for this part" }), h("span", { class: "hsub", style: "display:block", text: !sop ? "Not drafted yet" : (sop.doc_id ? sop.doc_id + " " : "") + sop.title + (sop.status === "approved" ? "" : sop.blocking ? " · " + plural(sop.blocking, "thing") + " to fix" : " · ready to approve") })),
+          dwTag(!sop ? "Missing" : sop.status === "approved" ? "Approved" : "Draft", sop && sop.status === "approved" ? "ready" : "held")));
+        if (!sop) nx.appendChild(h("button", { class: "blue dw-wide", type: "button", id: "dw-sop-draft", onclick: function (ev) { ev.target.disabled = true; ev.target.textContent = "DELA is drafting..."; post("/automate/delegation/sop", {}, "DELA drafted the instructions for just these steps."); } }, "Draft the instructions"));
+        else {
+          nx.appendChild(h("button", { class: "ghost dw-wide", type: "button", id: "dw-sop-open", onclick: function () { openDocFromChat(sop.id); } }, "Open the instructions"));
+          if (sop.status !== "approved") nx.appendChild(v.can_approve ? h("button", { class: "blue dw-wide", type: "button", id: "dw-sop-approve", style: "margin-top:8px", disabled: !!sop.blocking, onclick: function () { post("/automate/delegation/approve", {}, "The instructions are approved."); } }, "Approve the instructions")
+            : h("p", { class: "hsub", style: "margin:8px 0 0", text: "An attorney approves the instructions and prepares the gig." }));
+        }
+        // 2. the gig draft
+        var b = v.budget || {};
+        nx.appendChild(h("div", { class: "dw-line", style: "margin-top:10px" }, h("span", { class: "grow" }, h("b", { text: "2. Gig draft" }), h("span", { class: "hsub", style: "display:block", text: "Suggested budget: " + (b.at_minimum ? D.money(b.low_cents) + ", the smallest gig budget" : D.money(b.low_cents) + " to " + D.money(b.high_cents)) + ", for about " + v.hours + " hours. You set the amount. Lawfecta's platform fee comes on top: " + D.money(b.fee_low_cents) + " to " + D.money(b.fee_high_cents) + "." }))));
+        if (locked && v.can_approve) {
+          var bmin = h("input", { type: "number", min: "0", step: "1", value: String(Math.round((b.low_cents || 0) / 100)) }), bmax = h("input", { type: "number", min: "0", step: "1", value: String(Math.round((b.high_cents || 0) / 100)) }), dl = h("input", { type: "date" });
+          nx.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, field("Budget from (USD)", bmin), field("Budget to (USD)", bmax), field("Work deadline (optional)", dl)));
+          var mk = h("button", { class: "blue dw-wide", type: "button", id: "dw-gig-make" }, "Prepare gig draft");
+          mk.addEventListener("click", function () {
+            mk.disabled = true; mk.textContent = "DELA is writing the freelancer-facing version...";
+            api.post("/automate/delegation/gig", { id: id, budget_min: bmin.value, budget_max: bmax.value, deadline: dl.value }).then(function (x) { if (!x.ok) throw x; return api.get("/automate/delegation?id=" + encodeURIComponent(id)); })
+              .then(function (y) { render(y, "The gig draft is prepared. It is not posted."); }).catch(function (e) { mk.disabled = false; mk.textContent = "Prepare gig draft"; fail(e); });
+          });
+          nx.appendChild(mk);
+        } else nx.appendChild(h("button", { class: "ghost dw-wide", type: "button", id: "dw-gig-make", disabled: true }, "Prepare gig draft"));
+        if (!locked) nx.appendChild(h("p", { class: "hsub", style: "margin:6px 0 0", text: "Approve the instructions first." }));
+      }
+      side.appendChild(nx);
+      if (!d.gig_id) side.appendChild(h("button", { class: "linkish", type: "button", id: "dw-hand-stop", onclick: function () {
+        api.post("/automate/delegation", { id: id, cancel: true }).then(function () { dw.hand = null; dw.pb = d.playbook_id; dwGo("opportunities"); }).catch(fail);
+      } }, "Stop this handoff"));
+      void posted;
+    }
+    if (!id) { render({ ok: false, reason: "not_found" }); return; }
+    api.get("/automate/delegation?id=" + encodeURIComponent(id)).then(function (v) { render(v); }).catch(function (e) { D.clear(main); main.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
   }
   // "Gig drafts" in the second menu: the firm's gigs that are not posted yet
   function dwGigs() {
