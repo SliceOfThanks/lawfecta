@@ -517,6 +517,58 @@ const SEARCH = "Search roles, specialties, tasks and software";
       await s.ctx.close();
     } finally { await sql("update feature_switches set state = 'off' where key = 'community'; select 1"); }
 
+    // ---------- Step 75c: the invitation with its sharing review, the gig draft and the recipient preview, as pages of the Ask DELA workspace ----------
+    const sw75 = (await sql("select jsonb_object_agg(key, state) sw from feature_switches where key in ('ask_dela_workspace', 'dela_workspace_v2', 'ai_generation')"))[0].sw;
+    await sql("update feature_switches set state = 'everyone' where key in ('ask_dela_workspace', 'dela_workspace_v2', 'ai_generation'); update settings set value = '50' where key = 'talent.page_size'; select 1");
+    try {
+      s = await open(browser, "DELA-App", ATT, "&tab=talent"); p = s.page;
+      await p.setViewportSize({ width: 1500, height: 950 });
+      await waitFor(p, "Fern Family");
+      const inv0 = (await sql("select count(*)::int n from gig_invitations"))[0].n;
+      await dela(p).locator(".talent-card", { hasText: "Fern Family" }).getByRole("button", { name: "Invite to gig" }).click();
+      t = await waitFor(p, "Information to be shared", 15000);
+      await dela(p).locator("#dw-i-share .dw-line").first().waitFor({ timeout: 10000 });
+      t = await text(p);
+      const shared = await p.evaluate(() => [...document.querySelector(".dela-host").shadowRoot.querySelectorAll("#dw-i-share .dw-line")].map((li) => li.querySelector("b").textContent + " = " + li.querySelector(".dw-tag").textContent));
+      ok(t.includes("Invitation & Sharing Review") && t.includes("Prepare invitation") && t.includes("Recipient package preview") && t.includes("Permission checks") && t.includes("Invitation · Not sent") && await dela(p).locator("#dw-i-who").inputValue() === "Fern Family · freelancer", "Invite to gig opens the invitation page of the workspace, for this freelancer");
+      ok(shared.length === 7 && shared[0] === "The gig as freelancers see it = Included" && shared[1] === "Selected instructions = Included" && shared[3] === "Your message = Not shared" && shared[6] === "Your payment details = Not shared", "the list says what is included and what is not shared: " + shared.join(" | "));
+      ok(t.includes("Preparing an invitation does not send it or grant system access.") && (await dela(p).locator(".top .where").innerText()).replace(/\s+/g, " ").trim() === "Ask DELA / Invitation & Sharing Review", "the page says preparing is not sending, and the top bar names it");
+      await dela(p).locator("#dw-i-msg").fill("Your discovery experience fits this gig.");
+      await dela(p).locator("#dw-i-save").click();
+      await waitFor(p, "Prepared draft saved in this browser. Nothing was sent.");
+      await dela(p).locator("#dw-i-go").click();
+      await dela(p).locator("#dw-i-send").waitFor({ timeout: 8000 });
+      t = await text(p);
+      ok(t.includes("Check the invitation before you send it") && t.includes("Review before sending") && (await sql("select count(*)::int n from gig_invitations"))[0].n === inv0, "Save prepared draft and Review before sending send nothing");
+      await dela(p).locator("#dw-i-edit").click();
+      await dela(p).locator("#dw-i-go").waitFor({ timeout: 8000 });
+      ok(await dela(p).locator("#dw-i-msg").inputValue() === "Your discovery experience fits this gig.", "Edit goes back with the message kept");
+      await dela(p).locator("#dw-i-go").click();
+      await dela(p).locator("#dw-i-send").click();
+      await dela(p).locator("#invite-done").waitFor({ timeout: 10000 });
+      t = await text(p);
+      ok((t.includes("Invitation sent") || t.includes("Already invited")) && t.includes("Nobody is hired and nothing is charged until you choose a proposal"), "Send invitation is the one step that sends, and it says what happens next");
+      // The gig draft (screen 6) and what the recipient gets (screen 9)
+      const dg = (await sql("select id from gigs where request_id = 'cat-gig2'"))[0].id;
+      await p.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=delegate&ws=gig&draft=${dg}`);
+      t = await waitFor(p, "Source & scope", 15000);
+      ok(t.includes("Create a Gig from DELA") && t.includes("Draft · Not published") && t.includes("Before posting") && t.includes("Confirm budget") && await dela(p).locator("#dw-g-title").inputValue() === "A draft nobody should see" && await dela(p).locator("#dw-g-bmin").inputValue() === "300", "the gig draft opens from its address as one form, with its source and the list before posting");
+      await dela(p).locator("#dw-g-task").fill("Sort and label the discovery responses.");
+      await dela(p).locator("#dw-g-outcome").fill("A labeled set and an index.");
+      await dela(p).locator("#dw-g-save").click();
+      await waitFor(p, "Draft saved. Nothing is posted.");
+      const saved75 = (await sql(`select status, public->>'task' task from gigs where id = '${dg}'`))[0];
+      ok(saved75.status === "draft" && saved75.task === "Sort and label the discovery responses.", "Save draft saves and posts nothing");
+      await dela(p).locator("#dw-g-review").click();
+      t = await waitFor(p, "What successful completion requires", 15000);
+      ok(t.includes("Recipient Review & Acceptance") && t.includes("Work package: A draft nobody should see") && t.includes("Your tasks") && t.includes("A labeled set and an index.") && t.includes("Required inputs") && t.includes("Recipient questions") && p.url().includes("ws=preview"), "Review freelancer-facing draft opens the recipient's view, read only");
+      const off = dela(p).locator(".dw-off");
+      ok(await off.count() === 3 && await off.nth(0).isDisabled() && await off.nth(2).isDisabled() && t.includes("They cannot be used on the recipient's behalf.") && (await sql(`select status from gigs where id = '${dg}'`))[0].status === "draft", "the recipient's buttons are shown switched off, and nothing was posted");
+      await dela(p).locator("#dw-p-post").click();
+      await waitFor(p, "Post the gig", 15000);
+      await s.ctx.close();
+    } finally { for (const k of Object.keys(sw75 || {})) await sql(`update feature_switches set state = '${sw75[k]}' where key = '${k}'; select 1`); }
+
     console.log(`\n${passed} checks passed`);
   } finally {
     if (before) {

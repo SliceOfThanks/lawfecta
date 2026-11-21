@@ -458,11 +458,11 @@
       var u = new URL(location.href);
       // Step 75a: inside Ask DELA the workspace page is part of the address (?tab=delegate&ws=playbooks)
       var wsWant = dwOnAsk() && v2() && dw.page !== "chat" ? dw.page : "", wsKeep = dwOnAsk() && !chat.ws;
-      var docWant = wsWant === "opportunities" && dw.pb ? dw.pb : "", handWant = wsWant === "handoff" && dw.hand ? dw.hand : "";
-      if (u.searchParams.get("tab") === tab && (wsKeep || ((u.searchParams.get("ws") || "") === wsWant && (u.searchParams.get("doc") || "") === docWant && (u.searchParams.get("handoff") || "") === handWant))) return;
+      var docWant = wsWant === "opportunities" && dw.pb ? dw.pb : "", handWant = wsWant === "handoff" && dw.hand ? dw.hand : "", draftWant = (wsWant === "gig" || wsWant === "preview") && dw.gig ? dw.gig : "";
+      if (u.searchParams.get("tab") === tab && (wsKeep || ((u.searchParams.get("ws") || "") === wsWant && (u.searchParams.get("doc") || "") === docWant && (u.searchParams.get("handoff") || "") === handWant && (u.searchParams.get("draft") || "") === draftWant))) return;
       if (u.searchParams.get("tab") !== tab) ["gig", "view", "pb", "thread", "meeting", "person"].forEach(function (k) { u.searchParams.delete(k); });
       u.searchParams.set("tab", tab);
-      if (!wsKeep) [["ws", wsWant], ["doc", docWant], ["handoff", handWant]].forEach(function (kv) { if (kv[1]) u.searchParams.set(kv[0], kv[1]); else u.searchParams.delete(kv[0]); });
+      if (!wsKeep) [["ws", wsWant], ["doc", docWant], ["handoff", handWant], ["draft", draftWant]].forEach(function (kv) { if (kv[1]) u.searchParams.set(kv[0], kv[1]); else u.searchParams.delete(kv[0]); });
       history.replaceState(null, "", u.pathname + u.search + u.hash);
     } catch (e) { /* the address stays as it was */ }
   }
@@ -2043,8 +2043,10 @@
   // send, post or pay in a new way. Inside this workspace the word is "playbook", as the mockups write it.
   var dw = { page: "chat", f: "all", q: "", lib: null, libErr: "", gigs: null, allChats: false, ruleF: "all", ruleDraft: null,
     // Step 75b: the playbook whose delegation opportunities are shown, the tasks ticked there, and the handoff in preparation
-    pb: null, sel: {}, why: {}, hand: null };
-  var DW_MORE = { handoff: "Partial Delegation & Dependencies" };
+    pb: null, sel: {}, why: {}, hand: null,
+    // Step 75c: the gig draft being written or previewed, and the invitation being prepared
+    gig: null, gigNew: null, inv: null };
+  var DW_MORE = { handoff: "Partial Delegation & Dependencies", gig: "Create a Gig from DELA", preview: "Recipient Review & Acceptance", invite: "Invitation & Sharing Review" };
   var DW_PAGES = [["chat", "Chat with DELA", "Ask DELA"], ["playbooks", "My playbooks", "My Playbooks Library"], ["opportunities", "Delegation opportunities", "Delegation Opportunities"],
     ["gigs", "Gig drafts", "Gig Drafts"], ["instructions", "DELA instructions", "DELA Instructions & Firm Context"]];
   try {
@@ -2052,6 +2054,7 @@
     if (DW_PAGES.some(function (x) { return x[0] === dwWant; })) dw.page = dwWant;
     if (dwWant === "opportunities") dw.pb = dwId("doc");
     if (dwWant === "handoff" && dwId("handoff")) { dw.page = "handoff"; dw.hand = dwId("handoff"); }
+    if ((dwWant === "gig" || dwWant === "preview") && dwId("draft")) { dw.page = dwWant; dw.gig = dwId("draft"); }
   } catch (e) { /* no deep link */ }
   function v2() { return !!((me.switches || {}).dela_workspace_v2 && NL() && wsOn()); }
   function dwOnAsk() { return tab === "delegate" || tab === "ask"; }
@@ -2086,12 +2089,16 @@
     D.clear(chatEl);
     if (!w.library && dw.page !== "chat" && dw.page !== "instructions") dw.page = "chat";
     if (dw.page === "handoff" && !dw.hand) dw.page = "opportunities";
+    if ((dw.page === "gig" || dw.page === "preview") && !dw.gig) dw.page = "gigs";
     var where = app.querySelector(".top .where"); if (where) dwCrumb(where, "Ask DELA");
     if (dw.page === "playbooks") dwPlaybooks();
     else if (dw.page === "opportunities") dwOpps();
     else if (dw.page === "gigs") dwGigs();
     else if (dw.page === "instructions") dwInstructions();
     else if (dw.page === "handoff") dwHandoff();
+    else if (dw.page === "gig") dwGigDraft();
+    else if (dw.page === "preview") dwPreview();
+    else if (dw.page === "invite") dwInvite();
     else dwChat();
   }
   // Screen 1: the conversation, with the second menu at the left and the working context at the right
@@ -2198,7 +2205,7 @@
       else dwGo("playbooks");
     }, "aw-draft"]);
     if (w.library && canHire() && (me.switches || {}).flex_gigs) acts.push(["Prepare a gig draft", "Review scope before publishing.", function () {
-      if (gigDoc) { gigs.newFrom = gigDoc.id; gigs.wiz = { doc: gigDoc.id }; tab = "projects"; draw(); window.scrollTo(0, 0); } else dwGo("gigs");
+      if (gigDoc) { gigs.newFrom = gigDoc.id; gigs.wiz = { doc: gigDoc.id }; gigs.fromDw = true; tab = "projects"; draw(); window.scrollTo(0, 0); } else dwGo("gigs");
     }, "aw-gig"]);
     var nx = h("section", { class: "card", id: "aw-next" }, h("h2", { text: "Suggested next actions" }));
     if (!acts.length) nx.appendChild(h("p", { class: "hsub", style: "margin:0", text: "Send a message. The actions that fit appear here." }));
@@ -2214,7 +2221,9 @@
     api.get("/library").then(function (r) { dw.lib = r && r.list ? r : { list: { playbooks: [] } }; dw.libErr = r && r.list ? "" : "Your Library could not be read."; then(); })
       .catch(function (e) { dw.lib = { list: { playbooks: [] } }; dw.libErr = D.errorText(e.message); then(); });
   }
-  function dwPbState(p) { return p.status === "archived" ? "archived" : p.status === "in_review" ? "in_review" : p.status === "approved" ? "approved" : "draft"; }
+  // One state per playbook. A playbook with an approved version stays "Approved" while a newer draft is written:
+  // the approved version is the one in use, and the Version column says a new draft exists.
+  function dwPbState(p) { return p.status === "archived" ? "archived" : p.status === "in_review" ? "in_review" : p.status === "approved" || p.approved_version ? "approved" : "draft"; }
   function dwCreate() { lib.fromChat = null; lib.dwCreate = true; goTab("library"); }
   function dwPlaybooks() {
     var w = chat.ws || {};
@@ -2252,7 +2261,7 @@
         tb.appendChild(h("tr", null,
           h("th", { scope: "row" }, h("b", { text: (p.doc_id ? p.doc_id + " " : "") + p.title }), h("div", { class: "hsub", text: p.purpose || p.summary || (DOC_KIND[p.doc_type] || "Document") })),
           h("td", { "data-label": "Owner role", text: p.owner_role || "Not assigned" }),
-          h("td", { "data-label": "Version", text: hasApproved ? "v" + p.approved_version + (st !== "approved" && st !== "archived" ? ", new draft" : "") : "Draft" }),
+          h("td", { "data-label": "Version", text: hasApproved ? "v" + p.approved_version + (p.status === "draft" || p.status === "in_review" ? ", new draft" : "") : "Draft" }),
           h("td", { "data-label": "Status" }, h("span", { class: "badge " + (tag[1] === "blue" ? "dw-blue" : tag[1]) + " dw-tag", text: tag[0] })),
           h("td", { "data-label": "Action" }, h("div", { class: "dw-rowacts" }, h("button", { class: "ghost small", type: "button", "aria-label": label + " " + p.title, onclick: function () { openDocFromChat(p.id); } }, label), pick))));
       });
@@ -2488,14 +2497,14 @@
         h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: "Downstream reviewer" }), h("span", { class: "hsub", style: "display:block", text: kept.length ? plural(kept.length, "attorney decision") + " remain" + (kept.length === 1 ? "s" : "") + " outside the scope" : "Your firm reviews the result" }))),
         h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: "Recipient access" }), h("span", { class: "hsub", style: "display:block", text: d.gig_id ? "Set on the gig draft" : "Not confirmed" })), dwTag(d.gig_id ? "Review" : "Pending", "held")),
         h("p", { class: "dw-warn", text: "The selected work cannot start until required inputs and access are confirmed. Other work may continue." }));
-      var prevB = h("button", { class: "blue dw-wide", type: "button", id: "dw-hand-preview", disabled: !d.gig_id, onclick: function () { openGig(d.gig_id, "details"); } }, "Open recipient-safe preview");
+      var prevB = h("button", { class: "blue dw-wide", type: "button", id: "dw-hand-preview", disabled: !d.gig_id, onclick: function () { dw.gig = d.gig_id; dwGo("preview"); } }, "Open recipient-safe preview");
       sum.appendChild(prevB);
       if (!d.gig_id) sum.appendChild(h("p", { class: "hsub", style: "margin:6px 0 0", text: "The preview is made from the gig draft. Prepare the gig draft first." }));
       side.appendChild(sum);
       var nx = h("section", { class: "card", id: "dw-hand-next" }, h("h2", { text: "Next step" }));
       if (d.gig_id) {
         nx.appendChild(h("p", { class: "hsub", style: "margin:0 0 10px", text: "The gig draft exists. Review what the freelancer will see there before you post it." }));
-        nx.appendChild(h("button", { class: "ghost dw-wide", type: "button", id: "dw-hand-gig", onclick: function () { openGig(d.gig_id, "details"); } }, "Open the gig draft"));
+        nx.appendChild(h("button", { class: "ghost dw-wide", type: "button", id: "dw-hand-gig", onclick: function () { dw.gig = d.gig_id; dwGo("gig"); } }, "Open the gig draft"));
       } else {
         nx.appendChild(h("p", { class: "hsub", style: "margin:0 0 10px", text: "Prepare the instructions for just this part, approve them, then prepare a freelancer-facing gig draft. Nothing is posted from here." }));
         // 1. the instructions for the part
@@ -2532,10 +2541,233 @@
     if (!id) { render({ ok: false, reason: "not_found" }); return; }
     api.get("/automate/delegation?id=" + encodeURIComponent(id)).then(function (v) { render(v); }).catch(function (e) { D.clear(main); main.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
   }
+  // ---------- Step 75c: the gig draft (screen 6), the invitation with its sharing review (screen 8) and the preview
+  // of what the recipient gets (screen 9). They use the gig's own commands: /gigs/get, /gigs/save, /gigs/invite.
+  // Saving a draft, posting a gig and sending an invitation stay three separate actions on separate steps. ----------
+  function dwRoute() { return me.side === "attorney" && !!((me.switches || {}).dela_workspace_v2 && (me.switches || {}).ask_dela_workspace) && NL(); }
+  function dwOpen(page, set) { Object.keys(set || {}).forEach(function (k) { dw[k] = set[k]; }); dw.page = page; if (tab === "delegate" && chatEl && chat.ws) { dwGo(page); return; } tab = "delegate"; draw(); window.scrollTo(0, 0); }
+  function dwBudget(g) { return g.budget_min_cents && g.budget_max_cents ? (g.budget_min_cents === g.budget_max_cents ? D.money(g.budget_min_cents) : D.money(g.budget_min_cents) + " to " + D.money(g.budget_max_cents)) : "Not set"; }
+  function dwGigLoad(id, host, then) {
+    if (!id) { host.appendChild(h("section", { class: "card" }, h("p", { class: "notice", style: "margin:0 0 10px", text: "Choose a gig draft first." }), h("button", { class: "ghost small", type: "button", onclick: function () { dwGo("gigs"); } }, "Open gig drafts"))); return; }
+    host.appendChild(h("p", { class: "muted", role: "status", text: "Loading the gig..." }));
+    api.get("/gigs/get?id=" + encodeURIComponent(id)).then(function (r) {
+      if (!host.parentNode) return;
+      D.clear(host);
+      if (!r || !r.ok) { host.appendChild(h("section", { class: "card" }, h("p", { class: "notice", id: "dw-gig-gone", style: "margin:0 0 10px", text: "This gig could not be opened. " + gigErr(r || {}) }), h("button", { class: "ghost small", type: "button", onclick: function () { dwGo("gigs"); } }, "Open gig drafts"))); return; }
+      then(r);
+    }).catch(function (e) { D.clear(host); host.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
+  }
+  // Screen 6: Create a Gig from DELA
+  function dwGigDraft() {
+    var id = dw.gig, tagHost = h("span");
+    chatEl.appendChild(dwHead("Create a Gig from DELA", "Turn selected work into an editable freelancer-facing draft. Nothing is posted until you review it and post it yourself.", [tagHost]));
+    var host = h("div"); chatEl.appendChild(host);
+    dwGigLoad(id, host, function (r) {
+      var g = r.gig, p = g.public || {}, draft = g.status === "draft", note = dw.gigNew; dw.gigNew = null;
+      tagHost.appendChild(dwTag(draft ? "Draft · Not published" : "Posted", draft ? "held" : "ready"));
+      if (!draft) {
+        host.appendChild(h("section", { class: "card" }, h("p", { class: "notice", id: "dw-gig-posted", style: "margin:0 0 10px", text: "\"" + g.title + "\" is no longer a draft. It is managed in Projects." }), h("button", { class: "blue small", type: "button", onclick: function () { openGig(g.id, "details"); } }, "Open the gig in Projects")));
+        return;
+      }
+      var f = { title: h("input", { id: "dw-g-title", style: "width:100%" }), task: h("textarea", { id: "dw-g-task", rows: 4, style: "width:100%" }), outcome: h("textarea", { id: "dw-g-outcome", rows: 3, style: "width:100%" }),
+        skills: h("input", { id: "dw-g-skills", style: "width:100%" }), bmin: h("input", { id: "dw-g-bmin", type: "number", min: "0", step: "1" }), bmax: h("input", { id: "dw-g-bmax", type: "number", min: "0", step: "1" }), deadline: h("input", { id: "dw-g-deadline", type: "date" }) };
+      f.title.value = g.title || ""; f.task.value = p.task || ""; f.outcome.value = p.outcome || ""; f.skills.value = (p.skills || []).join(", ");
+      f.bmin.value = dollars(g.budget_min_cents); f.bmax.value = dollars(g.budget_max_cents); f.deadline.value = g.deadline || "";
+      var say = h("p", { class: "notice small", role: "status", id: "dw-g-say" }); say.hidden = true;
+      function tell(t, bad) { D.clear(say); say.appendChild(h("span", { text: t })); say.className = "notice small" + (bad ? " bad" : " ok"); say.hidden = !t; return say; }
+      // What the gig holds beyond this form (steps, tools, state, categories, milestones) is sent back unchanged
+      function payload() {
+        return { id: g.id, version: g.version, budget_min: f.bmin.value, budget_max: f.bmax.value || f.bmin.value, deadline: f.deadline.value,
+          public: { title: f.title.value, task: f.task.value, outcome: f.outcome.value, steps: p.steps || [], tools: p.tools || [], skills: commas(f.skills.value), timing: p.timing || "", state: p.state || "", practice_area: p.practice_area || "", categories: (p.categories || []).slice() },
+          milestones: (g.milestones || []).map(function (m) { return { title: m.title }; }) };
+      }
+      function save(confirmed) {
+        return api.post("/gigs/save", Object.assign(payload(), confirmed ? { confirm_no_client_info: true } : {})).then(function (x) {
+          if (x && x.reason === "looks_like_client_info") {
+            tell(ciNote(x, "This may include client information (" + kindsText(x.kinds) + "). Use placeholders instead.") + " ", true);
+            say.appendChild(h("button", { class: "ghost small", type: "button", id: "dw-g-anyway", onclick: function () { save(true).then(function (ok) { if (ok) tell("Draft saved. Nothing is posted."); }); } }, "It is not client information: save"));
+            return false;
+          }
+          if (!x || !x.ok) { tell(gigErr(x || {}), true); return false; }
+          // The next save needs the gig's new version number
+          return api.get("/gigs/get?id=" + encodeURIComponent(g.id)).then(function (r2) { if (r2 && r2.ok) g.version = r2.gig.version; return true; }).catch(function () { return true; });
+        }).catch(function (e) { tell(D.errorText(e.message), true); return false; });
+      }
+      var lbl = function (text, el, hint) { return h("div", { class: "gs-field" }, h("label", { "for": el.id, class: "gs-label", text: text }), el, hint ? h("span", { class: "hsub", text: hint }) : null); };
+      var kind = h("input", { id: "dw-g-kind", readOnly: true, value: g.kind === "monthly" ? "Monthly" : "One-off" });
+      var form = h("section", { class: "card", id: "dw-gig-form" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Gig draft" }), dwTag(note === "ai" || p.task ? "DELA-proposed content" : "Your draft", "pink")),
+        lbl("Gig title", f.title), lbl("Description", f.task, "Two or three sentences: what the freelancer will do."),
+        h("div", { class: "dw-two" }, lbl("Engagement type", kind, "Chosen when the draft was made."), h("div", { class: "gs-field" }, h("span", { class: "gs-label", text: "Budget (USD)" }), h("div", { class: "row", style: "gap:8px" }, h("label", { class: "sr", "for": "dw-g-bmin", text: "Budget from (USD)" }), f.bmin, h("span", { class: "hsub", text: "to" }), h("label", { class: "sr", "for": "dw-g-bmax", text: "Budget to (USD)" }), f.bmax),
+          h("span", { class: "hsub", text: "You set it. DELA never fills in an amount by itself." }))),
+        lbl("Expected deliverables", f.outcome, "What done looks like."),
+        h("div", { class: "dw-two" }, lbl("Required skills", f.skills, "Separated by commas."), lbl("Work deadline", f.deadline)),
+        aiNotice(),
+        dwNote("DELA can suggest structure, but you verify the scope, the privacy, the payment terms and what is published. A value that is missing stays empty."), say);
+      var back = dw.hand ? h("button", { class: "ghost", type: "button", id: "dw-g-back", onclick: function () { dwGo("handoff"); } }, "Back to selected work") : h("button", { class: "ghost", type: "button", id: "dw-g-back", onclick: function () { dwGo("gigs"); } }, "Back to gig drafts");
+      var acts = h("div", { class: "row dw-acts", style: "gap:10px;flex-wrap:wrap" }, back, h("span", { class: "grow" }),
+        h("button", { class: "ghost", type: "button", id: "dw-g-save", onclick: function () { save().then(function (ok) { if (ok) tell("Draft saved. Nothing is posted."); }); } }, "Save draft"),
+        h("button", { class: "blue", type: "button", id: "dw-g-review", onclick: function () { save().then(function (ok) { if (ok) dwGo("preview"); }); } }, "Review freelancer-facing draft"));
+      var part = r.gig_part, ins = (r.handoff && r.handoff.on && r.handoff.inputs) || [], open = ins.filter(function (i) { return (i.status || "needed") === "needed"; }).length;
+      var line = function (title, sub, tag) { return h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: title }), h("span", { class: "hsub", style: "display:block", text: sub })), tag || null); };
+      var src = h("section", { class: "card", id: "dw-gig-src" }, h("h2", { text: "Source & scope" }),
+        line(dwDocTitle(g.playbook_id) || "The source playbook", g.playbook_id ? "Approved playbook" : "Written without a playbook", g.playbook_id ? h("span", { class: "badge dw-blue dw-tag", text: "Source" }) : null),
+        line("Selected work", part ? (part.whole === false ? part.steps + " of " + part.of + " steps" : "All " + part.of + " steps the freelancer can do") : "The steps in the description"),
+        line("Excluded work", part && part.checkpoints ? plural(part.checkpoints, "attorney decision") + " stay" + (part.checkpoints === 1 ? "s" : "") + " with the attorney" : "Nothing is marked as the attorney's decision"),
+        line("Recipient permissions", !ins.length ? "Nothing listed yet as needed before starting" : open ? plural(open, "input") + " still to supply or confirm" : "Every listed input is supplied", dwTag(!ins.length || open ? "Review" : "Confirmed", !ins.length || open ? "held" : "ready")),
+        h("button", { class: "ghost dw-wide", type: "button", id: "dw-g-inputs", style: "margin-top:10px", onclick: function () { gigs.wstep = 2; openGig(g.id, "details"); } }, "Set steps and inputs in Projects"));
+      var hasBudget = Number(f.bmin.value) > 0, costs = h("div", { id: "dw-g-costs" });
+      var fill = function () { D.clear(costs); var lo = Math.round(Number(f.bmin.value || 0) * 100), hi = Math.round(Number(f.bmax.value || f.bmin.value || 0) * 100); if (lo) costs.appendChild(gigCostBox(gigs.fee, lo, hi, g.kind === "monthly")); budgetTag.textContent = lo ? "Set" : "Missing"; budgetTag.className = "badge " + (lo ? "ready" : "held") + " dw-tag"; };
+      var budgetTag = dwTag(hasBudget ? "Set" : "Missing", hasBudget ? "ready" : "held");
+      var before = h("section", { class: "card", id: "dw-gig-before" }, h("h2", { text: "Before posting" }),
+        line("Confirm budget", "Required. No amount is guessed.", budgetTag),
+        line("Review scope and deliverables", "Editable draft"),
+        line("Check sensitive information", "Required before sharing. No Social Security numbers, account numbers, health details or passwords."),
+        line("Review applicable platform fees", "From Lawfecta's settings for your plan, on the budget you enter."), costs);
+      [f.bmin, f.bmax].forEach(function (x) { x.addEventListener("input", fill); });
+      fill();
+      if (!gigs.fee) api.get("/gigs").then(function (x) { if (x && x.ok) { gigs.fee = x.fee || null; fill(); } }).catch(function () {});
+      host.appendChild(dwCols([form, acts], [src, before]));
+      if (note) tell(note === "ai" ? "DELA wrote this draft from your playbook. Read it and change anything that is not right. Nothing is posted." : "This draft was filled in from your playbook. Read it and change anything that is not right. Nothing is posted.");
+    });
+  }
+  // Screen 9: Recipient Review & Acceptance. What the freelancer gets, read-only for the firm.
+  function dwPreview() {
+    var id = dw.gig, tagHost = h("span");
+    chatEl.appendChild(dwHead("Recipient Review & Acceptance", "Preview what the recipient will see. This is read-only for you: only the actual recipient may answer.", [tagHost]));
+    tagHost.appendChild(h("span", { class: "badge dw-blue dw-tag", text: "Recipient preview · No action taken" }));
+    var host = h("div"); chatEl.appendChild(host);
+    dwGigLoad(id, host, function (r) {
+      var g = r.gig, p = g.public || {}, draft = g.status === "draft", ins = (r.handoff && r.handoff.on && r.handoff.inputs) || [];
+      var pack = h("section", { class: "card", id: "dw-pack" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Work package: " + g.title }), dwTag(draft ? "Not sent · draft" : "Awaiting recipient review", "held")),
+        h("p", { id: "dw-pack-task", text: p.task || "No description yet." }));
+      pack.appendChild(h("h3", { class: "dw-h3", text: "Your tasks" }));
+      if (r.handoff && r.handoff.on && r.preview) { pack.appendChild(h("p", { class: "hsub", style: "margin:0 0 6px", text: "Their page, from the same data they are sent, with their name across it as a watermark." })); pack.appendChild(partLine(r.preview.part, false)); pack.appendChild(docGigView(r.preview, g.id)); }
+      else if ((p.steps || []).length) pack.appendChild(h("ol", { class: "dw-list", id: "dw-pack-steps" }, p.steps.map(function (x) { return h("li", { text: x }); })));
+      else pack.appendChild(h("p", { class: "hsub", text: "No steps are written on the draft yet." }));
+      pack.appendChild(h("h3", { class: "dw-h3", text: "What successful completion requires" }));
+      pack.appendChild(h("p", { class: "dw-box", id: "dw-pack-done", text: p.outcome || "Not written yet. Add it under \"Expected deliverables\" on the gig draft." }));
+      pack.appendChild(h("p", { class: "dw-warn", id: "dw-pack-warn", text: "The recipient's actions below are shown as a preview. They cannot be used on the recipient's behalf. A freelancer answers a gig with a proposal; nobody is hired until you choose a proposal and both sign." }));
+      pack.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, ["Send a proposal", "Ask a question", "Decline"].map(function (t) { return h("button", { class: "ghost dw-off", type: "button", disabled: true, "aria-label": t + " (the recipient's button, shown as a preview)" }, t); })));
+      var acts = h("div", { class: "row dw-acts", style: "gap:10px;flex-wrap:wrap" }, draft ? h("button", { class: "ghost", type: "button", id: "dw-p-back", onclick: function () { dwGo("gig"); } }, "Back to the gig draft") : h("button", { class: "ghost", type: "button", id: "dw-p-back", onclick: function () { openGig(g.id, "details"); } }, "Open the gig in Projects"), h("span", { class: "grow" }),
+        draft ? h("button", { class: "blue", type: "button", id: "dw-p-post", onclick: function () { gigs.wstep = 3; openGig(g.id, "details"); } }, "Continue to posting") : null);
+      var need = h("section", { class: "card", id: "dw-p-inputs" }, h("h2", { text: "Required inputs" }));
+      if (!ins.length) need.appendChild(h("p", { class: "hsub", id: "dw-p-noinputs", style: "margin:0", text: "Nothing is listed as needed before starting." }));
+      ins.forEach(function (i) { var tg = DW_NEED[i.status || "needed"] || DW_NEED.needed; need.appendChild(h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: i.label }), h("span", { class: "hsub", style: "display:block", text: "Supplier: " + (i.supplied_by === "freelancer" ? "the recipient" : "your firm") })), dwTag(tg[0], tg[1]))); });
+      var ques = h("section", { class: "card", id: "dw-p-questions" }, h("h2", { text: "Recipient questions" }), h("p", { class: "hsub", style: "margin:0 0 10px", text: "Before answering, the recipient can ask you to clarify. Questions and your answers are kept on the gig." }),
+        h("button", { class: "ghost dw-wide", type: "button", id: "dw-p-q", disabled: draft, onclick: function () { openGig(g.id, "questions"); } }, "Open the gig's questions"), draft ? h("p", { class: "hsub", style: "margin:6px 0 0", text: "Questions open once the gig is posted." }) : null);
+      host.appendChild(dwCols([pack, acts], [need, ques, dwNote("The recipient's answer, access to your systems and your approval of the result are separate, recorded actions.")]));
+    });
+  }
+  // Screen 8: Invitation & Sharing Review. Preparing, reviewing and sending are three steps; only the last one sends.
+  function dwInvKey(inv) { return "dela_inv_" + inv.gig + "_" + inv.p.person_id; }
+  function dwInvite() {
+    var inv = dw.inv;
+    if (!inv || !inv.p) { dw.page = "chat"; tab = "talent"; draw(); return; }
+    var tagHost = h("span");
+    chatEl.appendChild(dwHead("Invitation & Sharing Review", "Inspect exactly who will receive what before any invitation is sent. Preparation and sending are separate actions.", [tagHost]));
+    var host = h("div", null, h("p", { class: "muted", role: "status", text: "Loading your gigs..." })); chatEl.appendChild(host);
+    var p = inv.p, now = Date.now();
+    api.get("/gigs").then(function (gs) {
+      if (dw.inv !== inv || !host.parentNode) return;
+      var mine = gs.ok ? gs.gigs.filter(function (g) { return g.status === "open" && !g.paused_by_team && (!g.closes_at || new Date(g.closes_at).getTime() > now); }) : [];
+      if (inv.gig && !mine.some(function (g) { return g.id === inv.gig; })) inv.gig = "";
+      if (inv.msg === undefined) { try { inv.msg = (inv.gig && localStorage.getItem(dwInvKey(inv))) || ""; } catch (e) { inv.msg = ""; } }
+      D.clear(host); D.clear(tagHost);
+      tagHost.appendChild(dwTag(inv.sent ? (inv.sent.duplicate ? "Already invited" : "Invitation · Sent") : "Invitation · Not sent", inv.sent ? "ready" : "held"));
+      var backB = h("button", { class: "ghost", type: "button", id: "dw-i-back", onclick: function () { dw.inv = null; dw.page = "chat"; tab = "talent"; draw(); } }, "Back to Talent");
+      if (inv.sent) {
+        var title = (mine.filter(function (g) { return g.id === inv.gig; })[0] || {}).title || "your gig";
+        host.appendChild(h("section", { class: "card", id: "invite-done", role: "status" }, h("h2", { text: inv.sent.duplicate ? "Already invited" : "Invitation sent" }),
+          h("p", { text: inv.sent.duplicate ? p.name + " was already invited to \"" + title + "\". Nothing was sent again." : p.name + " is invited to send a proposal for \"" + title + "\"." }),
+          inv.sent.note ? h("p", { class: "notice", text: inv.sent.note }) : null,
+          h("p", { class: "hsub", text: "What happens next: " + p.name + " gets a notice and can send a proposal or decline. Nobody is hired and nothing is charged until you choose a proposal and sign an agreement." }),
+          h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, backB, h("button", { class: "ghost", type: "button", onclick: function () { var gid = inv.gig; dw.inv = null; openGig(gid, "proposals"); } }, "Open the gig"))));
+        return;
+      }
+      var sel = h("select", { id: "dw-i-gig", style: "width:100%", disabled: inv.step === "review" }, [h("option", { value: "", text: mine.length ? "Select one of your posted gigs" : "No posted gig is open for proposals" })].concat(mine.map(function (g) { return h("option", { value: g.id, text: g.title, selected: g.id === inv.gig }); })));
+      var note = h("textarea", { id: "dw-i-msg", rows: 3, style: "width:100%", maxlength: "2000", readOnly: inv.step === "review", placeholder: "For example: your experience looks right for this gig. Please look at the scope and send a proposal if you are interested." }); note.value = inv.msg || "";
+      note.addEventListener("input", function () { inv.msg = note.value; });
+      var share = h("div", { id: "dw-i-share", "aria-live": "polite", tabindex: "-1" }), pkg = h("section", { class: "card", id: "dw-i-pkg" }, h("h2", { text: "Recipient package preview" }));
+      var say = h("p", { class: "notice small", role: "status", id: "dw-i-say" }); say.hidden = true;
+      function tell(t, bad) { D.clear(say); say.appendChild(h("span", { text: t })); say.className = "notice small" + (bad ? " bad" : " ok"); say.hidden = !t; }
+      var row = function (title, sub, tag, tone) { return h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: title }), h("span", { class: "hsub", style: "display:block", text: sub })), dwTag(tag, tone)); };
+      function drawScope() {
+        D.clear(share); D.clear(pkg); pkg.appendChild(h("h2", { text: "Recipient package preview" }));
+        inv.gig = sel.value;
+        if (!sel.value) { share.appendChild(h("p", { class: "muted", id: "dw-i-nogig", text: mine.length ? "Choose a gig to see what would be shared." : "Post a gig first. An invitation asks a freelancer to send a proposal for a posted gig." })); pkg.appendChild(h("p", { class: "hsub", style: "margin:0", text: "Choose a gig first." })); paintActs(); return; }
+        var want = sel.value;
+        share.appendChild(h("p", { class: "muted", text: "Loading the gig..." }));
+        api.get("/gigs/get?id=" + encodeURIComponent(want)).then(function (r) {
+          if (sel.value !== want) return;
+          D.clear(share);
+          if (!r.ok) { share.appendChild(h("p", { class: "notice", text: "This gig could not be loaded. Choose another one." })); return; }
+          var g = r.gig, pub = g.public || {}, files = r.files || [], ins = (r.handoff && r.handoff.on && r.handoff.inputs) || [], open = ins.filter(function (i) { return (i.status || "needed") === "needed"; }).length;
+          share.appendChild(row("The gig as freelancers see it", "The title, the description, the deliverables, the budget (" + dwBudget(g) + ") and the dates.", "Included", "ready"));
+          share.appendChild(row("Selected instructions", (r.gig_part ? r.gig_part.steps + " of the playbook's " + r.gig_part.of + " steps. " : "The steps of the gig. ") + "Read only, with a watermark that names " + p.name + ".", "Included", "ready"));
+          share.appendChild(row(files.length ? plural(files.length, "file") + " attached to this gig" : "Files attached to this gig", files.length ? files.map(function (x) { return x.name; }).slice(0, 6).join(", ") + (files.length > 6 ? ", and " + (files.length - 6) + " more" : "") + ". Check each one before you send." : "None are attached, so no file is shared.", files.length ? "Review" : "Not shared", files.length ? "held" : "off"));
+          share.appendChild(row("Your message", "Only what you type in the box above.", note.value.trim() ? "Review" : "Not shared", note.value.trim() ? "held" : "off"));
+          share.appendChild(row("Excluded steps and your other playbooks", "The steps you keep, your Library and your other gigs. An invitation opens this one gig only.", "Not shared", "off"));
+          share.appendChild(row("Confidential materials", "They open only after you both sign and the first milestone is paid.", "Not shared", "off"));
+          share.appendChild(row("Your payment details", "Never shown to a freelancer.", "Not shared", "off"));
+          pkg.appendChild(row("Purpose", (pub.task || g.title).slice(0, 140), "", ""));
+          pkg.appendChild(row("Required inputs", !ins.length ? "Nothing listed" : ins.map(function (i) { return i.label; }).slice(0, 4).join("; "), !ins.length ? "None" : open ? "Pending confirmation" : "Confirmed", !ins.length ? "off" : open ? "held" : "ready"));
+          pkg.appendChild(row("Escalation", "Questions come to you, inside the gig.", "", ""));
+          pkg.appendChild(row("Acceptance criteria", (pub.outcome || "Not written on the gig").slice(0, 140), "", ""));
+          Array.prototype.forEach.call(pkg.querySelectorAll(".dw-tag"), function (t) { if (!t.textContent) t.remove(); });
+          pkg.appendChild(h("button", { class: "ghost dw-wide", type: "button", id: "dw-i-preview", style: "margin-top:10px", onclick: function () { dw.gig = g.id; dwGo("preview"); } }, "Open the recipient preview"));
+        }).catch(function () { D.clear(share); share.appendChild(h("p", { class: "notice bad", text: "This gig could not be loaded. Check your connection." })); });
+        paintActs();
+      }
+      sel.addEventListener("change", drawScope);
+      note.addEventListener("change", function () { if (sel.value) drawScope(); });
+      var acts = h("div", { class: "row dw-acts", style: "gap:10px;flex-wrap:wrap" }), reviewBox = h("div", { class: "dw-review", id: "dw-i-review", role: "status" }); reviewBox.hidden = inv.step !== "review";
+      function doSend(confirmed) {
+        var b = acts.querySelector("#dw-i-send"); if (b) { b.disabled = true; b.textContent = "Sending..."; }
+        api.post("/gigs/invite", { gig_id: inv.gig, person_id: p.person_id, message: (inv.msg || "").trim(), confirm_no_client_info: confirmed === true }).then(function (y) {
+          if (y && y.reason === "looks_like_client_info") {
+            tell(ciNote(y, "Your message may include client information. Take it out, or send it only if it is not client information.") + " ", true);
+            say.appendChild(h("button", { class: "ghost small", type: "button", id: "invite-anyway", onclick: function () { doSend(true); } }, "It is not client information: send"));
+            paintActs(); return;
+          }
+          if (y && y.ok) { try { localStorage.removeItem(dwInvKey(inv)); } catch (e) { /* no storage */ } inv.sent = { duplicate: !!y.duplicate, note: y.held ? y.note : y.note || "" }; D.toast(app, y.duplicate ? "Already invited" : "Invited " + p.name); drawChat(); return; }
+          tell(y && y.reason === "gig_not_open" ? "That gig no longer takes proposals, so no invitation was sent. Choose another gig." : y && y.reason === "freelancer_not_available" ? p.name + " cannot be invited to this gig right now. No invitation was sent." : gigErr(y || {}), true);
+          inv.step = "prepare"; drawChat();
+        }).catch(function (e) { tell(D.errorText(e.message), true); paintActs(); });
+      }
+      function paintActs() {
+        D.clear(acts);
+        if (inv.step === "review") {
+          acts.appendChild(h("button", { class: "ghost", type: "button", id: "dw-i-edit", onclick: function () { inv.step = "prepare"; drawChat(); } }, "Edit"));
+          acts.appendChild(h("span", { class: "grow" }));
+          acts.appendChild(h("button", { class: "blue", type: "button", id: "dw-i-send", onclick: function () { doSend(false); } }, "Send invitation"));
+          return;
+        }
+        acts.appendChild(backB); acts.appendChild(h("span", { class: "grow" }));
+        acts.appendChild(h("button", { class: "ghost", type: "button", id: "dw-i-save", disabled: !sel.value, onclick: function () {
+          try { localStorage.setItem(dwInvKey(inv), note.value); tell("Prepared draft saved in this browser. Nothing was sent."); } catch (e) { tell("This browser could not keep the draft. Nothing was sent.", true); }
+        } }, "Save prepared draft"));
+        acts.appendChild(h("button", { class: "blue", type: "button", id: "dw-i-go", disabled: !sel.value, onclick: function () { inv.msg = note.value; inv.step = "review"; drawChat(); window.scrollTo(0, 0); } }, "Review before sending"));
+      }
+      if (inv.step === "review") {
+        reviewBox.appendChild(h("b", { text: "Check the invitation before you send it" }));
+        reviewBox.appendChild(h("p", { style: "margin:6px 0 0", text: "To: " + p.name + ". Gig: " + ((mine.filter(function (g) { return g.id === inv.gig; })[0] || {}).title || "") + ". " + ((inv.msg || "").trim() ? "Your message is below." : "No message.") + " Sending tells " + p.name + " and opens the items marked Included and Review to them. It gives no access to your own systems." }));
+      }
+      var lbl = function (text, el) { return h("div", { class: "gs-field" }, h("label", { "for": el.id, class: "gs-label", text: text }), el); };
+      var who = h("input", { id: "dw-i-who", readOnly: true, value: p.name + " · freelancer" });
+      var form = h("section", { class: "card", id: "dw-i-form" }, h("h2", { text: inv.step === "review" ? "Review before sending" : "Prepare invitation" }), reviewBox,
+        lbl("Recipient", who), lbl("Assignment", sel), lbl("Message to recipient", note), aiNotice(),
+        h("h3", { class: "dw-h3", text: "Information to be shared" }), share,
+        h("p", { class: "dw-warn", id: "dw-i-warn", text: "Preparing an invitation does not send it or grant system access. Check the recipient and what is shared before sending." }), say, acts);
+      var perm = h("section", { class: "card", id: "dw-i-perm" }, h("h2", { text: "Permission checks" }), h("p", { class: "hsub", style: "margin:0 0 10px", text: "The recipient's access to your own systems, such as your case management software, is set up separately by you. A shared link is not proof of access." }),
+        h("button", { class: "ghost dw-wide", type: "button", id: "dw-i-scope", onclick: function () { share.focus(); try { share.scrollIntoView({ block: "center" }); } catch (e) { /* older browsers */ } } }, "Review sharing scope"));
+      host.appendChild(dwCols([form], [pkg, perm]));
+      drawScope();
+    }).catch(function (e) { D.clear(host); host.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
+  }
   // "Gig drafts" in the second menu: the firm's gigs that are not posted yet
   function dwGigs() {
     chatEl.appendChild(dwHead("Gig Drafts", "Work you prepared for a freelancer and have not posted. Nothing is posted until you review and post it.", [
-      h("button", { class: "blue small", type: "button", id: "dw-gig-new", onclick: function () { gigs.id = null; gigs.wiz = {}; tab = "projects"; draw(); window.scrollTo(0, 0); } }, "+ New gig draft")]));
+      h("button", { class: "blue small", type: "button", id: "dw-gig-new", onclick: function () { gigs.id = null; gigs.wiz = {}; gigs.fromDw = true; tab = "projects"; draw(); window.scrollTo(0, 0); } }, "+ New gig draft")]));
     var card = h("section", { class: "card" }, h("h2", { text: "Your drafts" })), body = h("div", null, h("p", { class: "muted", text: "Loading..." }));
     card.appendChild(body);
     api.get("/gigs").then(function (r) {
@@ -2544,7 +2776,7 @@
       if (!drafts.length) { body.appendChild(h("p", { class: "muted", id: "dw-gig-none", style: "margin:0", text: "No drafts. Select an approved playbook in the chat and click \"Prepare a gig draft\", or click \"+ New gig draft\"." })); return; }
       body.appendChild(h("ul", { class: "aw-docs" }, drafts.map(function (g) {
         return h("li", { class: "aw-row" }, h("span", { class: "aw-row-t" }, h("b", { text: g.title || "Untitled draft" }), h("span", { class: "hsub", text: "Draft, not posted" + (g.updated_at ? " · changed " + D.date(g.updated_at) : "") })),
-          dwTag("Draft", "held"), h("button", { class: "ghost small", type: "button", "aria-label": "Continue the draft " + (g.title || ""), onclick: function () { openGig(g.id, "details"); } }, "Continue"));
+          dwTag("Draft", "held"), h("button", { class: "ghost small", type: "button", "aria-label": "Continue the draft " + (g.title || ""), onclick: function () { dw.gig = g.id; dw.hand = null; dwGo("gig"); } }, "Continue"));
       })));
     }).catch(function (e) { D.clear(body); body.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
     chatEl.appendChild(dwCols([card], [h("section", { class: "card" }, h("h2", { text: "Before posting" }), h("p", { class: "hsub", style: "margin:0", text: "You confirm the budget, the scope and what the freelancer will see. DELA can suggest the wording; it never posts for you." })),
@@ -6482,6 +6714,9 @@
           api.post("/gigs/draft", { steps: stepNos && stepNos.length < stepPick.all() ? stepNos : undefined, playbook_id: pick.value, request_id: req, notes: notes.value, budget_min: bmin.value, budget_max: bmax.value || bmin.value, deadline: kMon.checked ? undefined : deadline.value || undefined, linked_agreement: gigs.linkTo ? gigs.linkTo.id : undefined, kind: kMon.checked ? "monthly" : "one_off" }).then(function (x) {
             if (!x || !x.ok) throw x || {};
             gigs.newFrom = null; gigs.linkTo = null; gigs.wiz = null; gigs.wizKept = null; gigs.wstep = 2; gigs.wtop = true; gigs.wnew = x.source === "ai" ? "ai" : "doc";
+            // Step 75c: a draft started from the Ask DELA workspace opens on its page there
+            if (gigs.fromDw && dwRoute()) { gigs.fromDw = false; var nw = gigs.wnew; gigs.wnew = null; dwOpen("gig", { gig: x.id, gigNew: nw, hand: null }); return; }
+            gigs.fromDw = false;
             gigLink(x.id, "projects");
           }).catch(function (x) {
             go.disabled = false; back2.disabled = false; status.textContent = ""; req = newId();
@@ -8746,7 +8981,11 @@
   }
   // The review step before an invitation goes out: who, which gig, its scope, an optional note
   var talentInviteFor = null;
-  function openInviteReview(p, gigId) { if (!talentPerson) talentScroll = window.scrollY || 0; talentInviteFor = { p: p, gig: gigId }; draw(); window.scrollTo(0, 0); }
+  function openInviteReview(p, gigId) {
+    // Step 75c: with the workspace on, an invitation is prepared and reviewed on its page in Ask DELA (mockup 8)
+    if (dwRoute()) { dwOpen("invite", { inv: { p: p, gig: gigId || "", step: "prepare" } }); return; }
+    if (!talentPerson) talentScroll = window.scrollY || 0; talentInviteFor = { p: p, gig: gigId }; draw(); window.scrollTo(0, 0);
+  }
   function closeInviteReview() { talentInviteFor = null; draw(); }
   function talentInvitePage() {
     var cur = talentInviteFor, p = cur.p, now = Date.now();
