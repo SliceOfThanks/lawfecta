@@ -3246,7 +3246,27 @@ async function bookmarksGet(ctx: Ctx) {
   // names=1 (the Bookmarks tab): also the names, so a bookmarked freelancer who is not listed in Talent right now can
   // still be shown and removed. Only the member's own bookmarks, and names only.
   const names = ctx.url.searchParams.get("names") === "1" ? await rpc(ctx, "dela_bookmark_names", { p_people: people ?? [] }) : undefined;
-  return json(ctx, { ok: true, on: true, people, names });
+  // notes=1 (step 74): the member's own tags and private notes on these bookmarks, the tags in use, and the limits
+  const notes = ctx.url.searchParams.get("notes") === "1" ? await rpc(ctx, "dela_bookmark_notes", { p_owner: s.person_id, p_people: people ?? [] }) : undefined;
+  return json(ctx, { ok: true, on: true, people, names, notes });
+}
+// Step 74: tags and a private note on a freelancer the member bookmarked. Only the member who wrote them reads them;
+// the freelancer is not told. The same save twice changes nothing.
+async function bookmarkNote(ctx: Ctx) {
+  const s = await client(ctx);
+  const cfg = await bookmarkCfg(ctx);
+  if (!cfg.on) return json(ctx, { ok: false, reason: "bookmarks_off" });
+  const person = need(uuid(ctx.body.person));
+  const tags = (Array.isArray(ctx.body.tags) ? ctx.body.tags : []).slice(0, 50).map((x: unknown) => str(x, 200).trim()).filter(Boolean);
+  const note = str(ctx.body.note, 5000).trim();
+  const target = await rpc<Record<string, any>>(ctx, "dela_bookmark_target", { p_viewer: s.person_id, p_person: person });
+  if (!target?.ok) return json(ctx, target);
+  const rows = await bookmarkRows(ctx, s, cfg);
+  if (!rows.ok) return json(ctx, { ok: false, reason: bookmarkWhy(rows) });
+  if (!rows.data.some((x) => x.bd === String(target.bd_member_id))) return json(ctx, { ok: false, reason: "not_bookmarked" });
+  const warn = await sensitive(ctx, s, tags.concat(note).join("\n"), "internal");
+  if (warn) return json(ctx, warn);
+  return json(ctx, await rpc(ctx, "dela_bookmark_note_set", { p_owner: s.person_id, p_person: person, p_tags: tags, p_note: note }));
 }
 // Bookmark or remove the bookmark. Asking twice changes nothing the second time. The freelancer is not told.
 async function bookmarkSet(ctx: Ctx) {
@@ -3372,6 +3392,9 @@ async function talent(ctx: Ctx) {
     const rows = cfg.on ? await bookmarkRows(ctx, s, cfg) : null;
     if (!rows || !rows.ok) return json(ctx, { ok: false, reason: !rows ? "bookmarks_off" : bookmarkWhy(rows) });
     only = (await rpc<string[]>(ctx, "dela_bookmark_people", { p_bd_ids: rows.data.map((x) => x.bd) })) ?? [];
+    // Step 74: among the bookmarks, only the ones the member gave this tag
+    const tag = str(q.get("tag"), 80).trim();
+    if (tag) { const tagged = (await rpc<string[]>(ctx, "dela_bookmark_tagged", { p_owner: s.person_id, p_tag: tag })) ?? []; only = only.filter((id) => tagged.includes(id)); }
   }
   const r = await rpc<Record<string, any>>(ctx, "dela_talent_search", { p_person: s.person_id, p: { practice_area: str(q.get("practice_area"), 80), skill: str(q.get("skill"), 80), tool: str(q.get("tool"), 80), state: str(q.get("state"), 2),
     category: /^[ps][0-9]{1,9}$/.test(cat) ? cat : "", q: str(q.get("q"), 80), ...(only ? { only } : {}),
@@ -6340,6 +6363,7 @@ async function handleInner(req: Request, deps: Deps): Promise<Response> {
       // Step 18 part 4: a conversation before a gig, and the freelancers who fit a document
       case "GET /bookmarks": return await bookmarksGet(ctx);
       case "POST /bookmarks/set": return await bookmarkSet(ctx);
+      case "POST /bookmarks/note": return await bookmarkNote(ctx);
       case "POST /intro/open": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_intro_open", { p_person: s.person_id, p_freelancer: need(uuid(ctx.body.freelancer)) })); }
       case "GET /playbooks/fits": {
         const s = await memberSide(ctx);

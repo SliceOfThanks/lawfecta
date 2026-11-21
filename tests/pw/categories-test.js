@@ -318,7 +318,7 @@ const SEARCH = "Search roles, specialties, tasks and software";
     await dela(p).locator(".talent-card", { hasText: "Fern Family" }).getByRole("button", { name: "View profile" }).click();
     await waitFor(p, "At a glance");
     // Bookmarks: saved through the website's bookmark system, privately
-    const bmBtn = dela(p).locator("#tp-bookmark").getByRole("button");
+    const bmBtn = dela(p).locator("#tp-bookmark .bm-btn");
     await dela(p).locator("#tp-bookmark").getByRole("button", { name: "Bookmark Fern Family" }).click();
     // Stacey 2026-11-13: the button turns on and off by itself; no sentence appears beside it
     await waitFor(p, "★ Bookmarked");
@@ -381,12 +381,54 @@ const SEARCH = "Search roles, specialties, tasks and software";
     t = await text(p);
     ok(t.includes("Fern Family") && !t.includes("Nia Nurse") && !t.includes("Find a freelancer") && await dela(p).locator("#talent-bookmarks .talent-card").count() === 1 && await dela(p).getByRole("tab", { name: /^Bookmarks/ }).getAttribute("aria-selected") === "true", "the Bookmarks tab lists only the bookmarked freelancers, on the same cards");
     ok((await dela(p).getByRole("tab", { name: /^Bookmarks/ }).innerText()).trim() === "Bookmarks (1)", "the tab itself says how many are bookmarked");
-    ok((await dela(p).locator("#talent-bookmarks .talent-card").getByRole("button").allInnerTexts()).join("|") === "View profile|Invite to gig", "a bookmark card has the same two buttons");
+    ok((await dela(p).locator("#talent-bookmarks .talent-card").getByRole("button").allInnerTexts()).join("|") === "View profile|Invite to gig|Add tags and a note", "a bookmark card has the same two buttons, and the button for tags and a note");
+    // Step 74 (Stacey 2026-11-20): tags and a private note on a bookmark, and filters by tag and by the three category levels
+    ok(t.includes("No tags or note yet.") && t.includes("Filter your bookmarks") && (await dela(p).locator("#bm-tag option").allInnerTexts()).join("|") === "No tags yet", "a bookmark starts with no tags, and the filter says there are none yet");
+    await dela(p).getByRole("button", { name: "Add tags and a note for Fern Family" }).click();
+    await dela(p).getByLabel("Tags for Fern Family").fill("Probate, probate , Fast replies");
+    await dela(p).getByLabel("Private note").fill("Great with deadlines.");
+    ok((await text(p)).includes("Only you see your tags and note. The freelancer is not told."), "the editor says who sees the tags and the note, where the member types");
+    await click(p, "Save tags and note");
+    t = await waitFor(p, "Great with deadlines.");
+    ok((await dela(p).locator("#talent-bookmarks .talent-card .bm-tag").allInnerTexts()).join("|") === "Probate|Fast replies" && t.includes("Edit tags and note"), "the saved tags and note show on the card; a tag typed twice counts once");
+    ok((await dela(p).locator("#bm-tag option").allInnerTexts()).join("|") === "Any tag|Fast replies|Probate", "the tag filter lists the member's tags");
+    await dela(p).locator("#bm-tag").selectOption({ label: "Probate" });
+    t = await waitFor(p, "Tag: Probate");
+    ok(t.includes("Bookmarks (1)") && await dela(p).locator("#talent-bookmarks .talent-card").count() === 1, "filtering by a tag keeps the freelancers with that tag");
+    await dela(p).locator("#bm-top").selectOption({ label: "Legal Nurse & Medical Records" });
+    t = await waitFor(p, "None of your bookmarks fit these filters.");
+    ok(t.includes("Bookmarks (0)") && t.includes("Legal Nurse & Medical Records") && await dela(p).locator("#talent-bookmarks .talent-card").count() === 0, "a top category that does not fit leaves nobody");
+    await dela(p).locator("#bm-top").selectOption({ label: "Paralegal Services" });
+    await dela(p).locator("#talent-bookmarks .talent-card").first().waitFor({ timeout: 10000 });
+    await dela(p).locator("#bm-sub").selectOption({ label: "Family Law" });
+    t = await waitFor(p, "Paralegal Services › Family Law");
+    await dela(p).locator("#talent-bookmarks .talent-card").first().waitFor({ timeout: 10000 });
+    ok((await text(p)).includes("Bookmarks (1)") && await dela(p).locator("#bm-leaf option").count() > 1, "the category and the specialty filter the bookmarks, and the third level offers its services");
+    await click(p, "Clear filters");
+    t = await waitGone(p, "Tag: Probate");
+    ok(await dela(p).locator("#bm-tag").inputValue() === "" && await dela(p).locator("#bm-top").inputValue() === "" && await dela(p).locator("#talent-bookmarks .talent-card").count() === 1, "Clear filters shows every bookmark again");
+    // A tag on the card filters by it; too many tags are refused in plain words
+    await dela(p).locator("#talent-bookmarks .talent-card").getByRole("button", { name: "Show only bookmarks tagged Fast replies" }).click();
+    await waitFor(p, "Tag: Fast replies");
+    await dela(p).getByRole("button", { name: "Edit tags and note for Fern Family" }).click();
+    await dela(p).getByLabel("Tags for Fern Family").fill("a,b,c,d,e,f,g,h,i");
+    await click(p, "Save tags and note");
+    t = await waitFor(p, "That is more than 8 tags. Take some out.");
+    await click(p, "Cancel");
+    await dela(p).getByRole("button", { name: "Remove filter: Tag: Fast replies" }).click();
+    await waitGone(p, "Tag: Fast replies");
+    // From the profile: "Tags and note" opens the Bookmarks tab with this freelancer's editor
+    await dela(p).locator("#talent-bookmarks .talent-card").getByRole("button", { name: "View profile" }).click();
+    await dela(p).locator("#tp-bookmark").getByRole("button", { name: "Tags and note for Fern Family" }).click();
+    await dela(p).getByLabel("Tags for Fern Family").waitFor({ timeout: 10000 });
+    ok(await dela(p).getByLabel("Tags for Fern Family").inputValue() === "Probate, Fast replies" && await dela(p).getByLabel("Private note").inputValue() === "Great with deadlines.", "Tags and note on a bookmarked profile opens the editor with what was saved");
+    await click(p, "Cancel");
     // A bookmarked freelancer who is not taking work right now is still shown, as not available, and can be removed
     await sql(`update member_profiles set availability = 'unavailable' where side = 'freelancer' and person_id = (select id from people where bd_member_id = ${FL2}); select 1`);
     await dela(p).getByRole("tab", { name: /^Bookmarks/ }).click();
     t = await waitFor(p, "Not available right now (1)");
     ok(t.includes("Bookmarks (0)") && await dela(p).locator("#bookmarks-away").getByText("Fern Family").count() === 1 && await dela(p).locator("#bookmarks-away").getByRole("button", { name: "Remove the bookmark for Fern Family" }).count() === 1, "an unavailable bookmark is listed under Not available right now, with Remove bookmark");
+    ok(await dela(p).locator("#bookmarks-away .bm-tag").count() === 2 && (await dela(p).locator("#bookmarks-away").innerText()).includes("Great with deadlines."), "a bookmark that is not available keeps its tags and note");
     await sql(`update member_profiles set availability = 'available' where side = 'freelancer' and person_id = (select id from people where bd_member_id = ${FL2}); select 1`);
     await dela(p).getByRole("tab", { name: "Search", exact: true }).click();
     await waitFor(p, "Find a freelancer");

@@ -488,6 +488,31 @@ Deno.test("bookmarks live in the website's own bookmark table: save, list, filte
   const named = (await call("GET", "/bookmarks?names=1", att.token)).body;
   assertEquals([named.people, named.names.map((x: any) => x.person_id), typeof named.names[0].name, Object.keys(named.names[0]).sort()], [[fFamily.id], [fFamily.id], "string", ["name", "person_id"]], "names only: " + JSON.stringify(named.names));
   assertEquals((await call("GET", "/bookmarks", att.token)).body.names, undefined, "without names=1 nothing more is returned");
+  // Step 74: tags and a private note on a bookmark, the member's own; filters by tag
+  const noteOf = async (tok: string) => (await call("GET", "/bookmarks?notes=1", tok)).body.notes;
+  assertEquals(await noteOf(att.token), { items: {}, tags: [], limits: { tags: 8, tag_length: 30, note_length: 1000 } }, "no tags or notes yet, and the limits come from settings");
+  assertEquals((await call("POST", "/bookmarks/note", fNurse.token, { person: fFamily.id, tags: ["x"] })).status, 403, "only members who hire");
+  assertEquals((await call("POST", "/bookmarks/note", att.token, { person: fNurse.id, tags: ["x"], note: "" })).body.reason, "not_bookmarked", "only on a freelancer the member bookmarked");
+  assertEquals((await call("POST", "/bookmarks/note", att.token, { person: att.id, tags: ["x"] })).body.reason, "not_found");
+  const saved = (await call("POST", "/bookmarks/note", att.token, { person: fFamily.id, tags: ["  Probate ", "probate", "Fast   replies", ""], note: "  Great with deadlines.  " })).body;
+  assertEquals(saved, { ok: true, tags: ["Probate", "Fast replies"], note: "Great with deadlines." }, "trimmed; a tag written twice counts once");
+  assertEquals((await call("POST", "/bookmarks/note", att.token, { person: fFamily.id, tags: ["Probate", "Fast replies"], note: "Great with deadlines." })).body, saved, "the same save twice changes nothing");
+  assertEquals(Number((await one("select count(*)::int n from bookmark_notes where owner_id = $1", [att.id])).n), 1);
+  assertEquals((await noteOf(att.token)).items[fFamily.id], { tags: ["Probate", "Fast replies"], note: "Great with deadlines." });
+  assertEquals((await noteOf(att.token)).tags, ["Fast replies", "Probate"], "the tags in use, in A to Z order");
+  assertEquals((await call("POST", "/bookmarks/note", att.token, { person: fFamily.id, tags: "abcdefghi".split("") })).body, { ok: false, reason: "too_many_tags", limit: 8 });
+  assertEquals((await call("POST", "/bookmarks/note", att.token, { person: fFamily.id, tags: ["x".repeat(31)] })).body.reason, "tag_too_long");
+  assertEquals((await call("POST", "/bookmarks/note", att.token, { person: fFamily.id, tags: [], note: "n".repeat(1001) })).body.reason, "note_too_long");
+  const ssn = (await call("POST", "/bookmarks/note", att.token, { person: fFamily.id, tags: ["Probate"], note: "SSN 123-45-6789" })).body;
+  assertEquals(ssn.ok, false, "sensitive data is not saved in a note: " + JSON.stringify(ssn));
+  assertEquals((await noteOf(att.token)).items[fFamily.id].note, "Great with deadlines.", "a refused save leaves the note as it was");
+  assertEquals(ids(await call("GET", "/talent?bookmarked=1&tag=PROBATE", att.token)), [fFamily.id], "the tag filter, whatever the capitals");
+  assertEquals(ids(await call("GET", "/talent?bookmarked=1&tag=Nobody", att.token)), [], "a tag nobody has finds nobody");
+  assertEquals(ids(await call("GET", "/talent?bookmarked=1&tag=Probate&category=p39", att.token)), [], "the tag and a category that does not fit: nobody");
+  assertEquals(await notes(), before, "the freelancer is not told about tags or notes");
+  // Another member never reads them, and the freelancer never does
+  assertEquals((await call("GET", "/bookmarks?notes=1", fFamily.token)).status, 403);
+  assertEquals(Number((await one("select count(*)::int n from bookmark_notes where owner_id <> $1", [att.id])).n), 0);
   await pool.query("update member_profiles set availability = 'unavailable' where person_id = $1 and side = 'freelancer'", [fFamily.id]);
   assertEquals(ids(await call("GET", "/talent?bookmarked=1", att.token)), [], "an unavailable freelancer leaves the search");
   assertEquals((await call("GET", "/bookmarks?names=1", att.token)).body.names.map((x: any) => x.person_id), [fFamily.id], "and is still named among the bookmarks, so the tab can show them as not available");
@@ -502,6 +527,8 @@ Deno.test("bookmarks live in the website's own bookmark table: save, list, filte
   // Remove
   assertEquals((await call("POST", "/bookmarks/set", att.token, { person: fFamily.id, on: false })).body.bookmarked, false);
   assertEquals([favs.length, (await call("GET", "/bookmarks", att.token)).body.people], [2, []], "only DELA's own bookmark row was deleted");
+  assertEquals((await call("GET", "/bookmarks?notes=1", att.token)).body.notes.items, {}, "with the bookmark gone, its tags and note are not shown");
+  assertEquals((await one("select note from bookmark_notes where owner_id = $1 and person_id = $2", [att.id, fFamily.id])).note, "Great with deadlines.", "and they are kept, so they come back if the member bookmarks the freelancer again");
   assertEquals((await call("POST", "/bookmarks/set", att.token, { person: fFamily.id, on: false })).body.duplicate, true);
   await pool.query(`update settings set value = jsonb_set(value, '{on}', 'false') where key = 'bd.bookmarks'`);
   assertEquals([(await call("GET", "/bookmarks", att.token)).body.on, (await call("POST", "/bookmarks/set", att.token, { person: fFamily.id })).body.reason], [false, "bookmarks_off"], "the setting turns bookmarks off");

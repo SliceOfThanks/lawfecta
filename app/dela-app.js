@@ -8145,9 +8145,11 @@
   function bookmarkButton(person, name) {
     var b = h("button", { class: "ghost small bm-btn", type: "button", "aria-pressed": "false", disabled: true }, "☆ Bookmark");
     var say = h("span", { class: "small muted", role: "status" });
-    function paint(on) { b.setAttribute("aria-pressed", String(on)); b.textContent = on ? "★ Bookmarked" : "☆ Bookmark"; b.setAttribute("aria-label", on ? "Remove the bookmark for " + name : "Bookmark " + name); }
+    // Step 74: once bookmarked, one click to the Bookmarks tab with this freelancer's tags and note open
+    var nb = h("button", { class: "ghost small bm-note-link", type: "button", style: "display:none", "aria-label": "Tags and note for " + name, onclick: function () { talentMode = "bookmarks"; bmOpen = person; bmQ.tag = ""; bmQ.category = ""; closeTalentProfile(); } }, "Tags and note");
+    function paint(on) { b.setAttribute("aria-pressed", String(on)); b.textContent = on ? "★ Bookmarked" : "☆ Bookmark"; b.setAttribute("aria-label", on ? "Remove the bookmark for " + name : "Bookmark " + name); nb.style.display = on ? "" : "none"; }
     loadBookmarks().then(function (bm) {
-      if (!bm.on) { b.remove(); say.remove(); return; }
+      if (!bm.on) { b.remove(); say.remove(); nb.remove(); return; }
       b.disabled = false; paint(!!bm.set[person]);
       if (!bm.ok) say.textContent = D.errorText(bm.reason);
       b.addEventListener("click", function () {
@@ -8163,7 +8165,7 @@
         }).catch(function (e) { b.disabled = false; say.textContent = D.errorText(e.message); });
       });
     });
-    return [b, say];
+    return [b, nb, say];
   }
   // The review step before an invitation goes out: who, which gig, its scope, an optional note
   var talentInviteFor = null;
@@ -8310,25 +8312,141 @@
     loadCats().then(function (idx) { talentForm(form, results, idx, live); });
     return el;
   }
+  // Step 74 (Stacey 2026-11-20): the member's own tags and a private note on each bookmarked freelancer, "so they can
+  // remember why they added them", and filters on the Bookmarks tab by tag and by the three category levels.
+  var bmQ = { tag: "", category: "" }, bmOpen = "";
+  function bmNoteBlock(person, name, st, saved) {
+    var cur = (st.items || {})[person] || { tags: [], note: "" }, lim = st.limits || {};
+    var box = h("div", { class: "bm-note", "data-person": person });
+    function view() {
+      D.clear(box);
+      var has = cur.tags.length || cur.note;
+      if (cur.tags.length) box.appendChild(h("div", { class: "bm-tags" }, cur.tags.map(function (t) {
+        return h("button", { class: "bm-tag", type: "button", "aria-label": "Show only bookmarks tagged " + t, title: "Show only bookmarks tagged " + t, onclick: function () { bmQ.tag = t; saved(); } }, t);
+      })));
+      if (cur.note) box.appendChild(h("p", { class: "bm-note-text", text: cur.note }));
+      if (!has) box.appendChild(h("span", { class: "small muted grow", text: "No tags or note yet." }));
+      box.appendChild(h("button", { class: "ghost small bm-edit-btn", type: "button", "aria-label": (has ? "Edit tags and note for " : "Add tags and a note for ") + name, onclick: edit }, has ? "Edit tags and note" : "Add tags and a note"));
+    }
+    function edit() {
+      D.clear(box);
+      var tagsIn = h("input", { type: "text", value: cur.tags.join(", "), placeholder: "For example: Probate, Fast replies" });
+      var noteIn = h("textarea", { rows: "3", maxlength: String(lim.note_length || 1000), placeholder: "Why you saved this freelancer" }); noteIn.value = cur.note;
+      var say = h("span", { class: "small", role: "status" }), again = h("span");
+      var save = h("button", { class: "blue small", type: "button" }, "Save tags and note"), cancel = h("button", { class: "ghost small", type: "button", onclick: view }, "Cancel");
+      function send(confirmed) {
+        var tags = tagsIn.value.split(",").map(function (t) { return t.trim(); }).filter(Boolean);
+        save.disabled = true; say.textContent = "Saving..."; D.clear(again);
+        api.post("/bookmarks/note", { person: person, tags: tags, note: noteIn.value.trim(), confirm_no_client_info: confirmed === true }).then(function (r) {
+          save.disabled = false;
+          if (r && r.ok) { saved(); return; }
+          if (r && r.reason === "looks_like_client_info") {
+            say.textContent = ciNote(r, "This may include client information.") + " ";
+            again.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { send(true); } }, "It has no client information, save it"));
+            return;
+          }
+          say.textContent = r && r.reason === "too_many_tags" ? "That is more than " + r.limit + " tags. Take some out." : r && r.reason === "tag_too_long" ? "The tag \"" + r.tag + "\" is longer than " + r.limit + " characters. Make it shorter."
+            : r && r.reason === "note_too_long" ? "The note is longer than " + r.limit + " characters. Make it shorter." : r && r.message ? r.message : D.errorText((r || {}).reason);
+        }).catch(function (e) { save.disabled = false; say.textContent = D.errorText(e.message); });
+      }
+      save.addEventListener("click", function () { send(false); });
+      // The tags the member already uses, one click each
+      var known = (st.tags || []).filter(function (t) { return cur.tags.indexOf(t) < 0; });
+      var quick = known.length ? h("div", { class: "bm-tags" }, h("span", { class: "small muted", text: "Your tags: " }), known.map(function (t) {
+        return h("button", { class: "bm-tag", type: "button", "aria-label": "Add the tag " + t, onclick: function () {
+          var now = tagsIn.value.split(",").map(function (x) { return x.trim(); }).filter(Boolean);
+          if (now.map(function (x) { return x.toLowerCase(); }).indexOf(t.toLowerCase()) < 0) now.push(t);
+          tagsIn.value = now.join(", ");
+        } }, "+ " + t);
+      })) : null;
+      box.appendChild(h("div", { class: "bm-edit" },
+        h("label", null, "Tags for " + name, tagsIn),
+        h("span", { class: "small muted", text: "Separate tags with commas. Up to " + (lim.tags || 8) + " tags, " + (lim.tag_length || 30) + " characters each." }), quick,
+        h("label", null, "Private note", noteIn),
+        h("span", { class: "small muted", text: "Only you see your tags and note. The freelancer is not told. Do not write Social Security numbers, account numbers, health details or passwords here." }),
+        h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;align-items:center" }, save, cancel, say, again)));
+      tagsIn.focus();
+    }
+    view();
+    if (bmOpen === person) { bmOpen = ""; setTimeout(function () { if (!box.parentNode) return; edit(); try { box.scrollIntoView({ block: "center" }); } catch (e) { /* older browsers */ } }, 0); }
+    return box;
+  }
   // The Bookmarks tab: every freelancer the member bookmarked, on the same short cards as a search. These are the
   // website's own bookmarks ("My Saved Members"). A bookmarked freelancer who is not match-ready right now is not listed.
   function bookmarksView(el) {
-    el.appendChild(h("p", { class: "muted", style: "margin-bottom:4px", text: "Freelancers you saved for later. They are not told. To add one, open a profile from Search and click \"☆ Bookmark\"." }));
+    el.appendChild(h("p", { class: "muted", style: "margin-bottom:4px", text: "Freelancers you saved for later. They are not told. To add one, open a profile from Search and click \"☆ Bookmark\". Add tags and a private note to remember why you saved someone." }));
     var live = h("div", { class: "sr", role: "status" }), results = h("div", { id: "talent-bookmarks" }, h("p", { class: "muted", text: "Loading your bookmarks..." }));
-    el.appendChild(live); el.appendChild(results);
+    var filt = h("div", { class: "card", id: "bm-filter", style: "display:none" }), idx = null;
+    var tagSel = h("select", { id: "bm-tag" }), topSel = h("select", { id: "bm-top" }), subSel = h("select", { id: "bm-sub" }), leafSel = h("select", { id: "bm-leaf" });
+    var chain = { top: "", sub: "", leaf: "" };
+    function chainOf(c) {
+      if (!c) return { top: "", sub: "", leaf: "" };
+      return c.level === 1 ? { top: c.key, sub: "", leaf: "" } : c.level === 2 ? { top: c.top, sub: c.key, leaf: "" } : { top: c.top, sub: c.parent, leaf: c.key };
+    }
+    function fill(sel, any, list, cur) {
+      D.clear(sel); sel.appendChild(h("option", { value: "", text: any }));
+      (list || []).forEach(function (c) { sel.appendChild(h("option", { value: c.key, text: c.name, selected: c.key === cur })); });
+    }
+    function fillGroups(sel, any, groups, cur) {
+      D.clear(sel); sel.appendChild(h("option", { value: "", text: any }));
+      groups.forEach(function (g) { if (g.list.length) sel.appendChild(h("optgroup", { label: g.label }, g.list.map(function (c) { return h("option", { value: c.key, text: c.name, selected: c.key === cur }); }))); });
+    }
+    function drawCats() {
+      if (!idx || !idx.ok) return;
+      var subsOf = function (top) { return (idx.kids[top] || []).filter(function (c) { return c.level === 2; }); };
+      fill(topSel, "Any category", idx.tops, chain.top);
+      if (chain.top) fill(subSel, "Any specialty", subsOf(chain.top), chain.sub);
+      else fillGroups(subSel, "Any specialty", idx.tops.map(function (t) { return { label: t.name, list: subsOf(t.key) }; }), chain.sub);
+      if (chain.sub) fill(leafSel, (idx.kids[chain.sub] || []).length ? "Any service or task" : "Nothing more specific", idx.kids[chain.sub], chain.leaf);
+      else {
+        var tops = chain.top ? [idx.byKey[chain.top]] : idx.tops, groups = [];
+        tops.forEach(function (t) { subsOf(t.key).forEach(function (s2) { groups.push({ label: (chain.top ? "" : t.name + ": ") + s2.name, list: idx.kids[s2.key] || [] }); }); });
+        fillGroups(leafSel, "Any service or task", groups, chain.leaf);
+      }
+    }
+    function setCat(c) { chain = chainOf(c); bmQ.category = chain.leaf || chain.sub || chain.top; drawCats(); load(); }
+    topSel.addEventListener("change", function () { setCat(idx.byKey[topSel.value]); });
+    subSel.addEventListener("change", function () { setCat(idx.byKey[subSel.value] || idx.byKey[chain.top]); });
+    leafSel.addEventListener("change", function () { setCat(idx.byKey[leafSel.value] || idx.byKey[chain.sub] || idx.byKey[chain.top]); });
+    tagSel.addEventListener("change", function () { bmQ.tag = tagSel.value; load(); });
+    function clearAll() { bmQ.tag = ""; bmQ.category = ""; chain = chainOf(null); drawCats(); load(); }
+    var f = function (label, sel) { return h("label", { class: "bm-f" }, label, sel); };
+    filt.appendChild(h("h2", { text: "Filter your bookmarks" }));
+    var catRow = h("span", { class: "bm-cats", style: "display:none" }, f("Category", topSel), f("Practice area / Specialty", subSel), f("Services / Tasks", leafSel));
+    filt.appendChild(h("div", { class: "bm-filter-row" }, f("Your tag", tagSel), catRow,
+      h("button", { class: "ghost small", type: "button", id: "bm-clear", onclick: clearAll }, "Clear filters")));
+    el.appendChild(live); el.appendChild(filt); el.appendChild(results);
     function load() {
-      Promise.all([api.get("/talent?bookmarked=1&limit=50"), api.get("/gigs"), loadBookmarks(true)]).then(function (rs) {
+      var url = "/talent?bookmarked=1&limit=50" + (bmQ.tag ? "&tag=" + encodeURIComponent(bmQ.tag) : "") + (bmQ.category ? "&category=" + encodeURIComponent(bmQ.category) : "");
+      Promise.all([api.get(url), api.get("/gigs"), loadBookmarks(true), api.get("/bookmarks?names=1&notes=1").catch(function () { return null; }), loadCats().catch(function () { return null; })]).then(function (rs) {
         talentMarks = {};
         var now = Date.now(), x = rs[0], mine = rs[1].ok ? rs[1].gigs.filter(function (g) { return g.status === "open" && !g.paused_by_team && (!g.closes_at || new Date(g.closes_at).getTime() > now); }) : [];
+        var bk = rs[3], st = (bk && bk.ok && bk.notes) || { items: {}, tags: [], limits: {} };
+        if (!idx && rs[4] && rs[4].ok) { idx = rs[4]; chain = chainOf(idx.byKey[bmQ.category]); if (!idx.byKey[bmQ.category]) bmQ.category = ""; drawCats(); catRow.style.display = ""; }
+        // A tag that is no longer on any bookmark leaves the filter
+        if (bmQ.tag && (st.tags || []).map(function (t) { return t.toLowerCase(); }).indexOf(bmQ.tag.toLowerCase()) < 0 && bk && bk.ok) { bmQ.tag = ""; load(); return; }
+        D.clear(tagSel); tagSel.appendChild(h("option", { value: "", text: (st.tags || []).length ? "Any tag" : "No tags yet" }));
+        (st.tags || []).forEach(function (t) { tagSel.appendChild(h("option", { value: t, text: t, selected: t.toLowerCase() === bmQ.tag.toLowerCase() })); });
+        var all = Object.keys(rs[2].set || {}).length, filtered = !!(bmQ.tag || bmQ.category);
+        filt.style.display = all || filtered ? "" : "none";
         var n = x && x.ok ? (typeof x.total === "number" ? x.total : (x.people || []).length) : 0;
-        live.textContent = x && x.ok ? n + (n === 1 ? " bookmark" : " bookmarks") : "Your bookmarks could not be read.";
-        talentResults(results, x, mine, null, { chips: [], clear: load, resort: load, reload: load, more: function (b) { b.remove(); }, title: "Bookmarks (" + n + ")",
-          empty: "Nobody yet. Open a freelancer's profile from Search and click \"☆ Bookmark\"." });
+        live.textContent = x && x.ok ? n + (n === 1 ? " bookmark" : " bookmarks") + (filtered ? " with these filters" : "") : "Your bookmarks could not be read.";
+        var chips = [];
+        if (bmQ.tag) chips.push({ text: "Tag: " + bmQ.tag, remove: function () { bmQ.tag = ""; load(); } });
+        if (bmQ.category && idx && idx.byKey[bmQ.category]) chips.push({ text: idx.path(bmQ.category).join(" › "), remove: function () { setCat(null); } });
+        talentResults(results, x, mine, null, { chips: chips, clear: clearAll, resort: load, reload: load, more: function (b) { b.remove(); }, title: "Bookmarks (" + n + ")",
+          empty: filtered ? "None of your bookmarks fit these filters." : "Nobody yet. Open a freelancer's profile from Search and click \"☆ Bookmark\".",
+          extra: function (p) { return bmNoteBlock(p.person_id, p.name, st, load); } });
         // Bookmarked, but not listed in Talent right now (not taking work, or their profile is not match-ready): say so
-        // and let the member remove the bookmark. No reason is given.
-        if (x && x.ok) api.get("/bookmarks?names=1").then(function (bk) {
+        // and let the member remove the bookmark. No reason is given. They have no category to filter by, so a
+        // category filter leaves them out; a tag filter keeps the ones with that tag.
+        if (x && x.ok && bk && bk.ok && !bmQ.category) {
           var shown = {}; (x.people || []).forEach(function (p) { shown[p.person_id] = true; });
-          var away = (bk && bk.ok && bk.names || []).filter(function (p) { return !shown[p.person_id]; });
+          var away = (bk.names || []).filter(function (p) {
+            if (shown[p.person_id]) return false;
+            if (!bmQ.tag) return true;
+            return (((st.items || {})[p.person_id] || {}).tags || []).map(function (t) { return t.toLowerCase(); }).indexOf(bmQ.tag.toLowerCase()) >= 0;
+          });
           if (!away.length || !results.parentNode) return;
           var card = h("div", { class: "card", id: "bookmarks-away" }, h("h2", { text: "Not available right now (" + away.length + ")" }),
             h("p", { class: "small muted", text: "You bookmarked these freelancers, and they are not listed in Talent at the moment. They show above again when they are available." }));
@@ -8340,10 +8458,11 @@
               api.post("/bookmarks/set", { person: p.person_id, on: false }).then(function (r) { if (r && r.ok) { load(); return; } rm.disabled = false; say.textContent = D.errorText((r || {}).reason); })
                 .catch(function (e) { rm.disabled = false; say.textContent = D.errorText(e.message); });
             });
-            card.appendChild(h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0" }, h("b", { class: "grow", text: p.name }), say, rm));
+            card.appendChild(h("div", { class: "bm-away" }, h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0" }, h("b", { class: "grow", text: p.name }), say, rm),
+              bmNoteBlock(p.person_id, p.name, st, load)));
           });
           results.appendChild(card);
-        }).catch(function () {});
+        }
       }).catch(function (e) { D.clear(results); results.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
     }
     load();
@@ -9164,7 +9283,8 @@
             tags.length ? h("div", { class: "talent-tags" }, tags.map(function (x) { return h("span", { class: "talent-tag", text: x }); })) : null,
             facts ? h("div", { class: "small muted talent-facts", text: facts }) : null),
           h("div", { class: "talent-acts" },
-            h("button", { class: "ghost small", type: "button", onclick: function () { openTalentProfile(p.person_id); } }, "View profile"), inviteBtn))));
+            h("button", { class: "ghost small", type: "button", onclick: function () { openTalentProfile(p.person_id); } }, "View profile"), inviteBtn)),
+        o.extra ? o.extra(p) : null));
     });
     // 10 at a time (setting talent.page_size): how many are shown, and the button for the next ones
     if (n > x.people.length || x.people.length > 0) {
