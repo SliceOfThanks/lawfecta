@@ -527,6 +527,12 @@ const SEARCH = "Search roles, specialties, tasks and software";
       const inv0 = (await sql("select count(*)::int n from gig_invitations"))[0].n;
       await dela(p).locator(".talent-card", { hasText: "Fern Family" }).getByRole("button", { name: "Invite to gig" }).click();
       t = await waitFor(p, "Information to be shared", 15000);
+      // With more than one posted gig none is chosen yet: the page asks for one, and the two buttons are off
+      if (await dela(p).locator("#dw-i-gig").inputValue() === "") {
+        ok(await dela(p).locator("#dw-i-go").isDisabled() && await dela(p).locator("#dw-i-save").isDisabled(), "with no gig chosen, nothing can be prepared or reviewed");
+        const gigOpts = await dela(p).locator("#dw-i-gig option").allInnerTexts();
+        await dela(p).locator("#dw-i-gig").selectOption({ label: gigOpts.filter((x) => x.includes("Organize discovery responses"))[0] || gigOpts[1] });
+      }
       await dela(p).locator("#dw-i-share .dw-line").first().waitFor({ timeout: 10000 });
       t = await text(p);
       const shared = await p.evaluate(() => [...document.querySelector(".dela-host").shadowRoot.querySelectorAll("#dw-i-share .dw-line")].map((li) => li.querySelector("b").textContent + " = " + li.querySelector(".dw-tag").textContent));
