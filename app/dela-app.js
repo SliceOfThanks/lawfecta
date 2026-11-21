@@ -281,7 +281,7 @@
     var all = g.main.concat(g.second, g.account, g.foot), hit = all.filter(function (t) { return t[0] === tab; })[0];
     return hit ? hit[1] : PAGE_NAMES[tab] || "DELA";
   }
-  function goTab(key) { closeMore(); tab = key; if (key === "inbox") { talk.thread = null; talk.openReply = null; } if (key === "meetings") talk.meeting = null; draw(); }
+  function goTab(key) { closeMore(); if (key === "delegate" || key === "ask") dw.page = "chat"; tab = key; if (key === "inbox") { talk.thread = null; talk.openReply = null; } if (key === "meetings") talk.meeting = null; draw(); }
   function navItem(t, folded) {
     return h("button", { class: "nl-item", type: "button", "aria-current": t[0] === tab ? "page" : null, "aria-label": folded ? t[1] : null, "data-tip": t[1], onclick: function () { goTab(t[0]); } },
       icon(ICON_FOR[t[0]] || "chev"), h("span", { class: "lbl", text: t[1] }));
@@ -430,7 +430,7 @@
     return n;
   }
   function headerNew(g) {
-    bar = h("div", { class: "top" }, brand(), h("span", { class: "where", text: pageTitle(g) }));
+    bar = h("div", { class: "top" }, brand(), dwCrumb(h("span", { class: "where" }), pageTitle(g)));
     if (boot.staging || me.environment !== "live") bar.appendChild(h("span", { class: "badge stage", title: "This copy of DELA is in test mode. Test data only.", text: "Test site" }));
     bar.appendChild(h("span", { class: "grow" }));
     if ((me.sides || []).length > 1) {
@@ -456,9 +456,12 @@
   function syncAddress() {
     try {
       var u = new URL(location.href);
-      if (u.searchParams.get("tab") === tab) return;
+      // Step 75a: inside Ask DELA the workspace page is part of the address (?tab=delegate&ws=playbooks)
+      var wsWant = dwOnAsk() && v2() && dw.page !== "chat" ? dw.page : "", wsKeep = dwOnAsk() && !chat.ws;
+      if (u.searchParams.get("tab") === tab && (wsKeep || (u.searchParams.get("ws") || "") === wsWant)) return;
+      if (u.searchParams.get("tab") !== tab) ["gig", "view", "pb", "thread", "meeting", "person"].forEach(function (k) { u.searchParams.delete(k); });
       u.searchParams.set("tab", tab);
-      ["gig", "view", "pb", "thread", "meeting", "person"].forEach(function (k) { u.searchParams.delete(k); });
+      if (wsWant) u.searchParams.set("ws", wsWant); else if (!wsKeep) u.searchParams.delete("ws");
       history.replaceState(null, "", u.pathname + u.search + u.hash);
     } catch (e) { /* the address stays as it was */ }
   }
@@ -1966,6 +1969,7 @@
 
   function drawChat() {
     if (!chatEl) return;
+    if (v2()) { drawWs(); return; }
     D.clear(chatEl);
     var ws = wsOn();
     var head = h("div", { class: "row", style: "margin:18px 0 4px" },
@@ -2030,6 +2034,284 @@
     else { host.appendChild(list); if (chat.problem) host.appendChild(problemBox(chat.problem)); host.appendChild(composer()); }
   }
 
+  // ---------- Step 75a: the Ask DELA workspace, as the ten workflow mockups draw it ----------
+  // (docs/briefs/step-75-ask-dela-workspace-mockups.md; Stacey 2026-11-20: "the ux/ui for dela does not match the
+  // mockups - this needs to be done end to end and structured".) One place with its own second menu; every page has the
+  // same skeleton (title, one sentence, the page's button; a main column and a right column; a blue note) and its own
+  // address (?tab=delegate&ws=...). The pages are new faces on the records DELA already has: nothing here can approve,
+  // send, post or pay in a new way. Inside this workspace the word is "playbook", as the mockups write it.
+  var dw = { page: "chat", f: "all", q: "", lib: null, libErr: "", gigs: null, allChats: false, ruleF: "all", ruleDraft: null };
+  var DW_PAGES = [["chat", "Chat with DELA", "Ask DELA"], ["playbooks", "My playbooks", "My Playbooks Library"], ["opportunities", "Delegation opportunities", "Delegation Opportunities"],
+    ["gigs", "Gig drafts", "Gig Drafts"], ["instructions", "DELA instructions", "DELA Instructions & Firm Context"]];
+  try { var dwWant = new URLSearchParams(location.search).get("ws"); if (DW_PAGES.some(function (x) { return x[0] === dwWant; })) dw.page = dwWant; } catch (e) { /* no deep link */ }
+  function v2() { return !!((me.switches || {}).dela_workspace_v2 && NL() && wsOn()); }
+  function dwOnAsk() { return tab === "delegate" || tab === "ask"; }
+  function dwName(p) { return (DW_PAGES.filter(function (x) { return x[0] === p; })[0] || DW_PAGES[0])[2]; }
+  // The top bar reads "Ask DELA / <page>"; "Ask DELA" goes back to the chat
+  function dwCrumb(el, plain) {
+    D.clear(el);
+    if (!dwOnAsk() || !v2() || dw.page === "chat") { el.textContent = plain; return el; }
+    el.appendChild(h("button", { class: "dw-crumb", type: "button", onclick: function () { dwGo("chat"); } }, "Ask DELA"));
+    el.appendChild(h("span", { class: "dw-crumb-sep", "aria-hidden": "true", text: " / " }));
+    el.appendChild(h("span", { "aria-current": "page", text: dwName(dw.page) }));
+    return el;
+  }
+  function dwGo(p) { dw.page = p; chat.view = "chat"; chat.rulesSay = null; drawChat(); syncAddress(); window.scrollTo(0, 0); var t = chatEl && chatEl.querySelector("h1"); if (t) { t.setAttribute("tabindex", "-1"); t.focus(); } }
+  function dwTag(text, kind) { return h("span", { class: "badge " + (kind || "off") + " dw-tag", text: text }); }
+  function dwNote(text) { return h("p", { class: "dw-note", role: "note" }, h("span", { class: "dw-i", "aria-hidden": "true", text: "i" }), h("span", { text: text })); }
+  function dwHead(title, sub, right) {
+    return h("div", { class: "dw-head" },
+      dw.page !== "chat" ? h("button", { class: "ghost small dw-back", type: "button", onclick: function () { dwGo("chat"); } }, "← Ask DELA") : null,
+      h("div", { class: "dw-head-row" }, h("div", { class: "grow" }, h("h1", { style: "margin:0", text: title }), h("p", { class: "muted dw-sub", text: sub })),
+        h("div", { class: "row dw-head-acts", style: "gap:8px;flex-wrap:wrap" }, right || [])));
+  }
+  function dwCols(main, side) { return h("div", { class: "dw-wrap" }, h("div", { class: "dw-cols" }, h("div", { class: "dw-main" }, main), h("div", { class: "dw-side" }, side))); }
+  function dwPickDoc(d) {
+    var max = (chat.ws || {}).max || 3;
+    if (chat.docs.some(function (x) { return x.id === d.id; })) return true;
+    if (chat.docs.length >= max) { D.toast(app, "You can choose up to " + max + " playbooks for one chat. Remove one first.", true); return false; }
+    chat.docs.push(d); return true;
+  }
+  function drawWs() {
+    var w = chat.ws || {};
+    D.clear(chatEl);
+    if (!w.library && dw.page !== "chat" && dw.page !== "instructions") dw.page = "chat";
+    var where = app.querySelector(".top .where"); if (where) dwCrumb(where, "Ask DELA");
+    if (dw.page === "playbooks") dwPlaybooks();
+    else if (dw.page === "opportunities") dwOpps();
+    else if (dw.page === "gigs") dwGigs();
+    else if (dw.page === "instructions") dwInstructions();
+    else dwChat();
+  }
+  // Screen 1: the conversation, with the second menu at the left and the working context at the right
+  function dwChat() {
+    var w = chat.ws || {};
+    chatEl.appendChild(dwHead("Ask DELA", "Ask about an existing process, explore delegation possibilities, or describe a new task. Begin chatting without selecting a category.", [
+      h("button", { class: "ghost small", id: "chat-new", type: "button", onclick: function () { chatReset(); drawChat(); if (composerText) composerText.focus(); } }, "+ New chat"),
+      h("button", { class: "ghost small", id: "dw-instr", type: "button", onclick: function () { dwGo("instructions"); } }, "DELA instructions")]));
+    // The second menu, then the recent conversations
+    var nav = h("nav", { class: "card dw-nav", "aria-label": "DELA workspace" }, h("h2", { class: "dw-cap", text: "DELA workspace" }));
+    DW_PAGES.forEach(function (p) {
+      if (!w.library && p[0] !== "chat" && p[0] !== "instructions") return;
+      if (p[0] === "opportunities" && !(me.switches || {}).automate_delegate) return;
+      if (p[0] === "gigs" && !(canHire() && (me.switches || {}).flex_gigs)) return;
+      nav.appendChild(h("button", { class: "dw-item", type: "button", "aria-current": p[0] === "chat" ? "page" : null, onclick: function () { if (p[0] !== "chat") dwGo(p[0]); } }, p[1]));
+    });
+    nav.appendChild(h("h2", { class: "dw-cap dw-cap2", text: "Recent conversations" }));
+    if (!chat.list.length) nav.appendChild(h("p", { class: "hsub", style: "margin:0 0 8px", text: "None yet. Your chats are listed here." }));
+    else {
+      var shown = dw.allChats ? chat.list : chat.list.slice(0, 6);
+      nav.appendChild(h("ul", { class: "dw-chats" }, shown.map(function (c) {
+        return h("li", null, h("button", { class: "dw-chat", type: "button", "aria-current": c.id === chat.id ? "true" : null, title: c.title + " (" + D.date(c.updated_at) + ")", onclick: function () { openChat(c.id); } }, c.title));
+      })));
+      if (chat.list.length > 6) nav.appendChild(h("button", { class: "linkish", type: "button", id: "dw-chats-all", onclick: function () { dw.allChats = !dw.allChats; drawChat(); } }, dw.allChats ? "Show fewer" : "Show all " + chat.list.length));
+    }
+    nav.appendChild(h("p", { class: "hsub dw-kept", id: "chat-kept", text: "Chats and drafts remain separate records. Starting a new chat does not delete previous work." }));
+    // The chat itself
+    var cur = chat.list.filter(function (c) { return c.id === chat.id; })[0];
+    var box = h("section", { class: "card dw-chat-card", "aria-label": "Conversation" });
+    var top = h("div", { class: "row dw-chat-top", style: "gap:8px;flex-wrap:wrap" }, h("h2", { class: "grow", style: "margin:0", text: cur ? cur.title : "New conversation" }));
+    if (cur) {
+      top.appendChild(cur.saved ? h("span", { class: "small muted", text: "Saved to your library" }) : h("button", { class: "ghost small", type: "button", onclick: function () {
+        api.post("/ai/chat/save", { id: chat.id }).then(function (x) { if (!x.ok) throw x; cur.saved = true; cur.delete_at = null; drawChat(); D.toast(app, "Saved. This chat is kept until you delete it."); }).catch(err);
+      } }, "Save to library"));
+      var delB = h("button", { class: "ghost small", type: "button" }, "Delete this chat");
+      delB.addEventListener("click", function () {
+        D.clear(top);
+        top.appendChild(h("span", { class: "small grow", text: "Delete this chat for good? This cannot be undone." }));
+        top.appendChild(h("button", { class: "ghost small", type: "button", onclick: drawChat }, "Cancel"));
+        top.appendChild(h("button", { class: "danger small", type: "button", onclick: function () {
+          api.post("/ai/chat/delete", { id: chat.id }).then(function () { chat.list = chat.list.filter(function (c) { return c.id !== chat.id; }); chat.id = null; chat.messages = []; drawChat(); D.toast(app, "Chat deleted"); }).catch(err);
+        } }, "Yes, delete"));
+      });
+      top.appendChild(delB);
+    }
+    box.appendChild(top);
+    if (cur && !cur.saved && cur.delete_at) box.appendChild(h("p", { class: "small muted", text: "Unsaved chats are deleted after a set time without use. This one will be deleted on " + D.date(cur.delete_at) + " unless you save it." }));
+    var soon = chat.list.filter(function (c) { return c.due_soon; });
+    if (soon.length) box.appendChild(h("p", { class: "notice", role: "status", text: soon.length + (soon.length === 1 ? " chat is" : " chats are") + " due to be deleted soon: " + soon.map(function (c) { return c.title + " (" + D.date(c.delete_at) + ")"; }).join(", ") + ". Open a chat and click \"Save to library\" to keep it." }));
+    var list = h("div", { class: "chat dw-msgs", "aria-live": "polite" });
+    var fresh = !chat.messages.length && !chat.pending;
+    var EXAMPLE = "Which steps in our client intake process could I hand off to a freelancer?";
+    if (fresh) list.appendChild(h("div", { class: "card soft", id: "chat-example" }, h("p", { style: "margin:0 0 6px", text: "Example: \"" + EXAMPLE + "\"" }),
+      h("button", { class: "ghost small", type: "button", onclick: function () { if (composerText) { composerText.value = EXAMPLE; composerText.focus(); } } }, "Use this example"),
+      h("p", { class: "small muted", id: "chat-backoffice", style: "margin:8px 0 0", text: "DELA works for the whole back office of a law firm, not only legal support: intake, billing and bookkeeping, HR, IT, marketing and operations." })));
+    chat.messages.forEach(function (m) { list.appendChild(bubble(m)); });
+    if (chat.pending && chat.busy) list.appendChild(h("div", { class: "msg user", text: chat.pending.content }));
+    if (chat.busy) list.appendChild(h("div", { class: "msg assistant muted", text: "DELA is checking your message, then answering..." }));
+    if (chat.stopped && !chat.busy) list.appendChild(h("div", { class: "msg assistant muted", id: "chat-stopped", role: "status", text: "Stopped. Your message is back in the box below, so you can change it. If DELA had already begun, that answer may still be saved to this chat and count as one DELA action. Sending the same message again picks that answer up." }));
+    // "A useful next question": the choices only put words in the message box. Nothing is sent by a choice.
+    if (chat.ask && (chat.ask.choices || []).length && !chat.busy && !chat.pending) list.appendChild(h("div", { class: "dw-ask aw-choices", role: "group", "aria-label": "Suggested answers to DELA's question" },
+      h("b", { class: "dw-ask-h", text: "A useful next question" }),
+      h("span", { class: "small muted", text: "Suggested answers (you can also type your own):" }),
+      h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, chat.ask.choices.map(function (c) { return h("button", { class: "ghost small", type: "button", onclick: function () { if (composerText) { composerText.value = c; composerText.focus(); D.toast(app, "Added to your message. Nothing is sent until you click Send."); } } }, c); }))));
+    box.appendChild(list);
+    if (chat.problem) box.appendChild(problemBox(chat.problem));
+    box.appendChild(composer());
+    box.appendChild(h("p", { class: "small muted", id: "chat-credits", style: "margin:6px 0 0", text: creditsLine() }));
+    // The right column: working context, drafts, next actions, the note, work in motion
+    var side = [], max = w.max || 3;
+    var wc = h("section", { class: "card", id: "aw-using" }, h("h2", { text: "Working context" }),
+      h("p", { class: "hsub", style: "margin:0 0 10px", text: "DELA reads only what is listed here. Naming a playbook in your message does not attach it." }));
+    if (w.library) wc.appendChild(h("div", { class: "dw-ctx", id: "aw-firm" }, h("div", { class: "row", style: "gap:8px" }, h("b", { class: "grow", text: "Firm profile" }), w.firm ? dwTag("In use", "ready") : dwTag("Not added", "held")),
+      h("span", { class: "hsub", text: w.firm ? "Your roles, systems, practice areas and jurisdictions. Used in every answer." : "DELA does not know your roles or systems yet." }),
+      w.firm ? null : h("button", { class: "linkish", type: "button", onclick: function () { goTab("library"); } }, "Add it in the Library")));
+    chat.docs.forEach(function (d) {
+      wc.appendChild(h("div", { class: "dw-ctx on" }, h("div", { class: "row", style: "gap:8px" }, h("b", { class: "grow", text: (d.doc_id ? d.doc_id + " " : "") + d.title }), dwTag("Selected", "ready")),
+        h("span", { class: "hsub", text: chatDocLine(d) }),
+        h("button", { class: "linkish aw-x", type: "button", "aria-label": "Remove " + d.title + " from this chat", onclick: function () { chat.docs = chat.docs.filter(function (x) { return x.id !== d.id; }); drawChat(); } }, "Remove")));
+    });
+    var rest = (w.docs || []).filter(function (d) { return !chat.docs.some(function (x) { return x.id === d.id; }); });
+    rest.slice(0, 3).forEach(function (d) {
+      wc.appendChild(h("div", { class: "dw-ctx" }, h("div", { class: "row", style: "gap:8px" }, h("b", { class: "grow", text: (d.doc_id ? d.doc_id + " " : "") + d.title }), dwTag("Not selected", "off")),
+        h("span", { class: "hsub", text: chatDocLine(d) }),
+        h("button", { class: "linkish", type: "button", "aria-label": "Select " + d.title + " for this chat", onclick: function () { if (dwPickDoc(d)) drawChat(); } }, "Select")));
+    });
+    if (w.library && !chat.docs.length && !rest.length) wc.appendChild(h("p", { class: "hsub", id: "aw-nodocs", style: "margin:0 0 8px", text: "No approved playbooks yet. DELA answers from general knowledge and your profile." }));
+    else if (w.library && !chat.docs.length) wc.appendChild(h("p", { class: "hsub", id: "aw-nodocs", style: "margin:0 0 8px", text: "None selected. Choose only sources relevant to this conversation." }));
+    if (!w.library) wc.appendChild(h("p", { class: "hsub", id: "aw-nodocs", style: "margin:0", text: "Your account has no Library, so there are no playbooks to choose." }));
+    if ((chat.dropped || []).length) wc.appendChild(h("p", { class: "notice small", role: "status", id: "aw-dropped", text: chat.dropped.join(", ") + (chat.dropped.length === 1 ? " was" : " were") + " left out of the last answer: you can no longer use " + (chat.dropped.length === 1 ? "it" : "them") + " here." }));
+    if (w.library) wc.appendChild(h("button", { class: "ghost dw-wide", type: "button", id: "aw-add", onclick: function () { dwGo("playbooks"); } }, "Manage playbooks"));
+    side.push(wc);
+    if (chat.drafts.length) side.push(h("section", { class: "card", id: "aw-drafts" }, h("h2", { text: "Drafts from this chat" }), h("ul", { class: "aw-docs" }, chat.drafts.map(function (d) {
+      return h("li", { class: "aw-row" }, h("span", { class: "aw-row-t" }, h("b", { text: d.title }), h("span", { class: "hsub", text: (DOC_KIND[d.doc_type] || "Document") + " · " + (PB_STATUS[d.status] || d.status) })),
+        h("button", { class: "ghost small", type: "button", "aria-label": "Open the draft " + d.title, onclick: function () { openDocFromChat(d.id); } }, "Open"));
+    }))));
+    var acts = [], said = chat.messages.some(function (m) { return m.role === "user"; });
+    var approved = chat.docs.filter(function (d) { return d.approved; }), gigDoc = approved.filter(function (d) { return d.doc_type === "sop" || d.doc_type === "workflow"; })[0];
+    if (w.library && (me.switches || {}).automate_delegate) acts.push(["Review delegation opportunities", "See proposed tasks and source steps.", function () { dwGo("opportunities"); }, "aw-deleg"]);
+    if (w.library) acts.push(["Create or improve a playbook", chat.id && said ? "Capture this chat as a reusable draft. Nothing is approved or shared." : "Capture a reusable workflow.", function () {
+      if (chat.id && said) { var c0 = chat.list.filter(function (x) { return x.id === chat.id; })[0]; lib.fromChat = { id: chat.id, title: c0 ? c0.title : "this chat", text: chatTranscript() }; goTab("library"); }
+      else dwGo("playbooks");
+    }, "aw-draft"]);
+    if (w.library && canHire() && (me.switches || {}).flex_gigs) acts.push(["Prepare a gig draft", "Review scope before publishing.", function () {
+      if (gigDoc) { gigs.newFrom = gigDoc.id; gigs.wiz = { doc: gigDoc.id }; tab = "projects"; draw(); window.scrollTo(0, 0); } else dwGo("gigs");
+    }, "aw-gig"]);
+    var nx = h("section", { class: "card", id: "aw-next" }, h("h2", { text: "Suggested next actions" }));
+    if (!acts.length) nx.appendChild(h("p", { class: "hsub", style: "margin:0", text: "Send a message. The actions that fit appear here." }));
+    acts.forEach(function (a) { nx.appendChild(h("button", { class: "dw-act", type: "button", id: a[3], onclick: a[2] }, h("span", { class: "grow" }, h("b", { text: a[0] }), h("span", { class: "hsub", text: a[1] })), h("span", { class: "dw-chev", "aria-hidden": "true", text: "›" }))); });
+    side.push(nx);
+    side.push(dwNote("DELA reads only the playbooks you select, with your rights at that moment. Suggestions are not approvals."));
+    var wfl = wfList(); if (wfl) side.push(wfl);
+    chatEl.appendChild(h("div", { class: "dw-wrap" }, h("div", { class: "dw-3" }, nav, box, h("div", { class: "dw-side" }, side))));
+  }
+  // Screen 2: My Playbooks. The firm's Library documents in one table, and what is selected for DELA.
+  var DW_ST = { approved: ["Approved", "ready"], draft: ["Draft", "held"], in_review: ["In review", "blue"], archived: ["Archived", "off"] };
+  function dwLoadLib(then) {
+    api.get("/library").then(function (r) { dw.lib = r && r.list ? r : { list: { playbooks: [] } }; dw.libErr = r && r.list ? "" : "Your Library could not be read."; then(); })
+      .catch(function (e) { dw.lib = { list: { playbooks: [] } }; dw.libErr = D.errorText(e.message); then(); });
+  }
+  function dwPbState(p) { return p.status === "archived" ? "archived" : p.status === "in_review" ? "in_review" : p.status === "approved" ? "approved" : "draft"; }
+  function dwCreate() { lib.fromChat = null; lib.dwCreate = true; goTab("library"); }
+  function dwPlaybooks() {
+    var w = chat.ws || {};
+    chatEl.appendChild(dwHead("My Playbooks", "Find approved processes, resume drafts, and choose which source material DELA may use.", [
+      h("button", { class: "blue small", type: "button", id: "dw-create", onclick: dwCreate }, "+ Create playbook")]));
+    var pills = h("div", { class: "pills", role: "group", "aria-label": "Show" }, [["all", "All playbooks"], ["approved", "Approved"], ["draft", "Drafts"], ["in_review", "In review"], ["archived", "Archived"]].map(function (f) {
+      return h("button", { type: "button", "aria-pressed": String(dw.f === f[0]), onclick: function () { dw.f = f[0]; drawChat(); } }, f[1]);
+    }));
+    chatEl.appendChild(pills);
+    var tableCard = h("section", { class: "card dw-tablecard" });
+    var search = h("input", { type: "search", id: "dw-search", "aria-label": "Search playbooks", placeholder: "Search processes, roles, or software...", value: dw.q });
+    tableCard.appendChild(h("div", { class: "row dw-tablehead", style: "gap:12px;flex-wrap:wrap" }, h("h2", { class: "grow", style: "margin:0", text: "Playbook library" }), search));
+    var body = h("div", { id: "dw-pb-body" }, h("p", { class: "muted", text: "Loading your playbooks..." }));
+    tableCard.appendChild(body);
+    function paint() {
+      D.clear(body);
+      if (dw.libErr) { body.appendChild(h("p", { class: "notice bad", role: "alert", text: dw.libErr })); return; }
+      var all = ((dw.lib.list || {}).playbooks || []).filter(function (p) { return p.status !== "trash"; });
+      var q = dw.q.trim().toLowerCase();
+      var rows = all.filter(function (p) {
+        var st = dwPbState(p);
+        if (dw.f === "all" ? st === "archived" : st !== dw.f) return false;
+        return !q || [p.title, p.purpose, p.summary, p.owner_role, p.doc_id].join(" ").toLowerCase().indexOf(q) >= 0;
+      });
+      if (!rows.length) { body.appendChild(h("p", { class: "muted", id: "dw-pb-none", style: "margin:12px 0", text: !all.length ? "No playbooks yet. Click \"+ Create playbook\", or describe a process to DELA." : "No playbook fits. Try another filter or fewer words." })); return; }
+      var tb = h("tbody");
+      rows.forEach(function (p) {
+        var st = dwPbState(p), tag = DW_ST[st], hasApproved = !!p.approved_version;
+        var label = st === "approved" ? "Open" : st === "in_review" ? "Review" : st === "archived" ? "Open" : "Continue";
+        var avail = (w.docs || []).filter(function (d) { return d.id === p.id; })[0], on = chat.docs.some(function (d) { return d.id === p.id; });
+        var pick = avail ? h("button", { class: "linkish", type: "button", "aria-pressed": String(on), "aria-label": (on ? "Remove " : "Select ") + p.title + (on ? " from DELA's working context" : " for DELA"), onclick: function () {
+          if (on) chat.docs = chat.docs.filter(function (d) { return d.id !== p.id; }); else if (!dwPickDoc(avail)) return;
+          drawChat();
+        } }, on ? "Selected for DELA" : "Select for DELA") : null;
+        tb.appendChild(h("tr", null,
+          h("th", { scope: "row" }, h("b", { text: (p.doc_id ? p.doc_id + " " : "") + p.title }), h("div", { class: "hsub", text: p.purpose || p.summary || (DOC_KIND[p.doc_type] || "Document") })),
+          h("td", { "data-label": "Owner role", text: p.owner_role || "Not assigned" }),
+          h("td", { "data-label": "Version", text: hasApproved ? "v" + p.approved_version + (st !== "approved" && st !== "archived" ? ", new draft" : "") : "Draft" }),
+          h("td", { "data-label": "Status" }, h("span", { class: "badge " + (tag[1] === "blue" ? "dw-blue" : tag[1]) + " dw-tag", text: tag[0] })),
+          h("td", { "data-label": "Action" }, h("div", { class: "dw-rowacts" }, h("button", { class: "ghost small", type: "button", "aria-label": label + " " + p.title, onclick: function () { openDocFromChat(p.id); } }, label), pick))));
+      });
+      body.appendChild(h("div", { class: "scroll" }, h("table", { class: "pj-table stack dw-table" }, h("thead", null, h("tr", null, ["Playbook", "Owner role", "Version", "Status", "Action"].map(function (c) { return h("th", { scope: "col", text: c }); }))), tb)));
+      body.appendChild(h("div", { class: "row", style: "gap:12px;flex-wrap:wrap;margin-top:12px" }, h("span", { class: "hsub grow", text: plural(rows.length, "playbook") + " shown. The same records as in your Library." }),
+        h("button", { class: "ghost small", type: "button", id: "dw-open-lib", onclick: function () { goTab("library"); } }, "View versions & history")));
+    }
+    search.addEventListener("input", function () { dw.q = search.value; paint(); });
+    if (dw.lib) paint(); else dwLoadLib(function () { if (dw.page === "playbooks" && body.parentNode) paint(); });
+    // The right column
+    var sel = h("section", { class: "card", id: "dw-selected" }, h("h2", { text: "Selected for DELA" }), h("p", { class: "hsub", style: "margin:0 0 10px", text: "DELA uses only the playbooks you choose here, and only approved ones you may read." }));
+    if (!chat.docs.length) sel.appendChild(h("p", { class: "hsub", id: "dw-sel-none", style: "margin:0 0 10px", text: "None selected. In the table, click \"Select for DELA\" on an approved playbook." }));
+    chat.docs.forEach(function (d) {
+      sel.appendChild(h("div", { class: "dw-ctx on" }, h("div", { class: "row", style: "gap:8px" }, h("b", { class: "grow", text: d.title + (d.approved ? " (v" + d.version + ")" : "") }), dwTag("Selected", "ready")), h("span", { class: "hsub", text: chatDocLine(d) })));
+    });
+    sel.appendChild(h("button", { class: "blue dw-wide", type: "button", id: "dw-chat-about", onclick: function () { dwGo("chat"); if (composerText) composerText.focus(); } }, chat.docs.length === 1 ? "Chat about this playbook" : chat.docs.length ? "Chat about these playbooks" : "Back to the chat"));
+    var none = h("section", { class: "card" }, h("h2", { text: "Don't have an approved playbook?" }), h("p", { class: "hsub", style: "margin:0 0 10px", text: "Start with a conversation. DELA can help create an editable draft, even if the process is not fully defined." }),
+      h("button", { class: "ghost dw-wide", type: "button", id: "dw-describe", onclick: function () { chatReset(); dwGo("chat"); if (composerText) composerText.focus(); } }, "Describe a process to DELA"));
+    chatEl.appendChild(dwCols([tableCard], [sel, none, dwNote("Drafts and proposed changes are not approved instructions. Approval belongs to the playbook's author or the Library administrator.")]));
+  }
+  // Screen 3, first form (the full screen comes with release 75b): the approved playbooks DELA can review for tasks to hand off
+  function dwOpps() {
+    var w = chat.ws || {};
+    chatEl.appendChild(dwHead("Delegation Opportunities", "Review candidate tasks from an approved playbook. Select only what you want to delegate.", []));
+    var list = (w.docs || []).filter(function (d) { return d.approved && d.doc_type !== "policy"; });
+    var card = h("section", { class: "card" }, h("h2", { text: "Choose a playbook to review" }));
+    if (!list.length) card.appendChild(h("p", { class: "muted", id: "dw-opp-none", style: "margin:0", text: "No approved playbook yet. DELA suggests tasks to hand off only from an approved SOP, workflow or playbook." }));
+    else card.appendChild(h("ul", { class: "aw-docs" }, list.map(function (d) {
+      return h("li", { class: "aw-row" }, h("span", { class: "aw-row-t" }, h("b", { text: (d.doc_id ? d.doc_id + " " : "") + d.title }), h("span", { class: "hsub", text: chatDocLine(d) })),
+        h("button", { class: "ghost small", type: "button", "aria-label": "Review opportunities in " + d.title, onclick: function () { openDocFromChat(d.id); } }, "Review opportunities"));
+    })));
+    var why = h("section", { class: "card" }, h("h2", { text: "Why these recommendations?" }), h("p", { class: "hsub", style: "margin:0", text: "Each suggestion connects to a step of the playbook, what the step needs, and who stays responsible. Steps the attorney decides stay with the attorney." }));
+    chatEl.appendChild(dwCols([card], [why, dwNote("Recommendations are not approvals. Nothing is handed over until you choose the steps and post or assign the work.")]));
+  }
+  // "Gig drafts" in the second menu: the firm's gigs that are not posted yet
+  function dwGigs() {
+    chatEl.appendChild(dwHead("Gig Drafts", "Work you prepared for a freelancer and have not posted. Nothing is posted until you review and post it.", [
+      h("button", { class: "blue small", type: "button", id: "dw-gig-new", onclick: function () { gigs.id = null; gigs.wiz = {}; tab = "projects"; draw(); window.scrollTo(0, 0); } }, "+ New gig draft")]));
+    var card = h("section", { class: "card" }, h("h2", { text: "Your drafts" })), body = h("div", null, h("p", { class: "muted", text: "Loading..." }));
+    card.appendChild(body);
+    api.get("/gigs").then(function (r) {
+      D.clear(body);
+      var drafts = (r && r.ok && r.gigs || []).filter(function (g) { return g.status === "draft"; });
+      if (!drafts.length) { body.appendChild(h("p", { class: "muted", id: "dw-gig-none", style: "margin:0", text: "No drafts. Select an approved playbook in the chat and click \"Prepare a gig draft\", or click \"+ New gig draft\"." })); return; }
+      body.appendChild(h("ul", { class: "aw-docs" }, drafts.map(function (g) {
+        return h("li", { class: "aw-row" }, h("span", { class: "aw-row-t" }, h("b", { text: g.title || "Untitled draft" }), h("span", { class: "hsub", text: "Draft, not posted" + (g.updated_at ? " · changed " + D.date(g.updated_at) : "") })),
+          dwTag("Draft", "held"), h("button", { class: "ghost small", type: "button", "aria-label": "Continue the draft " + (g.title || ""), onclick: function () { openGig(g.id, "details"); } }, "Continue"));
+      })));
+    }).catch(function (e) { D.clear(body); body.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
+    chatEl.appendChild(dwCols([card], [h("section", { class: "card" }, h("h2", { text: "Before posting" }), h("p", { class: "hsub", style: "margin:0", text: "You confirm the budget, the scope and what the freelancer will see. DELA can suggest the wording; it never posts for you." })),
+      dwNote("Saving a draft and posting a gig are separate actions. A draft is seen by nobody outside your firm.")]));
+  }
+  // Screen 5: DELA instructions and firm context, as its own page
+  function dwInstructions() {
+    var R = chat.rules, w = chat.ws || {};
+    chatEl.appendChild(dwHead("DELA Instructions & Firm Context", "Set how DELA should interpret firm procedures. Corrections stay proposed until accepted by someone with the right authority.", [
+      h("button", { class: "blue small", type: "button", id: "dw-propose", onclick: function () { if (chat.rulesTab !== "firm" && chat.rulesTab !== "personal") { chat.rulesTab = R && R.has_firm ? "firm" : "personal"; drawChat(); } var t = chatEl.querySelector("#rule-new"); if (t) t.focus(); } }, "+ Propose instruction")]));
+    var main = h("div");
+    rulesView(main);
+    var how = h("section", { class: "card", id: "dw-how" }, h("h2", { text: "How context is used" }),
+      h("div", { class: "dw-ctx" }, h("b", { text: "Personal" }), h("span", { class: "hsub", text: "Your own preferences. They apply to your chats only." })),
+      h("div", { class: "dw-ctx" }, h("b", { text: "Firm" }), h("span", { class: "hsub", text: "Approved firm guidance and the firm profile. They apply to everyone in your firm." })),
+      h("div", { class: "dw-ctx" }, h("b", { text: "Assignment" }), h("span", { class: "hsub", text: "Facts of one piece of work. DELA uses them inside that work only." })),
+      dwNote("A correction in a conversation is not automatically an approved firm rule. Each line shows its scope, who proposed it and who approved it."));
+    var waitN = ((R && R.rules) || []).filter(function (x) { return x.scope === "firm" && x.status === "proposed"; }).length;
+    var miss = h("section", { class: "card", id: "dw-missing" }, h("h2", { text: "Missing or conflicting information" }),
+      h("p", { class: "hsub", style: "margin:0 0 10px", text: "If a request conflicts with firm guidance, DELA shows the conflict and asks the person with the authority to resolve it." + (R ? " " + (waitN ? waitN + (waitN === 1 ? " proposal waits" : " proposals wait") + " for a decision." : "No proposal waits for a decision.") : "") }),
+      h("button", { class: "ghost dw-wide", type: "button", id: "dw-unresolved", onclick: function () { chat.rulesTab = "firm"; dw.ruleF = "proposed"; drawChat(); } }, "View unresolved decisions"));
+    var side = [how, miss];
+    if (w.library && !w.firm) side.push(h("section", { class: "card" }, h("h2", { text: "Firm profile" }), h("p", { class: "hsub", style: "margin:0 0 10px", text: "DELA does not know your roles or systems yet." }), h("button", { class: "ghost dw-wide", type: "button", onclick: function () { goTab("library"); } }, "Add it in the Library")));
+    chatEl.appendChild(dwCols([main], side));
+  }
   // Step 45: "What DELA is using". The firm profile, the Library documents chosen for this chat, the drafts started from
   // it, and the next actions that can work now. DELA reads only what is listed here; the server reads each document
   // again at every message, with the member's rights at that moment.
@@ -2236,16 +2518,21 @@
   }
   var RULE_BADGE = { proposed: ["Proposed, not in use", "held"], approved: ["Approved, in use", "ready"], rejected: ["Not approved", "off"], retired: ["Retired", "off"] };
   function rulesView(host) {
-    var R = chat.rules;
-    host.appendChild(h("div", { class: "row", style: "margin:4px 0 8px" }, h("button", { class: "ghost small", type: "button", id: "rules-back", onclick: function () { chat.view = "chat"; drawChat(); } }, "← Back to the chat")));
-    host.appendChild(h("h2", { id: "rules-h", tabindex: "-1", style: "margin:0 0 4px", text: "DELA instructions" }));
-    host.appendChild(h("p", { class: "muted", style: "margin:0 0 12px", text: "Tell DELA how your firm works. Firm guidance applies to everyone in your firm, once the Library administrator approves it. Your preferences apply to your own chats only. DELA follows both in Ask DELA; they never change a document, a gig or a payment." }));
+    var R = chat.rules, V = v2();
+    if (!V) {
+      host.appendChild(h("div", { class: "row", style: "margin:4px 0 8px" }, h("button", { class: "ghost small", type: "button", id: "rules-back", onclick: function () { chat.view = "chat"; drawChat(); } }, "← Back to the chat")));
+      host.appendChild(h("h2", { id: "rules-h", tabindex: "-1", style: "margin:0 0 4px", text: "DELA instructions" }));
+      host.appendChild(h("p", { class: "muted", style: "margin:0 0 12px", text: "Tell DELA how your firm works. Firm guidance applies to everyone in your firm, once the Library administrator approves it. Your preferences apply to your own chats only. DELA follows both in Ask DELA; they never change a document, a gig or a payment." }));
+    }
+    if (V && R && !R.has_firm && chat.rulesTab === "firm") chat.rulesTab = "personal";
     if (!R) { host.appendChild(h("p", { class: "muted", text: "Loading..." })); loadRules(); return; }
     var say = h("p", { class: "notice small" + (chat.rulesSay && chat.rulesSay.bad ? " bad" : " ok"), role: "status", id: "rules-say", text: chat.rulesSay ? chat.rulesSay.text : "" }); say.hidden = !chat.rulesSay;
     host.appendChild(say);
     var all = R.rules || [], firm = all.filter(function (x) { return x.scope === "firm"; }), mine = all.filter(function (x) { return x.scope === "personal"; });
     var live = function (l) { return l.filter(function (x) { return x.status === "approved" || x.status === "proposed"; }); };
     var TABS = [["firm", "Firm guidance (" + live(firm).length + ")"], ["personal", "My preferences (" + live(mine).length + ")"], ["history", "Change history"]];
+    // Step 75a (mockup 5): a fourth tab, and no firm tab for an account with no firm Library
+    if (V) { TABS.splice(2, 0, ["assignment", "Assignment context"]); if (!R.has_firm) TABS.shift(); }
     host.appendChild(h("div", { class: "pills", role: "tablist", "aria-label": "DELA instructions" }, TABS.map(function (t) {
       return h("button", { role: "tab", type: "button", id: "rules-tab-" + t[0], "aria-selected": String(chat.rulesTab === t[0]), onclick: function () { chat.rulesTab = t[0]; chat.rulesSay = null; drawChat(); } }, t[1]);
     })));
@@ -2263,7 +2550,7 @@
         if (x.scope === "firm" && x.status === "proposed" && x.mine && !R.can_approve) acts.push(h("button", { class: "ghost small", type: "button", "aria-label": "Withdraw: " + x.body, onclick: function () { act(x.id, "withdraw", "Withdrawn."); } }, "Withdraw"));
         if (x.status === "approved" && (x.scope === "personal" || R.can_approve)) acts.push(h("button", { class: "ghost small", type: "button", "aria-label": (x.scope === "personal" ? "Remove: " : "Retire: ") + x.body, onclick: function () { act(x.id, "retire", x.scope === "personal" ? "Removed. DELA no longer uses it." : "Retired. DELA no longer uses it. It stays in the change history."); } }, x.scope === "personal" ? "Remove" : "Retire"));
       }
-      var who = "Proposed by " + (x.mine ? "you" : x.proposed_by || "a team member") + " on " + D.date(x.created_at) +
+      var who = (V && !history ? (x.scope === "firm" ? "Scope: Firm · " : "Scope: You · ") : "") + "Proposed by " + (x.mine ? "you" : x.proposed_by || "a team member") + " on " + D.date(x.created_at) +
         (x.decided_at && x.scope === "firm" ? (x.status === "rejected" ? ". Not approved by " : ". Approved by ") + (x.decided_by || "the administrator") + " on " + D.date(x.decided_at) : "") +
         (x.retired_at ? ". " + (x.status === "retired" && x.scope === "firm" && !x.decided_at ? "Withdrawn" : "Retired") + " on " + D.date(x.retired_at) : "") + ".";
       return h("li", { class: "aw-row rule-row" }, h("span", { class: "aw-row-t" }, h("b", { style: "font-weight:600", text: x.body }), h("span", { class: "hsub", text: (history ? (x.scope === "firm" ? "Firm guidance. " : "Your preference. ") : "") + (x.scope === "personal" && !history ? "Added on " + D.date(x.created_at) + "." : who) })),
@@ -2271,6 +2558,13 @@
     };
     var card = h("section", { class: "card", id: "rules-card" });
     host.appendChild(card);
+    if (V && chat.rulesTab === "assignment") {
+      card.appendChild(h("h3", { style: "margin:0 0 6px", text: "Assignment context" }));
+      card.appendChild(h("p", { class: "hsub", style: "margin:0", text: "The facts of one piece of work: the steps handed over, what the recipient needs before starting, and the points where the attorney decides. DELA uses them inside that work only, never in another chat or for another firm." }));
+      var wl = wfList(); if (wl) host.appendChild(wl);
+      else card.appendChild(h("p", { class: "muted", style: "margin:8px 0 0", text: "No work in motion to show here." }));
+      return;
+    }
     if (chat.rulesTab === "history") {
       card.appendChild(h("h3", { style: "margin:0 0 6px", text: "Change history" }));
       if (!all.length) card.appendChild(h("p", { class: "muted", style: "margin:0", text: "Nothing has been proposed yet." }));
@@ -2278,17 +2572,37 @@
       return;
     }
     var isFirm = chat.rulesTab === "firm", list = live(isFirm ? firm : mine);
+    if (V && isFirm) {
+      // "Filter by status", as in the mockup
+      var fsel = h("select", { id: "rules-filter", "aria-label": "Filter by status" }, [["all", "All statuses"], ["approved", "Approved, in use"], ["proposed", "Proposed, not in use"]].map(function (o) { return h("option", { value: o[0], text: o[1], selected: dw.ruleF === o[0] }); }));
+      fsel.addEventListener("change", function () { dw.ruleF = fsel.value; drawChat(); });
+      card.appendChild(h("div", { class: "row", style: "float:right;margin:0 0 6px 8px" }, fsel));
+      if (dw.ruleF !== "all") list = list.filter(function (x) { return x.status === dw.ruleF; });
+    }
     card.appendChild(h("h3", { style: "margin:0 0 6px", text: isFirm ? "Firm guidance" : "My preferences" }));
     card.appendChild(h("p", { class: "hsub", style: "margin:0 0 8px", text: isFirm ? "What DELA follows for everyone in your firm. A proposed line is not in use until the Library administrator approves it. Up to " + R.max + " lines in use." : "What DELA follows in your own chats only. When a preference disagrees with firm guidance, firm guidance wins." }));
-    if (!list.length) card.appendChild(h("p", { class: "muted", id: "rules-empty", style: "margin:0 0 8px", text: isFirm ? "No firm guidance yet." : "No preferences yet." }));
+    if (!list.length) card.appendChild(h("p", { class: "muted", id: "rules-empty", style: "margin:0 0 8px", text: V && isFirm && dw.ruleF !== "all" ? "Nothing with this status." : isFirm ? "No firm guidance yet." : "No preferences yet." }));
     else card.appendChild(h("ul", { class: "aw-docs" }, list.map(function (x) { return row(x, false); })));
     if (isFirm && !R.can_propose) { card.appendChild(h("p", { class: "hsub", style: "margin:8px 0 0", text: RULE_ERR.not_allowed })); return; }
+    // Step 75a (mockup 5): proposing sits in its own card, and firm guidance is read back before it is sent
+    if (V) { card = h("section", { class: "card", id: "rules-propose" }, h("h2", { text: isFirm ? "Propose a new instruction" : "Add a preference" })); host.appendChild(card); }
     var ta = h("textarea", { id: "rule-new", rows: 3, maxlength: "300", style: "width:100%", "aria-describedby": "rule-help rule-count" });
+    var reviewBox = h("div", { class: "dw-review", id: "rule-review", role: "status" }); reviewBox.hidden = true;
+    var reviewed = false, editB = h("button", { class: "ghost small", type: "button", id: "rule-edit" }, "Edit"); editB.hidden = true;
     var count = h("span", { class: "hsub", id: "rule-count", text: "0 of 300 characters" });
     ta.addEventListener("input", function () { count.textContent = ta.value.length + " of 300 characters"; });
-    var go = h("button", { class: "blue small", type: "button", id: "rule-go" }, isFirm ? "Propose instruction" : "Save preference");
+    var go = h("button", { class: "blue small", type: "button", id: "rule-go" }, isFirm ? (V ? "Review proposed change" : "Propose instruction") : "Save preference");
+    editB.addEventListener("click", function () { reviewed = false; reviewBox.hidden = true; editB.hidden = true; ta.readOnly = false; go.textContent = "Review proposed change"; ta.focus(); });
     go.addEventListener("click", function () {
       if (ta.value.trim().length < 5) { chat.rulesSay = { text: RULE_ERR.rule_too_short, bad: true }; say.textContent = RULE_ERR.rule_too_short; say.className = "notice small bad"; say.hidden = false; ta.focus(); return; }
+      if (V && isFirm && !reviewed) {
+        reviewed = true; ta.readOnly = true; say.hidden = true;
+        D.clear(reviewBox);
+        reviewBox.appendChild(h("b", { text: "Check your proposal before you send it" }));
+        reviewBox.appendChild(h("p", { style: "margin:6px 0", text: "\u201c" + ta.value.trim() + "\u201d" }));
+        reviewBox.appendChild(h("p", { class: "hsub", style: "margin:0", text: "Scope: everyone in your firm, in Ask DELA. It is a proposal: DELA does not follow it until the Library administrator approves it. It changes no playbook, gig or payment." }));
+        reviewBox.hidden = false; editB.hidden = false; go.textContent = "Send proposal"; go.focus(); return;
+      }
       go.disabled = true;
       api.post("/ai/rules/propose", { scope: isFirm ? "firm" : "personal", body: ta.value, confirm_no_client_info: go.getAttribute("data-confirmed") === "1" }).then(function (x) {
         if (!x || !x.ok) throw x || {};
@@ -2302,7 +2616,7 @@
     });
     card.appendChild(h("div", { class: "gs-field", style: "margin-top:12px" }, h("label", { "for": "rule-new", class: "gs-label", text: isFirm ? "What should DELA do differently?" : "What should DELA do differently for you?" }), aiNotice(), ta,
       h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("span", { class: "hsub grow", id: "rule-help", text: isFirm ? "For example: \"For intake work, ask who confirms missing documents before preparing a handoff.\" This creates a proposal. It does not change how DELA works until the administrator approves it." : "For example: \"Give me checklists as numbered steps, no longer than ten.\"" }), count),
-      h("div", { class: "row", style: "margin-top:8px" }, go)));
+      reviewBox, h("div", { class: "row", style: "margin-top:8px;gap:8px" }, V ? h("span", { class: "hsub grow", text: isFirm ? "This will create a proposal, not automatically change firm policy." : "" }) : null, editB, go)));
   }
 
   function bubble(m) {
@@ -2333,7 +2647,7 @@
   }
   function composer() {
     var ai = chat.ai || {};
-    var ta = h("textarea", { "aria-label": "Your message", placeholder: "Type here, or press Talk and say it", maxlength: "8000", value: chat.pending && !chat.busy ? chat.pending.content : (composerText ? composerText.value : chatDraft()) });
+    var ta = h("textarea", { "aria-label": "Your message", placeholder: v2() ? "Ask a follow-up or describe the result you need..." : "Type here, or press Talk and say it", maxlength: "8000", value: chat.pending && !chat.busy ? chat.pending.content : (composerText ? composerText.value : chatDraft()) });
     composerText = ta;
     ta.addEventListener("input", function () { chatDraft(ta.value); });
     ta.addEventListener("keydown", function (e) { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); sendNew(); } });
@@ -2354,11 +2668,11 @@
       aiNotice(),
       attachRow,
       ta,
-      helperButton("improve_request", "✦ Improve my request", function () { return { text: ta.value }; }, { field: function (x) { return x.field === "request" ? ta : null; }, toast: "Added to your message. Nothing is sent until you click Send." }),
+      helperButton("improve_request", v2() ? "Improve request" : "✦ Improve my request", function () { return { text: ta.value }; }, { field: function (x) { return x.field === "request" ? ta : null; }, toast: "Added to your message. Nothing is sent until you click Send." }),
       h("div", { class: "row", style: "margin-top:8px" },
         mic,
         mic ? h("label", { for: "dela-auto-send", class: "small", style: "margin:0;font-weight:600;display:flex;gap:6px;align-items:center" }, auto, "Send when I stop talking") : null,
-        attachRow ? h("button", { class: "ghost small", type: "button", onclick: function () { chat.picking = !chat.picking; drawChat(); } }, chat.picking ? "Close files" : "Add a file") : null,
+        attachRow ? h("button", { class: "ghost small", type: "button", onclick: function () { chat.picking = !chat.picking; drawChat(); } }, chat.picking ? "Close files" : v2() ? "Attach file" : "Add a file") : null,
         h("span", { class: "grow" }),
         status,
         chat.busy ? h("button", { class: "ghost", type: "button", id: "chat-stop", onclick: stopSend }, "Stop") : null,
@@ -4019,6 +4333,11 @@
     if (lib.fromChat) { DOC.chat = lib.fromChat; lib.fromChat = null; DOC.flow = null; lib.pb = null; lib.importId = null; 
       api.get("/library" + (lib.org ? "?org=" + lib.org : "")).then(function (r) { lib.data = r; lib.org = r.org_id; if (((r || {}).list || {}).standard || (r || {}).standard) newDocument(); else { drawLibrary(); newPlaybook(); } })
         .catch(function (e) { DOC.chat = null; D.clear(libEl); libEl.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
+      return libEl; }
+    // Step 75a: "+ Create playbook" in the Ask DELA workspace starts a new document here
+    if (lib.dwCreate) { lib.dwCreate = false; DOC.flow = null; DOC.chat = null; lib.pb = null; lib.importId = null;
+      api.get("/library" + (lib.org ? "?org=" + lib.org : "")).then(function (r) { lib.data = r; lib.org = r.org_id; if (((r || {}).list || {}).standard || (r || {}).standard) newDocument(); else { drawLibrary(); newPlaybook(); } })
+        .catch(function (e) { D.clear(libEl); libEl.appendChild(h("p", { class: "notice bad", text: D.errorText(e.message) })); });
       return libEl; }
     if (lib.guideNew) { DOC.flow = lib.guideNew.type ? lib.guideNew : null; lib.guideNew = null; newDocument(); }
     else if (lib.importId) openImport(lib.importId);

@@ -321,6 +321,66 @@ async function makeMember(bd, side, plan) {
     ok(!t.includes("Drafts from this chat") && (await sql("select count(*)::int n from ai_chats where archived_at is null and person_id = (select id from people where bd_member_id = 2200)"))[0].n >= 1, "New chat starts clean and the earlier chat is still stored");
     await s.ctx.close();
 
+    // ---------- Step 75a: the Ask DELA workspace as the ten workflow mockups draw it ----------
+    await sql("update feature_switches set state = 'everyone' where key in ('new_layout', 'dela_workspace_v2'); select 1");
+    try {
+      s = await open(browser, 2200, { width: 1500, height: 950 });
+      await click(s.page, "Ask DELA");
+      t = await waitFor(s.page, "Working context");
+      const navItems = (await dela(s.page).locator(".dw-nav .dw-item").allInnerTexts()).map((x) => x.trim());
+      ok(navItems[0] === "Chat with DELA" && navItems[1] === "My playbooks" && navItems[navItems.length - 1] === "DELA instructions" && await dela(s.page).locator(".dw-nav .dw-item[aria-current=page]").innerText() === "Chat with DELA", "Ask DELA has its own second menu, with the chat marked as the page you are on: " + navItems.join(", "));
+      ok(/recent conversations/i.test(t) && await dela(s.page).locator(".dw-chat").count() >= 1 && t.includes("Chats and drafts remain separate records. Starting a new chat does not delete previous work."), "earlier chats are a list under the menu, and a new chat deletes nothing");
+      ok(t.includes("Suggested next actions") && t.includes("Create or improve a playbook") && t.includes("Manage playbooks") && t.includes("Suggestions are not approvals.") && t.includes("+ New chat") && await dela(s.page).locator("#dw-instr").innerText() === "DELA instructions", "the right column has the working context, the next actions and the note; the header has New chat and DELA instructions");
+      const three = await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, b = (q) => r.querySelector(q).getBoundingClientRect(); return b(".dw-nav").right <= b(".dw-chat-card").left + 1 && b(".dw-chat-card").right <= b(".dw-3 > .dw-side").left + 1; });
+      ok(three, "on a wide screen the menu, the chat and the working context sit side by side");
+      await dela(s.page).getByRole("button", { name: /^Select .* for this chat$/ }).first().click();
+      await dela(s.page).locator(".dw-ctx.on").first().waitFor({ timeout: 8000 });
+      ok((await dela(s.page).locator(".dw-ctx.on").first().innerText()).includes("Selected") && await dela(s.page).getByRole("button", { name: /^Remove .* from this chat$/ }).count() === 1, "a playbook is selected for the chat with one click and marked Selected");
+      // Screen 2: My Playbooks
+      await click(s.page, "Manage playbooks");
+      t = await waitFor(s.page, "Playbook library");
+      ok(t.includes("My Playbooks") && t.includes("Selected for DELA") && t.includes("Don't have an approved playbook?") && t.includes("+ Create playbook") && t.includes("View versions & history"), "My Playbooks has the table, what is selected for DELA and the way to start without a playbook");
+      await dela(s.page).locator(".dw-table tbody tr").first().waitFor({ timeout: 10000 });
+      ok((await dela(s.page).locator(".dw-table thead th").allInnerTexts()).map((x) => x.trim()).join("|") === "Playbook|Owner role|Version|Status|Action", "the table has the mockup's five columns");
+      ok((await dela(s.page).locator(".top .where").innerText()).replace(/\s+/g, " ").trim() === "Ask DELA / My Playbooks Library" && s.page.url().includes("ws=playbooks"), "the top bar reads Ask DELA / My Playbooks Library and the page has its own address: " + s.page.url());
+      await dela(s.page).getByRole("group", { name: "Show" }).getByRole("button", { name: "Approved", exact: true }).click();
+      await s.page.waitForTimeout(300);
+      const apTags = (await dela(s.page).locator(".dw-table tbody .dw-tag").allInnerTexts()).map((x) => x.trim());
+      ok(apTags.length >= 1 && apTags.every((x) => x === "Approved") && await dela(s.page).getByRole("button", { name: /^Selected for DELA$|^Remove .* from DELA's working context$/ }).count() >= 1, "the Approved filter keeps approved playbooks, and the selected one says so: " + apTags.join(","));
+      await dela(s.page).locator("#dw-search").fill("zzzz nothing");
+      await waitFor(s.page, "No playbook fits. Try another filter or fewer words.");
+      await dela(s.page).locator("#dw-search").fill("");
+      await dela(s.page).locator("#dw-chat-about").click();
+      t = await waitFor(s.page, "Working context");
+      ok(!s.page.url().includes("ws=") && await dela(s.page).locator(".dw-ctx.on").count() === 1, "Chat about this playbook goes back to the chat with the playbook still selected");
+      // Screen 5: DELA instructions as its own page
+      await dela(s.page).locator("#dw-instr").click();
+      t = await waitFor(s.page, "How context is used");
+      ok(t.includes("DELA Instructions & Firm Context") && t.includes("Assignment context") && t.includes("Propose a new instruction") && t.includes("Missing or conflicting information") && t.includes("Scope: Firm") && !t.includes("← Back to the chat"), "DELA instructions is a page with four tabs, the scope on each line and the two cards at the right");
+      const before75 = (await sql("select count(*)::int n from firm_rules where status = 'proposed'"))[0].n;
+      await dela(s.page).locator("#rule-new").fill("Confirm dates with the exact time zone before scheduling.");
+      await dela(s.page).locator("#rule-go").click();
+      await dela(s.page).locator("#rule-review").waitFor({ timeout: 5000 });
+      ok((await dela(s.page).locator("#rule-review").innerText()).includes("Check your proposal before you send it") && (await dela(s.page).locator("#rule-go").innerText()) === "Send proposal" && (await sql("select count(*)::int n from firm_rules where status = 'proposed'"))[0].n === before75, "Review proposed change reads the proposal back and sends nothing yet");
+      await dela(s.page).locator("#rule-go").click();
+      t = await waitFor(s.page, "Proposed, not in use");
+      ok((await sql("select count(*)::int n from firm_rules where status = 'proposed'"))[0].n === before75 + 1, "Send proposal makes one proposal");
+      await dela(s.page).locator("#dw-unresolved").click();
+      await s.page.waitForTimeout(300);
+      ok(await dela(s.page).locator("#rules-filter").inputValue() === "proposed" && await dela(s.page).locator("#rules-card .rule-row").count() === before75 + 1, "View unresolved decisions shows the proposals that wait");
+      // The address opens the page directly, and Ask DELA in the top bar goes back to the chat
+      await s.page.reload();
+      t = await waitFor(s.page, "How context is used", 15000);
+      ok(s.page.url().includes("ws=instructions"), "the instructions page opens from its own address");
+      await dela(s.page).locator(".top .where .dw-crumb").click();
+      await waitFor(s.page, "Working context");
+      await dela(s.page).locator(".dw-nav .dw-item", { hasText: "Gig drafts" }).count() && await dela(s.page).locator(".dw-nav .dw-item", { hasText: "Gig drafts" }).click();
+      await s.page.setViewportSize({ width: 390, height: 800 });
+      await s.page.waitForTimeout(300);
+      ok(await s.page.evaluate(() => document.documentElement.scrollWidth) <= 392, "a workspace page fits a phone screen");
+      await s.ctx.close();
+    } finally { await sql("update feature_switches set state = 'off' where key in ('new_layout', 'dela_workspace_v2'); select 1"); }
+
     // ---------- Freelancer ----------
     s = await open(browser, 2202);
     t = await text(s.page);
