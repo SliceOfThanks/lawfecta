@@ -2705,7 +2705,8 @@
           share.appendChild(row("The gig as freelancers see it", "The title, the description, the deliverables, the budget (" + dwBudget(g) + ") and the dates.", "Included", "ready"));
           share.appendChild(row("Selected instructions", (r.gig_part ? r.gig_part.steps + " of the playbook's " + r.gig_part.of + " steps. " : "The steps of the gig. ") + "Read only, with a watermark that names " + p.name + ".", "Included", "ready"));
           share.appendChild(row(files.length ? plural(files.length, "file") + " attached to this gig" : "Files attached to this gig", files.length ? files.map(function (x) { return x.name; }).slice(0, 6).join(", ") + (files.length > 6 ? ", and " + (files.length - 6) + " more" : "") + ". Check each one before you send." : "None are attached, so no file is shared.", files.length ? "Review" : "Not shared", files.length ? "held" : "off"));
-          share.appendChild(row("Your message", "Only what you type in the box above.", note.value.trim() ? "Review" : "Not shared", note.value.trim() ? "held" : "off"));
+          var msgRow = row("Your message", "Only what you type in the box above.", "", "off"); msgRow.id = "dw-i-msgrow";
+          share.appendChild(msgRow); paintMsg();
           share.appendChild(row("Excluded steps and your other playbooks", "The steps you keep, your Library and your other gigs. An invitation opens this one gig only.", "Not shared", "off"));
           share.appendChild(row("Confidential materials", "They open only after you both sign and the first milestone is paid.", "Not shared", "off"));
           share.appendChild(row("Your payment details", "Never shown to a freelancer.", "Not shared", "off"));
@@ -2718,8 +2719,10 @@
         }).catch(function () { D.clear(share); share.appendChild(h("p", { class: "notice bad", text: "This gig could not be loaded. Check your connection." })); });
         paintActs();
       }
+      // The tag beside "Your message" follows the box, in place: nothing else on the page is redrawn while typing
+      function paintMsg() { var tg = share.querySelector("#dw-i-msgrow .dw-tag"); if (!tg) return; var on = !!note.value.trim(); tg.textContent = on ? "Review" : "Not shared"; tg.className = "badge " + (on ? "held" : "off") + " dw-tag"; }
       sel.addEventListener("change", drawScope);
-      note.addEventListener("change", function () { if (sel.value) drawScope(); });
+      note.addEventListener("input", paintMsg);
       var acts = h("div", { class: "row dw-acts", style: "gap:10px;flex-wrap:wrap" }), reviewBox = h("div", { class: "dw-review", id: "dw-i-review", role: "status" }); reviewBox.hidden = inv.step !== "review";
       function doSend(confirmed) {
         var b = acts.querySelector("#dw-i-send"); if (b) { b.disabled = true; b.textContent = "Sending..."; }
