@@ -164,7 +164,7 @@ const DOC = (title) => JSON.stringify({ schema: 2, type: "sop", title, lifecycle
       t = await waitFor(s.page, "Selection saved.");
       ok(t.includes("1 task selected") && t.includes("The result of step 1") && (await dela(s.page).locator("#dw-pre").innerText()).includes("Confirm"), "handing over step 2 without step 1 lists the result of step 1 as a prerequisite to confirm");
       await dela(s.page).locator("#dw-crit-edit").click();
-      await dela(s.page).getByLabel("What done means").fill("Every returned form is logged and the missing ones are listed.");
+      await dela(s.page).locator("#dw-crit-done-in").fill("Every returned form is logged and the missing ones are listed.");
       await dela(s.page).locator("#dw-crit-save").click();
       t = await waitFor(s.page, "Criteria saved.");
       ok((await dela(s.page).locator("#dw-crit-done").innerText()) === "Every returned form is logged and the missing ones are listed.", "Edit criteria saves what done means");

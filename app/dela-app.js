@@ -2477,7 +2477,8 @@
       } else {
         var days = h("input", { type: "number", min: "1", max: "90", value: String(k.turnaround_days || 2) }), acc = h("input", { type: "number", min: "50", max: "100", value: String(k.accuracy_pct || 95) });
         var chk = h("textarea", { rows: 4, style: "width:100%" }); chk.value = (k.checklist || []).join("\n");
-        var done = h("textarea", { rows: 2, style: "width:100%" }); done.value = k.done || "";
+        var done = h("textarea", { rows: 2, style: "width:100%", id: "dw-crit-done-in", "aria-label": "What done means" }); done.value = k.done || "";
+        chk.setAttribute("aria-label", "Quality checklist, one per line"); days.setAttribute("aria-label", "Turnaround (business days)"); acc.setAttribute("aria-label", "Accuracy target (%)");
         crit.appendChild(aiNotice());
         crit.appendChild(field("What done means", done)); crit.appendChild(field("Quality checklist, one per line", chk));
         crit.appendChild(h("div", { class: "row", style: "flex-wrap:wrap" }, field("Turnaround (business days)", days), field("Accuracy target (%)", acc)));
