@@ -2455,7 +2455,6 @@
 
     var soon = chat.list.filter(function (c) { return c.due_soon; });
     var soonP = soon.length ? h("p", { class: "notice", role: "status", text: soon.length + (soon.length === 1 ? " chat is" : " chats are") + " due to be deleted soon: " + soon.map(function (c) { return c.title + " (" + D.date(c.delete_at) + ")"; }).join(", ") + ". Open a chat and click \"Save to library\" to keep it." }) : null;
-    var credits = h("p", { class: "small muted dw-credits", id: "chat-credits", text: creditsLine() });
 
     if (fresh) {
       var box0 = h("section", { class: "card dw-chat-card dw-fresh", "aria-label": "Your message to DELA" }, composer());
@@ -2472,7 +2471,7 @@
             h("div", { class: "dw-hero-t" }, h("h2", { id: "dw-hero-h", text: "What would you like to get off your plate?" }), h("p", { text: "Describe a task, recurring problem, or process you want to improve." })),
             dwHeroArt()),
           ctx),
-        soonP, box0, credits, chat.problem ? problemBox(chat.problem) : null,
+        soonP, box0, chat.problem ? problemBox(chat.problem) : null,
         h("h2", { class: "dw-start-h", id: "dw-start-h", text: "Not sure where to start?" }),
         h("div", { class: "dw-starts dw-starts-" + starts.length, role: "group", "aria-labelledby": "dw-start-h" }, starts.map(function (s) {
           return h("button", { class: "dw-start " + s[1], type: "button", id: s[0], onclick: s[5] }, icon(s[2]),
@@ -3729,7 +3728,7 @@
         improve,
         micOk ? null : (ai.voice_on ? h("p", { class: "small muted", style: "margin:8px 0 0", text: "Talking needs a browser with microphone support. You can type instead." }) : null),
         h("p", { class: "dw-lock" + (going ? " dw-lock2" : ""), role: "note", id: "dw-lock" }, icon(going ? "shield" : "lock"), h("span", { class: "grow", text: "Never enter sensitive data: SSNs, account numbers, health details, passwords." + (sw.client_details_allowed ? " Client names and case facts are fine." : " Leave out client names and case details too.") }),
-          going ? h("span", { class: "dw-usage" }, "AI usage: ", h("button", { class: "linkish", type: "button", id: "dw-usage-link", "aria-describedby": "chat-credits", onclick: function () { goTab(me.side === "attorney" && !NL() ? "usage" : "subscription"); } }, "View details"), h("span", { class: "sr", id: "chat-credits", text: creditsLine() })) : null));
+          h("span", { class: "dw-usage" }, "AI usage: ", h("button", { class: "linkish", type: "button", id: "dw-usage-link", "aria-describedby": "chat-credits", onclick: function () { goTab(me.side === "attorney" && !NL() ? "usage" : "subscription"); } }, "View details"), h("span", { class: "sr", id: "chat-credits", text: creditsLine() }))));
     }
     return h("div", { class: "composer" },
       aiNotice(),

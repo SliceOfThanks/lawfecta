@@ -1,7 +1,7 @@
 # Feature brief: an Ask DELA conversation in progress, as the second mockup of 2026-11-23 draws it
 
 Step: 78   Spec references: step 77 (the first screen), step 45 (working context, the one next question), step 75 (the workspace pages), Stacey's mockup "Ask DELA / Active conversation, numbered UX/UI & accessibility notes" (2026-11-23)
-Status: built in acceleration mode. Stacey 2026-11-23, with the mockup attached: "(1) attached is mockup that needs to be done EXACTLY (colors & all). (2) If you disagree with anything please let me know in a bullet list with simple questions and your suggestion (and why suggested) (3) conversation context - need to only show the most recent 3-5 otherwise that panel will take up the whole screen. Evaluate how the user can still pull in older context items easily from this screen."
+Status: built in acceleration mode. Stacey read the list of differences on 2026-11-23 and answered "all as suggested": her rule stays under the message box, "Save as a playbook draft" stays, the source tag shows on both sections, "Chats & pages" stays a list, three playbooks for one chat stays, and the first screen shows "AI usage: View details" as well. Stacey 2026-11-23, with the mockup attached: "(1) attached is mockup that needs to be done EXACTLY (colors & all). (2) If you disagree with anything please let me know in a bullet list with simple questions and your suggestion (and why suggested) (3) conversation context - need to only show the most recent 3-5 otherwise that panel will take up the whole screen. Evaluate how the user can still pull in older context items easily from this screen."
 
 ## Who
 Attorneys and firm staff in Ask DELA with the workspace on. Freelancers get the same conversation layout with no playbooks to choose.
