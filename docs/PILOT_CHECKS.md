@@ -228,6 +228,8 @@ How to read the "State" column:
 | 76-3 | Which Scribe plans allow the connection, so the page can say it exactly | The firm reports its Scribe plan and whether Settings shows "Developer Access" | Not yet | |
 | 77-1 | A member who has never seen Ask DELA knows what to type and finds earlier chats and the other pages behind "Chats & pages" | A pilot attorney opens Ask DELA for the first time and says what they would do | Not yet | |
 | 77-2 | "Talk" and "Send when I stop talking" work in the new message box with a real microphone | A member dictates one request on their own computer | Not yet | |
+| 78-1 | With the real AI, an answer about handing work off lists tasks under "Tasks that can be delegated" and "Keep with an attorney", and every "Source: Step N" matches the playbook | An attorney selects an approved playbook, asks which steps a freelancer could do, and opens two of the sources | Not yet | |
+| 78-2 | A firm with many playbooks finds an older one in "Manage sources" by typing part of its name | A pilot firm with more than ten playbooks tries it | Not yet | |
 | 75-3 | The pages read well on a laptop screen of ordinary width (about 1280) and on a phone | Stacey looks at the chat page, My Playbooks and the handoff page on both | Not yet | The tests check the layout by measurement, not by eye |
 
 ## How this list is kept
