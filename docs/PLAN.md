@@ -9,6 +9,8 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
 ## Newest (2026-11-23, late): the chat page after Stacey's look; the message box leads with Talk, Record my screen and Import from Scribe
+code_version fed5ac2 (browser only, run 45284050887): step 77, the Ask DELA first screen rebuilt to Stacey's mockup of 2026-11-23. Waiting on her look and on her answers about the top notice text, the actions-left line and the back office sentence.
+
 code_version 169af60, api function 151, migrations through 0156 (run 45269705733): step 76, a firm connects its Scribe account with a key and picks a guide from a list (switch scribe_connect, Access list). Needs a real Scribe key to be proven: plan, screenshot addresses (pilot checks 76-1 to 76-3). Found on the way and softened, not solved: an editor invited to another firm's Library keeps screenshots in their own firm, so that Library takes their imported steps without screenshots (file import and Scribe connection alike); the page now says so in place of failing.
 
 code_version 4e1fd33 (browser only, run 45249427307). Open question for Stacey: whether she wants a direct connection to a Scribe account (today DELA reads a guide exported from Scribe as a file).
