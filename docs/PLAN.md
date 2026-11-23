@@ -8,7 +8,10 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
-## Newest (2026-11-23): step 75d is on the site; all ten mockup screens exist
+## Newest (2026-11-23, later): the old places open the new Ask DELA pages
+code_version 0e69622 (browser only, run 45225010275). See STATUS.md, step 75, "Routing". Next: Stacey's look and checks 25 to 29, then the switch for everyone on her word.
+
+## Earlier (2026-11-23): step 75d is on the site; all ten mockup screens exist
 code_version 9b3b390 (browser only, run 45208765203). "Playbook Changes & Version Approval" and "Decisions, Blockers & Work Progress" are pages of the Ask DELA workspace. Check files 26 to 29, not run.
 Next, after Stacey has looked and the checks are run: fix what they find; make the old places open the new pages so there is one way to do each thing; turn dela_workspace_v2 on for everyone on her word. Not tested by a person: "Apply to draft" on the changes page (no proposed change waits on the test site; it uses the same command as "Accept" in the Library, which is tested).
 
