@@ -334,6 +334,11 @@ async function makeMember(bd, side, plan) {
       const three = await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, b = (q) => r.querySelector(q).getBoundingClientRect(); const w = Math.round(b(".dw-wrap").width);
         const side = b(".dw-chat-card").right <= b(".dw-3 > .dw-side").left + 1, nav = b(".dw-nav").right <= b(".dw-chat-card").left + 1;
         return { w: w, ok: w >= 900 ? side && nav : w >= 760 ? side && b(".dw-nav").bottom <= b(".dw-chat-card").top + 1 : true }; });
+      // Fix (Stacey 2026-11-23): the menu card's headings and chat titles stay inside the card
+      const navFit = await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, nav = r.querySelector(".dw-nav"), box = nav.getBoundingClientRect();
+        const out = [...nav.querySelectorAll(".dw-cap, .dw-chat, .dw-item")].filter((e) => { const b = e.getBoundingClientRect(); return b.right > box.right + 0.5 || e.scrollWidth > e.clientWidth + 1; }).map((e) => e.textContent.slice(0, 30));
+        return { out: out, cap: parseFloat(getComputedStyle(nav.querySelector(".dw-cap")).fontSize), wrap: getComputedStyle(nav.querySelector(".dw-chat")).whiteSpace }; });
+      ok(navFit.out.length === 0 && navFit.cap <= 13 && navFit.wrap === "normal", "Fix: nothing in the menu card runs past its edge, the two headings are small, and a chat title may use two lines: " + JSON.stringify(navFit));
       // Fix (Stacey 2026-11-23): on a new chat the message box does not lie over the example
       await s.page.setViewportSize({ width: 1500, height: 520 });
       await s.page.waitForTimeout(200);
