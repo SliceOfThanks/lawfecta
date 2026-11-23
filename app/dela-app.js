@@ -2095,6 +2095,8 @@
     if (dw.page === "handoff" && !dw.hand) dw.page = "opportunities";
     if ((dw.page === "gig" || dw.page === "preview") && !dw.gig) dw.page = "gigs";
     var where = app.querySelector(".top .where"); if (where) dwCrumb(where, "Ask DELA");
+    // The address names the page, also when the workspace was opened from another part of DELA
+    syncAddress();
     if (dw.page === "playbooks") dwPlaybooks();
     else if (dw.page === "opportunities") dwOpps();
     else if (dw.page === "gigs") dwGigs();
