@@ -223,6 +223,9 @@ How to read the "State" column:
 | 75-2 | "Find tasks to delegate" gives sensible tasks and roles on a real playbook with the real AI | A pilot attorney reads the suggestions for one of their own playbooks | Not yet | Tested with a stand-in AI |
 | 75-4 | A proposed change to a playbook is applied to the draft from the changes page, sent for review and approved, by the people who may | A pilot firm with an author and an administrator who are different people | Not yet | The test firm's attorney is both |
 | 75-5 | The decision queue shows a real firm's waiting items correctly and nothing is missing from it | A pilot attorney compares it with Home and Projects on a busy day | Not yet | |
+| 76-1 | A real key from a real Scribe account connects, and the firm's guides show in the list | A firm with a Scribe plan that offers "Developer Access" connects it on "Import a guide from Scribe" | Not yet | |
+| 76-2 | Screenshots of a guide picked from the list come in (Scribe's screenshot addresses are in the setting import.image_hosts) | The same firm imports one guide with screenshots and looks at the review screen | Not yet | |
+| 76-3 | Which Scribe plans allow the connection, so the page can say it exactly | The firm reports its Scribe plan and whether Settings shows "Developer Access" | Not yet | |
 | 75-3 | The pages read well on a laptop screen of ordinary width (about 1280) and on a phone | Stacey looks at the chat page, My Playbooks and the handoff page on both | Not yet | The tests check the layout by measurement, not by eye |
 
 ## How this list is kept
