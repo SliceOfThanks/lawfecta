@@ -376,6 +376,30 @@ async function makeMember(bd, side, plan) {
       ok(s.page.url().includes("ws=instructions"), "the instructions page opens from its own address");
       await dela(s.page).locator(".top .where .dw-crumb").click();
       await waitFor(s.page, "Working context");
+      // Step 75d, screen 10: one queue of what waits, with who resolves it
+      await dela(s.page).locator(".dw-nav .dw-item", { hasText: "Decisions & blockers" }).click();
+      t = await waitFor(s.page, "Decision queue", 15000);
+      await dela(s.page).locator("#dw-queue .dw-qrow").first().waitFor({ timeout: 10000 });
+      ok(t.includes("Decisions, Blockers & Work Progress") && s.page.url().includes("ws=decisions") && await dela(s.page).getByRole("group", { name: "Show" }).getByRole("button").count() === 6, "the decision queue is a page with its own address and six filters");
+      await dela(s.page).getByRole("group", { name: "Show" }).getByRole("button", { name: /^Needs decision/ }).click();
+      await dela(s.page).locator("#dw-queue .dw-qrow", { hasText: "A DELA instruction is proposed" }).first().click();
+      t = await text(s.page);
+      ok(t.includes("Decision details") && (await dela(s.page).locator("#dw-q-next").innerText()).includes("DELA does not follow it until it is approved.") && t.includes("Authorized resolver") && (await dela(s.page).locator("#dw-q-go").innerText()) === "Open DELA instructions" && t.includes("Event history"), "a proposed instruction waits in the queue with its next step and who resolves it");
+      await dela(s.page).locator("#dw-q-go").click();
+      await waitFor(s.page, "How context is used");
+      ok(await dela(s.page).locator("#rules-filter").inputValue() === "proposed", "the item opens the place where it is resolved");
+      await dela(s.page).locator(".top .where .dw-crumb").click();
+      await waitFor(s.page, "Working context");
+      // Step 75d, screen 7: changes and version approval
+      await dela(s.page).locator(".dw-nav .dw-item", { hasText: "Playbook changes" }).click();
+      await waitFor(s.page, "Choose a playbook", 15000);
+      await dela(s.page).getByRole("button", { name: /^Review changes in / }).first().click();
+      t = await waitFor(s.page, "Version states", 15000);
+      ok(t.includes("Playbook Changes & Version Approval") && t.includes("Proposed revision ·") && t.includes("Impact review") && t.includes("Existing assignments") && t.includes("Approval authority") && s.page.url().includes("ws=changes") && s.page.url().includes("doc="), "the changes page shows the revision, the impact review and the version states, at its own address");
+      ok(t.includes("No proposed changes are waiting.") || await dela(s.page).locator(".dw-sg").count() >= 1, "it lists the proposed changes, or says none wait");
+      ok(await dela(s.page).locator("#dw-chg-hist").count() === 1 && t.includes("Approved changes create a new version. Existing work does not silently switch versions."), "it offers the version history and says a new version never replaces work in motion");
+      await dela(s.page).locator(".top .where .dw-crumb").click();
+      await waitFor(s.page, "Working context");
       await dela(s.page).locator(".dw-nav .dw-item", { hasText: "Gig drafts" }).count() && await dela(s.page).locator(".dw-nav .dw-item", { hasText: "Gig drafts" }).click();
       await s.page.setViewportSize({ width: 390, height: 800 });
       await s.page.waitForTimeout(300);

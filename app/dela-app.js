@@ -458,7 +458,7 @@
       var u = new URL(location.href);
       // Step 75a: inside Ask DELA the workspace page is part of the address (?tab=delegate&ws=playbooks)
       var wsWant = dwOnAsk() && v2() && dw.page !== "chat" ? dw.page : "", wsKeep = dwOnAsk() && !chat.ws;
-      var docWant = wsWant === "opportunities" && dw.pb ? dw.pb : "", handWant = wsWant === "handoff" && dw.hand ? dw.hand : "", draftWant = (wsWant === "gig" || wsWant === "preview") && dw.gig ? dw.gig : "";
+      var docWant = wsWant === "opportunities" && dw.pb ? dw.pb : wsWant === "changes" && dw.chg ? dw.chg : "", handWant = wsWant === "handoff" && dw.hand ? dw.hand : "", draftWant = (wsWant === "gig" || wsWant === "preview") && dw.gig ? dw.gig : "";
       if (u.searchParams.get("tab") === tab && (wsKeep || ((u.searchParams.get("ws") || "") === wsWant && (u.searchParams.get("doc") || "") === docWant && (u.searchParams.get("handoff") || "") === handWant && (u.searchParams.get("draft") || "") === draftWant))) return;
       if (u.searchParams.get("tab") !== tab) ["gig", "view", "pb", "thread", "meeting", "person"].forEach(function (k) { u.searchParams.delete(k); });
       u.searchParams.set("tab", tab);
@@ -2045,14 +2045,18 @@
     // Step 75b: the playbook whose delegation opportunities are shown, the tasks ticked there, and the handoff in preparation
     pb: null, sel: {}, why: {}, hand: null,
     // Step 75c: the gig draft being written or previewed, and the invitation being prepared
-    gig: null, gigNew: null, inv: null };
+    gig: null, gigNew: null, inv: null,
+    // Step 75d: the playbook whose changes are reviewed, and the filter and the chosen item of the decision queue
+    chg: null, qf: "all", qsel: null };
   var DW_MORE = { handoff: "Partial Delegation & Dependencies", gig: "Create a Gig from DELA", preview: "Recipient Review & Acceptance", invite: "Invitation & Sharing Review" };
   var DW_PAGES = [["chat", "Chat with DELA", "Ask DELA"], ["playbooks", "My playbooks", "My Playbooks Library"], ["opportunities", "Delegation opportunities", "Delegation Opportunities"],
-    ["gigs", "Gig drafts", "Gig Drafts"], ["instructions", "DELA instructions", "DELA Instructions & Firm Context"]];
+    ["gigs", "Gig drafts", "Gig Drafts"], ["changes", "Playbook changes", "Playbook Changes & Version Approval"], ["decisions", "Decisions & blockers", "Decisions, Blockers & Work Progress"],
+    ["instructions", "DELA instructions", "DELA Instructions & Firm Context"]];
   try {
     var dwQ = new URLSearchParams(location.search), dwWant = dwQ.get("ws"), dwId = function (k) { var v = dwQ.get(k); return v && /^[0-9a-f-]{36}$/.test(v) ? v : null; };
     if (DW_PAGES.some(function (x) { return x[0] === dwWant; })) dw.page = dwWant;
     if (dwWant === "opportunities") dw.pb = dwId("doc");
+    if (dwWant === "changes") dw.chg = dwId("doc");
     if (dwWant === "handoff" && dwId("handoff")) { dw.page = "handoff"; dw.hand = dwId("handoff"); }
     if ((dwWant === "gig" || dwWant === "preview") && dwId("draft")) { dw.page = dwWant; dw.gig = dwId("draft"); }
   } catch (e) { /* no deep link */ }
@@ -2099,6 +2103,8 @@
     else if (dw.page === "gig") dwGigDraft();
     else if (dw.page === "preview") dwPreview();
     else if (dw.page === "invite") dwInvite();
+    else if (dw.page === "changes") dwChanges();
+    else if (dw.page === "decisions") dwDecisions();
     else dwChat();
   }
   // Screen 1: the conversation, with the second menu at the left and the working context at the right
@@ -2113,7 +2119,7 @@
       if (!w.library && p[0] !== "chat" && p[0] !== "instructions") return;
       if (p[0] === "opportunities" && !(me.switches || {}).automate_delegate) return;
       if (p[0] === "gigs" && !(canHire() && (me.switches || {}).flex_gigs)) return;
-      nav.appendChild(h("button", { class: "dw-item", type: "button", "aria-current": p[0] === "chat" ? "page" : null, onclick: function () { if (p[0] === "opportunities") { dw.pb = null; dw.sel = {}; } if (p[0] !== "chat") dwGo(p[0]); } }, p[1]));
+      nav.appendChild(h("button", { class: "dw-item", type: "button", "aria-current": p[0] === "chat" ? "page" : null, onclick: function () { if (p[0] === "opportunities") { dw.pb = null; dw.sel = {}; } if (p[0] === "changes") dw.chg = null; if (p[0] !== "chat") dwGo(p[0]); } }, p[1]));
     });
     nav.appendChild(h("h2", { class: "dw-cap dw-cap2", text: "Recent conversations" }));
     if (!chat.list.length) nav.appendChild(h("p", { class: "hsub", style: "margin:0 0 8px", text: "None yet. Your chats are listed here." }));
@@ -2263,7 +2269,8 @@
           h("td", { "data-label": "Owner role", text: p.owner_role || "Not assigned" }),
           h("td", { "data-label": "Version", text: hasApproved ? "v" + p.approved_version + (p.status === "draft" || p.status === "in_review" ? ", new draft" : "") : "Draft" }),
           h("td", { "data-label": "Status" }, h("span", { class: "badge " + (tag[1] === "blue" ? "dw-blue" : tag[1]) + " dw-tag", text: tag[0] })),
-          h("td", { "data-label": "Action" }, h("div", { class: "dw-rowacts" }, h("button", { class: "ghost small", type: "button", "aria-label": label + " " + p.title, onclick: function () { openDocFromChat(p.id); } }, label), pick))));
+          h("td", { "data-label": "Action" }, h("div", { class: "dw-rowacts" }, h("button", { class: "ghost small", type: "button", "aria-label": label + " " + p.title, onclick: function () { openDocFromChat(p.id); } }, label), pick,
+            p.status === "draft" || p.status === "in_review" ? h("button", { class: "linkish", type: "button", "aria-label": "Review changes in " + p.title, onclick: function () { dw.chg = p.id; dwGo("changes"); } }, "Review changes") : null))));
       });
       body.appendChild(h("div", { class: "scroll" }, h("table", { class: "pj-table stack dw-table" }, h("thead", null, h("tr", null, ["Playbook", "Owner role", "Version", "Status", "Action"].map(function (c) { return h("th", { scope: "col", text: c }); }))), tb)));
       body.appendChild(h("div", { class: "row", style: "gap:12px;flex-wrap:wrap;margin-top:12px" }, h("span", { class: "hsub grow", text: plural(rows.length, "playbook") + " shown. The same records as in your Library." }),
@@ -2767,6 +2774,184 @@
       host.appendChild(dwCols([form], [pkg, perm]));
       drawScope();
     }).catch(function (e) { D.clear(host); host.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
+  }
+  // ---------- Step 75d: Playbook Changes & Version Approval (screen 7) and Decisions, Blockers & Work Progress
+  // (screen 10). Both read records that exist and act through the commands that exist: /playbooks/decide,
+  // /playbooks/status, and the pages where each waiting item is resolved. ----------
+  function dwWithPb(P, fn) { var keep = lib.pb; lib.pb = P; try { return fn(); } finally { lib.pb = keep; } }
+  function dwChanges() {
+    var pid = dw.chg;
+    if (!pid) {
+      chatEl.appendChild(dwHead("Playbook Changes & Version Approval", "Compare proposed changes with the approved source. Applying a proposal to a draft is not approval of a new version.", []));
+      var pick = h("section", { class: "card" }, h("h2", { text: "Choose a playbook" })), body = h("div", null, h("p", { class: "muted", text: "Loading your playbooks..." }));
+      pick.appendChild(body);
+      var paint = function () {
+        D.clear(body);
+        var all = ((dw.lib.list || {}).playbooks || []).filter(function (p) { return p.status !== "trash" && p.status !== "archived"; });
+        // What is in motion first: sent for review, then a draft on top of an approved version, then the rest
+        var weight = function (p) { return p.status === "in_review" ? 0 : p.status === "draft" && p.approved_version ? 1 : p.status === "draft" ? 2 : 3; };
+        all = all.slice().sort(function (a, b) { return weight(a) - weight(b); });
+        if (!all.length) { body.appendChild(h("p", { class: "muted", id: "dw-chg-none", style: "margin:0", text: "No playbooks yet." })); return; }
+        body.appendChild(h("ul", { class: "aw-docs" }, all.map(function (p) {
+          var tag = DW_ST[p.status === "in_review" ? "in_review" : p.status === "approved" ? "approved" : "draft"];
+          return h("li", { class: "aw-row" }, h("span", { class: "aw-row-t" }, h("b", { text: (p.doc_id ? p.doc_id + " " : "") + p.title }), h("span", { class: "hsub", text: (p.approved_version ? "Approved version " + p.approved_version : "No approved version yet") + (p.status === "draft" && p.approved_version ? " · a new draft is being written" : p.status === "in_review" ? " · sent for review" : "") })),
+            h("span", { class: "badge " + (tag[1] === "blue" ? "dw-blue" : tag[1]) + " dw-tag", text: p.status === "in_review" ? "In review" : p.status === "approved" ? "Approved" : "Draft" }),
+            h("button", { class: "ghost small", type: "button", "aria-label": "Review changes in " + p.title, onclick: function () { dw.chg = p.id; dwGo("changes"); } }, "Review changes"));
+        })));
+      };
+      if (dw.lib) paint(); else dwLoadLib(function () { if (dw.page === "changes" && !dw.chg && body.parentNode) paint(); });
+      chatEl.appendChild(dwCols([pick], [dwNote("A draft or a suggestion in a chat is never an approval. The server checks who approves and the exact version.")]));
+      return;
+    }
+    var headActs = h("span", { class: "row", style: "gap:8px;flex-wrap:wrap" });
+    chatEl.appendChild(dwHead("Playbook Changes & Version Approval", "Compare proposed changes with the approved source. Applying a proposal to a draft is not approval of a new version.", [headActs]));
+    headActs.appendChild(h("button", { class: "ghost small", type: "button", id: "dw-chg-other", onclick: function () { dw.chg = null; dwGo("changes"); } }, "Choose another playbook"));
+    headActs.appendChild(h("button", { class: "ghost small", type: "button", id: "dw-chg-hist", onclick: function () { lib.pb = { playbook: { id: pid } }; lib.view = "versions"; lib.importId = null; tab = "library"; draw(); window.scrollTo(0, 0); } }, "View version history"));
+    var main = h("div", { id: "dw-chg-main" }, h("p", { class: "muted", role: "status", text: "Loading..." })), side = h("div", { class: "dw-side" });
+    chatEl.appendChild(h("div", { class: "dw-wrap" }, h("div", { class: "dw-cols" }, h("div", { class: "dw-main" }, main), side)));
+    var say = h("p", { class: "notice small", role: "status", id: "dw-chg-say" }); say.hidden = true;
+    function tell(t, bad) { say.textContent = t; say.className = "notice small" + (bad ? " bad" : " ok"); say.hidden = !t; }
+    function load(msg) {
+      api.get("/playbooks/get?id=" + encodeURIComponent(pid)).then(function (P) {
+        if (dw.page !== "changes" || dw.chg !== pid || !main.parentNode) return;
+        D.clear(main); D.clear(side);
+        if (!P || P.ok === false || !P.playbook) { main.appendChild(h("section", { class: "card" }, h("p", { class: "notice", id: "dw-chg-gone", style: "margin:0", text: "This playbook could not be opened. " + D.errorText((P || {}).reason) }))); return; }
+        var pb = P.playbook, sgs = P.suggestions || [], av = pb.approved_version, hasDraft = pb.status === "draft" || pb.status === "in_review";
+        var mayEdit = dwWithPb(P, function () { return can(3); }), mayApprove = dwWithPb(P, canApprove), isAdmin = P.role === "administrator";
+        main.appendChild(say); if (msg) tell(msg);
+        var rev = h("section", { class: "card", id: "dw-rev" }, h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("h2", { class: "grow", style: "margin:0", text: "Proposed revision · " + pb.title }),
+          av ? dwTag("v" + av + " · approved", "ready") : dwTag("No approved version", "off"), hasDraft ? dwTag("v" + pb.version + (pb.status === "in_review" ? " · sent for review" : " · draft"), "held") : null));
+        if (!sgs.length) rev.appendChild(h("p", { class: "muted", id: "dw-chg-nosg", style: "margin:10px 0 0", text: "No proposed changes are waiting." + (hasDraft ? " The draft itself can be read and edited in the Library." : "") }));
+        var removes = false;
+        sgs.forEach(function (sg) {
+          if (sg.removes_review) removes = true;
+          var canApply = mayEdit && !((sg.removes_review && !isAdmin) || (sg.kind === "comment" && !mayApprove));
+          var act = function (accept) { return function (ev) {
+            ev.target.disabled = true;
+            api.post("/playbooks/decide", { suggestion_id: sg.id, accept: accept }).then(function (x) { if (!x || x.ok === false) throw x || {}; dw.lib = null; load(accept ? "Applied to the draft. Nothing is approved: approval is its own step." : "Rejected. The playbook is unchanged."); })
+              .catch(function (e) { ev.target.disabled = false; tell(e && e.reason ? failText(e) : D.errorText(e && e.message), true); });
+          }; };
+          rev.appendChild(h("div", { class: "dw-sg" }, h("b", { text: sg.note || "A suggested change" }), h("div", { class: "hsub", text: sg.by + ", " + D.dateTime(sg.at) }),
+            dwWithPb(P, function () { return docDiffView(sg, ["Before · current wording", "After · proposed wording"]); }),
+            sg.removes_review ? dwNote("This change removes an attorney decision. Only the Library administrator can apply it.") : null,
+            h("div", { class: "row dw-acts", style: "gap:8px;flex-wrap:wrap;margin-top:10px" },
+              h("button", { class: "ghost small", type: "button", "aria-label": "Ask DELA to refine: " + (sg.note || "this change"), onclick: function () {
+                var d = ((chat.ws || {}).docs || []).filter(function (x) { return x.id === pid; })[0]; if (d) dwPickDoc(d);
+                dwGo("chat"); if (composerText) { composerText.value = "Help me improve this proposed change to \"" + pb.title + "\": " + (sg.note || "the suggested edit") + ". Ask me one question first."; composerText.focus(); }
+              } }, "Ask DELA to refine"), h("span", { class: "grow" }),
+              canApply ? h("button", { class: "blue small", type: "button", "aria-label": "Apply to draft: " + (sg.note || "this change"), onclick: act(true) }, "Apply to draft") : null,
+              mayEdit ? h("button", { class: "ghost small", type: "button", "aria-label": "Reject: " + (sg.note || "this change"), onclick: act(false) }, "Reject") : null)));
+        });
+        main.appendChild(rev);
+        // Impact review, from what the records say
+        var ap = P.approver || {};
+        var line = function (title, sub, tag) { return h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: title }), h("span", { class: "hsub", style: "display:block", text: sub })), tag || null); };
+        var imp = h("section", { class: "card", id: "dw-impact" }, h("h2", { text: "Impact review" }),
+          line("Attorney decisions", removes ? "A proposed change removes a step the attorney decides. The administrator has to apply it." : "No proposed change removes a step the attorney decides.", removes ? dwTag("Decision needed", "held") : dwTag("Checked", "ready")),
+          line("Existing assignments", "Gigs already posted and team work already assigned keep the version they were made from."),
+          line("Approval authority", (ap.author ? "The author, " + ap.author + (ap.is_author ? " (you)" : "") + ", or the Library administrator approves." : "The Library administrator approves.") + " The server checks this again at the moment of approval.", dwTag(mayApprove ? "You may approve" : "Not you", mayApprove ? "ready" : "off")));
+        var acts = h("div", { class: "row dw-acts", style: "gap:8px;flex-wrap:wrap;margin-top:12px" }, h("button", { class: "ghost small", type: "button", id: "dw-chg-open", onclick: function () { openDocFromChat(pid); } }, "Open the draft in the Library"), h("span", { class: "grow" }));
+        var st = function (action, msg2) { return function (ev) {
+          ev.target.disabled = true;
+          api.post("/playbooks/status", { id: pid, action: action }).then(function (x) { if (!x || x.ok === false) throw x || {}; dw.lib = null; load(msg2); }).catch(function (e) { ev.target.disabled = false; tell(e && e.reason ? failText(e) : D.errorText(e && e.message), true); });
+        }; };
+        if (pb.status === "draft" && mayEdit) acts.appendChild(h("button", { class: mayApprove ? "ghost small" : "blue small", type: "button", id: "dw-chg-request", onclick: st("submit", "Sent to the author and the administrator for review.") }, "Request approval"));
+        if (hasDraft && mayApprove) acts.appendChild(h("button", { class: "blue small", type: "button", id: "dw-chg-approve", disabled: !!pb.blocking, onclick: st("approve", "Approved. This is the version in use from now on.") }, "Approve this version"));
+        if (hasDraft && mayApprove && pb.blocking) imp.appendChild(h("p", { class: "dw-warn", text: plural(pb.blocking, "required item") + " must be fixed before approval. Open the draft in the Library to fix " + (pb.blocking === 1 ? "it" : "them") + "." }));
+        imp.appendChild(acts);
+        main.appendChild(imp);
+        var vs = h("section", { class: "card", id: "dw-vstates" }, h("h2", { text: "Version states" }));
+        if (av) vs.appendChild(line("v" + av, "The approved source, in use", dwTag("Active", "ready")));
+        if (hasDraft) vs.appendChild(line("v" + pb.version, pb.status === "in_review" ? "Sent for review, not approved" : "A draft that has not been approved", dwTag(pb.status === "in_review" ? "In review" : "Draft", "held")));
+        if (!av && !hasDraft) vs.appendChild(h("p", { class: "hsub", style: "margin:0", text: "No version yet." }));
+        vs.appendChild(h("p", { class: "hsub", style: "margin:10px 0 0", text: "Approved changes create a new version. Existing work does not silently switch versions." }));
+        side.appendChild(vs);
+        side.appendChild(dwNote("A draft or a suggestion in a chat is never an approval. The server checks who approves and the exact version."));
+      }).catch(function (e) { D.clear(main); main.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
+    }
+    load();
+  }
+  // Screen 10: one queue of what waits, who resolves it, and where
+  var DW_Q = { decision: ["Needs decision", "held"], blocked: ["Blocked", "bad"], review: ["Awaiting review", "dw-blue"], needs_review: ["Needs review", "held"], accepted: ["Accepted", "ready"] };
+  function dwDecisions() {
+    chatEl.appendChild(dwHead("Decisions, Blockers & Work Progress", "See who must resolve each issue, what work is blocked, and what has been submitted.", []));
+    var FILTERS = [["all", "All"], ["decision", "Needs decision"], ["blocked", "Blocked input"], ["review", "Submitted for review"], ["needs_review", "Needs review"], ["accepted", "Accepted"]];
+    var pills = h("div", { class: "pills", role: "group", "aria-label": "Show" }), main = h("div", null, h("p", { class: "muted", role: "status", text: "Loading what waits..." })), side = h("div", { class: "dw-side" });
+    chatEl.appendChild(pills);
+    chatEl.appendChild(h("div", { class: "dw-wrap" }, h("div", { class: "dw-cols" }, h("div", { class: "dw-main" }, main), side)));
+    var ok = function (p) { return p.then(function (x) { return x; }).catch(function () { return null; }); };
+    Promise.all([ok(api.get("/home")), ok(api.get("/workflow")), (me.switches || {}).team_assignments ? ok(api.get("/team-work")) : Promise.resolve(null), ok(api.get("/ai/rules"))]).then(function (rs) {
+      if (dw.page !== "decisions" || !main.parentNode) return;
+      var items = [], hm = rs[0] || {}, wf = rs[1] || {}, tw = rs[2] || {}, R = rs[3] || {};
+      var add = function (state, title, related, resolver, next, actLabel, go, extra) { items.push(Object.assign({ key: state + "|" + title + "|" + related, state: state, title: title, related: related, resolver: resolver, next: next, actLabel: actLabel, go: go }, extra || {})); };
+      (hm.attention || []).forEach(function (x) {
+        if (x.kind === "review") add("review", "Milestone " + x.seq + " was delivered", x.gig_title, "You", "Read the delivery and accept it or request changes" + (x.review_due_at ? " by " + shortDate(x.review_due_at) : "") + ".", "Review delivery", function () { openGig(x.gig_id); });
+        else if (x.kind === "pay") add("blocked", x.first ? "Work cannot start until milestone " + (x.seq || 1) + " is paid" : "The payment for milestone " + x.seq + " did not go through", x.gig_title, "You", x.first ? "Pay the first milestone. Lawfecta holds the payment until you accept the work." : "Pay the milestone again or change the payment method.", "Pay milestone", function () { openGig(x.gig_id); });
+        else if (x.kind === "sign") add("decision", "An agreement waits for your signature", x.gig_title, "You", "Read the agreement and sign it" + (x.sign_by ? " by " + shortDate(x.sign_by) : "") + ".", "Review and sign", function () { openGig(x.gig_id); });
+        else if (x.kind === "proposals") add("decision", x.n + (x.n === 1 ? " proposal to review" : " proposals to compare"), x.gig_title, "You", "Compare the proposals and choose one, or decline them.", x.n === 1 ? "View proposal" : "Compare proposals", function () { openGig(x.gig_id, "proposals"); });
+      });
+      ((wf.ok && wf.on && wf.items) || []).forEach(function (it) {
+        var e = it.eng || {}, w = wfRead(it), name = (it.doc_id ? it.doc_id + " " : "") + it.title;
+        if (e.needs) add("blocked", plural(e.needs, "input") + " the freelancer still needs", name, "You", "Supply each input or mark it as not needed, under \"What the freelancer needs before starting\".", w.next ? w.next[0] : "Open the work", w.next ? w.next[1] : function () { homeOpenDoc(it.id); });
+        if (it.feedback_open) add("needs_review", plural(it.feedback_open, "note") + " from people who did the work", name, "The playbook's author", "Read each note and improve the playbook, or set the note aside.", "Open the playbook", function () { openDocFromChat(it.id); });
+        if (!it.approved && it.status === "in_review") add("needs_review", "A playbook was sent for review", name, "The author or the Library administrator", "Read the draft and approve it, or send it back.", "Review changes", function () { dw.chg = it.id; dwGo("changes"); });
+      });
+      (tw.mine || []).forEach(function (a) {
+        var go = function () { team.id = a.id; tab = "teamwork"; draw(); window.scrollTo(0, 0); };
+        if (a.status === "assigned") add("decision", "Team work waits for your answer", a.title, "You", "Accept the work or decline it.", "Open the assignment", go, { team: a.id });
+        else if (a.status === "changes_requested") add("decision", "Changes were requested on your work", a.title, "You", "Read the note, make the changes and submit again.", "Open the assignment", go, { team: a.id });
+      });
+      (tw.given || []).forEach(function (a) {
+        var go = function () { team.id = a.id; tab = "teamwork"; draw(); window.scrollTo(0, 0); };
+        if (a.status === "submitted") add("review", "Team work was submitted", a.title, "You, or the Library administrator", "Read the work and accept it or request changes.", "Review the work", go, { team: a.id });
+        else if (a.status === "assigned") add("decision", "Team work waits to be accepted", a.title, a.assignee ? a.assignee.name : "The person assigned", "Only the person assigned can accept. You can send a note or cancel.", "Open the assignment", go, { team: a.id });
+        else if (a.status === "done") add("accepted", "Team work was accepted", a.title, "Nobody: it is done", "Nothing more to do.", "Open the assignment", go, { team: a.id });
+      });
+      ((R.ok && R.rules) || []).filter(function (x) { return x.scope === "firm" && x.status === "proposed"; }).forEach(function (x) {
+        add("decision", "A DELA instruction is proposed", x.body, R.can_approve ? "You" : "The Library administrator", "Approve it or decline it. DELA does not follow it until it is approved.", "Open DELA instructions", function () { chat.rulesTab = "firm"; dw.ruleF = "proposed"; dwGo("instructions"); });
+      });
+      var openItems = items.filter(function (i) { return i.state !== "accepted"; });
+      function paint() {
+        D.clear(pills); D.clear(main); D.clear(side);
+        FILTERS.forEach(function (f) {
+          var n = f[0] === "all" ? openItems.length : items.filter(function (i) { return i.state === f[0]; }).length;
+          pills.appendChild(h("button", { type: "button", "aria-pressed": String(dw.qf === f[0]), onclick: function () { dw.qf = f[0]; dw.qsel = null; paint(); } }, f[1] + " (" + n + ")"));
+        });
+        var rows = dw.qf === "all" ? openItems : items.filter(function (i) { return i.state === dw.qf; });
+        var cur = rows.filter(function (i) { return i.key === dw.qsel; })[0] || rows[0] || null;
+        var q = h("section", { class: "card", id: "dw-queue" }, h("h2", { text: "Decision queue" }));
+        if (!rows.length) q.appendChild(h("p", { class: "muted", id: "dw-q-none", style: "margin:0", text: dw.qf === "all" ? "Nothing waits on anyone right now." : "Nothing in this group." }));
+        rows.forEach(function (i) {
+          var tg = DW_Q[i.state];
+          q.appendChild(h("button", { class: "dw-qrow", type: "button", "aria-pressed": String(cur === i), onclick: function () { dw.qsel = i.key; paint(); } },
+            h("span", { class: "grow" }, h("b", { text: i.title }), h("span", { class: "hsub", style: "display:block", text: "Related to: " + i.related + " · Resolver: " + i.resolver })), h("span", { class: "badge " + tg[1] + " dw-tag", text: tg[0] })));
+        });
+        main.appendChild(q);
+        var hist = h("section", { class: "card", id: "dw-q-hist" }, h("h2", { text: "Event history" }));
+        if (!cur) hist.appendChild(h("p", { class: "hsub", style: "margin:0", text: "Choose an item to see what was recorded." }));
+        else if (cur.team) {
+          var hb = h("div", null, h("p", { class: "hsub", style: "margin:0", text: "Loading..." })); hist.appendChild(hb);
+          api.get("/team-work/one?id=" + encodeURIComponent(cur.team)).then(function (r) {
+            D.clear(hb);
+            var ev = (r && r.events) || [];
+            if (!ev.length) { hb.appendChild(h("p", { class: "hsub", style: "margin:0", text: "Nothing recorded yet." })); return; }
+            ev.forEach(function (e) { hb.appendChild(h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: TEAM_EVENT[e.action] || e.action }), h("span", { class: "hsub", style: "display:block", text: (e.mine ? "You" : e.by) + ", " + D.dateTime(e.at) + (e.note ? ". \"" + e.note + "\"" : "") })), dwTag("Recorded event", "off"))); });
+          }).catch(function () { D.clear(hb); hb.appendChild(h("p", { class: "hsub", style: "margin:0", text: "The history could not be loaded just now." })); });
+        } else hist.appendChild(h("p", { class: "hsub", id: "dw-q-histnote", style: "margin:0", text: "The recorded history of this item is kept where it is resolved. \"" + cur.actLabel + "\" at the right opens it. Only recorded events are shown there, with who did what and when." }));
+        main.appendChild(hist);
+        var det = h("section", { class: "card", id: "dw-q-detail" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Decision details" }), cur ? dwTag(cur.state === "accepted" ? "Done" : "Open", cur.state === "accepted" ? "ready" : "held") : null));
+        if (!cur) det.appendChild(h("p", { class: "hsub", style: "margin:8px 0 0", text: "Nothing is selected." }));
+        else {
+          det.appendChild(h("b", { class: "dw-cap3", text: "Question" })); det.appendChild(h("p", { id: "dw-q-title", style: "margin:4px 0 12px", text: cur.title + " (" + cur.related + ")" }));
+          det.appendChild(h("b", { class: "dw-cap3", text: "Suggested next step" })); det.appendChild(h("p", { class: "dw-box", id: "dw-q-next", style: "margin:6px 0 12px", text: cur.next }));
+          det.appendChild(h("div", { class: "row", style: "gap:8px;margin-bottom:12px" }, h("b", { class: "grow dw-cap3", text: "Authorized resolver" }), dwTag(cur.resolver, "off")));
+          det.appendChild(h("button", { class: "blue dw-wide", type: "button", id: "dw-q-go", onclick: cur.go }, cur.actLabel));
+        }
+        side.appendChild(det);
+        side.appendChild(dwNote("Work is marked completed, accepted or paid only by the recorded action of the person who may do it. DELA's suggestions cannot stand in for an approval."));
+      }
+      paint();
+    });
   }
   // "Gig drafts" in the second menu: the firm's gigs that are not posted yet
   function dwGigs() {
@@ -14488,7 +14673,7 @@
     });
     return out;
   }
-  function docDiffView(sg) {
+  function docDiffView(sg, titles) {
     var cur = lib.pb.body || {}, rows;
     if (sg.kind === "ai") rows = docDiff(cur, sg.proposed || {});
     else {
@@ -14505,7 +14690,7 @@
     };
     rows.forEach(function (r) {
       box.appendChild(h("h4", { class: "sg-part", text: r.label }));
-      box.appendChild(h("div", { class: "sg-cols" }, col("Now, in this document", r.now, "Empty now."), col("Proposed", r.next, "Empty after the change.")));
+      box.appendChild(h("div", { class: "sg-cols" }, col(titles ? titles[0] : "Now, in this document", r.now, "Empty now."), col(titles ? titles[1] : "Proposed", r.next, "Empty after the change.")));
     });
     return box;
   }
