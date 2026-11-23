@@ -20,6 +20,7 @@ import { imagePath, richImages, richPlain } from "./lib/profiles/rich.ts";
 import { AGENCY_TEXT_LABELS, CONTACT_WORDS, PROFILE_TEXT_LABELS, stripContact, stripProfile, type ContactKind } from "./lib/profiles/contact.ts";
 import { aiContext, fromBd, LABELS, normalize as normalizeProfile, PRACTICE_AREAS, PROFILE_SYSTEM, profileText, readiness, FIELD_GUIDE, FIELD_SYSTEM, TECH_GROUPS, TECH_TOOLS, TIMEZONES, toBd, type BdMap, type Side } from "./lib/profiles/model.ts";
 import { encryptionReady, openKey, sealKey } from "./lib/ai/keycrypt.ts";
+import { guideRow, guideSteps, looksLikeScribeKey, scribeCall, type ScribeCode } from "./lib/imports/scribe.ts";
 import { AiFail, chat, guessProvider, looksLikeKey, testKey, transcribe, transcribeLines, type ChatImage, type ChatMsg, type Provider } from "./lib/ai/providers.ts";
 import { plainText } from "./lib/ai/text.ts";
 import { BACK_OFFICE, WORKSPACE_RULES, guidanceText, readAsk } from "./lib/ai/ask.ts";
@@ -1991,6 +1992,92 @@ async function importImage(ctx: Ctx) {
   }
   const after = await rpc<Record<string, any> | null>(ctx, "dela_file_for_check", { p_file: start.file_id });
   return json(ctx, { ok: true, file_id: start.file_id, status: after?.status ?? "checking" });
+}
+
+// ---------- A firm's Scribe account (step 76): the administrator connects it with a key, editors pick a guide from the list ----------
+
+const SCRIBE_REASON: Record<ScribeCode, string> = { bad_key: "scribe_bad_key", plan: "scribe_plan", busy: "scribe_busy", monthly: "scribe_monthly", not_found: "scribe_not_found", down: "scribe_down" };
+
+async function scribeState(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const org = uuid(ctx.url.searchParams.get("org_id"));
+  if (!org) throw new HttpError(400, "bad_request");
+  return json(ctx, await rpc(ctx, "dela_scribe_state", { p_person: s.person_id, p_org: org }));
+}
+
+// Connecting: check what the key looks like, try it at Scribe, then seal it. The key is never stored in plain form, logged or sent back.
+async function scribeConnect(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const secret = ctx.deps.env("AI_KEY_ENCRYPTION_SECRET");
+  if (!encryptionReady(secret)) return json(ctx, { ok: false, reason: "encryption_not_set_up" });
+  const id = uuid(ctx.body.request_id), org = uuid(ctx.body.org_id);
+  if (!id || !org) throw new HttpError(400, "bad_request");
+  const plainKey = str(ctx.body.key, 400).trim();
+  if (!looksLikeScribeKey(plainKey)) return json(ctx, { ok: false, reason: "scribe_not_a_key" });
+  // Only try keys for the Library's administrator, so the test cannot be used to check keys for others
+  const st = await rpc<Record<string, any>>(ctx, "dela_scribe_state", { p_person: s.person_id, p_org: org });
+  if (!st?.on) return json(ctx, { ok: false, reason: "scribe_off" });
+  if (!st.may_manage) return json(ctx, { ok: false, reason: "administrator_only" });
+  const t = await scribeCall(f(ctx), plainKey, "/v1/teams/");
+  if (!t.ok) return json(ctx, { ok: false, reason: SCRIBE_REASON[t.code] });
+  const sealed = await sealKey(secret, id, plainKey);
+  const saved = await rpc<Record<string, unknown>>(ctx, "dela_scribe_save", { p: { id, person_id: s.person_id, org_id: org, ciphertext: sealed, last4: plainKey.slice(-4) } });
+  return json(ctx, saved);
+}
+
+async function scribeDisconnect(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const org = uuid(ctx.body.org_id);
+  if (!org) throw new HttpError(400, "bad_request");
+  return json(ctx, await rpc(ctx, "dela_scribe_remove", { p_person: s.person_id, p_org: org }));
+}
+
+// Opens the firm's sealed key for one call to Scribe, after the database checked the switch and the member's place in that Library
+async function scribeAsk(ctx: Ctx, person: string, org: string, path: string, body?: unknown): Promise<{ ok: true; data: any } | { ok: false; reason: string }> {
+  const k = await rpc<Record<string, any>>(ctx, "dela_scribe_load", { p_person: person, p_org: org });
+  if (!k?.ok) return { ok: false, reason: String(k?.reason ?? "scribe_not_connected") };
+  let plainKey = "";
+  try { plainKey = await openKey(ctx.deps.env("AI_KEY_ENCRYPTION_SECRET"), String(k.id), String(k.ciphertext)); } catch { return { ok: false, reason: "scribe_key_unreadable" }; }
+  const r = await scribeCall(f(ctx), plainKey, path, body);
+  // A key Scribe refuses is marked as failing; a busy or missing answer says nothing about the key
+  if (r.ok || r.code === "bad_key" || r.code === "plan") await rpc(ctx, "dela_scribe_result", { p_id: k.id, p_ok: r.ok, p_error: r.ok ? "" : r.code });
+  return r.ok ? { ok: true, data: r.data } : { ok: false, reason: SCRIBE_REASON[r.code] };
+}
+
+// The firm's guides, newest first, or the guides whose name or description fits the words typed
+async function scribeGuides(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const org = uuid(ctx.url.searchParams.get("org_id"));
+  if (!org) throw new HttpError(400, "bad_request");
+  const q = str(ctx.url.searchParams.get("q"), 120).trim();
+  const size = Math.min(Math.max(await rpc<number>(ctx, "dela_int_setting", { p_key: "import.scribe_page_size", p_default: 25 }) ?? 25, 1), 100);
+  const offset = Math.min(Math.max(int(ctx.url.searchParams.get("offset")) ?? 0, 0), 100000);
+  if (q) {
+    const r = await scribeAsk(ctx, s.person_id, org, "/v1/search/", { search: q, type: "scribe", limit: 20 });
+    if (!r.ok) return json(ctx, r);
+    const rows = (Array.isArray(r.data) ? r.data : []).map(guideRow).filter(Boolean);
+    return json(ctx, { ok: true, guides: rows, total: rows.length, more: false, searched: true });
+  }
+  const r = await scribeAsk(ctx, s.person_id, org, `/v1/documents/?type=scribe&limit=${size}&offset=${offset}`);
+  if (!r.ok) return json(ctx, r);
+  const list = Array.isArray(r.data?.results) ? r.data.results : [];
+  const total = int(r.data?.count) ?? list.length;
+  return json(ctx, { ok: true, guides: list.map(guideRow).filter(Boolean), total, more: offset + list.length < total, next_offset: offset + list.length, searched: false });
+}
+
+// One guide's steps and screenshot addresses, for the review screen. Screenshots are fetched afterwards, one by one, through
+// /imports/image, which only goes to the addresses in the import.image_hosts setting.
+async function scribeGuide(ctx: Ctx) {
+  const s = await attorney(ctx);
+  const org = uuid(ctx.url.searchParams.get("org_id")), id = uuid(ctx.url.searchParams.get("id"));
+  if (!org || !id) throw new HttpError(400, "bad_request");
+  const r = await scribeAsk(ctx, s.person_id, org, `/v1/documents/${id}/`);
+  if (!r.ok) return json(ctx, r);
+  const max = await rpc<number>(ctx, "dela_int_setting", { p_key: "import.max_steps", p_default: 150 }) ?? 150;
+  const g = guideSteps(r.data, max);
+  if (!g) return json(ctx, { ok: false, reason: "scribe_not_a_guide" });
+  if (!g.steps.length) return json(ctx, { ok: false, reason: "no_steps" });
+  return json(ctx, { ok: true, title: g.title, steps: g.steps, total_steps: g.total, cut: g.total > g.steps.length });
 }
 
 // ---------- Process Recorder (attorneys) ----------
@@ -6649,6 +6736,11 @@ async function handleInner(req: Request, deps: Deps): Promise<Response> {
       case "GET /imports/get": return await importGet(ctx);
       case "POST /imports/build": return await importBuild(ctx);
       case "POST /imports/image": return await importImage(ctx);
+      case "GET /scribe/state": return await scribeState(ctx);
+      case "POST /scribe/connect": return await scribeConnect(ctx);
+      case "POST /scribe/disconnect": return await scribeDisconnect(ctx);
+      case "GET /scribe/guides": return await scribeGuides(ctx);
+      case "GET /scribe/guide": return await scribeGuide(ctx);
       case "POST /imports/discard": { const s = await attorney(ctx); return json(ctx, await rpc(ctx, "dela_import_finish", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_status: "discarded", p_playbook: null })); }
       case "GET /.well-known/oauth-protected-resource":
       case "GET /.well-known/oauth-protected-resource/mcp": {

@@ -6027,7 +6027,26 @@
     return { title: title.slice(0, 200), steps: steps };
   }
 
+  var SCRIBE_SAY = {
+    scribe_off: "Connecting a Scribe account is not open for your account yet. You can still import an exported file below.",
+    scribe_not_a_key: "That does not look like a Scribe key. In Scribe, open Settings, then Developer Access, create a key, copy all of it and paste it again.",
+    scribe_bad_key: "Scribe did not accept this key. It may have been deleted in Scribe, or copied only in part.",
+    scribe_plan: "Scribe says this account's plan does not include the connection. You can still import an exported file below.",
+    scribe_busy: "Scribe is answering slowly right now. Wait a minute and try again.",
+    scribe_monthly: "This Scribe account has used its connection limit for the month. You can still import an exported file below.",
+    scribe_down: "DELA could not reach Scribe. Try again in a few minutes, or import an exported file below.",
+    scribe_not_found: "Scribe could not find that guide. It may have been deleted or moved to a team this key cannot read.",
+    scribe_not_connected: "No Scribe account is connected to this Library.",
+    scribe_key_unreadable: "The saved Scribe key could not be read. Ask the Library's administrator to disconnect and connect again.",
+    scribe_not_a_guide: "That is a Scribe page with no steps. DELA imports step by step guides.",
+    administrator_only: "Only this Library's administrator can connect or disconnect the firm's Scribe account.",
+    no_steps: "This guide has no steps to import."
+  };
+  function scribeSay(e) { return e && e.reason && SCRIBE_SAY[e.reason] ? SCRIBE_SAY[e.reason] : failText(e || {}); }
+
+  // Import from Scribe: from the firm's connected Scribe account (step 76, behind the scribe_connect switch), or from an exported file
   function startScribe() {
+    var org = lib.org;
     var tick = h("input", { type: "checkbox", id: "dela-scribe-tick" });
     var input = h("input", { type: "file", "aria-label": "Choose a document file", accept: ".html,.htm,.md,.markdown,.txt" });
     var status = h("div", { class: "small", role: "status" });
@@ -6042,19 +6061,144 @@
         var g = parseGuide(file.name, String(reader.result || ""));
         if (!g.steps.length) { status.textContent = "This does not look like a Scribe export: no steps were found. In Scribe, open the guide, click Share, then Export, then Export next to HTML or Markdown, and choose that file."; return; }
         go.disabled = true;
-        importImages(g, status).then(function (steps) {
-          return api.post("/imports/save", { org_id: lib.org, request_id: newId(), title: g.title, steps: steps });
-        }).then(okOr).then(function (r) { openImport(r.id); }).catch(function (e) { go.disabled = false; pbFail(e); });
+        importImages(g, status).then(function (steps) { return saveImported(org, g.title, steps); })
+          .then(function (r) { openImport(r.id); }).catch(function (e) { go.disabled = false; pbFail(e); });
       };
       reader.readAsText(file);
     });
+    var acct = h("div", { id: "scribe-acct" });
     D.clear(libEl);
     libEl.appendChild(h("div", { class: "card" }, h("h2", { text: "Import a guide from Scribe" }),
-      h("ol", null, h("li", { text: "In Scribe, open the guide." }), h("li", { text: "Click Share, then the Export tab." }), h("li", { text: "Click Export next to HTML (or Markdown) and save the file." }), h("li", { text: "Choose that file below." })),
-      h("p", { class: "small muted", text: "DELA reads the steps and screenshots, then shows them on a review screen where you check screenshots for client information, blur parts, fix steps and add why each step matters. Then DELA builds the document. Free Scribe accounts: open the guide's share page, press Ctrl+P (Cmd+P on a Mac), choose Save as PDF, upload it on the Files page, and ask DELA to turn it into a document." }),
+      h("p", { class: "small muted", text: "DELA reads the steps and screenshots, then shows them on a review screen where you check screenshots for client information, blur parts, fix steps and add why each step matters. Then DELA builds the document." }),
       notice(),
       h("label", { style: "display:flex;gap:8px;align-items:flex-start;font-weight:600" }, tick, h("span", { text: "This guide and its screenshots have no confidential client information." })),
-      h("div", { class: "row" }, input, go, h("button", { class: "ghost", onclick: drawLibrary }, "Cancel")), status));
+      h("div", { class: "row", style: "margin-top:8px" }, h("button", { class: "ghost", onclick: drawLibrary }, "Cancel"))));
+    libEl.appendChild(acct);
+    libEl.appendChild(h("div", { class: "card", id: "scribe-file" }, h("h3", { id: "scribe-file-h", text: "From an exported file" }),
+      h("ol", null, h("li", { text: "In Scribe, open the guide." }), h("li", { text: "Click Share, then the Export tab." }), h("li", { text: "Click Export next to HTML (or Markdown) and save the file." }), h("li", { text: "Choose that file below." })),
+      h("p", { class: "small muted", text: "Free Scribe accounts: open the guide's share page, press Ctrl+P (Cmd+P on a Mac), choose Save as PDF, upload it on the Files page, and ask DELA to turn it into a document." }),
+      h("div", { class: "row" }, input, go), status));
+    api.get("/scribe/state?org_id=" + org).then(function (st) { if (st && st.on && lib.org === org && acct.isConnected) scribeAccount(acct, st, tick, org); }).catch(function () {});
+  }
+
+  // Saves the steps for the review screen. Screenshots are kept in the member's own firm; in another firm's Library they
+  // cannot be used, so the steps come in without them and the member is told, in place of losing the whole import.
+  function saveImported(org, title, steps) {
+    function send(list) { return api.post("/imports/save", { org_id: org, request_id: newId(), title: title, steps: list }); }
+    return send(steps).then(function (r) {
+      if (!r || r.ok !== false || r.reason !== "file_not_usable") return okOr(r);
+      var bare = steps.filter(function (x) { return x.text; }).map(function (x) { return { text: x.text, note: x.note || "", file_id: "", keep_image: true }; });
+      return send(bare).then(okOr).then(function (r2) { D.toast(app, "The steps came in without screenshots: screenshots can only be kept by a member of the firm that owns this Library."); return r2; });
+    });
+  }
+
+  // The card "From your Scribe account": the connect form for the Library's administrator, or the firm's guides to pick from
+  function scribeAccount(box, st, tick, org) {
+    var say = h("div", { class: "small", role: "status", id: "scribe-say", "aria-live": "polite" });
+    function reload(msg) {
+      return api.get("/scribe/state?org_id=" + org).then(function (n) { scribeAccount(box, n, tick, org); if (msg) { var s2 = box.querySelector("#scribe-say"); if (s2) s2.textContent = msg; } var hd = box.querySelector("h3"); if (hd) { hd.setAttribute("tabindex", "-1"); hd.focus(); } });
+    }
+    D.clear(box);
+    var card = h("div", { class: "card", id: "scribe-card" }, h("h3", { id: "scribe-acct-h", text: "From your Scribe account" }));
+    box.appendChild(card);
+    if (!st.connected) {
+      if (!st.may_manage) {
+        card.appendChild(h("p", { class: "muted", style: "margin:0", id: "scribe-ask-admin", text: "This Library has no Scribe account connected. Only the Library's administrator can connect one. You can import an exported file below." }));
+        return;
+      }
+      var key = h("input", { type: "password", id: "scribe-key", autocomplete: "off", spellcheck: "false", style: "width:100%;max-width:460px", "aria-describedby": "scribe-key-help" });
+      var connect = h("button", { class: "blue", type: "button", id: "scribe-connect" }, "Connect Scribe");
+      connect.addEventListener("click", function () {
+        var v = key.value.trim();
+        if (!v) { say.textContent = "Paste the key from Scribe first."; key.focus(); return; }
+        connect.disabled = true; say.textContent = "Checking the key with Scribe...";
+        api.post("/scribe/connect", { org_id: org, key: v, request_id: newId() }).then(okOr).then(function () { key.value = ""; return reload("Connected. Pick a guide below."); })
+          .catch(function (e) { connect.disabled = false; say.textContent = scribeSay(e) + " Nothing was saved."; key.focus(); });
+      });
+      card.appendChild(h("p", { class: "small muted", text: "Connect once, then pick any guide from a list. No exporting." }));
+      card.appendChild(h("ol", null, h("li", { text: "In Scribe, open Settings, then Developer Access." }), h("li", { text: "Create a key for the teams whose guides DELA may read. Scribe shows the key one time." }), h("li", { text: "Copy the key and paste it below." })));
+      card.appendChild(h("label", { for: "scribe-key", text: "Scribe key" }));
+      card.appendChild(key);
+      card.appendChild(h("p", { class: "small muted", id: "scribe-key-help", text: "DELA can only read guides with this key. It cannot change anything in Scribe. The key is stored encrypted, and DELA never shows it again. Scribe offers this connection on some paid plans only." }));
+      card.appendChild(h("div", { class: "row" }, connect));
+      card.appendChild(say);
+      return;
+    }
+    var c = st.connection || {};
+    card.appendChild(h("p", { class: "small", id: "scribe-connected", style: "margin:0 0 8px" },
+      h("span", { class: "badge", text: c.status === "failed" ? "Needs attention" : "Connected" }),
+      " Key ending in " + (c.last4 || "") + (c.added_by ? ", added by " + c.added_by : "") + (c.added_at ? " on " + D.date(c.added_at) : "") + ". DELA can read guides and cannot change anything in Scribe."));
+    if (st.may_manage) {
+      var askOff = h("div", { class: "row", id: "scribe-off-ask", style: "display:none" });
+      var off = h("button", { class: "ghost small", type: "button", id: "scribe-disconnect" }, "Disconnect");
+      var yes = h("button", { class: "danger small", type: "button", id: "scribe-disconnect-yes" }, "Yes, disconnect");
+      var keep = h("button", { class: "ghost small", type: "button" }, "Keep it connected");
+      off.addEventListener("click", function () { askOff.style.display = ""; off.style.display = "none"; yes.focus(); });
+      keep.addEventListener("click", function () { askOff.style.display = "none"; off.style.display = ""; off.focus(); });
+      yes.addEventListener("click", function () {
+        yes.disabled = true;
+        api.post("/scribe/disconnect", { org_id: org }).then(okOr).then(function () { return reload("Disconnected. The saved key was erased. Documents you already imported stay."); })
+          .catch(function (e) { yes.disabled = false; say.textContent = scribeSay(e); });
+      });
+      askOff.appendChild(h("span", { class: "small", text: "Disconnect this Scribe account? The saved key is erased. Documents you already imported stay." }));
+      askOff.appendChild(yes); askOff.appendChild(keep);
+      card.appendChild(h("div", { class: "row" }, off));
+      card.appendChild(askOff);
+    }
+    var q = h("input", { type: "search", id: "scribe-q", maxlength: "120", style: "flex:1;min-width:180px" });
+    var find = h("button", { class: "ghost", type: "button", id: "scribe-find" }, "Search");
+    var listEl = h("ul", { id: "scribe-list", style: "list-style:none;margin:10px 0 0;padding:0" });
+    var moreBtn = h("button", { class: "ghost small", type: "button", id: "scribe-more", style: "display:none" }, "Show more guides");
+    var nextOffset = 0, busy = false;
+    function row(g) {
+      var b = h("button", { class: "blue small", type: "button", "aria-label": "Import " + g.name }, "Import");
+      b.addEventListener("click", function () { pick(g, b); });
+      var bits = [g.steps ? g.steps + (g.steps === 1 ? " step" : " steps") : "", g.team, g.updated_at ? "changed " + D.date(g.updated_at) : ""].filter(Boolean).join(" · ");
+      return h("li", { class: "row", style: "align-items:flex-start;padding:8px 0;border-top:1px solid var(--line)" },
+        h("div", { class: "grow", style: "min-width:0" }, h("b", { style: "display:block;overflow-wrap:anywhere", text: g.name }),
+          g.description ? h("div", { class: "small muted", style: "overflow-wrap:anywhere", text: g.description }) : null,
+          bits ? h("div", { class: "small muted", text: bits }) : null), b);
+    }
+    function load(fresh) {
+      if (busy) return;
+      busy = true; find.disabled = true; moreBtn.disabled = true;
+      var words = q.value.trim();
+      if (fresh) { nextOffset = 0; D.clear(listEl); }
+      say.textContent = "Asking Scribe for your guides...";
+      api.get("/scribe/guides?org_id=" + org + (words ? "&q=" + encodeURIComponent(words) : "&offset=" + nextOffset)).then(okOr).then(function (r) {
+        (r.guides || []).forEach(function (g) { listEl.appendChild(row(g)); });
+        nextOffset = r.next_offset || 0;
+        moreBtn.style.display = r.more ? "" : "none";
+        var n = listEl.children.length;
+        say.textContent = !n ? (words ? "No guide fits those words. Try fewer words." : "Scribe shows no guides for this key. Check which teams the key may read in Scribe, under Settings, Developer Access.")
+          : r.searched ? n + (n === 1 ? " guide fits." : " guides fit. Scribe shows the 20 best.") : "Showing " + n + " of " + r.total + (r.total === 1 ? " guide." : " guides.");
+      }).catch(function (e) {
+        moreBtn.style.display = "none";
+        say.textContent = scribeSay(e);
+        if (e && (e.reason === "scribe_bad_key" || e.reason === "scribe_plan" || e.reason === "scribe_not_connected")) reload(scribeSay(e) + (st.may_manage ? "" : " Tell the Library's administrator."));
+      }).then(function () { busy = false; find.disabled = false; moreBtn.disabled = false; });
+    }
+    function pick(g, b) {
+      if (!tick.checked) { say.textContent = "Tick the box at the top of this page first: this guide and its screenshots have no confidential client information."; tick.focus(); return; }
+      if (busy) return;
+      busy = true; b.disabled = true; say.textContent = "Reading \"" + g.name + "\" from Scribe...";
+      api.get("/scribe/guide?org_id=" + org + "&id=" + encodeURIComponent(g.id)).then(okOr).then(function (r) {
+        var guide = { title: r.title || g.name, steps: r.steps || [] };
+        return importImages(guide, say).then(function (steps) { return saveImported(org, guide.title, steps); }).then(function (saved) {
+          if (r.cut) D.toast(app, "This guide has " + r.total_steps + " steps. DELA brought in the first " + guide.steps.length + ".");
+          openImport(saved.id);
+        });
+      }).catch(function (e) { busy = false; b.disabled = false; say.textContent = scribeSay(e); });
+    }
+    find.addEventListener("click", function () { load(true); });
+    q.addEventListener("keydown", function (ev) { if (ev.key === "Enter") { ev.preventDefault(); load(true); } });
+    moreBtn.addEventListener("click", function () { load(false); });
+    card.appendChild(h("label", { for: "scribe-q", text: "Search your Scribe guides" }));
+    card.appendChild(h("div", { class: "row" }, q, find));
+    card.appendChild(say);
+    card.appendChild(listEl);
+    card.appendChild(h("div", { class: "row", style: "margin-top:8px" }, moreBtn));
+    load(true);
   }
 
   // Screenshots inside the file (data addresses) upload like any file; linked ones are fetched by DELA from Scribe's image addresses only

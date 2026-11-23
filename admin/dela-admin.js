@@ -850,7 +850,7 @@
     ["DELA's AI", "What DELA's AI may do for members: answers and drafts, talking, their own AI key, the connection to ChatGPT and Claude, and suggestions on Home.",
       ["ai_generation", "ai_helpers", "ask_dela_workspace", "dela_workspace_v2", "byok", "voice_input", "mcp_connector", "member_insights", "tech_catalog", "onboarding_widget"]],
     ["Documents and files", "The attorney's Library and Files: document types, images, the recorder, imports, and client information rules.",
-      ["playbook_library", "document_standard", "document_images", "document_conversion", "approved_view", "library_workspace", "recorder", "scribe_import", "file_uploads", "automate_delegate", "handoff_kit", "team_assignments", "confidential_materials", "client_details_allowed"]],
+      ["playbook_library", "document_standard", "document_images", "document_conversion", "approved_view", "library_workspace", "recorder", "scribe_import", "scribe_connect", "file_uploads", "automate_delegate", "handoff_kit", "team_assignments", "confidential_materials", "client_details_allowed"]],
     ["Gigs and hiring", "Posting work and finding people: gigs, proposals, Talent, gig alerts, the bench and reviews.",
       ["flex_gigs", "public_gigs", "talent_search", "gig_alerts", "bench", "bench_suggestions", "reviews", "past_client_reviews", "multiple_hires", "hide_last_names", "profile_contact_rule", "community", "gig_categories"]],
     ["Layout and look", "How DELA looks: the menu layout, light and dark, and the Get set up page.",

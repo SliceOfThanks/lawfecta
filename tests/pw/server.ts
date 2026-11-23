@@ -245,6 +245,22 @@ const deps = {
       { service_id: "331", profession_id: "40", master_id: "308", name: "Clio" }, { service_id: "309", profession_id: "40", master_id: "0", name: "Civil Litigation" },
       { service_id: "354", profession_id: "40", master_id: "309", name: "Relativity" }] });
     if (u.startsWith("https://images.scribehow.com/")) return new Response(PNG, { headers: { "content-type": "image/png" } });
+    // Scribe's read-only connection (step 76): a key ending "good" works, a key ending "plan" is on a plan without it, others are refused
+    if (u.startsWith("https://public-api.scribehow.com/")) {
+      const key = new Headers((url instanceof Request ? url.headers : opts.headers) ?? {}).get("x-api-key") ?? "";
+      if (key.endsWith("plan")) return Response.json({ detail: "Your plan does not support Public API access." }, { status: 403 });
+      if (!key.endsWith("good")) return Response.json({ detail: "Invalid API key." }, { status: 401 });
+      const su = new URL(u);
+      const docs = Array.from({ length: 27 }, (_, i) => ({ id: `bbbbbbbb-bbbb-4bbb-8bbb-${String(i + 1).padStart(12, "0")}`, type: "scribe", name: i === 0 ? "Serve a subpoena" : "Guide number " + (i + 1),
+        description: i === 0 ? "From issue to proof of service" : "", updated_at: "2026-11-01T10:00:00Z", team: { id: "t1", name: "Operations" }, alternative_urls: [], content: null,
+        actions: i === 0 ? [{ id: "a1", description: "Open the subpoena form", screenshot_url: "https://images.scribehow.com/sub1.png" }, { id: "a2", description: "Fill in the witness name", screenshot_url: "https://evil.example.com/t.png" },
+          { id: "a3", description: "Send it to the process server", screenshot_url: null }] : [{ id: "a1", description: "One step", screenshot_url: null }] }));
+      if (su.pathname === "/v1/teams/") return Response.json({ count: 1, results: [{ id: "t1", name: "Operations" }] });
+      if (su.pathname === "/v1/search/") { const b = JSON.parse(String(opts.body ?? "{}")); return Response.json(docs.filter((d) => d.name.toLowerCase().includes(String(b.search ?? "").toLowerCase())).slice(0, 20)); }
+      if (su.pathname === "/v1/documents/") { const off = Number(su.searchParams.get("offset") ?? 0), lim = Number(su.searchParams.get("limit") ?? 100); return Response.json({ count: docs.length, results: docs.slice(off, off + lim) }); }
+      const one = docs.find((d) => su.pathname === `/v1/documents/${d.id}/`);
+      return one ? Response.json(one) : Response.json({ detail: "Not found." }, { status: 404 });
+    }
     if (u.startsWith("https://hooks.example.com/")) {
       const hd = new Headers((url instanceof Request ? url.headers : opts.headers) ?? {});
       webhookHits.push({ type: hd.get("dela-event-type") ?? "", body: String(opts.body ?? ""), signature: hd.get("dela-signature") ?? "" });

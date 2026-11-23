@@ -203,6 +203,75 @@ async function makeMember(bd, side, plan) {
     ok(t.includes("Screenshot"), "the built playbook keeps the screenshots with their steps");
     const src = await sql("select source from playbooks where title = 'File a motion' and source = 'scribe'");
     ok(src[0] && src[0].source === "scribe", "the playbook records it came from Scribe");
+
+    // ---------- Step 76: connect the firm's Scribe account and pick a guide from the list (Stacey 2026-11-23) ----------
+    const sr = (fn, arg) => p.evaluate(([f, a]) => new Function("r", "a", f)(document.querySelector(".dela-host").shadowRoot, a), [fn, arg]);
+    await click(p, "← Library");
+    await waitFor(p, "Document library");
+    await click(p, "Import from Scribe");
+    await waitFor(p, "From an exported file");
+    await p.waitForTimeout(500);
+    ok(await sr("return !r.querySelector('#scribe-card')"), "with the switch off the page offers the file import only");
+    await sql("update feature_switches set state = 'everyone' where key = 'scribe_connect'");
+    await click(p, "Cancel");
+    await click(p, "Import from Scribe");
+    await waitFor(p, "From your Scribe account");
+    ok(await sr("var c = r.querySelector('#scribe-card'), f = r.querySelector('#scribe-file'); return c.compareDocumentPosition(f) & 4 && r.querySelector('#scribe-key').type === 'password' && !!r.querySelector('label[for=scribe-key]')"), "the account card sits above the file card, and the key box is a labelled password box");
+    await click(p, "Connect Scribe");
+    await waitFor(p, "Paste the key from Scribe first.");
+    await dela(p).locator("#scribe-key").fill("not a key");
+    await click(p, "Connect Scribe");
+    await waitFor(p, "That does not look like a Scribe key.");
+    await dela(p).locator("#scribe-key").fill("sc_browsertest1234567890.wrongkey");
+    await click(p, "Connect Scribe");
+    t = await waitFor(p, "Scribe did not accept this key.");
+    ok(t.includes("Nothing was saved."), "a key Scribe refuses is not saved, and the page says so");
+    await dela(p).locator("#scribe-key").fill("sc_browsertest1234567890.noplan");
+    await click(p, "Connect Scribe");
+    await waitFor(p, "plan does not include the connection");
+    ok((await sql("select count(*)::int n from scribe_connections"))[0].n === 0, "no connection is stored for a refused key");
+    await dela(p).locator("#scribe-key").fill("sc_browsertest1234567890.isgood");
+    await click(p, "Connect Scribe");
+    t = await waitFor(p, "Showing 25 of 27 guides.", 15000);
+    ok(t.includes("Connected") && t.includes("Key ending in good") && t.includes("Serve a subpoena") && t.includes("3 steps") && !t.includes("isgood"), "connected: the card shows the last 4 characters, never the key, and lists the firm's guides");
+    ok(await sr("return !r.querySelector('#scribe-key')"), "the key box is gone once connected");
+    const sealed = await sql("select ciphertext, last4 from scribe_connections where status = 'active'");
+    ok(sealed.length === 1 && sealed[0].ciphertext.startsWith("v1.") && !sealed[0].ciphertext.includes("isgood") && sealed[0].last4 === "good", "the key is stored sealed");
+    await click(p, "Show more guides");
+    await waitFor(p, "Showing 27 of 27 guides.");
+    ok(await sr("return r.querySelector('#scribe-more').style.display === 'none' && r.querySelectorAll('#scribe-list li').length === 27"), "Show more brings the rest, then goes away");
+    await dela(p).locator("#scribe-q").fill("subpoena");
+    await dela(p).locator("#scribe-q").press("Enter");
+    await waitFor(p, "1 guide fits.");
+    ok(await sr("return r.querySelectorAll('#scribe-list li').length === 1"), "the search narrows the list");
+    await p.screenshot({ path: path.join(SHOTS, "2-scribe-account.png"), fullPage: true });
+    await dela(p).getByRole("button", { name: "Import Serve a subpoena" }).click();
+    await waitFor(p, "Tick the box");
+    ok(!(await text(p)).includes("Review your guide"), "without the tick box nothing is read from Scribe");
+    await dela(p).locator("#dela-scribe-tick").check();
+    await dela(p).getByRole("button", { name: "Import Serve a subpoena" }).click();
+    await waitFor(p, "Review your guide", 15000);
+    const sv = await p.evaluate(() => [...document.querySelector(".dela-host").shadowRoot.querySelectorAll("textarea[aria-label^='Step ']")].map((x) => x.value));
+    ok(sv.length === 3 && sv[0] === "Open the subpoena form" && sv[2] === "Send it to the process server", "the guide's three steps are on the review screen: " + JSON.stringify(sv));
+    ok((await dela(p).locator("img[alt^='Screenshot for step']").count()) === 1, "the screenshot from Scribe's address came in; the one from an unknown address was skipped");
+    ok((await sql("select source from playbook_imports where title = 'Serve a subpoena'"))[0].source === "scribe", "the import is recorded as coming from Scribe");
+    // Disconnect asks once, erases the key, and the connect form comes back
+    await click(p, "← Library");
+    await waitFor(p, "Document library");
+    await click(p, "Import from Scribe");
+    await waitFor(p, "Key ending in good");
+    await click(p, "Disconnect");
+    await waitFor(p, "Disconnect this Scribe account?");
+    await click(p, "Keep it connected");
+    ok((await sql("select count(*)::int n from scribe_connections where status = 'active'"))[0].n === 1, "Keep it connected changes nothing");
+    await click(p, "Disconnect");
+    await click(p, "Yes, disconnect");
+    await waitFor(p, "Disconnected. The saved key was erased.");
+    ok(await sr("return !!r.querySelector('#scribe-key')") && (await sql("select ciphertext from scribe_connections"))[0].ciphertext === "removed", "after disconnecting the sealed key is erased and the connect form is back");
+    // Leave it connected for the editor's check below
+    await dela(p).locator("#scribe-key").fill("sc_browsertest1234567890.isgood");
+    await click(p, "Connect Scribe");
+    await waitFor(p, "Showing 25 of 27 guides.", 15000);
     await s.ctx.close();
 
     // ---------- Editor in the firm's library ----------
@@ -213,6 +282,12 @@ async function makeMember(bd, side, plan) {
     t = await waitFor(s.page, "New client intake");
     ok(t.includes("Your access to this Library: Editor"), "the editor opens the firm's library from the picker");
     ok(!t.includes("Team"), "only the administrator manages the team");
+    // Step 76: an editor uses the firm's Scribe connection and cannot see or change the key
+    await click(s.page, "Import from Scribe");
+    t = await waitFor(s.page, "Showing 25 of 27 guides.", 15000);
+    ok(t.includes("Key ending in good") && (await dela(s.page).getByRole("button", { name: "Disconnect", exact: true }).count()) === 0 && (await dela(s.page).locator("#scribe-key").count()) === 0, "an editor sees the firm's guides, with no key box and no Disconnect");
+    await click(s.page, "Cancel");
+    await waitFor(s.page, "New client intake");
     await dela(s.page).getByText("New client intake").first().click();
     await waitFor(s.page, "Complete:");
     t = await text(s.page);
