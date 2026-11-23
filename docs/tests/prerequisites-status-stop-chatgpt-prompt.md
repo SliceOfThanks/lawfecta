@@ -30,7 +30,7 @@ HOW TO WORK (read this first; it saves time and credits)
 Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
 1. Go to: https://www.lawfecta.co/dela?tab=delegate
-   Find: the box labeled "Your message" at the bottom of the chat. If an earlier conversation shows, click "+ New chat" near the top of the chat area first.
+   Find: the large message box in the middle card of the page. While it is empty it shows the grey words "Ask a follow-up or describe the result you need...". The steps below call it the box "Your message". If the middle card is not headed "New conversation", click "+ New chat" at the far right of the heading "Ask DELA" first.
    Do: click in the box and type exactly: Check 22: a message I have not sent
    Do NOT click "Send".
    Go to: https://www.lawfecta.co/dela?tab=home

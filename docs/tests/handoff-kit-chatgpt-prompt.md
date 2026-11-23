@@ -80,7 +80,9 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 8. Do: untick line 4, "Send the intake questionnaire."
    Do: type 300 in "Budget from (USD)" and 500 in "Budget to (USD)". Leave everything else as it is, and if "Work deadline" is required and empty, choose any date at least one week from today.
    Then click the dark red button "Draft with DELA" at the bottom of the card. If a small window about images opens, click "Continue". Wait up to 60 seconds.
-   Expect: step 2, "Review DELA draft", with a green note that nothing is posted yet. Scroll down past the card "What freelancers will read".
+   Expect: a page headed "Create a Gig from DELA" with a yellow tag "Draft · Not published" and a note that nothing is posted. (The light bar across the top reads "Ask DELA / Create a Gig from DELA".)
+   Do: at the right, in the card "Source & scope", click the outlined button "Set steps and inputs in Projects".
+   Expect: step 2, "Review DELA draft", in Projects. Scroll down past the card "What freelancers will read".
    Expect: a card headed "The handoff". Under its small heading "Steps handed over" it says "Steps 1 to 3 of the document's 4 steps." with a button "Choose the steps". Under the small heading "What the freelancer needs before starting" there are three lines, each with a list (for example "Access" or "Information"), a text box and a list "You supply it": "Access to the matter file", "The welcome packet" and "The intake questionnaire".
 
 9. Do: click "Add something" under those lines. A fourth line appears. In its text box type exactly: A login to the matter file, set up by our office manager
@@ -94,7 +96,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    REVIEW: Reading only this card, as someone who has never worked with this firm: do you know what to do, in what order, what you need first, and what comes after your part? What is still missing?
 
 11. Go to: https://www.lawfecta.co/dela?tab=delegate
-   Find: in the right column, under the cards "What DELA is using", "DELA instructions" and "Suggested next actions", a card headed "Your work, step by step".
+   Find: in the right column, under the cards "Working context" and "Suggested next actions" and a light blue note, a card headed "Your work, step by step".
    Expect: a grey sentence that names the seven steps, then up to five lines. Each line has a document's title in bold, under it grey words such as "Step 6 of 7: Confirm and do the work" or "Saved for future use · Step 5 is next: Prepare the handoff", and at the right a small outlined button with the next action (for example "Open the engagement", "Finish the gig draft", "Prepare a handoff" or "Continue the draft"). One line is "Send the welcome packet". If more than five documents are in work, a link "Show all N" is under the list.
    Do: click "Show all N" if it is there.
    Expect: the list grows to every document in work. Do not click the other buttons.
