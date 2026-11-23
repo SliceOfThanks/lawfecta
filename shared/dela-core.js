@@ -628,6 +628,11 @@ D.openTab = function (getUrl, onFail, opts) {
     // headings stay small and inside the card, and a chat's title may run over two lines before it is cut
     ".dela .dw-3>.dw-nav{padding:14px 12px}.dela .dw-nav .dw-cap{font-size:12px;line-height:1.35;letter-spacing:.05em;margin:0 0 8px;padding:0 6px;overflow-wrap:anywhere}.dela .dw-nav .dw-cap2{margin-top:14px;padding-top:14px}.dela .dw-nav .dw-item{padding:9px 10px}" +
     ".dela .dw-nav .dw-chat{white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;padding:7px 10px;min-height:0;line-height:1.35;font-size:13.5px;overflow-wrap:anywhere}.dw-chats li{margin:2px 0}.dela .dw-nav .linkish,.dw-nav .dw-kept,.dw-nav>.hsub{margin-left:6px;margin-right:6px}.dw-nav .dw-kept{font-size:12.5px}" +
+    // Stacey 2026-11-23 ("UI of this page doesn't look good"): the workspace pages follow the mockups' plain white
+    // cards. No grey band behind a card's heading, even gaps between cards, and in "Working context" each playbook's
+    // name on its own line with its tag and its action under it.
+    ".dela.nl .dw-wrap .card{margin:0}.dela.nl .dw-wrap .card>h2:first-child,.dela.nl .dw-wrap .card>.row:first-child:has(>h2),.dela.nl .dw-wrap .card>.row:first-child:has(>h3){margin:0 0 10px;padding:0;background:transparent;border-bottom:0;border-radius:0}.dela.nl .dw-wrap .card>h2{font-size:19px}" +
+    ".dela.nl .dw-wrap .card .card.soft{margin:0 0 10px}.dw-ctx>b{overflow-wrap:anywhere;line-height:1.3}.dw-ctx-foot{gap:8px;margin-top:4px;align-items:center}.dw-ctx.on{border-color:#b6dcc5;background:var(--okbg)}.dw-msgs{margin:0 0 12px}.dw-fresh .dw-msgs{margin:0}" +
     ".dw-fresh .composer{position:static;box-shadow:none}.dw-chat-card .composer{bottom:8px}" +
     ".dw-review{border:1px solid #e8c97a;background:#fff3d6;color:#4a3200;border-radius:12px;padding:12px 14px;margin-top:10px}.dw-review .hsub{color:inherit}" +
     // Step 74: the member's own tags and private note on a bookmark (blue, so they do not read as the freelancer's own pink tags)

@@ -95,8 +95,8 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Do NOT tick the confirmation box and do NOT post the gig. Leave the draft as it is.
    REVIEW: Reading only this card, as someone who has never worked with this firm: do you know what to do, in what order, what you need first, and what comes after your part? What is still missing?
 
-11. Go to: https://www.lawfecta.co/dela?tab=delegate
-   Find: in the right column, under the cards "Working context" and "Suggested next actions" and a light blue note, a card headed "Your work, step by step".
+11. Go to: https://www.lawfecta.co/dela?tab=delegate&ws=decisions
+   Find: at the left of the page, under the cards "Decision queue" and "Event history", a card headed "Your work, step by step".
    Expect: a grey sentence that names the seven steps, then up to five lines. Each line has a document's title in bold, under it grey words such as "Step 6 of 7: Confirm and do the work" or "Saved for future use · Step 5 is next: Prepare the handoff", and at the right a small outlined button with the next action (for example "Open the engagement", "Finish the gig draft", "Prepare a handoff" or "Continue the draft"). One line is "Send the welcome packet". If more than five documents are in work, a link "Show all N" is under the list.
    Do: click "Show all N" if it is there.
    Expect: the list grows to every document in work. Do not click the other buttons.

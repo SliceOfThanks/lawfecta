@@ -2265,19 +2265,20 @@
     var side = [], max = w.max || 3;
     var wc = h("section", { class: "card", id: "aw-using" }, h("h2", { text: "Working context" }),
       h("p", { class: "hsub", style: "margin:0 0 10px", text: "DELA reads only what is listed here. Naming a playbook in your message does not attach it." }));
-    if (w.library) wc.appendChild(h("div", { class: "dw-ctx", id: "aw-firm" }, h("div", { class: "row", style: "gap:8px" }, h("b", { class: "grow", text: "Firm profile" }), w.firm ? dwTag("In use", "ready") : dwTag("Not added", "held")),
+    var ctxFoot = function (tag, act) { return h("div", { class: "row dw-ctx-foot" }, tag, h("span", { class: "grow" }), act || null); };
+    if (w.library) wc.appendChild(h("div", { class: "dw-ctx", id: "aw-firm" }, h("b", { text: "Firm profile" }),
       h("span", { class: "hsub", text: w.firm ? "Your roles, systems, practice areas and jurisdictions. Used in every answer." : "DELA does not know your roles or systems yet." }),
-      w.firm ? null : h("button", { class: "linkish", type: "button", onclick: function () { goTab("library"); } }, "Add it in the Library")));
+      ctxFoot(w.firm ? dwTag("In use", "ready") : dwTag("Not added", "held"), w.firm ? null : h("button", { class: "linkish", type: "button", onclick: function () { goTab("library"); } }, "Add it in the Library"))));
     chat.docs.forEach(function (d) {
-      wc.appendChild(h("div", { class: "dw-ctx on" }, h("div", { class: "row", style: "gap:8px" }, h("b", { class: "grow", text: (d.doc_id ? d.doc_id + " " : "") + d.title }), dwTag("Selected", "ready")),
-        h("span", { class: "hsub", text: chatDocLine(d) }),
-        h("button", { class: "linkish aw-x", type: "button", "aria-label": "Remove " + d.title + " from this chat", onclick: function () { chat.docs = chat.docs.filter(function (x) { return x.id !== d.id; }); drawChat(); } }, "Remove")));
+      wc.appendChild(h("div", { class: "dw-ctx on" }, h("b", { text: d.title }),
+        h("span", { class: "hsub", text: (d.doc_id ? d.doc_id + " · " : "") + chatDocLine(d) }),
+        ctxFoot(dwTag("Selected", "ready"), h("button", { class: "linkish aw-x", type: "button", "aria-label": "Remove " + d.title + " from this chat", onclick: function () { chat.docs = chat.docs.filter(function (x) { return x.id !== d.id; }); drawChat(); } }, "Remove"))));
     });
     var rest = (w.docs || []).filter(function (d) { return !chat.docs.some(function (x) { return x.id === d.id; }); });
     rest.slice(0, 3).forEach(function (d) {
-      wc.appendChild(h("div", { class: "dw-ctx" }, h("div", { class: "row", style: "gap:8px" }, h("b", { class: "grow", text: (d.doc_id ? d.doc_id + " " : "") + d.title }), dwTag("Not selected", "off")),
-        h("span", { class: "hsub", text: chatDocLine(d) }),
-        h("button", { class: "linkish", type: "button", "aria-label": "Select " + d.title + " for this chat", onclick: function () { if (dwPickDoc(d)) drawChat(); } }, "Select")));
+      wc.appendChild(h("div", { class: "dw-ctx" }, h("b", { text: d.title }),
+        h("span", { class: "hsub", text: (d.doc_id ? d.doc_id + " · " : "") + chatDocLine(d) }),
+        ctxFoot(dwTag("Not selected", "off"), h("button", { class: "linkish", type: "button", "aria-label": "Select " + d.title + " for this chat", onclick: function () { if (dwPickDoc(d)) drawChat(); } }, "Select"))));
     });
     if (w.library && !chat.docs.length && !rest.length) wc.appendChild(h("p", { class: "hsub", id: "aw-nodocs", style: "margin:0 0 8px", text: "No approved playbooks yet. DELA answers from general knowledge and your profile." }));
     else if (w.library && !chat.docs.length) wc.appendChild(h("p", { class: "hsub", id: "aw-nodocs", style: "margin:0 0 8px", text: "None selected. Choose only sources relevant to this conversation." }));
@@ -2306,7 +2307,6 @@
     acts.forEach(function (a) { nx.appendChild(h("button", { class: "dw-act", type: "button", id: a[3], onclick: a[2] }, h("span", { class: "grow" }, h("b", { text: a[0] }), h("span", { class: "hsub", text: a[1] })), h("span", { class: "dw-chev", "aria-hidden": "true", text: "›" }))); });
     side.push(nx);
     side.push(dwNote("DELA reads only the playbooks you select, with your rights at that moment. Suggestions are not approvals."));
-    var wfl = wfList(); if (wfl) side.push(wfl);
     chatEl.appendChild(h("div", { class: "dw-wrap" }, h("div", { class: "dw-3" }, nav, box, h("div", { class: "dw-side" }, side))));
   }
   // Screen 2: My Playbooks. The firm's Library documents in one table, and what is selected for DELA.
@@ -3043,7 +3043,7 @@
       ((R.ok && R.rules) || []).filter(function (x) { return x.scope === "firm" && x.status === "proposed"; }).forEach(function (x) {
         add("decision", "A DELA instruction is proposed", x.body, R.can_approve ? "You" : "The Library administrator", "Approve it or decline it. DELA does not follow it until it is approved.", "Open DELA instructions", function () { chat.rulesTab = "firm"; dw.ruleF = "proposed"; dwGo("instructions"); }, { id: x.id });
       });
-      var openItems = items.filter(function (i) { return i.state !== "accepted"; });
+      var openItems = items.filter(function (i) { return i.state !== "accepted"; }), wfBox = wfList();
       function paint() {
         D.clear(pills); D.clear(main); D.clear(side);
         FILTERS.forEach(function (f) {
@@ -3073,6 +3073,7 @@
           }).catch(function () { D.clear(hb); hb.appendChild(h("p", { class: "hsub", style: "margin:0", text: "The history could not be loaded just now." })); });
         } else hist.appendChild(h("p", { class: "hsub", id: "dw-q-histnote", style: "margin:0", text: "The recorded history of this item is kept where it is resolved. \"" + cur.actLabel + "\" at the right opens it. Only recorded events are shown there, with who did what and when." }));
         main.appendChild(hist);
+        if (wfBox) main.appendChild(wfBox);
         var det = h("section", { class: "card", id: "dw-q-detail" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Decision details" }), cur ? dwTag(cur.state === "accepted" ? "Done" : "Open", cur.state === "accepted" ? "ready" : "held") : null));
         if (!cur) det.appendChild(h("p", { class: "hsub", style: "margin:8px 0 0", text: "Nothing is selected." }));
         else {

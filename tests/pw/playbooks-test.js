@@ -339,6 +339,11 @@ async function makeMember(bd, side, plan) {
         const out = [...nav.querySelectorAll(".dw-cap, .dw-chat, .dw-item")].filter((e) => { const b = e.getBoundingClientRect(); return b.right > box.right + 0.5 || e.scrollWidth > e.clientWidth + 1; }).map((e) => e.textContent.slice(0, 30));
         return { out: out, cap: parseFloat(getComputedStyle(nav.querySelector(".dw-cap")).fontSize), wrap: getComputedStyle(nav.querySelector(".dw-chat")).whiteSpace }; });
       ok(navFit.out.length === 0 && navFit.cap <= 13 && navFit.wrap === "normal", "Fix: nothing in the menu card runs past its edge, the two headings are small, and a chat title may use two lines: " + JSON.stringify(navFit));
+      // Stacey 2026-11-23: plain white cards as in the mockups, even gaps, and the right column ends with the note
+      const look75 = await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, side = [...r.querySelectorAll(".dw-3 > .dw-side > *")], h2 = getComputedStyle(r.querySelector("#aw-using > h2"));
+        const gaps = side.slice(1).map((e, i) => Math.round(e.getBoundingClientRect().top - side[i].getBoundingClientRect().bottom));
+        return { band: h2.backgroundColor, gaps: gaps, last: side[side.length - 1].className, work: !!r.querySelector("#aw-work") }; });
+      ok((look75.band === "rgba(0, 0, 0, 0)" || look75.band === "transparent") && look75.gaps.every((g) => g >= 12 && g <= 20) && look75.last.includes("dw-note") && !look75.work, "the chat page has plain card headings, even gaps in the right column, and the note last: " + JSON.stringify(look75));
       // Fix (Stacey 2026-11-23): on a new chat the message box does not lie over the example
       await s.page.setViewportSize({ width: 1500, height: 520 });
       await s.page.waitForTimeout(200);
