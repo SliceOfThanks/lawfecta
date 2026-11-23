@@ -334,6 +334,12 @@ async function makeMember(bd, side, plan) {
       const three = await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, b = (q) => r.querySelector(q).getBoundingClientRect(); const w = Math.round(b(".dw-wrap").width);
         const side = b(".dw-chat-card").right <= b(".dw-3 > .dw-side").left + 1, nav = b(".dw-nav").right <= b(".dw-chat-card").left + 1;
         return { w: w, ok: w >= 900 ? side && nav : w >= 760 ? side && b(".dw-nav").bottom <= b(".dw-chat-card").top + 1 : true }; });
+      // Fix (Stacey 2026-11-23): on a new chat the message box does not lie over the example
+      await s.page.setViewportSize({ width: 1500, height: 520 });
+      await s.page.waitForTimeout(200);
+      const lap = await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, c = r.querySelector(".dw-chat-card .composer").getBoundingClientRect(), e = r.querySelector("#chat-example").getBoundingClientRect(); return { pos: getComputedStyle(r.querySelector(".dw-chat-card .composer")).position, over: c.top < e.bottom && e.top < c.bottom }; });
+      ok(lap.pos === "static" && !lap.over, "Fix: on a new chat the message box sits in its own place and covers nothing, also on a short screen: " + JSON.stringify(lap));
+      await s.page.setViewportSize({ width: 1500, height: 950 });
       ok(three.ok, "the menu, the chat and the working context sit side by side when the page area is 900 wide or more; narrower, the menu goes on top (page area here: " + three.w + ")");
       await dela(s.page).getByRole("button", { name: /^Select .* for this chat$/ }).first().click();
       await dela(s.page).locator(".dw-ctx.on").first().waitFor({ timeout: 8000 });

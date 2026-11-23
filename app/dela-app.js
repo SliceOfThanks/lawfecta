@@ -2247,10 +2247,20 @@
       h("b", { class: "dw-ask-h", text: "A useful next question" }),
       h("span", { class: "small muted", text: "Suggested answers (you can also type your own):" }),
       h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, chat.ask.choices.map(function (c) { return h("button", { class: "ghost small", type: "button", onclick: function () { if (composerText) { composerText.value = c; composerText.focus(); D.toast(app, "Added to your message. Nothing is sent until you click Send."); } } }, c); }))));
-    box.appendChild(list);
-    if (chat.problem) box.appendChild(problemBox(chat.problem));
-    box.appendChild(composer());
-    box.appendChild(h("p", { class: "small muted", id: "chat-credits", style: "margin:6px 0 0", text: creditsLine() }));
+    // Fix (Stacey 2026-11-23: "this box is overlapping other content"): the message box follows the screen only once
+    // there is a conversation to scroll through. On a new chat it sits in its place, first, with the example under it.
+    if (fresh) {
+      box.className += " dw-fresh";
+      box.appendChild(composer());
+      box.appendChild(h("p", { class: "small muted", id: "chat-credits", style: "margin:6px 0 10px", text: creditsLine() }));
+      if (chat.problem) box.appendChild(problemBox(chat.problem));
+      box.appendChild(list);
+    } else {
+      box.appendChild(list);
+      if (chat.problem) box.appendChild(problemBox(chat.problem));
+      box.appendChild(composer());
+      box.appendChild(h("p", { class: "small muted", id: "chat-credits", style: "margin:6px 0 0", text: creditsLine() }));
+    }
     // The right column: working context, drafts, next actions, the note, work in motion
     var side = [], max = w.max || 3;
     var wc = h("section", { class: "card", id: "aw-using" }, h("h2", { text: "Working context" }),
