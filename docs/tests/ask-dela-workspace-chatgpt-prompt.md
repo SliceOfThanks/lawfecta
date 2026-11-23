@@ -26,22 +26,25 @@ HOW TO WORK (read this first; it saves time and credits)
 9. Never type real client information.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
-Note for this check: inside Ask DELA there is a second menu, in a card at the left of the page, headed "DELA WORKSPACE". The other Ask DELA pages show their name in the light bar across the top, as "Ask DELA / " and the page name. Clicking "Ask DELA" there goes back to the chat.
+Note for this check: the Ask DELA chat page has an outlined button "Chats & pages" at the far right of its heading. It opens a list of earlier chats and of the other Ask DELA pages. The other pages show their name in the light bar across the top, as "Ask DELA / " and the page name. Clicking "Ask DELA" there goes back to the chat.
 
 ## Part 1: test freelancer
 
 Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to log in as the test freelancer.
 
 1. Go to: https://www.lawfecta.co/dela?tab=ask
-   Expect: the heading "Ask DELA" with a grey sentence that starts "Ask about an existing process". At the far right of the heading, two outlined buttons: "+ New chat" and "DELA instructions".
-   Expect: under the heading, at the left, a card headed "DELA WORKSPACE" with exactly two lines: "Chat with DELA" (pink) and "DELA instructions". There is NO line "My playbooks", "Delegation opportunities", "Gig drafts", "Playbook changes" or "Decisions & blockers". Under them the heading "RECENT CONVERSATIONS".
-   Expect: at the right, a card "Working context" that says "Your account has no Library, so there are no playbooks to choose."
+   Expect: at the top, a pale pink square with a dark red sparkle, the large heading "Ask DELA" and under it "Your delegation partner for processes, playbooks and getting work done." At the far right: two outlined buttons, "Chats & pages" and "New chat" (with a plus sign).
+   Expect: under the heading, a light blue band with the words "What would you like to get off your plate?", and at its right a white card "Conversation context" whose grey line starts "No Library on this account".
+   Expect: under the band, a white card with a message box that says "Tell DELA what you need help with...", and at the right of its bottom row a dark red button "Send".
+   Expect: under it the heading "Not sure where to start?" and one peach card, "Improve a process". There is NO card "Find work to delegate" or "Create a playbook".
+   Do: click "Chats & pages".
+   Expect: a small list opens under the button, with the small heading "EARLIER CHATS", then "WORKSPACE PAGES" with exactly one line: "DELA instructions". There is NO line "My playbooks", "Delegation opportunities", "Gig drafts", "Playbook changes" or "Decisions & blockers".
 
-2. Do: at the far right of the heading "Ask DELA", click "DELA instructions".
+2. Do: in that list, click "DELA instructions".
    Expect: a page headed "DELA Instructions & Firm Context". The light bar across the top reads "Ask DELA / DELA Instructions & Firm Context".
    Expect: a row of three rounded buttons: one that starts "My preferences", then "Assignment context", then "Change history". There is NO button "Firm guidance".
    Do: in the light bar across the top, click the underlined words "Ask DELA".
-   Expect: the chat page again, with the card "DELA WORKSPACE" at the left.
+   Expect: the chat page again, with the light blue band.
 
 Sign out: click the round button with your initials at the far right of the top bar, then click "Sign out".
 
@@ -50,13 +53,24 @@ Sign out: click the round button with your initials at the far right of the top 
 Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
 3. Go to: https://www.lawfecta.co/dela?tab=delegate
-   Expect: the heading "Ask DELA", the grey sentence, and the buttons "+ New chat" and "DELA instructions" at the far right.
-   Expect: three columns under the heading.
-   Left: a card headed "DELA WORKSPACE" (small letters that stay inside the card) with seven lines, top to bottom: "Chat with DELA" (pink), "My playbooks", "Delegation opportunities", "Gig drafts", "Playbook changes", "Decisions & blockers", "DELA instructions". Under them "RECENT CONVERSATIONS" with a list of earlier chats, each title on one or two lines and none running past the card's edge, and a link that starts "Show all". At the bottom of the card the grey words "Chats and drafts remain separate records. Starting a new chat does not delete previous work."
-   Middle: a card headed "New conversation". At its top, a box with a dark red outline headed "Show DELA the work, in the way that is easiest for you". In that box, from top to bottom: a row of large buttons ("● Talk", "Record my screen" and "Import from Scribe"; some may be missing if they are not turned on), each with one grey line under it; the words "Or type it here" and a large message box; then a row with "Improve request", "Attach file" and, at the far right, the dark red button "Send"; then a grey line that starts "Never enter sensitive data". Under the box, an example with a button "Use this example". Nothing lies on top of anything else.
-   Right: a card "Working context" with a box "Firm profile" and up to three playbooks, each with a grey tag "Not selected" and an underlined word "Select"; at the bottom of the card an outlined button "Manage playbooks". Under it a card "Suggested next actions" with three lines: "Review delegation opportunities", "Create or improve a playbook", "Prepare a gig draft". Under it a light blue note that ends "Suggestions are not approvals." The note is the last thing in the right column. The cards have plain white headings, with no grey band behind them.
+   If the page shows a conversation and no light blue band: click "New chat" at the far right of the heading first.
+   Expect, top to bottom:
+   The heading row: a pale pink square with a dark red sparkle, the large heading "Ask DELA", the sentence "Your delegation partner for processes, playbooks and getting work done.", and at the far right the outlined buttons "Chats & pages" and "New chat".
+   A light blue band, wide, at the left: "What would you like to get off your plate?" in bold and under it "Describe a task, recurring problem, or process you want to improve." At the band's right edge, a small drawing of a ticked list. Beside the band, at the right: a white card "Conversation context" with a blue book icon, one grey line that ends "No playbooks selected" (or "1 playbook selected"), a thin line, and the dark red word "Manage" with a small arrow.
+   A white card, a little narrower than the page: a large message box that says "Tell DELA what you need help with...". Under the box one row: "Add" (with a plus sign and a small down arrow) and "Talk" (with a microphone; it may be missing if the browser has no microphone) at the left, and the dark red button "Send" with a paper plane at the far right. Under the row, a light grey strip with a small blue lock: "Never enter sensitive data: SSNs, account numbers, health details, passwords. Client names and case facts are fine."
+   One small grey line about DELA actions left this month.
+   The heading "Not sure where to start?" and three cards side by side: a light blue card "Find work to delegate", a light green card "Create a playbook" and a light peach card "Improve a process". Each has an icon at the left, two or three grey lines and a small arrow at the right.
+   Expect: there is NO menu card at the left of the page and NO row of three large buttons above the message box. Nothing lies on top of anything else and nothing is cut off.
 
-4. Do: in the card "Working context", click the outlined button "Manage playbooks".
+4. Do: click "Add".
+   Expect: a small list opens under the button with these lines, each with a grey line under it (some may be missing if they are not turned on): "Attach a file", "Record my screen", "Import from Scribe", "Improve my request".
+   Do: press the Esc key.
+   Expect: the list closes.
+   Do: click "Chats & pages" at the far right of the heading.
+   Expect: a list with the small heading "EARLIER CHATS" and earlier chats under it, the grey words "Chats and drafts remain separate records. Starting a new chat does not delete previous work.", then the small heading "WORKSPACE PAGES" with six lines: "My playbooks", "Delegation opportunities", "Gig drafts", "Playbook changes", "Decisions & blockers", "DELA instructions".
+   Do: press the Esc key. Then, in the card "Conversation context", click "Manage".
+   Expect: the card grows. It shows a box "Firm profile" and up to three playbooks, each with a grey tag "Not selected" and an underlined word "Select", and at the bottom an outlined button "Manage playbooks". The word "Manage" now reads "Close".
+   Do: click "Manage playbooks".
    Expect: a page headed "My Playbooks". The light bar across the top reads "Ask DELA / My Playbooks Library". At the far right of the heading, a dark red button "+ Create playbook".
    Expect: a row of five rounded buttons: "All playbooks" (dark), "Approved", "Drafts", "In review", "Archived".
    Expect: a card "Playbook library" with a search box at its top right and a table with the column names "Playbook", "Owner role", "Version", "Status", "Action".
@@ -73,16 +87,21 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Expect: all rows are back.
 
 6. Do: at the right, in the card "Selected for DELA", click "Chat about this playbook".
-   Expect: the chat page. The light bar across the top reads "Ask DELA". In the card "Working context", a box "Open a Matter in Clio" with a green tag "Selected", the grey words "SOP · Approved, version 10" and an underlined word "Remove".
+   Expect: the chat page. The light bar across the top reads "Ask DELA". In the card "Conversation context", the grey line ends "1 playbook selected".
+   Do: if the card does not show a box "Open a Matter in Clio", click "Manage" in it.
+   Expect: a box "Open a Matter in Clio" with a green tag "Selected", the grey words "SOP · Approved, version 10" and an underlined word "Remove".
 
-7. Do: click in the large message box in the middle card and type exactly: Which steps of opening a matter could I hand to a freelancer? Ask me one question first.
+7. Do: click in the large message box and type exactly: Which steps of opening a matter could I hand to a freelancer? Ask me one question first.
    Click the dark red button "Send". Wait up to 60 seconds.
-   Expect: your message and DELA's answer show in the middle card. The heading of the middle card is no longer "New conversation": it is a title for this chat, and the same title is the first line under "RECENT CONVERSATIONS", marked as the open one.
+   Expect: the light blue band and the three cards are gone. Your message and DELA's answer show in a wide card at the left, under a title for this chat, with the message box under them. At the right: the card "Conversation context", a card "Suggested next actions" and a light blue note that ends "Suggestions are not approvals."
+   Do: click "Chats & pages".
+   Expect: the chat's title is the first line under "EARLIER CHATS".
+   Do: press the Esc key.
    If a box headed "A useful next question" with one to three answer buttons shows under DELA's answer: click its first button.
    Expect then: the button's words are placed in the message box and a small message says nothing is sent until you click Send. Do not send it.
    Write whether the box "A useful next question" showed.
 
-8. Do: at the far right of the heading "Ask DELA", click "DELA instructions".
+8. Do: at the far right of the heading "Ask DELA", click "Chats & pages", then click "DELA instructions" in the list.
    Expect: a page headed "DELA Instructions & Firm Context", with a dark red button "+ Propose instruction" at the far right. The light bar across the top reads "Ask DELA / DELA Instructions & Firm Context".
    Expect: a row of four rounded buttons: "Firm guidance (0)" (dark), "My preferences (0)", "Assignment context", "Change history".
    Expect: a card "Firm guidance" with a small list "Filter by status" at its top right and the words "No firm guidance yet.". Under it a card "Propose a new instruction" with a box "What should DELA do differently?".
@@ -104,15 +123,15 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 
 10. Do: in the light bar across the top, click the underlined words "Ask DELA".
     Expect: the chat page.
-    Do: in the card "DELA WORKSPACE" at the left, click "Gig drafts".
+    Do: click "Chats & pages" at the far right of the heading, then click "Gig drafts" in the list.
     Expect: a page headed "Gig Drafts" with a dark red button "+ New gig draft" at the far right, and a card "Your drafts" that lists drafts, each with a yellow tag "Draft" and an outlined button "Continue". Do not click them.
-    Do: in the light bar across the top, click "Ask DELA". Then in the card "DELA WORKSPACE" click "Delegation opportunities".
+    Do: in the light bar across the top, click "Ask DELA". Then click "Chats & pages" and, in the list, "Delegation opportunities".
     Expect: a page headed "Delegation Opportunities" with a card "Choose a playbook to review". It lists approved playbooks, each with an outlined button "Review opportunities". "Client Trust Account Rules" is NOT in the list (it is a policy). Do not click the buttons.
 
 11. Go to: https://www.lawfecta.co/dela?tab=delegate&ws=playbooks
     Expect: the page "My Playbooks" opens directly, with the table.
 
-12. REVIEW. (a) Is it clear at once that Ask DELA is one place with several pages, and how to move between them and back to the chat? (b) On "My Playbooks", is it clear what "Select for DELA" does and what the difference is between "Open", "Continue" and "Review"? (c) On the instructions page, is it clear that a proposal is not in use until it is approved? (d) Was anything crowded, cut off or confusing on any of the pages?
+12. REVIEW. (a) On the first screen, is it clear at once what to do, and can you find the other Ask DELA pages and earlier chats without help? (b) On "My Playbooks", is it clear what "Select for DELA" does and what the difference is between "Open", "Continue" and "Review"? (c) On the instructions page, is it clear that a proposal is not in use until it is approved? (d) Was anything crowded, cut off or confusing on any of the pages?
 
 Sign out: click the round button with your initials at the far right of the top bar, then click "Sign out".
 

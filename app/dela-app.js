@@ -239,6 +239,13 @@
     plus: [["path", "M12 5v14M5 12h14"]],
     doc: [["path", "M7 3h7l4 4v14H7z"], ["path", "M14 3v4h4"], ["path", "M10 13h5M10 17h3"]],
     grid: [["path", "M4 4h6v6H4z"], ["path", "M14 4h6v6h-6z"], ["path", "M4 14h6v6H4z"], ["path", "M14 14h6v6h-6z"]],
+    down: [["path", "M6 9l6 6 6-6"]],
+    sparkles: [["path", "M14 3l1.9 5.1L21 10l-5.1 1.9L14 17l-1.9-5.1L7 10l5.1-1.9z"], ["path", "M6 14l1 2.6L9.6 17.6 7 18.6 6 21.2 5 18.6 2.4 17.6 5 16.6z"]],
+    mic: [["path", "M12 3a3 3 0 0 0-3 3v5a3 3 0 0 0 6 0V6a3 3 0 0 0-3-3z"], ["path", "M6 11a6 6 0 0 0 12 0"], ["path", "M12 17v4M9 21h6"]],
+    book: [["path", "M12 6c-2-1.5-5-2-8-1.5v13c3-.5 6 0 8 1.5 2-1.5 5-2 8-1.5v-13c-3-.5-6 0-8 1.5z"], ["path", "M12 6v13"]],
+    target: [["circle", 12, 12, 8], ["circle", 12, 12, 3.5], ["path", "M12 12l8-8M17 4h3v3"]],
+    wand: [["path", "M4 20L15 9"], ["path", "M13.5 7.5l3 3"], ["path", "M18 3v4M16 5h4"], ["path", "M8 3v2.5M6.75 4.25h2.5"], ["path", "M20 12v2.5M18.75 13.25h2.5"]],
+    lock: [["path", "M6 11h12v9H6z"], ["path", "M9 11V8a3 3 0 0 1 6 0v3"]],
     grip: [["circle", 9, 6, 1], ["circle", 15, 6, 1], ["circle", 9, 12, 1], ["circle", 15, 12, 1], ["circle", 9, 18, 1], ["circle", 15, 18, 1]],
   };
   var SVG_NS = "http://www.w3.org/2000/svg"; // rules-ok: the SVG namespace name, not a web address DELA calls
@@ -2141,10 +2148,10 @@
   }
   function dwTag(text, kind) { return h("span", { class: "badge " + (kind || "off") + " dw-tag", text: text }); }
   function dwNote(text) { return h("p", { class: "dw-note", role: "note" }, h("span", { class: "dw-i", "aria-hidden": "true", text: "i" }), h("span", { text: text })); }
-  function dwHead(title, sub, right) {
-    return h("div", { class: "dw-head" },
+  function dwHead(title, sub, right, ico) {
+    return h("div", { class: "dw-head" + (ico ? " dw-head-ask" : "") },
       dw.page !== "chat" ? h("button", { class: "ghost small dw-back", type: "button", onclick: function () { dwGo("chat"); } }, "← Ask DELA") : null,
-      h("div", { class: "dw-head-row" }, h("div", { class: "grow" }, h("h1", { style: "margin:0", text: title }), h("p", { class: "muted dw-sub", text: sub })),
+      h("div", { class: "dw-head-row" }, ico ? h("span", { class: "dw-ico", "aria-hidden": "true" }, icon(ico)) : null, h("div", { class: "grow" }, h("h1", { style: "margin:0", text: title }), h("p", { class: "muted dw-sub", text: sub })),
         h("div", { class: "row dw-head-acts", style: "gap:8px;flex-wrap:wrap" }, right || [])));
   }
   function dwCols(main, side) { return h("div", { class: "dw-wrap" }, h("div", { class: "dw-cols" }, h("div", { class: "dw-main" }, main), h("div", { class: "dw-side" }, side))); }
@@ -2180,32 +2187,149 @@
     else if (dw.page === "chat" && chat.busy) dwSay("DELA is checking your message, then answering.");
     dwFocusBack(); setTimeout(dwFocusBack, 350); setTimeout(dwFocusBack, 1200);
   }
-  // Screen 1: the conversation, with the second menu at the left and the working context at the right
-  function dwChat() {
-    var w = chat.ws || {};
-    chatEl.appendChild(dwHead("Ask DELA", "Ask about an existing process, explore delegation possibilities, or describe a new task. Begin chatting without selecting a category.", [
-      h("button", { class: "ghost small", id: "chat-new", type: "button", onclick: function () { chatReset(); drawChat(); if (composerText) composerText.focus(); } }, "+ New chat"),
-      h("button", { class: "ghost small", id: "dw-instr", type: "button", onclick: function () { dwGo("instructions"); } }, "DELA instructions")]));
-    // The second menu, then the recent conversations
-    var nav = h("nav", { class: "card dw-nav", "aria-label": "DELA workspace" }, h("h2", { class: "dw-cap", text: "DELA workspace" }));
-    DW_PAGES.forEach(function (p) {
-      if (!w.library && p[0] !== "chat" && p[0] !== "instructions") return;
-      if (p[0] === "opportunities" && !(me.switches || {}).automate_delegate) return;
-      if (p[0] === "gigs" && !(canHire() && (me.switches || {}).flex_gigs)) return;
-      nav.appendChild(h("button", { class: "dw-item", type: "button", "aria-current": p[0] === "chat" ? "page" : null, onclick: function () { if (p[0] === "opportunities") { dw.pb = null; dw.sel = {}; } if (p[0] === "changes") dw.chg = null; if (p[0] !== "chat") dwGo(p[0]); } }, p[1]));
+  // Screen 1, as Stacey's mockup of 2026-11-23 draws it ("needs to be done EXACTLY (colors & all)"; step 77). A new chat
+  // opens with the question, one message box and three ways to start. The second menu and the earlier chats sit behind
+  // the button "Chats & pages"; the working context is one small card that opens on "Manage".
+  var dwOpenMenu = null;
+  function dwMenuClose(back) {
+    var m = dwOpenMenu; if (!m) return;
+    dwOpenMenu = null; m.panel.style.display = "none"; m.btn.setAttribute("aria-expanded", "false");
+    if (back && m.btn.focus) m.btn.focus();
+  }
+  document.addEventListener("pointerdown", function (e) {
+    if (!dwOpenMenu) return;
+    var path = e.composedPath ? e.composedPath() : [];
+    if (path.indexOf(dwOpenMenu.wrap) < 0) dwMenuClose(false);
+  });
+  // A button that opens a short list under it. Escape closes it and gives the button the focus back; the arrow keys move through it.
+  function dwMenu(o) {
+    var panel = h("div", { class: "dw-menu" + (o.right ? " right" : ""), id: o.id + "-list", role: "group", "aria-label": o.name, style: "display:none" });
+    var btn = h("button", { class: o.cls || "ghost", type: "button", id: o.id, "aria-expanded": "false", "aria-controls": o.id + "-list" }, o.label);
+    var wrap = h("div", { class: "dw-menu-wrap" }, btn, panel);
+    function mine() { return dwOpenMenu && dwOpenMenu.btn === btn; }
+    function items() { return [].slice.call(panel.querySelectorAll("button:not([disabled])")); }
+    function fill() { D.clear(panel); o.build(panel, function () { dwMenuClose(false); }, fill); }
+    btn.addEventListener("click", function () {
+      if (mine()) { dwMenuClose(false); return; }
+      dwMenuClose(false); fill();
+      panel.style.display = ""; btn.setAttribute("aria-expanded", "true"); dwOpenMenu = { btn: btn, panel: panel, wrap: wrap };
     });
-    nav.appendChild(h("h2", { class: "dw-cap dw-cap2", text: "Recent conversations" }));
-    if (!chat.list.length) nav.appendChild(h("p", { class: "hsub", style: "margin:0 0 8px", text: "None yet. Your chats are listed here." }));
-    else {
-      var shown = dw.allChats ? chat.list : chat.list.slice(0, 6);
-      nav.appendChild(h("ul", { class: "dw-chats" }, shown.map(function (c) {
-        return h("li", null, h("button", { class: "dw-chat", type: "button", "aria-current": c.id === chat.id ? "true" : null, title: c.title + " (" + D.date(c.updated_at) + ")", onclick: function () { openChat(c.id); } }, c.title));
-      })));
-      if (chat.list.length > 6) nav.appendChild(h("button", { class: "linkish", type: "button", id: "dw-chats-all", onclick: function () { dw.allChats = !dw.allChats; drawChat(); } }, dw.allChats ? "Show fewer" : "Show all " + chat.list.length));
-    }
-    nav.appendChild(h("p", { class: "hsub dw-kept", id: "chat-kept", text: "Chats and drafts remain separate records. Starting a new chat does not delete previous work." }));
-    // The chat itself
+    wrap.addEventListener("keydown", function (e) {
+      if (e.key === "Escape" && mine()) { e.stopPropagation(); dwMenuClose(true); return; }
+      if (e.key !== "ArrowDown" && e.key !== "ArrowUp") return;
+      if (!mine()) { if (e.target !== btn || e.key !== "ArrowDown") return; btn.click(); }
+      var it = items(), i = it.indexOf(dwRoot().activeElement);
+      e.preventDefault();
+      var n = e.key === "ArrowDown" ? (i + 1) % it.length : (i <= 0 ? it.length - 1 : i - 1);
+      if (it[n]) it[n].focus();
+    });
+    return wrap;
+  }
+  function dwSvg(tag, attrs) { var el = document.createElementNS(SVG_NS, tag); Object.keys(attrs || {}).forEach(function (k) { el.setAttribute(k, attrs[k]); }); for (var i = 2; i < arguments.length; i++) el.appendChild(arguments[i]); return el; }
+  // The drawing in the blue band: a ticked list on a soft hill. It says nothing a screen reader needs.
+  function dwHeroArt() {
+    var g = dwSvg("g", { transform: "rotate(9 150 92)" },
+      dwSvg("rect", { x: "104", y: "34", width: "104", height: "120", rx: "12", class: "dw-art-paper" }));
+    [0, 1, 2].forEach(function (i) {
+      var y = 62 + i * 30;
+      g.appendChild(dwSvg("path", { d: "M118 " + y + "l7 7 13-14", class: "dw-art-tick" }));
+      g.appendChild(dwSvg("path", { d: "M150 " + (y - 5) + "h44", class: "dw-art-line" }));
+      g.appendChild(dwSvg("path", { d: "M150 " + (y + 6) + "h30", class: "dw-art-line" }));
+    });
+    return dwSvg("svg", { viewBox: "0 0 300 170", class: "dw-art", "aria-hidden": "true", focusable: "false" },
+      dwSvg("ellipse", { cx: "170", cy: "190", rx: "170", ry: "90", class: "dw-art-hill" }), g,
+      dwSvg("path", { d: "M214 22l-4 16M232 36l-12 10M240 60l-15-2", class: "dw-art-spark" }));
+  }
+  function dwChat() {
+    var w = chat.ws || {}, sw = me.switches || {};
+    dwOpenMenu = null;
     var cur = chat.list.filter(function (c) { return c.id === chat.id; })[0];
+    var fresh = !chat.messages.length && !chat.pending && !chat.busy;
+    // "Chats & pages": the earlier chats, then the pages of the workspace
+    var pages = dwMenu({ id: "dw-pages", name: "Earlier chats and workspace pages", cls: "ghost small", right: true, label: ["Chats & pages", icon("down")], build: function (panel, close, again) {
+      panel.appendChild(h("h2", { class: "dw-cap", text: "Earlier chats" }));
+      if (!chat.list.length) panel.appendChild(h("p", { class: "hsub", style: "margin:0 0 8px;padding:0 12px", text: "None yet. Your chats are listed here." }));
+      else {
+        var shown = dw.allChats ? chat.list : chat.list.slice(0, 6);
+        panel.appendChild(h("ul", { class: "dw-chats" }, shown.map(function (c) {
+          return h("li", null, h("button", { class: "dw-chat", type: "button", "aria-current": c.id === chat.id ? "true" : null, title: c.title + " (" + D.date(c.updated_at) + ")", onclick: function () { close(); openChat(c.id); } }, c.title));
+        })));
+        if (chat.list.length > 6) panel.appendChild(h("button", { class: "linkish", type: "button", id: "dw-chats-all", style: "margin:0 12px", onclick: function () { dw.allChats = !dw.allChats; again(); var b = panel.querySelector("#dw-chats-all"); if (b) b.focus(); } }, dw.allChats ? "Show fewer" : "Show all " + chat.list.length));
+      }
+      panel.appendChild(h("p", { class: "hsub dw-kept", id: "chat-kept", text: "Chats and drafts remain separate records. Starting a new chat does not delete previous work." }));
+      panel.appendChild(h("h2", { class: "dw-cap dw-cap2", text: "Workspace pages" }));
+      DW_PAGES.forEach(function (p) {
+        if (p[0] === "chat") return;
+        if (!w.library && p[0] !== "instructions") return;
+        if (p[0] === "opportunities" && !sw.automate_delegate) return;
+        if (p[0] === "gigs" && !(canHire() && sw.flex_gigs)) return;
+        panel.appendChild(h("button", { class: "dw-item", type: "button", id: p[0] === "instructions" ? "dw-instr" : null, onclick: function () { close(); if (p[0] === "opportunities") { dw.pb = null; dw.sel = {}; } if (p[0] === "changes") dw.chg = null; dwGo(p[0]); } }, p[1]));
+      });
+    } });
+    chatEl.appendChild(dwHead("Ask DELA", "Your delegation partner for processes, playbooks and getting work done.", [pages,
+      h("button", { class: "ghost small dw-newchat", id: "chat-new", type: "button", onclick: function () { chatReset(); drawChat(); if (composerText) composerText.focus(); } }, icon("plus"), "New chat")], "sparkles"));
+
+    // "Conversation context": one line that says what DELA reads; "Manage" opens the choices in the same card
+    var nSel = chat.docs.length;
+    var line = (!w.library ? "No Library on this account" : w.firm ? "Firm profile in use" : "No firm profile yet") + " · " + (nSel ? nSel + (nSel === 1 ? " playbook selected" : " playbooks selected") : "No playbooks selected");
+    var ctx = h("section", { class: "card dw-ctxcard", id: "aw-using", "aria-labelledby": "dw-ctx-h" },
+      h("div", { class: "dw-ctx-top" }, icon("book"), h("h2", { id: "dw-ctx-h", text: "Conversation context" })),
+      h("p", { class: "dw-ctx-line", id: "dw-ctx-line", text: line }));
+    if ((chat.dropped || []).length) ctx.appendChild(h("p", { class: "notice small", role: "status", id: "aw-dropped", text: chat.dropped.join(", ") + (chat.dropped.length === 1 ? " was" : " were") + " left out of the last answer: you can no longer use " + (chat.dropped.length === 1 ? "it" : "them") + " here." }));
+    if (dw.ctxOpen) {
+      var more = h("div", { class: "dw-ctx-more", id: "dw-ctx-more" }, h("p", { class: "hsub", style: "margin:0 0 10px", text: "DELA reads only what is listed here. Naming a playbook in your message does not attach it." }));
+      var ctxFoot = function (tag, act) { return h("div", { class: "row dw-ctx-foot" }, tag, h("span", { class: "grow" }), act || null); };
+      if (w.library) more.appendChild(h("div", { class: "dw-ctx", id: "aw-firm" }, h("b", { text: "Firm profile" }),
+        h("span", { class: "hsub", text: w.firm ? "Your roles, systems, practice areas and jurisdictions. Used in every answer." : "DELA does not know your roles or systems yet." }),
+        ctxFoot(w.firm ? dwTag("In use", "ready") : dwTag("Not added", "held"), w.firm ? null : h("button", { class: "linkish", type: "button", onclick: function () { goTab("library"); } }, "Add it in the Library"))));
+      chat.docs.forEach(function (d) {
+        more.appendChild(h("div", { class: "dw-ctx on" }, h("b", { text: d.title }),
+          h("span", { class: "hsub", text: (d.doc_id ? d.doc_id + " · " : "") + chatDocLine(d) }),
+          ctxFoot(dwTag("Selected", "ready"), h("button", { class: "linkish aw-x", type: "button", "aria-label": "Remove " + d.title + " from this chat", onclick: function () { chat.docs = chat.docs.filter(function (x) { return x.id !== d.id; }); drawChat(); } }, "Remove"))));
+      });
+      var rest = (w.docs || []).filter(function (d) { return !chat.docs.some(function (x) { return x.id === d.id; }); });
+      rest.slice(0, 3).forEach(function (d) {
+        more.appendChild(h("div", { class: "dw-ctx" }, h("b", { text: d.title }),
+          h("span", { class: "hsub", text: (d.doc_id ? d.doc_id + " · " : "") + chatDocLine(d) }),
+          ctxFoot(dwTag("Not selected", "off"), h("button", { class: "linkish", type: "button", "aria-label": "Select " + d.title + " for this chat", onclick: function () { if (dwPickDoc(d)) drawChat(); } }, "Select"))));
+      });
+      if (w.library && !chat.docs.length && !rest.length) more.appendChild(h("p", { class: "hsub", id: "aw-nodocs", style: "margin:0 0 8px", text: "No approved playbooks yet. DELA answers from general knowledge and your profile." }));
+      else if (w.library && !chat.docs.length) more.appendChild(h("p", { class: "hsub", id: "aw-nodocs", style: "margin:0 0 8px", text: "None selected. Choose only sources relevant to this conversation." }));
+      if (!w.library) more.appendChild(h("p", { class: "hsub", id: "aw-nodocs", style: "margin:0", text: "Your account has no Library, so there are no playbooks to choose." }));
+      if (w.library) more.appendChild(h("button", { class: "ghost dw-wide", type: "button", id: "aw-add", onclick: function () { dwGo("playbooks"); } }, "Manage playbooks"));
+      ctx.appendChild(more);
+    }
+    ctx.appendChild(h("button", { class: "linkish dw-manage", type: "button", id: "dw-manage", "aria-expanded": dw.ctxOpen ? "true" : "false", "aria-controls": "dw-ctx-more", onclick: function () { dw.ctxOpen = !dw.ctxOpen; drawChat(); } }, dw.ctxOpen ? "Close" : "Manage", icon("chev")));
+
+    var soon = chat.list.filter(function (c) { return c.due_soon; });
+    var soonP = soon.length ? h("p", { class: "notice", role: "status", text: soon.length + (soon.length === 1 ? " chat is" : " chats are") + " due to be deleted soon: " + soon.map(function (c) { return c.title + " (" + D.date(c.delete_at) + ")"; }).join(", ") + ". Open a chat and click \"Save to library\" to keep it." }) : null;
+    var credits = h("p", { class: "small muted dw-credits", id: "chat-credits", text: creditsLine() });
+
+    if (fresh) {
+      var box0 = h("section", { class: "card dw-chat-card dw-fresh", "aria-label": "Your message to DELA" }, composer());
+      var starts = [];
+      if (w.library && sw.automate_delegate) starts.push(["dw-start-deleg", "c-blue", "target", "Find work to delegate", "See which tasks from your workflows may be a good fit for support.", function () { dw.pb = null; dw.sel = {}; dwGo("opportunities"); }]);
+      if (w.library) starts.push(["dw-start-create", "c-teal", "book", "Create a playbook", "Turn a repeatable process into a clear, reusable playbook.", dwCreate]);
+      starts.push(["dw-start-improve", "c-peach", "wand", "Improve a process", "Review an existing workflow and get suggestions to make it more efficient.", function () {
+        if (w.library && (w.docs || []).length) { dwGo("playbooks"); return; }
+        if (composerText) { if (!composerText.value.trim()) { composerText.value = "I want to improve this process: "; chatDraft(composerText.value); } composerText.focus(); D.toast(app, "Describe the process in the message box. Nothing is sent until you click Send."); }
+      }]);
+      chatEl.appendChild(h("div", { class: "dw-wrap" }, h("div", { class: "dw-first" },
+        h("div", { class: "dw-first-top" },
+          h("section", { class: "dw-hero", "aria-labelledby": "dw-hero-h" },
+            h("div", { class: "dw-hero-t" }, h("h2", { id: "dw-hero-h", text: "What would you like to get off your plate?" }), h("p", { text: "Describe a task, recurring problem, or process you want to improve." })),
+            dwHeroArt()),
+          ctx),
+        soonP, box0, credits, chat.problem ? problemBox(chat.problem) : null,
+        h("h2", { class: "dw-start-h", id: "dw-start-h", text: "Not sure where to start?" }),
+        h("div", { class: "dw-starts dw-starts-" + starts.length, role: "group", "aria-labelledby": "dw-start-h" }, starts.map(function (s) {
+          return h("button", { class: "dw-start " + s[1], type: "button", id: s[0], onclick: s[5] }, icon(s[2]),
+            h("span", { class: "dw-start-t" }, h("b", { text: s[3] }), h("span", { text: s[4] })), icon("chev"));
+        })))));
+      return;
+    }
+
+    // A conversation that has started: the messages with the message box under them, and the context at the right
     var box = h("section", { class: "card dw-chat-card", "aria-label": "Conversation" });
     var top = h("div", { class: "row dw-chat-top", style: "gap:8px;flex-wrap:wrap" }, h("h2", { class: "grow", style: "margin:0", text: cur ? cur.title : "New conversation" }));
     if (cur) {
@@ -2224,20 +2348,9 @@
       top.appendChild(delB);
     }
     box.appendChild(top);
-    if (chat.list.length) {
-      var csel = h("select", { id: "dw-chatsel", "aria-label": "Earlier chats", onchange: function () { if (csel.value) openChat(csel.value); } }, h("option", { value: "", text: chat.id ? "Switch to another chat" : "Open an earlier chat" }),
-        chat.list.map(function (c) { return h("option", { value: c.id, text: c.title + " (" + D.date(c.updated_at) + ")" }); }));
-      box.appendChild(h("div", { class: "dw-chatsel" }, csel));
-    }
     if (cur && !cur.saved && cur.delete_at) box.appendChild(h("p", { class: "small muted", text: "Unsaved chats are deleted after a set time without use. This one will be deleted on " + D.date(cur.delete_at) + " unless you save it." }));
-    var soon = chat.list.filter(function (c) { return c.due_soon; });
-    if (soon.length) box.appendChild(h("p", { class: "notice", role: "status", text: soon.length + (soon.length === 1 ? " chat is" : " chats are") + " due to be deleted soon: " + soon.map(function (c) { return c.title + " (" + D.date(c.delete_at) + ")"; }).join(", ") + ". Open a chat and click \"Save to library\" to keep it." }));
+    if (soonP) box.appendChild(soonP);
     var list = h("div", { class: "chat dw-msgs", "aria-live": "polite" });
-    var fresh = !chat.messages.length && !chat.pending;
-    var EXAMPLE = "Which steps in our client intake process could I hand off to a freelancer?";
-    if (fresh) list.appendChild(h("div", { class: "card soft", id: "chat-example" }, h("p", { style: "margin:0 0 6px", text: "Example: \"" + EXAMPLE + "\"" }),
-      h("button", { class: "ghost small", type: "button", onclick: function () { if (composerText) { composerText.value = EXAMPLE; composerText.focus(); } } }, "Use this example"),
-      h("p", { class: "small muted", id: "chat-backoffice", style: "margin:8px 0 0", text: "DELA works for the whole back office of a law firm, not only legal support: intake, billing and bookkeeping, HR, IT, marketing and operations." })));
     chat.messages.forEach(function (m) { list.appendChild(bubble(m)); });
     if (chat.pending && chat.busy) list.appendChild(h("div", { class: "msg user", text: chat.pending.content }));
     if (chat.busy) list.appendChild(h("div", { class: "msg assistant muted", text: "DELA is checking your message, then answering..." }));
@@ -2247,59 +2360,25 @@
       h("b", { class: "dw-ask-h", text: "A useful next question" }),
       h("span", { class: "small muted", text: "Suggested answers (you can also type your own):" }),
       h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, chat.ask.choices.map(function (c) { return h("button", { class: "ghost small", type: "button", onclick: function () { if (composerText) { composerText.value = c; composerText.focus(); D.toast(app, "Added to your message. Nothing is sent until you click Send."); } } }, c); }))));
-    // Fix (Stacey 2026-11-23: "this box is overlapping other content"): the message box follows the screen only once
-    // there is a conversation to scroll through. On a new chat it sits in its place, first, with the example under it.
-    if (fresh) {
-      box.className += " dw-fresh";
-      box.appendChild(composer());
-      box.appendChild(h("p", { class: "small muted", id: "chat-credits", style: "margin:6px 0 10px", text: creditsLine() }));
-      if (chat.problem) box.appendChild(problemBox(chat.problem));
-      box.appendChild(list);
-    } else {
-      box.appendChild(list);
-      if (chat.problem) box.appendChild(problemBox(chat.problem));
-      box.appendChild(composer());
-      box.appendChild(h("p", { class: "small muted", id: "chat-credits", style: "margin:6px 0 0", text: creditsLine() }));
-    }
-    // The right column: working context, drafts, next actions, the note, work in motion
-    var side = [], max = w.max || 3;
-    var wc = h("section", { class: "card", id: "aw-using" }, h("h2", { text: "Working context" }),
-      h("p", { class: "hsub", style: "margin:0 0 10px", text: "DELA reads only what is listed here. Naming a playbook in your message does not attach it." }));
-    var ctxFoot = function (tag, act) { return h("div", { class: "row dw-ctx-foot" }, tag, h("span", { class: "grow" }), act || null); };
-    if (w.library) wc.appendChild(h("div", { class: "dw-ctx", id: "aw-firm" }, h("b", { text: "Firm profile" }),
-      h("span", { class: "hsub", text: w.firm ? "Your roles, systems, practice areas and jurisdictions. Used in every answer." : "DELA does not know your roles or systems yet." }),
-      ctxFoot(w.firm ? dwTag("In use", "ready") : dwTag("Not added", "held"), w.firm ? null : h("button", { class: "linkish", type: "button", onclick: function () { goTab("library"); } }, "Add it in the Library"))));
-    chat.docs.forEach(function (d) {
-      wc.appendChild(h("div", { class: "dw-ctx on" }, h("b", { text: d.title }),
-        h("span", { class: "hsub", text: (d.doc_id ? d.doc_id + " · " : "") + chatDocLine(d) }),
-        ctxFoot(dwTag("Selected", "ready"), h("button", { class: "linkish aw-x", type: "button", "aria-label": "Remove " + d.title + " from this chat", onclick: function () { chat.docs = chat.docs.filter(function (x) { return x.id !== d.id; }); drawChat(); } }, "Remove"))));
-    });
-    var rest = (w.docs || []).filter(function (d) { return !chat.docs.some(function (x) { return x.id === d.id; }); });
-    rest.slice(0, 3).forEach(function (d) {
-      wc.appendChild(h("div", { class: "dw-ctx" }, h("b", { text: d.title }),
-        h("span", { class: "hsub", text: (d.doc_id ? d.doc_id + " · " : "") + chatDocLine(d) }),
-        ctxFoot(dwTag("Not selected", "off"), h("button", { class: "linkish", type: "button", "aria-label": "Select " + d.title + " for this chat", onclick: function () { if (dwPickDoc(d)) drawChat(); } }, "Select"))));
-    });
-    if (w.library && !chat.docs.length && !rest.length) wc.appendChild(h("p", { class: "hsub", id: "aw-nodocs", style: "margin:0 0 8px", text: "No approved playbooks yet. DELA answers from general knowledge and your profile." }));
-    else if (w.library && !chat.docs.length) wc.appendChild(h("p", { class: "hsub", id: "aw-nodocs", style: "margin:0 0 8px", text: "None selected. Choose only sources relevant to this conversation." }));
-    if (!w.library) wc.appendChild(h("p", { class: "hsub", id: "aw-nodocs", style: "margin:0", text: "Your account has no Library, so there are no playbooks to choose." }));
-    if ((chat.dropped || []).length) wc.appendChild(h("p", { class: "notice small", role: "status", id: "aw-dropped", text: chat.dropped.join(", ") + (chat.dropped.length === 1 ? " was" : " were") + " left out of the last answer: you can no longer use " + (chat.dropped.length === 1 ? "it" : "them") + " here." }));
-    if (w.library) wc.appendChild(h("button", { class: "ghost dw-wide", type: "button", id: "aw-add", onclick: function () { dwGo("playbooks"); } }, "Manage playbooks"));
-    side.push(wc);
+    box.appendChild(list);
+    if (chat.problem) box.appendChild(problemBox(chat.problem));
+    box.appendChild(composer());
+    box.appendChild(credits);
+    var side = [ctx];
     if (chat.drafts.length) side.push(h("section", { class: "card", id: "aw-drafts" }, h("h2", { text: "Drafts from this chat" }), h("ul", { class: "aw-docs" }, chat.drafts.map(function (d) {
       return h("li", { class: "aw-row" }, h("span", { class: "aw-row-t" }, h("b", { text: d.title }), h("span", { class: "hsub", text: (DOC_KIND[d.doc_type] || "Document") + " · " + (PB_STATUS[d.status] || d.status) })),
         h("button", { class: "ghost small", type: "button", "aria-label": "Open the draft " + d.title, onclick: function () { openDocFromChat(d.id); } }, "Open"));
     }))));
     var acts = [], said = chat.messages.some(function (m) { return m.role === "user"; });
     var approved = chat.docs.filter(function (d) { return d.approved; }), gigDoc = approved.filter(function (d) { return d.doc_type === "sop" || d.doc_type === "workflow"; })[0];
-    if (w.library && (me.switches || {}).automate_delegate) acts.push(["Review delegation opportunities", "See proposed tasks and source steps.", function () {
+    if (w.library && sw.automate_delegate) acts.push(["Review delegation opportunities", "See proposed tasks and source steps.", function () {
       var ap = approved.filter(function (d) { return d.doc_type !== "policy"; }); dw.pb = ap.length === 1 ? ap[0].id : null; dw.sel = {}; dwGo("opportunities");
     }, "aw-deleg"]);
     if (w.library) acts.push(["Create or improve a playbook", chat.id && said ? "Capture this chat as a reusable draft. Nothing is approved or shared." : "Capture a reusable workflow.", function () {
       if (chat.id && said) { var c0 = chat.list.filter(function (x) { return x.id === chat.id; })[0]; lib.fromChat = { id: chat.id, title: c0 ? c0.title : "this chat", text: chatTranscript() }; goTab("library"); }
       else dwGo("playbooks");
     }, "aw-draft"]);
-    if (w.library && canHire() && (me.switches || {}).flex_gigs) acts.push(["Prepare a gig draft", "Review scope before publishing.", function () {
+    if (w.library && canHire() && sw.flex_gigs) acts.push(["Prepare a gig draft", "Review scope before publishing.", function () {
       if (gigDoc) { gigs.newFrom = gigDoc.id; gigs.wiz = { doc: gigDoc.id }; gigs.fromDw = true; tab = "projects"; draw(); window.scrollTo(0, 0); } else dwGo("gigs");
     }, "aw-gig"]);
     var nx = h("section", { class: "card", id: "aw-next" }, h("h2", { text: "Suggested next actions" }));
@@ -2307,7 +2386,7 @@
     acts.forEach(function (a) { nx.appendChild(h("button", { class: "dw-act", type: "button", id: a[3], onclick: a[2] }, h("span", { class: "grow" }, h("b", { text: a[0] }), h("span", { class: "hsub", text: a[1] })), h("span", { class: "dw-chev", "aria-hidden": "true", text: "›" }))); });
     side.push(nx);
     side.push(dwNote("DELA reads only the playbooks you select, with your rights at that moment. Suggestions are not approvals."));
-    chatEl.appendChild(h("div", { class: "dw-wrap" }, h("div", { class: "dw-3" }, nav, box, h("div", { class: "dw-side" }, side))));
+    chatEl.appendChild(h("div", { class: "dw-wrap" }, h("div", { class: "dw-2" }, box, h("div", { class: "dw-side" }, side))));
   }
   // Screen 2: My Playbooks. The firm's Library documents in one table, and what is selected for DELA.
   var DW_ST = { approved: ["Approved", "ready"], draft: ["Draft", "held"], in_review: ["In review", "blue"], archived: ["Archived", "off"] };
@@ -3484,33 +3563,45 @@
         })) : null,
         chat.picking ? filePicker() : null);
     }
-    // Stacey 2026-11-23: "this is the most important feature on the website! this is what makes it easy for a law firm
-    // to create a playbook/sop to hand off. They should be able to (1) access screen recorder (2) connect Scribe project
-    // with the integration (3) a button to talk directly into this box." In the workspace the box opens with those three
-    // ways to show DELA the work, as large buttons, before the place to type.
+    // Step 77 (Stacey's mockup of 2026-11-23): one message box. "+ Add" holds the ways to show DELA the work
+    // (a file, a screen recording, a Scribe guide) and "Improve my request"; "Talk" sits beside it; "Send" at the right.
     if (v2()) {
       var sw = me.switches || {}, lw = (chat.ws || {}).library && me.side === "attorney";
-      var tile = function (btn, caption) { return h("div", { class: "dw-cap-tile" }, btn, h("span", { class: "hsub", text: caption })); };
-      if (mic) { mic.className = "mic dw-cap-btn"; mic.id = "dw-cap-talk"; mic.setAttribute("aria-label", "Talk: say it and DELA writes it into the box"); }
-      var tiles = [
-        mic ? tile(mic, "Say it out loud. Your words go into the box.") : null,
-        lw && sw.recorder ? tile(h("button", { class: "ghost dw-cap-btn", type: "button", id: "dw-cap-record", onclick: function () { tab = "record"; draw(); window.scrollTo(0, 0); } }, "Record my screen"), "Do the task once. DELA writes the steps from the recording.") : null,
-        lw && sw.scribe_import ? tile(h("button", { class: "ghost dw-cap-btn", type: "button", id: "dw-cap-scribe", onclick: function () { lib.startScribe = true; lib.pb = null; lib.importId = null; goTab("library"); window.scrollTo(0, 0); } }, "Import from Scribe"), "Bring in a guide you made with Scribe.") : null].filter(Boolean);
-      var sendB = h("button", { class: "blue dw-send", disabled: chat.busy, type: "button", onclick: sendNew }, chat.busy ? "Sending..." : "Send");
+      ta.id = "dw-msg";
+      ta.setAttribute("placeholder", chat.messages.length || chat.pending ? "Ask a follow-up or describe the result you need..." : "Tell DELA what you need help with...");
+      var autoLab = mic ? h("label", { "for": "dela-auto-send", class: "small dw-auto", style: "display:none" }, auto, "Send when I stop talking") : null;
+      if (mic) {
+        mic.className = "ghost dw-talk"; mic.id = "dw-cap-talk"; micLabel(mic, false);
+        mic.setAttribute("aria-label", "Talk: say it and DELA writes it into the box");
+        if (window.MutationObserver) new MutationObserver(function () { autoLab.style.display = mic.getAttribute("aria-pressed") === "true" ? "" : "none"; }).observe(mic, { attributes: true, attributeFilter: ["aria-pressed"] });
+      }
+      var helpOn = false, improve = helperButton("improve_request", "Improve my request", function () { return { text: ta.value }; }, { field: function (x) { return x.field === "request" ? ta : null; }, toast: "Added to your message. Nothing is sent until you click Send." });
+      improve.className += " dw-improve"; improve.id = "dw-improve"; improve.style.display = "none";
+      loadHelpers().then(function (info) { helpOn = !!(info && info.on); });
+      var adds = function () {
+        return [
+          attachRow ? ["dw-add-file", "files", chat.picking ? "Close files" : "Attach a file", "Choose a file from your Files page.", function () { chat.picking = !chat.picking; drawChat(); }] : null,
+          lw && sw.recorder ? ["dw-cap-record", "eye", "Record my screen", "Do the task once. DELA writes the steps.", function () { tab = "record"; draw(); window.scrollTo(0, 0); }] : null,
+          lw && sw.scribe_import ? ["dw-cap-scribe", "doc", "Import from Scribe", "Bring in a guide you made with Scribe.", function () { lib.startScribe = true; lib.pb = null; lib.importId = null; goTab("library"); window.scrollTo(0, 0); }] : null,
+          helpOn ? ["dw-add-improve", "wand", "Improve my request", "DELA suggests clearer wording. Nothing is sent.", function () { improve.style.display = ""; var b = improve.querySelector("button"); if (b) b.focus(); }] : null].filter(Boolean);
+      };
+      var addMenu = dwMenu({ id: "dw-add", name: "Add to your message", cls: "ghost dw-addb", label: [icon("plus"), "Add", icon("down")], build: function (panel, close) {
+        var list = adds();
+        if (!list.length) panel.appendChild(h("p", { class: "hsub", style: "margin:0;padding:8px 12px", text: "Nothing to add on this account yet." }));
+        list.forEach(function (a) {
+          panel.appendChild(h("button", { class: "dw-item dw-add-item", type: "button", id: a[0], onclick: function () { close(); a[4](); } }, icon(a[1]), h("span", { class: "dw-start-t" }, h("b", { text: a[2] }), h("span", { class: "hsub", text: a[3] }))));
+        });
+      } });
+      var sendB = h("button", { class: "blue dw-send", disabled: chat.busy, type: "button", onclick: sendNew }, icon("send"), chat.busy ? "Sending..." : "Send");
       return h("div", { class: "composer dw-composer" },
-        h("h3", { class: "dw-cap-h", id: "dw-cap-h", text: "Show DELA the work, in the way that is easiest for you" }),
-        tiles.length ? h("div", { class: "dw-capture dw-capture-" + tiles.length, role: "group", "aria-labelledby": "dw-cap-h" }, tiles) : null,
-        h("label", { class: "dw-cap-or", "for": "dw-msg", text: tiles.length ? "Or type it here" : "Type it here" }),
         attachRow,
-        (function () { ta.id = "dw-msg"; return ta; })(),
-        h("div", { class: "row dw-composer-row" },
-          helperButton("improve_request", "Improve request", function () { return { text: ta.value }; }, { field: function (x) { return x.field === "request" ? ta : null; }, toast: "Added to your message. Nothing is sent until you click Send." }),
-          attachRow ? h("button", { class: "ghost small", type: "button", onclick: function () { chat.picking = !chat.picking; drawChat(); } }, chat.picking ? "Close files" : "Attach file") : null,
-          mic ? h("label", { "for": "dela-auto-send", class: "small", style: "margin:0;font-weight:600;display:flex;gap:6px;align-items:center" }, auto, "Send when I stop talking") : null,
+        ta,
+        h("div", { class: "row dw-composer-row" }, addMenu, mic, autoLab,
           h("span", { class: "grow" }), status,
           chat.busy ? h("button", { class: "ghost", type: "button", id: "chat-stop", onclick: stopSend }, "Stop") : null, sendB),
-        micOk ? null : (ai.voice_on ? h("p", { class: "small muted", style: "margin:6px 0 0", text: "Talking needs a browser with microphone support. You can type instead." }) : null),
-        aiNotice());
+        improve,
+        micOk ? null : (ai.voice_on ? h("p", { class: "small muted", style: "margin:8px 0 0", text: "Talking needs a browser with microphone support. You can type instead." }) : null),
+        h("p", { class: "dw-lock", role: "note", id: "dw-lock" }, icon("lock"), h("span", { text: "Never enter sensitive data: SSNs, account numbers, health details, passwords. Client names and case facts are fine." })));
     }
     return h("div", { class: "composer" },
       aiNotice(),
@@ -3648,6 +3739,11 @@
 
   // Talking: press to talk, press again to stop. The words land in the box to read and fix before sending.
   var rec = null;
+  // The Talk button's words. In the workspace it carries the microphone icon (step 77); elsewhere the round mark.
+  function micLabel(btn, on) {
+    if (btn.className.indexOf("dw-talk") < 0) { btn.textContent = on ? "■ Stop" : "● Talk"; return; }
+    D.clear(btn); btn.appendChild(icon("mic")); btn.appendChild(document.createTextNode(on ? "Stop" : "Talk"));
+  }
   function toggleMic(btn, ta, status, auto) {
     if (rec) { rec.stop(); return; }
     var max = (chat.ai && chat.ai.voice_max_seconds) || 120;
@@ -3690,7 +3786,7 @@
         rec = null;
         btn.classList.remove("on");
         btn.setAttribute("aria-pressed", "false");
-        btn.textContent = "● Talk";
+        micLabel(btn, false);
         var seconds = Math.round((Date.now() - started) / 1000);
         var blob = new Blob(chunks, { type: (mr.mimeType || type || "audio/webm").split(";")[0] });
         if (blob.size < 200) { status.textContent = "No sound was recorded. Check your microphone."; return; }
@@ -3708,7 +3804,7 @@
       timer = setInterval(tick, 200);
       btn.classList.add("on");
       btn.setAttribute("aria-pressed", "true");
-      btn.textContent = "■ Stop";
+      micLabel(btn, true);
       tick();
     }).catch(function (e) {
       status.textContent = e && e.name === "NotAllowedError"

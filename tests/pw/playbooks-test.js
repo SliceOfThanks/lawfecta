@@ -397,46 +397,84 @@ async function makeMember(bd, side, plan) {
     await s.ctx.close();
 
     // ---------- Step 75a: the Ask DELA workspace as the ten workflow mockups draw it ----------
-    await sql("update feature_switches set state = 'everyone' where key in ('new_layout', 'dela_workspace_v2', 'recorder'); select 1");
+    await sql("update feature_switches set state = 'everyone' where key in ('new_layout', 'dela_workspace_v2', 'recorder', 'automate_delegate', 'ai_helpers'); select 1");
     try {
       s = await open(browser, 2200, { width: 1500, height: 950 });
       await click(s.page, "Ask DELA");
-      t = await waitFor(s.page, "Working context");
-      const navItems = (await dela(s.page).locator(".dw-nav .dw-item").allInnerTexts()).map((x) => x.trim());
-      ok(navItems[0] === "Chat with DELA" && navItems[1] === "My playbooks" && navItems[navItems.length - 1] === "DELA instructions" && await dela(s.page).locator(".dw-nav .dw-item[aria-current=page]").innerText() === "Chat with DELA", "Ask DELA has its own second menu, with the chat marked as the page you are on: " + navItems.join(", "));
-      ok(/recent conversations/i.test(t) && await dela(s.page).locator(".dw-chat").count() >= 1 && t.includes("Chats and drafts remain separate records. Starting a new chat does not delete previous work."), "earlier chats are a list under the menu, and a new chat deletes nothing");
-      ok(t.includes("Suggested next actions") && t.includes("Create or improve a playbook") && t.includes("Manage playbooks") && t.includes("Suggestions are not approvals.") && t.includes("+ New chat") && await dela(s.page).locator("#dw-instr").innerText() === "DELA instructions", "the right column has the working context, the next actions and the note; the header has New chat and DELA instructions");
-      const three = await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, b = (q) => r.querySelector(q).getBoundingClientRect(); const w = Math.round(b(".dw-wrap").width);
-        const side = b(".dw-chat-card").right <= b(".dw-3 > .dw-side").left + 1, nav = b(".dw-nav").right <= b(".dw-chat-card").left + 1;
-        return { w: w, ok: w >= 900 ? side && nav : w >= 760 ? side && b(".dw-nav").bottom <= b(".dw-chat-card").top + 1 : true }; });
-      // Fix (Stacey 2026-11-23): the menu card's headings and chat titles stay inside the card
-      const navFit = await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, nav = r.querySelector(".dw-nav"), box = nav.getBoundingClientRect();
-        const out = [...nav.querySelectorAll(".dw-cap, .dw-chat, .dw-item")].filter((e) => { const b = e.getBoundingClientRect(); return b.right > box.right + 0.5 || e.scrollWidth > e.clientWidth + 1; }).map((e) => e.textContent.slice(0, 30));
-        return { out: out, cap: parseFloat(getComputedStyle(nav.querySelector(".dw-cap")).fontSize), wrap: getComputedStyle(nav.querySelector(".dw-chat")).whiteSpace }; });
-      ok(navFit.out.length === 0 && navFit.cap <= 13 && navFit.wrap === "normal", "Fix: nothing in the menu card runs past its edge, the two headings are small, and a chat title may use two lines: " + JSON.stringify(navFit));
-      // Stacey 2026-11-23: the message box offers the ways to show DELA the work: talk, record the screen, bring in a Scribe guide
-      const capt = await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; return { h: (r.querySelector("#dw-cap-h") || {}).textContent, btns: [...r.querySelectorAll(".dw-capture .dw-cap-btn")].map((b) => b.textContent.trim()), heights: [...r.querySelectorAll(".dw-capture .dw-cap-btn")].map((b) => Math.round(b.getBoundingClientRect().height)), msg: !!r.querySelector("label[for=dw-msg]") && !!r.querySelector("#dw-msg") }; });
-      ok(capt.h === "Show DELA the work, in the way that is easiest for you" && capt.btns.includes("Record my screen") && capt.btns.includes("Import from Scribe") && capt.heights.every((x) => x >= 48) && capt.msg, "the message box opens with large buttons for recording the screen and a Scribe guide (and Talk where the browser has a microphone), and the box to type in has a label: " + JSON.stringify(capt));
+      // Step 77 (Stacey's mockup of 2026-11-23, "EXACTLY (colors & all)"): the first screen of Ask DELA
+      t = await waitFor(s.page, "Conversation context");
+      const sr77 = (fn) => s.page.evaluate((f) => new Function("r", f)(document.querySelector(".dela-host").shadowRoot), fn);
+      const first = await sr77(`const q = (x) => r.querySelector(x), cs = (x, p) => getComputedStyle(q(x))[p], b = (x) => q(x).getBoundingClientRect();
+        return { h1: q(".dw-head-ask h1").textContent, sub: q(".dw-head-ask .dw-sub").textContent, ico: cs(".dw-ico", "backgroundColor"), acts: [...r.querySelectorAll(".dw-head-acts button")].map((x) => x.textContent.trim()),
+          hero: q("#dw-hero-h").textContent, heroBg: cs(".dw-hero", "backgroundImage"), art: q(".dw-art").getAttribute("aria-hidden"), line: q("#dw-ctx-line").textContent, manage: q("#dw-manage").textContent.trim(),
+          ph: q("#dw-msg").placeholder, row: [...r.querySelectorAll(".dw-composer-row > *")].filter((x) => getComputedStyle(x).display !== "none").map((x) => x.textContent.trim()).filter(Boolean), send: cs(".dw-send", "backgroundColor"), lock: q("#dw-lock").textContent,
+          startH: q("#dw-start-h").textContent, starts: [...r.querySelectorAll(".dw-start b")].map((x) => x.textContent), tints: [...r.querySelectorAll(".dw-start")].map((x) => getComputedStyle(x).backgroundColor),
+          oldNav: !!q(".dw-nav"), oldCap: !!q(".dw-capture"), example: !!q("#chat-example"), w: Math.round(b(".dw-wrap").width),
+          side: b(".dw-hero").right <= b("#aw-using").left + 1 && Math.abs(b(".dw-hero").top - b("#aw-using").top) < 2, boxIn: b(".dw-fresh").right < b("#aw-using").right - 40 && b(".dw-fresh").top >= b(".dw-hero").bottom,
+          oneRow: new Set([...r.querySelectorAll(".dw-start")].map((x) => Math.round(x.getBoundingClientRect().top))).size === 1, sendRight: b(".dw-send").right > b("#dw-msg").right - 4, over: [...r.querySelectorAll(".dw-first *")].filter((e) => e.scrollWidth > e.clientWidth + 1 && getComputedStyle(e).overflow === "visible").length };`);
+      ok(first.h1 === "Ask DELA" && first.sub === "Your delegation partner for processes, playbooks and getting work done." && first.acts.join("|") === "Chats & pages|New chat", "the title row has the sparkle square, the title, the one sentence, and the buttons Chats & pages and New chat: " + JSON.stringify(first.acts));
+      ok(first.hero === "What would you like to get off your plate?" && t.includes("Describe a task, recurring problem, or process you want to improve.") && first.art === "true", "the blue band asks the one question, and its drawing is hidden from screen readers");
+      ok(first.line === "No firm profile yet · No playbooks selected" || first.line === "Firm profile in use · No playbooks selected", "Conversation context says in one line what DELA reads, from the firm's own records: " + first.line);
+      ok(first.manage === "Manage" && first.ph === "Tell DELA what you need help with..." && first.row.join("|") === "Add|Talk|Send" && first.sendRight, "one message box with Add, Talk and Send, as the mockup draws it: " + first.row.join("|"));
+      ok(first.lock === "Never enter sensitive data: SSNs, account numbers, health details, passwords. Client names and case facts are fine.", "the line under the box is Stacey's client information rule, in the mockup's place");
+      ok(first.startH === "Not sure where to start?" && first.starts.join("|") === "Find work to delegate|Create a playbook|Improve a process", "three ways to start: " + first.starts.join("|"));
+      ok(first.ico === "rgb(245, 235, 241)" && first.heroBg.includes("rgb(220, 237, 254)") && first.send === "rgb(146, 35, 70)" && first.tints.join("|") === "rgb(232, 241, 254)|rgb(228, 247, 243)|rgb(255, 242, 230)", "the colors are the mockup's: pink square, blue band, dark red Send, and the blue, teal and peach cards: " + JSON.stringify([first.ico, first.send, first.tints]));
+      ok(!first.oldNav && !first.oldCap && !first.example, "the left menu, the three large buttons and the example are gone from this page");
+      ok(first.w < 820 || (first.side && first.boxIn && first.oneRow), "on a wide screen the band and the context card sit side by side, the message box ends before the context card's edge, and the three cards share one row (page area " + first.w + ")");
+      ok(first.over === 0, "nothing on the first screen runs past its box");
+      await s.page.screenshot({ path: path.join(SHOTS, "77-ask-dela-first.png"), fullPage: true });
+      // "+ Add": the ways to show DELA the work. The keyboard opens it, moves in it and closes it.
+      await dela(s.page).locator("#dw-add").focus();
+      await s.page.keyboard.press("ArrowDown");
+      const addList = await sr77(`return { open: r.querySelector("#dw-add").getAttribute("aria-expanded"), items: [...r.querySelectorAll("#dw-add-list .dw-item b")].map((x) => x.textContent), at: (r.activeElement || {}).id }`);
+      ok(addList.open === "true" && addList.items.includes("Record my screen") && addList.items.includes("Import from Scribe") && addList.items.includes("Improve my request") && addList.items[0] === "Attach a file" && addList.at === "dw-add-file", "Add opens from the keyboard with Attach a file, Record my screen, Import from Scribe and Improve my request, and the first line has the focus: " + JSON.stringify(addList));
+      await s.page.keyboard.press("Escape");
+      ok((await sr77(`return r.querySelector("#dw-add").getAttribute("aria-expanded") + "|" + getComputedStyle(r.querySelector("#dw-add-list")).display + "|" + (r.activeElement || {}).id`)) === "false|none|dw-add", "Escape closes the list and the Add button has the focus again");
+      await dela(s.page).locator("#dw-add").click();
+      await dela(s.page).locator("#dw-add-improve").click();
+      ok(await sr77(`return getComputedStyle(r.querySelector("#dw-improve")).display !== "none" && /Uses 1 DELA action/.test(r.querySelector("#dw-improve").textContent)`), "Improve my request shows its button and what it costs before anything is used");
+      await dela(s.page).locator("#dw-add").click();
       await dela(s.page).locator("#dw-cap-scribe").click();
       await waitFor(s.page, "Read the guide", 15000);
-      ok(true, "Import from Scribe opens the Scribe import");
+      ok(true, "Import from Scribe in the Add list opens the Scribe import");
       await click(s.page, "Ask DELA");
-      await waitFor(s.page, "Working context", 15000);
-      // Stacey 2026-11-23: plain white cards as in the mockups, even gaps, and the right column ends with the note
-      const look75 = await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, side = [...r.querySelectorAll(".dw-3 > .dw-side > *")], h2 = getComputedStyle(r.querySelector("#aw-using > h2"));
-        const gaps = side.slice(1).map((e, i) => Math.round(e.getBoundingClientRect().top - side[i].getBoundingClientRect().bottom));
-        return { band: h2.backgroundColor, gaps: gaps, last: side[side.length - 1].className, work: !!r.querySelector("#aw-work") }; });
-      ok((look75.band === "rgba(0, 0, 0, 0)" || look75.band === "transparent") && look75.gaps.every((g) => g >= 12 && g <= 20) && look75.last.includes("dw-note") && !look75.work, "the chat page has plain card headings, even gaps in the right column, and the note last: " + JSON.stringify(look75));
-      // Fix (Stacey 2026-11-23): on a new chat the message box does not lie over the example
-      await s.page.setViewportSize({ width: 1500, height: 520 });
-      await s.page.waitForTimeout(200);
-      const lap = await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, c = r.querySelector(".dw-chat-card .composer").getBoundingClientRect(), e = r.querySelector("#chat-example").getBoundingClientRect(); return { pos: getComputedStyle(r.querySelector(".dw-chat-card .composer")).position, over: c.top < e.bottom && e.top < c.bottom }; });
-      ok(lap.pos === "static" && !lap.over, "Fix: on a new chat the message box sits in its own place and covers nothing, also on a short screen: " + JSON.stringify(lap));
-      await s.page.setViewportSize({ width: 1500, height: 950 });
-      ok(three.ok, "the menu, the chat and the working context sit side by side when the page area is 900 wide or more; narrower, the menu goes on top (page area here: " + three.w + ")");
+      await waitFor(s.page, "Conversation context", 15000);
+      // The three starting cards go where they say
+      await dela(s.page).locator("#dw-start-create").click();
+      await waitFor(s.page, "Draft it with DELA", 15000);
+      ok(true, "Create a playbook opens a new document");
+      await click(s.page, "Ask DELA");
+      await waitFor(s.page, "Conversation context", 15000);
+      // "Chats & pages": the earlier chats and the workspace pages
+      await dela(s.page).locator("#dw-pages").click();
+      const pg = await sr77(`return { chats: r.querySelectorAll("#dw-pages-list .dw-chat").length, kept: r.querySelector("#chat-kept").textContent, items: [...r.querySelectorAll("#dw-pages-list .dw-item")].map((x) => x.textContent.trim()), right: r.querySelector("#dw-pages-list").getBoundingClientRect().right <= r.querySelector(".dw-wrap").getBoundingClientRect().right + 2 }`);
+      ok(pg.chats >= 1 && pg.kept === "Chats and drafts remain separate records. Starting a new chat does not delete previous work." && pg.items[0] === "My playbooks" && pg.items[pg.items.length - 1] === "DELA instructions" && pg.right, "Chats & pages lists the earlier chats, says a new chat deletes nothing, and lists the workspace pages: " + pg.items.join(", "));
+      await s.page.mouse.click(5, 400);
+      ok((await sr77(`return getComputedStyle(r.querySelector("#dw-pages-list")).display`)) === "none", "a click elsewhere closes the list");
+      // "Manage" opens the choices inside the context card
+      await dela(s.page).locator("#dw-manage").click();
       await dela(s.page).getByRole("button", { name: /^Select .* for this chat$/ }).first().click();
       await dela(s.page).locator(".dw-ctx.on").first().waitFor({ timeout: 8000 });
-      ok((await dela(s.page).locator(".dw-ctx.on").first().innerText()).includes("Selected") && await dela(s.page).getByRole("button", { name: /^Remove .* from this chat$/ }).count() === 1, "a playbook is selected for the chat with one click and marked Selected");
+      ok((await dela(s.page).locator(".dw-ctx.on").first().innerText()).includes("Selected") && await dela(s.page).getByRole("button", { name: /^Remove .* from this chat$/ }).count() === 1 && (await dela(s.page).locator("#dw-ctx-line").innerText()).endsWith("1 playbook selected"), "Manage shows the playbooks; one click selects one, and the line at the top counts it");
+      // On a short screen the message box still covers nothing
+      await s.page.setViewportSize({ width: 1500, height: 520 });
+      await s.page.waitForTimeout(200);
+      ok((await sr77(`return getComputedStyle(r.querySelector(".dw-fresh .composer")).position`)) === "static", "Fix: on a new chat the message box sits in its own place, also on a short screen");
+      // Narrow: everything stacks and nothing is cut
+      await s.page.setViewportSize({ width: 420, height: 900 });
+      await s.page.waitForTimeout(300);
+      const narrow = await sr77(`const b = (x) => r.querySelector(x).getBoundingClientRect(); return { stack: b("#aw-using").top >= b(".dw-hero").bottom, cards: new Set([...r.querySelectorAll(".dw-start")].map((x) => Math.round(x.getBoundingClientRect().top))).size, wide: r.querySelector(".dela").scrollWidth <= r.querySelector(".dela").clientWidth + 1 }`);
+      ok(narrow.stack && narrow.cards === 3 && narrow.wide, "on a narrow screen the context card goes under the band, the three cards stack, and the page does not scroll sideways: " + JSON.stringify(narrow));
+      await s.page.setViewportSize({ width: 1500, height: 950 });
+      await s.page.waitForTimeout(200);
+      // A conversation that has started: the band and the cards make room for the messages
+      await dela(s.page).locator("#dw-msg").fill("Which intake steps could a freelancer do?");
+      await dela(s.page).locator(".dw-send").click();
+      await dela(s.page).locator(".dw-2 .msg.assistant:not(.muted)").first().waitFor({ timeout: 20000 });
+      const going = await sr77(`const b = (x) => r.querySelector(x).getBoundingClientRect(); return { hero: !!r.querySelector(".dw-hero"), starts: !!r.querySelector(".dw-start"), ctx: !!r.querySelector(".dw-2 #aw-using"), next: !!r.querySelector("#aw-next"), under: b(".dw-2 .composer").top >= b(".dw-msgs").top, ph: r.querySelector("#dw-msg").placeholder, note: /Suggestions are not approvals/.test(r.querySelector(".dw-2").textContent) }`);
+      ok(!going.hero && !going.starts && going.ctx && going.next && going.under && going.note && going.ph === "Ask a follow-up or describe the result you need...", "once a chat has started, the messages take the place of the band and cards, with the context and next actions at the right: " + JSON.stringify(going));
+      await s.page.screenshot({ path: path.join(SHOTS, "77-ask-dela-chat.png"), fullPage: true });
+      if (!(await dela(s.page).locator("#aw-add").count())) await dela(s.page).locator("#dw-manage").click();
       // Screen 2: My Playbooks
       await click(s.page, "Manage playbooks");
       t = await waitFor(s.page, "Playbook library");
@@ -452,9 +490,10 @@ async function makeMember(bd, side, plan) {
       await waitFor(s.page, "No playbook fits. Try another filter or fewer words.");
       await dela(s.page).locator("#dw-search").fill("");
       await dela(s.page).locator("#dw-chat-about").click();
-      t = await waitFor(s.page, "Working context");
+      t = await waitFor(s.page, "Conversation context");
       ok(!s.page.url().includes("ws=") && await dela(s.page).locator(".dw-ctx.on").count() === 1, "Chat about this playbook goes back to the chat with the playbook still selected");
       // Screen 5: DELA instructions as its own page
+      await dela(s.page).locator("#dw-pages").click();
       await dela(s.page).locator("#dw-instr").click();
       t = await waitFor(s.page, "How context is used");
       ok(t.includes("DELA Instructions & Firm Context") && t.includes("Assignment context") && t.includes("Propose a new instruction") && t.includes("Missing or conflicting information") && t.includes("Scope: Firm") && !t.includes("← Back to the chat"), "DELA instructions is a page with four tabs, the scope on each line and the two cards at the right");
@@ -474,9 +513,10 @@ async function makeMember(bd, side, plan) {
       t = await waitFor(s.page, "How context is used", 15000);
       ok(s.page.url().includes("ws=instructions"), "the instructions page opens from its own address");
       await dela(s.page).locator(".top .where .dw-crumb").click();
-      await waitFor(s.page, "Working context");
+      await waitFor(s.page, "Conversation context");
       // Step 75d, screen 10: one queue of what waits, with who resolves it
-      await dela(s.page).locator(".dw-nav .dw-item", { hasText: "Decisions & blockers" }).click();
+      await dela(s.page).locator("#dw-pages").click();
+      await dela(s.page).locator("#dw-pages-list .dw-item", { hasText: "Decisions & blockers" }).click();
       t = await waitFor(s.page, "Decision queue", 15000);
       await dela(s.page).locator("#dw-queue .dw-qrow").first().waitFor({ timeout: 10000 });
       ok(t.includes("Decisions, Blockers & Work Progress") && s.page.url().includes("ws=decisions") && await dela(s.page).getByRole("group", { name: "Show" }).getByRole("button").count() === 6, "the decision queue is a page with its own address and six filters");
@@ -488,9 +528,10 @@ async function makeMember(bd, side, plan) {
       await waitFor(s.page, "How context is used");
       ok(await dela(s.page).locator("#rules-filter").inputValue() === "proposed", "the item opens the place where it is resolved");
       await dela(s.page).locator(".top .where .dw-crumb").click();
-      await waitFor(s.page, "Working context");
+      await waitFor(s.page, "Conversation context");
       // Step 75d, screen 7: changes and version approval
-      await dela(s.page).locator(".dw-nav .dw-item", { hasText: "Playbook changes" }).click();
+      await dela(s.page).locator("#dw-pages").click();
+      await dela(s.page).locator("#dw-pages-list .dw-item", { hasText: "Playbook changes" }).click();
       await waitFor(s.page, "Choose a playbook", 15000);
       await dela(s.page).getByRole("button", { name: /^Review changes in / }).first().click();
       t = await waitFor(s.page, "Version states", 15000);
@@ -498,13 +539,14 @@ async function makeMember(bd, side, plan) {
       ok(t.includes("No proposed changes are waiting.") || await dela(s.page).locator(".dw-sg").count() >= 1, "it lists the proposed changes, or says none wait");
       ok(await dela(s.page).locator("#dw-chg-hist").count() === 1 && t.includes("Approved changes create a new version. Existing work does not silently switch versions."), "it offers the version history and says a new version never replaces work in motion");
       await dela(s.page).locator(".top .where .dw-crumb").click();
-      await waitFor(s.page, "Working context");
-      await dela(s.page).locator(".dw-nav .dw-item", { hasText: "Gig drafts" }).count() && await dela(s.page).locator(".dw-nav .dw-item", { hasText: "Gig drafts" }).click();
+      await waitFor(s.page, "Conversation context");
+      await dela(s.page).locator("#dw-pages").click();
+      if (await dela(s.page).locator("#dw-pages-list .dw-item", { hasText: "Gig drafts" }).count()) await dela(s.page).locator("#dw-pages-list .dw-item", { hasText: "Gig drafts" }).click(); else await s.page.keyboard.press("Escape");
       await s.page.setViewportSize({ width: 390, height: 800 });
       await s.page.waitForTimeout(300);
       ok(await s.page.evaluate(() => document.documentElement.scrollWidth) <= 392, "a workspace page fits a phone screen");
       await s.ctx.close();
-    } finally { await sql("update feature_switches set state = 'off' where key in ('new_layout', 'dela_workspace_v2', 'recorder'); select 1"); }
+    } finally { await sql("update feature_switches set state = 'off' where key in ('new_layout', 'dela_workspace_v2', 'recorder', 'automate_delegate'); select 1"); }
 
     // ---------- Freelancer ----------
     s = await open(browser, 2202);

@@ -72,7 +72,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Do: click "Yes, stop it".
    Expect: the page "Delegation Opportunities" for "Send the welcome packet" opens again. The task you ticked earlier has the tag "Suggested" again, its box is not ticked, and "Selected tasks" is 0. There is no card "Handoffs from this playbook".
    Do: at the far right of the heading, click "Refine with DELA".
-   Expect: the Ask DELA chat page. In the card "Working context" at the right, "Send the welcome packet" has a green tag "Selected". The message box holds a sentence that starts "Go through the tasks I could delegate from". Do NOT click "Send".
+   Expect: the Ask DELA chat page. In the card "Conversation context" at the right, the grey line ends "1 playbook selected". Click "Manage" in that card: "Send the welcome packet" has a green tag "Selected". The message box holds a sentence that starts "Go through the tasks I could delegate from". Do NOT click "Send".
 
 8. REVIEW. (a) On "Delegation Opportunities", is it clear that ticking a task only selects it and hands nothing over? (b) On "Partial Delegation & Dependencies", is it clear what is handed over, what stays with the firm, and what has to happen next before a freelancer can start? (c) Do the suggested tasks and their reasons fit the playbook "Send the welcome packet"? (d) Was anything crowded, cut off or confusing?
 

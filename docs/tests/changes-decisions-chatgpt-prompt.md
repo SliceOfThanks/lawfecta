@@ -32,8 +32,9 @@ Note for this check: the Ask DELA pages show their name in the light bar across 
 Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
 1. Go to: https://www.lawfecta.co/dela?tab=delegate
-   Find: at the left of the page, the card headed "DELA WORKSPACE".
-   Expect: seven lines, top to bottom: "Chat with DELA", "My playbooks", "Delegation opportunities", "Gig drafts", "Playbook changes", "Decisions & blockers", "DELA instructions".
+   Find: at the far right of the heading "Ask DELA", the outlined button "Chats & pages".
+   Do: click "Chats & pages".
+   Expect: a list with the small heading "WORKSPACE PAGES" and six lines: "My playbooks", "Delegation opportunities", "Gig drafts", "Playbook changes", "Decisions & blockers", "DELA instructions".
    Do: click "Playbook changes".
 
 2. Expect: a page headed "Playbook Changes & Version Approval". The light bar across the top reads "Ask DELA / Playbook Changes & Version Approval".
@@ -50,7 +51,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Expect: a message "Sent to the author and the administrator for review." The yellow tag at the top of the card now ends "· sent for review". In "Version states" the tag reads "In review". The button "Request approval" is gone.
    (If the page already showed "· sent for review" in step 3 and had no button "Request approval", this check was run before. Write that down and go on.)
 
-5. Do: in the light bar across the top, click the underlined words "Ask DELA". Then, in the card "DELA WORKSPACE", click "Decisions & blockers".
+5. Do: in the light bar across the top, click the underlined words "Ask DELA". Then click "Chats & pages" at the far right of the heading and, in the list, "Decisions & blockers".
    Expect: a page headed "Decisions, Blockers & Work Progress". The light bar across the top reads "Ask DELA / Decisions, Blockers & Work Progress".
    Expect: under the heading, a row of six rounded buttons, each with a number in brackets: "All", "Needs decision", "Blocked input", "Submitted for review", "Needs review", "Accepted". "All" is the dark one.
    Expect: at the left, a card "Decision queue" with one line for each thing that waits. Each line has a bold title, grey words "Related to: ... · Resolver: ...", and a colored tag at the right. Under it a card "Event history".

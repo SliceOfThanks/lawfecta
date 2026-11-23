@@ -32,8 +32,10 @@ Note for this check: the keys typed in steps 4 and 5 are made up for this check.
 Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
 1. Go to: https://www.lawfecta.co/dela?tab=delegate
-   Find: the wide card in the middle of the page, under the page heading "Ask DELA". Near its top is the heading "Show DELA the work, in the way that is easiest for you", with large buttons under it.
-   Expect: one of the large buttons reads "Import from Scribe", with the grey line "Bring in a guide you made with Scribe." under it.
+   If the page shows a conversation and no light blue band: click "New chat" at the far right of the heading first.
+   Find: the white card with the large message box, under the light blue band. Under the box, at the left, is the button "Add" (with a plus sign).
+   Do: click "Add".
+   Expect: a small list opens. One of its lines reads "Import from Scribe", with the grey line "Bring in a guide you made with Scribe." under it.
    Do: click "Import from Scribe".
 
 2. Expect: the Library opens on a page with three cards, top to bottom.
@@ -57,7 +59,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Expect: for a moment the words "Checking the key with Scribe...". Then a message that starts "Scribe did not accept this key." and ends "Nothing was saved."
    Expect: the card still shows the box "Scribe key" and the button "Connect Scribe". It does not say "Connected".
 
-6. Do: reload the page (the browser's reload button). Then go to: https://www.lawfecta.co/dela?tab=delegate and click "Import from Scribe" again.
+6. Do: reload the page (the browser's reload button). Then go to: https://www.lawfecta.co/dela?tab=delegate, click "Add" under the message box and click "Import from Scribe" again.
    Expect: the card "From your Scribe account" still shows the box "Scribe key", empty, and the button "Connect Scribe". Nothing on the page says "Connected" or "Key ending in".
 
 7. Find: the third card, "From an exported file".

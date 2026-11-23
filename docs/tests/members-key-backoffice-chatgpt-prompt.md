@@ -69,9 +69,9 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Expect: the card disappears, and a message at the bottom of the screen reads "DELA uses Lawfecta's AI. You can add your own key any time in Settings."
 
 6. Go to: https://www.lawfecta.co/dela?tab=delegate
-   Find: the chat in the middle of the page. Ask DELA opens on a new, empty chat. If it shows an earlier conversation instead, click the outlined button "+ New chat" near the top of the chat area first.
-   Expect: a soft card that starts "Example:" with a button "Use this example". Under the button, grey words: "DELA works for the whole back office of a law firm, not only legal support: intake, billing and bookkeeping, HR, IT, marketing and operations."
-   Do: click in the box labeled "Your message" at the bottom of the chat and type exactly: Write the steps for sending our monthly client newsletter, so a marketing freelancer can do it.
+   Find: the white card with the large message box, under the light blue band "What would you like to get off your plate?". If the page shows an earlier conversation and no light blue band, click the outlined button "New chat" at the far right of the heading first.
+   Expect: under the message box, a light grey strip with a small lock that starts "Never enter sensitive data".
+   Do: click in the large message box and type exactly: Write the steps for sending our monthly client newsletter, so a marketing freelancer can do it.
    Then click "Send". Wait up to 60 seconds. (This uses one DELA action.)
    Expect: an answer from DELA about the newsletter: numbered steps, or one question with up to three suggested answers to click.
    REVIEW: Does the answer stay on the newsletter task? Did DELA add anything that does not belong to it, such as a practice area, a court rule, a filing deadline or an attorney review of legal judgment? Quote the sentence if it did.
