@@ -34,7 +34,7 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
 
 1. Go to: https://www.lawfecta.co/dela?tab=ask
    Expect: the heading "Ask DELA" with a grey sentence that starts "Ask about an existing process". At the far right of the heading, two outlined buttons: "+ New chat" and "DELA instructions".
-   Expect: under the heading, at the left, a card headed "DELA WORKSPACE" with exactly two lines: "Chat with DELA" (pink) and "DELA instructions". There is NO line "My playbooks", "Delegation opportunities" or "Gig drafts". Under them the heading "RECENT CONVERSATIONS".
+   Expect: under the heading, at the left, a card headed "DELA WORKSPACE" with exactly two lines: "Chat with DELA" (pink) and "DELA instructions". There is NO line "My playbooks", "Delegation opportunities", "Gig drafts", "Playbook changes" or "Decisions & blockers". Under them the heading "RECENT CONVERSATIONS".
    Expect: at the right, a card "Working context" that says "Your account has no Library, so there are no playbooks to choose."
 
 2. Do: at the far right of the heading "Ask DELA", click "DELA instructions".
@@ -52,7 +52,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 3. Go to: https://www.lawfecta.co/dela?tab=delegate
    Expect: the heading "Ask DELA", the grey sentence, and the buttons "+ New chat" and "DELA instructions" at the far right.
    Expect: three columns under the heading.
-   Left: a card headed "DELA WORKSPACE" with five lines, top to bottom: "Chat with DELA" (pink), "My playbooks", "Delegation opportunities", "Gig drafts", "DELA instructions". Under them "RECENT CONVERSATIONS" with a list of earlier chats and a link that starts "Show all". At the bottom of the card the grey words "Chats and drafts remain separate records. Starting a new chat does not delete previous work."
+   Left: a card headed "DELA WORKSPACE" with seven lines, top to bottom: "Chat with DELA" (pink), "My playbooks", "Delegation opportunities", "Gig drafts", "Playbook changes", "Decisions & blockers", "DELA instructions". Under them "RECENT CONVERSATIONS" with a list of earlier chats and a link that starts "Show all". At the bottom of the card the grey words "Chats and drafts remain separate records. Starting a new chat does not delete previous work."
    Middle: a card headed "New conversation" with an example, a large message box, and under the box the buttons "Improve request", "Talk" (it may have a dot in front), "Attach file" and, dark red, "Send".
    Right: a card "Working context" with a box "Firm profile" and up to three playbooks, each with a grey tag "Not selected" and an underlined word "Select"; at the bottom of the card an outlined button "Manage playbooks". Under it a card "Suggested next actions" with three lines: "Review delegation opportunities", "Create or improve a playbook", "Prepare a gig draft". Under it a light blue note that ends "Suggestions are not approvals."
 

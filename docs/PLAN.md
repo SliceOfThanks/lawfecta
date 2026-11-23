@@ -8,7 +8,11 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
-## Newest (2026-11-21, night): step 75a, 75b and 75c are on the site for the Access list
+## Newest (2026-11-23): step 75d is on the site; all ten mockup screens exist
+code_version 9b3b390 (browser only, run 45208765203). "Playbook Changes & Version Approval" and "Decisions, Blockers & Work Progress" are pages of the Ask DELA workspace. Check files 26 to 29, not run.
+Next, after Stacey has looked and the checks are run: fix what they find; make the old places open the new pages so there is one way to do each thing; turn dela_workspace_v2 on for everyone on her word. Not tested by a person: "Apply to draft" on the changes page (no proposed change waits on the test site; it uses the same command as "Accept" in the Library, which is tested).
+
+## Earlier (2026-11-21, night): step 75a, 75b and 75c are on the site for the Access list
 code_version 203b1ff, api 150, migrations through 0155 (run 44865765454). Eight of the ten mockup screens are pages of the Ask DELA workspace (switch dela_workspace_v2, "Access list"): the chat, My Playbooks, Delegation Opportunities, Partial Delegation & Dependencies, DELA Instructions & Firm Context, Create a Gig from DELA, Invitation & Sharing Review, Recipient Review & Acceptance. Check files 26, 27, 28, not run.
 Next: 75d, "Playbook Changes & Version Approval" (screen 7) and "Decisions, Blockers & Work Progress" (screen 10). Then the old places (the card on a document, the panel in the Library, "Post a New Gig" in Projects) open the new pages, and the switch goes to everyone on Stacey's word.
 
