@@ -180,6 +180,17 @@ const DOC = (title) => JSON.stringify({ schema: 2, type: "sop", title, lifecycle
       await s.page.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=delegate&ws=opportunities&doc=${pb2}`);
       t = await waitFor(s.page, "Handoffs from this playbook", 15000);
       ok(t.includes("Handed over") && t.includes("gig drafted, not posted") && await dela(s.page).getByLabel("Select the task: Collect and log intake forms").isDisabled(), "a task already handed over says so and cannot be selected again");
+      // The old place, the card on a document, now sends a task to the workspace page instead of opening its own panel
+      const pb3 = await mk("Onboard a new client", "au-b3");
+      await s.page.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=library&pb=${pb3}`);
+      await waitFor(s.page, "DELA can find steps in this document to automate or hand to a freelancer.", 15000);
+      await click(s.page, "✦ Find what to automate or delegate");
+      t = await waitFor(s.page, "Select in Delegation opportunities", 15000);
+      ok(!t.includes("Delegate these steps") && t.includes("Add this tool to the steps"), "with the workspace on, the card on a document offers the workspace page for delegation and keeps the automation actions");
+      await click(s.page, "Select in Delegation opportunities");
+      t = await waitFor(s.page, "Your selection", 15000);
+      await dela(s.page).locator(".dw-task.on").waitFor({ timeout: 10000 });
+      ok((await dela(s.page).locator("#dw-sel-n").innerText()) === "1" && s.page.url().includes("ws=opportunities") && s.page.url().includes(pb3) && (await sql(`select count(*)::int n from delegations where playbook_id = '${pb3}'`))[0].n === 0, "it opens Delegation Opportunities for that playbook with the task already ticked, and nothing is handed over yet");
       await s.ctx.close();
     } finally { await sql("update feature_switches set state = 'off' where key in ('new_layout', 'ask_dela_workspace', 'dela_workspace_v2', 'handoff_kit'); select 1"); }
     console.log(passed + " browser checks passed");

@@ -1107,10 +1107,10 @@
     homeLoad(c, inner, function () { return api.get("/home/delegate"); }, function (r) {
       var items = r.items || [];
       if (!r.documents) { inner.appendChild(h("p", { class: "hsub", text: "Approve a document in the Library to get delegation ideas. DELA only looks at documents you approved." })); return; }
-      if (!items.length) { inner.appendChild(h("p", { class: "hsub", text: r.reviewed ? "No open delegation suggestion right now." : "DELA has not looked at your approved documents yet. Open one and go to its card \"Automate or delegate\" to see what could be handed off." })); return; }
+      if (!items.length) { inner.appendChild(h("p", { class: "hsub", text: r.reviewed ? "No open delegation suggestion right now." : (dwRoute() ? "DELA has not looked at your approved playbooks yet. Open Ask DELA and choose \"Delegation opportunities\" to see what could be handed off." : "DELA has not looked at your approved documents yet. Open one and go to its card \"Automate or delegate\" to see what could be handed off.") })); return; }
       inner.appendChild(h("div", { class: "hl" }, items.map(function (x) {
         var skills = (x.skills || []).slice(0, 2).join(", ");
-        return hrow({ title: x.title || "A task to hand off", sub: "From " + (x.doc_id ? x.doc_id + " " : "") + x.playbook_title + (x.why ? ". " + x.why : "") + (skills ? " Skills: " + skills + "." : ""), act: "Review suggestion", go: function () { homeOpenDoc(x.playbook_id); } });
+        return hrow({ title: x.title || "A task to hand off", sub: "From " + (x.doc_id ? x.doc_id + " " : "") + x.playbook_title + (x.why ? ". " + x.why : "") + (skills ? " Skills: " + skills + "." : ""), act: "Review suggestion", go: function () { if (dwRoute()) dwOpen("opportunities", { pb: x.playbook_id, sel: {} }); else homeOpenDoc(x.playbook_id); } });
       })));
       inner.appendChild(h("p", { class: "hsub", text: "Suggestions from DELA, from your approved documents. Nothing is posted or sent until you review and approve it." }));
     });
@@ -6904,7 +6904,7 @@
             if (!x || !x.ok) throw x || {};
             gigs.newFrom = null; gigs.linkTo = null; gigs.wiz = null; gigs.wizKept = null; gigs.wstep = 2; gigs.wtop = true; gigs.wnew = x.source === "ai" ? "ai" : "doc";
             // Step 75c: a draft started from the Ask DELA workspace opens on its page there
-            if (gigs.fromDw && dwRoute()) { gigs.fromDw = false; var nw = gigs.wnew; gigs.wnew = null; dwOpen("gig", { gig: x.id, gigNew: nw, hand: null }); return; }
+            if (dwRoute()) { gigs.fromDw = false; var nw = gigs.wnew; gigs.wnew = null; dwOpen("gig", { gig: x.id, gigNew: nw, hand: null }); return; }
             gigs.fromDw = false;
             gigLink(x.id, "projects");
           }).catch(function (x) {
@@ -13851,7 +13851,7 @@
               var gs = done.gig_status;
               acts.appendChild(h("span", { class: "badge ready", text: !done.gig_id ? (done.kind === "setup" ? "Setup task started" : "Delegation started") : gs === "draft" ? "Gig drafted" : gs === "open" ? "Gig posted" : "Gig " + ((GIG_STATUS[gs] || gs || "").toLowerCase()) }));
               acts.appendChild(done.gig_id ? h("button", { class: "ghost small", type: "button", onclick: function () { gigLink(done.gig_id, "projects"); } }, "View gig")
-                : h("button", { class: "ghost small", type: "button", onclick: function () { auto.open = done.id; load(); } }, done.kind === "setup" ? "Open the setup task" : "Open the delegation"));
+                : h("button", { class: "ghost small", type: "button", onclick: function () { if (done.kind !== "setup" && dwRoute()) { dwOpen("handoff", { hand: done.id }); return; } auto.open = done.id; load(); } }, done.kind === "setup" ? "Open the setup task" : "Open the delegation"));
               row.appendChild(acts);
               card.appendChild(row);
               return;
@@ -13860,7 +13860,9 @@
               api.post("/automate/delegate", { review_id: st.review.id, rec_id: r.id, kind: kind }).then(function (x) { if (!x.ok) throw x; auto.open = x.delegation.id; load(); })
                 .catch(function (e) { cardSay("automate", autoErr(e), true); });
             }
-            if (r.kind === "delegate") acts.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { start("delegate"); } }, "Delegate these steps"));
+            // Step 75: with the workspace on, a task to hand over is selected on "Delegation Opportunities" in Ask DELA
+            if (r.kind === "delegate" && dwRoute()) acts.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { var pickd = {}; pickd[r.id] = true; dwOpen("opportunities", { pb: pid, sel: pickd }); } }, "Select in Delegation opportunities"));
+            else if (r.kind === "delegate") acts.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { start("delegate"); } }, "Delegate these steps"));
             else {
               acts.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () {
                 api.post("/automate/apply-tool", { playbook_id: pid, rec_id: r.id }).then(function (x) {
@@ -13878,7 +13880,7 @@
         (st.delegations || []).forEach(function (d) {
           card.appendChild(h("div", { class: "row", style: "border-top:1px solid var(--line);padding-top:6px;margin-top:6px" },
             h("span", { class: "small grow", text: (d.kind === "setup" ? "Setup task" : "Delegated") + ": " + stepsText(d.steps) + ", " + d.title + (d.sop_id ? ". See SOP " + ((d.sop_doc_id ? d.sop_doc_id + " " : "") + d.sop_title) + (d.sop_status === "approved" ? "" : " (draft)") : "") + (d.gig_id ? (d.gig_status && d.gig_status !== "draft" ? ". Gig posted." : ". Gig drafted, not posted yet.") : "") }),
-            h("button", { class: "ghost small", type: "button", onclick: function () { auto.open = d.id; load(); } }, auto.open === d.id ? "Open below" : d.kind === "setup" ? "Open the setup task" : "Open the delegation")));
+            h("button", { class: "ghost small", type: "button", onclick: function () { if (d.kind !== "setup" && dwRoute()) { dwOpen("handoff", { hand: d.id }); return; } auto.open = d.id; load(); } }, auto.open === d.id ? "Open below" : d.kind === "setup" ? "Open the setup task" : "Open the delegation")));
         });
         if (auto.open) card.appendChild(delegatePanel(auto.open, load));
       }).catch(function () { card.remove(); });
@@ -14698,6 +14700,12 @@
     var list = lib.pb.suggestions;
     if (!list.length) { area.appendChild(h("div", { class: "card" }, h("p", { class: "muted", style: "margin:0", text: "No suggestions waiting." }))); return; }
     var P0 = lib.pb.playbook || {};
+    // Step 75: with the workspace on, proposed changes are compared and decided on one page in Ask DELA
+    if (dwRoute()) {
+      area.appendChild(h("div", { class: "card", id: "sg-moved" }, h("p", { style: "margin:0 0 10px", text: plural(list.length, "proposed change") + (list.length === 1 ? " waits" : " wait") + ". Compare the wording before and after, and apply or reject each one, on the page \"Playbook Changes & Version Approval\" in Ask DELA." }),
+        h("button", { class: "blue small", type: "button", id: "sg-open-dw", onclick: function () { dwOpen("changes", { chg: P0.id }); } }, "Review changes")));
+      return;
+    }
     area.appendChild(h("p", { class: "small muted", id: "sg-impact", style: "margin:0 0 10px", text: "Accepting a suggestion saves a new draft version of this document. It approves nothing: approval is its own step." + (P0.approved_version ? " The approved version " + P0.approved_version + " stays in use until a new version is approved, and gigs already posted keep the version they were posted from." : "") }));
     list.forEach(function (sg) {
       area.appendChild(h("div", { class: "card" }, h("b", { text: sg.note || "A suggested change" }), h("div", { class: "small muted", text: sg.by + ", " + D.dateTime(sg.at) + (sg.removes_review ? ". It removes an attorney decision, so only the administrator can accept it." : "") }),
