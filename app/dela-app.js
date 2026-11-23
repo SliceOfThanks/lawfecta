@@ -3484,6 +3484,34 @@
         })) : null,
         chat.picking ? filePicker() : null);
     }
+    // Stacey 2026-11-23: "this is the most important feature on the website! this is what makes it easy for a law firm
+    // to create a playbook/sop to hand off. They should be able to (1) access screen recorder (2) connect Scribe project
+    // with the integration (3) a button to talk directly into this box." In the workspace the box opens with those three
+    // ways to show DELA the work, as large buttons, before the place to type.
+    if (v2()) {
+      var sw = me.switches || {}, lw = (chat.ws || {}).library && me.side === "attorney";
+      var tile = function (btn, caption) { return h("div", { class: "dw-cap-tile" }, btn, h("span", { class: "hsub", text: caption })); };
+      if (mic) { mic.className = "mic dw-cap-btn"; mic.id = "dw-cap-talk"; mic.setAttribute("aria-label", "Talk: say it and DELA writes it into the box"); }
+      var tiles = [
+        mic ? tile(mic, "Say it out loud. Your words go into the box.") : null,
+        lw && sw.recorder ? tile(h("button", { class: "ghost dw-cap-btn", type: "button", id: "dw-cap-record", onclick: function () { tab = "record"; draw(); window.scrollTo(0, 0); } }, "Record my screen"), "Do the task once. DELA writes the steps from the recording.") : null,
+        lw && sw.scribe_import ? tile(h("button", { class: "ghost dw-cap-btn", type: "button", id: "dw-cap-scribe", onclick: function () { lib.startScribe = true; lib.pb = null; lib.importId = null; goTab("library"); window.scrollTo(0, 0); } }, "Import from Scribe"), "Bring in a guide you made with Scribe.") : null].filter(Boolean);
+      var sendB = h("button", { class: "blue dw-send", disabled: chat.busy, type: "button", onclick: sendNew }, chat.busy ? "Sending..." : "Send");
+      return h("div", { class: "composer dw-composer" },
+        h("h3", { class: "dw-cap-h", id: "dw-cap-h", text: "Show DELA the work, in the way that is easiest for you" }),
+        tiles.length ? h("div", { class: "dw-capture dw-capture-" + tiles.length, role: "group", "aria-labelledby": "dw-cap-h" }, tiles) : null,
+        h("label", { class: "dw-cap-or", "for": "dw-msg", text: tiles.length ? "Or type it here" : "Type it here" }),
+        attachRow,
+        (function () { ta.id = "dw-msg"; return ta; })(),
+        h("div", { class: "row dw-composer-row" },
+          helperButton("improve_request", "Improve request", function () { return { text: ta.value }; }, { field: function (x) { return x.field === "request" ? ta : null; }, toast: "Added to your message. Nothing is sent until you click Send." }),
+          attachRow ? h("button", { class: "ghost small", type: "button", onclick: function () { chat.picking = !chat.picking; drawChat(); } }, chat.picking ? "Close files" : "Attach file") : null,
+          mic ? h("label", { "for": "dela-auto-send", class: "small", style: "margin:0;font-weight:600;display:flex;gap:6px;align-items:center" }, auto, "Send when I stop talking") : null,
+          h("span", { class: "grow" }), status,
+          chat.busy ? h("button", { class: "ghost", type: "button", id: "chat-stop", onclick: stopSend }, "Stop") : null, sendB),
+        micOk ? null : (ai.voice_on ? h("p", { class: "small muted", style: "margin:6px 0 0", text: "Talking needs a browser with microphone support. You can type instead." }) : null),
+        aiNotice());
+    }
     return h("div", { class: "composer" },
       aiNotice(),
       attachRow,
@@ -5247,6 +5275,7 @@
     drawList();
     if (L.workspace) libEl.appendChild(h("p", { class: "small" }, h("button", { class: "linkish", type: "button", onclick: function () { localPref("libTable", false); drawLibrary(); } }, "Show as cards")));
     if (lib.startRecord) { lib.startRecord = false; recordView(); }
+    if (lib.startScribe) { lib.startScribe = false; if (can(3) && L.scribe_on) startScribe(); else D.toast(app, "Importing a Scribe guide needs an editor's place in this Library.", true); }
   }
 
   // ---------- Step 8b Part B: the plain-language Library (switch library_workspace; docs/briefs/step-8b-ux-retest.md) ----------
@@ -5381,6 +5410,7 @@
     libEl.appendChild(h("p", { class: "small muted", text: (function (x) { return x + (x.slice(-1) === "." ? "" : "."); })(libLimitText(L)) + " Your access to this Library: " + ROLE_WORDS[L.role] + "." }));
     if (ws.scroll !== null) { var y = ws.scroll; ws.scroll = null; setTimeout(function () { window.scrollTo(0, y); }, 0); }
     if (lib.startRecord) { lib.startRecord = false; recordView(); }
+    if (lib.startScribe) { lib.startScribe = false; if (can(3) && L.scribe_on) startScribe(); else D.toast(app, "Importing a Scribe guide needs an editor's place in this Library.", true); }
   }
 
   // New playbook: describe the task (type or talk), optionally attach files, and DELA drafts it

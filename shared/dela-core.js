@@ -633,6 +633,11 @@ D.openTab = function (getUrl, onFail, opts) {
     // name on its own line with its tag and its action under it.
     ".dela.nl .dw-wrap .card{margin:0}.dela.nl .dw-wrap .card>h2:first-child,.dela.nl .dw-wrap .card>.row:first-child:has(>h2),.dela.nl .dw-wrap .card>.row:first-child:has(>h3){margin:0 0 10px;padding:0;background:transparent;border-bottom:0;border-radius:0}.dela.nl .dw-wrap .card>h2{font-size:19px}" +
     ".dela.nl .dw-wrap .card .card.soft{margin:0 0 10px}.dw-ctx>b{overflow-wrap:anywhere;line-height:1.3}.dw-ctx-foot{gap:8px;margin-top:4px;align-items:center}.dw-ctx.on{border-color:#b6dcc5;background:var(--okbg)}.dw-msgs{margin:0 0 12px}.dw-fresh .dw-msgs{margin:0}" +
+    // The message box of the workspace (Stacey 2026-11-23: "the most important feature on the website"): three large
+    // ways to show DELA the work, then the box to type in, then one row with Send at the right
+    ".dela .dw-composer{padding:16px;border:2px solid var(--pink-ink);box-shadow:none}.dw-cap-h{margin:0 0 10px;font-size:17px}.dw-capture{display:grid;gap:10px;margin:0 0 12px;grid-template-columns:minmax(0,1fr)}@container (min-width:520px){.dw-capture-2{grid-template-columns:repeat(2,minmax(0,1fr))}.dw-capture-3{grid-template-columns:repeat(3,minmax(0,1fr))}}" +
+    ".dw-cap-tile{display:flex;flex-direction:column;gap:6px;text-align:center}.dela .dw-cap-btn{width:100%;min-height:52px;font-size:16px;font-weight:700;justify-content:center;border-radius:12px;border-width:2px}.dw-cap-or{display:block;font-weight:700;font-size:14px;margin:0 0 6px}.dw-composer textarea{min-height:110px}" +
+    ".dw-composer-row{gap:8px;flex-wrap:wrap;margin-top:10px;align-items:center}.dw-composer-row>div{margin:0}.dela .dw-send{min-width:110px;min-height:46px;font-size:16px}.dw-composer>.small.muted{margin:10px 0 0}" +
     ".dw-fresh .composer{position:static;box-shadow:none}.dw-chat-card .composer{bottom:8px}" +
     ".dw-review{border:1px solid #e8c97a;background:#fff3d6;color:#4a3200;border-radius:12px;padding:12px 14px;margin-top:10px}.dw-review .hsub{color:inherit}" +
     // Step 74: the member's own tags and private note on a bookmark (blue, so they do not read as the freelancer's own pink tags)

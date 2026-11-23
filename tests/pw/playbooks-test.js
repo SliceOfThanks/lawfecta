@@ -322,7 +322,7 @@ async function makeMember(bd, side, plan) {
     await s.ctx.close();
 
     // ---------- Step 75a: the Ask DELA workspace as the ten workflow mockups draw it ----------
-    await sql("update feature_switches set state = 'everyone' where key in ('new_layout', 'dela_workspace_v2'); select 1");
+    await sql("update feature_switches set state = 'everyone' where key in ('new_layout', 'dela_workspace_v2', 'recorder'); select 1");
     try {
       s = await open(browser, 2200, { width: 1500, height: 950 });
       await click(s.page, "Ask DELA");
@@ -339,6 +339,14 @@ async function makeMember(bd, side, plan) {
         const out = [...nav.querySelectorAll(".dw-cap, .dw-chat, .dw-item")].filter((e) => { const b = e.getBoundingClientRect(); return b.right > box.right + 0.5 || e.scrollWidth > e.clientWidth + 1; }).map((e) => e.textContent.slice(0, 30));
         return { out: out, cap: parseFloat(getComputedStyle(nav.querySelector(".dw-cap")).fontSize), wrap: getComputedStyle(nav.querySelector(".dw-chat")).whiteSpace }; });
       ok(navFit.out.length === 0 && navFit.cap <= 13 && navFit.wrap === "normal", "Fix: nothing in the menu card runs past its edge, the two headings are small, and a chat title may use two lines: " + JSON.stringify(navFit));
+      // Stacey 2026-11-23: the message box offers the ways to show DELA the work: talk, record the screen, bring in a Scribe guide
+      const capt = await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; return { h: (r.querySelector("#dw-cap-h") || {}).textContent, btns: [...r.querySelectorAll(".dw-capture .dw-cap-btn")].map((b) => b.textContent.trim()), heights: [...r.querySelectorAll(".dw-capture .dw-cap-btn")].map((b) => Math.round(b.getBoundingClientRect().height)), msg: !!r.querySelector("label[for=dw-msg]") && !!r.querySelector("#dw-msg") }; });
+      ok(capt.h === "Show DELA the work, in the way that is easiest for you" && capt.btns.includes("Record my screen") && capt.btns.includes("Import from Scribe") && capt.heights.every((x) => x >= 48) && capt.msg, "the message box opens with large buttons for recording the screen and a Scribe guide (and Talk where the browser has a microphone), and the box to type in has a label: " + JSON.stringify(capt));
+      await dela(s.page).locator("#dw-cap-scribe").click();
+      await waitFor(s.page, "Read the guide", 15000);
+      ok(true, "Import from Scribe opens the Scribe import");
+      await click(s.page, "Ask DELA");
+      await waitFor(s.page, "Working context", 15000);
       // Stacey 2026-11-23: plain white cards as in the mockups, even gaps, and the right column ends with the note
       const look75 = await s.page.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot, side = [...r.querySelectorAll(".dw-3 > .dw-side > *")], h2 = getComputedStyle(r.querySelector("#aw-using > h2"));
         const gaps = side.slice(1).map((e, i) => Math.round(e.getBoundingClientRect().top - side[i].getBoundingClientRect().bottom));
@@ -421,7 +429,7 @@ async function makeMember(bd, side, plan) {
       await s.page.waitForTimeout(300);
       ok(await s.page.evaluate(() => document.documentElement.scrollWidth) <= 392, "a workspace page fits a phone screen");
       await s.ctx.close();
-    } finally { await sql("update feature_switches set state = 'off' where key in ('new_layout', 'dela_workspace_v2'); select 1"); }
+    } finally { await sql("update feature_switches set state = 'off' where key in ('new_layout', 'dela_workspace_v2', 'recorder'); select 1"); }
 
     // ---------- Freelancer ----------
     s = await open(browser, 2202);
