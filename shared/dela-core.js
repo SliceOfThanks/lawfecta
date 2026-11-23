@@ -631,7 +631,7 @@ D.openTab = function (getUrl, onFail, opts) {
     // Stacey 2026-11-23 ("UI of this page doesn't look good"): the workspace pages follow the mockups' plain white
     // cards. No grey band behind a card's heading, even gaps between cards, and in "Working context" each playbook's
     // name on its own line with its tag and its action under it.
-    ".dela.nl .dw-wrap .card{margin:0}.dela.nl .dw-wrap .card>h2:first-child,.dela.nl .dw-wrap .card>.row:first-child:has(>h2),.dela.nl .dw-wrap .card>.row:first-child:has(>h3){margin:0 0 10px;padding:0;background:transparent;border-bottom:0;border-radius:0}.dela.nl .dw-wrap .card>h2{font-size:19px}" +
+    ".dela.nl .dw-wrap .card{margin:0}.dela.nl .dw-wrap .card>h2:first-child,.dela.nl .dw-wrap .card>.row:first-child:has(>h2),.dela.nl .dw-wrap .card>.row:first-child:has(>h3){margin:0 0 10px;padding:0;background:transparent;border-bottom:0;border-radius:0}.dela.nl .dw-wrap .card>h2{font-size:19px}.dela.nl .dw-wrap .card>h2.dw-cap{font-size:12px;margin:0 0 8px;padding:0 6px}.dela.nl .dw-wrap .card>h2.dw-cap2{margin-top:14px;padding-top:14px}" +
     ".dela.nl .dw-wrap .card .card.soft{margin:0 0 10px}.dw-ctx>b{overflow-wrap:anywhere;line-height:1.3}.dw-ctx-foot{gap:8px;margin-top:4px;align-items:center}.dw-ctx.on{border-color:#b6dcc5;background:var(--okbg)}.dw-msgs{margin:0 0 12px}.dw-fresh .dw-msgs{margin:0}" +
     // The message box of the workspace (Stacey 2026-11-23: "the most important feature on the website"): three large
     // ways to show DELA the work, then the box to type in, then one row with Send at the right
