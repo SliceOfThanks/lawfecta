@@ -40,7 +40,7 @@ No new switch, setting or number. Existing: dela_workspace_v2, new_layout, ask_d
 - The message box keeps a darker border than the mockup draws, for the contrast rule.
 - The grey line with the DELA actions left stays under the box.
 - The example with "Use this example" and the sentence about the whole back office are gone, as the mockup has neither.
-- The blue notice at the very top of the page comes from the setting data.notice_text and still tells members not to enter client names. It contradicts her rule and the new line. It is her text to change.
+- The blue notice at the top of every page follows the switch client_details_allowed. On www.lawfecta.co that switch is on for everyone, so the notice already states the sensitive data rule (setting data.notice_text_sensitive). The older wording that forbids client names (setting data.notice_text) shows only while the switch is off. Claude first reported this wrongly from a test copy where the switch was off (corrected 2026-11-23). The line under the message box follows the same switch.
 - The top bar and the main menu are the shell that exists and were not changed.
 
 ## Success looks like

@@ -3601,7 +3601,7 @@
           chat.busy ? h("button", { class: "ghost", type: "button", id: "chat-stop", onclick: stopSend }, "Stop") : null, sendB),
         improve,
         micOk ? null : (ai.voice_on ? h("p", { class: "small muted", style: "margin:8px 0 0", text: "Talking needs a browser with microphone support. You can type instead." }) : null),
-        h("p", { class: "dw-lock", role: "note", id: "dw-lock" }, icon("lock"), h("span", { text: "Never enter sensitive data: SSNs, account numbers, health details, passwords. Client names and case facts are fine." })));
+        h("p", { class: "dw-lock", role: "note", id: "dw-lock" }, icon("lock"), h("span", { text: "Never enter sensitive data: SSNs, account numbers, health details, passwords." + (sw.client_details_allowed ? " Client names and case facts are fine." : " Leave out client names and case details too.") })));
     }
     return h("div", { class: "composer" },
       aiNotice(),

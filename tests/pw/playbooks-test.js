@@ -397,7 +397,7 @@ async function makeMember(bd, side, plan) {
     await s.ctx.close();
 
     // ---------- Step 75a: the Ask DELA workspace as the ten workflow mockups draw it ----------
-    await sql("update feature_switches set state = 'everyone' where key in ('new_layout', 'dela_workspace_v2', 'recorder', 'automate_delegate', 'ai_helpers'); select 1");
+    await sql("update feature_switches set state = 'everyone' where key in ('new_layout', 'dela_workspace_v2', 'recorder', 'automate_delegate', 'ai_helpers', 'client_details_allowed'); select 1");
     try {
       s = await open(browser, 2200, { width: 1500, height: 950 });
       await click(s.page, "Ask DELA");
@@ -546,7 +546,15 @@ async function makeMember(bd, side, plan) {
       await s.page.waitForTimeout(300);
       ok(await s.page.evaluate(() => document.documentElement.scrollWidth) <= 392, "a workspace page fits a phone screen");
       await s.ctx.close();
-    } finally { await sql("update feature_switches set state = 'off' where key in ('new_layout', 'dela_workspace_v2', 'recorder', 'automate_delegate'); select 1"); }
+      // The line under the message box follows the client information switch: with it off, client names are not invited
+      await sql("update feature_switches set state = 'off' where key = 'client_details_allowed'; select 1");
+      const s2 = await open(browser, 2200, { width: 1500, height: 950 });
+      await click(s2.page, "Ask DELA");
+      await waitFor(s2.page, "Conversation context");
+      const lock2 = await dela(s2.page).locator("#dw-lock").innerText();
+      ok(lock2.includes("Never enter sensitive data") && !lock2.includes("are fine") && lock2.includes("Leave out client names and case details too."), "with the client details switch off, the line under the box does not say client names are fine: " + lock2);
+      await s2.ctx.close();
+    } finally { await sql("update feature_switches set state = 'off' where key in ('new_layout', 'dela_workspace_v2', 'recorder', 'automate_delegate', 'ai_helpers', 'client_details_allowed'); select 1"); }
 
     // ---------- Freelancer ----------
     s = await open(browser, 2202);
