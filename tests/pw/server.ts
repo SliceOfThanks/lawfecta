@@ -189,6 +189,12 @@ function fakeAi(u: string, opts: RequestInit): Response | null {
     if (system.includes("suggesting what the member")) return Response.json({ model: body.model, choices: [{ message: { content: "- Answer the open question\n- Book a call" } }], usage: { prompt_tokens: 5, completion_tokens: 5 } });
     if (system.includes("drafting a reply for the member")) return Response.json({ model: body.model, choices: [{ message: { content: "Thanks, Monday works for me." } }], usage: { prompt_tokens: 20, completion_tokens: 10 } });
     // Step 45: Ask DELA with the workspace on may end an answer with its one question and choices
+    // Step 78: asked which steps a freelancer could do, DELA names tasks tied to steps of the attached document (and two it must not show)
+    if (system.includes("TASK: DELEGATE") && String(body?.messages?.at(-1)?.content ?? "").includes("could a freelancer do")) {
+      const last78 = String(body.messages.at(-1).content), at = last78.indexOf('<document title="'), title78 = at < 0 ? "" : last78.slice(at + 17, last78.indexOf('"', at + 17));
+      return Response.json({ model: body.model, choices: [{ message: { content: "Based on your intake process, here are tasks a freelancer could handle, along with the items that should remain with an attorney." +
+        (title78 ? `\nTASK: DELEGATE | ${title78} | 1 | Run the conflict search | Search the firm's records and report every hit.\nTASK: KEEP | ${title78} | 2 | Approve the engagement | Decide whether the firm takes the matter.\nTASK: DELEGATE | ${title78} | 77 | A step that is not there | Nothing.\nTASK: DELEGATE | Someone else's manual | 1 | Not attached | Nothing.` : "") } }], usage: { prompt_tokens: 100, completion_tokens: 40 } });
+    }
     if (system.includes("QUESTION: the one question") && JSON.stringify(body?.messages?.at(-1) ?? "").includes("ask me")) return Response.json({ model: body.model, choices: [{ message: { content: "Here is a start." + (JSON.stringify(body.messages.at(-1)).includes("<document") ? " I used your document." : "") + "\n\nQUESTION: Which matters does this cover?\nCHOICES: New matters only | All open matters" } }], usage: { prompt_tokens: 30, completion_tokens: 20 } });
     const pb = playbookAnswer(system, JSON.stringify(body?.messages?.at(-1) ?? ""));
     if (pb) return Response.json({ model: body.model, choices: [{ message: { content: JSON.stringify(pb) } }], usage: { prompt_tokens: 200, completion_tokens: 80 } });

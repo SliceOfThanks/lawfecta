@@ -5,7 +5,7 @@ import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { unzipSync, strFromU8 } from "npm:fflate@0.8.2";
 import { handle, type Deps } from "./app.ts";
 import { sessionHash } from "./lib/crypto.ts";
-import { guidanceText, readAsk } from "./lib/ai/ask.ts";
+import { guidanceText, readAsk, readPlan, stepsIndex } from "./lib/ai/ask.ts";
 import { completeness, dayIn, normalize, removesReview, toCsv } from "./lib/playbooks/model.ts";
 import { readJson } from "./lib/playbooks/ai.ts";
 import type { Storage } from "./lib/files/storage.ts";
@@ -19,6 +19,7 @@ const FULL = {
   checks: ["Letter signed"], review_points: ["Attorney approves the engagement letter"], deliverables: "Opened file",
 };
 const sent: any[] = [];
+let planTitle = "";
 const SCRIBE_KEY = "sc_goodkey1234567890.abcdefghijklmnop", SCRIBE_PLAN = "sc_planless1234567890.abcdefghijklmn"; // rules-ok: made-up test keys
 const scribeCalls: Array<{ url: string; key: string; method: string; body: any }> = [];
 let scribeDown = false;
@@ -45,6 +46,7 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
     const user = String(body.messages.at(-1).content);
     // Ask DELA with the workspace on (step 45) answers in plain text, sometimes ending with its one question
     if (system.includes("QUESTION: the one question")) {
+      if (user.includes("list the tasks")) return Response.json({ model: body.model, choices: [{ message: { content: "Here is what a freelancer could take.\n\nTASK: DELEGATE | " + planTitle + " | 1 | Run the conflict search | Search the firm's records and report the hits.\nTASK: DELEGATE | " + planTitle + " | 2 | Approve the letter | Sign off on the engagement letter.\nTASK: DELEGATE | " + planTitle + " | 99 | A step that does not exist | Nothing.\nTASK: DELEGATE | Some other firm's manual | 1 | Not attached | Nothing.\nTASK: KEEP | " + planTitle + " | 1 | Said twice | Nothing.\nTASK: REMOVE | " + planTitle + " | 3 | Bad kind | Nothing.\n\nQUESTION: Who files the letter?\nCHOICES: The paralegal | The attorney" } }], usage: { prompt_tokens: 100, completion_tokens: 20 } });
       const text = user.includes("ask me") ? "Here is a start.\n\nQUESTION: Which matters does this cover?\nCHOICES: New matters only | All open matters" : "Done as asked.";
       return Response.json({ model: body.model, choices: [{ message: { content: text } }], usage: { prompt_tokens: 100, completion_tokens: 20 } });
     }
@@ -555,6 +557,44 @@ Deno.test("step 45: a chat uses only documents the member chose and may read, ma
   assertEquals(r2.body.context.docs, []);
   assert(!String(sent.at(-1).messages.at(-1).content).includes("<document"), "a removed document is no longer sent");
   assertEquals((await pool.query("select count(*)::int n from ai_chat_docs where chat_id = $1", [wsChat])).rows[0].n, 0);
+});
+
+Deno.test("step 78: task lines are read in code and tied to real steps of the documents that were sent", () => {
+  const docs = [{ id: "d1", title: "New Client Intake", version: 2, approved: true, steps: [{ text: "Send the questionnaire", attorney: false }, { text: "Decide on the engagement", attorney: true }, { text: "Open the file", attorney: false }] }];
+  assert(stepsIndex(docs[0].steps).includes("2. Decide on the engagement [ATTORNEY DECIDES]") && stepsIndex([]) === "");
+  const r = readPlan("Intro.\nTASK: DELEGATE | new client intake | 1 | Questionnaire | Send it.\ntask: delegate | New Client Intake | step 2 | Engagement | Decide.\nTASK: KEEP | New Client Intake | 3 | Open | Why.\nTASK: DELEGATE | New Client Intake | 4 | No such step | x\nTASK: DELEGATE | Another | 1 | Wrong document | x\nTASK: DELEGATE | New Client Intake | 1 | Twice | x\nTASK: DELEGATE | New Client Intake | 3\nOutro.", docs);
+  assertEquals(r.text, "Intro.\nOutro.", "task lines never show as text, also the ones that were dropped");
+  assertEquals(r.tasks.map((t) => [t.kind, t.step, t.title]), [["delegate", 1, "Questionnaire"], ["keep", 2, "Engagement"], ["keep", 3, "Open"]], "a step the document gives to the attorney is never shown as delegable; unknown steps and documents are dropped");
+  assertEquals([r.tasks[0].doc_id, r.tasks[0].step_text], ["d1", "Send the questionnaire"], "each task carries the real step's own words");
+  assertEquals(readPlan("TASK: DELEGATE | New Client Intake | 1 | A | b", [{ ...docs[0], steps: [] }]).tasks, [], "no numbered list was sent, so nothing can be tied to a step");
+  assertEquals(readPlan("TASK: DELEGATE | New Client Intake | 1 | A | b", []).tasks, [], "no document, no tasks");
+  assertEquals(readPlan(Array.from({ length: 12 }, () => "TASK: DELEGATE | New Client Intake | 1 | A | b").join("\n"), docs).tasks.length, 1);
+});
+
+Deno.test("step 78: an answer keeps its checked sources, and they come back when the chat is opened again", async () => {
+  await pool.query("update feature_switches set state = 'everyone' where key = 'ask_dela_workspace'");
+  const mine = (await call("GET", "/ai/chat/docs", owner.token)).body;
+  planTitle = mine.docs.find((d: any) => d.id === pb).title;
+  const r = await call("POST", "/ai/chat/send", owner.token, { content: "Please list the tasks a freelancer could do.", request_id: "p78-1", doc_ids: [pb] });
+  assertEquals(r.body.ok, true, JSON.stringify(r.body));
+  assert(String(sent.at(-1).messages.at(-1).content).includes("Steps, numbered:\n1. "), "the document's steps go to the AI as a numbered list");
+  assert(String(sent.at(-1).messages[0].content).includes("TASK: DELEGATE | the document's title | step number"), "the rule for task lines is in the system prompt");
+  assert(!r.body.reply.content.includes("TASK:") && r.body.reply.content.startsWith("Here is what a freelancer could take."), "task lines are not shown as text: " + r.body.reply.content);
+  assertEquals(r.body.ask.question, "Who files the letter?", "the one next question is still read after the task lines");
+  const meta = r.body.reply.meta;
+  assertEquals(meta.docs.map((d: any) => [d.id, d.approved]), [[pb, true]]);
+  assert(meta.tasks.length >= 1 && meta.tasks.length <= 2 && meta.tasks.every((t: any) => t.doc_id === pb && t.step >= 1 && t.step <= 3 && t.step_text), "only tasks tied to a real step of the attached document are kept: " + JSON.stringify(meta.tasks));
+  assert(!meta.tasks.some((t: any) => t.title === "A step that does not exist" || t.title === "Not attached" || t.title === "Said twice" || t.title === "Bad kind"));
+  const again = (await call("GET", "/ai/chat?id=" + r.body.chat_id, owner.token)).body;
+  const last = (again.chat ?? again).messages.at(-1);
+  assertEquals(last.meta.tasks, meta.tasks, "the sources are stored with the answer");
+  // The stored sources cannot be rewritten afterwards, and another chat's answer cannot be touched
+  await pool.query("select dela_ai_message_meta_set($1, $2, $3)", [r.body.chat_id, r.body.reply.id, JSON.stringify({ tasks: [{ title: "changed" }] })]);
+  await pool.query("select dela_ai_message_meta_set($1, $2, $3)", [crypto.randomUUID(), r.body.reply.id, JSON.stringify({ tasks: [] })]);
+  assertEquals((await pool.query("select meta from ai_messages where id = $1", [r.body.reply.id])).rows[0].meta.tasks, meta.tasks);
+  // No document chosen: no tasks, whatever the model writes
+  const none = await call("POST", "/ai/chat/send", owner.token, { content: "Please list the tasks again.", request_id: "p78-2", chat_id: r.body.chat_id, doc_ids: [] });
+  assertEquals([none.body.reply.meta.tasks, none.body.reply.content.includes("TASK:")], [[], false]);
 });
 
 Deno.test("step 45: a document the member may not read is left out and named, even when its id is sent directly", async () => {

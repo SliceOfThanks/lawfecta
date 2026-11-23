@@ -69,8 +69,10 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Do: click "Chats & pages" at the far right of the heading.
    Expect: a list with the small heading "EARLIER CHATS" and earlier chats under it, the grey words "Chats and drafts remain separate records. Starting a new chat does not delete previous work.", then the small heading "WORKSPACE PAGES" with six lines: "My playbooks", "Delegation opportunities", "Gig drafts", "Playbook changes", "Decisions & blockers", "DELA instructions".
    Do: press the Esc key. Then, in the card "Conversation context", click "Manage".
-   Expect: the card grows. It shows a box "Firm profile" and up to three playbooks, each with a grey tag "Not selected" and an underlined word "Select", and at the bottom an outlined button "Manage playbooks". The word "Manage" now reads "Close".
-   Do: click "Manage playbooks".
+   Expect: a window opens over the page, headed "Sources for this conversation", with the cursor in a search box "Search all playbooks by name". Under the box: a grey line that starts "0 of 3 selected", the small heading "SELECTED FOR THIS CHAT", then the small heading "CHANGED MOST RECENTLY" with at most five playbooks. Each has a dark red button "Select"; a draft also has a yellow tag "Draft". If the firm has more, a grey line says how many more and to use the search box.
+   Do: type exactly: conflict
+   Expect: the list changes to the playbooks with "conflict" in their name. "Run a Conflict Check" is one of them.
+   Do: clear the search box. Then click "Open My playbooks" at the bottom left of the window.
    Expect: a page headed "My Playbooks". The light bar across the top reads "Ask DELA / My Playbooks Library". At the far right of the heading, a dark red button "+ Create playbook".
    Expect: a row of five rounded buttons: "All playbooks" (dark), "Approved", "Drafts", "In review", "Archived".
    Expect: a card "Playbook library" with a search box at its top right and a table with the column names "Playbook", "Owner role", "Version", "Status", "Action".
@@ -88,18 +90,21 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 
 6. Do: at the right, in the card "Selected for DELA", click "Chat about this playbook".
    Expect: the chat page. The light bar across the top reads "Ask DELA". In the card "Conversation context", the grey line ends "1 playbook selected".
-   Do: if the card does not show a box "Open a Matter in Clio", click "Manage" in it.
-   Expect: a box "Open a Matter in Clio" with a green tag "Selected", the grey words "SOP · Approved, version 10" and an underlined word "Remove".
 
-7. Do: click in the large message box and type exactly: Which steps of opening a matter could I hand to a freelancer? Ask me one question first.
+7. Do: click in the large message box and type exactly: Which steps of opening a matter could a freelancer do, and which must stay with an attorney?
    Click the dark red button "Send". Wait up to 60 seconds.
-   Expect: the light blue band and the three cards are gone. Your message and DELA's answer show in a wide card at the left, under a title for this chat, with the message box under them. At the right: the card "Conversation context", a card "Suggested next actions" and a light blue note that ends "Suggestions are not approvals."
+   Expect: the light blue band and the three cards are gone. The button "New chat" at the top right is now filled dark red.
+   Expect, at the left, one wide white card. In it: your message at the right in a light blue bubble with a round dark red badge of initials beside it. Under it DELA's answer in a white box with a small pink sparkle square at its left.
+   Expect, inside DELA's answer: a light blue bar "Open a Matter in Clio" with "Version 10 · Approved" and the dark red words "View source" at its right.
+   Write down whether DELA's answer also shows a green section "Tasks that can be delegated" and a peach section "Keep with an attorney". If it does: each line has a small grey tag "Source: Step" with a number, and "View source". Write PASS for this part if every number is a real step of "Open a Matter in Clio" (click one "View source" to look, then use the browser's Back button), FAIL if a number points to a step that does not exist.
+   Expect, under the answer: buttons from this list (some may be missing): "Review delegation tasks", "Prepare gig draft", "Save as a playbook draft", and the underlined words "Correct DELA's understanding".
+   Expect, under the answer: a smaller message box "Ask a follow-up or describe the next step...", then "Add", "Talk", "Send", then one light blue strip with a shield, the line that starts "Never enter sensitive data", and at its right "AI usage: View details".
+   Expect, at the right: the card "Conversation context" with the grey line "The sources DELA can use for this conversation.", one light green box "Open a Matter in Clio" with "Version 10 · Selected" and a green tick, and an outlined button "Manage sources". Under it a peach card "What happens next?" that ends "until you decide to proceed."
+   Do: click "Correct DELA's understanding".
+   Expect: the message box now starts "That is not quite right. Correction:" and a small message says this corrects this chat only. Nothing is sent. Clear the message box.
    Do: click "Chats & pages".
-   Expect: the chat's title is the first line under "EARLIER CHATS".
+   Expect: at the top of the list a search box "Search chats and pages", then the small heading "THIS CHAT" with the buttons "Save to library" and "Delete this chat", then "EARLIER CHATS" with this chat's title first. Do NOT click "Delete this chat".
    Do: press the Esc key.
-   If a box headed "A useful next question" with one to three answer buttons shows under DELA's answer: click its first button.
-   Expect then: the button's words are placed in the message box and a small message says nothing is sent until you click Send. Do not send it.
-   Write whether the box "A useful next question" showed.
 
 8. Do: at the far right of the heading "Ask DELA", click "Chats & pages", then click "DELA instructions" in the list.
    Expect: a page headed "DELA Instructions & Firm Context", with a dark red button "+ Propose instruction" at the far right. The light bar across the top reads "Ask DELA / DELA Instructions & Firm Context".
@@ -131,7 +136,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 11. Go to: https://www.lawfecta.co/dela?tab=delegate&ws=playbooks
     Expect: the page "My Playbooks" opens directly, with the table.
 
-12. REVIEW. (a) On the first screen, is it clear at once what to do, and can you find the other Ask DELA pages and earlier chats without help? (b) On "My Playbooks", is it clear what "Select for DELA" does and what the difference is between "Open", "Continue" and "Review"? (c) On the instructions page, is it clear that a proposal is not in use until it is approved? (d) Was anything crowded, cut off or confusing on any of the pages?
+12. REVIEW. (a) On the first screen, is it clear at once what to do, and can you find the other Ask DELA pages and earlier chats without help? (b) On "My Playbooks", is it clear what "Select for DELA" does and what the difference is between "Open", "Continue" and "Review"? (c) On the instructions page, is it clear that a proposal is not in use until it is approved? (d) In the conversation, is it clear which playbook and which steps DELA's answer comes from, and that nothing is published by the buttons under it? (e) Was anything crowded, cut off or confusing on any of the pages?
 
 Sign out: click the round button with your initials at the far right of the top bar, then click "Sign out".
 

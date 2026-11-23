@@ -427,7 +427,7 @@ async function makeMember(bd, side, plan) {
       await dela(s.page).locator("#dw-add").focus();
       await s.page.keyboard.press("ArrowDown");
       const addList = await sr77(`return { open: r.querySelector("#dw-add").getAttribute("aria-expanded"), items: [...r.querySelectorAll("#dw-add-list .dw-item b")].map((x) => x.textContent), at: (r.activeElement || {}).id }`);
-      ok(addList.open === "true" && addList.items.includes("Record my screen") && addList.items.includes("Import from Scribe") && addList.items.includes("Improve my request") && addList.items[0] === "Attach a file" && addList.at === "dw-add-file", "Add opens from the keyboard with Attach a file, Record my screen, Import from Scribe and Improve my request, and the first line has the focus: " + JSON.stringify(addList));
+      ok(addList.open === "true" && addList.items.includes("Record my screen") && addList.items.includes("Import from Scribe") && addList.items.includes("Improve my request") && addList.items[0] === "Add a playbook as a source" && addList.items[1] === "Attach a file" && addList.at === "dw-add-source", "Add opens from the keyboard with Add a playbook as a source, Attach a file, Record my screen, Import from Scribe and Improve my request, and the first line has the focus: " + JSON.stringify(addList));
       await s.page.keyboard.press("Escape");
       ok((await sr77(`return r.querySelector("#dw-add").getAttribute("aria-expanded") + "|" + getComputedStyle(r.querySelector("#dw-add-list")).display + "|" + (r.activeElement || {}).id`)) === "false|none|dw-add", "Escape closes the list and the Add button has the focus again");
       await dela(s.page).locator("#dw-add").click();
@@ -451,11 +451,27 @@ async function makeMember(bd, side, plan) {
       ok(pg.chats >= 1 && pg.kept === "Chats and drafts remain separate records. Starting a new chat does not delete previous work." && pg.items[0] === "My playbooks" && pg.items[pg.items.length - 1] === "DELA instructions" && pg.right, "Chats & pages lists the earlier chats, says a new chat deletes nothing, and lists the workspace pages: " + pg.items.join(", "));
       await s.page.mouse.click(5, 400);
       ok((await sr77(`return getComputedStyle(r.querySelector("#dw-pages-list")).display`)) === "none", "a click elsewhere closes the list");
-      // "Manage" opens the choices inside the context card
+      // Step 78 (Stacey 2026-11-23: "only show the most recent 3-5 ... the user can still pull in older context items easily"):
+      // "Manage" opens the source picker: what is selected, the five changed most recently, and a search over all of them
       await dela(s.page).locator("#dw-manage").click();
-      await dela(s.page).getByRole("button", { name: /^Select .* for this chat$/ }).first().click();
-      await dela(s.page).locator(".dw-ctx.on").first().waitFor({ timeout: 8000 });
-      ok((await dela(s.page).locator(".dw-ctx.on").first().innerText()).includes("Selected") && await dela(s.page).getByRole("button", { name: /^Remove .* from this chat$/ }).count() === 1 && (await dela(s.page).locator("#dw-ctx-line").innerText()).endsWith("1 playbook selected"), "Manage shows the playbooks; one click selects one, and the line at the top counts it");
+      await dela(s.page).locator("#dw-src").waitFor({ timeout: 8000 });
+      const pick = await sr77(`const d = r.querySelector("#dw-src"); return { modal: d.getAttribute("aria-modal"), at: (r.activeElement || {}).id, caps: [...d.querySelectorAll(".dw-cap")].map((x) => x.textContent), rows: d.querySelectorAll(".dw-src-row").length, count: r.querySelector("#dw-src-count").textContent }`);
+      ok(pick.modal === "true" && pick.at === "dw-src-q" && pick.caps.join("|") === "Selected for this chat|Changed most recently" && pick.rows >= 1 && pick.rows <= 5 && pick.count.startsWith("0 of 3 selected"), "the source picker opens with the search box in focus and at most five recent playbooks: " + JSON.stringify(pick));
+      await dela(s.page).locator("#dw-src-q").fill("zzz-nothing");
+      ok((await dela(s.page).locator("#dw-src-list").innerText()).includes("No playbook has those words in its name."), "a search with no match says so");
+      await dela(s.page).locator("#dw-src-q").fill("client intake");
+      await dela(s.page).locator("#dw-src .dw-src-row").first().waitFor();
+      const hit = await sr77(`const rows = [...r.querySelectorAll("#dw-src .dw-src-row")]; return { n: rows.length, first: rows[0].textContent, cap: r.querySelector("#dw-src .dw-cap").textContent }`);
+      ok(hit.n >= 1 && /New client intake/.test(hit.first) && /Approved, version/.test(hit.first) && /fit/.test(hit.cap), "typing part of a name finds a playbook that is not among the recent ones: " + JSON.stringify(hit));
+      await dela(s.page).locator("#dw-src .dw-src-row").first().getByRole("button", { name: /^Select .* for this chat$/ }).click();
+      await dela(s.page).locator("#dw-src-q").fill("");
+      const sel1 = await sr77(`const d = r.querySelector("#dw-src"); return { count: r.querySelector("#dw-src-count").textContent, on: d.querySelectorAll(".dw-src-row.on").length, remove: [...d.querySelectorAll(".dw-src-row.on button")].map((x) => x.textContent) }`);
+      ok(sel1.count.startsWith("1 of 3 selected") && sel1.on === 1 && sel1.remove.join("") === "Remove", "one click selects it; it moves under Selected with a Remove button: " + JSON.stringify(sel1));
+      await s.page.keyboard.press("Escape");
+      ok((await dela(s.page).locator("#dw-src").count()) === 0 && (await sr77(`return (r.activeElement || {}).id`)) === "dw-manage" && (await dela(s.page).locator("#dw-ctx-line").innerText()).endsWith("1 playbook selected"), "Escape closes the picker, the focus goes back to Manage, and the card's line counts the selection");
+      await dela(s.page).locator("#dw-add").click();
+      ok(await dela(s.page).locator("#dw-add-source").count() === 1, "Add also offers a playbook as a source");
+      await s.page.keyboard.press("Escape");
       // On a short screen the message box still covers nothing
       await s.page.setViewportSize({ width: 1500, height: 520 });
       await s.page.waitForTimeout(200);
@@ -467,16 +483,46 @@ async function makeMember(bd, side, plan) {
       ok(narrow.stack && narrow.cards === 3 && narrow.wide, "on a narrow screen the context card goes under the band, the three cards stack, and the page does not scroll sideways: " + JSON.stringify(narrow));
       await s.page.setViewportSize({ width: 1500, height: 950 });
       await s.page.waitForTimeout(200);
-      // A conversation that has started: the band and the cards make room for the messages
+      // Step 78: a conversation in progress, as the second mockup draws it
       await dela(s.page).locator("#dw-msg").fill("Which intake steps could a freelancer do?");
       await dela(s.page).locator(".dw-send").click();
-      await dela(s.page).locator(".dw-2 .msg.assistant:not(.muted)").first().waitFor({ timeout: 20000 });
-      const going = await sr77(`const b = (x) => r.querySelector(x).getBoundingClientRect(); return { hero: !!r.querySelector(".dw-hero"), starts: !!r.querySelector(".dw-start"), ctx: !!r.querySelector(".dw-2 #aw-using"), next: !!r.querySelector("#aw-next"), under: b(".dw-2 .composer").top >= b(".dw-msgs").top, ph: r.querySelector("#dw-msg").placeholder, note: /Suggestions are not approvals/.test(r.querySelector(".dw-2").textContent) }`);
-      ok(!going.hero && !going.starts && going.ctx && going.next && going.under && going.note && going.ph === "Ask a follow-up or describe the result you need...", "once a chat has started, the messages take the place of the band and cards, with the context and next actions at the right: " + JSON.stringify(going));
-      await s.page.screenshot({ path: path.join(SHOTS, "77-ask-dela-chat.png"), fullPage: true });
-      if (!(await dela(s.page).locator("#aw-add").count())) await dela(s.page).locator("#dw-manage").click();
+      await dela(s.page).locator(".dw-2 .dw-turn.ai .dw-ans-acts").first().waitFor({ timeout: 20000 });
+      const going = await sr77(`const q = (x) => r.querySelector(x), b = (x) => q(x).getBoundingClientRect(), cs = (x, p) => getComputedStyle(q(x))[p];
+        return { hero: !!q(".dw-hero"), starts: !!q(".dw-start"), top: !!q(".dw-chat-top"), me: q(".dw-turn.me .msg.user").textContent, meRight: b(".dw-turn.me .dw-av").left > b(".dw-turn.me .msg.user").right - 2, av: q(".dw-turn.me .dw-av").textContent.length,
+          text: q(".dw-ans-text").textContent, bar: q(".dw-srcbar").textContent, okH: (q(".dw-tasks.ok h3") || {}).textContent, okRows: [...r.querySelectorAll(".dw-tasks.ok li b")].map((x) => x.textContent), keepRows: [...r.querySelectorAll(".dw-tasks.keep li b")].map((x) => x.textContent),
+          chips: [...r.querySelectorAll(".dw-chip")].map((x) => x.textContent), acts: [...r.querySelectorAll(".dw-ans-acts button")].map((x) => x.textContent.trim()), all: q(".dw-conv").textContent,
+          ctxLine: q("#dw-ctx-line").textContent, sel: [...r.querySelectorAll("#aw-using .dw-srcsel b")].map((x) => x.textContent), manage: q("#dw-manage").textContent.trim(), next: q("#dw-next-h").textContent + "|" + q("#dw-next-p").textContent,
+          under: b(".dw-2 .composer").top >= b(".dw-msgs").bottom - 2, ph: q("#dw-msg").placeholder, usage: q(".dw-usage").innerText + "#" + q("#dw-usage-link").textContent + "#" + Math.round(b("#dw-lock").height), newBg: cs("#chat-new", "backgroundColor"), meBg: cs(".dw-turn.me .msg.user", "backgroundColor"), okBg: q(".dw-tasks.ok h3") ? cs(".dw-tasks.ok h3", "backgroundColor") : "", nextBg: cs("#aw-next", "backgroundColor"), side: b(".dw-conv").right <= b("#aw-using").left + 1 };`);
+      ok(!going.hero && !going.starts && !going.top && going.me === "Which intake steps could a freelancer do?" && going.meRight && going.av >= 1, "the member's words sit at the right in a blue bubble with their initials; the band and cards are gone");
+      ok(going.text.startsWith("Based on your intake process") && !going.all.includes("TASK:") && /New client intake/.test(going.bar) && /Version \d+ · Approved/.test(going.bar) && going.bar.includes("View source"), "DELA's answer names the playbook it used, with its version and View source: " + going.bar);
+      ok(going.okH === "Tasks that can be delegated" && going.okRows.join("|") === "Run the conflict search" && going.chips.includes("Source: Step 1") && !going.all.includes("A step that is not there") && !going.all.includes("Not attached"), "the tasks DELA named are listed with the real step each comes from; a step or a playbook that does not exist is never shown: " + JSON.stringify([going.okRows, going.keepRows, going.chips]));
+      ok(going.acts.includes("Review delegation tasks") && going.acts.includes("Correct DELA's understanding"), "the next steps sit under the answer: " + going.acts.join(", "));
+      ok(going.ctxLine === "The sources DELA can use for this conversation." && going.sel.length === 1 && /New client intake/.test(going.sel[0]) && going.manage === "Manage sources", "the context card shows only what is selected, and Manage sources: " + JSON.stringify(going.sel));
+      ok(going.next.startsWith("What happens next?|Review the suggested tasks") && going.next.includes("Nothing is published or shared until you decide to proceed."), "What happens next says what to do and that nothing is published");
+      ok(going.under && going.ph === "Ask a follow-up or describe the next step..." && going.usage.includes("AI usage:") && going.usage.split("#")[1] === "View details" && Number(going.usage.split("#")[2]) < 90 && going.side, "the message box is under the messages, with the safety line and AI usage in one strip");
+      ok(going.newBg === "rgb(146, 35, 70)" && going.meBg === "rgb(220, 235, 251)" && going.okBg === "rgb(227, 244, 234)" && going.nextBg === "rgb(253, 241, 228)", "the colors are the mockup's: dark red New chat, blue bubble, green task heading, peach What happens next: " + JSON.stringify([going.newBg, going.meBg, going.okBg, going.nextBg]));
+      await s.page.screenshot({ path: path.join(SHOTS, "78-ask-dela-conversation.png"), fullPage: true });
+      await dela(s.page).locator("#dw-correct").click();
+      ok((await dela(s.page).locator("#dw-msg").inputValue()).startsWith("That is not quite right. Correction: ") && (await sr77(`return (r.activeElement || {}).id`)) === "dw-msg", "Correct DELA's understanding puts a start in the message box and sends nothing");
+      await dela(s.page).locator("#dw-msg").fill("");
+      // The sources are kept with the answer: they are there again after the page is opened anew
+      await s.page.reload();
+      await waitFor(s.page, "Conversation context", 20000);
+      await dela(s.page).locator("#dw-pages").click();
+      const pg2 = await sr77(`return { caps: [...r.querySelectorAll("#dw-pages-list .dw-cap")].map((x) => x.textContent), save: !!r.querySelector("#dw-chat-save"), del: !!r.querySelector("#dw-chat-del"), q: !!r.querySelector("#dw-pages-q") }`);
+      if (pg2.caps[0] !== "This chat") { await dela(s.page).locator("#dw-pages-list .dw-chat").first().click(); await dela(s.page).locator(".dw-2 .dw-turn.ai").first().waitFor({ timeout: 15000 }); await dela(s.page).locator("#dw-pages").click(); }
+      const pg3 = await sr77(`return { caps: [...r.querySelectorAll("#dw-pages-list .dw-cap")].map((x) => x.textContent), save: !!r.querySelector("#dw-chat-save"), del: !!r.querySelector("#dw-chat-del"), q: !!r.querySelector("#dw-pages-q") }`);
+      ok(pg3.caps.join("|") === "This chat|Earlier chats|Workspace pages" && pg3.save && pg3.del && pg3.q, "Chats & pages has a search box, and Save to library and Delete this chat for the open chat: " + JSON.stringify(pg3));
+      await dela(s.page).locator("#dw-pages-q").fill("decisions");
+      const pg4 = await sr77(`return { items: [...r.querySelectorAll("#dw-pages-list .dw-item")].map((x) => x.textContent.trim()), at: (r.activeElement || {}).id, caps: [...r.querySelectorAll("#dw-pages-list .dw-cap")].map((x) => x.textContent) }`);
+      ok(pg4.items.join("|") === "Decisions & blockers" && pg4.at === "dw-pages-q" && !pg4.caps.includes("This chat"), "typing in it narrows the chats and pages and keeps the cursor in the box: " + JSON.stringify(pg4));
+      await dela(s.page).locator("#dw-pages-q").fill("");
+      await s.page.keyboard.press("Escape");
+      ok(await sr77(`return r.querySelectorAll(".dw-tasks.ok li").length === 1 && /New client intake/.test(r.querySelector(".dw-srcbar").textContent)`), "after opening the chat again the answer still shows its source and its tasks");
+      await dela(s.page).locator("#dw-manage").click();
+      await dela(s.page).locator("#dw-src").waitFor({ timeout: 8000 });
+      await click(s.page, "Open My playbooks");
       // Screen 2: My Playbooks
-      await click(s.page, "Manage playbooks");
       t = await waitFor(s.page, "Playbook library");
       ok(t.includes("My Playbooks") && t.includes("Selected for DELA") && t.includes("Don't have an approved playbook?") && t.includes("+ Create playbook") && t.includes("View versions & history"), "My Playbooks has the table, what is selected for DELA and the way to start without a playbook");
       await dela(s.page).locator(".dw-table tbody tr").first().waitFor({ timeout: 10000 });
