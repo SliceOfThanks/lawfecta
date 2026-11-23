@@ -8,7 +8,10 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - "What we agreed" in conversations: "LEAVE OUT". The AI tools menu keeps its three tools.
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
-## Newest (2026-11-23, night): the review of steps 74 and 75 is done and its main faults are fixed
+## Newest (2026-11-23, late): the chat page after Stacey's look; the message box leads with Talk, Record my screen and Import from Scribe
+code_version 4e1fd33 (browser only, run 45249427307). Open question for Stacey: whether she wants a direct connection to a Scribe account (today DELA reads a guide exported from Scribe as a file).
+
+## Earlier (2026-11-23, night): the review of steps 74 and 75 is done and its main faults are fixed
 code_version 5c1b91f (browser only, run 45232081694). docs/reviews/step-74-75-review-2026-11-23.md. Open from it: the name and budget of a handoff of several tasks (server), the wording and mockup differences (sections E and F), the table and wide-screen layout (D4, D5), and the sensitive data check when client_details_allowed is off (section H).
 
 ## Earlier (2026-11-23, later): the old places open the new Ask DELA pages
