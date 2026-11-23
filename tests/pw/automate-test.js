@@ -156,7 +156,7 @@ const DOC = (title) => JSON.stringify({ schema: 2, type: "sop", title, lifecycle
       await dela(s.page).locator("#dw-review-deps").click();
       t = await waitFor(s.page, "Handoff summary", 15000);
       ok(t.includes("Partial Delegation & Dependencies") && t.includes("Selected work") && t.includes("2 tasks selected") && t.includes("Excluded") && t.includes("Prerequisites & inputs") && t.includes("Completion criteria") && t.includes("Next step") && s.page.url().includes("ws=handoff") && s.page.url().includes("handoff="), "Review dependencies & ownership opens the handoff page with its own address: " + s.page.url());
-      ok(t.includes("The selected steps do not build on a step your firm keeps.") && await dela(s.page).locator("#dw-hand-preview").isDisabled() && await dela(s.page).locator("#dw-gig-make").isDisabled() && t.includes("Approve the instructions first."), "no prerequisite yet, and the preview and the gig draft wait for the instructions");
+      ok(t.includes("The selected steps do not build on a step your firm keeps.") && await dela(s.page).locator("#dw-hand-preview").isDisabled() && await dela(s.page).locator("#dw-gig-make").isDisabled() && t.includes("Approve the guide first.") && t.includes("1. Step-by-step guide for this part"), "no prerequisite yet, and the preview and the gig draft wait for the guide");
       await dela(s.page).locator("#dw-steps-edit").click();
       ok(await dela(s.page).getByLabel("Hand over step 4").count() === 0 && await dela(s.page).getByLabel("Hand over step 3").count() === 1, "the attorney's step cannot be handed over");
       await dela(s.page).getByLabel("Hand over step 1").uncheck();
@@ -169,9 +169,15 @@ const DOC = (title) => JSON.stringify({ schema: 2, type: "sop", title, lifecycle
       t = await waitFor(s.page, "Criteria saved.");
       ok((await dela(s.page).locator("#dw-crit-done").innerText()) === "Every returned form is logged and the missing ones are listed.", "Edit criteria saves what done means");
       await dela(s.page).locator("#dw-sop-draft").click();
-      await waitFor(s.page, "DELA drafted the instructions for just these steps.", 20000);
+      await waitFor(s.page, "DELA drafted the guide for just these steps.", 20000);
       await dela(s.page).locator("#dw-sop-approve").click();
-      await waitFor(s.page, "The instructions are approved.", 15000);
+      // Fix (review 2026-11-23): approving asks once and says what it does; Cancel gives the button back
+      await dela(s.page).locator("#dw-sop-approve-yes").waitFor({ timeout: 5000 });
+      ok((await text(s.page)).includes("Approve this guide? It becomes the approved wording a freelancer works from") && (await sql(`select count(*)::int n from playbooks where status = 'approved' and id in (select sop_id from delegations where playbook_id = '${pb2}')`))[0].n === 0, "Approve the guide asks first, and approves nothing until the answer");
+      await dela(s.page).locator("#dw-sop-approve-no").click();
+      await dela(s.page).locator("#dw-sop-approve").click();
+      await dela(s.page).locator("#dw-sop-approve-yes").click();
+      await waitFor(s.page, "The guide is approved.", 15000);
       await dela(s.page).locator("#dw-gig-make").click();
       t = await waitFor(s.page, "The gig draft is prepared. It is not posted.", 20000);
       ok(await dela(s.page).locator("#dw-hand-gig").count() === 1 && !(await dela(s.page).locator("#dw-hand-preview").isDisabled()) && t.includes("Assign input owners") && (await sql(`select g.status from gigs g join delegations d on d.gig_id = g.id where d.playbook_id = '${pb2}'`))[0].status === "draft", "Prepare gig draft makes a draft gig and posts nothing; the preview and the input owners open from here");
@@ -179,7 +185,7 @@ const DOC = (title) => JSON.stringify({ schema: 2, type: "sop", title, lifecycle
       await waitFor(s.page, "Handoff summary", 15000);
       await s.page.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=delegate&ws=opportunities&doc=${pb2}`);
       t = await waitFor(s.page, "Handoffs from this playbook", 15000);
-      ok(t.includes("Handed over") && t.includes("gig drafted, not posted") && await dela(s.page).getByLabel("Select the task: Collect and log intake forms").isDisabled(), "a task already handed over says so and cannot be selected again");
+      ok(t.includes("In preparation") && !t.includes("Handed over") && t.includes("gig drafted, not posted") && await dela(s.page).getByLabel("Select the task: Collect and log intake forms").isDisabled(), "Fix: a task whose handoff is only in preparation says so, never Handed over, and cannot be selected again");
       // The old place, the card on a document, now sends a task to the workspace page instead of opening its own panel
       const pb3 = await mk("Onboard a new client", "au-b3");
       await s.page.goto(`${BASE}/page/DELA-App?uid=${ATT}&plan=&tab=library&pb=${pb3}`);
@@ -191,6 +197,26 @@ const DOC = (title) => JSON.stringify({ schema: 2, type: "sop", title, lifecycle
       t = await waitFor(s.page, "Your selection", 15000);
       await dela(s.page).locator(".dw-task.on").waitFor({ timeout: 10000 });
       ok((await dela(s.page).locator("#dw-sel-n").innerText()) === "1" && s.page.url().includes("ws=opportunities") && s.page.url().includes(pb3) && (await sql(`select count(*)::int n from delegations where playbook_id = '${pb3}'`))[0].n === 0, "it opens Delegation Opportunities for that playbook with the task already ticked, and nothing is handed over yet");
+      // Fix (review 2026-11-23): a handoff that is stopped and started again holds only what is ticked now
+      ok((await text(s.page)).includes("This starts a handoff in preparation with the ticked tasks."), "the button says that it starts a handoff");
+      await dela(s.page).locator("#dw-review-deps").click();
+      await waitFor(s.page, "Handoff summary", 15000);
+      await dela(s.page).locator("#dw-steps-edit").click();
+      await dela(s.page).getByLabel("Hand over step 3").check();
+      await dela(s.page).locator("#dw-steps-save").click();
+      await waitFor(s.page, "Selection saved.");
+      ok((await sql(`select steps from delegations where playbook_id = '${pb3}'`))[0].steps.length === 3, "the handoff now holds three steps");
+      await dela(s.page).locator("#dw-hand-stop").click();
+      await dela(s.page).locator("#dw-hand-stop-yes").waitFor({ timeout: 5000 });
+      ok((await text(s.page)).includes("Stop this handoff? Its selection, guide and criteria are set aside.") && (await sql(`select status from delegations where playbook_id = '${pb3}'`))[0].status !== "canceled", "Stop this handoff asks first");
+      await dela(s.page).locator("#dw-hand-stop-yes").click();
+      t = await waitFor(s.page, "Your selection", 15000);
+      await dela(s.page).getByLabel("Select the task: Collect and log intake forms").check();
+      await dela(s.page).locator(".dw-task.on").waitFor({ timeout: 8000 });
+      await dela(s.page).locator("#dw-review-deps").click();
+      await waitFor(s.page, "Handoff summary", 15000);
+      const again = (await sql(`select steps, status from delegations where playbook_id = '${pb3}'`))[0];
+      ok(again.status !== "canceled" && again.steps.length === 2 && (await text(s.page)).includes("2 tasks selected"), "started again, it holds the two steps of the ticked task, not the three from before: " + JSON.stringify(again.steps));
       await s.ctx.close();
     } finally { await sql("update feature_switches set state = 'off' where key in ('new_layout', 'ask_dela_workspace', 'dela_workspace_v2', 'handoff_kit'); select 1"); }
     console.log(passed + " browser checks passed");

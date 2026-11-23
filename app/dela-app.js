@@ -1784,7 +1784,7 @@
         h("h2", null, "Plan. Delegate.", h("br"), "Get it done."),
         h("p", { text: "DELA turns your to-do list into a clear plan and the right people to carry it out." }),
         (me.switches || {}).ai_generation
-          ? h("button", { class: "pill-white", onclick: function () { tab = "delegate"; draw(); } }, "Ask DELA to plan a task")
+          ? h("button", { class: "pill-white", onclick: function () { dw.page = "chat"; tab = "delegate"; draw(); } }, "Ask DELA to plan a task")
           : h("button", { class: "pill-white", disabled: true, title: "Opens in the next DELA update" }, "Start a new delegation (opening soon)")),
       (me.switches || {}).guided_setup && !(me.switches || {}).onboarding_widget ? setupHomeCard() : null,
       h("div", { class: "stats" },
@@ -1933,7 +1933,7 @@
       (me.switches || {}).ask_dela_workspace ? api.get("/ai/chat/docs").catch(function () { return null; }) : Promise.resolve(null)])
       .then(function (r) {
         chat.ai = r[0];
-        chat.ws = r[3] && r[3].ok ? r[3] : null;
+        chat.ws = r[3] && r[3].ok ? r[3] : null; chat.wsTried = true;
         chat.list = r[1].items || [];
         // Files saved from a job are never sent to the AI
         chat.files = r[2] && r[2].ok ? r[2].files.filter(function (f) { return f.status === "ready" && !f.from_job; }) : [];
@@ -1971,6 +1971,15 @@
   function drawChat() {
     if (!chatEl) return;
     if (v2()) { drawWs(); return; }
+    // The workspace could not be drawn (it is off for this member, or its first load failed): a page that was asked
+    // for opens on its older screen, so the member still reaches the task
+    if (dw.page !== "chat") {
+      var was = dw.page; dw.page = "chat";
+      if (was === "invite" && dw.inv && dw.inv.p) { var iv = dw.inv; dw.inv = null; talentInviteFor = { p: iv.p, gig: iv.gig || "" }; tab = "talent"; draw(); return; }
+      if ((was === "gig" || was === "preview") && dw.gig) { openGig(dw.gig, "details"); return; }
+      if (was === "changes" && dw.chg) { openDocFromChat(dw.chg); return; }
+      if ((was === "opportunities") && dw.pb) { openDocFromChat(dw.pb); return; }
+    }
     D.clear(chatEl);
     var ws = wsOn();
     var head = h("div", { class: "row", style: "margin:18px 0 4px" },
@@ -2061,6 +2070,9 @@
     if ((dwWant === "gig" || dwWant === "preview") && dwId("draft")) { dw.page = dwWant; dw.gig = dwId("draft"); }
   } catch (e) { /* no deep link */ }
   function v2() { return !!((me.switches || {}).dela_workspace_v2 && NL() && wsOn()); }
+  // A chat answer can arrive after the member moved on. Then nothing is redrawn: the page they are on, and what they
+  // typed there, stays as it is. The answer shows when they come back to the chat.
+  function chatAnswerDraw() { if ((me.switches || {}).dela_workspace_v2 && NL() && (!dwOnAsk() || (wsOn() && dw.page !== "chat"))) return; drawChat(); }
   function dwOnAsk() { return tab === "delegate" || tab === "ask"; }
   function dwName(p) { return DW_MORE[p] || (DW_PAGES.filter(function (x) { return x[0] === p; })[0] || DW_PAGES[0])[2]; }
   // The top bar reads "Ask DELA / <page>"; "Ask DELA" goes back to the chat
@@ -2073,6 +2085,60 @@
     return el;
   }
   function dwGo(p) { dw.page = p; chat.view = "chat"; chat.rulesSay = null; drawChat(); syncAddress(); window.scrollTo(0, 0); var t = chatEl && chatEl.querySelector("h1"); if (t) { t.setAttribute("tabindex", "-1"); t.focus(); } }
+  // One question before an action that cannot simply be clicked back: the button turns into the question with two answers
+  function dwConfirm(o) {
+    var box = h("div", { class: "dw-confirm" });
+    function first() {
+      D.clear(box);
+      var b = h("button", { class: o.cls || "ghost small", type: "button", id: o.id, disabled: !!o.disabled }, o.label);
+      b.addEventListener("click", function () {
+        D.clear(box);
+        var yes = h("button", { class: "blue small", type: "button", id: o.id + "-yes" }, o.yes || "Yes"), no = h("button", { class: "ghost small", type: "button", id: o.id + "-no" }, "Cancel");
+        yes.addEventListener("click", function () { yes.disabled = true; no.disabled = true; o.go(function () { first(); }); });
+        no.addEventListener("click", function () { first(); var again = box.querySelector("button"); if (again) again.focus(); });
+        box.appendChild(h("p", { class: "dw-warn", role: "alert", style: "margin:0 0 8px", text: o.ask }));
+        box.appendChild(h("div", { class: "row", style: "gap:8px" }, yes, no));
+        yes.focus();
+      });
+      box.appendChild(b);
+    }
+    first();
+    return box;
+  }
+  // The keyboard's place (review 2026-11-23, C2). The workspace pages redraw whole cards, which removes the control
+  // that was just used. What was last focused is remembered by a name that survives the redraw (its id, its label or
+  // its words); when a redraw has taken the focus away, the same control gets it back.
+  var dwLastKey = null;
+  function dwRoot() { return app.getRootNode ? app.getRootNode() : document; }
+  function chatScope(el) { return !!(el.closest && el.closest(".dw-head,.dw-wrap,.pills,#talent-bookmarks,#bm-filter")); }
+  function dwKeyOf(el) {
+    if (!el || !el.tagName || !chatScope(el)) return null;
+    if (el.id) return { id: el.id };
+    var tag = el.tagName, lab = el.getAttribute("aria-label");
+    return lab ? { tag: tag, lab: lab } : { tag: tag, text: (el.textContent || "").trim().slice(0, 80) };
+  }
+  function dwFind(k) {
+    var root = dwRoot(), i, e;
+    if (k.id) return root.getElementById ? root.getElementById(k.id) : null;
+    var all = app.querySelectorAll(k.tag.toLowerCase());
+    for (i = 0; i < all.length; i++) { e = all[i]; if (!chatScope(e)) continue; if (k.lab ? e.getAttribute("aria-label") === k.lab : (e.textContent || "").trim().slice(0, 80) === k.text) return e; }
+    return null;
+  }
+  app.addEventListener("focusin", function (e) { var k = dwKeyOf(e.target); if (k) dwLastKey = k; });
+  function dwFocusBack() {
+    var k = dwLastKey; if (!k) return;
+    var act = dwRoot().activeElement;
+    if (act && act !== document.body && app.contains(act)) return;
+    var el = dwFind(k);
+    if (el && !el.disabled && el.focus) { try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); } }
+  }
+  // Messages are spoken (C3): one quiet line that stays in the page, so a screen reader hears what was written into it
+  var dwLive = h("div", { class: "sr", role: "status", "aria-live": "polite", id: "dw-live" });
+  function dwSay(text) {
+    if (!dwLive.parentNode || !app.contains(dwLive)) app.appendChild(dwLive);
+    dwLive.textContent = "";
+    setTimeout(function () { dwLive.textContent = String(text || "").slice(0, 400); }, 60);
+  }
   function dwTag(text, kind) { return h("span", { class: "badge " + (kind || "off") + " dw-tag", text: text }); }
   function dwNote(text) { return h("p", { class: "dw-note", role: "note" }, h("span", { class: "dw-i", "aria-hidden": "true", text: "i" }), h("span", { text: text })); }
   function dwHead(title, sub, right) {
@@ -2091,7 +2157,7 @@
   function drawWs() {
     var w = chat.ws || {};
     D.clear(chatEl);
-    if (!w.library && dw.page !== "chat" && dw.page !== "instructions") dw.page = "chat";
+    if (!w.library && ["playbooks", "opportunities", "handoff", "changes"].indexOf(dw.page) >= 0) dw.page = "chat";
     if (dw.page === "handoff" && !dw.hand) dw.page = "opportunities";
     if ((dw.page === "gig" || dw.page === "preview") && !dw.gig) dw.page = "gigs";
     var where = app.querySelector(".top .where"); if (where) dwCrumb(where, "Ask DELA");
@@ -2108,6 +2174,11 @@
     else if (dw.page === "changes") dwChanges();
     else if (dw.page === "decisions") dwDecisions();
     else dwChat();
+    if (!dwLive.parentNode || !app.contains(dwLive)) app.appendChild(dwLive);
+    var lastM = chat.messages[chat.messages.length - 1];
+    if (dw.page === "chat" && lastM && lastM.role === "assistant" && dw.saidN !== chat.id + ":" + chat.messages.length) { if (dw.saidN && dw.saidN.split(":")[0] === String(chat.id)) dwSay("DELA answered. " + lastM.content); dw.saidN = chat.id + ":" + chat.messages.length; }
+    else if (dw.page === "chat" && chat.busy) dwSay("DELA is checking your message, then answering.");
+    dwFocusBack(); setTimeout(dwFocusBack, 350); setTimeout(dwFocusBack, 1200);
   }
   // Screen 1: the conversation, with the second menu at the left and the working context at the right
   function dwChat() {
@@ -2153,6 +2224,11 @@
       top.appendChild(delB);
     }
     box.appendChild(top);
+    if (chat.list.length) {
+      var csel = h("select", { id: "dw-chatsel", "aria-label": "Earlier chats", onchange: function () { if (csel.value) openChat(csel.value); } }, h("option", { value: "", text: chat.id ? "Switch to another chat" : "Open an earlier chat" }),
+        chat.list.map(function (c) { return h("option", { value: c.id, text: c.title + " (" + D.date(c.updated_at) + ")" }); }));
+      box.appendChild(h("div", { class: "dw-chatsel" }, csel));
+    }
     if (cur && !cur.saved && cur.delete_at) box.appendChild(h("p", { class: "small muted", text: "Unsaved chats are deleted after a set time without use. This one will be deleted on " + D.date(cur.delete_at) + " unless you save it." }));
     var soon = chat.list.filter(function (c) { return c.due_soon; });
     if (soon.length) box.appendChild(h("p", { class: "notice", role: "status", text: soon.length + (soon.length === 1 ? " chat is" : " chats are") + " due to be deleted soon: " + soon.map(function (c) { return c.title + " (" + D.date(c.delete_at) + ")"; }).join(", ") + ". Open a chat and click \"Save to library\" to keep it." }));
@@ -2253,7 +2329,7 @@
       var q = dw.q.trim().toLowerCase();
       var rows = all.filter(function (p) {
         var st = dwPbState(p);
-        if (dw.f === "all" ? st === "archived" : st !== dw.f) return false;
+        if (dw.f !== "all" && st !== dw.f) return false;
         return !q || [p.title, p.purpose, p.summary, p.owner_role, p.doc_id].join(" ").toLowerCase().indexOf(q) >= 0;
       });
       if (!rows.length) { body.appendChild(h("p", { class: "muted", id: "dw-pb-none", style: "margin:12px 0", text: !all.length ? "No playbooks yet. Click \"+ Create playbook\", or describe a process to DELA." : "No playbook fits. Try another filter or fewer words." })); return; }
@@ -2275,8 +2351,13 @@
             p.status === "draft" || p.status === "in_review" ? h("button", { class: "linkish", type: "button", "aria-label": "Review changes in " + p.title, onclick: function () { dw.chg = p.id; dwGo("changes"); } }, "Review changes") : null))));
       });
       body.appendChild(h("div", { class: "scroll" }, h("table", { class: "pj-table stack dw-table" }, h("thead", null, h("tr", null, ["Playbook", "Owner role", "Version", "Status", "Action"].map(function (c) { return h("th", { scope: "col", text: c }); }))), tb)));
+      dwSay(plural(rows.length, "playbook") + " shown.");
       body.appendChild(h("div", { class: "row", style: "gap:12px;flex-wrap:wrap;margin-top:12px" }, h("span", { class: "hsub grow", text: plural(rows.length, "playbook") + " shown. The same records as in your Library." }),
-        h("button", { class: "ghost small", type: "button", id: "dw-open-lib", onclick: function () { goTab("library"); } }, "View versions & history")));
+        h("button", { class: "ghost small", type: "button", id: "dw-open-lib", onclick: function () {
+          // The versions and history of the playbook selected for DELA; with none selected, say how to get there
+          if (!chat.docs.length) { D.toast(app, "Select a playbook for DELA first. Its versions and history then open here.", true); return; }
+          lib.pb = { playbook: { id: chat.docs[0].id } }; lib.view = "versions"; lib.importId = null; tab = "library"; draw(); window.scrollTo(0, 0);
+        } }, "View versions & history")));
     }
     search.addEventListener("input", function () { dw.q = search.value; paint(); });
     if (dw.lib) paint(); else dwLoadLib(function () { if (dw.page === "playbooks" && body.parentNode) paint(); });
@@ -2321,7 +2402,7 @@
     var main = h("div", { id: "dw-opp-main" }, h("p", { class: "muted", text: "Loading..." })), side = h("div", { class: "dw-side", id: "dw-opp-side" });
     chatEl.appendChild(h("div", { class: "dw-wrap" }, h("div", { class: "dw-cols" }, h("div", { class: "dw-main" }, main), side)));
     var say = h("p", { class: "notice small", role: "status" }); say.hidden = true;
-    function tell(t, bad) { say.textContent = t; say.className = "notice small" + (bad ? " bad" : " ok"); say.hidden = !t; }
+    function tell(t, bad) { say.textContent = t; say.className = "notice small" + (bad ? " bad" : " ok"); say.hidden = !t; if (t) { dwSay(t); D.toast(app, t, !!bad); } setTimeout(dwFocusBack, 50); }
     function load() {
       Promise.all([api.get("/automate?playbook=" + encodeURIComponent(pid)), api.get("/gigs/doc-steps?playbook=" + encodeURIComponent(pid)).catch(function () { return null; })]).then(function (rs) {
         if (dw.page !== "opportunities" || dw.pb !== pid || !main.parentNode) return;
@@ -2334,6 +2415,7 @@
         var stepOf = {}; ((ds && ds.steps) || []).forEach(function (x) { stepOf[x.no] = x; });
         main.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("span", { class: "badge dw-blue dw-tag", text: "Source: " + (title || (ds && ds.title) || "this playbook") + (st.review ? " v" + st.review.version : "") }), h("span", { class: "badge pink dw-tag", text: "Recommendations · not approvals" })));
         main.appendChild(say);
+        if (dw.oppMsg) { var om = dw.oppMsg; dw.oppMsg = null; tell(om, true); }
         if (!st.review) {
           // No review of this approved version yet: DELA reads the steps once
           var freq = h("select", { "aria-label": "How often does this run?" }, [h("option", { value: "", text: "Choose (optional)" })].concat(["daily", "weekly", "monthly", "quarterly"].map(function (k) { return h("option", { value: k, text: FREQ_WORDS[k] }); })));
@@ -2364,7 +2446,7 @@
           var whyB = h("button", { class: "ghost small", type: "button", "aria-expanded": String(!!dw.why[r.id]), "aria-controls": "dw-why-" + r.id, "aria-label": "Why this task: " + r.title }, "Why this task?");
           whyB.addEventListener("click", function () { dw.why[r.id] = !dw.why[r.id]; why.hidden = !dw.why[r.id]; whyB.setAttribute("aria-expanded", String(!!dw.why[r.id])); });
           main.appendChild(h("section", { class: "card dw-task" + (on ? " on" : "") },
-            h("div", { class: "row", style: "gap:10px;align-items:flex-start" }, h("label", { class: "dw-task-l grow" }, cb, h("b", { text: r.title })), done ? dwTag("Handed over", "ready") : dwTag("Suggested", "pink")),
+            h("div", { class: "row", style: "gap:10px;align-items:flex-start" }, h("label", { class: "dw-task-l grow" }, cb, h("b", { text: r.title })), done ? (done.gig_id && done.gig_status && done.gig_status !== "draft" ? dwTag("Handed over", "ready") : dwTag("In preparation", "held")) : dwTag("Suggested", "pink")),
             h("div", { class: "hsub dw-task-step", text: "Playbook " + stepsText(r.steps).toLowerCase() + (first.text ? " · " + String(first.text).slice(0, 90) : "") }),
             h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:8px" }, h("span", { class: "badge off dw-tag", text: "Suggested role: " + (first.role || ((r.skills || [])[0]) || "Legal support") }), whyB,
               done ? h("button", { class: "ghost small", type: "button", "aria-label": "Open the handoff for " + r.title, onclick: function () { if (done.gig_id && done.gig_status && done.gig_status !== "draft") gigLink(done.gig_id, "projects"); else { dw.hand = done.id; dwGo("handoff"); } } }, done.gig_id && done.gig_status && done.gig_status !== "draft" ? "View gig" : "Open the handoff") : null), why));
@@ -2389,15 +2471,23 @@
         next.addEventListener("click", function () {
           next.disabled = true;
           var steps = []; chosen.forEach(function (r) { (r.steps || []).forEach(function (n) { if (steps.indexOf(n) < 0) steps.push(n); }); }); steps.sort(function (a, b) { return a - b; });
+          if (ds && ds.of && steps.length >= ds.of) { next.disabled = false; tell("Together these tasks cover every step of the playbook. Leave at least one step with your firm: untick a task.", true); return; }
+          var made = null;
           api.post("/automate/delegate", { review_id: st.review.id, rec_id: chosen[0].id, kind: "delegate" }).then(function (x) {
             if (!x.ok) throw x;
-            var id = x.delegation.id;
-            if (chosen.length < 2) return id;
-            return api.post("/automate/delegation", { id: id, steps: steps, stage: 2 }).then(function (y) { if (!y.ok) throw y; return id; });
+            made = x.delegation.id;
+            // The steps are always sent, so a handoff that was stopped and is started again holds exactly what is ticked now
+            return api.post("/automate/delegation", { id: made, steps: steps, stage: 2 }).then(function (y) { if (!y.ok) throw y; return made; });
           }).then(function (id) { dw.sel = {}; dw.hand = id; dwGo("handoff"); })
-            .catch(function (e) { next.disabled = false; tell(e && e.reason ? autoErr(e) : D.errorText(e && e.message), true); });
+            .catch(function (e) {
+              var msg = e && e.reason ? autoErr(e) : D.errorText(e && e.message);
+              // Nothing half-made is left behind: a handoff that could not take these steps is stopped again
+              var undo = made ? api.post("/automate/delegation", { id: made, cancel: true }).catch(function () { return null; }) : Promise.resolve();
+              undo.then(function () { dw.oppMsg = msg + " Nothing was started."; load(); });
+            });
         });
         selCard.appendChild(next);
+        selCard.appendChild(h("p", { class: "hsub", id: "dw-review-hint", style: "margin:8px 0 0", text: "This starts a handoff in preparation with the ticked tasks. Nothing goes to a freelancer, and you can stop it on the next page." }));
         side.appendChild(selCard);
         var open = dels.filter(function (d) { return d.kind !== "setup"; });
         if (open.length) side.appendChild(h("section", { class: "card", id: "dw-handoffs" }, h("h2", { text: "Handoffs from this playbook" }), open.map(function (d) {
@@ -2406,6 +2496,7 @@
         })));
         side.appendChild(h("section", { class: "card" }, h("h2", { text: "Why these recommendations?" }), h("p", { class: "hsub", style: "margin:0", text: "Each suggestion connects to a step of the approved playbook. DELA suggests; your firm decides who does the work, and the supervising attorney stays accountable for every step." })));
         side.appendChild(dwNote("Recommendations only. Time saved is an estimate. DELA makes no promise about a freelancer's qualifications or about compliance."));
+        dwFocusBack();
       }).catch(function (e) { D.clear(main); main.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
     }
     load();
@@ -2420,10 +2511,13 @@
     var main = h("div", { id: "dw-hand-main" }, h("p", { class: "muted", text: "Loading..." })), side = h("div", { class: "dw-side", id: "dw-hand-side" });
     chatEl.appendChild(h("div", { class: "dw-wrap" }, h("div", { class: "dw-cols" }, h("div", { class: "dw-main" }, main), side)));
     var say = h("p", { class: "notice small", role: "status", id: "dw-hand-say" }); say.hidden = true;
-    function tell(t, bad) { say.textContent = t; say.className = "notice small" + (bad ? " bad" : " ok"); say.hidden = !t; }
+    function tell(t, bad) { say.textContent = t; say.className = "notice small" + (bad ? " bad" : " ok"); say.hidden = !t; if (t) { dwSay(t); D.toast(app, t, !!bad); } setTimeout(dwFocusBack, 50); }
     function fail(e) { tell(e && e.reason ? autoErr(e) : D.errorText(e && e.message), true); }
     var editSteps = false, editCrit = false;
-    function post(path, body, msg) { return api.post(path, Object.assign({ id: id }, body || {})).then(function (x) { if (!x.ok) throw x; editSteps = false; editCrit = false; render(x, msg); return x; }).catch(fail); }
+    function post(path, body, msg) {
+      return api.post(path, Object.assign({ id: id }, body || {})).then(function (x) { if (!x.ok) throw x; editSteps = false; editCrit = false; render(x, msg); return x; })
+        .catch(function (e) { fail(e); Array.prototype.forEach.call(side.querySelectorAll("button[data-busy]"), function (b) { b.disabled = false; b.textContent = b.getAttribute("data-busy"); b.removeAttribute("data-busy"); }); });
+    }
     function render(v, msg) {
       if (dw.page !== "handoff" || dw.hand !== id || !main.parentNode) return;
       D.clear(main); D.clear(side); D.clear(headActs);
@@ -2446,7 +2540,7 @@
         ? h("div", { class: "row", style: "gap:8px;margin-top:10px" }, h("button", { class: "blue small", type: "button", id: "dw-steps-save", onclick: function () { post("/automate/delegation", { steps: boxes.filter(function (x) { return x[1].checked; }).map(function (x) { return x[0]; }), stage: Math.max(d.stage, 2) }, "Selection saved."); } }, "Save selection"),
           h("button", { class: "ghost small", type: "button", onclick: function () { editSteps = false; render(v); } }, "Cancel"))
         : h("button", { class: "ghost dw-wide", type: "button", id: "dw-steps-edit", style: "margin-top:10px", onclick: function () { editSteps = true; render(v); } }, "Change the selection"));
-      else if (locked) work.appendChild(h("p", { class: "hsub", style: "margin:10px 0 0", text: "The instructions for this part are approved, so the selection is fixed." }));
+      else if (locked) work.appendChild(h("p", { class: "hsub", style: "margin:10px 0 0", text: "The guide for this part is approved, so the selection is fixed." }));
       main.appendChild(work);
       // Prerequisites & inputs
       var pre = h("section", { class: "card", id: "dw-pre" }, h("h2", { text: "Prerequisites & inputs" }));
@@ -2516,15 +2610,16 @@
         nx.appendChild(h("p", { class: "hsub", style: "margin:0 0 10px", text: "The gig draft exists. Review what the freelancer will see there before you post it." }));
         nx.appendChild(h("button", { class: "ghost dw-wide", type: "button", id: "dw-hand-gig", onclick: function () { dw.gig = d.gig_id; dwGo("gig"); } }, "Open the gig draft"));
       } else {
-        nx.appendChild(h("p", { class: "hsub", style: "margin:0 0 10px", text: "Prepare the instructions for just this part, approve them, then prepare a freelancer-facing gig draft. Nothing is posted from here." }));
+        nx.appendChild(h("p", { class: "hsub", style: "margin:0 0 10px", text: "Have DELA draft a step-by-step guide for just this part, approve it, then prepare a gig draft for a freelancer. Nothing is posted from here." }));
         // 1. the instructions for the part
-        nx.appendChild(h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: "1. Instructions for this part" }), h("span", { class: "hsub", style: "display:block", text: !sop ? "Not drafted yet" : (sop.doc_id ? sop.doc_id + " " : "") + sop.title + (sop.status === "approved" ? "" : sop.blocking ? " · " + plural(sop.blocking, "thing") + " to fix" : " · ready to approve") })),
+        nx.appendChild(h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: "1. Step-by-step guide for this part" }), h("span", { class: "hsub", style: "display:block", text: !sop ? "Not drafted yet" : (sop.doc_id ? sop.doc_id + " " : "") + sop.title + (sop.status === "approved" ? "" : sop.blocking ? " · " + plural(sop.blocking, "thing") + " to fix" : " · ready to approve") })),
           dwTag(!sop ? "Missing" : sop.status === "approved" ? "Approved" : "Draft", sop && sop.status === "approved" ? "ready" : "held")));
-        if (!sop) nx.appendChild(h("button", { class: "blue dw-wide", type: "button", id: "dw-sop-draft", onclick: function (ev) { ev.target.disabled = true; ev.target.textContent = "DELA is drafting..."; post("/automate/delegation/sop", {}, "DELA drafted the instructions for just these steps."); } }, "Draft the instructions"));
+        if (!sop) nx.appendChild(h("button", { class: "blue dw-wide", type: "button", id: "dw-sop-draft", onclick: function (ev) { ev.target.disabled = true; ev.target.setAttribute("data-busy", "Draft the guide"); ev.target.textContent = "DELA is drafting..."; post("/automate/delegation/sop", {}, "DELA drafted the guide for just these steps."); } }, "Draft the guide"));
         else {
-          nx.appendChild(h("button", { class: "ghost dw-wide", type: "button", id: "dw-sop-open", onclick: function () { openDocFromChat(sop.id); } }, "Open the instructions"));
-          if (sop.status !== "approved") nx.appendChild(v.can_approve ? h("button", { class: "blue dw-wide", type: "button", id: "dw-sop-approve", style: "margin-top:8px", disabled: !!sop.blocking, onclick: function () { post("/automate/delegation/approve", {}, "The instructions are approved."); } }, "Approve the instructions")
-            : h("p", { class: "hsub", style: "margin:8px 0 0", text: "An attorney approves the instructions and prepares the gig." }));
+          nx.appendChild(h("button", { class: "ghost dw-wide", type: "button", id: "dw-sop-open", onclick: function () { openDocFromChat(sop.id); } }, "Open the guide"));
+          if (sop.status !== "approved") nx.appendChild(v.can_approve ? dwConfirm({ id: "dw-sop-approve", label: "Approve the guide", cls: "blue dw-wide", disabled: !!sop.blocking, ask: "Approve this guide? It becomes the approved wording a freelancer works from, and the selection of steps is then fixed.", yes: "Yes, approve it",
+            go: function (reset) { post("/automate/delegation/approve", {}, "The guide is approved.").then(function (x) { if (!x) reset(); }); } })
+            : h("p", { class: "hsub", style: "margin:8px 0 0", text: "An attorney approves the guide and prepares the gig." }));
         }
         // 2. the gig draft
         var b = v.budget || {};
@@ -2540,13 +2635,14 @@
           });
           nx.appendChild(mk);
         } else nx.appendChild(h("button", { class: "ghost dw-wide", type: "button", id: "dw-gig-make", disabled: true }, "Prepare gig draft"));
-        if (!locked) nx.appendChild(h("p", { class: "hsub", style: "margin:6px 0 0", text: "Approve the instructions first." }));
+        if (!locked) nx.appendChild(h("p", { class: "hsub", id: "dw-gig-why", style: "margin:6px 0 0", text: "Approve the guide first." }));
+        else if (!v.can_approve) nx.appendChild(h("p", { class: "hsub", id: "dw-gig-why", style: "margin:6px 0 0", text: "An attorney prepares the gig draft." }));
       }
       side.appendChild(nx);
-      if (!d.gig_id) side.appendChild(h("button", { class: "linkish", type: "button", id: "dw-hand-stop", onclick: function () {
-        api.post("/automate/delegation", { id: id, cancel: true }).then(function () { dw.hand = null; dw.pb = d.playbook_id; dwGo("opportunities"); }).catch(fail);
-      } }, "Stop this handoff"));
+      if (!d.gig_id) side.appendChild(dwConfirm({ id: "dw-hand-stop", label: "Stop this handoff", cls: "linkish", ask: "Stop this handoff? Its selection, guide and criteria are set aside. Nothing was sent to anyone.", yes: "Yes, stop it",
+        go: function (reset) { api.post("/automate/delegation", { id: id, cancel: true }).then(function (x) { if (!x || x.ok === false) throw x || {}; dw.hand = null; dw.pb = d.playbook_id; dwGo("opportunities"); }).catch(function (e) { fail(e); reset(); }); } }));
       void posted;
+      dwFocusBack();
     }
     if (!id) { render({ ok: false, reason: "not_found" }); return; }
     api.get("/automate/delegation?id=" + encodeURIComponent(id)).then(function (v) { render(v); }).catch(function (e) { D.clear(main); main.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
@@ -2554,7 +2650,7 @@
   // ---------- Step 75c: the gig draft (screen 6), the invitation with its sharing review (screen 8) and the preview
   // of what the recipient gets (screen 9). They use the gig's own commands: /gigs/get, /gigs/save, /gigs/invite.
   // Saving a draft, posting a gig and sending an invitation stay three separate actions on separate steps. ----------
-  function dwRoute() { return me.side === "attorney" && !!((me.switches || {}).dela_workspace_v2 && (me.switches || {}).ask_dela_workspace) && NL(); }
+  function dwRoute() { return me.side === "attorney" && !!((me.switches || {}).dela_workspace_v2 && (me.switches || {}).ask_dela_workspace) && NL() && !(chat.wsTried && !wsOn()); }
   function dwOpen(page, set) { Object.keys(set || {}).forEach(function (k) { dw[k] = set[k]; }); dw.page = page; if (tab === "delegate" && chatEl && chat.ws) { dwGo(page); return; } tab = "delegate"; draw(); window.scrollTo(0, 0); }
   function dwBudget(g) { return g.budget_min_cents && g.budget_max_cents ? (g.budget_min_cents === g.budget_max_cents ? D.money(g.budget_min_cents) : D.money(g.budget_min_cents) + " to " + D.money(g.budget_max_cents)) : "Not set"; }
   function dwGigLoad(id, host, then) {
@@ -2584,18 +2680,26 @@
       f.title.value = g.title || ""; f.task.value = p.task || ""; f.outcome.value = p.outcome || ""; f.skills.value = (p.skills || []).join(", ");
       f.bmin.value = dollars(g.budget_min_cents); f.bmax.value = dollars(g.budget_max_cents); f.deadline.value = g.deadline || "";
       var say = h("p", { class: "notice small", role: "status", id: "dw-g-say" }); say.hidden = true;
-      function tell(t, bad) { D.clear(say); say.appendChild(h("span", { text: t })); say.className = "notice small" + (bad ? " bad" : " ok"); say.hidden = !t; return say; }
+      function tell(t, bad) { D.clear(say); say.appendChild(h("span", { text: t })); say.className = "notice small" + (bad ? " bad" : " ok"); say.hidden = !t; if (t) dwSay(t); return say; }
       // What the gig holds beyond this form (steps, tools, state, categories, milestones) is sent back unchanged
       function payload() {
         return { id: g.id, version: g.version, budget_min: f.bmin.value, budget_max: f.bmax.value || f.bmin.value, deadline: f.deadline.value,
           public: { title: f.title.value, task: f.task.value, outcome: f.outcome.value, steps: p.steps || [], tools: p.tools || [], skills: commas(f.skills.value), timing: p.timing || "", state: p.state || "", practice_area: p.practice_area || "", categories: (p.categories || []).slice() },
           milestones: (g.milestones || []).map(function (m) { return { title: m.title }; }) };
       }
+      var saving = null;
       function save(confirmed) {
+        if (saving) return saving;
+        var bs = host.querySelectorAll("#dw-g-save,#dw-g-review,#dw-g-back,#dw-g-inputs"); Array.prototype.forEach.call(bs, function (b) { b.disabled = true; });
+        saving = save1(confirmed).then(function (ok) { saving = null; Array.prototype.forEach.call(bs, function (b) { b.disabled = false; }); return ok; });
+        return saving;
+      }
+      function savedText() { return Number(f.bmin.value) > 0 ? "Draft saved. Nothing is posted." : "Draft saved. Nothing is posted. The budget is still missing."; }
+      function save1(confirmed) {
         return api.post("/gigs/save", Object.assign(payload(), confirmed ? { confirm_no_client_info: true } : {})).then(function (x) {
           if (x && x.reason === "looks_like_client_info") {
             tell(ciNote(x, "This may include client information (" + kindsText(x.kinds) + "). Use placeholders instead.") + " ", true);
-            say.appendChild(h("button", { class: "ghost small", type: "button", id: "dw-g-anyway", onclick: function () { save(true).then(function (ok) { if (ok) tell("Draft saved. Nothing is posted."); }); } }, "It is not client information: save"));
+            say.appendChild(h("button", { class: "ghost small", type: "button", id: "dw-g-anyway", onclick: function () { save(true).then(function (ok) { if (ok) tell(savedText()); }); } }, "It is not client information: save"));
             return false;
           }
           if (!x || !x.ok) { tell(gigErr(x || {}), true); return false; }
@@ -2605,7 +2709,7 @@
       }
       var lbl = function (text, el, hint) { return h("div", { class: "gs-field" }, h("label", { "for": el.id, class: "gs-label", text: text }), el, hint ? h("span", { class: "hsub", text: hint }) : null); };
       var kind = h("input", { id: "dw-g-kind", readOnly: true, value: g.kind === "monthly" ? "Monthly" : "One-off" });
-      var form = h("section", { class: "card", id: "dw-gig-form" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Gig draft" }), dwTag(note === "ai" || p.task ? "DELA-proposed content" : "Your draft", "pink")),
+      var form = h("section", { class: "card", id: "dw-gig-form" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Gig draft" }), note === "ai" ? dwTag("DELA-proposed content", "pink") : null),
         lbl("Gig title", f.title), lbl("Description", f.task, "Two or three sentences: what the freelancer will do."),
         h("div", { class: "dw-two" }, lbl("Engagement type", kind, "Chosen when the draft was made."), h("div", { class: "gs-field" }, h("span", { class: "gs-label", text: "Budget (USD)" }), h("div", { class: "row", style: "gap:8px" }, h("label", { class: "sr", "for": "dw-g-bmin", text: "Budget from (USD)" }), f.bmin, h("span", { class: "hsub", text: "to" }), h("label", { class: "sr", "for": "dw-g-bmax", text: "Budget to (USD)" }), f.bmax),
           h("span", { class: "hsub", text: "You set it. DELA never fills in an amount by itself." }))),
@@ -2613,9 +2717,11 @@
         h("div", { class: "dw-two" }, lbl("Required skills", f.skills, "Separated by commas."), lbl("Work deadline", f.deadline)),
         aiNotice(),
         dwNote("DELA can suggest structure, but you verify the scope, the privacy, the payment terms and what is published. A value that is missing stays empty."), say);
-      var back = dw.hand ? h("button", { class: "ghost", type: "button", id: "dw-g-back", onclick: function () { dwGo("handoff"); } }, "Back to selected work") : h("button", { class: "ghost", type: "button", id: "dw-g-back", onclick: function () { dwGo("gigs"); } }, "Back to gig drafts");
+      // Leaving the form saves it first, so nothing typed is lost
+      var leave = function (go) { return function () { save().then(function (ok) { if (ok) go(); }); }; };
+      var back = dw.hand ? h("button", { class: "ghost", type: "button", id: "dw-g-back", onclick: leave(function () { dwGo("handoff"); }) }, "Back to selected work") : h("button", { class: "ghost", type: "button", id: "dw-g-back", onclick: leave(function () { dwGo("gigs"); }) }, "Back to gig drafts");
       var acts = h("div", { class: "row dw-acts", style: "gap:10px;flex-wrap:wrap" }, back, h("span", { class: "grow" }),
-        h("button", { class: "ghost", type: "button", id: "dw-g-save", onclick: function () { save().then(function (ok) { if (ok) tell("Draft saved. Nothing is posted."); }); } }, "Save draft"),
+        h("button", { class: "ghost", type: "button", id: "dw-g-save", onclick: function () { save().then(function (ok) { if (ok) tell(savedText()); }); } }, "Save draft"),
         h("button", { class: "blue", type: "button", id: "dw-g-review", onclick: function () { save().then(function (ok) { if (ok) dwGo("preview"); }); } }, "Review freelancer-facing draft"));
       var part = r.gig_part, ins = (r.handoff && r.handoff.on && r.handoff.inputs) || [], open = ins.filter(function (i) { return (i.status || "needed") === "needed"; }).length;
       var line = function (title, sub, tag) { return h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: title }), h("span", { class: "hsub", style: "display:block", text: sub })), tag || null); };
@@ -2624,7 +2730,8 @@
         line("Selected work", part ? (part.whole === false ? part.steps + " of " + part.of + " steps" : "All " + part.of + " steps the freelancer can do") : "The steps in the description"),
         line("Excluded work", part && part.checkpoints ? plural(part.checkpoints, "attorney decision") + " stay" + (part.checkpoints === 1 ? "s" : "") + " with the attorney" : "Nothing is marked as the attorney's decision"),
         line("Recipient permissions", !ins.length ? "Nothing listed yet as needed before starting" : open ? plural(open, "input") + " still to supply or confirm" : "Every listed input is supplied", dwTag(!ins.length || open ? "Review" : "Confirmed", !ins.length || open ? "held" : "ready")),
-        h("button", { class: "ghost dw-wide", type: "button", id: "dw-g-inputs", style: "margin-top:10px", onclick: function () { gigs.wstep = 2; openGig(g.id, "details"); } }, "Set steps and inputs in Projects"));
+        h("button", { class: "ghost dw-wide", type: "button", id: "dw-g-inputs", style: "margin-top:10px", onclick: leave(function () { gigs.wstep = 2; openGig(g.id, "details"); }) }, "Set steps and inputs in Projects"),
+        h("p", { class: "hsub", id: "dw-g-where", style: "margin:8px 0 0", text: "Write and check the draft here. Choosing steps, listing what the freelancer needs and posting are done in Projects. Your draft is saved when you go there." }));
       var hasBudget = Number(f.bmin.value) > 0, costs = h("div", { id: "dw-g-costs" });
       var fill = function () { D.clear(costs); var lo = Math.round(Number(f.bmin.value || 0) * 100), hi = Math.round(Number(f.bmax.value || f.bmin.value || 0) * 100); if (lo) costs.appendChild(gigCostBox(gigs.fee, lo, hi, g.kind === "monthly")); budgetTag.textContent = lo ? "Set" : "Missing"; budgetTag.className = "badge " + (lo ? "ready" : "held") + " dw-tag"; };
       var budgetTag = dwTag(hasBudget ? "Set" : "Missing", hasBudget ? "ready" : "held");
@@ -2699,11 +2806,12 @@
       note.addEventListener("input", function () { inv.msg = note.value; });
       var share = h("div", { id: "dw-i-share", "aria-live": "polite", tabindex: "-1" }), pkg = h("section", { class: "card", id: "dw-i-pkg" }, h("h2", { text: "Recipient package preview" }));
       var say = h("p", { class: "notice small", role: "status", id: "dw-i-say" }); say.hidden = true;
-      function tell(t, bad) { D.clear(say); say.appendChild(h("span", { text: t })); say.className = "notice small" + (bad ? " bad" : " ok"); say.hidden = !t; }
+      function tell(t, bad) { D.clear(say); say.appendChild(h("span", { text: t })); say.className = "notice small" + (bad ? " bad" : " ok"); say.hidden = !t; if (t) dwSay(t); }
       var row = function (title, sub, tag, tone) { return h("div", { class: "dw-line" }, h("span", { class: "grow" }, h("b", { text: title }), h("span", { class: "hsub", style: "display:block", text: sub })), dwTag(tag, tone)); };
       function drawScope() {
         D.clear(share); D.clear(pkg); pkg.appendChild(h("h2", { text: "Recipient package preview" }));
         inv.gig = sel.value;
+        if (sel.value && !note.value.trim()) { try { var kept = localStorage.getItem(dwInvKey(inv)); if (kept) { note.value = kept; inv.msg = kept; } } catch (e) { /* no storage */ } }
         if (!sel.value) { share.appendChild(h("p", { class: "muted", id: "dw-i-nogig", text: mine.length ? "Choose a gig to see what would be shared." : "Post a gig first. An invitation asks a freelancer to send a proposal for a posted gig." })); pkg.appendChild(h("p", { class: "hsub", style: "margin:0", text: "Choose a gig first." })); paintActs(); return; }
         var want = sel.value;
         share.appendChild(h("p", { class: "muted", text: "Loading the gig..." }));
@@ -2743,7 +2851,7 @@
             paintActs(); return;
           }
           if (y && y.ok) { try { localStorage.removeItem(dwInvKey(inv)); } catch (e) { /* no storage */ } inv.sent = { duplicate: !!y.duplicate, note: y.held ? y.note : y.note || "" }; D.toast(app, y.duplicate ? "Already invited" : "Invited " + p.name); drawChat(); return; }
-          tell(y && y.reason === "gig_not_open" ? "That gig no longer takes proposals, so no invitation was sent. Choose another gig." : y && y.reason === "freelancer_not_available" ? p.name + " cannot be invited to this gig right now. No invitation was sent." : gigErr(y || {}), true);
+          inv.err = y && y.reason === "gig_not_open" ? "That gig no longer takes proposals, so no invitation was sent. Choose another gig." : y && y.reason === "freelancer_not_available" ? p.name + " cannot be invited to this gig right now. No invitation was sent." : gigErr(y || {}) + " No invitation was sent.";
           inv.step = "prepare"; drawChat();
         }).catch(function (e) { tell(D.errorText(e.message), true); paintActs(); });
       }
@@ -2775,6 +2883,7 @@
         h("button", { class: "ghost dw-wide", type: "button", id: "dw-i-scope", onclick: function () { share.focus(); try { share.scrollIntoView({ block: "center" }); } catch (e) { /* older browsers */ } } }, "Review sharing scope"));
       host.appendChild(dwCols([form], [pkg, perm]));
       drawScope();
+      if (inv.err) { var ie = inv.err; inv.err = null; say.setAttribute("role", "alert"); tell(ie, true); }
     }).catch(function (e) { D.clear(host); host.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
   }
   // ---------- Step 75d: Playbook Changes & Version Approval (screen 7) and Decisions, Blockers & Work Progress
@@ -2812,7 +2921,7 @@
     var main = h("div", { id: "dw-chg-main" }, h("p", { class: "muted", role: "status", text: "Loading..." })), side = h("div", { class: "dw-side" });
     chatEl.appendChild(h("div", { class: "dw-wrap" }, h("div", { class: "dw-cols" }, h("div", { class: "dw-main" }, main), side)));
     var say = h("p", { class: "notice small", role: "status", id: "dw-chg-say" }); say.hidden = true;
-    function tell(t, bad) { say.textContent = t; say.className = "notice small" + (bad ? " bad" : " ok"); say.hidden = !t; }
+    function tell(t, bad) { say.textContent = t; say.className = "notice small" + (bad ? " bad" : " ok"); say.hidden = !t; if (t) { dwSay(t); D.toast(app, t, !!bad); } setTimeout(dwFocusBack, 50); }
     function load(msg) {
       api.get("/playbooks/get?id=" + encodeURIComponent(pid)).then(function (P) {
         if (dw.page !== "changes" || dw.chg !== pid || !main.parentNode) return;
@@ -2830,8 +2939,16 @@
           var canApply = mayEdit && !((sg.removes_review && !isAdmin) || (sg.kind === "comment" && !mayApprove));
           var act = function (accept) { return function (ev) {
             ev.target.disabled = true;
-            api.post("/playbooks/decide", { suggestion_id: sg.id, accept: accept }).then(function (x) { if (!x || x.ok === false) throw x || {}; dw.lib = null; load(accept ? "Applied to the draft. Nothing is approved: approval is its own step." : "Rejected. The playbook is unchanged."); })
-              .catch(function (e) { ev.target.disabled = false; tell(e && e.reason ? failText(e) : D.errorText(e && e.message), true); });
+            api.post("/playbooks/decide", { suggestion_id: sg.id, accept: accept }).then(function (x) {
+              if (!x || x.ok === false) throw x || {};
+              dw.lib = null;
+              if (x.duplicate) { load("This change was already decided, so nothing was changed now."); return; }
+              load(accept ? "Applied to the draft. Nothing is approved: approval is its own step." : "Rejected. The playbook is unchanged.");
+            }).catch(function (e) {
+              // The draft moved on since the change was proposed: it is set aside, and the list is read again
+              if (e && e.reason === "changed") { dw.lib = null; load("This change no longer fits the draft, because the draft was edited after it was proposed. It was not applied."); return; }
+              ev.target.disabled = false; tell(e && e.reason ? failText(e) : D.errorText(e && e.message), true);
+            });
           }; };
           rev.appendChild(h("div", { class: "dw-sg" }, h("b", { text: sg.note || "A suggested change" }), h("div", { class: "hsub", text: sg.by + ", " + D.dateTime(sg.at) }),
             dwWithPb(P, function () { return docDiffView(sg, ["Before · current wording", "After · proposed wording"]); }),
@@ -2853,12 +2970,14 @@
           line("Existing assignments", "Gigs already posted and team work already assigned keep the version they were made from."),
           line("Approval authority", (ap.author ? "The author, " + ap.author + (ap.is_author ? " (you)" : "") + ", or the Library administrator approves." : "The Library administrator approves.") + " The server checks this again at the moment of approval.", dwTag(mayApprove ? "You may approve" : "Not you", mayApprove ? "ready" : "off")));
         var acts = h("div", { class: "row dw-acts", style: "gap:8px;flex-wrap:wrap;margin-top:12px" }, h("button", { class: "ghost small", type: "button", id: "dw-chg-open", onclick: function () { openDocFromChat(pid); } }, "Open the draft in the Library"), h("span", { class: "grow" }));
-        var st = function (action, msg2) { return function (ev) {
+        var st = function (action, msg2) { return function (ev, onFail) {
           ev.target.disabled = true;
-          api.post("/playbooks/status", { id: pid, action: action }).then(function (x) { if (!x || x.ok === false) throw x || {}; dw.lib = null; load(msg2); }).catch(function (e) { ev.target.disabled = false; tell(e && e.reason ? failText(e) : D.errorText(e && e.message), true); });
+          api.post("/playbooks/status", { id: pid, action: action }).then(function (x) { if (!x || x.ok === false) throw x || {}; dw.lib = null; load(msg2); }).catch(function (e) { ev.target.disabled = false; if (onFail) onFail(); tell(e && e.reason ? failText(e) : D.errorText(e && e.message), true); });
         }; };
         if (pb.status === "draft" && mayEdit) acts.appendChild(h("button", { class: mayApprove ? "ghost small" : "blue small", type: "button", id: "dw-chg-request", onclick: st("submit", "Sent to the author and the administrator for review.") }, "Request approval"));
-        if (hasDraft && mayApprove) acts.appendChild(h("button", { class: "blue small", type: "button", id: "dw-chg-approve", disabled: !!pb.blocking, onclick: st("approve", "Approved. This is the version in use from now on.") }, "Approve this version"));
+        if (hasDraft && mayApprove) acts.appendChild(dwConfirm({ id: "dw-chg-approve", label: "Approve this version", cls: "blue small", disabled: !!pb.blocking, yes: "Yes, approve it",
+          ask: "Approve version " + pb.version + " of \"" + pb.title + "\"? It becomes the version your firm uses from now on. Gigs already posted and team work already assigned keep the version they were made from.",
+          go: function (reset) { st("approve", "Approved. This is the version in use from now on.")({ target: {} }, reset); } }));
         if (hasDraft && mayApprove && pb.blocking) imp.appendChild(h("p", { class: "dw-warn", text: plural(pb.blocking, "required item") + " must be fixed before approval. Open the draft in the Library to fix " + (pb.blocking === 1 ? "it" : "them") + "." }));
         imp.appendChild(acts);
         main.appendChild(imp);
@@ -2868,7 +2987,8 @@
         if (!av && !hasDraft) vs.appendChild(h("p", { class: "hsub", style: "margin:0", text: "No version yet." }));
         vs.appendChild(h("p", { class: "hsub", style: "margin:10px 0 0", text: "Approved changes create a new version. Existing work does not silently switch versions." }));
         side.appendChild(vs);
-        side.appendChild(dwNote("A draft or a suggestion in a chat is never an approval. The server checks who approves and the exact version."));
+        side.appendChild(dwNote("A draft or a suggestion in a chat is never an approval. Who may approve, and which version, is checked again at the moment of approval."));
+        dwFocusBack();
       }).catch(function (e) { D.clear(main); main.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
     }
     load();
@@ -2885,32 +3005,33 @@
     Promise.all([ok(api.get("/home")), ok(api.get("/workflow")), (me.switches || {}).team_assignments ? ok(api.get("/team-work")) : Promise.resolve(null), ok(api.get("/ai/rules"))]).then(function (rs) {
       if (dw.page !== "decisions" || !main.parentNode) return;
       var items = [], hm = rs[0] || {}, wf = rs[1] || {}, tw = rs[2] || {}, R = rs[3] || {};
-      var add = function (state, title, related, resolver, next, actLabel, go, extra) { items.push(Object.assign({ key: state + "|" + title + "|" + related, state: state, title: title, related: related, resolver: resolver, next: next, actLabel: actLabel, go: go }, extra || {})); };
+      var missing = [!rs[0] ? "gigs and payments" : "", !rs[1] ? "playbooks in work" : "", (me.switches || {}).team_assignments && !rs[2] ? "team work" : "", !rs[3] ? "DELA instructions" : ""].filter(Boolean);
+      var add = function (state, title, related, resolver, next, actLabel, go, extra) { items.push(Object.assign({ key: state + "|" + title + "|" + related + "|" + ((extra || {}).id || ""), state: state, title: title, related: related, resolver: resolver, next: next, actLabel: actLabel, go: go }, extra || {})); };
       (hm.attention || []).forEach(function (x) {
-        if (x.kind === "review") add("review", "Milestone " + x.seq + " was delivered", x.gig_title, "You", "Read the delivery and accept it or request changes" + (x.review_due_at ? " by " + shortDate(x.review_due_at) : "") + ".", "Review delivery", function () { openGig(x.gig_id); });
-        else if (x.kind === "pay") add("blocked", x.first ? "Work cannot start until milestone " + (x.seq || 1) + " is paid" : "The payment for milestone " + x.seq + " did not go through", x.gig_title, "You", x.first ? "Pay the first milestone. Lawfecta holds the payment until you accept the work." : "Pay the milestone again or change the payment method.", "Pay milestone", function () { openGig(x.gig_id); });
-        else if (x.kind === "sign") add("decision", "An agreement waits for your signature", x.gig_title, "You", "Read the agreement and sign it" + (x.sign_by ? " by " + shortDate(x.sign_by) : "") + ".", "Review and sign", function () { openGig(x.gig_id); });
-        else if (x.kind === "proposals") add("decision", x.n + (x.n === 1 ? " proposal to review" : " proposals to compare"), x.gig_title, "You", "Compare the proposals and choose one, or decline them.", x.n === 1 ? "View proposal" : "Compare proposals", function () { openGig(x.gig_id, "proposals"); });
+        if (x.kind === "review") add("review", "Milestone " + x.seq + " was delivered", x.gig_title, "You", "Read the delivery and accept it or request changes" + (x.review_due_at ? " by " + shortDate(x.review_due_at) : "") + ".", "Review delivery", function () { openGig(x.gig_id); }, { id: x.gig_id + ":" + x.seq });
+        else if (x.kind === "pay") add("blocked", x.first ? "Work cannot start until milestone " + (x.seq || 1) + " is paid" : "The payment for milestone " + x.seq + " did not go through", x.gig_title, "You", x.first ? "Pay the first milestone. Lawfecta holds the payment until you accept the work." : "Pay the milestone again or change the payment method.", "Pay milestone", function () { openGig(x.gig_id); }, { id: x.gig_id + ":" + x.seq });
+        else if (x.kind === "sign") add("decision", "An agreement waits for your signature", x.gig_title, "You", "Read the agreement and sign it" + (x.sign_by ? " by " + shortDate(x.sign_by) : "") + ".", "Review and sign", function () { openGig(x.gig_id); }, { id: x.gig_id });
+        else if (x.kind === "proposals") add("decision", x.n + (x.n === 1 ? " proposal to review" : " proposals to compare"), x.gig_title, "You", "Compare the proposals and choose one, or decline them.", x.n === 1 ? "View proposal" : "Compare proposals", function () { openGig(x.gig_id, "proposals"); }, { id: x.gig_id });
       });
       ((wf.ok && wf.on && wf.items) || []).forEach(function (it) {
         var e = it.eng || {}, w = wfRead(it), name = (it.doc_id ? it.doc_id + " " : "") + it.title;
-        if (e.needs) add("blocked", plural(e.needs, "input") + " the freelancer still needs", name, "You", "Supply each input or mark it as not needed, under \"What the freelancer needs before starting\".", w.next ? w.next[0] : "Open the work", w.next ? w.next[1] : function () { homeOpenDoc(it.id); });
-        if (it.feedback_open) add("needs_review", plural(it.feedback_open, "note") + " from people who did the work", name, "The playbook's author", "Read each note and improve the playbook, or set the note aside.", "Open the playbook", function () { openDocFromChat(it.id); });
-        if (!it.approved && it.status === "in_review") add("needs_review", "A playbook was sent for review", name, "The author or the Library administrator", "Read the draft and approve it, or send it back.", "Review changes", function () { dw.chg = it.id; dwGo("changes"); });
+        if (e.needs) add("blocked", plural(e.needs, "input") + " the freelancer still needs", name, "You", "Supply each input or mark it as not needed, under \"What the freelancer needs before starting\".", w.next ? w.next[0] : "Open the work", w.next ? w.next[1] : function () { homeOpenDoc(it.id); }, { id: it.id });
+        if (it.feedback_open) add("needs_review", plural(it.feedback_open, "note") + " from people who did the work", name, "The playbook's author", "Read each note and improve the playbook, or set the note aside.", "Open the playbook", function () { openDocFromChat(it.id); }, { id: it.id });
+        if (!it.approved && it.status === "in_review") add("needs_review", "A playbook was sent for review", name, "The author or the Library administrator", "Read the draft and approve it, or send it back.", "Review changes", function () { dw.chg = it.id; dwGo("changes"); }, { id: it.id });
       });
       (tw.mine || []).forEach(function (a) {
         var go = function () { team.id = a.id; tab = "teamwork"; draw(); window.scrollTo(0, 0); };
-        if (a.status === "assigned") add("decision", "Team work waits for your answer", a.title, "You", "Accept the work or decline it.", "Open the assignment", go, { team: a.id });
-        else if (a.status === "changes_requested") add("decision", "Changes were requested on your work", a.title, "You", "Read the note, make the changes and submit again.", "Open the assignment", go, { team: a.id });
+        if (a.status === "assigned") add("decision", "Team work waits for your answer", a.title, "You", "Accept the work or decline it.", "Open the assignment", go, { team: a.id, id: a.id });
+        else if (a.status === "changes_requested") add("decision", "Changes were requested on your work", a.title, "You", "Read the note, make the changes and submit again.", "Open the assignment", go, { team: a.id, id: a.id });
       });
       (tw.given || []).forEach(function (a) {
         var go = function () { team.id = a.id; tab = "teamwork"; draw(); window.scrollTo(0, 0); };
-        if (a.status === "submitted") add("review", "Team work was submitted", a.title, "You, or the Library administrator", "Read the work and accept it or request changes.", "Review the work", go, { team: a.id });
-        else if (a.status === "assigned") add("decision", "Team work waits to be accepted", a.title, a.assignee ? a.assignee.name : "The person assigned", "Only the person assigned can accept. You can send a note or cancel.", "Open the assignment", go, { team: a.id });
-        else if (a.status === "done") add("accepted", "Team work was accepted", a.title, "Nobody: it is done", "Nothing more to do.", "Open the assignment", go, { team: a.id });
+        if (a.status === "submitted") add("review", "Team work was submitted", a.title, "You, or the Library administrator", "Read the work and accept it or request changes.", "Review the work", go, { team: a.id, id: a.id });
+        else if (a.status === "assigned") add("decision", "Team work waits to be accepted", a.title, a.assignee ? a.assignee.name : "The person assigned", "Only the person assigned can accept. You can send a note or cancel.", "Open the assignment", go, { team: a.id, id: a.id });
+        else if (a.status === "done") add("accepted", "Team work was accepted", a.title, "Nobody: it is done", "Nothing more to do.", "Open the assignment", go, { team: a.id, id: a.id });
       });
       ((R.ok && R.rules) || []).filter(function (x) { return x.scope === "firm" && x.status === "proposed"; }).forEach(function (x) {
-        add("decision", "A DELA instruction is proposed", x.body, R.can_approve ? "You" : "The Library administrator", "Approve it or decline it. DELA does not follow it until it is approved.", "Open DELA instructions", function () { chat.rulesTab = "firm"; dw.ruleF = "proposed"; dwGo("instructions"); });
+        add("decision", "A DELA instruction is proposed", x.body, R.can_approve ? "You" : "The Library administrator", "Approve it or decline it. DELA does not follow it until it is approved.", "Open DELA instructions", function () { chat.rulesTab = "firm"; dw.ruleF = "proposed"; dwGo("instructions"); }, { id: x.id });
       });
       var openItems = items.filter(function (i) { return i.state !== "accepted"; });
       function paint() {
@@ -2922,11 +3043,12 @@
         var rows = dw.qf === "all" ? openItems : items.filter(function (i) { return i.state === dw.qf; });
         var cur = rows.filter(function (i) { return i.key === dw.qsel; })[0] || rows[0] || null;
         var q = h("section", { class: "card", id: "dw-queue" }, h("h2", { text: "Decision queue" }));
-        if (!rows.length) q.appendChild(h("p", { class: "muted", id: "dw-q-none", style: "margin:0", text: dw.qf === "all" ? "Nothing waits on anyone right now." : "Nothing in this group." }));
+        if (missing.length) q.appendChild(h("p", { class: "dw-warn", id: "dw-q-missing", role: "alert" }, h("span", { text: "This list is not complete. These could not be read just now: " + missing.join(", ") + ". " }), h("button", { class: "ghost small", type: "button", id: "dw-q-retry", onclick: function () { drawChat(); } }, "Try again")));
+        if (!rows.length) q.appendChild(h("p", { class: "muted", id: "dw-q-none", style: "margin:0", text: missing.length ? "Nothing to show from what could be read." : dw.qf === "all" ? "Nothing waits on anyone right now." : "Nothing in this group." }));
         rows.forEach(function (i) {
           var tg = DW_Q[i.state];
           q.appendChild(h("button", { class: "dw-qrow", type: "button", "aria-pressed": String(cur === i), onclick: function () { dw.qsel = i.key; paint(); } },
-            h("span", { class: "grow" }, h("b", { text: i.title }), h("span", { class: "hsub", style: "display:block", text: "Related to: " + i.related + " · Resolver: " + i.resolver })), h("span", { class: "badge " + tg[1] + " dw-tag", text: tg[0] })));
+            h("span", { class: "grow" }, h("b", { text: i.title }), h("span", { class: "hsub", style: "display:block", text: "Related to: " + i.related + " · Resolver: " + i.resolver })), h("span", { class: "badge " + tg[1] + " dw-tag", text: tg[0] }), cur === i ? h("span", { class: "sr", text: " (shown in Decision details)" }) : null));
         });
         main.appendChild(q);
         var hist = h("section", { class: "card", id: "dw-q-hist" }, h("h2", { text: "Event history" }));
@@ -2951,9 +3073,12 @@
         }
         side.appendChild(det);
         side.appendChild(dwNote("Work is marked completed, accepted or paid only by the recorded action of the person who may do it. DELA's suggestions cannot stand in for an approval."));
+        dwFocusBack();
+        // On a narrow screen the details sit under the queue: bring them into view when a line is chosen (C6)
+        if (dw.qsel && det.getBoundingClientRect && det.getBoundingClientRect().top > (window.innerHeight || 800) - 120) { try { det.scrollIntoView({ block: "center" }); } catch (e) { /* older browsers */ } }
       }
       paint();
-    });
+    }).catch(function (e) { D.clear(main); main.appendChild(h("p", { class: "notice bad", role: "alert", text: "This page could not be drawn. " + D.errorText(e && e.message) })); });
   }
   // "Gig drafts" in the second menu: the firm's gigs that are not posted yet
   function dwGigs() {
@@ -2963,7 +3088,8 @@
     card.appendChild(body);
     api.get("/gigs").then(function (r) {
       D.clear(body);
-      var drafts = (r && r.ok && r.gigs || []).filter(function (g) { return g.status === "draft"; });
+      if (!r || !r.ok) { body.appendChild(h("p", { class: "notice bad", id: "dw-gig-err", role: "alert", text: "Your gig drafts could not be read just now. " + gigErr(r || {}) })); return; }
+      var drafts = (r.gigs || []).filter(function (g) { return g.status === "draft"; });
       if (!drafts.length) { body.appendChild(h("p", { class: "muted", id: "dw-gig-none", style: "margin:0", text: "No drafts. Select an approved playbook in the chat and click \"Prepare a gig draft\", or click \"+ New gig draft\"." })); return; }
       body.appendChild(h("ul", { class: "aw-docs" }, drafts.map(function (g) {
         return h("li", { class: "aw-row" }, h("span", { class: "aw-row-t" }, h("b", { text: g.title || "Untitled draft" }), h("span", { class: "hsub", text: "Draft, not posted" + (g.updated_at ? " · changed " + D.date(g.updated_at) : "") })),
@@ -2977,7 +3103,7 @@
   function dwInstructions() {
     var R = chat.rules, w = chat.ws || {};
     chatEl.appendChild(dwHead("DELA Instructions & Firm Context", "Set how DELA should interpret firm procedures. Corrections stay proposed until accepted by someone with the right authority.", [
-      h("button", { class: "blue small", type: "button", id: "dw-propose", onclick: function () { if (chat.rulesTab !== "firm" && chat.rulesTab !== "personal") { chat.rulesTab = R && R.has_firm ? "firm" : "personal"; drawChat(); } var t = chatEl.querySelector("#rule-new"); if (t) t.focus(); } }, "+ Propose instruction")]));
+      R && !R.can_propose && R.has_firm && chat.rulesTab === "firm" ? null : h("button", { class: "blue small", type: "button", id: "dw-propose", onclick: function () { if (chat.rulesTab !== "firm" && chat.rulesTab !== "personal") { chat.rulesTab = R && R.has_firm ? "firm" : "personal"; drawChat(); } var t = chatEl.querySelector("#rule-new"); if (t) t.focus(); } }, "+ Propose instruction")]));
     var main = h("div");
     rulesView(main);
     var how = h("section", { class: "card", id: "dw-how" }, h("h2", { text: "How context is used" }),
@@ -3214,8 +3340,10 @@
     var TABS = [["firm", "Firm guidance (" + live(firm).length + ")"], ["personal", "My preferences (" + live(mine).length + ")"], ["history", "Change history"]];
     // Step 75a (mockup 5): a fourth tab, and no firm tab for an account with no firm Library
     if (V) { TABS.splice(2, 0, ["assignment", "Assignment context"]); if (!R.has_firm) TABS.shift(); }
-    host.appendChild(h("div", { class: "pills", role: "tablist", "aria-label": "DELA instructions" }, TABS.map(function (t) {
-      return h("button", { role: "tab", type: "button", id: "rules-tab-" + t[0], "aria-selected": String(chat.rulesTab === t[0]), onclick: function () { chat.rulesTab = t[0]; chat.rulesSay = null; drawChat(); } }, t[1]);
+    host.appendChild(h("div", { class: "pills", role: V ? "group" : "tablist", "aria-label": "DELA instructions" }, TABS.map(function (t) {
+      var on = String(chat.rulesTab === t[0]);
+      return h("button", V ? { type: "button", id: "rules-tab-" + t[0], "aria-pressed": on, onclick: function () { chat.rulesTab = t[0]; chat.rulesSay = null; drawChat(); } }
+        : { role: "tab", type: "button", id: "rules-tab-" + t[0], "aria-selected": on, onclick: function () { chat.rulesTab = t[0]; chat.rulesSay = null; drawChat(); } }, t[1]);
     })));
     var act = function (id, action, msg) {
       return api.post("/ai/rules/act", { id: id, action: action }).then(function (x) { if (!x || !x.ok) throw x || {}; chat.rulesSay = { text: msg }; return loadRules(); })
@@ -3240,14 +3368,14 @@
     var card = h("section", { class: "card", id: "rules-card" });
     host.appendChild(card);
     if (V && chat.rulesTab === "assignment") {
-      card.appendChild(h("h3", { style: "margin:0 0 6px", text: "Assignment context" }));
+      card.appendChild(h("h2", { style: "margin:0 0 6px", text: "Assignment context" }));
       card.appendChild(h("p", { class: "hsub", style: "margin:0", text: "The facts of one piece of work: the steps handed over, what the recipient needs before starting, and the points where the attorney decides. DELA uses them inside that work only, never in another chat or for another firm." }));
       var wl = wfList(); if (wl) host.appendChild(wl);
       else card.appendChild(h("p", { class: "muted", style: "margin:8px 0 0", text: "No work in motion to show here." }));
       return;
     }
     if (chat.rulesTab === "history") {
-      card.appendChild(h("h3", { style: "margin:0 0 6px", text: "Change history" }));
+      card.appendChild(h(V ? "h2" : "h3", { style: "margin:0 0 6px", text: "Change history" }));
       if (!all.length) card.appendChild(h("p", { class: "muted", style: "margin:0", text: "Nothing has been proposed yet." }));
       else card.appendChild(h("ul", { class: "aw-docs" }, all.map(function (x) { return row(x, true); })));
       return;
@@ -3260,7 +3388,7 @@
       card.appendChild(h("div", { class: "row", style: "float:right;margin:0 0 6px 8px" }, fsel));
       if (dw.ruleF !== "all") list = list.filter(function (x) { return x.status === dw.ruleF; });
     }
-    card.appendChild(h("h3", { style: "margin:0 0 6px", text: isFirm ? "Firm guidance" : "My preferences" }));
+    card.appendChild(h(V ? "h2" : "h3", { style: "margin:0 0 6px", text: isFirm ? "Firm guidance" : "My preferences" }));
     card.appendChild(h("p", { class: "hsub", style: "margin:0 0 8px", text: isFirm ? "What DELA follows for everyone in your firm. A proposed line is not in use until the Library administrator approves it. Up to " + R.max + " lines in use." : "What DELA follows in your own chats only. When a preference disagrees with firm guidance, firm guidance wins." }));
     if (!list.length) card.appendChild(h("p", { class: "muted", id: "rules-empty", style: "margin:0 0 8px", text: V && isFirm && dw.ruleF !== "all" ? "Nothing with this status." : isFirm ? "No firm guidance yet." : "No preferences yet." }));
     else card.appendChild(h("ul", { class: "aw-docs" }, list.map(function (x) { return row(x, false); })));
@@ -3419,7 +3547,7 @@
       chat.busy = false;
       if (r.chat_id) chat.id = r.chat_id;
       if (r.ok && p.remember && chat.id) chat.clientOk = chat.id;
-      if (!r.ok) { chat.problem = r; drawChat(); return; }
+      if (!r.ok) { chat.problem = r; chatAnswerDraw(); return; }
       chat.messages.push({ role: "user", content: p.content, files: p.files });
       chat.messages.push({ role: "assistant", content: r.reply.content, source: r.reply.source });
       if (r.cut) chat.messages.push({ role: "assistant", content: "Note: the attached files or documents were long, so DELA read only the first part of them.", source: "" });
@@ -3440,8 +3568,8 @@
       chat.picking = false;
       if (composerText) composerText.value = "";
       if (!chat.list.some(function (c) { return c.id === chat.id; })) chat.list.unshift({ id: chat.id, title: p.content.slice(0, 60), updated_at: new Date().toISOString() });
-      drawChat();
-    }).catch(function (e) { if (p.stopped || (p.gen || 0) !== gen) return; chat.busy = false; chat.problem = { reason: e.message }; drawChat(); });
+      chatAnswerDraw();
+    }).catch(function (e) { if (p.stopped || (p.gen || 0) !== gen) return; chat.busy = false; chat.problem = { reason: e.message }; chatAnswerDraw(); });
   }
 
   function problemBox(pr) {
@@ -3916,8 +4044,12 @@
   function field(label, input, hint, help, extra) {
     // The shared help tip (UX review part 3): keyboard and Escape, tied to the box it explains
     var pair = D.helpTip(help, "What to enter in " + label.split(" (optional)").join("")), q = pair[0], tip = pair[1];
-    return h("div", { style: "margin:8px 0" }, h("div", { class: "row", style: "gap:6px;align-items:center" }, h("label", { text: label, style: "margin:0" }), q), tip, input, hint ? h("div", { class: "small muted", text: hint }) : null, extra || null);
+    var lab = h("label", { text: label, style: "margin:0" });
+    // The label names its box for screen readers and for a click on the label (review 2026-11-23, C1)
+    if (input && /^(INPUT|SELECT|TEXTAREA)$/.test(input.tagName || "")) { if (!input.id) input.id = "fld-" + (++fieldSeq); lab.setAttribute("for", input.id); }
+    return h("div", { style: "margin:8px 0" }, h("div", { class: "row", style: "gap:6px;align-items:center" }, lab, q), tip, input, hint ? h("div", { class: "small muted", text: hint }) : null, extra || null);
   }
+  var fieldSeq = 0;
 
   // "Write with DELA" under a box: DELA writes or improves just that box from a few facts (Stacey 2026-11-05)
   function writeWithDela(key, label, el) {
@@ -4827,7 +4959,7 @@
     var acts = [];
     if (f.status === "ready" || f.status === "held") acts.push(act("Open", function () { openFile(f, false); }));
     if (f.status === "ready" && f.ext !== "png" && f.ext !== "jpg") acts.push(act("Download", function () { openFile(f, true); }));
-    if (f.status === "ready" && !f.from_job && (me.switches || {}).ai_generation) acts.push(act("Ask DELA", function () { chat.attach = [{ id: f.id, name: f.name }]; chat.picking = false; tab = "delegate"; draw(); }, "blue"));
+    if (f.status === "ready" && !f.from_job && (me.switches || {}).ai_generation) acts.push(act("Ask DELA", function () { dw.page = "chat"; chat.attach = [{ id: f.id, name: f.name }]; chat.picking = false; tab = "delegate"; draw(); }, "blue"));
     if (f.status === "held") {
       acts.push(act("It has no client information", function () {
         if (!confirm("Confirm that \"" + f.name + "\" has no confidential client information. You are responsible for what you upload.")) return;
@@ -9428,7 +9560,7 @@
       Promise.all([api.get(url), api.get("/gigs"), loadBookmarks(true), api.get("/bookmarks?names=1&notes=1").catch(function () { return null; }), loadCats().catch(function () { return null; })]).then(function (rs) {
         talentMarks = {};
         var now = Date.now(), x = rs[0], mine = rs[1].ok ? rs[1].gigs.filter(function (g) { return g.status === "open" && !g.paused_by_team && (!g.closes_at || new Date(g.closes_at).getTime() > now); }) : [];
-        var bk = rs[3], st = (bk && bk.ok && bk.notes) || { items: {}, tags: [], limits: {} };
+        var bk = rs[3], notesOk = !!(bk && bk.ok && bk.notes), st = notesOk ? bk.notes : { items: {}, tags: [], limits: {} };
         if (!idx && rs[4] && rs[4].ok) { idx = rs[4]; chain = chainOf(idx.byKey[bmQ.category]); if (!idx.byKey[bmQ.category]) bmQ.category = ""; drawCats(); catRow.style.display = ""; }
         // A tag that is no longer on any bookmark leaves the filter
         if (bmQ.tag && (st.tags || []).map(function (t) { return t.toLowerCase(); }).indexOf(bmQ.tag.toLowerCase()) < 0 && bk && bk.ok) { bmQ.tag = ""; load(); return; }
@@ -9443,7 +9575,8 @@
         if (bmQ.category && idx && idx.byKey[bmQ.category]) chips.push({ text: idx.path(bmQ.category).join(" › "), remove: function () { setCat(null); } });
         talentResults(results, x, mine, null, { chips: chips, clear: clearAll, resort: load, reload: load, more: function (b) { b.remove(); }, title: "Bookmarks (" + n + ")",
           empty: filtered ? "None of your bookmarks fit these filters." : "Nobody yet. Open a freelancer's profile from Search and click \"☆ Bookmark\".",
-          extra: function (p) { return bmNoteBlock(p.person_id, p.name, st, load); } });
+          extra: function (p) { return notesOk ? bmNoteBlock(p.person_id, p.name, st, load) : h("p", { class: "bm-note hsub bm-unread", role: "status", text: "Your tags and note for this freelancer could not be read just now. Reload the page to try again." }); } });
+        setTimeout(dwFocusBack, 30);
         // Bookmarked, but not listed in Talent right now (not taking work, or their profile is not match-ready): say so
         // and let the member remove the bookmark. No reason is given. They have no category to filter by, so a
         // category filter leaves them out; a tag filter keeps the ones with that tag.

@@ -46,7 +46,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 3. Do: on the first task card, click "Why this task?".
    Expect: under the buttons of that card, one or two grey sentences with the reason and "Estimated time saved:".
    Do: tick the box in front of the first task's name.
-   Expect: that card turns pink with a dark red border. In "Your selection" the task is listed with a green tag "Selected", the number beside "Selected tasks" is 1, and the button "Review dependencies & ownership" can now be clicked.
+   Expect: that card turns pink with a dark red border. In "Your selection" the task is listed with a green tag "Selected", the number beside "Selected tasks" is 1, and the button "Review dependencies & ownership" can now be clicked. Under that button, grey words that start "This starts a handoff in preparation with the ticked tasks."
    Write down the task's name and its step numbers (for example "steps 2 to 3").
 
 4. Do: click "Review dependencies & ownership".
@@ -54,7 +54,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Expect: at the left, three cards from top to bottom: "Selected work", "Prerequisites & inputs", "Completion criteria".
    Expect: in "Selected work", every step of the playbook on its own line. The steps of the task you ticked have a green tag "Selected". The other steps have a grey tag "Not selected" or "Excluded". A pink tag at the top right of the card says how many tasks are selected. At the bottom of the card, an outlined button "Change the selection".
    Expect: at the right, a card "Handoff summary" with four lines ("Scope", "Accountable owner", "Downstream reviewer", "Recipient access" with a yellow tag "Pending"), a yellow note that starts "The selected work cannot start until", and a dark red button "Open recipient-safe preview" that is greyed out, with the grey words "The preview is made from the gig draft. Prepare the gig draft first."
-   Expect: under it a card "Next step" with a line "1. Instructions for this part" tagged "Missing", a dark red button "Draft the instructions", a line "2. Gig draft" with a suggested budget in dollars, and a greyed-out button "Prepare gig draft". Do NOT click "Draft the instructions".
+   Expect: under it a card "Next step" with a line "1. Step-by-step guide for this part" tagged "Missing", a dark red button "Draft the guide", a line "2. Gig draft" with a suggested budget in dollars, a greyed-out button "Prepare gig draft" and the grey words "Approve the guide first." Do NOT click "Draft the guide".
 
 5. Do: in the card "Selected work", click "Change the selection".
    Expect: a tick box shows in front of each step that can be handed over. A step tagged "Excluded" has no tick box.
@@ -68,6 +68,8 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Expect: a message "Criteria saved." The card "Completion criteria" now shows "Check 27: the packet is sent and logged." as its first line, and the button "Edit criteria" is back.
 
 7. Do: if you are on the page "Partial Delegation & Dependencies": at the bottom of the right column, under the card "Next step", click the underlined words "Stop this handoff".
+   Expect: in the same place, a yellow question that starts "Stop this handoff?" with two buttons, "Yes, stop it" and "Cancel". Nothing has changed yet.
+   Do: click "Yes, stop it".
    Expect: the page "Delegation Opportunities" for "Send the welcome packet" opens again. The task you ticked earlier has the tag "Suggested" again, its box is not ticked, and "Selected tasks" is 0. There is no card "Handoffs from this playbook".
    Do: at the far right of the heading, click "Refine with DELA".
    Expect: the Ask DELA chat page. In the card "Working context" at the right, "Send the welcome packet" has a green tag "Selected". The message box holds a sentence that starts "Go through the tasks I could delegate from". Do NOT click "Send".
