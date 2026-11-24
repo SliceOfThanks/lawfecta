@@ -248,7 +248,8 @@ How to read the "State" column:
 | 82-5 | A claim listing is created on the real website from a reviewed row, opens by its direct link, does not show in the website's search, and no email went to the person | After her website steps and the lawyer's review, Stacey approves a batch of three rows she chose | Not yet | Tested with a stand-in for the website only; the real "create member" call has never run |
 | 84-1 | A real event published on the website shows in DELA within the hour with its day, time, place and picture | Stacey publishes one event on the website and looks at Community an hour later | Not yet | The website has no events yet; tested with a stand-in |
 | 84-2 | The Category list on Events shows the categories Stacey set in the post type "Event" | Stacey renames the three placeholders, then looks | Not yet | Until then the list reads "All categories" only |
-| 84-3 | An event shows "Open the event page" when its organizer gave a link | An event on the website that has a link of its own | Not yet | Not known whether the website's event form offers a link box |
+| 84-3 | An event shows "Open the event page" when its organizer gave a link | An event on the website that has a link of its own | Not yet | The test event (post 69) carries its link in DELA's copy since 2026-11-24; the button has not been seen on screen by a person |
+| 85-1 | Blog cards show the article pictures above the headings, and they look right at the card's size | Stacey looks at the Blog | Not yet | 5 of 5 articles have a picture in DELA's copy |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.

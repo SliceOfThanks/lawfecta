@@ -128,6 +128,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 15. Go to: https://www.lawfecta.co/dela?tab=community
     Do: click "Blog" in the white row of rounded buttons under "Community".
     Do: click "Blog" in the white row of rounded buttons under "Community".
+    Do: click "Blog" in the white row of rounded buttons under "Community".
     Expect: the "Blog" button is the marked one, and the first card has the same title and author you wrote down in step 1.
     Do: click "Read the article" on the first card.
     Expect: the article opens, and under its text there is a button that starts with "View" and ends with "profile", with the author's name between.

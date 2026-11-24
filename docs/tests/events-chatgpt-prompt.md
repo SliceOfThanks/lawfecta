@@ -1,4 +1,4 @@
-You are checking one new tab in DELA on the Lawfecta site, www.lawfecta.co: "Events", the first tab of Community. Two accounts take part: the test freelancer, then the test attorney. One test event was put on the website before this check: "DELA test event: Legal operations office hours", on December 15, 2026, from 12:00 PM to 1:00 PM, online, free. This check only reads pages, switches views and saves one calendar file. It posts nothing and deletes nothing. Use a wide browser window.
+You are checking one new tab in DELA on the Lawfecta site, www.lawfecta.co: "Events", the first tab of Community. Two accounts take part: the test freelancer, then the test attorney. One test event was put on the website before this check: "DELA test event: Legal operations office hours", on December 15, 2026, from 12:00 PM to 1:00 PM, online. This check only reads pages, switches views and saves one calendar file. It posts nothing and deletes nothing. Use a wide browser window.
 
 No step should open a browser pop-up (a small OK / Cancel window from the browser itself). If one opens, click Cancel, write FAIL for that step and say what the pop-up said.
 
@@ -37,7 +37,7 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
    Expect: under the row, a line that starts "Events for Lawfecta members, the soonest first."
    Expect: a white card with two lists, "Category" (reading "All categories") and "When" (reading "Coming up"), and at its right the word "View" with two rounded buttons, "Cards" and "List". "Cards" is the marked one.
    Expect: a heading "Events" with a number in brackets, then at least one card.
-   Expect: a card titled "DELA test event: Legal operations office hours". At its left a small box reads "DEC" over "15". Under the title: "December 15, 2026, 12:00 PM to 1:00 PM". The card also shows "Online", a small tag "Free", the words "By Lawfecta" and a button "View event".
+   Expect: a card titled "DELA test event: Legal operations office hours". At its left a small box reads "DEC" over "15". Under the title: "December 15, 2026, 12:00 PM to 1:00 PM". The card also shows "Online", the words "By Lawfecta" and a button "View event".
    Expect: NO card shows the words "Category 1", "Category 2" or "Category 3".
    Expect: under the cards, a line that starts "Last read from the Lawfecta website".
    (If the heading reads "Events (0)" and the page says "No events are coming up yet.", the test event has not reached DELA yet. Write FAIL for step 1 with that sentence, skip steps 2 to 5, and go on to step 6.)
@@ -60,10 +60,10 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
    Expect: the heading reads "Events" again and "DELA test event: Legal operations office hours" is listed.
 
 5. Do: click "View event" on the card "DELA test event: Legal operations office hours".
-   Expect: the event opens on the same page: a button "← Events" at the top left, the title, and four lines: "When" with "December 15, 2026, 12:00 PM to 1:00 PM", "Where" with "Online", "Price" with "Free", "Organizer" with "Lawfecta". Then the event's text.
-   Expect: under the text, a button "Add to my calendar". If the event has a link of its own, a dark red button "Open the event page" stands before it, with a grey line under the buttons saying it opens in a new tab, outside Lawfecta. Write down which buttons you see.
+   Expect: the event opens on the same page: a button "← Events" at the top left, the title, and three lines: "When" with "December 15, 2026, 12:00 PM to 1:00 PM", "Where" with "Online", "Organizer" with "Lawfecta". Then the event's text.
+   Expect: two buttons under the text: "Open the event page" (dark red) and "Add to my calendar". Under them, a grey line that starts "Open the event page" and says it opens in a new tab, outside Lawfecta.
    Expect: NO email address and NO phone number in the text.
-   Do: click "Add to my calendar". Do NOT click "Open the event page" if it is there.
+   Do: click "Add to my calendar". Do NOT click "Open the event page".
    Expect: a small dark message at the bottom of the page: "Calendar file saved. Open it to add the event to your calendar." The browser saves a file whose name ends in .ics.
    Do: click "← Events".
    Expect: the list of events is back.
@@ -78,7 +78,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Expect: "Events" is the first button in the white row under "Community" and it is the marked one, with "Blog" second.
    Expect: the card "DELA test event: Legal operations office hours" is listed, with "December 15, 2026, 12:00 PM to 1:00 PM" under its title.
    Do: click the title "DELA test event: Legal operations office hours" (it is a link).
-   Expect: the event opens, with "When", "Where", "Price" and "Organizer", and the button "Add to my calendar".
+   Expect: the event opens, with "When", "Where" and "Organizer", and the buttons "Open the event page" and "Add to my calendar".
    Do: click "← Events".
 
 7. Do: click "Blog" in the white row under "Community".
