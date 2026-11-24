@@ -9,6 +9,8 @@ Last updated 2026-11-06. The one-page picture (built, in progress, next, before 
 - A "Bookmarks" link in the website's member menu: not needed. Her words: "WE ALREADY HAVE A BOOKMARKS TAB UNDER TALENT?" The Bookmarks tab in DELA is the place; the website's own page (/account/favorite-members) stays reachable by its address only. No BD connector prompt is owed.
 
 ## Newest (2026-11-23, late): the chat page after Stacey's look; the message box leads with Talk, Record my screen and Import from Scribe
+code_version 836599e, api function 153, migrations through 0158 (run 45295137550): step 79, the two buttons beside Talk and screenshots into the playbook draft. Next: step 80, the what-you-see-is-what-you-get playbook editor (plan approved 2026-11-24: looks finished and click to edit, playbook first with a side panel, step details as tags, bold, italic, bullets and links; switch document_editor_v2; releases 80a page and editor, 80b formatting, 80c old playbooks).
+
 code_version ef09de8, api function 152, migrations through 0157 (run 45290097285): step 78, the Ask DELA conversation to the second mockup, with answers tied to real playbook steps and the source picker. To watch: the real AI writing TASK lines (78-1); a chat stays limited to three playbooks (setting ai.chat_context_documents).
 
 code_version fed5ac2 (browser only, run 45284050887): step 77, the Ask DELA first screen rebuilt to Stacey's mockup of 2026-11-23. Waiting on her look and on her answers about the top notice text, the actions-left line and the back office sentence.
