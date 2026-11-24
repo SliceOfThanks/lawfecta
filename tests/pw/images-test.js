@@ -357,6 +357,7 @@ const imgs = (step) => sql("select v.body->'steps'->" + step + "->'images' as im
     await p.screenshot({ path: path.join(SHOTS, "images-phone.png"), fullPage: false });
     await s.ctx.close();
     // ---------- Step 80: in the new editor an image moves from one step to another ----------
+    const was80 = (await sql("select state from feature_switches where key = 'document_editor_v2'"))[0].state;
     await sql("update feature_switches set state = 'everyone' where key = 'document_editor_v2'; select 1");
     try {
       const sr = (pg, fn, arg) => pg.evaluate(([f, a]) => new Function("r", "a", f)(document.querySelector(".dela-host").shadowRoot, a), [fn, arg]);
@@ -389,7 +390,7 @@ const imgs = (step) => sql("select v.body->'steps'->" + step + "->'images' as im
       await dela(p).locator("#dp-status", { hasText: /^Saved / }).waitFor({ timeout: 12000 });
       ok(true, "the move is kept by itself, like typing");
       await s.ctx.close();
-    } finally { await sql("update feature_switches set state = 'off' where key = 'document_editor_v2'; select 1"); }
+    } finally { await sql("update feature_switches set state = '" + was80 + "' where key = 'document_editor_v2'; select 1"); }
     console.log(passed + " browser checks passed");
   } finally { await browser.close(); }
 })().catch((e) => { console.error(e.message); process.exit(1); });

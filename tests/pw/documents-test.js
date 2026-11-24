@@ -353,6 +353,8 @@ async function makeMember(bd, side, plan) {
       await s.ctx.close();
     } finally { await sql("update feature_switches set state = 'off' where key = 'team_assignments'; select 1"); }
     // ---------- Step 80: the document edited in place (Stacey 2026-11-24: a what-you-see-is-what-you-get editor) ----------
+    // Every switch this block turns goes back to what it was, so the suites that run after this one see the same site
+    const was80 = await sql("select key, state from feature_switches where key in ('document_editor_v2', 'approved_view', 'new_layout', 'file_uploads', 'team_assignments')");
     await sql("update feature_switches set state = 'everyone' where key in ('document_editor_v2', 'approved_view', 'new_layout'); select 1");
     try {
       const sr = (pg, fn, arg) => pg.evaluate(([f, a]) => new Function("r", "a", f)(document.querySelector(".dela-host").shadowRoot, a), [fn, arg]);
@@ -498,7 +500,7 @@ async function makeMember(bd, side, plan) {
       st = await sr(s.page, `return { heads: [...r.querySelectorAll(".dp-page h2.dp-h")].map((x) => x.textContent), img: /Add image/.test(r.querySelector(".dp-page").textContent) }`);
       ok(st.heads.join("|") === "Purpose|Scope|The rules|Exceptions and who approves them|Related links" && !st.img, "a Policy shows its sections and takes no images");
       await s.ctx.close();
-    } finally { await sql("update feature_switches set state = 'off' where key in ('document_editor_v2', 'new_layout', 'team_assignments'); select 1"); }
+    } finally { for (const w of was80) await sql("update feature_switches set state = '" + w.state + "' where key = '" + w.key + "'; select 1"); }
     console.log(passed + " browser checks passed");
   } finally { await browser.close(); }
 })().catch((e) => { console.error(e.message); process.exit(1); });
