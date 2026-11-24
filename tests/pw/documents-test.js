@@ -365,6 +365,29 @@ async function makeMember(bd, side, plan) {
         return o;
       };
       const before = await sopRow();
+      // Stacey 2026-11-24, "organizing menu": Notifications, Files, Team work and Subscription leave the menu
+      await sql("update feature_switches set state = 'everyone' where key in ('file_uploads', 'team_assignments'); select 1");
+      let m = await open(browser, 3600, { width: 1400, height: 950 }, "&tab=library");
+      await dela(m.page).locator("#nl-sub").waitFor({ timeout: 20000 });
+      let menu = await sr(m.page, `return { items: [...r.querySelectorAll(".nl-side .nl-item")].map((b) => b.innerText.trim()), sub: [...r.querySelectorAll("#nl-sub button")].map((b) => b.innerText.trim() + (b.getAttribute("aria-current") ? "*" : "")).join(","), cur: r.querySelector(".nl-side [aria-current=page]").innerText.trim() }`);
+      ok(["Notifications", "Files", "Team work", "Subscription"].every((x) => !menu.items.includes(x)) && menu.items.includes("Library") && menu.items.includes("Projects") && menu.items.includes("Settings"), "the menu no longer lists Notifications, Files, Team work or Subscription: " + menu.items.join(", "));
+      ok(menu.sub === "Documents*,Files" && menu.cur === "Library", "the Library has a row at its top: Documents and Files");
+      await dela(m.page).locator("#nl-sub").getByRole("button", { name: "Files", exact: true }).click();
+      await dela(m.page).locator("#nl-sub button[aria-current=page]", { hasText: "Files" }).waitFor({ timeout: 15000 });
+      menu = await sr(m.page, `return { cur: r.querySelector(".nl-side [aria-current=page]").innerText.trim(), where: r.querySelector(".top .where").textContent.trim() }`);
+      ok(menu.cur === "Library" && m.page.url().includes("tab=files"), "Files opens inside the Library: Library stays marked in the menu, and the page keeps its own address (" + menu.where + ")");
+      ok(menu.where === "Files", "the top bar names the Files page");
+      await dela(m.page).getByRole("button", { name: "Projects", exact: true }).first().click();
+      await dela(m.page).locator("#nl-sub").getByRole("button", { name: "Team work", exact: true }).click();
+      await dela(m.page).locator("#nl-sub button[aria-current=page]", { hasText: "Team work" }).waitFor({ timeout: 15000 });
+      ok(await sr(m.page, `return r.querySelector(".nl-side [aria-current=page]").innerText.trim()`) === "Projects", "Team work opens under Projects");
+      await dela(m.page).getByRole("button", { name: /^Notifications/ }).first().click();
+      await dela(m.page).locator("#notices-view-all").waitFor({ timeout: 15000 });
+      await dela(m.page).locator("#notices-view-all").click();
+      await dela(m.page).locator(".top .where", { hasText: "Notifications" }).waitFor({ timeout: 15000 });
+      const bellTo = await sr(m.page, `return { where: r.querySelector(".top .where").textContent.trim(), unread: !!r.querySelector("#notices-unread"), sub: !!r.querySelector("#nl-sub"), cur: (r.querySelector(".nl-side [aria-current=page]") || {}).innerText || "" }`);
+      ok(!bellTo.sub && bellTo.where === "Notifications", "the bell opens the newest notifications, and \"View all notifications\" there opens the full page, named in the top bar: " + JSON.stringify(bellTo));
+      await m.ctx.close();
       let s = await openDoc(), p = s.page;
       // The approved version reads as a document and cannot be typed into; a new draft is one click
       let st = await sr(p, `const pg = r.querySelector(".dp-page"); return { ro: pg.classList.contains("ro"), boxes: pg.querySelectorAll("[role=textbox]").length, inuse: !!r.querySelector("#dp-inuse"), top: Math.round(pg.getBoundingClientRect().top + window.scrollY), cards: !!r.querySelector("#doc-cats-card") || /Freelancers who fit this work/.test(r.querySelector(".dp-main").textContent), title: pg.querySelector("h1").textContent, heads: [...pg.querySelectorAll("h2.dp-h")].map((x) => x.textContent) }`);
@@ -475,7 +498,7 @@ async function makeMember(bd, side, plan) {
       st = await sr(s.page, `return { heads: [...r.querySelectorAll(".dp-page h2.dp-h")].map((x) => x.textContent), img: /Add image/.test(r.querySelector(".dp-page").textContent) }`);
       ok(st.heads.join("|") === "Purpose|Scope|The rules|Exceptions and who approves them|Related links" && !st.img, "a Policy shows its sections and takes no images");
       await s.ctx.close();
-    } finally { await sql("update feature_switches set state = 'off' where key in ('document_editor_v2', 'new_layout'); select 1"); }
+    } finally { await sql("update feature_switches set state = 'off' where key in ('document_editor_v2', 'new_layout', 'team_assignments'); select 1"); }
     console.log(passed + " browser checks passed");
   } finally { await browser.close(); }
 })().catch((e) => { console.error(e.message); process.exit(1); });

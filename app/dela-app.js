@@ -279,7 +279,7 @@
     return svg;
   }
   var ICON_FOR = { home: "home", delegate: "ask", ask: "ask", library: "library", files: "files", projects: "projects", talent: "talent", setup: "check", profile: "profile", work: "work", earnings: "earnings", agency: "agency", members: "agency", community: "inbox", teamwork: "check", ai: "settings", help: "help", subscription: "plan", meetings: "meet", notices: "bell" };
-  var PAGE_NAMES = { subscription: "Subscription", inbox: "Inbox", meetings: "Meetings", usage: "Usage", connect: "Connect", record: "Record a process", ai: "Settings", help: "Help", profile: "Profile" };
+  var PAGE_NAMES = { notices: "Notifications", files: "Files", teamwork: "Team work", subscription: "Subscription", inbox: "Inbox", meetings: "Meetings", usage: "Usage", connect: "Connect", record: "Record a process", ai: "Settings", help: "Help", profile: "Profile" };
   var WORKSPACE = { attorney: "Attorney workspace", freelancer: "Freelancer workspace" };
   // "Get set up" leaves the attorney's menu once it is finished or dismissed (Stacey 2026-11-11); it stays reachable from Help
   var setupDone = null;
@@ -294,11 +294,12 @@
       api.get("/setup").then(function (r) { if (r && (r.finished || r.dismissed)) { setupDone = true; if (tab !== "setup") draw(); } }).catch(function () {});
     }
     var main = att ? pick(["home", "projects", "delegate", "library"]) : pick(["home", "work", "ask", "earnings"]);
-    var second = att ? pick(["talent", "notices", "meetings", "files"].concat(setupDone ? [] : ["setup"]).concat(["teamwork", "community", "members"])) : pick(["notices", "meetings", "library", "projects", "talent", "community", "members"]);
+    // Stacey 2026-11-24, "organizing menu": Notifications opens from the bell, Files sits in the Library, Team work
+    // under Projects, and Subscription in Settings. They leave the menu; each page still has its own address.
+    var second = att ? pick(["talent", "meetings"].concat(setupDone ? [] : ["setup"]).concat(["community", "members"])) : pick(["meetings", "library", "projects", "talent", "community", "members"]);
     while (main.length < 4 && second.length) main.push(second.shift());
     var account = [];
     if (sw.profiles) account.push(["profile", "Profile"]);
-    account.push(["subscription", "Subscription"]);
     if (have.agency) account.push(have.agency);
     return { main: main, second: second, account: account, foot: [["ai", "Settings"], ["help", "Help"]] };
   }
@@ -306,9 +307,23 @@
     var all = g.main.concat(g.second, g.account, g.foot), hit = all.filter(function (t) { return t[0] === tab; })[0];
     return hit ? hit[1] : PAGE_NAMES[tab] || "DELA";
   }
+  // Pages that live inside another menu item, and the row of choices shown at the top of both
+  var SUBNAV = { library: [["library", "Documents"], ["files", "Files"]], projects: [["projects", "Projects"], ["teamwork", "Team work"]], ai: [["ai", "Settings"], ["subscription", "Subscription"]] };
+  var SUBPARENT = { files: "library", teamwork: "projects", subscription: "ai" };
+  function subNav() {
+    var group = SUBNAV[SUBPARENT[tab] || tab];
+    if (!group || !NL()) return null;
+    var have = { ai: 1, subscription: 1 };
+    tabsFor().forEach(function (t) { have[t[0]] = 1; });
+    var items = group.filter(function (g) { return have[g[0]]; });
+    if (items.length < 2) return null;
+    return h("nav", { class: "nl-sub", id: "nl-sub", "aria-label": (SUBNAV[SUBPARENT[tab] || tab][0][1] === "Documents" ? "Library" : SUBNAV[SUBPARENT[tab] || tab][0][1]) + " pages" }, items.map(function (g) {
+      return h("button", { class: "nl-sub-b", type: "button", "aria-current": g[0] === tab ? "page" : null, onclick: function () { if (g[0] !== tab) { goTab(g[0]); window.scrollTo(0, 0); } } }, g[1]);
+    }));
+  }
   function goTab(key) { if (tab === "library" && key !== "library") dpLeave(); closeMore(); if (key === "delegate" || key === "ask") dw.page = "chat"; tab = key; if (key === "inbox") { talk.thread = null; talk.openReply = null; } if (key === "meetings") talk.meeting = null; draw(); }
   function navItem(t, folded) {
-    return h("button", { class: "nl-item", type: "button", "aria-current": t[0] === tab ? "page" : null, "aria-label": folded ? t[1] : null, "data-tip": t[1], onclick: function () { goTab(t[0]); } },
+    return h("button", { class: "nl-item", type: "button", "aria-current": t[0] === tab || SUBPARENT[tab] === t[0] ? "page" : null, "aria-label": folded ? t[1] : null, "data-tip": t[1], onclick: function () { goTab(t[0]); } },
       icon(ICON_FOR[t[0]] || "chev"), h("span", { class: "lbl", text: t[1] }));
   }
   function sidebar(g) {
@@ -5485,6 +5500,7 @@
   }
 
   function loadLibrary() {
+    var subRow = app.querySelector("#nl-sub"); if (subRow) subRow.style.display = "";
     lib.pb = null;
     lib.importId = null;
     Promise.all([api.get("/library" + (lib.org ? "?org=" + lib.org : "")), loadUsage(true)]).then(function (rs) { var r = rs[0]; lib.data = r; lib.org = r.org_id; drawLibrary(); })
@@ -15056,6 +15072,8 @@
     var edit = can(3) && P.status !== "trash" && P.status !== "archived" && !locked && !inUse;
     if (lib.view === "edit" || lib.view === "export" || (lib.view === "approved" && (inUse || !AV))) lib.view = "read";
     D.clear(libEl);
+    // An open document comes first: the Library's own row of pages waits until the list is back
+    var subRow = app.querySelector("#nl-sub"); if (subRow) subRow.style.display = "none";
     lockNotice(P.id);
     var leave = function (go) { return function () { if (dpDirty()) dpCommit("").then(go).catch(pbFail); else go(); }; };
     libEl.appendChild(h("div", { class: "row dp-top", style: "margin-top:14px;gap:8px;flex-wrap:wrap" },
@@ -16383,6 +16401,8 @@
     if (me.notice && noNotice.indexOf(tab) < 0) main.appendChild(D.infoNotice(String(me.notice), "sensitive"));
     if (me.pause && me.pause.all) main.appendChild(h("div", { class: "notice bad", role: "alert", text: "DELA is paused for members right now. You can still use it because you are on the Lawfecta Team." }));
     if (me.on_hold) main.appendChild(h("div", { class: "notice bad", role: "alert", text: "Some actions are paused on your account. Contact the Lawfecta Team." }));
+    var subRow = me.side ? subNav() : null;
+    if (subRow) main.appendChild(subRow);
     if (!me.side) main.appendChild(noSide());
     else if (tab === "usage" && me.side === "attorney") main.appendChild(usageView());
     else if (tab === "home") main.appendChild(NL() ? homeDash() : me.side === "attorney" ? attorneyHome() : freelancerHome());

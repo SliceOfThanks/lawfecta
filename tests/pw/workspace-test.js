@@ -251,7 +251,7 @@ async function makeMember(bd, side, plan, name) {
     const side = await inShadow(p, (root) => ({ shown: getComputedStyle(root.querySelector(".nl-side")).display !== "none", bar: getComputedStyle(root.querySelector(".nl-bar")).display,
       items: [...root.querySelectorAll(".nl-side .nl-item")].map((b) => b.innerText.trim()), current: root.querySelector(".nl-side [aria-current=page]").innerText.trim(),
       weight: getComputedStyle(root.querySelector(".nl-side [aria-current=page]")).fontWeight, three: [...root.querySelectorAll(".hneed .hrow")].filter((x) => x.offsetParent !== null).length }));
-    ok(side.shown && side.bar === "none" && side.items.filter((x) => x !== "Agency" && x !== "Meetings" && x !== "Notifications").join(",") === "Home,Work,Ask DELA,Earnings,Profile,Subscription,Settings,Help,Collapse sidebar", "desktop: the sidebar lists the pages in order: " + side.items.join(", "));
+    ok(side.shown && side.bar === "none" && side.items.filter((x) => x !== "Agency" && x !== "Meetings" && x !== "Notifications").join(",") === "Home,Work,Ask DELA,Earnings,Profile,Settings,Help,Collapse sidebar" && !side.items.includes("Notifications"), "desktop: the sidebar lists the pages in order, without Notifications and Subscription (Stacey 2026-11-24): " + side.items.join(", "));
     ok(side.current === "Home" && Number(side.weight) >= 700, "desktop: the current page is marked by more than color (bold, with aria-current)");
     ok(side.three === 3, "desktop: the next three requirements show");
     ok(await inShadow(p, (root) => { const b = [...root.querySelectorAll("button.blue")].find((x) => x.innerText.trim() === "Continue setup"); return getComputedStyle(b).backgroundColor; }) === "rgb(139, 33, 70)", "desktop: the main button is burgundy");
@@ -365,7 +365,8 @@ async function makeMember(bd, side, plan, name) {
       }, sel);
       ok(v.length === 0, "accessibility rules pass on " + what + (v.length ? ": " + v.join(" ### ") : ""));
     };
-    await dela(p).getByRole("button", { name: "Subscription", exact: true }).click();
+    await dela(p).getByRole("button", { name: "Settings", exact: true }).first().click();
+    await dela(p).locator("#nl-sub").getByRole("button", { name: "Subscription", exact: true }).click();
     // Step 19 (Stacey 2026-11-12): four areas as tabs; real billing from the website, never a guess; a review before a plan change
     t = await waitFor(p, "What you are billed");
     const subTabs = await dela(p).getByRole("tab").evaluateAll((els) => els.map((e) => e.getAttribute("aria-label")));
@@ -415,7 +416,7 @@ async function makeMember(bd, side, plan, name) {
     t = await waitFor(p, "Your membership billing");
     ok(t.includes("The Lawfecta website has no paid membership and no invoices on record for your account.") && t.includes("DELA never charges your card for a membership.") && t.includes("Manage your membership"), "Billing: no membership on record is said plainly, with where to manage and whom to ask");
     await axe(p, ".subp", "Billing and history");
-    ok(plans.order.indexOf("Subscription") === plans.order.indexOf("Profile") + 1, "Subscription sits right under Profile in the menu: " + plans.order.join(", "));
+    ok(plans.order.indexOf("Subscription") < 0 && await inShadow(p, (root) => { const sub = [...root.querySelectorAll("#nl-sub button")].map((b) => b.innerText.trim() + (b.getAttribute("aria-current") ? "*" : "")).join(","), cur = root.querySelector(".nl-side [aria-current=page]"); return sub === "Settings,Subscription*" && cur && cur.innerText.trim() === "Settings"; }), "Subscription is a page inside Settings (Stacey 2026-11-24): it is not in the menu, Settings stays marked, and a row at the top switches between the two: " + plans.order.join(", "));
     ok(await fits(p), "Subscription: no sideways scrolling");
     await p.screenshot({ path: path.join(SHOTS, "workspace-subscription.png"), fullPage: true });
     // A phone 320 wide: the four areas are four buttons with short names, nothing is cut off sideways
@@ -441,7 +442,8 @@ async function makeMember(bd, side, plan, name) {
     await waitFor(p, "Your Workspace");
     await p.waitForTimeout(800);
     ok(await inShadow(p, (root) => !root.querySelector(".limit-banner")), "the dismissed banner stays hidden while the limit is at the same level");
-    await dela(p).getByRole("button", { name: "Subscription", exact: true }).click();
+    await dela(p).getByRole("button", { name: "Settings", exact: true }).first().click();
+    await dela(p).locator("#nl-sub").getByRole("button", { name: "Subscription", exact: true }).click();
     t = await waitFor(p, "Limit reached");
     ok(t.includes("You are close to one limit"), "Subscription marks the limit that is reached");
     // Dismissed while only close to the limit: it comes back when the limit is reached
