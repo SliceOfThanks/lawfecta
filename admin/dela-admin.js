@@ -934,11 +934,14 @@
           pipelineTab();
         }).catch(function (e) { addBtn.disabled = false; addMsg.textContent = D.errorText(e && e.message ? e.message : String(e)); });
       });
+      // Where outreach went out from, written once and used by every "Record" button on the page
+      var lastTool = ""; try { lastTool = localStorage.getItem("dela_pipe_tool") || ""; } catch (e) { lastTool = ""; }
+      var toolIn = h("input", { type: "text", id: "pipe-tool", maxlength: "60", value: lastTool, placeholder: "For example Gmail or Instantly", style: "max-width:280px" });
       var url = h("input", { readonly: true, value: r.url || "", id: "pipe-url", "aria-label": "The Team connector's address", style: "flex:1;min-width:260px" });
       var mark = function (a, kind) {
         return h("button", { class: "ghost small", type: "button", "aria-label": (kind === "emailed" ? "Record that an email went to " : "Record a follow-up to ") + (a.name || a.bd_member_id), onclick: function () {
-          var tool = prompt("Where was it sent from? For example Gmail or Instantly. Nothing is sent from DELA.", "");
-          if (tool === null) return;
+          var tool = toolIn.value.trim();
+          try { localStorage.setItem("dela_pipe_tool", tool); } catch (e) { /* not kept */ }
           api.post("/admin/pipeline/mark", { bd_member_ids: [a.bd_member_id], kind: kind, tool: tool, request_id: "admin-" + Date.now() + "-" + (++pipeSeq) }).then(check).then(function () { ok("Recorded. Nothing was sent."); pipelineTab(); }).catch(fail);
         } }, kind === "emailed" ? "Record email" : "Record follow-up");
       };
@@ -948,6 +951,8 @@
         h("div", { class: "card", id: "pipe-counts" }, titled("h2", "This week by stage", "pipeline_counts", h("span", { class: "small muted", text: (c.from ? D.date(c.from) + " to " + D.date(c.to) : "") + " | " + (c.attorneys_in_pipeline || 0) + " in the pipeline" })),
           h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "Stage" }), h("th", { text: "Reached this week" }), h("th", { text: "Reached ever" }), h("th", { text: "At this stage now" }))),
             h("tbody", null, (c.stages || []).map(function (s) { return h("tr", null, h("td", { text: STAGE_WORD[s.stage] || s.stage }), h("td", { text: String(s.reached_in_period) }), h("td", { text: String(s.reached_ever) }), h("td", { text: String(s.at_this_stage_now) })); }))))),
+        h("div", { class: "card", id: "pipe-tool-card" }, h("label", { for: "pipe-tool", style: "font-weight:700" }, "Where your outreach is sent from"), h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;margin-top:6px" }, toolIn,
+          h("span", { class: "small muted", text: "Kept with each email or follow-up you record below. DELA sends nothing." }))),
         h("div", { class: "card", id: "pipe-stalled" }, titled("h2", "Stuck (" + (r.stalled || []).length + ")", "pipeline_stalled"),
           (r.stalled || []).length ? h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "Attorney" }), h("th", { text: "Why" }), h("th", { text: "Waiting" }), h("th", { text: "Last reached out" }), h("th", { text: "" }))),
             h("tbody", null, r.stalled.map(function (s) {

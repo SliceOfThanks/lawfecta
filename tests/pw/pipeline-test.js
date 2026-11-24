@@ -18,8 +18,7 @@ async function open(browser, widget, uid, extra) {
   const ctx = await browser.newContext({ viewport: { width: 1400, height: 950 } });
   const page = await ctx.newPage();
   page.on("pageerror", (e) => { throw new Error("page error: " + e.message); });
-  // "Where was it sent from?" is answered with the tool's name
-  page.on("dialog", (d) => d.accept(d.type() === "prompt" ? "Gmail" : undefined));
+  page.on("dialog", (d) => d.accept());
   await page.route("https://cdn.jsdelivr.net/**", (route) => { const u = new URL(route.request().url()); route.fulfill({ path: path.join(ROOT, u.pathname.split("@")[1].split("/").slice(1).join("/")), contentType: "application/javascript" }); });
   await page.route("https://fonts.googleapis.com/**", (r) => r.abort());
   await page.goto(`${BASE}/page/${widget}?uid=${uid}&plan=` + (extra || ""));
@@ -73,6 +72,7 @@ async function teamRequest() {
     ok(cal().who.includes("Claim Family Law") && cal().who.includes("Austin, TX") && cal().who.includes("Website member 4821") && !cal().who.includes("cal@claimlaw.example"), "a row shows the firm, the place and the member number, and no email address");
     // Record that an email went out: nothing is sent
     const before = (await sql("select (select count(*)::int from jobs) j, (select count(*)::int from notifications) n"))[0];
+    await dela(p).locator("#pipe-tool").fill("Gmail");
     await dela(p).getByRole("button", { name: "Record that an email went to Cal Claim" }).click();
     await dela(p).locator("#pipe-list .badge", { hasText: "Emailed" }).first().waitFor({ timeout: 15000 });
     list = await rows();
