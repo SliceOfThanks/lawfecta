@@ -54,7 +54,7 @@ The form editor shows about ten boxes for every step and starts far down the pag
 - **80b:** bold, italic, bullets and links, carried into the exports.
 - **80c:** playbooks in the older format, and what the pilot turns up.
 
-## Release 80b: the questions Claude answered itself (acceleration mode, 2026-11-25)
+## Release 80b: the questions Claude answered itself (acceleration mode, 2026-11-24)
 1. Which texts take formatting? **Every paragraph, every step and every list line.** A title, a role, a stage name and the one-line facts (Trigger, Saved in) stay plain, so a heading cannot be made to look like body text and a role name stays a name.
 2. How is formatting kept? **As four marks inside the plain text:** two stars around bold, one star around italic, a line that starts with a dash and a space for a bullet, and words in square brackets followed by the link in round brackets. No table changes, and every older version reads as before.
 3. What do the quality check, a gig, a freelancer and Ask DELA's step lists read? **The plain words.** A step that starts with a bold verb still starts with a verb.

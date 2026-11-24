@@ -279,7 +279,7 @@
     return svg;
   }
   var ICON_FOR = { home: "home", delegate: "ask", ask: "ask", library: "library", files: "files", projects: "projects", talent: "talent", setup: "check", profile: "profile", work: "work", earnings: "earnings", agency: "agency", members: "agency", community: "inbox", teamwork: "check", ai: "settings", help: "help", subscription: "plan", meetings: "meet", notices: "bell" };
-  var PAGE_NAMES = { notices: "Notifications", files: "Files", teamwork: "Team work", subscription: "Subscription", inbox: "Inbox", meetings: "Meetings", usage: "Usage", connect: "Connect", record: "Record a process", ai: "Settings", help: "Help", profile: "Profile" };
+  var PAGE_NAMES = { services: "Services", promotions: "Promotions", notices: "Notifications", files: "Files", teamwork: "Team work", subscription: "Subscription", inbox: "Inbox", meetings: "Meetings", usage: "Usage", connect: "Connect", record: "Record a process", ai: "Settings", help: "Help", profile: "Profile" };
   var WORKSPACE = { attorney: "Attorney workspace", freelancer: "Freelancer workspace" };
   // "Get set up" leaves the attorney's menu once it is finished or dismissed (Stacey 2026-11-11); it stays reachable from Help
   var setupDone = null;
@@ -308,16 +308,19 @@
     return hit ? hit[1] : PAGE_NAMES[tab] || "DELA";
   }
   // Pages that live inside another menu item, and the row of choices shown at the top of both
-  var SUBNAV = { library: [["library", "Documents"], ["files", "Files"]], projects: [["projects", "Projects"], ["teamwork", "Team work"]], ai: [["ai", "Settings"], ["subscription", "Subscription"]] };
-  var SUBPARENT = { files: "library", teamwork: "projects", subscription: "ai" };
+  var SUBNAV = { talent: [["talent", "Find talent"], ["services", "Services"], ["promotions", "Promotions"]], library: [["library", "Documents"], ["files", "Files"]], projects: [["projects", "Projects"], ["teamwork", "Team work"]], ai: [["ai", "Settings"], ["subscription", "Subscription"]] };
+  var SUBPARENT = { services: "talent", promotions: "talent", files: "library", teamwork: "projects", subscription: "ai" };
+  function masterOn() { var sw = me.switches || {}; return me.side === "attorney" && !!sw.master_pages && !!sw.talent_search; }
   function subNav() {
     var group = SUBNAV[SUBPARENT[tab] || tab];
     if (!group || !NL()) return null;
     var have = { ai: 1, subscription: 1 };
     tabsFor().forEach(function (t) { have[t[0]] = 1; });
+    // Step 83: Services and Promotions sit under Talent for attorneys
+    if (masterOn()) { have.services = 1; have.promotions = 1; }
     var items = group.filter(function (g) { return have[g[0]]; });
     if (items.length < 2) return null;
-    return h("nav", { class: "nl-sub", id: "nl-sub", "aria-label": (SUBNAV[SUBPARENT[tab] || tab][0][1] === "Documents" ? "Library" : SUBNAV[SUBPARENT[tab] || tab][0][1]) + " pages" }, items.map(function (g) {
+    return h("nav", { class: "nl-sub", id: "nl-sub", "aria-label": ({ Documents: "Library", "Find talent": "Talent" }[SUBNAV[SUBPARENT[tab] || tab][0][1]] || SUBNAV[SUBPARENT[tab] || tab][0][1]) + " pages" }, items.map(function (g) {
       return h("button", { class: "nl-sub-b", type: "button", "aria-current": g[0] === tab ? "page" : null, onclick: function () { if (g[0] !== tab) { goTab(g[0]); window.scrollTo(0, 0); } } }, g[1]);
     }));
   }
@@ -9082,6 +9085,194 @@
   function comOk(r) { if (!r || r.ok === false || r.error) { var e = new Error((r && (r.reason || r.error)) || "no"); e.reason = r && (r.reason || r.error); e.note = r && r.message; throw e; } return r; }
   function comWho(a) { return (a.name || "A member") + (a.team ? "" : a.side === "attorney" ? ", attorney" : ", freelancer"); }
   function comRemovedNote(r) { return r && r.removed ? " DELA removed " + r.removed.words + " from it: contact details stay out of Community." : ""; }
+  // ---------- Step 83: the master pages (Stacey 2026-11-24): Services and Promotions under Talent, the Blog in Community ----------
+  // Whose cards show: the freelancers who show in Talent search. Names are a first name and last initial, as everywhere.
+  var mq = { services: { category: "", q: "", unit: "", max: "", sort: "" }, promotions: { category: "", q: "", sort: "" }, blog: { topic: "" } };
+  var blogOpen = null;
+  // The three category lists, each usable on its own: a choice in one narrows the ones after it
+  function catSelects(idx, cur, onChange, id) {
+    var topSel = h("select", { id: id + "-top" }), subSel = h("select", { id: id + "-sub" }), leafSel = h("select", { id: id + "-leaf" });
+    var chainOf = function (c) { return !c ? { top: "", sub: "", leaf: "" } : c.level === 1 ? { top: c.key, sub: "", leaf: "" } : c.level === 2 ? { top: c.top, sub: c.key, leaf: "" } : { top: c.top, sub: c.parent, leaf: c.key }; };
+    var chain = chainOf(idx.byKey[cur]);
+    var subsOf = function (top) { return (idx.kids[top] || []).filter(function (c) { return c.level === 2; }); };
+    var fill = function (sel, any, list, now) { D.clear(sel); sel.appendChild(h("option", { value: "", text: any })); (list || []).forEach(function (c) { sel.appendChild(h("option", { value: c.key, text: c.name, selected: c.key === now })); }); };
+    var fillGroups = function (sel, any, groups, now) { D.clear(sel); sel.appendChild(h("option", { value: "", text: any })); groups.forEach(function (g) { if (g.list.length) sel.appendChild(h("optgroup", { label: g.label }, g.list.map(function (c) { return h("option", { value: c.key, text: c.name, selected: c.key === now }); }))); }); };
+    function paint() {
+      fill(topSel, "Any category", idx.tops, chain.top);
+      if (chain.top) fill(subSel, "Any specialty", subsOf(chain.top), chain.sub);
+      else fillGroups(subSel, "Any specialty", idx.tops.map(function (t) { return { label: t.name, list: subsOf(t.key) }; }), chain.sub);
+      if (chain.sub) fill(leafSel, (idx.kids[chain.sub] || []).length ? "Any service or task" : "Nothing more specific", idx.kids[chain.sub], chain.leaf);
+      else {
+        var tops = chain.top ? [idx.byKey[chain.top]] : idx.tops, groups = [];
+        tops.forEach(function (t) { subsOf(t.key).forEach(function (s2) { groups.push({ label: (chain.top ? "" : t.name + ": ") + s2.name, list: idx.kids[s2.key] || [] }); }); });
+        fillGroups(leafSel, "Any service or task", groups, chain.leaf);
+      }
+    }
+    function set(c) { chain = chainOf(c); paint(); onChange(chain.leaf || chain.sub || chain.top); }
+    topSel.addEventListener("change", function () { set(idx.byKey[topSel.value]); });
+    subSel.addEventListener("change", function () { set(idx.byKey[subSel.value] || idx.byKey[chain.top]); });
+    leafSel.addEventListener("change", function () { set(idx.byKey[leafSel.value] || idx.byKey[chain.sub] || idx.byKey[chain.top]); });
+    paint();
+    var f = function (label, sel) { return h("label", { class: "bm-f" }, label, sel); };
+    return { nodes: [f("Category", topSel), f("Practice area / Specialty", subSel), f("Services / Tasks", leafSel)], clear: function () { chain = chainOf(null); paint(); } };
+  }
+  function mpWho(x, more) {
+    var first = String(x.name || "").trim().charAt(0).toUpperCase();
+    return h("div", { class: "mp-who" }, x.photo_url ? h("img", { class: "mp-face", src: x.photo_url, alt: "" }) : h("span", { class: "mp-face none", "aria-hidden": "true", text: first || "?" }),
+      h("div", { class: "grow", style: "min-width:0" }, h("b", { text: x.name || "A Lawfecta freelancer" }), x.headline ? h("div", { class: "small muted mp-clip", text: x.headline }) : null, more || null));
+  }
+  function mpRefreshed(r) {
+    if (!r.fetched_at) return h("p", { class: "small muted mp-fresh", role: "note", text: "DELA could not read these from the Lawfecta website yet. It tries again by itself." });
+    return h("p", { class: "small muted mp-fresh", role: "note", text: "Last read from the Lawfecta website " + D.dateTime(r.fetched_at) + "." + (r.website_ok === false ? " The website did not answer the last time DELA asked, so this may be out of date." : "") });
+  }
+  function mpDay(d) { try { return new Date(String(d) + "T12:00:00").toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }); } catch (e) { return String(d || ""); } }
+  // One page of cards with "Load more": the next cards are added under the ones already shown
+  function mpPager(o) {
+    var list = h("div", { class: "mp-grid", id: o.id + "-list" }), foot = h("div", { class: "row mp-foot" }), live = h("div", { class: "sr", role: "status" });
+    var count = h("h2", { class: "mp-count", id: o.id + "-count", text: "Loading..." });
+    var box = h("div", null, live, count, list, foot), shown = 0, turn = 0;
+    function load(offset) {
+      var mine = ++turn;
+      if (!offset) { shown = 0; }
+      api.get(o.url(offset)).then(function (r) {
+        if (mine !== turn || !box.isConnected) return;
+        if (!offset) D.clear(list);
+        D.clear(foot);
+        if (!r || !r.ok) { count.textContent = o.title; list.appendChild(h("p", { class: "notice" + (r && r.reason === "not_open" ? "" : " bad"), role: "alert", text: r && r.reason === "not_open" ? "This page is not open for your account yet." : r && r.reason === "category_gone" ? "That category is no longer on the website. Choose another one." : D.errorText((r || {}).reason) })); return; }
+        var rows = r[o.key] || [];
+        rows.forEach(function (x) { list.appendChild(o.card(x)); });
+        shown += rows.length;
+        count.textContent = o.title + " (" + r.total + ")";
+        live.textContent = r.total + " " + (r.total === 1 ? o.one : o.many) + (o.filtered() ? " with these filters" : "");
+        if (!r.total) list.appendChild(h("p", { class: "muted", id: o.id + "-none", text: o.filtered() ? o.noneFiltered : o.none }));
+        if (o.after) o.after(r, box);
+        if (shown < r.total) foot.appendChild(h("button", { class: "ghost", type: "button", id: o.id + "-more", onclick: function () { load(shown); } }, "Load more (" + (r.total - shown) + " left)"));
+        if (r.total) foot.appendChild(h("span", { class: "small muted", text: "Showing " + shown + " of " + r.total + "." }));
+      }).catch(function (e) { if (mine !== turn) return; D.clear(list); count.textContent = o.title; list.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e && e.message) })); });
+    }
+    return { el: box, load: function () { load(0); } };
+  }
+  function mpQuery(path, o, offset) {
+    var q = Object.keys(o).filter(function (k) { return o[k]; }).map(function (k) { return k + "=" + encodeURIComponent(o[k]); });
+    if (offset) q.push("offset=" + offset);
+    return path + (q.length ? "?" + q.join("&") : "");
+  }
+  // The address moves to Talent first, so the person in it is kept on a reload
+  function mpOpenProfile(x, tabName) { return function () { tab = "talent"; talentMode = "search"; syncAddress(); openTalentProfile(x.person_id, tabName); }; }
+  function mpCatLine(x, idx) {
+    var k = (x.categories || [])[0];
+    return k && idx && idx.ok && idx.byKey[k] ? h("div", { class: "small muted mp-clip", text: idx.path(k).join(" › ") }) : null;
+  }
+  function masterServices() {
+    var Q = mq.services;
+    var el = h("div", { class: "mp-page", id: "services-page" }, h("h1", { text: "Services" }),
+      h("p", { class: "muted", style: "margin-top:0", text: "Every service offered by the freelancers who show in Talent search, one card for each service. Prices are the freelancer's own; what you pay is agreed in the engagement." }));
+    var form = h("div", { class: "card", id: "services-find" }, h("h2", { text: "Find a service" }), h("p", { class: "muted", text: "Loading the categories..." }));
+    var idxRef = null;
+    var pager = mpPager({ id: "services", key: "services", title: "Services", one: "service", many: "services", none: "No services yet.", noneFiltered: "No service fits these filters.",
+      filtered: function () { return !!(Q.category || Q.q || Q.unit || Q.max); },
+      url: function (off) { var dollars = Number(Q.max); return mpQuery("/master/services", { category: Q.category, q: Q.q, unit: Q.unit, sort: Q.sort, max_cents: Q.max && dollars > 0 ? String(Math.round(dollars * 100)) : "" }, off); },
+      card: function (x) {
+        var price = servicePrice(x);
+        return h("article", { class: "card mp-card" }, h("h3", { class: "mp-title", text: x.title }), x.for_whom ? h("p", { class: "mp-text", text: x.for_whom }) : null,
+          h("div", { class: "mp-price", text: price || "Price on request" }), mpWho(x, mpCatLine(x, idxRef)),
+          h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", "aria-label": "View the profile of " + x.name, onclick: mpOpenProfile(x, "services") }, "View profile")));
+      } });
+    el.appendChild(form); el.appendChild(pager.el);
+    loadCats().then(function (idx) {
+      idxRef = idx; D.clear(form);
+      form.appendChild(h("h2", { text: "Find a service" }));
+      if (!idx.byKey[Q.category]) Q.category = "";
+      var word = h("input", { type: "search", id: "services-q", value: Q.q, maxlength: "80", placeholder: "For example: medical chronology" });
+      var unit = h("select", { id: "services-unit" }, [["", "Any price type"], ["fixed", "Fixed price"], ["hour", "By the hour"]].map(function (o) { return h("option", { value: o[0], text: o[1], selected: Q.unit === o[0] }); }));
+      var max = h("input", { type: "number", id: "services-max", min: "0", step: "1", inputmode: "numeric", value: Q.max, placeholder: "No limit" });
+      var sort = h("select", { id: "services-sort" }, [["", "Newest first"], ["price_low", "Price: low to high"], ["price_high", "Price: high to low"]].map(function (o) { return h("option", { value: o[0], text: o[1], selected: Q.sort === o[0] }); }));
+      var cats = idx.ok ? catSelects(idx, Q.category, function (k) { Q.category = k; pager.load(); }, "services") : { nodes: [], clear: function () {} };
+      var go = function () { Q.q = word.value.trim(); Q.unit = unit.value; Q.max = max.value.trim(); Q.sort = sort.value; pager.load(); };
+      word.addEventListener("keydown", function (e) { if (e.key === "Enter") go(); }); word.addEventListener("search", go);
+      unit.addEventListener("change", go); sort.addEventListener("change", go); max.addEventListener("change", go);
+      var f = function (label, node) { return h("label", { class: "bm-f" }, label, node); };
+      form.appendChild(h("div", { class: "bm-filter-row" }, f("Words in the service", word), cats.nodes, f("Price type", unit), f("Starts at or under (dollars)", max), f("Order", sort),
+        h("button", { class: "blue small", type: "button", id: "services-go", onclick: go }, "Search"),
+        h("button", { class: "ghost small", type: "button", id: "services-clear", onclick: function () { word.value = ""; unit.value = ""; max.value = ""; sort.value = ""; Q.category = ""; cats.clear(); go(); } }, "Clear filters")));
+      pager.load();
+    });
+    return el;
+  }
+  function masterPromotions() {
+    var Q = mq.promotions;
+    var el = h("div", { class: "mp-page", id: "promotions-page" }, h("h1", { text: "Promotions" }),
+      h("p", { class: "muted", style: "margin-top:0", text: "Current offers from the freelancers who show in Talent search. An offer that has ended leaves this page by itself. To use one, name it when you invite the freelancer." }));
+    var form = h("div", { class: "card", id: "promotions-find" }, h("h2", { text: "Filter and sort" }), h("p", { class: "muted", text: "Loading the categories..." }));
+    var idxRef = null, fresh = h("div");
+    var pager = mpPager({ id: "promotions", key: "promotions", title: "Promotions", one: "promotion", many: "promotions", none: "No promotions right now.", noneFiltered: "No promotion fits these filters.",
+      filtered: function () { return !!(Q.category || Q.q); },
+      url: function (off) { return mpQuery("/master/promotions", { category: Q.category, q: Q.q, sort: Q.sort }, off); },
+      after: function (r) { D.clear(fresh); fresh.appendChild(mpRefreshed(r)); },
+      card: function (x) {
+        return h("article", { class: "card mp-card" }, h("h3", { class: "mp-title", text: x.title }), x.text ? h("p", { class: "mp-text", style: "white-space:pre-line", text: x.text }) : null,
+          h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, x.code ? h("span", { class: "badge mp-code", text: "Code: " + x.code }) : null, h("span", { class: "badge" + (x.ends ? " held" : ""), text: x.ends ? "Ends " + mpDay(x.ends) : "No end date" })),
+          mpWho(x, mpCatLine(x, idxRef)),
+          h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", "aria-label": "View the profile of " + x.name, onclick: mpOpenProfile(x, "overview") }, "View profile")));
+      } });
+    el.appendChild(form); el.appendChild(pager.el); el.appendChild(fresh);
+    loadCats().then(function (idx) {
+      idxRef = idx; D.clear(form);
+      form.appendChild(h("h2", { text: "Filter and sort" }));
+      if (!idx.byKey[Q.category]) Q.category = "";
+      var word = h("input", { type: "search", id: "promotions-q", value: Q.q, maxlength: "80", placeholder: "For example: discount" });
+      var sort = h("select", { id: "promotions-sort" }, [["", "Newest first"], ["ending", "Ending soonest"]].map(function (o) { return h("option", { value: o[0], text: o[1], selected: Q.sort === o[0] }); }));
+      var cats = idx.ok ? catSelects(idx, Q.category, function (k) { Q.category = k; pager.load(); }, "promotions") : { nodes: [], clear: function () {} };
+      var go = function () { Q.q = word.value.trim(); Q.sort = sort.value; pager.load(); };
+      word.addEventListener("keydown", function (e) { if (e.key === "Enter") go(); }); word.addEventListener("search", go);
+      sort.addEventListener("change", go);
+      var f = function (label, node) { return h("label", { class: "bm-f" }, label, node); };
+      form.appendChild(h("div", { class: "bm-filter-row" }, cats.nodes, f("Words in the promotion", word), f("Order", sort),
+        h("button", { class: "blue small", type: "button", id: "promotions-go", onclick: go }, "Search"),
+        h("button", { class: "ghost small", type: "button", id: "promotions-clear", onclick: function () { word.value = ""; sort.value = ""; Q.category = ""; cats.clear(); go(); } }, "Clear filters")));
+      pager.load();
+    });
+    return el;
+  }
+  // The Blog, the first view of Community: articles freelancers wrote on the website, in order of posting
+  function blogView(body) {
+    var Q = mq.blog, att = me.side === "attorney";
+    if (blogOpen) {
+      var x = blogOpen;
+      body.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", id: "blog-back", onclick: function () { blogOpen = null; draw(); } }, "← Blog")));
+      var art = h("article", { class: "card mp-article", id: "blog-article" }, h("h2", { text: x.title }),
+        h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-bottom:8px" }, x.topic ? h("span", { class: "badge", text: x.topic }) : null, x.posted ? h("span", { class: "small muted", text: "Posted " + mpDay(x.posted) }) : null), mpWho(x));
+      lineList(x.text).forEach(function (line) { art.appendChild(h("p", { text: line })); });
+      if (att && !x.mine) art.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: mpOpenProfile(x, "overview") }, "View " + (x.name || "the author") + "'s profile")));
+      body.appendChild(art);
+      return;
+    }
+    body.appendChild(h("p", { class: "small muted", id: "blog-about", text: "Articles written by Lawfecta freelancers, newest first. Contact details are taken out, and names are a first name and last initial." }));
+    var topic = h("select", { id: "blog-topic" }, h("option", { value: "", text: "All topics" }));
+    var fresh = h("div");
+    var pager = mpPager({ id: "blog", key: "articles", title: "Blog", one: "article", many: "articles", none: "No articles yet.", noneFiltered: "No article has this topic yet.",
+      filtered: function () { return !!Q.topic; },
+      url: function (off) { return mpQuery("/master/blog", { topic: Q.topic }, off); },
+      after: function (r) {
+        if (r.topic !== Q.topic) Q.topic = r.topic || "";
+        D.clear(topic); topic.appendChild(h("option", { value: "", text: "All topics" }));
+        (r.topics || []).forEach(function (t) { topic.appendChild(h("option", { value: t, text: t, selected: t.toLowerCase() === Q.topic.toLowerCase() })); });
+        D.clear(fresh); fresh.appendChild(mpRefreshed(r));
+      },
+      card: function (a) {
+        var first = String(a.text || "").split("\n").join(" "), cut = first.length > 260 ? first.slice(0, 258) + "..." : first;
+        var open = function () { blogOpen = a; draw(); window.scrollTo(0, 0); };
+        return h("article", { class: "card mp-card" }, h("h3", { class: "mp-title" }, h("button", { class: "linkish", type: "button", style: "font:inherit;text-align:left", onclick: open }, a.title)),
+          h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, a.topic ? h("span", { class: "badge", text: a.topic }) : null, a.posted ? h("span", { class: "small muted", text: "Posted " + mpDay(a.posted) }) : null, a.mine ? h("span", { class: "badge ready", text: "Yours" }) : null),
+          cut ? h("p", { class: "mp-text", text: cut }) : null, mpWho(a),
+          h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", "aria-label": "Read the article: " + a.title, onclick: open }, "Read the article")));
+      } });
+    topic.addEventListener("change", function () { Q.topic = topic.value; pager.load(); });
+    body.appendChild(h("div", { class: "card", id: "blog-filter" }, h("div", { class: "bm-filter-row" }, h("label", { class: "bm-f", style: "flex:0 1 320px" }, "Topic", topic))));
+    body.appendChild(pager.el); body.appendChild(fresh);
+    pager.load();
+  }
+
   function communityView() {
     var el = h("div", { id: "community-page" }, h("h1", { text: "Community" }), h("p", { class: "muted", text: "Loading..." }));
     api.get("/community").then(function (v) {
@@ -9090,10 +9281,14 @@
       if (!v.on) { el.appendChild(h("p", { class: "notice", text: "Community is not open for your account yet." })); return; }
       el.appendChild(h("p", { class: "muted", style: "margin-top:0", text: "Talk with other members. Keep it helpful and keep it on Lawfecta: no contact details, no client information. Names are shown as a first name and last initial." }));
       var boards = v.boards || [];
-      if (!com.board || !boards.some(function (b) { return b.key === com.board; })) com.board = boards.length ? boards[0].key : null;
-      el.appendChild(h("div", { class: "tabs", role: "tablist", id: "com-boards", style: "border-radius:14px;margin:10px 0" }, boards.map(function (b) {
-        return h("button", { role: "tab", type: "button", "aria-selected": String(b.key === com.board), onclick: function () { com.board = b.key; com.topic = null; com.offset = 0; draw(); } }, b.name + (b.topics ? " (" + b.topics + ")" : ""));
+      // Step 83: the Blog is the first view, before the boards
+      var blogOn = !!(me.switches || {}).master_pages;
+      if (blogOn && com.board === null) com.board = "blog";
+      if (!(blogOn && com.board === "blog") && (!com.board || !boards.some(function (b) { return b.key === com.board; }))) com.board = boards.length ? boards[0].key : null;
+      el.appendChild(h("div", { class: "tabs", role: "tablist", id: "com-boards", style: "border-radius:14px;margin:10px 0" }, (blogOn ? [{ key: "blog", name: "Blog", topics: 0 }] : []).concat(boards).map(function (b) {
+        return h("button", { role: "tab", type: "button", "aria-selected": String(b.key === com.board), onclick: function () { com.board = b.key; com.topic = null; com.offset = 0; blogOpen = null; draw(); } }, b.name + (b.topics ? " (" + b.topics + ")" : ""));
       })));
+      if (blogOn && com.board === "blog") { var blogBody = h("div", { id: "com-body" }); el.appendChild(blogBody); blogView(blogBody); return; }
       if (v.team && v.open_reports) el.appendChild(h("p", { class: "notice", id: "com-reports", role: "note", text: v.open_reports + (v.open_reports === 1 ? " reported post is" : " reported posts are") + " waiting for the Lawfecta Team. Topics with a report carry a \"Reported\" tag." }));
       var cur = boards.filter(function (b) { return b.key === com.board; })[0];
       var body = h("div", { id: "com-body" });
@@ -9902,7 +10097,7 @@
     }).catch(function (e) { D.clear(body); body.appendChild(h("p", { class: "notice bad", role: "alert", text: D.errorText(e.message) })); });
     return el;
   }
-  function openTalentProfile(person) { talentBack(); talentScroll = window.scrollY || 0; talentPerson = person; talentTab = "overview"; talentAddress(person, true); draw(); window.scrollTo(0, 0); }
+  function openTalentProfile(person, startTab) { talentBack(); talentScroll = window.scrollY || 0; talentPerson = person; talentTab = startTab || "overview"; talentAddress(person, true); draw(); window.scrollTo(0, 0); }
   function closeTalentProfile() { talentPerson = null; talentAddress(null); draw(); }
   function talentView() {
     // The profile shows only while the address names the person (leaving Talent takes it out of the address)
@@ -16617,6 +16812,8 @@
     else if (tab === "profile" && (me.switches || {}).profiles) main.appendChild(profileView());
     else if (tab === "projects" && canHire() && (me.switches || {}).flex_gigs) main.appendChild(projectsView());
     else if (tab === "talent" && canHire() && (me.switches || {}).talent_search) main.appendChild(talentView());
+    else if (tab === "services" && masterOn()) main.appendChild(masterServices());
+    else if (tab === "promotions" && masterOn()) main.appendChild(masterPromotions());
     else if (tab === "work" && me.side === "freelancer" && (me.switches || {}).flex_gigs) main.appendChild(workView());
     else if (tab === "earnings" && me.side === "freelancer" && (me.switches || {}).engagements) main.appendChild(earningsView());
     else if (tab === "agency" && me.side === "freelancer" && (me.switches || {}).agency_team) main.appendChild(agencyView());

@@ -3366,6 +3366,59 @@ async function communityFeed(ctx: Ctx) {
   await withPhotos(ctx, out);
   return json(ctx, { ok: true, on: true, items: out, fetched_at: c?.fetched_at ?? null, website_ok: c?.ok !== false });
 }
+// ---------- Step 83: the master pages (Services, Promotions, the Blog) ----------
+// Promotions and articles are written on the website. DELA copies them (bd_posts) at most every posts.refresh_minutes:
+// at once the first time a page needs them, and by a job after that (one job for each time the copy falls due), while the last copy is still shown. Markup and
+// contact details are taken out before anything is stored. The blog's topics are the website's own list for the
+// article post type ("Post Categories" in its settings), read with the posts.
+async function postsSync(ctx: Ctx) {
+  const site = await setting(ctx, "site.url", ""), key = ctx.deps.env("BD_API_KEY"), ff = f(ctx);
+  const ids = { promotion: String(Number(await setting(ctx, "bd.promotions_data_id", "0")) || 0), article: String(Number(await setting(ctx, "bd.articles_data_id", "0")) || 0) };
+  const posts: Array<Record<string, string>> = [], ok: Record<string, boolean> = {};
+  let error = "";
+  for (const kind of ["promotion", "article"] as const) {
+    if (ids[kind] === "0") { ok[kind] = true; continue; }
+    const r = await bdList(ff, site, key, "/api/v2/data_posts/get?property=data_id&property_value=" + ids[kind], 30);
+    if (!r.ok) { ok[kind] = r.status === 404; if (r.status !== 404) { error = r.error.slice(0, 200); console.error("bd_posts", r.error.slice(0, 120)); } continue; }
+    ok[kind] = true;
+    for (const x of r.data) {
+      if (String(x.data_id) !== ids[kind] || String(x.post_status) !== "1") continue;
+      const title = stripContact(htmlToText(x.post_title, 160)).text;
+      if (!title) continue;
+      posts.push({ post_id: String(x.post_id ?? ""), kind, bd: String(x.user_id ?? ""), title, body: stripContact(htmlToText(x.post_content, kind === "article" ? 6000 : 800)).text,
+        code: kind === "promotion" ? htmlToText(x.post_promo, 60) : "", category: htmlToText(x.post_category, 80), posted: bdPostDay(x), ends: kind === "promotion" ? bdDay(x.post_expire_date) : "" });
+    }
+  }
+  // The topic list. A key that may not read post types leaves the last list as it was; the topics then come from the articles.
+  let topics: string[] | null = null;
+  if (ids.article !== "0") {
+    const t = await bdCall<unknown>(ff, site, key, "GET", "/api/v2/data_categories/get/" + ids.article);
+    const rec = t.ok ? (Array.isArray(t.data) ? t.data[0] : t.data) as Record<string, unknown> | null : null;
+    if (rec && typeof rec === "object" && typeof rec.feature_categories === "string") topics = rec.feature_categories.split(/[,\n]/).map((x) => htmlToText(x, 80)).filter(Boolean).slice(0, 60);
+    else if (!error) error = "topics " + (t.ok ? "not in the answer" : t.error.slice(0, 120));
+  }
+  return await rpc<Record<string, any>>(ctx, "dela_posts_sync", { p: { ok, posts, topics, error } });
+}
+async function postsFresh(ctx: Ctx) {
+  const st = await rpc<Record<string, any>>(ctx, "dela_posts_state", {}).catch(() => null);
+  if (st?.empty) await postsSync(ctx).catch((e) => console.error("posts_sync", String((e as Error)?.message ?? e).slice(0, 120)));
+  else if (st?.stale) await rpc(ctx, "dela_job_enqueue", { p_kind: "posts_sync", p_payload: {}, p_run_at: new Date().toISOString(), p_idem: "posts_sync:" + String(st.tried_at ?? "").slice(0, 40), p_person: null }).catch(() => null);
+}
+async function masterList(ctx: Ctx, page: "services" | "promotions" | "blog") {
+  const s = await memberSide(ctx), q = ctx.url.searchParams;
+  if (!await rpc<boolean>(ctx, "dela_master_may", { p_person: s.person_id, p_side: s.side, p_page: page }).catch(() => false)) return json(ctx, { ok: false, reason: "not_open" });
+  if (page !== "services") await postsFresh(ctx);
+  const cat = String(q.get("category") ?? ""), sort = String(q.get("sort") ?? ""), max = String(q.get("max_cents") ?? "");
+  const p = { category: /^[ps][0-9]{1,9}$/.test(cat) ? cat : "", q: str(q.get("q"), 80).trim(), unit: ["hour", "fixed"].includes(String(q.get("unit"))) ? String(q.get("unit")) : "",
+    sort: ["price_low", "price_high", "ending"].includes(sort) ? sort : "", max_cents: /^[0-9]{1,12}$/.test(max) ? max : "", topic: str(q.get("topic"), 80).trim(),
+    limit: int(q.get("limit")) ?? "", offset: int(q.get("offset")) ?? 0 };
+  const fn = page === "services" ? "dela_services_list" : page === "promotions" ? "dela_promotions_list" : "dela_blog_list";
+  const r = await rpc<Record<string, any>>(ctx, fn, { p_person: s.person_id, p_side: s.side, p });
+  const rows = r?.ok ? r[page === "blog" ? "articles" : page] : null;
+  if (Array.isArray(rows)) await withPhotos(ctx, rows);
+  return json(ctx, r);
+}
+
 // One document the freelancer chose to show: a link that works for five minutes
 async function freelancerDoc(ctx: Ctx) {
   const s = await memberSide(ctx);
@@ -6016,6 +6069,7 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "email_delivery_check") return await deliveryCheck(ctx, j.payload ?? {});
   if (j.kind === "profiles_daily") { await rpc(ctx, "dela_profiles_daily", {}); return { ok: true }; }
   if (j.kind === "bd_profile_push") return await bdProfilePush(ctx, j.payload ?? {});
+  if (j.kind === "posts_sync") { const r = await postsSync(ctx); return r?.ok ? { ok: true } : { ok: true, error: "not_all_read" }; }
   if (j.kind === "categories_sync") { const r = await categoriesSync(ctx, String(j.payload?.source ?? "job").slice(0, 20)); return r?.ok ? { ok: true } : { ok: true, error: String(r?.reason ?? "not_synced") }; }
   if (j.kind === "gig_tick") { await rpc(ctx, "dela_gig_tick", { p: j.payload ?? {} }); return { ok: true }; }
   if (j.kind === "engagement_tick") { await rpc(ctx, "dela_engagement_tick", { p: j.payload ?? {} }); return { ok: true }; }
@@ -6424,6 +6478,9 @@ async function handleInner(req: Request, deps: Deps): Promise<Response> {
       case "POST /community/report": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_community_report", { p_person: s.person_id, p_side: s.side, p_topic: uuid(ctx.body.topic_id), p_reply: uuid(ctx.body.reply_id), p_reason: str(ctx.body.reason, 500) })); }
       case "POST /community/moderate": { const s = await staff(ctx); return json(ctx, await rpc(ctx, "dela_community_moderate", { p_actor: s.person_id, p_topic: uuid(ctx.body.topic_id), p_reply: uuid(ctx.body.reply_id), p_remove: ctx.body.remove !== false, p_reason: str(ctx.body.reason, 500) })); }
       case "GET /community/feed": return await communityFeed(ctx);
+      case "GET /master/services": return await masterList(ctx, "services");
+      case "GET /master/promotions": return await masterList(ctx, "promotions");
+      case "GET /master/blog": return await masterList(ctx, "blog");
       case "POST /ai/key-ask": { const s = await memberSide(ctx); return json(ctx, await rpc(ctx, "dela_ai_key_ask_set", { p_person: s.person_id, p_side: s.side, p_answer: need(str(ctx.body.answer, 20)) })); }
       case "POST /ai/key": return await aiKeySave(ctx);
       case "POST /ai/key/test": return await aiKeyTest(ctx);

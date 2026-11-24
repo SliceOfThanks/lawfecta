@@ -236,12 +236,21 @@ const deps = {
     if (u.includes("/api/v2/data_posts/get")) { const uid = new URL(u).searchParams.get("property_value");
       // Step 69: every member's posts of one type, for Recent activity (the two freelancers of categories-test.js)
       if (new URL(u).searchParams.get("property") === "data_id") return Response.json({ status: "success", message: uid === "15"
-        ? [{ post_id: "30", data_id: "15", user_id: "4602", post_status: "1", post_title: "Five intake mistakes", post_content: "<p>The first one is skipping the conflict check. Call 512-555-0199.</p>", post_live_date: "20261118090000" }]
-        : [{ post_id: "31", data_id: "7", user_id: "4601", post_status: "1", post_title: "10% off the first project", post_content: "For new clients.", post_promo: "FIRST10", post_expire_date: "20991231", post_live_date: "20261119090000" }] });
+        ? [{ post_id: "30", data_id: "15", user_id: "4602", post_status: "1", post_title: "Five intake mistakes", post_content: "<p>The first one is skipping the conflict check. Call 512-555-0199.</p>", post_live_date: "20261118090000" },
+          // Step 83 (master-test.js): articles with the website's topic on them, as its API sends the day
+          { post_id: "40", data_id: "15", user_id: "4811", post_status: "1", post_title: "M83 How I build a chronology", post_content: "<p>Start with the intake notes.</p><p>Then sort every record by date.</p><p>Questions? nia@example.com</p>", post_category: "Trial Prep", post_live_date: "2026-11-20T09:00:00-08:00" },
+          { post_id: "41", data_id: "15", user_id: "4812", post_status: "1", post_title: "M83 Custody filings checklist", post_content: "<p>Check the declaration first.</p>", post_category: "Family Law Tips", post_live_date: "2026-11-22T09:00:00-08:00" },
+          { post_id: "42", data_id: "15", user_id: "4811", post_status: "1", post_title: "M83 Old notes on intake", post_content: "<p>Old notes.</p>", post_category: "Category 1", post_live_date: "2026-11-01T09:00:00-08:00" }]
+        : [{ post_id: "31", data_id: "7", user_id: "4601", post_status: "1", post_title: "10% off the first project", post_content: "For new clients.", post_promo: "FIRST10", post_expire_date: "20991231", post_live_date: "20261119090000" },
+          { post_id: "43", data_id: "7", user_id: "4811", post_status: "1", post_title: "M83 Free rush upgrade", post_content: "On your first chronology. Call 512-555-0199.", post_promo: "RUSH", post_category: "Category 1", post_expire_date: "20991231235900", post_live_date: "20261120090000" },
+          { post_id: "44", data_id: "7", user_id: "4812", post_status: "1", post_title: "M83 15% off a custody package", post_content: "", post_promo: "", post_expire_date: "20270131235900", post_live_date: "20261118090000" },
+          { post_id: "45", data_id: "7", user_id: "4811", post_status: "1", post_title: "M83 An offer that ended", post_content: "", post_promo: "", post_expire_date: "20200101", post_live_date: "20261121090000" }] });
       return Response.json({ status: "success", message: [
       { post_id: "3", data_id: "15", user_id: uid, post_status: "1", post_title: "How I organize a family law file", post_content: "<p>Start with the pleadings index.</p><p>Write to me at fern@example.com.</p>", post_live_date: "20261101120000" },
       { post_id: "1", data_id: "7", user_id: uid, post_status: "1", post_title: "New client discount", post_content: "<p>10% off the first fixed-fee project.</p>", post_promo: "FIRST10", post_expire_date: "20991231" },
       { post_id: "2", data_id: "14", user_id: uid, post_status: "1", post_title: "A blog article", post_content: "", post_promo: "", post_expire_date: "" }] }); }
+    // Step 83: the article post type's settings, where the Blog's topics come from
+    if (u.includes("/api/v2/data_categories/get/15")) return Response.json({ status: "success", message: [{ data_id: "15", data_name: "Community Article", feature_categories: "Category 1, Family Law Tips, Trial Prep" }] });
     // The website's categories (step 17): two top categories, specialties and sub subs, as BD lists them
     if (u.includes("/api/v2/list_professions/get")) return Response.json({ status: "success", message: [
       { profession_id: "39", name: "Legal Nurse & Medical Records", filename: "legal-nurse" }, { profession_id: "40", name: "Paralegal Services", filename: "paralegal-services" }] });
