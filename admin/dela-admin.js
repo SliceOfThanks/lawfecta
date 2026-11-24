@@ -13,8 +13,9 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["disputes", "Disputes"], ["reviews", "Reviews and bench"], ["agencies", "Agencies"], ["recurring", "Recurring"], ["trials", "Trials"], ["usage", "Usage"], ["code", "Site code"], ["team", "Lawfecta Team"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
-  var current = "control";
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["disputes", "Disputes"], ["reviews", "Reviews and bench"], ["agencies", "Agencies"], ["recurring", "Recurring"], ["trials", "Trials"], ["usage", "Usage"], ["code", "Site code"], ["team", "Lawfecta Team"], ["pipeline", "Pipeline"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+  // Someone whose only team role is "growth" starts on the one page they may open
+  var current = (me.staff || []).length && (me.staff || []).every(function (x) { return x === "growth"; }) ? "pipeline" : "control";
   var mainEl = null;
   var tabsEl = null;
 
@@ -62,7 +63,7 @@
   // The 25 pages sit in a sidebar, in groups that open and close; one account button holds My account, Appearance,
   // Member view and Sign out; on a phone a "Menu" button opens the same list. With the switch off the tab row below is used.
   var NLA = !!((me.switches || {}).new_layout);
-  var GROUPS = [["", ["control", "guide"]], ["Members", ["overview", "access", "people", "team", "agencies"]], ["Plans and settings", ["plans", "settings", "switches", "aifiles", "catalog", "trials", "usage", "code"]],
+  var GROUPS = [["", ["control", "guide"]], ["Members", ["overview", "access", "people", "team", "agencies", "pipeline"]], ["Plans and settings", ["plans", "settings", "switches", "aifiles", "catalog", "trials", "usage", "code"]],
     ["Marketplace", ["verify", "gigs", "meet", "reviews"]], ["Payments", ["pay", "disputes", "recurring"]], ["Safety", ["security", "holds", "audit", "jobs"]]];
   var LABEL = { account: "My account" };
   TABS.forEach(function (x) { LABEL[x[0]] = x[1]; });
@@ -255,7 +256,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ account: accountTab, control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, disputes: disputesTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, trials: trialsTab, usage: usageTab, code: siteCodeTab, security: securityTab, team: team, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ account: accountTab, control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, disputes: disputesTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, trials: trialsTab, usage: usageTab, code: siteCodeTab, security: securityTab, team: team, pipeline: pipelineTab, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // Stripe's own settings that can break a payout (sandbox run 2026-11-12): money held for milestones sits on Lawfecta's
@@ -351,7 +352,8 @@
         ["Plans", "The eight plans, four per workspace, with price, fee and limits. Changes start as a draft and apply only when you approve them."],
         ["Settings", "Every business number (fees, minimums, deadlines, limits), grouped by topic. Each change keeps the old value, records why, and can be undone."],
         ["Switches", "Features stay off until you switch them on: Lawfecta Team only first, then Access list, then Everyone."],
-        ["Lawfecta Team", "The people who run DELA and their roles: owner, reviewer, support, finance."],
+        ["Lawfecta Team", "The people who run DELA and their roles: owner, reviewer, support, finance, growth."],
+        ["Pipeline", "Attorneys the team is reaching out to: the counts by stage, who is stuck, and the address of the Team connector for ChatGPT and Claude."],
         ["Holds", "Pause new actions for one person while you check something, then release with a note."],
         ["Audit log", "Every sign in, refusal and change, with who and when. Nobody can edit or delete it."],
         ["Jobs", "Background work DELA does every minute, such as emails and reminders, and anything that failed and why."],
@@ -912,12 +914,72 @@
     }).catch(fail);
   }
 
+  // ---------- Step 82: the attorney pipeline (Stacey 2026-11-24) ----------
+  // The same numbers the Team connector gives to ChatGPT or Claude, for a person to look at: the counts by stage, who is
+  // stuck, and every attorney with the day each stage was reached. Outreach is never sent from here; it is recorded.
+  var STAGE_WORD = { added: "Added", listing_built: "Listing built", playbook_made: "Playbook made", emailed: "Emailed", claimed: "Claimed", playbook_opened: "Playbook opened", gig_posted: "Gig posted", proposals_received: "Proposals received", hired: "Hired" };
+  var pipeSeq = 0;
+  function pipelineTab() {
+    api.get("/admin/pipeline").then(check).then(function (r) {
+      var c = r.counts || {}, rules = (r.rules || {}).stalled_rules || {};
+      var idsIn = h("textarea", { rows: "2", id: "pipe-add-ids", "aria-label": "Website member numbers", placeholder: "Website member numbers, separated by commas or spaces", style: "width:100%" });
+      var addMsg = h("span", { class: "small", role: "status", id: "pipe-add-msg" });
+      var addBtn = h("button", { type: "button", id: "pipe-add" }, "Add to the pipeline");
+      addBtn.addEventListener("click", function () {
+        if (!idsIn.value.trim()) { addMsg.textContent = "Type at least one website member number."; idsIn.focus(); return; }
+        addBtn.disabled = true; addMsg.textContent = "Reading the listings from the website...";
+        api.post("/admin/pipeline/add", { bd_member_ids: idsIn.value }).then(check).then(function (x) {
+          var bad = (x.not_added || []).map(function (n) { return n.bd_member_id + " (" + ({ not_on_website: "not on the website", website_refused: "the website refused", website_unreachable: "the website did not answer" }[n.reason] || n.reason) + ")"; });
+          ok("Added " + x.added + ", refreshed " + x.refreshed + (bad.length ? ". Not added: " + bad.join(", ") : ""));
+          pipelineTab();
+        }).catch(function (e) { addBtn.disabled = false; addMsg.textContent = D.errorText(e && e.message ? e.message : String(e)); });
+      });
+      var url = h("input", { readonly: true, value: r.url || "", id: "pipe-url", "aria-label": "The Team connector's address", style: "flex:1;min-width:260px" });
+      var mark = function (a, kind) {
+        return h("button", { class: "ghost small", type: "button", "aria-label": (kind === "emailed" ? "Record that an email went to " : "Record a follow-up to ") + (a.name || a.bd_member_id), onclick: function () {
+          var tool = prompt("Where was it sent from? For example Gmail or Instantly. Nothing is sent from DELA.", "");
+          if (tool === null) return;
+          api.post("/admin/pipeline/mark", { bd_member_ids: [a.bd_member_id], kind: kind, tool: tool, request_id: "admin-" + Date.now() + "-" + (++pipeSeq) }).then(check).then(function () { ok("Recorded. Nothing was sent."); pipelineTab(); }).catch(fail);
+        } }, kind === "emailed" ? "Record email" : "Record follow-up");
+      };
+      var day = function (v) { return v ? D.date(v) : ""; };
+      body(h("div", { id: "pipeline-page" }, pageHead("Pipeline", "pipeline"),
+        h("p", { class: "muted", text: "Attorneys the team is reaching out to, from a listing on the website to a first hire. DELA sends nothing from here: outreach goes out from your own tool and is recorded here. What an attorney does (claims, posts a gig, gets proposals, hires) is read from DELA and never typed in." }),
+        h("div", { class: "card", id: "pipe-counts" }, titled("h2", "This week by stage", "pipeline_counts", h("span", { class: "small muted", text: (c.from ? D.date(c.from) + " to " + D.date(c.to) : "") + " | " + (c.attorneys_in_pipeline || 0) + " in the pipeline" })),
+          h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "Stage" }), h("th", { text: "Reached this week" }), h("th", { text: "Reached ever" }), h("th", { text: "At this stage now" }))),
+            h("tbody", null, (c.stages || []).map(function (s) { return h("tr", null, h("td", { text: STAGE_WORD[s.stage] || s.stage }), h("td", { text: String(s.reached_in_period) }), h("td", { text: String(s.reached_ever) }), h("td", { text: String(s.at_this_stage_now) })); }))))),
+        h("div", { class: "card", id: "pipe-stalled" }, titled("h2", "Stuck (" + (r.stalled || []).length + ")", "pipeline_stalled"),
+          (r.stalled || []).length ? h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "Attorney" }), h("th", { text: "Why" }), h("th", { text: "Waiting" }), h("th", { text: "Last reached out" }), h("th", { text: "" }))),
+            h("tbody", null, r.stalled.map(function (s) {
+              return h("tr", null, h("td", null, h("strong", { text: s.name || "Member " + s.bd_member_id }), h("div", { class: "muted small", text: (s.firm ? s.firm + " | " : "") + "Website member " + s.bd_member_id })),
+                h("td", { text: s.reason + (s.gig ? ": \"" + s.gig + "\"" : "") }), h("td", { text: s.days_waiting + (s.days_waiting === 1 ? " day" : " days") }), h("td", { text: s.last_touch ? day(s.last_touch) : "Not recorded" }), h("td", null, mark(s, "follow_up")));
+            })))) : h("p", { class: "muted", text: "Nobody is stuck right now." }),
+          h("p", { class: "small muted", text: "The rules: emailed and not claimed after " + (rules.emailed_not_claimed_days || 7) + " days; claimed and the prepared playbook not opened after " + (rules.claimed_playbook_unopened_days || 2) + " days; claimed and no gig after " + (rules.claimed_no_gig_days || 3) + " days; a gig with no proposals after " + (rules.gig_no_proposals_hours || 48) + " hours; proposals and nobody hired after " + (rules.proposals_no_hire_days || 5) + " days. Change them in Settings, under \"Pipeline\"." })),
+        h("div", { class: "card", id: "pipe-add-card" }, titled("h2", "Add attorneys", "pipeline_add"), idsIn, h("div", { class: "row", style: "margin-top:8px;gap:10px;flex-wrap:wrap" }, addBtn, addMsg),
+          h("p", { class: "small muted", text: "DELA reads each listing from the Lawfecta website: name, firm, city, state, website, category and plan. A listing on a claim plan counts as \"Listing built\". Adding sends nothing to anyone." })),
+        h("div", { class: "card", id: "pipe-list" }, titled("h2", "Attorneys (" + (r.attorneys || []).length + ")", "pipeline_list"),
+          (r.attorneys || []).length ? h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "Attorney" }), h("th", { text: "Stage" }), h("th", { text: "Emailed" }), h("th", { text: "Claimed" }), h("th", { text: "Gig posted" }), h("th", { text: "Proposals" }), h("th", { text: "Hired" }), h("th", { text: "" }))),
+            h("tbody", null, r.attorneys.map(function (a) {
+              var st = a.stages || {};
+              return h("tr", null, h("td", null, h("strong", { text: a.name || "Member " + a.bd_member_id }), h("div", { class: "muted small", text: [a.firm, [a.city, a.state].filter(Boolean).join(", "), a.practice_area, "Website member " + a.bd_member_id].filter(Boolean).join(" | ") })),
+                h("td", null, h("span", { class: "badge", text: STAGE_WORD[a.stage] || a.stage })), h("td", { text: day(st.emailed) }), h("td", { text: day(st.claimed) }), h("td", { text: day(st.gig_posted) }), h("td", { text: day(st.proposals_received) }), h("td", { text: day(st.hired) }),
+                h("td", null, mark(a, st.emailed ? "follow_up" : "emailed")));
+            })))) : h("p", { class: "muted", text: "Nobody yet. Add attorneys by their website member number above, or ask the Team connector to add them." })),
+        h("div", { class: "card", id: "pipe-connect" }, titled("h2", "Use it in ChatGPT or Claude", "pipeline_connect"),
+          r.on ? [h("p", { text: "Add this address as a connector in ChatGPT or Claude. It brings you to DELA to approve, with your own login. Only the owner and people with the role \"growth\" can approve it." }),
+            h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, url, h("button", { class: "ghost small", type: "button", onclick: function () { url.select(); try { navigator.clipboard.writeText(url.value); ok("Copied"); } catch (e) { ok("Select the address and copy it."); } } }, "Copy")),
+            (r.connections || []).length ? h("ul", { class: "small" }, r.connections.map(function (x) { return h("li", { text: x.name + ", from " + x.client_name + ", last used " + D.dateTime(x.last_used_at) }); })) : h("p", { class: "small muted", text: "No one has connected yet." })]
+            : h("p", { class: "notice", text: "The Team connector is switched off. An owner turns it on in Switches (\"The Lawfecta Team connector\"). This page works either way." }),
+          h("p", { class: "small muted", text: "To let someone use it: Lawfecta Team page, add them with the role \"Growth\". Taking the role away stops their connection at once." }))));
+    }).catch(fail);
+  }
+
   // ---------- Team ----------
 
   function team() {
     api.get("/admin/staff").then(function (r) {
       var idIn = h("input", { type: "number", min: "1", placeholder: "BD member ID", "aria-label": "BD member ID" });
-      var roleIn = h("select", { "aria-label": "Role" }, h("option", { value: "reviewer", text: "Reviewer (checks attorneys and milestones)" }), h("option", { value: "support", text: "Support (access list, holds, jobs)" }), h("option", { value: "finance", text: "Finance (payments and holds)" }), h("option", { value: "owner", text: "Owner (everything)" }));
+      var roleIn = h("select", { "aria-label": "Role" }, h("option", { value: "reviewer", text: "Reviewer (checks attorneys and milestones)" }), h("option", { value: "support", text: "Support (access list, holds, jobs)" }), h("option", { value: "finance", text: "Finance (payments and holds)" }), h("option", { value: "growth", text: "Growth (the attorney pipeline and its connector, nothing else)" }), h("option", { value: "owner", text: "Owner (everything)" }));
       body(h("div", null, pageHead("Lawfecta Team", "team"),
         h("p", { class: "muted", text: "Team members can open DELA and this admin area. Only owners can change settings, plans and switches. A person must open DELA once before they can be added." }),
         ownerOnly(h("div", { class: "card" }, titled("h2", "Add a team member", "team_add"), h("div", { class: "row", style: "margin-top:8px" }, idIn, roleIn,
@@ -2200,7 +2262,13 @@
     settings_status: "Confirmed: you approved it. Suggested: Claude's suggestion, waiting for your yes. Open: not decided yet; DELA uses a safe default. Needs a gate: only turn on after a check, such as a lawyer review.",
     settings_group: "Click Show to see the settings in this group. Each line has its key, where the number came from, its value and its status.",
     switches: "Built features stay off until you switch them on. Off: nobody. Lawfecta Team only: you test it first. Access list: testers and early members. Everyone: all members with a plan.",
-    team: "People who run DELA. Owner: everything, including pushes. Reviewer: checks attorneys and milestones. Support: access list, holds, jobs. Finance: payments and holds.",
+    team: "People who run DELA. Owner: everything, including pushes. Reviewer: checks attorneys and milestones. Support: access list, holds, jobs. Finance: payments and holds. Growth: the attorney pipeline and its connector, nothing else.",
+    pipeline: "The attorneys the team is working, by their website member number. A person records that outreach went out. DELA reads the rest from what happened: the attorney has a workspace (claimed), opened a gig, got a proposal, signed an agreement.",
+    pipeline_counts: "For this week, Monday to Sunday: how many attorneys reached each stage in the week, how many ever did, and how many sit at each stage today. The Team connector gives the same numbers for any period.",
+    pipeline_stalled: "Attorneys who have gone too long without the next step, oldest first. This is the follow-up list. \"Record follow-up\" writes down that someone reached out; it sends nothing.",
+    pipeline_add: "Type website member numbers (the member ID in Brilliant Directories). DELA reads each listing from the website and adds the attorney. Adding again refreshes the listing's facts.",
+    pipeline_list: "Every attorney in the pipeline with the stage they are at and the day each stage was reached. An empty day means it has not happened.",
+    pipeline_connect: "A connector for the team's own ChatGPT or Claude. It reads this page's numbers and records outreach. It cannot send email, post a gig, hire, or touch money.",
     team_add: "Add a team member by BD member ID and role. They must have opened DELA once first.",
     holds: "A hold pauses new actions for one person (and later hiring and payments) while you check something. Release it with a note on what you checked.",
     audit: "Every sign in, refusal and change, newest first, with who did it. Nobody can edit or delete these lines, so it is the record if anything is ever questioned.",
@@ -2598,7 +2666,7 @@
   }
 
   // A link can open a page (the address carries ?tab= in the compact workspace)
-  var startTab = "control";
+  var startTab = current;
   try { var wanted = new URLSearchParams(location.search).get("tab"); if (NLA && wanted && LABEL[wanted]) startTab = wanted; } catch (e) { /* the first page */ }
   current = startTab;
   frame();

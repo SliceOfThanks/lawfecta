@@ -59,6 +59,8 @@
   var bar = null;
 
   // Each side has its own tabs. Ask DELA and Files show once their switches are on for this member.
+  // Step 82: the team role "growth" opens the attorney pipeline in the admin area and nothing in the member app
+  function teamMember() { return (me.staff || []).some(function (x) { return x !== "growth"; }); }
   function tabsFor() {
     var sw = me.switches || {};
     if (me.side === "attorney") {
@@ -71,7 +73,7 @@
       if (sw.guided_setup) a.push(["setup", "Get set up", "✓"]);
       if (sw.team_assignments) a.push(["teamwork", "Team work", "☑"]);
       if (sw.community) a.push(["community", "Community", "❝"]);
-      if ((me.staff || []).length) a.push(["members", "Members", "◍"]);
+      if (teamMember()) a.push(["members", "Members", "◍"]);
       return a;
     }
     var f = [["home", "Home", "⌂"]];
@@ -87,7 +89,7 @@
       if (sw.talent_search) f.push(["talent", "Talent", "◌"]);
     }
     if (sw.community) f.push(["community", "Community", "❝"]);
-    if ((me.staff || []).length) f.push(["members", "Members", "◍"]);
+    if (teamMember()) f.push(["members", "Members", "◍"]);
     return f;
   }
 
@@ -5154,7 +5156,7 @@
     freelancer: ["See your name, workspace, plan and DELA actions left", "Read your profile and what is missing to be match-ready"],
   };
   var CONNECT_CANNOT = "It cannot pay, hire, sign, send messages, delete anything or see your passwords or AI keys.";
-  var CONNECT_ERR = { request_expired: "This connection request ran out or was already answered. Start again from ChatGPT or Claude.", connector_off: "DELA in ChatGPT and Claude is not open for your account yet.", not_in_plan: "Your plan does not include the ChatGPT and Claude connector.", on_hold: "Some actions are paused on your account. Contact the Lawfecta Team." };
+  var CONNECT_ERR = { not_on_team: "Only the owner and people with the team role \"growth\" can approve the Lawfecta Team connector. Your account has neither.", team_connector_off: "The Lawfecta Team connector is switched off.", request_expired: "This connection request ran out or was already answered. Start again from ChatGPT or Claude.", connector_off: "DELA in ChatGPT and Claude is not open for your account yet.", not_in_plan: "Your plan does not include the ChatGPT and Claude connector.", on_hold: "Some actions are paused on your account. Contact the Lawfecta Team." };
 
   // What a connected assistant can access, change and never see, and how to disconnect (UX review C01)
   function connectExplain(box, side, who, approving) {
@@ -5182,6 +5184,31 @@
     api.get("/oauth/request?req=" + encodeURIComponent(req)).then(function (r) {
       D.clear(box);
       if (!r.ok) { box.appendChild(h("h1", { text: "Connect DELA" })); box.appendChild(h("p", { class: "notice bad", text: CONNECT_ERR[r.reason] || D.errorText(r.reason) })); return; }
+      // Step 82: the Lawfecta Team connector has its own approval, for the owner and the role "growth" only
+      if (r.kind === "admin") {
+        var may = r.on && !!r.role, say = h("p", { role: "status", class: "small" }), tb;
+        box.id = "team-connect";
+        box.appendChild(h("h1", { text: r.client_name + " wants to use the Lawfecta Team connector" }));
+        box.appendChild(h("p", { text: "This is the team's connector, not a member's. It works as you" + (r.role ? ", with your team role \"" + r.role + "\"." : ".") }));
+        box.appendChild(h("ul", null, h("li", { text: "It can read the attorney pipeline: who was added, emailed, claimed, posted a gig, got proposals and hired, who is stuck, and the counts by stage." }),
+          h("li", { text: "It can add attorneys to the pipeline by their website member number, and record that outreach went out." }),
+          h("li", { text: "It cannot send an email or a message, post a gig, hire, change a plan, or touch money." })));
+        box.appendChild(h("p", { class: "small muted", text: "After you choose, you go back to " + r.redirect_host + ". Taking your team role away stops this connection at once." }));
+        if (!may) box.appendChild(h("p", { class: "notice bad", role: "alert", text: !r.role ? CONNECT_ERR.not_on_team : CONNECT_ERR.team_connector_off }));
+        var teamDecide = function (yes) {
+          tb.forEach(function (b) { b.disabled = true; });
+          say.textContent = yes ? "Connecting..." : "Saying no...";
+          api.post("/oauth/decide", { req: req, approve: yes }).then(function (x) {
+            if (!x.ok) { say.textContent = CONNECT_ERR[x.reason] || D.errorText(x.reason); return; }
+            say.textContent = yes ? "Connected. Taking you back to " + r.client_name + "..." : "Not connected. Taking you back...";
+            location.href = x.redirect;
+          }).catch(function (e) { tb.forEach(function (b) { b.disabled = false; }); say.textContent = D.errorText(e.message); });
+        };
+        tb = [h("button", { class: "blue", disabled: !may, onclick: function () { teamDecide(true); } }, "Approve"), h("button", { class: "ghost", onclick: function () { teamDecide(false); } }, "Deny")];
+        box.appendChild(h("div", { class: "row" }, tb));
+        box.appendChild(say);
+        return;
+      }
       box.appendChild(h("h1", { text: r.client_name + " wants to connect to DELA" }));
       box.appendChild(h("p", { text: "It will use your " + D.SIDE[r.side] + " workspace" + ((me.sides || []).length > 1 ? ". To connect your other workspace instead, switch workspaces at the top of this page first." : ".") }));
       box.appendChild(h("p", { class: "small muted", text: "After you choose, you go back to " + r.redirect_host + "." }));

@@ -221,6 +221,10 @@ const deps = {
   fetch: (async (url: string | URL | Request, opts: RequestInit = {}) => {
     const u = typeof url === "string" ? url : url instanceof URL ? url.href : url.url;
     // The Lawfecta listing (BD API): reads give a sample listing, updates are recorded for the test
+    // Step 82 (pipeline-test.js): one attorney on a claim plan, one on a paid plan, and a number the website does not know
+    if (u.endsWith("/api/v2/user/get/4821")) return Response.json({ status: "success", message: [{ user_id: 4821, first_name: "Cal", last_name: "Claim", company: "Claim Family Law", city: "Austin", state_code: "TX", website: "claimlaw.example", filename: "texas/austin/cal-claim", subscription_id: "15", signup_date: "2026-11-02 09:00:00", profession_id: "40", email: "cal@claimlaw.example" }] });
+    if (u.endsWith("/api/v2/user/get/4822")) return Response.json({ status: "success", message: [{ user_id: 4822, first_name: "Pia", last_name: "Paid", company: "Paid Injury Law", city: "Reno", state_code: "NV", website: "https://paidlaw.example", filename: "nevada/reno/pia-paid", subscription_id: "11", signup_date: "2026-10-02 09:00:00", profession_id: "39" }] });
+    if (u.endsWith("/api/v2/user/get/4829")) return Response.json({ status: "error", message: "user not found" }, { status: 404 });
     if (u.includes("/api/v2/user/get/")) return Response.json({ status: "success", message: [{ user_id: Number(u.split("/").pop()), first_name: "Lia", last_name: "Listing", company: "Listing Law", city: "Dallas", state_code: "TX", website: "listinglaw.com", about_me: "From the directory.", image_main_file: "/pictures/lia.jpg", card_info: "4111111111111111" }] });
     if (u.endsWith("/api/v2/user/update")) { lastBdUpdate = String(opts.body ?? ""); return Response.json({ status: "success", message: {} }); }
     // The website's billing (step 19): no test member has a billing account, which BD answers this way

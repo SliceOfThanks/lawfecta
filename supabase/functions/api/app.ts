@@ -5215,6 +5215,8 @@ async function oauthAuthorize(ctx: Ctx) {
   const id = newSessionToken().slice(3, 40);
   const r = await rpc<Record<string, any>>(ctx, "dela_mcp_auth_start", { p_id: id, p_client: client, p_redirect: redirect, p_challenge: q.get("code_challenge") ?? "", p_state: q.get("state") ?? "" });
   if (!r?.ok) return oauthError(ctx, r?.reason ?? "invalid_request");
+  // Step 82: a sign-in that asks for the Team connector's address is of the admin kind, and is approved as such
+  if (isTeamResource(q.get("resource"))) await rpc(ctx, "dela_mcp_auth_mark_admin", { p_req: id });
   const site = (await setting(ctx, "site.url", "")).replace(/\/+$/, "");
   const path = await setting(ctx, "site.app_path", "/dela");
   return new Response(null, { status: 302, headers: { ...cors(ctx.req, ctx.deps), location: `${site}${path}?tab=connect&req=${encodeURIComponent(id)}`, "cache-control": "no-store" } });
@@ -5222,14 +5224,17 @@ async function oauthAuthorize(ctx: Ctx) {
 
 async function oauthRequest(ctx: Ctx) {
   const s = await memberSide(ctx);
-  return json(ctx, await rpc(ctx, "dela_mcp_auth_get", { p_person: s.person_id, p_side: s.side, p_req: str(ctx.url.searchParams.get("req"), 60) }));
+  const req = str(ctx.url.searchParams.get("req"), 60);
+  if (await rpc<string>(ctx, "dela_mcp_auth_kind", { p_req: req }) === "admin") return json(ctx, await rpc(ctx, "dela_mcp_admin_auth_get", { p_person: s.person_id, p_req: req }));
+  return json(ctx, await rpc(ctx, "dela_mcp_auth_get", { p_person: s.person_id, p_side: s.side, p_req: req }));
 }
 
 async function oauthDecide(ctx: Ctx) {
   const s = await memberSide(ctx);
   const approve = ctx.body.approve === true;
   const code = newMcpToken("dk_");
-  const r = await rpc<Record<string, any>>(ctx, "dela_mcp_decide", { p_person: s.person_id, p_side: s.side, p_req: str(ctx.body.req, 60), p_approve: approve, p_code_hash: await mcpHash(code) });
+  const teamKind = await rpc<string>(ctx, "dela_mcp_auth_kind", { p_req: str(ctx.body.req, 60) }) === "admin";
+  const r = await rpc<Record<string, any>>(ctx, teamKind ? "dela_mcp_admin_decide" : "dela_mcp_decide", { p_person: s.person_id, p_side: s.side, p_req: str(ctx.body.req, 60), p_approve: approve, p_code_hash: await mcpHash(code) });
   if (!r?.ok) return json(ctx, r);
   const back = new URL(r.redirect_uri);
   if (r.approved) back.searchParams.set("code", code); else back.searchParams.set("error", "access_denied");
@@ -5247,6 +5252,7 @@ async function oauthToken(ctx: Ctx) {
     const t = await rpc<Record<string, any>>(ctx, "dela_mcp_code_take", { p_code_hash: codeHash, p_client: client, p_redirect: str(b.redirect_uri, 500) });
     if (!t?.ok || !(await pkceOk(str(b.code_verifier, 200), t.challenge))) return oauthError(ctx, "invalid_grant");
     const c = await rpc<Record<string, any>>(ctx, "dela_mcp_connect", { p_person: t.person_id, p_side: t.side, p_client: client, p_access_hash: await mcpHash(access), p_refresh_hash: await mcpHash(refresh), p_code_hash: codeHash });
+    await rpc(ctx, "dela_mcp_conn_kind", { p_code_hash: codeHash });
     return json(ctx, { access_token: access, token_type: "Bearer", expires_in: c.expires_in, refresh_token: refresh, scope: "dela" });
   }
   if (b.grant_type === "refresh_token") {
@@ -5598,6 +5604,8 @@ const D_TEXT: Record<string, string> = {
 async function mcpEndpoint(ctx: Ctx) {
   const auth = ctx.req.headers.get("authorization") ?? "";
   if (!auth.startsWith("Bearer ")) return mcpUnauthorized(ctx);
+  // Step 82: a Team connector token opens nothing here
+  if (await rpc<string>(ctx, "dela_mcp_token_kind", { p_access_hash: await mcpHash(auth.slice(7).trim()) }).catch(() => "") === "admin") return mcpUnauthorized(ctx);
   const w = await rpc<Record<string, any>>(ctx, "dela_mcp_resolve", { p_access_hash: await mcpHash(auth.slice(7).trim()) });
   if (!w?.ok) {
     if (w?.reason === "invalid_token") return mcpUnauthorized(ctx);
@@ -5639,6 +5647,123 @@ async function mcpEndpoint(ctx: Ctx) {
   return json(ctx, { jsonrpc: "2.0", id: msg.id, error: { code: -32601, message: "Method not found" } });
 }
 
+// ---------- Step 82: the Lawfecta Team connector and the attorney pipeline ----------
+// A second connector at /mcp/admin, apart from the members' one. A connection is of the admin kind only when the
+// sign-in asked for this address and a person on the team (owner or growth) approved it; the role is checked again on
+// every call. It reads the pipeline and records what a person did. It sends nothing, posts nothing and touches no money.
+const TEAM_PATH = "/mcp/admin";
+const isTeamResource = (v: string | null) => { try { return !!v && new URL(v).pathname.replace(/\/+$/, "").endsWith(TEAM_PATH); } catch { return false; } };
+const TEAM_NOTE = "This connector never contacts anyone: no email, no message, no post. Outreach is sent by a person from their own tool and then recorded here with outreach_mark.";
+function teamTools() {
+  const read = { readOnlyHint: true }, ids = { type: "array", items: { type: "integer" }, description: "Website member numbers (Brilliant Directories member IDs)" };
+  return [
+    { name: "pipeline_rules", title: "The pipeline's stages and rules", description: "Lists the eight stages in order, how each is set (by a person or by DELA from what happened), the rules that make an attorney count as stuck, and which website plans are claim listings. Read this first.", inputSchema: { type: "object", properties: {} }, annotations: read },
+    { name: "pipeline_add", title: "Add attorneys to the pipeline", description: "Adds attorneys to the pipeline by website member number, or refreshes them. DELA reads each listing from the Lawfecta website (name, firm, city, state, website, category, plan). A listing on a claim plan is recorded as \"listing built\". Up to 25 at a time. " + TEAM_NOTE,
+      inputSchema: { type: "object", properties: { bd_member_ids: ids }, required: ["bd_member_ids"] }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
+    { name: "attorney_find", title: "Find attorneys", description: "Finds attorneys in the pipeline by words (name, firm, city, website, member number), state, practice area or stage. Set include_not_in_pipeline to also search DELA's attorneys who are not in the pipeline yet.",
+      inputSchema: { type: "object", properties: { q: { type: "string" }, state: { type: "string" }, practice_area: { type: "string" }, stage: { type: "string", enum: ["added", "listing_built", "playbook_made", "emailed", "claimed", "playbook_opened", "gig_posted", "proposals_received", "hired"] }, include_not_in_pipeline: { type: "boolean" }, limit: { type: "integer" }, offset: { type: "integer" } } }, annotations: read },
+    { name: "attorney_record", title: "One attorney's record", description: "One attorney by website member number: the listing as the website has it now (name, firm, category, website, plan), their DELA workspace if they have one, the day each stage was reached, every recorded outreach, and their gigs with the number of proposals on each.",
+      inputSchema: { type: "object", properties: { bd_member_id: { type: "integer" } }, required: ["bd_member_id"] }, annotations: read },
+    { name: "outreach_mark", title: "Record that outreach went out", description: "Records that an email (kind \"emailed\") or a follow-up (kind \"follow_up\") went to one or more pipeline attorneys, with the day, the tool it was sent from and a short note. " + TEAM_NOTE + " Give a request_id; the same request sent twice is recorded once. Never put client information or sensitive data in the note.",
+      inputSchema: { type: "object", properties: { bd_member_ids: ids, kind: { type: "string", enum: ["emailed", "follow_up"] }, sent_on: { type: "string", description: "The day or time it went out (ISO 8601). Left out: now." }, tool: { type: "string", description: "Where it was sent from, for example Instantly or Gmail" }, note: { type: "string" }, request_id: { type: "string" } }, required: ["bd_member_ids", "request_id"] },
+      annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
+    { name: "pipeline_stalled", title: "Who is stuck", description: "Lists pipeline attorneys who are stuck, oldest first, each with the rule it broke, since when, how many days, and when someone last reached out. This is the follow-up list.", inputSchema: { type: "object", properties: {} }, annotations: read },
+    { name: "pipeline_gigs", title: "Gigs and their proposals", description: "Lists the gigs of pipeline attorneys with the number of proposals on each, and flags open gigs that have none after the set number of hours. Set only_flagged to list the flagged ones only.", inputSchema: { type: "object", properties: { only_flagged: { type: "boolean" } } }, annotations: read },
+    { name: "pipeline_counts", title: "Counts by stage", description: "For a period (this week, Monday to Sunday, when no dates are given): how many attorneys reached each stage in the period, how many ever did, and how many sit at each stage now. Dates as YYYY-MM-DD.", inputSchema: { type: "object", properties: { from: { type: "string" }, to: { type: "string" } } }, annotations: read },
+  ];
+}
+// One listing as the website has it now. Contact details are not passed on: outreach addresses stay on the website.
+async function teamListing(ctx: Ctx, bd: number): Promise<{ ok: boolean; row?: Record<string, string>; error?: string }> {
+  const r = await bdMember(f(ctx), await setting(ctx, "site.url", ""), ctx.deps.env("BD_API_KEY"), bd);
+  if (!r.ok) return { ok: false, error: r.status === 404 ? "not_on_website" : r.status === 403 ? "website_refused" : "website_unreachable" };
+  const m = r.data as Record<string, unknown>, t = (v: unknown, n: number) => htmlToText(v, n);
+  const top = /^[0-9]{1,9}$/.test(String(m.profession_id ?? "")) ? await rpc<string | null>(ctx, "dela_category_name", { p_key: "p" + String(m.profession_id) }).catch(() => null) : null;
+  const web = t(m.website, 300);
+  return { ok: true, row: { bd_member_id: String(bd), name: [t(m.first_name, 80), t(m.last_name, 80)].filter(Boolean).join(" "), firm: t(m.company, 160), practice_area: top ?? "", website: /^https?:\/\//i.test(web) ? web : web ? "https://" + web : "",
+    city: t(m.city, 80), state: t(m.state_code, 40) || t(m.state_ln, 40), listing_path: t(m.filename, 200), plan_id: /^[0-9]{1,9}$/.test(String(m.subscription_id ?? "")) ? String(m.subscription_id) : "",
+    listed_at: /^\d{4}-\d{2}-\d{2}/.test(String(m.signup_date ?? "")) ? String(m.signup_date).slice(0, 10) : "" } };
+}
+async function teamAdd(ctx: Ctx, actor: string, list: unknown) {
+  const ids = [...new Set((Array.isArray(list) ? list : []).map((x) => Number(x)).filter((n) => Number.isInteger(n) && n > 0))].slice(0, 25);
+  if (!ids.length) return { ok: false, reason: "bad_list" };
+  const rows: Array<Record<string, string>> = [], failed: Array<{ bd_member_id: number; reason: string }> = [];
+  for (const bd of ids) { const l = await teamListing(ctx, bd); if (l.ok && l.row) rows.push(l.row); else failed.push({ bd_member_id: bd, reason: l.error ?? "website_unreachable" }); }
+  const r = rows.length ? await rpc<Record<string, any>>(ctx, "dela_pipeline_add", { p_actor: actor, p_rows: rows }) : { ok: true, added: 0, refreshed: 0 };
+  return { ...r, not_added: failed };
+}
+function teamMarkArgs(a: Record<string, any>) {
+  const when = str(a.sent_on, 40).trim();
+  if (when && Number.isNaN(Date.parse(when))) throw new ToolError("sent_on is not a date DELA can read. Use a form like 2026-11-24.");
+  return { bd_member_ids: (Array.isArray(a.bd_member_ids) ? a.bd_member_ids : []).map((x: unknown) => String(Math.trunc(Number(x)))).filter((x: string) => /^[0-9]{1,12}$/.test(x)).slice(0, 200),
+    stage: a.kind === "follow_up" ? "follow_up" : "emailed",
+    // A plain day is taken as the middle of that day, so it stays that day in every US time zone
+    at: when ? new Date(/^\d{4}-\d{2}-\d{2}$/.test(when) ? when + "T18:00:00Z" : when).toISOString() : "", tool: str(a.tool, 60).trim(), note: str(a.note, 500).trim(), request_id: str(a.request_id, 80).trim() };
+}
+const TEAM_WORDS: Record<string, string> = { bad_list: "Give between 1 and 200 website member numbers.", request_id_needed: "Give a request_id, so the same call sent twice is recorded once.", date_in_future: "That day is in the future.", bad_period: "The period is not valid. Give two dates, from before to, at most a year apart.", bad_stage: "The kind must be emailed or follow_up." };
+async function teamCall(ctx: Ctx, w: { person_id: string; role: string }, name: string, a: Record<string, any>): Promise<{ text: string; data: unknown }> {
+  const done = (r: Record<string, any> | null, text: (r: Record<string, any>) => string) => { if (!r?.ok) throw new ToolError(TEAM_WORDS[String(r?.reason)] ?? "DELA refused this: " + String(r?.reason ?? "unknown")); return { text: text(r), data: r }; };
+  if (name === "pipeline_rules") return done(await rpc(ctx, "dela_pipeline_rules", { p_actor: w.person_id }), (r) => "The stages, in order: " + (r.stages as string[]).join(", ") + ". " + TEAM_NOTE);
+  if (name === "pipeline_add") return done(await teamAdd(ctx, w.person_id, a.bd_member_ids), (r) => `Added ${r.added}, refreshed ${r.refreshed}.` + ((r.not_added ?? []).length ? ` Not added: ${(r.not_added as Array<Record<string, any>>).map((x) => x.bd_member_id + " (" + x.reason + ")").join(", ")}.` : ""));
+  if (name === "attorney_find") return done(await rpc(ctx, "dela_pipeline_find", { p_actor: w.person_id, p: { q: str(a.q, 100), state: str(a.state, 40), practice_area: str(a.practice_area, 100), stage: str(a.stage, 30), include_not_in_pipeline: a.include_not_in_pipeline === true, limit: int(a.limit) ?? "", offset: int(a.offset) ?? 0 } }),
+    (r) => `${r.total} ${r.total === 1 ? "attorney" : "attorneys"} found; ${(r.attorneys as unknown[]).length} shown.`);
+  if (name === "attorney_record") {
+    const bd = Math.trunc(Number(a.bd_member_id));
+    if (!Number.isInteger(bd) || bd < 1) throw new ToolError("Give the attorney's website member number.");
+    const r = await rpc<Record<string, any>>(ctx, "dela_pipeline_record", { p_actor: w.person_id, p_bd: bd });
+    const live = await teamListing(ctx, bd);
+    return done(r ? { ...r, website_listing: live.ok ? live.row : null, website_listing_note: live.ok ? "" : live.error } : r, (x) => x.known ? `${x.attorney.name || "Member " + bd}: stage ${x.attorney.stage}${x.attorney.in_pipeline ? "" : " (not in the pipeline yet; add with pipeline_add)"}.` : live.ok ? `Member ${bd} is on the website and not in the pipeline or DELA yet. Add them with pipeline_add.` : `Member ${bd} was not found (${live.error}).`);
+  }
+  if (name === "outreach_mark") return done(await rpc(ctx, "dela_pipeline_mark", { p_actor: w.person_id, p: teamMarkArgs(a) }), (r) => `Recorded "${r.stage}" for ${(r.recorded as unknown[]).length}.` + ((r.already_recorded as unknown[]).length ? ` Already recorded: ${(r.already_recorded as unknown[]).length}.` : "") + ((r.not_in_pipeline as unknown[]).length ? ` Not in the pipeline (add them first): ${(r.not_in_pipeline as unknown[]).join(", ")}.` : "") + " Nothing was sent.");
+  if (name === "pipeline_stalled") return done(await rpc(ctx, "dela_pipeline_stalled", { p_actor: w.person_id }), (r) => r.count ? `${r.count} stuck, oldest first.` : "Nobody is stuck right now.");
+  if (name === "pipeline_gigs") return done(await rpc(ctx, "dela_pipeline_gigs", { p_actor: w.person_id, p_only_flagged: a.only_flagged === true }), (r) => `${r.gigs_total} gigs; ${r.gigs_with_no_proposals} with no proposals, ${r.flagged} of them flagged.`);
+  if (name === "pipeline_counts") {
+    const day = (v: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(String(v ?? "")) ? String(v) : null;
+    return done(await rpc(ctx, "dela_pipeline_counts", { p_actor: w.person_id, p_from: day(a.from), p_to: day(a.to) }), (r) => `${r.from} to ${r.to}: ` + (r.stages as Array<Record<string, any>>).map((x) => `${x.stage} ${x.reached_in_period}`).join(", ") + `. In the pipeline: ${r.attorneys_in_pipeline}.`);
+  }
+  throw new ToolError("Unknown tool: " + name);
+}
+function teamUnauthorized(ctx: Ctx) {
+  const base = publicBase(ctx.deps);
+  return new Response(JSON.stringify({ error: "invalid_token" }), { status: 401, headers: { ...cors(ctx.req, ctx.deps), "content-type": "application/json",
+    "www-authenticate": `Bearer resource_metadata="${base}/.well-known/oauth-protected-resource${TEAM_PATH}", error="invalid_token"` } });
+}
+async function teamEndpoint(ctx: Ctx) {
+  const auth = ctx.req.headers.get("authorization") ?? "";
+  if (!auth.startsWith("Bearer ")) return teamUnauthorized(ctx);
+  const w = await rpc<Record<string, any>>(ctx, "dela_mcp_admin_resolve", { p_access_hash: await mcpHash(auth.slice(7).trim()) });
+  if (!w?.ok) {
+    if (w?.reason === "invalid_token") return teamUnauthorized(ctx);
+    const words: Record<string, string> = { paused: "DELA's connectors are paused for a moment.", team_connector_off: "The Lawfecta Team connector is not open for this account.", not_on_team: "This account no longer has a team role that may use this connector.", rate_limited: "Too many requests. Wait a minute and try again." };
+    return json(ctx, { jsonrpc: "2.0", id: (ctx.body as any)?.id ?? null, error: { code: -32001, message: words[w?.reason] ?? "DELA refused this request." } }, w?.reason === "rate_limited" ? 429 : 403);
+  }
+  const msg = ctx.body as Record<string, any>;
+  if (Array.isArray(msg) || msg.jsonrpc !== "2.0" || typeof msg.method !== "string") return json(ctx, { jsonrpc: "2.0", id: null, error: { code: -32600, message: "Invalid request" } }, 400);
+  if (msg.id === undefined) return new Response(null, { status: 202, headers: cors(ctx.req, ctx.deps) });
+  const reply = (result: unknown) => json(ctx, { jsonrpc: "2.0", id: msg.id, result });
+  if (msg.method === "initialize") {
+    const want = String(msg.params?.protocolVersion ?? "");
+    return reply({ protocolVersion: MCP_VERSIONS.includes(want) ? want : MCP_VERSIONS[0], capabilities: { tools: { listChanged: false } }, serverInfo: { name: "lawfecta-dela-team", title: "Lawfecta Team", version: VERSION },
+      instructions: "The Lawfecta Team's view of the attorney outreach pipeline in DELA: who was added, emailed, claimed, posted a gig, got proposals and hired, who is stuck, and the counts by stage. " + TEAM_NOTE + " " + NOTICE_TOOLS });
+  }
+  if (msg.method === "ping") return reply({});
+  if (msg.method === "tools/list") return reply({ tools: teamTools() });
+  if (msg.method === "tools/call") {
+    const name = str(msg.params?.name, 60);
+    if (!teamTools().some((t) => t.name === name)) return json(ctx, { jsonrpc: "2.0", id: msg.id, error: { code: -32602, message: "Unknown tool: " + name } });
+    try {
+      const out = await teamCall(ctx, { person_id: String(w.person_id), role: String(w.role) }, name, (msg.params?.arguments ?? {}) as Record<string, any>);
+      await rpc(ctx, "dela_mcp_log", { p_conn: w.connection_id, p_tool: "team:" + name, p_ok: true, p_error: "" });
+      return reply({ content: [{ type: "text", text: out.text }], structuredContent: { result: out.data }, isError: false });
+    } catch (e) {
+      const text = e instanceof ToolError ? e.message : "Something went wrong in DELA. Please try again.";
+      if (!(e instanceof ToolError)) console.error("team_tool", name, String(e).slice(0, 200));
+      await rpc(ctx, "dela_mcp_log", { p_conn: w.connection_id, p_tool: "team:" + name, p_ok: false, p_error: e instanceof ToolError ? "refused" : "error" });
+      return reply({ content: [{ type: "text", text }], isError: true });
+    }
+  }
+  return json(ctx, { jsonrpc: "2.0", id: msg.id, error: { code: -32601, message: "Method not found" } });
+}
+
 // ---------- Admin routes (Lawfecta Team) ----------
 
 type AdminRoute = (ctx: Ctx, actor: string) => Promise<unknown>;
@@ -5651,6 +5776,8 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/switches": (c, a) => rpc(c, "dela_admin_switches", { p_actor: a }),
   "/admin/access": (c, a) => rpc(c, "dela_admin_access", { p_actor: a }),
   "/admin/staff": (c, a) => rpc(c, "dela_admin_staff", { p_actor: a }),
+  // Step 82: the Pipeline page, and the Team connector's address
+  "/admin/pipeline": async (c, a) => { const r = await rpc<Record<string, any>>(c, "dela_admin_pipeline", { p_actor: a }); return r?.ok ? { ...r, url: publicBase(c.deps) + TEAM_PATH } : r; },
   "/admin/people": (c, a) => rpc(c, "dela_admin_people", { p_actor: a, p_q: (c.url.searchParams.get("q") ?? "").slice(0, 100), p_limit: 50 }),
   "/admin/plans": (c, a) => rpc(c, "dela_admin_plans", { p_actor: a }),
   // Step 62: the Members page inside DELA, for the Lawfecta Team
@@ -5827,6 +5954,8 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   },
   "/admin/access/grant": (c, a) => rpc(c, "dela_admin_access_grant", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id"), p_channel: need(str(c.body.channel, 20)), p_note: str(c.body.note, 200) }),
   "/admin/access/revoke": (c, a) => rpc(c, "dela_admin_access_revoke", { p_actor: a, p_id: need(int(c.body.id)) }),
+  "/admin/pipeline/add": (c, a) => teamAdd(c, a, String(c.body.bd_member_ids ?? "").split(/[\s,;]+/).filter(Boolean)),
+  "/admin/pipeline/mark": (c, a) => rpc(c, "dela_pipeline_mark", { p_actor: a, p: { bd_member_ids: (Array.isArray(c.body.bd_member_ids) ? c.body.bd_member_ids : []).map((x) => String(x)), stage: c.body.kind === "follow_up" ? "follow_up" : "emailed", at: "", tool: str(c.body.tool, 60), note: str(c.body.note, 500), request_id: str(c.body.request_id, 80) } }),
   "/admin/staff/grant": (c, a) => rpc(c, "dela_admin_staff_grant", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id"), p_role: need(str(c.body.role, 20)) }),
   "/admin/staff/revoke": (c, a) => rpc(c, "dela_admin_staff_revoke", { p_actor: a, p_id: need(int(c.body.id)) }),
   // Step 65: code the owner adds to DELA's member pages (head, footer, before the closing body tag)
@@ -6873,6 +7002,13 @@ async function handleInner(req: Request, deps: Deps): Promise<Response> {
         const base = publicBase(deps);
         return json(ctx, { resource: base + "/mcp", authorization_servers: [base], scopes_supported: ["dela"], bearer_methods_supported: ["header"], resource_name: "Lawfecta DELA" });
       }
+      case "GET /.well-known/oauth-protected-resource/mcp/admin": {
+        const base = publicBase(deps);
+        return json(ctx, { resource: base + TEAM_PATH, authorization_servers: [base], scopes_supported: ["dela"], bearer_methods_supported: ["header"], resource_name: "Lawfecta Team" });
+      }
+      case "POST /mcp/admin": return await teamEndpoint(ctx);
+      case "GET /mcp/admin":
+      case "DELETE /mcp/admin": return new Response(null, { status: 405, headers: { ...cors(req, deps), allow: "POST" } });
       case "GET /.well-known/oauth-authorization-server":
       case "GET /.well-known/openid-configuration": return oauthMeta(ctx);
       case "GET /.well-known/jwks.json": return json(ctx, { keys: [] });
