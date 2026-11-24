@@ -237,6 +237,10 @@ How to read the "State" column:
 | 80-3 | Dragging a step and a picture works with a real mouse and on a tablet | Tried on a laptop and an iPad | Not yet | |
 | 81-1 | Members find Files, Team work, Subscription and Notifications after they left the menu | Ask two pilot members to open each one | Not yet | |
 | 75-3 | The pages read well on a laptop screen of ordinary width (about 1280) and on a phone | Stacey looks at the chat page, My Playbooks and the handoff page on both | Not yet | The tests check the layout by measurement, not by eye |
+| 80-2 | An attorney makes a word bold, adds a link and a bulleted list in a playbook, and the Word and PDF exports show them | A pilot attorney formats one playbook and exports it | Not yet | Check file 32 covers the editor; the exports are covered by automated tests only |
+| 83-1 | The Blog's Topic list shows the topics Stacey set on the website, and an article shows its topic | Stacey renames "Category 1" to "Category 3" in the post type "Community Article" and sets a topic on an article, then looks at the Blog an hour later | Not yet | Until then the list reads "All topics" only |
+| 83-2 | A real promotion or article written on the website by a member shows in DELA within the hour, without contact details | A pilot freelancer posts one on the website | Not yet | The sample members' posts show; a member's own first post has not been seen |
+| 83-3 | An attorney finds a freelancer from the Services page and invites them | A pilot attorney starts from Services | Not yet | |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
