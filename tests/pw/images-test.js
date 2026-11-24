@@ -356,6 +356,40 @@ const imgs = (step) => sql("select v.body->'steps'->" + step + "->'images' as im
     await dela(p).locator(".img-fig").first().click({ position: { x: 5, y: 5 } }).catch(() => {});
     await p.screenshot({ path: path.join(SHOTS, "images-phone.png"), fullPage: false });
     await s.ctx.close();
+    // ---------- Step 80: in the new editor an image moves from one step to another ----------
+    await sql("update feature_switches set state = 'everyone' where key = 'document_editor_v2'; select 1");
+    try {
+      const sr = (pg, fn, arg) => pg.evaluate(([f, a]) => new Function("r", "a", f)(document.querySelector(".dela-host").shadowRoot, a), [fn, arg]);
+      s = await open(browser, 3700, { width: 1400, height: 950 });
+      p = s.page;
+      await click(p, "Library");
+      await waitFor(p, "Run a conflict check");
+      await dela(p).locator("tr", { hasText: "Run a conflict check" }).first().click();
+      await dela(p).locator(".dp-page").waitFor({ timeout: 20000 });
+      if (await dela(p).locator("#dp-new-draft").count()) await dela(p).locator("#dp-new-draft").click();
+      await dela(p).locator(".dp-page:not(.ro) .dp-step .img-fig").first().waitFor({ timeout: 15000 });
+      const where = () => sr(p, `return [...r.querySelectorAll(".dp-step")].map((c) => c.querySelectorAll(".img-fig").length)`);
+      const at0 = await where();
+      const from = at0.findIndex((n) => n > 0), to = from === 0 ? 1 : 0;
+      ok(from >= 0 && at0.length >= 2, "the document has an image on a step: " + JSON.stringify(at0));
+      // By the image's own "Move to" list (keyboard and touch)
+      await dela(p).locator(".dp-step").nth(from).locator(".img-fig").first().click({ position: { x: 5, y: 5 } });
+      await dela(p).locator(".dp-step").nth(from).locator(".img-fig").first().locator("select.img-move").selectOption({ label: "Step " + (to + 1) });
+      await p.waitForTimeout(400);
+      let at1 = await where();
+      ok(at1[from] === at0[from] - 1 && at1[to] === at0[to] + 1, "Move to puts the image on the other step: " + JSON.stringify(at1));
+      // By dragging it back
+      await sr(p, `const steps = r.querySelectorAll(".dp-step"), fig = steps[a[1]].querySelector(".img-fig"), dt = new DataTransfer();
+        fig.dispatchEvent(new DragEvent("dragstart", { dataTransfer: dt, bubbles: true }));
+        steps[a[0]].dispatchEvent(new DragEvent("dragover", { dataTransfer: dt, bubbles: true, cancelable: true }));
+        steps[a[0]].dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true }));`, [from, to]);
+      await p.waitForTimeout(400);
+      at1 = await where();
+      ok(at1[from] === at0[from] && at1[to] === at0[to], "dragging the image onto another step moves it there: " + JSON.stringify(at1));
+      await dela(p).locator("#dp-status", { hasText: /^Saved / }).waitFor({ timeout: 12000 });
+      ok(true, "the move is kept by itself, like typing");
+      await s.ctx.close();
+    } finally { await sql("update feature_switches set state = 'off' where key = 'document_editor_v2'; select 1"); }
     console.log(passed + " browser checks passed");
   } finally { await browser.close(); }
 })().catch((e) => { console.error(e.message); process.exit(1); });

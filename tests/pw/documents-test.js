@@ -352,6 +352,130 @@ async function makeMember(bd, side, plan) {
       ok(t.includes("Accepted the result") && t.includes("Accepted. Done"), "step 73: the owner accepts the result, and it is done");
       await s.ctx.close();
     } finally { await sql("update feature_switches set state = 'off' where key = 'team_assignments'; select 1"); }
+    // ---------- Step 80: the document edited in place (Stacey 2026-11-24: a what-you-see-is-what-you-get editor) ----------
+    await sql("update feature_switches set state = 'everyone' where key in ('document_editor_v2', 'approved_view', 'new_layout'); select 1");
+    try {
+      const sr = (pg, fn, arg) => pg.evaluate(([f, a]) => new Function("r", "a", f)(document.querySelector(".dela-host").shadowRoot, a), [fn, arg]);
+      const sopRow = async () => (await sql("select p.id, p.current_version v, p.status from playbooks p where p.title like 'Run a conflict check%' and p.org_id = dela_side_org((select id from people where bd_member_id = 3600), 'attorney')"))[0];
+      const saved = (pg) => dela(pg).locator("#dp-status", { hasText: /^Saved / }).waitFor({ timeout: 12000 });
+      const openDoc = async () => {
+        const o = await open(browser, 3600, { width: 1400, height: 950 }, "&tab=library");
+        await dela(o.page).getByText("Run a conflict check").first().click();
+        await dela(o.page).locator(".dp-page").waitFor({ timeout: 20000 });
+        return o;
+      };
+      const before = await sopRow();
+      let s = await openDoc(), p = s.page;
+      // The approved version reads as a document and cannot be typed into; a new draft is one click
+      let st = await sr(p, `const pg = r.querySelector(".dp-page"); return { ro: pg.classList.contains("ro"), boxes: pg.querySelectorAll("[role=textbox]").length, inuse: !!r.querySelector("#dp-inuse"), top: Math.round(pg.getBoundingClientRect().top + window.scrollY), cards: !!r.querySelector("#doc-cats-card") || /Freelancers who fit this work/.test(r.querySelector(".dp-main").textContent), title: pg.querySelector("h1").textContent, heads: [...pg.querySelectorAll("h2.dp-h")].map((x) => x.textContent) }`);
+      ok(st.ro && st.boxes === 0 && st.inuse && st.title === "Run a conflict check", "the approved version reads as a document and cannot be typed into");
+      ok(st.top < 420 && !st.cards, "the document is the first thing on the page: nothing about delegation, categories or freelancers stands above it (starts " + st.top + "px down)");
+      ok(st.heads.join("|") === "Purpose|Scope|Trigger|Roles|Before you start|Steps|Decision points and escalation|Timing|Quality check|Done when|Related links", "an SOP shows its sections in reading order: " + st.heads.join(", "));
+      await dela(p).locator("#dp-new-draft").click();
+      await dela(p).locator(".dp-page:not(.ro)").waitFor();
+      // Type where the text stands; it is kept by itself and makes no version
+      const purpose = dela(p).getByRole("textbox", { name: "Purpose", exact: true });
+      await purpose.fill("Find conflicts before any consult is booked.");
+      await saved(p);
+      let row = await sopRow();
+      const kept = (await sql("select body->>'purpose' purpose, base_version from playbook_working where playbook_id = '" + before.id + "'"))[0];
+      ok(row.v === before.v && kept && kept.purpose === "Find conflicts before any consult is booked." && kept.base_version === before.v, "what is typed is kept by itself as a working copy, and no version is made (still version " + row.v + ")");
+      ok(await sr(p, `return /Quality check/.test(r.querySelector("#dp-quality").textContent) && !!r.querySelector("#dp-quality #quality-check")`), "the quality check sits beside the document and follows what is typed");
+      // A step: text in place, tags for what is set, the rest behind Details
+      const step1 = dela(p).getByRole("textbox", { name: "Step 1", exact: true });
+      const was1 = await step1.innerText(), was2 = await dela(p).getByRole("textbox", { name: "Step 2", exact: true }).innerText();
+      await step1.fill(was1.trim() + " Use the full legal name.");
+      st = await sr(p, `const c = r.querySelector(".dp-step"); return { fields: c.querySelectorAll("input, select").length - c.querySelectorAll("input[type=file]").length, tags: [...c.querySelectorAll(".dp-tag")].map((x) => x.textContent) }`);
+      ok(st.fields === 0 && st.tags.length >= 1, "a step shows its text and small tags, with no boxes open: " + JSON.stringify(st.tags));
+      await dela(p).getByRole("button", { name: "Details of step 1" }).click();
+      await dela(p).getByLabel("System for step 1").fill("Clio Manage");
+      await dela(p).getByRole("button", { name: "Done", exact: true }).click();
+      st = await sr(p, `const c = r.querySelector(".dp-step"); return { open: !!c.querySelector(".dp-details"), tags: [...c.querySelectorAll(".dp-tag")].map((x) => x.textContent) }`);
+      ok(!st.open && st.tags.includes("Clio Manage"), "Details opens the step's boxes; what was set shows as a tag when it closes: " + JSON.stringify(st.tags));
+      // Steps move by button and by dragging
+      await dela(p).getByRole("button", { name: "Move step 1 down" }).click();
+      ok((await dela(p).getByRole("textbox", { name: "Step 1", exact: true }).innerText()).trim() === was2.trim(), "Move down swaps a step with the next one");
+      await sr(p, `const steps = r.querySelectorAll(".dp-step"), h = steps[1].querySelector(".dp-handle"), dt = new DataTransfer();
+        h.dispatchEvent(new DragEvent("dragstart", { dataTransfer: dt, bubbles: true }));
+        const b = steps[0].getBoundingClientRect();
+        steps[0].dispatchEvent(new DragEvent("dragover", { dataTransfer: dt, bubbles: true, cancelable: true, clientY: b.top + 2 }));
+        steps[0].dispatchEvent(new DragEvent("drop", { dataTransfer: dt, bubbles: true, cancelable: true, clientY: b.top + 2 }));`);
+      await p.waitForTimeout(300);
+      ok((await dela(p).getByRole("textbox", { name: "Step 1", exact: true }).innerText()).includes("Use the full legal name."), "dragging a step by its handle onto another puts it there");
+      const nSteps = await dela(p).locator(".dp-step").count();
+      await dela(p).getByRole("button", { name: "Add a step at the end" }).click();
+      const added = dela(p).getByRole("textbox", { name: "Step " + (nSteps + 1), exact: true });
+      await added.waitFor();
+      ok(await sr(p, `return (r.activeElement || {}).getAttribute && r.activeElement.getAttribute("aria-label")`) === "Step " + (nSteps + 1), "a new step is ready to type in");
+      await added.fill("Tell the attorney the result.");
+      await dela(p).getByRole("button", { name: "Remove step " + (nSteps + 1) }).click();
+      ok((await dela(p).locator(".dp-step").count()) === nSteps + 1 && (await dela(p).getByRole("button", { name: "Remove step " + (nSteps + 1) }).innerText()) === "Remove?", "removing a step with text asks once");
+      await dela(p).getByRole("button", { name: "Remove step " + (nSteps + 1) }).click();
+      ok((await dela(p).locator(".dp-step").count()) === nSteps, "the second click removes it");
+      // A list: Enter adds a line, Backspace on an empty line removes it
+      const l1 = dela(p).getByRole("textbox", { name: "Before you start, line 1", exact: true });
+      await l1.click(); await p.keyboard.press("End"); await p.keyboard.press("Enter");
+      const l2 = dela(p).getByRole("textbox", { name: "Before you start, line 2", exact: true });
+      await l2.waitFor(); await p.waitForTimeout(150);
+      ok(await sr(p, `return r.activeElement && r.activeElement.getAttribute("aria-label")`) === "Before you start, line 2", "the new line has the cursor");
+      await p.keyboard.type("The intake form");
+      ok((await l2.innerText()).trim() === "The intake form", "Enter in a list adds a line to type in");
+      await l2.fill(""); await l2.press("Backspace");
+      ok((await dela(p).getByRole("textbox", { name: "Before you start, line 2", exact: true }).count()) === 0, "Backspace on an empty line removes it");
+      // Pasted text comes in as plain words
+      await sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Trigger"); el.focus(); const dt = new DataTransfer(); dt.setData("text/plain", " (pasted)"); dt.setData("text/html", "<b onclick=alert(1)>bad</b>"); el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));`);
+      ok(await sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Trigger"); return el.children.length === 0 && el.textContent.includes("(pasted)") && !el.textContent.includes("bad")`), "what is pasted comes in as plain text, never as markup");
+      await saved(p);
+      // Leaving and coming back: the typing is still there
+      await s.ctx.close();
+      s = await openDoc(); p = s.page;
+      st = await sr(p, `return { back: !!r.querySelector("#dp-restored"), purpose: [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Purpose").textContent, ro: r.querySelector(".dp-page").classList.contains("ro") }`);
+      ok(st.back && st.purpose === "Find conflicts before any consult is booked.", "after closing the browser the typing is back in the document, with a line that says so");
+      // Save makes one version, and the working copy has done its job
+      if (st.ro) await dela(p).locator("#dp-new-draft").click();
+      await dela(p).locator("#dp-save").click();
+      await dela(p).locator("#dp-id", { hasText: "Version " + (before.v + 1) }).waitFor({ timeout: 15000 });
+      row = await sopRow();
+      ok(row.v === before.v + 1 && (await sql("select count(*)::int n from playbook_working where playbook_id = '" + before.id + "'"))[0].n === 0 && (await sql("select body->>'purpose' x from playbook_versions where playbook_id = '" + before.id + "' and version = " + row.v))[0].x === "Find conflicts before any consult is booked.", "Save makes one new version with everything that was typed, and the working copy is gone");
+      // Someone else saves meanwhile: nothing is overwritten silently
+      await dela(p).getByRole("textbox", { name: "Scope", exact: true }).fill("Every new matter and every new party.");
+      await saved(p);
+      await sql("select dela_pb_save(jsonb_build_object('person_id', (select id from people where bd_member_id = 3600), 'id', '" + before.id + "', 'base_version', " + row.v + ", 'body', (select body from playbook_versions where playbook_id = '" + before.id + "' and version = " + row.v + "), 'note', 'another tab'))");
+      await dela(p).getByRole("textbox", { name: "Scope", exact: true }).fill("Every new matter, every new party, every new adverse party.");
+      await dela(p).locator("#dp-stale-mine").waitFor({ timeout: 12000 });
+      ok((await text(p)).includes("Your changes are kept here and are not lost."), "when someone else saved a newer version, the page says so and keeps what was typed");
+      await dela(p).locator("#dp-stale-mine").click();
+      await dela(p).locator("#dp-id", { hasText: "Version " + (row.v + 2) }).waitFor({ timeout: 15000 });
+      ok((await sql("select body->>'scope' x from playbook_versions where playbook_id = '" + before.id + "' and version = " + (row.v + 2)))[0].x.startsWith("Every new matter, every new party"), "Save mine as the newest version keeps both: the other version stays in the history");
+      // The side panel: the facts and delegation are one click away
+      await dela(p).locator("#dp-open-details").click();
+      st = await sr(p, `const pn = r.querySelector("#dp-panel"); return { owner: !!pn.querySelector('select[aria-label="Owner (role)"]'), raci: /RACI/.test(pn.textContent), exp: r.querySelector("#dp-open-details").getAttribute("aria-expanded") }`);
+      ok(st.owner && st.raci && st.exp === "true", "Details opens a side panel with the facts and the RACI grid");
+      await dela(p).locator("#dp-open-delegate").click();
+      ok(await sr(p, `return r.querySelector("#dp-panel").getAttribute("aria-label") === "Delegate this document"`), "Delegate opens in the same place");
+      await dela(p).getByRole("button", { name: "Close the panel" }).click();
+      ok((await dela(p).locator("#dp-panel").count()) === 0, "and closes again");
+      // Narrow screens: the page fits
+      await p.setViewportSize({ width: 390, height: 844 });
+      await p.waitForTimeout(400);
+      ok((await p.evaluate(() => document.documentElement.scrollWidth)) <= 392, "the document fits a phone screen");
+      await p.screenshot({ path: path.join(SHOTS, "80-editor-phone.png") });
+      await p.setViewportSize({ width: 1400, height: 950 });
+      await p.screenshot({ path: path.join(SHOTS, "80-editor.png"), fullPage: true });
+      await s.ctx.close();
+      // The other three types draw in the new page too
+      s = await open(browser, 3600, { width: 1400, height: 950 }, "&tab=library");
+      await dela(s.page).getByText("New client intake").first().click();
+      await dela(s.page).locator(".dp-page").waitFor({ timeout: 20000 });
+      st = await sr(s.page, `return { heads: [...r.querySelectorAll(".dp-page h2.dp-h")].map((x) => x.textContent), stage: !!r.querySelector('.dp-t[aria-label="Stage name 1"]') }`);
+      ok(st.heads.includes("Stages, handoffs, target times and linked SOPs") && st.heads.includes("Start and end points") && st.stage, "a Workflow shows its own sections, with a name on each stage: " + st.heads.join(", "));
+      await click(s.page, "← Library");
+      await dela(s.page).getByText("Client trust account rules").first().click();
+      await dela(s.page).locator(".dp-page").waitFor({ timeout: 20000 });
+      st = await sr(s.page, `return { heads: [...r.querySelectorAll(".dp-page h2.dp-h")].map((x) => x.textContent), img: /Add image/.test(r.querySelector(".dp-page").textContent) }`);
+      ok(st.heads.join("|") === "Purpose|Scope|The rules|Exceptions and who approves them|Related links" && !st.img, "a Policy shows its sections and takes no images");
+      await s.ctx.close();
+    } finally { await sql("update feature_switches set state = 'off' where key in ('document_editor_v2', 'new_layout'); select 1"); }
     console.log(passed + " browser checks passed");
   } finally { await browser.close(); }
 })().catch((e) => { console.error(e.message); process.exit(1); });

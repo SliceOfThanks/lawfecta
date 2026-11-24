@@ -306,7 +306,7 @@
     var all = g.main.concat(g.second, g.account, g.foot), hit = all.filter(function (t) { return t[0] === tab; })[0];
     return hit ? hit[1] : PAGE_NAMES[tab] || "DELA";
   }
-  function goTab(key) { closeMore(); if (key === "delegate" || key === "ask") dw.page = "chat"; tab = key; if (key === "inbox") { talk.thread = null; talk.openReply = null; } if (key === "meetings") talk.meeting = null; draw(); }
+  function goTab(key) { if (tab === "library" && key !== "library") dpLeave(); closeMore(); if (key === "delegate" || key === "ask") dw.page = "chat"; tab = key; if (key === "inbox") { talk.thread = null; talk.openReply = null; } if (key === "meetings") talk.meeting = null; draw(); }
   function navItem(t, folded) {
     return h("button", { class: "nl-item", type: "button", "aria-current": t[0] === tab ? "page" : null, "aria-label": folded ? t[1] : null, "data-tip": t[1], onclick: function () { goTab(t[0]); } },
       icon(ICON_FOR[t[0]] || "chev"), h("span", { class: "lbl", text: t[1] }));
@@ -5938,7 +5938,9 @@
   }
 
   function status(action, done) {
-    api.post("/playbooks/status", { id: lib.pb.playbook.id, action: action }).then(okOr).then(function () { D.toast(app, done); openPlaybook(lib.pb.playbook.id); }).catch(pbFail);
+    dpThen(function () {
+      api.post("/playbooks/status", { id: lib.pb.playbook.id, action: action }).then(okOr).then(function () { D.toast(app, done); lib.doc = dpOn() ? null : lib.doc; if (dpOn()) lib.dp = null; openPlaybook(lib.pb.playbook.id); }).catch(pbFail);
+    });
   }
 
   function questionsCard() {
@@ -14675,7 +14677,499 @@
     }).catch(function (e) { host.appendChild(h("p", { class: "notice", text: D.errorText(e.message) })); });
   }
 
+  // ---------- Step 80: the document edited in place, as it will read (Stacey 2026-11-24: "Playbooks need to be edited
+  // like a what-you-see-is-what-you-get type of editor because attorneys are not technical people and they don't have
+  // time to learn a new system. They need to be able to drag and drop images and upload them") ----------
+  // Behind the switch document_editor_v2. The document comes first; delegation and the facts open in a side panel.
+  // What is typed is kept by itself as the member's own working copy; a version is made by Save, by sending for review
+  // or approving, and on leaving the document.
+  function dpOn() { return !!(lib.pb && lib.pb.editor_v2 && lib.pb.body && lib.pb.body.schema === 2); }
+  function dpJson() { var c = JSON.parse(JSON.stringify(lib.doc || {})); delete c._id; return JSON.stringify(c); }
+  function dpState() {
+    var key = lib.pb.playbook.id + ":" + lib.pb.playbook.version;
+    if (!lib.dp || lib.dp.key !== key) {
+      var base = JSON.parse(JSON.stringify(lib.pb.body)); delete base._id;
+      lib.dp = { key: key, base: JSON.stringify(base), kept: "", at: null, say: "", open: {}, panel: "", stale: false, restored: null, timer: null, busy: false };
+      // What this member typed before and never saved as a version comes back
+      var w = lib.pb.working;
+      if (w && w.body && can(3)) {
+        lib.doc = JSON.parse(JSON.stringify(w.body)); lib.doc._id = key;
+        lib.dp.kept = dpJson(); lib.dp.restored = w.updated_at; lib.dp.stale = !!w.stale;
+        if (lib.dp.kept === lib.dp.base) lib.dp.restored = null;
+        // Typing that waits on an approved document is a draft in progress: it opens as one, never as the approved text
+        else lib.editDraft = lib.pb.playbook.id;
+      }
+    }
+    return lib.dp;
+  }
+  function dpDirty() { return !!(dpOn() && lib.dp && lib.doc && dpJson() !== lib.dp.base); }
+  function dpTime(t) { try { return new Date(t).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); } catch (e) { return ""; } }
+  function dpSay(text, bad) { if (!lib.dp) return; lib.dp.say = text; var el = libEl && libEl.querySelector("#dp-status"); if (el) { el.textContent = text; el.className = "dp-status" + (bad ? " bad" : ""); } }
+  // Something was typed: keep it soon. Called by every input in the document.
+  function dpTouch() {
+    var s = lib.dp; if (!s) return;
+    if (s.timer) clearTimeout(s.timer);
+    dpSay("Saving...");
+    s.timer = setTimeout(dpKeep, 1800);
+  }
+  // Keep the working copy on the server, and show the quality check for what is on the screen
+  function dpKeep() {
+    var s = lib.dp; if (!s || !lib.doc || !dpOn()) return Promise.resolve();
+    if (s.timer) { clearTimeout(s.timer); s.timer = null; }
+    var json = dpJson(), id = lib.pb.playbook.id;
+    if (json === s.kept || (json === s.base && !s.kept)) { dpSay(s.at ? "Saved " + dpTime(s.at) : ""); return Promise.resolve(); }
+    if (s.busy) { s.again = true; return Promise.resolve(); }
+    s.busy = true;
+    return api.post("/playbooks/working", { id: id, base_version: lib.pb.playbook.version, body: JSON.parse(json) }).then(function (r) {
+      s.busy = false;
+      if (!lib.pb || lib.pb.playbook.id !== id || lib.dp !== s) return;
+      if (!r || r.ok === false) { dpSay("Not saved yet: " + failText(r || {}), true); return; }
+      s.kept = json; s.at = r.saved_at || new Date().toISOString(); s.stale = !!r.stale;
+      if (r.check) { lib.pb.check = r.check; dpQuality(); }
+      dpSay("Saved " + dpTime(s.at));
+      if (s.stale) dpStaleBar();
+      if (s.again) { s.again = false; dpKeep(); }
+    }).catch(function () { s.busy = false; dpSay("Not saved yet. DELA will try again when you type.", true); });
+  }
+  // Make what is on the screen a version. Resolves when there is nothing left to save.
+  function dpCommit(note) {
+    var s = lib.dp;
+    if (!dpDirty()) return Promise.resolve(null);
+    if (s.timer) { clearTimeout(s.timer); s.timer = null; }
+    var json = dpJson(), P = lib.pb.playbook;
+    dpSay("Saving...");
+    return api.post("/playbooks/save", { id: P.id, base_version: P.version, body: JSON.parse(json), note: note || "" }).then(function (r) {
+      if (!r || r.ok === false) { if (r && r.reason === "changed") { s.stale = true; dpStaleBar(); } throw r || { reason: "server_error" }; }
+      P.version = r.version; if (P.status === "approved" || P.status === "in_review") P.status = "draft";
+      lib.pb.body = JSON.parse(json); lib.pb.working = null;
+      s.key = P.id + ":" + P.version; lib.doc._id = s.key; s.base = json; s.kept = ""; s.at = new Date().toISOString(); s.restored = null;
+      if (r.check) lib.pb.check = r.check;
+      dpSay("Saved " + dpTime(s.at) + " as version " + r.version);
+      return r;
+    });
+  }
+  // Run something that reads the saved version (a check, an export, a status change) after saving what was typed
+  function dpThen(fn) { if (!dpDirty()) return fn(); dpCommit("").then(fn).catch(pbFail); }
+  // Leaving the document: what was typed becomes a version without a question
+  function dpLeave() {
+    if (!dpDirty()) return;
+    var P = lib.pb.playbook, body = JSON.parse(dpJson());
+    if (lib.dp.timer) clearTimeout(lib.dp.timer);
+    api.post("/playbooks/save", { id: P.id, base_version: P.version, body: body, note: "" }).catch(function () { /* the working copy on the server still holds it */ });
+    lib.doc = null; lib.dp = null;
+  }
+  function dpStaleBar() {
+    var host = libEl && libEl.querySelector("#dp-stale"); if (!host) return;
+    D.clear(host);
+    if (!lib.dp || !lib.dp.stale) return;
+    var P = lib.pb.playbook;
+    host.appendChild(h("div", { class: "notice bad", role: "alert" }, h("b", { text: "Someone saved a newer version of this document while you were working. " }),
+      h("span", { text: "Your changes are kept here and are not lost. Choose one: " }),
+      h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-top:8px" },
+        h("button", { class: "blue small", type: "button", id: "dp-stale-mine", onclick: function () {
+          api.get("/playbooks/get?id=" + P.id).then(function (cur) {
+            if (!cur || !cur.ok) throw cur || {};
+            return api.post("/playbooks/save", { id: P.id, base_version: cur.playbook.version, body: JSON.parse(dpJson()), note: "Saved over a newer version, which stays in Versions" });
+          }).then(okOr).then(function () { lib.doc = null; lib.dp = null; D.toast(app, "Saved as the newest version. The other version is still under Versions."); openPlaybook(P.id, "read"); }).catch(pbFail);
+        } }, "Save mine as the newest version"),
+        h("button", { class: "ghost small", type: "button", id: "dp-stale-theirs", onclick: function () {
+          api.post("/playbooks/working/discard", { id: P.id }).then(function () { lib.doc = null; lib.dp = null; openPlaybook(P.id, "read"); }).catch(pbFail);
+        } }, "Drop my changes and open the newest version"))));
+  }
+
+  // --- Text edited in place ---
+  // One piece of text. It reads as text and is typed into where it stands. Plain text only: what is pasted loses its formatting.
+  function dpText(obj, key, label, o) {
+    o = o || {};
+    var el = h(o.tag || "div", { class: "dp-t" + (o.cls ? " " + o.cls : "") + (o.multi ? " multi" : ""), role: o.ro ? null : "textbox", "aria-label": o.ro ? null : label, "aria-multiline": o.ro ? null : o.multi ? "true" : "false",
+      tabindex: o.ro ? null : "0", "data-ph": o.ro ? null : (o.ph || label), spellcheck: o.ro ? null : "true" });
+    el.textContent = obj[key] || "";
+    if (o.ro) { if (!obj[key]) el.classList.add("dp-empty"); return el; }
+    try { el.contentEditable = "plaintext-only"; } catch (e) { el.contentEditable = "true"; }
+    if (el.contentEditable !== "plaintext-only") el.contentEditable = "true";
+    var read = function () {
+      var v = (el.innerText || "").split(" ").join(" ").split("\r").join("");
+      if (!o.multi) v = v.split("\n").join(" ");
+      while (v.indexOf("\n\n\n") >= 0) v = v.split("\n\n\n").join("\n\n");
+      return v.trim();
+    };
+    el.addEventListener("input", function () { obj[key] = read(); if (o.onInput) o.onInput(); dpTouch(); });
+    el.addEventListener("keydown", function (e) { if (e.key === "Enter" && !o.multi) { e.preventDefault(); if (o.onEnter) o.onEnter(); else el.blur(); } if (o.onKey) o.onKey(e, el, read); });
+    el.addEventListener("paste", function (e) {
+      var t = e.clipboardData && e.clipboardData.getData("text/plain");
+      if (!t || (e.clipboardData.files && e.clipboardData.files.length)) return;
+      e.preventDefault();
+      var root = dwRoot(), sel = root.getSelection ? root.getSelection() : window.getSelection();
+      var words = o.multi ? t : t.split("\n").join(" ");
+      if (!sel || !sel.rangeCount) el.textContent = (el.textContent || "") + words;
+      else { var rg = sel.getRangeAt(0); rg.deleteContents(); rg.insertNode(document.createTextNode(words)); rg.collapse(false); }
+      obj[key] = read(); if (o.onInput) o.onInput(); dpTouch();
+    });
+    el.addEventListener("blur", function () { if (!read()) el.textContent = ""; });
+    return el;
+  }
+  // A list: one line each. Enter adds a line, Backspace on an empty line removes it.
+  function dpList(obj, key, label, o) {
+    o = o || {};
+    var arr = obj[key] || (obj[key] = []);
+    var ul = h("ul", { class: "dp-list", "aria-label": label });
+    function draw(focusAt) {
+      var toFocus = null;
+      D.clear(ul);
+      if (!arr.length && !o.ro) arr.push("");
+      arr.forEach(function (_, i) {
+        var holder = { v: arr[i] };
+        var t = dpText(holder, "v", label + ", line " + (i + 1), { ro: o.ro, ph: i === 0 ? (o.ph || "Add a line") : "Add a line", onInput: function () { arr[i] = holder.v; },
+          onEnter: function () { arr.splice(i + 1, 0, ""); dpTouch(); draw(i + 1); },
+          onKey: function (e, el, read) {
+            if (e.key === "Backspace" && !read() && arr.length > 1) { e.preventDefault(); arr.splice(i, 1); dpTouch(); draw(Math.max(i - 1, 0)); }
+            if (e.key === "ArrowDown" && e.altKey && i < arr.length - 1) { e.preventDefault(); var x = arr.splice(i, 1)[0]; arr.splice(i + 1, 0, x); dpTouch(); draw(i + 1); }
+            if (e.key === "ArrowUp" && e.altKey && i > 0) { e.preventDefault(); var y = arr.splice(i, 1)[0]; arr.splice(i - 1, 0, y); dpTouch(); draw(i - 1); }
+          } });
+        ul.appendChild(h("li", null, t));
+        if (focusAt === i) toFocus = t;
+      });
+      if (toFocus && ul.isConnected) toFocus.focus();
+      if (o.ro && !arr.length) ul.appendChild(h("li", { class: "dp-empty", text: "Nothing here yet." }));
+    }
+    draw(-1);
+    return ul;
+  }
+  function dpSec(title, kids, id) { var x = h("section", { class: "dp-sec", id: id || null }, h("h2", { class: "dp-h", text: title })); (kids || []).forEach(function (k) { if (k) x.appendChild(k); }); return x; }
+  function dpPair(label, node) { return h("div", { class: "dp-pair" }, h("span", { class: "dp-pair-l", text: label }), node); }
+  function dpImages(d, key, label, ro) {
+    d.section_images = d.section_images || {};
+    var list = d.section_images[key] || (d.section_images[key] = []);
+    if (!imagesOn(d) && !list.length) return null;
+    var slot = imageSlot(list, label, !ro && imagesOn(d), imagesChanged);
+    var wrap = h("div", { class: "img-section dp-imgsec" }, slot.el, !ro && imagesOn(d) ? h("div", { class: "row" }, addImageButton(slot, label), h("span", { class: "small muted", text: "or drop or paste a picture here" })) : null);
+    if (!ro && imagesOn(d)) slot.wire(wrap);
+    return wrap;
+  }
+  // The steps: numbered blocks. Text in place, what is set as small tags, the rest behind "Details".
+  function dpSteps(d, ro) {
+    var wf = d.type === "workflow", word = wf ? "stage" : "step", Word = wf ? "Stage" : "Step";
+    var s = lib.dp, box = h("div", { class: "dp-steps" });
+    d.steps = d.steps || [];
+    var nProp = d.steps.filter(function (x) { return x.basis === "proposed"; }).length, nUnk = d.steps.filter(function (x) { return x.basis === "unknown"; }).length;
+    if (nProp || nUnk) {
+      var all = !ro && nProp ? h("button", { class: "ghost small", type: "button", id: "basis-confirm-all", style: "margin-left:6px" }, "Confirm all " + nProp + (nProp === 1 ? " suggestion" : " suggestions")) : null;
+      if (all) all.addEventListener("click", function () { d.steps.forEach(function (x) { if (x.basis === "proposed") x.basis = "said"; }); dpChanged(); });
+      box.appendChild(h("p", { class: "notice", role: "note", id: "basis-summary" },
+        (nProp ? nProp + (nProp === 1 ? " " + word + " is" : " " + word + "s are") + " DELA's own suggestion that nobody at the firm has confirmed. " : "") +
+        (nUnk ? nUnk + (nUnk === 1 ? " " + word + " has" : " " + word + "s have") + " something DELA could not know. " : "") +
+        (ro ? "Each one carries a tag." : "Read each one. Changing its words, or clicking \"Confirm\" on it, confirms it."), all));
+    }
+    var add = function (at) {
+      if (ro) return null;
+      return h("button", { class: "dp-add", type: "button", "aria-label": "Add a " + word + (at < d.steps.length ? " before " + word + " " + (at + 1) : " at the end"), onclick: function () {
+        d.steps.splice(at, 0, { text: "", role: "", raci: {}, attorney_decides: false, basis: "said", images: [] }); s.open = {}; s.focusStep = at; dpChanged();
+      } }, "+ Add a " + word);
+    };
+    d.steps.forEach(function (st, i) {
+      st.images = st.images || [];
+      var n = i + 1, open = !!s.open[i];
+      var c = h("div", { class: "dp-step step-card" + (st.attorney_decides ? " attorney" : ""), "data-i": String(i) });
+      var slot = imagesOn(d) || st.images.length ? imageSlot(st.images, word + " " + n, !ro && imagesOn(d), imagesChanged) : null;
+      var showBasis = st.basis && BASIS[st.basis] && (st.basis === "proposed" || st.basis === "unknown" || open);
+      var textEl = dpText(st, "text", Word + " " + n, { multi: true, ro: ro, cls: "dp-step-text", ph: "Describe one action, starting with a verb", onInput: function () {
+        if (st.basis === "proposed" || st.basis === "unknown") {
+          st.basis = "said";
+          var tg = c.querySelector(".basis-tag"); if (tg) { tg.textContent = BASIS.said[0]; tg.className = "badge basis-tag ready"; }
+          var cf = c.querySelector(".dp-confirm"); if (cf) cf.remove();
+          var bs = c.querySelector(".basis-sel"); if (bs) bs.value = "said";
+        }
+      } });
+      var handle = ro ? null : h("button", { class: "dp-handle", type: "button", draggable: "true", "aria-label": "Drag " + word + " " + n + " to another place", title: "Drag to reorder" }, icon("grip"));
+      if (handle) {
+        handle.addEventListener("dragstart", function (e) { e.dataTransfer.setData("text/x-dela-step", String(i)); e.dataTransfer.effectAllowed = "move"; c.classList.add("dragging"); try { e.dataTransfer.setDragImage(c, 20, 20); } catch (x) { /* older browsers */ } });
+        handle.addEventListener("dragend", function () { c.classList.remove("dragging"); [].slice.call(box.querySelectorAll(".drop-before,.drop-after")).forEach(function (x) { x.classList.remove("drop-before", "drop-after"); }); });
+      }
+      if (!ro) {
+        c.addEventListener("dragover", function (e) {
+          if ([].slice.call(e.dataTransfer.types || []).indexOf("text/x-dela-step") < 0) return;
+          e.preventDefault();
+          var r = c.getBoundingClientRect(), after = e.clientY > r.top + r.height / 2;
+          c.classList.toggle("drop-after", after); c.classList.toggle("drop-before", !after);
+        });
+        c.addEventListener("dragleave", function () { c.classList.remove("drop-before", "drop-after"); });
+        c.addEventListener("drop", function (e) {
+          var from = e.dataTransfer.getData("text/x-dela-step");
+          if (from === "") return;
+          e.preventDefault(); e.stopPropagation();
+          var f = Number(from), r = c.getBoundingClientRect(), to = i + (e.clientY > r.top + r.height / 2 ? 1 : 0);
+          if (to > f) to--;
+          c.classList.remove("drop-before", "drop-after");
+          if (to !== f) dpMoveStep(d, f, to);
+        });
+      }
+      var tags = h("div", { class: "dp-tags" });
+      if (st.attorney_decides) tags.appendChild(h("span", { class: "badge bad", text: "Attorney decides" }));
+      if (st.role) tags.appendChild(h("span", { class: "dp-tag", text: st.role }));
+      if (st.system) tags.appendChild(h("span", { class: "dp-tag", text: st.system }));
+      if (st.menu_path) tags.appendChild(h("span", { class: "dp-tag", text: "Where: " + st.menu_path }));
+      if (wf && st.handoff) tags.appendChild(h("span", { class: "dp-tag", text: "Handoff: " + st.handoff }));
+      if (wf && st.target_time) tags.appendChild(h("span", { class: "dp-tag", text: "Target: " + st.target_time }));
+      if (wf && st.linked_sop) tags.appendChild(h("span", { class: "dp-tag", text: "SOP: " + st.linked_sop }));
+      if (st.rule && (st.rule.name || st.rule.link)) tags.appendChild(h("span", { class: "dp-tag", text: "Rule: " + (st.rule.name || st.rule.link) + (st.rule.verify_by ? " (verify by " + st.rule.verify_by + ")" : "") }));
+      if (showBasis) tags.appendChild(h("span", { class: "badge basis-tag " + BASIS[st.basis][1], text: BASIS[st.basis][0] }));
+      if (!ro && (st.basis === "proposed" || st.basis === "unknown")) tags.appendChild(h("button", { class: "linkish dp-confirm", type: "button", "aria-label": "Confirm " + word + " " + n, onclick: function () { st.basis = "said"; dpChanged(); } }, "Confirm"));
+      var tools = ro ? null : h("div", { class: "dp-tools" },
+        h("button", { class: "linkish", type: "button", "aria-expanded": open ? "true" : "false", "aria-label": "Details of " + word + " " + n, onclick: function () { s.open[i] = !open; dpRedraw(); } }, open ? "Hide details" : "Details"),
+        slot && imagesOn(d) ? addImageButton(slot, word + " " + n) : null,
+        h("button", { class: "dp-ic", type: "button", "aria-label": "Move " + word + " " + n + " up", disabled: i === 0, onclick: function () { dpMoveStep(d, i, i - 1); } }, "↑"),
+        h("button", { class: "dp-ic", type: "button", "aria-label": "Move " + word + " " + n + " down", disabled: i === d.steps.length - 1, onclick: function () { dpMoveStep(d, i, i + 1); } }, "↓"),
+        h("button", { class: "dp-ic", type: "button", "aria-label": "Remove " + word + " " + n, onclick: function (e) {
+          var b = e.currentTarget;
+          if (st.text || st.images.length) {
+            if (b.getAttribute("data-sure") !== "1") {
+              b.setAttribute("data-sure", "1"); b.textContent = "Remove?"; b.classList.add("sure");
+              setTimeout(function () { if (b.isConnected) { b.removeAttribute("data-sure"); b.textContent = "✕"; b.classList.remove("sure"); } }, 4000);
+              return;
+            }
+          }
+          d.steps.splice(i, 1); s.open = {}; dpChanged();
+        } }, "✕"));
+      var body = h("div", { class: "dp-step-b" },
+        wf ? dpText(st, "stage", "Stage name " + n, { ro: ro, cls: "dp-stage", ph: "Name this stage" }) : null,
+        textEl, h("div", { class: "dp-meta" }, tags, tools));
+      if (open && !ro) {
+        var basisSel = h("select", { "aria-label": "Where " + word + " " + n + " comes from", class: "basis-sel" }, [["", "Not labeled"], ["said", BASIS.said[0]], ["source", BASIS.source[0]], ["proposed", BASIS.proposed[0]], ["unknown", BASIS.unknown[0]]].map(function (o2) { return h("option", { value: o2[0], text: o2[1], selected: (st.basis || "") === o2[0] }); }));
+        basisSel.addEventListener("change", function () { if (basisSel.value) st.basis = basisSel.value; else delete st.basis; dpChanged(); });
+        var role = h("select", { "aria-label": "Responsible role for " + word + " " + n }, [h("option", { value: "", text: "Choose" })].concat((d.roles || []).map(function (r) { return h("option", { value: r, text: r, selected: st.role === r }); })));
+        role.addEventListener("change", function () { st.role = role.value; });
+        var ad = h("input", { type: "checkbox", checked: !!st.attorney_decides, "aria-label": "Attorney decides, " + word + " " + n });
+        ad.addEventListener("change", function () { st.attorney_decides = ad.checked; if (ad.checked) st.not_judgment = false; dpChanged(); });
+        var nj = h("input", { type: "checkbox", checked: !!st.not_judgment, "aria-label": "Not a judgment step, " + word + " " + n });
+        nj.addEventListener("change", function () { st.not_judgment = nj.checked; });
+        body.appendChild(h("div", { class: "dp-details", role: "group", "aria-label": "Details of " + word + " " + n },
+          h("div", { class: "row", style: "flex-wrap:wrap" }, field(wf ? "Lane (role)" : "Role", role), field("System", tIn(st, "system", "System for " + word + " " + n, {})), field("Menu path and buttons", tIn(st, "menu_path", "Menu path for " + word + " " + n, { ph: "[Add the menu path in your system]" }))),
+          wf ? h("div", { class: "row", style: "flex-wrap:wrap" }, field("Handoff (what passes, where, how the next person is told)", tIn(st, "handoff", "Handoff " + n, {})), field("Target time", tIn(st, "target_time", "Target time " + n, {})), field("Linked SOP", tIn(st, "linked_sop", "Linked SOP " + n, { ph: "For example INT-01" }))) : null,
+          h("div", { class: "row", style: "flex-wrap:wrap" }, h("label", { style: "display:flex;gap:6px;font-weight:400" }, ad, h("span", { text: "Attorney decides (the A must be an attorney role)" })),
+            st.attorney_decides ? null : h("label", { style: "display:flex;gap:6px;font-weight:400" }, nj, h("span", { text: "Not a judgment step" }))),
+          ruleFields(st, "rule", false),
+          field("Where this " + word + " comes from", basisSel),
+          h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: function () { s.open[i] = false; dpRedraw(); } }, "Done"))));
+      }
+      if (slot) { body.appendChild(slot.el); if (!ro && imagesOn(d)) slot.wire(c); }
+      c.appendChild(h("div", { class: "dp-step-n" }, handle, h("span", { class: "dp-num", "aria-hidden": "true", text: String(n) })));
+      c.appendChild(body);
+      var a = add(i); if (a) box.appendChild(a);
+      box.appendChild(c);
+    });
+    var last = add(d.steps.length); if (last) { last.classList.add("end"); box.appendChild(last); }
+    if (!ro && imagesOn(d) && !d.steps.some(function (x) { return (x.images || []).length; })) box.appendChild(h("p", { class: "small muted img-tip", text: "Tip: take a screenshot, click a " + word + ", and paste it. Or drag a picture onto the " + word + "." }));
+    return box;
+  }
+  function dpMoveStep(d, from, to) {
+    if (to < 0 || to >= d.steps.length || from === to) return;
+    var x = d.steps.splice(from, 1)[0]; d.steps.splice(to, 0, x);
+    lib.dp.open = {}; lib.dp.focusStep = null;
+    dpChanged();
+    dwSay((d.type === "workflow" ? "Stage" : "Step") + " moved to place " + (to + 1) + ".");
+  }
+  // A change to the structure: draw again where the reader was, and keep it
+  function dpRedraw() {
+    var y = window.scrollY, act = dwRoot().activeElement, lab = act && act.getAttribute ? act.getAttribute("aria-label") : null;
+    drawDocument();
+    window.scrollTo(0, y);
+    // A step that was just added gets the cursor
+    if (lib.dp && lib.dp.focusStep !== null && lib.dp.focusStep !== undefined) {
+      var fresh = libEl.querySelector('.dp-step[data-i="' + lib.dp.focusStep + '"] .dp-step-text');
+      lib.dp.focusStep = null;
+      if (fresh) { fresh.focus(); return; }
+    }
+    if (lab) {
+      var again = [].slice.call(libEl.querySelectorAll("[aria-label]")).filter(function (e) { return e.getAttribute("aria-label") === lab; })[0];
+      if (again && again.focus && !again.disabled) { try { again.focus({ preventScroll: true }); } catch (e) { again.focus(); } }
+    }
+  }
+  function dpChanged() { dpRedraw(); dpTouch(); }
+
+  // The document itself, by type, in the order it reads
+  function dpPage(d, edit) {
+    var ro = !edit, page = h("article", { class: "dp-page" + (ro ? " ro" : ""), "aria-label": "The document" });
+    page.appendChild(dpText(d, "title", "Title", { tag: "h1", ro: ro, cls: "dp-title", ph: "Give this document a title" }));
+    var helper = function (key, label, getBody, opts) { return ro ? null : h("div", { class: "dp-helper" }, helperButton(key, label, getBody, opts)); };
+    if (d.type === "sop" || d.type === "policy") {
+      page.appendChild(dpSec("Purpose", [dpText(d, "purpose", "Purpose", { multi: true, ro: ro, ph: "Why this exists, in one or two sentences" })]));
+      page.appendChild(dpSec("Scope", [dpText(d, "scope", "Scope", { multi: true, ro: ro, ph: "What it covers, and what it does not" }),
+        helper("improve_section", "✦ Improve this section", function () { return { playbook_id: lib.pb.playbook.id, purpose: d.purpose || "", scope: d.scope || "" }; },
+          { apply: function (f) { d[f.field] = f.suggestion; dpChanged(); }, canApply: function (f) { return f.field === "purpose" || f.field === "scope"; } })]));
+    }
+    var roles = function () { return ro ? h("p", { class: "dp-t", text: (d.roles || []).join(", ") || "None named yet." }) : rolesLine(d, false); };
+    if (d.type === "sop") {
+      page.appendChild(dpSec("Trigger", [dpText(d, "trigger", "Trigger", { ro: ro, ph: "What starts this work" })]));
+      page.appendChild(dpSec("Roles", [roles()]));
+      page.appendChild(dpSec("Before you start", [dpList(d, "before_you_start", "Before you start", { ro: ro, ph: "What the person needs first" }), dpImages(d, "before_you_start", "Before you start", ro)]));
+      page.appendChild(dpSec("Steps", [dpSteps(d, ro),
+        helper("check_steps", "✦ Check these steps", function () { return { playbook_id: lib.pb.playbook.id, trigger: d.trigger || "", timing: d.timing || "", steps: (d.steps || []).map(function (x) { return { text: x.text, role: x.role, attorney_decides: !!x.attorney_decides }; }) }; },
+          { rowWord: "Step", apply: function (f) { if (d.steps[f.row - 1]) { d.steps[f.row - 1].text = f.suggestion; dpChanged(); } }, canApply: function (f) { return f.field === "step" && !!f.row; } })], "dp-steps-sec"));
+      page.appendChild(dpSec("Decision points and escalation", [decisionsEditor(d, ro)]));
+      page.appendChild(dpSec("Timing", [dpText(d, "timing", "Timing", { multi: true, ro: ro, ph: "How long it should take, or the deadline" }), ro && !d.timing_rule ? null : ruleFields(d, "timing_rule", ro)]));
+      page.appendChild(dpSec("Quality check", [dpList(d, "quality_check", "Quality check", { ro: ro, ph: "How someone checks it was done right" }), dpPair("Reviewed by (role)", dpText(d, "quality_reviewer_role", "Reviewed by (role)", { ro: ro, ph: "A role" }))]));
+      page.appendChild(dpSec("Done when", [dpText(d, "done_when", "Done when", { multi: true, ro: ro, ph: "What finished looks like" }), dpPair("Saved in", dpText(d, "saved_in", "Saved in", { ro: ro, ph: "Where the result is kept" }))]));
+      page.appendChild(dpSec("Related links", [linksEditor(d, ro)]));
+    } else if (d.type === "workflow") {
+      page.appendChild(dpSec("Name and process owner", [dpPair("Process owner (one role)", dpText(d, "process_owner_role", "Process owner", { ro: ro, ph: "A role" })), roles()]));
+      page.appendChild(dpSec("Start and end points", [dpPair("Starts when", dpText(d, "start_point", "Starts when", { ro: ro, ph: "What starts it" })), dpPair("Finished when", dpText(d, "end_point", "Finished when", { ro: ro, ph: "What ends it" }))]));
+      var chart = dpImages(d, "chart", "Swimlane chart", ro);
+      if (chart) page.appendChild(dpSec("Swimlane chart", [ro ? null : h("p", { class: "small muted", text: "Attach the chart of lanes and stages you drew elsewhere (for example in Visio or Lucidchart)." }), chart]));
+      page.appendChild(dpSec("Stages, handoffs, target times and linked SOPs", [dpSteps(d, ro)], "dp-steps-sec"));
+      page.appendChild(dpSec("Decision points", [decisionsEditor(d, ro)]));
+    } else if (d.type === "playbook") {
+      page.appendChild(dpSec("Situations covered", [dpList(d, "situations", "Situations covered", { ro: ro })]));
+      page.appendChild(dpSec("Guiding principles", [dpList(d, "principles", "Guiding principles", { ro: ro })]));
+      page.appendChild(dpSec("Preferred approach", [dpText(d, "preferred", "Preferred approach", { multi: true, ro: ro })]));
+      page.appendChild(dpSec("Acceptable fallbacks", [dpList(d, "fallbacks", "Acceptable fallbacks", { ro: ro, ph: "Options staff can use without asking" })]));
+      page.appendChild(dpSec("Hard limits", [dpList(d, "hard_limits", "Hard limits", { ro: ro, ph: "What nobody agrees to without attorney or partner approval" })]));
+      page.appendChild(dpSec("Escalation", [escalationEditor(d, ro)]));
+      page.appendChild(dpSec("Scripts and templates", [dpList(d, "scripts", "Scripts and templates", { ro: ro }), dpImages(d, "scripts", "Scripts and templates", ro)]));
+      page.appendChild(dpSec("Examples", [dpList(d, "examples", "Examples", { ro: ro, ph: "Short fictional scenarios. No client information." }), dpImages(d, "examples", "Examples", ro)]));
+    } else {
+      page.appendChild(dpSec("The rules", [h("h3", { class: "dp-h3", text: "What must happen" }), dpList(d, "rules_must", "What must happen", { ro: ro }), h("h3", { class: "dp-h3", text: "What must not happen" }), dpList(d, "rules_must_not", "What must not happen", { ro: ro })]));
+      page.appendChild(dpSec("Exceptions and who approves them", [dpText(d, "exceptions", "Exceptions", { multi: true, ro: ro }), dpPair("Approved by (role)", dpText(d, "exceptions_role", "Approved by (role)", { ro: ro, ph: "A role" }))]));
+      page.appendChild(dpSec("Related links", [linksEditor(d, ro)]));
+    }
+    // The older editors inside the page (decision points, links, rules, details) write on their own inputs; this hears them
+    if (edit) {
+      page.addEventListener("input", function (e) { if (!(e.target.classList && e.target.classList.contains("dp-t"))) dpTouch(); });
+      page.addEventListener("change", function () { dpTouch(); });
+    }
+    return page;
+  }
+  function dpQuality() {
+    var host = libEl && libEl.querySelector("#dp-quality"); if (!host || !lib.pb) return;
+    var P = lib.pb.playbook, d = docWork(), ck = lib.pb.check || { items: [], blocking: 0 };
+    var edit = can(3) && P.status !== "trash" && P.status !== "archived" && !docLocked(P.id) && !(lib.pb.approved && lib.pb.approved.current && lib.editDraft !== P.id);
+    var was = host.querySelector("details"), openD = was ? was.open : false;
+    D.clear(host);
+    var q = qualityCard(P, d, ck, edit);
+    host.appendChild(q);
+    var dt = q.querySelector("details"); if (dt && openD) dt.open = true;
+  }
+  // The page: the document first, the rest beside it
+  function drawDocument2() {
+    var P = lib.pb.playbook, s = dpState(), d = docWork(), ck = lib.pb.check || { items: [], blocking: 0 };
+    var locked = docLocked(P.id), AV = lib.pb.approved || null;
+    var inUse = !!(AV && AV.current && lib.editDraft !== P.id);
+    var edit = can(3) && P.status !== "trash" && P.status !== "archived" && !locked && !inUse;
+    if (lib.view === "edit" || lib.view === "export" || (lib.view === "approved" && (inUse || !AV))) lib.view = "read";
+    D.clear(libEl);
+    lockNotice(P.id);
+    var leave = function (go) { return function () { if (dpDirty()) dpCommit("").then(go).catch(pbFail); else go(); }; };
+    libEl.appendChild(h("div", { class: "row dp-top", style: "margin-top:14px;gap:8px;flex-wrap:wrap" },
+      h("button", { class: "ghost small", type: "button", onclick: leave(function () { lib.doc = null; lib.dp = null; loadLibrary(); }) }, "← Library"),
+      h("span", { class: "badge", text: DOC_TYPE_WORDS[d.type] }), h("span", { class: "badge " + (P.status === "approved" ? "ready" : P.status === "in_review" ? "held" : ""), text: PB_STATUS[P.status] }),
+      h("span", { class: "small muted", id: "dp-id", text: (P.doc_id ? P.doc_id + " · " : "") + "Version " + P.version }),
+      h("span", { class: "dp-status", id: "dp-status", role: "status", "aria-live": "polite", text: s.say || "" }),
+      h("span", { class: "grow" }),
+      edit ? h("button", { class: "ghost small", type: "button", id: "dp-save", onclick: function () { if (!dpDirty()) { D.toast(app, "Everything is saved."); return; } dpCommit("").then(function () { openPlaybook(P.id, "read"); }).catch(pbFail); } }, "Save") : null,
+      h("button", { class: "ghost small" + (s.panel === "delegate" ? " on" : ""), type: "button", id: "dp-open-delegate", "aria-expanded": s.panel === "delegate" ? "true" : "false", onclick: function () { s.panel = s.panel === "delegate" ? "" : "delegate"; dpRedraw(); } }, "Delegate"),
+      h("button", { class: "ghost small" + (s.panel === "details" ? " on" : ""), type: "button", id: "dp-open-details", "aria-expanded": s.panel === "details" ? "true" : "false", onclick: function () { s.panel = s.panel === "details" ? "" : "details"; dpRedraw(); } }, "Details")));
+    libEl.appendChild(h("div", { id: "dp-stale" }));
+    if (s.restored && !s.stale) libEl.appendChild(h("p", { class: "notice", role: "status", id: "dp-restored" }, "Your changes from " + D.date(s.restored) + ", " + dpTime(s.restored) + " are back in the document. They become a version when you click Save or leave the document. ",
+      h("button", { class: "linkish", type: "button", onclick: function () { api.post("/playbooks/working/discard", { id: P.id }).then(function () { lib.doc = null; lib.dp = null; openPlaybook(P.id, "read"); }).catch(pbFail); } }, "Drop them")));
+    if (inUse) libEl.appendChild(h("div", { class: "notice ok", role: "note", id: "dp-inuse" }, h("b", { text: "Approved version " + P.approved_version + ", in use. " }), h("span", { text: "To change it, start a new draft. The approved version stays in use until the draft is approved. " }),
+      can(3) && !locked ? h("button", { class: "blue small", type: "button", id: "dp-new-draft", onclick: function () { lib.editDraft = P.id; lib.view = "read"; drawDocument(); } }, "Edit a new draft") : null));
+    else if (P.status !== "approved") libEl.appendChild(h("div", { class: "notice", role: "note" }, h("b", { text: "Draft, not approved. " }), h("span", { text: "Do not use this as an approved procedure." + (P.approved_version ? " The approved version " + P.approved_version + " stays in use until this one is approved." : "") })));
+    else if (AV && lib.editDraft === P.id) libEl.appendChild(h("div", { class: "notice", role: "note", text: "New draft. Your first change makes version " + (P.version + 1) + " as a draft; the approved version " + P.approved_version + " stays in use until the draft is approved." }));
+    if (lib.suggested && lib.suggested.type !== d.type) libEl.appendChild(h("div", { class: "notice" }, h("span", { text: "DELA thinks this fits a " + DOC_TYPE_WORDS[lib.suggested.type] + " better: " + lib.suggested.reason + " " }),
+      h("button", { class: "blue small", type: "button", onclick: function () { var t = lib.suggested.type; lib.suggested = null; dpThen(function () { changeType(t); }); } }, "Switch to " + DOC_TYPE_WORDS[lib.suggested.type]),
+      h("button", { class: "ghost small", type: "button", onclick: function () { lib.suggested = null; dpRedraw(); } }, "Keep " + DOC_TYPE_WORDS[d.type])));
+    (lib.docNotices || []).forEach(function (n) { libEl.appendChild(h("p", { class: "notice ok", text: n })); });
+    lib.docNotices = [];
+    var views = [["read", "Document"], ["chat", "Chat"], ["suggestions", "Suggested edits (" + lib.pb.suggestions.length + ")"], ["comments", "Comments (" + lib.pb.comments.filter(function (c) { return !c.resolved; }).length + ")"],
+      ["activity", "Activity"], ["versions", "Versions"], ["files", "Files (" + lib.pb.files.length + ")"]];
+    if (AV && !inUse) views.splice(1, 0, ["approved", "Approved version"]);
+    libEl.appendChild(h("div", { class: "tabs dp-tabs", role: "tablist" }, views.map(function (v) {
+      return h("button", { role: "tab", "aria-selected": String(lib.view === v[0]), onclick: function () {
+        var to = v[0];
+        if (to === lib.view) return;
+        dpThen(function () { lib.view = to; drawDocument(); window.scrollTo(0, 0); });
+      } }, v[1]);
+    })));
+    var area = h("div");
+    libEl.appendChild(area);
+    if (lib.view === "approved" && AV) { approvedPage(area, d, AV, false, ck); return; }
+    if (lib.view !== "read") { ({ chat: pbChatView, suggestions: docSuggestionsView, comments: commentsView, activity: activityView, versions: versionsView, files: pbFilesView })[lib.view](area, d); return; }
+    var side = h("div", { class: "dp-side" });
+    var closeBtn = function () { return h("button", { class: "ghost small", type: "button", "aria-label": "Close the panel", onclick: function () { s.panel = ""; dpRedraw(); } }, "Close"); };
+    if (s.panel === "delegate") {
+      var pn = h("section", { class: "dp-panel", id: "dp-panel", "aria-label": "Delegate this document" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Delegate" }), closeBtn()));
+      var any = false;
+      if ((me.switches || {}).automate_delegate && P.approved_version && d.type !== "policy") { pn.appendChild(automateCard(P.id)); any = true; }
+      if ((me.switches || {}).team_assignments && me.side === "attorney" && P.approved_version && (d.type === "sop" || d.type === "workflow") && can(3)) {
+        var twOpen = h("button", { class: "ghost small", type: "button", id: "tw-assign-open" }, "Assign to your team");
+        var twHost = h("div", { id: "tw-assign-host" }, h("div", { class: "card" }, h("div", { class: "row", style: "flex-wrap:wrap;gap:8px" }, h("span", { class: "grow" }, h("b", { text: "Work for your own team. " }), h("span", { class: "small muted", text: "No gig, no agreement, no payment." })), twOpen)));
+        twOpen.addEventListener("click", function () { D.clear(twHost); twHost.appendChild(teamAssignCard(P)); });
+        pn.appendChild(twHost); any = true;
+      }
+      if (P.status === "approved" && (d.type === "sop" || d.type === "workflow") && (me.switches || {}).flex_gigs && can(4)) {
+        pn.appendChild(h("div", { class: "card" }, h("b", { text: "Hire a freelancer for this. " }), h("button", { class: "blue small", type: "button", disabled: ck.blocking > 0, onclick: function () { gigs.id = null; gigs.newFrom = P.id; tab = "projects"; draw(); } }, "Post as a Flex Gig")));
+        any = true;
+      }
+      if ((me.switches || {}).talent_search && canHire() && d.type !== "policy") { pn.appendChild(fitsCard(P.id)); any = true; }
+      if (!any) pn.appendChild(h("p", { class: "muted", text: P.approved_version ? "Nothing to delegate from this kind of document." : "A document can be delegated once it is approved." }));
+      side.appendChild(pn);
+    } else if (s.panel === "details") {
+      var pd = h("section", { class: "dp-panel", id: "dp-panel", "aria-label": "Details of this document" }, h("div", { class: "row" }, h("h2", { class: "grow", style: "margin:0", text: "Details" }), closeBtn()));
+      var ownerOpts = (d.roles || []).slice();
+      if (d.owner_role && ownerOpts.indexOf(d.owner_role) < 0) ownerOpts.unshift(d.owner_role);
+      var owner = h("select", { "aria-label": "Owner (role)", disabled: !edit }, ownerOpts.map(function (r) { return h("option", { value: r, text: r, selected: d.owner_role === r }); }));
+      owner.addEventListener("change", function () { d.owner_role = owner.value; dpTouch(); });
+      var risk = h("input", { type: "checkbox", checked: !!d.high_risk, disabled: !edit, "aria-label": "High risk (trust, conflicts or deadlines)" });
+      risk.addEventListener("change", function () { d.high_risk = risk.checked; dpTouch(); });
+      pd.appendChild(h("div", { class: "kv dp-kv" }, h("div", null, "Document ID", h("b", { text: P.doc_id || "Given at the first save" })), h("div", null, "Version", h("b", { text: String(P.version) })),
+        h("div", null, "Owner (role)", owner),
+        lib.pb.approver && lib.pb.approver.author ? h("div", { id: "doc-author" }, "Author (approves)", h("b", { text: lib.pb.approver.author + (lib.pb.approver.is_author ? " (you)" : "") }), h("span", { class: "small muted", text: "The author or the Library administrator approves. Others comment." })) : null,
+        h("div", null, "Last reviewed", h("b", { text: P.last_reviewed_at ? D.date(P.last_reviewed_at) : P.approved_version ? "Never reviewed since approval" : "Not reviewed yet" })),
+        h("div", null, "Next review", h("b", { text: P.next_review_at ? D.date(P.next_review_at) : (d.high_risk ? "3 months after approval" : "12 months after approval") })),
+        h("div", null, "High risk", h("label", { style: "display:flex;gap:6px;font-weight:400" }, risk, h("span", { text: "Trust, conflicts or deadlines (reviewed every 3 months)" })))));
+      if ((me.switches || {}).gig_categories && (d.type === "sop" || d.type === "workflow")) {
+        var docCats = (lib.pb.categories || []).slice(), catNote = h("span", { class: "small muted", role: "status" });
+        pd.appendChild(h("div", { class: "card", id: "doc-cats-card" }, h("h3", { style: "margin-top:0", text: "Category" }),
+          h("p", { class: "small muted", style: "margin-top:0", text: "The kind of work this document describes. A gig made from it starts with these, and DELA matches freelancers who work in them." }),
+          catField(docCats, can(3), function () {
+            catNote.textContent = "Saving...";
+            api.post("/playbooks/categories", { id: P.id, categories: docCats }).then(function (x) { if (!x || !x.ok) { catNote.textContent = failText(x || {}); return; } lib.pb.categories = x.categories; catNote.textContent = "Saved"; }).catch(function () { catNote.textContent = "Not saved. Try again."; });
+          }, "doc"), catNote));
+      }
+      if (d.type === "sop" || d.type === "workflow") pd.appendChild(raciGrid(d, edit));
+      if (d.type === "workflow") pd.appendChild(kpiCards(d, edit));
+      pd.appendChild(changeLogCard());
+      if (edit) {
+        var tsel = h("select", { "aria-label": "Change the type" }, ["sop", "workflow", "playbook", "policy"].map(function (t) { return h("option", { value: t, text: DOC_TYPE_WORDS[t], selected: d.type === t }); }));
+        pd.appendChild(h("div", { class: "card" }, h("h3", { style: "margin-top:0", text: "Type" }), P.converted ? h("p", { class: "small", text: "DELA moved this to the document standard as " + DOC_TYPE_WORDS[d.type] + (P.conversion_note ? " (" + P.conversion_note + ")" : "") + ". Check it, then approve it again." }) : null,
+          h("div", { class: "row" }, tsel, h("button", { class: "ghost small", type: "button", onclick: function () { if (tsel.value !== d.type) dpThen(function () { changeType(tsel.value); }); } }, "Change type"),
+            P.converted ? h("button", { class: "ghost small", type: "button", onclick: function () { api.post("/documents/conversion-seen", { id: P.id }).then(function () { openPlaybook(P.id); }).catch(pbFail); } }, "The type is right") : null)));
+      }
+      if (can(4)) pd.appendChild(h("div", { class: "row", style: "margin-top:10px;flex-wrap:wrap" },
+        P.status === "archived" ? h("button", { class: "ghost small", onclick: function () { status("unarchive", "Back in the library"); } }, "Bring back from the archive")
+          : P.status !== "trash" ? h("button", { class: "ghost small", onclick: function () { status("archive", "Archived"); } }, "Archive") : null,
+        P.status === "draft" && !P.approved_version ? h("button", { class: "danger small", type: "button", onclick: function () {
+          if (!confirm("Delete this draft for good? It was never approved, so it is removed at once with its versions and comments. This cannot be undone.")) return;
+          api.post("/playbooks/delete-draft", { id: P.id }).then(okOr).then(function () { D.toast(app, "Draft deleted"); lib.pb = null; lib.doc = null; lib.dp = null; loadLibrary(); }).catch(pbFail);
+        } }, "Delete draft") :
+        P.status === "trash" ? h("button", { class: "ghost small", onclick: function () { status("restore", "Restored"); } }, "Restore from the trash")
+          : h("button", { class: "danger small", onclick: function () { if (confirm("Move this document to the trash? You can restore it for 30 days.")) status("trash", "Moved to the trash"); } }, "Delete")));
+      side.appendChild(pd);
+    }
+    side.appendChild(h("div", { id: "dp-quality" }));
+    var ncc = newcomerCard(P, edit); if (ncc) side.appendChild(ncc);
+    var fbc = feedbackCard(P); if (fbc) side.appendChild(fbc);
+    var cic = checkImagesCard(d); if (cic) side.appendChild(cic);
+    if (lib.questions && lib.questions.length && can(3)) side.appendChild(questionsCard());
+    var main = h("div", { class: "dp-main" }, dpPage(d, edit), wfHost(P.id));
+    area.appendChild(h("div", { class: "dp-wrap" }, h("div", { class: "dp-grid" + (s.panel ? " panel" : "") }, main, side)));
+    dpQuality();
+    dpStaleBar();
+  }
+  // Leaving the browser tab: what was typed is kept on the server at once
+  document.addEventListener("visibilitychange", function () { if (document.visibilityState === "hidden" && dpOn() && lib.dp && lib.doc && tab === "library") dpKeep(); });
+
   function drawDocument() {
+    if (dpOn()) return drawDocument2();
     var P = lib.pb.playbook, d = docWork(), ck = lib.pb.check || { items: [], blocking: 0 };
     var locked = docLocked(P.id);
     var edit = can(3) && P.status !== "trash" && P.status !== "archived" && !locked;
@@ -14968,14 +15462,8 @@
     card.appendChild(acts); card.appendChild(msg);
     return card;
   }
-  function reviewScreen(area, d, ck, edit) {
-    var P = lib.pb.playbook;
-    var grid = h("div", { class: "doc-grid" });
-    var left = h("div", { class: "doc-left" }), right = h("div", { class: "doc-right" });
-    grid.appendChild(left); grid.appendChild(right);
-    area.appendChild(wfHost(P.id));
-    area.appendChild(grid);
-    // The quality panel
+  // The quality check with its actions (save, send for review, approve, exports). Both document pages use it.
+  function qualityCard(P, d, ck, edit) {
     var blocked = ck.blocking > 0;
     var qp = h("div", { class: "card", id: "quality-check" }, h("h2", null, D.term("Quality check", "quality_check")), h("p", { class: "small muted", text: "Items marked \"Required before approval\" must be fixed first. Items marked \"Suggestion\" are optional. These checks look at how the document is written; they do not confirm it is legally correct." }),
       h("p", { class: blocked ? "notice bad" : "small muted", text: blocked ? "Export, approval and Flex Gigs are blocked until the items marked \"Required before approval\" are fixed." : ck.attention ? "Nothing blocks this document. Look at the items marked \"Suggestion\"." : "Every check passes." }));
@@ -14989,9 +15477,9 @@
       if (it.status !== "pass" && it.fix === "image" && edit) { row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function () { fixImageItem(it, d); } }, fixLabel(it))); (it.status === "pass" ? passBox : qp).appendChild(row); return; }
       if (it.status !== "pass" && it.fix && edit) row.appendChild(h("button", { class: "ghost small", type: "button", onclick: function (e) {
         var b = e.target; b.disabled = true; b.textContent = it.fix === "split" ? "Splitting..." : "Fixing...";
-        api.post("/documents/fix", { id: P.id, check_id: it.id }).then(function (r) {
+        (dpDirty() ? dpCommit("") : Promise.resolve()).then(function () { return api.post("/documents/fix", { id: P.id, check_id: it.id }); }).then(function (r) {
           if (!r.ok) throw r;
-          lib.doc = null; lib.docNotices = (r.notices || []).concat(r.created && r.created.length ? ["Split into linked SOPs. New: " + r.created.map(function (c) { return c.title; }).join(", ") + "."] : []);
+          lib.doc = null; lib.dp = null; lib.docNotices = (r.notices || []).concat(r.created && r.created.length ? ["Split into linked SOPs. New: " + r.created.map(function (c) { return c.title; }).join(", ") + "."] : []);
           openPlaybook(P.id, "read");
         }).catch(function (x) { b.disabled = false; b.textContent = it.fix === "split" ? "Split into linked SOPs" : fixLabel(it); pbFail(x); });
       } }, it.fix === "split" ? "Split into linked SOPs" : fixLabel(it)));
@@ -15000,7 +15488,11 @@
     if (passed.length) qp.appendChild(passBox);
     // Actions
     var acts = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:8px" });
-    if (edit) acts.appendChild(h("button", { class: "blue small", type: "button", onclick: function () { docSave("", null); } }, "Save"));
+    if (edit) acts.appendChild(h("button", { class: "blue small", type: "button", onclick: function () {
+      if (!dpOn()) { docSave("", null); return; }
+      if (!dpDirty()) { D.toast(app, "Everything is saved."); return; }
+      dpCommit("").then(function () { openPlaybook(P.id, "read"); }).catch(pbFail);
+    } }, "Save"));
     if (can(3) && P.status === "draft") acts.appendChild(h("button", { class: "ghost small", type: "button", disabled: blocked, onclick: function () { status("submit", "Sent to the author and the administrator for review"); } }, "Send for review"));
     var imgDue = !!(lib.pb.images_due && lib.pb.images_due.due && (lib.pb.images_due.ids || []).length);
     if (canApprove() && (P.status === "draft" || P.status === "in_review")) acts.appendChild(h("span", { title: blocked ? "Fix the blocking items first" : imgDue ? "Mark every image \"Still current\" or replace it in Check images first" : "" }, h("button", { class: "blue small", type: "button", disabled: blocked || imgDue, onclick: function () { status("approve", "Approved"); } }, "Approve")));
@@ -15014,8 +15506,19 @@
     } }));
     var draftEx = !!(lib.pb.approved && P.status !== "approved");
     var ex = h("div", { class: "row", style: "flex-wrap:wrap;margin-top:6px" }, h("span", { class: "small", text: draftEx ? "Export this draft (marked DRAFT on every page): " : "Export: " }),
-      [["docx", "Word"], ["pdf", "PDF"], ["md", "Markdown"], ["html", "Web page"], ["csv", "Step checklist"]].map(function (f) { return h("button", { class: "ghost small", type: "button", disabled: blocked, onclick: function () { doExport(f[0], draftEx ? "draft" : ""); } }, f[1]); }));
+      [["docx", "Word"], ["pdf", "PDF"], ["md", "Markdown"], ["html", "Web page"], ["csv", "Step checklist"]].map(function (f) { return h("button", { class: "ghost small", type: "button", disabled: blocked, onclick: function () { dpThen(function () { doExport(f[0], draftEx ? "draft" : ""); }); } }, f[1]); }));
     qp.appendChild(ex);
+    return qp;
+  }
+
+  function reviewScreen(area, d, ck, edit) {
+    var P = lib.pb.playbook;
+    var grid = h("div", { class: "doc-grid" });
+    var left = h("div", { class: "doc-left" }), right = h("div", { class: "doc-right" });
+    grid.appendChild(left); grid.appendChild(right);
+    area.appendChild(wfHost(P.id));
+    area.appendChild(grid);
+    var qp = qualityCard(P, d, ck, edit);
     right.appendChild(qp);
     var ncc = newcomerCard(P, edit); if (ncc) right.appendChild(ncc);
     var fbc = feedbackCard(P); if (fbc) right.appendChild(fbc);
@@ -15446,6 +15949,27 @@
   }
 
   // An image slot on a step or section: the images, Edit, Replace and Remove, drag to reorder, paste, drop, errors and progress
+  // The image being dragged, so it can land in another step's or section's list
+  var imgDrag = null;
+  var IMG_PLACE = { before_you_start: "Before you start", chart: "Swimlane chart", scripts: "Scripts and templates", examples: "Examples" };
+  // "Move to": the same move for the keyboard and for touch screens
+  function imgMoveSelect(list, i, onChange) {
+    var d = lib.doc; if (!d) return null;
+    var per = imgCfg().per_step, places = [];
+    if (d.type === "sop" || d.type === "workflow") (d.steps || []).forEach(function (st, k) { if (st.images !== list) places.push([(d.type === "workflow" ? "Stage " : "Step ") + (k + 1), st.images || (st.images = [])]); });
+    Object.keys(d.section_images || {}).forEach(function (k) { if (d.section_images[k] !== list && IMG_PLACE[k]) places.push([IMG_PLACE[k], d.section_images[k]]); });
+    if (!places.length) return null;
+    var sel = h("select", { class: "img-move", "aria-label": "Move this image to" }, [h("option", { value: "", text: "Move to..." })].concat(places.map(function (pl, k) { return h("option", { value: String(k), text: pl[0] }); })));
+    sel.addEventListener("click", function (e) { e.stopPropagation(); });
+    sel.addEventListener("change", function () {
+      var pl = places[Number(sel.value)]; if (!pl || sel.value === "") return;
+      if (pl[1].length >= per) { D.toast(app, pl[0] + " already has " + per + " images.", true); sel.value = ""; return; }
+      var x = list.splice(i, 1)[0]; pl[1].push(x);
+      dwSay("Image moved to " + pl[0] + ".");
+      onChange("Moved an image");
+    });
+    return sel;
+  }
   function imageSlot(list, where, edit, onChange) {
     var cfg = imgCfg();
     var slot = h("div", { class: "img-slot" });
@@ -15481,18 +16005,21 @@
         var tools = edit ? h("div", { class: "img-tools" },
           h("button", { class: "small", type: "button", onclick: function (e) { e.stopPropagation(); reviewImage({ existing: im, img: img, progress: bar, onSaved: function (id, caption, f) { list[i] = { id: id, caption: caption }; showNow(id, f); onChange("Edited an image"); } }); } }, "Edit"),
           h("button", { class: "small", type: "button", onclick: function (e) { e.stopPropagation(); replaceAt = i; picker.click(); } }, "Replace"),
-          h("button", { class: "small danger", type: "button", onclick: function (e) { e.stopPropagation(); askRemove(function () { list.splice(i, 1); onChange("Removed an image"); }); } }, "Remove")) : null;
+          h("button", { class: "small danger", type: "button", onclick: function (e) { e.stopPropagation(); askRemove(function () { list.splice(i, 1); onChange("Removed an image"); }); } }, "Remove"),
+          dpOn() ? imgMoveSelect(list, i, onChange) : null) : null;
         var fig = h("figure", { class: "img-fig" + (edit ? " editable" : ""), draggable: edit && list.length > 1 ? "true" : "false", tabindex: edit ? "0" : null, "data-i": String(i) },
           tools, img, h("figcaption", { text: im.caption || (edit ? "No caption yet" : "") }),
           fact.held ? h("p", { class: "small bad", text: "DELA's check thinks this image may show client information. Click Edit to blur it or confirm it shows none." }) : !fact.confirmed && fact.source ? h("p", { class: "small bad", text: "No client-data check yet. Click Edit to confirm it." }) : fact.source === "import" ? h("p", { class: "small muted", text: "Confirmed at import" }) : null);
         img.addEventListener("click", function () { if (img.src) imgFull(img.src, im.caption); });
         fig.addEventListener("click", function () { fig.classList.toggle("show-tools"); });
-        fig.addEventListener("dragstart", function (e) { e.dataTransfer.setData("text/x-dela-img", String(i)); e.dataTransfer.effectAllowed = "move"; });
+        fig.addEventListener("dragstart", function (e) { e.dataTransfer.setData("text/x-dela-img", String(i)); e.dataTransfer.effectAllowed = "move"; imgDrag = { list: list, i: i }; });
+        fig.addEventListener("dragend", function () { imgDrag = null; });
         fig.addEventListener("dragover", function (e) { if ([].slice.call(e.dataTransfer.types || []).indexOf("text/x-dela-img") >= 0) e.preventDefault(); });
         fig.addEventListener("drop", function (e) {
           var from = e.dataTransfer.getData("text/x-dela-img");
           if (from === "") return;
           e.preventDefault(); e.stopPropagation();
+          if (imgDrag && imgDrag.list !== list) { moveIn(i); return; }
           var f = Number(from);
           if (f === i) return;
           var x = list.splice(f, 1)[0]; list.splice(i, 0, x); onChange("Reordered images");
@@ -15500,6 +16027,16 @@
         fillImg(img, im.id, null, function () { img.alt = "This image is not available."; });
         figs.appendChild(fig);
       });
+    }
+    // An image dragged here from another step or section
+    function moveIn(at) {
+      var src = imgDrag; imgDrag = null;
+      if (!src || src.list === list) return;
+      if (list.length >= cfg.per_step) { fail("Each step can have " + cfg.per_step + " images. Split this step to add more."); return; }
+      var x = src.list.splice(src.i, 1)[0];
+      if (!x) return;
+      list.splice(at < 0 ? list.length : at, 0, x);
+      onChange("Moved an image");
     }
     draw();
     slot.appendChild(figs); slot.appendChild(bar); slot.appendChild(err); slot.appendChild(picker);
@@ -15516,10 +16053,14 @@
           e.preventDefault();
           take(it.getAsFile(), -1);
         });
-        host.addEventListener("dragover", function (e) { if ([].slice.call(e.dataTransfer.types || []).indexOf("Files") >= 0) { e.preventDefault(); host.classList.add("img-drop"); } });
+        host.addEventListener("dragover", function (e) {
+          var types = [].slice.call(e.dataTransfer.types || []);
+          if (types.indexOf("Files") >= 0 || (imgDrag && imgDrag.list !== list && types.indexOf("text/x-dela-img") >= 0)) { e.preventDefault(); host.classList.add("img-drop"); }
+        });
         host.addEventListener("dragleave", function () { host.classList.remove("img-drop"); });
         host.addEventListener("drop", function (e) {
           host.classList.remove("img-drop");
+          if (imgDrag && imgDrag.list !== list) { e.preventDefault(); moveIn(-1); return; }
           var f = e.dataTransfer.files && e.dataTransfer.files[0];
           if (!f) return;
           e.preventDefault();
@@ -15761,6 +16302,7 @@
 
   // Images join the document as soon as they are saved (a new version), so nothing is lost
   function imagesChanged(note) {
+    if (dpOn()) { dpChanged(); return; }
     docSave(note, null);
   }
 
