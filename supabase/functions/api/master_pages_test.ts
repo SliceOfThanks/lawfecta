@@ -13,6 +13,7 @@ const WORKER = "test-worker-secret-master-0123456789abcdef";
 let site: "ok" | "refuse" = "ok", topicsRefused = false;
 let posts: Array<Record<string, string>> = [];
 let topicList = "Category 1, Family Law Tips, Practice Management";
+let eventTopicList = "Category 1, Webinars, Meetups";
 const calls: string[] = [];
 const fakeFetch = (async (input: string | URL | Request) => {
   const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
@@ -24,6 +25,7 @@ const fakeFetch = (async (input: string | URL | Request) => {
     { service_id: "267", profession_id: "39", master_id: "0", name: "Medical Malpractice Review" }, { service_id: "275", profession_id: "39", master_id: "267", name: "Medical Chronology Creation" },
     { service_id: "308", profession_id: "40", master_id: "0", name: "Family Law" }, { service_id: "327", profession_id: "40", master_id: "308", name: "Discovery Support" }] });
   if (url.pathname === "/api/v2/data_posts/get" && url.searchParams.get("property") === "data_id") return Response.json({ status: "success", message: posts.filter((x) => x.data_id === url.searchParams.get("property_value")) });
+  if (url.pathname === "/api/v2/data_categories/get/8") return Response.json({ status: "success", message: [{ data_id: "8", data_name: "Event", feature_categories: eventTopicList }] });
   if (url.pathname === "/api/v2/data_categories/get/15") {
     if (topicsRefused) return Response.json({ status: "error", message: "API Key does not have permission" }, { status: 403 });
     return Response.json({ status: "success", message: [{ data_id: "15", data_name: "Community Article", feature_categories: topicList }] });
@@ -149,9 +151,9 @@ Deno.test("Promotions: current offers only, from the same people; the copy is re
   assertEquals([first.code, first.ends, first.posted], ["RUSH", "2099-12-31", "2026-11-19"], "the code and the dates come through");
   assert(!/512-555-0199|nurse@example\.com|script/.test(first.text) && first.text.startsWith("On your first chronology."), "markup and contact details are taken out: " + first.text);
   assert(!String(first.name).includes("Lastname") && r.fetched_at && r.website_ok === true);
-  assertEquals(calls.filter((c) => c.includes("/data_posts/get")).length, 2, "the website was asked once for each kind");
+  assertEquals(calls.filter((c) => c.includes("/data_posts/get")).length, 3, "the website was asked once for each kind (promotions, articles, events)");
   await get("/master/promotions", att);
-  assertEquals(calls.filter((c) => c.includes("/data_posts/get")).length, 2, "a second visit reads DELA's copy, not the website");
+  assertEquals(calls.filter((c) => c.includes("/data_posts/get")).length, 3, "a second visit reads DELA's copy, not the website");
   const q = async (s: string) => titles((await get("/master/promotions?limit=50&" + s, att)).promotions);
   assertEquals(await q("sort=ending"), ["15% off a custody package", "Free rush upgrade"], "ending soonest first");
   assertEquals(await q("category=p40"), ["15% off a custody package"], "filtered by the provider's category, any level");
@@ -212,6 +214,59 @@ Deno.test("Blog: in order of posting, topics from the website's own list, for bo
   await pool.query("update feature_switches set state = 'off' where key = 'community'");
   assertEquals((await get("/master/blog", att)).reason, "not_open");
   await pool.query("update feature_switches set state = 'everyone' where key = 'community'");
+});
+
+Deno.test("Events: every member with Community sees what is coming up, soonest first, by the website's event categories", async () => {
+  const E = (id: string, m: number | string, o: Record<string, string>) => ({ post_id: String(RUN * 100 + Number(id)), data_id: "8", user_id: String(m), post_status: "1", post_content: "<p>Details.</p>", post_category: "Category 1", ...o });
+  const staff = await member(6, "att_free");
+  await pool.query("insert into staff_roles (person_id, role) values ($1, 'support')", [staff.id]);
+  posts = posts.concat([
+    E("21", nurse.bd, { post_title: "Records review workshop", post_start_date: day(5) + "183000", post_expire_date: day(5) + "200000", post_venue: "Online", post_location: "", post_promo: "Free", post_org_url: "https://events.example/workshop", post_image: "/uploads/news-pictures/workshop.webp",
+      post_content: "<p>Bring one chart.</p><p>Questions: 512-555-0111 or nurse@example.com</p><script>x()</script>" }),
+    E("22", CLAIM, { post_title: "Legal ops webinar", post_category: "Webinars", post_start_date: day(9) + "120000", post_expire_date: "", post_org_url: "http://plain.example/x", post_image: "https://evil.example/x.png" }),
+    E("23", nurse.bd, { post_title: "Last week's meetup", post_category: "Meetups", post_start_date: day(-6) + "170000", post_expire_date: day(-6) + "190000" }),
+    E("24", nurse.bd, { post_title: "A draft event", post_status: "0", post_start_date: day(3) + "100000" }),
+    E("25", away.bd, { post_title: "Austin meetup", post_category: "Meetups", post_start_date: day(2) + "000000", post_expire_date: day(3) + "000000", post_venue: "The Library Bar", post_location: "100 Main St\nAustin, TX" }),
+    E("26", nurse.bd, { post_title: "An event with no day", post_start_date: "" }),
+    E("27", staff.bd, { post_title: "Lawfecta office hours", post_category: "Old Category", post_start_date: day(12) + "090000" }),
+    E("28", "", { post_title: "Posted from the website's admin", post_category: "Webinars", post_start_date: day(20) + "150000" }),
+  ]);
+  await pool.query("update bd_posts_state set tried_at = now() - interval '2 hours'");
+  await get("/master/events", att); await worker();
+  const mine = (rows: Array<Record<string, any>>) => rows.filter((x) => Math.floor(Number(x.post_id) / 100) === RUN);
+  for (const who of [att, plain, away]) {
+    const r = await get("/master/events?limit=50", who);
+    assertEquals(r.ok, true, JSON.stringify(r));
+    assertEquals(mine(r.events).map((x) => x.title), ["Austin meetup", "Records review workshop", "Legal ops webinar", "Lawfecta office hours", "Posted from the website's admin"], "what is coming up, the soonest first; a draft, a past one and one with no day are not listed");
+    assertEquals(r.topics, ["Webinars", "Meetups"], "the website's event categories, without the placeholders");
+  }
+  const r = await get("/master/events?limit=50", att);
+  const by = (t: string) => mine(r.events).find((x) => x.title === t)!;
+  const w = by("Records review workshop");
+  assertEquals([w.start_time, w.end_time, w.venue, w.price, w.link, w.image_url, w.topic, w.gone, w.by_lawfecta], ["18:30", "20:00", "Online", "Free", "https://events.example/workshop", "https://bd.test/uploads/news-pictures/workshop.webp", "", false, false]);
+  assert(w.text.startsWith("Bring one chart.") && !/512-555-0111|nurse@example\.com|script/.test(w.text) && String(w.name).startsWith("Fern") && !String(w.name).includes("Lastname"), "the text has no contact details; a freelancer organizer shows by a short name");
+  const web = by("Legal ops webinar");
+  assertEquals([web.link, web.image_url, web.person_id, web.name, web.topic, web.start_time], ["", "", undefined, undefined, "Webinars", "12:00"], "a link that is not https and a picture from another site are dropped; a poster who is not a shown freelancer is not named");
+  const au = by("Austin meetup");
+  assertEquals([au.start_time, au.location, au.person_id, au.ends !== au.starts], ["", "100 Main St, Austin, TX", undefined, true], "an all-day event over two days; the address is kept; a freelancer who is not shown is not named");
+  assertEquals([by("Lawfecta office hours").by_lawfecta, by("Lawfecta office hours").topic, by("Posted from the website's admin").by_lawfecta], [true, "", false], "an event the Lawfecta Team posted says so; a category that left the list is not shown");
+  // One category, and past events
+  assertEquals(mine((await get("/master/events?topic=webinars", plain)).events).map((x) => x.title), ["Legal ops webinar", "Posted from the website's admin"]);
+  const past = await get("/master/events?past=1", plain);
+  assertEquals([mine(past.events).map((x) => x.title), mine(past.events)[0].gone, past.past], [["Last week's meetup"], true, true]);
+  assert(r.past_count >= 1 && r.fetched_at);
+  // Stacey renames the event categories on the website: the next refresh brings her list
+  eventTopicList = "Webinars, In person";
+  await pool.query("update bd_posts_state set tried_at = now() - interval '2 hours'");
+  await get("/master/events", att); await worker();
+  assertEquals((await get("/master/events", att)).topics, ["Webinars", "In person"]);
+  // Community closed, or the page switched off: no events
+  await pool.query("update feature_switches set state = 'off' where key = 'community'");
+  assertEquals((await get("/master/events", att)).reason, "not_open");
+  await pool.query("update feature_switches set state = 'everyone' where key = 'community'");
+  await pool.query("update settings set value = '0' where key = 'bd.events_data_id'");
+  assertEquals((await get("/master/events", att)).reason, "not_open");
+  await pool.query("update settings set value = '8' where key = 'bd.events_data_id'");
 });
 
 Deno.test("teardown", async () => {

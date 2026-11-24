@@ -120,9 +120,55 @@ const counted = (pg, id) => dela(pg).locator("#" + id + "-count", { hasText: /\(
 
     // ---------- Attorney: the Blog is the first view of Community ----------
     s = await open(browser, ATT, "&tab=community"); p = s.page;
+    await counted(p, "events");
+    // ---------- Step 84: Events is the first tab of Community ----------
+    st = await sr(p, `return { tabs: [...r.querySelectorAll("#com-boards [role=tab]")].map((b) => b.innerText.trim() + (b.getAttribute("aria-selected") === "true" ? "*" : "")), cats: [...r.querySelectorAll("#ev-topic option")].map((o) => o.textContent),
+      titles: [...r.querySelectorAll("#events-list .mp-card .mp-title")].map((x) => x.textContent), grid: r.querySelector("#events-list").className, cards: r.querySelector("#ev-cards").getAttribute("aria-pressed") }`);
+    ok(st.tabs[0] === "Events*" && st.tabs[1] === "Blog" && st.tabs.length >= 3, "Community opens on Events, then Blog, then the boards: " + st.tabs.join(", "));
+    ok(st.cats.join("|") === "All categories|Webinars|Meetups", "the Category list is the website's event categories, without its placeholders: " + st.cats.join(", "));
+    ok(st.titles.join("|") === "M84 Austin meetup|M84 Records workshop|M84 Legal ops webinar" && st.grid === "mp-grid" && st.cards === "true", "events show as cards, the soonest first: " + st.titles.join(", "));
+    let card1 = await sr(p, `const c = [...r.querySelectorAll("#events-list .mp-card")].find((x) => x.textContent.includes("M84 Records workshop")); return { text: c.innerText, img: (c.querySelector("img.ev-img") || {}).src || "" }`);
+    ok(card1.text.includes("6:30 PM to 8:00 PM") && card1.text.includes("Online") && card1.text.includes("Free") && card1.text.includes("By Nia C.") && card1.img.endsWith("/uploads/news-pictures/workshop.webp"), "a card shows the day and time, where, the price, the organizer by short name and the event's picture");
+    await p.screenshot({ path: path.join(SHOTS, "84-events-cards.png"), fullPage: true });
+    // The list view, remembered
+    await dela(p).locator("#ev-list").click();
+    await dela(p).locator("#events-list.ev-rows .ev-row").first().waitFor({ timeout: 10000 });
+    st = await sr(p, `return { rows: [...r.querySelectorAll("#events-list .ev-row .ev-title")].map((x) => x.textContent), pressed: r.querySelector("#ev-list").getAttribute("aria-pressed"), cards: r.querySelectorAll("#events-list .mp-card").length }`);
+    ok(st.rows.length === 3 && st.rows[0] === "M84 Austin meetup" && st.pressed === "true" && st.cards === 0, "\"List\" shows the same events as rows");
+    await p.screenshot({ path: path.join(SHOTS, "84-events-list.png"), fullPage: true });
+    // One category, and past events
+    await dela(p).locator("#ev-topic").selectOption("Webinars");
+    await p.waitForTimeout(600);
+    ok((await sr(p, `return [...r.querySelectorAll("#events-list .ev-row .ev-title")].map((x) => x.textContent).join("|")`)) === "M84 Legal ops webinar" && (await dela(p).locator("#events-count").innerText()) === "Events (1)", "a category keeps the events in that category");
+    await dela(p).locator("#ev-topic").selectOption("");
+    await dela(p).locator("#ev-when").selectOption("1");
+    await dela(p).locator("#events-count", { hasText: "Past events (1)" }).waitFor({ timeout: 10000 });
+    ok((await sr(p, `return [...r.querySelectorAll("#events-list .ev-row .ev-title")].map((x) => x.textContent).join("|")`)) === "M84 Last week's meetup", "\"Past events\" shows what has passed, and nothing that is coming");
+    await dela(p).locator("#ev-when").selectOption("");
+    await dela(p).locator("#events-count", { hasText: "Events (3)" }).waitFor({ timeout: 10000 });
+    // An event opens with its information and its buttons
+    await dela(p).getByRole("button", { name: "View the event: M84 Records workshop" }).click();
+    await dela(p).locator("#ev-one").waitFor({ timeout: 10000 });
+    st = await sr(p, `const c = r.querySelector("#ev-one"), lk = c.querySelector("#ev-link"); return { text: c.innerText, href: lk && lk.getAttribute("href"), target: lk && lk.target, rel: lk && lk.rel, btns: [...c.querySelectorAll(".ev-acts button, .ev-acts a")].map((b) => b.innerText.trim()) }`);
+    ok(st.text.includes("M84 Records workshop") && st.text.includes("When") && st.text.includes("6:30 PM to 8:00 PM") && st.text.includes("Where") && st.text.includes("Online") && st.text.includes("Price") && st.text.includes("Organizer") && st.text.includes("Bring one chart.") && !st.text.includes("512-555-0111"), "the event page shows when, where, the price, the organizer and the text, without contact details");
+    ok(st.href === "https://events.example/workshop" && st.target === "_blank" && st.rel === "noopener noreferrer" && st.btns.join("|") === "Open the event page|Add to my calendar|View Nia C.'s profile", "its buttons: the event's own page in a new tab, a calendar file, and the organizer's profile: " + st.btns.join(", "));
+    const dl = p.waitForEvent("download");
+    await dela(p).locator("#ev-cal").click();
+    const file = await dl, ics = fs.readFileSync(await file.path(), "utf8");
+    ok(file.suggestedFilename().endsWith(".ics") && ics.includes("BEGIN:VEVENT") && ics.includes("SUMMARY:M84 Records workshop") && /DTSTART:\d{8}T183000/.test(ics) && /DTEND:\d{8}T200000/.test(ics) && ics.includes("LOCATION:Online"), "\"Add to my calendar\" saves a calendar file with the event's day, times and place");
+    await p.screenshot({ path: path.join(SHOTS, "84-event.png") });
+    await dela(p).locator("#ev-back").click();
+    await counted(p, "events");
+    ok(await sr(p, `return r.querySelector("#events-list").className === "ev-rows"`), "going back keeps the list view");
+    await dela(p).locator("#ev-cards").click();
+    await p.setViewportSize({ width: 390, height: 844 });
+    await p.waitForTimeout(400);
+    ok((await p.evaluate(() => document.documentElement.scrollWidth)) <= 392, "Events fits a narrow screen");
+    await p.setViewportSize({ width: 1400, height: 950 });
+    await dela(p).locator("#com-boards [role=tab]").nth(1).click();
     await counted(p, "blog");
     st = await sr(p, `return { tabs: [...r.querySelectorAll("#com-boards [role=tab]")].map((b) => b.innerText.trim() + (b.getAttribute("aria-selected") === "true" ? "*" : "")), topics: [...r.querySelectorAll("#blog-topic option")].map((o) => o.textContent) }`);
-    ok(st.tabs[0] === "Blog*" && st.tabs.length >= 2, "Community opens on the Blog, with the boards after it: " + st.tabs.join(", "));
+    ok(st.tabs[1] === "Blog*" && st.tabs.length >= 3, "the Blog is the second tab, with the boards after it: " + st.tabs.join(", "));
     ok(st.topics.join("|") === "All topics|Family Law Tips|Trial Prep", "the Topic list is the website's own list, without its placeholders: " + st.topics.join(", "));
     cards = await mine(p, "blog");
     ok(cards.map((c) => c.title).join("|") === "M83 Custody filings checklist|M83 How I build a chronology|M83 Old notes on intake", "articles come in order of posting, newest first");
@@ -139,19 +185,26 @@ const counted = (pg, id) => dela(pg).locator("#" + id + "-count", { hasText: /\(
     await counted(p, "blog");
     ok((await dela(p).locator("#blog-topic").inputValue()) === "Trial Prep", "going back keeps the topic that was chosen");
     // The boards are still one click away
-    const board = (await sr(p, `return [...r.querySelectorAll("#com-boards [role=tab]")].map((b) => b.innerText.trim())`))[1];
-    await dela(p).locator("#com-boards [role=tab]").nth(1).click();
+    const board = (await sr(p, `return [...r.querySelectorAll("#com-boards [role=tab]")].map((b) => b.innerText.trim())`))[2];
+    await dela(p).locator("#com-boards [role=tab]").nth(2).click();
     await dela(p).locator("#com-new").waitFor({ timeout: 15000 });
     ok(true, "the boards still open from the same row (" + board + ")");
     // A phone-width screen fits
     await p.setViewportSize({ width: 390, height: 844 });
-    await dela(p).locator("#com-boards [role=tab]").first().click();
+    await dela(p).locator("#com-boards [role=tab]").nth(1).click();
     await counted(p, "blog");
     ok((await p.evaluate(() => document.documentElement.scrollWidth)) <= 392, "the Blog fits a narrow screen");
     await s.ctx.close();
 
     // ---------- Freelancer: the Blog, and nothing of the attorney's pages ----------
     s = await open(browser, FL, "&tab=community"); p = s.page;
+    await counted(p, "events");
+    ok((await sr(p, `return [...r.querySelectorAll("#events-list .mp-title, #events-list .ev-title")].map((x) => x.textContent)`)).includes("M84 Records workshop"), "a freelancer sees Events too");
+    await dela(p).getByRole("button", { name: "View the event: M84 Legal ops webinar" }).click();
+    await dela(p).locator("#ev-one").waitFor({ timeout: 10000 });
+    ok((await sr(p, `return [...r.querySelectorAll("#ev-one .ev-acts button, #ev-one .ev-acts a")].map((b) => b.innerText.trim()).join("|")`)) === "Add to my calendar", "an event with no link of its own offers the calendar file only");
+    await dela(p).locator("#ev-back").click();
+    await dela(p).locator("#com-boards [role=tab]").nth(1).click();
     await counted(p, "blog");
     cards = await mine(p, "blog");
     ok(cards.length === 3 && cards.find((c) => c.title === "M83 How I build a chronology").text.includes("Yours"), "a freelancer sees the Blog, with their own article marked");
@@ -169,7 +222,7 @@ const counted = (pg, id) => dela(pg).locator("#" + id + "-count", { hasText: /\(
     await s.ctx.close();
     s = await open(browser, ATT, "&tab=community"); p = s.page;
     await dela(p).locator("#com-boards").waitFor({ timeout: 20000 });
-    ok(!(await sr(p, `return [...r.querySelectorAll("#com-boards [role=tab]")].map((b) => b.innerText.trim())`)).includes("Blog"), "and Community has no Blog");
+    ok(!(await sr(p, `return [...r.querySelectorAll("#com-boards [role=tab]")].map((b) => b.innerText.trim())`)).some((x) => x === "Blog" || x === "Events"), "and Community has no Events and no Blog");
     await s.ctx.close();
     console.log(passed + " browser checks passed");
   } finally {

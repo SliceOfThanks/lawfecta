@@ -9300,6 +9300,119 @@
     pager.load();
   }
 
+  // ---------- Step 84: Events, the first tab of Community (Stacey 2026-11-24) ----------
+  // Events written on the website, soonest first, filtered by the website's own event categories, as cards or as a
+  // list. An event opens with its information and its buttons.
+  var evQ = { topic: "", past: false }, evOpen = null;
+  function evClock(t) { if (!t) return ""; var p = String(t).split(":"), hh = Number(p[0]), ap = hh >= 12 ? "PM" : "AM"; return ((hh % 12) || 12) + ":" + p[1] + " " + ap; }
+  function evWhen(e) {
+    var out = mpDay(e.starts) + (e.start_time ? ", " + evClock(e.start_time) : "");
+    if (e.ends && e.ends !== e.starts) out += " to " + mpDay(e.ends) + (e.end_time ? ", " + evClock(e.end_time) : "");
+    else if (e.end_time && e.start_time) out += " to " + evClock(e.end_time);
+    return out;
+  }
+  function evWhere(e) { return [e.venue, e.location].filter(Boolean).join(", "); }
+  function evBy(e) { return e.by_lawfecta ? "Lawfecta" : e.name || ""; }
+  // A calendar file for the member's own calendar. Times are written as the event's local time, as the website holds them.
+  function evIcs(e) {
+    var d = function (day) { return String(day).split("-").join(""); }, t = function (c) { return String(c).split(":").join("") + "00"; };
+    var esc = function (v) { return String(v || "").split("\\").join("\\\\").split("\n").join("\\n").split(",").join("\\,").split(";").join("\\;"); };
+    var endDay = e.ends || e.starts, next = function (day) { var x = new Date(day + "T12:00:00"); x.setDate(x.getDate() + 1); return x.toISOString().slice(0, 10); };
+    var lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//Lawfecta//DELA//EN", "BEGIN:VEVENT", "UID:dela-event-" + e.post_id + "@lawfecta",
+      "DTSTAMP:" + new Date().toISOString().replace(/[-:]/g, "").slice(0, 15) + "Z"];
+    if (e.start_time) { lines.push("DTSTART:" + d(e.starts) + "T" + t(e.start_time)); lines.push("DTEND:" + d(endDay) + "T" + t(e.end_time || e.start_time)); }
+    else { lines.push("DTSTART;VALUE=DATE:" + d(e.starts)); lines.push("DTEND;VALUE=DATE:" + d(next(endDay))); }
+    lines.push("SUMMARY:" + esc(e.title));
+    if (evWhere(e)) lines.push("LOCATION:" + esc(evWhere(e)));
+    if (e.text || e.link) lines.push("DESCRIPTION:" + esc([String(e.text || "").slice(0, 900), e.link].filter(Boolean).join("\n\n")));
+    return lines.concat(["END:VEVENT", "END:VCALENDAR"]).join("\r\n");
+  }
+  // An event's picture comes from the website; one that does not load leaves no gap
+  function evImg(e, cls) {
+    if (!e.image_url) return null;
+    var im = h("img", { class: cls, src: e.image_url, alt: "", loading: "lazy" });
+    im.addEventListener("error", function () { if (im.parentNode) im.parentNode.removeChild(im); });
+    return im;
+  }
+  function evDateBlock(e) {
+    var d = null; try { d = new Date(String(e.starts) + "T12:00:00"); } catch (x) { d = null; }
+    var ok = d && !isNaN(d.getTime());
+    return h("div", { class: "ev-date", "aria-hidden": "true" }, h("span", { class: "ev-mon", text: ok ? d.toLocaleDateString(undefined, { month: "short" }) : "" }), h("span", { class: "ev-day", text: ok ? String(d.getDate()) : "" }));
+  }
+  function eventsView(body) {
+    var att = me.side === "attorney";
+    if (evOpen) {
+      var e = evOpen;
+      body.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", id: "ev-back", onclick: function () { evOpen = null; draw(); } }, "← Events")));
+      var card = h("article", { class: "card mp-article", id: "ev-one" });
+      var hero = evImg(e, "ev-hero"); if (hero) card.appendChild(hero);
+      card.appendChild(h("h2", { text: e.title }));
+      card.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-bottom:10px" }, e.topic ? h("span", { class: "badge", text: e.topic }) : null, e.gone ? h("span", { class: "badge held", text: "This event has passed" }) : null, e.mine ? h("span", { class: "badge ready", text: "Yours" }) : null));
+      var facts = h("dl", { class: "ev-facts" });
+      [["When", evWhen(e)], ["Where", evWhere(e)], ["Price", e.price], ["Organizer", evBy(e)]].forEach(function (f) { if (f[1]) { facts.appendChild(h("dt", { text: f[0] })); facts.appendChild(h("dd", { text: f[1] })); } });
+      card.appendChild(facts);
+      lineList(e.text).forEach(function (line) { card.appendChild(h("p", { text: line })); });
+      var acts = h("div", { class: "row ev-acts", style: "gap:10px;flex-wrap:wrap;margin-top:6px" });
+      if (e.link) acts.appendChild(h("a", { class: "btn blue", id: "ev-link", href: e.link, target: "_blank", rel: "noopener noreferrer" }, "Open the event page"));
+      acts.appendChild(h("button", { class: e.link ? "ghost" : "blue", type: "button", id: "ev-cal", onclick: function () {
+        try {
+          var url = URL.createObjectURL(new Blob([evIcs(e)], { type: "text/calendar" })), a = h("a", { href: url, download: "lawfecta-event-" + e.post_id + ".ics" });
+          app.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+          D.toast(app, "Calendar file saved. Open it to add the event to your calendar.");
+        } catch (x) { D.toast(app, "The calendar file could not be made in this browser.", true); }
+      } }, "Add to my calendar"));
+      if (att && e.person_id && !e.mine) acts.appendChild(h("button", { class: "ghost", type: "button", onclick: mpOpenProfile(e, "overview") }, "View " + (e.name || "the organizer") + "'s profile"));
+      card.appendChild(acts);
+      if (e.link) card.appendChild(h("p", { class: "small muted", style: "margin-top:8px", text: "\"Open the event page\" opens the organizer's own page in a new tab, outside Lawfecta." }));
+      body.appendChild(card);
+      return;
+    }
+    body.appendChild(h("p", { class: "small muted", id: "ev-about", text: "Events for Lawfecta members, the soonest first. Open one for its details, its link and a calendar file." }));
+    var listMode = localPref("events.list");
+    var topic = h("select", { id: "ev-topic" }, h("option", { value: "", text: "All categories" }));
+    var when = h("select", { id: "ev-when" }, h("option", { value: "", text: "Coming up", selected: !evQ.past }), h("option", { value: "1", text: "Past events", selected: evQ.past }));
+    var bCards = h("button", { type: "button", class: "ev-view", id: "ev-cards", "aria-pressed": String(!listMode) }, "Cards"), bList = h("button", { type: "button", class: "ev-view", id: "ev-list", "aria-pressed": String(listMode) }, "List");
+    var fresh = h("div"), pager = null;
+    var open = function (e) { return function () { evOpen = e; draw(); window.scrollTo(0, 0); }; };
+    function make() {
+      pager = mpPager({ id: "events", key: "events", title: evQ.past ? "Past events" : "Events", one: "event", many: "events", none: evQ.past ? "No past events." : "No events are coming up yet.", noneFiltered: "No event has this category.",
+        filtered: function () { return !!evQ.topic; },
+        url: function (off) { return mpQuery("/master/events", { topic: evQ.topic, past: evQ.past ? "1" : "" }, off); },
+        after: function (r, box) {
+          if (r.topic !== evQ.topic) evQ.topic = r.topic || "";
+          D.clear(topic); topic.appendChild(h("option", { value: "", text: "All categories" }));
+          (r.topics || []).forEach(function (t) { topic.appendChild(h("option", { value: t, text: t, selected: t.toLowerCase() === evQ.topic.toLowerCase() })); });
+          D.clear(fresh); fresh.appendChild(mpRefreshed(r));
+          var list = box.querySelector("#events-list"); if (list) list.className = listMode ? "ev-rows" : "mp-grid";
+        },
+        card: function (e) {
+          var by = evBy(e);
+          if (listMode) return h("div", { class: "ev-row" }, evDateBlock(e),
+            h("div", { class: "grow", style: "min-width:0" }, h("button", { class: "linkish ev-title", type: "button", onclick: open(e) }, e.title),
+              h("div", { class: "small muted", text: [evWhen(e), evWhere(e)].filter(Boolean).join(" | ") })),
+            e.topic ? h("span", { class: "badge", text: e.topic }) : null, e.price ? h("span", { class: "small", text: e.price }) : null,
+            h("button", { class: "ghost small", type: "button", "aria-label": "View the event: " + e.title, onclick: open(e) }, "View event"));
+          return h("article", { class: "card mp-card ev-card" }, evImg(e, "ev-img"),
+            h("div", { class: "row", style: "gap:12px;align-items:flex-start" }, evDateBlock(e), h("div", { class: "grow", style: "min-width:0" },
+              h("h3", { class: "mp-title" }, h("button", { class: "linkish", type: "button", style: "font:inherit;text-align:left", onclick: open(e) }, e.title)),
+              h("div", { class: "small muted", text: evWhen(e) }))),
+            evWhere(e) ? h("p", { class: "mp-text", text: evWhere(e) }) : null,
+            h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, e.topic ? h("span", { class: "badge", text: e.topic }) : null, e.price ? h("span", { class: "badge", text: e.price }) : null, by ? h("span", { class: "small muted", text: "By " + by }) : null),
+            h("div", { class: "row", style: "margin-top:auto" }, h("button", { class: "ghost small", type: "button", "aria-label": "View the event: " + e.title, onclick: open(e) }, "View event")));
+        } });
+    }
+    var host = h("div");
+    function redraw() { make(); D.clear(host); host.appendChild(pager.el); pager.load(); }
+    var setMode = function (m) { return function () { if (listMode === m) return; listMode = m; localPref("events.list", m); bCards.setAttribute("aria-pressed", String(!m)); bList.setAttribute("aria-pressed", String(m)); redraw(); }; };
+    bCards.addEventListener("click", setMode(false)); bList.addEventListener("click", setMode(true));
+    topic.addEventListener("change", function () { evQ.topic = topic.value; pager.load(); });
+    when.addEventListener("change", function () { evQ.past = when.value === "1"; redraw(); });
+    body.appendChild(h("div", { class: "card", id: "ev-filter" }, h("div", { class: "bm-filter-row" }, h("label", { class: "bm-f", style: "flex:0 1 280px" }, "Category", topic), h("label", { class: "bm-f", style: "flex:0 1 200px" }, "When", when),
+      h("div", { class: "ev-views", role: "group", "aria-label": "How events are shown" }, h("span", { class: "small muted", text: "View" }), bCards, bList))));
+    body.appendChild(host); body.appendChild(fresh);
+    redraw();
+  }
+
   function communityView() {
     var el = h("div", { id: "community-page" }, h("h1", { text: "Community" }), h("p", { class: "muted", text: "Loading..." }));
     api.get("/community").then(function (v) {
@@ -9308,14 +9421,15 @@
       if (!v.on) { el.appendChild(h("p", { class: "notice", text: "Community is not open for your account yet." })); return; }
       el.appendChild(h("p", { class: "muted", style: "margin-top:0", text: "Talk with other members. Keep it helpful and keep it on Lawfecta: no contact details, no client information. Names are shown as a first name and last initial." }));
       var boards = v.boards || [];
-      // Step 83: the Blog is the first view, before the boards
+      // Step 84: Events is the first view, then the Blog (step 83), then the boards
       var blogOn = !!(me.switches || {}).master_pages;
-      if (blogOn && com.board === null) com.board = "blog";
-      if (!(blogOn && com.board === "blog") && (!com.board || !boards.some(function (b) { return b.key === com.board; }))) com.board = boards.length ? boards[0].key : null;
-      el.appendChild(h("div", { class: "tabs", role: "tablist", id: "com-boards", style: "border-radius:14px;margin:10px 0" }, (blogOn ? [{ key: "blog", name: "Blog", topics: 0 }] : []).concat(boards).map(function (b) {
-        return h("button", { role: "tab", type: "button", "aria-selected": String(b.key === com.board), onclick: function () { com.board = b.key; com.topic = null; com.offset = 0; blogOpen = null; draw(); } }, b.name + (b.topics ? " (" + b.topics + ")" : ""));
+      if (blogOn && com.board === null) com.board = "events";
+      var ownView = blogOn && (com.board === "blog" || com.board === "events");
+      if (!ownView && (!com.board || !boards.some(function (b) { return b.key === com.board; }))) com.board = boards.length ? boards[0].key : null;
+      el.appendChild(h("div", { class: "tabs", role: "tablist", id: "com-boards", style: "border-radius:14px;margin:10px 0" }, (blogOn ? [{ key: "events", name: "Events", topics: 0 }, { key: "blog", name: "Blog", topics: 0 }] : []).concat(boards).map(function (b) {
+        return h("button", { role: "tab", type: "button", "aria-selected": String(b.key === com.board), onclick: function () { com.board = b.key; com.topic = null; com.offset = 0; blogOpen = null; evOpen = null; draw(); } }, b.name + (b.topics ? " (" + b.topics + ")" : ""));
       })));
-      if (blogOn && com.board === "blog") { var blogBody = h("div", { id: "com-body" }); el.appendChild(blogBody); blogView(blogBody); return; }
+      if (ownView) { var ownBody = h("div", { id: "com-body" }); el.appendChild(ownBody); if (com.board === "events") eventsView(ownBody); else blogView(ownBody); return; }
       if (v.team && v.open_reports) el.appendChild(h("p", { class: "notice", id: "com-reports", role: "note", text: v.open_reports + (v.open_reports === 1 ? " reported post is" : " reported posts are") + " waiting for the Lawfecta Team. Topics with a report carry a \"Reported\" tag." }));
       var cur = boards.filter(function (b) { return b.key === com.board; })[0];
       var body = h("div", { id: "com-body" });

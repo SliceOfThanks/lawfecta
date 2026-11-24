@@ -239,6 +239,13 @@ const deps = {
     // The website's posts of a member (step 18 part 2): one live promotion (post type 7) and one blog article
     if (u.includes("/api/v2/data_posts/get")) { const uid = new URL(u).searchParams.get("property_value");
       // Step 69: every member's posts of one type, for Recent activity (the two freelancers of categories-test.js)
+      // Step 84 (master-test.js): events of the Event post type, as the website sends its days and times
+      if (new URL(u).searchParams.get("property") === "data_id" && uid === "8") { const dd = (n: number) => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10).split("-").join("");
+        return Response.json({ status: "success", message: [
+          { post_id: "50", data_id: "8", user_id: "4811", post_status: "1", post_title: "M84 Records workshop", post_content: "<p>Bring one chart.</p><p>Questions: 512-555-0111</p>", post_category: "Category 1", post_start_date: dd(5) + "183000", post_expire_date: dd(5) + "200000", post_venue: "Online", post_promo: "Free", post_org_url: "https://events.example/workshop", post_image: "/uploads/news-pictures/workshop.webp" },
+          { post_id: "51", data_id: "8", user_id: "0", post_status: "1", post_title: "M84 Legal ops webinar", post_content: "<p>An hour on intake.</p>", post_category: "Webinars", post_start_date: dd(9) + "120000", post_expire_date: "" },
+          { post_id: "52", data_id: "8", user_id: "4811", post_status: "1", post_title: "M84 Last week's meetup", post_content: "", post_category: "Meetups", post_start_date: dd(-6) + "170000", post_expire_date: dd(-6) + "190000" },
+          { post_id: "53", data_id: "8", user_id: "4812", post_status: "1", post_title: "M84 Austin meetup", post_content: "<p>Coffee and questions.</p>", post_category: "Meetups", post_start_date: dd(2) + "000000", post_expire_date: "", post_venue: "The Library Bar", post_location: "100 Main St, Austin, TX" }] }); }
       if (new URL(u).searchParams.get("property") === "data_id") return Response.json({ status: "success", message: uid === "15"
         ? [{ post_id: "30", data_id: "15", user_id: "4602", post_status: "1", post_title: "Five intake mistakes", post_content: "<p>The first one is skipping the conflict check. Call 512-555-0199.</p>", post_live_date: "20261118090000" },
           // Step 83 (master-test.js): articles with the website's topic on them, as its API sends the day
@@ -254,6 +261,7 @@ const deps = {
       { post_id: "1", data_id: "7", user_id: uid, post_status: "1", post_title: "New client discount", post_content: "<p>10% off the first fixed-fee project.</p>", post_promo: "FIRST10", post_expire_date: "20991231" },
       { post_id: "2", data_id: "14", user_id: uid, post_status: "1", post_title: "A blog article", post_content: "", post_promo: "", post_expire_date: "" }] }); }
     // Step 83: the article post type's settings, where the Blog's topics come from
+    if (u.includes("/api/v2/data_categories/get/8")) return Response.json({ status: "success", message: [{ data_id: "8", data_name: "Event", feature_categories: "Category 1, Webinars, Meetups" }] });
     if (u.includes("/api/v2/data_categories/get/15")) return Response.json({ status: "success", message: [{ data_id: "15", data_name: "Community Article", feature_categories: "Category 1, Family Law Tips, Trial Prep" }] });
     // The website's categories (step 17): two top categories, specialties and sub subs, as BD lists them
     if (u.includes("/api/v2/list_professions/get")) return Response.json({ status: "success", message: [
