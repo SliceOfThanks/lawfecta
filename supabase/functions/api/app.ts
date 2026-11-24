@@ -6034,6 +6034,7 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   "/admin/access/grant": (c, a) => rpc(c, "dela_admin_access_grant", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id"), p_channel: need(str(c.body.channel, 20)), p_note: str(c.body.note, 200) }),
   "/admin/access/revoke": (c, a) => rpc(c, "dela_admin_access_revoke", { p_actor: a, p_id: need(int(c.body.id)) }),
   "/admin/pipeline/add": (c, a) => teamAdd(c, a, String(c.body.bd_member_ids ?? "").split(/[\s,;]+/).filter(Boolean)),
+  "/admin/pipeline/leave": (c, a) => rpc(c, "dela_pipeline_leave", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id") }),
   "/admin/pipeline/mark": (c, a) => rpc(c, "dela_pipeline_mark", { p_actor: a, p: { bd_member_ids: (Array.isArray(c.body.bd_member_ids) ? c.body.bd_member_ids : []).map((x) => String(x)), stage: c.body.kind === "follow_up" ? "follow_up" : "emailed", at: "", tool: str(c.body.tool, 60), note: str(c.body.note, 500), request_id: str(c.body.request_id, 80) } }),
   "/admin/staff/grant": (c, a) => rpc(c, "dela_admin_staff_grant", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id"), p_role: need(str(c.body.role, 20)) }),
   "/admin/staff/revoke": (c, a) => rpc(c, "dela_admin_staff_revoke", { p_actor: a, p_id: need(int(c.body.id)) }),

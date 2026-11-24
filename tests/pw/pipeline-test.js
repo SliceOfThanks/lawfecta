@@ -90,6 +90,10 @@ async function teamRequest() {
     await p.waitForTimeout(900);
     ok((await sql("select count(*)::int n from pipeline_events where bd_member_id = 4821 and stage = 'follow_up'"))[0].n === 1, "\"Record follow-up\" on the stuck list writes it down");
     await p.screenshot({ path: path.join(SHOTS, "82-pipeline.png"), fullPage: true });
+    // Someone added for a test comes off the list again (the browser's OK / Cancel question is answered OK)
+    await dela(p).getByRole("button", { name: "Take Pia Paid off the list" }).click();
+    await p.waitForTimeout(900);
+    ok(!(await rows()).some((x) => x.who.includes("Pia Paid")) && (await sql("select left_out from pipeline_attorneys where bd_member_id = 4822"))[0].left_out === true, "\"Take off the list\" removes a row from the page and deletes nothing");
     // The Lawfecta Team page offers the new role
     await dela(p).getByRole("button", { name: "Lawfecta Team", exact: true }).first().click();
     await dela(p).locator('select[aria-label="Role"]').waitFor({ timeout: 15000 });

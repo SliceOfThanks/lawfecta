@@ -146,7 +146,9 @@ create table if not exists pipeline_attorneys (
   listed_at timestamptz,
   added_by uuid references people(id),
   added_at timestamptz not null default now(),
-  refreshed_at timestamptz not null default now()
+  refreshed_at timestamptz not null default now(),
+  -- Taken off the list by a person (a test, or added by mistake). Nothing is deleted; adding again puts them back.
+  left_out boolean not null default false
 );
 alter table pipeline_attorneys enable row level security;
 
@@ -185,7 +187,7 @@ language sql stable set search_path = public, extensions, pg_temp as $$
       coalesce(nullif(pa.firm, ''), mp.body->>'firm_name', '') firm, coalesce(pa.practice_area, '') practice_area, coalesce(nullif(pa.website, ''), mp.body->>'website', '') website,
       coalesce(nullif(pa.city, ''), mp.body->>'city', '') city, coalesce(nullif(pa.state, ''), mp.body->>'state', '') state, coalesce(pa.listing_path, '') listing_path, pa.plan_id, sp.plan_code, pa.added_at,
       case when sp.status = 'active' then sp.created_at end claimed
-    from pipeline_attorneys pa
+    from (select * from pipeline_attorneys where not left_out) pa
       full join (people pe join side_profiles sp on sp.person_id = pe.id and sp.side = 'attorney' and sp.status <> 'closed') on pe.bd_member_id = pa.bd_member_id
       left join member_profiles mp on mp.person_id = pe.id and mp.side = 'attorney'
   ), ev as (
@@ -243,7 +245,7 @@ begin
       practice_area = case when excluded.practice_area <> '' then excluded.practice_area else pipeline_attorneys.practice_area end, website = case when excluded.website <> '' then excluded.website else pipeline_attorneys.website end,
       city = case when excluded.city <> '' then excluded.city else pipeline_attorneys.city end, state = case when excluded.state <> '' then excluded.state else pipeline_attorneys.state end,
       listing_path = case when excluded.listing_path <> '' then excluded.listing_path else pipeline_attorneys.listing_path end, plan_id = coalesce(excluded.plan_id, pipeline_attorneys.plan_id),
-      listed_at = coalesce(pipeline_attorneys.listed_at, excluded.listed_at), refreshed_at = now()
+      listed_at = coalesce(pipeline_attorneys.listed_at, excluded.listed_at), refreshed_at = now(), left_out = false
     returning (xmax = 0) into v_new;
     if v_new then v_added := v_added + 1; perform dela_audit('staff', p_actor, 'pipeline_added', 'bd_member', v_bd::text, '{}'); else v_refreshed := v_refreshed + 1; end if;
     -- A listing on a claim plan is "listing built", once
@@ -254,6 +256,17 @@ begin
   return jsonb_build_object('ok', true, 'added', v_added, 'refreshed', v_refreshed);
 end $$;
 revoke all on function dela_pipeline_add(uuid, jsonb) from public, anon, authenticated;
+
+-- Take an attorney off the list (a test, or added by mistake). The record of what was done stays; adding them again puts them back.
+create or replace function dela_pipeline_leave(p_actor uuid, p_bd bigint) returns jsonb language plpgsql set search_path = public, extensions, pg_temp as $$
+begin
+  perform dela_require_staff(p_actor, array['growth']);
+  update pipeline_attorneys set left_out = true where bd_member_id = p_bd and not left_out;
+  if not found then return jsonb_build_object('ok', false, 'reason', 'not_in_pipeline'); end if;
+  perform dela_audit('staff', p_actor, 'pipeline_left_out', 'bd_member', p_bd::text, '{}');
+  return jsonb_build_object('ok', true);
+end $$;
+revoke all on function dela_pipeline_leave(uuid, bigint) from public, anon, authenticated;
 
 -- Record that outreach went out, or a follow-up. Sends nothing. The same request sent twice is recorded once.
 -- p: bd_member_ids, stage (emailed or follow_up), at (optional), tool, note, request_id
@@ -267,7 +280,7 @@ begin
   if v_req is null then return jsonb_build_object('ok', false, 'reason', 'request_id_needed'); end if;
   if jsonb_typeof(p->'bd_member_ids') is distinct from 'array' or jsonb_array_length(p->'bd_member_ids') = 0 or jsonb_array_length(p->'bd_member_ids') > 200 then return jsonb_build_object('ok', false, 'reason', 'bad_list'); end if;
   for v_bd in select distinct (t.value)::bigint from jsonb_array_elements_text(p->'bd_member_ids') t where t.value ~ '^[0-9]{1,12}$' loop
-    if not exists (select 1 from pipeline_attorneys where bd_member_id = v_bd) then v_missing := v_missing || v_bd; continue; end if;
+    if not exists (select 1 from pipeline_attorneys where bd_member_id = v_bd and not left_out) then v_missing := v_missing || v_bd; continue; end if;
     insert into pipeline_events (bd_member_id, stage, at, by_person, tool, note, request_id) values (v_bd, v_stage, v_at, p_actor, left(coalesce(p->>'tool', ''), 60), left(coalesce(p->>'note', ''), 500), v_req)
     on conflict (bd_member_id, stage, request_id) where request_id is not null do nothing returning id into v_id;
     if v_id is null then v_dupe := v_dupe || v_bd; else v_done := v_done || v_bd; end if;

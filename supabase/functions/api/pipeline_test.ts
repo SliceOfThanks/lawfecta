@@ -275,6 +275,15 @@ Deno.test("claimed, gig posted, proposals received and hired are read from what 
   assertEquals([added.ok, added.refreshed], [true, 2], "the admin page adds by member number too");
   const marked = (await call("POST", "/admin/pipeline/mark", growth.token, { bd_member_ids: [W(3)], kind: "emailed", tool: "Gmail", request_id: "adm-1" })).body;
   assertEquals(marked.recorded, [W(3)]);
+  // Taken off the list: out of the list, the counts and the stuck list; what was recorded stays; adding again puts them back
+  const inList = async () => ((await data(growthTok, "attorney_find", { q: String(W(4)) })).attorneys as unknown[]).length;
+  const n0 = (await data(growthTok, "pipeline_counts")).attorneys_in_pipeline;
+  assertEquals((await call("POST", "/admin/pipeline/leave", growth.token, { bd_member_id: W(4) })).body.ok, true);
+  assertEquals([await inList(), (await data(growthTok, "pipeline_counts")).attorneys_in_pipeline], [0, n0 - 1]);
+  assert((await tool(growthTok, "outreach_mark", { bd_member_ids: [W(4)], request_id: "gone-1" })).structuredContent.result.not_in_pipeline.includes(W(4)), "someone off the list cannot be marked");
+  assertEquals((await call("POST", "/admin/pipeline/leave", growth.token, { bd_member_id: W(4) })).body.reason, "not_in_pipeline");
+  await data(ownerTok, "pipeline_add", { bd_member_ids: [W(4)] });
+  assertEquals([await inList(), (await data(growthTok, "pipeline_counts")).attorneys_in_pipeline], [1, n0]);
 });
 
 Deno.test("a playbook is prepared from the firm's public website, waits, and lands in the attorney's Library as a marked draft when they claim", async () => {

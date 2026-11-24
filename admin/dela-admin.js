@@ -963,7 +963,11 @@
               var st = a.stages || {};
               return h("tr", null, h("td", null, h("strong", { text: a.name || "Member " + a.bd_member_id }), h("div", { class: "muted small", text: [a.firm, [a.city, a.state].filter(Boolean).join(", "), a.practice_area, "Website member " + a.bd_member_id].filter(Boolean).join(" | ") })),
                 h("td", null, h("span", { class: "badge", text: STAGE_WORD[a.stage] || a.stage })), h("td", { text: day(st.emailed) }), h("td", { text: day(st.claimed) }), h("td", { text: day(st.gig_posted) }), h("td", { text: day(st.proposals_received) }), h("td", { text: day(st.hired) }),
-                h("td", null, mark(a, st.emailed ? "follow_up" : "emailed")));
+                h("td", null, h("div", { class: "row", style: "gap:6px;flex-wrap:wrap" }, mark(a, st.emailed ? "follow_up" : "emailed"),
+                  h("button", { class: "ghost small", type: "button", "aria-label": "Take " + (a.name || a.bd_member_id) + " off the list", onclick: function () {
+                    if (!confirm("Take " + (a.name || "member " + a.bd_member_id) + " off the pipeline list? Nothing is deleted, and adding the number again puts them back.")) return;
+                    api.post("/admin/pipeline/leave", { bd_member_id: a.bd_member_id }).then(check).then(function () { ok("Taken off the list"); pipelineTab(); }).catch(fail);
+                  } }, "Take off the list"))));
             })))) : h("p", { class: "muted", text: "Nobody yet. Add attorneys by their website member number above, or ask the Team connector to add them." })),
         h("div", { class: "card", id: "pipe-connect" }, titled("h2", "Use it in ChatGPT or Claude", "pipeline_connect"),
           r.on ? [h("p", { text: "Add this address as a connector in ChatGPT or Claude. It brings you to DELA to approve, with your own login. Only the owner and people with the role \"growth\" can approve it." }),
@@ -2267,7 +2271,7 @@
     pipeline_counts: "For this week, Monday to Sunday: how many attorneys reached each stage in the week, how many ever did, and how many sit at each stage today. The Team connector gives the same numbers for any period.",
     pipeline_stalled: "Attorneys who have gone too long without the next step, oldest first. This is the follow-up list. \"Record follow-up\" writes down that someone reached out; it sends nothing.",
     pipeline_add: "Type website member numbers (the member ID in Brilliant Directories). DELA reads each listing from the website and adds the attorney. Adding again refreshes the listing's facts.",
-    pipeline_list: "Every attorney in the pipeline with the stage they are at and the day each stage was reached. An empty day means it has not happened.",
+    pipeline_list: "Every attorney in the pipeline with the stage they are at and the day each stage was reached. An empty day means it has not happened. \"Take off the list\" removes someone added by mistake or for a test from the list and the counts; nothing is deleted, and adding the number again puts them back.",
     pipeline_connect: "A connector for the team's own ChatGPT or Claude. It reads this page's numbers and records outreach. It cannot send email, post a gig, hire, or touch money.",
     team_add: "Add a team member by BD member ID and role. They must have opened DELA once first.",
     holds: "A hold pauses new actions for one person (and later hiring and payments) while you check something. Release it with a note on what you checked.",
