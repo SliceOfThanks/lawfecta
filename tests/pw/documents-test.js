@@ -450,12 +450,43 @@ async function makeMember(bd, side, plan) {
       // Pasted text comes in as plain words
       await sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Trigger"); el.focus(); const dt = new DataTransfer(); dt.setData("text/plain", " (pasted)"); dt.setData("text/html", "<b onclick=alert(1)>bad</b>"); el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));`);
       ok(await sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Trigger"); return el.children.length === 0 && el.textContent.includes("(pasted)") && !el.textContent.includes("bad")`), "what is pasted comes in as plain text, never as markup");
+      // ---------- Step 80b: bold, italic, bullets and links (Stacey 2026-11-24) ----------
+      const DW = "Done when";
+      const pick = (word) => sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === a[0]); el.focus(); const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { const i = n.nodeValue.indexOf(a[1]); if (i >= 0) { const g = document.createRange(); g.setStart(n, i); g.setEnd(n, i + a[1].length); const s = window.getSelection(); s.removeAllRanges(); s.addRange(g); return true; } } return false;`, [DW, word]);
+      const dw = (js) => sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Done when"); ` + js);
+      const bar = dela(p).locator("#dp-fmt");
+      await dela(p).getByRole("textbox", { name: DW, exact: true }).fill("Record the result in Clio, 2 * 3 times, as a rule.");
+      ok((await bar.count()) === 1 && (await bar.getByRole("button").allInnerTexts()).join("|") === "B|I|• List|Link|Unlink", "a small bar with Bold, Italic, a list and a link shows over the text being typed in");
+      await pick("result"); await bar.getByRole("button", { name: "Bold" }).click();
+      await pick("rule"); await bar.getByRole("button", { name: "Italic" }).click();
+      ok(await dw(`return (el.querySelector("b, strong") || {}).textContent === "result" && (el.querySelector("i, em") || {}).textContent === "rule" && r.activeElement === el`), "Bold and Italic change the chosen words where they stand, and the cursor stays in the text");
+      await pick("Clio"); await bar.getByRole("button", { name: "Add a link" }).click();
+      await bar.getByLabel("Link address").fill("javascript:alert(1)");
+      await bar.getByRole("button", { name: "Add", exact: true }).click();
+      ok((await bar.locator(".dp-fmt-note").innerText()) === "A link must start with https://" && await dw(`return !el.querySelector("a")`), "a link that does not start with https:// is refused, with a line that says why");
+      await bar.getByLabel("Link address").fill("https://clio.example/search");
+      await bar.getByLabel("Link address").press("Enter");
+      await p.screenshot({ path: path.join(SHOTS, "80b-format.png") });
+      ok(await dw(`const k = el.querySelector("a"); return !!k && k.getAttribute("href") === "https://clio.example/search" && k.textContent === "Clio"`), "a link is put on the chosen words");
+      // Bullets: lines that start with a dash, and formatted text pasted in arrives as plain words
+      await dw(`el.focus(); const g = document.createRange(); g.selectNodeContents(el); g.collapse(false); const s = window.getSelection(); s.removeAllRanges(); s.addRange(g);`);
+      await p.keyboard.press("Enter"); await p.keyboard.type("- first"); await p.keyboard.press("Enter"); await p.keyboard.type("- second");
+      await dw(`const dt = new DataTransfer(); dt.setData("text/plain", " (pasted)"); dt.setData("text/html", "<b onclick=alert(1)>bad</b><img src=x onerror=alert(2)>"); el.dispatchEvent(new ClipboardEvent("paste", { clipboardData: dt, bubbles: true, cancelable: true }));`);
+      ok(await dw(`return el.textContent.includes("second (pasted)") && !el.textContent.includes("bad") && !el.querySelector("img") && !el.querySelector("[onclick]")`), "formatted text pasted into it arrives as plain words");
+      await dela(p).getByRole("textbox", { name: "Title", exact: true }).click();
+      await p.waitForTimeout(200);
+      ok((await bar.count()) === 0, "the bar goes away when the cursor leaves the text");
+      ok(await dw(`const li = [...el.querySelectorAll("ul.dp-ul li")].map((x) => x.textContent); return li.join("|") === "first|second (pasted)" && el.textContent.includes("2 * 3 times") && !el.textContent.includes("**") && !!el.querySelector("b") && !!el.querySelector("a")`), "lines that start with a dash become a bulleted list, and a star that was typed stays a star");
       await saved(p);
+      const keptDw = (await sql("select body->>'done_when' x from playbook_working where playbook_id = '" + before.id + "'"))[0].x;
+      ok(keptDw === "Record the **result** in [Clio](https://clio.example/search), 2 \\* 3 times, as a *rule*.\n- first\n- second (pasted)", "what is kept is plain text with marks, nothing else: " + JSON.stringify(keptDw));
+      ok((await dela(p).getByRole("textbox", { name: "Title", exact: true }).evaluate((el) => el.contentEditable)) === "plaintext-only" && (await sr(p, `const t = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Trigger"); return !t.classList.contains("rich")`)), "a title and a one-line fact take no formatting");
       // Leaving and coming back: the typing is still there
       await s.ctx.close();
       s = await openDoc(); p = s.page;
       st = await sr(p, `return { back: !!r.querySelector("#dp-restored"), purpose: [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Purpose").textContent, ro: r.querySelector(".dp-page").classList.contains("ro") }`);
       ok(st.back && st.purpose === "Find conflicts before any consult is booked.", "after closing the browser the typing is back in the document, with a line that says so");
+      ok(await sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Done when"); return (el.querySelector("b") || {}).textContent === "result" && (el.querySelector("i") || {}).textContent === "rule" && el.querySelector("a").getAttribute("href") === "https://clio.example/search" && el.querySelector("a").rel === "noopener noreferrer" && el.querySelectorAll("ul.dp-ul li").length === 2`), "the bold, the italic, the link and the list are all there when the document opens again");
       // Save makes one version, and the working copy has done its job
       if (st.ro) await dela(p).locator("#dp-new-draft").click();
       await dela(p).locator("#dp-save").click();

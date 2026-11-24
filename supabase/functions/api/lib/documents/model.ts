@@ -9,6 +9,8 @@ import type { Body as LegacyBody } from "../playbooks/model.ts";
 import { patternCheck } from "../ai/clientcheck.ts";
 import { IMAGE_SECTIONS, type ExportImages, type ImageFacts, type ImageRef, placedImages, readRefs, stepsTakeImages } from "./images.ts";
 export * from "./images.ts";
+import { cleanMarks, marksToHtml, marksToRuns, stripMarks } from "./marks.ts";
+export { stripMarks } from "./marks.ts";
 
 export type DocType = "policy" | "workflow" | "sop" | "playbook";
 export const DOC_TYPES: DocType[] = ["policy", "workflow", "sop", "playbook"];
@@ -81,10 +83,10 @@ export const SECTIONS: Record<DocType, Array<{ key: string; label: string }>> = 
 // ---------- Cleaning ----------
 // No em or en dashes anywhere (writing rule), trimmed and length-limited
 export const tidy = (t: string) => t.replace(/\s*[—–]\s*/g, ", ").replace(/,\s*,/g, ",").replace(/[ \t]+/g, " ").trim();
-const s = (v: unknown, max = 3000) => tidy(typeof v === "string" ? v.slice(0, max * 2) : typeof v === "number" ? String(v) : "").slice(0, max);
+const s = (v: unknown, max = 3000) => cleanMarks(tidy(typeof v === "string" ? v.slice(0, max * 2) : typeof v === "number" ? String(v) : "")).slice(0, max);
 const list = (v: unknown, max = 60, len = 1000): string[] => {
   if (typeof v === "string") v = v.split("\n");
-  return Array.isArray(v) ? v.map((x) => s(typeof x === "object" && x ? (x as any).text ?? (x as any).name ?? "" : x, len)).map((x) => x.replace(/^[-*•\d.)\s]+/, "").trim()).filter(Boolean).slice(0, max) : [];
+  return Array.isArray(v) ? v.map((x) => s(typeof x === "object" && x ? (x as any).text ?? (x as any).name ?? "" : x, len)).map((x) => x.replace(/^\s*(?:[-•]\s+|\*\s+|\d{1,3}[.)]\s*)+/, "").trim()).filter(Boolean).slice(0, max) : [];
 };
 const date = (v: unknown) => (typeof v === "string" && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : "");
 const url = (v: unknown) => { const t = s(v, 500); return /^https:\/\/[^\s]+$/i.test(t) || /^[A-Z]{3}-\d{2,3}$/.test(t) ? t : ""; };
@@ -213,6 +215,11 @@ export function scrubClientData(text: string): { text: string; kinds: string[] }
 }
 
 // Every text field of a document, so the scrub and the checks see all of it
+// The same document with the formatting marks taken out of every text. Nothing else changes: no cutting, no cleaning.
+export function plainDoc(b: DocBody): DocBody {
+  const walk = (v: unknown): unknown => typeof v === "string" ? (v.indexOf("*") < 0 && v.indexOf("](") < 0 ? v : stripMarks(v)) : Array.isArray(v) ? v.map(walk) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, walk(x)])) : v;
+  return walk(b) as DocBody;
+}
 export function eachText(b: DocBody, fn: (t: string) => string): DocBody {
   const m = (t: string) => fn(t);
   const ml = (l: string[]) => l.map(m);
@@ -295,7 +302,9 @@ export type CheckContext = { systems: string[]; maxWords: number; maxConsulted: 
   images?: ImageFacts; imagesPerSlot?: number };
 
 // The self-check (Sections 2, 3 and 5 of the guide, and the build prompt). Blocking items stop every export, approval and gig.
-export function checkDoc(b: DocBody, c: CheckContext): { items: CheckItem[]; blocking: number; attention: number; words: number } {
+export function checkDoc(b0: DocBody, c: CheckContext): { items: CheckItem[]; blocking: number; attention: number; words: number } {
+  // Step 80b: bold, italic, bullets and links are looks; every check reads the plain words
+  const b = plainDoc(b0);
   const items: CheckItem[] = [];
   const add = (id: string, label: string, bad: boolean, detail: string, fix: CheckItem["fix"], level: "attention" | "blocking" = "attention", steps?: number[]) =>
     items.push({ id, label, status: bad ? level : "pass", detail: bad ? detail : "", fix: bad ? fix : "", ...(steps && bad ? { steps } : {}) });
@@ -485,7 +494,8 @@ export const KPI_EXAMPLES: Record<string, string[]> = {
 // number the gig may not hand over is ignored. "eligible" lists the numbers a gig of this document may choose from.
 export type GigPart = { ok: boolean; reason?: string; purpose: string; before_you_start: string[]; before_images: ImageRef[]; steps: DocStep[]; timing: string; quality_check: string[]; done_when: string; checkpoints: number[]; images: number;
   nos: number[]; eligible: number[]; of: number; whole: boolean; before: string; after: string };
-export function gigPart(b: DocBody, nos?: number[] | null): GigPart {
+export function gigPart(b0: DocBody, nos?: number[] | null): GigPart {
+  const b = plainDoc(b0);
   const empty = { purpose: "", before_you_start: [], before_images: [], steps: [], timing: "", quality_check: [], done_when: "", checkpoints: [], images: 0, nos: [], eligible: [], of: 0, whole: true, before: "", after: "" };
   if (b.type !== "sop" && b.type !== "workflow") return { ok: false, reason: "type_not_for_gigs", ...empty };
   const fl = freelancerRoles(b);
@@ -538,7 +548,7 @@ type Block = { title: string; paras?: string[]; items?: string[]; numbered?: boo
 
 function raciTable(b: DocBody): Block | null {
   if (!usesRaci(b.type) || !b.steps.length || !b.roles.length) return null;
-  return { title: "RACI", table: { head: [b.type === "workflow" ? "Stage" : "Step", ...b.roles], rows: b.steps.map((st, i) => [(i + 1) + ". " + (st.stage || st.text).slice(0, 80), ...b.roles.map((r) => (st.raci[r] ?? "").replace(",", ", "))]) } };
+  return { title: "RACI", table: { head: [b.type === "workflow" ? "Stage" : "Step", ...b.roles], rows: b.steps.map((st, i) => [(i + 1) + ". " + stripMarks(st.stage || st.text).slice(0, 80), ...b.roles.map((r) => (st.raci[r] ?? "").replace(",", ", "))]) } };
 }
 function stepLine(st: DocStep, b: DocBody): string {
   const bits = [st.role && "Role: " + st.role, st.system && "System: " + st.system, st.menu_path && "Where: " + st.menu_path, st.minutes && "About " + st.minutes + " min",
@@ -622,8 +632,8 @@ function htmlImage(im: ImageRef, imgs?: ExportImages): string {
 export function docToHtml(b: DocBody, m: DocMeta, imgs?: ExportImages): string {
   const body = blocks(b, m).map((bl) => {
     let inner = "";
-    if (bl.paras) inner = bl.paras.some(Boolean) ? bl.paras.filter(Boolean).map((t) => `<p>${esc(t)}</p>`).join("") : `<p><em>${NOT_SET}</em></p>`;
-    if (bl.items) inner = bl.items.length ? `<${bl.numbered ? "ol" : "ul"}>${bl.items.map((t, i) => `<li>${esc(t).replaceAll("\n", "<br>")}${(bl.itemImages?.[i] ?? []).map((im) => htmlImage(im, imgs)).join("")}</li>`).join("")}</${bl.numbered ? "ol" : "ul"}>` : `<p><em>${NOT_SET}</em></p>`;
+    if (bl.paras) inner = bl.paras.some(Boolean) ? bl.paras.filter(Boolean).map((t) => `<p>${marksToHtml(t, esc)}</p>`).join("") : `<p><em>${NOT_SET}</em></p>`;
+    if (bl.items) inner = bl.items.length ? `<${bl.numbered ? "ol" : "ul"}>${bl.items.map((t, i) => `<li>${marksToHtml(t, esc)}${(bl.itemImages?.[i] ?? []).map((im) => htmlImage(im, imgs)).join("")}</li>`).join("")}</${bl.numbered ? "ol" : "ul"}>` : `<p><em>${NOT_SET}</em></p>`;
     if (bl.table) inner = `<table>${bl.table.head.some(Boolean) ? `<tr>${bl.table.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>` : ""}${bl.table.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</table>`;
     if (bl.images?.length) inner += bl.images.map((im) => htmlImage(im, imgs)).join("");
     return `<p class="h"><strong>${esc(bl.title)}</strong></p>\n${inner}`;
@@ -638,7 +648,7 @@ ${body}
 const csvCell = (t: string) => '"' + t.replaceAll('"', '""') + '"';
 export function docToCsv(b: DocBody): string {
   const rows = [["#", b.type === "workflow" ? "Stage" : "Step", "What to do", "Role (R)", "Accountable (A)", "System", "Where", "Attorney decides", "Minutes", "Done"]];
-  b.steps.forEach((st, i) => rows.push([String(i + 1), st.stage, st.text, lettersOf(st.raci, "R").join(", ") || st.role, lettersOf(st.raci, "A").join(", "), st.system, st.menu_path, st.attorney_decides ? "Yes" : "", st.minutes ? String(st.minutes) : "", ""]));
+  b.steps.forEach((st, i) => rows.push([String(i + 1), st.stage, stripMarks(st.text), lettersOf(st.raci, "R").join(", ") || st.role, lettersOf(st.raci, "A").join(", "), st.system, st.menu_path, st.attorney_decides ? "Yes" : "", st.minutes ? String(st.minutes) : "", ""]));
   return "﻿" + rows.map((r) => r.map(csvCell).join(",")).join("\r\n") + "\r\n";
 }
 
@@ -684,12 +694,12 @@ function docxBody(b: DocBody, m: DocMeta, imgs?: ExportImages, media: Media[] = 
   if (!approved(m)) out.push(tbl([9360], [trow(tcell(9360, para(run(DRAFT_BANNER + ". Do not use this as an approved procedure.", { b: true }), "TableText"), WARN))], "E8C97A"));
   for (const bl of blocks(b, m)) {
     out.push(para(run(bl.title), "Heading1"));
-    if (bl.paras) { const ps = bl.paras.filter(Boolean); out.push(...(ps.length ? ps.map((t) => para(run(t))) : [para(run(NOT_SET, { i: true, color: GREY }))])); }
+    if (bl.paras) { const ps = bl.paras.filter(Boolean); out.push(...(ps.length ? ps.map((t) => para(marksToRuns<RunOpt>(t, run, {}))) : [para(run(NOT_SET, { i: true, color: GREY }))])); }
     if (bl.items) {
       if (!bl.items.length) out.push(para(run(NOT_SET, { i: true, color: GREY })));
       bl.items.forEach((t, i) => {
         const att = t.includes("ATTORNEY DECIDES");
-        const line = para(run((bl.numbered ? (i + 1) + "." : "•") + "\t") + run(t.replace(" ATTORNEY DECIDES.", "")) + (att ? run("  Attorney decides", { b: true, color: BRAND }) : ""), "ListBullet");
+        const line = para(run((bl.numbered ? (i + 1) + "." : "•") + "\t") + marksToRuns<RunOpt>(t.replace(" ATTORNEY DECIDES.", ""), run, {}) + (att ? run("  Attorney decides", { b: true, color: BRAND }) : ""), "ListBullet");
         out.push(att ? tbl([9360], [trow(tcell(9360, line, SOFT))], "E3C6D3") : line);
         for (const im of bl.itemImages?.[i] ?? []) out.push(docxImage(im, imgs, media));
       });

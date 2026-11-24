@@ -14793,35 +14793,231 @@
         } }, "Drop my changes and open the newest version"))));
   }
 
+  // --- Step 80b: bold, italic, bullets and links (Stacey 2026-11-24). The text stays a plain string with four marks:
+  // **bold**, *italic*, a line that starts "- ", and [words](https link). The server reads the same marks
+  // (supabase/functions/api/lib/documents/marks.ts). A star the member typed is kept as a backslash and a star. ---
+  function fmtHttps(u) { return /^https:\/\/[^\s<>"')\]]+$/i.test(String(u || "")); }
+  function fmtClosesItalic(line, from) {
+    for (var k = from; k < line.length; k++) {
+      if (line[k] === "\\" && line[k + 1] === "*") { k++; continue; }
+      if (line[k] === "*") { if (line[k + 1] === "*") { k++; continue; } return k > from; }
+    }
+    return false;
+  }
+  function fmtPlain(text) { return String(text || "").split("\n").map(function (l) { return fmtSegs(l).map(function (x) { return x.t; }).join(""); }).join("\n"); }
+  function fmtSegs(line) {
+    var out = [], buf = "", b = false, i = false;
+    var flush = function () { if (buf) { out.push({ t: buf, b: b, i: i }); buf = ""; } };
+    for (var k = 0; k < line.length; k++) {
+      var ch = line[k];
+      if (ch === "\\" && line[k + 1] === "*") { buf += "*"; k++; continue; }
+      if (ch === "*" && line[k + 1] === "*") {
+        if (b || (line[k + 2] !== " " && line.indexOf("**", k + 2) > k + 1)) { flush(); b = !b; k++; continue; }
+      } else if (ch === "*") {
+        if (i || (line[k + 1] !== " " && fmtClosesItalic(line, k + 1))) { flush(); i = !i; continue; }
+      } else if (ch === "[") {
+        var close = line.indexOf("](", k + 1), end = close < 0 ? -1 : line.indexOf(")", close + 2);
+        if (close > k + 1 && end > close + 2) {
+          var words = line.slice(k + 1, close), href = line.slice(close + 2, end);
+          if (fmtHttps(href) && words.indexOf("[") < 0) { flush(); out.push({ t: fmtSegs(words).map(function (s) { return s.t; }).join(""), b: b, i: i, href: href }); k = end; continue; }
+        }
+      }
+      buf += ch;
+    }
+    flush();
+    return out;
+  }
+  // The text as elements. Only text nodes, b, i, a, ul, li and br are ever made, each from the member's own words.
+  function fmtInto(el, text, multi) {
+    D.clear(el);
+    var lines = String(text || "").split("\n"), ul = null, first = true;
+    var inline = function (host, line) {
+      fmtSegs(line).forEach(function (s) {
+        var node = document.createTextNode(s.t);
+        if (s.href) { var a = h("a", { href: s.href, target: "_blank", rel: "noopener noreferrer" }); a.appendChild(node); node = a; }
+        if (s.i) { var it = h("i"); it.appendChild(node); node = it; }
+        if (s.b) { var bo = h("b"); bo.appendChild(node); node = bo; }
+        host.appendChild(node);
+      });
+    };
+    lines.forEach(function (line) {
+      if (multi && line.indexOf("- ") === 0) {
+        if (!ul) { ul = h("ul", { class: "dp-ul" }); el.appendChild(ul); }
+        var li = h("li"); inline(li, line.slice(2)); ul.appendChild(li); first = false;
+        return;
+      }
+      if (!first && !ul) el.appendChild(h("br"));
+      ul = null;
+      inline(el, line); first = false;
+    });
+    return el;
+  }
+  // The elements back as text with marks
+  function fmtRead(el, multi) {
+    var walk = function (node) {
+      var out = "";
+      [].slice.call(node.childNodes).forEach(function (n) {
+        if (n.nodeType === 3) { out += String(n.nodeValue || "").split(" ").join(" ").split("*").join("\\*"); return; }
+        if (n.nodeType !== 1) return;
+        var tag = n.tagName, inner;
+        if (tag === "BR") { out += "\n"; return; }
+        if (tag === "UL" || tag === "OL") {
+          [].slice.call(n.children).forEach(function (li) { var t = walk(li).split("\n").join(" ").trim(); if (t) out += "\n- " + t; });
+          out += "\n"; return;
+        }
+        inner = walk(n);
+        if (tag === "B" || tag === "STRONG") { out += fmtWrap(inner, "**"); return; }
+        if (tag === "I" || tag === "EM") { out += fmtWrap(inner, "*"); return; }
+        if (tag === "A") { var href = n.getAttribute("href") || ""; out += fmtHttps(href) && inner.trim() ? "[" + inner.split("\n").join(" ").trim() + "](" + href + ")" : inner; return; }
+        if (tag === "DIV" || tag === "P" || tag === "LI") { out += (out && out.slice(-1) !== "\n" ? "\n" : "") + inner + "\n"; return; }
+        out += inner;
+      });
+      return out;
+    };
+    var lines = walk(el).split("\r").join("").split("\n").map(function (l) { return l.replace(/[ \t]+$/, ""); });
+    var v = lines.join("\n");
+    while (v.indexOf("\n\n\n") >= 0) v = v.split("\n\n\n").join("\n\n");
+    v = v.replace(/^\n+|\n+$/g, "");
+    if (!multi) v = v.split("\n").map(function (l) { return l.indexOf("- ") === 0 ? l.slice(2) : l; }).join(" ");
+    // Marks with nothing inside are not kept
+    return v.split("****").join("").split("**  **").join(" ");
+  }
+  // Marks sit tight against the words: spaces move outside them, and a mark never spans a line break
+  function fmtWrap(inner, mark) {
+    return inner.split("\n").map(function (line) {
+      var t = line.trim();
+      if (!t) return line;
+      var lead = line.slice(0, line.indexOf(t)), tail = line.slice(line.indexOf(t) + t.length);
+      return lead + mark + t + mark + tail;
+    }).join("\n");
+  }
+  // The small bar over the text being edited: Bold, Italic, a bulleted list, a link
+  var fmtBar = null, fmtFor = null, fmtRange = null, fmtDone = null;
+  function fmtSel() { var r = dwRoot(); return r.getSelection ? r.getSelection() : document.getSelection(); }
+  function fmtPlace() {
+    if (!fmtBar || !fmtFor || !fmtFor.isConnected) return;
+    var b = fmtFor.getBoundingClientRect();
+    fmtBar.style.visibility = b.bottom < 0 || b.top > window.innerHeight ? "hidden" : "";
+    fmtBar.style.left = Math.max(8, Math.min(b.left, window.innerWidth - fmtBar.offsetWidth - 8)) + "px";
+    fmtBar.style.top = Math.max(8, b.top - fmtBar.offsetHeight - 6) + "px";
+  }
+  function fmtHide() { var done = fmtDone; if (fmtBar && fmtBar.parentNode) fmtBar.parentNode.removeChild(fmtBar); fmtBar = null; fmtFor = null; fmtRange = null; fmtDone = null; if (done) done(); }
+  function fmtShow(el, multi, sync, done) {
+    if (fmtFor === el && fmtBar) return;
+    fmtHide();
+    fmtFor = el; fmtDone = done || null;
+    try { document.execCommand("styleWithCSS", false, false); } catch (e) { /* not every browser has it */ }
+    var doIt = function (cmd, arg) { el.focus(); try { document.execCommand(cmd, false, arg || null); } catch (e) { /* the browser refused */ } sync(); };
+    var btn = function (label, name, cmd, cls) {
+      var b = h("button", { class: "dp-fmt-b" + (cls ? " " + cls : ""), type: "button", "aria-label": name, title: name }, label);
+      b.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      b.addEventListener("click", function () { doIt(cmd); });
+      return b;
+    };
+    var main = h("div", { class: "dp-fmt-row" }), link = h("div", { class: "dp-fmt-row", style: "display:none" });
+    var url = h("input", { type: "url", class: "dp-fmt-url", placeholder: "Paste a link that starts with https://", "aria-label": "Link address" });
+    var note = h("span", { class: "small dp-fmt-note", role: "status" });
+    var openLink = function () {
+      var s = fmtSel();
+      fmtRange = s && s.rangeCount && el.contains(s.getRangeAt(0).commonAncestorContainer) ? s.getRangeAt(0).cloneRange() : null;
+      main.style.display = "none"; link.style.display = ""; note.textContent = ""; url.value = ""; fmtPlace(); url.focus();
+    };
+    var closeLink = function (back) { link.style.display = "none"; main.style.display = ""; fmtPlace(); if (back) el.focus(); };
+    var addLink = function () {
+      var u = url.value.trim();
+      if (!fmtHttps(u)) { note.textContent = "A link must start with https://"; return; }
+      el.focus();
+      var s = fmtSel();
+      if (fmtRange && s) { s.removeAllRanges(); s.addRange(fmtRange); }
+      if (!s || !s.rangeCount || s.getRangeAt(0).collapsed) { try { document.execCommand("insertText", false, u); } catch (e) { /* older browsers */ } var s2 = fmtSel(); if (s2 && s2.rangeCount) { var rg = s2.getRangeAt(0); try { rg.setStart(rg.endContainer, Math.max(0, rg.endOffset - u.length)); s2.removeAllRanges(); s2.addRange(rg); } catch (e2) { /* leave it as text */ } } }
+      try { document.execCommand("createLink", false, u); } catch (e3) { /* the browser refused */ }
+      sync(); closeLink(false); fmtRange = null;
+    };
+    var lb = h("button", { class: "dp-fmt-b", type: "button", "aria-label": "Add a link", title: "Add a link (Ctrl or Cmd + K)" }, "Link");
+    lb.addEventListener("mousedown", function (e) { e.preventDefault(); });
+    lb.addEventListener("click", openLink);
+    var ub = h("button", { class: "dp-fmt-b", type: "button", "aria-label": "Remove the link", title: "Remove the link" }, "Unlink");
+    ub.addEventListener("mousedown", function (e) { e.preventDefault(); });
+    ub.addEventListener("click", function () { doIt("unlink"); });
+    main.appendChild(btn("B", "Bold", "bold", "b")); main.appendChild(btn("I", "Italic", "italic", "i"));
+    if (multi) main.appendChild(btn("• List", "Bulleted list", "insertUnorderedList"));
+    main.appendChild(lb); main.appendChild(ub);
+    var add = h("button", { class: "dp-fmt-b on", type: "button" }, "Add"), cancel = h("button", { class: "dp-fmt-b", type: "button" }, "Cancel");
+    add.addEventListener("click", addLink);
+    cancel.addEventListener("click", function () { closeLink(true); });
+    url.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addLink(); } if (e.key === "Escape") { e.preventDefault(); closeLink(true); } });
+    link.appendChild(url); link.appendChild(add); link.appendChild(cancel); link.appendChild(note);
+    fmtBar = h("div", { class: "dp-fmt", role: "toolbar", "aria-label": "Formatting", id: "dp-fmt" }, main, link);
+    fmtBar.openLink = openLink;
+    fmtBar.addEventListener("focusout", function () { setTimeout(function () { var a = dwRoot().activeElement; if (fmtBar && a !== el && !fmtBar.contains(a)) fmtHide(); }, 0); });
+    app.appendChild(fmtBar);
+    fmtPlace();
+  }
+  window.addEventListener("scroll", fmtPlace, true);
+  window.addEventListener("resize", fmtPlace);
+
   // --- Text edited in place ---
   // One piece of text. It reads as text and is typed into where it stands. Plain text only: what is pasted loses its formatting.
   function dpText(obj, key, label, o) {
     o = o || {};
-    var el = h(o.tag || "div", { class: "dp-t" + (o.cls ? " " + o.cls : "") + (o.multi ? " multi" : ""), role: o.ro ? null : "textbox", "aria-label": o.ro ? null : label, "aria-multiline": o.ro ? null : o.multi ? "true" : "false",
+    var rich = !!o.rich, multi = !!o.multi;
+    var el = h(o.tag || "div", { class: "dp-t" + (o.cls ? " " + o.cls : "") + (multi ? " multi" : "") + (rich ? " rich" : ""), role: o.ro ? null : "textbox", "aria-label": o.ro ? null : label, "aria-multiline": o.ro ? null : multi ? "true" : "false",
       tabindex: o.ro ? null : "0", "data-ph": o.ro ? null : (o.ph || label), spellcheck: o.ro ? null : "true" });
-    el.textContent = obj[key] || "";
+    // Step 80b: a rich text shows bold, italic, bullets and links; the text behind it stays a plain string with marks
+    var show = function () { if (rich) fmtInto(el, obj[key] || "", multi); else el.textContent = obj[key] || ""; };
+    show();
     if (o.ro) { if (!obj[key]) el.classList.add("dp-empty"); return el; }
-    try { el.contentEditable = "plaintext-only"; } catch (e) { el.contentEditable = "true"; }
-    if (el.contentEditable !== "plaintext-only") el.contentEditable = "true";
-    var read = function () {
+    if (rich) el.contentEditable = "true";
+    else {
+      try { el.contentEditable = "plaintext-only"; } catch (e) { el.contentEditable = "true"; }
+      if (el.contentEditable !== "plaintext-only") el.contentEditable = "true";
+    }
+    var read = rich ? function () { return fmtRead(el, multi); } : function () {
       var v = (el.innerText || "").split(" ").join(" ").split("\r").join("");
-      if (!o.multi) v = v.split("\n").join(" ");
+      if (!multi) v = v.split("\n").join(" ");
       while (v.indexOf("\n\n\n") >= 0) v = v.split("\n\n\n").join("\n\n");
       return v.trim();
     };
-    el.addEventListener("input", function () { obj[key] = read(); if (o.onInput) o.onInput(); dpTouch(); });
-    el.addEventListener("keydown", function (e) { if (e.key === "Enter" && !o.multi) { e.preventDefault(); if (o.onEnter) o.onEnter(); else el.blur(); } if (o.onKey) o.onKey(e, el, read); });
+    var sync = function () { obj[key] = read(); if (o.onInput) o.onInput(); dpTouch(); };
+    var bar = function () { fmtShow(el, multi, sync, function () { if (el.isConnected && dwRoot().activeElement !== el) show(); }); };
+    el.addEventListener("input", sync);
+    el.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !multi) { e.preventDefault(); if (o.onEnter) o.onEnter(); else el.blur(); }
+      if (rich && (e.ctrlKey || e.metaKey) && !e.altKey && String(e.key).toLowerCase() === "k") { e.preventDefault(); bar(); if (fmtBar && fmtBar.openLink) fmtBar.openLink(); }
+      if (o.onKey) o.onKey(e, el, read);
+    });
+    // What is pasted comes in as plain words, whatever it looked like where it was copied
     el.addEventListener("paste", function (e) {
       var t = e.clipboardData && e.clipboardData.getData("text/plain");
-      if (!t || (e.clipboardData.files && e.clipboardData.files.length)) return;
+      if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length) return;
+      if (!t) { if (rich) e.preventDefault(); return; }
       e.preventDefault();
-      var root = dwRoot(), sel = root.getSelection ? root.getSelection() : window.getSelection();
-      var words = o.multi ? t : t.split("\n").join(" ");
-      if (!sel || !sel.rangeCount) el.textContent = (el.textContent || "") + words;
-      else { var rg = sel.getRangeAt(0); rg.deleteContents(); rg.insertNode(document.createTextNode(words)); rg.collapse(false); }
-      obj[key] = read(); if (o.onInput) o.onInput(); dpTouch();
+      var words = multi ? t.split("\r").join("") : t.split("\r").join("").split("\n").join(" ");
+      var done = false;
+      if (rich && words.indexOf("\n") < 0) { try { done = document.execCommand("insertText", false, words); } catch (e2) { done = false; } }
+      if (!done) {
+        var root = dwRoot(), sel = root.getSelection ? root.getSelection() : window.getSelection();
+        if (!sel || !sel.rangeCount) el.appendChild(document.createTextNode(words));
+        else {
+          var rg = sel.getRangeAt(0); rg.deleteContents();
+          var frag = document.createDocumentFragment();
+          words.split("\n").forEach(function (line, i) { if (i) frag.appendChild(rich ? h("br") : document.createTextNode("\n")); if (line) frag.appendChild(document.createTextNode(line)); });
+          rg.insertNode(frag); rg.collapse(false);
+        }
+      }
+      sync();
     });
-    el.addEventListener("blur", function () { if (!read()) el.textContent = ""; });
+    // A picture or formatted text dragged in from another page never lands inside the words
+    if (rich) el.addEventListener("drop", function (e) { var dt = e.dataTransfer; if (dt && !(dt.files && dt.files.length) && dt.getData("text/html")) { e.preventDefault(); } });
+    if (rich) el.addEventListener("focus", bar);
+    el.addEventListener("blur", function () {
+      if (!rich) { if (!read()) el.textContent = ""; return; }
+      setTimeout(function () {
+        var a = dwRoot().activeElement;
+        if (a === el || (fmtBar && fmtFor === el && fmtBar.contains(a))) return;
+        if (fmtFor === el) fmtHide(); else if (el.isConnected) show();
+      }, 0);
+    });
     return el;
   }
   // A list: one line each. Enter adds a line, Backspace on an empty line removes it.
@@ -14835,7 +15031,7 @@
       if (!arr.length && !o.ro) arr.push("");
       arr.forEach(function (_, i) {
         var holder = { v: arr[i] };
-        var t = dpText(holder, "v", label + ", line " + (i + 1), { ro: o.ro, ph: i === 0 ? (o.ph || "Add a line") : "Add a line", onInput: function () { arr[i] = holder.v; },
+        var t = dpText(holder, "v", label + ", line " + (i + 1), { rich: true, ro: o.ro, ph: i === 0 ? (o.ph || "Add a line") : "Add a line", onInput: function () { arr[i] = holder.v; },
           onEnter: function () { arr.splice(i + 1, 0, ""); dpTouch(); draw(i + 1); },
           onKey: function (e, el, read) {
             if (e.key === "Backspace" && !read() && arr.length > 1) { e.preventDefault(); arr.splice(i, 1); dpTouch(); draw(Math.max(i - 1, 0)); }
@@ -14888,7 +15084,7 @@
       var c = h("div", { class: "dp-step step-card" + (st.attorney_decides ? " attorney" : ""), "data-i": String(i) });
       var slot = imagesOn(d) || st.images.length ? imageSlot(st.images, word + " " + n, !ro && imagesOn(d), imagesChanged) : null;
       var showBasis = st.basis && BASIS[st.basis] && (st.basis === "proposed" || st.basis === "unknown" || open);
-      var textEl = dpText(st, "text", Word + " " + n, { multi: true, ro: ro, cls: "dp-step-text", ph: "Describe one action, starting with a verb", onInput: function () {
+      var textEl = dpText(st, "text", Word + " " + n, { multi: true, rich: true, ro: ro, cls: "dp-step-text", ph: "Describe one action, starting with a verb", onInput: function () {
         if (st.basis === "proposed" || st.basis === "unknown") {
           st.basis = "said";
           var tg = c.querySelector(".basis-tag"); if (tg) { tg.textContent = BASIS.said[0]; tg.className = "badge basis-tag ready"; }
@@ -15008,8 +15204,8 @@
     page.appendChild(dpText(d, "title", "Title", { tag: "h1", ro: ro, cls: "dp-title", ph: "Give this document a title" }));
     var helper = function (key, label, getBody, opts) { return ro ? null : h("div", { class: "dp-helper" }, helperButton(key, label, getBody, opts)); };
     if (d.type === "sop" || d.type === "policy") {
-      page.appendChild(dpSec("Purpose", [dpText(d, "purpose", "Purpose", { multi: true, ro: ro, ph: "Why this exists, in one or two sentences" })]));
-      page.appendChild(dpSec("Scope", [dpText(d, "scope", "Scope", { multi: true, ro: ro, ph: "What it covers, and what it does not" }),
+      page.appendChild(dpSec("Purpose", [dpText(d, "purpose", "Purpose", { multi: true, rich: true, ro: ro, ph: "Why this exists, in one or two sentences" })]));
+      page.appendChild(dpSec("Scope", [dpText(d, "scope", "Scope", { multi: true, rich: true, ro: ro, ph: "What it covers, and what it does not" }),
         helper("improve_section", "✦ Improve this section", function () { return { playbook_id: lib.pb.playbook.id, purpose: d.purpose || "", scope: d.scope || "" }; },
           { apply: function (f) { d[f.field] = f.suggestion; dpChanged(); }, canApply: function (f) { return f.field === "purpose" || f.field === "scope"; } })]));
     }
@@ -15022,9 +15218,9 @@
         helper("check_steps", "✦ Check these steps", function () { return { playbook_id: lib.pb.playbook.id, trigger: d.trigger || "", timing: d.timing || "", steps: (d.steps || []).map(function (x) { return { text: x.text, role: x.role, attorney_decides: !!x.attorney_decides }; }) }; },
           { rowWord: "Step", apply: function (f) { if (d.steps[f.row - 1]) { d.steps[f.row - 1].text = f.suggestion; dpChanged(); } }, canApply: function (f) { return f.field === "step" && !!f.row; } })], "dp-steps-sec"));
       page.appendChild(dpSec("Decision points and escalation", [decisionsEditor(d, ro)]));
-      page.appendChild(dpSec("Timing", [dpText(d, "timing", "Timing", { multi: true, ro: ro, ph: "How long it should take, or the deadline" }), ro && !d.timing_rule ? null : ruleFields(d, "timing_rule", ro)]));
+      page.appendChild(dpSec("Timing", [dpText(d, "timing", "Timing", { multi: true, rich: true, ro: ro, ph: "How long it should take, or the deadline" }), ro && !d.timing_rule ? null : ruleFields(d, "timing_rule", ro)]));
       page.appendChild(dpSec("Quality check", [dpList(d, "quality_check", "Quality check", { ro: ro, ph: "How someone checks it was done right" }), dpPair("Reviewed by (role)", dpText(d, "quality_reviewer_role", "Reviewed by (role)", { ro: ro, ph: "A role" }))]));
-      page.appendChild(dpSec("Done when", [dpText(d, "done_when", "Done when", { multi: true, ro: ro, ph: "What finished looks like" }), dpPair("Saved in", dpText(d, "saved_in", "Saved in", { ro: ro, ph: "Where the result is kept" }))]));
+      page.appendChild(dpSec("Done when", [dpText(d, "done_when", "Done when", { multi: true, rich: true, ro: ro, ph: "What finished looks like" }), dpPair("Saved in", dpText(d, "saved_in", "Saved in", { ro: ro, ph: "Where the result is kept" }))]));
       page.appendChild(dpSec("Related links", [linksEditor(d, ro)]));
     } else if (d.type === "workflow") {
       page.appendChild(dpSec("Name and process owner", [dpPair("Process owner (one role)", dpText(d, "process_owner_role", "Process owner", { ro: ro, ph: "A role" })), roles()]));
@@ -15036,7 +15232,7 @@
     } else if (d.type === "playbook") {
       page.appendChild(dpSec("Situations covered", [dpList(d, "situations", "Situations covered", { ro: ro })]));
       page.appendChild(dpSec("Guiding principles", [dpList(d, "principles", "Guiding principles", { ro: ro })]));
-      page.appendChild(dpSec("Preferred approach", [dpText(d, "preferred", "Preferred approach", { multi: true, ro: ro })]));
+      page.appendChild(dpSec("Preferred approach", [dpText(d, "preferred", "Preferred approach", { multi: true, rich: true, ro: ro })]));
       page.appendChild(dpSec("Acceptable fallbacks", [dpList(d, "fallbacks", "Acceptable fallbacks", { ro: ro, ph: "Options staff can use without asking" })]));
       page.appendChild(dpSec("Hard limits", [dpList(d, "hard_limits", "Hard limits", { ro: ro, ph: "What nobody agrees to without attorney or partner approval" })]));
       page.appendChild(dpSec("Escalation", [escalationEditor(d, ro)]));
@@ -15044,7 +15240,7 @@
       page.appendChild(dpSec("Examples", [dpList(d, "examples", "Examples", { ro: ro, ph: "Short fictional scenarios. No client information." }), dpImages(d, "examples", "Examples", ro)]));
     } else {
       page.appendChild(dpSec("The rules", [h("h3", { class: "dp-h3", text: "What must happen" }), dpList(d, "rules_must", "What must happen", { ro: ro }), h("h3", { class: "dp-h3", text: "What must not happen" }), dpList(d, "rules_must_not", "What must not happen", { ro: ro })]));
-      page.appendChild(dpSec("Exceptions and who approves them", [dpText(d, "exceptions", "Exceptions", { multi: true, ro: ro }), dpPair("Approved by (role)", dpText(d, "exceptions_role", "Approved by (role)", { ro: ro, ph: "A role" }))]));
+      page.appendChild(dpSec("Exceptions and who approves them", [dpText(d, "exceptions", "Exceptions", { multi: true, rich: true, ro: ro }), dpPair("Approved by (role)", dpText(d, "exceptions_role", "Approved by (role)", { ro: ro, ph: "A role" }))]));
       page.appendChild(dpSec("Related links", [linksEditor(d, ro)]));
     }
     // The older editors inside the page (decision points, links, rules, details) write on their own inputs; this hears them
@@ -15346,10 +15542,10 @@
     var doc = h("div", { class: "card", id: "approved-body" });
     (AV.blocks || []).forEach(function (b) {
       doc.appendChild(h("h3", { text: b.title }));
-      if (b.paras) { var ps = b.paras.filter(Boolean); if (ps.length) ps.forEach(function (t) { doc.appendChild(h("p", { text: t })); }); else doc.appendChild(h("p", { class: "muted", text: "Not set" })); }
+      if (b.paras) { var ps = b.paras.filter(Boolean); if (ps.length) ps.forEach(function (t) { doc.appendChild(fmtInto(h("p"), t, true)); }); else doc.appendChild(h("p", { class: "muted", text: "Not set" })); }
       if (b.items) {
         if (!b.items.length) doc.appendChild(h("p", { class: "muted", text: "Not set" }));
-        else doc.appendChild(h(b.numbered ? "ol" : "ul", null, b.items.map(function (t, i) { return h("li", null, h("span", { style: "white-space:pre-line", text: t }), imagesRead((b.itemImages || [])[i])); })));
+        else doc.appendChild(h(b.numbered ? "ol" : "ul", null, b.items.map(function (t, i) { return h("li", null, fmtInto(h("span"), t, true), imagesRead((b.itemImages || [])[i])); })));
       }
       var cell = "border:1px solid var(--line);padding:6px 8px;text-align:left;vertical-align:top";
       if (b.table) doc.appendChild(h("div", { class: "scroll" }, h("table", { style: "width:100%;border-collapse:collapse;font-size:14px" },
@@ -15742,7 +15938,7 @@
       h("tbody", null, (d.steps || []).map(function (st, i) {
         st.raci = st.raci || {};
         var aCount = Object.keys(st.raci).filter(function (k) { return String(st.raci[k]).indexOf("A") >= 0; }).length;
-        return h("tr", { class: aCount === 1 ? "" : "raci-bad" }, [h("td", { "data-label": d.type === "workflow" ? "Stage" : "Step", text: (i + 1) + ". " + String(st.stage || st.text || "").slice(0, 60) + (aCount === 1 ? "" : " (needs exactly one A)") })].concat(roles.map(function (r) {
+        return h("tr", { class: aCount === 1 ? "" : "raci-bad" }, [h("td", { "data-label": d.type === "workflow" ? "Stage" : "Step", text: (i + 1) + ". " + fmtPlain(String(st.stage || st.text || "")).slice(0, 60) + (aCount === 1 ? "" : " (needs exactly one A)") })].concat(roles.map(function (r) {
           var cur = st.raci[r] || "";
           var b = h("button", { class: "raci-cell", type: "button", disabled: !edit, "aria-label": "Step " + (i + 1) + ", " + r + ": " + (cur || "empty") }, cur.replace(",", "+") || "·");
           b.addEventListener("click", function () {

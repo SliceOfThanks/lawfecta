@@ -4,6 +4,8 @@ import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { unzipSync, strFromU8 } from "npm:fflate@0.8.2";
 import { bodyWords, carryImages, changeSummary, checkDoc, imageSize, withoutImages, classifyLegacy, codeFix, docToCsv, docToDocx, docToMarkdown, fromLegacy, gigPart, namesToRoles, normalizeDoc, scrubCredentials, vagueWords, type DocBody } from "./lib/documents/model.ts";
 import { normalize } from "./lib/playbooks/model.ts";
+import { cleanMarks, inlineSegs, stripMarks } from "./lib/documents/marks.ts";
+import { docToHtml } from "./lib/documents/model.ts";
 import { DOC_CHAT_SYSTEM, readDocAnswer } from "./lib/documents/ai.ts";
 import { CHAT_SYSTEM } from "./lib/playbooks/ai.ts";
 
@@ -21,6 +23,46 @@ function goodSop(): DocBody {
       st("Decide whether to accept the matter.", { Attorney: "R,A", Paralegal: "C" }, { attorney_decides: true })],
   });
 }
+
+Deno.test("step 80b: bold, italic, bullets and links are marks in the text; checks read the words, exports show the looks", () => {
+  // The marks, read as pieces
+  assertEquals(inlineSegs("Open **Clio** and *wait*."), [{ t: "Open " }, { t: "Clio", b: true }, { t: " and " }, { t: "wait", i: true }, { t: "." }]);
+  assertEquals(inlineSegs("See [the rule](https://example.org/rule) first"), [{ t: "See " }, { t: "the rule", href: "https://example.org/rule" }, { t: " first" }]);
+  assertEquals(inlineSegs("2 * 3 = 6 and \\*not italic\\*"), [{ t: "2 * 3 = 6 and *not italic*" }], "a star the member typed is a star");
+  assertEquals(inlineSegs("**open and never closed"), [{ t: "**open and never closed" }], "an opening mark with no end stays as typed");
+  assertEquals(inlineSegs("2 * 3 * 4 and 5 ** 2 ** 3"), [{ t: "2 * 3 * 4 and 5 ** 2 ** 3" }], "stars with spaces around them are arithmetic, not marks");
+  assertEquals(stripMarks("**Search** the *party* names in [Clio](https://clio.example)."), "Search the party names in Clio.");
+  // A link that is not https keeps its words and loses its link, on every save
+  assertEquals(cleanMarks("Read [this](javascript:alert(1)) and [that](http://plain.example) and [ok](https://fine.example)"), "Read this) and that and [ok](https://fine.example)");
+  assertEquals(inlineSegs("[x](javascript:alert(1))").some((g) => g.href), false);
+  const b = goodSop();
+  b.purpose = "Find **conflicts** before a consult.\n- one\n- *two*";
+  b.steps[0].text = "**Search** the party names in [Clio](https://clio.example/search).";
+  b.before_you_start = ["**Access** to Clio"];
+  const saved = normalizeDoc(JSON.parse(JSON.stringify({ ...b, scope: "Every matter. See [bad](javascript:alert(1))." })));
+  assertEquals(saved.before_you_start, ["**Access** to Clio"], "a list line that starts with bold keeps its stars");
+  assertEquals(saved.scope, "Every matter. See bad).", "saving drops a link that is not https");
+  assertEquals(saved.steps[0].text, b.steps[0].text);
+  // The checks read the plain words: a step that starts with a bold verb still starts with a verb
+  assertEquals(checkDoc(b, CTX).items.filter((i) => i.status !== "pass").map((i) => i.id), []);
+  // What a freelancer or a gig gets is plain text
+  assertEquals(gigPart(b).steps[0].text, "Search the party names in Clio.");
+  assertEquals(gigPart(b).before_you_start, ["Access to Clio"]);
+  assert(docToCsv(b).includes("Search the party names in Clio.") && !docToCsv(b).includes("**"));
+  // The web page shows the looks, and escapes everything else
+  b.done_when = "The result is <recorded> & **kept**.";
+  const html = docToHtml(b, META);
+  assert(html.includes("Find <strong>conflicts</strong> before a consult.<ul><li>one</li><li><em>two</em></li></ul>"), "bold, bullets and italic in the web page");
+  assert(html.includes('<strong>Search</strong> the party names in <a href="https://clio.example/search" rel="noopener noreferrer">Clio</a>.'), "a link in a step");
+  assert(html.includes("The result is &lt;recorded&gt; &amp; <strong>kept</strong>."), "the member's own angle brackets stay text");
+  assert(!html.includes("**") && !html.includes("javascript:"));
+  // Word: bold and italic runs, a bullet, and a link with its address written out
+  const xml = strFromU8(unzipSync(docToDocx(b, META))["word/document.xml"]);
+  assert(xml.includes('<w:rPr><w:b/></w:rPr><w:t xml:space="preserve">conflicts</w:t>') && xml.includes('<w:rPr><w:i/></w:rPr><w:t xml:space="preserve">two</w:t>'), "bold and italic runs in Word");
+  assert(xml.includes("Clio (https://clio.example/search)") && xml.includes("• ") && !xml.includes("**"), "a link carries its address in Word, and a bullet its dot");
+  // Markdown keeps the marks, which are Markdown already
+  assert(docToMarkdown(b, META).includes("**Search** the party names in [Clio](https://clio.example/search)."));
+});
 
 Deno.test("a complete SOP passes every check; dashes are removed", () => {
   const b = goodSop();

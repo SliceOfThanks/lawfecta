@@ -34,6 +34,7 @@ import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, moneySummary, readTasks, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
 import { blockedKinds, blockedMessage, BLOCKED_WORDS, FILE_BLOCKED_MESSAGE, type Blocked } from "./lib/confidential/rules.ts";
+import { stripMarks } from "./lib/documents/marks.ts";
 import { blocks as docBlocks, looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, gigPrereqs, type GigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { fillPrompt, NEWCOMER_FILL_SYSTEM, NEWCOMER_SYSTEM, readNewcomer, type NewcomerFinding } from "./lib/documents/newcomer.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
@@ -500,7 +501,7 @@ async function chatContext(ctx: Ctx, s: Session, chatId: string, docIds: string[
   let cut = false;
   for (const d of (r?.ok ? r.docs ?? [] : []) as Array<Record<string, any>>) {
     // Step 78: the steps again as a numbered list, so a task DELA names can be tied to one step and checked in code
-    const steps = isDoc(d.body) ? normalizeDoc(d.body).steps.map((st) => ({ text: String(st.text ?? ""), attorney: !!st.attorney_decides }))
+    const steps = isDoc(d.body) ? normalizeDoc(d.body).steps.map((st) => ({ text: stripMarks(String(st.text ?? "")), attorney: !!st.attorney_decides }))
       : normalize(d.body).steps.map((st) => ({ text: String(st.text ?? ""), attorney: st.tag === "keep" }));
     let text = (isDoc(d.body) ? JSON.stringify(withoutImages(normalizeDoc(d.body))) : playbookText(normalize(d.body)));
     const full = text.length + 6000 <= budget;
@@ -3041,7 +3042,7 @@ async function gigDocSteps(ctx: Ctx) {
   const db = normalizeDoc(raw), part = gigPart(db);
   const nc = await rpc<Record<string, any>>(ctx, "dela_doc_newcomer_get", { p_person: s.person_id, p_playbook: pbId }).catch(() => null);
   return json(ctx, { ok: true, on: true, type: db.type, title: db.title, of: db.steps.length, eligible: part.eligible,
-    steps: db.steps.map((st, i) => ({ no: i + 1, text: st.text, role: st.role, attorney_decides: !!st.attorney_decides, eligible: part.eligible.includes(i + 1) })),
+    steps: db.steps.map((st, i) => ({ no: i + 1, text: stripMarks(st.text), role: st.role, attorney_decides: !!st.attorney_decides, eligible: part.eligible.includes(i + 1) })),
     newcomer: nc?.on ? (nc.approved_ready === true ? "ready" : nc.approved_ready === false ? "gaps" : "not_checked") : null });
 }
 // Changing the chosen steps of a draft gig

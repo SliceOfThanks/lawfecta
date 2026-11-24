@@ -54,6 +54,17 @@ The form editor shows about ten boxes for every step and starts far down the pag
 - **80b:** bold, italic, bullets and links, carried into the exports.
 - **80c:** playbooks in the older format, and what the pilot turns up.
 
+## Release 80b: the questions Claude answered itself (acceleration mode, 2026-11-25)
+1. Which texts take formatting? **Every paragraph, every step and every list line.** A title, a role, a stage name and the one-line facts (Trigger, Saved in) stay plain, so a heading cannot be made to look like body text and a role name stays a name.
+2. How is formatting kept? **As four marks inside the plain text:** two stars around bold, one star around italic, a line that starts with a dash and a space for a bullet, and words in square brackets followed by the link in round brackets. No table changes, and every older version reads as before.
+3. What do the quality check, a gig, a freelancer and Ask DELA's step lists read? **The plain words.** A step that starts with a bold verb still starts with a verb.
+4. What may a link be? **Only an address that starts with https://.** Anything else keeps its words and loses its link, in the editor and again on the server at every save. In Word a link shows its words and then its address, so it survives printing.
+5. Numbered lists inside a text? **No.** Steps are the numbered thing in a document; a second numbering would confuse "Step 3".
+6. Formatted text pasted from Word or a web page? **It arrives as plain words**, as before.
+7. A star the member types (2 * 3)? **It stays a star.** Stars with a space after them are never read as marks, and a star typed in the editor is kept apart from the marks.
+8. Where are the buttons? **A small bar over the text being typed in:** "B", "I", "• List", "Link", "Unlink". Ctrl or Cmd with B, I and K work too.
+Known: a firm member for whom the switch is off sees the old form, where the marks show as typed characters. This ends when the switch is on for everyone.
+
 ## Success looks like
 Attorney login, switch on:
 - A document opens with its title and "Purpose" at the top of the page, not under delegation cards.
