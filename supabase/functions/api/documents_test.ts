@@ -430,4 +430,38 @@ Deno.test("the owner role is always one of the document's roles, so the page, th
   assertEquals((await one("select owner_role from playbooks where id = $1", [r.id])).owner_role, "Supervising attorney");
 });
 
+Deno.test("step 80: what a member types is kept as their own working copy, checked like a save, and makes no version", async () => {
+  const get = async (who = att) => (await call("GET", "/playbooks/get?id=" + sop, who.token)).body;
+  const cur0 = await get();
+  assertEquals([cur0.editor_v2, cur0.working], [false, undefined], "off until the switch is on");
+  assertEquals((await call("POST", "/playbooks/working", att.token, { id: sop, base_version: cur0.playbook.version, body: cur0.body })).body.reason, "editor_off");
+  await pool.query("update feature_switches set state = 'everyone' where key = 'document_editor_v2'");
+  const cur = await get();
+  assertEquals(cur.editor_v2, true);
+  const typed = { ...cur.body, purpose: "Typed and not saved yet." };
+  const w = (await call("POST", "/playbooks/working", att.token, { id: sop, base_version: cur.playbook.version, body: typed })).body;
+  assertEquals([w.ok, w.stale, w.current_version], [true, false, cur.playbook.version], JSON.stringify(w));
+  assert(Array.isArray(w.check?.items) && w.check.items.length > 3, "the quality check for what is on the screen comes back with it");
+  const after = await get();
+  assertEquals(after.playbook.version, cur.playbook.version, "no version was made");
+  assertEquals(after.body.purpose, cur.body.purpose, "the saved version is untouched");
+  assert(after.working && after.working.stale === false && after.working.body.purpose.startsWith("Typed and not saved yet."), "the member gets their own typing back when they return");
+  assertEquals((await pool.query("select count(*)::int n from playbook_versions where playbook_id = $1", [sop])).rows[0].n, cur.playbook.version, "the version history did not grow");
+  // Nobody else reads it, and a member with no right to edit cannot keep one
+  assertEquals((await get(team)).working, undefined, "another member never sees someone's working copy");
+  assert(["not_allowed", "not_found"].includes((await call("POST", "/playbooks/working", other.token, { id: sop, base_version: cur.playbook.version, body: typed })).body.reason), "a stranger cannot keep a working copy on this document");
+  assertEquals((await call("POST", "/playbooks/working", att.token, { id: sop, base_version: cur.playbook.version, body: { not: "a document" } })).status, 400);
+  // Someone saves a newer version meanwhile: the working copy says it is behind, and is not lost
+  const mid = (await call("POST", "/playbooks/save", att.token, { id: sop, base_version: cur.playbook.version, body: { ...cur.body, scope: cur.body.scope + " Saved by the other tab." } })).body;
+  assertEquals(mid.ok, true, JSON.stringify(mid));
+  assertEquals((await get()).working, undefined, "a save by the same member clears their working copy");
+  const w2 = (await call("POST", "/playbooks/working", att.token, { id: sop, base_version: cur.playbook.version, body: typed })).body;
+  assertEquals([w2.ok, w2.stale, w2.current_version], [true, true, mid.version], "typing on an older version is kept and marked as behind");
+  assertEquals((await get()).working.stale, true);
+  // Throwing it away
+  assertEquals((await call("POST", "/playbooks/working/discard", att.token, { id: sop })).body.ok, true);
+  assertEquals((await get()).working, undefined);
+  await pool.query("update feature_switches set state = 'off' where key = 'document_editor_v2'");
+});
+
 Deno.test("teardown", async () => { await pool.end(); });

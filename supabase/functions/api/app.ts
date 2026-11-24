@@ -1143,6 +1143,12 @@ async function pbGet(ctx: Ctx) {
     r.image_settings = await imageSettings(ctx, s);
     r.newcomer = await rpc(ctx, "dela_doc_newcomer_get", { p_person: s.person_id, p_playbook: id }).catch(() => null);
     r.feedback = await rpc(ctx, "dela_doc_feedback_list", { p_person: s.person_id, p_playbook: id }).catch(() => null);
+    // Step 80: the in-place editor, and what this member was typing when they last left (their own working copy)
+    r.editor_v2 = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "document_editor_v2", p_person: s.person_id }).catch(() => false) === true;
+    if (r.editor_v2 && dela_rank(r.role) >= 3) {
+      const w = await rpc<Record<string, any> | null>(ctx, "dela_pb_working_get", { p_person: s.person_id, p_id: id }).catch(() => null);
+      if (w && isDoc(w.body)) r.working = { base_version: w.base_version, updated_at: w.updated_at, stale: !!w.stale, body: normalizeDoc(w.body) };
+    }
     // Phase 4 part A: the approved version, read-only, as gigs and exports use it
     if (r.playbook.approved_version && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "approved_view", p_person: s.person_id })) r.approved = await approvedView(ctx, s, r);
   }
@@ -1223,10 +1229,35 @@ async function pbSave(ctx: Ctx) {
   if (!id) throw new HttpError(400, "bad_request");
   if (isDoc(ctx.body.body)) {
     const prev = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
-    return json(ctx, await docSave(ctx, s, id, int(ctx.body.base_version) ?? -1, ctx.body.body, prev?.ok && isDoc(prev.body) ? normalizeDoc(prev.body) : null, str(ctx.body.note, 300)));
+    const saved = await docSave(ctx, s, id, int(ctx.body.base_version) ?? -1, ctx.body.body, prev?.ok && isDoc(prev.body) ? normalizeDoc(prev.body) : null, str(ctx.body.note, 300)) as Record<string, any>;
+    // Step 80: once it is a version, the member's working copy has done its job
+    if (saved?.ok) await rpc(ctx, "dela_pb_working_clear", { p_person: s.person_id, p_id: id }).catch(() => null);
+    return json(ctx, saved);
   }
   const body = normalize(ctx.body.body);
   return json(ctx, await rpc(ctx, "dela_pb_save", { p: { person_id: s.person_id, id, base_version: int(ctx.body.base_version), body, ...meta(body), note: str(ctx.body.note, 300) } }));
+}
+
+// Step 80: the editor saves as the member types. What they type is kept as their own working copy, prepared exactly as
+// a save would prepare it (normalized, images checked against the firm's own), and the quality check comes back with
+// it, so the page shows the check for what is on the screen. No version is made and nobody else sees it.
+async function pbWorking(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = uuid(ctx.body.id);
+  if (!id || !isDoc(ctx.body.body)) throw new HttpError(400, "bad_request");
+  const prev = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
+  if (!prev?.ok) return json(ctx, prev);
+  if (dela_rank(prev.role) < 3) return json(ctx, { ok: false, reason: "not_allowed" });
+  const prep = await docPrepare(ctx, await docFirm(ctx, s), ctx.body.body, isDoc(prev.body) ? normalizeDoc(prev.body) : null, prev.playbook.org_id);
+  const r = await rpc<Record<string, any>>(ctx, "dela_pb_working_set", { p_person: s.person_id, p_id: id, p_base: int(ctx.body.base_version) ?? -1, p_body: prep.body });
+  return json(ctx, r?.ok ? { ...r, check: prep.check, notices: prep.notices } : r);
+}
+async function pbWorkingDiscard(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = uuid(ctx.body.id);
+  if (!id) throw new HttpError(400, "bad_request");
+  await rpc(ctx, "dela_pb_working_clear", { p_person: s.person_id, p_id: id });
+  return json(ctx, { ok: true });
 }
 
 // The AI fills empty parts from the attorney's answers to its questions (the attorney is editing, so it saves as a new version)
@@ -6725,6 +6756,8 @@ async function handleInner(req: Request, deps: Deps): Promise<Response> {
       case "POST /playbooks/create": return await pbCreate(ctx);
       case "POST /playbooks/categories": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_pb_categories_set", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)), p_keys: Array.isArray(ctx.body.categories) ? ctx.body.categories.slice(0, 30).map((x) => str(x, 20)) : [] })); }
       case "POST /playbooks/save": return await pbSave(ctx);
+      case "POST /playbooks/working": return await pbWorking(ctx);
+      case "POST /playbooks/working/discard": return await pbWorkingDiscard(ctx);
       case "POST /playbooks/fill": return await pbFill(ctx);
       case "POST /playbooks/chat": return await pbChat(ctx);
       case "POST /playbooks/decide": return await pbDecide(ctx);
