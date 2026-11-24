@@ -9267,7 +9267,7 @@
     if (blogOpen) {
       var x = blogOpen;
       body.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", id: "blog-back", onclick: function () { blogOpen = null; draw(); } }, "← Blog")));
-      var art = h("article", { class: "card mp-article", id: "blog-article" }, h("h2", { text: x.title }),
+      var art = h("article", { class: "card mp-article", id: "blog-article" }, evImg(x, "ev-hero"), h("h2", { text: x.title }),
         h("div", { class: "row", style: "gap:8px;flex-wrap:wrap;margin-bottom:8px" }, x.topic ? h("span", { class: "badge", text: x.topic }) : null, x.posted ? h("span", { class: "small muted", text: "Posted " + mpDay(x.posted) }) : null), mpWho(x));
       lineList(x.text).forEach(function (line) { art.appendChild(h("p", { text: line })); });
       if (att && !x.mine) art.appendChild(h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", onclick: mpOpenProfile(x, "overview") }, "View " + (x.name || "the author") + "'s profile")));
@@ -9289,7 +9289,7 @@
       card: function (a) {
         var first = String(a.text || "").split("\n").join(" "), cut = first.length > 260 ? first.slice(0, 258) + "..." : first;
         var open = function () { blogOpen = a; draw(); window.scrollTo(0, 0); };
-        return h("article", { class: "card mp-card" }, h("h3", { class: "mp-title" }, h("button", { class: "linkish", type: "button", style: "font:inherit;text-align:left", onclick: open }, a.title)),
+        return h("article", { class: "card mp-card" }, evImg(a, "ev-img"), h("h3", { class: "mp-title" }, h("button", { class: "linkish", type: "button", style: "font:inherit;text-align:left", onclick: open }, a.title)),
           h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, a.topic ? h("span", { class: "badge", text: a.topic }) : null, a.posted ? h("span", { class: "small muted", text: "Posted " + mpDay(a.posted) }) : null, a.mine ? h("span", { class: "badge ready", text: "Yours" }) : null),
           cut ? h("p", { class: "mp-text", text: cut }) : null, mpWho(a),
           h("div", { class: "row" }, h("button", { class: "ghost small", type: "button", "aria-label": "Read the article: " + a.title, onclick: open }, "Read the article")));

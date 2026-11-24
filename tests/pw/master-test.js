@@ -172,6 +172,7 @@ const counted = (pg, id) => dela(pg).locator("#" + id + "-count", { hasText: /\(
     ok(st.topics.join("|") === "All topics|Family Law Tips|Trial Prep", "the Topic list is the website's own list, without its placeholders: " + st.topics.join(", "));
     cards = await mine(p, "blog");
     ok(cards.map((c) => c.title).join("|") === "M83 Custody filings checklist|M83 How I build a chronology|M83 Old notes on intake", "articles come in order of posting, newest first");
+    ok(await sr(p, `const c = [...r.querySelectorAll("#blog-list .mp-card")].find((x) => x.textContent.includes("M83 Custody filings checklist")), im = c.querySelector("img.ev-img"); return !!im && im.src.endsWith("/uploads/news-pictures/custody.webp") && c.firstElementChild === im && im.nextElementSibling.classList.contains("mp-title")`), "an article's picture sits above its heading on the card");
     ok(cards[0].who === "Fern C." && cards[0].text.includes("Family Law Tips") && cards[0].text.includes("Posted November 22, 2026") && !cards[2].text.includes("Category 1"), "a card shows the author by short name, the topic and the day; a placeholder topic is not shown");
     await dela(p).locator("#blog-topic").selectOption("Trial Prep");
     await p.waitForTimeout(600);

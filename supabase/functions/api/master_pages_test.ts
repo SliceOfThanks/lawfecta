@@ -98,7 +98,7 @@ Deno.test("setup", async () => {
     P("5", CLAIM, { post_title: "From a claim listing", post_expire_date: "20991231", post_live_date: "20261120090000" }),
     P("6", nurse.bd, { post_title: "A draft offer", post_status: "0", post_expire_date: "20991231" }),
     A("11", nurse.bd, { post_title: "What a chronology should include", post_category: "Category 1", post_live_date: "2026-11-18T09:00:00-08:00", post_content: "<p>Start with the intake notes.</p><p>See nursesite.com.</p>" }),
-    A("12", family.bd, { post_title: "Five things before filing", post_category: "Family Law Tips", post_live_date: "2026-11-20T09:00:00-08:00" }),
+    A("12", family.bd, { post_title: "Five things before filing", post_category: "Family Law Tips", post_live_date: "2026-11-20T09:00:00-08:00", post_image: "/uploads/news-pictures/pphoto-12.webp" }),
     A("13", away.bd, { post_title: "Written by someone not taking work", post_category: "Family Law Tips", post_live_date: "2026-11-21T09:00:00-08:00" }),
     A("14", CLAIM, { post_title: "Written on a claim listing", post_category: "Family Law Tips", post_live_date: "2026-11-22T09:00:00-08:00" }),
     A("15", nurse.bd, { post_title: "An older article", post_category: "Old Topic", post_live_date: "2026-11-01T09:00:00-08:00" }),
@@ -186,6 +186,7 @@ Deno.test("Blog: in order of posting, topics from the website's own list, for bo
     assertEquals(titles(r.articles), ["Five things before filing", "What a chronology should include", "An older article"], "newest first; a claim listing's, an unavailable author's and an unpublished one are not shown");
     assertEquals(r.topics, ["Family Law Tips", "Practice Management"], "the website's list, without the placeholders a new site comes with");
     assertEquals(mineOnly(r.articles).map((x) => x.topic), ["Family Law Tips", "", ""], "a placeholder or a topic that left the list is not shown as a topic");
+    assertEquals(mineOnly(r.articles).map((x) => x.image_url), ["https://bd.test/uploads/news-pictures/pphoto-12.webp", "", ""], "an article's picture comes with it, from the website's own storage");
     const a = mineOnly(r.articles)[1];
     assert(a.text.startsWith("Start with the intake notes.") && !a.text.includes("nursesite.com") && a.posted === "2026-11-18" && !String(a.name).includes("Lastname"), "text without contact details, the day it was posted, a short name");
   }
@@ -221,9 +222,9 @@ Deno.test("Events: every member with Community sees what is coming up, soonest f
   const staff = await member(6, "att_free");
   await pool.query("insert into staff_roles (person_id, role) values ($1, 'support')", [staff.id]);
   posts = posts.concat([
-    E("21", nurse.bd, { post_title: "Records review workshop", post_start_date: day(5) + "183000", post_expire_date: day(5) + "200000", post_venue: "Online", post_location: "", post_promo: "Free", post_org_url: "https://events.example/workshop", post_image: "/uploads/news-pictures/workshop.webp",
+    E("21", nurse.bd, { post_title: "Records review workshop", post_start_date: day(5) + "183000", post_expire_date: day(5) + "200000", post_venue: "Online", post_location: "", post_promo: "Free", post_url: "https://events.example/workshop", post_org_url: "https://older.example/x", post_image: "/uploads/news-pictures/workshop.webp",
       post_content: "<p>Bring one chart.</p><p>Questions: 512-555-0111 or nurse@example.com</p><script>x()</script>" }),
-    E("22", CLAIM, { post_title: "Legal ops webinar", post_category: "Webinars", post_start_date: day(9) + "120000", post_expire_date: "", post_org_url: "http://plain.example/x", post_image: "https://evil.example/x.png" }),
+    E("22", CLAIM, { post_title: "Legal ops webinar", post_category: "Webinars", post_start_date: day(9) + "120000", post_expire_date: "", post_url: "http://plain.example/x", post_image: "https://evil.example/x.png" }),
     E("23", nurse.bd, { post_title: "Last week's meetup", post_category: "Meetups", post_start_date: day(-6) + "170000", post_expire_date: day(-6) + "190000" }),
     E("24", nurse.bd, { post_title: "A draft event", post_status: "0", post_start_date: day(3) + "100000" }),
     E("25", away.bd, { post_title: "Austin meetup", post_category: "Meetups", post_start_date: day(2) + "000000", post_expire_date: day(3) + "000000", post_venue: "The Library Bar", post_location: "100 Main St\nAustin, TX" }),

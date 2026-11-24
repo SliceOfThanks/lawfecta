@@ -3396,7 +3396,8 @@ async function postsSync(ctx: Ctx) {
       if (!title) continue;
       if (kind === "event") {
         // An event: when, where, the price, the picture and its own link. The link is the one address that is kept, as a button.
-        const link = htmlToText(x.post_org_url, 500), image = String(x.post_image ?? "");
+        // The website keeps an event's button link as "post_url"; an older field, "post_org_url", is read when that is empty
+        const link = htmlToText(x.post_url, 500) || htmlToText(x.post_org_url, 500), image = String(x.post_image ?? "");
         posts.push({ post_id: String(x.post_id ?? ""), kind, bd: /^[0-9]{1,15}$/.test(String(x.user_id ?? "")) ? String(x.user_id) : "0", title, body: stripContact(htmlToText(x.post_content, 6000)).text, code: "",
           category: htmlToText(x.post_category, 80), posted: bdPostDay(x), starts: bdDay(x.post_start_date), ends: bdDay(x.post_expire_date), start_time: bdClock(x.post_start_date), end_time: bdClock(x.post_expire_date),
           venue: stripContact(htmlToText(x.post_venue, 160)).text, location: htmlToText(x.post_location, 300).split("\n").join(", "), link: /^https:\/\/[^\s<>"]+$/i.test(link) ? link : "", price: htmlToText(x.post_promo, 60),
@@ -3404,7 +3405,9 @@ async function postsSync(ctx: Ctx) {
         continue;
       }
       posts.push({ post_id: String(x.post_id ?? ""), kind, bd: String(x.user_id ?? ""), title, body: stripContact(htmlToText(x.post_content, kind === "article" ? 6000 : 800)).text,
-        code: kind === "promotion" ? htmlToText(x.post_promo, 60) : "", category: htmlToText(x.post_category, 80), posted: bdPostDay(x), ends: kind === "promotion" ? bdDay(x.post_expire_date) : "" });
+        code: kind === "promotion" ? htmlToText(x.post_promo, 60) : "", category: htmlToText(x.post_category, 80), posted: bdPostDay(x), ends: kind === "promotion" ? bdDay(x.post_expire_date) : "",
+        // Step 85: an article's picture, when it is stored on the website itself
+        image: kind === "article" && /^\/[A-Za-z0-9._\/-]+$/.test(String(x.post_image ?? "")) ? String(x.post_image) : "" });
     }
   }
   // The topic list. A key that may not read post types leaves the last list as it was; the topics then come from the articles.
@@ -3443,7 +3446,7 @@ async function masterList(ctx: Ctx, page: "services" | "promotions" | "blog" | "
   const rows = r?.ok ? r[page === "blog" ? "articles" : page] : null;
   if (Array.isArray(rows)) await withPhotos(ctx, rows);
   // An event's picture lives on the website; the page gets its full address there
-  if (page === "events" && Array.isArray(rows)) { const site = (await setting(ctx, "site.url", "")).replace(/\/+$/, ""); for (const x of rows) { x.image_url = x.image && site.startsWith("https://") ? site + x.image : ""; delete x.image; } }
+  if ((page === "events" || page === "blog") && Array.isArray(rows)) { const site = (await setting(ctx, "site.url", "")).replace(/\/+$/, ""); for (const x of rows) { x.image_url = x.image && site.startsWith("https://") ? site + x.image : ""; delete x.image; } }
   return json(ctx, r);
 }
 
