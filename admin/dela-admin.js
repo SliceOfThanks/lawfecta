@@ -919,6 +919,53 @@
   // stuck, and every attorney with the day each stage was reached. Outreach is never sent from here; it is recorded.
   var STAGE_WORD = { added: "Added", listing_built: "Listing built", playbook_made: "Playbook made", emailed: "Emailed", claimed: "Claimed", playbook_opened: "Playbook opened", gig_posted: "Gig posted", proposals_received: "Proposals received", hired: "Hired" };
   var pipeSeq = 0;
+  // Step 82c: batches of claim listings. The agent checks the rows; an owner's click here is what creates them.
+  var CLAIM_WORD = { ready: "ready", invalid: "with problems", duplicate: "duplicates", created: "created", failed: "failed", removed: "taken down" };
+  function claimsCard() {
+    var card = h("div", { class: "card", id: "pipe-claims" }, titled("h2", "Listing batches", "pipeline_claims"), h("p", { class: "muted small", text: "Loading..." }));
+    var draw = function (openId) {
+      api.get("/admin/claims").then(check).then(function (r) {
+        while (card.children.length > 1) card.removeChild(card.lastChild);
+        if (card.lastChild && card.lastChild.tagName === "P") card.removeChild(card.lastChild);
+        if (!r.on) { card.appendChild(h("p", { class: "notice", text: "Creating claim listings is switched off. Before it is turned on (Switches, \"Create claim listings on the website\"): the plan \"Agency Claim Listing\" exists on the website, \"Listing Searchable\" is off on the claim plans, the website's API key may create members, and the lawyer has reviewed listing people who have not signed up." })); return; }
+        card.appendChild(h("p", { class: "small muted", text: "The Team connector checks rows from your reviewed sheet and keeps them here as a draft. Nothing is on the website until an owner clicks \"Create these listings\". No welcome email is sent." }));
+        if (!(r.batches || []).length) { card.appendChild(h("p", { class: "muted", id: "claims-none", text: "No batches yet." })); return; }
+        var detail = h("div", { id: "claims-detail" });
+        card.appendChild(h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "Checked" }), h("th", { text: "State" }), h("th", { text: "Rows" }), h("th", { text: "" }))),
+          h("tbody", null, r.batches.map(function (b) {
+            var c = b.counts || {}, words = Object.keys(CLAIM_WORD).filter(function (k) { return c[k]; }).map(function (k) { return c[k] + " " + CLAIM_WORD[k]; }).join(", ");
+            return h("tr", null, h("td", null, D.dateTime(b.created_at), b.note ? h("div", { class: "muted small", text: b.note }) : null), h("td", null, h("span", { class: "badge", text: { draft: "Waiting for an owner", approved: "Being created", done: "Done", canceled: "Canceled" }[b.status] || b.status })),
+              h("td", { text: words || "No rows" }), h("td", null, h("button", { class: "ghost small", type: "button", onclick: function () { show(b.batch_id); } }, "Open")));
+          })))));
+        card.appendChild(detail);
+        function show(id) {
+          api.get("/admin/claims/one?id=" + encodeURIComponent(id)).then(check).then(function (b) {
+            D.clear(detail);
+            var c = b.counts || {};
+            detail.appendChild(h("h3", { style: "margin:14px 0 6px", text: "Batch of " + D.dateTime(b.created_at) }));
+            detail.appendChild(h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "Row" }), h("th", { text: "Kind" }), h("th", { text: "Who" }), h("th", { text: "Where" }), h("th", { text: "State of the row" }))),
+              h("tbody", null, b.rows.map(function (x) {
+                return h("tr", null, h("td", { text: String(x.row) }), h("td", { text: x.kind }), h("td", null, h("strong", { text: x.name || x.company }), x.name && x.company ? h("div", { class: "muted small", text: x.company }) : null, x.website ? h("div", { class: "muted small", text: x.website }) : null),
+                  h("td", { text: [x.city, x.state].filter(Boolean).join(", ") }), h("td", null, h("span", { class: "badge" + (x.status === "ready" || x.status === "created" ? " ready" : x.status === "invalid" || x.status === "failed" ? " bad" : ""), text: CLAIM_WORD[x.status] === "with problems" ? "Problem" : x.status.charAt(0).toUpperCase() + x.status.slice(1) }),
+                    x.problem ? h("div", { class: "small", text: x.problem }) : null, x.listing_path ? h("div", { class: "small muted", text: "Website member " + x.bd_member_id + ", /" + x.listing_path }) : null));
+              })))));
+            if (b.status === "draft") detail.appendChild(ownerOnly(h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;margin-top:10px" },
+              h("button", { type: "button", id: "claims-approve", disabled: !c.ready, onclick: function () {
+                if (!confirm("Create " + c.ready + (c.ready === 1 ? " listing" : " listings") + " on the website now? Rows with problems and duplicates are left out. No email is sent to anyone.")) return;
+                api.post("/admin/claims/approve", { id: b.batch_id }).then(check).then(function () { ok("Approved. DELA is creating the listings; this takes a minute or two."); draw(b.batch_id); }).catch(fail);
+              } }, "Create these listings" + (c.ready ? " (" + c.ready + ")" : "")),
+              h("button", { class: "ghost", type: "button", id: "claims-cancel", onclick: function () {
+                if (!confirm("Cancel this batch? Nothing has been created from it.")) return;
+                api.post("/admin/claims/cancel", { id: b.batch_id }).then(check).then(function () { ok("Canceled"); draw(); }).catch(fail);
+              } }, "Cancel this batch"))));
+          }).catch(fail);
+        }
+        if (openId) show(openId);
+      }).catch(fail);
+    };
+    draw();
+    return card;
+  }
   function pipelineTab() {
     api.get("/admin/pipeline").then(check).then(function (r) {
       var c = r.counts || {}, rules = (r.rules || {}).stalled_rules || {};
@@ -974,6 +1021,7 @@
                     api.post("/admin/pipeline/leave", { bd_member_id: a.bd_member_id }).then(check).then(function () { ok("Taken off the list"); pipelineTab(); }).catch(fail);
                   } }, "Take off the list"))));
             })))) : h("p", { class: "muted", text: "Nobody yet. Add attorneys by their website member number above, or ask the Team connector to add them." })),
+        claimsCard(),
         h("div", { class: "card", id: "pipe-connect" }, titled("h2", "Use it in ChatGPT or Claude", "pipeline_connect"),
           r.on ? [h("p", { text: "Add this address as a connector in ChatGPT or Claude. It brings you to DELA to approve, with your own login. Only the owner and people with the role \"growth\" can approve it." }),
             h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, url, h("button", { class: "ghost small", type: "button", onclick: function () { url.select(); try { navigator.clipboard.writeText(url.value); ok("Copied"); } catch (e) { ok("Select the address and copy it."); } } }, "Copy")),
@@ -2277,6 +2325,7 @@
     pipeline_stalled: "Attorneys who have gone too long without the next step, oldest first. This is the follow-up list. \"Record follow-up\" writes down that someone reached out; it sends nothing.",
     pipeline_add: "Type website member numbers (the member ID in Brilliant Directories). DELA reads each listing from the website and adds the attorney. Adding again refreshes the listing's facts.",
     pipeline_list: "Every attorney in the pipeline with the stage they are at and the day each stage was reached. An empty day means it has not happened. \"Take off the list\" removes someone added by mistake or for a test from the list and the counts; nothing is deleted, and adding the number again puts them back.",
+    pipeline_claims: "Claim listings are profiles on the website for people who have not signed up yet, which they can claim. The Team connector checks rows from a sheet you reviewed and keeps them here. Only an owner's click creates them on the website. A listing can be corrected or taken down from the connector while nobody has claimed it.",
     pipeline_connect: "A connector for the team's own ChatGPT or Claude. It reads this page's numbers and records outreach. It cannot send email, post a gig, hire, or touch money.",
     team_add: "Add a team member by BD member ID and role. They must have opened DELA once first.",
     holds: "A hold pauses new actions for one person (and later hiring and payments) while you check something. Release it with a note on what you checked.",

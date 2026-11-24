@@ -1,7 +1,7 @@
 # Feature brief: the Lawfecta Team connector and the attorney pipeline
 
 Step: 82 (releases 82a, 82b, 82c)   Spec references: step 2b (the members' connector), step 17 (the website's categories), step 4 (gigs and proposals), step 6 (agreements)
-Status: 82a and 82b built in acceleration mode. Stacey 2026-11-24: "Do we have an MCP connector? If yes - we need one for ADMIN only - so we can automate creation of claim listings and the info in them for growth and scale." Then she set the scope: an attorney record, a prefilled playbook, stage tracking, a stalled list ("Michelle's follow-up checklist could be built from this list"), a gig draft, a proposal check, and weekly counts by stage "so I can update Ivme and the Blue Goals tab without anyone entering numbers".
+Status: 82a, 82b and 82c built in acceleration mode. Stacey 2026-11-24: "Do we have an MCP connector? If yes - we need one for ADMIN only - so we can automate creation of claim listings and the info in them for growth and scale." Then she set the scope: an attorney record, a prefilled playbook, stage tracking, a stalled list ("Michelle's follow-up checklist could be built from this list"), a gig draft, a proposal check, and weekly counts by stage "so I can update Ivme and the Blue Goals tab without anyone entering numbers".
 
 ## Who
 Stacey (owner), Michelle and anyone else Stacey names. Nobody else: no member, and no other team role.
@@ -83,6 +83,30 @@ Questions Claude answered itself for 82b:
 2. May a prepared playbook be replaced? **While it waits, yes, with "replace". Once it is in the attorney's Library it is theirs.**
 3. What if the attorney's Library is full? **It keeps waiting** and is tried again the next time they open the Library.
 4. Does the attorney get an email that it is there? **No.** The team's own outreach says so.
+
+## Release 82c as built (2026-11-24): claim listings from a reviewed sheet
+- **Four more tools:** `claim_batch_check`, `claim_listing_fix` and `claim_listing_remove` for the owner; `claim_batch_status` for the owner and "growth".
+- **The sheet:** docs/templates/claim-listings-sheet.csv. Columns: kind (freelancer, attorney or agency), first_name, last_name, company, city, state, country, website, category, description, source_url, email. Any other column makes the row invalid, so a phone number or a bar number cannot ride along.
+- **Checking:** every row is checked and answered with its own problem in plain words. Duplicates are found against earlier batches (same website, same name and state, or same email), against DELA's members, and against people who asked not to be listed. A row's email address is kept for the listing and never given back to the AI app.
+- **Nothing is created by the connector.** The batch waits in the admin area, on the Pipeline page, under "Listing batches". An owner opens it and clicks "Create these listings". The role "growth" can read a batch and cannot approve one.
+- **Creating:** a job creates the ready rows a few at a time on the claim plan for their kind (setting claim.plan_ids). The website is asked first whether the email address is already a member. No welcome email is asked for. The password the website requires is a long random one that nobody knows and DELA does not keep; the person sets their own when they claim.
+- **A row with no email address** gets an address on a domain Stacey names (setting claim.placeholder_domain). Until she names one, such a row is not created.
+- **After creating:** an attorney's listing joins the pipeline as "Listing built".
+- **Correcting and taking down:** only a listing DELA created, and only while nobody has claimed it. Taking down sets the listing to canceled on the website (hidden, not deleted) and remembers the person so they are not listed again.
+- **Stops:** 50 rows in a batch and 100 listings in a day (settings).
+- **Off until decided:** the switch claim_listings is off.
+
+Questions Claude answered itself for 82c:
+1. Create at once after approval, or by a job? **By a job, a few at a time**, so a large batch cannot time out halfway and a failed row does not stop the rest.
+2. What does "take down" do on the website? **It sets the listing to canceled**, which hides it. Nothing is deleted.
+3. Is a claimed listing still the team's to change? **No.** Once the person has a DELA account, the listing is theirs.
+4. Does the category come as a name or a number? **Either**; it must be one of the website's top categories, and DELA never makes a new category.
+
+What Stacey does on the website before the switch is turned on:
+1. Make the plan "Agency Claim Listing" (free, a claim listing) and put its number in the setting claim.plan_ids.
+2. Turn "Listing Searchable" off on the three claim plans, so a listing opens by its direct link only.
+3. Allow the DELA API key to create and change members (Developer Hub, the API key, Permissions).
+4. Name the placeholder email domain (setting claim.placeholder_domain), if rows without an email address should be created.
 
 ## Where the build differs from the plan she approved
 - Release 1 of the plan is split in two (82a and 82b), for the reason in question 1.

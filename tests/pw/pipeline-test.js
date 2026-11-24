@@ -29,7 +29,7 @@ async function open(browser, widget, uid, extra) {
 const dela = (page) => page.locator(".dela-host");
 const sr = (pg, fn, arg) => pg.evaluate(([f, a]) => new Function("r", "a", f)(document.querySelector(".dela-host").shadowRoot, a), [fn, arg]);
 const OWNER = 4820, GROWTH = 4823, PLAIN = 4824;
-const SW = ["mcp_admin", "new_layout", "profiles", "playbook_library", "document_standard", "document_editor_v2", "pipeline_prefill"];
+const SW = ["mcp_admin", "new_layout", "profiles", "playbook_library", "document_standard", "document_editor_v2", "pipeline_prefill", "claim_listings"];
 const CLAIMER = 4825;
 const b64 = (buf) => Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 // A sign-in for the Team connector, as ChatGPT or Claude start it: returns the request the approval page shows
@@ -94,6 +94,27 @@ async function teamRequest() {
     await dela(p).getByRole("button", { name: "Take Pia Paid off the list" }).click();
     await p.waitForTimeout(900);
     ok(!(await rows()).some((x) => x.who.includes("Pia Paid")) && (await sql("select left_out from pipeline_attorneys where bd_member_id = 4822"))[0].left_out === true, "\"Take off the list\" removes a row from the page and deletes nothing");
+    // ---------- Step 82c: a batch of claim listings waits for the owner's click ----------
+    await sql("update feature_switches set state = 'off' where key = 'claim_listings'; select 1");
+    await dela(p).getByRole("button", { name: "Pipeline", exact: true }).first().click();
+    await dela(p).locator("#pipe-claims .notice").waitFor({ timeout: 15000 });
+    ok((await dela(p).locator("#pipe-claims .notice").innerText()).startsWith("Creating claim listings is switched off."), "with the switch off, the Listing batches card says what must be done first");
+    await sql(`update feature_switches set state = 'everyone' where key = 'claim_listings';
+      insert into claim_batches (id, note, request_id, created_by) values ('00000000-0000-4000-8000-0000000082c1', 'Browser test sheet', 'pw-claims-1', (select id from people where bd_member_id = ${OWNER}));
+      insert into claim_listings (batch_id, row_no, kind, first_name, last_name, company, city, state, website, source_url, email, status, problem) values
+        ('00000000-0000-4000-8000-0000000082c1', 1, 'attorney', 'Rae', 'Ready', 'Ready Law', 'Austin', 'TX', 'https://readylaw.example', 'https://readylaw.example', 'rae@readylaw.example', 'ready', ''),
+        ('00000000-0000-4000-8000-0000000082c1', 2, 'attorney', 'Ned', 'Needs', 'Needs Law', 'Waco', 'Texas', '', '', '', 'invalid', 'The state must be its two letters, for example TX.'); select 1`);
+    await dela(p).getByRole("button", { name: "Pipeline", exact: true }).first().click();
+    await dela(p).locator("#pipe-claims tbody tr").first().waitFor({ timeout: 15000 });
+    st = await sr(p, `const t = r.querySelector("#pipe-claims tbody tr"); return { state: t.children[1].innerText.trim(), rows: t.children[2].innerText.trim() }`);
+    ok(st.state === "Waiting for an owner" && st.rows === "1 ready, 1 with problems", "a checked batch waits for an owner, with its counts: " + st.rows);
+    await dela(p).locator("#pipe-claims").getByRole("button", { name: "Open", exact: true }).first().click();
+    await dela(p).locator("#claims-approve").waitFor({ timeout: 15000 });
+    st = await sr(p, `const d = r.querySelector("#claims-detail"); return { text: d.innerText, btn: d.querySelector("#claims-approve").innerText }`);
+    ok(st.text.includes("Rae Ready") && st.text.includes("The state must be its two letters, for example TX.") && !st.text.includes("rae@readylaw.example") && st.btn === "Create these listings (1)", "opening it shows each row with its problem, no email address, and the button that creates the ready ones");
+    await dela(p).locator("#claims-approve").click();
+    await p.waitForTimeout(900);
+    ok((await sql("select status from claim_batches where request_id = 'pw-claims-1'"))[0].status === "approved" && (await sql("select count(*)::int n from jobs where kind = 'claim_create'"))[0].n === 1, "the owner's click approves the batch and queues the creating; the page itself creates nothing");
     // The Lawfecta Team page offers the new role
     await dela(p).getByRole("button", { name: "Lawfecta Team", exact: true }).first().click();
     await dela(p).locator('select[aria-label="Role"]').waitFor({ timeout: 15000 });

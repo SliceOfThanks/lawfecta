@@ -5682,6 +5682,14 @@ function teamTools(role = "owner") {
         annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
       { name: "gig_draft_from_playbook", title: "Point the attorney to a gig from the prepared playbook", description: "Owner only. Asks DELA to show the attorney, on their prepared playbook once they have approved it, a line that starts a gig draft from it. A gig is always made from an approved playbook, by the attorney, so nothing is drafted or posted here.",
         inputSchema: { type: "object", properties: { bd_member_id: { type: "integer" } }, required: ["bd_member_id"] }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } }] : []),
+    { name: "claim_batch_status", title: "A batch of claim listings", description: "One batch of claim listings by its ID: whether it is a draft, approved or done, how many rows are ready, invalid, duplicates, created or failed, and each row with its problem or its listing's address. A row's email address is never returned.", inputSchema: { type: "object", properties: { batch_id: { type: "string" } }, required: ["batch_id"] }, annotations: read },
+    ...(role === "owner" ? [
+      { name: "claim_batch_check", title: "Check rows for claim listings", description: "Owner only. Takes rows from the sheet the owner has reviewed, checks each one, finds duplicates and people who asked not to be listed, and keeps the batch as a draft in DELA. NOTHING is created on the website by this: an owner must open the batch in the DELA admin area (Pipeline page) and click \"Create these listings\". Columns taken: " + CLAIM_COLUMNS.join(", ") + ". kind is freelancer, attorney or agency. source_url is the public page the facts came from. No phone numbers, no bar numbers, no other columns.",
+        inputSchema: { type: "object", properties: { rows: { type: "array", items: { type: "object" } }, note: { type: "string" }, request_id: { type: "string" } }, required: ["rows", "request_id"] }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
+      { name: "claim_listing_fix", title: "Correct an unclaimed listing", description: "Owner only. Corrects the name, company, city, state, website or short description of a claim listing DELA created that nobody has claimed yet.",
+        inputSchema: { type: "object", properties: { bd_member_id: { type: "integer" }, first_name: { type: "string" }, last_name: { type: "string" }, company: { type: "string" }, city: { type: "string" }, state: { type: "string" }, website: { type: "string" }, description: { type: "string" } }, required: ["bd_member_id"] }, annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true } },
+      { name: "claim_listing_remove", title: "Take an unclaimed listing down", description: "Owner only. Takes down a claim listing DELA created, when the person asks, and remembers them so they are not listed again. The listing is hidden on the website, not deleted.",
+        inputSchema: { type: "object", properties: { bd_member_id: { type: "integer" }, reason: { type: "string" } }, required: ["bd_member_id"] }, annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true } }] : []),
     { name: "pipeline_counts", title: "Counts by stage", description: "For a period (this week, Monday to Sunday, when no dates are given): how many attorneys reached each stage in the period, how many ever did, and how many sit at each stage now. Dates as YYYY-MM-DD.", inputSchema: { type: "object", properties: { from: { type: "string" }, to: { type: "string" } } }, annotations: read },
   ];
 }
@@ -5743,6 +5751,99 @@ async function pipelineDeliver(ctx: Ctx, s: Session) {
   if (r?.ok && r.id) await rpc(ctx, "dela_pipeline_delivered", { p_id: w.id, p_playbook: r.id });
 }
 
+// Step 82c: claim listings from a sheet Stacey reviews first. The agent hands over the rows; DELA checks each one and
+// keeps the batch as a draft. Only an owner's click in the admin area creates anything on the website, and a job then
+// creates the listings a few at a time. No welcome email is asked for, and the password made for a listing is thrown away.
+const CLAIM_COLUMNS = ["kind", "first_name", "last_name", "company", "city", "state", "country", "website", "category", "description", "source_url", "email"];
+const CLAIM_WORDS: Record<string, string> = { claims_off: "Creating claim listings is switched off. An owner turns it on in the admin area, Switches (\"Create claim listings on the website\").", no_rows: "Give at least one row.", too_many_rows: "That is more rows than one batch takes. Send fewer rows at a time.",
+  not_found: "No batch has that ID.", not_a_claim_listing: "That member is not a claim listing DELA created.", already_claimed: "That listing has been claimed. It belongs to the member now and cannot be changed or taken down from here.", request_id_needed: "Give a request_id, so the same call sent twice is kept once." };
+async function claimCheckRows(ctx: Ctx, list: unknown): Promise<Array<Record<string, string>>> {
+  const cats = await rpc<Record<string, any>>(ctx, "dela_categories", {}).catch(() => null);
+  const tops = new Map<string, string>();
+  for (const t of (Array.isArray(cats?.tops) ? cats!.tops : []) as Array<[string, string]>) { tops.set(String(t[1]).toLowerCase(), String(t[0])); tops.set(String(t[0]).toLowerCase(), String(t[0])); }
+  const domain = (await setting(ctx, "claim.placeholder_domain", "")).trim(), plans = (await rpc<Record<string, any>>(ctx, "dela_setting", { p_key: "claim.plan_ids" }).catch(() => null)) ?? {};
+  const https = (v: string) => /^https:\/\/[^\s<>"]+\.[^\s<>"]+$/i.test(v);
+  return (Array.isArray(list) ? list : []).map((raw) => {
+    const x = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>, problems: string[] = [];
+    const t = (k: string, n: number) => htmlToText(x[k], n).split("\n").join(" ").trim();
+    const extra = Object.keys(x).filter((k) => !CLAIM_COLUMNS.includes(k));
+    if (extra.length) problems.push("Columns DELA does not take: " + extra.slice(0, 6).join(", ") + ". Take them out of the sheet.");
+    const kind = String(x.kind ?? "").toLowerCase().trim();
+    if (!["freelancer", "attorney", "agency"].includes(kind)) problems.push("The kind must be freelancer, attorney or agency.");
+    else if (!(Number(plans[kind]) > 0)) problems.push("No claim plan is set for the kind \"" + kind + "\" yet.");
+    const first = t("first_name", 80), last = t("last_name", 80), company = t("company", 160);
+    if (kind === "agency" ? !company : !(first && last)) problems.push(kind === "agency" ? "An agency needs a company name." : "A first name and a last name are needed.");
+    const state = t("state", 40);
+    if (!/^[A-Za-z]{2}$/.test(state)) problems.push("The state must be its two letters, for example TX.");
+    const website = t("website", 300), source = t("source_url", 300), email = t("email", 200).toLowerCase();
+    if (website && !https(website)) problems.push("The website must start with https://.");
+    if (!https(source)) problems.push("A public source link that starts with https:// is needed.");
+    if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) problems.push("The email address is not valid.");
+    if (!email && !domain) problems.push("The row has no email address, and no placeholder domain is set (Settings, \"Pipeline\").");
+    const desc = t("description", 2000);
+    if (desc.length > 500) problems.push("The description is longer than 500 characters.");
+    if (stripContact(desc).kinds.length) problems.push("The description holds contact details. Take them out.");
+    if (/\b\d{3}-\d{2}-\d{4}\b|\bbar\s*(no|number|#)/i.test([first, last, company, desc].join(" ")) || scrubCredentials(desc).removed) problems.push("The row holds a number or a login that never goes in DELA (a bar number, an SSN, a password).");
+    const catName = t("category", 120), cat = catName ? tops.get(catName.toLowerCase()) ?? "" : "";
+    if (catName && !cat) problems.push("The category \"" + catName + "\" is not one of the website's top categories.");
+    return { kind, first_name: first, last_name: last, company, city: t("city", 80), state: state.toUpperCase(), country: (t("country", 2) || "US").toUpperCase(), website, category_key: cat, description: desc.slice(0, 600), source_url: source, email,
+      status: problems.length ? "invalid" : "ready", problem: problems.join(" ") };
+  });
+}
+// Creates the next few listings of an approved batch on the website, and queues itself again while rows are left
+async function claimCreate(ctx: Ctx, batchId: string, turn: number) {
+  const n = await rpc<Record<string, any>>(ctx, "dela_claim_next", { p_batch: batchId, p_n: 8 });
+  if (!n?.approved) return;
+  const site = await setting(ctx, "site.url", ""), key = ctx.deps.env("BD_API_KEY"), ff = f(ctx), domain = (await setting(ctx, "claim.placeholder_domain", "")).trim();
+  const rows = (n.rows ?? []) as Array<Record<string, any>>;
+  for (const l of rows) {
+    const done = (ok: boolean, bd: number | null, path: string, problem: string) => rpc(ctx, "dela_claim_result", { p_listing: l.id, p_ok: ok, p_bd: bd, p_path: path, p_problem: problem });
+    const plan = Number(n.plans?.[l.kind]) || 0;
+    if (!plan) { await done(false, null, "", "No claim plan is set for this kind."); continue; }
+    const email = String(l.email || (domain ? "listing-" + crypto.randomUUID().slice(0, 13) + "@" + domain : ""));
+    if (!email) { await done(false, null, "", "No email address and no placeholder domain."); continue; }
+    // The website must not already have this email address
+    const dup = await bdList(ff, site, key, "/api/v2/user/get?property=email&property_value=" + encodeURIComponent(email), 1);
+    if (dup.ok && dup.data.some((x) => String(x.email ?? "").toLowerCase() === email.toLowerCase())) { await done(false, null, "", "The website already has a member with this email address."); continue; }
+    if (!dup.ok && dup.status !== 404) { await done(false, null, "", dup.status === 403 ? "The website's API key may not read members." : "The website did not answer."); continue; }
+    const esc = (v: string) => v.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    // A password nobody knows: the person sets their own when they claim the listing. It is not kept or logged.
+    const form: Record<string, string> = { email, password: b64url(crypto.getRandomValues(new Uint8Array(24))) + "aA1!", subscription_id: String(plan), listing_type: l.kind === "agency" ? "Company" : "Individual", active: "2",
+      first_name: String(l.first_name), last_name: String(l.last_name), company: String(l.company), city: String(l.city), state_code: String(l.state), country_code: String(l.country || "US") };
+    if (l.website) form.website = String(l.website);
+    if (l.description) { form.search_description = String(l.description).slice(0, 170); form.about_me = "<p>" + esc(String(l.description)) + "</p>"; }
+    if (/^p[0-9]{1,9}$/.test(String(l.category_key))) form.profession_id = String(l.category_key).slice(1);
+    const r = await bdCall<Record<string, unknown>>(ff, site, key, "POST", "/api/v2/user/create", form);
+    const made = r.ok ? (Array.isArray(r.data) ? r.data[0] : r.data) as Record<string, unknown> | null : null, bd = Number(made?.user_id) || 0;
+    if (!r.ok || !bd) { await done(false, null, "", !r.ok && r.status === 403 ? "The website's API key may not create members." : "The website refused: " + (r.ok ? "no member number came back" : r.error.slice(0, 120))); continue; }
+    await done(true, bd, htmlToText(made?.filename, 200), "");
+  }
+  if (rows.length === 8) await rpc(ctx, "dela_job_enqueue", { p_kind: "claim_create", p_payload: { batch_id: batchId, turn: turn + 1 }, p_run_at: new Date().toISOString(), p_idem: "claim_create:" + batchId + ":" + (turn + 1), p_person: null });
+}
+async function claimFix(ctx: Ctx, actor: string, a: Record<string, any>) {
+  const bd = Math.trunc(Number(a.bd_member_id)) || 0;
+  const l = await rpc<Record<string, any>>(ctx, "dela_claim_listing_of", { p_actor: actor, p_bd: bd });
+  if (!l?.ok) throw new ToolError(CLAIM_WORDS[String(l?.reason)] ?? "DELA refused this: " + String(l?.reason ?? "unknown"));
+  const fields: Record<string, string> = {}, map: Record<string, [string, number]> = { first_name: ["first_name", 80], last_name: ["last_name", 80], company: ["company", 160], city: ["city", 80], state: ["state_code", 2], website: ["website", 300], description: ["search_description", 170] };
+  for (const [k, [to, n]] of Object.entries(map)) if (typeof a[k] === "string" && a[k].trim()) fields[to] = htmlToText(a[k], n).split("\n").join(" ");
+  if (fields.website && !/^https:\/\//i.test(fields.website)) throw new ToolError("The website must start with https://.");
+  if (fields.search_description && stripContact(fields.search_description).kinds.length) throw new ToolError("The description holds contact details. Take them out.");
+  if (!Object.keys(fields).length) throw new ToolError("Give at least one of: first_name, last_name, company, city, state, website, description.");
+  const r = await bdUpdate(f(ctx), await setting(ctx, "site.url", ""), ctx.deps.env("BD_API_KEY"), bd, fields);
+  if (!r.ok) throw new ToolError("The website did not take the change (" + (r.status === 403 ? "its API key may not change members" : "it did not answer") + "). Nothing was changed.");
+  await rpc(ctx, "dela_audit", { p_actor_type: "staff", p_actor: actor, p_action: "claim_listing_fixed", p_object_type: "bd_member", p_object_id: String(bd), p_detail: { fields: Object.keys(fields) }, p_ip: ctx.ip }).catch(() => null);
+  return { ok: true, bd_member_id: bd, changed: Object.keys(fields) };
+}
+async function claimRemove(ctx: Ctx, actor: string, a: Record<string, any>) {
+  const bd = Math.trunc(Number(a.bd_member_id)) || 0;
+  const l = await rpc<Record<string, any>>(ctx, "dela_claim_listing_of", { p_actor: actor, p_bd: bd });
+  if (!l?.ok) throw new ToolError(CLAIM_WORDS[String(l?.reason)] ?? "DELA refused this: " + String(l?.reason ?? "unknown"));
+  // Taken down on the website (set to canceled, which hides it), never deleted
+  const r = await bdUpdate(f(ctx), await setting(ctx, "site.url", ""), ctx.deps.env("BD_API_KEY"), bd, { active: "3" });
+  if (!r.ok) throw new ToolError("The website did not take the listing down (" + (r.status === 403 ? "its API key may not change members" : "it did not answer") + "). Nothing was changed.");
+  return await rpc<Record<string, any>>(ctx, "dela_claim_removed", { p_actor: actor, p_bd: bd, p_reason: str(a.reason, 300) });
+}
+
 // One listing as the website has it now. Contact details are not passed on: outreach addresses stay on the website.
 async function teamListing(ctx: Ctx, bd: number): Promise<{ ok: boolean; row?: Record<string, string>; error?: string }> {
   const r = await bdMember(f(ctx), await setting(ctx, "site.url", ""), ctx.deps.env("BD_API_KEY"), bd);
@@ -5786,6 +5887,17 @@ async function teamCall(ctx: Ctx, w: { person_id: string; role: string }, name: 
     return done(r ? { ...r, website_listing: live.ok ? live.row : null, website_listing_note: live.ok ? "" : live.error } : r, (x) => x.known ? `${x.attorney.name || "Member " + bd}: stage ${x.attorney.stage}${x.attorney.in_pipeline ? "" : " (not in the pipeline yet; add with pipeline_add)"}.` : live.ok ? `Member ${bd} is on the website and not in the pipeline or DELA yet. Add them with pipeline_add.` : `Member ${bd} was not found (${live.error}).`);
   }
   if (name === "outreach_mark") return done(await rpc(ctx, "dela_pipeline_mark", { p_actor: w.person_id, p: teamMarkArgs(a) }), (r) => `Recorded "${r.stage}" for ${(r.recorded as unknown[]).length}.` + ((r.already_recorded as unknown[]).length ? ` Already recorded: ${(r.already_recorded as unknown[]).length}.` : "") + ((r.not_in_pipeline as unknown[]).length ? ` Not in the pipeline (add them first): ${(r.not_in_pipeline as unknown[]).join(", ")}.` : "") + " Nothing was sent.");
+  if (name === "claim_batch_status") return done(await rpc(ctx, "dela_claim_batch_get", { p_actor: w.person_id, p_id: uuid(a.batch_id) }), (r) => `Batch ${r.status}: ` + Object.entries(r.counts as Record<string, number>).map(([k, v]) => v + " " + k).join(", ") + ".");
+  if (name === "claim_batch_check" || name === "claim_listing_fix" || name === "claim_listing_remove") {
+    if (w.role !== "owner") throw new ToolError("Only an owner can do this.");
+    if (name === "claim_listing_fix") { const r = await claimFix(ctx, w.person_id, a); return { text: `Changed ${(r.changed as string[]).join(", ")} on listing ${r.bd_member_id}.`, data: r }; }
+    if (name === "claim_listing_remove") return done(await claimRemove(ctx, w.person_id, a), () => "Taken down, and remembered so they are not listed again.");
+    const rows = await claimCheckRows(ctx, a.rows);
+    const r = await rpc<Record<string, any>>(ctx, "dela_claim_batch_save", { p_actor: w.person_id, p: { request_id: str(a.request_id, 80).trim(), note: str(a.note, 300), rows } });
+    if (!r?.ok) throw new ToolError(CLAIM_WORDS[String(r?.reason)] ?? "DELA refused this: " + String(r?.reason ?? "unknown"));
+    const c = (r.counts ?? {}) as Record<string, number>;
+    return { text: `Checked ${(r.rows as unknown[]).length} rows: ${c.ready ?? 0} ready, ${c.invalid ?? 0} with problems, ${c.duplicate ?? 0} duplicates. Nothing was created on the website. An owner opens the Pipeline page in the DELA admin area and clicks "Create these listings" for batch ${r.batch_id}.`, data: r };
+  }
   if (name === "playbook_prefill" || name === "gig_draft_from_playbook") {
     if (w.role !== "owner") throw new ToolError("Only an owner can do this.");
     if (name === "playbook_prefill") return done(await teamPrefill(ctx, w.person_id, a), (r) => r.duplicate ? `Already prepared: "${r.title}" (${r.status}).` : `Prepared "${r.title}" (${r.steps} steps) for ${r.for || "the attorney"}. It waits for them and goes into their Library as a marked draft when they open DELA. Nothing was sent.`);
@@ -5855,6 +5967,8 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/switches": (c, a) => rpc(c, "dela_admin_switches", { p_actor: a }),
   "/admin/access": (c, a) => rpc(c, "dela_admin_access", { p_actor: a }),
   "/admin/staff": (c, a) => rpc(c, "dela_admin_staff", { p_actor: a }),
+  "/admin/claims": (c, a) => rpc(c, "dela_claim_batches", { p_actor: a }),
+  "/admin/claims/one": (c, a) => rpc(c, "dela_claim_batch_get", { p_actor: a, p_id: need(uuid(c.url.searchParams.get("id"))) }),
   // Step 82: the Pipeline page, and the Team connector's address
   "/admin/pipeline": async (c, a) => { const r = await rpc<Record<string, any>>(c, "dela_admin_pipeline", { p_actor: a }); return r?.ok ? { ...r, url: publicBase(c.deps) + TEAM_PATH } : r; },
   "/admin/people": (c, a) => rpc(c, "dela_admin_people", { p_actor: a, p_q: (c.url.searchParams.get("q") ?? "").slice(0, 100), p_limit: 50 }),
@@ -6034,6 +6148,8 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   "/admin/access/grant": (c, a) => rpc(c, "dela_admin_access_grant", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id"), p_channel: need(str(c.body.channel, 20)), p_note: str(c.body.note, 200) }),
   "/admin/access/revoke": (c, a) => rpc(c, "dela_admin_access_revoke", { p_actor: a, p_id: need(int(c.body.id)) }),
   "/admin/pipeline/add": (c, a) => teamAdd(c, a, String(c.body.bd_member_ids ?? "").split(/[\s,;]+/).filter(Boolean)),
+  "/admin/claims/approve": (c, a) => rpc(c, "dela_claim_batch_approve", { p_actor: a, p_id: need(uuid(c.body.id)) }),
+  "/admin/claims/cancel": (c, a) => rpc(c, "dela_claim_batch_cancel", { p_actor: a, p_id: need(uuid(c.body.id)) }),
   "/admin/pipeline/leave": (c, a) => rpc(c, "dela_pipeline_leave", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id") }),
   "/admin/pipeline/mark": (c, a) => rpc(c, "dela_pipeline_mark", { p_actor: a, p: { bd_member_ids: (Array.isArray(c.body.bd_member_ids) ? c.body.bd_member_ids : []).map((x) => String(x)), stage: c.body.kind === "follow_up" ? "follow_up" : "emailed", at: "", tool: str(c.body.tool, 60), note: str(c.body.note, 500), request_id: str(c.body.request_id, 80) } }),
   "/admin/staff/grant": (c, a) => rpc(c, "dela_admin_staff_grant", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id"), p_role: need(str(c.body.role, 20)) }),
@@ -6278,6 +6394,7 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "email_delivery_check") return await deliveryCheck(ctx, j.payload ?? {});
   if (j.kind === "profiles_daily") { await rpc(ctx, "dela_profiles_daily", {}); return { ok: true }; }
   if (j.kind === "bd_profile_push") return await bdProfilePush(ctx, j.payload ?? {});
+  if (j.kind === "claim_create") { await claimCreate(ctx, String(j.payload?.batch_id ?? ""), Number(j.payload?.turn) || 0); return { ok: true }; }
   if (j.kind === "posts_sync") { const r = await postsSync(ctx); return r?.ok ? { ok: true } : { ok: true, error: "not_all_read" }; }
   if (j.kind === "categories_sync") { const r = await categoriesSync(ctx, String(j.payload?.source ?? "job").slice(0, 20)); return r?.ok ? { ok: true } : { ok: true, error: String(r?.reason ?? "not_synced") }; }
   if (j.kind === "gig_tick") { await rpc(ctx, "dela_gig_tick", { p: j.payload ?? {} }); return { ok: true }; }

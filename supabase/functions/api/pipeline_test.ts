@@ -23,6 +23,8 @@ const listing = (bd: number): Record<string, string> | null => ({
 // Lawfecta's own AI, as the drafting path calls it: what it was sent is kept, and it answers with a short SOP that
 // carries a password and an email address, which must not survive
 const prompts: string[] = [];
+const bdCreated: Array<Record<string, string>> = [], bdUpdated: Array<Record<string, string>> = [];
+const WORKER = "test-worker-secret-pipeline-0123456789abcdef";
 const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {}) => {
   const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
   if (url.pathname.endsWith("/chat/completions")) {
@@ -36,13 +38,23 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
   }
   if (url.hostname !== "bd.test") throw new Error("unexpected fetch " + url.href);
   if (site === "down") return new Response("bad gateway", { status: 502 });
+  // Step 82c: the website creates and changes members; what it was sent is kept
+  if (url.pathname === "/api/v2/user/get" && url.searchParams.get("property") === "email") {
+    return url.searchParams.get("property_value") === "taken@site.example" ? Response.json({ status: "success", message: [{ user_id: "5", email: "taken@site.example" }] }) : Response.json({ status: "error", message: "user not found" }, { status: 404 });
+  }
+  if (url.pathname === "/api/v2/user/create" && init.method === "POST") {
+    const form = Object.fromEntries(new URLSearchParams(String(init.body)));
+    bdCreated.push(form);
+    return Response.json({ status: "success", message: { user_id: String(W(40) + bdCreated.length), filename: "texas/" + String(form.city).toLowerCase() + "/" + String(form.last_name || form.company).toLowerCase().split(" ").join("-") } });
+  }
+  if (url.pathname === "/api/v2/user/update") { bdUpdated.push(Object.fromEntries(new URLSearchParams(String(init.body)))); return Response.json({ status: "success", message: {} }); }
   const m = url.pathname.match(/^\/api\/v2\/user\/get\/(\d+)$/);
   if (m) { const l = listing(Number(m[1])); return l ? Response.json({ status: "success", message: [l] }) : Response.json({ status: "error", message: "user not found" }, { status: 404 }); }
   if (url.pathname === "/api/v2/list_professions/get") return Response.json({ status: "success", message: [{ profession_id: "39", name: "Personal Injury", filename: "pi" }, { profession_id: "40", name: "Family Law", filename: "family" }] });
   if (url.pathname === "/api/v2/list_services/get") return Response.json({ status: "success", message: [] });
   return new Response("{}", { status: 404 });
 }) as typeof fetch;
-const deps: Deps = { rpc, env: (k) => ({ BD_API_KEY: "bd-test-key", OPENAI_API_KEY: "sk-lawfecta" + "M".repeat(40), PUBLIC_API_URL: BASE, DELA_ORIGINS: "https://lawfecta.com" } as Record<string, string>)[k] ?? "", fetch: fakeFetch };
+const deps: Deps = { rpc, env: (k) => ({ BD_API_KEY: "bd-test-key", OPENAI_API_KEY: "sk-lawfecta" + "M".repeat(40), DELA_WORKER_SECRET: WORKER, PUBLIC_API_URL: BASE, DELA_ORIGINS: "https://lawfecta.com" } as Record<string, string>)[k] ?? "", fetch: fakeFetch };
 async function raw(method: string, path: string, init: { headers?: Record<string, string>; body?: string } = {}) {
   return await handle(new Request("http://localhost/functions/v1/api" + path, { method, headers: init.headers, body: init.body }), deps);
 }
@@ -60,6 +72,7 @@ async function mcp(path: string, token: string, method: string, params?: unknown
 const tool = async (token: string, name: string, args: Record<string, unknown> = {}) => (await mcp("/mcp/admin", token, "tools/call", { name, arguments: args })).body.result as Record<string, any>;
 const data = async (token: string, name: string, args: Record<string, unknown> = {}) => { const r = await tool(token, name, args); assertEquals(r.isError, false, name + ": " + JSON.stringify(r.content)); return r.structuredContent.result as Record<string, any>; };
 const one = async (q: string, a: unknown[] = []) => (await pool.query(q, a)).rows[0];
+const worker = () => handle(new Request("http://localhost/functions/v1/api/worker", { method: "POST", headers: { "x-dela-worker": WORKER } }), deps);
 
 type M = { token: string; id: string; bd: number };
 async function member(bd: number, plan: string, name: string): Promise<M> {
@@ -88,14 +101,15 @@ async function signIn(m: M, resource: string | null) {
   return { shown, decide: d, token: String(t.access_token ?? "") };
 }
 
-const SW = ["mcp_admin", "mcp_connector", "flex_gigs", "playbook_library", "document_standard", "pipeline_prefill"];
+const SW = ["mcp_admin", "mcp_connector", "flex_gigs", "playbook_library", "document_standard", "pipeline_prefill", "claim_listings"];
 let was: Array<{ key: string; state: string }> = [], siteUrl: unknown = null;
 let owner: M, growth: M, support: M, plainAtt: M, fl: M, ownerTok = "", growthTok = "";
 
 Deno.test("setup", async () => {
   was = (await pool.query("select key, state from feature_switches where key = any($1)", [SW])).rows;
   await pool.query("update feature_switches set state = 'everyone' where key = any($1)", [SW]);
-  await pool.query("update feature_switches set state = 'off' where key = 'pipeline_prefill'");
+  await pool.query("update feature_switches set state = 'off' where key in ('pipeline_prefill', 'claim_listings')");
+  await pool.query(`create or replace function dela_worker_ok(p_secret text) returns boolean language sql as $$ select p_secret = '${WORKER}' $$`);
   siteUrl = (await one("select value from settings where key = 'site.url'"))?.value ?? null;
   await pool.query("update settings set value = '\"https://bd.test\"' where key = 'site.url'");
   owner = await member(W(11), "att_pro", "Olive Owner"); growth = await member(W(12), "att_free", "Gil Growth"); support = await member(W(13), "att_free", "Sue Support");
@@ -131,7 +145,7 @@ Deno.test("connecting: only the Team address makes a team connection, only a tea
   const init = await mcp("/mcp/admin", ownerTok, "initialize", { protocolVersion: "2025-06-18" });
   assertEquals(init.body.result.serverInfo.name, "lawfecta-dela-team");
   const names = ((await mcp("/mcp/admin", ownerTok, "tools/list")).body.result.tools as Array<Record<string, any>>).map((t) => t.name);
-  assertEquals(names, ["pipeline_rules", "pipeline_add", "attorney_find", "attorney_record", "outreach_mark", "pipeline_stalled", "pipeline_gigs", "playbook_prefill", "gig_draft_from_playbook", "pipeline_counts"]);
+  assertEquals(names, ["pipeline_rules", "pipeline_add", "attorney_find", "attorney_record", "outreach_mark", "pipeline_stalled", "pipeline_gigs", "playbook_prefill", "gig_draft_from_playbook", "claim_batch_status", "claim_batch_check", "claim_listing_fix", "claim_listing_remove", "pipeline_counts"]);
   assert(!names.some((n) => /send|email_|post_|hire|pay|delete/.test(n)), "no tool sends, posts, hires, pays or deletes");
   // A team token opens nothing on the members' connector; a member token opens nothing here
   assertEquals((await mcp("/mcp", ownerTok, "tools/list")).status, 401, "the team token is refused by the members' connector");
@@ -145,7 +159,7 @@ Deno.test("connecting: only the Team address makes a team connection, only a tea
   const g = await signIn(growth, BASE + "/mcp/admin/");
   assertEquals(g.shown.role, "growth"); growthTok = g.token;
   const gNames = ((await mcp("/mcp/admin", growthTok, "tools/list")).body.result.tools as Array<Record<string, any>>).map((t) => t.name);
-  assert(gNames.length === 8 && !gNames.includes("playbook_prefill") && !gNames.includes("gig_draft_from_playbook"), "growth reads the pipeline and records outreach; preparing playbooks is the owner's");
+  assert(gNames.length === 9 && gNames.includes("claim_batch_status") && !gNames.includes("claim_batch_check") && !gNames.includes("claim_listing_remove") && !gNames.includes("playbook_prefill") && !gNames.includes("gig_draft_from_playbook"), "growth reads the pipeline and records outreach; preparing playbooks is the owner's");
   for (const m of [support, plainAtt, fl]) {
     const x = await signIn(m, BASE + "/mcp/admin");
     assertEquals([x.shown.role, x.decide.reason, x.token], ["", "not_on_team", ""], "someone without the role cannot approve a team connection");
@@ -357,6 +371,89 @@ Deno.test("a playbook is prepared from the firm's public website, waits, and lan
   assertEquals((await call("GET", "/playbooks/get?id=" + pb.id, ben.token)).body.prepared.gig_suggested, false);
   // Someone else's document says nothing about being prepared
   assertEquals((await call("GET", "/playbooks/get?id=" + pb.id, plainAtt.token)).body.prepared, undefined);
+});
+
+Deno.test("claim listings: the agent's rows become a draft, only an owner's click creates them, and nobody is emailed", async () => {
+  const row = (o: Record<string, unknown>) => ({ kind: "attorney", first_name: "Eve", last_name: "Estrada", company: "Estrada Law", city: "Austin", state: "TX", website: "https://estrada.example", description: "Family law firm in Austin.", source_url: "https://estrada.example/about", email: "eve@estrada.example", ...o });
+  const rows = [row({}), row({ first_name: "Finn", last_name: "Fox", company: "Fox Law", website: "https://fox.example", source_url: "https://fox.example", email: "" }),
+    { kind: "agency", company: "Gable Staffing", state: "TX", city: "Dallas", website: "https://gable.example", source_url: "https://gable.example", email: "hello@gable.example" },
+    row({ first_name: "Hal", last_name: "Hart", website: "https://hart.example", source_url: "https://hart.example", email: "hal@hart.example", phone: "512-555-0100", bar_number: "24000000" }),
+    row({ first_name: "Ivy", last_name: "Ito", website: "https://ito.example", source_url: "https://ito.example", email: "ivy@ito.example", description: "Call 512-555-0188 for a consult." }),
+    row({ first_name: "Evelyn", last_name: "Estrada-Other", email: "other@estrada.example" }),
+    row({ kind: "freelancer", first_name: "Jo", last_name: "Jung", company: "", website: "https://jung.example", source_url: "https://jung.example", email: "taken@site.example" }),
+    row({ first_name: "Kit", last_name: "Kane", website: "https://kane.example", source_url: "https://kane.example", email: "kit@kane.example", state: "Texas" })];
+  // Off until an owner turns it on; never for growth
+  let r = await tool(ownerTok, "claim_batch_check", { rows, request_id: "cb-1" });
+  assert(r.isError === true && /switched off/.test(r.content[0].text), JSON.stringify(r.content));
+  await pool.query("update feature_switches set state = 'everyone' where key = 'claim_listings'");
+  assertEquals((await mcp("/mcp/admin", growthTok, "tools/call", { name: "claim_batch_check", arguments: { rows, request_id: "cb-g" } })).body.error?.code, -32602);
+  const b = await data(ownerTok, "claim_batch_check", { rows, note: "First sheet", request_id: "cb-1" });
+  const by = (n: number) => (b.rows as Array<Record<string, any>>).find((x) => x.row === n)!;
+  assertEquals([b.status, b.counts], ["draft", { ready: 2, invalid: 5, duplicate: 1 }]);
+  assertEquals([by(1).status, by(7).status, by(6).status], ["ready", "ready", "duplicate"]);
+  assert(/no placeholder domain/.test(by(2).problem) && /No claim plan is set for the kind "agency"/.test(by(3).problem) && /Columns DELA does not take: phone, bar_number/.test(by(4).problem) && /contact details/.test(by(5).problem) && /two letters/.test(by(8).problem), "each row says what is wrong with it: " + JSON.stringify(b.rows.map((x: Record<string, any>) => x.problem)));
+  assert(!JSON.stringify(b).includes("eve@estrada.example") && by(1).has_email === true, "a row's email address is never given back");
+  assertEquals(bdCreated.length, 0, "checking creates nothing on the website");
+  assertEquals((await data(ownerTok, "claim_batch_check", { rows, request_id: "cb-1" })).batch_id, b.batch_id, "the same request twice is one batch");
+  assertEquals((await data(growthTok, "claim_batch_status", { batch_id: b.batch_id })).counts.ready, 2, "growth can read a batch");
+  // Only an owner approves, in the admin area
+  assertEquals((await call("POST", "/admin/claims/approve", growth.token, { id: b.batch_id })).status, 403);
+  assertEquals(bdCreated.length, 0);
+  const ap = (await call("POST", "/admin/claims/approve", owner.token, { id: b.batch_id })).body;
+  assertEquals([ap.ok, ap.ready], [true, 2]);
+  await worker();
+  const after = await data(growthTok, "claim_batch_status", { batch_id: b.batch_id });
+  assertEquals([after.status, after.counts.created, after.counts.failed], ["done", 1, 1]);
+  const made = (after.rows as Array<Record<string, any>>).find((x) => x.row === 1)!;
+  assert(made.status === "created" && made.bd_member_id > 0 && made.listing_path === "texas/austin/estrada", JSON.stringify(made));
+  assert(/already has a member with this email/.test((after.rows as Array<Record<string, any>>).find((x) => x.row === 7)!.problem));
+  // What the website was sent: the attorney claim plan, live, an individual, and no request for a welcome email
+  assertEquals(bdCreated.length, 1);
+  const f0 = bdCreated[0];
+  assertEquals([f0.subscription_id, f0.active, f0.listing_type, f0.email, f0.first_name, f0.company, f0.state_code, f0.website, "send_email_notifications" in f0, "phone_number" in f0], ["15", "2", "Individual", "eve@estrada.example", "Eve", "Estrada Law", "TX", "https://estrada.example", false, false]);
+  assert(f0.password.length >= 24 && !JSON.stringify((await pool.query("select * from claim_listings")).rows).includes(f0.password), "the password made for the listing is long and kept nowhere");
+  // The listed person has no DELA account, so DELA has nobody to notify, and no notice names them (the worker also runs
+  // other suites' own jobs, so the count of all notices is not the measure)
+  assertEquals((await one("select count(*)::int n from notifications where title ilike '%estrada%' or body ilike '%estrada%'")).n, 0, "nobody was notified about the listing");
+  assertEquals((await one("select count(*)::int n from people where bd_member_id = $1", [made.bd_member_id])).n, 0, "creating a listing makes no DELA account");
+  // The attorney's listing is in the pipeline as "listing built"
+  assertEquals((await data(ownerTok, "attorney_record", { bd_member_id: made.bd_member_id })).attorney.stage, "listing_built");
+  assertEquals((await call("POST", "/admin/claims/approve", owner.token, { id: b.batch_id })).body.duplicate, true, "approving twice creates nothing more");
+  await worker();
+  assertEquals(bdCreated.length, 1);
+  // A placeholder address for a row with no email, once a domain is set
+  await pool.query("update settings set value = '\"claim.lawfecta.test\"' where key = 'claim.placeholder_domain'");
+  const b2 = await data(ownerTok, "claim_batch_check", { rows: [rows[1]], request_id: "cb-2" });
+  assertEquals(b2.counts, { ready: 1 });
+  await call("POST", "/admin/claims/approve", owner.token, { id: b2.batch_id }); await worker();
+  assert(/^listing-[0-9a-f-]{13}@claim\.lawfecta\.test$/.test(bdCreated[1].email), bdCreated[1].email);
+  // A correction and a removal, while nobody has claimed it
+  const fx = await data(ownerTok, "claim_listing_fix", { bd_member_id: made.bd_member_id, city: "Dallas", description: "Family law firm in Dallas." });
+  assertEquals([fx.changed, bdUpdated[0].city, bdUpdated[0].user_id], [["city", "search_description"], "Dallas", String(made.bd_member_id)]);
+  assert((await tool(ownerTok, "claim_listing_fix", { bd_member_id: W(2), city: "X" })).isError === true, "a member DELA did not create cannot be changed from here");
+  assert((await tool(ownerTok, "claim_listing_fix", { bd_member_id: made.bd_member_id, description: "Write to eve@estrada.example" })).isError === true);
+  assertEquals((await data(ownerTok, "claim_listing_remove", { bd_member_id: made.bd_member_id, reason: "Asked by email" })).ok, true);
+  assertEquals([bdUpdated.at(-1)!.active, (await one("select status from claim_listings where bd_member_id = $1", [made.bd_member_id])).status, (await one("select left_out from pipeline_attorneys where bd_member_id = $1", [made.bd_member_id])).left_out], ["3", "removed", true]);
+  const b3 = await data(ownerTok, "claim_batch_check", { rows: [rows[0]], request_id: "cb-3" });
+  assert(b3.counts.duplicate === 1 && /asked not to be listed/.test(b3.rows[0].problem), "someone who asked to be removed is not listed again");
+  // Claimed: it is the member's now
+  const second = bdCreated.length;
+  const b4 = await data(ownerTok, "claim_batch_check", { rows: [row({ first_name: "Lee", last_name: "Lund", company: "Lund Law", website: "https://lund.example", source_url: "https://lund.example", email: "lee@lund.example" })], request_id: "cb-4" });
+  await call("POST", "/admin/claims/approve", owner.token, { id: b4.batch_id }); await worker();
+  const lund = (await data(growthTok, "claim_batch_status", { batch_id: b4.batch_id })).rows[0].bd_member_id;
+  assertEquals(bdCreated.length, second + 1);
+  await pool.query("insert into people (bd_member_id, display_name) values ($1, 'Lee Lund')", [lund]);
+  r = await tool(ownerTok, "claim_listing_remove", { bd_member_id: lund });
+  assert(r.isError === true && /has been claimed/.test(r.content[0].text));
+  // The day's cap, and a draft can be canceled
+  const b5 = await data(ownerTok, "claim_batch_check", { rows: [row({ first_name: "Max", last_name: "Mora", company: "Mora Law", website: "https://mora.example", source_url: "https://mora.example", email: "max@mora.example" })], request_id: "cb-5" });
+  await pool.query("update settings set value = '1' where key = 'claim.per_day'");
+  assertEquals((await call("POST", "/admin/claims/approve", owner.token, { id: b5.batch_id })).body.reason, "daily_cap");
+  await pool.query("update settings set value = '100' where key = 'claim.per_day'");
+  assertEquals((await call("POST", "/admin/claims/cancel", owner.token, { id: b5.batch_id })).body.ok, true);
+  assertEquals((await call("POST", "/admin/claims/approve", owner.token, { id: b5.batch_id })).body.duplicate, true);
+  const page = (await call("GET", "/admin/claims", growth.token)).body;
+  assert(page.ok && page.on === true && page.batches.length >= 5 && page.plans.attorney === 15);
 });
 
 Deno.test("the role is checked on every call: taken away, the connection stops at once", async () => {

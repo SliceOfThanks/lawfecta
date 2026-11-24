@@ -1,0 +1,3 @@
+kind,first_name,last_name,company,city,state,country,website,category,description,source_url,email
+attorney,Jane,Sample,Sample Family Law,Austin,TX,US,https://samplefamilylaw.example,,Family law firm in Austin.,https://samplefamilylaw.example/about,
+agency,,,Sample Legal Staffing,Dallas,TX,US,https://samplestaffing.example,,Paralegal staffing for small firms.,https://samplestaffing.example,
