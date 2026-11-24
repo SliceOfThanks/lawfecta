@@ -400,6 +400,8 @@ async function makeMember(bd, side, plan) {
     await sql("update feature_switches set state = 'everyone' where key in ('new_layout', 'dela_workspace_v2', 'recorder', 'automate_delegate', 'ai_helpers', 'client_details_allowed'); select 1");
     try {
       s = await open(browser, 2200, { width: 1500, height: 950 });
+      // Stacey 2026-11-24: where the website carries Userback's feedback button, DELA tells it who the member is
+      await s.page.evaluate(() => { window.Userback = { identify: (id, info) => { window.__ub = { id: id, info: info }; } }; });
       await click(s.page, "Ask DELA");
       // Step 77 (Stacey's mockup of 2026-11-23, "EXACTLY (colors & all)"): the first screen of Ask DELA
       t = await waitFor(s.page, "Conversation context");
@@ -425,6 +427,9 @@ async function makeMember(bd, side, plan) {
       ok(first.w < 820 || (first.side && first.boxIn && first.oneRow), "on a wide screen the band and the context card sit side by side, the message box ends before the context card's edge, and the three cards share one row (page area " + first.w + ")");
       ok(first.over === 0, "nothing on the first screen runs past its box");
       await s.page.screenshot({ path: path.join(SHOTS, "77-ask-dela-first.png"), fullPage: true });
+      await s.page.waitForFunction(() => !!window.__ub, null, { timeout: 10000 });
+      const ub = await s.page.evaluate(() => ({ told: window.__ub, kept: window.Userback.user_data }));
+      ok(ub.told.id === "2200" && ub.kept.id === "2200" && /@test\.invalid$/.test(ub.told.info.email) && ub.told.info.name.length > 0, "the feedback button is told the member's number, name and email, and nothing else: " + JSON.stringify(ub.told));
       // "+ Add": the ways to show DELA the work. The keyboard opens it, moves in it and closes it.
       await dela(s.page).locator("#dw-add").focus();
       await s.page.keyboard.press("ArrowDown");

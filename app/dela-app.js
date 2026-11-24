@@ -40,6 +40,19 @@
     });
   })((api.boot || {}).site_code);
   var me = boot.me || null;
+  // Feedback (Stacey 2026-11-24: "We use Userback to collect feedback on our website"). The website carries Userback's
+  // button in its own footer code. When it is there, DELA says who the logged-in member is (member number, name, email;
+  // her choice), so a report can be answered. DELA does not load Userback itself and holds no key for it.
+  function feedbackWho() {
+    try {
+      var U = window.Userback, p = me && me.person;
+      if (!U || !p || !p.id) return;
+      var id = String(p.bd_member_id || p.id), info = { name: String(p.name || ""), email: String(p.email || "") };
+      U.user_data = { id: id, info: info };
+      if (typeof U.identify === "function") U.identify(id, info);
+    } catch (e) { /* feedback must never stop DELA */ }
+  }
+  feedbackWho(); setTimeout(feedbackWho, 4000);
   var drawer = null;
   var menu = null;
   var tab = "home";
