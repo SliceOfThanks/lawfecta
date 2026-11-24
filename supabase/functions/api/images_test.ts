@@ -259,6 +259,45 @@ Deno.test("older screenshots from imports become images, confirmed at import; th
   assert(!JSON.stringify(adm).includes("/img/"), "the team never gets image addresses");
 });
 
+Deno.test("step 79: screenshots put into an Ask DELA chat go with the playbook draft made from that chat", async () => {
+  await pool.query("update feature_switches set state = 'everyone' where key in ('document_images', 'ask_dela_workspace', 'file_uploads')");
+  const up = async (who: M, name: string) => {
+    const st = (await call("POST", "/files/start", who.token, { name, size_bytes: PNG.length, ticked: true, request_id: "shot" + (n++) })).body;
+    assertEquals(st.ok, true, JSON.stringify(st));
+    blobs.set(st.upload_url.replace("https://storage.test/up/", ""), PNG);
+    const done = (await call("POST", "/files/complete", who.token, { file_id: st.file_id })).body;
+    assert(done.ok !== false, JSON.stringify(done));
+    return st.file_id as string;
+  };
+  const shots = [await up(att, "Intake screen.png"), await up(att, "Conflict search.png"), await up(att, "Fee table.png"), await up(att, "Fourth one.png")];
+  assertEquals((await pool.query("select count(*)::int n from files where id = any($1) and status = 'ready'", [shots])).rows[0].n, 4, "the screenshots passed the check");
+  const sent = (await call("POST", "/ai/chat/send", att.token, { content: "This is how we open a matter.", request_id: "shot-chat-1", file_ids: shots })).body;
+  assertEquals(sent.ok, true, JSON.stringify(sent));
+  const d = (await call("POST", "/documents/draft", att.token, { org_id: org, type: "sop", request_id: "shot-d1", answers: { name: "Open a matter with screenshots" }, from_chat: sent.chat_id })).body;
+  assertEquals(d.ok, true, JSON.stringify(d));
+  assert(d.notices.some((x: string) => x.startsWith("3 screenshots from your chat are in the draft, under \"Before you start\".")) && d.notices.some((x: string) => x.startsWith("1 more screenshot is on your Files page")), "the member is told where they are and that one did not fit: " + JSON.stringify(d.notices));
+  const got = await get(d.id);
+  const refs = got.body.section_images.before_you_start;
+  assertEquals(refs.map((x: any) => x.caption), ["Intake screen", "Conflict search", "Fee table"], "in the order they were sent, named after the files");
+  assertEquals((await pool.query("select count(*)::int n from doc_images where id = any($1) and org_id = $2", [refs.map((x: any) => x.id), org])).rows[0].n, 3, "they are the firm's own document images");
+  assert(got.body.steps.every((st: any) => !st.images.length), "DELA does not guess which step a screenshot shows");
+  // The same draft asked for twice is one draft
+  const again = (await call("POST", "/documents/draft", att.token, { org_id: org, type: "sop", request_id: "shot-d1", answers: { name: "Open a matter with screenshots" }, from_chat: sent.chat_id })).body;
+  assertEquals([again.id, again.duplicate], [d.id, true]);
+  // A policy holds text only; another firm's member gets nothing from this chat
+  const pol = (await call("POST", "/documents/draft", att.token, { org_id: org, type: "policy", request_id: "shot-d2", answers: { name: "Screens policy" }, from_chat: sent.chat_id })).body;
+  assert(pol.ok && pol.notices.some((x: string) => x.includes("A policy holds text only.")), JSON.stringify(pol.notices));
+  const oorg = (await one("select dela_side_org($1, 'attorney') o", [other.id])).o;
+  const theirs = (await call("POST", "/documents/draft", other.token, { org_id: oorg, type: "sop", request_id: "shot-d3", answers: { name: "Not my chat" }, from_chat: sent.chat_id })).body;
+  assert(theirs.ok && !theirs.notices.some((x: string) => x.includes("screenshot")), "a chat that is not the member's own gives no screenshots: " + JSON.stringify(theirs.notices));
+  assertEquals((await get(theirs.id, other)).body.section_images.before_you_start, []);
+  // With images in documents switched off, the screenshots stay on the Files page and the member is told
+  await pool.query("update feature_switches set state = 'off' where key = 'document_images'");
+  const off = (await call("POST", "/documents/draft", att.token, { org_id: org, type: "sop", request_id: "shot-d4", answers: { name: "Images off" }, from_chat: sent.chat_id })).body;
+  assert(off.ok && off.notices.some((x: string) => x.includes("Images in documents are not turned on")), JSON.stringify(off.notices));
+  await pool.query("update feature_switches set state = 'everyone' where key = 'document_images'");
+});
+
 Deno.test("teardown", async () => {
   await pool.end();
 });

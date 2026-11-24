@@ -404,6 +404,7 @@ async function makeMember(bd, side, plan) {
       // Step 77 (Stacey's mockup of 2026-11-23, "EXACTLY (colors & all)"): the first screen of Ask DELA
       t = await waitFor(s.page, "Conversation context");
       const sr77 = (fn) => s.page.evaluate((f) => new Function("r", f)(document.querySelector(".dela-host").shadowRoot), fn);
+      await dela(s.page).locator("#dw-add-improve").waitFor({ state: "visible", timeout: 10000 });
       const first = await sr77(`const q = (x) => r.querySelector(x), cs = (x, p) => getComputedStyle(q(x))[p], b = (x) => q(x).getBoundingClientRect();
         return { h1: q(".dw-head-ask h1").textContent, sub: q(".dw-head-ask .dw-sub").textContent, ico: cs(".dw-ico", "backgroundColor"), acts: [...r.querySelectorAll(".dw-head-acts button")].map((x) => x.textContent.trim()),
           hero: q("#dw-hero-h").textContent, heroBg: cs(".dw-hero", "backgroundImage"), art: q(".dw-art").getAttribute("aria-hidden"), line: q("#dw-ctx-line").textContent, manage: q("#dw-manage").textContent.trim(),
@@ -415,7 +416,7 @@ async function makeMember(bd, side, plan) {
       ok(first.h1 === "Ask DELA" && first.sub === "Your delegation partner for processes, playbooks and getting work done." && first.acts.join("|") === "Chats & pages|New chat", "the title row has the sparkle square, the title, the one sentence, and the buttons Chats & pages and New chat: " + JSON.stringify(first.acts));
       ok(first.hero === "What would you like to get off your plate?" && t.includes("Describe a task, recurring problem, or process you want to improve.") && first.art === "true", "the blue band asks the one question, and its drawing is hidden from screen readers");
       ok(first.line === "No firm profile yet · No playbooks selected" || first.line === "Firm profile in use · No playbooks selected", "Conversation context says in one line what DELA reads, from the firm's own records: " + first.line);
-      ok(first.manage === "Manage" && first.ph === "Tell DELA what you need help with..." && first.row.join("|") === "Add|Talk|Send" && first.sendRight, "one message box with Add, Talk and Send, as the mockup draws it: " + first.row.join("|"));
+      ok(first.manage === "Manage" && first.ph === "Tell DELA what you need help with..." && first.row.join("|") === "Add|Talk|Record my screen|Improve my request|Send" && first.sendRight, "one message box with Add, Talk, Record my screen, Improve my request and Send (Stacey 2026-11-24: the last two are buttons of their own): " + first.row.join("|"));
       ok(first.lock === "Never enter sensitive data: SSNs, account numbers, health details, passwords. Client names and case facts are fine.", "the line under the box is Stacey's client information rule, in the mockup's place");
       ok(first.usage1.startsWith("View details#false#") && first.usage1.split("#")[2].length > 10 && first.usage1.endsWith("#AI usage:"), "the first screen shows AI usage: View details in the same strip, as the conversation does (Stacey 2026-11-23); the number is kept for screen readers: " + first.usage1);
       ok(first.startH === "Not sure where to start?" && first.starts.join("|") === "Find work to delegate|Create a playbook|Improve a process", "three ways to start: " + first.starts.join("|"));
@@ -428,12 +429,28 @@ async function makeMember(bd, side, plan) {
       await dela(s.page).locator("#dw-add").focus();
       await s.page.keyboard.press("ArrowDown");
       const addList = await sr77(`return { open: r.querySelector("#dw-add").getAttribute("aria-expanded"), items: [...r.querySelectorAll("#dw-add-list .dw-item b")].map((x) => x.textContent), at: (r.activeElement || {}).id }`);
-      ok(addList.open === "true" && addList.items.includes("Record my screen") && addList.items.includes("Import from Scribe") && addList.items.includes("Improve my request") && addList.items[0] === "Add a playbook as a source" && addList.items[1] === "Attach a file" && addList.at === "dw-add-source", "Add opens from the keyboard with Add a playbook as a source, Attach a file, Record my screen, Import from Scribe and Improve my request, and the first line has the focus: " + JSON.stringify(addList));
+      ok(addList.open === "true" && addList.items.join("|") === "Add a playbook as a source|Upload screenshots|Attach a file|Import from Scribe" && addList.at === "dw-add-source", "Add opens from the keyboard with a playbook as a source, Upload screenshots, Attach a file and Import from Scribe; Record my screen and Improve my request are no longer in it: " + JSON.stringify(addList));
       await s.page.keyboard.press("Escape");
       ok((await sr77(`return r.querySelector("#dw-add").getAttribute("aria-expanded") + "|" + getComputedStyle(r.querySelector("#dw-add-list")).display + "|" + (r.activeElement || {}).id`)) === "false|none|dw-add", "Escape closes the list and the Add button has the focus again");
-      await dela(s.page).locator("#dw-add").click();
       await dela(s.page).locator("#dw-add-improve").click();
-      ok(await sr77(`return getComputedStyle(r.querySelector("#dw-improve")).display !== "none" && /Uses 1 DELA action/.test(r.querySelector("#dw-improve").textContent)`), "Improve my request shows its button and what it costs before anything is used");
+      ok(await sr77(`return getComputedStyle(r.querySelector("#dw-improve")).display !== "none" && /Uses 1 DELA action/.test(r.querySelector("#dw-improve").textContent) && r.querySelector("#dw-add-improve").getAttribute("aria-expanded") === "true"`), "the button Improve my request opens its line with what it costs, before anything is used");
+      await dela(s.page).locator("#dw-add-improve").click();
+      ok(await sr77(`return getComputedStyle(r.querySelector("#dw-improve")).display === "none"`), "a second click closes it");
+      // Step 79: screenshots are uploaded right in the message box and attached to the message
+      await dela(s.page).locator("#dw-msg").fill("Kept while uploading");
+      await dela(s.page).locator("#dw-shot-file").setInputFiles([{ name: "Intake screen.png", mimeType: "image/png", buffer: Buffer.from(PNG64, "base64") }, { name: "notes.txt", mimeType: "text/plain", buffer: Buffer.from("x") }]);
+      await dela(s.page).locator(".dw-composer .chips").waitFor({ timeout: 15000 });
+      const shot = await sr77(`return { chips: [...r.querySelectorAll(".dw-composer .chips > span")].map((x) => x.textContent.replace("×", "").trim()), msg: r.querySelector("#dw-msg").value }`);
+      ok(shot.chips.join("|") === "Intake screen.png" && shot.msg === "Kept while uploading", "a chosen screenshot is uploaded and attached; a file that is not a picture is left out; what was typed stays: " + JSON.stringify(shot));
+      ok((await sql("select count(*)::int n from files where name = 'Intake screen.png' and status = 'ready'"))[0].n === 1, "the screenshot is saved to the firm's Files and passed the check");
+      await dela(s.page).getByRole("button", { name: "Remove Intake screen.png" }).click();
+      ok((await dela(s.page).locator(".dw-composer .chips").count()) === 0, "the screenshot can be taken off the message again");
+      await dela(s.page).locator("#dw-msg").fill("");
+      await dela(s.page).locator("#dw-cap-record").click();
+      await waitFor(s.page, "Record a process", 15000);
+      ok(true, "Record my screen opens the recorder");
+      await click(s.page, "Ask DELA");
+      await waitFor(s.page, "Conversation context", 15000);
       await dela(s.page).locator("#dw-add").click();
       await dela(s.page).locator("#dw-cap-scribe").click();
       await waitFor(s.page, "Read the guide", 15000);

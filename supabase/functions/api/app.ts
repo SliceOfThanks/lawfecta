@@ -23,6 +23,7 @@ import { encryptionReady, openKey, sealKey } from "./lib/ai/keycrypt.ts";
 import { guideRow, guideSteps, looksLikeScribeKey, scribeCall, type ScribeCode } from "./lib/imports/scribe.ts";
 import { AiFail, chat, guessProvider, looksLikeKey, testKey, transcribe, transcribeLines, type ChatImage, type ChatMsg, type Provider } from "./lib/ai/providers.ts";
 import { plainText } from "./lib/ai/text.ts";
+import { IMAGE_SECTIONS } from "./lib/documents/images.ts";
 import { BACK_OFFICE, WORKSPACE_RULES, guidanceText, readAsk, readPlan, stepsIndex, type PlanDoc } from "./lib/ai/ask.ts";
 import { CHECK_PROMPT, SENSITIVE_CHECK_PROMPT, clientDetails, messageLooksSensitive, patternCheck, readCheckAnswer, readSensitiveAnswer, reminderKinds } from "./lib/ai/clientcheck.ts";
 import { CONTENT_TYPES, readText, sha256, sniff } from "./lib/files/check.ts";
@@ -1692,11 +1693,34 @@ async function docDraft(ctx: Ctx) {
   }
   const WORDS: Record<string, string> = { cred: "passwords, logins or account numbers", "social security numbers": "social security numbers", "dates of birth": "dates of birth", "case numbers": "case numbers", "client names": "client names", "case captions": "case names" };
   const removed = notices.map((k) => WORDS[k] ?? k);
+  // Step 79: screenshots the member put into the chat this draft comes from go with it. DELA cannot know which step
+  // each one shows, so they wait in the type's own image section, where the member sees them and adds each to its step.
+  const shotNotes: string[] = [];
+  const shotChat = uuid(ctx.body.from_chat);
+  if (shotChat && await workspaceOn(ctx, s)) {
+    const shots = await rpc<Array<{ id: string; name: string }>>(ctx, "dela_ai_chat_images", { p_person: s.person_id, p_side: s.side, p_chat: shotChat, p_org: org }).catch(() => []) ?? [];
+    const slot = IMAGE_SECTIONS[type][0], img = shots.length ? await imageSettings(ctx, s) : null;
+    if (shots.length && slot && img?.on) {
+      const refs = [...(body.section_images[slot.key] ?? [])];
+      let added = 0;
+      for (const f of shots) {
+        if (refs.length >= img.per_step) break;
+        const di = await rpc<Record<string, any>>(ctx, "dela_doc_image_legacy", { p_file: f.id, p_org: org }).catch(() => null);
+        if (!di?.ok || !di.id || refs.some((x) => x.id === String(di.id))) continue;
+        const dot = String(f.name).lastIndexOf(".");
+        refs.push({ id: String(di.id), caption: (dot > 0 ? String(f.name).slice(0, dot) : String(f.name)).slice(0, img.caption_max) });
+        added++;
+      }
+      body.section_images[slot.key] = refs;
+      if (added) shotNotes.push(added + (added === 1 ? " screenshot" : " screenshots") + " from your chat " + (added === 1 ? "is" : "are") + " in the draft, under \"" + slot.label + "\". DELA cannot tell which step each one shows: open the draft and add each to its step.");
+      if (shots.length > added) shotNotes.push((shots.length - added) + " more " + (shots.length - added === 1 ? "screenshot is" : "screenshots are") + " on your Files page: a section holds " + img.per_step + " images.");
+    } else if (shots.length) shotNotes.push(slot ? "The screenshots from your chat are on your Files page. Images in documents are not turned on for your account yet." : "The screenshots from your chat are on your Files page. A policy holds text only.");
+  }
   const r = await docCreate(ctx, s, org, requestId, body, (Array.isArray(ctx.body.file_ids) && ctx.body.file_ids.length) || str(ctx.body.text, 10) ? "file" : "ai", "First draft by DELA", firm);
   if (!r?.ok) return json(ctx, r);
   const fromChat = await linkChat(ctx, s, r.id);
   return json(ctx, { ok: true, id: r.id, from_chat: fromChat, duplicate: !!r.duplicate, check: r.check, suggested_type: read.suggested && read.suggested.type !== type ? read.suggested : null, questions: read.questions,
-    notices: [...(removed.length ? ["DELA removed " + removed.join(", ") + " from what you gave it, and used fictional examples instead."] : []), ...read.notices.slice(0, 4), ...r.notices] });
+    notices: [...(removed.length ? ["DELA removed " + removed.join(", ") + " from what you gave it, and used fictional examples instead."] : []), ...read.notices.slice(0, 4), ...r.notices, ...(r.duplicate ? [] : shotNotes)] });
 }
 
 async function docCurrent(ctx: Ctx, s: Session, id: string) {

@@ -57,14 +57,18 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Expect, top to bottom:
    The heading row: a pale pink square with a dark red sparkle, the large heading "Ask DELA", the sentence "Your delegation partner for processes, playbooks and getting work done.", and at the far right the outlined buttons "Chats & pages" and "New chat".
    A light blue band, wide, at the left: "What would you like to get off your plate?" in bold and under it "Describe a task, recurring problem, or process you want to improve." At the band's right edge, a small drawing of a ticked list. Beside the band, at the right: a white card "Conversation context" with a blue book icon, one grey line that ends "No playbooks selected" (or "1 playbook selected"), a thin line, and the dark red word "Manage" with a small arrow.
-   A white card, a little narrower than the page: a large message box that says "Tell DELA what you need help with...". Under the box one row: "Add" (with a plus sign and a small down arrow) and "Talk" (with a microphone; it may be missing if the browser has no microphone) at the left, and the dark red button "Send" with a paper plane at the far right. Under the row, a light grey strip with a small blue lock: "Never enter sensitive data: SSNs, account numbers, health details, passwords. Client names and case facts are fine." At the right end of the same strip: "AI usage: View details".
+   A white card, a little narrower than the page: a large message box that says "Tell DELA what you need help with...". Under the box one row of buttons, left to right: "Add" (with a plus sign and a small down arrow), "Talk" (with a microphone; it may be missing if the browser has no microphone), "Record my screen" and "Improve my request" (either may be missing if it is not turned on), and at the far right the dark red button "Send" with a paper plane. Under the row, a light grey strip with a small blue lock: "Never enter sensitive data: SSNs, account numbers, health details, passwords. Client names and case facts are fine." At the right end of the same strip: "AI usage: View details".
    The heading "Not sure where to start?" and three cards side by side: a light blue card "Find work to delegate", a light green card "Create a playbook" and a light peach card "Improve a process". Each has an icon at the left, two or three grey lines and a small arrow at the right.
    Expect: there is NO menu card at the left of the page and NO row of three large buttons above the message box. Nothing lies on top of anything else and nothing is cut off.
 
 4. Do: click "Add".
-   Expect: a small list opens under the button with these lines, each with a grey line under it (some may be missing if they are not turned on): "Attach a file", "Record my screen", "Import from Scribe", "Improve my request".
+   Expect: a small list opens under the button with these lines, each with a grey line under it (some may be missing if they are not turned on): "Add a playbook as a source", "Upload screenshots", "Attach a file", "Import from Scribe". There is NO line "Record my screen" or "Improve my request" in this list: they are buttons beside "Talk".
    Do: press the Esc key.
    Expect: the list closes.
+   Do: click the button "Improve my request" beside "Talk" (skip this part if the button is missing).
+   Expect: a line opens under the buttons with a small button "Improve my request" and grey words that say how many DELA actions it uses. Do NOT click that small button.
+   Do: click the button "Improve my request" beside "Talk" again.
+   Expect: the line closes.
    Do: click "Chats & pages" at the far right of the heading.
    Expect: a list with the small heading "EARLIER CHATS" and earlier chats under it, the grey words "Chats and drafts remain separate records. Starting a new chat does not delete previous work.", then the small heading "WORKSPACE PAGES" with six lines: "My playbooks", "Delegation opportunities", "Gig drafts", "Playbook changes", "Decisions & blockers", "DELA instructions".
    Do: press the Esc key. Then, in the card "Conversation context", click "Manage".

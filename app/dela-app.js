@@ -240,6 +240,8 @@
     doc: [["path", "M7 3h7l4 4v14H7z"], ["path", "M14 3v4h4"], ["path", "M10 13h5M10 17h3"]],
     grid: [["path", "M4 4h6v6H4z"], ["path", "M14 4h6v6h-6z"], ["path", "M4 14h6v6H4z"], ["path", "M14 14h6v6h-6z"]],
     down: [["path", "M6 9l6 6 6-6"]],
+    screen: [["path", "M3 5h18v11H3z"], ["path", "M9 20h6M12 16v4"], ["circle", 12, 10.5, 2]],
+    image: [["path", "M4 5h16v14H4z"], ["path", "M4 16l5-5 4 4 3-3 4 4"], ["circle", 9, 9, 1.2]],
     bulb: [["path", "M9 17h6"], ["path", "M10 20h4"], ["path", "M12 3a6 6 0 0 0-3.6 10.8c.6.5 1 1.1 1.1 1.9h5c.1-.8.5-1.4 1.1-1.9A6 6 0 0 0 12 3z"]],
     gavel: [["path", "M13 4l5 5"], ["path", "M10.5 6.5l5 5"], ["path", "M12 5.5l-6 6 3 3 6-6"], ["path", "M8 14l-5 5"]],
     list: [["path", "M9 6h11M9 12h11M9 18h11"], ["path", "M4 6h1M4 12h1M4 18h1"]],
@@ -3700,16 +3702,63 @@
         mic.setAttribute("aria-label", "Talk: say it and DELA writes it into the box");
         if (window.MutationObserver) new MutationObserver(function () { autoLab.style.display = mic.getAttribute("aria-pressed") === "true" ? "" : "none"; }).observe(mic, { attributes: true, attributeFilter: ["aria-pressed"] });
       }
-      var helpOn = false, improve = helperButton("improve_request", "Improve my request", function () { return { text: ta.value }; }, { field: function (x) { return x.field === "request" ? ta : null; }, toast: "Added to your message. Nothing is sent until you click Send." });
+      var improve = helperButton("improve_request", "Improve my request", function () { return { text: ta.value }; }, { field: function (x) { return x.field === "request" ? ta : null; }, toast: "Added to your message. Nothing is sent until you click Send." });
       improve.className += " dw-improve"; improve.id = "dw-improve"; improve.style.display = "none";
-      loadHelpers().then(function (info) { helpOn = !!(info && info.on); });
+      // Step 79 (Stacey 2026-11-24): "Record my screen" and "Improve my request" are buttons of their own beside "Talk"
+      var recBtn = lw && sw.recorder ? h("button", { class: "ghost dw-talk", type: "button", id: "dw-cap-record", onclick: function () { tab = "record"; draw(); window.scrollTo(0, 0); } }, icon("screen"), "Record my screen") : null;
+      var impBtn = h("button", { class: "ghost dw-talk", type: "button", id: "dw-add-improve", style: "display:none", "aria-expanded": "false", "aria-controls": "dw-improve" }, icon("wand"), "Improve my request");
+      impBtn.addEventListener("click", function () {
+        var open = improve.style.display === "none";
+        improve.style.display = open ? "" : "none"; impBtn.setAttribute("aria-expanded", open ? "true" : "false");
+        var b = open && improve.querySelector("button"); if (b) b.focus();
+      });
+      loadHelpers().then(function (info) { if (info && info.on) impBtn.style.display = ""; });
+      // Screenshots: chosen from the computer or pasted into the box. Each is saved to the firm's Files, checked like any
+      // file, and attached to the message. DELA sees them, and a playbook draft made from this chat takes them along.
+      var shotIn = attachRow ? h("input", { type: "file", id: "dw-shot-file", accept: "image/png,image/jpeg", multiple: true, tabindex: "-1", "aria-label": "Choose screenshots to upload", style: "display:none" }) : null;
+      var addShots = function (files) {
+        var list = [].slice.call(files || []).filter(function (f) { return f.type === "image/png" || f.type === "image/jpeg"; });
+        if (!list.length) { D.toast(app, "A screenshot must be a PNG or JPG picture.", true); return; }
+        var room = lim("chat_attach_max") - chat.attach.length;
+        if (room <= 0) { D.toast(app, D.errorText("too_many_files"), true); return; }
+        if (list.length > room) { D.toast(app, "Only " + room + " more can be attached to this message. The first " + room + " will be uploaded."); list = list.slice(0, room); }
+        var i = 0, waitN = 0, failN = 0, okN = 0, stamp = new Date().toISOString().slice(0, 16).replace("T", " ").replace(":", ".");
+        chat.shotBusy = true;
+        var next = function () {
+          if (i >= list.length) {
+            chat.shotBusy = false;
+            drawChat();
+            dwSay(okN + (okN === 1 ? " screenshot attached." : " screenshots attached.") + (waitN ? " " + waitN + " waiting for the client information check on your Files page." : "") + (failN ? " " + failN + " could not be uploaded." : ""));
+            if (waitN) D.toast(app, waitN + (waitN === 1 ? " screenshot is" : " screenshots are") + " waiting for the client information check. Open your Files page to confirm, then attach with \"Add\", \"Attach a file\".", true);
+            if (composerText) composerText.focus();
+            return;
+          }
+          var f = list[i++];
+          status.textContent = "Uploading screenshot " + i + " of " + list.length + "...";
+          var nm = f.name && f.name !== "image.png" ? f.name : "Screenshot " + stamp + (list.length > 1 ? " (" + i + ")" : "") + (f.type === "image/png" ? ".png" : ".jpg");
+          uploadBlob(f, nm, "").then(function (r) {
+            if (!r || r.ok === false) { failN++; D.toast(app, failText(r || {}), true); return; }
+            if (r.status && r.status !== "ready") { waitN++; return; }
+            okN++; chat.attach.push({ id: r.file_id, name: nm }); chat.files.unshift({ id: r.file_id, name: nm, status: "ready" });
+          }).catch(function () { failN++; }).then(next);
+        };
+        next();
+      };
+      if (shotIn) {
+        shotIn.addEventListener("change", function () { addShots(shotIn.files); shotIn.value = ""; });
+        ta.addEventListener("paste", function (e) {
+          var items = (e.clipboardData && e.clipboardData.files) || [];
+          var pics = [].slice.call(items).filter(function (f) { return f.type === "image/png" || f.type === "image/jpeg"; });
+          if (!pics.length) return;
+          e.preventDefault(); addShots(pics);
+        });
+      }
       var adds = function () {
         return [
           lw ? ["dw-add-source", "book", "Add a playbook as a source", "Pick from recent ones or search all of them.", function () { dwSources("dw-add"); }] : null,
+          shotIn ? ["dw-add-shot", "image", "Upload screenshots", "PNG or JPG. DELA sees them, and they go into the playbook draft.", function () { shotIn.click(); }] : null,
           attachRow ? ["dw-add-file", "files", chat.picking ? "Close files" : "Attach a file", "Choose a file from your Files page.", function () { chat.picking = !chat.picking; drawChat(); }] : null,
-          lw && sw.recorder ? ["dw-cap-record", "eye", "Record my screen", "Do the task once. DELA writes the steps.", function () { tab = "record"; draw(); window.scrollTo(0, 0); }] : null,
-          lw && sw.scribe_import ? ["dw-cap-scribe", "doc", "Import from Scribe", "Bring in a guide you made with Scribe.", function () { lib.startScribe = true; lib.pb = null; lib.importId = null; goTab("library"); window.scrollTo(0, 0); }] : null,
-          helpOn ? ["dw-add-improve", "wand", "Improve my request", "DELA suggests clearer wording. Nothing is sent.", function () { improve.style.display = ""; var b = improve.querySelector("button"); if (b) b.focus(); }] : null].filter(Boolean);
+          lw && sw.scribe_import ? ["dw-cap-scribe", "doc", "Import from Scribe", "Bring in a guide you made with Scribe.", function () { lib.startScribe = true; lib.pb = null; lib.importId = null; goTab("library"); window.scrollTo(0, 0); }] : null].filter(Boolean);
       };
       var addMenu = dwMenu({ id: "dw-add", name: "Add to your message", cls: "ghost dw-addb", label: [icon("plus"), "Add", icon("down")], build: function (panel, close) {
         var list = adds();
@@ -3722,7 +3771,8 @@
       return h("div", { class: "composer dw-composer" },
         attachRow,
         ta,
-        h("div", { class: "row dw-composer-row" }, addMenu, mic, autoLab,
+        shotIn,
+        h("div", { class: "row dw-composer-row" }, addMenu, mic, recBtn, impBtn, autoLab,
           h("span", { class: "grow" }), status,
           chat.busy ? h("button", { class: "ghost", type: "button", id: "chat-stop", onclick: stopSend }, "Stop") : null, sendB),
         improve,
