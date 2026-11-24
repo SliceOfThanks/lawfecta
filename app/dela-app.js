@@ -15483,6 +15483,16 @@
     var dt = q.querySelector("details"); if (dt && openD) dt.open = true;
   }
   // The page: the document first, the rest beside it
+  // Step 82b: a playbook the Lawfecta Team prepared from the firm's public website says so, on top of the page
+  function preparedNote() {
+    var pr = lib.pb && lib.pb.prepared, P = lib.pb && lib.pb.playbook;
+    if (!pr || !pr.prepared || !P) return null;
+    var box = h("div", { class: "notice", role: "note", id: "doc-prepared" }, h("b", { text: "Prepared for you by Lawfecta from your public website" + (pr.source_host ? " (" + pr.source_host + ")" : "") + ". " }),
+      h("span", { text: "Check every step before you use it. Each step is marked \"DELA's suggestion\" until you confirm it, and nothing here is in use until you approve it. Change anything, or move it to the trash if it is not for you." }));
+    if (pr.gig_suggested && (me.switches || {}).flex_gigs && can(4)) box.appendChild(h("div", { class: "row", style: "margin-top:8px;gap:8px;flex-wrap:wrap;align-items:center" }, h("span", { text: "You approved it. To have a freelancer do this work, start a gig from it:" }),
+      h("button", { class: "blue small", type: "button", id: "doc-prepared-gig", onclick: function () { gigs.id = null; gigs.newFrom = P.id; tab = "projects"; draw(); } }, "Post as a Flex Gig")));
+    return box;
+  }
   function drawDocument2() {
     var P = lib.pb.playbook, s = dpState(), d = docWork(), ck = lib.pb.check || { items: [], blocking: 0 };
     var locked = docLocked(P.id), AV = lib.pb.approved || null;
@@ -15503,6 +15513,7 @@
       edit ? h("button", { class: "ghost small", type: "button", id: "dp-save", onclick: function () { if (!dpDirty()) { D.toast(app, "Everything is saved."); return; } dpCommit("").then(function () { openPlaybook(P.id, "read"); }).catch(pbFail); } }, "Save") : null,
       h("button", { class: "ghost small" + (s.panel === "delegate" ? " on" : ""), type: "button", id: "dp-open-delegate", "aria-expanded": s.panel === "delegate" ? "true" : "false", onclick: function () { s.panel = s.panel === "delegate" ? "" : "delegate"; dpRedraw(); } }, "Delegate"),
       h("button", { class: "ghost small" + (s.panel === "details" ? " on" : ""), type: "button", id: "dp-open-details", "aria-expanded": s.panel === "details" ? "true" : "false", onclick: function () { s.panel = s.panel === "details" ? "" : "details"; dpRedraw(); } }, "Details")));
+    var pn2 = preparedNote(); if (pn2) libEl.appendChild(pn2);
     libEl.appendChild(h("div", { id: "dp-stale" }));
     if (s.restored && !s.stale) libEl.appendChild(h("p", { class: "notice", role: "status", id: "dp-restored" }, "Your changes from " + D.date(s.restored) + ", " + dpTime(s.restored) + " are back in the document. They become a version when you click Save or leave the document. ",
       h("button", { class: "linkish", type: "button", onclick: function () { api.post("/playbooks/working/discard", { id: P.id }).then(function () { lib.doc = null; lib.dp = null; openPlaybook(P.id, "read"); }).catch(pbFail); } }, "Drop them")));
@@ -15623,6 +15634,7 @@
         fromHost.appendChild(h("p", { class: "small", id: "doc-chat-link", style: "margin:0 0 6px" }, "Started from your chat \"" + cch.title + "\". ",
           h("button", { class: "linkish", type: "button", onclick: function () { chat.id = cch.chat_id; goTab(me.side === "attorney" ? "delegate" : "ask"); } }, "Open the chat")));
       }).catch(function () { /* the link is a help, not a need */ }); }
+    var pn1 = preparedNote(); if (pn1) libEl.appendChild(pn1);
     if (lib.view === "approved") { /* the approved page says which version is in use */ }
     else if (P.status !== "approved") libEl.appendChild(h("div", { class: "notice", role: "note", style: "font-weight:700" }, h("span", { text: "Draft, not approved. Do not use this as an approved procedure." + (P.approved_version ? " The approved version " + P.approved_version + " stays in use until this one is approved." : "") }),
       AV ? h("span", null, " ", h("button", { class: "ghost small", type: "button", onclick: function () { lib.view = "approved"; drawDocument(); } }, "View the approved version")) : null));

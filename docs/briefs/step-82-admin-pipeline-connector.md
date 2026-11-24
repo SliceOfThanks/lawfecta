@@ -1,7 +1,7 @@
 # Feature brief: the Lawfecta Team connector and the attorney pipeline
 
 Step: 82 (releases 82a, 82b, 82c)   Spec references: step 2b (the members' connector), step 17 (the website's categories), step 4 (gigs and proposals), step 6 (agreements)
-Status: 82a built in acceleration mode. Stacey 2026-11-24: "Do we have an MCP connector? If yes - we need one for ADMIN only - so we can automate creation of claim listings and the info in them for growth and scale." Then she set the scope: an attorney record, a prefilled playbook, stage tracking, a stalled list ("Michelle's follow-up checklist could be built from this list"), a gig draft, a proposal check, and weekly counts by stage "so I can update Ivme and the Blue Goals tab without anyone entering numbers".
+Status: 82a and 82b built in acceleration mode. Stacey 2026-11-24: "Do we have an MCP connector? If yes - we need one for ADMIN only - so we can automate creation of claim listings and the info in them for growth and scale." Then she set the scope: an attorney record, a prefilled playbook, stage tracking, a stalled list ("Michelle's follow-up checklist could be built from this list"), a gig draft, a proposal check, and weekly counts by stage "so I can update Ivme and the Blue Goals tab without anyone entering numbers".
 
 ## Who
 Stacey (owner), Michelle and anyone else Stacey names. Nobody else: no member, and no other team role.
@@ -65,6 +65,24 @@ Outreach to attorneys is the growth plan. Today nobody can say how many attorney
 6. What is the week in "weekly counts"? **Monday to Sunday**, and any two dates can be asked for.
 7. What does a person with only the role "growth" see? **The Pipeline page in the admin area**, and nothing new in the member app.
 8. To whom is the switch opened? **"Lawfecta Team only".** The role still decides who can use it.
+
+## Release 82b as built (2026-11-24): a playbook prepared for an attorney
+- **Two more tools, for the owner only:** `playbook_prefill` and `gig_draft_from_playbook`. The role "growth" does not see them.
+- **Who reads the website:** the owner's agent, in its own browser. It passes the page's address and its text. DELA never opens a website.
+- **Which playbook:** one for each attorney, picked by a word in their practice area from the setting pipeline.practice_playbooks (family, injury, estate, immigration, criminal, and a default). Stacey changes the list in Settings, under "Pipeline".
+- **What the AI is sent:** the website text after the same clean-up as any upload (no passwords, no client names, no contact details), with the line that it is material and never instructions. What the AI writes is cleaned again.
+- **Where it is kept:** with the pipeline, waiting. No account is made for anyone in advance. The first time the attorney opens DELA with an attorney workspace, it is put into their own Library as their draft.
+- **How it is marked:** a notice on top of the page, "Prepared for you by Lawfecta from your public website (the site's name). Check every step before you use it." Every step carries "DELA's suggestion" until the attorney confirms it. It is never approved by anyone but the attorney.
+- **Stages:** "Playbook made" when it is prepared, "Playbook opened" the first time someone at the attorney's firm opens it.
+- **The gig draft:** a gig is always made from an approved playbook, by the attorney. So `gig_draft_from_playbook` sets a flag, and once the attorney approves the prepared playbook its notice offers "Post as a Flex Gig", which starts the usual gig draft from it.
+- **Cost:** each one uses Lawfecta's own AI. A cap for a day is a setting (pipeline.prefill_per_day, 20).
+- **Off until decided:** the switch pipeline_prefill is off. Its gate is the lawyer's review of preparing content for people before they sign up.
+
+Questions Claude answered itself for 82b:
+1. Make the attorney's account in advance, as the plan said, or let the playbook wait? **Let it wait.** An account made in advance would count the attorney as "claimed" before they did anything, would start their plan clock, and could send them DELA's own notices before they ever signed up.
+2. May a prepared playbook be replaced? **While it waits, yes, with "replace". Once it is in the attorney's Library it is theirs.**
+3. What if the attorney's Library is full? **It keeps waiting** and is tried again the next time they open the Library.
+4. Does the attorney get an email that it is there? **No.** The team's own outreach says so.
 
 ## Where the build differs from the plan she approved
 - Release 1 of the plan is split in two (82a and 82b), for the reason in question 1.

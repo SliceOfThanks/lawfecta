@@ -30,7 +30,8 @@ async function open(browser, widget, uid, extra) {
 const dela = (page) => page.locator(".dela-host");
 const sr = (pg, fn, arg) => pg.evaluate(([f, a]) => new Function("r", "a", f)(document.querySelector(".dela-host").shadowRoot, a), [fn, arg]);
 const OWNER = 4820, GROWTH = 4823, PLAIN = 4824;
-const SW = ["mcp_admin", "new_layout", "profiles"];
+const SW = ["mcp_admin", "new_layout", "profiles", "playbook_library", "document_standard", "document_editor_v2", "pipeline_prefill"];
+const CLAIMER = 4825;
 const b64 = (buf) => Buffer.from(buf).toString("base64").replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 // A sign-in for the Team connector, as ChatGPT or Claude start it: returns the request the approval page shows
 async function teamRequest() {
@@ -122,6 +123,27 @@ async function teamRequest() {
     await dela(p).locator("#team-connect h1").waitFor({ timeout: 20000 });
     st = await sr(p, `const b = r.querySelector("#team-connect"); return { text: b.innerText, approve: !b.querySelector("button.blue").disabled }`);
     ok(!st.approve && st.text.includes("Only the owner and people with the team role \"growth\" can approve the Lawfecta Team connector."), "a member without the role is told so and cannot approve");
+    await s.ctx.close();
+
+    // ---------- Step 82b: a prepared playbook waits, and is in the attorney's Library when they first open DELA ----------
+    await sql(`insert into pipeline_attorneys (bd_member_id, name, firm, practice_area) values (${CLAIMER}, 'Cleo Claimer', 'Claimer Law', 'Family Law') on conflict do nothing;
+      insert into pipeline_playbooks (bd_member_id, title, body, source_url, request_id) values (${CLAIMER}, 'Open a new family law matter',
+        '{"schema":2,"type":"sop","title":"Open a new family law matter","purpose":"Open every matter the same way.","scope":"Every new family law matter.","trigger":"A prospective client asks for a consult.","roles":["Attorney","Paralegal"],"owner_role":"Paralegal","before_you_start":["Access to the case management system"],"timing":"Within 1 business day.","quality_check":["The matter is open"],"done_when":"The matter is open and the letter is signed.","steps":[{"text":"Record the caller in the intake form.","role":"Paralegal","raci":{"Paralegal":"R,A"},"basis":"proposed"},{"text":"Decide whether to accept the matter.","role":"Attorney","raci":{"Attorney":"R,A"},"attorney_decides":true,"basis":"proposed"}]}'::jsonb,
+        'https://claimerlaw.example/about', 'pw-1'); select 1`);
+    ok((await sql("select count(*)::int n from people where bd_member_id = " + CLAIMER))[0].n === 0, "preparing a playbook makes no account for the attorney");
+    await sql(`insert into people (bd_member_id, display_name, email) values (${CLAIMER}, 'Cleo Claimer', '${CLAIMER}@test.invalid');
+      select dela_ensure_side((select id from people where bd_member_id = ${CLAIMER}), 'attorney', 'att_free', 'staff_grant');
+      insert into access_list (bd_member_id, channel) values (${CLAIMER}, 'access'); select 1`);
+    s = await open(browser, "DELA-App", CLAIMER, "&tab=library"); p = s.page;
+    await dela(p).getByText("Open a new family law matter").first().waitFor({ timeout: 20000 });
+    ok(true, "the attorney's Library holds the prepared playbook the first time they open DELA");
+    await dela(p).getByText("Open a new family law matter").first().click();
+    await dela(p).locator("#doc-prepared").waitFor({ timeout: 20000 });
+    st = await sr(p, `return { note: r.querySelector("#doc-prepared").innerText, page: r.querySelector(".dp-page, #doc-body, .card") ? r.querySelector(".dela").innerText : "" }`);
+    ok(st.note.includes("Prepared for you by Lawfecta from your public website (claimerlaw.example).") && st.note.includes("Check every step before you use it."), "the playbook says who prepared it and from where: " + st.note.slice(0, 90));
+    ok(/Draft/.test(st.page) && /suggestion/i.test(st.page), "it is a draft, and its steps are marked as DELA's suggestions");
+    ok((await sql("select count(*)::int n from pipeline_events where bd_member_id = " + CLAIMER + " and stage = 'playbook_opened'"))[0].n === 1, "opening it is recorded as \"Playbook opened\"");
+    await p.screenshot({ path: path.join(SHOTS, "82b-prepared.png") });
     await s.ctx.close();
     console.log(passed + " browser checks passed");
   } finally {
