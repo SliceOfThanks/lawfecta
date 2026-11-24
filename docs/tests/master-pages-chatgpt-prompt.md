@@ -1,4 +1,4 @@
-You are checking three new pages in DELA on the Lawfecta site, www.lawfecta.co: "Services" and "Promotions", which an attorney finds under Talent, and the "Blog", which is the first view of Community for everyone. Two accounts take part: the test freelancer, then the test attorney. This check only reads pages and uses filters. It posts nothing, invites nobody, saves nothing and deletes nothing. Use a wide browser window.
+You are checking three new pages in DELA on the Lawfecta site, www.lawfecta.co: "Services" and "Promotions", which an attorney finds under Talent, and the "Blog", a tab of Community for everyone. Two accounts take part: the test freelancer, then the test attorney. This check only reads pages and uses filters. It posts nothing, invites nobody, saves nothing and deletes nothing. Use a wide browser window.
 
 No step should open a browser pop-up (a small OK / Cancel window from the browser itself). If one opens, click Cancel, write FAIL for that step and say what the pop-up said.
 
@@ -34,8 +34,9 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
 
 1. Go to: https://www.lawfecta.co/dela?tab=community
    Find: the heading "Community" at the top of the page, and under it a white row of rounded buttons.
-   Expect: the first button in that row is "Blog" and it is the marked one. Other buttons follow it (for example "Everyone").
-   Expect: under the row, a line that starts "Articles written by Lawfecta freelancers, newest first."
+   Expect: the row starts with "Events", then "Blog", then other buttons (for example "Everyone").
+   Do: click "Blog" in that row.
+   Expect: "Blog" is now the marked one. Under the row, a line that starts "Articles written by Lawfecta freelancers, newest first."
    Expect: a white card with the word "Topic" and one list under it that reads "All topics".
    Expect: a heading "Blog" with a number in brackets, then cards, three across on a wide window. Each card has a title in dark red, the word "Posted" with a date, a few lines of text, a round picture or letter with the author's name, and a button "Read the article".
    Expect: NO card shows the words "Category 1", "Category 2" or "Category 3".
@@ -55,7 +56,7 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
    Expect: the list of cards is back.
 
 4. Find: the white row of rounded buttons under "Community".
-   Do: click the second button in that row (the one right after "Blog").
+   Do: click the third button in that row (the one right after "Blog").
    Expect: a discussion board: a line "Start a topic in" with the board's name, and a list of topics or the words "No topics yet. Start the first one above."
    Do: click "Blog" in the row.
    Expect: the articles are back.
@@ -125,6 +126,8 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
     Expect: all the promotions are back.
 
 15. Go to: https://www.lawfecta.co/dela?tab=community
+    Do: click "Blog" in the white row of rounded buttons under "Community".
+    Do: click "Blog" in the white row of rounded buttons under "Community".
     Expect: the "Blog" button is the marked one, and the first card has the same title and author you wrote down in step 1.
     Do: click "Read the article" on the first card.
     Expect: the article opens, and under its text there is a button that starts with "View" and ends with "profile", with the author's name between.

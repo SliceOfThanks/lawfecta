@@ -246,6 +246,9 @@ How to read the "State" column:
 | 82-3 | A real attorney moves through the stages by themself: claimed, gig posted, proposals received, hired | The first pipeline attorney who claims | Not yet | The dates come from DELA's own records |
 | 82-4 | A playbook prepared from a real firm's website reads as useful to that attorney, and holds nothing copied that should not be | After the lawyer's review, Stacey prepares one for a firm she knows and reads it | Not yet | The switch pipeline_prefill is off |
 | 82-5 | A claim listing is created on the real website from a reviewed row, opens by its direct link, does not show in the website's search, and no email went to the person | After her website steps and the lawyer's review, Stacey approves a batch of three rows she chose | Not yet | Tested with a stand-in for the website only; the real "create member" call has never run |
+| 84-1 | A real event published on the website shows in DELA within the hour with its day, time, place and picture | Stacey publishes one event on the website and looks at Community an hour later | Not yet | The website has no events yet; tested with a stand-in |
+| 84-2 | The Category list on Events shows the categories Stacey set in the post type "Event" | Stacey renames the three placeholders, then looks | Not yet | Until then the list reads "All categories" only |
+| 84-3 | An event shows "Open the event page" when its organizer gave a link | An event on the website that has a link of its own | Not yet | Not known whether the website's event form offers a link box |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
