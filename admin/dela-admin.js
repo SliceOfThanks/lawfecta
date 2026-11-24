@@ -60,7 +60,7 @@
   }
 
   // ---------- Step 15: the admin area in the compact workspace (switch new_layout) ----------
-  // The 25 pages sit in a sidebar, in groups that open and close; one account button holds My account, Appearance,
+  // The pages sit in a sidebar, in groups that open and close; one account button holds My account, Appearance,
   // Member view and Sign out; on a phone a "Menu" button opens the same list. With the switch off the tab row below is used.
   var NLA = !!((me.switches || {}).new_layout);
   var GROUPS = [["", ["control", "guide"]], ["Members", ["overview", "access", "people", "team", "agencies", "pipeline"]], ["Plans and settings", ["plans", "settings", "switches", "aifiles", "catalog", "trials", "usage", "code"]],

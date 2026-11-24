@@ -83,7 +83,7 @@ async function makeMember(bd, side, plan, name) {
       await a0.route("https://fonts.googleapis.com/**", (r) => r.abort());
       await a0.goto(`${BASE}/page/DELA-Admin?uid=5104&plan=`);
       await a0.locator(".dela-host").getByRole("tab", { name: "Payments" }).waitFor({ timeout: 15000 });
-      ok(await a0.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.querySelectorAll("[role=tab]").length === 26 && !r.querySelector(".nl-frame"); }), "switch off: the admin area keeps its row of 26 tabs");
+      ok(await a0.evaluate(() => { const r = document.querySelector(".dela-host").shadowRoot; return r.querySelectorAll("[role=tab]").length === 27 && !r.querySelector(".nl-frame"); }), "switch off: the admin area keeps its row of 27 tabs");
       await a0.locator(".dela-host").getByRole("tab", { name: "Payments" }).click();
       await a0.waitForFunction(() => document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText.includes("Needs attention ("));
       ok(await a0.evaluate(() => { const t = document.querySelector(".dela-host").shadowRoot.querySelector(".dela").innerText; return t.indexOf("Needs attention (") < t.indexOf("Money on DELA"); }), "switch off: Needs attention is on the Payments tab in the old layout too");
