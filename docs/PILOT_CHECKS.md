@@ -232,6 +232,10 @@ How to read the "State" column:
 | 78-2 | A firm with many playbooks finds an older one in "Manage sources" by typing part of its name | A pilot firm with more than ten playbooks tries it | Not yet | |
 | 79-1 | A screenshot pasted into the Ask DELA message box from a real clipboard is attached, and DELA's answer shows it was read | An attorney takes a screenshot, pastes it and asks what it shows | Not yet | |
 | 79-2 | A playbook draft made from a chat with screenshots shows them under "Before you start" | The same attorney clicks "Save as a playbook draft" and opens the draft | Not yet | |
+| 80-1 | An attorney who has never seen the new editor changes a sentence, reorders a step and drops a screenshot on a step without being told how | A pilot attorney is asked to fix one playbook while someone watches | Not yet | |
+| 80-2 | Typing survives a closed laptop: the words are back the next day | The same attorney types, closes the browser without Save, and opens the playbook the next day | Not yet | |
+| 80-3 | Dragging a step and a picture works with a real mouse and on a tablet | Tried on a laptop and an iPad | Not yet | |
+| 81-1 | Members find Files, Team work, Subscription and Notifications after they left the menu | Ask two pilot members to open each one | Not yet | |
 | 75-3 | The pages read well on a laptop screen of ordinary width (about 1280) and on a phone | Stacey looks at the chat page, My Playbooks and the handoff page on both | Not yet | The tests check the layout by measurement, not by eye |
 
 ## How this list is kept
