@@ -251,13 +251,14 @@ How to read the "State" column:
 | 84-3 | An event shows "Open the event page" when its organizer gave a link | An event on the website that has a link of its own | Not yet | The test event (post 69) carries its link in DELA's copy since 2026-11-24; the button has not been seen on screen by a person |
 | 85-1 | Blog cards show the article pictures above the headings, and they look right at the card's size | Stacey looks at the Blog | Not yet | 5 of 5 articles have a picture in DELA's copy |
 | 86-1 | The new editor's bold, italic, list and link work for a person on the live site | Check 32 run again on "Send the welcome packet 2" | Seen 2026-11-24 (ChatGPT, check 32, second run) | Bold, italic, the list and the link all worked and were kept after a reload; one fault, fixed in step 87 |
-| 88-1 | Headings, a numbered list, a centered and underlined line, a table and a video card work for a person and come back after a reload | Check 37 | Not yet | |
+| 88-1 | Headings, a numbered list, a centered and underlined line, a table and a video card work for a person and come back after a reload | Check 37 | Seen 2026-11-25 (ChatGPT, check 37) | Every step passed; a YouTube video played on www.lawfecta.co. One fault, fixed in step 89: the first click on Play did nothing |
+| 89-1 | The first click on "Play" plays a video that was just added | Add a video, click Play once | Not yet | Covered by a browser test |
 | 88-2 | A picture put inside a text with "Picture": the review window, no caption needed, the picture shows in the text | Stacey or a member, by hand (an agent cannot upload a file) | Not yet | Covered by browser tests |
 | 88-3 | Word and PDF exports show a heading, a numbered list, a table and a centered line as they look on the page | Export a document that uses them | Not yet | Covered by tests on the file contents, not opened in Word by a person |
 | 88-4 | A YouTube, a Vimeo and a Loom video each play inside a document on the real site | Paste one link of each kind | Not yet | The site may block frames from other sites; not known until tried on www.lawfecta.co |
 | 80c-1 | A playbook still in the older format moves with "Move to the current format" and opens as a page to type on | A playbook in the older format on Live (none exists today) | Not yet | Covered by tests only; all 24 playbooks on Live were already moved by DELA |
 | 80c-2 | Restoring an older-format version keeps the document on the new page | Versions, "Restore" on an older-format version | Not yet | Covered by tests only; check 36 does not restore anything |
-| 80c-3 | Decision points, links and the court rule button work for a person | Check 36 | Not yet | |
+| 80c-3 | Decision points, links and the court rule button work for a person | Check 36 | Seen 2026-11-25 (ChatGPT, check 36) | Every step passed |
 | 87-1 | A word that was just given a link stays when you press Enter or type straight after | Add a link to a word, then type without clicking first | Not yet | Covered by a browser test; not seen by a person on the live site |
 
 ## How this list is kept
