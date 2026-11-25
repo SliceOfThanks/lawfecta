@@ -95,7 +95,7 @@ DELA is LIVE on https://www.lawfecta.co (one site, one database, the pilot). The
 - Writing for her: plain, direct, no em dashes, no "it's not X, it's Y". She often writes in capitals and sends screenshots; that is her normal style.
 - She reacts badly to being second-guessed on things she knows (for example which Stripe account is hers). Ask once, accept the answer.
 - Anything she must do in BD is one ready-to-paste prompt for her BD connector in a code block (see CLAUDE.md). Widget code installs go by hand.
-- ChatGPT tests: follow CLAUDE.md and docs/tests/AGENT-RULES.md exactly (the "How to work" block, Go to / Find / Do / Expect, each account logs in once, freelancer then attorney then owner). The test password (demo1234) only goes in READY copies in the scratchpad sent with SendUserFile; GitHub copies say TEST_PASSWORD.
+- ChatGPT tests: follow CLAUDE.md and docs/tests/AGENT-RULES.md exactly (the "How to work" block, Go to / Find / Do / Expect, each account logs in once, freelancer then attorney then owner). The test password is never written in this repository: it only goes in READY copies in the scratchpad sent with SendUserFile; GitHub copies say TEST_PASSWORD.
 - Critical actions that need her words at that moment: clearing or deleting data on the site, anything in Stripe, acting as one of her accounts (a yes each time, for a named purpose), changing a business number.
 - No pull requests unless she asks. Work on the branch below. A stop hook requires committing and pushing before a turn ends.
 

@@ -198,6 +198,21 @@ export function scrubCredentials(text: string): { text: string; removed: boolean
   for (const [re, w] of CREDENTIALS) out = out.replace(re, () => { removed = true; return w; });
   return { text: out, removed };
 }
+// Step 93: sensitive data never stays in a saved document. The same numbers a message refuses (lib/confidential/rules.ts)
+// are taken out of a document on every save, with a notice: a Social Security number or ITIN, and a government ID
+// number named as such. Passwords, logins, account and card numbers were taken out already.
+const IDS: Array<[RegExp, string]> = [
+  [/\b(ssn|social security( number| no\.?)?|soc\.? sec\.?)\b[^0-9\n]{0,20}\d{3}[ -]?\d{2}[ -]?\d{4}\b/gi, "[removed: Social Security number]"],
+  [/\b(itin|taxpayer identification number)\b[^0-9\n]{0,20}9\d{2}[ -]?\d{2}[ -]?\d{4}\b/gi, "[removed: Social Security number]"],
+  [/\b(?!000|666)\d{3}-(?!00)\d{2}-(?!0000)\d{4}\b/g, "[removed: Social Security number]"],
+  [/\b(driver'?s?\s+licen[cs]e|passport|state\s+id|government\s+id|green\s+card|alien\s+(registration\s+)?number|a-number)\s*(number|no\.?|num|#)?\s*(is|:|=|-)?\s*(?=[A-Z0-9-]*\d)[A-Z0-9][A-Z0-9-]{5,14}\b/gi, "[removed: government ID number]"],
+];
+export function scrubSensitive(text: string): { text: string; removed: boolean; ids: boolean } {
+  const c = scrubCredentials(text);
+  let out = c.text, ids = false;
+  for (const [re, w] of IDS) out = out.replace(re, () => { ids = true; return w; });
+  return { text: out, removed: c.removed || ids, ids };
+}
 // Client data in pasted or uploaded material is replaced with fictional placeholders before drafting (with a notice)
 const CLIENT_DATA: Array<[string, RegExp, string]> = [
   ["social security numbers", /\b\d{3}-\d{2}-\d{4}\b/g, "[SSN removed]"],

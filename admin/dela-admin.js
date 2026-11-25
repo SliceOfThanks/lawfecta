@@ -1262,10 +1262,31 @@
           var t = tipPair("job_" + k);
           return h("div", { class: "tile col" }, h("div", { class: "muted small" }, k, t[0] ? " " : null, t[0]), h("div", { class: "stat", text: String(c[k]) }), t[1]);
         })),
+        h("div", { id: "health-card" }),
         h("div", { class: "card scroll" }, titled("h2", "Problems", "jobs_problems"), r.data.recent_problems.length ? h("table", null, h("tbody", null, r.data.recent_problems.map(function (j) {
           return h("tr", null, h("td", { text: j.kind }), h("td", { text: j.status }), h("td", { text: "Tries: " + j.attempts }), h("td", { class: "small", text: j.last_error }), h("td", { text: D.dateTime(j.updated_at) }));
         }))) : h("p", { class: "muted", text: "No problems." }))));
+      healthCard();
     }).catch(fail);
+  }
+  // Step 93: the check DELA runs on its own every few hours, with its last results (owner only)
+  function healthCard() {
+    api.get("/admin/health").then(function (r) {
+      var box = mainEl.querySelector("#health-card"), d = r.data || {}, runs = d.runs || [], last = runs[0];
+      if (!box) return;
+      var run = h("button", { class: "blue small", type: "button", id: "health-run" }, "Run the check now");
+      run.addEventListener("click", function () { run.disabled = true; api.post("/admin/health/run", {}).then(check).then(function () { ok("The check is running. Look again in a minute."); setTimeout(healthCard, 70000); }).catch(function (e) { run.disabled = false; fail(e); }); });
+      var card = h("div", { class: "card scroll", id: "health" }, titled("h2", "Six-hour check", "health"),
+        h("p", { class: "muted", text: "Every " + (d.hours || 6) + " hours DELA checks Stripe, the website, the email service and its own database. You get an email at once when something is wrong, and again each day it is still wrong." }),
+        last ? h("p", { id: "health-last" }, h("b", { text: last.ok ? "All good. " : (last.issues || []).length + " to look at. " }), h("span", { class: "muted", text: "Last check " + D.dateTime(last.at) + (last.trigger === "manual" ? ", run by hand" : "") + "." })) : h("p", { class: "muted", id: "health-last", text: "No check has run yet." }),
+        last ? h("table", null, h("tbody", null, (last.checks || []).map(function (c) {
+          return h("tr", null, h("td", { text: c.name }), h("td", null, h("span", { class: "badge " + (c.ok ? "C" : "stage"), text: c.ok ? "OK" : "Look" })), h("td", { class: "small", text: c.note }));
+        }))) : null,
+        last && (last.issues || []).length ? h("div", { id: "health-issues" }, (last.issues || []).map(function (i) { return h("p", { class: "notice" }, h("b", { text: i.title + ". " }), h("span", { text: i.body })); })) : null,
+        runs.length > 1 ? h("p", { class: "small muted", text: "Earlier: " + runs.slice(1, 8).map(function (x) { return D.dateTime(x.at) + (x.ok ? " good" : " " + (x.issues || []).length + " to look at"); }).join(" \u00b7 ") }) : null,
+        h("p", null, run));
+      box.replaceChildren(card);
+    }).catch(function () {});
   }
 
   // ---------- AI and files (Step 2a): use, keys and storage. Never a key, never what a file says. ----------
@@ -2528,6 +2549,7 @@
     ai_recorder: "Recordings by month: started, finished uploading, ready for review, failed analysis, abandoned (never finished after a day), and built into a document. Use this to judge whether a desktop helper is worth building later.",
     ai_refused: "Files DELA did not keep, with the reason. These are deleted from storage straight away.",
     jobs: "Background work DELA does on its own, such as sending emails, reminders and the daily summary. It runs every minute and retries problems with longer waits.",
+    health: "DELA asks Stripe, the website and the email service whether they answer, asks Stripe how recent refunds ended, and looks in its own database for failed jobs, emails, payments, payouts and refunds. Change how often in Settings, \"Hours between two checks\".",
     jobs_problems: "Jobs that are waiting to retry (delayed), failed for good (dead) or failed once. The last error says why. Dead jobs count in Problems, last 24 hours on Release Control.",
     job_queued: "Waiting for the next minute's run.",
     job_running: "Being done right now.",

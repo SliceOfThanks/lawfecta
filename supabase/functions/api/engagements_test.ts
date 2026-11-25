@@ -539,6 +539,21 @@ Deno.test("a Stripe event that fails half way is processed when Stripe sends it 
   assertEquals([again.status, again.body.ok, again.body.duplicate ?? false], [200, true, false], "the retry is processed");
   assertEquals(Number((await one("select count(*) n from chargebacks where provider_ref = 'dp_lost' and status = 'open'")).n), 1, "the chargeback is recorded");
   assertEquals((await ev("evt_lost1", "charge.dispute.created")).body.duplicate, true, "a third delivery of an event that worked is a duplicate");
+  // Step 93 (audit 2026-11-25): the same chargeback told again under a new event number writes the ledger once
+  await ev("evt_lost1b", "charge.dispute.created");
+  assertEquals(Number((await one("select count(*) n from ledger_entries where kind = 'chargeback' and provider_ref = 'dp_lost'")).n), 1, "one ledger line for one chargeback");
+  // Step 93: Stripe does not promise the order of its notices. A late "processing" never moves a finished payment back
+  const paid = await one("select id from payments where provider_ref = 'pi_first' and status = 'succeeded'");
+  assert(paid, "the first payment went through earlier in this file");
+  await pool.query("select dela_payment_ref($1, '', '', 'processing')", [paid.id]);
+  await pool.query("select dela_payment_result($1, 'processing', 'pi_first', '', '', '')", [paid.id]);
+  assertEquals((await one("select status from payments where id = $1", [paid.id])).status, "succeeded", "a paid payment stays paid");
+  const lost = await one("select id from payments where status = 'failed' limit 1");
+  if (lost) {
+    await pool.query("select dela_payment_result($1, 'processing', '', '', '', '')", [lost.id]);
+    await pool.query("select dela_payment_ref($1, '', '', 'processing')", [lost.id]);
+    assertEquals((await one("select status from payments where id = $1", [lost.id])).status, "failed", "a failed payment stays failed, so the attorney can pay again");
+  }
   await ev("evt_lost2", "charge.dispute.closed", "won");
   assertEquals((await one("select status from agreements where id = $1", [ag])).status, "active", "left as it was found");
 });

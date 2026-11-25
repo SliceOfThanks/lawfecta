@@ -17,6 +17,11 @@ export function stripeForm(params: Record<string, unknown>, prefix = ""): string
   return out.filter(Boolean).join("&");
 }
 
+// Which kind of key this is, without ever showing it: "live", "test", or "" for none or one DELA does not know
+export function keyMode(key: string): "live" | "test" | "" {
+  const m = /^[sr]k_(live|test)_/.exec(key || "");
+  return m ? (m[1] as "live" | "test") : "";
+}
 // Real money only when the live_payments switch is on: a live key is refused otherwise
 export function keyAllowed(key: string, liveOn: boolean): boolean {
   if (!key) return false;

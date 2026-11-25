@@ -29,13 +29,14 @@ import { CHECK_PROMPT, SENSITIVE_CHECK_PROMPT, clientDetails, messageLooksSensit
 import { CONTENT_TYPES, readText, sha256, sniff } from "./lib/files/check.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { completeness, emptyBody, fileName, normalize, removesReview, toCsv, toDocx, toHtml, toMarkdown, dayIn, type Body, type ExportMeta } from "./lib/playbooks/model.ts";
-import { keyAllowed, stripe, stripeV2, noAnswer, findCharge, findTransfer, findRefund, findReversal, checkoutParams, verifyStripeSignature, accountStatus, accountStatusV2, recipientAccount, onboardingLink, ACCOUNT_V2_INCLUDE, STRIPE_V2_VERSION } from "./lib/payments/stripe.ts";
+import { limited } from "./lib/http.ts";
+import { keyAllowed, keyMode, stripe, stripeV2, noAnswer, findCharge, findTransfer, findRefund, findReversal, checkoutParams, verifyStripeSignature, accountStatus, accountStatusV2, recipientAccount, onboardingLink, ACCOUNT_V2_INCLUDE, STRIPE_V2_VERSION } from "./lib/payments/stripe.ts";
 import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/webhooks/deliver.ts";
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, moneySummary, readTasks, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
 import { blockedKinds, blockedMessage, BLOCKED_WORDS, FILE_BLOCKED_MESSAGE, type Blocked } from "./lib/confidential/rules.ts";
 import { keepImages, outsideMedia, stripMarks, TABLE_MAX_COLS, TABLE_MAX_ROWS, withoutMedia } from "./lib/documents/marks.ts";
-import { blocks as docBlocks, placedImages, looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, gigPrereqs, type GigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
+import { blocks as docBlocks, placedImages, looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, gigPrereqs, type GigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, scrubSensitive, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { fillPrompt, NEWCOMER_FILL_SYSTEM, NEWCOMER_SYSTEM, readNewcomer, type NewcomerFinding } from "./lib/documents/newcomer.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
 import { clean, HELPER_SIDE, HELPER_SYSTEM, HELPERS, NOT_LEGAL, readCompare, readCriteria, readExplain, readFindings, readFirm, readFit, type HelperKey } from "./lib/helpers/model.ts";
@@ -376,7 +377,7 @@ function aiReady(deps: Deps) {
   };
 }
 
-const f = (ctx: Ctx) => ctx.deps.fetch ?? fetch;
+const f = (ctx: Ctx) => limited(ctx.deps.fetch ?? fetch);
 
 async function setting(ctx: Ctx, key: string, dflt: string) {
   return await rpc<string>(ctx, "dela_setting_text", { p_key: key, p_default: dflt });
@@ -1410,6 +1411,9 @@ async function pbComment(ctx: Ctx) {
   const part = str(ctx.body.part, 40);
   if (part && !PART_KEYS.includes(part) && !DOC_PART_KEYS.includes(part) && !/^step:\d{1,3}$/.test(part)) throw new HttpError(400, "bad_request");
   const proposedText = str(ctx.body.suggested_text, 4000).trim();
+  // Step 93: a comment is read by everyone in the Library, so sensitive data is refused here as it is in messages
+  const stop = blockedKinds(proposedText + "\n" + str(ctx.body.body, 4000));
+  if (stop.length) return json(ctx, { ok: false, reason: "sensitive_data", kinds: stop, message: sensitiveMessage(stop) });
   if (proposedText) {
     if (!part) throw new HttpError(400, "bad_request");
     return json(ctx, await rpc(ctx, "dela_pb_suggest", { p: { person_id: s.person_id, id, kind: "comment", part, proposed: { text: proposedText }, comment: str(ctx.body.body, 4000) || "Suggested change", note: str(ctx.body.body, 200) } }));
@@ -1644,8 +1648,8 @@ async function docPrepare(ctx: Ctx, firm: DocFirm, raw: unknown, before: DocBody
     if (dropped) notices.push("DELA took off an image that is not in this firm's library.");
   }
   // Hard rules applied on every save: no credentials, roles not names, and the firm's role kinds
-  const cred = scrubCredentials(withoutMedia(docText(body)));
-  if (cred.removed) { body = eachText(body, (t) => outsideMedia(t, (x) => scrubCredentials(x).text)); notices.push("DELA removed passwords, logins or account numbers. They belong in a password manager."); }
+  const cred = scrubSensitive(withoutMedia(docText(body)));
+  if (cred.removed) { body = eachText(body, (t) => outsideMedia(t, (x) => scrubSensitive(x).text)); notices.push(cred.ids ? "DELA removed sensitive data (a Social Security number, a government ID number, an account number, a password or a login). Sensitive data never goes in DELA: link to it in the firm's own storage." : "DELA removed passwords, logins or account numbers. They belong in a password manager."); }
   const nm = namesToRoles(body, firm.people);
   if (nm.replaced.length) { body = nm.body; notices.push("DELA replaced names with roles: " + nm.replaced.join(", ") + "."); }
   for (const r of firm.roles) if (body.roles.includes(r.name)) body.role_kinds[r.name] = r.kind;
@@ -5048,6 +5052,66 @@ async function disputeDraft(c: Ctx, actor: string) {
   }
 }
 
+// ---------- Step 93: the six-hour check (Stacey 2026-11-25) ----------
+// Every few hours (setting health.check_hours) DELA looks at its own database, asks Stripe, the website and the email
+// service whether they answer, and asks Stripe how recent refunds ended. Each problem goes to the owner by email at
+// once, and again each day it is still there. The result is kept and shown in the admin area, Jobs.
+type HealthIssue = { code: string; title: string; body: string; once?: boolean };
+async function healthCheck(ctx: Ctx, payload: Record<string, any>): Promise<{ ok: boolean }> {
+  const checks: Array<{ name: string; ok: boolean; note: string }> = [], issues: HealthIssue[] = [];
+  const line = (name: string, ok: boolean, note: string, issue?: HealthIssue) => { checks.push({ name, ok, note: note.slice(0, 300) }); if (!ok && issue) issues.push(issue); };
+  const live = await setting(ctx, "environment", "staging") === "live";
+  // 1. The database
+  const db = await rpc<HealthIssue[]>(ctx, "dela_health_db", {}).catch(() => null);
+  if (!db) line("Database", false, "The check of the database did not run.", { code: "db_check", title: "The check of the database did not run", body: "Ask Claude to read the function logs." });
+  else { line("Database", db.length === 0, db.length ? db.map((x) => x.title).join("; ") : "Jobs, emails, payments, payouts and refunds look right."); issues.push(...db); }
+  // 2. Stripe
+  const key = ctx.deps.env("STRIPE_SECRET_KEY"), mode = keyMode(key);
+  const liveOn = !!(await rpc<boolean>(ctx, "dela_switch_on", { p_key: "live_payments", p_person: null }).catch(() => false));
+  if (!mode) line("Stripe", false, "No Stripe key is set.", { code: "stripe_no_key", once: true, title: "Stripe is not connected", body: "No Stripe key is set in Supabase (secret STRIPE_SECRET_KEY). Attorneys cannot pay until it is." });
+  else if (mode === "live" && !liveOn) line("Stripe", false, "A live key is set and the real money switch is off.", { code: "stripe_live_key_off", once: true, title: "A live Stripe key is set, but the real money switch is off", body: "DELA refuses a live key while the switch \"Real money through Stripe\" is off, so nobody can pay. Turn the switch on, or put the test key back." });
+  else {
+    if (mode === "test" && liveOn && live) line("Stripe mode", false, "Test key while real payments are switched on.", { code: "stripe_test_key", once: true, title: "Stripe is in test mode while real payments are switched on", body: "Attorneys can go through checkout and no real money moves. Put the live key in Supabase (secret STRIPE_SECRET_KEY), or turn the switch \"Real money through Stripe\" off until you are ready." });
+    const b = await stripe(f(ctx), key, "GET", "/balance");
+    line("Stripe", b.ok, b.ok ? "Stripe answered, in " + mode + " mode." : "Stripe did not answer: " + b.error, { code: "stripe_down", title: "Stripe did not answer", body: "DELA asked Stripe for the balance and got: " + (b.ok ? "" : b.error) + ". If it says the key is not valid, the key in Supabase was changed or revoked. Payments wait until this is put right." });
+    if (b.ok) {
+      const m = await rpc<{ refunds: Array<Record<string, any>> }>(ctx, "dela_health_money", {}).catch(() => null);
+      let bad = 0, asked = 0;
+      for (const r of m?.refunds ?? []) {
+        const x = await stripe(f(ctx), key, "GET", "/refunds/" + encodeURIComponent(String(r.ref)));
+        if (!x.ok) continue;
+        asked++;
+        if (["failed", "canceled"].includes(String(x.data.status))) bad++;
+      }
+      line("Refunds", bad === 0, bad ? bad + " refund(s) that DELA counts as done failed at Stripe." : asked ? asked + " recent refund(s) checked with Stripe." : "No recent refunds to check.",
+        { code: "refund_failed_later", title: bad + " refund" + (bad === 1 ? "" : "s") + " failed at the bank after DELA marked " + (bad === 1 ? "it" : "them") + " done", body: "The attorney has not got the money back. Open Stripe, Payments, filter by \"Refund failed\", and refund again or contact the attorney." });
+    }
+  }
+  // 3. The website (Brilliant Directories), and the old website while the move needs it
+  const site = await setting(ctx, "site.url", ""), bdKey = ctx.deps.env("BD_API_KEY");
+  if (!bdKey || !site) line("Website", false, "No API key or address for the website.", { code: "site_no_key", once: true, title: "DELA has no API key for the website", body: "The Supabase secret BD_API_KEY or the setting site.url is empty. Plans, profiles and the member move need it." });
+  else {
+    const r = await bdList(f(ctx), site, bdKey, "/api/v2/user/get?limit=1", 1);
+    line("Website", r.ok, r.ok ? "The website's API answered." : "The website's API did not answer: " + r.error, { code: "site_down", title: "The website's API did not answer", body: "DELA could not read members from " + site + " (" + (r.ok ? "" : r.error) + "). Plans and profiles depend on it. 401 or 403 means the API key was changed or lost a permission." });
+  }
+  const oldKey = ctx.deps.env("BD_OLD_API_KEY"), oldSite = await setting(ctx, "bd_old.site_url", "");
+  if (oldKey && oldSite) {
+    const r = await bdList(f(ctx), oldSite, oldKey, "/api/v2/user/get?limit=1", 1);
+    line("Old website", r.ok, r.ok ? "The old website's API answered." : "The old website's API did not answer: " + r.error, { code: "old_site_down", title: "The old website's API did not answer", body: "DELA could not read members from " + oldSite + " (" + (r.ok ? "" : r.error) + "). The member move needs it." });
+  }
+  // 4. The email service
+  const provider = await setting(ctx, "email.provider", "log");
+  if (provider === "brevo") {
+    let ok = false, why = "";
+    try { const r = await f(ctx)("https://api.brevo.com/v3/account", { headers: { "api-key": ctx.deps.env("BREVO_API_KEY"), accept: "application/json" } }); ok = r.ok; why = "status " + r.status; } catch (e) { why = String((e as Error)?.message ?? e).slice(0, 80); }
+    line("Email service", ok, ok ? "Brevo answered." : "Brevo did not answer: " + why, { code: "email_down", title: "The email service did not answer", body: "Brevo refused or did not answer (" + why + "). Emails wait and are tried again. Status 401 means its key in Supabase (secret BREVO_API_KEY) was changed." });
+  } else if (provider === "log" && live) {
+    line("Email service", false, "Emails are only written to the log.", { code: "email_log", once: true, title: "DELA is not sending emails", body: "The setting email.provider is \"log\", so emails are written down and not sent." });
+  } else line("Email service", true, "Emails go through the website's own email.");
+  await rpc(ctx, "dela_health_save", { p_trigger: payload?.trigger === "manual" ? "manual" : "timer", p_checks: checks, p_issues: issues });
+  return { ok: true };
+}
+
 async function engagementsDaily(ctx: Ctx) {
   await rpc(ctx, "dela_engagements_daily", {});
   // Step 11: failed refunds and payouts are tried again (up to 3 times), then the team is told
@@ -6221,6 +6285,7 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   },
   "/admin/audit": (c, a) => rpc(c, "dela_admin_audit", { p_actor: a, p_before: int(c.url.searchParams.get("before")), p_limit: 100 }),
   "/admin/jobs": (c, a) => rpc(c, "dela_admin_jobs", { p_actor: a }),
+  "/admin/health": (c, a) => rpc(c, "dela_admin_health", { p_actor: a }),
   "/admin/holds": (c, a) => rpc(c, "dela_admin_holds", { p_actor: a }),
   "/admin/disputes": (c, a) => rpc(c, "dela_admin_disputes", { p_actor: a }),
   "/admin/guide": (c, a) => rpc(c, "dela_admin_guide_report", { p_actor: a }),
@@ -6384,6 +6449,7 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   "/admin/access/grant": (c, a) => rpc(c, "dela_admin_access_grant", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id"), p_channel: need(str(c.body.channel, 20)), p_note: str(c.body.note, 200) }),
   "/admin/access/revoke": (c, a) => rpc(c, "dela_admin_access_revoke", { p_actor: a, p_id: need(int(c.body.id)) }),
   "/admin/pipeline/add": (c, a) => teamAdd(c, a, String(c.body.bd_member_ids ?? "").split(/[\s,;]+/).filter(Boolean)),
+  "/admin/health/run": (c, a) => rpc(c, "dela_admin_health_run", { p_actor: a }),
   "/admin/move/read": (c, a) => rpc(c, "dela_move_begin", { p_actor: a }),
   "/admin/move/start": (c, a) => rpc(c, "dela_move_start", { p_actor: a, p_confirm: int(c.body.confirm), p_ids: (Array.isArray(c.body.ids) ? c.body.ids : []).map((x) => int(x)).filter((x) => x !== null && x > 0).slice(0, 10) }),
   "/admin/move/pause": (c, a) => rpc(c, "dela_move_pause", { p_actor: a, p_on: c.body.on !== false }),
@@ -6549,6 +6615,7 @@ async function worker(ctx: Ctx) {
   await rpc(ctx, "dela_maybe_queue_monthly", {}).catch(() => null);
   await rpc(ctx, "dela_maybe_queue_plan_sync", {}).catch(() => null);
   await rpc(ctx, "dela_maybe_queue_trial", {}).catch(() => null);
+  await rpc(ctx, "dela_health_due", {}).catch(() => null);
   if (await rpc<string>(ctx, "dela_setting_text", { p_key: "environment", p_default: "staging" }) === "staging") {
     await rpc(ctx, "dela_release_expire", {});
     await checkLive(ctx);
@@ -6640,6 +6707,7 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "bd_profile_push") return await bdProfilePush(ctx, j.payload ?? {});
   if (j.kind === "move_read") return await moveRead(ctx, j.payload ?? {});
   if (j.kind === "move_create") return await moveCreate(ctx, j.payload ?? {});
+  if (j.kind === "health_check") return await healthCheck(ctx, j.payload ?? {});
   if (j.kind === "claim_create") { await claimCreate(ctx, String(j.payload?.batch_id ?? ""), Number(j.payload?.turn) || 0); return { ok: true }; }
   if (j.kind === "posts_sync") { const r = await postsSync(ctx); return r?.ok ? { ok: true } : { ok: true, error: "not_all_read" }; }
   if (j.kind === "categories_sync") { const r = await categoriesSync(ctx, String(j.payload?.source ?? "job").slice(0, 20)); return r?.ok ? { ok: true } : { ok: true, error: String(r?.reason ?? "not_synced") }; }
@@ -6676,7 +6744,7 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
 
 async function sendText(ctx: Ctx, to: string, text: string) {
   const sender = await rpc<string>(ctx, "dela_setting_text", { p_key: "alerts.sms_sender", p_default: "Lawfecta" });
-  const r = await sendSms({ sender, to, text }, ctx.deps.env("BREVO_API_KEY"), ctx.deps.fetch);
+  const r = await sendSms({ sender, to, text }, ctx.deps.env("BREVO_API_KEY"), f(ctx));
   return r.ok ? { ok: true } : { ok: false, retry: r.retry, error: r.error };
 }
 
@@ -6695,11 +6763,11 @@ async function sendCode(ctx: Ctx, j: Record<string, any>) {
       const siteUrl = await rpc<string>(ctx, "dela_setting_text", { p_key: "site.url", p_default: "" });
       const mail = buildNotice({ title: "Your DELA code: " + code, body: line, link: "/dela-admin", siteUrl, appPath: "/dela-admin", environment: t.environment, logoUrl: await codeLogo(ctx), postal: await setting(ctx, "email.postal_address", "") });
       const r = await provider.send({ from: { name: t.from_name, email: t.from_address }, to: { email: t.to_email, name: t.to_name || undefined }, subject: mail.subject, html: mail.html, text: mail.text, tags: [t.environment, "release_code"] },
-        provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl });
+        provider.secret ? ctx.deps.env(provider.secret) : "", f(ctx), { siteUrl });
       if (r.ok) sent++; else errors.push(r.error);
     }
     if (p.sms === true && t.sms_to) {
-      const r = await sendSms({ sender: t.sms_sender, to: t.sms_to, text: line }, ctx.deps.env("BREVO_API_KEY"), ctx.deps.fetch);
+      const r = await sendSms({ sender: t.sms_sender, to: t.sms_to, text: line }, ctx.deps.env("BREVO_API_KEY"), f(ctx));
       if (r.ok) sent++; else errors.push(r.error);
     }
   }
@@ -6732,7 +6800,7 @@ async function sendEmail(ctx: Ctx, id: string) {
     from: { name: n.from_name, email: n.from_address }, to: { email: n.to_email, name: n.to_name || undefined },
     subject: mail.subject, html: mail.html, text: mail.text, tags: [n.environment, n.kind],
     ...(token ? { headers: { "List-Unsubscribe": `<${publicBase(ctx.deps)}/public/unsubscribe?t=${token}>`, "List-Unsubscribe-Post": "List-Unsubscribe=One-Click" } } : {}),
-  }, provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl: n.site_url });
+  }, provider.secret ? ctx.deps.env(provider.secret) : "", f(ctx), { siteUrl: n.site_url });
   if (r.ok) {
     await rpc(ctx, "dela_notification_mark", { p_notification: id, p_status: "sent", p_provider: provider.key, p_ref: r.messageId, p_error: "" });
     // Essential emails (license checks, security codes): ask Brevo later whether they arrived
@@ -6757,7 +6825,7 @@ async function deliveryCheck(ctx: Ctx, p: Record<string, any>) {
   const id = String(p.notification_id ?? ""), attempt = Number(p.attempt) || 0;
   const n = await rpc<Record<string, any> | null>(ctx, "dela_delivery_due", { p_notification: id });
   if (!n || n.provider !== "brevo" || !n.ref || n.state === "delivered" || n.state === "bounced") return { ok: true };
-  const d = await brevoDelivery(String(n.ref), ctx.deps.env("BREVO_API_KEY"), ctx.deps.fetch);
+  const d = await brevoDelivery(String(n.ref), ctx.deps.env("BREVO_API_KEY"), f(ctx));
   if (d.state === "waiting") {
     if (!(await queueDeliveryCheck(ctx, id, attempt + 1))) await rpc(ctx, "dela_notification_delivery", { p_notification: id, p_state: "unknown", p_reason: "" });
     else await rpc(ctx, "dela_notification_delivery", { p_notification: id, p_state: "waiting", p_reason: "" });
@@ -6839,17 +6907,33 @@ function trialMailer(ctx: Ctx, cfg: TrialCfg) {
     const provider = pickProvider(cfg.sender);
     const m = trialEmail(kind, c.first_name, String(cfg.site_url ?? ""), String(cfg.environment ?? "staging"), Number(cfg.reminder_days) || 2, await codeLogo(ctx), await setting(ctx, "email.postal_address", ""));
     const r = await provider.send({ from: { name: cfg.from_name, email: cfg.from_address }, to: { email: c.email, name: [c.first_name, c.last_name].join(" ").trim() || undefined },
-      subject: m.subject, html: m.html, text: m.text, tags: [String(cfg.environment), "trial_" + kind] }, provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl: cfg.site_url });
+      subject: m.subject, html: m.html, text: m.text, tags: [String(cfg.environment), "trial_" + kind] }, provider.secret ? ctx.deps.env(provider.secret) : "", f(ctx), { siteUrl: cfg.site_url });
     return r.ok ? { ok: true as const, data: true as const } : { ok: false as const, error: r.error };
   };
 }
 // Brilliant Directories for the trial check: the endpoints Stacey's BD check confirmed (lib/trial/bd-live.ts), once
 // the BD key is set; tests pass a stand-in
-function trialBd(ctx: Ctx, cfg: TrialCfg): TrialBd {
+function trialBdBase(ctx: Ctx, cfg: TrialCfg): TrialBd {
   if (ctx.deps.trialBd) return ctx.deps.trialBd;
   const key = ctx.deps.env("BD_API_KEY");
   if (!key || !String(cfg.site_url ?? "").startsWith("https://")) return notConnected;
   return liveBd(f(ctx), String(cfg.site_url), key, { activeValue: String(cfg.bd_active_value ?? "") });
+}
+// Step 93: a member the move made is on the plan the owner chose and never starts a Pro trial, whatever sign-up date
+// the website gave them. They are left out of the daily search and of the check at sign-in.
+function trialBd(ctx: Ctx, cfg: TrialCfg): TrialBd {
+  const bd = trialBdBase(ctx, cfg);
+  const moved = (id: number) => rpc<boolean>(ctx, "dela_move_made", { p_bd: id }).catch(() => false);
+  const out = Object.create(bd) as TrialBd;
+  out.search = async (plans, since) => {
+    const r = await bd.search(plans, since);
+    if (!r.ok) return r;
+    const keep = [];
+    for (const c of r.data) if (!(await moved(c.user_id))) keep.push(c);
+    return { ok: true, data: keep };
+  };
+  out.member = async (id) => (await moved(id)) ? { ok: false, error: "moved_member" } : await bd.member(id);
+  return out;
 }
 function trialDeps(ctx: Ctx, cfg: TrialCfg, runId: string): RunDeps {
   return {
@@ -6900,7 +6984,7 @@ async function trialSummary(ctx: Ctx, cfg: TrialCfg, runId: string, down: Member
       (tasks.length ? `<p><b>To do in BD admin today</b> (BD has no way to do these by API):</p><ul>${tasks.map((l) => "<li>" + esc(l) + "</li>").join("")}</ul>` : "") +
       `<p>The run log is in the DELA admin area, Trials tab.</p>`,
     text: title + ":\n" + lines.map((l) => "- " + l).join("\n") + (tasks.length ? "\n\nTo do in BD admin today (BD has no way to do these by API):\n" + tasks.map((l) => "- " + l).join("\n") : "") + "\n\nThe run log is in the DELA admin area, Trials tab.", tags: [String(cfg.environment), "trial_summary"] },
-    provider.secret ? ctx.deps.env(provider.secret) : "", ctx.deps.fetch, { siteUrl: cfg.site_url });
+    provider.secret ? ctx.deps.env(provider.secret) : "", f(ctx), { siteUrl: cfg.site_url });
 }
 // The sign-in backstop: the same check for one member, in the current mode
 async function trialCheckOne(ctx: Ctx, bdUserId: number) {

@@ -124,7 +124,9 @@ Deno.test("message attachments: the freelancer can open them for the default day
   assertEquals((await call("GET", `/threads/file?thread=${t.id}&file=${fileId}`, fl.token)).body.reason, "share_expired");
   assertEquals((await call("GET", `/threads/file?thread=${t.id}&file=${fileId}`, att.token)).body.ok, true, "the attorney keeps it");
   const act = (await call("GET", "/gigs/activity?gig=" + gig, att.token)).body;
-  assert(act.ok && act.items.some((x: any) => x.who === "Sec 2" && x.where === "Messages") && act.items.some((x: any) => x.who === "Sec 2" && x.where === "Shared files"), JSON.stringify(act));
+  // Step 93 (audit 2026-11-25): the freelancer is not hired yet, so the attorney reads the short name here too
+  assert(act.ok && act.items.some((x: any) => x.who === "Sec 2." && x.where === "Messages") && act.items.some((x: any) => x.who === "Sec 2." && x.where === "Shared files"), JSON.stringify(act));
+  assert(!act.items.some((x: any) => x.who === "Sec 2"), "the full name is not in the file activity before hiring");
   assertEquals((await call("GET", "/gigs/activity?gig=" + gig, fl.token)).status, 403, "the log is the attorney's");
 });
 
