@@ -5926,6 +5926,17 @@
     D.clear(libEl);
     lockNotice(P.id);
     libEl.appendChild(h("div", { class: "row", style: "margin-top:14px" }, h("button", { class: "ghost small", onclick: loadLibrary }, "← Library")));
+    // Step 80c: a playbook still in the older format, for someone who may edit it
+    if (lib.pb.can_convert && !docLocked(P.id)) {
+      var mv = h("button", { class: "blue small", type: "button", id: "pb-move" }, "Move to the current format");
+      mv.addEventListener("click", function () {
+        mv.disabled = true; mv.textContent = "Moving...";
+        api.post("/documents/convert-now", { id: P.id }).then(okOr).then(function () { lib.doc = null; lib.dp = null; D.toast(app, "Moved to the current format. Check it, then approve it."); openPlaybook(P.id, "read"); })
+          .catch(function (e) { mv.disabled = false; mv.textContent = "Move to the current format"; pbFail(e); });
+      });
+      libEl.appendChild(h("div", { class: "notice", role: "note", id: "pb-older", style: "display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px" },
+        h("span", { class: "grow" }, h("b", { text: "This document is in DELA's older format. " }), h("span", { text: "Move it to the current format to change it on the page, as it will read. The version you see now stays in \"Versions\"" + (P.approved_version ? ", and the approved version stays in use until you approve the new one." : ".") })), mv));
+    }
     libEl.appendChild(h("div", { class: "row", style: "margin:8px 0 4px" }, h("h1", { class: "grow", style: "margin:0", text: P.title }),
       h("span", { class: "badge " + (P.status === "approved" ? "ready" : P.status === "in_review" ? "held" : ""), text: PB_STATUS[P.status] })));
     libEl.appendChild(h("p", { class: "small muted", text: "Version " + P.version + (P.approved_version ? " | last approved: version " + P.approved_version : "") + authorLine() + " | administrator: " + P.administrator +
@@ -6256,10 +6267,15 @@
         var inner = h("div");
         drawer = h("div", { class: "drawer", role: "dialog", "aria-label": "Version " + n, style: "width:min(640px,calc(100% - 48px))" },
           h("div", { class: "row", style: "padding-right:84px" }, h("h2", { class: "grow", text: "Version " + n })), inner);
-        var saveCan = can;
-        can = function () { return false; };
-        readView(inner, r.version.body);
-        can = saveCan;
+        // Step 80c: a version in the current format reads as the document reads; an older one keeps its older layout
+        if (r.blocks) docBlocksInto(inner, r.blocks);
+        else {
+          if (lib.pb.body && lib.pb.body.schema === 2) inner.appendChild(h("p", { class: "notice", role: "note", id: "ver-older", text: "This version is in DELA's older format. If you restore it, DELA moves its words to the current format and saves them as a new version." }));
+          var saveCan = can;
+          can = function () { return false; };
+          readView(inner, r.version.body);
+          can = saveCan;
+        }
         showDrawer(drawer);
       }).catch(pbFail);
     }
@@ -15389,6 +15405,42 @@
     draw(-1);
     return ul;
   }
+  // Step 80c: decision points, escalations and related links read as lines on the page and are typed in place
+  function dpRows(d, key, o) {
+    var arr = d[key] || (d[key] = []), ro = o.ro, box = h("div", { class: "dp-rows", id: "dp-rows-" + key });
+    arr.forEach(function (x, i) {
+      var n = i + 1, row = h("div", { class: "dp-row" }), grid = h("div", { class: "dp-row-f" });
+      o.cols.forEach(function (c) {
+        if (ro && !String(x[c[0]] || "").trim()) return;
+        grid.appendChild(dpPair(c[1], dpText(x, c[0], c[1] + ", " + o.word + " " + n, { ro: ro, ph: c[2] || c[1] })));
+      });
+      row.appendChild(grid);
+      if (o.attorney) {
+        if (ro) { if (x.attorney_decides) row.appendChild(h("span", { class: "badge bad", text: "Attorney decides" })); }
+        else {
+          var ad = h("input", { type: "checkbox", checked: !!x.attorney_decides, "aria-label": "Attorney decides, " + o.word + " " + n });
+          ad.addEventListener("change", function () { x.attorney_decides = ad.checked; });
+          row.appendChild(h("label", { class: "dp-row-ck" }, ad, h("span", { text: "Attorney decides" })));
+        }
+      }
+      if (!ro) row.appendChild(h("button", { class: "dp-row-x", type: "button", "aria-label": "Remove " + o.word + " " + n, title: "Remove", onclick: function () { arr.splice(i, 1); dpChanged(); } }, "✕"));
+      box.appendChild(row);
+    });
+    if (ro && !arr.length) box.appendChild(h("p", { class: "dp-t dp-empty", text: "None." }));
+    if (!ro) box.appendChild(h("button", { class: "ghost small dp-row-add", type: "button", onclick: function () { arr.push(JSON.parse(JSON.stringify(o.blank))); lib.dp.focusRow = key; dpChanged(); } }, "+ Add " + o.add));
+    return box;
+  }
+  // The court rule under Timing: its three boxes show once there is a rule, or when the member asks for them
+  function dpRule(d, ro) {
+    var r = d.timing_rule, has = !!(r && (r.name || r.link || r.verify_by));
+    if (ro && !has) return null;
+    if (has || ro || (lib.dp && lib.dp.ruleOpen)) return ruleFields(d, "timing_rule", ro);
+    return h("button", { class: "ghost small dp-row-add", type: "button", id: "dp-rule-open", onclick: function () { lib.dp.ruleOpen = true; dpRedraw(); } }, "+ Add a court rule or filing deadline");
+  }
+  var DP_DECISIONS = { word: "decision point", add: "a decision point", attorney: true, blank: { if: "", then: "", attorney_decides: false, escalate_to: "" }, cols: [["if", "If", "What happens"], ["then", "Then", "What to do"], ["escalate_to", "Escalate to (role)", "A role"]] };
+  var DP_LINKS = { word: "link", add: "a link", blank: { label: "", url: "" }, cols: [["label", "Link", "Template, form, policy or SOP"], ["url", "Address", "https:// or a document ID such as INT-01"]] };
+  var DP_ESCALATION = { word: "escalation", add: "an escalation", blank: { issue: "", decider_role: "", how_fast: "" }, cols: [["issue", "Issue", "What comes up"], ["decider_role", "Who decides (role)", "A role"], ["how_fast", "How fast", "For example the same day"]] };
+  function dpRowsOf(d, key, spec, ro) { var o = {}; Object.keys(spec).forEach(function (k) { o[k] = spec[k]; }); o.ro = ro; return dpRows(d, key, o); }
   function dpSec(title, kids, id) { var x = h("section", { class: "dp-sec", id: id || null }, h("h2", { class: "dp-h", text: title })); (kids || []).forEach(function (k) { if (k) x.appendChild(k); }); return x; }
   function dpPair(label, node) { return h("div", { class: "dp-pair" }, h("span", { class: "dp-pair-l", text: label }), node); }
   function dpImages(d, key, label, ro) {
@@ -15533,6 +15585,12 @@
       lib.dp.focusStep = null;
       if (fresh) { fresh.focus(); return; }
     }
+    // So does a decision point, an escalation or a link that was just added (step 80c)
+    if (lib.dp && lib.dp.focusRow) {
+      var rows = libEl.querySelectorAll("#dp-rows-" + lib.dp.focusRow + " .dp-row"), firstT = rows.length ? rows[rows.length - 1].querySelector(".dp-t") : null;
+      lib.dp.focusRow = null;
+      if (firstT) { firstT.focus(); return; }
+    }
     if (lab) {
       var again = [].slice.call(libEl.querySelectorAll("[aria-label]")).filter(function (e) { return e.getAttribute("aria-label") === lab; })[0];
       if (again && again.focus && !again.disabled) { try { again.focus({ preventScroll: true }); } catch (e) { again.focus(); } }
@@ -15559,31 +15617,31 @@
       page.appendChild(dpSec("Steps", [dpSteps(d, ro),
         helper("check_steps", "✦ Check these steps", function () { return { playbook_id: lib.pb.playbook.id, trigger: d.trigger || "", timing: d.timing || "", steps: (d.steps || []).map(function (x) { return { text: x.text, role: x.role, attorney_decides: !!x.attorney_decides }; }) }; },
           { rowWord: "Step", apply: function (f) { if (d.steps[f.row - 1]) { d.steps[f.row - 1].text = f.suggestion; dpChanged(); } }, canApply: function (f) { return f.field === "step" && !!f.row; } })], "dp-steps-sec"));
-      page.appendChild(dpSec("Decision points and escalation", [decisionsEditor(d, ro)]));
-      page.appendChild(dpSec("Timing", [dpText(d, "timing", "Timing", { multi: true, rich: true, ro: ro, ph: "How long it should take, or the deadline" }), ro && !d.timing_rule ? null : ruleFields(d, "timing_rule", ro)]));
+      page.appendChild(dpSec("Decision points and escalation", [dpRowsOf(d, "decisions", DP_DECISIONS, ro)]));
+      page.appendChild(dpSec("Timing", [dpText(d, "timing", "Timing", { multi: true, rich: true, ro: ro, ph: "How long it should take, or the deadline" }), dpRule(d, ro)]));
       page.appendChild(dpSec("Quality check", [dpList(d, "quality_check", "Quality check", { ro: ro, ph: "How someone checks it was done right" }), dpPair("Reviewed by (role)", dpText(d, "quality_reviewer_role", "Reviewed by (role)", { ro: ro, ph: "A role" }))]));
       page.appendChild(dpSec("Done when", [dpText(d, "done_when", "Done when", { multi: true, rich: true, ro: ro, ph: "What finished looks like" }), dpPair("Saved in", dpText(d, "saved_in", "Saved in", { ro: ro, ph: "Where the result is kept" }))]));
-      page.appendChild(dpSec("Related links", [linksEditor(d, ro)]));
+      page.appendChild(dpSec("Related links", [dpRowsOf(d, "related_links", DP_LINKS, ro)]));
     } else if (d.type === "workflow") {
       page.appendChild(dpSec("Name and process owner", [dpPair("Process owner (one role)", dpText(d, "process_owner_role", "Process owner", { ro: ro, ph: "A role" })), roles()]));
       page.appendChild(dpSec("Start and end points", [dpPair("Starts when", dpText(d, "start_point", "Starts when", { ro: ro, ph: "What starts it" })), dpPair("Finished when", dpText(d, "end_point", "Finished when", { ro: ro, ph: "What ends it" }))]));
       var chart = dpImages(d, "chart", "Swimlane chart", ro);
       if (chart) page.appendChild(dpSec("Swimlane chart", [ro ? null : h("p", { class: "small muted", text: "Attach the chart of lanes and stages you drew elsewhere (for example in Visio or Lucidchart)." }), chart]));
       page.appendChild(dpSec("Stages, handoffs, target times and linked SOPs", [dpSteps(d, ro)], "dp-steps-sec"));
-      page.appendChild(dpSec("Decision points", [decisionsEditor(d, ro)]));
+      page.appendChild(dpSec("Decision points", [dpRowsOf(d, "decisions", DP_DECISIONS, ro)]));
     } else if (d.type === "playbook") {
       page.appendChild(dpSec("Situations covered", [dpList(d, "situations", "Situations covered", { ro: ro })]));
       page.appendChild(dpSec("Guiding principles", [dpList(d, "principles", "Guiding principles", { ro: ro })]));
       page.appendChild(dpSec("Preferred approach", [dpText(d, "preferred", "Preferred approach", { multi: true, rich: true, ro: ro })]));
       page.appendChild(dpSec("Acceptable fallbacks", [dpList(d, "fallbacks", "Acceptable fallbacks", { ro: ro, ph: "Options staff can use without asking" })]));
       page.appendChild(dpSec("Hard limits", [dpList(d, "hard_limits", "Hard limits", { ro: ro, ph: "What nobody agrees to without attorney or partner approval" })]));
-      page.appendChild(dpSec("Escalation", [escalationEditor(d, ro)]));
+      page.appendChild(dpSec("Escalation", [dpRowsOf(d, "escalation", DP_ESCALATION, ro)]));
       page.appendChild(dpSec("Scripts and templates", [dpList(d, "scripts", "Scripts and templates", { ro: ro }), dpImages(d, "scripts", "Scripts and templates", ro)]));
       page.appendChild(dpSec("Examples", [dpList(d, "examples", "Examples", { ro: ro, ph: "Short fictional scenarios. No client information." }), dpImages(d, "examples", "Examples", ro)]));
     } else {
       page.appendChild(dpSec("The rules", [h("h3", { class: "dp-h3", text: "What must happen" }), dpList(d, "rules_must", "What must happen", { ro: ro }), h("h3", { class: "dp-h3", text: "What must not happen" }), dpList(d, "rules_must_not", "What must not happen", { ro: ro })]));
       page.appendChild(dpSec("Exceptions and who approves them", [dpText(d, "exceptions", "Exceptions", { multi: true, rich: true, ro: ro }), dpPair("Approved by (role)", dpText(d, "exceptions_role", "Approved by (role)", { ro: ro, ph: "A role" }))]));
-      page.appendChild(dpSec("Related links", [linksEditor(d, ro)]));
+      page.appendChild(dpSec("Related links", [dpRowsOf(d, "related_links", DP_LINKS, ro)]));
     }
     // The older editors inside the page (decision points, links, rules, details) write on their own inputs; this hears them
     if (edit) {
@@ -15894,7 +15952,12 @@
     var fb0 = feedbackCard(lib.pb.playbook); if (fb0) area.appendChild(fb0);
     // The document itself, laid out as the export (no boxes, no Save buttons)
     var doc = h("div", { class: "card", id: "approved-body" });
-    (AV.blocks || []).forEach(function (b) {
+    docBlocksInto(doc, AV.blocks);
+    area.appendChild(doc);
+  }
+  // A document laid out for reading, from the blocks the server made (the approved version, and a version in "Versions")
+  function docBlocksInto(doc, blocks) {
+    (blocks || []).forEach(function (b) {
       doc.appendChild(h("h3", { text: b.title }));
       if (b.paras) { var ps = b.paras.filter(Boolean); if (ps.length) ps.forEach(function (t) { doc.appendChild(fmtInto(h("p"), t, true)); }); else doc.appendChild(h("p", { class: "muted", text: "Not set" })); }
       if (b.items) {
@@ -15907,7 +15970,7 @@
         b.table.rows.map(function (r) { return h("tr", null, r.map(function (x) { return h("td", { style: cell, text: x }); })); }))));
       var ims = imagesRead(b.images); if (ims) doc.appendChild(ims);
     });
-    area.appendChild(doc);
+    return doc;
   }
 
   // Step 55, the newcomer check: can a person who has never worked with the firm do this from the page? DELA lists

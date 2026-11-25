@@ -1128,13 +1128,22 @@ async function pbGet(ctx: Ctx) {
   if (v !== null) {
     const r = await rpc(ctx, "dela_pb_version", { p_person: s.person_id, p_id: id, p_version: v });
     if (!r) throw new HttpError(404, "not_found");
-    return json(ctx, { ok: true, version: r });
+    const out: Record<string, any> = { ok: true, version: r };
+    // Step 80c: a version in the current format comes with its reading layout, as the approved version does
+    if (isDoc((r as Record<string, any>).body)) {
+      const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
+      if (cur?.ok) out.blocks = docBlocks(await docUpgradeImages(ctx, normalizeDoc((r as Record<string, any>).body), cur.playbook.org_id), docMetaFor(approvedCur(cur, v), await today(ctx))).filter((b) => b.title !== "Header");
+    }
+    return json(ctx, out);
   }
   const r = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
   // Step 61: who the author is, and whether this person may approve (the author or the administrator)
   if (r?.ok) r.approver = await rpc(ctx, "dela_pb_approver", { p_person: s.person_id, p_id: id }).catch(() => null);
   // Step 70: the document's categories, which a gig made from it starts with
   if (r?.ok) r.categories = await rpc(ctx, "dela_pb_categories", { p_person: s.person_id, p_id: id }).catch(() => []) ?? [];
+  // Step 80c: a playbook still in the older format can be moved to the current one by someone who may edit it
+  if (r?.ok && !isDoc(r.body) && dela_rank(r.role) >= 3 && !["trash", "archived"].includes(String(r.playbook?.status)) &&
+    await rpc<boolean>(ctx, "dela_switch_on", { p_key: "document_standard", p_person: s.person_id }).catch(() => false)) r.can_convert = true;
   if (r?.ok && isDoc(r.body)) {
     const firm = await docFirm(ctx, s);
     const org = r.playbook.org_id;
@@ -1891,6 +1900,31 @@ async function docChangeType(ctx: Ctx) {
   if (ai.ok) { const read = readDocAnswer(readJson(ai.text)); if (read.body) next = { ...read.body, type, lifecycle: body.lifecycle || read.body.lifecycle }; }
   next = carryImages(body, normalizeDoc(codeFix(codeFix(next, "judgment", firm.people), "attorney_a", firm.people)));
   return json(ctx, await docSave(ctx, s, id, cur!.playbook.version, next, body, "Type changed to " + TYPE_INFO[type].label, "ai_change", firm));
+}
+
+// Step 80c: one older-format playbook moved to the current format when a member asks, so it opens in the editor that
+// edits in place. A playbook that never had a type goes the way DELA's own conversion goes (the type check on Lawfecta's
+// key, never the member's credits). One that has a type but an older-format current version (an older version was
+// restored) is moved by the fixed rules. The version before the move stays; nothing is approved by this.
+function docFromOlder(old: unknown, type: DocType, firm: DocFirm): DocBody {
+  return codeFix(codeFix(fromLegacy(normalize(old), type), "judgment", firm.people), "attorney_a", firm.people);
+}
+async function docConvertNow(ctx: Ctx) {
+  const s = await client(ctx);
+  const id = need(uuid(ctx.body.id));
+  const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
+  if (!cur?.ok) return json(ctx, cur);
+  if (dela_rank(cur.role) < 3 || ["trash", "archived"].includes(String(cur.playbook.status))) return json(ctx, { ok: false, reason: "not_allowed" });
+  if (isDoc(cur.body)) return json(ctx, { ok: true, duplicate: true });
+  if (!await rpc<boolean>(ctx, "dela_switch_on", { p_key: "document_standard", p_person: s.person_id })) return json(ctx, { ok: false, reason: "not_open" });
+  const type = (DOC_TYPES as string[]).includes(String(cur.playbook.doc_type)) ? cur.playbook.doc_type as DocType : null;
+  if (!type) {
+    await docConvert(ctx, id);
+    const after = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: id });
+    return json(ctx, after?.ok && isDoc(after.body) ? { ok: true, version: after.playbook.version } : { ok: false, reason: "not_converted" });
+  }
+  const firm = await docFirm(ctx, s);
+  return json(ctx, await docSave(ctx, s, id, cur.playbook.version, docFromOlder(cur.body, type, firm), null, "Moved to the current format", "edited", firm));
 }
 
 // The live quality panel while editing (nothing is saved)
@@ -6579,7 +6613,7 @@ async function standingHire(ctx: Ctx) {
 }
 
 // Routes that change a document's content (the read-only check after a downgrade applies to these)
-const EDIT_ROUTES = new Set(["POST /playbooks/save", "POST /playbooks/save-draft", "POST /playbooks/fill", "POST /playbooks/restore", "POST /documents/fix", "POST /documents/type"]);
+const EDIT_ROUTES = new Set(["POST /playbooks/save", "POST /playbooks/save-draft", "POST /playbooks/fill", "POST /playbooks/restore", "POST /documents/fix", "POST /documents/type", "POST /documents/convert-now"]);
 
 // ---------- The BD plan sync (step 9b): nightly at 2:00 AM Pacific, and "Resync plan" in admin ----------
 // Reads subscription_id from the member's BD record and applies it. A failed read changes nothing: the member keeps
@@ -7141,6 +7175,7 @@ async function handleInner(req: Request, deps: Deps): Promise<Response> {
       case "POST /documents/newcomer": return await docNewcomer(ctx);
       case "POST /documents/newcomer/fill": return await docNewcomerFill(ctx);
       case "POST /documents/type": return await docChangeType(ctx);
+      case "POST /documents/convert-now": return await docConvertNow(ctx);
       case "POST /documents/conversion-seen": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_doc_conversion_seen", { p_person: s.person_id, p_id: need(uuid(ctx.body.id)) })); }
       case "POST /gigs/reference": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_gig_reference", { p_person: s.person_id, p_gig: need(uuid(ctx.body.gig_id)), p_doc: need(uuid(ctx.body.doc)), p_on: ctx.body.on !== false })); }
       case "GET /confidential": return await confView(ctx);
@@ -7192,6 +7227,15 @@ async function handleInner(req: Request, deps: Deps): Promise<Response> {
           const rr = await rpc<Record<string, any>>(ctx, "dela_pb_restore_version", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_version: int(ctx.body.version), p_meta: prep.meta });
           if (rr?.ok) await rpc(ctx, "dela_doc_apply", { p_id: uuid(ctx.body.id), p: { ...prep.doc, person_id: s.person_id, what_changed: "Restored version " + int(ctx.body.version) } });
           return json(ctx, rr); }
+        // Step 80c: an older-format version restored into a document of the current format is moved to that format as it
+        // is restored, so the document never falls back to the older page
+        { const cur = await rpc<Record<string, any>>(ctx, "dela_pb_get", { p_person: s.person_id, p_id: uuid(ctx.body.id) });
+          if (cur?.ok && isDoc(cur.body)) {
+            if (dela_rank(cur.role) < 3) return json(ctx, { ok: false, reason: "not_allowed" });
+            const firm = await docFirm(ctx, s), was = normalizeDoc(cur.body);
+            const next = docFromOlder(b.body, was.type, firm);
+            next.lifecycle = was.lifecycle;
+            return json(ctx, await docSave(ctx, s, cur.playbook.id, cur.playbook.version, next, was, "Restored version " + int(ctx.body.version) + ", moved to the current format", "restored", firm)); } }
         return json(ctx, await rpc(ctx, "dela_pb_restore_version", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_version: int(ctx.body.version), p_meta: meta(normalize(b.body)) })); }
       case "POST /playbooks/comment/resolve": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_pb_comment_resolve", { p_person: s.person_id, p_comment: uuid(ctx.body.id) })); }
       case "POST /playbooks/attach": { const s = await client(ctx); return json(ctx, await rpc(ctx, "dela_pb_attach", { p_person: s.person_id, p_id: uuid(ctx.body.id), p_file: uuid(ctx.body.file_id), p_on: ctx.body.on !== false })); }

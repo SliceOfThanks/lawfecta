@@ -399,6 +399,42 @@ Deno.test("older playbooks: the type check converts them, the old version stays,
   assert(adm.converted >= 1 && adm.recent.some((x: any) => x.id === old));
 });
 
+Deno.test("step 80c: an older-format playbook is moved on request; restoring an older version keeps the current format; a version comes with its reading layout", async () => {
+  const legacy = { title: "File the reply brief", outcome: "The brief is filed", steps: [{ text: "Draft the reply brief", who: "Paralegal" }, { text: "Approve the brief", who: "Attorney", tag: "keep" }], checks: ["Filing receipt saved"], deliverables: "A filed brief" };
+  // A playbook that never had a type, whose own conversion has not run
+  const old = (await one(`insert into playbooks (org_id, title, status, current_version, completeness, request_id, created_by) values ($1, 'File the reply brief', 'draft', 1, 100, 'legacy80c', $2) returning id`, [org, att.id])).id;
+  await pool.query("insert into playbook_versions (playbook_id, version, body, created_by) values ($1, 1, $2, $3)", [old, legacy, att.id]);
+  const before = (await call("GET", "/playbooks/get?id=" + old, att.token)).body;
+  assertEquals([before.can_convert, before.body.schema], [true, undefined], "someone who may edit is offered the move");
+  assertEquals((await call("GET", "/playbooks/get?id=" + old, other.token)).body.can_convert, undefined, "a stranger is offered nothing");
+  assert(["not_allowed", "not_found"].includes((await call("POST", "/documents/convert-now", other.token, { id: old })).body.reason), "a stranger cannot move it");
+  const moved = (await call("POST", "/documents/convert-now", att.token, { id: old })).body;
+  assertEquals(moved.ok, true, JSON.stringify(moved));
+  const got = (await call("GET", "/playbooks/get?id=" + old, att.token)).body;
+  assertEquals([got.body.schema, got.playbook.version, got.can_convert], [2, 2, undefined], "it is in the current format as a new version");
+  assert(got.body.steps.length >= 2 && !!got.playbook.doc_type, "its steps came along and it has a type");
+  assertEquals((await call("POST", "/documents/convert-now", att.token, { id: old })).body.duplicate, true, "asked twice, moved once");
+  assertEquals((await one("select count(*)::int n from playbook_versions where playbook_id = $1", [old])).n, 2, "the older version stays");
+  // "View" on a version: the current format comes with its reading layout, the older one does not
+  const v2 = (await call("GET", "/playbooks/get?id=" + old + "&v=2", att.token)).body, v1 = (await call("GET", "/playbooks/get?id=" + old + "&v=1", att.token)).body;
+  assert(Array.isArray(v2.blocks) && v2.blocks.some((b: any) => /Steps|Stages/.test(b.title)) && !v2.blocks.some((b: any) => b.title === "Header"), "a current-format version has its reading layout: " + JSON.stringify((v2.blocks ?? []).map((b: any) => b.title)));
+  assertEquals(v1.blocks, undefined, "an older-format version has none");
+  // Restoring the older version does not bring the older format back
+  const back = (await call("POST", "/playbooks/restore", att.token, { id: old, version: 1 })).body;
+  assertEquals([back.ok, back.version], [true, 3], JSON.stringify(back));
+  const after = (await call("GET", "/playbooks/get?id=" + old, att.token)).body;
+  assertEquals([after.body.schema, after.body.type, after.playbook.doc_type], [2, got.body.type, got.playbook.doc_type], "the restored words are in the current format, with the type the document had");
+  assert(after.body.steps.some((st: any) => String(st.text).includes("Draft the reply brief")), "the restored words are the older version's words");
+  assert(String((await one("select note from playbook_versions where playbook_id = $1 and version = 3", [old])).note).includes("moved to the current format"), "the version says what happened");
+  // A document whose current version is older-format although it has a type (restored before this release) is moved by the rules, with no AI
+  await pool.query("insert into playbook_versions (playbook_id, version, body, created_by) values ($1, 4, $2, $3)", [old, legacy, att.id]);
+  await pool.query("update playbooks set current_version = 4 where id = $1", [old]);
+  const n = prompts.length;
+  const fixed = (await call("POST", "/documents/convert-now", att.token, { id: old })).body;
+  assertEquals([fixed.ok, fixed.version, prompts.length], [true, 5, n], JSON.stringify(fixed));
+  assertEquals((await call("GET", "/playbooks/get?id=" + old, att.token)).body.body.schema, 2);
+});
+
 Deno.test("reminders 14 days ahead go to the owner role's holder; a bounce goes to the firm owner", async () => {
   await pool.query("update playbooks set owner_role = 'Paralegal', next_review_at = (now()::date + 10), review_reminded_for = null where id = $1", [sop]);
   await pool.query("select dela_pb_daily()");

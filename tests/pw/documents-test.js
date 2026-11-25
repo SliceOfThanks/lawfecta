@@ -517,6 +517,35 @@ async function makeMember(bd, side, plan) {
       await dela(p).locator("#dp-stale-mine").click();
       await dela(p).locator("#dp-id", { hasText: "Version " + (row.v + 2) }).waitFor({ timeout: 15000 });
       ok((await sql("select body->>'scope' x from playbook_versions where playbook_id = '" + before.id + "' and version = " + (row.v + 2)))[0].x.startsWith("Every new matter, every new party"), "Save mine as the newest version keeps both: the other version stays in the history");
+      // ---------- Step 80c: decision points and related links are lines on the page, typed in place ----------
+      st = await sr(p, `const pg = r.querySelector(".dp-page"); return { boxes: pg.querySelectorAll("#dp-rows-decisions input[type=text], #dp-rows-related_links input, #dp-rows-decisions textarea").length, rows: pg.querySelectorAll("#dp-rows-decisions .dp-row").length, links: !!pg.querySelector("#dp-rows-related_links") }`);
+      ok(st.boxes === 0 && st.links, "decision points and related links are no longer boxes inside the page");
+      const nD = st.rows + 1;
+      await dela(p).locator("#dp-rows-decisions .dp-row-add").click();
+      ok(await sr(p, `const el = r.activeElement; return !!el && el.getAttribute("aria-label") === "If, decision point " + a[0]`, [nD]), "\"+ Add a decision point\" adds a line and puts the cursor in it");
+      await p.keyboard.type("the fee is unusual");
+      await dela(p).getByRole("textbox", { name: "Then, decision point " + nD, exact: true }).fill("Stop and ask the attorney.");
+      await dela(p).getByLabel("Attorney decides, decision point " + nD).check();
+      await saved(p);
+      let kept80c = (await sql("select body->'decisions' x from playbook_working where playbook_id = '" + before.id + "'"))[0].x;
+      ok(kept80c.length === nD && kept80c[nD - 1].if === "the fee is unusual" && kept80c[nD - 1].then === "Stop and ask the attorney." && kept80c[nD - 1].attorney_decides === true, "what is typed into a decision point is kept: " + JSON.stringify(kept80c[nD - 1]));
+      await dela(p).getByRole("button", { name: "Remove decision point " + nD, exact: true }).click();
+      await saved(p);
+      kept80c = (await sql("select body->'decisions' x from playbook_working where playbook_id = '" + before.id + "'"))[0].x;
+      ok(kept80c.length === nD - 1, "the small X removes a decision point");
+      // The court rule under Timing shows its boxes only when asked for
+      ok((await dela(p).locator("#dp-rule-open").count()) === 1 && (await dela(p).locator('.dp-page input[aria-label="Rule or statute"]').count()) === 0, "with no court rule set, Timing shows one button and no boxes");
+      await dela(p).locator("#dp-rule-open").click();
+      ok((await dela(p).locator('.dp-page input[aria-label="Rule or statute"]').count()) === 1, "the button opens the court rule's boxes");
+      // "View" on a version reads as the document reads
+      await dela(p).getByRole("tab", { name: "Versions" }).click();
+      await dela(p).getByRole("button", { name: "View", exact: true }).first().click();
+      await dela(p).locator(".drawer h3").first().waitFor({ timeout: 15000 });
+      st = await sr(p, `const dr = r.querySelector(".drawer"); return { heads: [...dr.querySelectorAll("h3")].map((x) => x.textContent), older: !!dr.querySelector("#ver-older"), boxes: dr.querySelectorAll("input, textarea, [contenteditable]").length }`);
+      ok(st.heads.includes("Purpose") && st.heads.includes("Steps") && !st.older && st.boxes === 0, "a version opens as the document reads, with nothing to type in: " + st.heads.join(", "));
+      await dela(p).locator(".drawer .drawer-x").click();
+      await dela(p).getByRole("tab", { name: "Document" }).click();
+      await dela(p).locator(".dp-page").waitFor({ timeout: 15000 });
       // The side panel: the facts and delegation are one click away
       await dela(p).locator("#dp-open-details").click();
       st = await sr(p, `const pn = r.querySelector("#dp-panel"); return { owner: !!pn.querySelector('select[aria-label="Owner (role)"]'), raci: /RACI/.test(pn.textContent), exp: r.querySelector("#dp-open-details").getAttribute("aria-expanded") }`);
@@ -532,6 +561,8 @@ async function makeMember(bd, side, plan) {
       await p.screenshot({ path: path.join(SHOTS, "80-editor-phone.png") });
       await p.setViewportSize({ width: 1400, height: 950 });
       await p.screenshot({ path: path.join(SHOTS, "80-editor.png"), fullPage: true });
+      await dela(p).locator("#dp-rows-decisions").scrollIntoViewIfNeeded();
+      await p.screenshot({ path: path.join(SHOTS, "80c-rows.png") });
       await s.ctx.close();
       // The other three types draw in the new page too
       s = await open(browser, 3600, { width: 1400, height: 950 }, "&tab=library");
@@ -544,6 +575,20 @@ async function makeMember(bd, side, plan) {
       await dela(s.page).locator(".dp-page").waitFor({ timeout: 20000 });
       st = await sr(s.page, `return { heads: [...r.querySelectorAll(".dp-page h2.dp-h")].map((x) => x.textContent), img: /Add image/.test(r.querySelector(".dp-page").textContent) }`);
       ok(st.heads.join("|") === "Purpose|Scope|The rules|Exceptions and who approves them|Related links" && !st.img, "a Policy shows its sections and takes no images");
+      await s.ctx.close();
+      // ---------- Step 80c: a playbook still in the older format is moved with one button ----------
+      await sql(`with pb as (insert into playbooks (org_id, title, status, current_version, completeness, request_id, created_by)
+        select o.id, 'Older format check', 'draft', 1, 100, 'older80c', pe.id from organizations o join people pe on pe.id = o.owner_person_id where pe.bd_member_id = 3600 returning id, created_by)
+        insert into playbook_versions (playbook_id, version, body, created_by) select id, 1, '{"title":"Older format check","outcome":"The letter is sent","steps":[{"text":"Draft the letter","who":"Paralegal"},{"text":"Approve the letter","who":"Attorney","tag":"keep"}],"checks":["Letter saved"],"deliverables":"A sent letter"}'::jsonb, created_by from pb returning 1`);
+      s = await open(browser, 3600, { width: 1400, height: 950 }, "&tab=library");
+      await dela(s.page).getByText("Older format check").first().click();
+      await dela(s.page).locator("#pb-older").waitFor({ timeout: 20000 });
+      ok((await dela(s.page).locator("#pb-older").innerText()).includes("older format") && (await dela(s.page).locator(".dp-page").count()) === 0, "an older-format playbook opens on its older page, with a notice that offers the move");
+      await dela(s.page).locator("#pb-move").click();
+      await dela(s.page).locator(".dp-page").waitFor({ timeout: 30000 });
+      st = await sr(s.page, `return { title: r.querySelector(".dp-page .dp-title").textContent, steps: r.querySelectorAll(".dp-page .dp-step").length, older: !!r.querySelector("#pb-older") }`);
+      ok(!!st.title && st.steps >= 2 && !st.older, "after \"Move to the current format\" it opens as a page to type on, with its steps: " + JSON.stringify(st));
+      ok((await sql("select count(*)::int n from playbook_versions v join playbooks p on p.id = v.playbook_id where p.request_id = 'older80c'"))[0].n === 2, "the older version is still in its history");
       await s.ctx.close();
     } finally { for (const w of was80) await sql("update feature_switches set state = '" + w.state + "' where key = '" + w.key + "'; select 1"); }
     console.log(passed + " browser checks passed");

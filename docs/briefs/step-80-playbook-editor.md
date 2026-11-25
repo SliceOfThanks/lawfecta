@@ -76,6 +76,15 @@ Known: a firm member for whom the switch is off sees the old form, where the mar
 8. Where are the buttons? **A small bar over the text being typed in:** "B", "I", "• List", "Link", "Unlink". Ctrl or Cmd with B, I and K work too.
 Known: a firm member for whom the switch is off sees the old form, where the marks show as typed characters. This ends when the switch is on for everyone.
 
+## Release 80c: the questions Claude answered itself (acceleration mode, 2026-11-24)
+What was found first: on Live every playbook is already in the current format (24 of 24), because DELA moves older ones by itself and nothing makes an older one while the document standard is on. Two ways back to the older page were left, and three kinds of boxes were still inside the new page.
+1. A playbook still in the older format (its move failed or has not run yet)? **A notice on its page with one button, "Move to the current format".** Anyone who may edit can click it. The version before the move stays in Versions, and an approved version stays in use until the new one is approved, as with the moves DELA makes by itself. Nothing is moved without that click.
+2. Restoring an older-format version in a document that is in the current format? **The restored words are moved to the current format as they are restored**, by fixed rules (no AI, no credits), and saved as a new version. Before, the document fell back to the older page.
+3. "View" on a version in the Versions tab? **A version in the current format reads as the document reads** (the layout of the approved version). An older-format version keeps its older layout, with a line saying so.
+4. Decision points, escalations and related links? **Lines on the page, typed in place**, like every other text: a label and the words beside it, "+ Add" under them and a small "✕" to remove one. "Attorney decides" stays a tick beside a decision point.
+5. The court rule on a step and on Timing? **It stays behind "Details".** It is six linked facts with a date, and loose text would lose the check that reads them.
+6. Turn the new editor on for everyone? **No.** It stays on the Access list until Stacey says so.
+
 ## Success looks like
 Attorney login, switch on:
 - A document opens with its title and "Purpose" at the top of the page, not under delegation cards.
