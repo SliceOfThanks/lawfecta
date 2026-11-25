@@ -389,7 +389,7 @@ export function checkDoc(b0: DocBody, c: CheckContext): { items: CheckItem[]; bl
   // Images (docs/briefs/step-2e-document-images.md): a caption on each, and a confirmed client-data check (blocking)
   const placed = placedImages(b);
   if (placed.length) {
-    const noCap = placed.filter((x) => !x.caption.trim());
+    const noCap = placed.filter((x) => !x.inline && !x.caption.trim());
     add("image_captions", "Every image has a caption", noCap.length > 0, noCap.map((x) => x.where + " image is missing a caption.").join(" "), "image");
     if (noCap.length) items[items.length - 1].images = noCap.map((x) => x.id);
     const unchecked = placed.filter((x) => !c.images?.[x.id]?.confirmed);

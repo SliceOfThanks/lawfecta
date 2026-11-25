@@ -526,7 +526,7 @@ async function makeMember(bd, side, plan) {
         const tm = (js) => sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Timing"); ` + js);
         const pickT = (word) => sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Timing"); el.focus(); const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { const i = n.nodeValue.indexOf(a[0]); if (i >= 0) { const g = document.createRange(); g.setStart(n, i); g.setEnd(n, i + a[0].length); const sl = window.getSelection(); sl.removeAllRanges(); sl.addRange(g); return true; } } return false;`, [word]);
         await dela(p).getByRole("textbox", { name: "Timing", exact: true }).fill("Court hours");
-        ok((await bar88.getByRole("button").allInnerTexts()).join("|") === "B|I|U|• List|1. List|Link|Unlink|||||Clear|Undo|Redo|Table" && (await bar88.locator("select.dp-fmt-sel option").allInnerTexts()).join("|") === "Text|Heading|Small heading", "with the wider tools on, the bar has a style list, underline, a numbered list, four alignments, Clear, Undo and Redo: " + (await bar88.getByRole("button").allInnerTexts()).join("|"));
+        ok((await bar88.getByRole("button").allInnerTexts()).join("|") === "B|I|U|• List|1. List|Link|Unlink|||||Clear|Undo|Redo|Table|Video" && (await bar88.locator("select.dp-fmt-sel option").allInnerTexts()).join("|") === "Text|Heading|Small heading", "with the wider tools on, the bar has a style list, underline, a numbered list, four alignments, Clear, Undo and Redo: " + (await bar88.getByRole("button").allInnerTexts()).join("|"));
         await bar88.locator("select.dp-fmt-sel").selectOption("h3");
         ok(await tm(`return !!el.querySelector("h3") && el.querySelector("h3").textContent === "Court hours"`), "\"Heading\" in the style list makes the line a heading where it stands");
         await tm(`el.focus(); const g = document.createRange(); g.selectNodeContents(el); g.collapse(false); const sl = window.getSelection(); sl.removeAllRanges(); sl.addRange(g);`);
@@ -551,7 +551,7 @@ async function makeMember(bd, side, plan) {
         await bar88.getByRole("button", { name: "Add a table" }).click();
         await bar88.getByLabel("Rows").fill("99");
         await bar88.getByRole("button", { name: "Add", exact: true }).click();
-        ok((await bar88.locator(".dp-fmt-note").last().innerText()).startsWith("A table takes 1 to 40 rows and 1 to 8 columns") && await tm(`return !el.querySelector("table")`), "a table that is too large is refused, with a line that says the limits");
+        ok((await bar88.locator(".dp-fmt-note").nth(1).innerText()).startsWith("A table takes 1 to 40 rows and 1 to 8 columns") && await tm(`return !el.querySelector("table")`), "a table that is too large is refused, with a line that says the limits");
         await bar88.getByLabel("Rows").fill("2"); await bar88.getByLabel("Columns").fill("2");
         await bar88.getByLabel("Columns").press("Enter");
         ok(await tm(`const t = el.querySelector("table.dp-tbl"); return !!t && t.rows.length === 2 && t.rows[0].cells.length === 2 && t.rows[0].cells[0].tagName === "TH" && t.rows[1].cells[0].tagName === "TD"`), "\"Table\" puts a table of the asked size into the text, with a header row");
@@ -569,6 +569,31 @@ async function makeMember(bd, side, plan) {
         const kept88b = (await sql("select body->>'timing' x from playbook_working where playbook_id = '" + before.id + "'"))[0].x;
         ok(kept88b === "## Court hours\n1. first\n2. second\n{center} __Centered__ line\n| Court | Fee |\n| Small claims | 75 / cash |\n|  | Second |", "a table is kept as lines of cells, and a bar typed in a cell cannot break it: " + JSON.stringify(kept88b));
         ok(await tm(`const t = el.querySelector("table.dp-tbl"); return !!t && [...t.rows].map((r) => [...r.cells].map((c) => c.textContent).join("~")).join("#") === "Court~Fee#Small claims~75 / cash#~Second" && !el.textContent.includes("|")`), "the table shows again as a table after the text is left");
+        // ---------- Step 88c: a video (YouTube, Vimeo or Loom only; nothing loads until Play) ----------
+        await p.route("https://www.youtube-nocookie.com/**", (rt) => rt.fulfill({ status: 200, contentType: "text/html", body: "<p>player</p>" }));
+        await tm(`el.focus(); const g = document.createRange(); g.selectNodeContents(el.querySelector("h3")); g.collapse(false); const sl = window.getSelection(); sl.removeAllRanges(); sl.addRange(g);`);
+        await bar88.getByRole("button", { name: "Add a video" }).click();
+        await bar88.getByLabel("Video link").fill("https://evil.example/watch?v=dQw4w9WgXcQ");
+        await bar88.getByRole("button", { name: "Add", exact: true }).click();
+        ok((await bar88.locator(".dp-fmt-note").last().innerText()).startsWith("Use a link to one video on YouTube, Vimeo or Loom") && await tm(`return !el.querySelector(".dp-vid")`), "a video from another site is refused, with a line that names the three sites");
+        await bar88.getByLabel("Video link").fill("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
+        await bar88.getByLabel("Video title").fill("How to [file]");
+        await bar88.getByLabel("Video title").press("Enter");
+        let v88 = await tm(`const v = el.querySelector(".dp-vid"); return { ok: !!v, title: v ? v.querySelector("b").textContent : "", frames: el.querySelectorAll("iframe").length, afterHead: !!v && v.previousElementSibling && v.previousElementSibling.tagName === "H3", says: v ? v.textContent : "" }`);
+        ok(v88.ok && v88.title === "How to (file)" && v88.frames === 0 && v88.afterHead && v88.says.includes("It loads from YouTube when you click Play."), "\"Video\" puts a play card after the line the cursor was in, and nothing loads from the video site yet: " + JSON.stringify(v88));
+        await dela(p).getByRole("button", { name: "Play the video: How to (file)" }).click();
+        v88 = await tm(`const f = el.querySelector(".dp-vid iframe"); return { src: f ? f.getAttribute("src") : "", sandbox: f ? f.getAttribute("sandbox") : "" }`);
+        ok(v88.src === "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" && v88.sandbox.includes("allow-scripts") && !v88.sandbox.includes("allow-top-navigation"), "Play loads the site's own player in a closed frame: " + JSON.stringify(v88));
+        await dela(p).locator(".dp-vid").hover();
+        await dela(p).getByRole("button", { name: "Move the video down" }).click();
+        await dela(p).getByRole("textbox", { name: "Title", exact: true }).click();
+        await p.waitForTimeout(200);
+        await saved(p);
+        const kept88c = (await sql("select body->>'timing' x from playbook_working where playbook_id = '" + before.id + "'"))[0].x;
+        ok(kept88c.startsWith("## Court hours\n1. first\n@[How to (file)](https://www.youtube.com/watch?v=dQw4w9WgXcQ)\n1. second\n"), "a video is kept as one line with its title and address, and Move down moves it one line (a list it lands in starts again at 1 after it): " + JSON.stringify(kept88c));
+        await dela(p).locator(".dp-vid").hover();
+        await dela(p).getByRole("button", { name: "Remove the video" }).click();
+        ok(await tm(`return !el.querySelector(".dp-vid")`), "the small X removes the video");
         // Put Timing back to plain words, so the rest of the run reads as before
         await dela(p).getByRole("textbox", { name: "Timing", exact: true }).fill("Within 1 business day of the request.");
         await dela(p).getByRole("textbox", { name: "Title", exact: true }).click();

@@ -179,12 +179,33 @@ function cleanLinks(t: string): string {
   return out;
 }
 
+// A line that is a picture or a video. Scrubs that rewrite words leave these lines alone, so an ID or an address in
+// them is never taken for an account number or a contact detail.
+export function isMediaLine(line: string): boolean {
+  const t = String(line ?? "").trim();
+  if (IMAGE_LINE.test(t)) return true;
+  const vd = VIDEO_LINE.exec(t);
+  return !!vd && !!videoInfo(vd[2]);
+}
+export function outsideMedia(text: string, fn: (t: string) => string): string {
+  const t = String(text ?? "");
+  if (t.indexOf("](") < 0) return fn(t);
+  const out: string[] = [];
+  let buf: string[] = [];
+  const flush = () => { if (buf.length) { out.push(fn(buf.join("\n"))); buf = []; } };
+  for (const line of t.split("\n")) { if (isMediaLine(line)) { flush(); out.push(line.trim()); } else buf.push(line); }
+  flush();
+  return out.join("\n");
+}
+export const withoutMedia = (text: string) => String(text ?? "").split("\n").filter((l) => !isMediaLine(l)).join("\n");
+
 // The pictures a text refers to, in order
-export function imageIdsIn(text: string): string[] {
+export function imagesIn(text: string): Array<{ id: string; caption: string }> {
   const t = String(text ?? "");
   if (t.indexOf("](image:") < 0) return [];
-  return richBlocks(t).flatMap((bl) => bl.kind === "image" ? [bl.id] : []);
+  return richBlocks(t).flatMap((bl) => bl.kind === "image" ? [{ id: bl.id, caption: bl.caption }] : []);
 }
+export const imageIdsIn = (text: string): string[] => imagesIn(text).map((x) => x.id);
 // The same text without the pictures the caller does not keep
 export function keepImages(text: string, keep: (id: string) => boolean): string {
   const t = String(text ?? "");

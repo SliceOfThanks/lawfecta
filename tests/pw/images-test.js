@@ -359,6 +359,8 @@ const imgs = (step) => sql("select v.body->'steps'->" + step + "->'images' as im
     // ---------- Step 80: in the new editor an image moves from one step to another ----------
     const was80 = (await sql("select state from feature_switches where key = 'document_editor_v2'"))[0].state;
     await sql("update feature_switches set state = 'everyone' where key = 'document_editor_v2'; select 1");
+    const was88 = (await sql("select state from feature_switches where key = 'document_editor_tools'"))[0].state;
+    await sql("update feature_switches set state = 'everyone' where key = 'document_editor_tools'; select 1");
     try {
       const sr = (pg, fn, arg) => pg.evaluate(([f, a]) => new Function("r", "a", f)(document.querySelector(".dela-host").shadowRoot, a), [fn, arg]);
       s = await open(browser, 3700, { width: 1400, height: 950 });
@@ -389,8 +391,37 @@ const imgs = (step) => sql("select v.body->'steps'->" + step + "->'images' as im
       ok(at1[from] === at0[from] && at1[to] === at0[to], "dragging the image onto another step moves it there: " + JSON.stringify(at1));
       await dela(p).locator("#dp-status", { hasText: /^Saved / }).waitFor({ timeout: 12000 });
       ok(true, "the move is kept by itself, like typing");
+      // ---------- Step 88c: a picture inside a text (Stacey 2026-11-24: the caption is optional, the tick is not) ----------
+      const pur = () => sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Purpose"); return { figs: el.querySelectorAll("figure.dp-img").length, src: !!(el.querySelector("figure.dp-img img") || {}).src, text: el.textContent }`);
+      // A picture opened full screen by an earlier click is closed first
+      if (await dela(p).locator(".img-full").count()) { await p.keyboard.press("Escape"); await p.waitForTimeout(200); }
+      const before88 = await pur();
+      await sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Purpose"); el.scrollIntoView({ block: "center" }); el.focus(); const g = document.createRange(); g.selectNodeContents(el); g.collapse(false); const sl = window.getSelection(); sl.removeAllRanges(); sl.addRange(g);`);
+      await dela(p).locator("#dp-fmt").waitFor({ timeout: 8000 });
+      await p.evaluate((w) => { window.__OCR_WORDS = w; }, []);
+      const [fc] = await Promise.all([p.waitForEvent("filechooser"), dela(p).locator("#dp-fmt").getByRole("button", { name: "Add a picture" }).click()]);
+      await fc.setFiles({ name: "inline.png", mimeType: "image/png", buffer: await shot(p, ["Court form", "Box 4", "Sign here"]) });
+      await waitFor(p, "Review image");
+      ok((await text(p)).includes("Caption (optional: what should the reader look at?)"), "for a picture inside a text the review window says the caption is optional");
+      const save88 = dela(p).getByRole("button", { name: "Save image" });
+      ok(await save88.isDisabled(), "Save image stays off until the tick, also with an optional caption");
+      await dela(p).getByLabel("This image contains no client information, passwords or account numbers.").check();
+      ok(!(await save88.isDisabled()), "with the tick and no caption, the picture can be saved");
+      await save88.click();
+      await dela(p).locator('.dp-t[aria-label="Purpose"] figure.dp-img img[src]').waitFor({ timeout: 20000 });
+      let st88 = await pur();
+      ok(st88.figs === before88.figs + 1 && st88.src && st88.text.includes(before88.text.trim().slice(0, 20)), "the picture stands in the text, after the line the cursor was in, and the words are still there");
+      await dela(p).locator("#dp-status", { hasText: /^Saved / }).waitFor({ timeout: 12000 });
+      const kept88 = (await sql("select w.body->>'purpose' x from playbook_working w join playbooks pb on pb.id = w.playbook_id where pb.title = 'Run a conflict check' order by w.updated_at desc limit 1"))[0].x;
+      ok(/\n!\[\]\(image:[0-9a-f-]{36}\)$/.test(kept88), "the picture is kept as one line that names it, with no caption: " + JSON.stringify(kept88));
+      await p.screenshot({ path: path.join(SHOTS, "88c-picture.png") });
+      await dela(p).locator('.dp-t[aria-label="Purpose"] figure.dp-img').hover();
+      await dela(p).getByRole("button", { name: "Remove the picture" }).click();
+      st88 = await pur();
+      ok(st88.figs === before88.figs, "the small X takes the picture out of the text again");
+      await dela(p).locator("#dp-status", { hasText: /^Saved / }).waitFor({ timeout: 12000 });
       await s.ctx.close();
-    } finally { await sql("update feature_switches set state = '" + was80 + "' where key = 'document_editor_v2'; select 1"); }
+    } finally { await sql("update feature_switches set state = '" + was80 + "' where key = 'document_editor_v2'; select 1"); await sql("update feature_switches set state = '" + was88 + "' where key = 'document_editor_tools'; select 1"); }
     console.log(passed + " browser checks passed");
   } finally { await browser.close(); }
 })().catch((e) => { console.error(e.message); process.exit(1); });

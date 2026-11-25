@@ -155,6 +155,32 @@ Deno.test("an image on a step: checked, captions, words not counted, only the fi
   assert(!JSON.stringify((await get(policy)).body).includes(a.id));
 });
 
+Deno.test("step 88c: a picture inside a text: caption optional, the tick required, counted with the others, only the firm's own, never in a Policy; a video only from three sites", async () => {
+  // The caption may be empty for a picture inside a text; the tick may not
+  const st = (await call("POST", "/documents/images/start", att.token, { playbook_id: sop, name: "inline.png", size_bytes: PNG.length, request_id: "inl" + (n++), ticked: true })).body;
+  blobs.set(st.upload_url.replace("https://storage.test/up/", ""), PNG);
+  const noTick = (await call("POST", "/documents/images/complete", att.token, { playbook_id: sop, file_id: st.file_id, caption: "", confirmed: false, inline: true })).body;
+  assertEquals(noTick.reason, "confirm_needed", JSON.stringify(noTick));
+  const inl = (await call("POST", "/documents/images/complete", att.token, { playbook_id: sop, file_id: st.file_id, caption: "", confirmed: true, inline: true })).body;
+  assertEquals(inl.ok, true, JSON.stringify(inl));
+  const theirs = await upload(other, otherSop);
+  const cur = await get(sop);
+  const line = (id: string, cap = "") => "![" + cap + "](image:" + id + ")";
+  let r = await save(sop, { ...cur.body, purpose: "Find conflicts before a consult.\n" + line(inl.id) + "\n" + line(theirs.id, "Not ours") + "\n@[Intro](https://youtu.be/dQw4w9WgXcQ)\n@[Bad](https://evil.example/v)" });
+  assertEquals(r.ok, true, JSON.stringify(r));
+  const g = await get(sop);
+  assertEquals(g.body.purpose, "Find conflicts before a consult.\n" + line(inl.id) + "\n@[Intro](https://youtu.be/dQw4w9WgXcQ)\nBad", "the firm's own picture and an allowed video stay; another firm's picture goes, and a video from elsewhere keeps only its title");
+  assert(r.notices.some((x: string) => x.includes("not in this firm's library")), JSON.stringify(r.notices));
+  assertEquals([item(r, "image_checks").status, String(item(r, "image_captions").detail ?? "").includes("in the text")], ["pass", false], "a picture inside a text needs its tick and no caption: " + JSON.stringify(item(r, "image_captions")));
+  assertEquals(g.images[inl.id].confirmed, true, "the page gets the picture's facts, as for a picture on a step");
+  // A Policy takes no picture inside a text either; it keeps a video
+  const pol = await get(policy);
+  await save(policy, { ...pol.body, purpose: "The rule.\n" + line(inl.id) + "\n@[Why](https://vimeo.com/123456789)" });
+  assertEquals((await get(policy)).body.purpose, "The rule.\n@[Why](https://vimeo.com/123456789)");
+  // Put the SOP back
+  await save(sop, { ...(await get(sop)).body, purpose: cur.body.purpose });
+});
+
 Deno.test("DELA's check holds an image: blocking until confirmed again; then exports carry the image", async () => {
   holdNext = true;
   const h = await upload(att, sop, { caption: "The client list screen" });

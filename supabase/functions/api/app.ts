@@ -34,8 +34,8 @@ import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, moneySummary, readTasks, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
 import { blockedKinds, blockedMessage, BLOCKED_WORDS, FILE_BLOCKED_MESSAGE, type Blocked } from "./lib/confidential/rules.ts";
-import { stripMarks, TABLE_MAX_COLS, TABLE_MAX_ROWS } from "./lib/documents/marks.ts";
-import { blocks as docBlocks, looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, gigPrereqs, type GigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
+import { keepImages, outsideMedia, stripMarks, TABLE_MAX_COLS, TABLE_MAX_ROWS, withoutMedia } from "./lib/documents/marks.ts";
+import { blocks as docBlocks, placedImages, looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, gigPrereqs, type GigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { fillPrompt, NEWCOMER_FILL_SYSTEM, NEWCOMER_SYSTEM, readNewcomer, type NewcomerFinding } from "./lib/documents/newcomer.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
 import { clean, HELPER_SIDE, HELPER_SYSTEM, HELPERS, NOT_LEGAL, readCompare, readCriteria, readExplain, readFindings, readFirm, readFit, type HelperKey } from "./lib/helpers/model.ts";
@@ -1582,7 +1582,7 @@ async function docImageComplete(ctx: Ctx) {
   try { await runFileCheck(ctx, id, "dela_doc_image_checked"); } catch (e) { console.error("doc_image_check", String(e).slice(0, 200)); }
   let w = int(ctx.body.width) ?? 0, h = int(ctx.body.height) ?? 0;
   try { const sz = imageSize((await storage.read(fc.storage_path)).subarray(0, 65536)); if (sz) { w = sz.w; h = sz.h; } } catch { /* sizes from the browser */ }
-  const r = await rpc<Record<string, any>>(ctx, "dela_doc_image_save", { p: { person_id: s.person_id, playbook_id: uuid(ctx.body.playbook_id) ?? "", file_id: id, caption: str(ctx.body.caption, 400),
+  const r = await rpc<Record<string, any>>(ctx, "dela_doc_image_save", { p: { person_id: s.person_id, playbook_id: uuid(ctx.body.playbook_id) ?? "", file_id: id, caption: str(ctx.body.caption, 400), inline: ctx.body.inline === true,
     confirmed: ctx.body.confirmed === true, flags_found: int(ctx.body.flags_found) ?? 0, flags_blurred: int(ctx.body.flags_blurred) ?? 0, width: w, height: h } });
   return json(ctx, r);
 }
@@ -1635,12 +1635,15 @@ async function docPrepare(ctx: Ctx, firm: DocFirm, raw: unknown, before: DocBody
     const keep = (list: Array<{ id: string; caption: string }>) => { const k = list.filter((im) => facts[im.id]); if (k.length !== list.length) dropped = true; if (k.length > per) trimmed = true; return k.slice(0, per); };
     for (const st of body.steps) st.images = keep(st.images);
     for (const k of Object.keys(body.section_images)) body.section_images[k] = keep(body.section_images[k]);
+    // Step 88c: a picture inside a text stays only when it is this firm's picture, and never in a Policy
+    const inText = imageIds(body).filter((id) => !facts[id]).length > 0 || (body.type === "policy" && placedImages(body).some((x) => x.inline));
+    if (inText) { body = eachText(body, (t) => keepImages(t, (id) => body.type !== "policy" && !!facts[id])); dropped = true; }
     if (trimmed) notices.push("Each step can have " + per + " images. DELA kept the first " + per + ".");
     if (dropped) notices.push("DELA took off an image that is not in this firm's library.");
   }
   // Hard rules applied on every save: no credentials, roles not names, and the firm's role kinds
-  const cred = scrubCredentials(docText(body));
-  if (cred.removed) { body = eachText(body, (t) => scrubCredentials(t).text); notices.push("DELA removed passwords, logins or account numbers. They belong in a password manager."); }
+  const cred = scrubCredentials(withoutMedia(docText(body)));
+  if (cred.removed) { body = eachText(body, (t) => outsideMedia(t, (x) => scrubCredentials(x).text)); notices.push("DELA removed passwords, logins or account numbers. They belong in a password manager."); }
   const nm = namesToRoles(body, firm.people);
   if (nm.replaced.length) { body = nm.body; notices.push("DELA replaced names with roles: " + nm.replaced.join(", ") + "."); }
   for (const r of firm.roles) if (body.roles.includes(r.name)) body.role_kinds[r.name] = r.kind;

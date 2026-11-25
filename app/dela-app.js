@@ -15160,7 +15160,7 @@
     }
     return false;
   }
-  function fmtPlain(text) { return String(text || "").split("\n").map(function (l) { var row = fmtRow(l); return fmtSegs(row ? row.filter(Boolean).join(", ") : fmtLine(l).t).map(function (x) { return x.t; }).join(""); }).join("\n"); }
+  function fmtPlain(text) { return String(text || "").split("\n").map(function (l) { var md = fmtMediaLine(l); if (md) return md.k === "img" ? md.cap : md.title; var row = fmtRow(l); return fmtSegs(row ? row.filter(Boolean).join(", ") : fmtLine(l).t).map(function (x) { return x.t; }).join(""); }).join("\n"); }
   // Step 88: what a line is, from the mark it starts with (the same rules as lib/documents/marks.ts on the server)
   function fmtLine(raw) {
     var al = "", m = /^\{(center|right|justify)\} /.exec(raw);
@@ -15171,6 +15171,78 @@
     var n = /^\d{1,3}\. /.exec(raw);
     if (n) return { k: "ol", al: "", t: raw.slice(n[0].length) };
     return { k: "p", al: al, t: raw };
+  }
+  // Step 88c: a picture or a video stands on a line of its own. The same rules as lib/documents/marks.ts on the server.
+  function fmtVideo(url) {
+    var u = String(url || "").trim(), m;
+    if (!fmtHttps(u)) return null;
+    m = /^https:\/\/(?:www\.|m\.)?youtube\.com\/(?:watch\?(?:[^#\s]*&)?v=|shorts\/|embed\/|live\/)([A-Za-z0-9_-]{11})(?:[?&#\/][^\s]*)?$/.exec(u) || /^https:\/\/youtu\.be\/([A-Za-z0-9_-]{11})(?:[?&#\/][^\s]*)?$/.exec(u);
+    if (m) return { site: "YouTube", embed: "https://www.youtube-nocookie.com/embed/" + m[1] };
+    m = /^https:\/\/(?:www\.)?vimeo\.com\/(\d{6,12})(?:\/([0-9a-f]{6,16}))?(?:[?#][^\s]*)?$/.exec(u) || /^https:\/\/player\.vimeo\.com\/video\/(\d{6,12})(?:\?h=([0-9a-f]{6,16}))?$/.exec(u);
+    if (m) return { site: "Vimeo", embed: "https://player.vimeo.com/video/" + m[1] + (m[2] ? "?h=" + m[2] : "") };
+    m = /^https:\/\/(?:www\.)?loom\.com\/(?:share|embed)\/([0-9a-f]{32})(?:[?#][^\s]*)?$/.exec(u);
+    if (m) return { site: "Loom", embed: "https://www.loom.com/embed/" + m[1] };
+    return null;
+  }
+  function fmtMediaLine(line) {
+    var t = String(line || "").trim(), m = /^!\[([^\]\n]*)\]\(image:([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})\)$/i.exec(t);
+    if (m) return { k: "img", id: m[2].toLowerCase(), cap: m[1].trim() };
+    m = /^@\[([^\]\n]*)\]\((https:\/\/[^\s<>"')\]]+)\)$/i.exec(t);
+    if (m && fmtVideo(m[2])) return { k: "vid", url: m[2], title: m[1].trim() };
+    return null;
+  }
+  // Words that go between the square brackets of a picture or video line
+  function fmtCap(t) { return String(t || "").split("\n").join(" ").split("[").join("(").split("]").join(")").trim(); }
+  // The picture or the video as it stands in a text: not typed into, with Move up, Move down and Remove while editing
+  function fmtMedia(md) {
+    var box;
+    var act = function (how) { return function (e) {
+      e.preventDefault(); e.stopPropagation();
+      var host = box.closest(".dp-t"); if (!host || host.contentEditable !== "true") return;
+      var k = [].slice.call(host.querySelectorAll(".dp-media")).indexOf(box), lines = fmtRead(host, true).split("\n"), at = -1, seen = -1;
+      for (var i = 0; i < lines.length; i++) if (fmtMediaLine(lines[i])) { seen++; if (seen === k) { at = i; break; } }
+      if (at < 0) return;
+      if (how === 0) lines.splice(at, 1);
+      else { var to = at + how; if (to < 0 || to >= lines.length) return; var x = lines[at]; lines[at] = lines[to]; lines[to] = x; }
+      fmtInto(host, lines.join("\n"), true);
+      host.dispatchEvent(new Event("input", { bubbles: true }));
+    }; };
+    var what = md.k === "img" ? "picture" : "video";
+    var tools = h("span", { class: "dp-mx" },
+      h("button", { type: "button", class: "small", "aria-label": "Move the " + what + " up", title: "Move up", onclick: act(-1) }, "↑"),
+      h("button", { type: "button", class: "small", "aria-label": "Move the " + what + " down", title: "Move down", onclick: act(1) }, "↓"),
+      h("button", { type: "button", class: "small danger", "aria-label": "Remove the " + what, title: "Remove", onclick: act(0) }, "✕"));
+    if (md.k === "img") {
+      var img = h("img", { alt: md.cap || "Picture", draggable: "false", loading: "lazy" });
+      box = h("figure", { class: "dp-media dp-img", contenteditable: "false", "data-img": md.id, "data-cap": md.cap }, tools, img, md.cap ? h("figcaption", { text: md.cap }) : null);
+      img.addEventListener("click", function () { if (img.src) imgFull(img.src, md.cap); });
+      fillImg(img, md.id, null, function () { if (img.parentNode) img.parentNode.replaceChild(h("p", { class: "small muted", text: "This picture is not available." }), img); });
+      return box;
+    }
+    var info = fmtVideo(md.url), frame = h("div", { class: "dp-vid-frame" });
+    var play = h("button", { type: "button", class: "blue small dp-vid-play", "aria-label": "Play the video" + (md.title ? ": " + md.title : "") }, "▶ Play");
+    // Nothing loads from the video site until Play is clicked
+    play.addEventListener("click", function (e) {
+      e.preventDefault(); e.stopPropagation();
+      D.clear(frame);
+      frame.appendChild(h("iframe", { src: info.embed, title: md.title || "Video", sandbox: "allow-scripts allow-same-origin allow-presentation allow-popups", allow: "fullscreen; picture-in-picture; encrypted-media", allowfullscreen: "", referrerpolicy: "strict-origin-when-cross-origin", loading: "lazy" }));
+      play.hidden = true;
+    });
+    box = h("div", { class: "dp-media dp-vid", contenteditable: "false", "data-vid": md.url, "data-title": md.title }, tools,
+      h("div", { class: "dp-vid-row" }, play, h("span", { class: "dp-vid-t" }, h("b", { text: md.title || "Video" }), h("span", { class: "small muted", text: " On " + info.site + ". It loads from " + info.site + " when you click Play." }))), frame);
+    return box;
+  }
+  // Where a new picture or video goes: after the line the cursor stands in. Worked out now, used when the picture is ready.
+  function fmtPlacer(el, sync) {
+    var s = fmtSel(), at = s && s.rangeCount && el.contains(s.getRangeAt(0).startContainer) ? s.getRangeAt(0).startContainer : null;
+    while (at && at !== el && at.parentNode !== el) at = at.parentNode;
+    var TOKEN = "DELAPLACEHERE", mk = document.createElement("div");
+    mk.textContent = TOKEN;
+    if (at && at !== el) el.insertBefore(mk, at.nextSibling); else el.appendChild(mk);
+    var txt = fmtRead(el, true).split(TOKEN + "\n\n").join(TOKEN + "\n");
+    if (mk.parentNode) mk.parentNode.removeChild(mk);
+    if (txt.indexOf(TOKEN) < 0) txt = (txt ? txt + "\n" : "") + TOKEN;
+    return function (line) { fmtInto(el, txt.split(TOKEN).join(line), true); sync(); };
   }
   // Step 88b: a table row is a line of cells between bars; the first row of a run of rows is the header
   function fmtRow(line) {
@@ -15228,6 +15300,8 @@
     };
     var table = null;
     lines.forEach(function (line0) {
+      var md = multi ? fmtMediaLine(line0) : null;
+      if (md) { el.appendChild(fmtMedia(md)); table = null; list = null; needBr = false; return; }
       var cells = multi ? fmtRow(line0) : null;
       if (cells) {
         if (!table) { table = h("tbody"); el.appendChild(h("table", { class: "dp-tbl" }, table)); }
@@ -15268,6 +15342,10 @@
         if (n.nodeType === 3) { out += String(n.nodeValue || "").split(" ").join(" ").split("*").join("\\*").split("__").join("\\_\\_"); return; }
         if (n.nodeType !== 1) return;
         var tag = n.tagName, inner;
+        if (n.getAttribute("data-img") || n.getAttribute("data-vid")) {
+          out += (!out || out.slice(-1) === "\n" ? "" : "\n") + (n.getAttribute("data-img") ? "![" + fmtCap(n.getAttribute("data-cap")) + "](image:" + n.getAttribute("data-img") + ")" : "@[" + fmtCap(n.getAttribute("data-title")) + "](" + n.getAttribute("data-vid") + ")") + "\n";
+          return;
+        }
         if (tag === "BR") { out += "\n"; return; }
         if (tag === "UL" || tag === "OL") {
           var no = 0;
@@ -15377,7 +15455,7 @@
     var ub = h("button", { class: "dp-fmt-b", type: "button", "aria-label": "Remove the link", title: "Remove the link" }, "Unlink");
     ub.addEventListener("mousedown", function (e) { e.preventDefault(); });
     ub.addEventListener("click", function () { doIt("unlink"); });
-    var tools = fmtTools(), row2 = null, styleSel = null, tform = null, trow = null, fmtCellAt = null;
+    var tools = fmtTools(), row2 = null, styleSel = null, tform = null, trow = null, fmtCellAt = null, vform = null;
     if (tools && multi) {
       styleSel = h("select", { class: "dp-fmt-sel", "aria-label": "Text style", title: "Text style" }, [["div", "Text"], ["h3", "Heading"], ["h4", "Small heading"]].map(function (o) { return h("option", { value: o[0], text: o[1] }); }));
       var keep = function () { var s0 = fmtSel(); fmtRange = s0 && s0.rangeCount && el.contains(s0.getRangeAt(0).commonAncestorContainer) ? s0.getRangeAt(0).cloneRange() : fmtRange; };
@@ -15486,13 +15564,61 @@
       }));
       trow.appendChild(tOp("Remove table", "Remove this table", function (x) { x.table.parentNode.removeChild(x.table); el.focus(); }));
       fmtCellAt = cellAt;
+      // Step 88c: a picture and a video inside the text
+      var dType = lib.doc && lib.doc.type;
+      if (imgCfg().on && dType !== "policy") {
+        var pb = h("button", { class: "dp-fmt-b", type: "button", "aria-label": "Add a picture", title: "Add a picture" }, "Picture");
+        pb.addEventListener("mousedown", function (e) { e.preventDefault(); });
+        pb.addEventListener("click", function () {
+          var place = fmtPlacer(el, sync), cfgI = imgCfg();
+          var pick = h("input", { type: "file", accept: "image/png,image/jpeg", hidden: true, "aria-label": "Choose a picture for the text", id: "dp-pic-file" });
+          var old = app.querySelector("#dp-pic-file"); if (old) old.remove();
+          app.appendChild(pick);
+          pick.addEventListener("change", function () {
+            var f = pick.files && pick.files[0]; pick.remove();
+            if (!f) return;
+            var okType = f.type === "image/png" || f.type === "image/jpeg" || (!f.type && /\.(png|jpe?g)$/i.test(f.name || ""));
+            if (!okType) { D.toast(app, "Use a PNG or JPG image.", true); return; }
+            if (f.size > cfgI.max_mb * 1048576) { D.toast(app, "This image is over " + cfgI.max_mb + " MB. Try a smaller screenshot.", true); return; }
+            reviewImage({ file: f, caption: "", captionOptional: true, inline: true, progress: null, onSaved: function (id, caption, fact) {
+              if (lib.pb) { lib.pb.images = lib.pb.images || {}; lib.pb.images[id] = Object.assign({}, lib.pb.images[id] || {}, fact, { source: "upload" }); }
+              place("![" + fmtCap(caption) + "](image:" + id + ")");
+            } });
+          });
+          pick.click();
+        });
+        row2.appendChild(pb);
+      }
+      vform = h("div", { class: "dp-fmt-row", style: "display:none" });
+      var vurl = h("input", { type: "url", class: "dp-fmt-url", placeholder: "Paste a YouTube, Vimeo or Loom link", "aria-label": "Video link" }), vtitle = h("input", { type: "text", class: "dp-fmt-url dp-fmt-vt", maxlength: "120", placeholder: "Title (optional)", "aria-label": "Video title" });
+      var vnote = h("span", { class: "small dp-fmt-note", role: "status" }), vplace = null;
+      var closeV = function (back) { vform.style.display = "none"; main.style.display = ""; row2.style.display = ""; fmtPlace(); if (back) el.focus(); };
+      var vb = h("button", { class: "dp-fmt-b", type: "button", "aria-label": "Add a video", title: "Add a video" }, "Video");
+      vb.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      vb.addEventListener("click", function () {
+        vplace = fmtPlacer(el, sync);
+        main.style.display = "none"; row2.style.display = "none"; if (trow) trow.style.display = "none"; vform.style.display = ""; vnote.textContent = ""; vurl.value = ""; vtitle.value = ""; fmtPlace(); vurl.focus();
+      });
+      var addV = function () {
+        var u = vurl.value.trim();
+        if (!fmtVideo(u)) { vnote.textContent = "Use a link to one video on YouTube, Vimeo or Loom. It must start with https://"; return; }
+        closeV(false);
+        if (vplace) vplace("@[" + fmtCap(vtitle.value) + "](" + u + ")");
+        vplace = null; el.focus();
+      };
+      var vadd = h("button", { class: "dp-fmt-b on", type: "button" }, "Add"), vcancel = h("button", { class: "dp-fmt-b", type: "button" }, "Cancel");
+      vadd.addEventListener("click", addV);
+      vcancel.addEventListener("click", function () { closeV(true); });
+      [vurl, vtitle].forEach(function (x) { x.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addV(); } if (e.key === "Escape") { e.preventDefault(); closeV(true); } }); });
+      vform.appendChild(vurl); vform.appendChild(vtitle); vform.appendChild(vadd); vform.appendChild(vcancel); vform.appendChild(vnote);
+      row2.appendChild(vb);
     }
     var add = h("button", { class: "dp-fmt-b on", type: "button" }, "Add"), cancel = h("button", { class: "dp-fmt-b", type: "button" }, "Cancel");
     add.addEventListener("click", addLink);
     cancel.addEventListener("click", function () { closeLink(true); });
     url.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addLink(); } if (e.key === "Escape") { e.preventDefault(); closeLink(true); } });
     link.appendChild(url); link.appendChild(add); link.appendChild(cancel); link.appendChild(note);
-    fmtBar = h("div", { class: "dp-fmt", role: "toolbar", "aria-label": "Formatting", id: "dp-fmt" }, main, row2, trow, link, tform);
+    fmtBar = h("div", { class: "dp-fmt", role: "toolbar", "aria-label": "Formatting", id: "dp-fmt" }, main, row2, trow, link, tform, vform);
     fmtBar.openLink = openLink;
     // The style list follows the cursor: it names the kind of line the cursor stands in
     fmtBar.upd = function () {
@@ -15501,7 +15627,7 @@
       while (nd && nd !== el) { var tg = nd.nodeType === 1 ? nd.tagName : ""; if (tg === "H1" || tg === "H2" || tg === "H3") { v = "h3"; break; } if (tg === "H4" || tg === "H5" || tg === "H6") { v = "h4"; break; } nd = nd.parentNode; }
       if (dwRoot().activeElement !== styleSel) styleSel.value = v;
       // The table tools show while the cursor stands in a table
-      if (trow && tform && tform.style.display === "none" && link.style.display === "none") { var inT = !!(fmtCellAt && fmtCellAt()); if ((trow.style.display !== "none") !== inT) { trow.style.display = inT ? "" : "none"; fmtPlace(); } }
+      if (trow && tform && tform.style.display === "none" && link.style.display === "none" && (!vform || vform.style.display === "none")) { var inT = !!(fmtCellAt && fmtCellAt()); if ((trow.style.display !== "none") !== inT) { trow.style.display = inT ? "" : "none"; fmtPlace(); } }
     };
     fmtBar.addEventListener("focusout", function () { setTimeout(function () { var a = dwRoot().activeElement; if (fmtBar && a !== el && !fmtBar.contains(a)) fmtHide(); }, 0); });
     app.appendChild(fmtBar);
@@ -16995,10 +17121,11 @@
     var tick = h("input", { type: "checkbox", "aria-label": "This image contains no client information, passwords or account numbers." });
     var save = h("button", { class: "blue", type: "button", disabled: true }, "Save image");
     var saveWrap = h("span", { title: "Add a caption and confirm there is no client information." }, save);
-    function ready() { var ok = cap.value.trim() && tick.checked; save.disabled = !ok; saveWrap.title = ok ? "" : "Add a caption and confirm there is no client information."; }
+    var capOpt = !!o.captionOptional;
+    function ready() { var ok = (capOpt || cap.value.trim()) && tick.checked; save.disabled = !ok; saveWrap.title = ok ? "" : capOpt ? "Confirm there is no client information." : "Add a caption and confirm there is no client information."; }
     cap.addEventListener("input", ready); tick.addEventListener("change", ready);
     m.body.appendChild(toolsRow); m.body.appendChild(flagBar); m.body.appendChild(status); if (heldNote) m.body.appendChild(heldNote); m.body.appendChild(h("div", { class: "img-center" }, stage));
-    m.body.appendChild(field("Caption (what should the reader look at?)", cap, "Up to " + cfg.caption_max + " characters. It is also the text a screen reader reads."));
+    m.body.appendChild(field(capOpt ? "Caption (optional: what should the reader look at?)" : "Caption (what should the reader look at?)", cap, "Up to " + cfg.caption_max + " characters. It is also the text a screen reader reads."));
     m.body.appendChild(h("label", { style: "display:flex;gap:8px;align-items:flex-start;font-weight:600;margin-top:8px" }, tick, h("span", { text: "This image contains no client information, passwords or account numbers." })));
     m.foot.appendChild(h("span", { class: "grow" }));
     m.foot.appendChild(h("button", { class: "ghost grey", type: "button", onclick: m.close }, "Cancel"));
@@ -17098,8 +17225,8 @@
         if (!blob) { ready(); return; }
         if (blob.size > cfg.max_mb * 1048576) { ready(); D.toast(app, "This image is over " + cfg.max_mb + " MB. Try a smaller screenshot.", true); return; }
         m.close();
-        D.toast(app, "Saving the image. It appears under the step in a few seconds.");
-        uploadDocImage(blob, jpeg ? "Screenshot.jpg" : "Screenshot.png", caption, flags.length, Object.keys(blurred).length, o.progress).then(function (r) {
+        D.toast(app, o.inline ? "Saving the picture. It appears in the text in a few seconds." : "Saving the image. It appears under the step in a few seconds.");
+        uploadDocImage(blob, jpeg ? "Screenshot.jpg" : "Screenshot.png", caption, flags.length, Object.keys(blurred).length, o.progress, !!o.inline).then(function (r) {
           if (r.held) D.toast(app, "Saved. DELA's check thinks this image may show client information, so the document is blocked until you blur it or confirm it shows none.", true);
           else D.toast(app, "Image saved");
           o.onSaved(r.id, caption, { confirmed: !r.held, held: !!r.held });
@@ -17109,7 +17236,7 @@
   }
 
   // Upload with a progress bar on the step, then the image record with its caption and checkbox
-  function uploadDocImage(blob, name, caption, found, blurredN, bar) {
+  function uploadDocImage(blob, name, caption, found, blurredN, bar, inline) {
     var P = lib.pb.playbook;
     var setBar = function (pct) { if (!bar) return; bar.hidden = pct === null; if (pct !== null) bar.firstChild.style.width = pct + "%"; };
     setBar(5);
@@ -17127,7 +17254,7 @@
       });
     }).then(function (r) {
       setBar(90);
-      return api.post("/documents/images/complete", { playbook_id: P.id, file_id: r.file_id, caption: caption, confirmed: true, flags_found: found, flags_blurred: blurredN });
+      return api.post("/documents/images/complete", { playbook_id: P.id, file_id: r.file_id, caption: caption, confirmed: true, flags_found: found, flags_blurred: blurredN, inline: inline === true });
     }).then(function (r) {
       setBar(null);
       if (!r.ok) throw r;

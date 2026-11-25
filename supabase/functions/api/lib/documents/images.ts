@@ -1,6 +1,7 @@
 // Images in documents (docs/briefs/step-2e-document-images.md). A document body holds only references: the image id (a
 // doc_images record) and its caption. Where images may go depends on the type; Policies stay text only.
 import type { DocType } from "./model.ts";
+import { imagesIn } from "./marks.ts";
 
 export type ImageRef = { id: string; caption: string };
 // Image facts from the database (dela_doc_images_facts)
@@ -34,12 +35,16 @@ export function readRefs(v: unknown, clean: (t: string) => string): ImageRef[] {
 }
 
 // Every image in a document with where it sits ("Step 2", "Before you start")
-export type Placed = ImageRef & { where: string; step: number | null; section: string };
-export function placedImages(b: { type: DocType; steps: Array<{ images: ImageRef[] }>; section_images: Record<string, ImageRef[]> }): Placed[] {
+// Step 88c: a picture may also stand inside a text (a line that names it). Those are "inline": the caption is optional.
+export type Placed = ImageRef & { where: string; step: number | null; section: string; inline?: boolean };
+const TEXT_LABEL: Record<string, string> = { purpose: "Purpose", scope: "Scope", trigger: "Trigger", timing: "Timing", done_when: "Done when", preferred: "Preferred approach", exceptions: "Exceptions" };
+export function placedImages(b: { type: DocType; steps: Array<{ images: ImageRef[]; text?: string }>; section_images: Record<string, ImageRef[]> }): Placed[] {
   const out: Placed[] = [];
   const word = b.type === "workflow" ? "Stage " : "Step ";
   b.steps.forEach((st, i) => st.images.forEach((im) => out.push({ ...im, where: word + (i + 1), step: i + 1, section: "" })));
   for (const s of IMAGE_SECTIONS[b.type]) (b.section_images[s.key] ?? []).forEach((im) => out.push({ ...im, where: s.label, step: null, section: s.key }));
+  b.steps.forEach((st, i) => imagesIn(st.text ?? "").forEach((im) => out.push({ ...im, where: word + (i + 1) + " (in the text)", step: i + 1, section: "", inline: true })));
+  for (const [k, v] of Object.entries(b as Record<string, unknown>)) if (typeof v === "string" && TEXT_LABEL[k]) imagesIn(v).forEach((im) => out.push({ ...im, where: TEXT_LABEL[k] + " (in the text)", step: null, section: "", inline: true }));
   return out;
 }
 export const imageIds = (b: Parameters<typeof placedImages>[0]) => [...new Set(placedImages(b).map((p) => p.id))];
