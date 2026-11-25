@@ -5884,6 +5884,81 @@ async function claimCreate(ctx: Ctx, batchId: string, turn: number) {
   }
   if (rows.length === 8) await rpc(ctx, "dela_job_enqueue", { p_kind: "claim_create", p_payload: { batch_id: batchId, turn: turn + 1 }, p_run_at: new Date().toISOString(), p_idem: "claim_create:" + batchId + ":" + (turn + 1), p_person: null });
 }
+// ---------- Step 90a: reading the old website's members for the move (docs/briefs/step-90-member-move.md) ----------
+// The old site is read with its own key, the secret BD_OLD_API_KEY, at the address in the setting bd_old.site_url.
+// Nothing here writes to either website. Only the fields listed below are kept: a password, a login token, a card,
+// an invoice or the site's own bookkeeping never reaches DELA's tables.
+const MOVE_TEXT = ["first_name", "last_name", "email", "company", "phone_number", "address1", "address2", "city", "zip_code", "state_code", "state_ln", "country_code", "country_ln", "lat", "lon",
+  "website", "booking_link", "blog", "facebook", "twitter", "linkedin", "instagram", "youtube", "pinterest", "tiktok", "snapchat", "whatsapp",
+  "about_me", "search_description", "position", "quote", "experience", "affiliation", "awards", "credentials", "rep_matters", "listing_type", "verified", "nationwide",
+  "signup_date", "last_login", "modtime", "filename", "image_main_file", "profile_photo", "logo", "cover_photo"];
+const MOVE_LINKS = new Set(["website", "booking_link", "blog", "facebook", "twitter", "linkedin", "instagram", "youtube", "pinterest", "tiktok", "snapchat", "whatsapp"]);
+// A date as the website gives it: "20250129093045" or an ISO date. A date that was never set comes back as 1970 or zeros.
+function moveDate(v: unknown): string {
+  const t = String(v ?? "").trim();
+  const m = /^(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(t);
+  const d = m ? new Date(`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}:${m[6]}Z`) : new Date(t);
+  return !t || isNaN(d.getTime()) || d.getUTCFullYear() < 2000 ? "" : d.toISOString();
+}
+export function movePick(x: Record<string, unknown>): Record<string, unknown> | null {
+  const id = Math.trunc(Number(x.user_id)) || 0;
+  if (!id) return null;
+  const rec: Record<string, string> = {};
+  for (const k of MOVE_TEXT) {
+    let v = typeof x[k] === "string" || typeof x[k] === "number" ? String(x[k]).trim() : "";
+    // The old site keeps some links percent-encoded
+    if (v && MOVE_LINKS.has(k) && /^https?%3A/i.test(v)) { try { v = decodeURIComponent(v); } catch { /* kept as it is */ } }
+    if (v) rec[k] = v.slice(0, k === "about_me" ? 20000 : 2000);
+  }
+  const photos = Array.isArray(x.photos_schema) ? (x.photos_schema as Array<Record<string, unknown>>).map((p) => ({ file: String(p?.file ?? "").slice(0, 300), type: String(p?.type ?? "").slice(0, 40) })).filter((p) => p.file).slice(0, 12) : [];
+  const services = String(x.service ?? "").split(",").map((v) => v.trim()).filter((v) => /^[0-9]{1,9}$/.test(v)).slice(0, 400);
+  return { old_id: id, email: rec.email ?? "", first_name: rec.first_name ?? "", last_name: rec.last_name ?? "", company: rec.company ?? "", plan_id: Math.trunc(Number(x.subscription_id)) || 0,
+    active: Math.trunc(Number(x.active)) || 0, profession_id: Math.trunc(Number(x.profession_id)) || 0, services, last_login: moveDate(x.last_login), signup_date: moveDate(x.signup_date), rec: { ...rec, photos } };
+}
+const MOVE_PAGES_PER_TURN = 6;
+async function moveRead(ctx: Ctx, payload: Record<string, any>): Promise<{ ok: boolean; retry?: boolean; error?: string }> {
+  const run = Math.trunc(Number(payload?.run)) || 0, ff = f(ctx);
+  const oldSite = await setting(ctx, "bd_old.site_url", ""), oldKey = ctx.deps.env("BD_OLD_API_KEY");
+  const stop = async (problem: string) => { await rpc(ctx, "dela_move_finish", { p_run: run, p_ok: false, p_problem: problem }); return { ok: true }; };
+  const why = (r: { status: number; error: string }, site: string) => r.status === 403 ? `The ${site} site's API key may not read this (${r.error.slice(0, 60)}).` : r.status === 401 ? `The ${site} site did not accept its API key.` : `The ${site} site did not answer (${r.error.slice(0, 80)}).`;
+  if (!oldKey) return await stop("The old site's API key is not set. Add the secret BD_OLD_API_KEY in Supabase.");
+  if (!oldSite.startsWith("https://")) return await stop("The old site's address is not set (Settings, \"Member move: the address of the old website\").");
+  const busy = (r: { status: number }) => r.status === 429 || r.status >= 500 || r.status === 0;
+  if (payload?.step === "lists") {
+    const site = await setting(ctx, "site.url", ""), key = ctx.deps.env("BD_API_KEY");
+    const plansOf = async (s: string, k: string) => { const r = await bdList(ff, s, k, "/api/v2/subscription_types/get", 5); return r.ok ? r.data : []; };
+    const tops = await bdList(ff, oldSite, oldKey, "/api/v2/list_professions/get", 10);
+    if (!tops.ok) return busy(tops) ? { ok: false, retry: true, error: tops.error } : await stop(why(tops, "old"));
+    const subs = await bdList(ff, oldSite, oldKey, "/api/v2/list_services/get", 60);
+    if (!subs.ok && subs.status !== 404) return busy(subs) ? { ok: false, retry: true, error: subs.error } : await stop(why(subs, "old"));
+    const mine = await bdList(ff, site, key, "/api/v2/user/get", 60);
+    if (!mine.ok && mine.status !== 404) return busy(mine) ? { ok: false, retry: true, error: mine.error } : await stop(why(mine, "new"));
+    // The new site's categories are the ones the old ones are matched to: read them fresh
+    await categoriesSync(ctx, "move").catch(() => null);
+    const plan = (x: Record<string, unknown>) => ({ plan_id: String(x.subscription_id ?? ""), name: htmlToText(x.subscription_name, 200), profile_type: String(x.profile_type ?? ""), monthly: String(x.monthly_amount ?? ""), yearly: String(x.yearly_amount ?? ""),
+      initial: String(x.initial_amount ?? ""), searchable: String(x.searchable ?? "") === "1" && String(x.search_membership_permissions ?? "").includes("visitor") });
+    await rpc(ctx, "dela_move_put_lists", { p_run: run, p: {
+      old_plans: (await plansOf(oldSite, oldKey)).map(plan), new_plans: (await plansOf(site, key)).map(plan),
+      old_categories: [...tops.data.map((x) => ({ kind: "p", id: String(x.profession_id ?? ""), name: htmlToText(x.name, 200), top_id: 0, parent_id: 0 })),
+        ...(subs.ok ? subs.data : []).map((x) => ({ kind: "s", id: String(x.service_id ?? ""), name: htmlToText(x.name, 200), top_id: Math.trunc(Number(x.profession_id)) || 0, parent_id: Math.trunc(Number(x.master_id)) || 0 }))],
+      new_members: (mine.ok ? mine.data : []).map((x) => ({ new_id: String(x.user_id ?? ""), email: String(x.email ?? ""), plan_id: Math.trunc(Number(x.subscription_id)) || 0 })) } });
+    await rpc(ctx, "dela_job_enqueue", { p_kind: "move_read", p_payload: { run, step: "members", page: "", turn: 0 }, p_run_at: new Date().toISOString(), p_idem: "move_read:" + run + ":m0", p_person: null });
+    return { ok: true };
+  }
+  let page = String(payload?.page ?? "");
+  const turn = Math.trunc(Number(payload?.turn)) || 0;
+  for (let i = 0; i < MOVE_PAGES_PER_TURN; i++) {
+    const r = await bdCall<unknown>(ff, oldSite, oldKey, "GET", "/api/v2/user/get?limit=100" + (page ? "&page=" + encodeURIComponent(page) : ""));
+    if (!r.ok) return busy(r) ? { ok: false, retry: true, error: r.error } : await stop(why(r, "old"));
+    const rows = (Array.isArray(r.data) ? r.data : []).map((x) => movePick(x as Record<string, unknown>)).filter(Boolean);
+    const put = await rpc<Record<string, any>>(ctx, "dela_move_put_members", { p_run: run, p_rows: rows });
+    if (!put?.ok) return { ok: true };
+    if (!r.next || r.next === page) { await rpc(ctx, "dela_move_finish", { p_run: run, p_ok: true, p_problem: "" }); return { ok: true }; }
+    page = r.next;
+  }
+  await rpc(ctx, "dela_job_enqueue", { p_kind: "move_read", p_payload: { run, step: "members", page, turn: turn + 1 }, p_run_at: new Date().toISOString(), p_idem: "move_read:" + run + ":m" + (turn + 1), p_person: null });
+  return { ok: true };
+}
 async function claimFix(ctx: Ctx, actor: string, a: Record<string, any>) {
   const bd = Math.trunc(Number(a.bd_member_id)) || 0;
   const l = await rpc<Record<string, any>>(ctx, "dela_claim_listing_of", { p_actor: actor, p_bd: bd });
@@ -6032,6 +6107,9 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   "/admin/access": (c, a) => rpc(c, "dela_admin_access", { p_actor: a }),
   "/admin/staff": (c, a) => rpc(c, "dela_admin_staff", { p_actor: a }),
   "/admin/claims": (c, a) => rpc(c, "dela_claim_batches", { p_actor: a }),
+  // Step 90a: the member move. key_set says only whether the old site's key exists, never the key.
+  "/admin/move": async (c, a) => { const r = await rpc<Record<string, any>>(c, "dela_move_overview", { p_actor: a }); return r?.ok ? { ...r, key_set: !!c.deps.env("BD_OLD_API_KEY") } : r; },
+  "/admin/move/preview": (c, a) => rpc(c, "dela_move_preview", { p_actor: a }),
   "/admin/claims/one": (c, a) => rpc(c, "dela_claim_batch_get", { p_actor: a, p_id: need(uuid(c.url.searchParams.get("id"))) }),
   // Step 82: the Pipeline page, and the Team connector's address
   "/admin/pipeline": async (c, a) => { const r = await rpc<Record<string, any>>(c, "dela_admin_pipeline", { p_actor: a }); return r?.ok ? { ...r, url: publicBase(c.deps) + TEAM_PATH } : r; },
@@ -6212,6 +6290,9 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   "/admin/access/grant": (c, a) => rpc(c, "dela_admin_access_grant", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id"), p_channel: need(str(c.body.channel, 20)), p_note: str(c.body.note, 200) }),
   "/admin/access/revoke": (c, a) => rpc(c, "dela_admin_access_revoke", { p_actor: a, p_id: need(int(c.body.id)) }),
   "/admin/pipeline/add": (c, a) => teamAdd(c, a, String(c.body.bd_member_ids ?? "").split(/[\s,;]+/).filter(Boolean)),
+  "/admin/move/read": (c, a) => rpc(c, "dela_move_begin", { p_actor: a }),
+  "/admin/move/plan": (c, a) => rpc(c, "dela_move_plan_set", { p_actor: a, p_old: need(int(c.body.old_plan), "bad_plan"), p_new: c.body.skip === true ? null : int(c.body.new_plan), p_skip: c.body.skip === true }),
+  "/admin/move/category": (c, a) => rpc(c, "dela_move_category_set", { p_actor: a, p_kind: c.body.kind === "p" ? "p" : "s", p_id: need(int(c.body.id), "bad_category"), p_new_key: str(c.body.new_key, 20) }),
   "/admin/claims/approve": (c, a) => rpc(c, "dela_claim_batch_approve", { p_actor: a, p_id: need(uuid(c.body.id)) }),
   "/admin/claims/cancel": (c, a) => rpc(c, "dela_claim_batch_cancel", { p_actor: a, p_id: need(uuid(c.body.id)) }),
   "/admin/pipeline/leave": (c, a) => rpc(c, "dela_pipeline_leave", { p_actor: a, p_bd: need(int(c.body.bd_member_id), "bad_member_id") }),
@@ -6458,6 +6539,7 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "email_delivery_check") return await deliveryCheck(ctx, j.payload ?? {});
   if (j.kind === "profiles_daily") { await rpc(ctx, "dela_profiles_daily", {}); return { ok: true }; }
   if (j.kind === "bd_profile_push") return await bdProfilePush(ctx, j.payload ?? {});
+  if (j.kind === "move_read") return await moveRead(ctx, j.payload ?? {});
   if (j.kind === "claim_create") { await claimCreate(ctx, String(j.payload?.batch_id ?? ""), Number(j.payload?.turn) || 0); return { ok: true }; }
   if (j.kind === "posts_sync") { const r = await postsSync(ctx); return r?.ok ? { ok: true } : { ok: true, error: "not_all_read" }; }
   if (j.kind === "categories_sync") { const r = await categoriesSync(ctx, String(j.payload?.source ?? "job").slice(0, 20)); return r?.ok ? { ok: true } : { ok: true, error: String(r?.reason ?? "not_synced") }; }

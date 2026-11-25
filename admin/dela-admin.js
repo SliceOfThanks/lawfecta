@@ -13,7 +13,7 @@
   var me = boot.me || {};
   var isOwner = (me.staff || []).indexOf("owner") >= 0;
   var TABS = [["control", "Release Control"], ["guide", "Guide"], ["overview", "Overview"], ["access", "Access list"], ["people", "People"], ["plans", "Plans"], ["settings", "Settings"],
-    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["disputes", "Disputes"], ["reviews", "Reviews and bench"], ["agencies", "Agencies"], ["recurring", "Recurring"], ["trials", "Trials"], ["usage", "Usage"], ["code", "Site code"], ["team", "Lawfecta Team"], ["pipeline", "Pipeline"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
+    ["switches", "Switches"], ["aifiles", "AI and files"], ["verify", "Verification"], ["catalog", "Tech catalog"], ["gigs", "Gigs"], ["meet", "Meetings and messages"], ["pay", "Payments"], ["disputes", "Disputes"], ["reviews", "Reviews and bench"], ["agencies", "Agencies"], ["recurring", "Recurring"], ["trials", "Trials"], ["usage", "Usage"], ["code", "Site code"], ["team", "Lawfecta Team"], ["pipeline", "Pipeline"], ["move", "Move members"], ["security", "Security"], ["holds", "Holds"], ["audit", "Audit log"], ["jobs", "Jobs"]];
   // Someone whose only team role is "growth" starts on the one page they may open
   var current = (me.staff || []).length && (me.staff || []).every(function (x) { return x === "growth"; }) ? "pipeline" : "control";
   var mainEl = null;
@@ -63,7 +63,7 @@
   // The pages sit in a sidebar, in groups that open and close; one account button holds My account, Appearance,
   // Member view and Sign out; on a phone a "Menu" button opens the same list. With the switch off the tab row below is used.
   var NLA = !!((me.switches || {}).new_layout);
-  var GROUPS = [["", ["control", "guide"]], ["Members", ["overview", "access", "people", "team", "agencies", "pipeline"]], ["Plans and settings", ["plans", "settings", "switches", "aifiles", "catalog", "trials", "usage", "code"]],
+  var GROUPS = [["", ["control", "guide"]], ["Members", ["overview", "access", "people", "team", "agencies", "pipeline", "move"]], ["Plans and settings", ["plans", "settings", "switches", "aifiles", "catalog", "trials", "usage", "code"]],
     ["Marketplace", ["verify", "gigs", "meet", "reviews"]], ["Payments", ["pay", "disputes", "recurring"]], ["Safety", ["security", "holds", "audit", "jobs"]]];
   var LABEL = { account: "My account" };
   TABS.forEach(function (x) { LABEL[x[0]] = x[1]; });
@@ -256,7 +256,7 @@
     if (controlTimer) { clearTimeout(controlTimer); controlTimer = null; }
     drawTabs();
     loading();
-    ({ account: accountTab, control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, disputes: disputesTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, trials: trialsTab, usage: usageTab, code: siteCodeTab, security: securityTab, team: team, pipeline: pipelineTab, holds: holds, audit: audit, jobs: jobs })[tab]();
+    ({ account: accountTab, control: function () { controlTab(true); }, guide: guide, overview: overview, access: access, people: people, plans: plans, settings: settings, switches: switches, aifiles: aiFiles, verify: verifyTab, catalog: catalogTab, gigs: gigsTab, meet: meetTab, pay: payTab, disputes: disputesTab, reviews: reviewsTab, agencies: agenciesTab, recurring: recurringTab, trials: trialsTab, usage: usageTab, code: siteCodeTab, security: securityTab, team: team, pipeline: pipelineTab, move: moveTab, holds: holds, audit: audit, jobs: jobs })[tab]();
   }
 
   // Stripe's own settings that can break a payout (sandbox run 2026-11-12): money held for milestones sits on Lawfecta's
@@ -970,6 +970,94 @@
     draw();
     return card;
   }
+  // ---------- Step 90a: Move members (docs/briefs/step-90-member-move.md) ----------
+  // The old website's members read into DELA, the owner's map of plans and categories, and a preview. Nothing on this
+  // page writes to either website.
+  var MOVE_DECISION = { move: "Moves", skip: "Not moved (your choice for the plan)", no_plan: "Plan not chosen yet", on_new: "Already on the new site (linked, not made again)", duplicate: "Same email as another member", bad_email: "Email missing or not an email address" };
+  var MOVE_ACTIVE = { 1: "Not active", 2: "Active", 3: "Canceled", 4: "On hold", 5: "Past due", 6: "Incomplete" };
+  function moveTab() {
+    api.get("/admin/move").then(check).then(function (r) {
+      var st = r.state || {}, reading = st.status === "reading";
+      var page = h("div", { id: "move-page" }, pageHead("Move members", "move"),
+        h("p", { class: "muted", text: "Members of the old website (" + (r.site || "not set") + ") are read into DELA, you choose which plan each old plan becomes, and a preview shows what a move would do. Nothing on this page changes either website, and nobody is emailed." }));
+      if (!r.on) { page.appendChild(h("p", { class: "notice", id: "move-off", text: "The member move is switched off. Turn it on under Switches, \"Move members from the old website\"." })); body(page); return; }
+
+      // 1. Read
+      var readBtn = h("button", { class: "blue", type: "button", id: "move-read", disabled: reading || !r.key_set }, st.status === "read" || st.status === "failed" ? "Read the old site again" : "Read the old site");
+      readBtn.addEventListener("click", function () { readBtn.disabled = true; api.post("/admin/move/read", {}).then(check).then(function () { ok("Reading the old site. This page updates by itself."); moveTab(); }).catch(function (e) { readBtn.disabled = false; fail(e); }); });
+      var readCard = h("div", { class: "card", id: "move-read-card" }, titled("h2", "1. Read the old site", "move_read"));
+      if (!r.key_set) readCard.appendChild(h("p", { class: "notice", id: "move-no-key", text: "The old site's API key is not set yet. Add it in Supabase as the secret BD_OLD_API_KEY (Edge Functions, Secrets). It is never typed here." }));
+      readCard.appendChild(h("p", { id: "move-state", role: "status", text: reading ? "Reading now: " + (st.members || 0) + " members so far (" + (st.pages || 0) + " pages)." :
+        st.status === "read" ? "Read " + (st.members || 0) + " members on " + D.dateTime(st.finished_at) + "." :
+        st.status === "failed" ? "The last reading stopped: " + (st.problem || "no reason given") : "Not read yet." }));
+      readCard.appendChild(h("div", { class: "row" }, readBtn));
+      page.appendChild(readCard);
+      if (reading) setTimeout(function () { if (current === "move" && document.visibilityState !== "hidden") moveTab(); }, 5000);
+
+      if (st.status === "read") {
+        // 2. Plans
+        var plans = r.old_plans || [], left = plans.filter(function (p) { return !p.skip && !p.new_plan; }).length;
+        var money = function (p) { var out = []; if (Number(p.monthly) > 0) out.push(p.monthly + " a month"); if (Number(p.yearly) > 0) out.push(p.yearly + " a year"); if (Number(p.initial) > 0) out.push(p.initial + " once"); return out.join(", ") || "free"; };
+        var planCard = h("div", { class: "card", id: "move-plans" }, titled("h2", "2. Which plan each old plan becomes", "move_plans", h("span", { class: "small muted", id: "move-plans-left", text: left ? left + " not chosen yet" : "Every plan has a choice" })),
+          h("p", { class: "small muted", text: "Nothing is chosen for you. \"Do not move\" leaves those members on the old site. The new site charges nobody for a plan given here." }),
+          h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "Old plan" }), h("th", { text: "Members" }), h("th", { text: "Price on the old site" }), h("th", { text: "Becomes on the new site" }))),
+            h("tbody", null, plans.map(function (p) {
+              var sel = h("select", { "aria-label": "New plan for " + (p.name || "plan " + p.plan_id) }, [h("option", { value: "", text: "Choose", selected: !p.skip && !p.new_plan }), h("option", { value: "skip", text: "Do not move", selected: !!p.skip })]
+                .concat((r.new_plans || []).map(function (n) { return h("option", { value: String(n.plan_id), selected: !p.skip && Number(p.new_plan) === Number(n.plan_id), text: n.name + (n.side ? " (" + n.side + " in DELA)" : " (no DELA plan)") }); })));
+              sel.addEventListener("change", function () {
+                api.post("/admin/move/plan", { old_plan: p.plan_id, new_plan: sel.value && sel.value !== "skip" ? Number(sel.value) : null, skip: sel.value === "skip" }).then(check).then(function () { ok("Saved"); moveTab(); }).catch(fail);
+              });
+              return h("tr", { "data-plan": String(p.plan_id) }, h("td", null, h("strong", { text: p.name || "Plan " + p.plan_id }), h("div", { class: "muted small", text: "Plan " + p.plan_id + (p.profile_type ? ", " + p.profile_type : "") })),
+                h("td", { text: String(p.members) }), h("td", { text: p.name ? money(p) : "" }), h("td", null, sel));
+            })))));
+        page.appendChild(planCard);
+
+        // 3. Categories
+        var cat = r.categories || {}, un = cat.unmatched || [];
+        var catCard = h("div", { class: "card", id: "move-cats" }, titled("h2", "3. Categories", "move_cats"),
+          h("p", { id: "move-cats-sum", text: (cat.matched || 0) + " of " + (cat.total || 0) + " categories of the old site match one on this site by name. " + (un.length ? un.length + " that members use have no match:" : "Every category that members use has a match.") }));
+        if (un.length) catCard.appendChild(h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "Old category" }), h("th", { text: "Members" }), h("th", { text: "On this site" }))),
+          h("tbody", null, un.map(function (c) {
+            var sel = h("select", { "aria-label": "Category on this site for " + c.name }, [h("option", { value: "", text: "Leave out" })].concat((r.new_categories || []).filter(function (n) { return (n.kind === "top") === (c.kind === "p"); }).map(function (n) { return h("option", { value: n.key, text: n.path }); })));
+            sel.addEventListener("change", function () { api.post("/admin/move/category", { kind: c.kind, id: c.id, new_key: sel.value }).then(check).then(function () { ok("Saved"); moveTab(); }).catch(fail); });
+            return h("tr", null, h("td", { text: c.path }), h("td", { text: String(c.members) }), h("td", null, sel));
+          })))));
+        catCard.appendChild(h("p", { class: "small muted", text: "A category that is left out is simply not put on the moved member. No category is ever made on this site by the move." }));
+        page.appendChild(catCard);
+
+        // 4. Preview
+        var out = h("div", { id: "move-preview-out" });
+        var pvBtn = h("button", { class: "blue", type: "button", id: "move-preview" }, "Work out the preview");
+        pvBtn.addEventListener("click", function () {
+          pvBtn.disabled = true;
+          api.get("/admin/move/preview").then(check).then(function (p) {
+            pvBtn.disabled = false; D.clear(out);
+            var d = p.decisions || {};
+            out.appendChild(h("div", { class: "kv", id: "move-pv-counts" }, ["move", "on_new", "duplicate", "no_plan", "skip", "bad_email"].map(function (k) { return h("div", null, MOVE_DECISION[k], h("b", { text: String(d[k] || 0) })); })));
+            if ((p.by_new_plan || []).length) out.appendChild(h("div", { class: "scroll" }, h("table", { id: "move-pv-plans" }, h("thead", null, h("tr", null, h("th", { text: "New plan" }), h("th", { text: "Members" }), h("th", { text: "Shown to visitors" }))),
+              h("tbody", null, p.by_new_plan.map(function (x) { return h("tr", null, h("td", { text: x.name || "Plan " + x.plan_id }), h("td", { text: String(x.members) }), h("td", { text: x.searchable ? "Yes" : "No" })); })))));
+            var stat = Object.keys(p.statuses || {}).map(function (k) { return p.statuses[k] + " " + (MOVE_ACTIVE[k] || "status " + k).toLowerCase(); }).join(", ");
+            out.appendChild(h("p", { class: "small", id: "move-pv-notes", text: "Of the members who would move: " + (stat || "none") + ". " + (p.visible || 0) + " would show to visitors of this site. " + (p.attorneys || 0) + " are on an attorney plan. " +
+              (p.no_category ? p.no_category + " have a main category with no match here and would move without one." : "") }));
+            var csv = function (v) { var t = v === null || v === undefined ? "" : String(v); return '"' + t.split('"').join('""') + '"'; };
+            var dl = h("button", { class: "ghost", type: "button", id: "move-download" }, "Download the list (" + (p.rows || []).length + " members)");
+            dl.addEventListener("click", function () {
+              var lines = [["Old member number", "Email", "First name", "Last name", "Company", "Old plan", "New plan", "Status", "Last login", "What happens", "Same email as member"].map(csv).join(",")];
+              (p.rows || []).forEach(function (x) { lines.push([x.old_id, x.email, x.first_name, x.last_name, x.company, x.old_plan, x.new_plan, MOVE_ACTIVE[x.active] || x.active, x.last_login ? String(x.last_login).slice(0, 10) : "", MOVE_DECISION[x.decision] || x.decision, x.other || ""].map(csv).join(",")); });
+              var url = URL.createObjectURL(new Blob(["﻿" + lines.join("\r\n") + "\r\n"], { type: "text/csv" })), a = h("a", { href: url, download: "member-move-preview.csv" });
+              app.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+            });
+            out.appendChild(h("div", { class: "row" }, dl));
+          }).catch(function (e) { pvBtn.disabled = false; fail(e); });
+        });
+        page.appendChild(h("div", { class: "card", id: "move-preview-card" }, titled("h2", "4. Preview", "move_preview"),
+          h("p", { class: "small muted", text: "What a move would do with every member, worked out from your choices above. It changes nothing." }), h("div", { class: "row" }, pvBtn), out));
+        page.appendChild(h("div", { class: "card", id: "move-next" }, h("h2", { style: "margin-top:0", text: "5. Move" }), h("p", { class: "muted", text: "The move itself is not built yet. It comes with the next release, after you have looked at the preview." })));
+      }
+      body(page);
+    }).catch(fail);
+  }
+
   function pipelineTab() {
     api.get("/admin/pipeline").then(check).then(function (r) {
       var c = r.counts || {}, rules = (r.rules || {}).stalled_rules || {};
@@ -2324,6 +2412,11 @@
     settings_group: "Click Show to see the settings in this group. Each line has its key, where the number came from, its value and its status.",
     switches: "Built features stay off until you switch them on. Off: nobody. Lawfecta Team only: you test it first. Access list: testers and early members. Everyone: all members with a plan.",
     team: "People who run DELA. Owner: everything, including pushes. Reviewer: checks attorneys and milestones. Support: access list, holds, jobs. Finance: payments and holds. Growth: the attorney pipeline and its connector, nothing else.",
+    move: "Members of the old website are read into DELA so they can be moved to this one. This page reads and previews only. The old site's key is a Supabase secret, never typed here.",
+    move_read: "DELA reads every member of the old site, both sites' plans and the old site's categories. It keeps names, contact details, the listing's text, the plan, the status and picture addresses. It never reads a password, a card or an invoice.",
+    move_plans: "One line for each plan members have on the old site. Choose the plan on this site that those members get, or \"Do not move\". The DELA side (attorney or freelancer) follows from the plan you choose.",
+    move_cats: "Categories are matched by their names and where they sit (top category, then the one under it). Only categories that members use and that have no match are listed.",
+    move_preview: "Emails are compared without regard to capital letters. When two members of the old site share an email, the one who logged in last moves. A member whose email is already on this site is linked to that account instead of being made again.",
     pipeline: "The attorneys the team is working, by their website member number. A person records that outreach went out. DELA reads the rest from what happened: the attorney has a workspace (claimed), opened a gig, got a proposal, signed an agreement.",
     pipeline_counts: "For this week, Monday to Sunday: how many attorneys reached each stage in the week, how many ever did, and how many sit at each stage today. The Team connector gives the same numbers for any period.",
     pipeline_stalled: "Attorneys who have gone too long without the next step, oldest first. This is the follow-up list. \"Record follow-up\" writes down that someone reached out; it sends nothing.",
