@@ -255,3 +255,4 @@ How to read the "State" column:
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
 - When Stacey or a pilot member reports that something worked or failed, Claude fills in the state, the date and what was seen.
 - A line marked "Problem" gets a fix, then goes back to "Not yet" until it is seen working.
+| 86-1 | The new editor's bold, italic, list and link work for a person on the live site | Check 32 run again on "Send the welcome packet 2" | Not yet | The first run (2026-11-24) stopped at step 1 because the check pointed at a Workflow |
