@@ -1,4 +1,4 @@
-You are checking one new thing in DELA on the Lawfecta site, www.lawfecta.co: text in a Library document can now be made bold or italic, turned into a bulleted list, and given a link. In this check the document is the draft "Monthly Billing Review". Only the test attorney takes part. The check types a few words into that draft and takes them out again. It approves nothing, sends nothing for review and deletes nothing. Use a wide browser window.
+You are checking one new thing in DELA on the Lawfecta site, www.lawfecta.co: text in a Library document can now be made bold or italic, turned into a bulleted list, and given a link. In this check the document is the draft "Send the welcome packet 2". Only the test attorney takes part. The check types a few words into that draft and takes them out again. It approves nothing, sends nothing for review and deletes nothing. Use a wide browser window.
 
 No step should open a browser pop-up (a small OK / Cancel window from the browser itself). If one opens, click Cancel, write FAIL for that step and say what the pop-up said.
 
@@ -32,10 +32,11 @@ Note for this check: to choose a word, double-click it. The word is then highlig
 Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to log in as the test attorney.
 
 1. Go to: https://www.lawfecta.co/dela?tab=library
-   Find: the document "Monthly Billing Review" in the list (its status is "Draft").
-   Do: click its name.
-   Expect: the document opens as a white page that starts with the large title "Monthly Billing Review" and then a heading "Purpose".
-   (If the page instead shows a long form with labelled boxes such as "Title" and "What to do (one action, starting with a verb)", the new editor is not turned on for this account. Write FAIL for step 1, skip steps 2 to 8 and go on to step 9.)
+   Find: the card titled "Send the welcome packet 2" in the list of documents. (Not the card "Send the welcome packet", which has no 2.) Its tag reads "Needs your review" and the button at its bottom reads "Review imported document".
+   Do: click the button "Review imported document" on that card.
+   Expect: the document opens as a white page that starts with the large title "Send the welcome packet 2" and then a heading "Purpose".
+   Expect: above the white page, one row with "← Library", the small tags "SOP" and "Draft", and the words "Version" and a number.
+   (If the white page has no heading "Purpose", write FAIL for step 1 with the first three headings you do see, skip steps 2 to 8 and go on to step 9.)
    Write down the version number shown beside the word "Version" near the top of the page.
 
 2. Find: the text under the heading "Purpose", near the top of the white page.
@@ -57,7 +58,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Expect: the bar shows its five buttons again. The word "linked" is now underlined in dark red, as a link.
 
 5. Do: click at the very end of the text under "Purpose". Press Enter. Type exactly: - first point   Press Enter. Type exactly: - second point
-   Find: the large title "Monthly Billing Review" at the top of the white page.
+   Find: the large title "Send the welcome packet 2" at the top of the white page.
    Do: click the title once.
    Expect: the small bar is gone. Under "Purpose", "first point" and "second point" now show as a list with a round dot in front of each, and the dashes you typed are gone.
    Expect: with the cursor in the title, NO small bar shows. (A title takes no formatting.)
@@ -66,10 +67,10 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 6. Find: the heading "Steps", further down the white page.
    Do: click in the text of step 1.
    Expect: the same small bar appears above step 1, with "B", "I", "• List", "Link" and "Unlink".
-   Do: click the title "Monthly Billing Review" again, without typing anything in step 1.
+   Do: click the title "Send the welcome packet 2" again, without typing anything in step 1.
    Expect: the bar is gone and step 1 reads as before.
 
-7. Do: reload the page (the browser's reload button). If the document list shows, click "Monthly Billing Review" again.
+7. Do: reload the page (the browser's reload button). If the document list shows, click "Send the welcome packet 2" again.
    Expect: under "Purpose", the word "bold" is still bold, "slanted" is still italic, "linked" is still a link, and the two points are still a list with dots.
 
 8. Do: click in the text under "Purpose" and delete everything you added in steps 2 to 5 (the words "Check 32 bold slanted linked" and the two list points), so the text is as it was before this check.

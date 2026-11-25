@@ -5639,7 +5639,8 @@
     var tip = c.k === "ready" ? D.helpTip(READY_TIP, "What does Ready to use mean?") : [null, null];
     var act = h("button", { class: c.k === "draft" ? "ghost small" : "blue small", type: "button", onclick: function () { wsGo(c.go); } }, c.label);
     return h("div", { class: "card lib-card", "data-id": p.id },
-      h("h3", { class: "lib-title", text: p.title }),
+      // Step 86: the title opens the document too, the same way as the card's button
+      h("h3", { class: "lib-title" }, h("button", { class: "lib-open", type: "button", onclick: function () { wsGo(c.go); } }, p.title)),
       p.purpose ? h("p", { class: "lib-purpose", text: p.purpose })
         : can(3) ? h("p", { class: "lib-purpose" }, h("button", { class: "linkish", type: "button", onclick: function () { wsGo(function () { openPlaybook(p.id, "read"); }); } }, "Add a purpose")) : null,
       h("div", { class: "row lib-state", style: "flex-wrap:wrap;gap:6px" }, h("span", { class: "badge " + (c.k === "ready" ? "ready" : c.k === "review" ? "held" : ""), text: WS_WORDS[c.k] }), tip[0]),

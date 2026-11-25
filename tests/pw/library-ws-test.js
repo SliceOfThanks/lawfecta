@@ -92,6 +92,13 @@ const BODY = (title, extra) => JSON.stringify({ schema: 2, type: "sop", title, l
     ok((await cardText("Monthly trust reconciliation")).includes("Review now") && (await cardText("Monthly trust reconciliation")).includes("Review overdue since"), "overdue review: Review now, with the date");
     ok((await cardText("Office opening checklist")).includes("Review and approve"), "sent for approval, for the administrator: Review and approve");
 
+    // Step 86 (check 32, 2026-11-24: "Its title did not open it"): the title of a card opens the document, as its button does
+    await card("Run a conflict check").locator("h3.lib-title button").click();
+    await p.waitForFunction(() => !document.querySelector(".dela-host").shadowRoot.querySelector(".lib-card"));
+    ok((await text(p)).includes("← Library") && (await text(p)).includes("Run a conflict check"), "clicking a card's title opens the document");
+    await click(p, "← Library");
+    await p.waitForFunction(() => !!document.querySelector(".dela-host").shadowRoot.querySelector(".lib-card"));
+
     // The Ready to use tip says DELA does not check legal correctness
     await card("Run a conflict check").getByRole("button", { name: "What does Ready to use mean?" }).click();
     ok((await cardText("Run a conflict check")).includes("not whether it is legally correct"), "the Ready to use tip");

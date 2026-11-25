@@ -1,4 +1,4 @@
-You are checking two new things in DELA on the Lawfecta site, www.lawfecta.co: a shorter left menu, and a new way to edit a document in the Library, where the document shows as it will read and any text is typed into where it stands. In this check the document is the draft "Monthly Billing Review". Only the test attorney takes part. The check types a few words into that draft and takes them out again. It approves nothing, sends nothing for review and deletes nothing. Use a wide browser window.
+You are checking two new things in DELA on the Lawfecta site, www.lawfecta.co: a shorter left menu, and a new way to edit a document in the Library, where the document shows as it will read and any text is typed into where it stands. In this check the document is the draft "Send the welcome packet 2". Only the test attorney takes part. The check types a few words into that draft and takes them out again. It approves nothing, sends nothing for review and deletes nothing. Use a wide browser window.
 
 No step should open a browser pop-up (a small OK / Cancel window from the browser itself). If one opens, click Cancel, write FAIL for that step and say what the pop-up said.
 
@@ -52,9 +52,9 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
    Expect: the full Notifications page. The light bar across the top reads "Notifications".
 
 4. Go to: https://www.lawfecta.co/dela?tab=library
-   Find: the document "Monthly Billing Review" in the list (its status is "Draft").
-   Do: click its name.
-   Expect: the page opens with the document itself near the top: a white page that starts with the large title "Monthly Billing Review" and then a heading "Purpose". Above it there is only one row with "← Library", small tags, the words "Version" and a number, and at the right the buttons "Save", "Delegate" and "Details"; a yellow or blue notice that it is a draft; and a row of tabs that starts "Document".
+   Find: the card titled "Send the welcome packet 2" in the list of documents. (Not the card "Send the welcome packet", which has no 2.) Its tag reads "Needs your review" and the button at its bottom reads "Review imported document".
+   Do: click the button "Review imported document" on that card.
+   Expect: the page opens with the document itself near the top: a white page that starts with the large title "Send the welcome packet 2" and then a heading "Purpose". Above it there is only one row with "← Library", small tags, the words "Version" and a number, and at the right the buttons "Save", "Delegate" and "Details"; a yellow or blue notice that it is a draft; and a row of tabs that starts "Document".
    Expect: NO cards "Automate or delegate", "Category" or "Freelancers who fit this work" above the document.
    Expect: at the right of the document, a card "Quality check".
    (If the page instead shows a long form with labelled boxes such as "Title" and "What to do (one action, starting with a verb)", the new editor is not turned on for this account. Write FAIL for step 4, skip steps 5 to 9 and go on to step 10.)
