@@ -15238,7 +15238,7 @@
     if (!fmtBar || !fmtFor || !fmtFor.isConnected) return;
     var b = fmtFor.getBoundingClientRect();
     fmtBar.style.visibility = b.bottom < 0 || b.top > window.innerHeight ? "hidden" : "";
-    fmtBar.style.left = Math.max(8, Math.min(b.left, window.innerWidth - fmtBar.offsetWidth - 8)) + "px";
+    fmtBar.style.left = Math.max(8, Math.min(Math.max(b.left, b.right - fmtBar.offsetWidth), window.innerWidth - fmtBar.offsetWidth - 8)) + "px";
     fmtBar.style.top = Math.max(8, b.top - fmtBar.offsetHeight - 6) + "px";
   }
   function fmtHide() { var done = fmtDone; if (fmtBar && fmtBar.parentNode) fmtBar.parentNode.removeChild(fmtBar); fmtBar = null; fmtFor = null; fmtRange = null; fmtDone = null; if (done) done(); }
@@ -15271,9 +15271,11 @@
       if (fmtRange && s) { s.removeAllRanges(); s.addRange(fmtRange); }
       if (!s || !s.rangeCount || s.getRangeAt(0).collapsed) { try { document.execCommand("insertText", false, u); } catch (e) { /* older browsers */ } var s2 = fmtSel(); if (s2 && s2.rangeCount) { var rg = s2.getRangeAt(0); try { rg.setStart(rg.endContainer, Math.max(0, rg.endOffset - u.length)); s2.removeAllRanges(); s2.addRange(rg); } catch (e2) { /* leave it as text */ } } }
       try { document.execCommand("createLink", false, u); } catch (e3) { /* the browser refused */ }
+      // Step 87: the linked words do not stay chosen, or the next key typed would replace them (check 32, 2026-11-24)
+      try { var s3 = fmtSel(); if (s3 && s3.rangeCount && !s3.getRangeAt(0).collapsed) s3.collapseToEnd(); } catch (e4) { /* the cursor stays where the browser put it */ }
       sync(); closeLink(false); fmtRange = null;
     };
-    var lb = h("button", { class: "dp-fmt-b", type: "button", "aria-label": "Add a link", title: "Add a link (Ctrl or Cmd + K)" }, "Link");
+    var lb = h("button", { class: "dp-fmt-b", type: "button", "aria-label": "Link the chosen words", title: "Link the chosen words (Ctrl or Cmd + K)" }, "Link");
     lb.addEventListener("mousedown", function (e) { e.preventDefault(); });
     lb.addEventListener("click", openLink);
     var ub = h("button", { class: "dp-fmt-b", type: "button", "aria-label": "Remove the link", title: "Remove the link" }, "Unlink");

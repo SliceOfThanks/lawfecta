@@ -460,7 +460,7 @@ async function makeMember(bd, side, plan) {
       await pick("result"); await bar.getByRole("button", { name: "Bold" }).click();
       await pick("rule"); await bar.getByRole("button", { name: "Italic" }).click();
       ok(await dw(`return (el.querySelector("b, strong") || {}).textContent === "result" && (el.querySelector("i, em") || {}).textContent === "rule" && r.activeElement === el`), "Bold and Italic change the chosen words where they stand, and the cursor stays in the text");
-      await pick("Clio"); await bar.getByRole("button", { name: "Add a link" }).click();
+      await pick("Clio"); await bar.getByRole("button", { name: "Link the chosen words" }).click();
       await bar.getByLabel("Link address").fill("javascript:alert(1)");
       await bar.getByRole("button", { name: "Add", exact: true }).click();
       ok((await bar.locator(".dp-fmt-note").innerText()) === "A link must start with https://" && await dw(`return !el.querySelector("a")`), "a link that does not start with https:// is refused, with a line that says why");
@@ -481,6 +481,20 @@ async function makeMember(bd, side, plan) {
       const keptDw = (await sql("select body->>'done_when' x from playbook_working where playbook_id = '" + before.id + "'"))[0].x;
       ok(keptDw === "Record the **result** in [Clio](https://clio.example/search), 2 \\* 3 times, as a *rule*.\n- first\n- second (pasted)", "what is kept is plain text with marks, nothing else: " + JSON.stringify(keptDw));
       ok((await dela(p).getByRole("textbox", { name: "Title", exact: true }).evaluate((el) => el.contentEditable)) === "plaintext-only" && (await sr(p, `const t = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Trigger"); return !t.classList.contains("rich")`)), "a title and a one-line fact take no formatting");
+      // Step 87 (check 32, 2026-11-24: "The linked word had disappeared during list entry"): a link on the LAST word, then Enter and list lines typed at the end
+      const tm = (js) => sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Timing"); ` + js);
+      await dela(p).getByRole("textbox", { name: "Timing", exact: true }).fill("Within one day, see linked");
+      await sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Timing"); el.focus(); const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { const i = n.nodeValue.indexOf("linked"); if (i >= 0) { const g = document.createRange(); g.setStart(n, i); g.setEnd(n, i + 6); const s = window.getSelection(); s.removeAllRanges(); s.addRange(g); } }`);
+      const place = await sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Timing"), hd = el.closest(".dp-sec").querySelector("h2").getBoundingClientRect(), br = r.querySelector("#dp-fmt").getBoundingClientRect(); const hw = document.createRange(); hw.selectNodeContents(el.closest(".dp-sec").querySelector("h2")); const words = hw.getBoundingClientRect(); return { clear: br.left >= words.right || br.bottom <= words.top || br.top >= words.bottom, l: Math.round(br.left), wr: Math.round(words.right) }`);
+      ok(place.clear, "step 87: the bar does not cover the words of the section heading above the text: " + JSON.stringify(place));
+      await bar.getByRole("button", { name: "Link the chosen words" }).click();
+      await bar.getByLabel("Link address").fill("https://www.lawfecta.example");
+      await bar.getByLabel("Link address").press("Enter");
+      // No click in between: the word must not stay chosen after the link is added, or the next key replaces it
+      await p.keyboard.press("Enter"); await p.keyboard.type("- first point"); await p.keyboard.press("Enter"); await p.keyboard.type("- second point");
+      await dela(p).getByRole("textbox", { name: "Title", exact: true }).click();
+      await p.waitForTimeout(200);
+      ok(await tm(`const k = el.querySelector("a"); const li = [...el.querySelectorAll("ul.dp-ul li")].map((x) => x.textContent); return !!k && k.textContent === "linked" && k.getAttribute("href") === "https://www.lawfecta.example" && li.join("|") === "first point|second point" && !el.querySelector("li a")`), "a link on the last word stays on that word when list lines are typed right after it");
       // Leaving and coming back: the typing is still there
       await s.ctx.close();
       s = await openDoc(); p = s.page;
