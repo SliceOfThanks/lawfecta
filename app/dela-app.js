@@ -15089,7 +15089,7 @@
     var s = lib.dp; if (!s || !lib.doc || !dpOn()) return Promise.resolve();
     if (s.timer) { clearTimeout(s.timer); s.timer = null; }
     var json = dpJson(), id = lib.pb.playbook.id;
-    if (json === s.kept || (json === s.base && !s.kept)) { dpSay(s.at ? "Saved " + dpTime(s.at) : ""); return Promise.resolve(); }
+    if (json === s.kept || (json === s.base && !s.kept)) { dpSay(s.at ? "Saved " + dpTime(s.at) + (json !== s.base ? ", not a version yet" : "") : ""); return Promise.resolve(); }
     if (s.busy) { s.again = true; return Promise.resolve(); }
     s.busy = true;
     return api.post("/playbooks/working", { id: id, base_version: lib.pb.playbook.version, body: JSON.parse(json) }).then(function (r) {
@@ -15098,7 +15098,10 @@
       if (!r || r.ok === false) { dpSay("Not saved yet: " + failText(r || {}), true); return; }
       s.kept = json; s.at = r.saved_at || new Date().toISOString(); s.stale = !!r.stale;
       if (r.check) { lib.pb.check = r.check; dpQuality(); }
-      dpSay("Saved " + dpTime(s.at));
+      dpSay("Saved " + dpTime(s.at) + (json !== s.base ? ", not a version yet" : ""));
+      // Step 89 (check 36, 2026-11-25): once the page reads as the saved version again, nothing is waiting to become a
+      // version, so the line that says changes are back goes away
+      if (json === s.base && s.restored) { s.restored = null; var rn = libEl && libEl.querySelector("#dp-restored"); if (rn) rn.remove(); }
       if (s.stale) dpStaleBar();
       if (s.again) { s.again = false; dpKeep(); }
     }).catch(function () { s.busy = false; dpSay("Not saved yet. DELA will try again when you type.", true); });
@@ -15629,7 +15632,7 @@
       // The table tools show while the cursor stands in a table
       if (trow && tform && tform.style.display === "none" && link.style.display === "none" && (!vform || vform.style.display === "none")) { var inT = !!(fmtCellAt && fmtCellAt()); if ((trow.style.display !== "none") !== inT) { trow.style.display = inT ? "" : "none"; fmtPlace(); } }
     };
-    fmtBar.addEventListener("focusout", function () { setTimeout(function () { var a = dwRoot().activeElement; if (fmtBar && a !== el && !fmtBar.contains(a)) fmtHide(); }, 0); });
+    fmtBar.addEventListener("focusout", function () { setTimeout(function () { var a = dwRoot().activeElement; if (fmtBar && a !== el && !el.contains(a) && !fmtBar.contains(a)) fmtHide(); }, 0); });
     app.appendChild(fmtBar);
     fmtPlace();
   }
@@ -15659,7 +15662,7 @@
       return v.trim();
     };
     var sync = function () { obj[key] = read(); if (o.onInput) o.onInput(); dpTouch(); };
-    var bar = function () { fmtShow(el, multi, sync, function () { if (el.isConnected && dwRoot().activeElement !== el) show(); }); };
+    var bar = function () { fmtShow(el, multi, sync, function () { var a0 = dwRoot().activeElement; if (el.isConnected && a0 !== el && !el.contains(a0)) show(); }); };
     el.addEventListener("input", sync);
     el.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !multi) { e.preventDefault(); if (o.onEnter) o.onEnter(); else el.blur(); }
@@ -15703,7 +15706,7 @@
       if (!rich) { if (!read()) el.textContent = ""; return; }
       setTimeout(function () {
         var a = dwRoot().activeElement;
-        if (a === el || (fmtBar && fmtFor === el && fmtBar.contains(a))) return;
+        if (a === el || el.contains(a) || (fmtBar && fmtFor === el && fmtBar.contains(a))) return;
         if (fmtFor === el) fmtHide(); else if (el.isConnected) show();
       }, 0);
     });

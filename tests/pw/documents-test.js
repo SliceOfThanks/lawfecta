@@ -581,7 +581,17 @@ async function makeMember(bd, side, plan) {
         await bar88.getByLabel("Video title").press("Enter");
         let v88 = await tm(`const v = el.querySelector(".dp-vid"); return { ok: !!v, title: v ? v.querySelector("b").textContent : "", frames: el.querySelectorAll("iframe").length, afterHead: !!v && v.previousElementSibling && v.previousElementSibling.tagName === "H3", says: v ? v.textContent : "" }`);
         ok(v88.ok && v88.title === "How to (file)" && v88.frames === 0 && v88.afterHead && v88.says.includes("It loads from YouTube when you click Play."), "\"Video\" puts a play card after the line the cursor was in, and nothing loads from the video site yet: " + JSON.stringify(v88));
-        await dela(p).getByRole("button", { name: "Play the video: How to (file)" }).click();
+        // Step 89 (check 37, 2026-11-25: "The first Play click left the card unchanged"): pressing the mouse on the card
+        // moves the focus onto it, and the text must not be drawn again under the click
+        await tm(`el.focus(); el.querySelector(".dp-vid").__same = 1;`);
+        const pb89 = await dela(p).getByRole("button", { name: "Play the video: How to (file)" }).boundingBox();
+        await p.mouse.move(pb89.x + pb89.width / 2, pb89.y + pb89.height / 2);
+        await p.mouse.down();
+        await p.waitForTimeout(250);
+        const same89 = await tm(`return (el.querySelector(".dp-vid") || {}).__same === 1`);
+        await p.mouse.up();
+        ok(same89 && await tm(`return !!el.querySelector(".dp-vid iframe")`), "the first click on Play, right after the video is added, plays it");
+        if (!(await tm(`return !!el.querySelector(".dp-vid iframe")`))) await dela(p).getByRole("button", { name: "Play the video: How to (file)" }).click();
         v88 = await tm(`const f = el.querySelector(".dp-vid iframe"); return { src: f ? f.getAttribute("src") : "", sandbox: f ? f.getAttribute("sandbox") : "" }`);
         ok(v88.src === "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" && v88.sandbox.includes("allow-scripts") && !v88.sandbox.includes("allow-top-navigation"), "Play loads the site's own player in a closed frame: " + JSON.stringify(v88));
         await dela(p).locator(".dp-vid").hover();
@@ -594,6 +604,8 @@ async function makeMember(bd, side, plan) {
         await dela(p).locator(".dp-vid").hover();
         await dela(p).getByRole("button", { name: "Remove the video" }).click();
         ok(await tm(`return !el.querySelector(".dp-vid")`), "the small X removes the video");
+        await saved(p);
+        ok(/^Saved .*, not a version yet$/.test(await dela(p).locator("#dp-status").innerText()), "beside the version, \"Saved\" says the typing is not a version yet: " + await dela(p).locator("#dp-status").innerText());
         // Put Timing back to plain words, so the rest of the run reads as before
         await dela(p).getByRole("textbox", { name: "Timing", exact: true }).fill("Within 1 business day of the request.");
         await dela(p).getByRole("textbox", { name: "Title", exact: true }).click();
@@ -671,6 +683,23 @@ async function makeMember(bd, side, plan) {
       st = await sr(s.page, `return { title: r.querySelector(".dp-page .dp-title").textContent, steps: r.querySelectorAll(".dp-page .dp-step").length, older: !!r.querySelector("#pb-older") }`);
       ok(!!st.title && st.steps >= 2 && !st.older, "after \"Move to the current format\" it opens as a page to type on, with its steps: " + JSON.stringify(st));
       ok((await sql("select count(*)::int n from playbook_versions v join playbooks p on p.id = v.playbook_id where p.request_id = 'older80c'"))[0].n === 2, "the older version is still in its history");
+      // Step 89 (check 36, 2026-11-25): the line "Your changes ... are back" goes away once the typing is taken out again
+      const p89 = s.page, title89 = dela(p89).getByRole("textbox", { name: "Title", exact: true });
+      await title89.fill(st.title + " typed");
+      await saved(p89);
+      await p89.reload();
+      await text(p89);
+      // Two documents share this title here, so the row is found by the document's own ID
+      const d89 = (await sql("select id, doc_id from playbooks where request_id = 'older80c'"))[0];
+      if (await dela(p89).locator(".dp-page").count()) { await click(p89, "← Library"); await p89.waitForTimeout(400); }
+      { const c89 = dela(p89).locator('.lib-card[data-id="' + d89.id + '"] .lib-open'); if (await c89.count()) await c89.click(); else await dela(p89).locator("tr", { hasText: d89.doc_id }).first().click(); }
+      await dela(p89).locator(".dp-page").waitFor({ timeout: 20000 });
+      await dela(p89).locator("#dp-restored").waitFor({ timeout: 20000 });
+      ok((await dela(p89).locator("#dp-restored").innerText()).startsWith("Your changes from"), "after a reload the typing is back, with a line that says so");
+      await dela(p89).getByRole("textbox", { name: "Title", exact: true }).fill(st.title);
+      await saved(p89);
+      await p89.waitForTimeout(300);
+      ok((await dela(p89).locator("#dp-restored").count()) === 0, "when the typing is taken out again, the line that says changes are back is gone");
       await s.ctx.close();
     } finally { for (const w of was80) await sql("update feature_switches set state = '" + w.state + "' where key = '" + w.key + "'; select 1"); }
     console.log(passed + " browser checks passed");
