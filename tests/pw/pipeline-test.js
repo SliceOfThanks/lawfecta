@@ -56,8 +56,9 @@ async function teamRequest() {
     // ---------- The owner: the Pipeline page ----------
     let s = await open(browser, "DELA-Admin", OWNER, "&tab=pipeline"), p = s.page;
     await dela(p).locator("#pipeline-page").waitFor({ timeout: 20000 });
-    let st = await sr(p, `return { h1: r.querySelector("#pipeline-page h1").textContent.trim(), stages: [...r.querySelectorAll("#pipe-counts tbody tr")].map((t) => t.children[0].textContent), url: r.querySelector("#pipe-url").value, stuck: r.querySelector("#pipe-stalled h2").textContent }`);
+    let st = await sr(p, `return { h1: r.querySelector("#pipeline-page h1").textContent.trim(), stages: [...r.querySelectorAll("#pipe-counts tbody tr")].map((t) => t.children[0].textContent), how: [...r.querySelectorAll("#pipe-counts tbody tr")].map((t) => t.children[4].textContent), url: r.querySelector("#pipe-url").value, stuck: r.querySelector("#pipe-stalled h2").textContent }`);
     ok(st.h1.startsWith("Pipeline") && st.stages.join("|") === "Listing built|Playbook made|Emailed|Claimed|Playbook opened|Gig posted|Proposals received|Hired", "the Pipeline page shows the eight stages in order: " + st.stages.join(", "));
+    ok(st.how.length === 8 && st.how.every((x) => x.length > 10) && st.how[1].includes("prepares a document") && st.how[2].startsWith("You,"), "step 86: each stage says who records it: " + st.how[1]);
     ok(st.url.endsWith("/mcp/admin") && st.stuck.startsWith("Stuck (0)"), "it shows the Team connector's address, and nobody is stuck yet");
     // Add attorneys by website member number: one on a claim plan, one on a paid plan, one the website does not know
     await dela(p).locator("#pipe-add").click();
@@ -85,7 +86,7 @@ async function teamRequest() {
     await dela(p).locator("#pipe-stalled tbody tr").first().waitFor({ timeout: 15000 });
     st = await sr(p, `const t = r.querySelector("#pipe-stalled tbody tr"); return { head: r.querySelector("#pipe-stalled h2").textContent, who: t.children[0].innerText, why: t.children[1].innerText, wait: t.children[2].innerText, counts: [...r.querySelectorAll("#pipe-counts tbody tr")].map((x) => x.innerText.replace(/\\s+/g, " ")) }`);
     ok(st.head.startsWith("Stuck (1)") && st.who.includes("Cal Claim") && st.why === "Emailed, and has not claimed the listing after 7 days" && st.wait === "8 days", "an attorney emailed 8 days ago who has not claimed is on the stuck list, with the reason and the wait: " + st.why);
-    ok(st.counts.some((x) => /^Listing built 1 1 0$/.test(x)) || st.counts.some((x) => /^Listing built \d+ \d+ \d+$/.test(x)), "the counts table has numbers for each stage: " + st.counts[0]);
+    ok(st.counts.some((x) => /^Listing built 1 1 0( |$)/.test(x)) || st.counts.some((x) => /^Listing built \d+ \d+ \d+( |$)/.test(x)), "the counts table has numbers for each stage: " + st.counts[0]);
     await dela(p).getByRole("button", { name: "Record a follow-up to Cal Claim" }).first().click();
     await p.waitForTimeout(900);
     ok((await sql("select count(*)::int n from pipeline_events where bd_member_id = 4821 and stage = 'follow_up'"))[0].n === 1, "\"Record follow-up\" on the stuck list writes it down");

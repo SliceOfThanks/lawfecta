@@ -26,7 +26,7 @@ HOW TO WORK (read this first; it saves time and credits)
 9. Never type real client information.
 10. Report one line per step: the step number, PASS or FAIL, and a few words. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that was confusing, and anything that took longer than 60 seconds. Then put the whole report (every step line, the FAIL list and the notes) in a plain text file named DELA-test-report.txt and give me a link to download it.
 
-Note for this check: the people on these pages are sample freelancers. Every provider and author must show as a first name and one letter, for example "Marcus B.", never a full last name.
+Note for this check: the people on these pages are sample freelancers. A provider or author shows as a first name and one letter, for example "Marcus B.", with no full last name. There is one exception, and it is correct: the test attorney has already hired six of the sample freelancers, and an attorney sees the full name of a freelancer they hired. For the test attorney these six show in full: "DELA Test Freelancer", "Avery Collins", "Kendra Liu", "Owen Patel", "Tomas Reyes" and "Monique Fairbanks-Delacroix-Whitmore". A full last name on anyone else is a FAIL.
 
 ## Part 1: test freelancer
 
@@ -80,7 +80,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 7. Do: click "Services" in that row.
    Expect: a page headed "Services". In the menu "Talent" is still the marked line, and the row now underlines "Services".
    Expect: a card "Find a service" with these boxes, left to right: "Words in the service", "Category", "Practice area / Specialty", "Services / Tasks", "Price type", "Starts at or under (dollars)", "Order", and the buttons "Search" and "Clear filters".
-   Expect: under it a heading "Services" with a number in brackets, then cards. Each card has the service's name, a price in bold (or the words "Price on request"), a round picture or letter with the provider's name as a first name and one letter, a grey line with the provider's category, and a button "View profile".
+   Expect: under it a heading "Services" with a number in brackets, then cards. Each card has the service's name, a price in bold (or the words "Price on request"), a round picture or letter with the provider's name, a grey line with the provider's category, and a button "View profile".
    Expect: under the cards, a button "Load more" with a number, and the words "Showing 12 of" and the total.
    Write down the number in brackets beside "Services".
 
@@ -98,7 +98,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
     Do: choose "Price: low to high".
     Expect: the prices on the cards do not go down as you read from the first card on. Cards that say "Price on request" come last.
     Do: in the list "Price type", choose "By the hour".
-    Expect: every card's price ends with the words "an hour".
+    Expect: either every card's price ends with the words "an hour", or the heading reads "Services (0)" and the page says "No service fits these filters." (the sample freelancers may have no hourly service; both are a PASS).
     Do: click "Clear filters".
 
 11. Find: the box "Starts at or under (dollars)".
@@ -135,7 +135,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
     Do: click that button.
     Expect: the author's profile page, with "← Back to Talent search" at the top left.
 
-16. REVIEW. (a) Could an attorney who has never seen these pages find Services and Promotions from the menu without being told where they are? (b) On Services, is it clear what each filter does, and did any filter give a result you did not expect? (c) Is each card easy to read: what is offered, the price, and who offers it? (d) On the Blog, is it clear the articles are in order of posting, and what the "Topic" list is for? (e) Did any page show a full last name, an email address, a phone number, or the words "Category 1"? (f) Was anything crowded, cut off or confusing?
+16. REVIEW. (a) Could an attorney who has never seen these pages find Services and Promotions from the menu without being told where they are? (b) On Services, is it clear what each filter does, and did any filter give a result you did not expect? (c) Is each card easy to read: what is offered, the price, and who offers it? (d) On the Blog, is it clear the articles are in order of posting, and what the "Topic" list is for? (e) Did any page show a full last name for someone who is not one of the six hired freelancers named at the top, an email address, a phone number, or the words "Category 1"? (f) Was anything crowded, cut off or confusing?
 
 Sign out: click the round button with your initials at the far right of the top bar, then click "Sign out".
 

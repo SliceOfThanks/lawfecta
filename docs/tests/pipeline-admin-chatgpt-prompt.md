@@ -34,7 +34,7 @@ Log in as the owner: go to https://www.lawfecta.co/login and ask me to log in as
    Find: the heading "Pipeline" at the top of the page.
    Expect: in the menu at the left edge, under the group "MEMBERS", the line "Pipeline" is the marked one.
    Expect: under the heading, a sentence that includes "DELA sends nothing from here".
-   Expect: a card "This week by stage" with a table of eight rows, in this order: "Listing built", "Playbook made", "Emailed", "Claimed", "Playbook opened", "Gig posted", "Proposals received", "Hired". Each row has three numbers, under "Reached this week", "Reached ever" and "At this stage now".
+   Expect: a card "This week by stage" with a table of eight rows, in this order: "Listing built", "Playbook made", "Emailed", "Claimed", "Playbook opened", "Gig posted", "Proposals received", "Hired". Each row has three numbers and a short grey sentence under "Who records it"; the numbers are under "Reached this week", "Reached ever" and "At this stage now".
    Write down the three numbers in the row "Emailed".
 
 2. Find: below that table, these cards, top to bottom: "Where your outreach is sent from" (one box), "Stuck" with a number in brackets, "Add attorneys", "Attorneys" with a number in brackets, "Listing batches", and "Use it in ChatGPT or Claude".

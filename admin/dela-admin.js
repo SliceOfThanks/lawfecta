@@ -917,6 +917,10 @@
   // ---------- Step 82: the attorney pipeline (Stacey 2026-11-24) ----------
   // The same numbers the Team connector gives to ChatGPT or Claude, for a person to look at: the counts by stage, who is
   // stuck, and every attorney with the day each stage was reached. Outreach is never sent from here; it is recorded.
+  // Step 86 (check 34: "Playbook made" had no explanation): how each stage gets its date, shown beside the counts
+  var STAGE_HOW = { listing_built: "DELA, when the attorney is added and their website plan is a claim listing", playbook_made: "DELA, when the team's connector prepares a document for the attorney",
+    emailed: "You, with \"Record email\" below (or the team's connector)", claimed: "DELA, at the attorney's first login on a real plan", playbook_opened: "DELA, when the attorney first opens the prepared document",
+    gig_posted: "DELA, when the attorney posts a gig", proposals_received: "DELA, at the first proposal", hired: "DELA, when an agreement is signed" };
   var STAGE_WORD = { added: "Added", listing_built: "Listing built", playbook_made: "Playbook made", emailed: "Emailed", claimed: "Claimed", playbook_opened: "Playbook opened", gig_posted: "Gig posted", proposals_received: "Proposals received", hired: "Hired" };
   var pipeSeq = 0;
   // Step 82c: batches of claim listings. The agent checks the rows; an owner's click here is what creates them.
@@ -983,7 +987,7 @@
       });
       // Where outreach went out from, written once and used by every "Record" button on the page
       var lastTool = ""; try { lastTool = localStorage.getItem("dela_pipe_tool") || ""; } catch (e) { lastTool = ""; }
-      var toolIn = h("input", { type: "text", id: "pipe-tool", maxlength: "60", value: lastTool, placeholder: "For example Gmail or Instantly", style: "max-width:280px" });
+      var toolIn = h("input", { type: "text", id: "pipe-tool", maxlength: "60", value: lastTool, placeholder: "For example Gmail", style: "width:100%;max-width:320px" });
       var url = h("input", { readonly: true, value: r.url || "", id: "pipe-url", "aria-label": "The Team connector's address", style: "flex:1;min-width:260px" });
       var mark = function (a, kind) {
         return h("button", { class: "ghost small", type: "button", "aria-label": (kind === "emailed" ? "Record that an email went to " : "Record a follow-up to ") + (a.name || a.bd_member_id), onclick: function () {
@@ -996,8 +1000,8 @@
       body(h("div", { id: "pipeline-page" }, pageHead("Pipeline", "pipeline"),
         h("p", { class: "muted", text: "Attorneys the team is reaching out to, from a listing on the website to a first hire. DELA sends nothing from here: outreach goes out from your own tool and is recorded here. What an attorney does (claims, posts a gig, gets proposals, hires) is read from DELA and never typed in." }),
         h("div", { class: "card", id: "pipe-counts" }, titled("h2", "This week by stage", "pipeline_counts", h("span", { class: "small muted", text: (c.from ? D.date(c.from) + " to " + D.date(c.to) : "") + " | " + (c.attorneys_in_pipeline || 0) + " in the pipeline" })),
-          h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "Stage" }), h("th", { text: "Reached this week" }), h("th", { text: "Reached ever" }), h("th", { text: "At this stage now" }))),
-            h("tbody", null, (c.stages || []).map(function (s) { return h("tr", null, h("td", { text: STAGE_WORD[s.stage] || s.stage }), h("td", { text: String(s.reached_in_period) }), h("td", { text: String(s.reached_ever) }), h("td", { text: String(s.at_this_stage_now) })); }))))),
+          h("div", { class: "scroll" }, h("table", null, h("thead", null, h("tr", null, h("th", { text: "Stage" }), h("th", { text: "Reached this week" }), h("th", { text: "Reached ever" }), h("th", { text: "At this stage now" }), h("th", { text: "Who records it" }))),
+            h("tbody", null, (c.stages || []).map(function (s) { return h("tr", null, h("td", { text: STAGE_WORD[s.stage] || s.stage }), h("td", { text: String(s.reached_in_period) }), h("td", { text: String(s.reached_ever) }), h("td", { text: String(s.at_this_stage_now) }), h("td", { class: "small muted", text: STAGE_HOW[s.stage] || "" })); }))))),
         h("div", { class: "card", id: "pipe-tool-card" }, h("label", { for: "pipe-tool", style: "font-weight:700" }, "Where your outreach is sent from"), h("div", { class: "row", style: "gap:10px;flex-wrap:wrap;margin-top:6px" }, toolIn,
           h("span", { class: "small muted", text: "Kept with each email or follow-up you record below. DELA sends nothing." }))),
         h("div", { class: "card", id: "pipe-stalled" }, titled("h2", "Stuck (" + (r.stalled || []).length + ")", "pipeline_stalled"),
