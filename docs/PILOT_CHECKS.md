@@ -251,6 +251,11 @@ How to read the "State" column:
 | 84-3 | An event shows "Open the event page" when its organizer gave a link | An event on the website that has a link of its own | Not yet | The test event (post 69) carries its link in DELA's copy since 2026-11-24; the button has not been seen on screen by a person |
 | 85-1 | Blog cards show the article pictures above the headings, and they look right at the card's size | Stacey looks at the Blog | Not yet | 5 of 5 articles have a picture in DELA's copy |
 | 86-1 | The new editor's bold, italic, list and link work for a person on the live site | Check 32 run again on "Send the welcome packet 2" | Seen 2026-11-24 (ChatGPT, check 32, second run) | Bold, italic, the list and the link all worked and were kept after a reload; one fault, fixed in step 87 |
+| 90b-1 | Three members moved with "Try with 3 members first" look right on www.lawfecta.co: name, plan, category, listing text, picture | Stacey looks at the three on the website | Not yet | The website's real create call has not been made by the move yet |
+| 90b-2 | A moved attorney logs in and finds the example in their Library, with the notice "Example from Lawfecta" | One moved attorney account, logged in | Not yet | |
+| 90b-3 | A moved member sets a password with "Forgot password" on www.lawfecta.co/login and gets in | One moved member | Not yet | |
+| 90b-4 | The full move ends with "Still to move 0" and the counts add up to the preview | The full run | Not yet | |
+| 90b-5 | The website copies a member's picture from the old site when asked (auto_image_import) | Look at a moved member with a picture | Not yet | |
 | 90a-1 | "Read the old site" reads every member of www.lawfecta.com (2,596 on 2026-11-25) and the plan table's counts add up to it | The owner clicks it with the key set (check 38) | Not yet | The stand-in sites are tested; the real old site has not been read by DELA yet |
 | 90a-2 | Plan names and prices of both sites show in the plan table | Same reading | Not yet | The website address DELA reads plans from is not proven on the real sites |
 | 90a-3 | The old site's categories match this site's by name (10 of 10 top categories do, read by hand 2026-11-25) | Same reading, card "3. Categories" | Not yet | |

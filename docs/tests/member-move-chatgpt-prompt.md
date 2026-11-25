@@ -1,4 +1,4 @@
-You are checking one new page in the admin area of DELA on the Lawfecta site, www.lawfecta.co: "Move members". It reads the members of the old website (www.lawfecta.com) into DELA and shows what moving them would do. Only the owner takes part. This check reads and looks. It changes nothing on either website, moves nobody, emails nobody and chooses no plan. Use a wide browser window.
+You are checking one new page in the admin area of DELA on the Lawfecta site, www.lawfecta.co: "Move members". It reads the members of the old website (www.lawfecta.com) into DELA and shows what moving them would do. Only the owner takes part. This check reads and looks. It changes nothing on either website, moves nobody, emails nobody, chooses no plan and approves no example. Use a wide browser window.
 
 No step should open a browser pop-up (a small OK / Cancel window from the browser itself). If one opens, click Cancel, write FAIL for that step and say what the pop-up said.
 
@@ -37,14 +37,14 @@ Log in as the owner: go to https://www.lawfecta.co/login and ask me to log in as
    Expect: a page headed "Move members". In the menu at the left, under the heading "MEMBERS", the line "Move members" is the marked one.
    Expect: under the heading, grey words that say members of the old website (https://www.lawfecta.com) are read into DELA, and that nothing on this page changes either website.
    Expect: a card "1. Read the old site" with a dark red button that reads "Read the old site" or "Read the old site again".
-   Expect: NO blue notice in that card saying that the old site's API key is not set. (If that notice shows, write FAIL for step 1 with its words, skip steps 2 to 6 and go on to step 7.)
+   Expect: NO blue notice in that card saying that the old site's API key is not set. (If that notice shows, write FAIL for step 1 with its words, skip steps 2 to 7 and go on to step 8.)
 
 2. Find: the card "1. Read the old site", at the top of the page.
    Do: click the dark red button ("Read the old site" or "Read the old site again").
    Expect: a small message at the bottom of the screen: "Reading the old site. This page updates by itself." The line above the button changes to "Reading now:" with a number of members that grows.
    Do: wait, without clicking, until that line starts with "Read" and a number of members and a date. This can take up to two minutes. The page refreshes itself every five seconds.
    Expect: the line reads "Read 2596 members" or a number close to it (the old site may have gained or lost a few). Write down the exact number.
-   (If the line instead starts "The last reading stopped:", write FAIL for step 2 with the whole sentence, skip steps 3 to 6 and go on to step 7.)
+   (If the line instead starts "The last reading stopped:", write FAIL for step 2 with the whole sentence, skip steps 3 to 7 and go on to step 8.)
 
 3. Find: the card "2. Which plan each old plan becomes", under the first card.
    Expect: a table with the columns "Old plan", "Members", "Price on the old site" and "Becomes on the new site". One row for each plan, the plan with the most members first.
@@ -66,13 +66,25 @@ Log in as the owner: go to https://www.lawfecta.co/login and ask me to log in as
    Do: click "Download the list".
    Expect: the browser saves a file named member-move-preview.csv. Do not open or share it: it holds members' names and email addresses.
 
-6. Find: the card "5. Move", the last card on the page.
-   Expect: it says the move itself is not built yet. There is NO button in it.
+6. Find: the card "5. Example playbook for attorneys", under the preview.
+   Expect: three examples, each on its own line: "New client intake", "Run a conflict check" and "Monthly billing review". Each has a small tag ("Not approved yet", "Approved" or "Moved attorneys get this one") and a button "Read".
+   Do: click "Read" on the line "New client intake".
+   Expect: the example opens under that line, with the small headings "Purpose", "Scope", "Trigger", "Before you start", "Steps", "Decision points", "Timing", "Quality check", "Done when" and "Saved in". Under "Steps" there are seven numbered steps.
+   Do: click the same button again (it now reads "Close").
+   Expect: the example closes.
+   Do NOT click "Approve this example", "Give this one" or "Give none". Those are the owner's.
 
-7. REVIEW. (a) Is it clear from the page that nothing here changes either website? (b) Is the plan table easy to read, and is it clear what "Do not move" would do? (c) Are the six numbers of the preview understandable without explanation? (d) Was anything crowded, cut off or confusing?
+7. Find: the card "6. Move", the last card on the page.
+   Expect: a small tag at its top right that reads "Not started" (or "Finished" or "Paused" if the owner has used it).
+   Expect: six grey boxes with numbers: "Still to move", "Made on this site", "Linked to an account already here", "Could not be moved", "Examples placed" and "Logged in since". Write down all six.
+   Expect: a heading "Try with 3 members first" with a box and a button "Try with these members", and a heading "Move everyone" with a box and a dark red button that starts with "Move" and a number.
+   Expect: the dark red "Move" button is greyed out and cannot be clicked.
+   Do NOT type in either box and do NOT click "Try with these members" or the "Move" button. They would create members on the website.
+
+8. REVIEW. (a) Is it clear from the page that nothing here changes either website? (b) Is the plan table easy to read, and is it clear what "Do not move" would do? (c) Are the six numbers of the preview understandable without explanation? (d) In the card "6. Move", is it clear what will happen when the owner moves everyone, and that members get no email from DELA? (e) Was anything crowded, cut off or confusing?
 
 Sign out: click the button with your name at the far right of the top bar, then click "Sign out".
 
 ## Report
 
-For each numbered step write PASS or FAIL and one line of what you saw, with the numbers you wrote down; for the REVIEW step (7) give your answers. Then a list of every FAIL with a screenshot, every message on screen that confused you, and anything that took you more than one try to find. Do NOT put any member's name or email address in the report.
+For each numbered step write PASS or FAIL and one line of what you saw, with the numbers you wrote down; for the REVIEW step (8) give your answers. Then a list of every FAIL with a screenshot, every message on screen that confused you, and anything that took you more than one try to find. Do NOT put any member's name or email address in the report.
