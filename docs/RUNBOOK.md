@@ -30,6 +30,12 @@ Things no button can undo: money that moved, emails already sent. Those are fixe
 - The health check fails (503) if the database or the background worker stops. It also reports whether DELA is paused.
 - Every morning at 8 (Lawfecta time) owners get a DELA daily summary: sign ins, people turned away, failed background jobs, active holds, plus any reminders below.
 
+## The six-hour check (step 93)
+- Every six hours (setting health.check_hours) DELA checks its own database, asks Stripe, the website and Brevo whether they answer, and asks Stripe how each refund of the last 30 days ended.
+- Each problem is emailed to the owner at once, and once a day while it lasts. A fact that does not change by itself (a missing key, Stripe in test mode while real payments are on) is said once.
+- See it and run it by hand: admin area, menu group "Safety", "Jobs", card "Six-hour check", button "Run the check now".
+- It runs on DELA's own server, so it does not need Stacey's Mac or the Claude app to be on.
+
 ## Backups and the quarterly restore drill
 - The Supabase Pro plan makes a daily backup of each database automatically. Files (when DELA stores them) are backed up separately.
 - Point-in-time recovery (restore to any minute) is a Supabase add-on, about $100 a month. Turn it on for Live before real payments start.
