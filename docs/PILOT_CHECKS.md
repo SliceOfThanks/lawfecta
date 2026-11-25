@@ -250,7 +250,8 @@ How to read the "State" column:
 | 84-2 | The Category list on Events shows the categories Stacey set in the post type "Event" | Stacey renames the three placeholders, then looks | Not yet | Until then the list reads "All categories" only |
 | 84-3 | An event shows "Open the event page" when its organizer gave a link | An event on the website that has a link of its own | Not yet | The test event (post 69) carries its link in DELA's copy since 2026-11-24; the button has not been seen on screen by a person |
 | 85-1 | Blog cards show the article pictures above the headings, and they look right at the card's size | Stacey looks at the Blog | Not yet | 5 of 5 articles have a picture in DELA's copy |
-| 86-1 | The new editor's bold, italic, list and link work for a person on the live site | Check 32 run again on "Send the welcome packet 2" | Not yet | The first run (2026-11-24) stopped at step 1 because the check pointed at a Workflow |
+| 86-1 | The new editor's bold, italic, list and link work for a person on the live site | Check 32 run again on "Send the welcome packet 2" | Seen 2026-11-24 (ChatGPT, check 32, second run) | Bold, italic, the list and the link all worked and were kept after a reload; one fault, fixed in step 87 |
+| 87-1 | A word that was just given a link stays when you press Enter or type straight after | Add a link to a word, then type without clicking first | Not yet | Covered by a browser test; not seen by a person on the live site |
 
 ## How this list is kept
 - Claude adds a line with every release that leaves something only real use can prove, and says so in the update to Stacey.
