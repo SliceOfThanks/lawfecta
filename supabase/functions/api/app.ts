@@ -1158,6 +1158,8 @@ async function pbGet(ctx: Ctx) {
     r.newcomer = await rpc(ctx, "dela_doc_newcomer_get", { p_person: s.person_id, p_playbook: id }).catch(() => null);
     r.feedback = await rpc(ctx, "dela_doc_feedback_list", { p_person: s.person_id, p_playbook: id }).catch(() => null);
     // Step 82b: a playbook the Lawfecta Team prepared says so, and opening it is "playbook opened" in the pipeline
+    // Step 90b: a document that came from one of Lawfecta's examples says so
+    if (await rpc<boolean>(ctx, "dela_move_is_example", { p_playbook: id }).catch(() => false)) r.example = true;
     const prepared = await rpc<Record<string, any> | null>(ctx, "dela_pipeline_pb_note", { p_person: s.person_id, p_playbook: id }).catch(() => null);
     if (prepared?.prepared) r.prepared = prepared;
     // Step 80: the in-place editor, and what this member was typing when they last left (their own working copy)
@@ -5959,6 +5961,95 @@ async function moveRead(ctx: Ctx, payload: Record<string, any>): Promise<{ ok: b
   await rpc(ctx, "dela_job_enqueue", { p_kind: "move_read", p_payload: { run, step: "members", page, turn: turn + 1 }, p_run_at: new Date().toISOString(), p_idem: "move_read:" + run + ":m" + (turn + 1), p_person: null });
   return { ok: true };
 }
+// ---------- Step 90b: the move itself ----------
+// The job "move_create" makes the old site's members on this website a few at a time. Before every create the website
+// is asked whether the email is already there, so nobody is made twice, also after a turn that was cut short. The
+// password is long and random and is not kept or logged: the member sets their own. No welcome email is asked for.
+// Every moved attorney gets the example document the owner approved, in a workspace made ahead of their first login.
+const MOVE_PER_TURN = 15;
+// A date as the website takes it: YYYYMMDDHHmmss
+function moveStamp(v: unknown): string {
+  const t = String(v ?? "").trim();
+  if (/^\d{14}$/.test(t)) return t.slice(0, 4) < "2000" ? "" : t;
+  const d = new Date(t);
+  if (!t || isNaN(d.getTime()) || d.getUTCFullYear() < 2000) return "";
+  const p = (n: number) => String(n).padStart(2, "0");
+  return `${d.getUTCFullYear()}${p(d.getUTCMonth() + 1)}${p(d.getUTCDate())}${p(d.getUTCHours())}${p(d.getUTCMinutes())}${p(d.getUTCSeconds())}`;
+}
+// What is sent to this website for one member. Never a password (the caller adds a throwaway one) and never a request
+// for the welcome email.
+export function moveForm(row: Record<string, any>): Record<string, string> {
+  const rec = (row.rec && typeof row.rec === "object" ? row.rec : {}) as Record<string, unknown>;
+  const t = (k: string, n = 500) => String(rec[k] ?? "").trim().slice(0, n);
+  const form: Record<string, string> = { email: String(row.email ?? "").trim(), subscription_id: String(Math.trunc(Number(row.new_plan)) || 0),
+    active: ["1", "2", "3", "4", "5", "6"].includes(String(row.active)) ? String(row.active) : "2", listing_type: t("listing_type") === "Company" ? "Company" : "Individual" };
+  for (const k of ["first_name", "last_name", "company", "phone_number", "address1", "address2", "city", "zip_code", "state_code", "state_ln", "country_code", "country_ln", "position", "quote", "affiliation", "awards", "rep_matters"]) if (t(k)) form[k] = t(k);
+  if (/^(19|20)\d{2}$/.test(t("experience"))) form.experience = t("experience");
+  for (const k of MOVE_LINKS) { const v = t(k, 2000); if (/^https?:\/\/[^\s<>"]+$/i.test(v)) form[k] = v; }
+  if (t("about_me", 20000)) form.about_me = t("about_me", 20000);
+  if (t("search_description")) form.search_description = t("search_description", 170);
+  if (t("verified") === "1") form.verified = "1";
+  if (t("nationwide") === "1") form.nationwide = "1";
+  const su = moveStamp(rec.signup_date), ll = moveStamp(rec.last_login);
+  if (su) form.signup_date = su;
+  if (ll) form.last_login = ll;
+  const prof = Math.trunc(Number(row.profession_id)) || 0;
+  if (prof) form.profession_id = String(prof);
+  const services = (Array.isArray(row.services) ? row.services : []).map((x: unknown) => Math.trunc(Number(x)) || 0).filter(Boolean);
+  if (prof && services.length) form.services = services.join(",");
+  if (typeof row.photo === "string" && row.photo) { form.profile_photo = row.photo; form.auto_image_import = "1"; }
+  return form;
+}
+// The approved example, in the attorney's Library as their own draft. A failure here never fails the member's move.
+async function moveExample(ctx: Ctx, row: Record<string, any>, newId: number) {
+  try {
+    if (row.side !== "attorney" || !row.plan_code) return;
+    const ex = await rpc<Record<string, any> | null>(ctx, "dela_move_example_body", {});
+    if (!ex?.body || typeof ex.body !== "object") return;
+    const rec = (row.rec ?? {}) as Record<string, unknown>;
+    const p = await rpc<Record<string, any>>(ctx, "dela_move_person", { p_new: newId, p_name: [rec.first_name, rec.last_name].map((x) => String(x ?? "").trim()).filter(Boolean).join(" ") || String(rec.company ?? ""), p_email: String(row.email ?? ""), p_plan: String(row.plan_code) });
+    // Someone who already has documents in their Library gets none
+    if (!p?.ok || Number(p.documents) > 0) return;
+    const s = { person_id: String(p.person_id), side: "attorney" } as Session;
+    const r = await docCreate(ctx, s, String(p.org_id), "move_example:" + row.old_id, ex.body, "manual", "Example from Lawfecta", await docFirm(ctx, s), "lawfecta_example");
+    if (r?.ok && r.id) await rpc(ctx, "dela_move_example_done", { p_old: row.old_id, p_playbook: r.id });
+  } catch (e) { console.error("move_example", String((e as Error)?.message ?? e).slice(0, 160)); }
+}
+async function moveCreate(ctx: Ctx, payload: Record<string, any>): Promise<{ ok: boolean; retry?: boolean; error?: string }> {
+  const run = Math.trunc(Number(payload?.run)) || 0, turn = Math.trunc(Number(payload?.turn)) || 0;
+  const n = await rpc<Record<string, any>>(ctx, "dela_move_next", { p_run: run, p_n: MOVE_PER_TURN });
+  if (!n?.go) return { ok: true };
+  const rows = (n.rows ?? []) as Array<Record<string, any>>;
+  const site = await setting(ctx, "site.url", ""), key = ctx.deps.env("BD_API_KEY"), ff = f(ctx);
+  const busy = (r: { status: number }) => r.status === 429 || r.status >= 500 || r.status === 0;
+  const done = (row: Record<string, any>, ok: boolean, bd: number | null, how: string, problem: string) => rpc(ctx, "dela_move_result", { p_old: row.old_id, p_ok: ok, p_new: bd, p_how: how, p_problem: problem });
+  for (const row of rows) {
+    const email = String(row.email ?? "").trim();
+    if (row.decision === "on_new" && Number(row.new_id)) { await done(row, true, Number(row.new_id), "linked", ""); await moveExample(ctx, row, Number(row.new_id)); continue; }
+    const dup = await bdList(ff, site, key, "/api/v2/user/get?property=email&property_value=" + encodeURIComponent(email), 1);
+    if (!dup.ok && busy(dup)) return { ok: false, retry: true, error: dup.error };
+    const hit = dup.ok ? dup.data.find((x) => String(x.email ?? "").trim().toLowerCase() === email.toLowerCase()) : null;
+    if (hit && Number(hit.user_id)) { await done(row, true, Number(hit.user_id), "linked", ""); await moveExample(ctx, row, Number(hit.user_id)); continue; }
+    if (!dup.ok && dup.status !== 404) { await done(row, false, null, "", dup.status === 403 ? "This website's API key may not read members." : "This website did not answer the check for the email (" + dup.error.slice(0, 80) + ")."); if (dup.status === 403) { await rpc(ctx, "dela_move_halt", { p_run: run }); return { ok: true }; } continue; }
+    // A password nobody knows: the member sets their own. It is not kept or logged.
+    const r = await bdCall<Record<string, unknown>>(ff, site, key, "POST", "/api/v2/user/create", { ...moveForm(row), password: b64url(crypto.getRandomValues(new Uint8Array(24))) + "aA1!" });
+    if (!r.ok && busy(r)) return { ok: false, retry: true, error: r.error };
+    const made = r.ok ? (Array.isArray(r.data) ? r.data[0] : r.data) as Record<string, unknown> | null : null, bd = Number(made?.user_id) || 0;
+    if (!r.ok || !bd) {
+      await done(row, false, null, "", !r.ok && r.status === 403 ? "This website's API key may not create members." : "This website refused: " + (r.ok ? "no member number came back" : r.error.slice(0, 120)));
+      // A refusal that would repeat for everyone stops the move until the owner has put it right
+      if (!r.ok && (r.status === 403 || r.status === 401)) { await rpc(ctx, "dela_move_halt", { p_run: run }); return { ok: true }; }
+      continue;
+    }
+    await done(row, true, bd, "created", "");
+    await moveExample(ctx, row, bd);
+  }
+  const more = rows.length === MOVE_PER_TURN;
+  await rpc(ctx, "dela_move_turn", { p_run: run, p_turn: turn + 1, p_more: more });
+  // The next turn waits a little, so the website's limit of calls a minute is kept
+  if (more) await rpc(ctx, "dela_job_enqueue", { p_kind: "move_create", p_payload: { run, turn: turn + 1 }, p_run_at: new Date(Date.now() + 20000).toISOString(), p_idem: "move_create:" + run + ":" + (turn + 1), p_person: null });
+  return { ok: true };
+}
 async function claimFix(ctx: Ctx, actor: string, a: Record<string, any>) {
   const bd = Math.trunc(Number(a.bd_member_id)) || 0;
   const l = await rpc<Record<string, any>>(ctx, "dela_claim_listing_of", { p_actor: actor, p_bd: bd });
@@ -6110,6 +6201,9 @@ const ADMIN_GET: Record<string, AdminRoute> = {
   // Step 90a: the member move. key_set says only whether the old site's key exists, never the key.
   "/admin/move": async (c, a) => { const r = await rpc<Record<string, any>>(c, "dela_move_overview", { p_actor: a }); return r?.ok ? { ...r, key_set: !!c.deps.env("BD_OLD_API_KEY") } : r; },
   "/admin/move/preview": (c, a) => rpc(c, "dela_move_preview", { p_actor: a }),
+  "/admin/move/run": (c, a) => rpc(c, "dela_move_run_view", { p_actor: a }),
+  "/admin/move/examples": (c, a) => rpc(c, "dela_move_examples", { p_actor: a }),
+  "/admin/move/moved": (c, a) => rpc(c, "dela_move_moved", { p_actor: a }),
   "/admin/claims/one": (c, a) => rpc(c, "dela_claim_batch_get", { p_actor: a, p_id: need(uuid(c.url.searchParams.get("id"))) }),
   // Step 82: the Pipeline page, and the Team connector's address
   "/admin/pipeline": async (c, a) => { const r = await rpc<Record<string, any>>(c, "dela_admin_pipeline", { p_actor: a }); return r?.ok ? { ...r, url: publicBase(c.deps) + TEAM_PATH } : r; },
@@ -6291,6 +6385,11 @@ const ADMIN_POST: Record<string, AdminRoute> = {
   "/admin/access/revoke": (c, a) => rpc(c, "dela_admin_access_revoke", { p_actor: a, p_id: need(int(c.body.id)) }),
   "/admin/pipeline/add": (c, a) => teamAdd(c, a, String(c.body.bd_member_ids ?? "").split(/[\s,;]+/).filter(Boolean)),
   "/admin/move/read": (c, a) => rpc(c, "dela_move_begin", { p_actor: a }),
+  "/admin/move/start": (c, a) => rpc(c, "dela_move_start", { p_actor: a, p_confirm: int(c.body.confirm), p_ids: (Array.isArray(c.body.ids) ? c.body.ids : []).map((x) => int(x)).filter((x) => x !== null && x > 0).slice(0, 10) }),
+  "/admin/move/pause": (c, a) => rpc(c, "dela_move_pause", { p_actor: a, p_on: c.body.on !== false }),
+  "/admin/move/retry": (c, a) => rpc(c, "dela_move_retry", { p_actor: a }),
+  "/admin/move/example/approve": (c, a) => rpc(c, "dela_move_example_approve", { p_actor: a, p_key: str(c.body.key, 40) }),
+  "/admin/move/example/give": (c, a) => rpc(c, "dela_move_example_give", { p_actor: a, p_key: str(c.body.key, 40) }),
   "/admin/move/plan": (c, a) => rpc(c, "dela_move_plan_set", { p_actor: a, p_old: need(int(c.body.old_plan), "bad_plan"), p_new: c.body.skip === true ? null : int(c.body.new_plan), p_skip: c.body.skip === true }),
   "/admin/move/category": (c, a) => rpc(c, "dela_move_category_set", { p_actor: a, p_kind: c.body.kind === "p" ? "p" : "s", p_id: need(int(c.body.id), "bad_category"), p_new_key: str(c.body.new_key, 20) }),
   "/admin/claims/approve": (c, a) => rpc(c, "dela_claim_batch_approve", { p_actor: a, p_id: need(uuid(c.body.id)) }),
@@ -6540,6 +6639,7 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "profiles_daily") { await rpc(ctx, "dela_profiles_daily", {}); return { ok: true }; }
   if (j.kind === "bd_profile_push") return await bdProfilePush(ctx, j.payload ?? {});
   if (j.kind === "move_read") return await moveRead(ctx, j.payload ?? {});
+  if (j.kind === "move_create") return await moveCreate(ctx, j.payload ?? {});
   if (j.kind === "claim_create") { await claimCreate(ctx, String(j.payload?.batch_id ?? ""), Number(j.payload?.turn) || 0); return { ok: true }; }
   if (j.kind === "posts_sync") { const r = await postsSync(ctx); return r?.ok ? { ok: true } : { ok: true, error: "not_all_read" }; }
   if (j.kind === "categories_sync") { const r = await categoriesSync(ctx, String(j.payload?.source ?? "job").slice(0, 20)); return r?.ok ? { ok: true } : { ok: true, error: String(r?.reason ?? "not_synced") }; }

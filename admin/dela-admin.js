@@ -976,10 +976,11 @@
   var MOVE_DECISION = { move: "Moves", skip: "Not moved (your choice for the plan)", no_plan: "Plan not chosen yet", on_new: "Already on the new site (linked, not made again)", duplicate: "Same email as another member", bad_email: "Email missing or not an email address" };
   var MOVE_ACTIVE = { 1: "Not active", 2: "Active", 3: "Canceled", 4: "On hold", 5: "Past due", 6: "Incomplete" };
   function moveTab() {
-    api.get("/admin/move").then(check).then(function (r) {
+    Promise.all([api.get("/admin/move").then(check), api.get("/admin/move/run").then(check), api.get("/admin/move/examples").then(check)]).then(function (all) {
+      var r = all[0], run = all[1] || {}, exs = (all[2] || {}).examples || [];
       var st = r.state || {}, reading = st.status === "reading";
       var page = h("div", { id: "move-page" }, pageHead("Move members", "move"),
-        h("p", { class: "muted", text: "Members of the old website (" + (r.site || "not set") + ") are read into DELA, you choose which plan each old plan becomes, and a preview shows what a move would do. Nothing on this page changes either website, and nobody is emailed." }));
+        h("p", { class: "muted", text: "Members of the old website (" + (r.site || "not set") + ") are read into DELA, you choose which plan each old plan becomes, and a preview shows what a move would do. Only \"6. Move\" changes anything, and only on this website. The old website is never changed, and nobody is emailed." }));
       if (!r.on) { page.appendChild(h("p", { class: "notice", id: "move-off", text: "The member move is switched off. Turn it on under Switches, \"Move members from the old website\"." })); body(page); return; }
 
       // 1. Read
@@ -1052,7 +1053,88 @@
         });
         page.appendChild(h("div", { class: "card", id: "move-preview-card" }, titled("h2", "4. Preview", "move_preview"),
           h("p", { class: "small muted", text: "What a move would do with every member, worked out from your choices above. It changes nothing." }), h("div", { class: "row" }, pvBtn), out));
-        page.appendChild(h("div", { class: "card", id: "move-next" }, h("h2", { style: "margin-top:0", text: "5. Move" }), h("p", { class: "muted", text: "The move itself is not built yet. It comes with the next release, after you have looked at the preview." })));
+        // 5. The example document for attorneys (step 90b)
+        var exCard = h("div", { class: "card", id: "move-examples" }, titled("h2", "5. Example playbook for attorneys", "move_examples"),
+          h("p", { class: "small muted", text: "Every attorney who moves gets one example in their Library, as a draft they can change or delete. Read each one, approve the ones you are happy with, then choose the one they get. Nothing is given that you have not approved." }));
+        (exs || []).forEach(function (e) {
+          var b = e.body || {}, open = h("div", { class: "move-ex-body", hidden: true });
+          var part = function (label, v) { if (!v || (Array.isArray(v) && !v.length)) return; open.appendChild(h("h4", { style: "margin:10px 0 2px", text: label })); if (Array.isArray(v)) open.appendChild(h("ul", { style: "margin:0;padding-left:20px" }, v.map(function (x) { return h("li", { text: String(x) }); }))); else open.appendChild(h("p", { style: "margin:0", text: String(v) })); };
+          part("Purpose", b.purpose); part("Scope", b.scope); part("Trigger", b.trigger); part("Before you start", b.before_you_start);
+          open.appendChild(h("h4", { style: "margin:10px 0 2px", text: "Steps" }));
+          open.appendChild(h("ol", { style: "margin:0;padding-left:22px" }, (b.steps || []).map(function (s) { return h("li", null, s.text + " ", h("span", { class: "muted small", text: "(" + (s.role || "") + (s.attorney_decides ? ", attorney decides" : "") + ")" })); })));
+          part("Decision points", (b.decisions || []).map(function (d) { return "If " + d.if + ": " + d.then; }));
+          part("Timing", b.timing); part("Quality check", b.quality_check); part("Done when", b.done_when); part("Saved in", b.saved_in);
+          var readBtn2 = h("button", { class: "ghost small", type: "button", "aria-expanded": "false", "aria-label": "Read the example " + e.title }, "Read");
+          readBtn2.addEventListener("click", function () { open.hidden = !open.hidden; readBtn2.textContent = open.hidden ? "Read" : "Close"; readBtn2.setAttribute("aria-expanded", String(!open.hidden)); });
+          var act = !e.approved ? h("button", { class: "blue small", type: "button", "aria-label": "Approve the example " + e.title }, "Approve this example")
+            : e.given ? h("button", { class: "ghost small", type: "button", "aria-label": "Give no example" }, "Give none")
+            : h("button", { class: "blue small", type: "button", "aria-label": "Give the example " + e.title + " to moved attorneys" }, "Give this one");
+          act.addEventListener("click", function () {
+            var call = !e.approved ? api.post("/admin/move/example/approve", { key: e.key }) : api.post("/admin/move/example/give", { key: e.given ? "" : e.key });
+            call.then(check).then(function () { ok("Saved"); moveTab(); }).catch(fail);
+          });
+          exCard.appendChild(h("div", { class: "move-ex", "data-key": e.key, style: "border-top:1px solid var(--line);padding:10px 0" },
+            h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, h("span", { class: "grow" }, h("strong", { text: e.title }), h("span", { class: "muted small", text: " " + e.steps + " steps. " + e.about })),
+              e.given ? h("span", { class: "badge ready", text: "Moved attorneys get this one" }) : e.approved ? h("span", { class: "badge", text: "Approved" }) : h("span", { class: "badge held", text: "Not approved yet" }), readBtn2, act), open));
+        });
+        page.appendChild(exCard);
+
+        // 6. The move (step 90b)
+        var rs = run.run || {}, running = rs.status === "running", given = (exs || []).filter(function (e) { return e.given; })[0];
+        var mvCard = h("div", { class: "card", id: "move-run" }, titled("h2", "6. Move", "move_run", h("span", { class: "badge " + (running ? "held" : rs.status === "done" ? "ready" : ""), id: "move-run-state", text: { idle: "Not started", running: rs.trying ? "Trying 3 members now" : "Moving now", paused: "Paused", done: "Finished" }[rs.status] || rs.status })),
+          h("p", { class: "small muted", text: "This makes members on this website. Each gets a password nobody knows, so they set their own; no email is sent by DELA or by the website. " + (given ? "Attorneys get the example \"" + given.title + "\"." : "No example is chosen, so attorneys get none.") }),
+          h("div", { class: "kv", id: "move-run-counts" }, [["Still to move", run.todo], ["Made on this site", run.created], ["Linked to an account already here", run.linked], ["Could not be moved", run.failed], ["Examples placed", run.examples_given], ["Logged in since", run.logged_in]].map(function (x) { return h("div", null, x[0], h("b", { text: String(x[1] || 0) })); })));
+        var tryIn = h("input", { type: "text", id: "move-try-ids", "aria-label": "Old member numbers to try", placeholder: "Up to 3 old member numbers, with commas", style: "max-width:320px" });
+        var tryBtn = h("button", { class: "ghost", type: "button", id: "move-try", disabled: running }, "Try with these members");
+        tryBtn.addEventListener("click", function () {
+          var ids = tryIn.value.split(",").join(" ").split(" ").map(function (x) { return parseInt(x, 10); }).filter(function (x) { return x > 0; });
+          if (!ids.length || ids.length > 3) { fail(new Error("three_at_most")); return; }
+          tryBtn.disabled = true;
+          api.post("/admin/move/start", { ids: ids }).then(check).then(function () { ok("Moving " + ids.length + (ids.length === 1 ? " member" : " members") + ". This page updates by itself."); moveTab(); }).catch(function (e) { tryBtn.disabled = false; fail(e); });
+        });
+        mvCard.appendChild(h("h3", { style: "margin:14px 0 4px", text: "Try with 3 members first" }));
+        mvCard.appendChild(h("p", { class: "small muted", style: "margin-top:0", text: "Their old member numbers are in the first column of the preview's file. Look at them on this website afterwards, then move everyone." }));
+        mvCard.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, tryIn, tryBtn));
+        var todo = Number(run.todo) || 0;
+        var allIn = h("input", { type: "text", id: "move-all-confirm", "aria-label": "Type the number of members to confirm", placeholder: "Type " + todo, style: "max-width:160px", disabled: running || !todo });
+        var allBtn = h("button", { class: "blue", type: "button", id: "move-all", disabled: true }, "Move " + todo + (todo === 1 ? " member" : " members"));
+        allIn.addEventListener("input", function () { allBtn.disabled = running || !todo || parseInt(allIn.value, 10) !== todo; });
+        allBtn.addEventListener("click", function () {
+          allBtn.disabled = true;
+          api.post("/admin/move/start", { confirm: todo }).then(check).then(function () { ok("The move has started. This page updates by itself."); moveTab(); }).catch(function (e) { fail(e); moveTab(); });
+        });
+        mvCard.appendChild(h("h3", { style: "margin:16px 0 4px", text: "Move everyone" }));
+        mvCard.appendChild(h("p", { class: "small muted", style: "margin-top:0", text: todo ? "Type the number of members (" + todo + ") to confirm, then click the button. It takes about a minute for every 40 members and can be paused." : "Nobody is waiting to be moved. Choose plans above, or work out the preview to see why." }));
+        var pauseBtn = running || rs.status === "paused" ? h("button", { class: "ghost", type: "button", id: "move-pause" }, running ? "Pause" : "Go on") : null;
+        if (pauseBtn) pauseBtn.addEventListener("click", function () { pauseBtn.disabled = true; api.post("/admin/move/pause", { on: running }).then(check).then(function () { ok(running ? "Paused" : "Going on"); moveTab(); }).catch(fail); });
+        mvCard.appendChild(h("div", { class: "row", style: "gap:8px;flex-wrap:wrap" }, allIn, allBtn, pauseBtn));
+        if ((run.failures || []).length) {
+          var again = h("button", { class: "ghost small", type: "button", id: "move-retry" }, "Let these be tried again");
+          again.addEventListener("click", function () { api.post("/admin/move/retry", {}).then(check).then(function () { ok("They count as waiting again. Start the move to try them."); moveTab(); }).catch(fail); });
+          mvCard.appendChild(h("h3", { style: "margin:16px 0 4px", text: "Could not be moved" }));
+          mvCard.appendChild(h("div", { class: "scroll" }, h("table", { id: "move-failures" }, h("thead", null, h("tr", null, h("th", { text: "Old member" }), h("th", { text: "Email" }), h("th", { text: "Why" }), h("th", { text: "Tries" }))),
+            h("tbody", null, run.failures.map(function (x) { return h("tr", null, h("td", { text: String(x.old_id) }), h("td", { text: x.email }), h("td", { text: x.problem }), h("td", { text: String(x.attempts) })); })))));
+          mvCard.appendChild(h("div", { class: "row" }, again));
+        }
+        if ((run.recent || []).length) {
+          mvCard.appendChild(h("h3", { style: "margin:16px 0 4px", text: "Moved most recently" }));
+          mvCard.appendChild(h("div", { class: "scroll" }, h("table", { id: "move-recent" }, h("thead", null, h("tr", null, h("th", { text: "Old member" }), h("th", { text: "New member" }), h("th", { text: "Who" }), h("th", { text: "How" }), h("th", { text: "Example" }))),
+            h("tbody", null, run.recent.map(function (x) { return h("tr", null, h("td", { text: String(x.old_id) }), h("td", { text: String(x.new_id) }), h("td", null, x.name || x.email, x.name ? h("div", { class: "muted small", text: x.email }) : null), h("td", { text: x.how === "linked" ? "Linked to an account already here" : "Made" }), h("td", { text: x.example ? "Yes" : "" })); })))));
+          var pwBtn = h("button", { class: "ghost", type: "button", id: "move-moved-list" }, "Download the list for your \"set your password\" email");
+          pwBtn.addEventListener("click", function () {
+            api.get("/admin/move/moved").then(check).then(function (m) {
+              var q = function (v) { var t = v === null || v === undefined ? "" : String(v); return '"' + t.split('"').join('""') + '"'; };
+              var lines = [["Email", "First name", "Last name", "New plan", "Where to set a password", "Made or linked", "Logged in since", "Old member number", "New member number"].map(q).join(",")];
+              (m.rows || []).forEach(function (x) { lines.push([x.email, x.first_name, x.last_name, x.new_plan, location.origin + "/login", x.how === "linked" ? "Linked (already had an account)" : "Made", x.logged_in ? "Yes" : "No", x.old_id, x.new_id].map(q).join(",")); });
+              var url = URL.createObjectURL(new Blob(["﻿" + lines.join("\r\n") + "\r\n"], { type: "text/csv" })), a = h("a", { href: url, download: "moved-members.csv" });
+              app.appendChild(a); a.click(); a.remove(); setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+            }).catch(fail);
+          });
+          mvCard.appendChild(h("p", { class: "small muted", text: "Members made here have no password yet. The file lists each one with the login page, where \"Forgot password\" lets them set one. DELA sends nothing; you send the email from your own tool." }));
+          mvCard.appendChild(h("div", { class: "row" }, pwBtn));
+        }
+        page.appendChild(mvCard);
+        if (running) setTimeout(function () { if (current === "move" && document.visibilityState !== "hidden") moveTab(); }, 6000);
       }
       body(page);
     }).catch(fail);
@@ -2416,6 +2498,8 @@
     move_read: "DELA reads every member of the old site, both sites' plans and the old site's categories. It keeps names, contact details, the listing's text, the plan, the status and picture addresses. It never reads a password, a card or an invoice.",
     move_plans: "One line for each plan members have on the old site. Choose the plan on this site that those members get, or \"Do not move\". The DELA side (attorney or freelancer) follows from the plan you choose.",
     move_cats: "Categories are matched by their names and where they sit (top category, then the one under it). Only categories that members use and that have no match are listed.",
+    move_examples: "Three examples drafted by Lawfecta: new client intake, a conflict check and a monthly billing review. They name no client and no firm. An attorney gets the one you choose as a draft; it is never approved for them, and every step is marked as DELA's suggestion until they confirm it.",
+    move_run: "A member who is already on this website with the same email is linked, never made twice. A member the website refuses is listed with the reason and can be tried again. Pausing stops after the members being made right now.",
     move_preview: "Emails are compared without regard to capital letters. When two members of the old site share an email, the one who logged in last moves. A member whose email is already on this site is linked to that account instead of being made again.",
     pipeline: "The attorneys the team is working, by their website member number. A person records that outreach went out. DELA reads the rest from what happened: the attorney has a workspace (claimed), opened a gig, got a proposal, signed an agreement.",
     pipeline_counts: "For this week, Monday to Sunday: how many attorneys reached each stage in the week, how many ever did, and how many sit at each stage today. The Team connector gives the same numbers for any period.",

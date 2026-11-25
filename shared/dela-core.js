@@ -285,6 +285,7 @@
       note_required: "Add a note saying why.", bad_amount: "Enter a number of actions from 1 to 100,000.",
       document_read_only: "This document is read-only on your plan. Upgrade to edit it.", no_subscription_id: "Brilliant Directories did not say which plan this member is on.",
       bd_member_not_found: "Brilliant Directories has no member with this number.",
+      not_read_yet: "Read the old site first.", three_at_most: "Give one, two or three old member numbers.", not_movable: "At least one of those members would not move (see \"What happens\" in the preview's file).", nothing_to_move: "Nobody is waiting to be moved.", count_changed: "The number of members to move has changed. The page shows the new number.", example_not_approved: "Approve the example first.",
       move_off: "The member move is switched off (Switches, \"Move members from the old website\").", plan_not_on_new_site: "That plan is not on this website. Read the old site again to refresh the list.", category_not_on_new_site: "That category is not on this website.",
       wrong_type: "That value is the wrong kind (for example, words where a number goes).",
       bad_member_id: "Enter the member's BD member ID (a number).",

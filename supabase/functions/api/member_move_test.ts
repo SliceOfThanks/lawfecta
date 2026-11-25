@@ -5,14 +5,19 @@
 // nothing pre-chosen, categories matched by name, and every rule of the preview.
 // Run after tools/dbtest.sh:   deno test -A supabase/functions/api/member_move_test.ts
 import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
-import { handle, movePick, type Deps } from "./app.ts";
+import { handle, moveForm, movePick, type Deps } from "./app.ts";
 import { sessionHash } from "./lib/crypto.ts";
 import { pool, rpc } from "../../../tests/lib/pg_rpc.ts";
 
 const RUN = Date.now() % 1000000;
 const WORKER = "test-worker-secret-move-0123456789abcdef";
 const OLD_KEY = "old-site-test-key", NEW_KEY = "new-site-test-key";
-let oldKeySet = true, oldSite: "ok" | "forbidden" | "busy" = "ok";
+let oldKeySet = true, oldSite: "ok" | "forbidden" | "busy" = "ok", newSite: "ok" | "forbidden" | "busy" = "ok";
+// What the new stand-in site was asked to create, and the members it has
+const made: Array<Record<string, string>> = [];
+// Member numbers the new stand-in site hands out, clear of anything the test database already holds
+const NEW0 = 9_600_000 + (Date.now() % 100000) * 10;
+const newMembers: Array<Record<string, string>> = [{ user_id: "686", email: "already@new.example", subscription_id: "12" }, { user_id: "687", email: "other@new.example", subscription_id: "5" }];
 const calls: Array<{ host: string; method: string; path: string; key: string }> = [];
 
 // 230 members of the old site, so the reading takes three pages and more than one turn is not needed
@@ -52,7 +57,21 @@ const fakeFetch = (async (input: string | URL | Request, init: RequestInit = {})
     return new Response("{}", { status: 404 });
   }
   if (url.hostname !== "bd.test") throw new Error("unexpected fetch " + url.href);
-  if (url.pathname === "/api/v2/user/get") return page(url, [{ user_id: "686", email: "already@new.example", subscription_id: "12" }, { user_id: "687", email: "other@new.example", subscription_id: "5" }]);
+  if (url.pathname === "/api/v2/user/create" && init.method === "POST") {
+    if (newSite === "forbidden") return Response.json({ status: "error", message: "not allowed" }, { status: 403 });
+    if (newSite === "busy") return new Response("slow down", { status: 429 });
+    const form = Object.fromEntries(new URLSearchParams(String(init.body)));
+    made.push(form);
+    const rec = { user_id: String(NEW0 + made.length), email: form.email, subscription_id: form.subscription_id };
+    newMembers.push(rec);
+    return Response.json({ status: "success", message: rec });
+  }
+  if (url.pathname === "/api/v2/user/get" && url.searchParams.get("property") === "email") {
+    const want = String(url.searchParams.get("property_value") ?? "").toLowerCase();
+    const hit = newMembers.filter((m) => m.email.toLowerCase() === want);
+    return hit.length ? Response.json({ status: "success", message: hit }) : Response.json({ status: "error", message: "user not found" }, { status: 404 });
+  }
+  if (url.pathname === "/api/v2/user/get") return page(url, newMembers.slice(0, 2));
   if (url.pathname === "/api/v2/subscription_types/get") return page(url, [
     { subscription_id: "5", subscription_name: "Attorney Free", profile_type: "free", searchable: "0", search_membership_permissions: "" },
     { subscription_id: "3", subscription_name: "Free", profile_type: "free", searchable: "1", search_membership_permissions: "visitor" },
@@ -75,7 +94,7 @@ const one = async (q: string, a: unknown[] = []) => (await pool.query(q, a)).row
 const denied = (status: number) => status === 401 || status === 403;
 async function work(times = 6) {
   for (let i = 0; i < times; i++) {
-    await pool.query("update jobs set run_at = now() where status in ('queued', 'delayed') and kind = 'move_read'");
+    await pool.query("update jobs set run_at = now() where status in ('queued', 'delayed') and kind in ('move_read', 'move_create')");
     await handle(new Request("http://localhost/functions/v1/api/worker", { method: "POST", headers: { "x-dela-worker": WORKER } }), deps);
   }
 }
@@ -106,6 +125,7 @@ Deno.test("setup", async () => {
   await pool.query("insert into staff_roles (person_id, role) values ($1, 'owner'), ($2, 'support')", [owner.id, support.id]);
   await pool.query("update move_state set status = 'idle', members = 0, pages = 0, problem = '' where id = 1");
   await pool.query("delete from move_plan_map where true"); await pool.query("delete from move_category_map where true"); await pool.query("delete from move_members where true");
+  await pool.query("delete from move_links where true"); await pool.query("update move_run set status = 'idle', only_ids = null where id = 1"); await pool.query("update move_examples set approved_at = null, approved_by = null, given = false where true");
 });
 
 Deno.test("what is kept of one member: the listed fields, links decoded, and never a password, a token or a card", () => {
@@ -205,6 +225,112 @@ Deno.test("the plan map is the owner's; a plan that is not on the new site is re
   const again = (await call("GET", "/admin/move", owner.token)).body;
   assertEquals(again.categories.unmatched, [], "the hand-set category is kept");
   assertEquals(again.old_plans.find((p: any) => p.plan_id === 5).new_plan, 5, "and so are the plan choices");
+});
+
+Deno.test("step 90b: what is sent for one member, and what never is", () => {
+  const form = moveForm({ email: " m12@old.example ", new_plan: 5, active: 3, profession_id: 40, services: [501, 502], photo: "https://www.old.example/pictures/p12.png",
+    rec: { first_name: "Ana", last_name: "Alvarez", listing_type: "Company", linkedin: "https://www.linkedin.com/in/ana", website: "javascript:alert(1)", about_me: "<p>About</p>", signup_date: "20230803132502", last_login: "2026-09-16T12:52:17+00:00", experience: "2002", verified: "1", search_description: "x".repeat(300) } });
+  assertEquals([form.email, form.subscription_id, form.active, form.listing_type, form.profession_id, form.services], ["m12@old.example", "5", "3", "Company", "40", "501,502"]);
+  assertEquals([form.signup_date, form.last_login, form.experience, form.verified], ["20230803132502", "20260916125217", "2002", "1"], "dates go in the website's own form");
+  assertEquals([form.linkedin, form.website, form.search_description.length], ["https://www.linkedin.com/in/ana", undefined, 170], "a link that is not a web address is left out");
+  assertEquals([form.profile_photo, form.auto_image_import], ["https://www.old.example/pictures/p12.png", "1"], "the website copies the picture itself");
+  assert(!("password" in form) && !("send_email_notifications" in form), "the form itself never carries a password or asks for the welcome email");
+  assertEquals(moveForm({ email: "a@b.example", new_plan: 3, active: 99, rec: {} }).active, "2", "an unknown status moves as active");
+});
+
+Deno.test("step 90b: the examples are the owner's to approve; only an approved one can be given", async () => {
+  assert(denied((await call("GET", "/admin/move/examples", support.token)).status));
+  const ex = (await call("GET", "/admin/move/examples", owner.token)).body.examples;
+  assertEquals(ex.map((e: any) => [e.key, e.approved, e.given]), [["client_intake", false, false], ["conflict_check", false, false], ["monthly_billing", false, false]]);
+  assert(ex.every((e: any) => e.body.steps.length >= 6 && e.body.steps.every((st: any) => st.basis === "proposed") && e.body.steps.some((st: any) => st.attorney_decides)), "each example has its steps marked as suggestions and an attorney decision");
+  assertEquals((await call("POST", "/admin/move/example/give", owner.token, { key: "client_intake" })).body.reason, "example_not_approved");
+  assert(denied((await call("POST", "/admin/move/example/approve", support.token, { key: "client_intake" })).status));
+  assertEquals((await call("POST", "/admin/move/example/approve", owner.token, { key: "client_intake" })).body.ok, true);
+  assertEquals((await call("POST", "/admin/move/example/give", owner.token, { key: "client_intake" })).body.ok, true);
+  assertEquals((await call("GET", "/admin/move/examples", owner.token)).body.examples.filter((e: any) => e.given).map((e: any) => e.key), ["client_intake"]);
+});
+
+Deno.test("step 90b: try with three members: made, linked, an example for each attorney, and nothing asked of the old site", async () => {
+  assert(denied((await call("POST", "/admin/move/start", support.token, { ids: [1012] })).status));
+  assertEquals((await call("POST", "/admin/move/start", owner.token, { ids: [1012, 1013, 1014, 1015] })).body.reason, "three_at_most");
+  assertEquals((await call("POST", "/admin/move/start", owner.token, { ids: [1012, 1007] })).body.reason, "not_movable", "a member with no email cannot be tried");
+  calls.length = 0;
+  const st = (await call("POST", "/admin/move/start", owner.token, { ids: [1012, 1151, 1009] })).body;
+  assertEquals([st.ok, st.members], [true, 3], JSON.stringify(st));
+  await work(2);
+  const v = (await call("GET", "/admin/move/run", owner.token)).body;
+  assertEquals([v.run.status, v.created, v.linked, v.failed, v.examples_given], ["done", 2, 1, 0, 2], JSON.stringify(v));
+  assertEquals(calls.filter((c) => c.host === "old.bd.test").length, 0, "the move never calls the old site");
+  assertEquals(made.map((f) => f.email).sort(), ["m12@old.example", "m151@old.example"]);
+  const a = made.find((f) => f.email === "m12@old.example")!, fr = made.find((f) => f.email === "m151@old.example")!;
+  assertEquals([a.subscription_id, a.first_name, a.linkedin, a.signup_date, a.active], ["5", "First12", "https://www.linkedin.com/in/person12", "20230803132502", "2"]);
+  assertEquals([fr.subscription_id, fr.profession_id, fr.services.split(",").sort().join(",")], ["3", "40", "501,502,503"], "categories go over by the map, with this site's own numbers");
+  assert(made.every((f) => f.password.length >= 30 && !("send_email_notifications" in f)), "a long throwaway password, and no welcome email is asked for");
+  const stored = JSON.stringify((await pool.query("select * from move_links")).rows) + JSON.stringify((await pool.query("select payload, last_error from jobs where kind = 'move_create'")).rows);
+  assert(made.every((f) => !stored.includes(f.password)), "the password is kept nowhere");
+  const links = Object.fromEntries((await pool.query("select old_id, new_id, how from move_links")).rows.map((r: any) => [r.old_id, [Number(r.new_id), r.how]]));
+  assertEquals([links["1012"], links["1151"], links["1009"]], [[NEW0 + 1, "created"], [NEW0 + 2, "created"], [686, "linked"]], JSON.stringify(links));
+  // The attorney's workspace exists before their first login, with the example as a draft in it
+  const pe = await one("select pe.id, sp.org_id, sp.plan_code, sp.plan_source from people pe join side_profiles sp on sp.person_id = pe.id and sp.side = 'attorney' where pe.bd_member_id = $1", [NEW0 + 1]);
+  assertEquals([pe.plan_code, pe.plan_source], ["att_free", "bd"]);
+  const doc = await one("select p.id, p.title, p.status, p.source_ref, p.approved_version, (select v.body from playbook_versions v where v.playbook_id = p.id and v.version = p.current_version) body from playbooks p where p.org_id = $1", [pe.org_id]);
+  assertEquals([doc.title, doc.status, doc.source_ref, doc.approved_version], ["New client intake", "draft", "lawfecta_example", null], "one example, a draft, never approved for them");
+  assert(doc.body.steps.length === 7 && doc.body.steps.every((x: any) => x.basis === "proposed"), "every step is DELA's suggestion until the attorney confirms it");
+  assertEquals((await one("select count(*)::int n from people where bd_member_id = $1", [NEW0 + 2])).n, 0, "a freelancer gets no workspace made ahead and no example");
+  // The attorney's own page says what the document is
+  const token = "ds_test_" + crypto.randomUUID();
+  await pool.query("insert into access_list (bd_member_id, channel) values ($1, 'access')", [NEW0 + 1]);
+  await pool.query("insert into sessions (token_hash, person_id, side, auth_version, expires_at) select $1, id, 'attorney', auth_version, now() + interval '1 hour' from people where id = $2", [await sessionHash(token), pe.id]);
+  const got = (await call("GET", "/playbooks/get?id=" + doc.id, token)).body;
+  assertEquals([got.ok, got.example], [true, true], JSON.stringify(got).slice(0, 200));
+});
+
+Deno.test("step 90b: a website that refuses stops the move with the reason; a busy one is tried again; a failed member can be tried again", async () => {
+  newSite = "forbidden";
+  await call("POST", "/admin/move/start", owner.token, { ids: [1013] });
+  await work(2);
+  let v = (await call("GET", "/admin/move/run", owner.token)).body;
+  assertEquals([v.run.status, v.failed, v.failures[0].old_id], ["paused", 1, 1013], JSON.stringify(v.run));
+  assert(v.failures[0].problem.includes("may not create members"), v.failures[0].problem);
+  newSite = "busy";
+  assertEquals((await call("POST", "/admin/move/pause", owner.token, { on: false })).body.ok, true);
+  await work(1);
+  v = (await call("GET", "/admin/move/run", owner.token)).body;
+  assertEquals([v.run.status, v.failed], ["running", 1], "slow down is not a failure of the member");
+  newSite = "ok";
+  await work(2);
+  v = (await call("GET", "/admin/move/run", owner.token)).body;
+  assertEquals([v.run.status, v.created, v.failed], ["done", 3, 0], JSON.stringify(v));
+});
+
+Deno.test("step 90b: move everyone: the typed count, a pause, nobody twice, and only those the preview says move", async () => {
+  const before = (await call("GET", "/admin/move/run", owner.token)).body;
+  assertEquals(before.todo, 193, "197 would move or are already here; four are done");
+  assertEquals((await call("POST", "/admin/move/start", owner.token, { confirm: 5 })).body.reason, "count_changed", "a count that is not the page's count starts nothing");
+  const n0 = made.length;
+  assertEquals((await call("POST", "/admin/move/start", owner.token, { confirm: 193 })).body.ok, true);
+  assertEquals((await call("POST", "/admin/move/start", owner.token, { confirm: 193 })).body.duplicate, true, "a second click starts nothing new");
+  await work(1);
+  assertEquals(made.length - n0, 15, "fifteen members a turn");
+  assertEquals((await call("POST", "/admin/move/pause", owner.token, { on: true })).body.ok, true);
+  await work(3);
+  assertEquals(made.length - n0, 15, "paused: nothing more is made");
+  assertEquals((await call("POST", "/admin/move/pause", owner.token, { on: false })).body.ok, true);
+  await work(20);
+  const v = (await call("GET", "/admin/move/run", owner.token)).body;
+  assertEquals([v.run.status, v.todo, v.created, v.linked, v.failed], ["done", 0, 196, 1, 0], JSON.stringify(v));
+  const emails = made.map((f) => f.email.toLowerCase());
+  assertEquals(new Set(emails).size, emails.length, "nobody was made twice");
+  assertEquals(emails.filter((e) => e === "dup@example.com").length, 1, "of two members with one email, one was made");
+  assert(!emails.includes("") && !emails.includes("not-an-email") && !emails.includes("already@new.example"), "no member without an email, and nobody who was already here");
+  assert(made.every((f) => f.subscription_id === "5" || f.subscription_id === "3"), "only the plans the owner chose; nobody from a plan set to \"Do not move\" or left without a choice");
+  assertEquals(made.filter((f) => f.active === "3").length, 1, "a canceled member moves as canceled");
+  assertEquals(v.examples_given, 147, "all 146 attorneys who were made have the example, and so has the one attorney who was only linked and had no documents");
+  assertEquals((await call("POST", "/admin/move/start", owner.token, { confirm: 0 })).body.reason, "nothing_to_move");
+  // The list for the "set your password" email
+  const list = (await call("GET", "/admin/move/moved", owner.token)).body.rows;
+  assertEquals([list.length, list.filter((r: any) => r.how === "linked").length, list.filter((r: any) => r.logged_in).length], [197, 1, 1], "everyone moved is on the list; one has logged in since (the test's own session)");
+  assert(!JSON.stringify(list).includes("password"), "the list holds no password");
 });
 
 Deno.test("teardown", async () => {

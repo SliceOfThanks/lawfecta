@@ -16026,6 +16026,9 @@
       h("button", { class: "ghost small" + (s.panel === "delegate" ? " on" : ""), type: "button", id: "dp-open-delegate", "aria-expanded": s.panel === "delegate" ? "true" : "false", onclick: function () { s.panel = s.panel === "delegate" ? "" : "delegate"; dpRedraw(); } }, "Delegate"),
       h("button", { class: "ghost small" + (s.panel === "details" ? " on" : ""), type: "button", id: "dp-open-details", "aria-expanded": s.panel === "details" ? "true" : "false", onclick: function () { s.panel = s.panel === "details" ? "" : "details"; dpRedraw(); } }, "Details")));
     var pn2 = preparedNote(); if (pn2) libEl.appendChild(pn2);
+    // Step 90b: an example Lawfecta put in the Library of a member who moved from the old website
+    if (lib.pb.example && P.status !== "approved") libEl.appendChild(h("div", { class: "notice", role: "note", id: "doc-example" }, h("b", { text: "Example from Lawfecta. " }),
+      h("span", { text: "Change it to fit your firm, or delete it. Each step is marked \"DELA's suggestion\" until you confirm it, and nothing here is in use until you approve it." })));
     libEl.appendChild(h("div", { id: "dp-stale" }));
     if (s.restored && !s.stale) libEl.appendChild(h("p", { class: "notice", role: "status", id: "dp-restored" }, "Your changes from " + D.date(s.restored) + ", " + dpTime(s.restored) + " are back in the document. They become a version when you click Save or leave the document. ",
       h("button", { class: "linkish", type: "button", onclick: function () { api.post("/playbooks/working/discard", { id: P.id }).then(function () { lib.doc = null; lib.dp = null; openPlaybook(P.id, "read"); }).catch(pbFail); } }, "Drop them")));

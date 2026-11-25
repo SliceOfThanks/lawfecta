@@ -56,6 +56,19 @@ The new site is where DELA runs. Members of the old site should not have to sign
 5. Does a reading wipe the owner's choices? **No.** Plan choices and categories set by hand stay; categories matched by name are matched again.
 6. Who may open the page? **The owner only.**
 
+## Release 90b: the questions Claude answered itself (acceleration mode, 2026-11-25)
+Stacey: "Build 90b now", before the first real reading of the old site.
+1. Which way are members made, before the password test is done? **Through the website's API, with a long random password that is not kept or logged.** That path works whatever the test says. If the test shows that the website's own import keeps passwords, the import path is added then; members already made this way are simply linked.
+2. How fast? **Fifteen members a turn, a turn about every 20 seconds**, which stays under the website's 100 calls a minute. 2,596 members take a little over an hour.
+3. What makes sure nobody is made twice? **Three things:** the pair of member numbers DELA keeps; a question to the website before every create ("is this email there?"); and the count typed on the page, which must equal the number waiting.
+4. What if the website refuses? **A refusal that would repeat for everyone (the key may not create members) pauses the move at once**, with the reason. A refusal for one member lists that member with the reason; they can be tried again. "Slow down" is not a failure: the turn is tried again.
+5. Which example does an attorney get? **The one example the owner chose, after approving it.** The plan was a table from practice area to example, but the old site's attorney accounts carry no practice area (their category is empty), so there is nothing to choose by. One example for all of them is what the data allows.
+6. Does the example count toward the documents a plan may save? **Yes, as one draft like any other.** The plan said it would not count; making an exception would have meant changing how every Library counts its documents, for one draft the attorney can delete. Said here so it is not a surprise.
+7. Who gets an example? **Every moved member whose new plan is an attorney plan**, and an attorney who was already on this site only if their Library is empty. Freelancers, agencies and claim listings get none.
+8. What does the attorney see? **A draft, never approved for them**, with a notice "Example from Lawfecta. Change it to fit your firm, or delete it." and every step tagged "DELA's suggestion".
+9. What does "Try with 3 members first" need? **Their old member numbers**, from the first column of the preview's file. A member who would not move is refused with the reason.
+10. The list for the "set your password" email? **A file with each moved member's email, first name, new plan and the login page**, and whether they have logged in since. DELA sends nothing.
+
 ## Success looks like
 Owner login, switch on, key set:
 - "Read the old site" ends with "Read 2,596 members".
