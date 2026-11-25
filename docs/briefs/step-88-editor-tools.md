@@ -37,7 +37,7 @@ Text stays plain text with marks, as since step 80b. Nothing in the database cha
 
 ## Settings and switches it uses
 - New switch document_editor_tools: off, then the Access list, then everyone.
-- 88b: documents.table.max_cols 8 and documents.table.max_rows 40 (proposed).
+- 88b: a table takes at most 8 columns and 40 rows, a technical cap fixed in the code.
 - Existing: document_editor_v2, document_images and the picture settings.
 - No business number.
 
@@ -54,6 +54,21 @@ Text stays plain text with marks, as since step 80b. Nothing in the database cha
 4. Do lists take alignment? **No.** A list line stays at the left, as in the exports.
 5. What does "Clear" do? **It takes bold, italic, underline, a link, a heading and alignment off the chosen words**, and leaves the words.
 6. What does the freelancer on a gig see? **The plain words**, as before.
+
+## Release 88b: the questions Claude answered itself (acceleration mode, 2026-11-24)
+1. How large may a table be? **Up to 8 columns and 40 rows.** It is a technical cap so a table still fits a page in Word; it is fixed in the code (lib/documents/marks.ts), not a business number, and can become a setting if firms ask for more.
+2. Is the first row special? **Yes, it is the header row**, shaded on the page and in the exports.
+3. What may a cell hold? **Words with bold, italic, underline and links.** No list, picture or table inside a cell.
+4. Where do the table's own buttons sit? **In the bar, as a third row that shows while the cursor is in a table**, so nothing has to be drawn inside the text.
+5. What if someone types a bar character in a cell? **It is kept as a slash**, so it cannot break the table.
+
+## Release 88c: the questions Claude answered itself (acceleration mode, 2026-11-24)
+1. Where does a new picture or video go? **After the line the cursor stands in.** It can be moved up, moved down and removed with three small buttons on it.
+2. What does a video look like before it plays? **A card with its title, the site's name and a "Play" button.** The site's player loads only after the click.
+3. Which address forms are taken? **A watch, short, share or embed link of YouTube; a video page of Vimeo; a share link of Loom.** A channel, a playlist or any other site is refused with a line that names the three sites.
+4. What do Word, PDF and a freelancer on a gig get for a video? **Its title and its link.**
+5. Does a Policy take pictures now? **No**, as before. It takes video and tables.
+6. Does a picture inside a text count toward the limit of pictures on a step? **It is counted for its own text** (up to the same number), and it blocks export and approval until its check is confirmed, like every picture.
 
 ## Success looks like
 Attorney login, switch on:
