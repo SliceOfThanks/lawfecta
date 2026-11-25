@@ -251,6 +251,9 @@ How to read the "State" column:
 | 84-3 | An event shows "Open the event page" when its organizer gave a link | An event on the website that has a link of its own | Not yet | The test event (post 69) carries its link in DELA's copy since 2026-11-24; the button has not been seen on screen by a person |
 | 85-1 | Blog cards show the article pictures above the headings, and they look right at the card's size | Stacey looks at the Blog | Not yet | 5 of 5 articles have a picture in DELA's copy |
 | 86-1 | The new editor's bold, italic, list and link work for a person on the live site | Check 32 run again on "Send the welcome packet 2" | Seen 2026-11-24 (ChatGPT, check 32, second run) | Bold, italic, the list and the link all worked and were kept after a reload; one fault, fixed in step 87 |
+| 80c-1 | A playbook still in the older format moves with "Move to the current format" and opens as a page to type on | A playbook in the older format on Live (none exists today) | Not yet | Covered by tests only; all 24 playbooks on Live were already moved by DELA |
+| 80c-2 | Restoring an older-format version keeps the document on the new page | Versions, "Restore" on an older-format version | Not yet | Covered by tests only; check 36 does not restore anything |
+| 80c-3 | Decision points, links and the court rule button work for a person | Check 36 | Not yet | |
 | 87-1 | A word that was just given a link stays when you press Enter or type straight after | Add a link to a word, then type without clicking first | Not yet | Covered by a browser test; not seen by a person on the live site |
 
 ## How this list is kept
