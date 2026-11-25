@@ -526,7 +526,7 @@ async function makeMember(bd, side, plan) {
         const tm = (js) => sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Timing"); ` + js);
         const pickT = (word) => sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Timing"); el.focus(); const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { const i = n.nodeValue.indexOf(a[0]); if (i >= 0) { const g = document.createRange(); g.setStart(n, i); g.setEnd(n, i + a[0].length); const sl = window.getSelection(); sl.removeAllRanges(); sl.addRange(g); return true; } } return false;`, [word]);
         await dela(p).getByRole("textbox", { name: "Timing", exact: true }).fill("Court hours");
-        ok((await bar88.getByRole("button").allInnerTexts()).join("|") === "B|I|U|• List|1. List|Link|Unlink|||||Clear|Undo|Redo" && (await bar88.locator("select.dp-fmt-sel option").allInnerTexts()).join("|") === "Text|Heading|Small heading", "with the wider tools on, the bar has a style list, underline, a numbered list, four alignments, Clear, Undo and Redo: " + (await bar88.getByRole("button").allInnerTexts()).join("|"));
+        ok((await bar88.getByRole("button").allInnerTexts()).join("|") === "B|I|U|• List|1. List|Link|Unlink|||||Clear|Undo|Redo|Table" && (await bar88.locator("select.dp-fmt-sel option").allInnerTexts()).join("|") === "Text|Heading|Small heading", "with the wider tools on, the bar has a style list, underline, a numbered list, four alignments, Clear, Undo and Redo: " + (await bar88.getByRole("button").allInnerTexts()).join("|"));
         await bar88.locator("select.dp-fmt-sel").selectOption("h3");
         ok(await tm(`return !!el.querySelector("h3") && el.querySelector("h3").textContent === "Court hours"`), "\"Heading\" in the style list makes the line a heading where it stands");
         await tm(`el.focus(); const g = document.createRange(); g.selectNodeContents(el); g.collapse(false); const sl = window.getSelection(); sl.removeAllRanges(); sl.addRange(g);`);
@@ -546,6 +546,29 @@ async function makeMember(bd, side, plan) {
         const kept88 = (await sql("select body->>'timing' x from playbook_working where playbook_id = '" + before.id + "'"))[0].x;
         ok(kept88 === "## Court hours\n1. first\n2. second\n{center} __Centered__ line", "what is kept is plain text with the new marks: " + JSON.stringify(kept88));
         ok(await tm(`const hd = el.querySelector("h3.dp-sub1"), ol = el.querySelector("ol.dp-ol"), dv = el.querySelector("div.dp-al"); return !!hd && hd.textContent === "Court hours" && !!ol && ol.children.length === 2 && !!dv && dv.style.textAlign === "center" && (dv.querySelector("u") || {}).textContent === "Centered" && !el.textContent.includes("##") && !el.textContent.includes("{center}")`), "the text shows a heading, a numbered list and a centered line with an underlined word, and none of the marks");
+        // ---------- Step 88b: tables ----------
+        await tm(`el.focus(); const g = document.createRange(); g.selectNodeContents(el); g.collapse(false); const sl = window.getSelection(); sl.removeAllRanges(); sl.addRange(g);`);
+        await bar88.getByRole("button", { name: "Add a table" }).click();
+        await bar88.getByLabel("Rows").fill("99");
+        await bar88.getByRole("button", { name: "Add", exact: true }).click();
+        ok((await bar88.locator(".dp-fmt-note").last().innerText()).startsWith("A table takes 1 to 40 rows and 1 to 8 columns") && await tm(`return !el.querySelector("table")`), "a table that is too large is refused, with a line that says the limits");
+        await bar88.getByLabel("Rows").fill("2"); await bar88.getByLabel("Columns").fill("2");
+        await bar88.getByLabel("Columns").press("Enter");
+        ok(await tm(`const t = el.querySelector("table.dp-tbl"); return !!t && t.rows.length === 2 && t.rows[0].cells.length === 2 && t.rows[0].cells[0].tagName === "TH" && t.rows[1].cells[0].tagName === "TD"`), "\"Table\" puts a table of the asked size into the text, with a header row");
+        await p.keyboard.type("Court"); await p.keyboard.press("Tab"); await p.keyboard.type("Fee"); await p.keyboard.press("Tab"); await p.keyboard.type("Small claims"); await p.keyboard.press("Tab"); await p.keyboard.type("75 | cash");
+        ok((await bar88.locator(".dp-fmt-trow").isVisible()) && (await bar88.locator(".dp-fmt-trow button").allInnerTexts()).join("|") === "+ Row|+ Column|− Row|− Column|Remove table", "with the cursor in a table, the bar shows the table's own tools");
+        await bar88.getByRole("button", { name: "Add a row below" }).click();
+        await p.keyboard.type("Second");
+        await bar88.getByRole("button", { name: "Add a column to the right" }).click();
+        ok(await tm(`const t = el.querySelector("table.dp-tbl"); return t.rows.length === 3 && [...t.rows].every((r) => r.cells.length === 3)`), "a row and a column are added where the cursor stands");
+        await bar88.getByRole("button", { name: "Remove this column" }).click();
+        await p.screenshot({ path: path.join(SHOTS, "88b-table.png") });
+        await dela(p).getByRole("textbox", { name: "Title", exact: true }).click();
+        await p.waitForTimeout(200);
+        await saved(p);
+        const kept88b = (await sql("select body->>'timing' x from playbook_working where playbook_id = '" + before.id + "'"))[0].x;
+        ok(kept88b === "## Court hours\n1. first\n2. second\n{center} __Centered__ line\n| Court | Fee |\n| Small claims | 75 / cash |\n|  | Second |", "a table is kept as lines of cells, and a bar typed in a cell cannot break it: " + JSON.stringify(kept88b));
+        ok(await tm(`const t = el.querySelector("table.dp-tbl"); return !!t && [...t.rows].map((r) => [...r.cells].map((c) => c.textContent).join("~")).join("#") === "Court~Fee#Small claims~75 / cash#~Second" && !el.textContent.includes("|")`), "the table shows again as a table after the text is left");
         // Put Timing back to plain words, so the rest of the run reads as before
         await dela(p).getByRole("textbox", { name: "Timing", exact: true }).fill("Within 1 business day of the request.");
         await dela(p).getByRole("textbox", { name: "Title", exact: true }).click();

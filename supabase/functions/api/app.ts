@@ -34,7 +34,7 @@ import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
 import { buildBody, feeLines, moneySummary, readTasks, SUBCONTRACTING_NOTE, CHECK_SYSTEM, checkPrompt, scoreFindings, type Criterion } from "./lib/engagements/agreement.ts";
 import { blockedKinds, blockedMessage, BLOCKED_WORDS, FILE_BLOCKED_MESSAGE, type Blocked } from "./lib/confidential/rules.ts";
-import { stripMarks } from "./lib/documents/marks.ts";
+import { stripMarks, TABLE_MAX_COLS, TABLE_MAX_ROWS } from "./lib/documents/marks.ts";
 import { blocks as docBlocks, looksLikeJudgment, attorneyRoles, carryImages, imageIds, imageSize, stepsTakeImages, withoutImages, type ExportImages, type ImageFacts, changeSummary, checkDoc, classifyLegacy, codeFix, DEFAULT_ROLES, docFileName, docText, docToCsv, docToDocx, docToHtml, docToMarkdown, DOC_TYPES, eachText, fromLegacy, gigPart, gigPrereqs, type GigPart, guessKind, guessLifecycle, isDoc, LIFECYCLE, looksHighRisk, namesToRoles, normalizeDoc, scrubClientData, scrubCredentials, SOLO_ROLES, STARTERS, SYSTEM_GROUPS, TYPE_INFO, KPI_EXAMPLES, type CheckContext, type DocBody, type DocMeta, type DocType, type RoleKind } from "./lib/documents/model.ts";
 import { fillPrompt, NEWCOMER_FILL_SYSTEM, NEWCOMER_SYSTEM, readNewcomer, type NewcomerFinding } from "./lib/documents/newcomer.ts";
 import { convertSystem, DOC_CHAT_SYSTEM, draftPrompt, draftSystem, FIX_SYSTEM, readDocAnswer, SPLIT_SYSTEM, TYPE_CHECK_SYSTEM, type FirmFacts, type ProcessAnswers } from "./lib/documents/ai.ts";
@@ -1164,6 +1164,7 @@ async function pbGet(ctx: Ctx) {
     r.editor_v2 = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "document_editor_v2", p_person: s.person_id }).catch(() => false) === true;
     // Step 88: the wider set of tools in the bar over a text (headings, numbered lists, underline, alignment)
     r.editor_tools = r.editor_v2 && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "document_editor_tools", p_person: s.person_id }).catch(() => false) === true;
+    r.table_max = { cols: TABLE_MAX_COLS, rows: TABLE_MAX_ROWS };
     if (r.editor_v2 && dela_rank(r.role) >= 3) {
       const w = await rpc<Record<string, any> | null>(ctx, "dela_pb_working_get", { p_person: s.person_id, p_id: id }).catch(() => null);
       if (w && isDoc(w.body)) r.working = { base_version: w.base_version, updated_at: w.updated_at, stale: !!w.stale, body: normalizeDoc(w.body) };

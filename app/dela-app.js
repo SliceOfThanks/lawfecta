@@ -15160,7 +15160,7 @@
     }
     return false;
   }
-  function fmtPlain(text) { return String(text || "").split("\n").map(function (l) { return fmtSegs(fmtLine(l).t).map(function (x) { return x.t; }).join(""); }).join("\n"); }
+  function fmtPlain(text) { return String(text || "").split("\n").map(function (l) { var row = fmtRow(l); return fmtSegs(row ? row.filter(Boolean).join(", ") : fmtLine(l).t).map(function (x) { return x.t; }).join(""); }).join("\n"); }
   // Step 88: what a line is, from the mark it starts with (the same rules as lib/documents/marks.ts on the server)
   function fmtLine(raw) {
     var al = "", m = /^\{(center|right|justify)\} /.exec(raw);
@@ -15172,6 +15172,13 @@
     if (n) return { k: "ol", al: "", t: raw.slice(n[0].length) };
     return { k: "p", al: al, t: raw };
   }
+  // Step 88b: a table row is a line of cells between bars; the first row of a run of rows is the header
+  function fmtRow(line) {
+    var t = String(line || "").trim();
+    if (t.length < 3 || t.charAt(0) !== "|" || t.charAt(t.length - 1) !== "|") return null;
+    return t.slice(1, -1).split("|").map(function (c) { return c.trim(); });
+  }
+  function fmtTableMax() { var m = (lib.pb && lib.pb.table_max) || {}; return { cols: m.cols || 8, rows: m.rows || 40 }; }
   function fmtClosesUnder(line, from) {
     for (var k = from; k < line.length - 1; k++) {
       if (line[k] === "\\" && line[k + 1] === "_") { k++; continue; }
@@ -15219,7 +15226,17 @@
         host.appendChild(node);
       });
     };
+    var table = null;
     lines.forEach(function (line0) {
+      var cells = multi ? fmtRow(line0) : null;
+      if (cells) {
+        if (!table) { table = h("tbody"); el.appendChild(h("table", { class: "dp-tbl" }, table)); }
+        var head = !table.children.length;
+        table.appendChild(h("tr", null, cells.map(function (c) { var td = h(head ? "th" : "td"); inline(td, c); if (!c) td.appendChild(h("br")); return td; })));
+        list = null; needBr = false;
+        return;
+      }
+      table = null;
       var L = multi ? fmtLine(line0) : { k: "p", al: "", t: line0 };
       if (L.k === "ul" || L.k === "ol") {
         if (!list || listK !== L.k) { list = h(L.k, { class: L.k === "ul" ? "dp-ul" : "dp-ol" }); listK = L.k; el.appendChild(list); }
@@ -15256,6 +15273,15 @@
           var no = 0;
           [].slice.call(n.children).forEach(function (li) { var t = walk(li).split("\n").join(" ").trim(); if (t) out += (!out || out.slice(-1) === "\n" ? "" : "\n") + (tag === "OL" ? (++no) + ". " : "- ") + t; });
           out += "\n"; return;
+        }
+        if (tag === "TABLE") {
+          var mx = fmtTableMax(), rowsOut = [];
+          [].slice.call(n.querySelectorAll("tr")).slice(0, mx.rows).forEach(function (tr) {
+            var cs = [].slice.call(tr.children).filter(function (c) { return c.tagName === "TD" || c.tagName === "TH"; }).slice(0, mx.cols);
+            if (cs.length) rowsOut.push("| " + cs.map(function (c) { return walk(c).split("\n").join(" ").split("|").join("/").trim(); }).join(" | ") + " |");
+          });
+          if (rowsOut.length) out += (!out || out.slice(-1) === "\n" ? "" : "\n") + rowsOut.join("\n") + "\n";
+          return;
         }
         inner = walk(n);
         var al = fmtAlignOf(n), brk = out && out.slice(-1) !== "\n" ? "\n" : "";
@@ -15330,7 +15356,7 @@
     var openLink = function () {
       var s = fmtSel();
       fmtRange = s && s.rangeCount && el.contains(s.getRangeAt(0).commonAncestorContainer) ? s.getRangeAt(0).cloneRange() : null;
-      main.style.display = "none"; if (row2) row2.style.display = "none"; link.style.display = ""; note.textContent = ""; url.value = ""; fmtPlace(); url.focus();
+      main.style.display = "none"; if (row2) row2.style.display = "none"; if (trow) trow.style.display = "none"; link.style.display = ""; note.textContent = ""; url.value = ""; fmtPlace(); url.focus();
     };
     var closeLink = function (back) { link.style.display = "none"; main.style.display = ""; if (row2) row2.style.display = ""; fmtPlace(); if (back) el.focus(); };
     var addLink = function () {
@@ -15351,7 +15377,7 @@
     var ub = h("button", { class: "dp-fmt-b", type: "button", "aria-label": "Remove the link", title: "Remove the link" }, "Unlink");
     ub.addEventListener("mousedown", function (e) { e.preventDefault(); });
     ub.addEventListener("click", function () { doIt("unlink"); });
-    var tools = fmtTools(), row2 = null, styleSel = null;
+    var tools = fmtTools(), row2 = null, styleSel = null, tform = null, trow = null, fmtCellAt = null;
     if (tools && multi) {
       styleSel = h("select", { class: "dp-fmt-sel", "aria-label": "Text style", title: "Text style" }, [["div", "Text"], ["h3", "Heading"], ["h4", "Small heading"]].map(function (o) { return h("option", { value: o[0], text: o[1] }); }));
       var keep = function () { var s0 = fmtSel(); fmtRange = s0 && s0.rangeCount && el.contains(s0.getRangeAt(0).commonAncestorContainer) ? s0.getRangeAt(0).cloneRange() : fmtRange; };
@@ -15383,13 +15409,90 @@
       clr.addEventListener("mousedown", function (e) { e.preventDefault(); });
       clr.addEventListener("click", function () { el.focus(); try { document.execCommand("removeFormat", false, null); document.execCommand("unlink", false, null); document.execCommand("formatBlock", false, "<div>"); document.execCommand("justifyLeft", false, null); } catch (e) { /* the browser refused */ } sync(); });
       row2.appendChild(clr); row2.appendChild(btn("Undo", "Undo", "undo")); row2.appendChild(btn("Redo", "Redo", "redo"));
+      // Step 88b: tables
+      var mxT = fmtTableMax();
+      var cellAt = function () { var s5 = fmtSel(), nd = s5 && s5.rangeCount ? s5.getRangeAt(0).startContainer : null; while (nd && nd !== el) { if (nd.nodeType === 1 && (nd.tagName === "TD" || nd.tagName === "TH")) return nd; nd = nd.parentNode; } return null; };
+      var caretIn = function (cell) { try { var g = document.createRange(); g.selectNodeContents(cell); g.collapse(true); var s6 = fmtSel(); s6.removeAllRanges(); s6.addRange(g); } catch (e) { /* the cursor stays */ } };
+      var newCell = function (tagName) { var c = document.createElement(tagName); c.appendChild(document.createElement("br")); return c; };
+      tform = h("div", { class: "dp-fmt-row", style: "display:none" });
+      var tr0 = h("input", { type: "number", class: "dp-fmt-num", min: "1", max: String(mxT.rows), value: "3", "aria-label": "Rows" }), tc0 = h("input", { type: "number", class: "dp-fmt-num", min: "1", max: String(mxT.cols), value: "3", "aria-label": "Columns" });
+      var tnote = h("span", { class: "small dp-fmt-note", role: "status" });
+      var closeT = function (back) { tform.style.display = "none"; main.style.display = ""; row2.style.display = ""; fmtPlace(); if (back) el.focus(); };
+      var tb = h("button", { class: "dp-fmt-b", type: "button", "aria-label": "Add a table", title: "Add a table" }, "Table");
+      tb.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      tb.addEventListener("click", function () {
+        var s7 = fmtSel();
+        fmtRange = s7 && s7.rangeCount && el.contains(s7.getRangeAt(0).commonAncestorContainer) ? s7.getRangeAt(0).cloneRange() : null;
+        main.style.display = "none"; row2.style.display = "none"; if (trow) trow.style.display = "none"; tform.style.display = ""; tnote.textContent = ""; fmtPlace(); tr0.focus(); tr0.select();
+      });
+      var addT = function () {
+        var nr = parseInt(tr0.value, 10), nc = parseInt(tc0.value, 10);
+        if (!(nr >= 1 && nr <= mxT.rows) || !(nc >= 1 && nc <= mxT.cols)) { tnote.textContent = "A table takes 1 to " + mxT.rows + " rows and 1 to " + mxT.cols + " columns."; return; }
+        el.focus();
+        var s8 = fmtSel(); if (fmtRange && s8) { s8.removeAllRanges(); s8.addRange(fmtRange); }
+        // The table goes after the line the cursor stands in, never inside another table or a list
+        var s9 = fmtSel(), at = s9 && s9.rangeCount ? s9.getRangeAt(0).startContainer : null;
+        while (at && at !== el && at.parentNode !== el) at = at.parentNode;
+        var tbl = document.createElement("table"); tbl.className = "dp-tbl";
+        var body = document.createElement("tbody"); tbl.appendChild(body);
+        for (var r = 0; r < nr; r++) { var row = document.createElement("tr"); for (var c = 0; c < nc; c++) row.appendChild(newCell(r ? "td" : "th")); body.appendChild(row); }
+        var after = document.createElement("div"); after.appendChild(document.createElement("br"));
+        if (at && at !== el) { el.insertBefore(tbl, at.nextSibling); } else el.appendChild(tbl);
+        el.insertBefore(after, tbl.nextSibling);
+        caretIn(body.rows[0].cells[0]);
+        fmtRange = null; closeT(false); sync(); if (fmtBar && fmtBar.upd) fmtBar.upd();
+      };
+      var tadd = h("button", { class: "dp-fmt-b on", type: "button" }, "Add"), tcancel = h("button", { class: "dp-fmt-b", type: "button" }, "Cancel");
+      tadd.addEventListener("click", addT);
+      tcancel.addEventListener("click", function () { closeT(true); });
+      [tr0, tc0].forEach(function (x) { x.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addT(); } if (e.key === "Escape") { e.preventDefault(); closeT(true); } }); });
+      tform.appendChild(h("label", { class: "dp-fmt-lab" }, "Rows", tr0)); tform.appendChild(h("label", { class: "dp-fmt-lab" }, "Columns", tc0)); tform.appendChild(tadd); tform.appendChild(tcancel); tform.appendChild(tnote);
+      row2.appendChild(h("span", { class: "dp-fmt-gap", "aria-hidden": "true" })); row2.appendChild(tb);
+      // The tools for the table the cursor stands in
+      trow = h("div", { class: "dp-fmt-row dp-fmt-row2 dp-fmt-trow", style: "display:none" }, h("span", { class: "small muted", text: "Table:" }));
+      var tOp = function (label, name, fn) {
+        var b3 = h("button", { class: "dp-fmt-b", type: "button", "aria-label": name, title: name }, label);
+        b3.addEventListener("mousedown", function (e) { e.preventDefault(); });
+        b3.addEventListener("click", function () {
+          var cell = cellAt(); if (!cell) return;
+          var row = cell.parentNode, tb2 = row.parentNode, table = tb2.parentNode && tb2.parentNode.tagName === "TABLE" ? tb2.parentNode : tb2, idx = [].indexOf.call(row.children, cell), rows = [].slice.call(table.querySelectorAll("tr"));
+          fn({ cell: cell, row: row, body: row.parentNode, table: table, idx: idx, rows: rows });
+          sync(); fmtPlace(); if (fmtBar && fmtBar.upd) fmtBar.upd();
+        });
+        return b3;
+      };
+      trow.appendChild(tOp("+ Row", "Add a row below", function (x) {
+        if (x.rows.length >= mxT.rows) { D.toast(app, "A table takes up to " + mxT.rows + " rows.", true); return; }
+        var nr2 = document.createElement("tr"); for (var c2 = 0; c2 < x.row.children.length; c2++) nr2.appendChild(newCell("td"));
+        x.body.insertBefore(nr2, x.row.nextSibling); caretIn(nr2.cells[Math.min(x.idx, nr2.cells.length - 1)]);
+      }));
+      trow.appendChild(tOp("+ Column", "Add a column to the right", function (x) {
+        if (x.row.children.length >= mxT.cols) { D.toast(app, "A table takes up to " + mxT.cols + " columns.", true); return; }
+        x.rows.forEach(function (rw, k) { rw.insertBefore(newCell(k ? "td" : "th"), rw.children[x.idx] ? rw.children[x.idx].nextSibling : null); });
+        caretIn(x.row.children[x.idx + 1]);
+      }));
+      trow.appendChild(tOp("− Row", "Remove this row", function (x) {
+        if (x.rows.length <= 1) { x.table.parentNode.removeChild(x.table); return; }
+        var first = x.rows[0] === x.row, go = x.row.nextElementSibling || x.row.previousElementSibling;
+        x.body.removeChild(x.row);
+        // The first row is the header row: the row that moves up becomes it
+        if (first) { var top = x.table.querySelector("tr"); [].slice.call(top.children).forEach(function (c3) { if (c3.tagName === "TD") { var th = document.createElement("th"); while (c3.firstChild) th.appendChild(c3.firstChild); top.replaceChild(th, c3); } }); go = top; }
+        if (go) caretIn(go.children[Math.min(x.idx, go.children.length - 1)]);
+      }));
+      trow.appendChild(tOp("− Column", "Remove this column", function (x) {
+        if (x.row.children.length <= 1) { x.table.parentNode.removeChild(x.table); return; }
+        x.rows.forEach(function (rw) { if (rw.children[x.idx]) rw.removeChild(rw.children[x.idx]); });
+        caretIn(x.row.children[Math.max(x.idx - 1, 0)]);
+      }));
+      trow.appendChild(tOp("Remove table", "Remove this table", function (x) { x.table.parentNode.removeChild(x.table); el.focus(); }));
+      fmtCellAt = cellAt;
     }
     var add = h("button", { class: "dp-fmt-b on", type: "button" }, "Add"), cancel = h("button", { class: "dp-fmt-b", type: "button" }, "Cancel");
     add.addEventListener("click", addLink);
     cancel.addEventListener("click", function () { closeLink(true); });
     url.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addLink(); } if (e.key === "Escape") { e.preventDefault(); closeLink(true); } });
     link.appendChild(url); link.appendChild(add); link.appendChild(cancel); link.appendChild(note);
-    fmtBar = h("div", { class: "dp-fmt", role: "toolbar", "aria-label": "Formatting", id: "dp-fmt" }, main, row2, link);
+    fmtBar = h("div", { class: "dp-fmt", role: "toolbar", "aria-label": "Formatting", id: "dp-fmt" }, main, row2, trow, link, tform);
     fmtBar.openLink = openLink;
     // The style list follows the cursor: it names the kind of line the cursor stands in
     fmtBar.upd = function () {
@@ -15397,6 +15500,8 @@
       var s4 = fmtSel(), nd = s4 && s4.rangeCount ? s4.getRangeAt(0).startContainer : null, v = "div";
       while (nd && nd !== el) { var tg = nd.nodeType === 1 ? nd.tagName : ""; if (tg === "H1" || tg === "H2" || tg === "H3") { v = "h3"; break; } if (tg === "H4" || tg === "H5" || tg === "H6") { v = "h4"; break; } nd = nd.parentNode; }
       if (dwRoot().activeElement !== styleSel) styleSel.value = v;
+      // The table tools show while the cursor stands in a table
+      if (trow && tform && tform.style.display === "none" && link.style.display === "none") { var inT = !!(fmtCellAt && fmtCellAt()); if ((trow.style.display !== "none") !== inT) { trow.style.display = inT ? "" : "none"; fmtPlace(); } }
     };
     fmtBar.addEventListener("focusout", function () { setTimeout(function () { var a = dwRoot().activeElement; if (fmtBar && a !== el && !fmtBar.contains(a)) fmtHide(); }, 0); });
     app.appendChild(fmtBar);
@@ -15432,6 +15537,14 @@
     el.addEventListener("input", sync);
     el.addEventListener("keydown", function (e) {
       if (e.key === "Enter" && !multi) { e.preventDefault(); if (o.onEnter) o.onEnter(); else el.blur(); }
+      if (rich && e.key === "Tab" && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        var sT = fmtSel(), cT = sT && sT.rangeCount ? sT.getRangeAt(0).startContainer : null;
+        while (cT && cT !== el && !(cT.nodeType === 1 && (cT.tagName === "TD" || cT.tagName === "TH"))) cT = cT.parentNode;
+        if (cT && cT !== el) {
+          var all = [].slice.call(cT.closest("table").querySelectorAll("th,td")), nx = all[all.indexOf(cT) + (e.shiftKey ? -1 : 1)];
+          if (nx) { e.preventDefault(); var gT = document.createRange(); gT.selectNodeContents(nx); sT.removeAllRanges(); sT.addRange(gT); if (fmtBar && fmtBar.upd) fmtBar.upd(); }
+        }
+      }
       if (rich && (e.ctrlKey || e.metaKey) && !e.altKey && String(e.key).toLowerCase() === "k") { e.preventDefault(); bar(); if (fmtBar && fmtBar.openLink) fmtBar.openLink(); }
       if (o.onKey) o.onKey(e, el, read);
     });
