@@ -61,7 +61,7 @@ Log in as the test freelancer: go to https://www.lawfecta.co/login and ask me to
 
 5. Do: click "View event" on the card "DELA test event: Legal operations office hours".
    Expect: the event opens on the same page: a button "← Events" at the top left, the title, and three lines: "When" with "December 15, 2026, 12:00 PM to 1:00 PM", "Where" with "Online", "Organizer" with "Lawfecta". Then the event's text.
-   Expect: two buttons under the text: "Open the event page" (dark red) and "Add to my calendar". Under them, a grey line that starts "Open the event page" and says it opens in a new tab, outside Lawfecta.
+   Expect: two buttons under the text: "Open the event page" (dark red) and "Add to my calendar". Under them, a grey line that says "Open the event page" opens the event's page on the Lawfecta website in a new tab, and that "Add to my calendar" saves a small calendar file.
    Expect: NO email address and NO phone number in the text.
    Do: click "Add to my calendar". Do NOT click "Open the event page".
    Expect: a small dark message at the bottom of the page: "Calendar file saved. Open it to add the event to your calendar." The browser saves a file whose name ends in .ics.
@@ -77,7 +77,7 @@ Log in as the test attorney: go to https://www.lawfecta.co/login and ask me to l
 6. Go to: https://www.lawfecta.co/dela?tab=community
    Expect: "Events" is the first button in the white row under "Community" and it is the marked one, with "Blog" second.
    Expect: the card "DELA test event: Legal operations office hours" is listed, with "December 15, 2026, 12:00 PM to 1:00 PM" under its title.
-   Do: click the title "DELA test event: Legal operations office hours" (it is a link).
+   Do: click the title "DELA test event: Legal operations office hours" (it is underlined and opens the event).
    Expect: the event opens, with "When", "Where" and "Organizer", and the buttons "Open the event page" and "Add to my calendar".
    Do: click "← Events".
 

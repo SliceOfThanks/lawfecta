@@ -9364,7 +9364,10 @@
       } }, "Add to my calendar"));
       if (att && e.person_id && !e.mine) acts.appendChild(h("button", { class: "ghost", type: "button", onclick: mpOpenProfile(e, "overview") }, "View " + (e.name || "the organizer") + "'s profile"));
       card.appendChild(acts);
-      if (e.link) card.appendChild(h("p", { class: "small muted", style: "margin-top:8px", text: "\"Open the event page\" opens the organizer's own page in a new tab, outside Lawfecta." }));
+      // Step 86 (check 35: "outside Lawfecta" was said of a link that stays on the Lawfecta website): the note follows where the link goes
+      var evHome = false; try { evHome = !!e.link && new URL(e.link).hostname === location.hostname; } catch (x) { evHome = false; }
+      card.appendChild(h("p", { class: "small muted", id: "ev-note", style: "margin-top:8px", text: (e.link ? (evHome ? "\"Open the event page\" opens the event's page on the Lawfecta website in a new tab. " : "\"Open the event page\" opens the organizer's own page in a new tab, outside Lawfecta. ") : "") +
+        "\"Add to my calendar\" saves a small calendar file; open it to put the event in your calendar." }));
       body.appendChild(card);
       return;
     }

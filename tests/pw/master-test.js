@@ -152,6 +152,8 @@ const counted = (pg, id) => dela(pg).locator("#" + id + "-count", { hasText: /\(
     st = await sr(p, `const c = r.querySelector("#ev-one"), lk = c.querySelector("#ev-link"); return { text: c.innerText, href: lk && lk.getAttribute("href"), target: lk && lk.target, rel: lk && lk.rel, btns: [...c.querySelectorAll(".ev-acts button, .ev-acts a")].map((b) => b.innerText.trim()) }`);
     ok(st.text.includes("M84 Records workshop") && st.text.includes("When") && st.text.includes("6:30 PM to 8:00 PM") && st.text.includes("Where") && st.text.includes("Online") && st.text.includes("Price") && st.text.includes("Organizer") && st.text.includes("Bring one chart.") && !st.text.includes("512-555-0111"), "the event page shows when, where, the price, the organizer and the text, without contact details");
     ok(st.href === "https://events.example/workshop" && st.target === "_blank" && st.rel === "noopener noreferrer" && st.btns.join("|") === "Open the event page|Add to my calendar|View Nia C.'s profile", "its buttons: the event's own page in a new tab, a calendar file, and the organizer's profile: " + st.btns.join(", "));
+    const evNote = await sr(p, `return r.querySelector("#ev-note").textContent`);
+    ok(evNote.includes("outside Lawfecta") && evNote.includes("saves a small calendar file"), "step 86: the note under the buttons says where the link goes and what the calendar button saves: " + evNote);
     const dl = p.waitForEvent("download");
     await dela(p).locator("#ev-cal").click();
     const file = await dl, ics = fs.readFileSync(await file.path(), "utf8");
