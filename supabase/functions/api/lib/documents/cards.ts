@@ -2,6 +2,7 @@
 // Plain category names, the one-sentence purpose on each card, and DELA's suggested structure for
 // "What would you like to document?" (worked out in code: no AI, no credits).
 import { type DocType, guessLifecycle, STARTERS, TYPE_INFO } from "./model.ts";
+import { stripMarks } from "./marks.ts";
 
 // B3: plain names for the seven lifecycle groups (the prefixes stay inside documents and in search)
 export const PLAIN_GROUPS: Record<string, string> = {
@@ -24,7 +25,9 @@ export function firstSentence(text: string): string {
 }
 
 // B4: the purpose, or the first step when no purpose was written, or nothing
-export function purposeLine(purpose: string, firstStep: string): { text: string; from: "purpose" | "step" | null } {
+export function purposeLine(purpose0: string, firstStep0: string): { text: string; from: "purpose" | "step" | null } {
+  // The card shows words, never formatting marks (step 88)
+  const purpose = stripMarks(String(purpose0 ?? "")), firstStep = stripMarks(String(firstStep0 ?? ""));
   const p = firstSentence(purpose);
   if (p) return { text: p, from: "purpose" };
   const s = firstSentence(firstStep);

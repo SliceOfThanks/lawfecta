@@ -15160,13 +15160,35 @@
     }
     return false;
   }
-  function fmtPlain(text) { return String(text || "").split("\n").map(function (l) { return fmtSegs(l).map(function (x) { return x.t; }).join(""); }).join("\n"); }
+  function fmtPlain(text) { return String(text || "").split("\n").map(function (l) { return fmtSegs(fmtLine(l).t).map(function (x) { return x.t; }).join(""); }).join("\n"); }
+  // Step 88: what a line is, from the mark it starts with (the same rules as lib/documents/marks.ts on the server)
+  function fmtLine(raw) {
+    var al = "", m = /^\{(center|right|justify)\} /.exec(raw);
+    if (m) { al = m[1]; raw = raw.slice(m[0].length); }
+    if (raw.indexOf("### ") === 0) return { k: "h2", al: al, t: raw.slice(4) };
+    if (raw.indexOf("## ") === 0) return { k: "h1", al: al, t: raw.slice(3) };
+    if (raw.indexOf("- ") === 0) return { k: "ul", al: "", t: raw.slice(2) };
+    var n = /^\d{1,3}\. /.exec(raw);
+    if (n) return { k: "ol", al: "", t: raw.slice(n[0].length) };
+    return { k: "p", al: al, t: raw };
+  }
+  function fmtClosesUnder(line, from) {
+    for (var k = from; k < line.length - 1; k++) {
+      if (line[k] === "\\" && line[k + 1] === "_") { k++; continue; }
+      if (line[k] === "_" && line[k + 1] === "_" && line[k - 1] !== "_" && line[k + 2] !== "_") return k > from;
+    }
+    return false;
+  }
   function fmtSegs(line) {
-    var out = [], buf = "", b = false, i = false;
-    var flush = function () { if (buf) { out.push({ t: buf, b: b, i: i }); buf = ""; } };
+    var out = [], buf = "", b = false, i = false, u = false;
+    var flush = function () { if (buf) { out.push({ t: buf, b: b, i: i, u: u }); buf = ""; } };
     for (var k = 0; k < line.length; k++) {
       var ch = line[k];
-      if (ch === "\\" && line[k + 1] === "*") { buf += "*"; k++; continue; }
+      if (ch === "\\" && (line[k + 1] === "*" || line[k + 1] === "_")) { buf += line[k + 1]; k++; continue; }
+      if (ch === "_" && line[k + 1] === "_") {
+        if (u ? line[k + 2] !== "_" : (line[k + 2] !== undefined && line[k + 2] !== " " && line[k + 2] !== "_" && fmtClosesUnder(line, k + 2))) { flush(); u = !u; k++; continue; }
+        buf += ch; continue;
+      }
       if (ch === "*" && line[k + 1] === "*") {
         if (b || (line[k + 2] !== " " && line.indexOf("**", k + 2) > k + 1)) { flush(); b = !b; k++; continue; }
       } else if (ch === "*") {
@@ -15175,7 +15197,7 @@
         var close = line.indexOf("](", k + 1), end = close < 0 ? -1 : line.indexOf(")", close + 2);
         if (close > k + 1 && end > close + 2) {
           var words = line.slice(k + 1, close), href = line.slice(close + 2, end);
-          if (fmtHttps(href) && words.indexOf("[") < 0) { flush(); out.push({ t: fmtSegs(words).map(function (s) { return s.t; }).join(""), b: b, i: i, href: href }); k = end; continue; }
+          if (fmtHttps(href) && words.indexOf("[") < 0) { flush(); out.push({ t: fmtSegs(words).map(function (s) { return s.t; }).join(""), b: b, i: i, u: u, href: href }); k = end; continue; }
         }
       }
       buf += ch;
@@ -15186,25 +15208,38 @@
   // The text as elements. Only text nodes, b, i, a, ul, li and br are ever made, each from the member's own words.
   function fmtInto(el, text, multi) {
     D.clear(el);
-    var lines = String(text || "").split("\n"), ul = null, first = true;
+    var lines = String(text || "").split("\n"), list = null, listK = "", needBr = false;
     var inline = function (host, line) {
       fmtSegs(line).forEach(function (s) {
         var node = document.createTextNode(s.t);
         if (s.href) { var a = h("a", { href: s.href, target: "_blank", rel: "noopener noreferrer" }); a.appendChild(node); node = a; }
+        if (s.u) { var un = h("u"); un.appendChild(node); node = un; }
         if (s.i) { var it = h("i"); it.appendChild(node); node = it; }
         if (s.b) { var bo = h("b"); bo.appendChild(node); node = bo; }
         host.appendChild(node);
       });
     };
-    lines.forEach(function (line) {
-      if (multi && line.indexOf("- ") === 0) {
-        if (!ul) { ul = h("ul", { class: "dp-ul" }); el.appendChild(ul); }
-        var li = h("li"); inline(li, line.slice(2)); ul.appendChild(li); first = false;
+    lines.forEach(function (line0) {
+      var L = multi ? fmtLine(line0) : { k: "p", al: "", t: line0 };
+      if (L.k === "ul" || L.k === "ol") {
+        if (!list || listK !== L.k) { list = h(L.k, { class: L.k === "ul" ? "dp-ul" : "dp-ol" }); listK = L.k; el.appendChild(list); }
+        var li = h("li"); inline(li, L.t); list.appendChild(li); needBr = false;
         return;
       }
-      if (!first && !ul) el.appendChild(h("br"));
-      ul = null;
-      inline(el, line); first = false;
+      list = null;
+      if (L.k === "h1" || L.k === "h2") {
+        var hd = h(L.k === "h1" ? "h3" : "h4", { class: "dp-sub " + (L.k === "h1" ? "dp-sub1" : "dp-sub2"), style: L.al ? "text-align:" + L.al : null });
+        inline(hd, L.t); el.appendChild(hd); needBr = false;
+        return;
+      }
+      if (L.al) {
+        var dv = h("div", { class: "dp-al", style: "text-align:" + L.al });
+        inline(dv, L.t); if (!L.t) dv.appendChild(h("br"));
+        el.appendChild(dv); needBr = false;
+        return;
+      }
+      if (needBr) el.appendChild(h("br"));
+      inline(el, L.t); needBr = true;
     });
     return el;
   }
@@ -15213,15 +15248,27 @@
     var walk = function (node) {
       var out = "";
       [].slice.call(node.childNodes).forEach(function (n) {
-        if (n.nodeType === 3) { out += String(n.nodeValue || "").split(" ").join(" ").split("*").join("\\*"); return; }
+        if (n.nodeType === 3) { out += String(n.nodeValue || "").split(" ").join(" ").split("*").join("\\*").split("__").join("\\_\\_"); return; }
         if (n.nodeType !== 1) return;
         var tag = n.tagName, inner;
         if (tag === "BR") { out += "\n"; return; }
         if (tag === "UL" || tag === "OL") {
-          [].slice.call(n.children).forEach(function (li) { var t = walk(li).split("\n").join(" ").trim(); if (t) out += "\n- " + t; });
+          var no = 0;
+          [].slice.call(n.children).forEach(function (li) { var t = walk(li).split("\n").join(" ").trim(); if (t) out += (!out || out.slice(-1) === "\n" ? "" : "\n") + (tag === "OL" ? (++no) + ". " : "- ") + t; });
           out += "\n"; return;
         }
         inner = walk(n);
+        var al = fmtAlignOf(n), brk = out && out.slice(-1) !== "\n" ? "\n" : "";
+        if (tag.length === 2 && tag.charAt(0) === "H" && "123456".indexOf(tag.charAt(1)) >= 0) {
+          var ht = inner.split("\n").join(" ").trim();
+          if (ht) out += brk + (al ? "{" + al + "} " : "") + ("456".indexOf(tag.charAt(1)) >= 0 ? "### " : "## ") + ht + "\n";
+          return;
+        }
+        if (tag === "U") { out += fmtWrap(inner, "__"); return; }
+        if (al && (tag === "DIV" || tag === "P")) {
+          out += brk + inner.split("\n").map(function (l) { return l && l.charAt(0) !== "{" && fmtLine(l).k !== "ul" && fmtLine(l).k !== "ol" ? "{" + al + "} " + l : l; }).join("\n") + "\n";
+          return;
+        }
         if (tag === "B" || tag === "STRONG") { out += fmtWrap(inner, "**"); return; }
         if (tag === "I" || tag === "EM") { out += fmtWrap(inner, "*"); return; }
         if (tag === "A") { var href = n.getAttribute("href") || ""; out += fmtHttps(href) && inner.trim() ? "[" + inner.split("\n").join(" ").trim() + "](" + href + ")" : inner; return; }
@@ -15236,8 +15283,15 @@
     v = v.replace(/^\n+|\n+$/g, "");
     if (!multi) v = v.split("\n").map(function (l) { return l.indexOf("- ") === 0 ? l.slice(2) : l; }).join(" ");
     // Marks with nothing inside are not kept
-    return v.split("****").join("").split("**  **").join(" ");
+    return v.split("****").join("").split("**  **").join(" ").split("____").join("");
   }
+  // How a block is aligned, from the style or the attribute the browser gave it
+  function fmtAlignOf(n) {
+    var a = String((n.style && n.style.textAlign) || (n.getAttribute && n.getAttribute("align")) || "").toLowerCase();
+    return a === "center" || a === "right" || a === "justify" ? a : "";
+  }
+  // Step 88: the wider set of tools (headings, numbered lists, underline, alignment) is behind the switch document_editor_tools
+  function fmtTools() { return !!(lib.pb && lib.pb.editor_tools); }
   // Marks sit tight against the words: spaces move outside them, and a mark never spans a line break
   function fmtWrap(inner, mark) {
     return inner.split("\n").map(function (line) {
@@ -15276,9 +15330,9 @@
     var openLink = function () {
       var s = fmtSel();
       fmtRange = s && s.rangeCount && el.contains(s.getRangeAt(0).commonAncestorContainer) ? s.getRangeAt(0).cloneRange() : null;
-      main.style.display = "none"; link.style.display = ""; note.textContent = ""; url.value = ""; fmtPlace(); url.focus();
+      main.style.display = "none"; if (row2) row2.style.display = "none"; link.style.display = ""; note.textContent = ""; url.value = ""; fmtPlace(); url.focus();
     };
-    var closeLink = function (back) { link.style.display = "none"; main.style.display = ""; fmtPlace(); if (back) el.focus(); };
+    var closeLink = function (back) { link.style.display = "none"; main.style.display = ""; if (row2) row2.style.display = ""; fmtPlace(); if (back) el.focus(); };
     var addLink = function () {
       var u = url.value.trim();
       if (!fmtHttps(u)) { note.textContent = "A link must start with https://"; return; }
@@ -15297,16 +15351,53 @@
     var ub = h("button", { class: "dp-fmt-b", type: "button", "aria-label": "Remove the link", title: "Remove the link" }, "Unlink");
     ub.addEventListener("mousedown", function (e) { e.preventDefault(); });
     ub.addEventListener("click", function () { doIt("unlink"); });
+    var tools = fmtTools(), row2 = null, styleSel = null;
+    if (tools && multi) {
+      styleSel = h("select", { class: "dp-fmt-sel", "aria-label": "Text style", title: "Text style" }, [["div", "Text"], ["h3", "Heading"], ["h4", "Small heading"]].map(function (o) { return h("option", { value: o[0], text: o[1] }); }));
+      var keep = function () { var s0 = fmtSel(); fmtRange = s0 && s0.rangeCount && el.contains(s0.getRangeAt(0).commonAncestorContainer) ? s0.getRangeAt(0).cloneRange() : fmtRange; };
+      styleSel.addEventListener("mousedown", keep);
+      styleSel.addEventListener("change", function () {
+        el.focus();
+        var s1 = fmtSel(); if (fmtRange && s1) { s1.removeAllRanges(); s1.addRange(fmtRange); }
+        doIt("formatBlock", "<" + styleSel.value + ">");
+        fmtRange = null;
+      });
+      main.appendChild(styleSel);
+    }
     main.appendChild(btn("B", "Bold", "bold", "b")); main.appendChild(btn("I", "Italic", "italic", "i"));
+    if (tools) main.appendChild(btn("U", "Underline", "underline", "u"));
     if (multi) main.appendChild(btn("• List", "Bulleted list", "insertUnorderedList"));
+    if (tools && multi) main.appendChild(btn("1. List", "Numbered list", "insertOrderedList"));
     main.appendChild(lb); main.appendChild(ub);
+    if (tools && multi) {
+      row2 = h("div", { class: "dp-fmt-row dp-fmt-row2" });
+      var alBtn = function (cls, name, cmd) {
+        var b2 = h("button", { class: "dp-fmt-b", type: "button", "aria-label": name, title: name }, h("span", { class: "dp-al-ic " + cls, "aria-hidden": "true" }, h("i"), h("i"), h("i")));
+        b2.addEventListener("mousedown", function (e) { e.preventDefault(); });
+        b2.addEventListener("click", function () { doIt(cmd); });
+        return b2;
+      };
+      row2.appendChild(alBtn("l", "Align left", "justifyLeft")); row2.appendChild(alBtn("c", "Center", "justifyCenter")); row2.appendChild(alBtn("r", "Align right", "justifyRight")); row2.appendChild(alBtn("j", "Justify", "justifyFull"));
+      row2.appendChild(h("span", { class: "dp-fmt-gap", "aria-hidden": "true" }));
+      var clr = h("button", { class: "dp-fmt-b", type: "button", "aria-label": "Clear formatting", title: "Clear formatting" }, "Clear");
+      clr.addEventListener("mousedown", function (e) { e.preventDefault(); });
+      clr.addEventListener("click", function () { el.focus(); try { document.execCommand("removeFormat", false, null); document.execCommand("unlink", false, null); document.execCommand("formatBlock", false, "<div>"); document.execCommand("justifyLeft", false, null); } catch (e) { /* the browser refused */ } sync(); });
+      row2.appendChild(clr); row2.appendChild(btn("Undo", "Undo", "undo")); row2.appendChild(btn("Redo", "Redo", "redo"));
+    }
     var add = h("button", { class: "dp-fmt-b on", type: "button" }, "Add"), cancel = h("button", { class: "dp-fmt-b", type: "button" }, "Cancel");
     add.addEventListener("click", addLink);
     cancel.addEventListener("click", function () { closeLink(true); });
     url.addEventListener("keydown", function (e) { if (e.key === "Enter") { e.preventDefault(); addLink(); } if (e.key === "Escape") { e.preventDefault(); closeLink(true); } });
     link.appendChild(url); link.appendChild(add); link.appendChild(cancel); link.appendChild(note);
-    fmtBar = h("div", { class: "dp-fmt", role: "toolbar", "aria-label": "Formatting", id: "dp-fmt" }, main, link);
+    fmtBar = h("div", { class: "dp-fmt", role: "toolbar", "aria-label": "Formatting", id: "dp-fmt" }, main, row2, link);
     fmtBar.openLink = openLink;
+    // The style list follows the cursor: it names the kind of line the cursor stands in
+    fmtBar.upd = function () {
+      if (!styleSel) return;
+      var s4 = fmtSel(), nd = s4 && s4.rangeCount ? s4.getRangeAt(0).startContainer : null, v = "div";
+      while (nd && nd !== el) { var tg = nd.nodeType === 1 ? nd.tagName : ""; if (tg === "H1" || tg === "H2" || tg === "H3") { v = "h3"; break; } if (tg === "H4" || tg === "H5" || tg === "H6") { v = "h4"; break; } nd = nd.parentNode; }
+      if (dwRoot().activeElement !== styleSel) styleSel.value = v;
+    };
     fmtBar.addEventListener("focusout", function () { setTimeout(function () { var a = dwRoot().activeElement; if (fmtBar && a !== el && !fmtBar.contains(a)) fmtHide(); }, 0); });
     app.appendChild(fmtBar);
     fmtPlace();
@@ -15368,6 +15459,7 @@
     // A picture or formatted text dragged in from another page never lands inside the words
     if (rich) el.addEventListener("drop", function (e) { var dt = e.dataTransfer; if (dt && !(dt.files && dt.files.length) && dt.getData("text/html")) { e.preventDefault(); } });
     if (rich) el.addEventListener("focus", bar);
+    if (rich) ["keyup", "mouseup"].forEach(function (ev) { el.addEventListener(ev, function () { if (fmtBar && fmtFor === el && fmtBar.upd) fmtBar.upd(); }); });
     el.addEventListener("blur", function () {
       if (!rich) { if (!read()) el.textContent = ""; return; }
       setTimeout(function () {
@@ -15959,7 +16051,7 @@
   function docBlocksInto(doc, blocks) {
     (blocks || []).forEach(function (b) {
       doc.appendChild(h("h3", { text: b.title }));
-      if (b.paras) { var ps = b.paras.filter(Boolean); if (ps.length) ps.forEach(function (t) { doc.appendChild(fmtInto(h("p"), t, true)); }); else doc.appendChild(h("p", { class: "muted", text: "Not set" })); }
+      if (b.paras) { var ps = b.paras.filter(Boolean); if (ps.length) ps.forEach(function (t) { doc.appendChild(fmtInto(h("div", { class: "dp-read" }), t, true)); }); else doc.appendChild(h("p", { class: "muted", text: "Not set" })); }
       if (b.items) {
         if (!b.items.length) doc.appendChild(h("p", { class: "muted", text: "Not set" }));
         else doc.appendChild(h(b.numbered ? "ol" : "ul", null, b.items.map(function (t, i) { return h("li", null, fmtInto(h("span"), t, true), imagesRead((b.itemImages || [])[i])); })));

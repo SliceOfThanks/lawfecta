@@ -9,7 +9,7 @@ import type { Body as LegacyBody } from "../playbooks/model.ts";
 import { patternCheck } from "../ai/clientcheck.ts";
 import { IMAGE_SECTIONS, type ExportImages, type ImageFacts, type ImageRef, placedImages, readRefs, stepsTakeImages } from "./images.ts";
 export * from "./images.ts";
-import { cleanMarks, marksToHtml, marksToRuns, stripMarks } from "./marks.ts";
+import { cleanMarks, marksToHtml, marksToMarkdown, marksToPieces, type Piece, stripMarks } from "./marks.ts";
 export { stripMarks } from "./marks.ts";
 
 export type DocType = "policy" | "workflow" | "sop" | "playbook";
@@ -217,7 +217,7 @@ export function scrubClientData(text: string): { text: string; kinds: string[] }
 // Every text field of a document, so the scrub and the checks see all of it
 // The same document with the formatting marks taken out of every text. Nothing else changes: no cutting, no cleaning.
 export function plainDoc(b: DocBody): DocBody {
-  const walk = (v: unknown): unknown => typeof v === "string" ? (v.indexOf("*") < 0 && v.indexOf("](") < 0 ? v : stripMarks(v)) : Array.isArray(v) ? v.map(walk) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, walk(x)])) : v;
+  const walk = (v: unknown): unknown => typeof v === "string" ? stripMarks(v) : Array.isArray(v) ? v.map(walk) : v && typeof v === "object" ? Object.fromEntries(Object.entries(v as Record<string, unknown>).map(([k, x]) => [k, walk(x)])) : v;
   return walk(b) as DocBody;
 }
 export function eachText(b: DocBody, fn: (t: string) => string): DocBody {
@@ -533,7 +533,7 @@ export function gigPrereqs(b: DocBody, nos?: number[] | null): Array<{ no: numbe
   for (const n of part.nos) {
     const before = n - 1;
     if (before < 1 || picked.has(before) || out.some((x) => x.no === before)) continue;
-    const text = String(b.steps[before - 1]?.text ?? "").replace(/\s+/g, " ").trim();
+    const text = stripMarks(String(b.steps[before - 1]?.text ?? "")).replace(/\s+/g, " ").trim();
     out.push({ no: before, text, label: ("Result of step " + before + ", which the firm keeps: " + text).slice(0, 200) });
   }
   return out;
@@ -574,14 +574,14 @@ export function blocks(b: DocBody, m: DocMeta): Block[] {
     out.push({ title: "Name and process owner", paras: [b.title + (b.process_owner_role ? ". Process owner: " + b.process_owner_role + "." : "")] });
     out.push({ title: "Start and end points", items: ["Starts when: " + (b.start_point || "Not set"), "Finished when: " + (b.end_point || "Not set")] });
     if ((b.section_images.chart ?? []).length) out.push({ title: "Swimlane chart", images: b.section_images.chart });
-    out.push({ title: "Stages", table: { head: ["#", "Stage", "Lane (role)", "What happens"], rows: b.steps.map((st, i) => [String(i + 1), st.stage || "Stage " + (i + 1), st.role, st.text + (st.attorney_decides ? " ATTORNEY DECIDES." : "")]) } });
+    out.push({ title: "Stages", table: { head: ["#", "Stage", "Lane (role)", "What happens"], rows: b.steps.map((st, i) => [String(i + 1), st.stage || "Stage " + (i + 1), st.role, stripMarks(st.text).replaceAll("\n", " ") + (st.attorney_decides ? " ATTORNEY DECIDES." : "")]) } });
     const withImg = b.steps.map((st, i) => ({ st, i })).filter((x) => x.st.images.length);
-    if (withImg.length) out.push({ title: "Stage images", items: withImg.map((x) => "Stage " + (x.i + 1) + ": " + (x.st.stage || x.st.text.slice(0, 60))), itemImages: withImg.map((x) => x.st.images) });
+    if (withImg.length) out.push({ title: "Stage images", items: withImg.map((x) => "Stage " + (x.i + 1) + ": " + (x.st.stage || stripMarks(x.st.text).slice(0, 60))), itemImages: withImg.map((x) => x.st.images) });
     const r = raciTable(b); if (r) out.push(r);
-    out.push({ title: "Handoffs", items: b.steps.filter((x) => x.handoff).map((x) => (x.stage || x.text.slice(0, 40)) + ": " + x.handoff) });
+    out.push({ title: "Handoffs", items: b.steps.filter((x) => x.handoff).map((x) => (x.stage || stripMarks(x.text).slice(0, 40)) + ": " + x.handoff) });
     out.push({ title: "Decision points", items: decisions });
     out.push({ title: "Target time per stage", items: b.steps.map((x, i) => (x.stage || "Stage " + (i + 1)) + ": " + (x.target_time || "Not set")) });
-    out.push({ title: "Linked SOPs", items: b.steps.filter((x) => x.linked_sop).map((x) => (x.stage || x.text.slice(0, 40)) + ": " + x.linked_sop) });
+    out.push({ title: "Linked SOPs", items: b.steps.filter((x) => x.linked_sop).map((x) => (x.stage || stripMarks(x.text).slice(0, 40)) + ": " + x.linked_sop) });
     out.push({ title: "KPIs", table: { head: ["KPI", "Measures", "Type", "Source", "Owner", "Baseline", "Target", "Review"], rows: b.kpis.map((k) => [k.name, k.measures, k.kind, k.source, k.owner_role, k.baseline, k.target, k.rhythm]) } });
   } else if (b.type === "playbook") {
     out.push({ title: "Situations covered", items: b.situations }, { title: "Guiding principles", items: b.principles }, { title: "Preferred approach", paras: [b.preferred] });
@@ -605,11 +605,11 @@ export function docToMarkdown(b: DocBody, m: DocMeta): string {
   if (!approved(m)) md.push(`> **${DRAFT_BANNER}**`, "");
   for (const bl of blocks(b, m)) {
     md.push(`**${bl.title}**`, "");
-    if (bl.paras) md.push(...(bl.paras.some(Boolean) ? bl.paras.filter(Boolean) : ["_" + NOT_SET + "_"]), "");
-    if (bl.items) md.push(...(bl.items.length ? bl.items.map((t, i) => (bl.numbered ? `${i + 1}. ` : "- ") + t.replaceAll("\n", "\n   ") + (bl.itemImages?.[i] ?? []).map((im) => "\n   [Image: " + (im.caption || "no caption") + "]").join("")) : ["_" + NOT_SET + "_"]), "");
+    if (bl.paras) md.push(...(bl.paras.some(Boolean) ? bl.paras.filter(Boolean).map(marksToMarkdown) : ["_" + NOT_SET + "_"]), "");
+    if (bl.items) md.push(...(bl.items.length ? bl.items.map((t, i) => (bl.numbered ? `${i + 1}. ` : "- ") + marksToMarkdown(t).replaceAll("\n", "\n   ") + (bl.itemImages?.[i] ?? []).map((im) => "\n   [Image: " + (im.caption || "no caption") + "]").join("")) : ["_" + NOT_SET + "_"]), "");
     if (bl.images?.length) md.push(...bl.images.map((im) => "[Image: " + (im.caption || "no caption") + "]"), "");
     if (bl.table) {
-      const cellMd = (t: string) => t.replaceAll("|", "/").replaceAll("\n", " ");
+      const cellMd = (t: string) => stripMarks(t).replaceAll("|", "/").replaceAll("\n", " ");
       if (bl.table.head.some(Boolean)) md.push("| " + bl.table.head.map(cellMd).join(" | ") + " |", "|" + bl.table.head.map(() => " --- |").join(""));
       else md.push("| | |", "| --- | --- |");
       md.push(...(bl.table.rows.length ? bl.table.rows.map((r) => "| " + r.map(cellMd).join(" | ") + " |") : ["| " + NOT_SET + " |"]), "");
@@ -630,16 +630,18 @@ function htmlImage(im: ImageRef, imgs?: ExportImages): string {
   return `<figure><img src="data:${MIME[x.ext] ?? "image/png"};base64,${btoa(bin)}" alt="${cap}"><figcaption>${cap}</figcaption></figure>`;
 }
 export function docToHtml(b: DocBody, m: DocMeta, imgs?: ExportImages): string {
+  // A picture that stands inside a text (step 88)
+  const inImg = (id: string, caption: string) => htmlImage({ id, caption }, imgs);
   const body = blocks(b, m).map((bl) => {
     let inner = "";
-    if (bl.paras) inner = bl.paras.some(Boolean) ? bl.paras.filter(Boolean).map((t) => `<p>${marksToHtml(t, esc)}</p>`).join("") : `<p><em>${NOT_SET}</em></p>`;
-    if (bl.items) inner = bl.items.length ? `<${bl.numbered ? "ol" : "ul"}>${bl.items.map((t, i) => `<li>${marksToHtml(t, esc)}${(bl.itemImages?.[i] ?? []).map((im) => htmlImage(im, imgs)).join("")}</li>`).join("")}</${bl.numbered ? "ol" : "ul"}>` : `<p><em>${NOT_SET}</em></p>`;
-    if (bl.table) inner = `<table>${bl.table.head.some(Boolean) ? `<tr>${bl.table.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>` : ""}${bl.table.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</table>`;
+    if (bl.paras) inner = bl.paras.some(Boolean) ? bl.paras.filter(Boolean).map((t) => marksToHtml(t, esc, inImg)).join("") : `<p><em>${NOT_SET}</em></p>`;
+    if (bl.items) inner = bl.items.length ? `<${bl.numbered ? "ol" : "ul"}>${bl.items.map((t, i) => `<li>${marksToHtml(t, esc, inImg)}${(bl.itemImages?.[i] ?? []).map((im) => htmlImage(im, imgs)).join("")}</li>`).join("")}</${bl.numbered ? "ol" : "ul"}>` : `<p><em>${NOT_SET}</em></p>`;
+    if (bl.table) inner = `<table>${bl.table.head.some(Boolean) ? `<tr>${bl.table.head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>` : ""}${bl.table.rows.map((r) => `<tr>${r.map((c) => `<td>${esc(stripMarks(c))}</td>`).join("")}</tr>`).join("")}</table>`;
     if (bl.images?.length) inner += bl.images.map((im) => htmlImage(im, imgs)).join("");
     return `<p class="h"><strong>${esc(bl.title)}</strong></p>\n${inner}`;
   }).join("\n");
   return `<!doctype html><html><head><meta charset="utf-8"><title>${esc(b.title || "Document")}</title>
-<style>body{font-family:Arial,Helvetica,sans-serif;max-width:820px;margin:32px auto;padding:0 16px;color:#1c2230;line-height:1.55}h1{color:#8b2146}.h{font-size:18px;color:#8b2146;border-bottom:1px solid #e6e7ec;padding-bottom:4px;margin:26px 0 8px}table{border-collapse:collapse;width:100%;font-size:14px}td,th{border:1px solid #d9dbe1;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f1e4ea}.banner{background:#fff3d6;border:1px solid #e8c97a;padding:8px 12px;border-radius:8px;font-weight:700}figure{margin:10px 0}figure img{max-width:100%;height:auto;border:1px solid #d9dbe1}figcaption,.cap{font-style:italic;color:#5f6675;font-size:14px}footer{margin-top:40px;font-size:12px;color:#5f6675;border-top:1px solid #e6e7ec;padding-top:8px}</style></head>
+<style>body{font-family:Arial,Helvetica,sans-serif;max-width:820px;margin:32px auto;padding:0 16px;color:#1c2230;line-height:1.55}h1{color:#8b2146}.h{font-size:18px;color:#8b2146;border-bottom:1px solid #e6e7ec;padding-bottom:4px;margin:26px 0 8px}table{border-collapse:collapse;width:100%;font-size:14px}td,th{border:1px solid #d9dbe1;padding:6px 8px;text-align:left;vertical-align:top}li p{margin:0}.sub1{font-size:17px;margin:16px 0 4px}.sub2{font-size:15px;margin:14px 0 4px}table{margin:8px 0}th{background:#f1e4ea}.banner{background:#fff3d6;border:1px solid #e8c97a;padding:8px 12px;border-radius:8px;font-weight:700}figure{margin:10px 0}figure img{max-width:100%;height:auto;border:1px solid #d9dbe1}figcaption,.cap{font-style:italic;color:#5f6675;font-size:14px}footer{margin-top:40px;font-size:12px;color:#5f6675;border-top:1px solid #e6e7ec;padding-top:8px}</style></head>
 <body>${htmlBrandLine()}<h1>${esc(b.title || "Document")}</h1>${approved(m) ? "" : `<p class="banner">${DRAFT_BANNER}</p>`}
 ${body}
 <footer>${esc(footerText(m))}</footer></body></html>`;
@@ -656,9 +658,9 @@ export function docToCsv(b: DocBody): string {
 // page numbers), with each section label as a bold heading on its own line, and the draft banner until approved
 const xs = (t: string) => esc(t).replaceAll("'", "&apos;");
 const BRAND = "8B2146", INK = "1C2230", GREY = "5F6675", LINE = "D9DBE1", SOFT = "F6EEF2", HEAD = "F1E4EA", WARN = "FFF3D6";
-type RunOpt = { b?: boolean; i?: boolean; color?: string; sz?: number };
+type RunOpt = { b?: boolean; i?: boolean; u?: boolean; color?: string; sz?: number };
 const run = (t: string, o: RunOpt = {}) => {
-  const pr = `${o.b ? "<w:b/>" : ""}${o.i ? "<w:i/>" : ""}${o.color ? `<w:color w:val="${o.color}"/>` : ""}${o.sz ? `<w:sz w:val="${o.sz}"/>` : ""}`;
+  const pr = `${o.b ? "<w:b/>" : ""}${o.i ? "<w:i/>" : ""}${o.u ? '<w:u w:val="single"/>' : ""}${o.color ? `<w:color w:val="${o.color}"/>` : ""}${o.sz ? `<w:sz w:val="${o.sz}"/>` : ""}`;
   return t.split("\n").map((line, i) => `<w:r>${pr ? `<w:rPr>${pr}</w:rPr>` : ""}${i ? "<w:br/>" : ""}<w:t xml:space="preserve">${xs(line)}</w:t></w:r>`).join("");
 };
 const para = (runs: string, style = "", extra = "") => `<w:p>${style || extra ? `<w:pPr>${style ? `<w:pStyle w:val="${style}"/>` : ""}${extra}</w:pPr>` : ""}${runs}</w:p>`;
@@ -687,6 +689,16 @@ function docxImage(im: ImageRef, imgs: ExportImages | undefined, media: Media[])
     `<pic:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="${cx}" cy="${cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p>` + cap;
 }
 
+// Step 88: a text with its headings, lists, alignment, tables and pictures as Word paragraphs
+const JC: Record<string, string> = { center: "center", right: "right", justify: "both" };
+function docxPiece(p: Piece, imgs: ExportImages | undefined, media: Media[], style = ""): string {
+  if (p.kind === "image") return docxImage({ id: p.id, caption: p.caption }, imgs, media);
+  if (p.kind === "table") {
+    const n = Math.max(1, ...p.rows.map((r) => r.length)), w = Math.floor(9360 / n), W = Array(n).fill(w);
+    return tbl(W, p.rows.map((r, k) => trow(W.map((cw, i) => tcell(cw, para(r[i] ?? "", "TableText"), k ? "" : HEAD)).join(""), k === 0)));
+  }
+  return para(p.runs, style, (p.align ? `<w:jc w:val="${JC[p.align]}"/>` : "") + (p.head ? `<w:keepNext/><w:spacing w:before="${p.head === 1 ? 200 : 160}" w:after="60"/>` : ""));
+}
 function docxBody(b: DocBody, m: DocMeta, imgs?: ExportImages, media: Media[] = []): string {
   const out: string[] = [];
   out.push(para(run(b.title || "Document"), "Title"));
@@ -694,13 +706,16 @@ function docxBody(b: DocBody, m: DocMeta, imgs?: ExportImages, media: Media[] = 
   if (!approved(m)) out.push(tbl([9360], [trow(tcell(9360, para(run(DRAFT_BANNER + ". Do not use this as an approved procedure.", { b: true }), "TableText"), WARN))], "E8C97A"));
   for (const bl of blocks(b, m)) {
     out.push(para(run(bl.title), "Heading1"));
-    if (bl.paras) { const ps = bl.paras.filter(Boolean); out.push(...(ps.length ? ps.map((t) => para(marksToRuns<RunOpt>(t, run, {}))) : [para(run(NOT_SET, { i: true, color: GREY }))])); }
+    if (bl.paras) { const ps = bl.paras.filter(Boolean); out.push(...(ps.length ? ps.flatMap((t) => marksToPieces(t, run).map((p) => docxPiece(p, imgs, media))) : [para(run(NOT_SET, { i: true, color: GREY }))])); }
     if (bl.items) {
       if (!bl.items.length) out.push(para(run(NOT_SET, { i: true, color: GREY })));
       bl.items.forEach((t, i) => {
         const att = t.includes("ATTORNEY DECIDES");
-        const line = para(run((bl.numbered ? (i + 1) + "." : "•") + "\t") + marksToRuns<RunOpt>(t.replace(" ATTORNEY DECIDES.", ""), run, {}) + (att ? run("  Attorney decides", { b: true, color: BRAND }) : ""), "ListBullet");
-        out.push(att ? tbl([9360], [trow(tcell(9360, line, SOFT))], "E3C6D3") : line);
+        // The first paragraph of the item stands on the item's own line; a heading, table or picture inside it follows
+        const pieces = marksToPieces(t.replace(" ATTORNEY DECIDES.", ""), run), first = pieces[0]?.kind === "p" && !pieces[0].head ? pieces.shift() as Extract<Piece, { kind: "p" }> : null;
+        const line = para(run((bl.numbered ? (i + 1) + "." : "•") + "\t") + (first ? first.runs : "") + (att ? run("  Attorney decides", { b: true, color: BRAND }) : ""), "ListBullet");
+        const rest = pieces.map((p) => docxPiece(p, imgs, media, p.kind === "p" && !p.head ? "ListBullet" : "")).join("");
+        out.push(att ? tbl([9360], [trow(tcell(9360, line + rest, SOFT))], "E3C6D3") : line + rest);
         for (const im of bl.itemImages?.[i] ?? []) out.push(docxImage(im, imgs, media));
       });
     }
@@ -712,7 +727,7 @@ function docxBody(b: DocBody, m: DocMeta, imgs?: ExportImages, media: Media[] = 
       const rows: string[] = [];
       if (bl.table.head.some(Boolean)) rows.push(trow(bl.table.head.map((h, i) => tcell(W[i], para(run(h, { b: true, color: "FFFFFF" }), "TableText"), BRAND)).join(""), true));
       if (!bl.table.rows.length) rows.push(trow(tcell(9360 - (n > 1 ? 0 : 0), para(run(NOT_SET, { i: true, color: GREY }), "TableText")) + W.slice(1).map((w) => tcell(w, para(run(""), "TableText"))).join("")));
-      for (const r of bl.table.rows) rows.push(trow(r.map((c, i) => tcell(W[i], para(run(c, i === 0 && bl.title === "Header" ? { b: true, color: BRAND } : c.includes("A") && bl.title === "RACI" && i > 0 ? { b: true } : {}), "TableText"), i === 0 && bl.title === "Header" ? SOFT : "")).join("")));
+      for (const r of bl.table.rows) rows.push(trow(r.map((c, i) => tcell(W[i], para(run(stripMarks(c), i === 0 && bl.title === "Header" ? { b: true, color: BRAND } : c.includes("A") && bl.title === "RACI" && i > 0 ? { b: true } : {}), "TableText"), i === 0 && bl.title === "Header" ? SOFT : "")).join("")));
       out.push(tbl(W, rows));
     }
     for (const im of bl.images ?? []) out.push(docxImage(im, imgs, media));

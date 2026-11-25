@@ -354,7 +354,7 @@ async function makeMember(bd, side, plan) {
     } finally { await sql("update feature_switches set state = 'off' where key = 'team_assignments'; select 1"); }
     // ---------- Step 80: the document edited in place (Stacey 2026-11-24: a what-you-see-is-what-you-get editor) ----------
     // Every switch this block turns goes back to what it was, so the suites that run after this one see the same site
-    const was80 = await sql("select key, state from feature_switches where key in ('document_editor_v2', 'approved_view', 'new_layout', 'file_uploads', 'team_assignments')");
+    const was80 = await sql("select key, state from feature_switches where key in ('document_editor_v2', 'document_editor_tools', 'approved_view', 'new_layout', 'file_uploads', 'team_assignments')");
     await sql("update feature_switches set state = 'everyone' where key in ('document_editor_v2', 'approved_view', 'new_layout'); select 1");
     try {
       const sr = (pg, fn, arg) => pg.evaluate(([f, a]) => new Function("r", "a", f)(document.querySelector(".dela-host").shadowRoot, a), [fn, arg]);
@@ -517,6 +517,40 @@ async function makeMember(bd, side, plan) {
       await dela(p).locator("#dp-stale-mine").click();
       await dela(p).locator("#dp-id", { hasText: "Version " + (row.v + 2) }).waitFor({ timeout: 15000 });
       ok((await sql("select body->>'scope' x from playbook_versions where playbook_id = '" + before.id + "' and version = " + (row.v + 2)))[0].x.startsWith("Every new matter, every new party"), "Save mine as the newest version keeps both: the other version stays in the history");
+      // ---------- Step 88a: headings, numbered lists, underline and alignment (Stacey 2026-11-24) ----------
+      await sql("update feature_switches set state = 'everyone' where key = 'document_editor_tools'; select 1");
+      await s.ctx.close();
+      s = await openDoc(); p = s.page;
+      {
+        const bar88 = dela(p).locator("#dp-fmt");
+        const tm = (js) => sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Timing"); ` + js);
+        const pickT = (word) => sr(p, `const el = [...r.querySelectorAll(".dp-t")].find((x) => x.getAttribute("aria-label") === "Timing"); el.focus(); const w = document.createTreeWalker(el, NodeFilter.SHOW_TEXT); let n; while ((n = w.nextNode())) { const i = n.nodeValue.indexOf(a[0]); if (i >= 0) { const g = document.createRange(); g.setStart(n, i); g.setEnd(n, i + a[0].length); const sl = window.getSelection(); sl.removeAllRanges(); sl.addRange(g); return true; } } return false;`, [word]);
+        await dela(p).getByRole("textbox", { name: "Timing", exact: true }).fill("Court hours");
+        ok((await bar88.getByRole("button").allInnerTexts()).join("|") === "B|I|U|• List|1. List|Link|Unlink|||||Clear|Undo|Redo" && (await bar88.locator("select.dp-fmt-sel option").allInnerTexts()).join("|") === "Text|Heading|Small heading", "with the wider tools on, the bar has a style list, underline, a numbered list, four alignments, Clear, Undo and Redo: " + (await bar88.getByRole("button").allInnerTexts()).join("|"));
+        await bar88.locator("select.dp-fmt-sel").selectOption("h3");
+        ok(await tm(`return !!el.querySelector("h3") && el.querySelector("h3").textContent === "Court hours"`), "\"Heading\" in the style list makes the line a heading where it stands");
+        await tm(`el.focus(); const g = document.createRange(); g.selectNodeContents(el); g.collapse(false); const sl = window.getSelection(); sl.removeAllRanges(); sl.addRange(g);`);
+        await p.keyboard.press("Enter");
+        await bar88.locator("select.dp-fmt-sel").selectOption("div");
+        await bar88.getByRole("button", { name: "Numbered list" }).click();
+        await p.keyboard.type("first"); await p.keyboard.press("Enter"); await p.keyboard.type("second"); await p.keyboard.press("Enter"); await p.keyboard.press("Enter");
+        await p.keyboard.type("Centered line");
+        await bar88.getByRole("button", { name: "Center", exact: true }).click();
+        await pickT("Centered"); await bar88.getByRole("button", { name: "Underline" }).click();
+        await tm(`el.scrollIntoView({ block: "center" })`);
+        await p.waitForTimeout(250);
+        await p.screenshot({ path: path.join(SHOTS, "88a-tools.png") });
+        await dela(p).getByRole("textbox", { name: "Title", exact: true }).click();
+        await p.waitForTimeout(200);
+        await saved(p);
+        const kept88 = (await sql("select body->>'timing' x from playbook_working where playbook_id = '" + before.id + "'"))[0].x;
+        ok(kept88 === "## Court hours\n1. first\n2. second\n{center} __Centered__ line", "what is kept is plain text with the new marks: " + JSON.stringify(kept88));
+        ok(await tm(`const hd = el.querySelector("h3.dp-sub1"), ol = el.querySelector("ol.dp-ol"), dv = el.querySelector("div.dp-al"); return !!hd && hd.textContent === "Court hours" && !!ol && ol.children.length === 2 && !!dv && dv.style.textAlign === "center" && (dv.querySelector("u") || {}).textContent === "Centered" && !el.textContent.includes("##") && !el.textContent.includes("{center}")`), "the text shows a heading, a numbered list and a centered line with an underlined word, and none of the marks");
+        // Put Timing back to plain words, so the rest of the run reads as before
+        await dela(p).getByRole("textbox", { name: "Timing", exact: true }).fill("Within 1 business day of the request.");
+        await dela(p).getByRole("textbox", { name: "Title", exact: true }).click();
+        await saved(p);
+      }
       // ---------- Step 80c: decision points and related links are lines on the page, typed in place ----------
       st = await sr(p, `const pg = r.querySelector(".dp-page"); return { boxes: pg.querySelectorAll("#dp-rows-decisions input[type=text], #dp-rows-related_links input, #dp-rows-decisions textarea").length, rows: pg.querySelectorAll("#dp-rows-decisions .dp-row").length, links: !!pg.querySelector("#dp-rows-related_links") }`);
       ok(st.boxes === 0 && st.links, "decision points and related links are no longer boxes inside the page");

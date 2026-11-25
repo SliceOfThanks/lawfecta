@@ -1162,6 +1162,8 @@ async function pbGet(ctx: Ctx) {
     if (prepared?.prepared) r.prepared = prepared;
     // Step 80: the in-place editor, and what this member was typing when they last left (their own working copy)
     r.editor_v2 = await rpc<boolean>(ctx, "dela_switch_on", { p_key: "document_editor_v2", p_person: s.person_id }).catch(() => false) === true;
+    // Step 88: the wider set of tools in the bar over a text (headings, numbered lists, underline, alignment)
+    r.editor_tools = r.editor_v2 && await rpc<boolean>(ctx, "dela_switch_on", { p_key: "document_editor_tools", p_person: s.person_id }).catch(() => false) === true;
     if (r.editor_v2 && dela_rank(r.role) >= 3) {
       const w = await rpc<Record<string, any> | null>(ctx, "dela_pb_working_get", { p_person: s.person_id, p_id: id }).catch(() => null);
       if (w && isDoc(w.body)) r.working = { base_version: w.base_version, updated_at: w.updated_at, stale: !!w.stale, body: normalizeDoc(w.body) };

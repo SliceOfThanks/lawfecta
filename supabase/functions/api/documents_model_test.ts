@@ -4,7 +4,7 @@ import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { unzipSync, strFromU8 } from "npm:fflate@0.8.2";
 import { bodyWords, carryImages, changeSummary, checkDoc, imageSize, withoutImages, classifyLegacy, codeFix, docToCsv, docToDocx, docToMarkdown, fromLegacy, gigPart, namesToRoles, normalizeDoc, scrubCredentials, vagueWords, type DocBody } from "./lib/documents/model.ts";
 import { normalize } from "./lib/playbooks/model.ts";
-import { cleanMarks, inlineSegs, stripMarks } from "./lib/documents/marks.ts";
+import { cleanMarks, imageIdsIn, inlineSegs, keepImages, marksToMarkdown, richBlocks, stripMarks, videoInfo } from "./lib/documents/marks.ts";
 import { docToHtml } from "./lib/documents/model.ts";
 import { DOC_CHAT_SYSTEM, readDocAnswer } from "./lib/documents/ai.ts";
 import { CHAT_SYSTEM } from "./lib/playbooks/ai.ts";
@@ -52,7 +52,7 @@ Deno.test("step 80b: bold, italic, bullets and links are marks in the text; chec
   // The web page shows the looks, and escapes everything else
   b.done_when = "The result is <recorded> & **kept**.";
   const html = docToHtml(b, META);
-  assert(html.includes("Find <strong>conflicts</strong> before a consult.<ul><li>one</li><li><em>two</em></li></ul>"), "bold, bullets and italic in the web page");
+  assert(html.includes("<p>Find <strong>conflicts</strong> before a consult.</p><ul><li>one</li><li><em>two</em></li></ul>"), "bold, bullets and italic in the web page");
   assert(html.includes('<strong>Search</strong> the party names in <a href="https://clio.example/search" rel="noopener noreferrer">Clio</a>.'), "a link in a step");
   assert(html.includes("The result is &lt;recorded&gt; &amp; <strong>kept</strong>."), "the member's own angle brackets stay text");
   assert(!html.includes("**") && !html.includes("javascript:"));
@@ -62,6 +62,58 @@ Deno.test("step 80b: bold, italic, bullets and links are marks in the text; chec
   assert(xml.includes("Clio (https://clio.example/search)") && xml.includes("• ") && !xml.includes("**"), "a link carries its address in Word, and a bullet its dot");
   // Markdown keeps the marks, which are Markdown already
   assert(docToMarkdown(b, META).includes("**Search** the party names in [Clio](https://clio.example/search)."));
+});
+
+Deno.test("step 88: headings, numbered lists, underline, alignment, tables, pictures and video are marks too; unknown or unsafe ones fall back to words", () => {
+  const ID = "0a1b2c3d-1111-2222-3333-444455556666";
+  // Underline, and underscores that are not underline
+  assertEquals(inlineSegs("Sign __here__ now"), [{ t: "Sign " }, { t: "here", u: true }, { t: " now" }]);
+  assertEquals(inlineSegs("Name: ________ and file_name__x and \\_\\_typed\\_\\_"), [{ t: "Name: ________ and file_name__x and __typed__" }], "a blank to fill in and typed underscores stay as typed");
+  assertEquals(inlineSegs("**__both__**"), [{ t: "both", b: true, u: true }]);
+  // Lines
+  const text = ["{center} ## Before you file", "Check the court.", "{right} Signed today", "### Details", "1. first", "7. second", "- a dot", "| Court | Fee |", "| Small claims | **75** |", "![The form](image:" + ID + ")", "@[How to file](https://youtu.be/dQw4w9WgXcQ)", "{justify} A long line."].join("\n");
+  const bl = richBlocks(text);
+  assertEquals(bl.map((x) => x.kind), ["h1", "p", "p", "h2", "ol", "ul", "table", "image", "video", "p"]);
+  assertEquals([(bl[0] as any).align, (bl[1] as any).align, (bl[2] as any).align, (bl[9] as any).align], ["center", undefined, "right", "justify"]);
+  assertEquals((bl[4] as any).lines.length, 2, "numbered lines that follow each other are one list");
+  assertEquals((bl[6] as any).rows.map((r: any) => r.map((c: any) => c.map((g: any) => g.t).join(""))), [["Court", "Fee"], ["Small claims", "75"]]);
+  assertEquals([(bl[7] as any).id, (bl[7] as any).caption, (bl[8] as any).title], [ID, "The form", "How to file"]);
+  // The plain words: what the checks, a gig and a freelancer read
+  assertEquals(stripMarks(text), ["Before you file", "Check the court.", "Signed today", "Details", "first", "second", "a dot", "Court, Fee", "Small claims, 75", "The form", "How to file (https://youtu.be/dQw4w9WgXcQ)", "A long line."].join("\n"));
+  assertEquals(stripMarks("- **Call** the client"), "Call the client", "a bullet's dash is not part of the words");
+  // Video: three sites, in known forms, and the address the player loads from
+  assertEquals(videoInfo("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=10s"), { site: "YouTube", embed: "https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ" });
+  assertEquals(videoInfo("https://vimeo.com/123456789"), { site: "Vimeo", embed: "https://player.vimeo.com/video/123456789" });
+  assertEquals(videoInfo("https://www.loom.com/share/0123456789abcdef0123456789abcdef"), { site: "Loom", embed: "https://www.loom.com/embed/0123456789abcdef0123456789abcdef" });
+  for (const bad of ["https://evil.example/watch?v=dQw4w9WgXcQ", "https://youtube.com.evil.example/watch?v=dQw4w9WgXcQ", "http://youtu.be/dQw4w9WgXcQ", "https://youtu.be/short", "javascript:alert(1)", "https://www.youtube.com/embed/dQw4w9WgXcQ\"><script>", "https://vimeo.com/user/x"])
+    assertEquals(videoInfo(bad), null, "refused: " + bad);
+  // On every save: a video on another site keeps its title as words, a table is cut to the limits, links as before
+  assertEquals(cleanMarks("@[Our intro](https://evil.example/v/1)\n@[Fine](https://vimeo.com/123456789)\nSee [x](javascript:alert(1))"), "Our intro\n@[Fine](https://vimeo.com/123456789)\nSee x)");
+  assertEquals(cleanMarks("![cap](image:" + ID + ")"), "![cap](image:" + ID + ")", "a picture line is kept");
+  assertEquals(cleanMarks("| a | b | c |\n| 1 | 2 | 3 |\n| 4 | 5 | 6 |\nafter", 2, 2), "| a | b |\n| 1 | 2 |\nafter");
+  assertEquals(richBlocks("@[x](https://evil.example/1)")[0].kind, "p", "a video line that is not allowed is read as plain words even before it is cleaned");
+  // Pictures a text refers to
+  assertEquals(imageIdsIn(text), [ID]);
+  assertEquals(keepImages(text, () => false).includes("image:"), false);
+  // A document: the checks read the words, the exports show the looks
+  const b = goodSop();
+  b.purpose = text;
+  b.steps[0].text = "## Search\n**Search** the party names.\n| A | B |\n| 1 | 2 |";
+  const saved = normalizeDoc(JSON.parse(JSON.stringify(b)));
+  assertEquals([saved.purpose, saved.steps[0].text], [text, b.steps[0].text], "saving keeps every mark it knows");
+  assertEquals(gigPart(b).steps[0].text, "Search\nSearch the party names.\nA, B\n1, 2");
+  const html = docToHtml(b, META);
+  assert(html.includes('<p class="sub1" style="text-align:center"><strong>Before you file</strong></p><p>Check the court.</p><p style="text-align:right">Signed today</p><p class="sub2"><strong>Details</strong></p><ol><li>first</li><li>second</li></ol><ul><li>a dot</li></ul><table><tr><th>Court</th><th>Fee</th></tr><tr><td>Small claims</td><td><strong>75</strong></td></tr></table>'), "headings, alignment, lists and a table in the web page");
+  assert(html.includes('<p class="cap">[Image: The form]</p><p class="vid">Video: <a href="https://youtu.be/dQw4w9WgXcQ" rel="noopener noreferrer">How to file</a></p><p style="text-align:justify">A long line.</p>'), "a picture without its bytes is a line of words; a video is its title and link");
+  assert(!html.includes("<iframe") && !html.includes("{center}") && !html.includes("## "), "no frame and no typed marks in an export");
+  const xml = strFromU8(unzipSync(docToDocx(b, META))["word/document.xml"]);
+  assert(xml.includes('<w:jc w:val="center"/>') && xml.includes('<w:jc w:val="right"/>') && xml.includes('<w:jc w:val="both"/>'), "alignment in Word");
+  assert(xml.includes('<w:rPr><w:b/><w:sz w:val="26"/></w:rPr><w:t xml:space="preserve">Before you file</w:t>') && xml.includes('<w:t xml:space="preserve">1. </w:t>') && xml.includes('<w:t xml:space="preserve">2. </w:t>'), "a heading and a renumbered list in Word");
+  assert(xml.includes('<w:t xml:space="preserve">Small claims</w:t>') && xml.includes("Video: How to file (https://youtu.be/dQw4w9WgXcQ)") && xml.includes("[Image: The form]") && !xml.includes("{center}") && !xml.includes("##"), "a table, a video and a picture in Word");
+  b.done_when = "Sign __here__.";
+  assert(strFromU8(unzipSync(docToDocx(b, META))["word/document.xml"]).includes('<w:u w:val="single"/>'), "underline in Word");
+  const md = docToMarkdown(b, META);
+  assert(md.includes("### Before you file") && md.includes("| Court | Fee |\n| --- | --- |\n| Small claims | **75** |") && md.includes("[Image: The form]") && md.includes("[How to file](https://youtu.be/dQw4w9WgXcQ)") && !md.includes("{center}"), "Markdown: " + marksToMarkdown(text));
 });
 
 Deno.test("a complete SOP passes every check; dashes are removed", () => {
