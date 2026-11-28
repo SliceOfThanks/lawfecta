@@ -256,6 +256,8 @@ How to read the "State" column:
 | 90b-3 | A moved member sets a password with "Forgot password" on www.lawfecta.co/login and gets in | One moved member | Not yet | |
 | 90b-4 | The full move ends with "Still to move 0" and the counts add up to the preview | The full run | Not yet | |
 | 90b-5 | The website copies a member's picture from the old site when asked (auto_image_import) | Look at a moved member with a picture | Not yet | |
+| 94b-1 | The server function is released from the Mac with tools/deploy_function.sh and the site answers healthy | One release after Stacey logs the Supabase tool in | Not yet | |
+| 94b-2 | Release Control, Activity: the releases since 8 November show, newest first, and the next switch change shows by itself | Stacey looks at the card | Not yet | |
 | 94-1 | With the new widgets and code.source on "storage", the member area, the admin area and the security page load from DELA's own copy | Claude reads the pages' network requests after the switch | Confirmed 2026-11-27 | All three pages load every DELA script and the logo from the bucket dela-code; signed-out screens seen. A signed-in look is Stacey's |
 | 94-2 | A version is copied with the repository private and the key in Supabase | One copy after Stacey types GITHUB_CODE_TOKEN | Not yet | |
 | 93-1 | The three members of "Try with 3 members first" get no email at all, from the website or from DELA, for 8 days | Ask the three, or use three addresses Stacey can read | Not yet | The website's API says a create is silent unless asked; only a real create proves it |
