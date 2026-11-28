@@ -1,9 +1,12 @@
 # GitHub's free security scan (safety kit). Looks for security mistakes in the JavaScript, TypeScript and workflow code
 # on every push, and once a week. Findings show under the repo's Security tab and in the monthly health report.
+# Audit 2026-11-25: it only looked at main, which was weeks behind what members run. It now also runs on the working
+# branch the live site is released from. (The weekly run still looks at the default branch.)
 name: Security scan
 on:
   push:
-    branches: [main]
+    branches: [main, "claude/**"]
+    paths: ["app/**", "admin/**", "shared/**", "supabase/functions/**", "widgets/**", ".github/workflows/**"]
   pull_request:
   schedule:
     - cron: "17 6 * * 1"
