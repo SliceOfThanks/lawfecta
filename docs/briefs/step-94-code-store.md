@@ -66,6 +66,16 @@ So the repository can be private for good, and so a change of its visibility can
 - Deploying the server function with its imports pointing at the store: **refused by Supabase** ("Cannot import from ...supabase.co"). The live function was not touched. The server files were removed from the store, and the code was changed so they are never copied.
 - So one piece is still open: the function's own release. The way that needs no public address is Supabase's command-line tool on Stacey's Mac (`supabase functions deploy`), which reads the files from this folder. It needs her to log the tool in once.
 
+## Release 94b (2026-11-27)
+**The server function from the Mac.** `tools/deploy_function.sh <commit>` releases the function with Supabase's own tool (pinned to supabase@3.1.0, run through npx; nothing is added to the project's packages). It refuses to run unless this folder is exactly that commit, the function's files are unchanged and GitHub Tests passed. The tool must be logged in once on Stacey's Mac; its login stays with the tool on the Mac.
+
+**The Activity list shows everything.** Stacey: "why does the activity in dela-admin not update automatically? A lot of activity has happened since November 20."
+- The list is automatic, but it reads the audit log, and only the admin area's own buttons wrote to it. Since the site went live, versions were released and switches set straight in the database, which wrote nothing.
+- From here every change of a switch, a setting or the live version writes one line, whoever made it and however (migration 0172). A change made in the database reads "Claude or DELA, in the database".
+- `dela_code_release('<commit>', '<what it was>')` writes the release's own line with its note.
+- The 90 releases since 8 November are added from the project's history, each at its real time and marked "added afterwards". Switches and settings changed directly in that time cannot be added back: nothing recorded when.
+- The list now sorts by time and holds 200 lines.
+
 ## What Stacey does, in order
 1. Install the three widgets (by hand, code sent by Claude).
 2. Tell Claude. Claude sets `code.source` to "storage" and checks that the pages load from DELA's own copy.

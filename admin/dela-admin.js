@@ -2450,6 +2450,8 @@
     rollback: [["approval", "Your approval checked"], ["tests", "Automatic tests checked"], ["database", "Database checked"], ["api", "Server code switched back"], ["switch", "Screens switched back"], ["health", "Health check on Live"]],
   };
   var ACTIVITY = {
+    // Step 94b: a version switched on outside the Push button (how every release is done during the pilot)
+    release_version: ["push", function (a) { return a.detail.note ? "Released: " + a.detail.note + (a.detail.added_afterwards ? " (added afterwards from the project's history)" : "") : "Version " + short(typeof a.detail.to === "string" ? a.detail.to : "") + " went live"; }],
     release_recorded: ["push", function (a) { return "Version " + (a.detail.version || "") + " added on the test site"; }],
     release_report_saved: ["push", function () { return "ChatGPT test report saved"; }],
     release_marked_tested: ["push", function (a) { return "Marked " + (a.detail.version || "") + " as tested"; }],
@@ -2844,7 +2846,9 @@
       var kind = m ? m[0] : a.action.indexOf("pause") === 0 ? "pause" : "settings";
       if (a.action === "release_approved" && a.detail.action === "rollback") kind = "back";
       if (a.action === "release_live" && a.detail.action === "rollback") kind = "back";
-      return { kind: kind, text: m ? m[1](a) : a.action.split("_").join(" "), at: a.at, actor: a.actor };
+      // A change made straight in the database, not with a button here, says so
+      var by = a.detail && a.detail.how === "direct" && a.actor === "system" ? "Claude or DELA, in the database" : a.actor;
+      return { kind: kind, text: m ? m[1](a) : a.action.split("_").join(" "), at: a.at, actor: by };
     });
     var shown = rows.filter(function (r) { return ctl.filter === "all" || r.kind === ctl.filter; });
     return section("activity", "Activity", "activity", false, h("span", { class: "badge", text: rows.length ? "latest " + D.dateTime(rows[0].at) : "none yet" }), [

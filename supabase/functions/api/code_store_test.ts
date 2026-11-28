@@ -159,6 +159,44 @@ Deno.test("after the release the server's files are taken out of the store; the 
   assert(r.sealed_at && r.status === "ready");
 });
 
+Deno.test("step 94b: every change of a switch, a setting or the live version writes one line for the Activity list, however it was made", async () => {
+  const lines = async (action: string, key: string) => (await pool.query("select actor_type, detail from audit_log where action = $1 and object_id = $2 order by id", [action, key])).rows;
+  // Straight in the database, as Claude releases during the pilot
+  const sw = (await one("select key, state from feature_switches where key = 'member_move'"));
+  const before = (await lines("switch_changed", "member_move")).length;
+  const to = sw.state === "off" ? "staff" : "off";
+  await pool.query("update feature_switches set state = $1 where key = 'member_move'", [to]);
+  let got = await lines("switch_changed", "member_move");
+  assertEquals(got.length, before + 1, "one line for a direct change");
+  assertEquals([got[got.length - 1].actor_type, got[got.length - 1].detail.how, got[got.length - 1].detail.to], ["system", "direct", to]);
+  // The same value again is not a change
+  await pool.query("update feature_switches set state = $1 where key = 'member_move'", [to]);
+  assertEquals((await lines("switch_changed", "member_move")).length, before + 1);
+  // With the admin area's own button there is still exactly one line, the button's
+  const owner = (await one("insert into people (bd_member_id, display_name, email) values ($1, 'Code Owner', $2) returning id", [8_950_000 + (Date.now() % 40000), "co" + RUN + "@test.invalid"])).id;
+  await pool.query("insert into staff_roles (person_id, role) values ($1, 'owner')", [owner]);
+  await pool.query("select dela_admin_set_switch($1, 'member_move', $2)", [owner, sw.state]);
+  got = await lines("switch_changed", "member_move");
+  assertEquals(got.length, before + 2, "the button's own line, and no second one from the database");
+  assertEquals(got[got.length - 1].actor_type, "staff");
+  await pool.query("update staff_roles set revoked_at = now() where person_id = $1", [owner]);
+  // What DELA writes for itself every minute is not news
+  const quiet = (await one("select count(*) n from audit_log where object_id = 'worker.last_run'")).n;
+  await pool.query("update settings set value = to_jsonb(now()::text) where key = 'worker.last_run'");
+  assertEquals((await one("select count(*) n from audit_log where object_id = 'worker.last_run'")).n, quiet);
+  // A release carries its note; a plain change of the version is still noted
+  const C5 = (RUN + "e".repeat(40)).slice(0, 40);
+  await pool.query("update settings set value = '\"jsdelivr\"' where key = 'code.source'");
+  const rel = await lines("release_version", "code_version");
+  assertEquals((await one("select dela_code_release($1, 'step 94b: the Activity list') r", [C5])).r.ok, true);
+  let after = await lines("release_version", "code_version");
+  assertEquals(after.length, rel.length + 1, "one line for a release");
+  assertEquals([after[after.length - 1].detail.note, after[after.length - 1].detail.to], ["step 94b: the Activity list", C5]);
+  await pool.query("update settings set value = to_jsonb($1::text) where key = 'code_version'", [C1]);
+  after = await lines("release_version", "code_version");
+  assertEquals([after.length, after[after.length - 1].detail.how], [rel.length + 2, "direct"]);
+});
+
 Deno.test("teardown", async () => {
   for (const w of was) await pool.query("update settings set value = $1::jsonb where key = $2", [JSON.stringify(w.value), w.key]);
   await pool.query("update jobs set status = 'canceled' where kind in ('code_pull', 'code_seal') and status in ('queued', 'delayed')");
