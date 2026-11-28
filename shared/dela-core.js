@@ -302,6 +302,7 @@
       voice_off: "Talking to the AI is not open for your account yet. You can type instead.",
       paused: "This part of DELA is paused for a moment. Please try again soon.",
       on_hold: "Some actions are paused on your account. Contact the Lawfecta Team.",
+      test_account: "This is a test account. Test accounts cannot pay or set up payouts.",
       ai_not_set_up: "DELA's AI is still being set up. Please try again later.",
       no_credits_left: "You have used this month's included DELA actions. Add your own AI key in AI settings, or upgrade your plan.",
       ai_busy: "DELA's AI could not start this time. No DELA action was used. Please try again.",

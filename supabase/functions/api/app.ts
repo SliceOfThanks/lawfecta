@@ -4622,9 +4622,12 @@ async function monthlyPay(ctx: Ctx, s: Session, id: string) {
   return json(ctx, await chargeOrCheckout(ctx, key, n, ctx.body.use_checkout === true));
 }
 
+// Step 95: a test member never pays and never opens a payout account. The site takes real money; a test must not.
+const testAccount = (ctx: Ctx, person: string) => rpc<boolean>(ctx, "dela_test_member", { p_person: person }).catch(() => false);
 async function engagementPay(ctx: Ctx) {
   const s = await client(ctx);
   const id = need(uuid(ctx.body.id));
+  if (await testAccount(ctx, s.person_id)) return json(ctx, { ok: false, reason: "test_account" });
   const key = await stripeKey(ctx);
   if (!key) return json(ctx, { ok: false, reason: "payments_not_set_up" });
   if (await rpc<boolean>(ctx, "dela_agreement_is_monthly", { p_agreement: id })) return await monthlyPay(ctx, s, id);
@@ -4656,6 +4659,8 @@ async function engagementPayMethod(ctx: Ctx) {
 }
 
 async function chargeOrCheckout(ctx: Ctx, key: string, n: Record<string, any>, forceCheckout: boolean) {
+  // Step 95: every charge passes here, so this is where a test member is stopped whatever page started it
+  if (n.attorney_person && await testAccount(ctx, String(n.attorney_person))) return { ok: false, reason: "test_account" };
   const name = (n.monthly ? `Lawfecta: ${n.gig_title}, month ${n.period?.n}` : `Lawfecta: ${n.gig_title}, milestone ${n.milestone.seq}`) + (n.fee_cents ? (n.fee_timing === "with_each_milestone" ? " and its Lawfecta fee" : " and the platform fee") : "");
   if (n.customer && n.payment_method && !forceCheckout) {
     const r = await chargeSaved(ctx, key, n, name);
@@ -4698,6 +4703,7 @@ async function payoutSetupFailed(ctx: Ctx, person: string, step: string, error: 
 async function payoutSetup(ctx: Ctx) {
   const s = await memberSide(ctx);
   if (s.side !== "freelancer") throw new HttpError(403, "freelancers_only");
+  if (await testAccount(ctx, s.person_id)) return json(ctx, { ok: false, reason: "test_account" });
   const key = await stripeKey(ctx);
   if (!key) return json(ctx, { ok: false, reason: "payments_not_set_up" });
   let acct = await rpc<Record<string, any>>(ctx, "dela_payout_account", { p_person: s.person_id });
