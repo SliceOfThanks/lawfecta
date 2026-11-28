@@ -694,7 +694,8 @@
     var base = p.draft || p.approved;
     var monthly = h("input", { type: "number", min: "0", step: "0.01", value: dollars(base.monthly_cents), "aria-label": "Monthly price in dollars" });
     var annual = h("input", { type: "number", min: "0", step: "0.01", value: dollars(base.annual_cents), placeholder: "Leave empty for no yearly price", "aria-label": "Yearly price in dollars" });
-    var fee = h("input", { type: "number", min: "0", max: "50", step: "0.01", value: String(base.fee_bps / 100), "aria-label": "Fee percent" });
+    // Step 97a: every standard plan shows the fee that is charged, so the box is read only (the server refuses another number)
+    var fee = h("input", { type: "number", min: "0", max: "50", step: "0.01", value: String(base.fee_bps / 100), "aria-label": "Fee percent", id: "plan-fee", disabled: true });
     var bd = h("input", { type: "number", min: "1", value: p.bd_plan_id ? String(p.bd_plan_id) : "", placeholder: "BD plan ID", "aria-label": "BD plan ID" });
     var note = h("input", { placeholder: "Why this change (saved with the version)", value: base.note || "", style: "width:100%" });
     var inputs = {};
@@ -722,6 +723,7 @@
         h("label", { text: "Monthly price (dollars)" }), monthly,
         h("label", { text: "Yearly price (dollars)" }), annual,
         h("label", null, "Platform fee this side pays (percent of the project price) ", tipPair("plan_fee")[0]), fee,
+        h("p", { class: "muted small", id: "plan-fee-note", text: "Every standard plan charges the same fee, so it cannot be changed here. The fee itself is on the Settings page (fee.client_bps for attorneys, fee.freelancer_bps for freelancers). Custom plans that charge less are being built." }),
         h("p", { class: "muted small", text: "The minimum fee per side is a separate setting (fees.floor_cents_per_party), on the Settings page." }),
         h("label", { text: "Note" }), note),
       h("div", { class: "card scroll" }, titled("h2", "Limits", "plan_limits"), h("p", { class: "muted small", text: "Leave a limit empty for no cap. Untick to leave it out of the plan." }),

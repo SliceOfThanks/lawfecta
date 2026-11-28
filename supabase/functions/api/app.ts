@@ -5162,7 +5162,7 @@ async function healthCheck(ctx: Ctx, payload: Record<string, any>): Promise<{ ok
   // 1. The database
   const db = await rpc<HealthIssue[]>(ctx, "dela_health_db", {}).catch(() => null);
   if (!db) line("Database", false, "The check of the database did not run.", { code: "db_check", title: "The check of the database did not run", body: "Ask Claude to read the function logs." });
-  else { line("Database", db.length === 0, db.length ? db.map((x) => x.title).join("; ") : "Jobs, emails, payments, payouts and refunds look right."); issues.push(...db); }
+  else { line("Database", db.length === 0, db.length ? db.map((x) => x.title).join("; ") : "Jobs, emails, payments, payouts, refunds and plan fees look right."); issues.push(...db); }
   // 2. Stripe
   const key = ctx.deps.env("STRIPE_SECRET_KEY"), mode = keyMode(key);
   const liveOn = !!(await rpc<boolean>(ctx, "dela_switch_on", { p_key: "live_payments", p_person: null }).catch(() => false));
