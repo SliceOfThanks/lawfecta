@@ -1,6 +1,6 @@
-You are the owner of a small legal support agency joining Lawfecta, at www.lawfecta.co. An agency on Lawfecta is a freelancer account on the plan "Agency Business". You will create a freelancer account and set up your own profile. This account is listed as a test agency, so DELA gives it the agency plan by itself, with no payment. Then you set up the agency the way a real owner would in a first sitting: the agency profile, the business details, your team, a proposal sent as the agency, and a post in the Community. The person and the agency are made up. The account is a test account and will be deleted afterwards.
+You are the owner of a small legal support agency joining Lawfecta, at www.lawfecta.co. An agency on Lawfecta is a freelancer account on the plan "Agency Business". A freelancer account has been created for you. You will set up your own profile. This account is listed as a test agency, so DELA gives it the agency plan by itself, with no payment. Then you set up the agency the way a real owner would in a first sitting: the agency profile, the business details, your team, a proposal sent as the agency, and a post in the Community. The person and the agency are made up. The account is a test account and will be deleted afterwards.
 
-The account you create:
+The account (already created for you):
 - TEST_EMAIL_AGENCY, password TEST_PASSWORD
 
 HOW TO WORK (read this first; it saves time and credits)
@@ -16,7 +16,7 @@ HOW TO WORK (read this first; it saves time and credits)
    - Dark red buttons are the main actions. Outlined buttons and underlined dark red words are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small dark box at the bottom of the screen. Steps call this "the message at the bottom".
 7. To sign out: click the round button with your initials at the far right of the top bar, then click "Sign out", the last line in the menu that opens.
-8. The sign-up page and the login page have a reCAPTCHA (an "I'm not a robot" check). Tick it yourself like any visitor would. Only if it will not let you through after two tries, stop and ask me to do it, and wait.
+8. The login page has a reCAPTCHA you cannot complete. When you reach https://www.lawfecta.co/login, stop and ask me to log in, naming the account. Wait until I say I am logged in.
     This account is a listed test account: DELA approves its checks by itself within seconds, so you never wait for a person. If a page says something is "with the Lawfecta Team", reload the page once before you write it down.
 9. This is a live website with real members. Everything you type must be the made-up details in the steps. Never type real client information, a real bar number, a real ID number or a real card number.
 10. NEVER DO THESE, even if a page invites you to:
@@ -29,19 +29,14 @@ HOW TO WORK (read this first; it saves time and credits)
 12. Steps marked REVIEW ask for your judgment as a first-time user. Answer in one or two sentences each. If you cannot tell from the screen, write "could not check".
 13. Report one line per step: the step number, PASS or FAIL, and a few words, with everything the step asked you to write down. Add a screenshot only to FAIL lines. At the end, list every FAIL, every message that confused you, and anything that took longer than 60 seconds. Then put the whole report in a plain text file named DELA-onboarding-agency-report.txt and give me a link to download it.
 
-## Part 1: create the account on the Lawfecta website
+## Part 1: your first visit
 
-1. Go to: https://www.lawfecta.co/checkout/free
-   Find: the heading "Create Account" with "Free" under it, and under that "Enter Email and Create Password".
-   Do: in the box "Enter Email" type exactly: TEST_EMAIL_AGENCY
-   Do: in the box "Confirm Email" type the same address again.
-   Do: in the box "Create Password" type exactly: TEST_PASSWORD
-   Do: in the box "Confirm Password" type the same password again.
-   Do: tick the three small boxes under the password boxes. The first reads "By creating an account, you agree to our terms & conditions", the second starts "I understand that personal information I enter on this website", the third starts "I understand that if I make any purchases on this website".
-   Expect: no box for a card number anywhere on this page. If there is one, stop and tell me.
-   Do: tick the reCAPTCHA box if one shows. Then click the button "Create My Profile" at the bottom of the form.
-   Expect: the page changes. You are now logged in as a new member.
-   Write down: the address of the page you land on, and its main heading, word for word.
+The account already exists: it was created a moment ago with the address and password above, on the plan "Free", and nothing else has been done with it. You are the person who just signed up.
+
+1. Go to: https://www.lawfecta.co/login
+   Find: the heading "Member Login", with a box for the email address, a box with the grey hint "Enter Password", and the button "Login Now".
+   Do: stop and ask me to log in as TEST_EMAIL_AGENCY. Wait until I say I am logged in.
+   Write down: the address of the page you are on after I log in, and its main heading, word for word.
 
 2. The website may now show one or more of its own set-up pages before DELA (for example a page asking for your name, a photo or listing details). This part is the website's own, so I cannot name its boxes for you. On each such page:
    Do: fill only the boxes marked with a star (*) or the word "required", using the made-up person in the table below. Leave every other box empty.
