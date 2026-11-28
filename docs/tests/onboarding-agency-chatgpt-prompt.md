@@ -1,7 +1,7 @@
-You are the owner of a small legal support agency joining Lawfecta, at www.lawfecta.co. An agency on Lawfecta is a freelancer account on the plan "Agency Business". You will create a free freelancer account, set up your own profile, ask me to give the account the agency plan (I do that in the admin area; no payment is made), and then set up the agency the way a real owner would in a first sitting: the agency profile, the business details, your team, and a post in the Community. The person and the agency are made up. The account is a test account and will be deleted afterwards.
+You are the owner of a small legal support agency joining Lawfecta, at www.lawfecta.co. An agency on Lawfecta is a freelancer account on the plan "Agency Business". You will create a freelancer account and set up your own profile. This account is listed as a test agency, so DELA gives it the agency plan by itself, with no payment. Then you set up the agency the way a real owner would in a first sitting: the agency profile, the business details, your team, a proposal sent as the agency, and a post in the Community. The person and the agency are made up. The account is a test account and will be deleted afterwards.
 
 The account you create:
-- hello+agency@legalstacey.com, password TEST_PASSWORD
+- TEST_EMAIL_AGENCY, password TEST_PASSWORD
 
 HOW TO WORK (read this first; it saves time and credits)
 1. Do only the numbered steps below, in order. Do not explore, do not open other menus, and do not look for other features, except in the one part that says you may look around.
@@ -16,12 +16,14 @@ HOW TO WORK (read this first; it saves time and credits)
    - Dark red buttons are the main actions. Outlined buttons and underlined dark red words are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small dark box at the bottom of the screen. Steps call this "the message at the bottom".
 7. To sign out: click the round button with your initials at the far right of the top bar, then click "Sign out", the last line in the menu that opens.
-8. The sign-up page and the login page have a reCAPTCHA (an "I'm not a robot" check). You fill in the boxes; when the reCAPTCHA shows, stop and ask me to do it. Wait until I say it is done.
+8. The sign-up page and the login page have a reCAPTCHA (an "I'm not a robot" check). Tick it yourself like any visitor would. Only if it will not let you through after two tries, stop and ask me to do it, and wait.
+    This account is a listed test account: DELA approves its checks by itself within seconds, so you never wait for a person. If a page says something is "with the Lawfecta Team", reload the page once before you write it down.
 9. This is a live website with real members. Everything you type must be the made-up details in the steps. Never type real client information, a real bar number, a real ID number or a real card number.
 10. NEVER DO THESE, even if a page invites you to:
     - Never type card or bank details anywhere, and never continue past a page that asks for them. Stop and tell me.
     - Never click a button whose words start with "Upgrade", "Pay", "Sign", "Subscribe", "Choose a plan" or "Continue to Stripe", and never click "Manage subscription on the Lawfecta website" or "Set up payouts with Stripe".
-    - Never send a message, an invitation or a proposal to another member unless the step names the person.
+    - Never send a message, an invitation or a proposal to another member unless the step names the person or the gig. The only other accounts you may deal with are the test accounts named in the steps, and gigs whose title starts with "TEST".
+    - This account cannot pay. If you ever see "This is a test account. Test accounts cannot pay or set up payouts.", that is correct: write it down and go on.
     - Never click "Save and update my directory listing". When a page offers both, use "Save to DELA only".
 11. A browser pop-up (a small OK / Cancel window from the browser itself) is not expected. If one opens, click Cancel, write FAIL for that step and say what the pop-up said.
 12. Steps marked REVIEW ask for your judgment as a first-time user. Answer in one or two sentences each. If you cannot tell from the screen, write "could not check".
@@ -31,13 +33,13 @@ HOW TO WORK (read this first; it saves time and credits)
 
 1. Go to: https://www.lawfecta.co/checkout/free
    Find: the heading "Create Account" with "Free" under it, and under that "Enter Email and Create Password".
-   Do: in the box "Enter Email" type exactly: hello+agency@legalstacey.com
+   Do: in the box "Enter Email" type exactly: TEST_EMAIL_AGENCY
    Do: in the box "Confirm Email" type the same address again.
    Do: in the box "Create Password" type exactly: TEST_PASSWORD
    Do: in the box "Confirm Password" type the same password again.
    Do: tick the three small boxes under the password boxes. The first reads "By creating an account, you agree to our terms & conditions", the second starts "I understand that personal information I enter on this website", the third starts "I understand that if I make any purchases on this website".
    Expect: no box for a card number anywhere on this page. If there is one, stop and tell me.
-   Do: if a reCAPTCHA shows, ask me to do it and wait. Then click the button "Create My Profile" at the bottom of the form.
+   Do: tick the reCAPTCHA box if one shows. Then click the button "Create My Profile" at the bottom of the form.
    Expect: the page changes. You are now logged in as a new member.
    Write down: the address of the page you land on, and its main heading, word for word.
 
@@ -91,7 +93,7 @@ HOW TO WORK (read this first; it saves time and credits)
    Do: tick the box "I do not use specific legal tech tools".
    Do: under "Services" click "Add a service" and fill "Service": Discovery support for litigation teams , "For whom": Small litigation firms , "From $": 500 , "to $": 900 , and choose "per job".
    Do: open the section "Experience & education" and type in "Experience": Test account. Twelve years in litigation support; owner of the agency since 2021.
-   Do: open the section "Work hours & agreement". Choose "Time zone": "Central". Type "Hours a week you can take on": 30. Type "LinkedIn profile address": linkedin.com/in/test-morgan-halewood-dela . Tick the box that starts "I agree to keep attorneys' work confidential,".
+   Do: open the section "Work hours & agreement". Choose "Time zone": "Central". Type "Hours a week you can take on": 30. Type "LinkedIn profile address": https://www.linkedin.com/in/test-morgan-halewood-dela . Tick the box that starts "I agree to keep attorneys' work confidential,".
 
 8. Do: open the section "Contact details (optional)".
    Do: in the box "Company or agency (optional)" type exactly: Halewood Legal Support (TEST)
@@ -103,23 +105,23 @@ HOW TO WORK (read this first; it saves time and credits)
 9. Find: the card "Your availability" at the top of the Profile page.
    Do: click "Available for new work".
    Expect: the message at the bottom: "Availability saved".
+   Do: click the tab "Matching & verification". In the card "LinkedIn check", make sure the box "LinkedIn profile address" reads https://www.linkedin.com/in/test-morgan-halewood-dela , then click "Ask for the check".
+   Expect: the message at the bottom: "Sent to the Lawfecta Team".
+   Do: wait 5 seconds and reload the page.
+   Expect: the badge near the top of the page reads "Visible in Talent".
+   Write down: the badge.
 
-## Part 3: what a free account sees, then the agency plan
+## Part 3: the agency opens
 
 10. Go to: https://www.lawfecta.co/dela?tab=agency
-    Expect: a card titled "Run your own agency" that says "On Freelancer Business, your account becomes an agency. You invite team members, send proposals as the agency and name who will do the work, and grow a bench of freelancers you hire."
-    Expect: a grey line: "Your plan now: Free. Upgrade your Lawfecta membership to Freelancer Business to start."
-    Do: click nothing on this card.
-    REVIEW: does this card make clear what an agency gets and what it costs? One sentence.
-
-11. STOP HERE AND ASK ME. Say exactly: "Please give hello+agency@legalstacey.com the agency plan now. I will wait." Then wait until I answer "done". Do not go to any checkout or upgrade page yourself.
-
-12. After I say "done": Go to: https://www.lawfecta.co/dela?tab=agency
     Expect: the heading "Agency", and under it a grey line "Halewood Legal Support (TEST) | you are the owner".
-    Expect: these cards, top to bottom: "Agency profile", "Business details", "Posting gigs", "Team", "Proposals", "The agency's jobs", "Bench".
+    If instead a card titled "Run your own agency" shows: reload the page once. If it still shows, write down its grey line that starts "Your plan now:", write FAIL for this step, and go on to Part 6 (Community), because the agency steps cannot be done.
+
+11. Expect: these cards, top to bottom: "Agency profile", "Business details", "Posting gigs", "Team", "Proposals", "The agency's jobs", "Bench".
     Expect: the menu on the left now also shows "Library", "Projects" and "Talent".
     Write down: the agency name exactly as shown, the card headings in order, and the menu lines.
-    If the card "Run your own agency" still shows: reload the page once. If it still shows, write FAIL, tell me, and wait.
+
+12. REVIEW: you signed up as a freelancer and the agency was simply there when you opened this page. Is it clear from this page what an agency is on Lawfecta, and what the owner should do first? Two sentences.
 
 ## Part 4: set up the agency
 
@@ -145,15 +147,19 @@ HOW TO WORK (read this first; it saves time and credits)
     Do: "Business name": Halewood Legal Support LLC (TEST)
     Do: "State of registration": TX
     Do: click the button "Save business details".
-    Expect: the message at the bottom: "Saved. The Lawfecta Team will check it." The status becomes "Waiting for the Lawfecta Team's check."
+    Expect: the message at the bottom: "Saved. The Lawfecta Team will check it."
+    Do: wait 5 seconds and reload the page.
+    Expect: the status in the card "Business details" reads "Checked by the Lawfecta Team."
 
 16. Find: the card "Posting gigs".
     Write down: its status line, word for word (it lists what is still missing before the agency can post gigs).
     Do: "Who signs for the agency": Morgan Halewood
     Do: "Billing address": 300 Test Boulevard, Houston, TX 77002
-    Do: "Email for notices": hello+agency@legalstacey.com
+    Do: "Email for notices": TEST_EMAIL_AGENCY
     Do: click the button "Save client details".
     Expect: the line "Client details saved" on the card.
+    Expect: the status line of this card now reads "Ready to post gigs from your Library (Projects page)."
+    Write down: the status line, word for word.
 
 17. Find: the card "Team".
     Expect: a grey line that starts "1 of 3 seats used, the owner included."
@@ -164,7 +170,7 @@ HOW TO WORK (read this first; it saves time and credits)
 18. Still in the card "Team": find the box "Their email on Lawfecta" and the button "Invite to the team".
     Do: type exactly: nobody-test-0000@example.com   and click "Invite to the team".
     Expect: you are refused with: "There is no Lawfecta freelancer with that email. Ask them to join Lawfecta as a freelancer first, then invite them again."
-    Do: now type exactly: hello+freelancer@legalstacey.com   and click "Invite to the team". (That is another test account of mine.)
+    Do: now type exactly: TEST_EMAIL_FREELANCER   and click "Invite to the team". (That is another test account of mine.)
     Expect: either the message "Invitation sent" and a new row that ends "open until" with a date and the button "Cancel invitation", or the same refusal as above if that account does not exist yet.
     Write down: which of the two happened, word for word.
 
@@ -181,16 +187,25 @@ HOW TO WORK (read this first; it saves time and credits)
     Write down: the heading of every card, top to bottom.
     REVIEW: with no jobs yet, do these cards tell a new owner what to do next?
 
-21. Go to: https://www.lawfecta.co/dela?tab=projects
-    Find: the card "Post a new gig".
-    Write down: the words on the page about whether the agency can post yet. Do NOT click "Start a new gig".
+21. Go to: https://www.lawfecta.co/dela?tab=work
+    Find: in the cards "Matches" and "Open gigs", a gig whose title starts with the word TEST (the test attorney posted it; it is about a welcome packet). Only that gig is yours to answer.
+    If there is no such gig: write "no test gig" and go to Part 6.
+    Do: click the TEST gig's title to open it, and find the card "Your proposal".
+    Expect: a box "Send as" that shows "Halewood Legal Support (TEST) (agency)", and under it "Who will do this work (required). The attorney sees each person you pick, with their profile and reviews."
+    Do: tick the box beside your own name, Morgan Halewood, and in the small box beside it (grey hint "Role on this job, for example Lead paralegal") type: Lead paralegal
+    Do: fill "Total price ($)": 380 , "Days to deliver": 5 , "What your price includes": Test proposal from a test agency. Template and one filled example. , "What it leaves out": Printing and mailing. , "Schedule": Draft in 3 days, final 2 days after comments , "Your relevant qualifications": Test account. Team of three with twelve years in litigation support.
+    Do: click the button "Send proposal (uses 1)".
+    Expect: the message at the bottom: "Proposal sent".
+    Write down: the line that now describes the sent proposal (it should say it was sent for your agency).
+    REVIEW: was it clear that this proposal goes out in the agency's name and who the attorney will see?
 
 ## Part 6: Community
 
 22. Go to: https://www.lawfecta.co/dela?tab=community
    Find: the row of board names near the top of the page.
-   Expect: the boards "Everyone", "Freelancer lounge" and "Help with Lawfecta". (Some accounts also see "Events" and "Blog" in front of them; if you do, leave them alone.)
+   Expect: "Events" and "Blog" first, then the boards "Everyone", "Freelancer lounge" and "Help with Lawfecta".
    Write down: every name in that row, left to right, with the number in brackets after each.
+   Do: click "Events". Write down the first event's title, or the words that say there are none. Then click "Blog" and write down the first article's title. Change nothing.
 
 23. Do: click the board "Everyone" in that row.
    Find: the underlined words "Start a topic in Everyone" above the list of topics. Click them; a small form opens.

@@ -1,7 +1,7 @@
 You are a brand-new freelance paralegal joining Lawfecta, at www.lawfecta.co. You will create a free freelancer account, then use DELA (the part of Lawfecta where attorneys hand work to freelance paralegals) the way a real freelancer would in a first sitting: build your profile, list your services, ask for the LinkedIn check, set your availability, look at the work on offer, and post in the Community. The person is made up. The account is a test account and will be deleted afterwards.
 
 The account you create:
-- hello+freelancer@legalstacey.com, password TEST_PASSWORD
+- TEST_EMAIL_FREELANCER, password TEST_PASSWORD
 
 HOW TO WORK (read this first; it saves time and credits)
 1. Do only the numbered steps below, in order. Do not explore, do not open other menus, and do not look for other features, except in the one part that says you may look around.
@@ -16,12 +16,14 @@ HOW TO WORK (read this first; it saves time and credits)
    - Dark red buttons are the main actions. Outlined buttons and underlined dark red words are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small dark box at the bottom of the screen. Steps call this "the message at the bottom".
 7. To sign out: click the round button with your initials at the far right of the top bar, then click "Sign out", the last line in the menu that opens.
-8. The sign-up page and the login page have a reCAPTCHA (an "I'm not a robot" check). You fill in the boxes; when the reCAPTCHA shows, stop and ask me to do it. Wait until I say it is done.
+8. The sign-up page and the login page have a reCAPTCHA (an "I'm not a robot" check). Tick it yourself like any visitor would. Only if it will not let you through after two tries, stop and ask me to do it, and wait.
+    This account is a listed test account: DELA approves its checks by itself within seconds, so you never wait for a person. If a page says something is "with the Lawfecta Team", reload the page once before you write it down.
 9. This is a live website with real members. Everything you type must be the made-up details in the steps. Never type real client information, a real bar number, a real ID number or a real card number.
 10. NEVER DO THESE, even if a page invites you to:
     - Never type card or bank details anywhere, and never continue past a page that asks for them. Stop and tell me.
     - Never click a button whose words start with "Upgrade", "Pay", "Sign", "Subscribe", "Choose a plan" or "Continue to Stripe", and never click "Manage subscription on the Lawfecta website" or "Set up payouts with Stripe".
-    - Never send a message, an invitation or a proposal to another member unless the step names the person.
+    - Never send a message, an invitation or a proposal to another member unless the step names the person or the gig. The only other accounts you may deal with are the test accounts named in the steps, and gigs whose title starts with "TEST".
+    - This account cannot pay. If you ever see "This is a test account. Test accounts cannot pay or set up payouts.", that is correct: write it down and go on.
     - Never click "Save and update my directory listing". When a page offers both, use "Save to DELA only".
 11. A browser pop-up (a small OK / Cancel window from the browser itself) is not expected. If one opens, click Cancel, write FAIL for that step and say what the pop-up said.
 12. Steps marked REVIEW ask for your judgment as a first-time user. Answer in one or two sentences each. If you cannot tell from the screen, write "could not check".
@@ -31,13 +33,13 @@ HOW TO WORK (read this first; it saves time and credits)
 
 1. Go to: https://www.lawfecta.co/checkout/free
    Find: the heading "Create Account" with "Free" under it, and under that "Enter Email and Create Password".
-   Do: in the box "Enter Email" type exactly: hello+freelancer@legalstacey.com
+   Do: in the box "Enter Email" type exactly: TEST_EMAIL_FREELANCER
    Do: in the box "Confirm Email" type the same address again.
    Do: in the box "Create Password" type exactly: TEST_PASSWORD
    Do: in the box "Confirm Password" type the same password again.
    Do: tick the three small boxes under the password boxes. The first reads "By creating an account, you agree to our terms & conditions", the second starts "I understand that personal information I enter on this website", the third starts "I understand that if I make any purchases on this website".
    Expect: no box for a card number anywhere on this page. If there is one, stop and tell me.
-   Do: if a reCAPTCHA shows, ask me to do it and wait. Then click the button "Create My Profile" at the bottom of the form.
+   Do: tick the reCAPTCHA box if one shows. Then click the button "Create My Profile" at the bottom of the form.
    Expect: the page changes. You are now logged in as a new member.
    Write down: the address of the page you land on, and its main heading, word for word.
 
@@ -119,7 +121,7 @@ HOW TO WORK (read this first; it saves time and credits)
     Do: "Time zone": choose "Central".
     Do: "Usual hours (optional)": Weekdays 9 to 5 Central
     Do: "Hours a week you can take on": 20
-    Do: "LinkedIn profile address": linkedin.com/in/test-jordan-reyesford-dela
+    Do: "LinkedIn profile address": https://www.linkedin.com/in/test-jordan-reyesford-dela
     Do: tick the box that starts "I agree to keep attorneys' work confidential, to work only on funded milestones through Lawfecta,".
     Do: leave the section "Contact details (optional)" completely empty.
     Do: click the save button at the bottom. It reads "Save". If instead there are two buttons, click "Save to DELA only".
@@ -145,13 +147,17 @@ HOW TO WORK (read this first; it saves time and credits)
     Write down: the count and which steps are not done.
     Find: the card "LinkedIn check".
     Expect: it says "We never ask for ID documents or a passport."
-    Do: in the box "LinkedIn profile address" make sure it reads linkedin.com/in/test-jordan-reyesford-dela , then click the button "Ask for the check".
+    Do: in the box "LinkedIn profile address" make sure it reads https://www.linkedin.com/in/test-jordan-reyesford-dela , then click the button "Ask for the check".
     Expect: the message at the bottom: "Sent to the Lawfecta Team".
-    Write down: what the card says now.
+    Do: wait 5 seconds and reload the page. Click the tab "Matching & verification" again.
+    Expect: the LinkedIn check now shows as passed ("Verified").
+    Write down: what the card says now, word for word.
 
 15. Find: the card "Your availability" at the top of the Profile page, with three buttons: "Available for new work", "Some hours only", "Not taking new work".
     Do: click "Available for new work".
     Expect: the message at the bottom: "Availability saved".
+    Expect: the badge near the top of the page now reads "Visible in Talent".
+    Write down: the badge. If it still reads "Not yet visible in Talent", click "View requirements" and write down what is listed as missing.
 
 16. Do: click the tab "Meeting schedule".
     Find: the card "Your availability for meetings".
@@ -163,16 +169,30 @@ HOW TO WORK (read this first; it saves time and credits)
 ## Part 4: the work on offer
 
 17. Go to: https://www.lawfecta.co/dela?tab=work
-    Expect: near the top, the words "You are not match-ready yet, so attorneys cannot find you. Finish your Profile and confirm your availability." (The LinkedIn check is still with the Lawfecta Team.)
-    Expect: a line that reads like "5 of 5 proposals left this month".
+    Expect: NO line that says "You are not match-ready yet". If that line shows, write it down.
+    Expect: a line about how many proposals are left this month.
     Write down: the heading of every card on the page, with the number in brackets on each.
 
-18. Find: the card "Open gigs" on the Work page. It shows only if gigs are open.
-    Do: if a gig is listed, click its title to open it. Read it. Do NOT fill in "Your proposal", do NOT click "Save draft", "Send proposal" or "Ask the attorney". These gigs belong to other members.
-    Write down: the gig's title, and the names of the boxes in the card "Your proposal".
-    Expect: a grey line in that card: "Sending proposals is free. You need a Freelancer Plus subscription or higher only when you accept a job."
+18. Find: on the Work page, in the cards "Matches" and "Open gigs", a gig whose title starts with the word TEST (the test attorney posted it; it is about a welcome packet). Only that gig is yours to answer. Do not open a proposal on any other gig.
+    If there is no gig whose title starts with TEST: write "no test gig", and go to Part 5.
+    Do: click the TEST gig's title to open it.
+    Write down: its title, the budget shown, and the name under "Who posted this gig" exactly as written.
+    Find: the card "Your proposal".
+    Do: fill these boxes:
+    - "Total price ($)": 350
+    - "Days to deliver": 5
+    - "What your price includes": Test proposal. One welcome packet template and one filled example.
+    - "What it leaves out": Printing and mailing.
+    - "Schedule": Draft in 3 days, final 2 days after comments
+    - "Your relevant qualifications": Test account. Eight years of client intake and file opening at small firms.
+    - "Note to the attorney (optional)": This is a test proposal from a test account.
+    Do: click the button "✦ Check my proposal" and wait up to 60 seconds.
+    Write down: what DELA says about the proposal, in one or two sentences.
+    Do: click the button "Send proposal (uses 1)". If the button reads "Send proposal (free: invited)", click that.
+    Expect: the message at the bottom: "Proposal sent".
     Do: click "← Work" at the top to go back.
-    If no gig is listed, write "no open gigs".
+    Expect: the card "Sent proposals" now counts 1.
+    REVIEW: was it clear what each proposal box wanted, and what happens after you send?
 
 ## Part 5: money pages (look only)
 
@@ -192,20 +212,22 @@ HOW TO WORK (read this first; it saves time and credits)
     REVIEW: was the answer specific to Lawfecta, or general advice?
 
 21. Go to: https://www.lawfecta.co/dela?tab=agency
-    Expect: a card titled "Run your own agency", with a grey line "Your plan now: Free. Upgrade your Lawfecta membership to Freelancer Business to start."
-    Do: read it. Click nothing.
+    Expect: a card titled "Run your own agency", with a grey line that starts "Your plan now:".
+    Write down: that grey line, word for word.
+    Do: click nothing on the card.
 
 22. Go to: https://www.lawfecta.co/dela?tab=home
     Find: the card "Complete your profile" (if it still shows) and the lines under "Also needed before new invitations".
-    Write down: the badge on "Verification: LinkedIn check" and on "Availability".
-    REVIEW: does Home now tell you clearly that you are waiting for the Lawfecta Team, and that nothing more is needed from you?
+    Write down: the badge on "Verification: LinkedIn check" and on "Availability", or "card not shown" if the card is gone.
+    REVIEW: does Home now tell you clearly what to do next, now that your profile is ready?
 
 ## Part 7: Community
 
 23. Go to: https://www.lawfecta.co/dela?tab=community
    Find: the row of board names near the top of the page.
-   Expect: the boards "Everyone", "Freelancer lounge" and "Help with Lawfecta". (Some accounts also see "Events" and "Blog" in front of them; if you do, leave them alone.)
+   Expect: "Events" and "Blog" first, then the boards "Everyone", "Freelancer lounge" and "Help with Lawfecta".
    Write down: every name in that row, left to right, with the number in brackets after each.
+   Do: click "Events". Write down the first event's title, or the words that say there are none. Then click "Blog" and write down the first article's title. Change nothing.
 
 24. Do: click the board "Everyone" in that row.
    Find: the underlined words "Start a topic in Everyone" above the list of topics. Click them; a small form opens.

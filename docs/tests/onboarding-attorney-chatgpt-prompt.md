@@ -1,7 +1,7 @@
 You are a brand-new attorney joining Lawfecta, at www.lawfecta.co. You will create a free attorney account, then use DELA (the part of Lawfecta where attorneys hand work to freelance paralegals) the way a real solo attorney would in a first sitting: set up your profile and firm, write a first document with DELA, draft a first gig, look for freelancers, and post in the Community. The person and the firm are made up. The account is a test account and will be deleted afterwards.
 
 The account you create:
-- hello+attorney@legalstacey.com, password TEST_PASSWORD
+- TEST_EMAIL_ATTORNEY, password TEST_PASSWORD
 
 HOW TO WORK (read this first; it saves time and credits)
 1. Do only the numbered steps below, in order. Do not explore, do not open other menus, and do not look for other features, except in the one part that says you may look around.
@@ -16,12 +16,14 @@ HOW TO WORK (read this first; it saves time and credits)
    - Dark red buttons are the main actions. Outlined buttons and underlined dark red words are the other actions. Grey text is a hint.
    - Messages after you click appear for a few seconds in a small dark box at the bottom of the screen. Steps call this "the message at the bottom".
 7. To sign out: click the round button with your initials at the far right of the top bar, then click "Sign out", the last line in the menu that opens.
-8. The sign-up page and the login page have a reCAPTCHA (an "I'm not a robot" check). You fill in the boxes; when the reCAPTCHA shows, stop and ask me to do it. Wait until I say it is done.
+8. The sign-up page and the login page have a reCAPTCHA (an "I'm not a robot" check). Tick it yourself like any visitor would. Only if it will not let you through after two tries, stop and ask me to do it, and wait.
+    This account is a listed test account: DELA approves its checks by itself within seconds, so you never wait for a person. If a page says something is "with the Lawfecta Team", reload the page once before you write it down.
 9. This is a live website with real members. Everything you type must be the made-up details in the steps. Never type real client information, a real bar number, a real ID number or a real card number.
 10. NEVER DO THESE, even if a page invites you to:
     - Never type card or bank details anywhere, and never continue past a page that asks for them. Stop and tell me.
     - Never click a button whose words start with "Upgrade", "Pay", "Sign", "Subscribe", "Choose a plan" or "Continue to Stripe", and never click "Manage subscription on the Lawfecta website" or "Set up payouts with Stripe".
-    - Never send a message, an invitation or a proposal to another member unless the step names the person.
+    - Never send a message, an invitation or a proposal to another member unless the step names the person or the gig. The only other accounts you may deal with are the test accounts named in the steps, and gigs whose title starts with "TEST".
+    - This account cannot pay. If you ever see "This is a test account. Test accounts cannot pay or set up payouts.", that is correct: write it down and go on.
     - Never click "Save and update my directory listing". When a page offers both, use "Save to DELA only".
 11. A browser pop-up (a small OK / Cancel window from the browser itself) is not expected. If one opens, click Cancel, write FAIL for that step and say what the pop-up said.
 12. Steps marked REVIEW ask for your judgment as a first-time user. Answer in one or two sentences each. If you cannot tell from the screen, write "could not check".
@@ -31,13 +33,13 @@ HOW TO WORK (read this first; it saves time and credits)
 
 1. Go to: https://www.lawfecta.co/checkout/attorney-free
    Find: the heading "Create Account" with "Attorney Free" under it, and under that "Enter Email and Create Password".
-   Do: in the box "Enter Email" type exactly: hello+attorney@legalstacey.com
+   Do: in the box "Enter Email" type exactly: TEST_EMAIL_ATTORNEY
    Do: in the box "Confirm Email" type the same address again.
    Do: in the box "Create Password" type exactly: TEST_PASSWORD
    Do: in the box "Confirm Password" type the same password again.
    Do: tick the three small boxes under the password boxes. The first reads "By creating an account, you agree to our terms & conditions", the second starts "I understand that personal information I enter on this website", the third starts "I understand that if I make any purchases on this website".
    Expect: no box for a card number anywhere on this page. If there is one, stop and tell me.
-   Do: if a reCAPTCHA shows, ask me to do it and wait. Then click the button "Create My Profile" at the bottom of the form.
+   Do: tick the reCAPTCHA box if one shows. Then click the button "Create My Profile" at the bottom of the form.
    Expect: the page changes. You are now logged in as a new member.
    Write down: the address of the page you land on, and its main heading, word for word.
 
@@ -107,17 +109,22 @@ HOW TO WORK (read this first; it saves time and credits)
    - "Billing address": 100 Test Street, Austin, TX 78701
    - "Who may sign for the firm": Avery Stonefield
    - "Their title": Owner
-   - "Email for formal notices": hello+attorney@legalstacey.com
+   - "Email for formal notices": TEST_EMAIL_ATTORNEY
    Do: leave "Firm website" and "Firm phone" empty. Do not add a logo.
    Do: click the button "Save firm details".
    Expect: the message at the bottom: "Firm details saved".
 
 9. Find: the card titled "License verification", on the same tab, below "Firm details".
-   Do: read it. Do NOT fill it in and do NOT click "Add the license": it needs a real bar number, and this account is made up.
-   Write down: the names of the boxes in that card and the two choices under "How to show the license is yours".
-   Find: the card near the top of this tab that starts "Ready to post and hire:".
-   Write down: its heading with its numbers, and which lines it shows as not done.
-   REVIEW: does this page make clear why a new attorney cannot post a gig yet, and what to do about it? One sentence.
+   Do: in "State that issued the license" choose TX.
+   Do: in "Bar number" type exactly: TEST-00012345 (a made-up number for this test account).
+   Do: in "Name exactly as on the state bar record" type: Avery Stonefield
+   Do: under "How to show the license is yours" choose the second choice, which ends "minute video call with the Lawfecta Team".
+   Do: click the button "Add the license".
+   Expect: the message at the bottom: "License added. We will set up the video call."
+   Do: wait 5 seconds and reload the page. Click the tab "Firm & verification" again.
+   Expect: the license now shows the word "Verified", and the badge near the top of the page reads "Ready to post and hire".
+   Write down: the words on the license row, the badge, and the heading of the card that starts "Ready to post and hire:" with its numbers.
+   REVIEW: before the license was verified, did the page make clear why a new attorney cannot post a gig yet, and what to do about it? One sentence.
 
 ## Part 3: tell DELA about your firm, and write a first document
 
@@ -167,7 +174,6 @@ HOW TO WORK (read this first; it saves time and credits)
 
 15. Go to: https://www.lawfecta.co/dela?tab=projects
     Find: the heading "Projects" and the sentence "Manage your gigs, awarded work, milestones and standing arrangements."
-    Expect: a notice that starts "Posting work and hiring need a verified license. You can still draft gigs."
     Do: click the button "+ New Gig ▾" near the top right, then click the menu line "From an approved document".
     Expect: a page titled "Post a New Gig" with three steps across the top: "Set up your gig", "Review DELA draft", "Review & post".
 
@@ -178,7 +184,7 @@ HOW TO WORK (read this first; it saves time and credits)
 
 17. Find: the part "Budget & requirements" on the same page.
     Do: in "Budget from (USD)" type 300. In "Budget to (USD)" type 400. Leave "Work deadline (optional)" empty.
-    Do: in "Additional details (optional)" type exactly: Test gig from a test account. Please do not apply. Microsoft Word needed.
+    Do: in "Additional details (optional)" type exactly: Test gig from a test account. Real members: please do not apply. Microsoft Word needed.
     Expect: a hint that reads "At least $250." and two lines "Platform fee (5%, at least $10)" and "Estimated total" with amounts.
     Expect: a notice that starts "Protect client information:".
     Write down: the two amounts.
@@ -193,10 +199,10 @@ HOW TO WORK (read this first; it saves time and credits)
 
 19. Find: the tick box that reads "I have read what freelancers will see. It has no client information, and I want to post this gig."
     Do: tick it, then click the button "Post the gig".
-    Expect: the gig is NOT posted. A message says: "Posting work and hiring need a verified license. Open Profile and verification from your account menu."
-    If instead the gig IS posted (a message that starts "Your gig is open until"): write that down as a FAIL, because an unverified attorney should not be able to post.
-    Do: click the button "Save draft".
-    Write down: the message at the bottom after saving.
+    Expect: the message at the bottom starts "Your gig is open until", and the gig opens on a page of matches.
+    Write down: the whole message, the gig's title as shown, and how many freelancers the matches page lists.
+    If the gig is refused, write down the refusal word for word and click "Save draft".
+    Do: on the matches page, do NOT click "Invite" or "Invite to gig" on anyone. Those are real members.
 
 ## Part 5: look for freelancers
 
@@ -209,13 +215,14 @@ HOW TO WORK (read this first; it saves time and credits)
     Find: the buttons near the top of the profile: "Invite to gig", "Send message", "Book a call", "☆ Bookmark".
     Do: click "☆ Bookmark".
     Expect: the button changes to "★ Bookmarked".
-    Do: click "Send message".
-    Expect: you are refused, with the words "Verify your bar license first. Open Profile to finish it; it is needed before you contact a freelancer or post a gig."
-    If a message box opens instead, do NOT type or send anything. Close it and write FAIL.
+    Do: do NOT click "Send message", "Book a call" or "Invite to gig". They would reach a real member.
+    Write down: the name at the top of the profile exactly as written, and whether a last name shows in full.
 
 22. Go to: https://www.lawfecta.co/dela?tab=talent
     Do: click "Bookmarks" in the row of views near the top ("Search", "My bench", "Bookmarks").
     Expect: the freelancer you bookmarked is listed.
+    Find: a row near the top of the Talent page with three choices: "Find talent", "Services", "Promotions".
+    Do: click "Services". Write down the page heading and the first service card's title. Then click "Promotions". Write down the page heading and the first promotion's title, or the words that say there are none. Change nothing.
 
 ## Part 6: the setup checklist
 
@@ -228,8 +235,9 @@ HOW TO WORK (read this first; it saves time and credits)
 
 24. Go to: https://www.lawfecta.co/dela?tab=community
    Find: the row of board names near the top of the page.
-   Expect: the boards "Everyone", "Attorney room" and "Help with Lawfecta". (Some accounts also see "Events" and "Blog" in front of them; if you do, leave them alone.)
+   Expect: "Events" and "Blog" first, then the boards "Everyone", "Attorney room" and "Help with Lawfecta".
    Write down: every name in that row, left to right, with the number in brackets after each.
+   Do: click "Events". Write down the first event's title, or the words that say there are none. Then click "Blog" and write down the first article's title. Change nothing.
 
 25. Do: click the board "Everyone" in that row.
    Find: the underlined words "Start a topic in Everyone" above the list of topics. Click them; a small form opens.
