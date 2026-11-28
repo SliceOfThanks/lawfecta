@@ -1,5 +1,5 @@
 <?php
-/* DELA-App: the DELA member app. Place this widget on the /dela page. Version 1.2.0
+/* DELA-App: the DELA member app. Place this widget on the /dela page. Version 1.3.0
    data-api-staging is the DELA Staging api address. data-api stays empty until the first push to Live;
    then it holds the Live api address, and Live sends test accounts on the staging list to Staging by itself.
    data-code is the GitHub home of the DELA code. */
@@ -61,7 +61,8 @@ if (count($dela_ids) > 1) {
     root.innerHTML = '<p style="text-align:center;padding:40px 16px;font-family:Arial,sans-serif;color:#1f2a37">DELA could not load. Please refresh the page.</p>';
   }
   function load(base, boot) {
-    var cdn = 'https://cdn.jsdelivr.net/gh/' + code + '@' + (boot.commit || 'main');
+    if (!boot || (!boot.base && !boot.commit)) { fail(); return; }
+    var cdn = boot.base || ('https://cdn.jsdelivr.net/gh/' + code + '@' + boot.commit);
     root.setAttribute('data-api', base);
     root.setAttribute('data-base', cdn);
     root.delaBoot = boot;

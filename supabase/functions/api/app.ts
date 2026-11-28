@@ -30,6 +30,7 @@ import { CONTENT_TYPES, readText, sha256, sniff } from "./lib/files/check.ts";
 import type { Storage } from "./lib/files/storage.ts";
 import { completeness, emptyBody, fileName, normalize, removesReview, toCsv, toDocx, toHtml, toMarkdown, dayIn, type Body, type ExportMeta } from "./lib/playbooks/model.ts";
 import { limited } from "./lib/http.ts";
+import { ghFile, ghTree, gitSha, ownBase, plan as codePlan, putCode, removeCode, typeOf, type Todo } from "./lib/code/store.ts";
 import { keyAllowed, keyMode, stripe, stripeV2, noAnswer, findCharge, findTransfer, findRefund, findReversal, checkoutParams, verifyStripeSignature, accountStatus, accountStatusV2, recipientAccount, onboardingLink, ACCOUNT_V2_INCLUDE, STRIPE_V2_VERSION } from "./lib/payments/stripe.ts";
 import { checkUrl, deliver, denoResolve, newSecret, type Resolver } from "./lib/webhooks/deliver.ts";
 import { readSafety, SAFETY_SYSTEM } from "./lib/reviews/model.ts";
@@ -233,7 +234,12 @@ function need<T>(v: T | null | undefined | "", code = "bad_request"): T {
 
 // The logo for emails, pinned to the code version this site runs
 async function codeLogo(ctx: Ctx): Promise<string> {
-  try { return logoUrl(await rpc<string | null>(ctx, "dela_setting_text", { p_key: "code_version", p_default: "main" })); } catch { return logoUrl("main"); }
+  try {
+    const c = await rpc<string | null>(ctx, "dela_setting_text", { p_key: "code_version", p_default: "main" });
+    // Step 94: from DELA's own copy of the version when that is in use
+    const own = await codeBase(ctx, c);
+    return own ? own + "/brand/lawfecta-mark-192.png" : logoUrl(c);
+  } catch { return logoUrl("main"); }
 }
 
 // ---------- Sign in ----------
@@ -5052,6 +5058,75 @@ async function disputeDraft(c: Ctx, actor: string) {
   }
 }
 
+// ---------- Step 94: DELA's own copy of each released version ----------
+// The job "code_pull" copies one version's files from GitHub into the bucket dela-code, a few at a time, checking each
+// against GitHub's own fingerprint. "code_seal" takes the server's files out again once the function is deployed.
+const CODE_PER_TURN = 25;
+// Where the pages load this version from when DELA's own copy is in use; "" means the old way (jsDelivr)
+async function codeBase(ctx: Ctx, commit: string | null): Promise<string> {
+  const c = String(commit ?? ""), url = ctx.deps.env("SUPABASE_URL");
+  if (!/^[0-9a-f]{40}$/.test(c) || !url) return "";
+  return (await rpc<boolean>(ctx, "dela_code_own", { p_commit: c }).catch(() => false)) ? ownBase(url, c) : "";
+}
+async function bootstrapWithBase(ctx: Ctx): Promise<Response> {
+  const res = await bootstrap(ctx);
+  if (res.status !== 200 || !(res.headers.get("content-type") ?? "").includes("application/json")) return res;
+  const j = await res.json() as Record<string, unknown>;
+  const base = typeof j?.commit === "string" ? await codeBase(ctx, j.commit) : "";
+  return new Response(JSON.stringify(base ? { ...j, base } : j), { status: 200, headers: res.headers });
+}
+async function codePull(ctx: Ctx, payload: Record<string, any>): Promise<{ ok: boolean; retry?: boolean; error?: string }> {
+  const commit = String(payload?.commit ?? "");
+  const row = await rpc<Record<string, any> | null>(ctx, "dela_code_row", { p_commit: commit });
+  if (!row || row.status !== "pulling") return { ok: true };
+  const repo = await setting(ctx, "code.repo", ""), token = ctx.deps.env("GITHUB_CODE_TOKEN"), ff = f(ctx);
+  const base = ctx.deps.env("SUPABASE_URL"), svc = ctx.deps.env("SUPABASE_SERVICE_ROLE_KEY");
+  const fail = async (why: string) => { await rpc(ctx, "dela_code_end", { p_commit: commit, p_ok: false, p_problem: why }); return { ok: true }; };
+  const busy = (status: number) => status === 0 || status === 429 || status >= 500;
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/.test(repo)) return await fail("The setting code.repo is not the name of a GitHub repository.");
+  if (!base || !svc) return await fail("DELA's own storage is not set up for the function.");
+  let todo = row.todo as Todo[] | null;
+  if (!todo) {
+    const t = await ghTree(ff, repo, commit, token);
+    if (!t.ok) {
+      if (busy(t.status)) return { ok: false, retry: true, error: t.error };
+      return await fail([401, 403, 404].includes(t.status)
+        ? (token ? "GitHub refused the key in the Supabase secret GITHUB_CODE_TOKEN, or this version does not exist." : "GitHub did not show this version. If the repository is private, DELA needs a key to read it: the Supabase secret GITHUB_CODE_TOKEN.")
+        : t.error);
+    }
+    todo = codePlan(t.tree, commit, String(row.key), (Array.isArray(payload?.migrations) ? payload.migrations : []).map((m: unknown) => String(m)));
+    if (!todo.some((x) => x.path === "shared/dela-core.js") || !todo.some((x) => x.path === "app/dela-app.js")) return await fail("This version does not hold DELA's pages (shared/dela-core.js, app/dela-app.js).");
+  }
+  const now = todo.slice(0, CODE_PER_TURN), rest = todo.slice(CODE_PER_TURN), server: string[] = [];
+  for (const it of now) {
+    const g = await ghFile(ff, repo, commit, it.path, token);
+    if (!g.ok) { if (busy(g.status)) return { ok: false, retry: true, error: g.error }; return await fail(g.error); }
+    // The file must be exactly the one GitHub lists for this version
+    if (await gitSha(g.bytes) !== it.sha) return await fail("A file did not match GitHub's fingerprint: " + it.path);
+    const p = await putCode(ff, base, svc, it.to, g.bytes, typeOf(it.path));
+    if (!p.ok) { if (busy(p.status)) return { ok: false, retry: true, error: "storage " + p.status }; return await fail("DELA's storage refused " + it.path + " (status " + p.status + ")."); }
+    if (it.server) server.push(it.to);
+  }
+  await rpc(ctx, "dela_code_step", { p_commit: commit, p_todo: rest, p_done: now.length, p_server: server });
+  if (rest.length) {
+    await rpc(ctx, "dela_job_enqueue", { p_kind: "code_pull", p_payload: { commit }, p_run_at: new Date().toISOString(), p_idem: "code_pull:" + commit + ":try" + Number(row.attempt) + ":left" + rest.length, p_person: null });
+    return { ok: true };
+  }
+  await rpc(ctx, "dela_code_end", { p_commit: commit, p_ok: true, p_problem: "" });
+  return { ok: true };
+}
+async function codeSeal(ctx: Ctx, payload: Record<string, any>): Promise<{ ok: boolean; retry?: boolean; error?: string }> {
+  const commit = String(payload?.commit ?? "");
+  const row = await rpc<Record<string, any> | null>(ctx, "dela_code_row", { p_commit: commit });
+  if (!row) return { ok: true };
+  const paths = (Array.isArray(row.server_files) ? row.server_files : []).map((x: unknown) => String(x));
+  for (let i = 0; i < paths.length; i += 100) {
+    if (!(await removeCode(f(ctx), ctx.deps.env("SUPABASE_URL"), ctx.deps.env("SUPABASE_SERVICE_ROLE_KEY"), paths.slice(i, i + 100)))) return { ok: false, retry: true, error: "storage_remove" };
+  }
+  await rpc(ctx, "dela_code_sealed", { p_commit: commit });
+  return { ok: true };
+}
+
 // ---------- Step 93: the six-hour check (Stacey 2026-11-25) ----------
 // Every few hours (setting health.check_hours) DELA looks at its own database, asks Stripe, the website and the email
 // service whether they answer, and asks Stripe how recent refunds ended. Each problem goes to the owner by email at
@@ -5131,6 +5206,20 @@ async function healthCheck(ctx: Ctx, payload: Record<string, any>): Promise<{ ok
   } else if (provider === "log" && live) {
     line("Email service", false, "Emails are only written to the log.", { code: "email_log", once: true, title: "DELA is not sending emails", body: "The setting email.provider is \"log\", so emails are written down and not sent." });
   } else line("Email service", true, "Emails go through the website's own email.");
+  // 5. The pages' own code (step 94). On 2026-11-27 the repository was private for some hours and nothing said so.
+  const cv = await setting(ctx, "code_version", "");
+  if (/^[0-9a-f]{40}$/.test(cv)) {
+    const own = await codeBase(ctx, cv);
+    const at = (own || "https://cdn.jsdelivr.net/gh/" + (await setting(ctx, "code.repo", "")) + "@" + cv) + "/shared/dela-core.js";
+    const c = await twice(async () => {
+      try { const r = await f(ctx)(at); await r.body?.cancel(); return { ok: r.ok, status: r.status, error: "status " + r.status }; }
+      catch (e) { return { ok: false, status: 0, error: String((e as Error)?.message ?? e).slice(0, 80) }; }
+    });
+    line("Code", c.ok, c.ok ? (own ? "The pages load from DELA's own copy." : "The pages load through jsDelivr, which needs the GitHub repository to be public.") : "The pages' code did not load (" + c.error + ").",
+      { code: "code_down", title: "DELA's pages cannot load their code", body: own
+        ? "The live version is missing from DELA's own storage (" + c.error + "). Members may see \"DELA could not load\". Tell Claude at once."
+        : "jsDelivr did not serve the live version (" + c.error + "). The usual cause: the GitHub repository was made private. Make it public again (GitHub, the repository's Settings, Danger Zone, Change visibility), or tell Claude at once." });
+  }
   await rpc(ctx, "dela_health_save", { p_trigger: payload?.trigger === "manual" ? "manual" : "timer", p_checks: checks, p_issues: issues });
   return { ok: true };
 }
@@ -6731,6 +6820,8 @@ async function runJob(ctx: Ctx, j: Record<string, any>): Promise<{ ok: boolean; 
   if (j.kind === "move_read") return await moveRead(ctx, j.payload ?? {});
   if (j.kind === "move_create") return await moveCreate(ctx, j.payload ?? {});
   if (j.kind === "health_check") return await healthCheck(ctx, j.payload ?? {});
+  if (j.kind === "code_pull") return await codePull(ctx, j.payload ?? {});
+  if (j.kind === "code_seal") return await codeSeal(ctx, j.payload ?? {});
   if (j.kind === "claim_create") { await claimCreate(ctx, String(j.payload?.batch_id ?? ""), Number(j.payload?.turn) || 0); return { ok: true }; }
   if (j.kind === "posts_sync") { const r = await postsSync(ctx); return r?.ok ? { ok: true } : { ok: true, error: "not_all_read" }; }
   if (j.kind === "categories_sync") { const r = await categoriesSync(ctx, String(j.payload?.source ?? "job").slice(0, 20)); return r?.ok ? { ok: true } : { ok: true, error: String(r?.reason ?? "not_synced") }; }
@@ -7133,7 +7224,7 @@ async function handleInner(req: Request, deps: Deps): Promise<Response> {
         const healthy = !!hh?.worker_ok;
         return json(ctx, { ok: healthy, version: VERSION, environment: hh?.environment, code_version: hh?.code_version, worker_ok: hh?.worker_ok, paused: hh?.paused }, healthy ? 200 : 503);
       }
-      case "POST /bootstrap": return await bootstrap(ctx);
+      case "POST /bootstrap": return await bootstrapWithBase(ctx);
       case "GET /me": return await me(ctx);
       case "POST /me/side": return await setSide(ctx);
       case "POST /me/appearance": { const s = await member(ctx); return json(ctx, await rpc(ctx, "dela_appearance_set", { p_person: s.person_id, p_mode: str(ctx.body.mode, 10) })); }

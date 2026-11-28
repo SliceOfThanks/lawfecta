@@ -1,5 +1,5 @@
 <?php
-/* DELA-Security: the public security page. Place this widget on the /security page. Version 1.0.0
+/* DELA-Security: the public security page. Place this widget on the /security page. Version 1.1.0
    Anyone can open it: it needs no login and never reads who is signed in.
    data-api-staging is the DELA Staging api address (the pilot site, lawfecta.co).
    data-api stays empty on the test site. On lawfecta.com it holds the Live api address.
@@ -36,7 +36,7 @@
     .then(function (b) {
       if (!b || !b.commit) { fail(); return; }
       step = 'step 2';
-      var cdn = 'https://cdn.jsdelivr.net/gh/' + code + '@' + b.commit;
+      var cdn = b.base || ('https://cdn.jsdelivr.net/gh/' + code + '@' + b.commit);
       root.setAttribute('data-api', api);
       root.setAttribute('data-base', cdn);
       add(cdn + '/shared/dela-core.js', function () { step = 'step 3'; add(cdn + '/app/dela-security.js'); });
