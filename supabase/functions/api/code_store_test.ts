@@ -2,7 +2,8 @@
 // A stand-in GitHub and a stand-in Supabase Storage. A version is copied file by file and checked against GitHub's
 // fingerprint; only what a browser loads goes where a browser can read it; test files are never copied; the pages are
 // told the new address only when the copy is complete and the setting says so; a version that was not copied cannot
-// be released; a private repository without a key fails with a plain reason; the server's files are removed again.
+// be released; a private repository without a key fails with a plain reason; the release's migration file is removed
+// again. The server's own code is never copied.
 // Run after tools/dbtest.sh:   deno test -A supabase/functions/api/code_store_test.ts
 import { assert, assertEquals } from "jsr:@std/assert@1.0.19";
 import { handle, type Deps } from "./app.ts";
@@ -71,9 +72,8 @@ Deno.test("which files are copied: what a browser loads, the server's own files 
   const p = plan([...tree, { path: "app/../CLAUDE.md", type: "blob", sha: "x" }], C1, "k".repeat(32), ["0171_code_store.sql", "../../x.sql"]);
   const to = Object.fromEntries(p.map((x) => [x.path, x.to]));
   assertEquals(to["shared/dela-core.js"], C1 + "/shared/dela-core.js");
-  assertEquals(to["supabase/functions/api/app.ts"], C1 + "/_s/" + "k".repeat(32) + "/supabase/functions/api/app.ts");
   assertEquals(to["supabase/migrations/0171_code_store.sql"], C1 + "/_s/" + "k".repeat(32) + "/supabase/migrations/0171_code_store.sql");
-  for (const never of ["supabase/functions/api/app_test.ts", "tests/pw/move-test.js", "docs/SESSION_HANDOFF.md", "CLAUDE.md", "widgets/DELA-App.php", "supabase/migrations/0170_audit_fixes.sql", "app/../CLAUDE.md"]) assert(!(never in to), "never copied: " + never);
+  for (const never of ["supabase/functions/api/app.ts", "supabase/functions/api/lib/http.ts", "supabase/functions/api/app_test.ts", "tests/pw/move-test.js", "docs/SESSION_HANDOFF.md", "CLAUDE.md", "widgets/DELA-App.php", "supabase/migrations/0170_audit_fixes.sql", "app/../CLAUDE.md"]) assert(!(never in to), "never copied: " + never);
   assertEquals(p.filter((x) => !x.server).length, 6);
   assertEquals([typeOf("a.js"), typeOf("a.ts"), typeOf("a.png"), typeOf("a.md")], ["text/javascript", "application/typescript", "image/png", ""]);
   // Git's own fingerprint of an empty file
@@ -85,11 +85,11 @@ Deno.test("a version is copied whole, and the pages are told the new address onl
   assertEquals((await one("select dela_code_pull($1, array['0171_code_store.sql']) r", [C1])).r.status, "pulling");
   await work();
   const r = await row(C1);
-  assertEquals([r.status, r.files, r.problem], ["ready", 9, ""], JSON.stringify(r));
+  assertEquals([r.status, r.files, r.problem], ["ready", 7, ""], JSON.stringify(r));
   const core = stored.get(C1 + "/shared/dela-core.js")!;
   assertEquals([core.type, core.body, core.cache], ["text/javascript", "window.D = {};", "max-age=31536000"]);
-  assert(stored.has(C1 + "/_s/" + r.key + "/supabase/functions/api/app.ts") && stored.has(C1 + "/_s/" + r.key + "/supabase/migrations/0171_code_store.sql"), "the server's files sit under the random name");
-  assert(![...stored.keys()].some((k) => k.includes("_test") || k.includes("CLAUDE") || k.includes("SESSION_HANDOFF") || k.includes("widgets/")), "no test, document or widget was copied");
+  assert(stored.has(C1 + "/_s/" + r.key + "/supabase/migrations/0171_code_store.sql"), "the migration named for the release sits under the random name");
+  assert(![...stored.keys()].some((k) => k.includes("functions/api") || k.includes("_test") || k.includes("CLAUDE") || k.includes("SESSION_HANDOFF") || k.includes("widgets/")), "no server code, test, document or widget was copied");
   assertEquals([...stored.keys()].filter((k) => !k.includes("/_s/")).length, 6, "only the six browser files are where a browser can read them");
   // The setting still says jsdelivr: the pages are told nothing new
   await pool.query("update settings set value = to_jsonb($1::text) where key = 'code_version'", [C1]);
@@ -150,10 +150,10 @@ Deno.test("a private repository: without the key the copy fails with a plain rea
 
 Deno.test("after the release the server's files are taken out of the store; the browser's stay", async () => {
   const key = (await row(C1)).key;
-  assert(stored.has(C1 + "/_s/" + key + "/supabase/functions/api/app.ts"));
+  assert(stored.has(C1 + "/_s/" + key + "/supabase/migrations/0171_code_store.sql"));
   assertEquals((await one("select dela_code_seal($1) r", [C1])).r.ok, true);
   await work();
-  assert(![...stored.keys()].some((k) => k.startsWith(C1 + "/_s/")), "the server's files are gone");
+  assert(![...stored.keys()].some((k) => k.startsWith(C1 + "/_s/")), "the migration file is gone");
   assert(stored.has(C1 + "/shared/dela-core.js"), "the pages' files stay");
   const r = await row(C1);
   assert(r.sealed_at && r.status === "ready");

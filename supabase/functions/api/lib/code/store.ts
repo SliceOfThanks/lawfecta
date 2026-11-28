@@ -1,13 +1,14 @@
 // Step 94: DELA's own copy of each released version (docs/briefs/step-94-code-store.md).
 // A version's files are read from GitHub at one exact commit, checked against the fingerprint GitHub's own list gives
-// for each file, and put into the Supabase Storage bucket dela-code. The files a browser loads go under the commit;
-// the server's own files go under a long random name next to them, for the minutes a release needs them.
+// for each file, and put into the Supabase Storage bucket dela-code. The files a browser loads go under the commit.
+// A migration file named for the release goes under a long random name next to them, for the minutes the release
+// needs it. The server's own code is never copied: Supabase's deploy tool does not load code from Storage (tried on
+// 2026-11-27), so the function is deployed another way and its code has no reason to be here.
 
 export const CODE_BUCKET = "dela-code";
 // What a browser loads. Nothing else of the repository is ever copied to where a browser can read it.
 const BROWSER_DIRS = ["shared/", "app/", "admin/", "brand/", "docs/images/"];
 const BROWSER_ENDS = [".js", ".png", ".jpg"];
-const SERVER_DIR = "supabase/functions/api/";
 
 export type TreeItem = { path: string; sha: string; type: string; size?: number };
 export type Todo = { path: string; sha: string; to: string; server: boolean };
@@ -15,7 +16,7 @@ export type Todo = { path: string; sha: string; to: string; server: boolean };
 const TYPES: Record<string, string> = { js: "text/javascript", ts: "application/typescript", sql: "text/plain", png: "image/png", jpg: "image/jpeg" };
 export const typeOf = (path: string) => TYPES[path.split(".").pop() ?? ""] ?? "";
 
-// Which files of the version are copied, and where to. Test files are never copied.
+// Which files of the version are copied, and where to. Test files and the server's code are never copied.
 export function plan(tree: TreeItem[], commit: string, key: string, migrations: string[]): Todo[] {
   const names = new Set(migrations.filter((m) => /^[0-9]{4}_[a-z0-9_]+\.sql$/.test(m)));
   const out: Todo[] = [];
@@ -23,7 +24,6 @@ export function plan(tree: TreeItem[], commit: string, key: string, migrations: 
     if (t.type !== "blob" || !/^[A-Za-z0-9_./-]+$/.test(t.path) || t.path.includes("..") || !typeOf(t.path)) continue;
     const test = /_test\.ts$/.test(t.path) || /-test\.js$/.test(t.path);
     if (BROWSER_DIRS.some((d) => t.path.startsWith(d)) && BROWSER_ENDS.some((e) => t.path.endsWith(e)) && !test) out.push({ path: t.path, sha: t.sha, to: `${commit}/${t.path}`, server: false });
-    else if (t.path.startsWith(SERVER_DIR) && t.path.endsWith(".ts") && !test) out.push({ path: t.path, sha: t.sha, to: `${commit}/_s/${key}/${t.path}`, server: true });
     else if (t.path.startsWith("supabase/migrations/") && names.has(t.path.slice("supabase/migrations/".length))) out.push({ path: t.path, sha: t.sha, to: `${commit}/_s/${key}/${t.path}`, server: true });
   }
   return out;
