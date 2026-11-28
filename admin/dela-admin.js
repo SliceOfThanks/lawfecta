@@ -382,6 +382,44 @@
         ["Open", "Not decided yet. DELA uses a safe default."],
       ] },
     ]],
+    // Step 93b (Stacey 2026-11-27): when, where, how and why to get data back from a backup. The pictures were taken
+    // in Supabase on 27 November 2026, up to the screen that shows the cost; no restore was run.
+    ["g_backup", "Getting data back from a backup", "When you would need it, where it is done, how, why, and what it costs", [
+      { p: "Why: DELA's database holds every workspace, document, gig, agreement, message and money record. If it is damaged, by a mistake, a bad release or a problem at Supabase, a backup is the only way back. Supabase makes one backup of the database every day by itself and keeps the last seven." },
+      { note: "No restore has been tested yet. On 27 November 2026 Stacey decided not to pay for a test copy for now. Until one test has been done, treat a restore as unproven, and do the first one as a test copy (the first way below), never straight over the live site." },
+      { terms: [
+        ["What is in a backup", "The database: members' workspaces, documents and their versions, gigs, agreements, messages, the ledger, settings and switches."],
+        ["What is not", "Files that members uploaded (they stay in Supabase Storage and a database restore does not touch them), the code (it is in GitHub), the secret keys for Stripe, the website, Brevo and the AI providers (a copy does not carry them), and members' logins and plans (they are on the website, which has its own backups)."],
+        ["How much can be lost", "Everything written after the backup you choose. With one backup a day, that is up to 24 hours of work."],
+        ["What it costs", "Restoring over the live site costs nothing. A separate copy is charged like any Supabase project while it exists: on 27 November 2026 the screen read 9.68 US dollars a month. Supabase charges by the hour, so a copy deleted the same day should come to a few cents (an estimate, not a quote)."],
+        ["Where", "In Supabase, not in DELA: the project \"Lawfecta AI\", left menu \"Database\", then \"Backups\". Only the owner's Supabase login can open it."],
+      ] },
+      { two: [
+        ["A separate copy (safe)", "ok", ["To test that backups work, once every three months", "To look at how something was yesterday without changing today", "To take back one thing that was deleted by mistake: Claude reads it from the copy and puts it into the live site", "The live site is never touched, and nobody is offline"]],
+        ["Over the live site (last resort)", "warn", ["Only when the live data is damaged so badly that going back a day is better than repairing it", "Everything written since that backup is lost for every member", "The site is offline while it runs", "Only the owner starts it, after Claude has written down what would be lost"]],
+      ] },
+      { p: "How, the first way: a separate copy. Five steps." },
+      { steps: [
+        ["Open the backups page.", "Sign in to Supabase and open the project \"Lawfecta AI\". In the left menu click \"Database\", then \"Backups\", then the tab \"Restore to new project\". You see one line for each of the last seven days, each marked \"COMPLETED\".", "1-backups-list.jpg", "https://supabase.com/dashboard/project/ojshgsxgsypbywtqhkch/database/backups/restore-to-new-project"],
+        ["Choose the backup.", "Click \"Restore\" at the right end of the line you want: the top line for a test, or the last one from before the damage. A panel opens that lists what is copied and what is not. Click the green button \"Continue\".", "2-restore-panel.jpg"],
+        ["Name the copy and give it a password.", "In the box \"New Project Name\" type a name that cannot be taken for the live one, such as \"DELA restore drill\". Under \"Database password\" click the underlined words \"Generate a password\". You do not need to keep it for a test.", "3-name-and-password.jpg"],
+        ["Read the cost, then confirm.", "Scroll to the bottom of the panel. It shows what the copy costs each month, and a warning that its disk is larger than your Spend Cap allows (the restore still completes). If you agree, click the green button \"Restore to new project\". This spends money, so only the owner clicks it.", "4-cost-and-confirm.jpg"],
+        ["Tell Claude, then delete the copy.", "The copy shows in your list of projects after a few minutes. Tell Claude \"the restore is done\". Claude counts the members, workspaces, documents, gigs, agreements and messages in the copy, compares them with the live site and writes the result down. Then open the copy, click \"Project Settings\" at the bottom of the left menu, then \"General\", and click \"Delete project\" at the bottom of that page. Before you click, check that the name at the top of the page is the copy's name and not \"Lawfecta AI\"."],
+      ] },
+      { p: "How, the second way: over the live site. Five steps. Do this only with Claude in the conversation." },
+      { steps: [
+        ["Stop new writing.", "In this admin area open \"Security\" in the menu group \"Safety\" and turn on the emergency pause, so nobody saves anything while the data goes back."],
+        ["Open the scheduled backups.", "In Supabase open the project \"Lawfecta AI\", left menu \"Database\", \"Backups\", tab \"Scheduled backups\".", "", "https://supabase.com/dashboard/project/ojshgsxgsypbywtqhkch/database/backups/scheduled"],
+        ["Choose the last good backup.", "Find the last line from before the damage and click \"Restore\" on it. Read the warning: everything written after that backup is lost."],
+        ["Confirm and wait.", "Confirm. The project is offline for some minutes. Wait until it shows as healthy again, then tell Claude."],
+        ["Claude checks, then you open the site again.", "Claude checks the counts and the health address, puts back any database change that was released after the backup, and tells you what was lost. Then turn the emergency pause off."],
+      ] },
+      { terms: [
+        ["If the whole project is gone", "The copy from the first way becomes the new home. It then needs, in this order: the server function put on it again (Claude), every secret key typed in again (you), the worker that runs every minute (Claude), and the three website widgets pointed at the new address (you, with code Claude sends). Uploaded files are not in the copy."],
+        ["Back to any minute", "Supabase sells an add-on, \"Point in time\", that can go back to any minute instead of the last daily backup. It is the second tab on the Backups page. Worth turning on once real money moves every day. Your decision."],
+        ["How you would know", "The six-hour check (menu \"Jobs\") and the uptime alert tell you when something is wrong. Neither one restores anything by itself."],
+      ] },
+    ]],
   ];
 
   function guideBlock(b) {
@@ -391,7 +429,10 @@
       return h("li", null, h("i", { "aria-hidden": "true", text: String(i + 1) }), h("span", { text: t }));
     }));
     if (b.steps) return h("ol", { class: "gd-steps" }, b.steps.map(function (s, i) {
-      return h("li", null, h("i", { "aria-hidden": "true", text: String(i + 1) }), h("div", null, h("b", { text: s[0] }), h("span", { text: s[1] })));
+      // A step may carry a picture of the screen (kept with the code, under docs/images/recovery) and a link to the page
+      var link = s[3] && s[3].indexOf("https://") === 0 ? h("a", { class: "gd-link", href: s[3], target: "_blank", rel: "noopener", text: "Open this page" }) : null;
+      var pic = s[2] ? h("img", { class: "gd-img", loading: "lazy", alt: "The screen for this step: " + s[0], src: (root.getAttribute("data-base") || "") + "/docs/images/recovery/" + s[2] }) : null;
+      return h("li", null, h("i", { "aria-hidden": "true", text: String(i + 1) }), h("div", null, h("b", { text: s[0] }), h("span", { text: s[1] }), link, pic));
     }));
     if (b.terms) return h("dl", { class: "gd-terms" }, b.terms.map(function (t) {
       return h("div", null, h("dt", { text: t[0] }), h("dd", { text: t[1] }));

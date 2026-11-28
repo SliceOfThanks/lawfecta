@@ -866,6 +866,7 @@ D.openTab = function (getUrl, onFail, opts) {
     ".gd-steps{list-style:none;margin:12px 0;padding:0;display:grid;gap:10px}.gd-steps li{display:flex;gap:12px;align-items:flex-start;background:var(--soft);border-radius:14px;padding:12px 14px}" +
     ".gd-steps i,.gd-flow i{flex:none;width:28px;height:28px;border-radius:50%;background:var(--brand);color:#fff;font-style:normal;font-weight:800;font-size:14px;display:flex;align-items:center;justify-content:center}" +
     ".gd-steps b{display:block;margin-bottom:2px}.gd-steps span{line-height:1.55}" +
+    ".gd-link{display:block;margin-top:6px;font-weight:700}.gd-img{display:block;margin-top:10px;width:100%;max-width:340px;height:auto;border:1px solid var(--line,#d9dee5);border-radius:10px}" +
     ".gd-flow{list-style:none;margin:12px 0 16px;padding:0;display:flex;flex-wrap:wrap;gap:8px;align-items:center}.gd-flow li{display:flex;gap:8px;align-items:center;border:1px solid var(--line);border-radius:999px;padding:6px 14px 6px 6px;font-weight:700;font-size:14px;background:var(--card)}" +
     ".gd-flow li:last-child{background:var(--okbg);border-color:var(--okline)}" +
     ".gd-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:12px;margin:12px 0}.gd-box{border-radius:14px;padding:14px 16px;border:1px solid var(--line);background:var(--soft)}" +

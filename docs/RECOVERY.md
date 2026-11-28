@@ -1,6 +1,6 @@
 # Recovery: getting DELA's data back from a backup
 
-Written 2026-11-25 after the audit (step 93). Status: the plan and the steps are written; the first drill is waiting for Stacey to sign in to Supabase. The screenshots are added to this file during that drill, and the result goes in docs/restore-drills.md.
+Written 2026-11-25 after the audit (step 93). Status: no drill has been run. On 2026-11-27 the steps were walked through in Supabase as far as the screen that shows the cost (the pictures below), and Stacey decided not to pay for a test copy for now. The panel was cancelled; nothing was created. The same steps are in the admin area: Guide, "Getting data back from a backup". Until one drill is done, a restore is unproven.
 
 ## What is backed up, and what is not
 - **The database** (members' workspaces, documents, gigs, agreements, messages, the ledger, settings): Supabase makes a backup every day by itself. The project is on the Pro plan.
@@ -20,9 +20,17 @@ Written 2026-11-25 after the audit (step 93). Status: the plan and the steps are
 Supabase makes a **new, separate copy** of the database from a backup. The live site is not touched. The copy costs money while it exists, so it is paused or deleted after the check.
 
 The five steps:
-1. **Open the backups page.** Go to https://supabase.com/dashboard/project/ojshgsxgsypbywtqhkch/database/backups/restore-to-new-project and sign in. The page title is "Database Backups". The tab "Restore to a New Project" is the marked one.
-2. **Choose the backup.** In the list of backups, find the newest one (the top line, with today's or yesterday's date) and click the "Restore" button at the right end of that line.
-3. **Read the cost and confirm.** A panel shows the name of the new project and what it costs each month. Leave the name as offered, or type "DELA restore drill". Click the confirm button at the bottom of the panel. Only Stacey clicks this, because it spends money.
+1. **Open the backups page.** Go to https://supabase.com/dashboard/project/ojshgsxgsypbywtqhkch/database/backups/restore-to-new-project and sign in. The page title is "Database Backups". The tab "Restore to new project" is the marked one.
+
+   ![The list of backups](images/recovery/1-backups-list.jpg)
+2. **Choose the backup.** In the list of backups, find the newest one (the top line, with today's or yesterday's date) and click the "Restore" button at the right end of that line. A panel says what is copied and what is not; click "Continue".
+
+   ![The restore panel](images/recovery/2-restore-panel.jpg)
+3. **Read the cost and confirm.** A panel shows the name of the new project and what it costs each month. Type a name such as "DELA restore drill" in "New Project Name" and click "Generate a password". On 2026-11-27 the cost read 9.68 US dollars a month. Click the green button "Restore to new project" at the bottom of the panel. Only Stacey clicks this, because it spends money.
+
+   ![Name and password](images/recovery/3-name-and-password.jpg)
+
+   ![The cost and the confirm button](images/recovery/4-cost-and-confirm.jpg)
 4. **Wait, then tell Claude.** The new project shows in the list at https://supabase.com/dashboard/projects with the word "Restoring" and then a green dot. This takes a few minutes. Then write to Claude: "the restore is done".
 5. **Claude checks the copy and you remove it.** Claude counts the members, workspaces, documents, gigs, agreements, messages and ledger lines in the copy and compares them with the live site, and writes the result in docs/restore-drills.md. Then open the copy's own page, "Project Settings" at the bottom of the left menu, "General", and click "Pause project" (or "Delete project" at the bottom of that page). Check the name at the top says the copy's name, not "Lawfecta AI", before you click.
 

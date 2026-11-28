@@ -137,6 +137,14 @@ const OWNER = 4830, SUPPORT = 4831;
     await sql("update jobs set status = 'canceled' where kind = 'health_check' and status in ('queued', 'delayed'); select 1");
     await p.screenshot({ path: path.join(SHOTS, "93-health.png"), fullPage: true });
     await s.ctx.close();
+    // ---------- Step 93b: the Guide says when, where, how and why to get data back from a backup ----------
+    s = await open(browser, OWNER, "&tab=guide"); p = s.page;
+    const gb = await sr(p, "const b = [...r.querySelectorAll('.gd-toc button')].find((x) => x.textContent.includes('Getting data back from a backup')); if (b) b.click(); const sec = r.querySelector('#sec-g_backup'); const lists = sec ? [...sec.querySelectorAll('.gd-steps')] : []; return { toc: !!b, text: sec ? sec.textContent : '', lists: lists.map((l) => l.children.length), imgs: sec ? [...sec.querySelectorAll('img.gd-img')].map((i) => i.getAttribute('src')) : [], links: sec ? [...sec.querySelectorAll('a.gd-link')].map((a) => a.getAttribute('href') + '|' + a.getAttribute('target')) : [] };");
+    ok(gb.toc && gb.lists.join("|") === "5|5", "the Guide has the section \"Getting data back from a backup\" with two ways of five steps each");
+    ok(gb.text.includes("No restore has been tested yet") && gb.text.includes("What it costs") && gb.text.includes("Restore to new project") && gb.text.includes("Delete project") && gb.text.includes("emergency pause"), "it says why, what it costs, where to click, and that no restore has been tested yet");
+    ok(gb.imgs.length === 4 && gb.imgs.every((x) => x.includes("/docs/images/recovery/")) && gb.links.length === 2 && gb.links.every((x) => x.startsWith("https://supabase.com/dashboard/project/") && x.endsWith("|_blank")), "four steps show their screen, and two steps link to the page in Supabase in a new tab");
+    await p.screenshot({ path: path.join(SHOTS, "93b-guide-backup.png"), fullPage: true });
+    await s.ctx.close();
     s = await open(browser, SUPPORT, "&tab=jobs"); p = s.page;
     await p.waitForTimeout(1500);
     ok((await dela(p).locator("#health").count()) === 0, "a team member who is not the owner does not get the card");

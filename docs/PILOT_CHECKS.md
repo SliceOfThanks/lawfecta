@@ -258,7 +258,7 @@ How to read the "State" column:
 | 90b-5 | The website copies a member's picture from the old site when asked (auto_image_import) | Look at a moved member with a picture | Not yet | |
 | 93-1 | The three members of "Try with 3 members first" get no email at all, from the website or from DELA, for 8 days | Ask the three, or use three addresses Stacey can read | Not yet | The website's API says a create is silent unless asked; only a real create proves it |
 | 93-2 | The six-hour check emails Stacey when something is wrong | The first real problem it finds, or a key changed on purpose | Not yet | First run 2026-11-25: all good, Stripe in live mode |
-| 93-3 | A backup restored to a new copy holds the same members, documents and agreements | The restore drill, docs/restore-drills.md | Not yet | |
+| 93-3 | A backup restored to a new copy holds the same members, documents and agreements | The restore drill, docs/restore-drills.md | Not yet | Stacey 2026-11-27: not paying for a test copy for now. The steps are in the admin Guide and docs/RECOVERY.md |
 | 90a-1 | "Read the old site" reads every member of www.lawfecta.com (2,596 on 2026-11-25) and the plan table's counts add up to it | The owner clicks it with the key set (check 38) | Not yet | The stand-in sites are tested; the real old site has not been read by DELA yet |
 | 90a-2 | Plan names and prices of both sites show in the plan table | Same reading | Not yet | The website address DELA reads plans from is not proven on the real sites |
 | 90a-3 | The old site's categories match this site's by name (10 of 10 top categories do, read by hand 2026-11-25) | Same reading, card "3. Categories" | Not yet | |

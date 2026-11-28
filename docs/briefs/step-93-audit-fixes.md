@@ -62,6 +62,13 @@ The audit's verdict was "not ready" for opening DELA to the 2,600 members of the
 6. Refuse a document save that holds sensitive data, or take the data out? **Take it out and say so.** Refusing the save as you type would lose the member's work.
 7. Which parts of the audit are not in this release? **The widgets' fallback to old code** (a widget install by hand, to be planned), **who may decide a dispute** (waits for Stacey's answer), **the rewrite of CLAUDE.md** and **the security scan on the live branch** (next), and **the smaller list** (P2).
 
+## Release 93b: the recovery steps in the admin area (2026-11-27)
+Stacey, after seeing that a test restore costs money: "We won't be doing this. I'm not going to pay right now, but in dela-admin write a section step by step when, where, how and why we would need to do this."
+- No restore was run. The panel in Supabase was cancelled at the cost screen; nothing was created.
+- The admin Guide has a new last section, "Getting data back from a backup": why, what is and is not in a backup, how much can be lost, what it costs, where it is done, when to use a separate copy and when to restore over the live site, five steps for each, and what to do if the whole project is gone. Four steps show the screen as it looked on 27 November 2026.
+- It says plainly that no restore has been tested yet.
+- The same steps with the pictures: docs/RECOVERY.md.
+
 ## Success looks like
 - A member in the move's list who never signed in: a notice with "email" makes no email; the daily reminder sends nothing; after one sign-in emails work.
 - An attorney adds a freelancer to their Library as a viewer and still reads "Fiona L.".
