@@ -15,11 +15,15 @@ const RUN = Date.now() % 1000000;
 const WORKER = "test-worker-secret-audit-0123456789abcdef";
 const STRIPE_KEY = "sk_test_" + "x".repeat(24); // rules-ok: a made-up key for the stand-in Stripe
 let siteUp = true, stripeUp = true;
+// Step 93c: how many times in a row the stand-in website answers "server error" before it answers well again
+let siteHiccups = 0, siteAsked = 0;
 const asked: string[] = [];
 const fakeFetch = ((input: string | URL | Request, _init: RequestInit = {}) => {
   const url = new URL(typeof input === "string" ? input : input instanceof URL ? input.href : input.url);
   asked.push(url.hostname + url.pathname);
   if (url.hostname === "api.stripe.com") return Promise.resolve(stripeUp ? Response.json({ object: "balance" }) : Response.json({ error: { message: "Invalid API Key provided" } }, { status: 401 }));
+  if (url.hostname === "bd.test") siteAsked++;
+  if (url.hostname === "bd.test" && siteHiccups > 0) { siteHiccups--; return Promise.resolve(new Response("upstream error", { status: 500 })); }
   if (url.hostname === "bd.test") return Promise.resolve(siteUp ? Response.json({ status: "success", message: [{ user_id: "1" }] }) : Response.json({ status: "error", message: "not allowed" }, { status: 403 }));
   return Promise.resolve(new Response("{}", { status: 404 }));
 }) as typeof fetch;
@@ -164,10 +168,12 @@ Deno.test("the six-hour check: the owner only; a website that does not answer is
   assertEquals([second.ok, by(second, "Website")?.ok, by(second, "Stripe")?.ok], [false, false, false]);
   assert(codes(second).includes("site_down") && codes(second).includes("stripe_down"), JSON.stringify(second.issues));
   const mails = async (word: string) => Number((await one("select count(*) n from notifications where person_id = $1 and channel = 'email' and kind = 'health' and title like $2", [owner.id, "%" + word + "%"])).n);
-  assertEquals([await mails("website"), await mails("Stripe did not answer")], [1, 1], "the owner gets one email for each problem");
+  assertEquals([await mails("website refused"), await mails("Stripe refused")], [1, 1], "the owner gets one email for each problem, and it says the key was refused");
+  const siteBox = (second.issues as Array<Record<string, any>>).find((i) => i.code === "site_down")!;
+  assert(siteBox.body.includes("BD_API_KEY") && siteBox.body.includes("Tell Claude"), "a refused key names where the key lives: " + siteBox.body);
   // Six hours later it is still down: the same day brings no second email
   await runCheck();
-  assertEquals(await mails("website"), 1, "one email a day for a problem that stays");
+  assertEquals(await mails("website refused"), 1, "one email a day for a problem that stays");
 
   // What the database itself shows
   const job = (await one("insert into jobs (kind, payload, status, attempts, last_error, idempotency_key) values ('audit_test', '{}', 'dead', 5, 'boom', $1) returning id", ["audit-dead:" + RUN])).id;
@@ -177,6 +183,22 @@ Deno.test("the six-hour check: the owner only; a website that does not answer is
   siteUp = true; stripeUp = true;
   const back = (await runCheck()).runs[0];
   assertEquals([by(back, "Website")?.ok, by(back, "Stripe")?.ok], [true, true], "and it reads well again once they answer");
+
+  // Step 93c (check 39: one "status 500" from Brevo raised an alert). One hiccup is asked again and is no problem
+  siteHiccups = 1; siteAsked = 0;
+  const hiccup = (await runCheck()).runs[0];
+  assertEquals([by(hiccup, "Website")?.ok, siteAsked, codes(hiccup).includes("site_down")], [true, 2, false], "a server error once, then a good answer: no problem and no email");
+  // Twice in a row is a problem, and its words say the service is down, not that a key changed
+  siteHiccups = 2; siteAsked = 0;
+  const down = (await runCheck()).runs[0];
+  const box = (down.issues as Array<Record<string, any>>).find((i) => i.code === "site_down")!;
+  assertEquals([by(down, "Website")?.ok, siteAsked], [false, 2]);
+  assert(box.title === "The website did not answer" && box.body.includes("itself has a problem") && box.body.includes("Nothing for you to do now") && !box.body.includes("BD_API_KEY"), JSON.stringify(box));
+  // A refused key is not asked twice
+  siteUp = false; siteAsked = 0;
+  await runCheck();
+  assertEquals(siteAsked, 1, "a refused key is a problem at once");
+  siteUp = true;
 });
 
 Deno.test("the timer queues a check only on the live site, one for each period", async () => {

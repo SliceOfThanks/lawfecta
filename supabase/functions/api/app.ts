@@ -5061,6 +5061,23 @@ async function healthCheck(ctx: Ctx, payload: Record<string, any>): Promise<{ ok
   const checks: Array<{ name: string; ok: boolean; note: string }> = [], issues: HealthIssue[] = [];
   const line = (name: string, ok: boolean, note: string, issue?: HealthIssue) => { checks.push({ name, ok, note: note.slice(0, 300) }); if (!ok && issue) issues.push(issue); };
   const live = await setting(ctx, "environment", "staging") === "live";
+  // Step 93c (check 39): one hiccup is not a problem. A question that gets no answer or a server error is asked once
+  // more after a short wait; a refused key (401, 403) is a problem at once.
+  const soft = (status: number) => status === 0 || status === 429 || status >= 500;
+  const twice = async <T extends { ok: boolean; status?: number }>(ask: () => Promise<T>): Promise<T> => {
+    const a = await ask();
+    if (a.ok || !soft(Number(a.status ?? 0))) return a;
+    await new Promise((res) => setTimeout(res, 2000));
+    return await ask();
+  };
+  // The words of a problem say what happened and what to do: a refused key is the owner's to put right, a service that
+  // is down is not
+  const said = (what: string, status: number, error: string, secret: string, waits: string): { title: string; body: string } =>
+    status === 401 || status === 403
+      ? { title: what + " refused DELA's key", body: what + " answered \"" + error.slice(0, 120) + "\". The key was changed or lost a permission. It is the Supabase secret " + secret + ". Tell Claude, who will say exactly what to do." }
+      : soft(status)
+      ? { title: what + " did not answer", body: what + " itself has a problem: it did not answer twice in a row (" + (error.slice(0, 80) || "no answer") + "). Nothing for you to do now: " + waits + " If this email comes again tomorrow, tell Claude." }
+      : { title: what + " gave an answer DELA did not expect", body: what + " answered \"" + error.slice(0, 120) + "\". Tell Claude." };
   // 1. The database
   const db = await rpc<HealthIssue[]>(ctx, "dela_health_db", {}).catch(() => null);
   if (!db) line("Database", false, "The check of the database did not run.", { code: "db_check", title: "The check of the database did not run", body: "Ask Claude to read the function logs." });
@@ -5072,8 +5089,9 @@ async function healthCheck(ctx: Ctx, payload: Record<string, any>): Promise<{ ok
   else if (mode === "live" && !liveOn) line("Stripe", false, "A live key is set and the real money switch is off.", { code: "stripe_live_key_off", once: true, title: "A live Stripe key is set, but the real money switch is off", body: "DELA refuses a live key while the switch \"Real money through Stripe\" is off, so nobody can pay. Turn the switch on, or put the test key back." });
   else {
     if (mode === "test" && liveOn && live) line("Stripe mode", false, "Test key while real payments are switched on.", { code: "stripe_test_key", once: true, title: "Stripe is in test mode while real payments are switched on", body: "Attorneys can go through checkout and no real money moves. Put the live key in Supabase (secret STRIPE_SECRET_KEY), or turn the switch \"Real money through Stripe\" off until you are ready." });
-    const b = await stripe(f(ctx), key, "GET", "/balance");
-    line("Stripe", b.ok, b.ok ? "Stripe answered, in " + mode + " mode." : "Stripe did not answer: " + b.error, { code: "stripe_down", title: "Stripe did not answer", body: "DELA asked Stripe for the balance and got: " + (b.ok ? "" : b.error) + ". If it says the key is not valid, the key in Supabase was changed or revoked. Payments wait until this is put right." });
+    const b = await twice(() => stripe(f(ctx), key, "GET", "/balance").then((x) => ({ ...x, status: x.ok ? 200 : x.status })));
+    const bs = said("Stripe", b.ok ? 200 : Number(b.status), b.ok ? "" : b.error, "STRIPE_SECRET_KEY", "payments wait and are tried again.");
+    line("Stripe", b.ok, b.ok ? "Stripe answered, in " + mode + " mode." : bs.title + ".", { code: "stripe_down", ...bs });
     if (b.ok) {
       const m = await rpc<{ refunds: Array<Record<string, any>> }>(ctx, "dela_health_money", {}).catch(() => null);
       let bad = 0, asked = 0;
@@ -5091,20 +5109,25 @@ async function healthCheck(ctx: Ctx, payload: Record<string, any>): Promise<{ ok
   const site = await setting(ctx, "site.url", ""), bdKey = ctx.deps.env("BD_API_KEY");
   if (!bdKey || !site) line("Website", false, "No API key or address for the website.", { code: "site_no_key", once: true, title: "DELA has no API key for the website", body: "The Supabase secret BD_API_KEY or the setting site.url is empty. Plans, profiles and the member move need it." });
   else {
-    const r = await bdList(f(ctx), site, bdKey, "/api/v2/user/get?limit=1", 1);
-    line("Website", r.ok, r.ok ? "The website's API answered." : "The website's API did not answer: " + r.error, { code: "site_down", title: "The website's API did not answer", body: "DELA could not read members from " + site + " (" + (r.ok ? "" : r.error) + "). Plans and profiles depend on it. 401 or 403 means the API key was changed or lost a permission." });
+    const r = await twice(() => bdList(f(ctx), site, bdKey, "/api/v2/user/get?limit=1", 1));
+    const rs = said("The website", r.ok ? 200 : r.status, r.ok ? "" : r.error, "BD_API_KEY", "plans and profiles are read again at the next sign-in and tonight.");
+    line("Website", r.ok, r.ok ? "The website's API answered." : rs.title + ".", { code: "site_down", ...rs });
   }
   const oldKey = ctx.deps.env("BD_OLD_API_KEY"), oldSite = await setting(ctx, "bd_old.site_url", "");
   if (oldKey && oldSite) {
-    const r = await bdList(f(ctx), oldSite, oldKey, "/api/v2/user/get?limit=1", 1);
-    line("Old website", r.ok, r.ok ? "The old website's API answered." : "The old website's API did not answer: " + r.error, { code: "old_site_down", title: "The old website's API did not answer", body: "DELA could not read members from " + oldSite + " (" + (r.ok ? "" : r.error) + "). The member move needs it." });
+    const r = await twice(() => bdList(f(ctx), oldSite, oldKey, "/api/v2/user/get?limit=1", 1));
+    const rs = said("The old website", r.ok ? 200 : r.status, r.ok ? "" : r.error, "BD_OLD_API_KEY", "only the member move needs it.");
+    line("Old website", r.ok, r.ok ? "The old website's API answered." : rs.title + ".", { code: "old_site_down", ...rs });
   }
   // 4. The email service
   const provider = await setting(ctx, "email.provider", "log");
   if (provider === "brevo") {
-    let ok = false, why = "";
-    try { const r = await f(ctx)("https://api.brevo.com/v3/account", { headers: { "api-key": ctx.deps.env("BREVO_API_KEY"), accept: "application/json" } }); ok = r.ok; why = "status " + r.status; } catch (e) { why = String((e as Error)?.message ?? e).slice(0, 80); }
-    line("Email service", ok, ok ? "Brevo answered." : "Brevo did not answer: " + why, { code: "email_down", title: "The email service did not answer", body: "Brevo refused or did not answer (" + why + "). Emails wait and are tried again. Status 401 means its key in Supabase (secret BREVO_API_KEY) was changed." });
+    const m = await twice(async () => {
+      try { const r = await f(ctx)("https://api.brevo.com/v3/account", { headers: { "api-key": ctx.deps.env("BREVO_API_KEY"), accept: "application/json" } }); return { ok: r.ok, status: r.status, error: "status " + r.status }; }
+      catch (e) { return { ok: false, status: 0, error: String((e as Error)?.message ?? e).slice(0, 80) }; }
+    });
+    const ms = said("The email service", m.ok ? 200 : m.status, m.ok ? "" : m.error, "BREVO_API_KEY", "emails wait and are sent when it is back.");
+    line("Email service", m.ok, m.ok ? "Brevo answered." : ms.title + " (" + m.error + ").", { code: "email_down", ...ms });
   } else if (provider === "log" && live) {
     line("Email service", false, "Emails are only written to the log.", { code: "email_log", once: true, title: "DELA is not sending emails", body: "The setting email.provider is \"log\", so emails are written down and not sent." });
   } else line("Email service", true, "Emails go through the website's own email.");

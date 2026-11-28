@@ -130,12 +130,18 @@ const OWNER = 4830, SUPPORT = 4831;
     await dela(p).locator("#health").waitFor({ timeout: 8000 });
     const hc = await sr(p, "const c = r.querySelector('#health'); return { head: c.querySelector('h2').textContent, text: c.textContent, btn: !!c.querySelector('#health-run') };");
     ok(hc.head.includes("Six-hour check") && hc.text.includes("Every 6 hours DELA checks Stripe, the website, the email service and its own database") && hc.btn, "the Jobs page has the card \"Six-hour check\" with what it does and a button to run it");
+    const jp = await sr(p, "return r.querySelector('.dela').textContent;");
+    ok(jp.includes("Job problems") && jp.includes("No background job has a problem.") && jp.includes("runs every 6 hours; its card is first"), "the Jobs page says which part is about background jobs and which is the six-hour check");
     const jobsBefore = Number((await sql("select count(*) n from jobs where kind = 'health_check'"))[0].n);
     await dela(p).locator("#health-run").click();
     await p.waitForTimeout(700);
     ok(Number((await sql("select count(*) n from jobs where kind = 'health_check'"))[0].n) === jobsBefore + 1 && (await dela(p).locator(".toast, [role=alert], [role=status]").allInnerTexts()).join(" ").includes("The check is running"), "\"Run the check now\" queues one check and says so");
     await sql("update jobs set status = 'canceled' where kind = 'health_check' and status in ('queued', 'delayed'); select 1");
     await p.screenshot({ path: path.join(SHOTS, "93-health.png"), fullPage: true });
+    await p.setViewportSize({ width: 700, height: 900 });
+    await p.waitForTimeout(300);
+    await p.screenshot({ path: path.join(SHOTS, "93c-jobs-narrow.png") });
+    await p.setViewportSize({ width: 1400, height: 950 });
     await s.ctx.close();
     // ---------- Step 93b: the Guide says when, where, how and why to get data back from a backup ----------
     s = await open(browser, OWNER, "&tab=guide"); p = s.page;

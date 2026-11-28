@@ -69,6 +69,13 @@ Stacey, after seeing that a test restore costs money: "We won't be doing this. I
 - It says plainly that no restore has been tested yet.
 - The same steps with the pictures: docs/RECOVERY.md.
 
+## Release 93c: from the report of check 39 (2026-11-27)
+Check 39 passed on every step. Its review of the Jobs page found three unclear things, fixed here:
+- One "status 500" from Brevo at 4:00 PM raised an alert, and an hour later Brevo answered. The check now asks a service a second time before calling it a problem. A refused key (401 or 403) is still a problem at once.
+- The box under a problem explained a changed key when the service was simply down. The words now follow what happened: a refused key names the key and says to tell Claude; a service that is down says there is nothing to do now and what waits.
+- "No problems." under a check that said "1 to look at". The card is now "Job problems" and reads "No background job has a problem.", and the page's first sentence names both rhythms: jobs every minute, the check every 6 hours.
+- The top bar cut off at a narrow width: not reproduced in the browser test at 700 pixels wide (picture 93c-jobs-narrow.png shows nothing cut). Left as it is.
+
 ## Success looks like
 - A member in the move's list who never signed in: a notice with "email" makes no email; the daily reminder sends nothing; after one sign-in emails work.
 - An attorney adds a freelancer to their Library as a viewer and still reads "Fiona L.".

@@ -1298,15 +1298,15 @@
   function jobs() {
     api.get("/admin/jobs").then(function (r) {
       var c = r.data.counts || {};
-      body(h("div", null, pageHead("Jobs", "jobs"), h("p", { class: "muted", text: "Background work such as emails and reminders. The worker runs every minute and retries problems with growing waits." }),
+      body(h("div", null, pageHead("Jobs", "jobs"), h("p", { class: "muted", text: "Two things run by themselves. Background jobs, such as emails and reminders, run every minute and are tried again with growing waits when one fails. The check of Stripe, the website and the email service runs every 6 hours; its card is first." }),
         h("div", { class: "grid" }, Object.keys(c).map(function (k) {
           var t = tipPair("job_" + k);
           return h("div", { class: "tile col" }, h("div", { class: "muted small" }, k, t[0] ? " " : null, t[0]), h("div", { class: "stat", text: String(c[k]) }), t[1]);
         })),
         h("div", { id: "health-card" }),
-        h("div", { class: "card scroll" }, titled("h2", "Problems", "jobs_problems"), r.data.recent_problems.length ? h("table", null, h("tbody", null, r.data.recent_problems.map(function (j) {
+        h("div", { class: "card scroll" }, titled("h2", "Job problems", "jobs_problems"), r.data.recent_problems.length ? h("table", null, h("tbody", null, r.data.recent_problems.map(function (j) {
           return h("tr", null, h("td", { text: j.kind }), h("td", { text: j.status }), h("td", { text: "Tries: " + j.attempts }), h("td", { class: "small", text: j.last_error }), h("td", { text: D.dateTime(j.updated_at) }));
-        }))) : h("p", { class: "muted", text: "No problems." }))));
+        }))) : h("p", { class: "muted", text: "No background job has a problem." }))));
       healthCard();
     }).catch(fail);
   }
@@ -2591,7 +2591,7 @@
     ai_refused: "Files DELA did not keep, with the reason. These are deleted from storage straight away.",
     jobs: "Background work DELA does on its own, such as sending emails, reminders and the daily summary. It runs every minute and retries problems with longer waits.",
     health: "DELA asks Stripe, the website and the email service whether they answer, asks Stripe how recent refunds ended, and looks in its own database for failed jobs, emails, payments, payouts and refunds. Change how often in Settings, \"Hours between two checks\".",
-    jobs_problems: "Jobs that are waiting to retry (delayed), failed for good (dead) or failed once. The last error says why. Dead jobs count in Problems, last 24 hours on Release Control.",
+    jobs_problems: "About background jobs only, not about the six-hour check above. Jobs that are waiting to retry (delayed), failed for good (dead) or failed once. The last error says why. Dead jobs count in Problems, last 24 hours on Release Control.",
     job_queued: "Waiting for the next minute's run.",
     job_running: "Being done right now.",
     job_succeeded: "Done.",
